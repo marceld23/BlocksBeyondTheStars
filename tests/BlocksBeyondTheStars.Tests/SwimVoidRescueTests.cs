@@ -224,10 +224,12 @@ public sealed class SwimVoidRescueTests : IDisposable
         }
     }
 
-    /// <summary>Water lost its Solid flag, but NPC line-of-sight must keep treating a body of water as an
-    /// occluder — no aggro through a lake (the pre-fix behaviour, preserved on purpose).</summary>
+    /// <summary>Water lost its Solid flag, and since #1698 it no longer walls sight off either — it EATS it.
+    /// A body of water still hides what is behind it (no aggro across a lake, the rule this test was written
+    /// for), but a thin pane of it does not: breaking on the first cell meant a player swimming in her own
+    /// moat could not hit an animal three blocks away, because every cell between them was water.</summary>
     [Fact]
-    public void LineOfSight_IsStillBlockedByWater()
+    public void LineOfSight_IsBrokenByABodyOfWater_ButNotByAThinPane()
     {
         var server = Started("waterlos", out var repo);
         using (repo)
@@ -236,19 +238,30 @@ public sealed class SwimVoidRescueTests : IDisposable
             pilot.State.AboardShip = false;
 
             var at = pilot.State.Position;
-            var open = new Vector3f(at.X, at.Y + 40f, at.Z); // clear air, so only our wall can occlude
+            var open = new Vector3f(at.X, at.Y + 40f, at.Z); // clear air, so only our water can occlude
             var target = new Vector3f(open.X + 4f, open.Y, open.Z);
             Assert.True(server.HasLineOfSightForTest(open, target), "baseline: nothing between them yet");
 
             var water = _content.GetBlock("water")!.NumericId;
-            int wallX = (int)Math.Floor(open.X) + 2;
-            for (int dy = 0; dy <= 4; dy++)
-                for (int dz = -1; dz <= 1; dz++)
-                {
-                    server.World.SetBlock(new Vector3i(wallX, (int)Math.Floor(open.Y) + dy, (int)Math.Floor(open.Z) + dz), water);
-                }
+            int baseX = (int)Math.Floor(open.X), baseY = (int)Math.Floor(open.Y), baseZ = (int)Math.Floor(open.Z);
+            void Flood(int fromDx, int toDx)
+            {
+                for (int dx = fromDx; dx <= toDx; dx++)
+                    for (int dy = 0; dy <= 4; dy++)
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            server.World.SetBlock(new Vector3i(baseX + dx, baseY + dy, baseZ + dz), water);
+                        }
+            }
 
-            Assert.False(server.HasLineOfSightForTest(open, target), "a wall of water must still break the sightline");
+            // One column of water between them: murky, still see-through — this is the fight-in-the-water case.
+            Flood(2, 2);
+            Assert.True(server.HasLineOfSightForTest(open, target), "a single pane of water must not break the sightline");
+
+            // A real body of it does close the line, which is what the rule was protecting all along.
+            Flood(0, 30);
+            Assert.False(server.HasLineOfSightForTest(open, new Vector3f(open.X + 30f, open.Y, open.Z)),
+                "a whole lake must still break the sightline");
         }
     }
 }

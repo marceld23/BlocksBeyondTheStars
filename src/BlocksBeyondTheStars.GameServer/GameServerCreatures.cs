@@ -1343,12 +1343,36 @@ public sealed partial class GameServer
     public (int Top, int Bed)? WaterSurfaceForTest(int x, int z)
         => _generator.TryGetWaterSurface(_world.Planet, x, z, out int top, out int bed) ? (top, bed) : null;
 
-    /// <summary>The generator's water depth in a column, but only when that water actually reaches the
-    /// creature's feet: a real floor built ABOVE a pond (a bridge, a floating platform, a filled-in shore)
-    /// is dry ground, not a swim — the old gate read the pond underneath and walled the animal at the
-    /// first column over water.</summary>
+    /// <summary>How far up or down a column a fluid body is followed. Deeper than any hand-dug moat and past
+    /// the wide ground scan, so a real body is measured whole rather than clipped.</summary>
+    private const int FluidColumnScan = 32;
+
+    /// <summary>The water standing on a creature's feet, read from REAL blocks (#1697): how many water cells
+    /// are stacked from the feet cell upward. 0 = dry ground, or a floor built ABOVE a pond (a bridge, a
+    /// floating platform, a filled-in shore) — that is dry ground, not a swim.
+    ///
+    /// <para>This used to ask the GENERATOR (<c>TryGetWaterSurface</c>), which knows only the water the world
+    /// was born with. A moat the player digs and floods by hand answered depth 0, so the walker gate
+    /// (<c>nextWaterDepth &gt; 1</c>) never fired and land animals strolled across a flooded trench — while
+    /// the lava gate right beside it, reading real blocks since #1367, held them back. That asymmetry was the
+    /// bug: ground heights moved onto real blocks in #650, water depth never followed.</para>
+    ///
+    /// <para>The generator remains the answer for a column whose chunk is not streamed in: there are no real
+    /// blocks to read there, and the old behaviour is the safe one.</para></summary>
     private int WaterDepthAtFeet(int x, int z, int feetY)
     {
+        if (_creatureWaterId != 0 && _world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, feetY, z))))
+        {
+            int depth = 0;
+            while (depth < FluidColumnScan
+                   && _world.GetBlockIfLoaded(new Vector3i(x, feetY + depth, z)).Value == _creatureWaterId)
+            {
+                depth++;
+            }
+
+            return depth;
+        }
+
         if (!_generator.TryGetWaterSurface(_world.Planet, x, z, out int top, out int bed))
         {
             return 0;
@@ -1357,10 +1381,101 @@ public sealed partial class GameServer
         return top >= feetY - 1 ? top - bed : 0;
     }
 
+    /// <summary>The top cell of the fluid body filling this column at <paramref name="fromY"/>, or
+    /// <see cref="int.MinValue"/> when that cell holds no fluid. Real blocks, no-load reads.</summary>
+    private int FluidTopAt(int x, int z, int fromY)
+    {
+        if (!IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, fromY, z)).Value))
+        {
+            return int.MinValue;
+        }
+
+        int top = fromY;
+        while (top - fromY < FluidColumnScan && IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, top + 1, z)).Value))
+        {
+            top++;
+        }
+
+        return top;
+    }
+
+    /// <summary>The feet cell on the BED of a fluid body — the submerged floor a body sinking through the
+    /// column would come to rest on (#1697) — or <see cref="int.MinValue"/> when the column holds no fluid
+    /// body standing on real ground within <paramref name="maxScan"/>.
+    ///
+    /// <para>Needed because <see cref="StandableAt"/> can never accept a submerged cell: a fluid counts as
+    /// colliding for a body, so every cell inside the water fails the headroom test, the probe gave up, and
+    /// the caller then answered with the generator's PRE-EXCAVATION surface — which for a moat dug into the
+    /// terrain and filled flush is exactly the waterline. That is what let animals walk on water. The bed is
+    /// the honest answer; whether the animal may go in at all is the water-depth gate's decision, not the
+    /// probe's.</para></summary>
+    private int SubmergedFeetYAt(int x, int z, int refY, int maxScan)
+    {
+        int start = refY;
+        if (!IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, start, z)).Value))
+        {
+            // The reference sits above the surface (a walker on the bank looking into the moat): find the
+            // body below it, but never past real ground — a pond under a floor is not this column's answer.
+            int found = int.MinValue;
+            for (int r = 1; r <= maxScan; r++)
+            {
+                if (IsSupportCell(x, start - r, z))
+                {
+                    break;
+                }
+
+                if (IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, start - r, z)).Value))
+                {
+                    found = start - r;
+                    break;
+                }
+            }
+
+            if (found == int.MinValue)
+            {
+                return int.MinValue;
+            }
+
+            start = found;
+        }
+
+        for (int y = start; y > start - maxScan; y--)
+        {
+            if (IsSupportCell(x, y - 1, z))
+            {
+                return y; // feet on the bed
+            }
+
+            if (!IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, y - 1, z)).Value))
+            {
+                return int.MinValue; // an air pocket under the water — not a bed this probe can vouch for
+            }
+        }
+
+        return int.MinValue;
+    }
+
+    /// <summary>The Y an AIRBORNE creature measures its altitude band from (#1697): the surface of the fluid
+    /// filling the column when there is one, otherwise the ground feet cell. "The ground" under a pond is its
+    /// bed, and an animal that measures its band from the bed floats INSIDE the water — a player found one of
+    /// her flying creatures asleep below the surface of her moat. What a flier would come down onto is the
+    /// water, so that is what the band is measured from.</summary>
+    private int RestSurfaceYAt(int x, int z, int refY)
+    {
+        if (TryGroundFeetYAt(x, z, refY, out int feet))
+        {
+            return feet; // dry standable ground — a probe hit never lands inside a fluid
+        }
+
+        int bed = SubmergedFeetYAt(x, z, refY, CreatureWideGroundScan);
+        int top = bed != int.MinValue ? FluidTopAt(x, z, bed) : int.MinValue;
+        return top != int.MinValue ? top + 1 : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+    }
+
     /// <summary>The feet cell a ground mover of this species stands on in a column, nearest to
-    /// <paramref name="refY"/>: real blocks first (#650); a cave dweller with no standable cell near its depth
-    /// holds that depth (it never pops up to the noise surface); everyone else falls back to the generator
-    /// surface for unloaded columns.</summary>
+    /// <paramref name="refY"/>: real blocks first (#650), then the bed of a fluid body (#1697); a cave dweller
+    /// with no standable cell near its depth holds that depth (it never pops up to the noise surface);
+    /// everyone else falls back to the generator surface for unloaded columns.</summary>
     private int GroundFeetFor(CreatureSpecies sp, int x, int z, int refY)
     {
         // Species-aware headroom + the wide real-ground scan (#1320), so a titan never "stands" in a two-cell
@@ -1368,6 +1483,16 @@ public sealed partial class GameServer
         if (TryGroundFeetYAt(x, z, refY, CreatureHeadroom(sp), CreatureWideGroundScan, out int feet))
         {
             return feet;
+        }
+
+        // #1697: a flooded column has no DRY standable cell — every cell inside the water fails the headroom
+        // test — but its bed is real ground. Answering the noise surface here handed back the height the
+        // column had BEFORE it was dug out, i.e. the waterline of a hand-filled moat, and the animal walked
+        // across it. The bed keeps the step deltas honest; the water-depth gate does the deciding.
+        int bed = SubmergedFeetYAt(x, z, refY, CreatureWideGroundScan);
+        if (bed != int.MinValue)
+        {
+            return bed;
         }
 
         return sp.Habitat == CreatureHabitat.Cave ? refY : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
@@ -1749,7 +1874,8 @@ public sealed partial class GameServer
         {
             case CreatureHabitat.Air:
                 float hover = sp.HoverAltitude > 0f ? sp.HoverAltitude : CreatureFlyAltitude;
-                return new Vector3f(p.X, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y - hover)) + hover, p.Z);
+                // #1697: over a pond the band is measured from the water, not from the bed underneath it.
+                return new Vector3f(p.X, RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y - hover)) + hover, p.Z);
             case CreatureHabitat.Water:
                 return new Vector3f(p.X, WaterColumnY(x, z, 0f, surface), p.Z);
             case CreatureHabitat.Lava:
@@ -1790,9 +1916,12 @@ public sealed partial class GameServer
                     // Buoyant (Q5): never lands, never sinks — asleep it simply holds its band. The target eases
                     // slowly, so a gas sac visibly lags the terrain instead of contour-tracing it.
                     c.Vert.Airborne = false;
+                    // #1697: the band rides on what the creature would come down onto — the surface of a
+                    // fluid body when the column holds one, the ground otherwise. Measuring from the BED
+                    // parked gas sacs and sleeping fliers inside a player's water moat.
                     float baseY = sp.Habitat == CreatureHabitat.Air
-                        ? GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y - HoverOf(sp))) + HoverOf(sp)
-                        : GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y)) + LandHovererHeight;
+                        ? RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y - HoverOf(sp))) + HoverOf(sp)
+                        : RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y)) + LandHovererHeight;
                     float target = baseY + prof.VertAmp * vertWave;
                     return new Vector3f(p.X, VerticalMotion.Ease(p.Y, target, dt, HovererEaseRate, 24f), p.Z);
                 }
@@ -1854,7 +1983,8 @@ public sealed partial class GameServer
     {
         int x = (int)System.Math.Floor(p.X), z = (int)System.Math.Floor(p.Z);
         float hover = HoverOf(sp);
-        float airTarget = GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y - hover)) + hover + prof.VertAmp * vertWave;
+        // #1697: over water the cruise band rides on the SURFACE, not on the bed under it.
+        float airTarget = RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y - hover)) + hover + prof.VertAmp * vertWave;
         bool mustFly = intent is MoveMode.Seek or MoveMode.Flee || c.PanicTimer > 0 || c.ProvokeTimer > 0;
         bool wantsDown = !mustFly && (asleep || c.Loco.Mode == MoveMode.Pause);
         ref var v = ref c.Vert;
@@ -1888,7 +2018,7 @@ public sealed partial class GameServer
                 // landed there it takes off again (#1332 as decided, #1367): a bird whose branch went does not
                 // simply sit on the ground below; it flushes and looks for a perch afresh.
                 bool wasAirborne = v.Airborne;
-                float sit = VerticalMotion.Ground(ref v, p.Y, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y)),
+                float sit = VerticalMotion.Ground(ref v, p.Y, RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y)),
                     VerticalMotion.Gravity(_gravityFactor), dt);
                 if (wasAirborne && !v.Airborne)
                 {
@@ -1938,24 +2068,48 @@ public sealed partial class GameServer
             return false;
         }
 
+        // #1697: a dry standable cell with water standing on it is no perch — a shallow pool over a real
+        // floor passes the probe, and the bird was then set down under the surface. Nothing perches in a puddle.
+        if (FluidTopAt(x, z, feet) != int.MinValue)
+        {
+            return false;
+        }
+
         perchY = feet;
         return true;
     }
 
-    /// <summary>The Y inside a column's LOCAL water body (sea or upland pond — not just the global sea level,
-    /// so swimmers stay in the lakes they spawned in): porpoising on the creature's own wave, clamped to the
-    /// column (shallow water just keeps them low). A dry column rests on the bed (or holds
-    /// <paramref name="holdY"/> when given — an amphibian in a player-made pool the generator knows nothing about).</summary>
+    /// <summary>The Y inside a column's LOCAL water body (sea, upland pond, or a pool the PLAYER built —
+    /// not just the global sea level, so swimmers stay in the water they spawned in): porpoising on the
+    /// creature's own wave, clamped to the column (shallow water just keeps them low). A dry column rests on
+    /// the bed (or holds <paramref name="holdY"/> when given — an amphibian ashore).
+    ///
+    /// <para>#1697: real blocks first. The generator only knows the water the world was born with, so a
+    /// swimmer in a hand-dug pool snapped to the noise surface — the pre-excavation ground — instead of
+    /// porpoising in the water it was standing in.</para></summary>
     private float WaterColumnY(int x, int z, float vertWave, int surface, float? holdY = null)
     {
-        if (_generator.TryGetWaterSurface(_world.Planet, x, z, out int waterTopY, out int seabedY)
-            && waterTopY > seabedY + 1)
+        int waterTopY = int.MinValue, seabedY = int.MinValue;
+        int bedFeet = SubmergedFeetYAt(x, z, (int)System.Math.Round(holdY ?? surface + 1f), FluidColumnScan);
+        if (bedFeet != int.MinValue)
         {
-            float lo = seabedY + 1f, hi = waterTopY - 0.5f;
-            return lo + (hi - lo) * (0.5f + 0.45f * vertWave);
+            waterTopY = FluidTopAt(x, z, bedFeet);
+            seabedY = bedFeet - 1;
         }
 
-        return holdY ?? surface + 1f;
+        if (waterTopY == int.MinValue
+            && !_generator.TryGetWaterSurface(_world.Planet, x, z, out waterTopY, out seabedY))
+        {
+            return holdY ?? surface + 1f;
+        }
+
+        if (waterTopY <= seabedY + 1)
+        {
+            return holdY ?? surface + 1f; // a puddle is no column to porpoise in
+        }
+
+        float lo = seabedY + 1f, hi = waterTopY - 0.5f;
+        return lo + (hi - lo) * (0.5f + 0.45f * vertWave);
     }
 
     /// <summary>Finds a standable cave floor (an air pocket on solid ground, with headroom) in a column, scanning

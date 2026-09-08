@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -412,6 +413,7 @@ public sealed partial class GameServer
         float dist = (float)System.Math.Sqrt(dx * dx + dy * dy + dz * dz);
         int steps = System.Math.Max(1, (int)System.Math.Ceiling(dist / 0.25f));
         int px = int.MinValue, py = int.MinValue, pz = int.MinValue;
+        int fluidCells = 0;
         for (int s = 1; s < steps; s++) // skip both endpoints — the bodies themselves aren't occluders
         {
             float f = s / (float)steps;
@@ -426,7 +428,17 @@ public sealed partial class GameServer
             px = x;
             py = y;
             pz = z;
-            if (IsSightBlockingCell(x, y, z)) // fluids occlude like before water lost its Solid flag
+            var id = _world.GetBlock(new Vector3i(x, y, z)); // #1530: one read for both tests below
+            if (IsSolidBlock(id))
+            {
+                return false; // a wall stops sight on the very first cell, as it always did
+            }
+
+            // #1698: a fluid does not wall sight off, it EATS it. Water blocking outright was right for
+            // "no aggro across a lake" and wrong for everything at swimming distance: a player diving in her
+            // own moat could not hit an animal three blocks away, because every cell between the two of them
+            // was water. Now murk accumulates — a few cells of water are see-through, a lake still is not.
+            if (IsFluid(id.Value) && ++fluidCells > FluidSightRange)
             {
                 return false;
             }
@@ -434,6 +446,12 @@ public sealed partial class GameServer
 
         return true;
     }
+
+    /// <summary>How many fluid cells a sightline may cross before the murk closes it (#1698). Big enough for a
+    /// fight in a moat, a pool or the shallows — small enough that a lake or an ocean still hides what is on
+    /// the far side of it, which is what the original hard block was protecting. Shared with the client's
+    /// render-side sight mirror so a tracer is never drawn for a shot the server refused (and vice versa).</summary>
+    private const int FluidSightRange = WorldConstants.FluidSightRange;
 
     /// <summary>Test/util: expose the sightline check so the line-of-sight gating can be verified directly,
     /// without fighting the enemy/creature ground-snapping that would move a hand-placed combatant.</summary>
@@ -450,16 +468,6 @@ public sealed partial class GameServer
         int z = (int)System.Math.Floor(pos.Z);
         return IsCollidingCell(x, y, z)       // feet
             || IsCollidingCell(x, y + 1, z);  // head
-    }
-
-    /// <summary>A cell that blocks an NPC's SIGHT: solid (the plain flag — hiding in tall grass works, a
-    /// meadow occludes), or a fluid. Water/lava lost their <c>Solid</c> flag (a submerged player must not
-    /// count as entombed — see GameServerSpawnSafety), but a body of water must keep breaking the sightline
-    /// exactly as before: no aggro through a lake.</summary>
-    private bool IsSightBlockingCell(int x, int y, int z)
-    {
-        var id = _world.GetBlock(new Vector3i(x, y, z)); // #1530: one read — the clear-air sample used to read the cell twice
-        return IsSolidBlock(id) || IsFluid(id.Value);
     }
 
     /// <summary>Whether a cell is a movement-blocking solid block. Keyed on the block's <c>Solid</c> flag, not

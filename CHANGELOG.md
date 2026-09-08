@@ -27,8 +27,29 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   three new planet types (`coral_sea`, `icecap`, `river_lowlands`). Existing worlds stay exactly as they are:
   everything is gated on the world's terrain generation, and every classic golden checksum is unchanged.
 
+- **Lava and fire burn everybody now, not just you.** A player flooding a trench with lava around her base
+  put it plainly: everything that steps into the melt ought to take damage. Animals, robbers and Guardian
+  machines now burn exactly as you do — a fire moat is a real defence, not only a wall. Tame companions never
+  burn, creatures that live in lava are at home in it, and on a peaceful world nothing burns at all (#1700).
+- **Your sentry post defends you against animals too — and tells you what it needs.** It used to shoot only
+  machines and robbers, while the game's own advice said to keep one for the fliers and cave animals that
+  walls do not stop. Now it answers those as well, and never a tame animal. Put one down outside your base
+  zone and it says so straight away; scanning a post shows how far it shoots and how close to a base core it
+  has to stand (#1699).
+
 ### Fixed
 
+- **Animals no longer walk across a moat you dug yourself.** A player built a wide water trench around her
+  spaceport and watched the attacking creatures stroll over the surface of it. Water the world was born with
+  counted as water; water you place did not — so the animals were still walking on the ground that used to be
+  there before you dug. Now they stop at the bank of any water, wade through the shallow kind, and a flying
+  animal settles above the surface of a pool instead of falling asleep under it (#1697).
+- **You can fight in the water.** Shooting at anything while swimming — or at anything swimming — always
+  answered "no clear line of fire", because water blocked sight completely. Water now dims the view instead
+  of ending it: a few blocks of it are see-through, a whole lake still hides what is behind it (#1698).
+- **A wide water surface looks like one surface.** Big flat water read as a grid of blocks with hard edges,
+  and a trench that changed width could ripple in one spot and lie still in the next. Both are smoothed
+  out (#1701).
 - **A hyperjump from the cockpit really takes you to the new system.** Jumping between stars while flying
   left the old system's planets in the flight view: the landing list still offered the planets you had come
   from, and picking one jumped you straight back to the old planet. The flight view now rebuilds itself on

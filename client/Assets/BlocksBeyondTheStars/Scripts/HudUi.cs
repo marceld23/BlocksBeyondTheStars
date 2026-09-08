@@ -2135,7 +2135,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (!show) return;
             _scanSubject.text = $"{loc.Get("ui.scan.title").ToUpperInvariant()}: {ScanSubjectName(loc, scan.Subject)}";
-            _scanInfo.text = ScanInfoText(loc, scan) + ScanToolLine(loc, scan);
+            _scanInfo.text = ScanInfoText(loc, scan) + ScanToolLine(loc, scan) + ScanSentryLine(loc, scan);
             // The threat WORD comes from a locale key now; `scan.Threat` is the legacy English fallback (#484).
             string threat = !string.IsNullOrEmpty(scan.ThreatKey) ? loc.Get(scan.ThreatKey) : scan.Threat;
             _scanThreat.gameObject.SetActive(!string.IsNullOrEmpty(threat) && threat != "—");
@@ -2221,6 +2221,19 @@ namespace BlocksBeyondTheStars.Client
             var wanted = BlocksBeyondTheStars.Shared.Content.MiningRules.CheapestToolFor(content, block);
             return wanted is null ? string.Empty : $"\n{loc.Get("ui.scan.tool")}: {loc.Get(wanted.NameKey)}";
         }
+
+        /// <summary>The two numbers a scanned SENTRY POST is asked about (#1699): how far it shoots, and how
+        /// close to a base core it has to stand to work at all. A player who lined a long perimeter wall with
+        /// posts had no way of learning that everything outside the eight-block base zone is decoration — the
+        /// item text said "place it inside your own base" and named no distance. Only for this one block, so
+        /// the readout stays a datasheet rather than a wall of caveats.</summary>
+        private string ScanSentryLine(BlocksBeyondTheStars.Shared.Localization.Localizer loc,
+            BlocksBeyondTheStars.Networking.Messages.ScanResult scan)
+            => scan.Subject == "sentry_post"
+                ? "\n" + loc.Get("ui.scan.sentry")
+                    .Replace("{range}", BlocksBeyondTheStars.Shared.World.WorldConstants.SentryRange.ToString())
+                    .Replace("{zone}", BlocksBeyondTheStars.Shared.World.WorldConstants.BaseZoneRadius.ToString())
+                : string.Empty;
 
         /// <summary>Localized name for an item key, falling back to the block table (drop lists mix both).</summary>
         private string ItemOrBlockName(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string key)

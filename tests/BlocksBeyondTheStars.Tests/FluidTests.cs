@@ -26,11 +26,12 @@ public sealed class FluidTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private SvGameServer Started(out SqliteWorldRepository repo)
+    private SvGameServer Started(out SqliteWorldRepository repo, System.Action<ServerConfig>? configure = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, "fluid"));
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig { WorldName = "fluid", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        configure?.Invoke(config);
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;
@@ -410,6 +411,118 @@ public sealed class FluidTests : IDisposable
 
             Assert.Equal(basalt, server.World.GetBlock(gap).Value); // the entering flow, not the source, solidified
             Assert.Equal(water, server.World.GetBlock(pond).Value);
+        }
+    }
+
+    // ---------------- lava and fire burn everybody, not just the player (#1700) ----------------
+
+    /// <summary>Stands a creature in a pool of lava, so each burn test differs only in the one thing it is
+    /// about.</summary>
+    private string LavaBathedCreature(SvGameServer server, out Vector3f at)
+    {
+        var lava = _content.GetBlock("lava")!.NumericId;
+        var stone = _content.GetBlock("stone")!.NumericId;
+        int y = 300;
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                server.World.SetBlock(new Vector3i(dx, y - 1, dz), stone);
+                server.World.SetBlock(new Vector3i(dx, y, dz), lava);
+            }
+
+        at = new Vector3f(0.5f, y + 0.5f, 0.5f);
+        return server.SpawnCreatureAtForTest(at);
+    }
+
+    /// <summary>The request this came from: a player flooding a trench with lava around her base, saying
+    /// "everything that steps into the lava ought to take damage". It did not — contact damage lived in the
+    /// player tick alone, and animals waded the melt untouched.</summary>
+    [Fact]
+    public void AnAnimalStandingInLava_BurnsAndDies()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            string id = LavaBathedCreature(server, out var at);
+            var beast = server.Creatures.First(c => c.Id == id);
+            beast.Position = at;
+            float full = beast.Hull;
+
+            server.TickBurningForTest(0.5f);
+            Assert.True(beast.Hull < full, "lava should have hurt the animal");
+
+            for (int i = 0; i < 40 && server.Creatures.Any(c => c.Id == id); i++)
+            {
+                foreach (var c in server.Creatures) { c.Position = at; } // it does not get to walk out of the test
+                server.TickBurningForTest(0.5f);
+            }
+
+            Assert.DoesNotContain(server.Creatures, c => c.Id == id);
+        }
+    }
+
+    /// <summary>A tamed companion follows its owner everywhere, including places it should not go — it must
+    /// never burn to death for it.</summary>
+    [Fact]
+    public void ATamedCompanionInLava_DoesNotBurn()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Keeper");
+            string id = LavaBathedCreature(server, out var at);
+            var pet = server.Creatures.First(c => c.Id == id);
+            pet.Position = at;
+            pet.OwnerId = owner.State.PlayerId; // tamed: IsCompanion is derived from the owner
+            float full = pet.Hull;
+
+            server.TickBurningForTest(0.5f);
+
+            Assert.Equal(full, pet.Hull);
+        }
+    }
+
+    /// <summary>Environmental hazards off — the world option a parent sets, and what Creative implies —
+    /// spares everything, exactly as it spares the player.</summary>
+    [Fact]
+    public void WithHazardsOff_NothingBurns()
+    {
+        var server = Started(out var repo, c => c.Rules.EnvironmentalHazards = HazardLevel.Off);
+        using (repo)
+        {
+            string id = LavaBathedCreature(server, out var at);
+            var beast = server.Creatures.First(c => c.Id == id);
+            beast.Position = at;
+            float full = beast.Hull;
+
+            server.TickBurningForTest(0.5f);
+
+            Assert.Equal(full, beast.Hull);
+        }
+    }
+
+    /// <summary>Machines burn too — a Guardian robot funnelled into a lava trench is not immune.</summary>
+    [Fact]
+    public void AGuardianMachineInLava_Burns()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var lava = _content.GetBlock("lava")!.NumericId;
+            var stone = _content.GetBlock("stone")!.NumericId;
+            int y = 300;
+            server.World.SetBlock(new Vector3i(0, y - 1, 0), stone);
+            server.World.SetBlock(new Vector3i(0, y, 0), lava);
+
+            var at = new Vector3f(0.5f, y + 0.5f, 0.5f);
+            server.SpawnPlanetEnemyAtForTest(at);
+            var machine = server.PlanetEnemies.Single();
+            machine.Position = at;
+            float full = machine.Hull;
+
+            server.TickBurningForTest(0.5f);
+
+            Assert.True(machine.Hull < full, "a machine standing in lava should burn like everything else");
         }
     }
 

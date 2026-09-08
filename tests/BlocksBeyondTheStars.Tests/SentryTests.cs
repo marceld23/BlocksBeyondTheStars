@@ -343,4 +343,104 @@ public sealed class SentryTests : IDisposable
             Assert.Equal(full, server.PlanetEnemies.Single().Hull);
         }
     }
+
+    // ---------------- it answers hostile WILDLIFE too (#1699) ----------------
+
+    /// <summary>The game's own advice (<c>vega.hint.base_walls</c>) tells the player that walls stop ground
+    /// animals and that a sentry post answers the fliers and cave dwellers walls do not stop. Until #1699 the
+    /// target search walked the machines and the bandits and nothing else, so a player who fortified against
+    /// attacking wildlife got a turret that watched them come.</summary>
+    [Fact]
+    public void ASentry_ShootsAHostileAnimal_AndFinishesIt()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            FoundBaseWithSentry(server, owner, out var sentry);
+
+            string id = server.SpawnCreatureAtForTest(Near(sentry, 4f));
+            var beast = server.Creatures.Single(c => c.Id == id);
+            beast.Hostile = true;
+            float full = beast.Hull;
+
+            server.TickSentriesForTest();
+            Assert.True(beast.Hull < full, "the sentry should have hit the hostile animal");
+
+            for (int i = 0; i < 60 && server.Creatures.Any(c => c.Id == id); i++)
+            {
+                server.TickSentriesForTest();
+            }
+
+            Assert.DoesNotContain(server.Creatures, c => c.Id == id);
+        }
+    }
+
+    [Fact]
+    public void ASentry_LeavesAPeacefulAnimalAlone()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            FoundBaseWithSentry(server, owner, out var sentry);
+
+            string id = server.SpawnCreatureAtForTest(Near(sentry, 3f));
+            var grazer = server.Creatures.Single(c => c.Id == id);
+            grazer.Hostile = false;
+            grazer.ProvokeTimer = 0f;
+            float full = grazer.Hull;
+
+            server.TickSentriesForTest();
+
+            Assert.Equal(full, grazer.Hull);
+        }
+    }
+
+    /// <summary>A tamed companion follows its owner into the base; the turret must never turn on it, hostile
+    /// species or not.</summary>
+    [Fact]
+    public void ASentry_NeverShootsATamedCompanion()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            FoundBaseWithSentry(server, owner, out var sentry);
+
+            string id = server.SpawnCreatureAtForTest(Near(sentry, 3f));
+            var pet = server.Creatures.Single(c => c.Id == id);
+            pet.Hostile = true;
+            pet.OwnerId = owner.State.PlayerId; // tamed: IsCompanion is derived from the owner
+            float full = pet.Hull;
+
+            server.TickSentriesForTest();
+
+            Assert.Equal(full, pet.Hull);
+        }
+    }
+
+    [Fact]
+    public void ASentry_IgnoresAHostileAnimalOutOfRange()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            FoundBaseWithSentry(server, owner, out var sentry);
+
+            string id = server.SpawnCreatureAtForTest(Near(sentry, 40f)); // well beyond the 14-block reach
+            var beast = server.Creatures.Single(c => c.Id == id);
+            beast.Hostile = true;
+            float full = beast.Hull;
+
+            server.TickSentriesForTest();
+
+            Assert.Equal(full, beast.Hull);
+        }
+    }
 }

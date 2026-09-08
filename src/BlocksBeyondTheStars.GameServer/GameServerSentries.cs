@@ -29,8 +29,9 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>Blocks the sentry can reach. Short on purpose: it defends the base, it does not clear the
-    /// neighbourhood, and a player still has to deal with anything that keeps its distance.</summary>
-    private const float SentryRange = 14f;
+    /// neighbourhood, and a player still has to deal with anything that keeps its distance. The number lives
+    /// in <see cref="WorldConstants"/> since #1699 — the scan readout quotes it to the player.</summary>
+    private const float SentryRange = WorldConstants.SentryRange;
 
     /// <summary>Hull removed per shot. A planet drone takes a handful of these — enough to matter next to a
     /// player's own weapon, not enough to make the player a spectator at their own base.</summary>
@@ -69,6 +70,7 @@ public sealed partial class GameServer
         }
 
         bool enemiesChanged = false;
+        bool creaturesChanged = false;
         foreach (var b in _bases)
         {
             if (b.Planet != _world.LocationId || !OwnerIsHome(b))
@@ -84,13 +86,20 @@ public sealed partial class GameServer
 
             foreach (var cell in _sentryCells[b.Id])
             {
-                enemiesChanged |= FireSentry(cell, b);
+                var (enemies, creatures) = FireSentry(cell, b);
+                enemiesChanged |= enemies;
+                creaturesChanged |= creatures;
             }
         }
 
         if (enemiesChanged)
         {
             BroadcastPlanetEnemies();
+        }
+
+        if (creaturesChanged)
+        {
+            BroadcastCreatures(); // #1699: a shot animal's health bar and its death need the creature wire
         }
     }
 
@@ -129,29 +138,41 @@ public sealed partial class GameServer
     /// <summary>One sentry's shot. Returns true when a planet enemy's state changed, so the caller can
     /// broadcast once for the whole pass rather than once per shot. <paramref name="home"/> is the base the
     /// sentry belongs to — its owner is the person a kill is credited to.</summary>
-    private bool FireSentry(Vector3i cell, ServerBase home)
+    private (bool Enemies, bool Creatures) FireSentry(Vector3i cell, ServerBase home)
     {
         var muzzle = new Vector3f(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
         if (NearestSentryTarget(muzzle) is not { } target)
         {
-            return false;
+            return (false, false);
         }
 
+        bool isCreature = _creatures.Contains(target); // #1699: animals ride the creature wire, not the enemy list
         BroadcastToWorld(new SentryShot { X = muzzle.X, Y = muzzle.Y, Z = muzzle.Z, TargetId = target.Id });
 
         target.Hull -= SentryDamage;
         if (target.Hull > 0f)
         {
-            return true;
+            if (isCreature)
+            {
+                target.AwakeOverrideTimer = CreatureWakeSeconds; // nothing sleeps through being shot at
+            }
+
+            return (!isCreature, isCreature);
         }
 
         KillBySentry(target, cell, home);
-        return true;
+        return (!isCreature, isCreature);
     }
 
-    /// <summary>The closest hostile a sentry may shoot: a Guardian machine, or a bandit that has already
-    /// committed to a fight. Bandits still walking up or making demands are left alone — the hold-up is a
-    /// conversation the player gets to answer first (#1043) — and so is anything that is leaving.</summary>
+    /// <summary>The closest hostile a sentry may shoot: a Guardian machine, a <b>hostile animal</b> (#1699),
+    /// or a bandit that has already committed to a fight. Bandits still walking up or making demands are left
+    /// alone — the hold-up is a conversation the player gets to answer first (#1043) — and so is anything that
+    /// is leaving.
+    ///
+    /// <para>Wildlife was missing here, while the game's own advice (<c>vega.hint.base_walls</c>) told the
+    /// player that walls keep the ground animals out and that "for fliers and cave dwellers you still need
+    /// the sentry post". They were never targets: the search walked the machines and the bandits and nothing
+    /// else, so a player who fortified against attacking animals got a turret that watched them come.</para></summary>
     private CombatEntity? NearestSentryTarget(Vector3f muzzle)
     {
         CombatEntity? best = null;
@@ -187,8 +208,30 @@ public sealed partial class GameServer
             }
         }
 
+        foreach (var c in _creatures)
+        {
+            if (!SentryMayShootCreature(c))
+            {
+                continue;
+            }
+
+            double d = WrapDistSq(c.Position, muzzle);
+            if (d <= bestDistSq && HasLineOfSight(c.Position, muzzle))
+            {
+                best = c;
+                bestDistSq = d;
+            }
+        }
+
         return best;
     }
+
+    /// <summary>An animal the sentry is allowed to shoot (#1699): one that is actually a threat — a hostile
+    /// species, or any creature the player has provoked into hunting them — and never a tamed companion.
+    /// This is the same rule the client paints red on the health bar, so the turret shoots exactly what the
+    /// player already reads as dangerous.</summary>
+    private static bool SentryMayShootCreature(CombatEntity c)
+        => !c.IsCompanion && (c.Hostile || c.ProvokeTimer > 0);
 
     /// <summary>A bandit the sentry is allowed to shoot: one that is actually fighting. Approach and
     /// Demanding are the talk phases, Leaving is someone walking away.</summary>
@@ -205,11 +248,22 @@ public sealed partial class GameServer
     /// <see cref="OwnerIsHome"/> only proves they are joined; the session object is what the credit needs.</summary>
     private void KillBySentry(CombatEntity target, Vector3i sentryCell, ServerBase home)
     {
+        bool isCreature = _creatures.Contains(target);
         _planetEnemies.Remove(target);
         _bandits.Remove(target);
+        _creatures.Remove(target);
         _enemyWander.Remove(target.Id);
 
-        SpillToGround(target.Position.ToBlock(), target.Loot);
+        // #1699: an animal's remains are creature loot (the short-lived pickup packet), and its death rides
+        // the creature list rather than the planet-enemy wire.
+        SpillToGround(target.Position.ToBlock(), target.Loot, creatureLoot: isCreature);
+        if (isCreature)
+        {
+            BroadcastCreatures();
+            _log.Info($"Sentry at {sentryCell.X},{sentryCell.Y},{sentryCell.Z} brought down '{target.Name}' ({target.Id}).");
+            return;
+        }
+
         BroadcastToWorld(new PlanetEnemyDefeated { Id = target.Id });
 
         var owner = _sessions.Values.FirstOrDefault(s => s.Joined && s.State.PlayerId == home.OwnerId);
@@ -240,6 +294,31 @@ public sealed partial class GameServer
 
     /// <summary>The block a sentry is.</summary>
     private const string SentryBlockKey = "sentry_post";
+
+    /// <summary>Tells the player straight away when a sentry block was placed where it can never fire (#1699):
+    /// outside every base zone they own on this body. Three things can silence a post — no base zone, the owner
+    /// away, nothing in range — and only this one is a mistake the player can still fix, at the moment they can
+    /// still fix it cheaply. A post inside a zone says nothing at all: silence means "it works".</summary>
+    private void WarnIfSentryOutsideBase(PlayerSession session, Vector3i pos)
+    {
+        foreach (var b in _bases)
+        {
+            if (b.Planet != _world.LocationId || b.OwnerId != session.State.PlayerId)
+            {
+                continue;
+            }
+
+            int r = BaseProtectionRadius;
+            double dx = WorldConstants.WrapDeltaX(pos.X - b.Cell.X, _world.Circumference);
+            double dz = WorldConstants.WrapDeltaZ(pos.Z - b.Cell.Z, _world.Circumference);
+            if (System.Math.Abs(dx) <= r && System.Math.Abs(pos.Y - b.Cell.Y) <= r && System.Math.Abs(dz) <= r)
+            {
+                return; // inside one of the player's own base zones — it will fire
+            }
+        }
+
+        Send(session, new ServerMessage { Text = "@srv.sentry.outside_base" });
+    }
 
     /// <summary>Test hook: run a firing pass right now, ignoring the 2 Hz gate.</summary>
     public void TickSentriesForTest()

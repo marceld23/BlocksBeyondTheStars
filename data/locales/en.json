@@ -403,7 +403,7 @@
   "blueprint.heal_tank.name": "Heal Tank",
   "blueprint.heal_tank.desc": "Unlocks the heal tank: a regeneration unit for bases and stations that heals, feeds and recharges nearby players — and can hold your spawn point.",
   "blueprint.sentry_post.name": "Sentry Post",
-  "blueprint.sentry_post.desc": "Unlocks the sentry post: a small automatic turret for your base. It fires at hostile machines and at robbers who have already started a fight \u2014 never at people you could still talk to.",
+  "blueprint.sentry_post.desc": "Unlocks the sentry post: a small automatic turret for your base. It fires at hostile machines, at hostile animals, and at robbers who have already started a fight — never at people you could still talk to.",
   "blueprint.stasis_projector.name": "Stasis Projector",
   "blueprint.stasis_projector.desc": "Unlocks the stasis projector: briefly freezes creatures so you can scan them without being attacked.",
   "blueprint.terrain_blaster.name": "Terrain Blaster",
@@ -2670,7 +2670,7 @@
   "item.heal_tank.name": "Heal Tank",
   "item.heal_tank.desc": "A regeneration tank for bases and stations: everyone nearby is slowly healed, fed and has their suit recharged. Press E on it to set your spawn point there.",
   "item.sentry_post.name": "Sentry Post",
-  "item.sentry_post.desc": "A small automatic turret. Place it inside your own base: while you are home it fires at hostile machines and at robbers who have already started a fight. It never shoots at players, tame animals or people who just want to talk. Needs no power and no ammunition.",
+  "item.sentry_post.desc": "A small automatic turret. It has to stand inside your own base, within 8 blocks of your base core — farther out it is only decoration. While you are home it fires up to 14 blocks at hostile machines, at hostile animals and at robbers who have already started a fight. It never shoots at players, tame animals or people who just want to talk. Needs no power and no ammunition.",
   "item.algae_ration.name": "Algae Ration",
   "item.algae_ration.desc": "A pressed bar of cultured algae. Tastes like green pudding, but it really fills you up.",
   "item.energy_fence.name": "Energy Fence",
@@ -2815,7 +2815,7 @@
   "vega.obj.dock": "Dock at a space station",
   "vega.obj.trade": "Trade or take a mission",
   "vega.obj.land": "Land on a world",
-  "vega.hint.base_walls": "Your core keeps the ground clear by itself: no ground or cave animal spawns within 24 blocks of it, walls or not. Fence your ground for more: nothing spawns inside a closed ring of walls within 48 blocks of your core — at least 2 blocks high, closed all round at feet level. One gap, or a wooden door left open, and the animals find it. Fliers and the Guardian machines ignore both, cave dwellers slip in under walls; keep a sentry post for those.",
+  "vega.hint.base_walls": "Your core keeps the ground clear by itself: no ground or cave animal spawns within 24 blocks of it, walls or not. Fence your ground for more: nothing spawns inside a closed ring of walls within 48 blocks of your core — at least 2 blocks high, closed all round at feet level. One gap, or a wooden door left open, and the animals find it. Fliers and the Guardian machines ignore both, cave dwellers slip in under walls; a sentry post inside your base zone answers those.",
   "vega.hint.base_airless": "A base core on an airless world breathes air into the 17-block cube around it — and into every room that is SEALED: walls and roof of stone, metal or glass (dirt and sand leak), and only the energy door holds the air in; hinge, slide and wood doors do not. Aim at the core to see how much of your base has air.",
   "vega.hint.breathe": "The air here is breathable — see your oxygen bar sitting full? Enjoy it. In space, underwater, or on a toxic world your suit tank drains, and the ship or a station is what refills it.",
   "vega.hint.o2": "Oxygen below 25%. The ship and stations refill it. Suffocation, notably, does not.",
@@ -4043,5 +4043,7 @@
   "ui.struct.surface": "Surface block (villages)",
   "ui.struct.size_station": "Procedural: {0} modules on {1} floor(s), rooms {2}×{3}×{4}",
   "ui.struct.size_settlement": "Procedural: {0}–{1} × {2}–{3} blocks, {4}–{5} storey(s)",
-  "ui.ed.generated": "Generated a procedural {0} (seed {2}): {1} cells. Edit it and save it as a template."
+  "ui.ed.generated": "Generated a procedural {0} (seed {2}): {1} cells. Edit it and save it as a template.",
+  "ui.scan.sentry": "Fires {range} blocks · needs a base core within {zone}",
+  "srv.sentry.outside_base": "This sentry post stands outside your base zone — it will not fire. Put it within 8 blocks of a base core."
 }

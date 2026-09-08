@@ -672,4 +672,102 @@ public sealed class CreatureMotionArenaTests : IDisposable
                 "a swimmer must never leave its water body — the old gate read the ledge above as its dry feet (#1367)");
         }
     }
+
+    // ---------------- a moat the PLAYER dug is water too (#1697) ----------------
+
+    /// <summary>Builds a solid plateau and cuts a trench through it along Z, filled with
+    /// <paramref name="depth"/> cells of water. Returns the Y a body walks on atop the plateau; the topmost
+    /// water cell is one below it. Nothing here is known to the generator — this is a hand-built moat,
+    /// exactly what a player digs around a base.</summary>
+    private int BuildFloodedMoat(SvGameServer server, int cx, int cz, int r, int padY, int depth)
+    {
+        var water = _content.GetBlock("water")!.NumericId;
+        for (int dy = 0; dy <= depth; dy++)
+        {
+            BuildPad(server, cx, cz, r, padY + dy);
+        }
+
+        for (int dz = -r; dz <= r; dz++)
+            for (int dx = -1; dx <= 1; dx++)
+                for (int dy = 1; dy <= depth; dy++)
+                {
+                    server.World.SetBlock(new Vector3i(cx + dx, padY + dy, cz + dz), water);
+                }
+
+        return padY + depth + 1; // the walking surface of the banks
+    }
+
+    /// <summary>The report this came from: a player dug a wide moat around her spaceport, filled it by hand,
+    /// and the attacking animals walked straight across the surface — "they do a Jesus impression here". The
+    /// depth gate asked the GENERATOR, which knows nothing about a trench a player dug, so a flooded moat read
+    /// as depth 0 and was not water at all.</summary>
+    [Fact]
+    public void AWalker_IsStoppedByAMoatTheGeneratorNeverMade()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            Force(server, CreatureHabitat.Land, legs: 4, LocomotionStyle.Grazer);
+            int cx = 1200, cz = 1200;
+            int padY = MaxTopY(server, cx, cz, 12) + 8;
+            int bankY = BuildFloodedMoat(server, cx, cz, 10, padY, depth: 3);
+
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx - 4.5f, bankY, cz + 0.5f));
+
+            Assert.True(server.TerrainStepBlockedForTest(id, new Vector3f(cx + 0.5f, bankY, cz + 0.5f)),
+                "a hand-filled moat three blocks deep must be a wall to a land walker, exactly like a generated pond");
+        }
+    }
+
+    /// <summary>…but wading still works: one cell of water is a puddle, not a swim, and walling animals out of
+    /// every shallow pool would be a different bug.</summary>
+    [Fact]
+    public void AWalker_StillWadesThroughAHandBuiltPuddle()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            Force(server, CreatureHabitat.Land, legs: 4, LocomotionStyle.Grazer);
+            int cx = 1400, cz = 1400;
+            int padY = MaxTopY(server, cx, cz, 12) + 8;
+            int bankY = BuildFloodedMoat(server, cx, cz, 10, padY, depth: 1);
+
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx - 4.5f, bankY, cz + 0.5f));
+
+            Assert.False(server.TerrainStepBlockedForTest(id, new Vector3f(cx + 0.5f, bankY, cz + 0.5f)),
+                "one cell of water is a puddle to wade through, not a moat");
+        }
+    }
+
+    /// <summary>A player found one of her flying animals asleep UNDER the surface of her moat: an air creature
+    /// measured its altitude band from "the ground", and the ground under a pool is its bed.</summary>
+    [Fact]
+    public void AHoverer_RidesAboveAHandBuiltPool_NotInsideIt()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            Force(server, CreatureHabitat.Air, legs: 0, LocomotionStyle.Drifter, gasSac: true, hover: 2f);
+            int cx = 1600, cz = 1600;
+            int padY = MaxTopY(server, cx, cz, 12) + 8;
+            int bankY = BuildFloodedMoat(server, cx, cz, 10, padY, depth: 3);
+            float waterTop = bankY - 1; // the topmost water cell
+
+            // Creatures only step while somebody is there to see them: stand a player on the bank.
+            var p = server.AddLocalPlayer("Watcher");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(cx - 4.5f, bankY, cz + 0.5f);
+
+            // Start it low over the middle of the moat, where the old code parked it just above the bed.
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 0.5f, waterTop, cz + 0.5f));
+            var c = server.Creatures.First(x => x.Id == id);
+            for (int i = 0; i < 80; i++)
+            {
+                server.Tick(0.1);
+            }
+
+            Assert.True(c.Position.Y > waterTop + 0.5f,
+                $"a hoverer over a hand-built pool must ride above the water (y={c.Position.Y}, surface={waterTop})");
+        }
+    }
 }

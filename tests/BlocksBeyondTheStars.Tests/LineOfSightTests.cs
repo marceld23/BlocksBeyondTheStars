@@ -141,6 +141,64 @@ public sealed class LineOfSightTests : IDisposable
         }
     }
 
+    // ---------------- fluids are murk, not a wall (#1698) ----------------
+
+    /// <summary>A few cells of water no longer close the line. This is the report that started it: a player
+    /// diving in her own moat aimed at an animal a few blocks away and got "no clear line of fire" every
+    /// time, because every cell between the two of them was water.</summary>
+    [Fact]
+    public void A_few_cells_of_water_leave_the_line_of_sight_open()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var water = _content.GetBlock("water")!.NumericId;
+            // Flood the whole eye-line band between the two points — shooter and target are both submerged.
+            for (int x = 0; x <= 4; x++)
+                for (int y = 300; y <= 303; y++)
+                {
+                    server.World.SetBlock(new Vector3i(x, y, 0), water);
+                }
+
+            Assert.True(server.HasLineOfSightForTest(new Vector3f(0, 300, 0), new Vector3f(4, 300, 0)));
+        }
+    }
+
+    /// <summary>…but a real body of water still hides what is on the far side of it, which is exactly what
+    /// the old hard block was protecting: no aggro across a lake.</summary>
+    [Fact]
+    public void A_whole_lake_still_breaks_the_line_of_sight()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var water = _content.GetBlock("water")!.NumericId;
+            for (int x = 0; x <= 30; x++)
+                for (int y = 300; y <= 303; y++)
+                {
+                    server.World.SetBlock(new Vector3i(x, y, 0), water);
+                }
+
+            Assert.False(server.HasLineOfSightForTest(new Vector3f(0, 300, 0), new Vector3f(30, 300, 0)));
+        }
+    }
+
+    /// <summary>Glass is Solid, so it keeps blocking on the very first cell — the murk budget is for fluids
+    /// alone and must not have loosened cover.</summary>
+    [Fact]
+    public void A_glass_pane_still_breaks_the_line_of_sight_at_once()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var glass = _content.GetBlock("glass")!.NumericId;
+            server.World.SetBlock(new Vector3i(3, 301, 0), glass);
+            server.World.SetBlock(new Vector3i(3, 302, 0), glass);
+
+            Assert.False(server.HasLineOfSightForTest(new Vector3f(0, 300, 0), new Vector3f(6, 300, 0)));
+        }
+    }
+
     public void Dispose()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();

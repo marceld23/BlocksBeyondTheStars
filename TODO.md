@@ -24,6 +24,37 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌊 Built water is real water — a player-report package (#1697–#1701, 2026-09-08, branch feat/water-defence-lava)
+
+Seven reports from one session of a player fortifying her spaceport: a moat, a wall, a lava trench, sentry
+posts. Four of them turned out to be the same blind spot from different angles — the server treats water the
+GENERATOR made as terrain and water the PLAYER placed as nothing at all — and her own "here things are fine!"
+report was the control that proved it: her lava trench works, because the lava gate reads real blocks while
+the water gate asked the generator.
+
+- **#1697 — a hand-dug moat is water.** `WaterDepthAtFeet` reads real blocks (the generator only answers for
+  columns that are not streamed in), so the walker gate fires on a flooded trench exactly as on a pond. The
+  ground probe no longer answers with the generator's PRE-EXCAVATION surface for a flooded column — that is
+  the waterline of a filled moat, which is what let animals walk on water; it reports the submerged bed
+  instead. Air creatures measure their altitude band from the fluid SURFACE, not from the bed underneath it
+  (a player found one of her fliers asleep under water), and a swimmer porpoises in a hand-built pool.
+- **#1698 — fluids are murk, not a wall.** A sightline crosses up to `WorldConstants.FluidSightRange` (6)
+  fluid cells before it closes, instead of breaking on the first. "No aggro across a lake" survives; a fight
+  at swimming distance becomes possible at all. One rule for attacks, aggro and the sentry; the client's
+  render-side sight mirror follows it, so a tracer is never drawn for a shot the server refused.
+- **#1699 — the sentry answers wildlife, and explains itself.** It now shoots hostile animals (never a tamed
+  companion), which is what `vega.hint.base_walls` had been promising all along. Placing a post outside every
+  base zone says so on the spot, and a scanned post names its range and the zone it needs.
+- **#1700 — lava and fire burn everybody.** Creatures, bandits and Guardian machines take contact damage like
+  the player (`GameServerBurning.cs`, 2 Hz). Lava fauna and tamed companions are exempt; Creative worlds and
+  "environmental hazards off" spare everything. No story, mission or achievement credit — nobody fired.
+- **#1701 — the water surface is one plane.** A fluid's top face lights per CORNER instead of per face
+  (transparent faces skipped AO entirely and took one light value for all four vertices, which reads as a
+  grid of tiles on a wide flat surface), and a face's wave mode is the majority verdict of its neighbourhood,
+  so a moat of varying width no longer draws a seam through water the player reads as one body.
+
+---
+
 ### ⚙ Terrain generation 3 — the landform completion package (#1688–#1695, 2026-09-08, branch feat/terrain-gen3, PR #1696)
 
 A landform audit measured the generator against a list of 84 real-world landforms: 43 present, 15 partial,

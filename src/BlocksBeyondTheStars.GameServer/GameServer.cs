@@ -1467,6 +1467,7 @@ public sealed partial class GameServer
             Guard("TickCompanionPayoff", TickCompanionPayoff); // #1210: companions growl at hostiles, stall robbers, drop produce (1 Hz)
             Guard("TickCompanionScouting", TickCompanionScouting); // #1225: a deeply bonded companion shares a landmark now and then
             Guard("TickSentries", TickSentries); // #1214: base sentry posts fire at hostiles near a home base (2 Hz)
+            Guard("TickBurning", TickBurning); // #1700: lava and fire hurt animals, robbers and machines too (2 Hz)
             Guard("TickHealTanks", deltaSeconds, TickHealTanks); // base/station regen field: heal + feed + suit recharge
             Guard("TickStationsInReach", deltaSeconds, TickStationsInReach); // #1070: Tab-menu station gates follow the player
             Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);
@@ -4581,6 +4582,10 @@ public sealed partial class GameServer
         else if (blockDef.Key == "beam_block")
         {
             PlaceBeam(session, pos, place.Label); // a placed beam block becomes a named teleporter pad
+        }
+        else if (blockDef.Key == SentryBlockKey)
+        {
+            WarnIfSentryOutsideBase(session, pos); // #1699: a post outside a base zone never fires — say so
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow, Shape = placeShape });

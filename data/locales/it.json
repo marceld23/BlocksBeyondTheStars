@@ -403,7 +403,7 @@
   "blueprint.heal_tank.name": "Unità Rigenerante",
   "blueprint.heal_tank.desc": "Sblocca l'unità rigenerante: un dispositivo per basi e stazioni che cura, nutre e ricarica i giocatori vicini — e può contenere il tuo punto di spawn.",
   "blueprint.sentry_post.name": "Posto di Guardia",
-  "blueprint.sentry_post.desc": "Sblocca il posto di guardia: una piccola torretta automatica per la tua base. Spara a macchine ostili e a ladri che hanno già iniziato a combattere — mai a persone con cui puoi ancora parlare.",
+  "blueprint.sentry_post.desc": "Sblocca il posto sentinella: una piccola torretta automatica per la tua base. Spara a macchine ostili, animali ostili e a ladri che hanno già iniziato a combattere — mai a persone con cui puoi ancora parlare.",
   "blueprint.stasis_projector.name": "Proiettore di Stasi",
   "blueprint.stasis_projector.desc": "Sblocca il proiettore di stasi: congela brevemente le creature così puoi scannerizzarle senza essere attaccato.",
   "blueprint.terrain_blaster.name": "Devastatore di Terreno",
@@ -2670,7 +2670,7 @@
   "item.heal_tank.name": "Serbatoio di Cura",
   "item.heal_tank.desc": "Un serbatoio rigenerante per basi e stazioni: chi è vicino viene lentamente curato, nutrito e la tuta viene ricaricata. Premi E su di esso per impostare lì il punto di spawn.",
   "item.sentry_post.name": "Posto di Guardia",
-  "item.sentry_post.desc": "Una piccola torretta automatica. Posizionala dentro la tua base: mentre sei a casa spara a macchine ostili e a ladri che hanno già iniziato a combattere. Non spara mai a giocatori, animali addomesticati o persone che vogliono solo parlare. Non ha bisogno di energia né di munizioni.",
+  "item.sentry_post.desc": "Una piccola torretta automatica. Deve trovarsi all'interno della tua base, entro 8 blocchi dal nucleo della base — più distante è solo decorazione. Mentre sei a casa spara fino a 14 blocchi a macchine ostili, animali ostili e ladri che hanno già iniziato a combattere. Non spara mai ai giocatori, agli animali addomesticati o a persone che vogliono solo parlare. Non richiede energia né munizioni.",
   "item.algae_ration.name": "Razione di Alghe",
   "item.algae_ration.desc": "Una barretta pressata di alghe coltivate. Sa di budino verde, ma ti sazia davvero.",
   "item.energy_fence.name": "Recinzione Energetica",
@@ -2815,7 +2815,7 @@
   "vega.obj.dock": "Attracca a una stazione spaziale",
   "vega.obj.trade": "Scambia o prendi una missione",
   "vega.obj.land": "Atterra su un mondo",
-  "vega.hint.base_walls": "Il tuo nucleo mantiene il terreno libero da solo: nessun animale di superficie o delle caverne compare entro 24 blocchi da esso, con o senza muri. Recintalo per di più: niente compare dentro un anello chiuso di muri entro 48 blocchi dal tuo nucleo — almeno 2 blocchi di altezza, chiuso tutto intorno all'altezza dei piedi. Una fessura, o una porta di legno lasciata aperta, e gli animali entrano. I volatori e le macchine Guardiane ignorano entrambi, gli abitanti delle caverne si infilano sotto i muri; tieni un posto di vedetta per quelli.",
+  "vega.hint.base_walls": "Il tuo nucleo tiene il terreno libero da solo: nessuna creatura di superficie o delle caverne compare entro 24 blocchi da esso, con o senza mura. Recinta il terreno per di più: nulla compare all'interno di un anello chiuso di muri entro 48 blocchi dal tuo nucleo — almeno 2 blocchi d'altezza, chiuso tutto intorno al livello dei piedi. Un varco, o una porta di legno lasciata aperta, e gli animali lo trovano. I volanti e le macchine Guardiane ignorano entrambi, i cavernicoli scivolano sotto i muri; un posto sentinella dentro la zona della tua base risponde a quelli.",
   "vega.hint.base_airless": "Un nucleo base su un mondo senza aria riempe di aria il cubo di 17 blocchi intorno a sé — e ogni stanza che è SIGILLATA: muri e tetto di pietra, metallo o vetro (terra e sabbia perdono), e solo la porta energetica trattiene l'aria; porte a cerniera, scorrevoli e in legno no. Mira al nucleo per vedere quanta aria ha la tua base.",
   "vega.hint.breathe": "L'aria qui è respirabile — vedi la barra ossigeno piena? Goditela. Nello spazio, sott'acqua o su un mondo tossico il serbatoio della tuta si svuota, e la nave o una stazione lo ricaricano.",
   "vega.hint.o2": "Ossigeno sotto il 25%. La nave e le stazioni lo ricaricano. La soffocazione, nota, non lo fa.",
@@ -4043,5 +4043,7 @@
   "ui.struct.surface": "Blocco superficiale (villaggi)",
   "ui.struct.size_station": "Procedurale: {0} moduli su {1} piano/i, stanze {2}×{3}×{4}",
   "ui.struct.size_settlement": "Procedurale: {0}–{1} × {2}–{3} blocchi, {4}–{5} piano/i",
-  "ui.ed.generated": "Generato un {0} procedurale (seed {2}): {1} celle. Modificalo e salvalo come modello."
+  "ui.ed.generated": "Generato un {0} procedurale (seed {2}): {1} celle. Modificalo e salvalo come modello.",
+  "ui.scan.sentry": "Spara per {range} blocchi · richiede un nucleo della base entro {zone}",
+  "srv.sentry.outside_base": "Questo posto sentinella si trova fuori dalla zona della tua base — non sparerà. Mettelo entro 8 blocchi da un nucleo della base."
 }

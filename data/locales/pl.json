@@ -403,7 +403,7 @@
   "blueprint.heal_tank.name": "Zbiornik Leczący",
   "blueprint.heal_tank.desc": "Odblokowuje zbiornik leczący: jednostkę regeneracyjną dla baz i stacji, która leczy, karmi i doładowuje pobliskich graczy — i może przechować twój punkt odrodzenia.",
   "blueprint.sentry_post.name": "Strażnica",
-  "blueprint.sentry_post.desc": "Odkrywa strażnicę: małą automatyczną wieżyczkę dla twojej bazy. Strzela do wrogich maszyn i do rabusiów, którzy już zaczęli walkę — nigdy do osób, z którymi można jeszcze porozmawiać.",
+  "blueprint.sentry_post.desc": "Odkrywa stanowisko wartownicze: małą automatyczną wieżyczkę dla twojej bazy. Strzela do wrogich maszyn, wrogich zwierząt i rzezimieszków, którzy już zaczęli walkę — nigdy do osób, z którymi można jeszcze porozmawiać.",
   "blueprint.stasis_projector.name": "Projekcja Stazy",
   "blueprint.stasis_projector.desc": "Odblokowuje projektor stazy: krótkotrwale zamraża stworzenia, byś mógł je zeskanować bez ataku.",
   "blueprint.terrain_blaster.name": "Rozdrabniacz terenu",
@@ -2670,7 +2670,7 @@
   "item.heal_tank.name": "Zbiornik Leczący",
   "item.heal_tank.desc": "Zbiornik regenerujący dla baz i stacji: wszyscy w pobliżu są powoli leczeni, karmieni i ich skafandry są doładowywane. Naciśnij E, aby ustawić tam punkt odrodzenia.",
   "item.sentry_post.name": "Strażnica",
-  "item.sentry_post.desc": "Mała automatyczna wieżyczka. Postaw ją wewnątrz własnej bazy: gdy jesteś w domu, strzela do wrogich maszyn i rabusiów, którzy już zaczęli walkę. Nigdy nie strzela do graczy, udomowionych zwierząt ani osób, które chcą tylko porozmawiać. Nie potrzebuje zasilania ani amunicji.",
+  "item.sentry_post.desc": "Mała automatyczna wieżyczka. Musi stać wewnątrz twojej bazy, w promieniu 8 bloków od rdzenia bazy — dalej jest tylko dekoracją. Gdy jesteś w domu, strzela na odległość do 14 bloków do wrogich maszyn, wrogich zwierząt i rzezimieszków, którzy już zaczęli walkę. Nigdy nie strzela do graczy, udomowionych zwierząt ani osób, które chcą tylko porozmawiać. Nie potrzebuje zasilania ani amunicji.",
   "item.algae_ration.name": "Racja Glonowa",
   "item.algae_ration.desc": "Sprasowany baton z hodowanych glonów. Smakuje jak zielony pudding, ale naprawdę syci.",
   "item.energy_fence.name": "Energetyczny Płot",
@@ -2815,7 +2815,7 @@
   "vega.obj.dock": "Zadokuj na stacji kosmicznej",
   "vega.obj.trade": "Handluj lub weź misję",
   "vega.obj.land": "Wyląduj na planecie",
-  "vega.hint.base_walls": "Twoje jądro samo pilnuje, by teren wokół był bezpieczny: w promieniu 24 bloków od niego nie pojawiają się stworzenia naziemne ani jaskiniowe, niezależnie od murów. Ogrodź teren, by mieć większy zasięg: w obrębie 48 bloków od jądra nic nie pojawi się wewnątrz zamkniętego pierścienia ścian — co najmniej 2 bloki wysokości, zamknięte dookoła na poziomie stóp. Jedna luka lub otwarte drewniane drzwi przepuszczą zwierzęta. Latające stwory i maszyny Strażnika to zignorują, a mieszkańcy jaskiń wślizgną się pod murami; miej posterunek dla takich przypadków.",
+  "vega.hint.base_walls": "Twój rdzeń sam pilnuje terenu: w promieniu 24 bloków nie pojawiają się zwierzęta naziemne ani jaskiniowe, niezależnie od ścian. Ogrodź teren, jeśli chcesz więcej: nic nie pojawi się wewnątrz zamkniętego pierścienia ścian w promieniu 48 bloków od rdzenia — co najmniej 2 bloki wysokości, zamknięte na poziomie stóp. Jedna szczelina albo otwarte drewniane drzwi i zwierzęta wejdą. Latające i maszyny Strażnika to ignorują, mieszkańcy jaskiń przecisną się pod ścianami; wartownicza wieżyczka wewnątrz strefy bazy odpowie na te zagrożenia.",
   "vega.hint.base_airless": "Rdzeń bazy na świecie bez powietrza wtłacza powietrze w sześcian 17 bloków wokół siebie — i do każdego POMIESZCZENIA, które JEST USZCZELNIONE: ściany i dach z kamienia, metalu lub szkła (ziemia i piasek przepuszczają), a powietrze trzyma tylko drzwi energetyczne; drzwi na zawiasach, przesuwne i drewniane nie. Wyceluj w rdzeń, by zobaczyć, ile twojej bazy ma powietrze.",
   "vega.hint.breathe": "Powietrze tu można oddychać — widzisz pasek tlenu pełny? Korzystaj. W kosmosie, pod wodą lub na toksycznej planecie zbiornik skafandra się opróżnia, a napełnia go statek lub stacja.",
   "vega.hint.o2": "Tlen poniżej 25%. Statek i stacje go uzupełniają. Uduszenie — nie.",
@@ -4043,5 +4043,7 @@
   "ui.struct.surface": "Blok powierzchniowy (wioski)",
   "ui.struct.size_station": "Proceduralne: {0} modułów na {1} poziomie(ach), pokoje {2}×{3}×{4}",
   "ui.struct.size_settlement": "Proceduralne: {0}–{1} × {2}–{3} bloków, {4}–{5} kondygnacji",
-  "ui.ed.generated": "Wygenerowano proceduralny {0} (ziarno {2}): {1} komórek. Edytuj go i zapisz jako szablon."
+  "ui.ed.generated": "Wygenerowano proceduralny {0} (ziarno {2}): {1} komórek. Edytuj go i zapisz jako szablon.",
+  "ui.scan.sentry": "Strzela na {range} bloków · wymaga rdzenia bazy w promieniu {zone}",
+  "srv.sentry.outside_base": "Ta wieżyczka wartownicza stoi poza strefą twojej bazy — nie będzie strzelać. Umieść ją w odległości 8 bloków od rdzenia bazy."
 }

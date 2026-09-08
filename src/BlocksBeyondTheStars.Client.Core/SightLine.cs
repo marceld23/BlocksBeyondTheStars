@@ -33,14 +33,45 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         public static bool Clear(BlockingSampler blocking,
             float fromX, float fromY, float fromZ, float toX, float toY, float toZ)
+            => Clear(blocking, null, 0, fromX, fromY, fromZ, toX, toY, toZ);
+
+        /// <summary>
+        /// As above, but with fluids as MURK rather than as a wall (#1698): a cell reported by
+        /// <paramref name="fluid"/> does not close the line, it spends one of <paramref name="fluidRange"/>
+        /// cells of visibility, and only crossing more than that breaks it. Mirrors the server rule so a
+        /// tracer is never drawn for a shot the server refused. <paramref name="fluid"/> null (or a range of
+        /// 0) keeps the plain behaviour, where only <paramref name="blocking"/> counts.
+        ///
+        /// <para>Water blocking outright was right for "no aggro across a lake" and wrong for everything at
+        /// swimming distance: a player diving in her own moat could not hit an animal three blocks away,
+        /// because every cell between the two of them was water.</para>
+        /// </summary>
+        public static bool Clear(BlockingSampler blocking, BlockingSampler? fluid, int fluidRange,
+            float fromX, float fromY, float fromZ, float toX, float toY, float toZ)
         {
             float dx = toX - fromX, dy = toY - fromY, dz = toZ - fromZ;
             float length = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
             int steps = Math.Max(1, (int)Math.Ceiling(length / MarchStep));
+            int px = int.MinValue, py = int.MinValue, pz = int.MinValue;
+            int fluidCells = 0;
             for (int i = 1; i < steps; i++)
             {
                 float t = (float)i / steps;
-                if (blocking(Floor(fromX + dx * t), Floor(fromY + dy * t), Floor(fromZ + dz * t)))
+                int x = Floor(fromX + dx * t), y = Floor(fromY + dy * t), z = Floor(fromZ + dz * t);
+                if (blocking(x, y, z))
+                {
+                    return false;
+                }
+
+                if (fluid == null || (x == px && y == py && z == pz))
+                {
+                    continue; // no murk rule, or the same cell as the previous sample — count each cell once
+                }
+
+                px = x;
+                py = y;
+                pz = z;
+                if (fluid(x, y, z) && ++fluidCells > fluidRange)
                 {
                     return false;
                 }

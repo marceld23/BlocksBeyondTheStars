@@ -403,7 +403,7 @@
   "blueprint.heal_tank.name": "İyileştirme Tankı",
   "blueprint.heal_tank.desc": "İyileştirme tankını açar: üsler ve istasyonlar için yakınlardaki oyuncuları iyileştiren, besleyen ve şarj eden bir rejenerasyon ünitesi — ayrıca spawn noktanı tutabilir.",
   "blueprint.sentry_post.name": "Nöbet Kulesi",
-  "blueprint.sentry_post.desc": "Nöbet kulesinin kilidini açar: üssün için küçük otomatik bir taret. Düşmanca makineleri ve zaten kavgayı başlatmış olan haydutları vurur — konuşarak çözebileceğin insanlara asla ateş etmez.",
+  "blueprint.sentry_post.desc": "Nöbet kulesinin kilidini açar: üssün için küçük otomatik bir taret. Düşmanca makineleri, düşmanca hayvanları ve kavga etmiş yağmacıları vurur — hâlâ konuşabileceğin insanları asla.",
   "blueprint.stasis_projector.name": "Stazis Projektörü",
   "blueprint.stasis_projector.desc": "Stasis projeksiyonunu açar: yaratıkları kısa süreliğine dondurur, böylece saldırıya uğramadan tarayabilirsin.",
   "blueprint.terrain_blaster.name": "Arazi Patlatıcı",
@@ -2670,7 +2670,7 @@
   "item.heal_tank.name": "İyileştirme Tankı",
   "item.heal_tank.desc": "Üsler ve istasyonlar için bir rejenerasyon tankı: yakınlardaki herkes yavaşça iyileşir, beslenir ve kıyafetleri şarj edilir. Üzerine E basarak burayı doğma noktası yapabilirsin.",
   "item.sentry_post.name": "Nöbet Kulesi",
-  "item.sentry_post.desc": "Küçük bir otomatik taret. Kendi üssünün içine yerleştir: evde olduğun sürece düşmanca makineleri ve zaten kavgayı başlatmış haydutları vurur. Oyunculara, evcil hayvanlara veya sadece konuşmak isteyen insanlara asla ateş etmez. Güç ya da cephaneye ihtiyaç duymaz.",
+  "item.sentry_post.desc": "Küçük bir otomatik taret. Üssünün içinde, üs çekirdeğine 8 blok içinde durmalı — daha uzağı sadece süs olur. Evdeyken düşmanca makineleri, düşmanca hayvanları ve kavga etmiş yağmacıları 14 bloğa kadar vurur. Oyuncuları, evcilleşmiş hayvanları veya sadece konuşmak isteyenleri asla hedef almaz. Güç veya mermi gerekmez.",
   "item.algae_ration.name": "Alg Rasyonu",
   "item.algae_ration.desc": "Preslenmiş kültür alg bloğu. Yeşil puding gibi ama gerçekten doyurur.",
   "item.energy_fence.name": "Enerji Çiti",
@@ -2815,7 +2815,7 @@
   "vega.obj.dock": "Bir uzay istasyonuna bağlan",
   "vega.obj.trade": "Takas yap veya görev al",
   "vega.obj.land": "Bir dünyaya iniş yap",
-  "vega.hint.base_walls": "Çekirdeğin kendi etrafındaki alanı temiz tutar: çekirdekten 24 blok içinde zemin veya mağara hayvanları spawn olmaz, duvar olsun olmasın. Daha geniş korunma için zemini çevir: çekirdeğe 48 blok içinde, ayak seviyesinde etrafı kapalı ve en az 2 blok yüksekliğinde bir duvar halkası içindeyse hiçbir şey spawn olmaz — tam kapanmış olmalı. Bir açıklık ya da açık bırakılmış bir ahşap kapı varsa hayvanlar girer. Uçanlar ve Koruyucu makineler her ikisini de görmezden gelir, mağara sakinleri duvarların altından kayar; bunlar için nöbetçi bir kulübe tut.",
+  "vega.hint.base_walls": "Çekirdeğin zemini kendi kendine korur: çekirdeğe 24 blok içinde zemin veya mağara hayvanı oluşmaz, duvar olsa da olmasa da. Daha fazlası için zemini çitle: çekirdeğe 48 blok içinde, ayak seviyesinde tamamen kapalı ve en az 2 blok yüksekliğindeki duvar halkasının içinde hiçbir şey spawn olmaz. Bir açıklık ya da açık bırakılmış bir tahta kapı varsa hayvanlar içeri girer. Uçanlar ve Guardian makineleri duvarları göz ardı eder, mağara canlıları duvar altından kayar; üs bölgen içindeki bir nöbet kulesi bunlara cevap verir.",
   "vega.hint.base_airless": "Havasız bir dünyadaki bir üs çekirdeği, etrafındaki 17-blok küpün içine ve MÜHÜRLENMİŞ her odaya hava verir: taş, metal veya camdan yapılmış duvar ve çatı (toprak ve kum sızdırır) ve havayı tutan sadece enerji kapısıdır; menteşe, sürgü ve ahşap kapılar tutmaz. Üs çekirdeğine nişan alarak üssünün ne kadarının havalı olduğunu gör.",
   "vega.hint.breathe": "Buradaki hava solunabilir — oksijen barın dolu mu görüyorsun? Keyfini çıkar. Uzayda, su altında veya toksik bir dünyada zırh tankın boşalır, dolduracak olan gemi veya istasyondur.",
   "vega.hint.o2": "Oksijen %25'in altında. Gemi ve istasyonlar dolduruyor. Boğulma maalesef doldurmuyor.",
@@ -4043,5 +4043,7 @@
   "ui.struct.surface": "Yüzey blok (köyler)",
   "ui.struct.size_station": "Prosedürel: {0} modül, {1} katlı, odalar {2}×{3}×{4}",
   "ui.struct.size_settlement": "Prosedürel: {0}–{1} × {2}–{3} blok, {4}–{5} kat",
-  "ui.ed.generated": "Prosedürel bir {0} (tohum {2}) oluşturuldu: {1} hücre. Düzenle ve şablon olarak kaydet."
+  "ui.ed.generated": "Prosedürel bir {0} (tohum {2}) oluşturuldu: {1} hücre. Düzenle ve şablon olarak kaydet.",
+  "ui.scan.sentry": "{range} blok menzilde ateşler · {zone} içinde bir üs çekirdeği gerekir",
+  "srv.sentry.outside_base": "Bu nöbet kulesi üs bölgen dışında duruyor — ateşlemeyecek. Onu bir üs çekirdeğinin 8 blok içine koy."
 }

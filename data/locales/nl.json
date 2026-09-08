@@ -403,7 +403,7 @@
   "blueprint.heal_tank.name": "Heal Tank",
   "blueprint.heal_tank.desc": "Ontgrendelt de heal tank: een regeneratie-eenheid voor bases en stations die nabij spelers geneest, voedt en herlaadt — en je spawnpunt kan bewaren.",
   "blueprint.sentry_post.name": "Wachpost",
-  "blueprint.sentry_post.desc": "Ontgrendelt de wachpost: een kleine automatische toren voor je basis. Hij schiet op vijandige machines en op rovers die al een gevecht begonnen zijn — nooit op mensen waarmee je nog kunt praten.",
+  "blueprint.sentry_post.desc": "Ontgrendelt het wachttoren-blauwdruk: een kleine automatische toren voor je basis. Hij schiet op vijandige machines, vijandige dieren en op rovers die al een gevecht zijn begonnen — nooit op mensen met wie je nog kunt praten.",
   "blueprint.stasis_projector.name": "Stasisprojector",
   "blueprint.stasis_projector.desc": "Ontgrendelt de stasisprojector: bevriest wezens even zodat je ze kunt scannen zonder aangevallen te worden.",
   "blueprint.terrain_blaster.name": "Terreinblaster",
@@ -2670,7 +2670,7 @@
   "item.heal_tank.name": "Hersteltank",
   "item.heal_tank.desc": "Een regeneratietank voor bases en stations: iedereen in de buurt wordt langzaam genezen, gevoed en krijgt zijn pak weer opgeladen. Druk op E om daar je spawnpunt in te stellen.",
   "item.sentry_post.name": "Wachpost",
-  "item.sentry_post.desc": "Een kleine automatische toren. Plaats hem in je eigen basis: terwijl je thuis bent schiet hij op vijandige machines en op rovers die al een gevecht begonnen zijn. Hij schiet nooit op spelers, tamme dieren of mensen die alleen willen praten. Heeft geen stroom of munitie nodig.",
+  "item.sentry_post.desc": "Een kleine automatische toren. Hij moet binnen je eigen basis staan, binnen 8 blokken van je basiscore — verder buiten is het alleen decoratie. Terwijl je thuis bent schiet hij tot 14 blokken ver op vijandige machines, vijandige dieren en op rovers die al een gevecht zijn begonnen. Hij schiet nooit op spelers, tamme dieren of mensen die alleen willen praten. Heeft geen stroom of munitie nodig.",
   "item.algae_ration.name": "Algenrantsoen",
   "item.algae_ration.desc": "Een geperst blokje gekweekte algen. Smaakt naar groene pudding, maar het vult je echt.",
   "item.energy_fence.name": "Energiehek",
@@ -2815,7 +2815,7 @@
   "vega.obj.dock": "Koppel aan een ruimtestation",
   "vega.obj.trade": "Handel of neem een missie",
   "vega.obj.land": "Land op een wereld",
-  "vega.hint.base_walls": "Je kern houdt het gebied eromheen automatisch vrij: binnen 24 blokken van de kern spawnen geen grond- of grotdieren, muren of niet. Omheinst je grond voor meer bescherming: binnen 48 blokken van je kern spawnen er niets binnen een gesloten ring van muren — minstens 2 blokken hoog en rondom gesloten op voetzoleniveau. Eén opening, of een houten deur die openstaat, en de dieren vinden een weg. Vliegers en de Guardian-machines negeren beide, grotdieren glippen onder muren door; houd een wachtpost voor die beesten.",
+  "vega.hint.base_walls": "Je core houdt de grond vanzelf schoon: geen grond- of grotdieren verschijnen binnen 24 blokken ervan, met of zonder muren. Omheins je grond voor meer: niets verschijnt binnen een gesloten ring van muren binnen 48 blokken van je core — ten minste 2 blokken hoog, rondom gesloten op voetniveau. Eén opening, of een houten deur die openstaat, en de dieren vinden het. Vliegers en de Bewaker-machines negeren beide, grotbewoners glippen onder muren door; een wachttoren binnen je basiszone pakt die aan.",
   "vega.hint.base_airless": "Een basiskern op een luchtdode planeet blaast lucht in de 17-block kubus rondom zich — en in elke kamer die GESLOTEN is: muren en dak van steen, metaal of glas (grond en zand lekken), en alleen de energiepoort houdt de lucht vast; scharnier-, schuif- en houten deuren doen dat niet. Richt op de kern om te zien hoeveel van je basis lucht heeft.",
   "vega.hint.breathe": "De lucht hier is adembaar — zie je je zuurstofbalk vol? Geniet ervan. In de ruimte, onder water of op een giftige wereld raakt de tank van je pak leeg, en het schip of een station vult hem weer bij.",
   "vega.hint.o2": "Zuurstof onder 25%. Het schip en stations vullen het bij. Verstikking doet dat niet.",
@@ -4043,5 +4043,7 @@
   "ui.struct.surface": "Oppervlakteblok (dorpen)",
   "ui.struct.size_station": "Procedureel: {0} modules op {1} etage(s), kamers {2}×{3}×{4}",
   "ui.struct.size_settlement": "Procedureel: {0}–{1} × {2}–{3} blokken, {4}–{5} verdiepingen",
-  "ui.ed.generated": "Een procedureel {0} gegenereerd (zaad {2}): {1} cellen. Bewerk het en sla het op als sjabloon."
+  "ui.ed.generated": "Een procedureel {0} gegenereerd (zaad {2}): {1} cellen. Bewerk het en sla het op als sjabloon.",
+  "ui.scan.sentry": "Schiet tot {range} blokken · heeft een basiscore binnen {zone} nodig",
+  "srv.sentry.outside_base": "Deze wachttoren staat buiten je basiszone — hij zal niet schieten. Plaats hem binnen 8 blokken van een basiscore."
 }

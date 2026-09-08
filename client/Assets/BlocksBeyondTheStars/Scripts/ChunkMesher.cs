@@ -420,6 +420,61 @@ namespace BlocksBeyondTheStars.Client
                 return d;
             }
 
+            // #1701: the wave MODE, majority-filtered over the cell and its four edge neighbours. The mode is
+            // a hard branch in the shader (calm lake / open water / flowing river), and `Classify` decides it
+            // per cell against hard span thresholds — so a body of varying width, like a hand-dug moat that
+            // narrows at a corner, flipped single cells between "river" and "lake" and drew a visible seam
+            // through a surface the player reads as one. A majority vote removes exactly those isolated flips
+            // and leaves a real boundary (a brook meeting a lake) where it belongs. Ties keep the cell's own
+            // verdict, so nothing is invented. Mode and flow axis vote TOGETHER: a river's direction is part
+            // of its identity, and a majority mode with the wrong flow would scroll the water sideways.
+            Vector4 WaterCellDataSmoothed(BlockId waterId, int cwx, int cwy, int cwz)
+            {
+                var own = WaterCellData(waterId, cwx, cwy, cwz);
+                Vector4 best = own;
+                int bestVotes = 0;
+                for (int i = 0; i < 5; i++)
+                {
+                    int sx = cwx + (i == 1 ? -1 : i == 2 ? 1 : 0);
+                    int sz = cwz + (i == 3 ? -1 : i == 4 ? 1 : 0);
+                    if (worldBlock(sx, cwy, sz).Value != waterId.Value
+                        || !worldBlock(sx, cwy + 1, sz).IsAir || !Loaded(sx, cwy + 1, sz))
+                    {
+                        continue; // not a surface cell of this body — it has no vote
+                    }
+
+                    var cand = WaterCellData(waterId, sx, cwy, sz);
+                    int votes = 0;
+                    for (int j = 0; j < 5; j++)
+                    {
+                        int ox = cwx + (j == 1 ? -1 : j == 2 ? 1 : 0);
+                        int oz = cwz + (j == 3 ? -1 : j == 4 ? 1 : 0);
+                        if (worldBlock(ox, cwy, oz).Value != waterId.Value
+                            || !worldBlock(ox, cwy + 1, oz).IsAir || !Loaded(ox, cwy + 1, oz))
+                        {
+                            continue;
+                        }
+
+                        var other = WaterCellData(waterId, ox, cwy, oz);
+                        if (Mathf.Approximately(other.x, cand.x) && Mathf.Approximately(other.w, cand.w))
+                        {
+                            votes++;
+                        }
+                    }
+
+                    // Strictly greater keeps the cell's own verdict on a tie: it votes first (i == 0).
+                    if (votes > bestVotes)
+                    {
+                        bestVotes = votes;
+                        best = cand;
+                    }
+                }
+
+                // Only mode + flow are voted on; foam and amplitude stay this cell's own (they are already
+                // corner-smoothed downstream, where a vote would fight the gradient).
+                return new Vector4(best.x, own.y, own.z, best.w);
+            }
+
             // Corner-smoothed foam + wave-amplitude factor for the water-surface corner at (cwx, cwz):
             // averaged over the 4 cells meeting there, so a corner shared by neighbouring faces gets the
             // IDENTICAL value from each — foam fades in smooth gradients instead of per-block steps, and
@@ -446,6 +501,29 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 return new Vector2(foam * 0.25f, amp * 0.25f);
+            }
+
+            // #1701: per-corner light for a fluid's top face. Averages skylight and coloured block light over
+            // the four AIR cells meeting at the corner (lx, lz) ∈ {0,1}² above the cell — a corner shared by
+            // two neighbouring faces therefore gets the identical value from both, and a wide flat surface
+            // lights as one plane instead of a grid of per-face tiles with hard borders. The wave mode rides
+            // along unchanged in the second channel: it is a hard branch in the shader, so it must NOT be
+            // interpolated — mixing lake and river would run the pixels between them through "open water".
+            void AddCornerLight(List<Vector2> skyOut, List<Vector3> blOut, int bx, int airY, int bz,
+                int lx, int lz, float mode)
+            {
+                float skySum = 0f;
+                Vector3 blSum = Vector3.zero;
+                for (int ox = -1; ox <= 0; ox++)
+                for (int oz = -1; oz <= 0; oz++)
+                {
+                    int cx = bx + lx + ox, cz = bz + lz + oz;
+                    skySum += Skylight(cx, airY, cz);
+                    blSum += BlockLightAt(cx, airY, cz);
+                }
+
+                skyOut.Add(new Vector2(skySum * 0.25f, mode));
+                blOut.Add(blSum * 0.25f);
             }
 
             // Per-vertex ambient occlusion ("smooth lighting"): each face corner is darkened by how many of
@@ -634,7 +712,7 @@ namespace BlocksBeyondTheStars.Client
                 // TEXCOORD2 for the transparent shader. Other faces/blocks keep the flora-tint layout.
                 bool isWater = (tf & TraitWater) != 0;
                 bool isWaterSurface = isWater && worldBlock(wx, wy + 1, wz).IsAir && Loaded(wx, wy + 1, wz);
-                Vector4 waterData = isWaterSurface ? WaterCellData(id, wx, wy, wz) : Vector4.zero;
+                Vector4 waterData = isWaterSurface ? WaterCellDataSmoothed(id, wx, wy, wz) : Vector4.zero;
                 // Falling-water column (a waterfall): fed from above + open on its sides. Its vertical flanks
                 // would normally be culled (see the submerged-fluid test below) so the cascade reads flat; keep
                 // them and tag them mode 4 so the transparent shader streaks them downward.
@@ -955,18 +1033,42 @@ namespace BlocksBeyondTheStars.Client
                     // mode 5 = animated molten lava surface; mode 6 = falling-lava flank (vertical hot streak).
                     // Painted faces force mode 0 — a dye tint (mode 3) would luminance-recolour the design.
                     float faceMode = designId != 0 ? 0f : isLavaSurface ? 5f : (isFallingLava && dir.Y == 0) ? 6f : floraFlag;
-                    skyUv.Add(new Vector2(sky, faceMode)); skyUv.Add(new Vector2(sky, faceMode));
-                    skyUv.Add(new Vector2(sky, faceMode)); skyUv.Add(new Vector2(sky, faceMode));
-                    // Coloured block-light reaching the air cell this face looks into (same cell the skylight
-                    // samples) — placed lights illuminate the wall regardless of sun/skylight.
                     Vector3 faceBl = BlockLightAt(nx, ny, nz);
-                    blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl);
+
+                    // #1701: a FLUID's top face lights per CORNER, not per face. Every other block gets its
+                    // edges feathered by per-vertex AO, but transparent faces skip AO entirely and took one
+                    // skylight + one block-light value for all four vertices — invisible on a textured wall,
+                    // glaring on a wide flat water surface, which then read as a grid of block-sized tiles with
+                    // hard borders (a player photographed exactly that in a torch-lit moat). Averaging the four
+                    // cells that meet at each corner makes neighbouring faces agree along their shared edge, so
+                    // the plane lights as one surface. Fluid tops only — nothing else changes.
+                    bool cornerLit = dir.Y == 1 && (isWaterSurface || isLavaSurface);
+                    if (cornerLit)
+                    {
+                        // Corner offsets follow FaceQuad's +Y order: (0,0) (0,1) (1,1) (1,0).
+                        AddCornerLight(skyUv, blockLight, wx, ny, wz, 0, 0, faceMode);
+                        AddCornerLight(skyUv, blockLight, wx, ny, wz, 0, 1, faceMode);
+                        AddCornerLight(skyUv, blockLight, wx, ny, wz, 1, 1, faceMode);
+                        AddCornerLight(skyUv, blockLight, wx, ny, wz, 1, 0, faceMode);
+                    }
+                    else
+                    {
+                        skyUv.Add(new Vector2(sky, faceMode)); skyUv.Add(new Vector2(sky, faceMode));
+                        skyUv.Add(new Vector2(sky, faceMode)); skyUv.Add(new Vector2(sky, faceMode));
+                        // Coloured block-light reaching the air cell this face looks into (same cell the skylight
+                        // samples) — placed lights illuminate the wall regardless of sun/skylight.
+                        blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl);
+                    }
+
                     Vector3 faceBlDir = BlockLightDirAt(nx, ny, nz);
                     blockLightDir.Add(faceBlDir); blockLightDir.Add(faceBlDir); blockLightDir.Add(faceBlDir); blockLightDir.Add(faceBlDir);
                     // Water top faces carry the water-body data instead of the (always-zero-for-water)
                     // flora tint; only the transparent shader ever reads these vertices. Foam + wave
                     // amplitude are CORNER-smoothed (x=mode, y=foam, z=amp factor, w=flow axis 0=X/1=Z)
-                    // so they interpolate seamlessly across neighbouring blocks; mode/flow stay per-face.
+                    // so they interpolate seamlessly across neighbouring blocks. Mode and flow stay per-face
+                    // on purpose — the shader BRANCHES on them, so an interpolated value would run the pixels
+                    // between a lake and a brook through "open water" — but since #1701 a face's mode is the
+                    // majority verdict of its neighbourhood, so one odd cell no longer draws a seam.
                     if (isWaterSurface && dir.Y == 1)
                     {
                         // Corner offsets follow FaceQuad's +Y order: (0,0) (0,1) (1,1) (1,0).

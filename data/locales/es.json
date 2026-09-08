@@ -403,7 +403,7 @@
   "blueprint.heal_tank.name": "Tanque de Curación",
   "blueprint.heal_tank.desc": "Desbloquea el tanque de curación: una unidad de regeneración para bases y estaciones que cura, alimenta y recarga a jugadores cercanos — y puede guardar tu punto de reaparición.",
   "blueprint.sentry_post.name": "Puesto Centinela",
-  "blueprint.sentry_post.desc": "Desbloquea el puesto centinela: una pequeña torreta automática para tu base. Dispara a máquinas hostiles y a ladrones que ya empezaron a pelear — nunca a personas con las que aún puedas hablar.",
+  "blueprint.sentry_post.desc": "Desbloquea el puesto centinela: una pequeña torreta automática para tu base. Dispara a máquinas hostiles, a animales agresivos y a ladrones que ya han empezado una pelea — nunca a personas con las que aún se pueda hablar.",
   "blueprint.stasis_projector.name": "Proyector de Estasis",
   "blueprint.stasis_projector.desc": "Desbloquea el proyector de estasis: congela brevemente a las criaturas para que puedas escanearlas sin ser atacado.",
   "blueprint.terrain_blaster.name": "Desintegrador de Terreno",
@@ -2670,7 +2670,7 @@
   "item.heal_tank.name": "Tanque de curación",
   "item.heal_tank.desc": "Un tanque de regeneración para bases y estaciones: todos cerca se curan lentamente, comen y recargan su traje. Pulsa E sobre él para fijar allí tu punto de reaparición.",
   "item.sentry_post.name": "Puesto Centinela",
-  "item.sentry_post.desc": "Una pequeña torreta automática. Colócala dentro de tu base: mientras estés en casa dispara a máquinas hostiles y a ladrones que ya empezaron a pelear. Nunca dispara a jugadores, animales domesticados o personas que solo quieren hablar. No necesita energía ni munición.",
+  "item.sentry_post.desc": "Una pequeña torreta automática. Debe colocarse dentro de tu propia base, a 8 bloques del núcleo de la base — más lejos es solo decoración. Mientras estés en casa dispara hasta 14 bloques contra máquinas hostiles, animales agresivos y ladrones que ya han empezado una pelea. Nunca dispara a jugadores, animales domesticados ni a gente que solo quiere hablar. No necesita energía ni munición.",
   "item.algae_ration.name": "Ración de algas",
   "item.algae_ration.desc": "Una barra prensada de algas cultivadas. Sabe a pudín verde, pero realmente te llena.",
   "item.energy_fence.name": "Valla de energía",
@@ -2815,7 +2815,7 @@
   "vega.obj.dock": "Acóplate en una estación espacial",
   "vega.obj.trade": "Comercia o acepta una misión",
   "vega.obj.land": "Aterriza en un mundo",
-  "vega.hint.base_walls": "Tu núcleo mantiene el suelo libre por sí solo: no aparecen animales terrestres ni de cueva dentro de 24 bloques a su alrededor, con o sin paredes. Protege tu terreno para más seguridad: nada aparece dentro de un anillo cerrado de paredes dentro de 48 bloques de tu núcleo —al menos 2 bloques de alto, cerrado a la altura de los pies. Un hueco, o una puerta de madera abierta, y los animales lo encuentran. Los voladores y las máquinas Guardian las ignoran; los habitantes de cuevas se cuelan por debajo de las paredes; mantén un puesto de centinela para esos.",
+  "vega.hint.base_walls": "Tu núcleo mantiene el suelo libre por sí solo: no aparecen criaturas de suelo ni de cueva dentro de 24 bloques, con o sin muros. Protege el terreno con paredes para más seguridad: nada nace dentro de un anillo cerrado de muros dentro de 48 bloques del núcleo — al menos 2 bloques de alto y cerrado por completo a nivel de pies. Un hueco, o una puerta de madera abierta, y los animales lo encuentran. Los voladores y las máquinas Guardián ignoran ambos, los cavernícolas se deslizan bajo muros; un puesto centinela dentro de la zona de tu base responde a eso.",
   "vega.hint.base_airless": "Un núcleo de base en un mundo sin aire abastece el cubo de 17 bloques a su alrededor —y todas las habitaciones que estén SELLADAS: paredes y techo de piedra, metal o vidrio (la tierra y la arena no sellan), y solo la puerta energética retiene el aire; las puertas con bisagra, correderas y de madera no. Apunta al núcleo para ver cuánto de tu base tiene aire.",
   "vega.hint.breathe": "El aire aquí es respirable — ¿ves tu barra de oxígeno llena? Disfrútalo. En el espacio, bajo agua o en un mundo tóxico el tanque del traje se vacía, y la nave o una estación son lo que lo recargan.",
   "vega.hint.o2": "Oxígeno por debajo del 25%. La nave y las estaciones lo recargan. El ahogo, curiosamente, no.",
@@ -4043,5 +4043,7 @@
   "ui.struct.surface": "Bloque de superficie (aldeas)",
   "ui.struct.size_station": "Procedural: {0} módulos en {1} planta(s), habitaciones {2}×{3}×{4}",
   "ui.struct.size_settlement": "Procedural: {0}–{1} × {2}–{3} bloques, {4}–{5} piso(s)",
-  "ui.ed.generated": "Generado un {0} procedimental (semilla {2}): {1} celdas. Edítalo y guárdalo como plantilla."
+  "ui.ed.generated": "Generado un {0} procedimental (semilla {2}): {1} celdas. Edítalo y guárdalo como plantilla.",
+  "ui.scan.sentry": "Dispara {range} bloques · necesita un núcleo de base dentro de {zone}",
+  "srv.sentry.outside_base": "Este puesto centinela está fuera de la zona de tu base — no disparará. Colócalo a menos de 8 bloques de un núcleo de base."
 }

@@ -379,6 +379,11 @@ separate unlock; admins can still disable it through server world rules.
   stays. Water flowing into lava still chills to obsidian at the contact face.
 - **Lava is slow, water is quick**: lava creeps at half the speed water flows, so a breached crater gives
   you time to step back.
+- **Lava and fire burn everybody**: animals, robbers and Guardian machines take contact damage exactly as
+  you do (lava −15/s, fire −10/s), so a flooded fire trench really defends a base. Land animals are kept out
+  of a lava column anyway and mostly never reach it; what burns is what flies in, what was inside when you
+  flooded it, and what gets driven in. Tame companions never burn, creatures that live in lava are at home
+  in it, and with **environmental hazards off** (or on a Creative world) nothing burns at all.
 - **Aim at water and lava**: holding a block, the crosshair stops at a fluid's surface and the block goes
   *into* that cell (the fluid makes way) — so you can bridge a lake or a lava field from its edge. Holding
   a tier-3 drill (mining beam, diamond drill) the surface is mineable too. While you are swimming the aim
@@ -409,6 +414,10 @@ separate unlock; admins can still disable it through server world rules.
 - Water is not solid: you sink in with gentle buoyancy and **dive**; hold **Space** to swim up and
   surface. Water **breaks falls**. Deep, swimmable water (lakes, ponds, seas) is common on wet worlds;
   oxygen keeps draining while submerged on non-breathable worlds.
+- **You can fight in the water.** Water dims the view rather than ending it: a few blocks of it are
+  see-through, so you can hit something swimming beside you or just under the surface, while a whole lake
+  still hides what is on the far side of it — nothing notices you across open water, and you cannot snipe
+  through it either.
 
 ### Mining & tools
 - Tools have a **kind** (drill/scanner/…) and **tier** (1–5). A block has a **hardness** and may require a
@@ -716,12 +725,15 @@ separate unlock; admins can still disable it through server world rules.
   sealed rooms currently have air and whether the spot you stand on does (*here: air*). VEGA explains the
   three rules once when you found a core on a world without breathable air.
 - **Sentry post** (workshop, blueprint-gated after the Heal Tank): a small automatic turret you place inside
-  your own base zone. It fires at hostile machines and at robbers who have **already started a fight** —
-  never at players, never at tame animals, and never at somebody walking up to talk (you always get to
-  answer a hold-up yourself). It needs neither power nor ammunition, and you can build as many as you like.
-  Two things worth knowing: it only works **while you are home** on that world, and machines appear 35–50
-  blocks away from you — so a sentry is the thing that covers your back while you build, not a fence that
-  clears the neighbourhood. On **Creative** or **Peaceful** worlds it stays quiet, like everything else.
+  your own base zone. It fires at hostile machines, at **hostile animals**, and at robbers who have
+  **already started a fight** — never at players, never at tame animals, and never at somebody walking up to
+  talk (you always get to answer a hold-up yourself). It needs neither power nor ammunition, and you can
+  build as many as you like. Three things worth knowing: it has to stand **within 8 blocks of your base
+  core** (place one farther out and the game tells you on the spot that it will not fire), it reaches
+  **14 blocks**, and it only works **while you are home** on that world. Machines appear 35–50 blocks away
+  from you — so a sentry is the thing that covers your back while you build, not a fence that clears the
+  neighbourhood. Scan a post to read its range and the zone it needs back. On **Creative** or **Peaceful**
+  worlds it stays quiet, like everything else.
   A sentry's kill **counts for you**: bandit and machine bounty steps progress, a scout it finishes still
   counts towards *Guard the homestead* and the base-defended tally, and the drops land on the ground where
   the target fell. Only the plain "defeat" achievement stays yours to earn by hand.

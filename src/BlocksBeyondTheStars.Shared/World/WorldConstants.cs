@@ -41,6 +41,17 @@ public static class WorldConstants
     /// Shared so player-facing text and the server's authoritative spawn check use the same value.</summary>
     public const int BaseSpawnExclusionRadius = 24;
 
+    /// <summary>How far a base sentry post shoots (#1214). Shared since #1699 so a scanned post can tell the
+    /// player the number the server actually fires by — "what does it react to, and up to what range?" was a
+    /// question the game had no way of answering.</summary>
+    public const int SentryRange = 14;
+
+    /// <summary>How many fluid cells a sightline may cross before the murk closes it (#1698). Water and lava
+    /// used to break sight on the FIRST cell, which was right for "no aggro across a lake" and wrong for
+    /// everything at swimming distance: a player diving in her own moat could not hit an animal three blocks
+    /// away. Shared so the client's render-side sight mirror and the server's authoritative one agree.</summary>
+    public const int FluidSightRange = 6;
+
     // --- Longitude wrap helpers ---
     // Each takes an explicit circumference so a world can be any size; the no-arg overloads use the default
     // Circumference (6000) so existing callers/tests are unaffected. ChunksAround/LatitudeLimit have per-circ

@@ -403,7 +403,7 @@
   "blueprint.heal_tank.name": "Réservoir de soin",
   "blueprint.heal_tank.desc": "Débloque le réservoir de soin : une unité de régénération pour bases et stations qui soigne, nourrit et recharge les joueurs proches — et peut contenir ton point de réapparition.",
   "blueprint.sentry_post.name": "Poste de guet",
-  "blueprint.sentry_post.desc": "Déverrouille le poste de guet : une petite tourelle automatique pour ta base. Elle tire sur les machines hostiles et sur les voleurs qui ont déjà commencé un combat — jamais sur des personnes avec qui tu peux encore parler.",
+  "blueprint.sentry_post.desc": "Déverrouille le poste de sentinelle : une petite tourelle automatique pour ta base. Elle tire sur les machines hostiles, les animaux hostiles et les voleurs déjà engagés dans un combat — jamais sur des personnes avec qui tu peux encore parler.",
   "blueprint.stasis_projector.name": "Projecteur de stase",
   "blueprint.stasis_projector.desc": "Débloque le projecteur de stase : fige brièvement les créatures pour que tu puisses les scanner sans te faire attaquer.",
   "blueprint.terrain_blaster.name": "Blaster de terrain",
@@ -2670,7 +2670,7 @@
   "item.heal_tank.name": "Cuve de soin",
   "item.heal_tank.desc": "Une cuve de régénération pour bases et stations : tous ceux à proximité sont lentement soignés, nourris et leur combinaison se recharge. Appuie sur E pour définir ton point d'apparition ici.",
   "item.sentry_post.name": "Poste de guet",
-  "item.sentry_post.desc": "Une petite tourelle automatique. Place-la dans ta base : tant que tu es là, elle tire sur les machines hostiles et sur les voleurs qui ont commencé un combat. Elle ne tire jamais sur les joueurs, les animaux apprivoisés ni sur les personnes qui veulent juste parler. N'a pas besoin d'énergie ni de munitions.",
+  "item.sentry_post.desc": "Une petite tourelle automatique. Elle doit être placée à l'intérieur de ta base, à moins de 8 blocs du noyau de la base — plus loin elle n'est que décoration. Tant que tu es chez toi, elle couvre jusqu'à 14 blocs contre les machines hostiles, les animaux hostiles et les voleurs déjà engagés dans un combat. Elle ne tire jamais sur les joueurs, les animaux apprivoisés ni les personnes qui veulent juste parler. N'a pas besoin d'énergie ni de munitions.",
   "item.algae_ration.name": "Ration d'algues",
   "item.algae_ration.desc": "Une barre compressée d'algues cultivées. Goût de pudding vert, mais ça te cale bien.",
   "item.energy_fence.name": "Barrière énergétique",
@@ -2815,7 +2815,7 @@
   "vega.obj.dock": "Amarrer à une station spatiale",
   "vega.obj.trade": "Échanger ou accepter une mission",
   "vega.obj.land": "Atterrir sur un monde",
-  "vega.hint.base_walls": "Ton cœur de base maintient le sol sûr tout seul : aucun animal terrestre ou de grotte n’apparaît à moins de 24 blocs de lui, qu’il y ait des murs ou non. Pour plus de protection, entoure ton sol : rien n’apparaît à l’intérieur d’un anneau fermé de murs dans un rayon de 48 blocs du cœur — murs d’au moins 2 blocs de haut, fermés tout autour au niveau des pieds. Une ouverture, ou une porte en bois laissée ouverte, et les animaux passent. Les volants et les machines Gardiennes ignorent ces défenses, et les habitants des grottes se faufilent sous les murs ; prévois un poste de guet pour eux.",
+  "vega.hint.base_walls": "Ton noyau garde le sol clair tout seul : aucun ennemi terrestre ni animal de grotte n'apparaît dans un rayon de 24 blocs autour, murs ou pas. Clôture ton sol pour plus : rien n'apparaît à l'intérieur d'un anneau fermé de murs dans un rayon de 48 blocs du noyau — au moins 2 blocs de haut, fermé tout autour au niveau des pieds. Une ouverture, ou une porte en bois ouverte, et les animaux passent. Les volants et les machines Gardiennes ignorent les deux, les habitants des grottes se faufilent sous les murs ; un poste de sentinelle à l'intérieur de ta zone de base s'en occupe.",
   "vega.hint.base_airless": "Un noyau de base sur une planète sans air distribue de l’air dans le cube de 17 blocs autour de lui — et dans chaque pièce qui est SCELLÉE : murs et toit en pierre, métal ou verre (la terre et le sable laissent passer l’air), et seule la porte énergétique retient l’air ; les portes à charnière, coulissantes et en bois non. Vise le noyau pour voir quelle partie de ta base a de l’air.",
   "vega.hint.breathe": "L'air ici est respirable — tu vois ta jauge d'oxygène pleine ? Profite. Dans l'espace, sous l'eau, ou sur un monde toxique, le réservoir de ta combinaison se vide, et seul le vaisseau ou une station peut le remplir.",
   "vega.hint.o2": "Oxygène < 25 %. Le vaisseau et les stations le remplissent. L'étouffement, lui, ne le remplira pas.",
@@ -4043,5 +4043,7 @@
   "ui.struct.surface": "Bloc de surface (villages)",
   "ui.struct.size_station": "Procédural : {0} modules sur {1} étage(s), pièces {2}×{3}×{4}",
   "ui.struct.size_settlement": "Procédural : {0}–{1} × {2}–{3} blocs, {4}–{5} étage(s)",
-  "ui.ed.generated": "Généré un {0} procédural (graine {2}) : {1} cellules. Modifie-le et enregistre-le comme modèle."
+  "ui.ed.generated": "Généré un {0} procédural (graine {2}) : {1} cellules. Modifie-le et enregistre-le comme modèle.",
+  "ui.scan.sentry": "Tire à {range} blocs · nécessite un noyau de base dans {zone}",
+  "srv.sentry.outside_base": "Ce poste de sentinelle se trouve hors de ta zone de base — il ne tirera pas. Place-le à moins de 8 blocs d'un noyau de base."
 }

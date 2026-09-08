@@ -215,16 +215,43 @@ namespace BlocksBeyondTheStars.Client
         /// target has already despawned) costs nothing: it is simply not drawn.</summary>
         private void OnSentryShot(BlocksBeyondTheStars.Networking.Messages.SentryShot m)
         {
-            if (!_enemies.TryGetValue(m.TargetId, out var target))
+            // #1699: a sentry now also answers hostile WILDLIFE, and animals live in the creature list rather
+            // than in this view's enemy dictionary — resolve the tracer's far end from whichever holds it.
+            Vector3 hit;
+            if (_enemies.TryGetValue(m.TargetId, out var target))
+            {
+                hit = target.Root.transform.position;
+            }
+            else if (FindCreatureScenePos(m.TargetId) is { } creaturePos)
+            {
+                hit = creaturePos;
+            }
+            else
             {
                 return;
             }
 
             var muzzle = new Vector3(m.X, m.Y, m.Z);
             _weapons ??= FindAnyObjectByType<WeaponFx>();
-            _weapons?.Shoot(muzzle, target.Root.transform.position,
+            _weapons?.Shoot(muzzle, hit,
                 new Color(0.45f, 0.92f, 1f)); // the cyan the base machinery uses, not the enemies' red
             ClientAudio.Instance?.At("sentry_shot", muzzle, 1f);
+        }
+
+        /// <summary>Scene position of a live creature by id, or null when the id is not one (#1699). Reads the
+        /// same snapshot <see cref="CreatureView"/> draws from, so the tracer lands on the body the player
+        /// sees; a target that has already despawned simply gets no tracer.</summary>
+        private Vector3? FindCreatureScenePos(string id)
+        {
+            foreach (var c in Game.Creatures)
+            {
+                if (c.Id == id)
+                {
+                    return Game.ScenePos(c.X, c.Y, c.Z);
+                }
+            }
+
+            return null;
         }
 
         /// <summary>Whether a ranged attacker at <paramref name="shooter"/> has a clear sight line to the
@@ -241,12 +268,15 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Vector3 chest = Game.PlayerPosition + Vector3.up * 0.9f; // where the beam aims
-            return SightLine.Clear(IsSightBlockingCell, shooter.x, shooter.y, shooter.z, chest.x, chest.y, chest.z);
+            return SightLine.Clear(IsSightBlockingCell, IsFluidCell,
+                BlocksBeyondTheStars.Shared.World.WorldConstants.FluidSightRange,
+                shooter.x, shooter.y, shooter.z, chest.x, chest.y, chest.z);
         }
 
-        /// <summary>Sight-blocking test for one world cell — the client twin of the server's
-        /// <c>IsSightBlockingCell</c>. <c>GetBlock</c> canonicalises seam coordinates and reads unloaded
-        /// chunks as air (clear), which is the right lenient default for a cosmetic effect.</summary>
+        /// <summary>Sight-blocking test for one world cell — the client twin of the server's sight march.
+        /// <c>GetBlock</c> canonicalises seam coordinates and reads unloaded chunks as air (clear), which is
+        /// the right lenient default for a cosmetic effect. Fluids are NOT counted here since #1698: they no
+        /// longer wall sight off, they spend it — see <see cref="IsFluidCell"/>.</summary>
         private bool IsSightBlockingCell(int wx, int wy, int wz)
         {
             var id = Game.World.GetBlock(wx, wy, wz);
@@ -256,7 +286,15 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var def = Game.Content?.BlockById(id);
-            return def == null || def.Solid || def.Key is "water" or "lava";
+            return def == null || def.Solid;
+        }
+
+        /// <summary>Whether a cell is water or lava — murk that a sightline can cross a few cells of before it
+        /// closes (#1698), rather than a wall. Client twin of the server's fluid test.</summary>
+        private bool IsFluidCell(int wx, int wy, int wz)
+        {
+            var id = Game.World.GetBlock(wx, wy, wz);
+            return !id.IsAir && Game.Content?.BlockById(id) is { Key: "water" or "lava" };
         }
 
         /// <summary>A ranged attacker's shot: a short laser beam to the player (with a little scatter) plus the
