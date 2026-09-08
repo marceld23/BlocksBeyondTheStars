@@ -13,64 +13,127 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### Added
+## [2026.9.4] — 2026-09-08
 
-- **Terrain generation 3 — the landform completion package.** A landform audit measured the generator
-  against 84 real-world landforms and found 26 missing and 15 half-done. Every new world now rolls them:
-  seamounts and icebergs, rivers that run underground on karst worlds, slot canyons, arêtes and tooth rows,
-  rock gates and mountain halls, desert pavement, petrified dunes and rainbow strata, labyrinths and stone
-  forests, dripstone caves and karst cathedrals, obsidian fields, lava flows with glowing pockets, barchans,
-  frost polygons, meandering rivers with oxbow lakes, deltas and floodplains, rias, floating mats, peat bogs,
-  thaw ponds, sea arches, blowholes, tidal islands, lagoons and atolls of coral rock, reef fields, blue holes,
-  submarine canyons and trenches, glaciers as real volumes of ice with crevasses, icefalls, moraines, ice
-  caves and glacier gates, ice sheets with nunataks, hanging valleys. Two new blocks (`peat`, `coral_rock`) and
-  three new planet types (`coral_sea`, `icecap`, `river_lowlands`). Existing worlds stay exactly as they are:
-  everything is gated on the world's terrain generation, and every classic golden checksum is unchanged.
+The living-world release. Animals finally **walk** instead of sliding along the ground: every creature has
+jointed legs now, with knees, ankles and feet that stay planted where they were set down, a stride that
+matches how fast the body is actually moving, wings that fold at a wrist, tails and necks that ripple, fins
+for the swimmers, and a jaw that opens when they call. They lie down to sleep, they blink, and they watch
+you. And the landscape is finished: **terrain generation 3** rolls the last forty-odd landforms the world
+builder never had — seamounts and icebergs, glaciers as real bodies of ice with crevasses and ice caves,
+coral atolls and blue holes, meandering rivers with oxbow lakes, dripstone caves, slot canyons, nunataks —
+plus **two new blocks** and **three new kinds of planet**. Water you dig and fill yourself now counts as
+real water for everyone, lava burns whatever steps into it, and the sentry post finally defends you against
+animals as well. **Lyxette** sent two more rounds of reports and drove most of the fixes below — thank you! 🙏
 
-- **Lava and fire burn everybody now, not just you.** A player flooding a trench with lava around her base
-  put it plainly: everything that steps into the melt ought to take damage. Animals, robbers and Guardian
-  machines now burn exactly as you do — a fire moat is a real defence, not only a wall. Tame companions never
-  burn, creatures that live in lava are at home in it, and on a peaceful world nothing burns at all (#1700).
-- **Your sentry post defends you against animals too — and tells you what it needs.** It used to shoot only
-  machines and robbers, while the game's own advice said to keep one for the fliers and cave animals that
-  walls do not stop. Now it answers those as well, and never a tame animal. Put one down outside your base
-  zone and it says so straight away; scanning a post shows how far it shoots and how close to a base core it
-  has to stand (#1699).
+ℹ️ **Compatibility:** the network protocol stays at version 5, saves migrate unchanged. Every new landform,
+block and planet type reaches **new worlds only** — a world you already built in keeps exactly the terrain
+it has, down to the block.
 
-### Fixed
+### 🐾 Animals that really walk (#1674)
 
-- **Animals no longer walk across a moat you dug yourself.** A player built a wide water trench around her
-  spaceport and watched the attacking creatures stroll over the surface of it. Water the world was born with
-  counted as water; water you place did not — so the animals were still walking on the ground that used to be
-  there before you dug. Now they stop at the bank of any water, wade through the shallow kind, and a flying
-  animal settles above the surface of a pool instead of falling asleep under it (#1697).
+- **No more sliding.** A leg used to be a single box swinging at a speed that had nothing to do with the
+  distance the body covered, so every animal in the game skated across the ground. The stride is now tied
+  to the walking speed, which means a planted foot stays where it was put down while the body travels over
+  it — the way a real animal moves.
+- **Legs with knees and feet.** Hip, thigh, knee, shin and foot, with front legs folding back and hind legs
+  forward (a four-legged animal whose knees all bend the same way reads as a table), and the sole staying
+  flat on the ground. Legs sit at the body's real width instead of the middle of the belly, and they spread
+  across the whole torso, so a long or a broad species is built the way it looks.
+- **Six ways of walking**, picked from leg count, size and speed — a walk, a trot, a bound, the insect
+  tripod, the wave a many-legged creature runs down its side, and a paddle — and the change from one to the
+  next fades instead of popping. A giant's slow, heavy stride now simply falls out of how big it is.
+- **Feet find the ground.** Each foot targets a real block, so legs follow slopes, steps and ledges instead
+  of standing on one invisible plane, and the body leans with the ground it stands on.
+- **Wings, tails, necks, trunks and tentacles move.** A wing folds at the wrist, back along the flank
+  instead of flipping over the back; tails, necks, trunks and tentacles are chains now, so the motion
+  travels outward as a wave — and a grazed titan bends its whole neck instead of nodding a head on a pole.
+- **A face.** The jaw opens on every call and snaps on a bite (the voices have been coming out of sealed
+  heads since they were added), animals blink, follow you with their eyes, lie down to sleep, and flick
+  ears, swat tails and shift their weight when they have been standing around a while.
+- **Fins.** Legless swimmers grow pectoral, tail and dorsal fins that beat as they swim and fold flat when
+  they are washed ashore. Existing worlds keep exactly the species they had.
+- **Distant animals cost less.** Nearby creatures animate in full, far ones less often, and the ones you
+  cannot see at all stop animating entirely while still moving about their business.
+
+### 🏔️ Terrain generation 3 — the landform package (#1688 #1689 #1690 #1691 #1692 #1693 #1694 #1695)
+
+A landform audit measured the world builder against 84 real-world landforms and found 26 missing and 15
+half-done. New worlds now roll them all.
+
+- **Rock and desert:** slot canyons, arêtes and tooth rows, rock gates and mountain halls, desert pavement,
+  petrified dunes, rainbow strata, labyrinths, stone forests, barchan dunes, frost polygons, obsidian
+  fields and lava flows with glowing pockets (#1689 #1691).
+- **Underground:** dripstone caves with stalactites and stalagmites, karst cathedrals, and rivers that run
+  underground on karst worlds (#1688 #1690).
+- **Rivers and wetlands:** rivers that meander, with oxbow lakes left behind, deltas and floodplains at the
+  mouth, drowned river valleys, floating mats of plants, peat bogs and thaw ponds (#1692).
+- **Coast and sea floor:** sea arches and blowholes, tidal islands you can walk to at low water, lagoons
+  and atolls of coral rock, reef fields, blue holes, submarine canyons and deep trenches, and seamounts
+  rising out of the deep (#1693 #1688).
+- **Ice:** glaciers are real volumes of ice now, with crevasses, icefalls, moraines, ice caves and glacier
+  gates; ice sheets carry nunataks — bare peaks poking through — and there are hanging valleys and
+  icebergs adrift (#1694 #1688).
+- **Two new blocks** to mine and build with, **peat** and **coral rock**, and **three new kinds of planet**:
+  a coral sea, an ice cap and river lowlands (#1695).
+- All of it is tied to the world's terrain generation number, so **existing worlds are untouched** — every
+  old world still generates block for block the way it always did (#1688).
+
+### 💧 Built water is real water — and fire burns everybody (#1697 #1698 #1700 #1701)
+
+- **Animals no longer walk across a moat you dug yourself.** A player built a wide water trench around a
+  spaceport and watched the attacking creatures stroll over the surface of it. Water the world was born
+  with counted as water; water you place did not — so the animals were still walking on the ground that
+  used to be there before you dug. Now they stop at the bank of any water, wade through the shallow kind,
+  and a flying animal settles above the surface of a pool instead of falling asleep under it (#1697).
+- **Lava and fire burn everybody now, not just you.** Animals, robbers and Guardian machines burn exactly
+  as you do — a fire moat is a real defence, not only a wall. Tame companions never burn, creatures that
+  live in lava are at home in it, and on a peaceful world nothing burns at all (#1700).
 - **You can fight in the water.** Shooting at anything while swimming — or at anything swimming — always
   answered "no clear line of fire", because water blocked sight completely. Water now dims the view instead
   of ending it: a few blocks of it are see-through, a whole lake still hides what is behind it (#1698).
 - **A wide water surface looks like one surface.** Big flat water read as a grid of blocks with hard edges,
   and a trench that changed width could ripple in one spot and lie still in the next. Both are smoothed
   out (#1701).
+
+### 🛡️ Your sentry post defends you against animals too (#1699)
+
+- It used to shoot only machines and robbers, while the game's own advice said to keep one for the fliers
+  and cave animals that walls do not stop. Now it answers those as well, and never a tame animal. Put one
+  down outside your base zone and it says so straight away; scanning a post shows how far it shoots and how
+  close to a base core it has to stand.
+
+### ⛏️ A tool that will not break a block says which one would (#1686)
+
+- Aiming the starter drill at a machine block used to produce "Your current tool cannot mine this block."
+  and nothing else — never which tool would work, never before the swing. Fifteen blocks gate this way, so
+  the first wall a new player meets had no visible way through. Now the refusal names the tool
+  ("Needs: Titanium Drill"), **every scan of a gated block carries a "Needs:" line** whether or not the
+  tool in hand already clears it, and VEGA explains the whole idea once, the first time you are turned
+  away. None of the rules changed — only what the game tells you about them.
+
+### 🚀 Hyperjumps, landing pads and the compass (#1677 #1678 #1679 #1680 #1681 #1682 #1683 #1684)
+
 - **A hyperjump from the cockpit really takes you to the new system.** Jumping between stars while flying
   left the old system's planets in the flight view: the landing list still offered the planets you had come
-  from, and picking one jumped you straight back to the old planet. The flight view now rebuilds itself on
-  arrival, and the star chart reaches the client before the flight does (#1677).
+  from, and picking one jumped you straight back. The flight view rebuilds itself on arrival now, and the
+  star chart reaches you before the flight does (#1677).
 - **Two ships can no longer be parked on the same landing spot.** A player landed at position 1 and found a
-  trader's ship standing inside his own — he could not get out. Parking a ship now checks the ground itself
-  instead of trusting the booking: an arriving ship takes the next free spot, and a trader that finds the
-  spot taken keeps flying. A pilot who jumps between stars no longer carries the landing spot of the world
-  they left (#1678, #1679).
+  trader's ship standing inside their own, with no way out. Parking a ship now checks the ground itself
+  instead of trusting the booking: an arriving ship takes the next free spot, a trader that finds the spot
+  taken keeps flying, and a pilot who jumps between stars no longer carries the landing spot of the world
+  they left (#1678 #1679).
 - **A visiting trader takes its ship with it when it leaves.** Its parked hull could be left standing on a
-  landing spot already reported as free, and a trader that never touched down could take an unrelated
-  character out of the world with it (#1680).
+  spot already reported as free, and a trader that never touched down could take an unrelated character out
+  of the world with it (#1680).
 - **Anyone caught inside a parked hull is set down beside it.** The rescue only knew about blocks, not about
   ships, so a player wedged between two hulls was teleported back into the same spot every second (#1681).
-- **The compass points at your ship again.** The ship is now marked by an arrow on the rim of the dial that
+- **The compass points at your ship again.** The ship is marked by an arrow on the rim of the dial that
   points the way to it and stays readable however far away it is — the small square inside the dial keeps
   showing how close you are getting (#1682).
-- Closing the feedback window no longer risks an error while a text field still has the cursor (#1683).
-- A planet's crashed wreck is pinned to where it was built, like every other structure, so its repair plan
+- Closing the feedback window no longer risks an error while a text field still has the cursor (#1683), and
+  a planet's crashed wreck is pinned to where it was built, like every other structure, so its repair plan
   can never drift away from the hull lying in the world (#1684).
-
 ## [2026.9.3] — 2026-09-06
 
 The landscape release. Every new world you create from now on rolls its own landscape — dune seas next to
@@ -4765,7 +4828,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.3...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.4...HEAD
+[2026.9.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.3...v2026.9.4
 [2026.9.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.2...v2026.9.3
 [2026.9.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.1...v2026.9.2
 [2026.9.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.26...v2026.9.1
