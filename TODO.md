@@ -24,6 +24,37 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🤔 Second batch of 2026-09-09 (#1726–#1729): seven reports, no defects — five decisions
+
+A second wave arrived the same evening, while the batch below was being fixed. Analysed against the code:
+**not one of them is a bug.** Recording that here rather than patching, because inventing fixes for correct
+behaviour would make the game worse, and because four of the five need a call only Marcel can make.
+
+- **#1726 — placed water floods instead of falling.** The fluid model is level-based and bounded per plane
+  (`FluidFull = 8`, `Spread` fills at `level - 1`, so seven cells sideways). What is not bounded is a drop:
+  a falling cell is refilled at `FluidFull`, so every step re-arms a fresh seven-cell spread and a flood grows
+  with the terrain rather than settling. Correct per the documented Minecraft-style design, and a hazard at
+  the ~80×80 scale this player builds at. Three options in the issue; the interesting one is a placeable
+  source that only feeds straight down.
+- **#1727 — quenched lava keeps its molten core.** `QuenchLava` replaces the cell it hardens (it does not
+  stack), and only the contact surface touches water, so the lava underneath stays lava. Deliberate and
+  physically honest. The real complaint is that a player watching it happen built the wrong mental model and
+  filed it as a defect — the fix, if any, is telling her once, not changing the physics.
+- **#1728 — animals inside a walled compound.** Checked against `vega.hint.base_walls`: the hint names the
+  48-block reach *and* says "Eine Lücke oder eine offen gelassene Holztür, und die Tiere finden sie". Her
+  compound has a doorway with no door in it. Rule, constant and wording all agree — no defect. Worth having
+  anyway: 48 blocks is below the scale people build at, and nothing tells a player *which* limit they hit.
+- **#1729 — double doors.** Two leaves should swing away from their shared edge. Her gateway is the reason
+  #1728 happened at all, so this is the change that would actually close her perimeter. Mostly Unity work.
+- **#1713 — retitled and re-scoped.** A second reporter hit "no terrain, only sky" on the **Windows** client,
+  not WebGL, and his report carried a server snapshot: standing on solid ground in a cavity at y 45, nineteen
+  blocks below his own ship, 5354 cells of solid rock around him — with a fragment of that ship still drawn.
+  Objects render, chunks do not. His screenshot also carries the `srv.misc.dug_out` toast, which makes this
+  very likely a **symptom of #1708** (the 1 Hz rescue loop never let the view settle). #1708 shipped after his
+  report, so the first step is re-testing on the next build before spending more on it.
+
+Also in the batch and needing nothing: an overview screenshot of her finished spaceport, sent as a thank-you.
+
 ### 🛟 Nobody stays stuck, and a hosted world stays up (#1704–#1712, 2026-09-09, branch fix/reports-0909)
 
 Nine reports in one day, all on 2026.9.4: two children from the school club, three from a builder on her own
