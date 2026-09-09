@@ -3952,7 +3952,10 @@ public sealed partial class GameServer
 
         if (IsShipBlock(pos))
         {
-            Reject(session, "mine", "@srv.mine.ship_hull");
+            // #1710: this guard is about the pad ground the hull stands on, never about the hull — which has
+            // not been world blocks since ship-as-object. Saying "ship hull" here sent a builder off writing a
+            // feature request for removable doors, because the door she was aiming at answered as a hull.
+            Reject(session, "mine", "@srv.mine.ship_pad");
             return;
         }
 

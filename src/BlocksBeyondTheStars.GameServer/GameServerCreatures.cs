@@ -1330,6 +1330,10 @@ public sealed partial class GameServer
     private bool LavaUnderFeet(int x, int feetY, int z)
         => _creatureLavaId != 0 && _world.GetBlockIfLoaded(new Vector3i(x, feetY - 1, z)).Value == _creatureLavaId;
 
+    /// <summary>Test seam (#1711): the Y an airborne creature at <paramref name="refY"/> measures its band
+    /// from in this column.</summary>
+    public int RestSurfaceYForTest(int x, int z, int refY) => RestSurfaceYAt(x, z, refY);
+
     /// <summary>Test seam (#1367): the terrain gate's verdict for a creature stepping to <paramref name="next"/>
     /// from where it stands, in its current motion class.</summary>
     public bool TerrainStepBlockedForTest(string creatureId, Vector3f next)
@@ -1469,7 +1473,43 @@ public sealed partial class GameServer
 
         int bed = SubmergedFeetYAt(x, z, refY, CreatureWideGroundScan);
         int top = bed != int.MinValue ? FluidTopAt(x, z, bed) : int.MinValue;
-        return top != int.MinValue ? top + 1 : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+        if (top != int.MinValue)
+        {
+            return top + 1;
+        }
+
+        // #1711: the last resort is the generator's noise surface — the height this column has where nothing
+        // has been dug. For a creature under a ROOF that Y is on the far side of solid rock, and handing it
+        // back parks the animal inside the ceiling: a player photographed one asleep halfway into the stone
+        // above her cave, with water above that. Its sibling GroundFeetFor already refuses to answer the noise
+        // surface for a cave dweller; this probe never got the same guard. Keyed on the rock rather than on
+        // Habitat, because Habitat is a single value — the creature stuck in her ceiling was a hoverer, not a
+        // cave species, and any animal below a ceiling has the same problem.
+        int surface = _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+        return RoofBetween(x, z, refY, surface) ? refY : surface;
+    }
+
+    /// <summary>True when the column between a creature and a candidate rest Y above it is not open (#1711):
+    /// solid ground in the way, or the candidate further off than the probe is willing to vouch for. Either
+    /// way the noise surface is not a place this animal could come to rest, and the caller holds its depth
+    /// instead. Cheap no-load reads, bounded by <see cref="FluidColumnScan"/>.</summary>
+    private bool RoofBetween(int x, int z, int fromY, int toY)
+    {
+        if (toY <= fromY)
+        {
+            return false; // the candidate is at or below us — nothing to pass through
+        }
+
+        int scanTo = System.Math.Min(toY, fromY + FluidColumnScan);
+        for (int y = fromY + 1; y <= scanTo; y++)
+        {
+            if (IsSupportCell(x, y, z))
+            {
+                return true;
+            }
+        }
+
+        return toY > scanTo; // surface further up than we looked — do not teleport blind
     }
 
     /// <summary>The feet cell a ground mover of this species stands on in a column, nearest to

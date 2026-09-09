@@ -3640,6 +3640,7 @@
   "srv.loot.filter_blocked": "Diese Kiste nimmt diese Gegenstände nicht an.",
   "srv.mine.not_mineable": "Dieser Block lässt sich nicht abbauen.",
   "srv.mine.ship_hull": "Die Schiffshülle kann nicht abgebaut werden.",
+  "srv.mine.ship_pad": "Der Boden unter dem Schiff muss liegen bleiben — er trägt es.",
   "srv.mine.wrong_tool": "Dein aktuelles Werkzeug kann diesen Block nicht abbauen.",
   "srv.mine.wrong_tool_named": "Dein Werkzeug ist für diesen Block nicht stark genug. Nötig: {name}.",
   "srv.misc.aboard_for_cargo": "Geh an Bord des Schiffs, um den Frachtraum zu benutzen.",

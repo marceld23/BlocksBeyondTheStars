@@ -245,6 +245,50 @@ public sealed class WebSocketTransportTests : IDisposable
         }
     }
 
+    /// <summary>#1707: the managed HttpListener used off Windows races itself at bind time and throws an
+    /// ArgumentNullException out of Start(). It ran unguarded straight out of Main, so a lost coin flip killed
+    /// the container — five crash reports from one hosted world in a single night. A transient failure is
+    /// retried instead.</summary>
+    [Fact]
+    public void Start_RetriesATransientListenerFailure()
+    {
+        using var transport = new WebSocketServerTransport("127.0.0.1");
+        int attempts = 0;
+        transport.StartListenerForTest = () =>
+        {
+            if (++attempts == 1)
+            {
+                SimulateMonitorEnterRace(null);
+            }
+        };
+
+        transport.Start(FreeTcpPort());
+
+        Assert.Equal(2, attempts); // failed once, came up on the retry
+    }
+
+    /// <summary>What the listener's own bind race surfaces as: Monitor.Enter on a lock object the
+    /// HttpEndPointListener constructor has not assigned yet.</summary>
+    private static void SimulateMonitorEnterRace(object? lockObject)
+        => throw new ArgumentNullException(nameof(lockObject));
+
+    /// <summary>…but a port that is genuinely unusable must still fail loudly rather than be swallowed: the
+    /// retry budget is for a race, not for a real bind error.</summary>
+    [Fact]
+    public void Start_StillThrows_WhenEveryAttemptFails()
+    {
+        using var transport = new WebSocketServerTransport("127.0.0.1");
+        int attempts = 0;
+        transport.StartListenerForTest = () =>
+        {
+            attempts++;
+            throw new HttpListenerException(48, "address already in use");
+        };
+
+        Assert.Throws<HttpListenerException>(() => transport.Start(FreeTcpPort()));
+        Assert.True(attempts > 1, "the retry budget should have been spent before giving up");
+    }
+
     private static int FreeTcpPort()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);

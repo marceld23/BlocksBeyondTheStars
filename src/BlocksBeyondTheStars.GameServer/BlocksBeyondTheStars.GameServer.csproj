@@ -36,9 +36,15 @@
          · InvariantGlobalization: NameScreenTests' "hïtler" evasion stopped matching — the name screening
            normalises diacritics with string.Normalize, which needs ICU. ICU stays; its RSS is the price of that filter.
        The Windows run loop's timer resolution (HighResolutionTimerScope) is the knob that paid off: 68–70 → 76 ticks
-       per 5 s window, i.e. the configured 15 Hz instead of ~13.8. -->
+       per 5 s window, i.e. the configured 15 Hz instead of ~13.8.
+       #1705: the pin below was spelled ServerGarbageCollector for its whole life. No such MSBuild property
+       exists, unrecognised properties are ignored without a warning, and the generated runtimeconfig.json
+       carried no System.GC.Server key at all — so the "pinned explicitly" above was never true. Workstation
+       happens to be the runtime default for a console app, which is why nothing looked wrong; but a default is
+       not a pin, and a stray DOTNET_gcServer=1 or a base-image change would have flipped every world container
+       to per-core server heaps on a box that already runs several under a memory cap (see #1704). -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <ServerGarbageCollector>false</ServerGarbageCollector>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
   </PropertyGroup>
 
 </Project>

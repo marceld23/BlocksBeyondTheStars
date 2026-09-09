@@ -88,10 +88,47 @@ public sealed class WebSocketServerTransport : IServerTransport
         _handshakeTimeout = handshakeTimeout ?? DefaultHandshakeTimeout;
     }
 
+    /// <summary>How many times <see cref="HttpListener.Start"/> may be retried before the failure is real
+    /// (#1707), and how long to wait between attempts.</summary>
+    private const int StartAttempts = 4;
+    private const int StartRetryDelayMs = 250;
+
+    /// <summary>Test seam (#1707): replaces the listener start so a test can make the first attempt throw.
+    /// Null in production, where the real <see cref="HttpListener"/> is started.</summary>
+    internal Action? StartListenerForTest { get; set; }
+
     public void Start(int port)
     {
         _listener.Prefixes.Add($"http://{_bindHost}:{port}/");
-        _listener.Start();
+
+        // #1707: the managed HttpListener used off Windows races itself at bind time — HttpEndPointListener
+        // calls Accept from its own constructor and reaches Monitor.Enter before the lock object is assigned,
+        // which surfaces here as an ArgumentNullException out of Start(). Nothing about the port is wrong; the
+        // next attempt a moment later succeeds. This ran unguarded, so a lost coin flip threw straight out of
+        // GameServer.Start() into Main and killed the container — five crash reports from one hosted world in
+        // a single night, all of them this. A transient race must cost a quarter second, not the process.
+        // A port that is genuinely taken still fails: the last attempt's exception is the one that propagates.
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                if (StartListenerForTest is { } startForTest)
+                {
+                    startForTest();
+                }
+                else
+                {
+                    _listener.Start();
+                }
+
+                break;
+            }
+            catch (Exception) when (attempt < StartAttempts)
+            {
+                System.Threading.Thread.Sleep(StartRetryDelayMs);
+            }
+        }
+
         _running = true;
         _ = Task.Run(AcceptLoopAsync);
     }

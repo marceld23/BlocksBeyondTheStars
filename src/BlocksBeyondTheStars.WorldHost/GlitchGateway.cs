@@ -69,6 +69,35 @@ public sealed class GlitchGateway
     private readonly Func<WorldRecord, Task<string?>> _statusReader;
     private readonly Lock _poolGate = new();
     private readonly ConcurrentDictionary<string, (long ExpiresUnix, string UserName)> _validateCache = new();
+    private readonly Func<DateTimeOffset> _utcNow;
+
+    /// <summary>Keep-awake backoff state per world (#1706): how many wakes in a row did not stick, and the
+    /// earliest time the next one may be attempted.</summary>
+    private readonly Dictionary<string, (int Failures, DateTimeOffset NextAttemptUtc)> _wakeBackoff = new(StringComparer.Ordinal);
+
+    /// <summary>Worlds this gateway woke on the previous keep-awake pass (#1706). One that is down again on
+    /// the next pass did not survive its wake — that, not the start call's return value, is the failure signal:
+    /// the container starts fine and dies seconds later.</summary>
+    private readonly HashSet<string> _wokeLastPass = new(StringComparer.Ordinal);
+
+    /// <summary>After this many consecutive wakes that did not stick, stop waking the world at all (#1706).
+    /// It needs a person, not another restart.</summary>
+    public const int MaxConsecutiveWakeFailures = 5;
+
+    /// <summary>Worlds that crossed <see cref="MaxConsecutiveWakeFailures"/> and have not been reported yet.</summary>
+    private readonly List<string> _givenUp = new();
+
+    /// <summary>Guards the keep-awake pass against overlapping itself. The startup pass is fire-and-forget and
+    /// a fresh pool can take a minute per world, so the 30 s reaper tick runs into it — and the backoff
+    /// bookkeeping above is plain (non-concurrent) state. An overlapping tick SKIPS rather than queues: it
+    /// would only re-ask a question the pass in flight is already answering, and queueing would also let its
+    /// failure accounting double-count the same dead world.</summary>
+    private readonly Lock _wakeGate = new();
+    private bool _wakePassRunning;
+
+    /// <summary>Backoff after n failed wakes: 30 s doubling to a 30 min ceiling (#1706).</summary>
+    public static TimeSpan WakeBackoffFor(int failures)
+        => TimeSpan.FromSeconds(Math.Min(30d * Math.Pow(2, Math.Max(0, failures - 1)), 1800d));
 
     public GlitchGateway(
         WorldHostConfig config,
@@ -77,11 +106,13 @@ public sealed class GlitchGateway
         HttpMessageHandler? glitchHttpHandler = null,
         RateLimiter? heartbeatLimit = null,
         Func<WorldRecord, Task<string?>>? statusReader = null,
-        RateLimiter? saveLimit = null)
+        RateLimiter? saveLimit = null,
+        Func<DateTimeOffset>? utcNow = null)
     {
         _config = config;
         _registry = registry;
         _orchestrator = orchestrator;
+        _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow); // injectable so the wake backoff (#1706) is testable
         _glitchApi = glitchHttpHandler is null
             ? new HttpClient { Timeout = TimeSpan.FromSeconds(15) } // save payloads are MBs, not the 5s probe class
             : new HttpClient(glitchHttpHandler) { Timeout = TimeSpan.FromSeconds(15) };
@@ -547,22 +578,100 @@ public sealed class GlitchGateway
             return 0;
         }
 
+        lock (_wakeGate)
+        {
+            if (_wakePassRunning)
+            {
+                return 0; // a pass is already in flight — this tick has nothing to add
+            }
+
+            _wakePassRunning = true;
+        }
+
+        try
+        {
+            return await WakePoolCoreAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_wakeGate)
+            {
+                _wakePassRunning = false;
+            }
+        }
+    }
+
+    private async Task<int> WakePoolCoreAsync()
+    {
         EnsurePool();
         int woken = 0;
+        var now = _utcNow();
+        var wokeThisPass = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var world in _registry.ListWorldsByChannel(WorldChannel.Glitch))
         {
-            if (world.Status != WorldStatus.Running)
+            if (world.Status == WorldStatus.Running)
             {
-                var (running, _) = await _orchestrator.EnsureRunningAsync(world.Id).ConfigureAwait(false);
-                if (running is not null)
+                _wakeBackoff.Remove(world.Id); // up again — forget the history, a later wobble starts over
+                continue;
+            }
+
+            // #1706: this pass used to restart every dead arcade world every 30 s, for as long as it stayed
+            // dead. One world spent roughly eighteen hours in that loop — 2000+ starts, each generating the
+            // galaxy and being killed seconds later, burning CPU on a shared box, filling the feedback inbox
+            // with the same crash and growing its SQLite write-ahead log to eight times the database because
+            // the process never lived long enough to checkpoint. Nothing anywhere said the world was broken.
+            // A world that was woken last pass and is down again did not survive its wake.
+            if (_wokeLastPass.Contains(world.Id))
+            {
+                int failures = (_wakeBackoff.TryGetValue(world.Id, out var prev) ? prev.Failures : 0) + 1;
+                _wakeBackoff[world.Id] = (failures, now + WakeBackoffFor(failures));
+                if (failures == MaxConsecutiveWakeFailures)
                 {
-                    woken++;
+                    _givenUp.Add(world.Id); // crossed the threshold on THIS pass — the reaper logs it once
                 }
+            }
+
+            if (_wakeBackoff.TryGetValue(world.Id, out var state)
+                && (state.Failures >= MaxConsecutiveWakeFailures || now < state.NextAttemptUtc))
+            {
+                continue; // given up on, or still backing off
+            }
+
+            var (running, _) = await _orchestrator.EnsureRunningAsync(world.Id).ConfigureAwait(false);
+            if (running is not null)
+            {
+                woken++;
+                wokeThisPass.Add(world.Id);
             }
         }
 
+        _wokeLastPass.Clear();
+        _wokeLastPass.UnionWith(wokeThisPass);
         return woken;
     }
+
+    /// <summary>Worlds the keep-awake pass gave up on since this was last called, emptied by the read (#1706).
+    /// The reaper logs them — a world that will not stay up needs a person to look at it, and until it is
+    /// mentioned somewhere nobody knows to.</summary>
+    public IReadOnlyList<string> DrainGivenUpWorlds()
+    {
+        if (_givenUp.Count == 0)
+        {
+            return System.Array.Empty<string>();
+        }
+
+        var ids = _givenUp.ToArray();
+        _givenUp.Clear();
+        return ids;
+    }
+
+    /// <summary>Test seam (#1706): how many consecutive failed wakes this gateway has recorded for a world,
+    /// and whether it has given up on it.</summary>
+    public (int Failures, bool GivenUp) WakeStateFor(string worldId)
+        => _wakeBackoff.TryGetValue(worldId, out var s)
+            ? (s.Failures, s.Failures >= MaxConsecutiveWakeFailures)
+            : (0, false);
 
     /// <summary>Picks the arcade world for the next guest: a running world with player headroom first
     /// (probed live), then a sleeping one to wake on demand. Racy by design — the instance's own

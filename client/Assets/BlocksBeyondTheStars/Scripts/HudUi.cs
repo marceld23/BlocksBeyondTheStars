@@ -2152,6 +2152,49 @@ namespace BlocksBeyondTheStars.Client
                 _scanKnow.color = UiKit.TextCol;
                 _scanKnow.text = $"{loc.Get("ui.scan.knowledge")}: {scan.KnowledgeTotal}";
             }
+
+            ReflowScanPanel();
+        }
+
+        /// <summary>
+        /// Sizes the scan panel to the text it is actually showing (#1712).
+        /// <para>
+        /// Every row used to be a constant: the info block was 78 px — three lines at size 17 — with the threat
+        /// and knowledge rows nailed to y=122 and y=148 inside a panel of fixed height. The tool-tier line added
+        /// in #1686 makes the sentry's block four lines, so the fourth was simply clipped and a player read
+        /// "Schießt 14 Blöcke weit · braucht einen Grundstein in" with the rest of the sentence gone.
+        /// </para>
+        /// The panel grows UPWARD — its bottom edge is what must stay put, because it sits just above the
+        /// screen edge and beside the hotbar backplate. A hidden threat row now closes its gap too, which is
+        /// the dead space visible in that same report.
+        /// </summary>
+        private void ReflowScanPanel()
+        {
+            const float infoTop = 40f, infoMinH = 78f, rowGap = 4f, threatH = 22f, knowH = 26f, padBottom = 8f;
+            const float textW = ScanPanelW - 24f;
+            // Ceiling, so the panel grows for a wrapped sentence but never for a runaway list: an asteroid
+            // reports every distinct resource it holds, and #482 already had that text running over the rows
+            // below. Past this the truncation set up in Build takes over again, as it did before.
+            const float infoMaxH = 160f;
+
+            // TMP measures the wrapped text itself; a height of 0 asks for "as tall as it needs".
+            float infoH = Mathf.Clamp(
+                _scanInfo.GetPreferredValues(_scanInfo.text, textW, 0f).y, infoMinH, infoMaxH);
+            UiKit.Place(_scanInfo.gameObject, 12f, infoTop, textW, infoH);
+
+            float y = infoTop + infoH + rowGap;
+            if (_scanThreat.gameObject.activeSelf)
+            {
+                UiKit.Place(_scanThreat.gameObject, 12f, y, textW, threatH);
+                y += threatH + rowGap;
+            }
+
+            UiKit.Place(_scanKnow.gameObject, 12f, y, textW, knowH);
+            y += knowH + padBottom;
+
+            // Keep the bottom edge where the design put it: grow up, never down into the hotbar.
+            float panelH = Mathf.Max(ScanPanelH, y);
+            UiKit.Place(_scanPanel, 10f, ScanPanelY + ScanPanelH - panelH, ScanPanelW, panelH);
         }
 
         /// <summary>Builds the scan panel's description line from the STRUCTURED payload (#484): a creature's

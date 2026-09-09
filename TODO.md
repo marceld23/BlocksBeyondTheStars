@@ -24,6 +24,54 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛟 Nobody stays stuck, and a hosted world stays up (#1704–#1712, 2026-09-09, branch fix/reports-0909)
+
+Nine reports in one day, all on 2026.9.4: two children from the school club, three from a builder on her own
+server, and five identical server crashes from one hosted world. Two threads ran through them.
+
+**A hosted world was down all day, and nothing said so.** "Glitch Arcade 3" was OOM-killed within seconds of
+every start — over 2000 starts in eighteen hours. Measuring the cgroup showed 123 MB → 805 MB in under a
+second and then death, but the same save loaded locally peaks at 958 MB and settles at **85 MB**: the spike is
+garbage the GC never had to keep. The runtime caps its heap at 75 % of the container limit and native memory
+(ICU, SQLite, JIT, stacks — ~150 MB) sits outside that budget, so resident memory reached 730 MB against a
+768 MiB cap while the GC believed it was fine. Reseeding the world would not have helped: the seed is a
+function of the world id, and a fresh world on that exact seed runs clean.
+
+- **#1704 — cap the GC heap below the container limit.** `DOTNET_GCHeapHardLimitPercent=0x37` (55 %) leaves
+  the native side room; verified by loading the failing save under a 384 MB hard limit, where it settles at
+  85 MB instead of dying.
+- **#1705 — workstation GC is actually pinned now.** The csproj said `ServerGarbageCollector`; the property is
+  `ServerGarbageCollection`, so it was silently ignored and `runtimeconfig.json` carried no `System.GC.Server`
+  key at all. The comment claiming the VPS "can never flip to server GC by accident" is now true.
+- **#1706 — the keep-awake pass gives up.** It restarted every dead arcade world every 30 s forever. Failures
+  now back off (30 s doubling to 30 min) and stop after five, logging the world as needing a person.
+- **#1707 — a listener race no longer kills the container.** The managed `HttpListener` calls Accept from its
+  own constructor and can throw `ArgumentNullException` out of `Start()`. It ran unguarded straight out of
+  `Main`; it is retried now, and a genuinely occupied port still fails loudly.
+
+**Three ways to be somewhere a body cannot be.** A child fell, respawned inside his own hull, and could not
+get out — the hull is indestructible, so he could not even dig. Another was dug out of terrain and then held
+frozen. And a builder was told her wooden door was a ship hull.
+
+- **#1709 — a player sealed in their own hull is freed.** The block rescue cannot see hulls (they are placed
+  objects, not world blocks) and the hull rescue asked for *two* overlapping ones. A single hull with no body
+  space in the cell is now the trigger. Standing in your own cabin stays ordinary.
+- **#1708 — the rescue stops fighting the client.** Every `RespawnNotice` re-arms an 8 s settle freeze; at 1 Hz
+  the grace never elapsed and the player sat motionless with the mouse still working. No second rescue goes
+  out while the first is unacknowledged.
+- **#1710 — the pad guard protects ground, not your buildings.** It covered the whole footprint nine blocks
+  deep regardless of what the cell was, so anything built there was permanently unmineable — and answered
+  "ship hull" about a door on a planet. Player-placed blocks come out again; the foundation stays; the
+  rejection names the pad.
+- **#1711 — creatures stop resting inside cave ceilings.** The rest-height probe fell back to the generator's
+  noise surface, which for an animal under a roof is on the far side of solid rock.
+- **#1712 — the scan panel grows with its text.** Fixed 78 px for three lines meant the tool-tier line added
+  in #1686 clipped the fourth: "braucht einen Grundstein in" with the rest gone.
+
+Still open from the same batch: **#1713** (WebGL renders no terrain after landing — needs a browser console
+capture on the school hardware) and **#1714** (a sentry must sit within 8 blocks of a base core, too tight for
+large builds — a design decision, not a defect).
+
 ### 🌊 Built water is real water — a player-report package (#1697–#1701, 2026-09-08, branch feat/water-defence-lava)
 
 Seven reports from one session of a player fortifying her spaceport: a moat, a wall, a lava trench, sentry

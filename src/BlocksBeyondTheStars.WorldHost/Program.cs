@@ -1784,6 +1784,16 @@ var reaper = Task.Run(async () =>
                 log.LogInformation("glitch.fun keep-awake: {Count} arcade world(s) re-woken.", rewoken);
             }
 
+            // #1706: a world that will not survive its wake is no longer restarted forever — say so, loudly
+            // and once, because until it is mentioned somewhere nobody knows to go and look at it.
+            foreach (var deadWorld in glitch.DrainGivenUpWorlds())
+            {
+                log.LogError(
+                    "glitch.fun keep-awake: giving up on world {WorldId} — {Count} restarts in a row did not survive. " +
+                    "It stays down until someone looks at it.",
+                    deadWorld, GlitchGateway.MaxConsecutiveWakeFailures);
+            }
+
             // Archive sweep once an hour (120 × 30 s): long-inactive stopped worlds move to the archive.
             if (++ticks % 120 == 0)
             {

@@ -56,11 +56,20 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Default the admin UI/portal bind to all interfaces (the app's own default is loopback, which would be
 # unreachable from outside the container). ALWAYS pair a public admin port with BBS_ADMIN_PASSWORD.
 ENV BBS_ADMIN_BIND=0.0.0.0
-# #1536: give memory back readily on the many-worlds VPS (the cgroup limit already bounds each heap;
-# GCConserveMemory=5 measured −1.3 MB private at idle and trims harder under load). NOT gcConcurrent=0 (+7.5 MB
-# per process on the dev box) and NOT invariant globalization (the name screening normalises diacritics with
-# ICU — a "hïtler" evasion stopped matching without it).
+# #1536: give memory back readily on the many-worlds VPS. GCConserveMemory=5 measured −1.3 MB private at idle
+# and trims harder under load. NOT gcConcurrent=0 (+7.5 MB per process on the dev box) and NOT invariant
+# globalization (the name screening normalises diacritics with ICU — a "hïtler" evasion stopped matching).
 ENV DOTNET_GCConserveMemory=5
+# #1704: cap the GC heap BELOW the container's memory limit. The note above used to claim "the cgroup limit
+# already bounds each heap" — it bounds the PROCESS, which is the heap plus everything the GC does not count:
+# ICU, SQLite, the JIT, thread stacks; ~150 MB on a world instance. The runtime's own default hard limit is
+# 75 % of the cgroup limit, so on a 768 MiB world container the GC grows to 576 MiB, resident memory reaches
+# ~730 MB, and the kernel kills the process while the GC still believes it is inside its budget. That is what
+# took a hosted world down for a day: loading its save churned garbage (123 MB → 805 MB in under a second) and
+# was killed mid-spike, although the very same save settles at 85 MB once the GC is made to collect instead of
+# grow. Measured: with a 384 MB hard limit that save loads and runs; with none it peaks at 958 MB.
+# The value is HEX and a percentage — 0x37 = 55 %, i.e. ~422 MB of a 768 MiB cap, leaving the native side room.
+ENV DOTNET_GCHeapHardLimitPercent=0x37
 
 # 31415/udp native client · 31415/tcp browser WebSocket (when BBS_ENABLE_WEBSOCKET=true) · 31416/tcp admin+portal+download+/play
 EXPOSE 31415/udp 31415/tcp 31416/tcp

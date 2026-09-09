@@ -467,7 +467,8 @@ public sealed partial class GameServer
 
     /// <summary>True if the world cell is protected because a parked ship rests on it: the pad ground
     /// directly under any ship's footprint cannot be mined out (the object must keep its foundation).
-    /// The hull itself is no longer world blocks, so this guards only the ground.</summary>
+    /// The hull itself is no longer world blocks, so this guards only the ground — and, since #1710, only
+    /// the ground the world put there. See <see cref="IsShipBlock"/>'s body for why.</summary>
     private bool IsShipBlock(Vector3i p)
     {
         foreach (var rec in _worlds.Active.LandedShips.Values)
@@ -483,7 +484,14 @@ public sealed partial class GameServer
                 && p.Z >= rec.Origin.Z - 1 && p.Z <= rec.Origin.Z + s.Length
                 && p.Y < rec.Origin.Y && p.Y >= rec.Origin.Y - PadGroundProtectDepth)
             {
-                return true;
+                // #1710: this box is the whole footprint, one cell wider on each side, nine blocks deep — and
+                // it used to protect everything inside it regardless of what the cell was. A builder on her own
+                // server could not remove two wooden doors she had placed beside her ship, and was told "Die
+                // Schiffshülle kann nicht abgebaut werden" about a door on a planet. The foundation this guard
+                // exists to keep is the ground the WORLD put there; a block the player carried in and placed is
+                // hers to take out again. An owned edit on a cell that still holds a block is exactly that
+                // (a mined cell would be air and would never reach here).
+                return !_repo.HasPlayerBlockEdits(_world.LocationId, p, p);
             }
         }
 

@@ -3640,6 +3640,7 @@
   "srv.loot.filter_blocked": "This crate doesn't take those items.",
   "srv.mine.not_mineable": "Block cannot be mined.",
   "srv.mine.ship_hull": "The ship hull cannot be mined.",
+  "srv.mine.ship_pad": "The ground under the ship has to stay — it is what the hull rests on.",
   "srv.mine.wrong_tool": "Your current tool cannot mine this block.",
   "srv.mine.wrong_tool_named": "Your tool is not strong enough for this block. Needs: {name}.",
   "srv.misc.aboard_for_cargo": "Step aboard the ship to use the cargo hold.",
