@@ -5106,10 +5106,18 @@ public sealed partial class GameServer
     {
         var p = session.State;
 
+        // #1728: /basewalls is a read-only report about the caller's OWN walls, and the one question a builder
+        // cannot otherwise answer. A player whose ring keeps letting animals in has exactly two possible
+        // reasons — a gap somewhere, or a compound larger than the fill's 48-block reach — and no way to tell
+        // them apart. She had to guess, and guessed at both. The owner of a base on this body may ask about it.
+        bool ownsABaseHere = _bases.Any(b => b.Planet == _world.LocationId && b.OwnerId == p.PlayerId);
+        bool basewallsForOwner = ownsABaseHere
+            && string.Equals(cmd.Command, "basewalls", StringComparison.OrdinalIgnoreCase);
+
         // A fleet admin is an admin everywhere by definition — they are the operator of the installation, not
         // a guest on someone's world. Checked as a session flag rather than by writing PlayerRole.Admin into
         // the save, so the elevation never travels with an exported world (see ServerConfig.FleetAdminPlayers).
-        if (!p.IsAdmin && !session.IsFleetAdmin)
+        if (!p.IsAdmin && !session.IsFleetAdmin && !basewallsForOwner)
         {
             Reject(session, "admin", "@srv.admin.not_admin");
             return;

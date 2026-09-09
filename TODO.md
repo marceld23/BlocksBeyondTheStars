@@ -24,6 +24,31 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔌 Power runs where you build it (#1714, #1727, #1728, 2026-09-09, branch feat/reports-0909-decisions)
+
+Marcel's calls on the decisions the second report batch raised. Three of the five are server-side and land
+here; the two that are client work (#1726 waterfall block, #1729 double doors) follow separately.
+
+- **#1714 — the power relay.** A sentry shoots 14 blocks but could only stand within 8 of a base core, which
+  makes it unusable on a compound of ~80×80. The player who reported it proposed the answer herself: *"nichts
+  wäre leichter als einen Energieversorgungsblock zu schaffen"*. A new `power_relay` block carries base power
+  one zone further, and relays **chain** — core → relay → relay → post — so power runs as far as the player
+  is willing to build. Widening the zone instead was rejected on cost: `FindSentryCells` is an O(r³) walk on
+  the rescan beat, and a radius covering her compound would have cost ~185× the current one. Each hop stays a
+  cheap 17³ walk, capped at 16 relays per base. New texture, recipe and blueprint gate (shares the sentry's),
+  and both the sentry description and `vega.hint.base_walls` now say "powered", not "within 8 blocks".
+- **#1727 — say what a quench actually did.** Placing a fluid by hand already explains itself; a flood that
+  reached a lava trench on its own said nothing, so the player watched her trench go dark, saw lava still
+  glowing beneath the new rock, and concluded the game had stacked a block on top. It had not — only the
+  cells the water touched are quenched, and the molten core stays. Now a flowing quench says so, once per
+  player per minute rather than once per hardened cell.
+- **#1728 — let a builder diagnose their own ring.** `/basewalls` answers exactly the question she could not
+  ("is there a gap, or is my compound past the 48-block reach?") but was admin-only. It is now open to the
+  owner of a base on that body — **restricted to bases they own**: the report names a core by name and exact
+  cell and says where the ring fails open, so pointed at a stranger's base it would be a reconnaissance tool.
+  Admins still see whichever core is nearest. The 48-block reach itself is unchanged; raising it needs a
+  measurement of the flood fill first.
+
 ### 🤔 Second batch of 2026-09-09 (#1726–#1729): seven reports, no defects — five decisions
 
 A second wave arrived the same evening, while the batch below was being fixed. Analysed against the code:

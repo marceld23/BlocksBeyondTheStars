@@ -156,6 +156,39 @@ public sealed class BaseWalledYardTests : IDisposable
         }
     }
 
+    /// <summary>#1728: a base owner may ask about their OWN ring — that is the question a builder otherwise
+    /// cannot answer (a gap somewhere, or a compound past the 48-block reach?). It must stop there: the report
+    /// names a core by name and exact cell and says where the ring fails open, so pointed at a stranger's base
+    /// it would be a reconnaissance tool. Everyone but an admin sees only what they own.</summary>
+    [Fact]
+    public void BaseWallsReport_RestrictedToOwnBases_SaysNothingAboutSomeoneElses()
+    {
+        var server = Started(out var repo, "ownonly");
+        using (repo)
+        {
+            var (builder, padY) = Yard(server);
+
+            // A second player standing inside the first one's yard, owning nothing here.
+            var stranger = server.AddLocalPlayer("Stranger");
+            stranger.State.AboardShip = false;
+            stranger.State.Position = new Vector3f(Cx + 2.5f, padY + 1, Cz + 0.5f);
+
+            // Unrestricted (what an admin gets) they would read the yard they are standing in.
+            var unrestricted = server.BaseWallsReportForTest(stranger);
+            Assert.True(unrestricted.Count > 1, "an admin standing in a yard should get the full report");
+
+            // Restricted to their own bases they own none here, so the report describes nothing.
+            var restricted = server.BaseWallsReportForTest(stranger, ownOnly: true);
+            Assert.Single(restricted);
+            Assert.Contains("48", restricted[0]); // the "no core in reach" line
+
+            // The owner still gets their own answer — the point of opening this up at all.
+            builder.State.Position = new Vector3f(Cx + 2.5f, padY + 1, Cz + 0.5f);
+            var ownReport = server.BaseWallsReportForTest(builder, ownOnly: true);
+            Assert.True(ownReport.Count > 1, "the owner must still be able to diagnose their own ring");
+        }
+    }
+
     [Fact]
     public void AWalledYard_IsFencedIn_AndAGapLetsTheAnimalsIn()
     {

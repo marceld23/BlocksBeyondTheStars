@@ -393,13 +393,19 @@ public sealed partial class GameServer
     /// reads as, and the rules the texts used to skip.</summary>
     private void AdminBaseWalls(PlayerSession session)
     {
-        foreach (string line in BaseWallsReport(session))
+        // #1728: a non-admin owner may run this on their OWN walls only. The report names a core by name and
+        // exact cell and says where the ring fails open — read as "here is the hole in this stranger's fence",
+        // that is a reconnaissance tool, so everyone but an admin is restricted to bases they own.
+        bool ownOnly = !session.State.IsAdmin && !session.IsFleetAdmin;
+        foreach (string line in BaseWallsReport(session, ownOnly))
         {
             Send(session, new ServerMessage { Text = line });
         }
     }
 
-    private List<string> BaseWallsReport(PlayerSession session)
+    /// <summary>Builds the report. <paramref name="ownOnly"/> restricts the core search to bases the caller
+    /// owns (#1728) — an admin sees whichever core is nearest, an owner only their own.</summary>
+    private List<string> BaseWallsReport(PlayerSession session, bool ownOnly = false)
     {
         var p = session.State;
         var cell = WorldConstants.CanonicalBlock(p.Position.ToBlock(), _world.Circumference);
@@ -410,7 +416,7 @@ public sealed partial class GameServer
         int nearestDist = int.MaxValue;
         foreach (var b in _bases)
         {
-            if (b.Planet != _world.LocationId)
+            if (b.Planet != _world.LocationId || (ownOnly && b.OwnerId != p.PlayerId))
             {
                 continue;
             }
@@ -450,7 +456,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>Test seam: the <c>/basewalls</c> report lines for a session (localized to its locale).</summary>
-    public IReadOnlyList<string> BaseWallsReportForTest(PlayerSession session) => BaseWallsReport(session);
+    public IReadOnlyList<string> BaseWallsReportForTest(PlayerSession session, bool ownOnly = false)
+        => BaseWallsReport(session, ownOnly);
 
     /// <summary>Test seam: whether a cell reads as fenced in by a base's walls right now (cache refreshed).</summary>
     public bool InWalledBaseAreaForTest(int x, int y, int z) => InWalledBaseArea(new Vector3i(x, y, z));

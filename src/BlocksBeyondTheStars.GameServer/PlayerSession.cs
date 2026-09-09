@@ -379,6 +379,11 @@ public sealed class PlayerSession
     /// <summary>Server uptime of the last answered LocateStationIntent (rate limit).</summary>
     public double LastStationLocateAt { get; set; } = -1;
 
+    /// <summary>Server uptime when this player was last told that a flowing quench hardens only the surface
+    /// of a lava body (#1727). A flood over a trench crusts hundreds of cells in a few ticks — one sentence
+    /// per episode, not one per block.</summary>
+    public double LastFlowQuenchTold { get; set; } = double.NegativeInfinity;
+
     // --- Temperature hazard (#666): the effective-temperature scan is ~1 Hz, the drain applies every tick ---
 
     /// <summary>Countdown to the next effective-temperature rescan (block probe + shelter check are the

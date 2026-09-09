@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -37,6 +38,12 @@ public sealed partial class GameServer
     private HashSet<Vector3i> _fallingFluid => _worlds.Active.FallingFluid;
     private double _sinceFluid { get => _worlds.Active.SinceFluid; set => _worlds.Active.SinceFluid = value; }
     private ushort _waterId, _lavaId, _obsidianId, _basaltId;
+
+    /// <summary>How close a player must be to a lava cell hardened by a FLOWING quench to be told about it
+    /// (#1727), and how long that explanation stays quiet afterwards. A flood over a trench hardens hundreds
+    /// of cells in a few ticks; the point is one sentence per episode, not one per block.</summary>
+    private const double FlowQuenchTellRange = 40.0;
+    private const double FlowQuenchTellCooldown = 60.0;
 
     private void InitFluids()
     {
@@ -77,6 +84,39 @@ public sealed partial class GameServer
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = crust });
         WakeNeighbors(pos);
         return crust;
+    }
+
+    /// <summary>
+    /// Tells nearby players, at most once a minute each, what a FLOWING quench actually did (#1727).
+    /// <para>
+    /// Placing a fluid by hand already explains itself (<see cref="QuenchPlacedFluid"/>), but a flood that
+    /// reaches a lava trench on its own said nothing at all. A player watched her whole trench go dark, saw
+    /// glowing lava still in the walls beneath the new rock, and reasonably concluded the game had laid a
+    /// block ON TOP of the lava. It had not — <see cref="QuenchLava"/> replaces the cell it hardens — but only
+    /// the cells the water actually touched are quenched, so the molten core stays. That is the sentence the
+    /// game owed her.
+    /// </para>
+    /// </summary>
+    private void TellAboutFlowQuench(Vector3i waterPos)
+    {
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (_uptime - s.LastFlowQuenchTold < FlowQuenchTellCooldown)
+            {
+                continue;
+            }
+
+            double dx = WorldConstants.WrapDeltaX(s.State.Position.X - waterPos.X, _world.Circumference);
+            double dy = s.State.Position.Y - waterPos.Y;
+            double dz = s.State.Position.Z - waterPos.Z;
+            if (dx * dx + dy * dy + dz * dz > FlowQuenchTellRange * FlowQuenchTellRange)
+            {
+                continue;
+            }
+
+            s.LastFlowQuenchTold = _uptime;
+            Send(s, new ServerMessage { Text = "@srv.fluid.quench_surface_only" });
+        }
     }
 
     /// <summary>Quenches every lava cell around a water cell. Returns the crust ids produced (0 = none) as a
@@ -283,7 +323,11 @@ public sealed partial class GameServer
             }
             else if (id == _waterId)
             {
-                CrustLavaAround(pos); // a woken water cell hardens the lava it touches (#1284)
+                var (crustedObsidian, crustedBasalt) = CrustLavaAround(pos); // a woken water cell hardens the lava it touches (#1284)
+                if (crustedObsidian + crustedBasalt > 0)
+                {
+                    TellAboutFlowQuench(pos); // #1727: say what happened, once per episode
+                }
             }
 
             bool isSource = !_fluidLevel.ContainsKey(pos);

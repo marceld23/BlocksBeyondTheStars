@@ -443,4 +443,125 @@ public sealed class SentryTests : IDisposable
             Assert.Equal(full, beast.Hull);
         }
     }
+
+    // ---------------- #1714: power relays carry the base zone outward ----------------
+
+    /// <summary>The complaint that started this: a post may only stand inside a 17-block-wide box around the
+    /// core, while the builder who asked for relays has a compound of roughly 80×80. Out there it is dead.</summary>
+    [Fact]
+    public void ASentryBeyondTheBaseZone_StaysUnpowered_WithoutARelay()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            int baseId = FoundBaseWithSentry(server, owner, out _);
+            var core = server.BaseCellForTest(baseId);
+
+            var far = new Vector3i(core.X + 14, core.Y, core.Z); // past the zone, nothing carrying power
+            server.World.SetBlock(far, _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, owner.State.Name);
+
+            Assert.Equal(1, server.SentryCountForTest(baseId)); // still only the one beside the core
+        }
+    }
+
+    /// <summary>A relay standing inside the zone reaches another 8 blocks, and the post out there comes alive.</summary>
+    [Fact]
+    public void ARelayInsideTheZone_PowersASentryBeyondIt()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            int baseId = FoundBaseWithSentry(server, owner, out _);
+            var core = server.BaseCellForTest(baseId);
+
+            server.World.SetBlock(new Vector3i(core.X + 8, core.Y, core.Z),
+                _content.GetBlock("power_relay")!.NumericId, 0, 0, 0, owner.State.Name);
+            server.World.SetBlock(new Vector3i(core.X + 14, core.Y, core.Z),
+                _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, owner.State.Name);
+
+            Assert.Equal(2, server.SentryCountForTest(baseId));
+        }
+    }
+
+    /// <summary>Relays chain, so power runs into the far corner of a compound the zone could never cover —
+    /// which is the whole point of the request.</summary>
+    [Fact]
+    public void RelaysChain_ToCarryPowerFarBeyondTheZone()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            int baseId = FoundBaseWithSentry(server, owner, out _);
+            var core = server.BaseCellForTest(baseId);
+
+            for (int i = 1; i <= 4; i++)
+            {
+                server.World.SetBlock(new Vector3i(core.X + (8 * i), core.Y, core.Z),
+                    _content.GetBlock("power_relay")!.NumericId, 0, 0, 0, owner.State.Name);
+            }
+
+            server.World.SetBlock(new Vector3i(core.X + 38, core.Y, core.Z),
+                _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, owner.State.Name);
+
+            Assert.Equal(2, server.SentryCountForTest(baseId)); // 38 blocks out, on four hops
+        }
+    }
+
+    /// <summary>A hole in the chain breaks it. That is what keeps this a build to think about rather than a
+    /// free radius upgrade.</summary>
+    [Fact]
+    public void ABrokenRelayChain_LeavesTheFarSentryUnpowered()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            int baseId = FoundBaseWithSentry(server, owner, out _);
+            var core = server.BaseCellForTest(baseId);
+
+            server.World.SetBlock(new Vector3i(core.X + 8, core.Y, core.Z),
+                _content.GetBlock("power_relay")!.NumericId, 0, 0, 0, owner.State.Name);
+            server.World.SetBlock(new Vector3i(core.X + 28, core.Y, core.Z), // 20 past the first: unreachable
+                _content.GetBlock("power_relay")!.NumericId, 0, 0, 0, owner.State.Name);
+            server.World.SetBlock(new Vector3i(core.X + 34, core.Y, core.Z),
+                _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, owner.State.Name);
+
+            Assert.Equal(1, server.SentryCountForTest(baseId));
+        }
+    }
+
+    /// <summary>And a relay-powered post really shoots — the chain is not just bookkeeping.</summary>
+    [Fact]
+    public void ASentryOnARelayChain_ActuallyFires()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            int baseId = FoundBaseWithSentry(server, owner, out _);
+            var core = server.BaseCellForTest(baseId);
+
+            var far = new Vector3i(core.X + 14, core.Y, core.Z);
+            server.World.SetBlock(new Vector3i(core.X + 8, core.Y, core.Z),
+                _content.GetBlock("power_relay")!.NumericId, 0, 0, 0, owner.State.Name);
+            server.World.SetBlock(far, _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, owner.State.Name);
+
+            string id = server.SpawnCreatureAtForTest(Near(far, 2f)); // beside the FAR post, outside the zone
+            var beast = server.Creatures.Single(c => c.Id == id);
+            beast.Hostile = true;
+            float full = beast.Hull;
+
+            server.TickSentriesForTest();
+
+            Assert.True(beast.Hull < full, "a relay-powered sentry must actually shoot");
+        }
+    }
 }

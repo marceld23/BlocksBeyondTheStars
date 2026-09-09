@@ -188,6 +188,7 @@
   { "key": "algae_tank", "craftTab": "machines",     "nameKey": "item.algae_tank.name",     "category": "block", "maxStack": 16,   "placesBlock": "algae_tank", "descriptionKey": "item.algae_tank.desc" },
   { "key": "heal_tank", "craftTab": "machines",      "nameKey": "item.heal_tank.name",      "category": "block", "maxStack": 16,   "placesBlock": "heal_tank", "descriptionKey": "item.heal_tank.desc" },
   { "key": "sentry_post", "craftTab": "machines",    "nameKey": "item.sentry_post.name",    "category": "block", "maxStack": 16,   "placesBlock": "sentry_post", "descriptionKey": "item.sentry_post.desc" },
+  { "key": "power_relay", "craftTab": "machines",    "nameKey": "item.power_relay.name",    "category": "block", "maxStack": 16,   "placesBlock": "power_relay", "descriptionKey": "item.power_relay.desc" },
   { "key": "matter_dust",    "nameKey": "item.matter_dust.name",    "category": "material", "maxStack": 1024, "descriptionKey": "item.matter_dust.desc" },
   { "key": "insulated_wall", "nameKey": "item.insulated_wall.name", "category": "block", "maxStack": 1024, "placesBlock": "insulated_wall" },
   { "key": "energy_fence", "craftTab": "machines",   "nameKey": "item.energy_fence.name",   "category": "block", "maxStack": 1024, "placesBlock": "energy_fence", "descriptionKey": "item.energy_fence.desc" },

@@ -109,30 +109,78 @@ public sealed partial class GameServer
         => _sessions.Values.Any(s => s.Joined && s.State.PlayerId == b.OwnerId
                                      && s.CurrentLocationId == b.Planet);
 
-    /// <summary>The sentry blocks standing inside a base zone — the same walk as
-    /// <see cref="CountBaseMachines"/>, looking for one specific key.</summary>
+    /// <summary>
+    /// Every powered sentry of a base: the ones standing in the base zone, plus the ones a chain of power
+    /// relays reaches (#1714).
+    /// <para>
+    /// The zone alone was the whole rule, and a builder ran straight into it: her spaceport is around 80×80
+    /// blocks, a sentry shoots 14 — and may only stand inside a 17-block-wide box around the core. She asked
+    /// for exactly this: <i>"nichts wäre leichter als einen Energieversorgungsblock zu schaffen, den man neben
+    /// einen Wachposten bauen müsste"</i>.
+    /// </para>
+    /// <para>
+    /// Widening the zone was the obvious alternative and the wrong one: this walk is O(r³) and runs per base
+    /// on the rescan beat, so a radius that covered her compound would cost ~185× what the current one does.
+    /// A chain keeps every hop the same cheap 17³ walk and grows only as far as the player actually builds —
+    /// and it costs them something per hop, which is what makes it a decision rather than a free upgrade.
+    /// </para>
+    /// </summary>
     private List<Vector3i> FindSentryCells(ServerBase b)
     {
         var found = new List<Vector3i>();
+        var visitedRelays = new HashSet<Vector3i>();
+        var frontier = new Queue<Vector3i>();
+        frontier.Enqueue(b.Cell);
+
+        while (frontier.Count > 0)
+        {
+            var origin = frontier.Dequeue();
+            ScanPowerZone(origin, found, visitedRelays, frontier);
+        }
+
+        return found;
+    }
+
+    /// <summary>One hop of the power chain: walks the cube around <paramref name="origin"/>, collecting sentry
+    /// cells and queueing any relay not seen yet. The relay budget caps the whole chain — a player who tiles a
+    /// compound with relays must not turn the rescan beat into a world sweep.</summary>
+    private void ScanPowerZone(Vector3i origin, List<Vector3i> found, HashSet<Vector3i> visitedRelays, Queue<Vector3i> frontier)
+    {
         int r = BaseProtectionRadius;
         for (int x = -r; x <= r; x++)
             for (int y = -r; y <= r; y++)
                 for (int z = -r; z <= r; z++)
                 {
-                    var pos = new Vector3i(b.Cell.X + x, b.Cell.Y + y, b.Cell.Z + z);
+                    var pos = new Vector3i(origin.X + x, origin.Y + y, origin.Z + z);
                     if (!WithinBuildHeight(pos.Y))
                     {
                         continue;
                     }
 
                     var block = _world.GetBlock(WorldConstants.CanonicalBlock(pos, _world.Circumference));
-                    if (!block.IsAir && _content.BlockById(block) is { Key: SentryBlockKey })
+                    if (block.IsAir)
                     {
-                        found.Add(pos);
+                        continue;
+                    }
+
+                    switch (_content.BlockById(block)?.Key)
+                    {
+                        case SentryBlockKey:
+                            if (!found.Contains(pos))
+                            {
+                                found.Add(pos); // zones overlap along a chain — a sentry must not fire twice
+                            }
+
+                            break;
+                        case PowerRelayBlockKey:
+                            if (visitedRelays.Count < MaxPowerRelaysPerBase && visitedRelays.Add(pos))
+                            {
+                                frontier.Enqueue(pos);
+                            }
+
+                            break;
                     }
                 }
-
-        return found;
     }
 
     /// <summary>One sentry's shot. Returns true when a planet enemy's state changed, so the caller can
@@ -295,6 +343,14 @@ public sealed partial class GameServer
     /// <summary>The block a sentry is.</summary>
     private const string SentryBlockKey = "sentry_post";
 
+    /// <summary>The block that carries base power one zone further out (#1714).</summary>
+    private const string PowerRelayBlockKey = "power_relay";
+
+    /// <summary>Hard cap on the relays one base's chain may follow. Each relay costs another 17³ walk on the
+    /// rescan beat, so this is what keeps a relay-tiled compound from turning that beat into a world sweep.
+    /// Sixteen hops reach far past any build we have seen.</summary>
+    private const int MaxPowerRelaysPerBase = 16;
+
     /// <summary>Tells the player straight away when a sentry block was placed where it can never fire (#1699):
     /// outside every base zone they own on this body. Three things can silence a post — no base zone, the owner
     /// away, nothing in range — and only this one is a mistake the player can still fix, at the moment they can
@@ -308,17 +364,20 @@ public sealed partial class GameServer
                 continue;
             }
 
-            int r = BaseProtectionRadius;
-            double dx = WorldConstants.WrapDeltaX(pos.X - b.Cell.X, _world.Circumference);
-            double dz = WorldConstants.WrapDeltaZ(pos.Z - b.Cell.Z, _world.Circumference);
-            if (System.Math.Abs(dx) <= r && System.Math.Abs(pos.Y - b.Cell.Y) <= r && System.Math.Abs(dz) <= r)
+            // #1714: the zone is no longer the only way to be powered — a relay chain counts too, so ask the
+            // same question the firing pass asks rather than re-deriving a narrower one here. A post that will
+            // work must never be warned about, or the warning becomes noise the player learns to ignore.
+            if (FindSentryCells(b).Contains(pos))
             {
-                return; // inside one of the player's own base zones — it will fire
+                return;
             }
         }
 
         Send(session, new ServerMessage { Text = "@srv.sentry.outside_base" });
     }
+
+    /// <summary>Test/diagnostic: the base_core cell of a base, so a test can measure from it (#1714).</summary>
+    public Vector3i BaseCellForTest(int baseId) => _bases.Single(b => b.Id == baseId).Cell;
 
     /// <summary>Test hook: run a firing pass right now, ignoring the 2 Hz gate.</summary>
     public void TickSentriesForTest()

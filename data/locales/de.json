@@ -2633,6 +2633,7 @@
   "block.algae_tank.name": "Algentank",
   "block.heal_tank.name": "Heiltank",
   "block.sentry_post.name": "Wachposten",
+  "block.power_relay.name": "Energieversorger",
   "block.factory_terminal.name": "Fabrikterminal",
   "block.machine_block.name": "Maschinengehäuse",
   "block.factory_pipe.name": "Fabrikrohr",
@@ -2670,7 +2671,9 @@
   "item.heal_tank.name": "Heiltank",
   "item.heal_tank.desc": "Ein Regenerationstank für Basen und Stationen: Wer in der Nähe steht, wird langsam geheilt, satt und der Anzug lädt sich auf. Mit E darauf setzt du dort deinen Spawnpunkt.",
   "item.sentry_post.name": "Wachposten",
-  "item.sentry_post.desc": "Ein kleiner automatischer Geschützturm. Er muss in deiner eigenen Basis stehen, höchstens 8 Blöcke vom Grundstein entfernt — weiter draußen ist er nur Deko. Solange du zu Hause bist, schießt er bis zu 14 Blöcke weit auf feindliche Maschinen, auf feindliche Tiere und auf Räuber, die schon angefangen haben zu kämpfen. Auf Spieler, zahme Tiere oder Leute, die nur reden wollen, schießt er nie. Braucht weder Strom noch Munition.",
+  "item.sentry_post.desc": "Ein kleiner automatischer Geschützturm. Er muss an deinem Stromnetz hängen: höchstens 8 Blöcke vom Grundstein entfernt, oder neben einem Energieversorger, der über weitere Versorger mit dem Grundstein verbunden ist. Ohne Anschluss ist er nur Deko. Solange du zu Hause bist, schießt er bis zu 14 Blöcke weit auf feindliche Maschinen, auf feindliche Tiere und auf Räuber, die schon angefangen haben zu kämpfen. Auf Spieler, zahme Tiere oder Leute, die nur reden wollen, schießt er nie. Braucht keine Munition.",
+  "item.power_relay.name": "Energieversorger",
+  "item.power_relay.desc": "Verlängert den Strom deines Grundsteins nach draußen. Jeder Versorger reicht 8 Blöcke weit und speist Wachposten wie auch weitere Versorger, sodass du eine Kette bis in den letzten Winkel einer großen Anlage legen kannst. Der erste in der Kette muss noch in Reichweite des Grundsteins stehen. Gedacht für Raumhäfen und Ringmauern, die größer sind als die Basiszone.",
   "item.algae_ration.name": "Algenration",
   "item.algae_ration.desc": "Ein gepresster Riegel aus Zuchtalgen. Schmeckt nach grünem Pudding, macht aber ordentlich satt.",
   "item.energy_fence.name": "Energiezaun",
@@ -2815,7 +2818,7 @@
   "vega.obj.dock": "An einer Raumstation andocken",
   "vega.obj.trade": "Handeln oder eine Mission annehmen",
   "vega.obj.land": "Auf einer Welt landen",
-  "vega.hint.base_walls": "Dein Grundstein hält den Boden von allein frei: Bis 24 Blöcke um ihn spawnt kein Boden- oder Höhlentier, mit oder ohne Mauer. Für mehr mauer dein Land ein: In einem geschlossenen Mauerring bis 48 Blöcke um deinen Grundstein spawnt nichts — mindestens 2 Blöcke hoch und auf Fußhöhe rundum geschlossen. Eine Lücke oder eine offen gelassene Holztür, und die Tiere finden sie. Flieger und die Wächter-Maschinen ignorieren beides, Höhlentiere schlüpfen unter Mauern durch; dagegen hilft ein Wachposten in deiner Basiszone.",
+  "vega.hint.base_walls": "Dein Grundstein hält den Boden von allein frei: Bis 24 Blöcke um ihn spawnt kein Boden- oder Höhlentier, mit oder ohne Mauer. Für mehr mauer dein Land ein: In einem geschlossenen Mauerring bis 48 Blöcke um deinen Grundstein spawnt nichts — mindestens 2 Blöcke hoch und auf Fußhöhe rundum geschlossen. Eine Lücke oder eine offen gelassene Holztür, und die Tiere finden sie. Flieger und die Wächter-Maschinen ignorieren beides, Höhlentiere schlüpfen unter Mauern durch; dagegen hilft ein Wachposten an deinem Stromnetz — in der Basiszone, oder mit einer Kette aus Energieversorgern auch weit draußen.",
   "vega.hint.base_airless": "Ein Grundstein auf einer luftleeren Welt füllt den 17-Block-Würfel um sich mit Luft — und jeden Raum, der DICHT ist: Wände und Dach aus Stein, Metall oder Glas (Erde und Sand lassen Luft durch), und nur die Energietür hält die Luft drin; Scharnier-, Schiebe- und Holztür nicht. Ziele auf den Grundstein, um zu sehen, wie viel deiner Basis Luft hat.",
   "vega.hint.breathe": "Die Luft hier ist atembar — siehst du den vollen Sauerstoffbalken? Genieß es. Im All, unter Wasser oder auf einer giftigen Welt leert sich dein Anzugtank, und Schiff oder Station füllen ihn wieder auf.",
   "vega.hint.o2": "Sauerstoff unter 25 %. Schiff und Stationen füllen ihn auf. Ersticken bekanntermaßen nicht.",
@@ -3732,6 +3735,7 @@
   "srv.place.not_empty": "Das Zielfeld ist nicht frei.",
   "srv.fluid.quench_obsidian": "Die Lava zischt und erstarrt zu Obsidian.",
   "srv.fluid.quench_basalt": "Der Lavastrom erkaltet zu Basalt.",
+  "srv.fluid.quench_surface_only": "Wo das Wasser die Lava berührt, erstarrt sie zu Gestein — darunter bleibt sie flüssig.",
   "srv.place.not_placeable": "Dieser Gegenstand lässt sich nicht platzieren.",
   "srv.place.pad_reserved": "Landeplätze sind reserviert — darauf kannst du nicht bauen.",
   "srv.place.plant_enclosed": "Pflanzen dürfen nur innerhalb einer Station stehen, nie am offenen Weltraum.",
@@ -4046,5 +4050,5 @@
   "ui.struct.size_settlement": "Prozedural: {0}–{1} × {2}–{3} Blöcke, {4}–{5} Stockwerk(e)",
   "ui.ed.generated": "Prozedurale(s) {0} erzeugt (Seed {2}): {1} Zellen. Bearbeite es und speichere es als Vorlage.",
   "ui.scan.sentry": "Schießt {range} Blöcke weit · braucht einen Grundstein in {zone} Blöcken",
-  "srv.sentry.outside_base": "Dieser Wachposten steht außerhalb deiner Basiszone — er schießt nicht. Stell ihn höchstens 8 Blöcke neben einen Grundstein."
+  "srv.sentry.outside_base": "Dieser Wachposten hat keinen Strom — er schießt nicht. Stell ihn höchstens 8 Blöcke neben den Grundstein, oder leg mit Energieversorgern eine Kette dorthin."
 }
