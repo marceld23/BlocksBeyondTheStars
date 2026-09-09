@@ -37,6 +37,65 @@ public static class FloraTints
         return HsvToRgb(hue, sat, val);
     }
 
+    // The world's base flora hue: green-dominant, with rarer brown / pink / purple / amber exotics.
+    private static readonly (int Rgb, int Weight)[] WorldPalette =
+    {
+        (0x4FA63C, 30), // leaf green
+        (0x6FBF4A, 20), // bright green
+        (0x3E7D4F, 12), // deep teal-green
+        (0x8A7B3A, 12), // olive
+        (0x9C6B3A, 10), // brown
+        (0xB85C9E, 7),  // pink / magenta (exotic)
+        (0x7E4FB0, 6),  // violet / purple (exotic)
+        (0xC9A23A, 3),  // amber / yellow (rare)
+    };
+
+    /// <summary>The world's ONE base flora hue as 0xRRGGBB — a weighted pick from a green-dominant palette
+    /// (with rarer brown / pink / purple / amber exotics) plus a small per-channel jitter, so most worlds are
+    /// leafy green but some are strikingly alien. The server ships it in the environment message (the block
+    /// shader's fallback for a flora face without a species tint; the micro-fauna borrow it), and it used to
+    /// live there alone — #1716 moved the formula next to the per-species colours so the two flora colour
+    /// sources are one file with one seed convention. The hash is the server's historical one
+    /// (<c>h*31+c</c> over the location id, XOR the low seed word), so every existing world keeps its hue.</summary>
+    public static int ForWorld(long worldSeed, string? locationKey)
+    {
+        int h = 17;
+        foreach (char c in locationKey ?? string.Empty)
+        {
+            h = unchecked(h * 31 + c);
+        }
+
+        uint mix = unchecked((uint)(h ^ (int)worldSeed ^ 0x2F0A17));
+        int total = 0;
+        foreach (var (_, w) in WorldPalette)
+        {
+            total += w;
+        }
+
+        int roll = (int)(mix % (uint)total);
+        int i = 0;
+        for (; i < WorldPalette.Length; i++)
+        {
+            roll -= WorldPalette[i].Weight;
+            if (roll < 0)
+            {
+                break;
+            }
+        }
+
+        if (i >= WorldPalette.Length)
+        {
+            i = WorldPalette.Length - 1;
+        }
+
+        int anchor = WorldPalette[i].Rgb;
+        int r = (anchor >> 16) & 0xFF, g = (anchor >> 8) & 0xFF, b = anchor & 0xFF;
+        int Jit(int shift) => (int)((mix >> shift) & 0x1F) - 16; // -16..+15
+        return (Clamp8b(r + Jit(3)) << 16) | (Clamp8b(g + Jit(8)) << 8) | Clamp8b(b + Jit(13));
+    }
+
+    private static int Clamp8b(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
+
     /// <summary>FNV-1a (stable across platforms/runs — string.GetHashCode is randomized per process).</summary>
     private static ulong Hash(string s)
     {

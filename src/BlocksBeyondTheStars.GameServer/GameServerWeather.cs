@@ -182,8 +182,9 @@ public sealed partial class GameServer
         _sunColor = StarColor(system);
         // One uniform flora base hue per WORLD (green / brown / pink / purple …). Seeded from
         // LocationId ^ Seed like sky/cloud/gravity (#478) — it was the last per-TYPE hue, contradicting
-        // WORLD_GENERATION.md §3. Airless/floraless worlds still carry a value; it just goes unused.
-        _floraTint = FloraColor(unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed ^ 0x2F0A17)));
+        // WORLD_GENERATION.md §3. Airless/floraless worlds still carry a value; it just goes unused. The
+        // formula lives with the per-species colours (#1716) — one file for every flora colour.
+        _floraTint = Shared.World.FloraTints.ForWorld(_meta.Seed, _world.LocationId);
         // One seeded daytime sky hue per WORLD (blue → green → yellow → red, blue-dominant), so worlds with an
         // atmosphere don't all share the same blue sky. Seeded from LocationId ^ Seed (like AtmosphereDensity) so
         // two same-type worlds differ. Airless bodies (space sky) carry a value but the client ignores it.
@@ -566,51 +567,7 @@ public sealed partial class GameServer
         return (r << 16) | (g << 8) | bl;
     }
 
-    // Per-planet flora base hue: green-dominant, with rarer brown / pink / purple / amber exotics.
-    private static readonly (int Rgb, int Weight)[] FloraPalette =
-    {
-        (0x4FA63C, 30), // leaf green
-        (0x6FBF4A, 20), // bright green
-        (0x3E7D4F, 12), // deep teal-green
-        (0x8A7B3A, 12), // olive
-        (0x9C6B3A, 10), // brown
-        (0xB85C9E, 7),  // pink / magenta (exotic)
-        (0x7E4FB0, 6),  // violet / purple (exotic)
-        (0xC9A23A, 3),  // amber / yellow (rare)
-    };
-
-    /// <summary>A deterministic per-planet flora base hue: a weighted pick from a green-dominant palette (with
-    /// rarer brown / pink / purple / amber exotics) plus a small per-channel jitter, so most worlds are leafy
-    /// green but some are strikingly alien. One hue for all of a planet's plant life.</summary>
-    private static int FloraColor(uint h)
-    {
-        int total = 0;
-        foreach (var (_, w) in FloraPalette)
-        {
-            total += w;
-        }
-
-        int roll = (int)(h % (uint)total);
-        int i = 0;
-        for (; i < FloraPalette.Length; i++)
-        {
-            roll -= FloraPalette[i].Weight;
-            if (roll < 0)
-            {
-                break;
-            }
-        }
-
-        if (i >= FloraPalette.Length)
-        {
-            i = FloraPalette.Length - 1;
-        }
-
-        int anchor = FloraPalette[i].Rgb;
-        int r = (anchor >> 16) & 0xFF, g = (anchor >> 8) & 0xFF, b = anchor & 0xFF;
-        int Jit(int shift) => (int)((h >> shift) & 0x1F) - 16; // -16..+15
-        return (Clamp8b(r + Jit(3)) << 16) | (Clamp8b(g + Jit(8)) << 8) | Clamp8b(b + Jit(13));
-    }
+    // The world's flora base hue moved to Shared.World.FloraTints.ForWorld (#1716).
 
     private static int Clamp8b(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
 

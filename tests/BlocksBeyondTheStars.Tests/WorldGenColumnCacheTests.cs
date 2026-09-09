@@ -154,4 +154,43 @@ public class WorldGenColumnCacheTests
         Assert.Equal(WorldGenerationGoldenTests.HashChunk(cold.Generate(planet, coord)),
             WorldGenerationGoldenTests.HashChunk(gen.Generate(planet, coord)));
     }
+
+    [Theory]
+    [InlineData("varied", 424242L, 0)]
+    [InlineData("desert", 20260905L, 1)]
+    [InlineData("ocean", 20260907L, 3)]
+    [InlineData("karst", 20260907L, 3)]
+    [InlineData("frozen_ocean", 20260907L, 3)]
+    public void SurfaceHeightAndChunks_AreTheSame_AcrossBothSeams(string planetKey, long seed, int generation)
+    {
+        // #1724: the column memos key on the WRAPPED column, so a column and its seam twin share one entry. That
+        // is only correct if every landform family wraps — this pins it for the classic, generation-1 and
+        // generation-3 families (a family that did not wrap would be a seam bug, not a cache bug).
+        var planet = Content.GetPlanet(planetKey)!;
+        var gen = new WorldGenerator(seed, Content);
+        gen.SetWorldMode(5472, cratered: false, landingPads: null, locationId: "seam-test:body");
+        gen.SetTerrainGeneration(generation);
+        int circ = gen.Circumference;
+        int lat = WorldConstants.LatitudePeriodFor(circ);
+
+        var rng = new Random(20260909);
+        for (int i = 0; i < 200; i++)
+        {
+            int x = rng.Next(-circ, 2 * circ);
+            int z = rng.Next(-lat, 2 * lat);
+            int h = gen.SurfaceHeight(planet, x, z);
+            Assert.Equal(h, gen.SurfaceHeight(planet, x + circ, z));
+            Assert.Equal(h, gen.SurfaceHeight(planet, x - circ, z));
+            Assert.Equal(h, gen.SurfaceHeight(planet, x, z + lat));
+            Assert.Equal(h, gen.SurfaceHeight(planet, x, z - lat));
+        }
+
+        // Whole chunks across the X seam and the Z seam equal the home chunk, blocks and all.
+        int cs = WorldConstants.ChunkSize;
+        var home = new ChunkCoord(3, 3, 2);
+        ulong expected = WorldGenerationGoldenTests.HashChunk(gen.Generate(planet, home));
+        Assert.Equal(expected, WorldGenerationGoldenTests.HashChunk(gen.Generate(planet, new ChunkCoord(3 + circ / cs, 3, 2))));
+        Assert.Equal(expected, WorldGenerationGoldenTests.HashChunk(gen.Generate(planet, new ChunkCoord(3 - circ / cs, 3, 2))));
+        Assert.Equal(expected, WorldGenerationGoldenTests.HashChunk(gen.Generate(planet, new ChunkCoord(3, 3, 2 + lat / cs))));
+    }
 }

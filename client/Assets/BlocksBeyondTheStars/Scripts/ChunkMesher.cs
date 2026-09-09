@@ -624,6 +624,11 @@ namespace BlocksBeyondTheStars.Client
                 // resolver, so wood_log stays a normal paintable hull block there.
                 bool isWood = floraTint != null && (tf & TraitWood) != 0;
                 Color speciesTint = (isFlora || isWood) && floraTint != null ? floraTint(id) : Color.black;
+                // #1716: a farmed crop is flora for everything BUT the tint. It carries no species colour (the
+                // tint map skips crops so a berry reads as ripe fruit on every world), and a black species tint
+                // in tint mode 1 made the shader fall back to the WORLD hue — violet berries on a violet world,
+                // the very confusion the exclusion was written to prevent. Mode 0 = the authored tile as is.
+                bool floraTinted = isFlora && (tf & TraitCultivated) == 0;
                 // Hull paint (item 32): ship meshes pass a per-block paint resolver — a painted face raises
                 // the tint-mode flag (TEXCOORD1.y) to 2 and carries the ship's hull colour in TEXCOORD2.yzw
                 // (the atlas shader multiplies it into the albedo; black = unpainted).
@@ -635,7 +640,7 @@ namespace BlocksBeyondTheStars.Client
                 var (modTint, _) = chunk.GetModifierLocal(WorldConstants.LocalIndex(x, y, z));
                 bool dyed = modTint != 0;
                 Color dye = dyed ? RgbToColor(modTint) : Color.black;
-                float floraFlag = dyed ? 3f : isWood ? 4f : isFlora ? 1f : painted ? 2f : 0f;
+                float floraFlag = dyed ? 3f : isWood ? 4f : floraTinted ? 1f : painted ? 2f : 0f;
                 // Foliage flag (TEXCOORD2.x): tree crowns + leafy plants whose tile carries a baked alpha
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
                 bool foliage = (tf & TraitFoliage) != 0;
@@ -833,8 +838,8 @@ namespace BlocksBeyondTheStars.Client
                     float flSky = Skylight(wx, wy + 1, wz);
                     Vector3 flBl = BlockLightAt(wx, wy + 1, wz);
                     Vector3 flBlDir = BlockLightDirAt(wx, wy + 1, wz);
-                    Color flTint = dyed ? dye : isFlora ? speciesTint : Color.black;
-                    float flMode = dyed ? 3f : isFlora ? 1f : 0f;
+                    Color flTint = dyed ? dye : floraTinted ? speciesTint : Color.black;
+                    float flMode = dyed ? 3f : floraTinted ? 1f : 0f;
                     // Per-plant scale + squash (#675): solid flora used to stamp the identical full-cell shape
                     // for every individual — the single strongest "all flora is the same size" tell. A patchy
                     // bell (FloraScale) × rare runt/giant outliers gives ~0.45..1.0 overall size, and an
@@ -878,8 +883,8 @@ namespace BlocksBeyondTheStars.Client
                     float shSky = Skylight(wx, wy + 1, wz);          // open sky above the shaped block
                     Vector3 shBl = BlockLightAt(wx, wy + 1, wz);     // coloured block-light reaching it
                     Vector3 shBlDir = BlockLightDirAt(wx, wy + 1, wz);
-                    Color shTint = designId != 0 ? Color.black : dyed ? dye : (isWood || isFlora) ? speciesTint : Color.black;
-                    float shTintMode = designId != 0 ? 0f : dyed ? 3f : isWood ? 4f : isFlora ? 1f : 0f; // 3 dye, 4 bark, 1 flora (matches cubes)
+                    Color shTint = designId != 0 ? Color.black : dyed ? dye : (isWood || floraTinted) ? speciesTint : Color.black;
+                    float shTintMode = designId != 0 ? 0f : dyed ? 3f : isWood ? 4f : floraTinted ? 1f : 0f; // 3 dye, 4 bark, 1 flora (matches cubes)
                     AddShapedBlock(verts, designId != 0 ? trisP : tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), ShapeCode.UpFaceOf(shapeDesc), new Vector3(x, y, z),
                         designId != 0 ? designRect : uv,
@@ -1580,10 +1585,12 @@ namespace BlocksBeyondTheStars.Client
         /// y=metal (0 dielectric .. 1 metal — metals tint their highlight + reflection by the albedo).
         /// Ice/glass/crystal are glossy, hull/ore metals reflective, soils matte.
         /// </summary>
-        /// <summary>True for plant foliage that takes the planet's uniform flora hue (B38): the small flora
-        /// plants (block key "flora_*") and tree crowns ("tree_leaves"). The server's flora colour is "one hue
-        /// for all of a planet's plant life", so leaves recolour per planet too; the wood_log trunk keeps its
-        /// natural bark colour.</summary>
+        /// <summary>True for plant foliage the block shader re-tints: the small flora plants (block key
+        /// "flora_*") and tree crowns ("tree_leaves" …). Each species carries its own per-world colour
+        /// (FloraTints.For, mesh tint mode 1); a face without one falls back to the world's base hue
+        /// (FloraTints.ForWorld, shipped by the server). Farmed crops are flora here (collision, exposure, the
+        /// upper vegetation layer) but are NOT tinted — see TraitCultivated (#1716). The wood_log trunk takes
+        /// its own dark bark hue (mode 4).</summary>
         private static bool IsFloraBlock(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitFlora);
 
         private static bool IsFloraBlockSlow(GameContent content, BlockId id)
@@ -1602,24 +1609,17 @@ namespace BlocksBeyondTheStars.Client
         private static bool IsWoodBlockSlow(GameContent content, BlockId id)
             => content.BlockById(id)?.Key == "wood_log";
 
-        // Tall cross-billboard flora (an upper vegetation layer above the low ground cover). MUST mirror the
-        // FloraHeight.Tall, non-solid entries in FloraCatalog. Solid/cube flora ignore height, so they're absent.
-        private static readonly HashSet<string> TallFlora = new HashSet<string>
-        {
-            "flora_fern", "flora_vine", "flora_reed", "flora_thornbush", "flora_kelp", "flora_seagrass",
-            "flora_tendril", "flora_alienfern", "flora_palm", "flora_grasstuft", "flora_icereed", "flora_saltgrass",
-            "flora_cropgrain", // farmed cereal (#1204) — stands as tall as the wild grass tuft
-        };
+        // Tall cross-billboard flora (an upper vegetation layer above the low ground cover) and the structural /
+        // solid / glowing-cap flora that read better as solid cubes (everything else leafy, plus tree crowns,
+        // gets the alpha-cutout leaf look). #1721: both sets come from the ONE catalog (FloraCatalog.Species
+        // .Height / .Solid) — they used to be hand-mirrored here, and a species added to Shared without a
+        // client edit rendered at the wrong height or as a cutout with no baked mask. A server test holds
+        // bake_leaf_alpha.py's FOLIAGE list to the same catalog.
+        private static readonly HashSet<string> TallFlora =
+            new HashSet<string>(BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.TallKeys());
 
-        // The structural / solid / glowing-cap flora that read better as solid cubes — everything else
-        // leafy (plus tree crowns) gets the alpha-cutout leaf look. MUST match bake_leaf_alpha.py's FOLIAGE.
-        private static readonly HashSet<string> SolidFlora = new HashSet<string>
-        {
-            "flora_cactus", "flora_crystal", "flora_succulent", "flora_mushroom", "flora_puffball",
-            "flora_pitcher", "flora_glowcap", "flora_emberbloom", "flora_sporepod", "flora_glowvine",
-            "flora_bulb", "flora_gasbloom", "flora_shardbloom", // item 21 V3 alien flora (bulbous/crystalline)
-            "flora_cropshroom", // farmed mushroom bed (#1204) — a cap dome like the wild mushroom
-        };
+        private static readonly HashSet<string> SolidFlora =
+            new HashSet<string>(BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.SolidKeys());
 
         /// <summary>True for foliage that renders with alpha-cutout leaves (holes punched into the tile):
         /// tree crowns + leafy/flowering plants. The leaf tiles carry a baked alpha mask; the block shader
@@ -2063,6 +2063,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitFlowerPot = 1u << 17;
         private const uint TraitFire = 1u << 18;
         private const uint TraitExposesOpaqueFace = 1u << 19; // transparent | flora | foliage | slim prop (air handled by the caller)
+        private const uint TraitCultivated = 1u << 20;        // #1716: a farmed crop — flora that keeps its authored colour (no tint mode)
 
         private sealed class BlockTraits
         {
@@ -2103,6 +2104,7 @@ namespace BlocksBeyondTheStars.Client
                     if (key != null && key.StartsWith("flora_", System.StringComparison.Ordinal)) f |= TraitFloraPrefix;
                     if (key != null && TallFlora.Contains(key)) f |= TraitTallFlora;
                     if (key != null && SolidFlora.Contains(key)) f |= TraitSolidFlora;
+                    if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsCultivated(key)) f |= TraitCultivated;
                     if (key == "water") f |= TraitWater;
                     if (key == "lava") f |= TraitLava;
                     if (key == "fire") f |= TraitFire;

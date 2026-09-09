@@ -349,9 +349,15 @@ public sealed partial class WorldGenerator
     private long PlanetSeed(PlanetType planet) => _worldSeed ^ StableHash(planet.Key) ^ _locationSalt;
 
     /// <summary>The roster seed for this body — the world seed salted with the body identity (#478). The
-    /// server-side roster consumers (flora/tree/creature name + species lookups) MUST use the same formula,
-    /// or scanned names would disagree with what worldgen actually planted.</summary>
-    public long RosterSeed => _worldSeed ^ _locationSalt;
+    /// server-side roster consumers (flora/tree/creature name + species lookups) call
+    /// <see cref="RosterSeedFor"/> with the same inputs (#1722: one function, not three hand copies), or
+    /// scanned names would disagree with what worldgen actually planted.</summary>
+    public long RosterSeed => RosterSeedFor(_worldSeed, _locationId);
+
+    /// <summary>THE roster-seed formula: the world seed salted with the body's location id (an empty or
+    /// null id is the legacy unsalted seed, like <see cref="SetWorldMode"/>'s default).</summary>
+    public static long RosterSeedFor(long worldSeed, string? locationId)
+        => worldSeed ^ (string.IsNullOrEmpty(locationId) ? 0 : StableHash(locationId));
 
     // --- Round-world (torus) noise wrappers: X periodic at the circumference, Z at the latitude period
     // (≈ circumference/2), so terrain/caves/ores are seamless when circumnavigating in ANY direction. ---
@@ -690,8 +696,21 @@ public sealed partial class WorldGenerator
     private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool, bool, int), WonderProfile> _wonders = new();
     private static readonly object _wonderLock = new object();
     private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool, bool, int)> _wonderOrder = new();
-    private WonderProfile? _wonderCached;
-    private (long, string, int, bool, long, bool, bool, int) _wonderCachedKey;
+    // #1723: key + profile travel in ONE immutable object, so the lock-free read below sees a matching pair or
+    // nothing — two separately written fields let another thread observe a new key over the old profile.
+    private sealed class WonderSlot
+    {
+        public readonly (long, string, int, bool, long, bool, bool, int) Key;
+        public readonly WonderProfile Profile;
+
+        public WonderSlot((long, string, int, bool, long, bool, bool, int) key, WonderProfile profile)
+        {
+            Key = key;
+            Profile = profile;
+        }
+    }
+
+    private WonderSlot? _wonderSlot;
 
     /// <summary>#1527: the bounded static caches evict their OLDEST entry instead of clearing wholesale, so a
     /// world past the cap only re-derives one entry, not every resident body's.</summary>
@@ -722,7 +741,12 @@ public sealed partial class WorldGenerator
     private const int SurfaceCacheCap = 262_144;   // ~6 MB of entries at most
     private const int ColumnProfileCap = 100_000;  // ~12 MB: a VD-8 view is ~74k columns
 
-    private static long ColumnKey(int worldX, int worldZ) => ((long)(uint)worldX << 32) | (uint)worldZ;
+    // #1724: keyed on the WRAPPED column — the noise underneath wraps on the torus, so a column and its seam
+    // twin (x ± circumference, z ± latitude period) are one column and share one entry; the minimap bake, the
+    // pad planner's longitude march and the far-column band all cross the seam. The seam-identity test in
+    // WorldGenColumnCacheTests is what makes this correct: every landform family wraps.
+    private long ColumnKey(int worldX, int worldZ)
+        => ((long)(uint)WorldConstants.WrapX(worldX, _circumference) << 32) | (uint)Wz(worldZ);
 
     /// <summary>Drops every per-column memo — the world-mode setters call this because the memos are keyed
     /// on the planet + column only and rely on the mode (circumference, cratered, body salt, continents,
@@ -762,9 +786,9 @@ public sealed partial class WorldGenerator
     private WonderProfile WonderFor(PlanetType planet)
     {
         var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled, _lavaCoreVolcanoes, _terrainGeneration);
-        if (_wonderCached is { } fast && _wonderCachedKey == key)
+        if (_wonderSlot is { } fast && fast.Key == key)
         {
-            return fast;
+            return fast.Profile;
         }
 
         lock (_wonderLock)
@@ -939,8 +963,7 @@ public sealed partial class WorldGenerator
                 _wonderOrder.Enqueue(key);
             }
 
-            _wonderCached = w;
-            _wonderCachedKey = key;
+            _wonderSlot = new WonderSlot(key, w);
             return w;
         }
     }

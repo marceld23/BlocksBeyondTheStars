@@ -74,4 +74,26 @@ public sealed class FloraTintTests
             Assert.True(max - min >= 0.3f, $"tint too grey: {r},{g},{b}");
         }
     }
+
+    [Fact]
+    public void WorldHue_IsDeterministic_VariesPerBody_AndStaysOnThePalette()
+    {
+        // #1716: the world's base hue (the shader fallback + the micro-fauna's tint) lives here now, next to
+        // the per-species colours — the server ships exactly this value.
+        Assert.Equal(FloraTints.ForWorld(4242, "sys0-p1"), FloraTints.ForWorld(4242, "sys0-p1"));
+        Assert.Equal(FloraTints.ForWorld(4242, null), FloraTints.ForWorld(4242, string.Empty));
+
+        var seen = new HashSet<int>();
+        for (int i = 0; i < 64; i++)
+        {
+            int rgb = FloraTints.ForWorld(4242, "sys0-p" + i);
+            seen.Add(rgb);
+            // A palette anchor ± the 16-step jitter: never black, never white, never grey.
+            int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+            Assert.InRange(r + g + b, 100, 650);
+            Assert.True(System.Math.Max(r, System.Math.Max(g, b)) - System.Math.Min(r, System.Math.Min(g, b)) >= 20, $"grey hue {rgb:X6}");
+        }
+
+        Assert.True(seen.Count > 8, "bodies roll different base hues");
+    }
 }

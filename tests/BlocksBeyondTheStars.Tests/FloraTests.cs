@@ -419,6 +419,78 @@ public sealed class FloraTests : IDisposable
         }
     }
 
+    [Fact]
+    public void FloraRoster_ReadsTheBiomeThemes_FromGeneration4_AndLeavesOlderWorldsAlone()
+    {
+        // #1715: a `varied` world is temperate with desert, swamp and alpine biomes. Under the planet-only roll
+        // its off-theme species came through at 40 % — a wetland species that rolled inactive could never grow
+        // in the swamp. From generation 4 the union of the planet AND biome themes decides "on theme".
+        var planet = _content.GetPlanet("varied")!;
+        var classic = FloraGenerator.GenerateRoster(planet, 4242);
+        var gen3 = FloraGenerator.GenerateRoster(planet, 4242, 3);
+        var gen4 = FloraGenerator.GenerateRoster(planet, 4242, BlocksBeyondTheStars.Shared.World.WorldDescription.BiomeThemeRosterGeneration);
+        var planetTheme = FloraThemes.Resolve(planet.FloraTheme);
+
+        int offThemeBefore = 0, offThemeAfter = 0;
+        for (int i = 0; i < classic.Count; i++)
+        {
+            Assert.Equal(classic[i].Active, gen3[i].Active); // below the wave: the planet-only roll, unchanged
+            Assert.Equal(classic[i].Id, gen4[i].Id);         // the wave changes WHICH species grow, never their identity
+            Assert.Equal(classic[i].Name, gen4[i].Name);
+            Assert.Equal(classic[i].Toxic, gen4[i].Toxic);
+
+            var tags = FloraCatalog.All.First(s => s.Key == classic[i].BlockKey).Tags;
+            if ((planetTheme.Preferred & tags) == 0)
+            {
+                if (gen3[i].Active) offThemeBefore++;
+                if (gen4[i].Active) offThemeAfter++;
+            }
+        }
+
+        Assert.True(offThemeAfter > offThemeBefore,
+            $"the biome themes must let more off-planet-theme species through ({offThemeBefore} → {offThemeAfter})");
+
+        // A single-theme world (no biome carries another theme) rolls exactly as before on every generation.
+        var single = _content.Planets.Values.First(p => p.FloraDensity > 0 && !p.IsAirless
+            && p.Biomes.All(b => string.IsNullOrWhiteSpace(b.FloraTheme) || FloraThemes.Resolve(b.FloraTheme).Name == FloraThemes.Resolve(p.FloraTheme).Name));
+        var s3 = FloraGenerator.GenerateRoster(single, 4242, 3);
+        var s4 = FloraGenerator.GenerateRoster(single, 4242, 4);
+        for (int i = 0; i < s3.Count; i++)
+        {
+            Assert.Equal(s3[i].Active, s4[i].Active);
+        }
+    }
+
+    [Fact]
+    public void ServerRosters_UseTheOneRosterSeedFormula_AndTheWorldHueIsTheSharedOne()
+    {
+        // #1722: the roster seed used to be re-typed by hand in three places; #1716: the world's base flora hue
+        // used to be a server-only formula. Both are one shared function now — and this proves the server's
+        // scan names + hue are exactly what worldgen and the client derive from the same inputs.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var planet = server.World.Planet;
+            long rosterSeed = WorldGenerator.RosterSeedFor(7, server.World.LocationId);
+            int generation = BlocksBeyondTheStars.Shared.World.WorldDescription.CurrentTerrainGeneration; // a fresh save
+            var flora = FloraGenerator.GenerateRoster(planet, rosterSeed, generation);
+            Assert.NotEmpty(flora);
+            foreach (var fs in flora)
+            {
+                var onServer = server.FloraSpeciesForBlock(fs.BlockKey);
+                Assert.NotNull(onServer);
+                Assert.Equal(fs.Name, onServer!.Name);
+                Assert.Equal(fs.Toxic, onServer.Toxic);
+                Assert.Equal(fs.Active, onServer.Active);
+            }
+
+            var creatures = CreatureGenerator.GenerateRoster(planet, rosterSeed);
+            Assert.Equal(creatures.Select(c => c.Id + ":" + c.Name), server.SpeciesRoster.Select(c => c.Id + ":" + c.Name));
+
+            Assert.Equal(BlocksBeyondTheStars.Shared.World.FloraTints.ForWorld(7, server.World.LocationId), server.FloraTint);
+        }
+    }
+
     public void Dispose()
     {
         try

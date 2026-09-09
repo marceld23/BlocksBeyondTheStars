@@ -260,10 +260,16 @@ worlds of the same planet type grow different species) by
 [`TreeGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/TreeGenerator.cs):
 
 - **Catalogue:** 33 fixed flora archetypes (`FloraCatalog.All`).
-- **World roster:** each archetype is activated with `ActivationChance(theme, tags)` — **85 %** when
-  its climate tags match the world's theme, **40 %** otherwise. Each active species gets a
-  procedurally coined **name** and is **toxic with 30 % probability**. `EnsureCoverage` then
-  force-activates a minimum so no used surface and no sea ever goes bare.
+- **World roster:** each archetype is activated with `ActivationChance(preferred, tags)` — **85 %** when
+  its climate tags match the world's preferred tags, **40 %** otherwise. Up to generation 3 the preferred
+  tags are the planet theme's alone; from **generation 4** (#1715, `BiomeThemeRosterGeneration`) they are
+  the union of the planet theme and every biome theme in the type's pool, so a `varied` world's swamp and
+  desert biomes draw from a pool their own themes shaped (the planet-only roll thinned it to 40 % and
+  `PickWeight` could not add back what was never activated). Each active species gets a procedurally
+  coined **name** and is **toxic with 30 % probability**. `EnsureCoverage` then force-activates a
+  minimum so no used surface and no sea ever goes bare. The roster seed is
+  `WorldGenerator.RosterSeedFor(seed, locationId)` — one function shared by worldgen and the server's
+  scan lookups (#1722).
 - **Per biome:** `FloraForSurface` only draws from active species whose host surface matches the
   biome's surface block, weighted by theme (preferred species count 4:1). In practice **a handful of
   species per biome** (typically ~3–7 land plants on that biome's ground block) plus aquatic species
@@ -326,9 +332,14 @@ live by `GameServerCreatures.cs`.
   region B's violet-ish on the same world.
 
 **Live spawning:** a dynamic world cap (scaled by circumference × abundance × √players; a lush big
-world reaches ~25–45, backstopped by a safety ceiling of 64 — #470), ring placement 18–45 blocks out
-(two rotors: the ring slot advances on every attempt, the species on success), habitat gates (water animals only in
-water columns, cave animals only in caves; titans additionally need a 3×3 level-ground clearance),
+world reaches ~25–45, backstopped by a safety ceiling of 64 — #470; the tick's fill gate and cadence read
+the clamped value too, #1717, or a world modelling above 64 spun in the fast fill forever), ring placement 18–45 blocks out
+(two rotors: the ring slot advances on every attempt, the species on success; the player who gets the next
+spawn rotates on the wild count, #1720), habitat gates (water animals only in
+water columns — the water and lava probes read **real blocks first** and the generator only for unloaded
+columns, so a pool the player built hosts a school and a drained pond does not, and every herd member
+runs the same probe from its own spot, #1718; cave animals only in caves — the cave-floor and shoreline
+probes never load a chunk, #1719; titans additionally need a 3×3 level-ground clearance),
 despawn beyond 70 blocks (titans 110 — a landmark animal must not evaporate mid-approach). **No
 monoculture (#1325):** each species may hold at most a **share** of the live cap — 40 %, never below 3,
 never below cap ÷ roster size — a herd counts its members against it and spawns partially (as against
@@ -1142,3 +1153,36 @@ glacier gate (the gate is dry), the `VoidBelow` probe for structures (pads alrea
 and the `packed_ice` block (the glacier reads fine with the existing ice). The slot canyon, the arête,
 the tooth row and the glacial trough still use the libm angle (`Math.Cos/Sin`, like the classic rift):
 their goldens are Windows-pinned, as every trig-derived golden has been since #1503.
+
+---
+
+## 14. Generation 4 — the flora-roster wave, and the audit hygiene (#1715–#1724, 2026-09-09)
+
+A read-through of the three generators (terrain, flora, fauna) against the July audit found seven of its
+nine findings already fixed and left two, plus eight small ones of its own. All ten are in one package.
+
+**Generation 4 (#1715).** `WorldDescription.CurrentTerrainGeneration` is **4**; the terrain of a
+generation-4 world equals generation 3 — what changes is the flora roster's activation roll (§6): from
+`BiomeThemeRosterGeneration` the preferred tags are the union of the planet theme and its biome themes.
+`FloraGenerator.GenerateRoster` takes the generation; worldgen's `ResolveFlora` and the server's
+`InitFlora` pass theirs. An older world keeps the planet-only roll and every species it ever grew; the
+classic goldens do not move (they pin blocks, and a generation-0/1/3 roster is unchanged).
+
+**One flora colour file (#1716).** The world's base hue — the block shader's fallback for a flora face
+without a species tint, and the micro-fauna's tint — is `FloraTints.ForWorld(seed, locationId)` next to the
+per-species `FloraTints.For`; the server fills the environment message from it (same value as before, the
+hash is the historical one). The client mesher no longer puts a **farmed crop** into tint mode 1
+(`TraitCultivated`): a crop carries no species tint, and the black tint fell through to the world hue —
+violet berries on a violet world, the opposite of what the crop exclusion promised.
+
+**Fauna spawner hygiene.** #1717 the fill gate and cadence read the clamped cap; #1718 the water/lava
+probes read real blocks first (`TryGetFluidColumn`) and every herd member probes from its own spot;
+#1719 the cave-floor and shoreline probes use no-load reads; #1720 the spawn-target round robin counts
+the wild population.
+
+**One truth each.** #1721 `FloraCatalog.Species.Solid` — the mesher derives its tall and solid sets from
+the catalog (`TallKeys` / `SolidKeys`), and `FloraVarietyTests` holds `bake_leaf_alpha.py`'s `FOLIAGE`
+list to it; #1722 `WorldGenerator.RosterSeedFor` — the one roster-seed formula, with a test that the
+server's rosters equal the generators' output for it; #1723 `WonderFor`'s lock-free fast path holds key +
+profile in one immutable slot; #1724 the column memos key on the **wrapped** column, guarded by a test that
+every generation's landforms are identical across both seams (`SurfaceHeightAndChunks_AreTheSame_AcrossBothSeams`).

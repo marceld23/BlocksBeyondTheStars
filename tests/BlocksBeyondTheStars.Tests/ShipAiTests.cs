@@ -698,7 +698,13 @@ public sealed class ShipAiTests : IDisposable
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
         using var client = new LoopbackClientTransport(link);
         var lines = CaptureVega(client);
-        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        // No Guardian machines on this world: a scan-drone that spawns 35–50 blocks out reaches the player within
+        // the 75 s quiet window and shoots them dead (2/s), and the respawn puts them aboard — where the ore tip
+        // can never fire. It only ever passed because the fauna spawner's cave probe happened to LOAD the drone's
+        // path columns (#1719 stopped that), and a loaded rocky column reads as a wall to a machine (#1482).
+        var config = Config();
+        config.Rules.PlanetEnemies = AlienActivity.Off;
+        var server = new SvGameServer(config, _content, serverTransport, repo);
         server.Start();
         JoinAndDrain(server, client, "Prospector");
         var session = server.Sessions[1];

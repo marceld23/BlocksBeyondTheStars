@@ -106,7 +106,13 @@ public static class FloraThemes
     /// matching a preferred tag are common; off-theme species stay an occasional find (coverage is enforced
     /// separately so no surface ever goes bare).</summary>
     public static double ActivationChance(Theme theme, FloraTag speciesTags)
-        => (theme.Preferred & speciesTags) != 0 ? 0.85 : 0.40;
+        => ActivationChance(theme.Preferred, speciesTags);
+
+    /// <summary>The same roll against a SET of preferred tags — the union of the planet theme and its biome
+    /// themes from <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.BiomeThemeRosterGeneration"/>
+    /// (#1715).</summary>
+    public static double ActivationChance(FloraTag preferred, FloraTag speciesTags)
+        => (preferred & speciesTags) != 0 ? 0.85 : 0.40;
 
     /// <summary>Relative pick weight (≥1) for a species with these tags under this theme — themed species
     /// dominate a patch, off-theme ones still appear for variety.</summary>

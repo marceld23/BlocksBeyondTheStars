@@ -203,4 +203,45 @@ public sealed class FloraVarietyTests
         Assert.True(counts.GetValueOrDefault(pine) > 0, "an alpine world's trees are conifers (pine_needles).");
         Assert.Equal(0, counts.GetValueOrDefault(leaves)); // alpine grows no broadleaf crowns
     }
+
+    [Fact]
+    public void LeafAlphaBake_ListsExactlyTheLeafyFlora_AndTheCatalogFormsAreConsistent()
+    {
+        // #1721: which flora is tall and which is a solid cube used to be written three times by hand (the
+        // catalog, the client mesher, the leaf-alpha bake script). The mesher derives its sets from the catalog
+        // now; the bake script is Python, so this holds its FOLIAGE list to the catalog instead.
+        var tall = FloraCatalog.TallKeys().ToHashSet();
+        var solid = FloraCatalog.SolidKeys().ToHashSet();
+        Assert.NotEmpty(tall);
+        Assert.NotEmpty(solid);
+        Assert.Empty(tall.Intersect(solid)); // a solid form ignores its height, so it is never "tall"
+        foreach (var key in tall.Concat(solid))
+        {
+            Assert.NotNull(_content.GetBlock(key));
+        }
+
+        string script = File.ReadAllText(Path.Combine(TestPaths.RepoRoot(), "tools", "ai-assets", "bake_leaf_alpha.py"));
+        int open = script.IndexOf("FOLIAGE = [", StringComparison.Ordinal);
+        Assert.True(open >= 0, "bake_leaf_alpha.py must declare FOLIAGE = [...]");
+        int close = script.IndexOf(']', open);
+        Assert.True(close > open, "the FOLIAGE list must be closed");
+        var listed = script.Substring(open, close - open).Split('"')
+            .Where((part, index) => index % 2 == 1) // every odd piece sits between two quotes
+            .ToHashSet();
+
+        // Two leafy alien species never had a mask baked (their tiles are opaque by design) — the accepted
+        // exceptions. Every other leafy species and every tree crown must be listed, and no solid form may be.
+        var accepted = new HashSet<string> { "flora_tendril", "flora_alienfern" };
+        var expected = new HashSet<string> { "tree_leaves", "pine_needles", "palm_frond" };
+        foreach (var sp in FloraCatalog.All)
+        {
+            if (!sp.Solid && !accepted.Contains(sp.Key))
+            {
+                expected.Add(sp.Key);
+            }
+        }
+
+        Assert.Empty(expected.Except(listed));                  // every leafy species is baked
+        Assert.Empty(listed.Except(expected).Except(accepted)); // nothing solid or unknown is baked
+    }
 }

@@ -83,10 +83,10 @@ public sealed partial class GameServer
 
     private void InitCreatures()
     {
-        // Per-BODY roster (#478): the seed is salted with the location id (same formula as
-        // WorldGenerator.RosterSeed) so two worlds of the same planet type host different species.
+        // Per-BODY roster (#478): the seed is salted with the location id — THE formula (#1722: one shared
+        // function, not a hand copy) — so two worlds of the same planet type host different species.
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
-        long rosterSeed = _meta.Seed ^ BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash(_world.LocationId);
+        long rosterSeed = BlocksBeyondTheStars.WorldGeneration.WorldGenerator.RosterSeedFor(_meta.Seed, _world.LocationId);
         _speciesRoster = planet is null
             ? System.Array.Empty<CreatureSpecies>()
             : CreatureGenerator.GenerateRoster(planet, rosterSeed).ToArray();
@@ -198,15 +198,23 @@ public sealed partial class GameServer
             return;
         }
 
-        int cap = WorldCreatureCap(targets.Count);
+        // #1717: the cadence and the fill gate read the SAME ceiling the spawner enforces. The model alone can
+        // reach ~200 on a huge lush world with the Extreme rule and four players; TrySpawnCreatureNear clamps
+        // to the hard cap and refuses, so an unclamped gate here kept the 1.5 s fast fill (a full ring + roster
+        // walk with terrain probes) running forever against a world that was already full — the very shape of
+        // the old cap-of-12 bug, moved to a rarer threshold.
+        int cap = System.Math.Min(WorldCreatureCap(targets.Count), CreatureHardCap);
+        int wild = WildCreatureCount;
         _creatureSpawnTimer += dt;
         // Fill faster while the world is far below its cap (a freshly visited world comes alive quickly),
         // then ease to the slow trickle near the cap.
-        double interval = WildCreatureCount < cap / 2 ? 1.5 : CreatureSpawnInterval;
-        if (_creatureSpawnTimer >= interval && WildCreatureCount < cap)
+        double interval = wild < cap / 2 ? 1.5 : CreatureSpawnInterval;
+        if (_creatureSpawnTimer >= interval && wild < cap)
         {
             _creatureSpawnTimer = 0;
-            if (TrySpawnCreatureNear(targets[_creatures.Count % targets.Count].State, cap))
+            // #1720: the player who gets the next spawn rotates on the WILD population — companions used to
+            // skew the round robin, so a pet owner's surroundings filled faster than everyone else's.
+            if (TrySpawnCreatureNear(targets[wild % targets.Count].State, cap))
             {
                 BroadcastCreatures();
             }
@@ -336,13 +344,14 @@ public sealed partial class GameServer
         (8, 0), (-8, 0), (0, 8), (0, -8),
     };
 
-    /// <summary>Finds the nearest water column (global sea or upland pond) to a spot, returning its
-    /// coordinates and the water-surface / seabed Y. False if no water is within the probe radius.</summary>
+    /// <summary>Finds the nearest water column (global sea, upland pond — or a pool the player built) to a
+    /// spot, returning its coordinates and the water-surface / seabed Y. False if no water is within the
+    /// probe radius.</summary>
     private bool TryFindWaterColumnNear(int x, int z, out int wx, out int wz, out int waterTopY, out int seabedY)
     {
         foreach (var (dx, dz) in WaterProbe)
         {
-            if (_generator.TryGetWaterSurface(_world.Planet, x + dx, z + dz, out waterTopY, out seabedY))
+            if (TryGetFluidColumn(x + dx, z + dz, _creatureWaterId, out waterTopY, out seabedY))
             {
                 wx = x + dx;
                 wz = z + dz;
@@ -363,7 +372,7 @@ public sealed partial class GameServer
     {
         foreach (var (dx, dz) in WaterProbe)
         {
-            if (_generator.TryGetLavaSurface(_world.Planet, x + dx, z + dz, out lavaTopY, out _))
+            if (TryGetFluidColumn(x + dx, z + dz, _creatureLavaId, out lavaTopY, out _))
             {
                 wx = x + dx;
                 wz = z + dz;
@@ -387,6 +396,7 @@ public sealed partial class GameServer
     /// </summary>
     private bool TrySpawnCreatureNear(Shared.State.PlayerState player, int cap)
     {
+        _spawnAttemptsForTest++;
         cap = System.Math.Min(cap, CreatureHardCap);
         if (WildCreatureCount >= cap)
         {
@@ -614,20 +624,25 @@ public sealed partial class GameServer
             float y;
             if (sp.Habitat == CreatureHabitat.Water || sp.Habitat == CreatureHabitat.Amphibian)
             {
-                if (!_generator.TryGetWaterSurface(_world.Planet, mx, mz, out int waterTopY, out int seabedY))
+                // #1718: a member runs the leader's probe from its own spot. It used to ask only its own column,
+                // so beside a small pond the golden-angle spots landed on the bank and the school was the leader
+                // alone — the water four blocks away was never looked at.
+                if (!TryFindWaterColumnNear(mx, mz, out mx, out mz, out int waterTopY, out int seabedY))
                 {
-                    continue; // this member's spot is dry — the school stays smaller
+                    continue; // no water near this member's spot — the school stays smaller
                 }
 
+                surface = _generator.SurfaceHeight(_world.Planet, mx, mz);
                 y = sp.Habitat == CreatureHabitat.Water ? (seabedY + 1 + waterTopY) * 0.5f : waterTopY;
             }
             else if (sp.Habitat == CreatureHabitat.Lava)
             {
-                if (!_generator.TryGetLavaSurface(_world.Planet, mx, mz, out int lavaTop, out _))
+                if (!TryFindLavaColumnNear(mx, mz, out mx, out mz, out int lavaTop))
                 {
                     continue;
                 }
 
+                surface = _generator.SurfaceHeight(_world.Planet, mx, mz);
                 y = lavaTop;
             }
             else if (sp.Habitat == CreatureHabitat.Cave)
@@ -725,9 +740,10 @@ public sealed partial class GameServer
             case CreatureHabitat.Lava:
                 return BlockValueAt(at) == _creatureLavaId && _creatureLavaId != 0;
             case CreatureHabitat.Cave:
-                // a standable air pocket on solid ground (the spawn probe places it in a real cave)
-                return _world.GetBlock(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y), (int)System.Math.Floor(at.Z))).IsAir
-                    && !_world.GetBlock(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y) - 1, (int)System.Math.Floor(at.Z))).IsAir;
+                // a standable air pocket on solid ground (the spawn probe places it in a real cave); #1719: no-load
+                // reads — an unloaded column has no solid floor, so it is not a cave
+                return _world.GetBlockIfLoaded(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y), (int)System.Math.Floor(at.Z))).IsAir
+                    && !_world.GetBlockIfLoaded(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y) - 1, (int)System.Math.Floor(at.Z))).IsAir;
             case CreatureHabitat.Amphibian:
                 return BlockValueAt(at) == _creatureWaterId || WaterWithin(at, 2); // in or beside water
             default:
@@ -1385,6 +1401,56 @@ public sealed partial class GameServer
         return top >= feetY - 1 ? top - bed : 0;
     }
 
+    /// <summary>The fluid body of one kind (water or lava) in a column, for the SPAWN probes (#1718): real
+    /// blocks first, the generator only where nothing is streamed in — the #1697 rule applied to placement.
+    /// A loaded column is scanned around its generator surface for the topmost cell of that fluid; the bed
+    /// is the first non-fluid cell under it. A body the player drained reads dry, a pool the player built
+    /// reads wet. Where the column's chunk is not loaded (or the fluid lies outside the scanned band) the
+    /// generator answers as it always did.</summary>
+    private bool TryGetFluidColumn(int x, int z, ushort fluidId, out int topY, out int bedY)
+    {
+        topY = 0;
+        bedY = 0;
+        if (fluidId == 0)
+        {
+            return false;
+        }
+
+        int surface = _generator.SurfaceHeight(_world.Planet, x, z);
+        if (_world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, surface, z))))
+        {
+            for (int y = surface + FluidColumnScan; y >= surface - FluidColumnScan; y--)
+            {
+                if (_world.GetBlockIfLoaded(new Vector3i(x, y, z)).Value != fluidId)
+                {
+                    continue;
+                }
+
+                topY = y;
+                bedY = y - 1;
+                while (y - bedY < FluidColumnScan && _world.GetBlockIfLoaded(new Vector3i(x, bedY, z)).Value == fluidId)
+                {
+                    bedY--;
+                }
+
+                return true;
+            }
+        }
+
+        bool generated = fluidId == _creatureWaterId
+            ? _generator.TryGetWaterSurface(_world.Planet, x, z, out topY, out bedY)
+            : _generator.TryGetLavaSurface(_world.Planet, x, z, out topY, out bedY);
+        if (!generated)
+        {
+            return false;
+        }
+
+        // The generator's body, where its top cell is streamed in and is NOT that fluid any more, was drained
+        // or built over — offering it would only be rejected by HabitatSuitable one step later.
+        var top = new Vector3i(x, topY, z);
+        return !_world.IsChunkLoaded(WorldConstants.WorldToChunk(top)) || _world.GetBlockIfLoaded(top).Value == fluidId;
+    }
+
     /// <summary>The top cell of the fluid body filling this column at <paramref name="fromY"/>, or
     /// <see cref="int.MinValue"/> when that cell holds no fluid. Real blocks, no-load reads.</summary>
     private int FluidTopAt(int x, int z, int fromY)
@@ -1867,6 +1933,27 @@ public sealed partial class GameServer
         c.Loco.Speed = 0f;
     }
 
+    private int _spawnAttemptsForTest;
+
+    /// <summary>Test-only: how many times the spawner has been asked to place something since start — the
+    /// #1717 gate must stop asking once the world holds the hard cap.</summary>
+    public int SpawnAttemptsForTest => _spawnAttemptsForTest;
+
+    /// <summary>Test-only: the UNCLAMPED population model for this many surface players (#1717).</summary>
+    public int WorldCreatureCapForTest(int players) => WorldCreatureCap(players);
+
+    /// <summary>Test-only: the water probe (#1718) — the column it would seat an aquatic spawn in, or null.</summary>
+    public (int X, int Z, int Top, int Bed)? WaterColumnNearForTest(int x, int z)
+        => TryFindWaterColumnNear(x, z, out int wx, out int wz, out int top, out int bed) ? (wx, wz, top, bed) : null;
+
+    /// <summary>Test-only: places the herd of a species around a spot exactly as the spawner does after the
+    /// leader stands (#1718), against a cap of the hard cap.</summary>
+    public void SpawnGroupAroundForTest(string speciesId, int x, int z)
+        => SpawnGroupAround(_speciesById[speciesId], x, z, CreatureHardCap);
+
+    /// <summary>Test-only: the cave-floor probe (#1719) at a column, −1 when it finds no open cave.</summary>
+    public int CaveFloorForTest(int x, int z) => FindCaveFloorY(x, z, _generator.SurfaceHeight(_world.Planet, x, z));
+
     /// <summary>The spawner's full reject list for the first roster species at a spot (#1314 seam).</summary>
     public bool SpawnSpotClearForTest(Vector3f at)
     {
@@ -2156,11 +2243,14 @@ public sealed partial class GameServer
     /// from just below the surface downward. Returns the floor's air-cell Y, or -1 if the column has no open cave.</summary>
     private int FindCaveFloorY(int x, int z, int surface)
     {
+        // #1719: no-load reads. An unloaded column reads as air all the way down, so it has no solid floor and
+        // yields no cave spawn — the safe answer, and no chunk is generated on the tick thread for an animal
+        // that may not even spawn.
         for (int y = surface - 3; y > surface - 50; y--)
         {
-            if (!_world.GetBlock(new Vector3i(x, y - 1, z)).IsAir   // solid floor
-                && _world.GetBlock(new Vector3i(x, y, z)).IsAir      // feet in air
-                && _world.GetBlock(new Vector3i(x, y + 1, z)).IsAir) // headroom
+            if (!_world.GetBlockIfLoaded(new Vector3i(x, y - 1, z)).IsAir   // solid floor
+                && _world.GetBlockIfLoaded(new Vector3i(x, y, z)).IsAir      // feet in air
+                && _world.GetBlockIfLoaded(new Vector3i(x, y + 1, z)).IsAir) // headroom
             {
                 return y;
             }
@@ -2183,7 +2273,7 @@ public sealed partial class GameServer
             for (int dz = -r; dz <= r; dz++)
                 for (int dy = -1; dy <= 1; dy++)
                 {
-                    if (_world.GetBlock(new Vector3i(x + dx, y + dy, z + dz)).Value == _creatureWaterId)
+                    if (_world.GetBlockIfLoaded(new Vector3i(x + dx, y + dy, z + dz)).Value == _creatureWaterId) // #1719: no-load read
                     {
                         return true;
                     }

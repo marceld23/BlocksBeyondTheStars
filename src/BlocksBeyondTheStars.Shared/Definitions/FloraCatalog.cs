@@ -55,6 +55,9 @@ public static class FloraCatalog
     /// the same colour and — crucially — the same EDIBLE drop on every world. A wild species rolls
     /// <see cref="FloraSpecies.Toxic"/> at p = 0.3, and a toxic plant's <c>berries</c> drop is swapped for
     /// <c>toxic_berries</c> when it is broken; a crop grown in a village greenhouse must never do that.</param>
+    /// <param name="Solid">True for the structural / bulbous / glowing-cap forms that render as a solid cube
+    /// (cactus, crystal, caps …) instead of the alpha-cutout leaf look. #1721: THE list — the client mesher
+    /// derives its cube set and its tall set from the catalog, and a test holds the leaf-alpha bake to it.</param>
     public sealed record Species(
         string Key,
         string[] Hosts,
@@ -62,7 +65,8 @@ public static class FloraCatalog
         FloraTag Tags = FloraTag.None,
         FloraHeight Height = FloraHeight.Short,
         bool Cultivated = false,
-        string[]? LateHosts = null)
+        string[]? LateHosts = null,
+        bool Solid = false)
     {
         /// <summary>Hosts a later terrain generation added (the peat of generation 3). They are NOT part of
         /// <see cref="Hosts"/> on purpose: the roster's host-coverage rule reads <see cref="Hosts"/>, and a host
@@ -81,38 +85,38 @@ public static class FloraCatalog
         new Species("flora_flower",      new[] { "grass", "alien_grass" }, Tags: FloraTag.Lush),
         new Species("flora_bush",        new[] { "grass" }, Tags: FloraTag.Lush),
         new Species("flora_vine",        new[] { "grass" }, Tags: FloraTag.Lush | FloraTag.Tropical, Height: FloraHeight.Tall),
-        new Species("flora_mushroom",    new[] { "grass", "mud", "mycelium" }, Tags: FloraTag.Fungal),
+        new Species("flora_mushroom",    new[] { "grass", "mud", "mycelium" }, Tags: FloraTag.Fungal, Solid: true),
         // Desert (sand) + dry salt flats.
-        new Species("flora_cactus",      new[] { "sand" }, Tags: FloraTag.Dry),
+        new Species("flora_cactus",      new[] { "sand" }, Tags: FloraTag.Dry, Solid: true),
         new Species("flora_dryshrub",    new[] { "sand", "dirt", "salt" }, Tags: FloraTag.Dry),
         // Swamp / wetland (mud) + fungal mycelium.
         new Species("flora_reed",        new[] { "mud" }, Tags: FloraTag.Wetland, Height: FloraHeight.Tall, LateHosts: new[] { "peat" }), // peat: the cotton-grass stand of a bog
-        new Species("flora_glowcap",     new[] { "mud", "mycelium" }, Tags: FloraTag.Fungal | FloraTag.Glow),
+        new Species("flora_glowcap",     new[] { "mud", "mycelium" }, Tags: FloraTag.Fungal | FloraTag.Glow, Solid: true),
         // Aquatic — kelp roots on the seabed, lily pads float on the water surface (world gen places these
         // under/at the sea; the host lets harvested plants regrow on the same spot, like land flora).
         new Species("flora_kelp",        new[] { "sand", "dirt", "mud", "stone" }, Aquatic: true, Tags: FloraTag.Wetland, Height: FloraHeight.Tall),
         new Species("flora_lily",        new[] { "water" }, Aquatic: true, Tags: FloraTag.Wetland),
         // Harsh worlds — icy tundra + volcanic ash.
         new Species("flora_frostflower", new[] { "ice", "snow" }, Tags: FloraTag.Cold),
-        new Species("flora_emberbloom",  new[] { "basalt", "ash" }, Tags: FloraTag.Dry | FloraTag.Glow),
+        new Species("flora_emberbloom",  new[] { "basalt", "ash" }, Tags: FloraTag.Dry | FloraTag.Glow, Solid: true),
         // Crystalline (crystal/stone/basalt).
-        new Species("flora_crystal",     new[] { "crystal", "stone", "basalt" }, Tags: FloraTag.Rocky | FloraTag.Glow),
+        new Species("flora_crystal",     new[] { "crystal", "stone", "basalt" }, Tags: FloraTag.Rocky | FloraTag.Glow, Solid: true),
 
         // --- Task 6: more variety ---
         // Temperate / jungle greenery.
         new Species("flora_palm",        new[] { "grass", "sand" }, Tags: FloraTag.Tropical, Height: FloraHeight.Tall),
         new Species("flora_orchid",      new[] { "grass", "mud", "alien_grass" }, Tags: FloraTag.Tropical | FloraTag.Lush),
         new Species("flora_bellflower",  new[] { "grass", "alien_grass" }, Tags: FloraTag.Lush),
-        new Species("flora_glowvine",    new[] { "grass", "mud", "mycelium", "alien_grass" }, Tags: FloraTag.Lush | FloraTag.Glow), // bioluminescent (ChunkMesher.GlowFor)
+        new Species("flora_glowvine",    new[] { "grass", "mud", "mycelium", "alien_grass" }, Tags: FloraTag.Lush | FloraTag.Glow, Solid: true), // bioluminescent (ChunkMesher.GlowFor)
         // Stony / rocky.
         new Species("flora_moss",        new[] { "stone", "dirt" }, Tags: FloraTag.Rocky | FloraTag.Lush),
-        new Species("flora_sporepod",    new[] { "crystal", "stone", "mycelium" }, Tags: FloraTag.Fungal | FloraTag.Glow), // faintly glowing
+        new Species("flora_sporepod",    new[] { "crystal", "stone", "mycelium" }, Tags: FloraTag.Fungal | FloraTag.Glow, Solid: true), // faintly glowing
         // Desert + dry salt flats.
-        new Species("flora_succulent",   new[] { "sand", "salt" }, Tags: FloraTag.Dry),
+        new Species("flora_succulent",   new[] { "sand", "salt" }, Tags: FloraTag.Dry, Solid: true),
         new Species("flora_thornbush",   new[] { "sand", "dirt", "alien_grass" }, Tags: FloraTag.Dry, Height: FloraHeight.Tall),
         // Swamp / wetland + fungal mycelium.
-        new Species("flora_pitcher",     new[] { "mud", "grass" }, Tags: FloraTag.Wetland),
-        new Species("flora_puffball",    new[] { "mud", "dirt", "mycelium" }, Tags: FloraTag.Fungal),
+        new Species("flora_pitcher",     new[] { "mud", "grass" }, Tags: FloraTag.Wetland, Solid: true),
+        new Species("flora_puffball",    new[] { "mud", "dirt", "mycelium" }, Tags: FloraTag.Fungal, Solid: true),
         // Harsh worlds — icy tundra.
         new Species("flora_lichen",      new[] { "ice", "stone", "snow" }, Tags: FloraTag.Cold | FloraTag.Rocky, LateHosts: new[] { "peat" }),
         new Species("flora_ashweed",     new[] { "basalt", "ash" }, Tags: FloraTag.Dry),
@@ -122,10 +126,10 @@ public static class FloraCatalog
 
         // --- Item 21 V3: alien flora (corrupted / fungal / crystal worlds) ---
         new Species("flora_tendril",     new[] { "alien_grass", "mycelium" }, Tags: FloraTag.Alien, Height: FloraHeight.Tall),
-        new Species("flora_bulb",        new[] { "alien_grass", "mycelium" }, Tags: FloraTag.Alien | FloraTag.Glow),        // bioluminescent (ChunkMesher.GlowFor)
-        new Species("flora_gasbloom",    new[] { "alien_grass", "mud" }, Tags: FloraTag.Alien),
+        new Species("flora_bulb",        new[] { "alien_grass", "mycelium" }, Tags: FloraTag.Alien | FloraTag.Glow, Solid: true),        // bioluminescent (ChunkMesher.GlowFor)
+        new Species("flora_gasbloom",    new[] { "alien_grass", "mud" }, Tags: FloraTag.Alien, Solid: true),
         new Species("flora_alienfern",   new[] { "alien_grass", "grass" }, Tags: FloraTag.Alien, Height: FloraHeight.Tall),
-        new Species("flora_shardbloom",  new[] { "crystal", "stone" }, Tags: FloraTag.Alien | FloraTag.Rocky | FloraTag.Glow), // crystal flower (faint glow)
+        new Species("flora_shardbloom",  new[] { "crystal", "stone" }, Tags: FloraTag.Alien | FloraTag.Rocky | FloraTag.Glow, Solid: true), // crystal flower (faint glow)
 
         // --- Flora variety V2: fill the thin biomes (rock / ice / snow / salt / ash) + signature tall grass ---
         new Species("flora_grasstuft",   new[] { "grass", "dirt" }, Tags: FloraTag.Lush, Height: FloraHeight.Tall),  // waving tall grass — forest-floor / meadow staple
@@ -143,7 +147,7 @@ public static class FloraCatalog
         // list: a wild species' roster id is its catalog index, so inserting above them would rename every
         // world's plants. Grain is a tall cereal; the mushroom bed also takes to the fungal soils.
         new Species("flora_cropgrain",   new[] { "dirt", "grass", "mud", "hydro_tray" }, Tags: FloraTag.Lush, Height: FloraHeight.Tall, Cultivated: true),
-        new Species("flora_cropshroom",  new[] { "dirt", "mud", "mycelium", "hydro_tray" }, Tags: FloraTag.Fungal, Cultivated: true),
+        new Species("flora_cropshroom",  new[] { "dirt", "mud", "mycelium", "hydro_tray" }, Tags: FloraTag.Fungal, Cultivated: true, Solid: true),
     };
 
     /// <summary>True for a farmed crop rather than wild flora — world generation skips these entirely
@@ -178,7 +182,7 @@ public static class FloraCatalog
     }
 
     /// <summary>The set of species block keys that render as a TALL cross-billboard (an upper vegetation
-    /// layer). Mirrored by the client mesher (ChunkMesher.TallFlora) for the actual geometry.</summary>
+    /// layer). The client mesher reads the same catalog for the actual geometry (#1721).</summary>
     public static bool IsTall(string key)
     {
         foreach (var sp in All)
@@ -190,5 +194,51 @@ public static class FloraCatalog
         }
 
         return false;
+    }
+
+    /// <summary>True for a species that renders as a solid cube (see <see cref="Species.Solid"/>).</summary>
+    public static bool IsSolid(string key)
+    {
+        foreach (var sp in All)
+        {
+            if (sp.Key == key)
+            {
+                return sp.Solid;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The block keys of every species that renders tall AND leafy — the client's upper vegetation
+    /// layer (a solid form ignores its height, so it is absent even when marked tall).</summary>
+    public static IReadOnlyList<string> TallKeys()
+    {
+        var keys = new List<string>();
+        foreach (var sp in All)
+        {
+            if (sp.Height == FloraHeight.Tall && !sp.Solid)
+            {
+                keys.Add(sp.Key);
+            }
+        }
+
+        return keys;
+    }
+
+    /// <summary>The block keys of every species that renders as a solid cube — the client's cube set, and
+    /// the complement of what the leaf-alpha bake (<c>tools/ai-assets/bake_leaf_alpha.py</c>) may list.</summary>
+    public static IReadOnlyList<string> SolidKeys()
+    {
+        var keys = new List<string>();
+        foreach (var sp in All)
+        {
+            if (sp.Solid)
+            {
+                keys.Add(sp.Key);
+            }
+        }
+
+        return keys;
     }
 }

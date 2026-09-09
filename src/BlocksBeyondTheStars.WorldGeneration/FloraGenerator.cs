@@ -8,16 +8,23 @@ using BlocksBeyondTheStars.Shared.Definitions;
 namespace BlocksBeyondTheStars.WorldGeneration;
 
 /// <summary>
-/// Deterministically derives a planet's roster of <see cref="FloraSpecies"/> from the world seed + planet —
-/// the flora counterpart to <see cref="CreatureGenerator"/>. Each entry in the fixed archetype catalogue
+/// Deterministically derives a body's roster of <see cref="FloraSpecies"/> from the roster seed (the world
+/// seed salted with the body, <see cref="WorldGenerator.RosterSeedFor"/>) + planet type — the flora
+/// counterpart to <see cref="CreatureGenerator"/>. Each entry in the fixed archetype catalogue
 /// (<see cref="FloraCatalog"/>) becomes a named, edible-or-toxic species for this world, so two worlds that
-/// both grow the "bush" archetype name and classify it differently. Combined with the planet's uniform flora
-/// hue (server-side <c>FloraColor</c>) and the coined names, each world's plant life reads as its own flora.
-/// Same seed + planet → the same roster, so nothing needs storing.
+/// both grow the "bush" archetype name and classify it differently. Combined with the per-species colours
+/// (<see cref="BlocksBeyondTheStars.Shared.World.FloraTints"/>, client-side from the same seed + body) and the
+/// coined names, each world's plant life reads as its own flora. Same seed + body + planet → the same
+/// roster, so nothing needs storing.
 /// </summary>
 public static class FloraGenerator
 {
-    public static IReadOnlyList<FloraSpecies> GenerateRoster(PlanetType planet, long worldSeed)
+    /// <summary>This world's roster. <paramref name="terrainGeneration"/> is the world's
+    /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.TerrainGeneration"/>: from
+    /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.BiomeThemeRosterGeneration"/> the biome
+    /// themes take part in the activation roll (#1715); older worlds keep the planet-theme-only roll — and
+    /// with it every species they ever grew.</summary>
+    public static IReadOnlyList<FloraSpecies> GenerateRoster(PlanetType planet, long worldSeed, int terrainGeneration = 0)
     {
         var list = new List<FloraSpecies>();
         if (planet.IsAirless || planet.FloraDensity <= 0)
@@ -31,7 +38,23 @@ public static class FloraGenerator
         // The world's flora theme biases WHICH forms grow: species whose climate tags match the theme are
         // common, off-theme species an occasional find — so a tropical world and a savanna world (both grass)
         // grow visibly different plant life. Coverage is enforced afterwards so no surface ever goes bare.
-        var theme = FloraThemes.Resolve(planet.FloraTheme);
+        //
+        // #1715 (generation ≥ 4): the biome themes count too. A `varied` world is temperate with desert, swamp
+        // and alpine biomes; under the planet-only roll its swamp drew from a pool thinned by the temperate
+        // theme's 40 % — a wetland species that rolled inactive could never grow there, and PickWeight (which
+        // does read the biome theme) cannot add back what was never activated. The union of preferred tags is
+        // data-only, so the roster stays a pure function of (type, seed, generation).
+        FloraTag preferred = FloraThemes.Resolve(planet.FloraTheme).Preferred;
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BiomeThemeRosterGeneration)
+        {
+            foreach (var biome in planet.Biomes)
+            {
+                if (!string.IsNullOrWhiteSpace(biome.FloraTheme))
+                {
+                    preferred |= FloraThemes.Resolve(biome.FloraTheme).Preferred;
+                }
+            }
+        }
 
         int i = 0;
         foreach (var archetype in FloraCatalog.All)
@@ -55,7 +78,7 @@ public static class FloraGenerator
                 BlockKey = archetype.Key,
                 Toxic = rng.NextDouble() < 0.3,  // most flora is benign; a notable minority is toxic
                 Aquatic = archetype.Aquatic,
-                Active = rng.NextDouble() < FloraThemes.ActivationChance(theme, archetype.Tags),
+                Active = rng.NextDouble() < FloraThemes.ActivationChance(preferred, archetype.Tags),
             });
             i++;
         }

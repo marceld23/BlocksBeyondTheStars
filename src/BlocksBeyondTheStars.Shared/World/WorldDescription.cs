@@ -168,7 +168,9 @@ public sealed class WorldDescription
     /// nudge, deep-water islets on every world with a water sea, the plateau-and-beach islet shape);
     /// 3 = the landform completion package (2026-09): landmark paints that fill a whole column, sea-relative
     /// landmark rows (sea-floor landforms), ice/fluid overhang bands, sub-surface fluid spans, river
-    /// morphology, and the landform families built on them. MUST
+    /// morphology, and the landform families built on them; 4 = the flora-roster wave (#1715): the biome
+    /// themes take part in the species activation roll (the terrain of a generation-4 world equals
+    /// generation 3 — the roster is what changes, and a roster is as much "the world" as a mountain). MUST
     /// default to 0 like <see cref="TerrainContinents"/>: terrain is re-derived from the seed, so a loaded
     /// save keeps the generation it was created with and its terrain never moves — and neither do its
     /// landing pads, which are re-derived the same way. New worlds get the current generation from
@@ -176,8 +178,14 @@ public sealed class WorldDescription
     /// of one bool per wave — every later wave is a single compare.</summary>
     public int TerrainGeneration { get; set; }
 
-    /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package).</summary>
-    public const int CurrentTerrainGeneration = 3;
+    /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
+    /// #1715 flora roster).</summary>
+    public const int CurrentTerrainGeneration = 4;
+
+    /// <summary>The generation from which the flora roster's activation roll reads the biome themes as well as
+    /// the planet theme (#1715). Older worlds keep the planet-only roll — a changed roll would rename and
+    /// re-pick every species they ever grew.</summary>
+    public const int BiomeThemeRosterGeneration = 4;
 
     /// <summary>The generation from which landing pads use the ocean-pad rules (#1665): the 2-D nudge with the
     /// ocean search budget, islets under every deep all-water pad, the plateau islet shape. Older saves keep the

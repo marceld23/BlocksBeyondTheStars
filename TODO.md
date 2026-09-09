@@ -103,6 +103,42 @@ Still open from the same batch: **#1713** (WebGL renders no terrain after landin
 capture on the school hardware) and **#1714** (a sentry must sit within 8 blocks of a base core, too tight for
 large builds — a design decision, not a defect).
 
+---
+
+### 🌱 Worldgen audit — generation 4 (biome-theme rosters) and nine hygiene fixes (#1715–#1724, 2026-09-09, branch fix/worldgen-audit-0909)
+
+A read-through of the terrain, flora and fauna generators against the July 2026 audit: seven of its nine
+findings were already fixed by the August fauna waves; the two that remained and eight new small ones make
+this package. Nothing here moves a classic golden — the one behaviour change is gated on a new generation.
+
+- **#1715 — flora roster reads the biome themes (generation 4).** `CurrentTerrainGeneration` 3 → 4. The
+  activation roll's "on theme" is the union of the planet theme and every biome theme in the type's pool, so a
+  `varied` world's swamp and desert biomes grow what their own themes prefer instead of a pool the temperate
+  theme thinned to 40 %. Older worlds keep the planet-only roll — and every species they ever grew.
+- **#1716 — farmed crops kept taking the world hue.** The mesher put every `flora_*` block into tint mode 1;
+  a crop carries no species tint, so the shader fell back to the world's base hue — violet berries on a violet
+  world. Crops are `TraitCultivated` now (mode 0, the authored tile). The base hue itself moved next to the
+  per-species colours as `FloraTints.ForWorld` (same value; the server ships it from there).
+- **#1717 — the spawn tick gated on the unclamped cap.** A world modelling above the hard cap of 64 sat in
+  the 1.5 s fast-fill cadence forever, walking ring + roster with terrain probes for nothing.
+- **#1718 — spawn probes read real blocks first.** `TryGetFluidColumn`: a pool the player built hosts a
+  school, a drained pond does not; every herd member runs the leader's probe from its own spot (a school
+  beside a small pond used to be the leader alone).
+- **#1719 — the cave-floor and shoreline probes no longer load chunks** on the tick thread.
+- **#1720 — the spawn-target round robin counts the wild population**, not companions.
+- **#1721 — one flora-form truth.** `FloraCatalog.Species.Solid`; the mesher derives its tall and solid
+  sets from the catalog, a test holds `bake_leaf_alpha.py`'s FOLIAGE list to it.
+- **#1722 — one roster-seed formula.** `WorldGenerator.RosterSeedFor`, used by worldgen and both server
+  sites, with a test that the server's rosters equal the generators' output.
+- **#1723 — `WonderFor`'s lock-free fast path** holds key + profile in one immutable slot.
+- **#1724 — column memos key on the wrapped column**, guarded by a seam-identity test over generation 0,
+  1 and 3 worlds.
+
+Docs: WORLD_GENERATION.md §6, §7, §14. Tests: 9 new across the existing flora / creature / column-cache
+classes (no new test class — the shard-weight guard).
+
+---
+
 ### 🌊 Built water is real water — a player-report package (#1697–#1701, 2026-09-08, branch feat/water-defence-lava)
 
 Seven reports from one session of a player fortifying her spaceport: a moat, a wall, a lava trench, sentry

@@ -30,7 +30,7 @@ public sealed class CreatureTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private SvGameServer Started(string planet, out SqliteWorldRepository repo)
+    private SvGameServer Started(string planet, out SqliteWorldRepository repo, Action<ServerConfig>? configure = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, "creature"));
         var st = new LoopbackServerTransport(new LoopbackLink());
@@ -43,6 +43,7 @@ public sealed class CreatureTests : IDisposable
             PlaceStarterShip = false,
             World = { TerrainGeneration = 0 }, // #1645: gameplay test on the classic relief — the player sits at a fixed (0, 64, 0), which generation-1 terrain may flood or bury
         };
+        configure?.Invoke(config);
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;
@@ -1218,6 +1219,126 @@ public sealed class CreatureTests : IDisposable
                 server.Tick(0.2);
             }
             Assert.Equal(0.0, creature.GiveUpTimer);
+        }
+    }
+
+    // ---------------- Spawner hygiene (#1717, #1718, #1719) ----------------
+
+    /// <summary>The air cell standing on real ground at a column (the first air-over-solid from above).</summary>
+    private static int GroundCellY(SvGameServer server, int x, int z)
+    {
+        for (int y = 140; y > 10; y--)
+        {
+            if (server.World.GetBlock(new Vector3i(x, y, z)).IsAir && !server.World.GetBlock(new Vector3i(x, y - 1, z)).IsAir)
+            {
+                return y;
+            }
+        }
+
+        throw new InvalidOperationException($"no ground under ({x}, {z})");
+    }
+
+    [Fact]
+    public void SpawnGate_StopsAskingAtTheHardCap_EvenWhenThePopulationModelRunsHigher()
+    {
+        // #1717: TickCreatures gated the fill on the UNCLAMPED population model while TrySpawnCreatureNear
+        // clamped to the hard cap and refused — a world modelling above 64 sat in the 1.5 s fast-fill cadence
+        // forever, walking the ring and the roster with terrain probes for nothing (the shape of the old
+        // cap-of-12 bug at a rarer threshold).
+        var server = Started("jungle", out var repo, c => c.Rules.CreatureAbundance = AlienActivity.Extreme);
+        using (repo)
+        {
+            const int players = 25; // √25 = 5: 20 × 2.2 × 5 = 220 × size (≥ 0.5) × jitter (≥ 0.7) > 64 on any body
+            for (int i = 0; i < players; i++)
+            {
+                var p = server.AddLocalPlayer("Ranger" + i);
+                p.State.AboardShip = false;
+                p.State.Position = new Vector3f(0, 64, 0);
+            }
+
+            Assert.True(server.WorldCreatureCapForTest(players) > 64,
+                $"precondition: the model must exceed the hard cap (got {server.WorldCreatureCapForTest(players)})");
+
+            int ground = GroundCellY(server, 0, 0);
+            while (server.Creatures.Count(c => !c.IsCompanion) < 64)
+            {
+                server.SpawnCreatureAtForTest(new Vector3f(0.5f, ground, 0.5f));
+            }
+
+            server.Tick(0.1); // settle the tick's own bookkeeping before counting
+            int attempts = server.SpawnAttemptsForTest;
+            for (int i = 0; i < 40; i++)
+            {
+                server.Tick(0.5); // 20 s — a dozen fast-fill cadences' worth
+            }
+
+            Assert.True(server.Creatures.Count(c => !c.IsCompanion) >= 64, "the world stays at the hard cap");
+            Assert.Equal(attempts, server.SpawnAttemptsForTest);
+        }
+    }
+
+    [Fact]
+    public void WaterProbe_ReadsRealBlocks_SoASchoolFillsAPlayerBuiltPool()
+    {
+        // #1718: the spawn probes asked the GENERATOR alone, and a herd member asked only its own column — a
+        // pool the player dug and filled never hosted a spawn, and beside a small pond the golden-angle spots
+        // (4–8 blocks out) landed on the bank, so the school was the leader alone.
+        var server = Started("desert", out var repo); // a dry world: the generator has no water near the pool
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Ranger");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+
+            // A spot the generator calls dry (no water within the probe's 8 blocks) …
+            (int X, int Z)[] candidates = { (40, 40), (-50, 40), (60, -30), (-70, -60), (90, 20), (20, 90), (120, 120), (-130, 50) };
+            var (cx, cz) = candidates.First(c => server.WaterColumnNearForTest(c.X, c.Z) is null);
+
+            // … gets a 7 × 7 pool two cells deep, dug into the real ground.
+            var water = _content.GetBlock("water")!.NumericId;
+            int floor = GroundCellY(server, cx, cz);
+            for (int x = cx - 3; x <= cx + 3; x++)
+            {
+                for (int z = cz - 3; z <= cz + 3; z++)
+                {
+                    server.World.SetBlock(new Vector3i(x, floor - 1, z), water);
+                    server.World.SetBlock(new Vector3i(x, floor, z), water);
+                }
+            }
+
+            var found = server.WaterColumnNearForTest(cx, cz);
+            Assert.NotNull(found);
+            Assert.Equal(floor, found!.Value.Top);
+            Assert.Equal(floor - 2, found.Value.Bed);
+
+            // A social water species: the leader stands in the pool's centre; the members must find the pool
+            // from their own spots 4–8 blocks out, where the ground is dry.
+            var sp = server.SpeciesRoster.OrderBy(s => s.Size).First(); // the smallest body fits a two-deep pool
+            sp.Habitat = CreatureHabitat.Water;
+            sp.SocialGroupSize = 5;
+            server.SpawnGroupAroundForTest(sp.Id, cx, cz);
+
+            var school = server.Creatures.Where(c => c.SpeciesId == sp.Id).ToList();
+            Assert.True(school.Count >= 2, $"the members must find the pool beside their spots (got {school.Count})");
+            foreach (var fish in school)
+            {
+                var cell = new Vector3i((int)MathF.Floor(fish.Position.X), (int)MathF.Floor(fish.Position.Y), (int)MathF.Floor(fish.Position.Z));
+                Assert.Equal(water.Value, server.World.GetBlock(cell).Value);
+            }
+        }
+    }
+
+    [Fact]
+    public void CaveProbe_NeverLoadsAChunk()
+    {
+        // #1719: the cave-floor probe read through the LOADING block accessor, so a cave spawn attempt at a ring
+        // offset beyond the streamed chunks generated a chunk on the tick thread.
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            int before = server.World.LoadedChunkCount;
+            server.CaveFloorForTest(4000, 4000); // far outside anything streamed in
+            Assert.Equal(before, server.World.LoadedChunkCount);
         }
     }
 

@@ -108,7 +108,7 @@ public sealed partial class WorldGenerator
         _floraTagByBlock.Clear();
 
         var active = new System.Collections.Generic.HashSet<string>();
-        foreach (var fs in FloraGenerator.GenerateRoster(planet, RosterSeed))
+        foreach (var fs in FloraGenerator.GenerateRoster(planet, RosterSeed, _terrainGeneration)) // #1715: the generation gates the biome-theme roll
         {
             if (fs.Active)
             {
