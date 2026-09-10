@@ -248,8 +248,14 @@ public sealed class NpcDialogTests : IDisposable
         // Wherever a pack character is cast, their place must hold exactly ONE of them — a market with
         // several npc markers must not spawn a row of identical Yara Senns sharing one memory (#1150).
         // Scan seeds until a handful of claims were seen so multi-slot places get sampled too.
+        //
+        // FOUR claims, not six: each sampled seed casts exactly one character, so the claim target IS
+        // the number of servers started — and a server start bakes a world, which generation 4
+        // (#1715–#1724) made dear enough that six of them crossed the fast tier's 120 s budget on a CI
+        // runner (127 s, measured on PR #1742; ~9.4 s per start locally, ~16 s there). Four still
+        // samples several worlds; the seed ceiling is only a stop for a pathological run.
         int claims = 0;
-        for (long seed = 1; seed <= 60 && claims < 6; seed++)
+        for (long seed = 1; seed <= 60 && claims < 4; seed++)
         {
             var server = NewServer($"cast_{seed}", seed, out var repo);
             using (repo)
