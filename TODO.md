@@ -24,6 +24,36 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎨 A real undo, a fuller fill, and outfits you can put on in the game (#1737–#1739, 2026-09-10, branch feat/avatar-editor-tools)
+
+Three things Marcel missed in the avatar editor. Two of them turned out to be about the editor the whole
+game shares: the main-menu Avatar Designer, the in-game appearance screen and the block paint tool are one
+component (`FaceEditor`) wearing three hosts, so all three grew the same tools at once.
+
+- **#1737 — undo that keeps going.** The old undo was ONE snapshot the button swapped in and out: the last
+  stroke, and nothing before it. `PixelEditHistory` (plain C#, 12 EditMode tests) is a 32-step stack with a
+  real **Redo** beside it, `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` and `RB` on the pad. Two rules make it feel
+  right rather than merely deeper: a step remembers **which part** it happened on, so the history survives a
+  tab switch and carries the tab back with it (a change you cannot see happening does not read as an undo);
+  and a **base colour** change is a step too — a slip of the colour wheel repaints the whole figure — with
+  one drag counting as one step instead of sixty near-identical shades. A stroke that repainted pixels in
+  the colour they already had is not a step at all.
+- **#1738 — fill.** The flood fill has been there since #899, so half of this was findability: an armed tool
+  now recolours its own label and the hint line under the buttons says what the next click will do. The
+  other half was real — the flood only ever takes the blob under the cursor, so **Fill everything** paints
+  the whole visible surface (the active face region, or the whole canvas in the square hosts) in one press,
+  whatever was on it before. The tool box is two rows now; its right edge follows whatever stands beside it
+  in that host, which also fixes the colour wheel drawing over the end of the old row in the paint tool.
+- **#1739 — outfits in the game.** #1047's eight saved looks were a main-menu affair; the settings file has
+  carried unused `CaptureOutfit`/`ApplyOutfit` helpers for them ever since. The outfit shelf is now a column
+  of the shared editor, so it shows up in the game and in the designer at once: click a row and you are
+  wearing it — colours, face and all four paintings. The hosts own the storage and the wording, because the
+  two mean different things by "the look you are wearing" (the designer's scratch values, still committed by
+  its Apply, versus the live figure). In the game that is five appearance payloads against a server that
+  accepts one every 2 s: the figure changes at once, other players see the last painting about ten seconds
+  later, on the send queue that was already there.
+
+
 ### 🌊 A waterfall, a pair of doors, and two names (#1726, #1729, 2026-09-10, branch feat/reports-0909-client)
 
 The client half of the 2026-09-09 decisions, plus the credits Marcel asked for the same day.

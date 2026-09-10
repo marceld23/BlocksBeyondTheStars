@@ -47,6 +47,7 @@ namespace BlocksBeyondTheStars.Client
             public Func<Color> GetBaseColor;        // colour behind transparent pixels (null = editor grey)
             public Action<Color> SetBaseColor;      // null = the base colour is shown but not editable
             public int PreviewPart = -2;            // live preview target: -1 = face, 0..3 = body part, -2 = none
+            public Func<string> Fetch;              // re-reads the payload from the host (see ReloadSubjects)
         }
 
         /// <summary>Everything the live avatar preview needs, as the host currently has it stored. The editor
@@ -70,6 +71,17 @@ namespace BlocksBeyondTheStars.Client
         public string InitialName;              // paint host: the design's name, when one is being re-opened/copied
         public Action<string, string> OnShare;  // paint host: put (pixels, name) on the clipboard as a share code
         public Func<(string Pixels, string Name)?> OnImport; // paint host: read a share code off the clipboard
+
+        // Outfit shelf: whole saved looks (four colours + face + all four paintings), not single canvases.
+        // The HOST owns them, because the two avatar hosts mean different things by "the look you are
+        // wearing" — the designer's scratch values in the main menu, the live figure in the game — and only
+        // the in-game host has a server to tell. Null = no outfit column (the block-paint tool has none).
+        // Each hook returns the status line to show under the column, already localized by the host.
+        public Func<List<string>> OutfitNames;
+        public Func<string, string> OnSaveOutfit;        // name → status
+        public Func<int, string> OnWearOutfit;           // index → status
+        public Func<int, string> OnDeleteOutfit;         // index → status
+        public Func<int, string, string> OnRenameOutfit; // index, name → status
 
         // Body-paint hosts (#874): a NON-square grid holding a part's unfolded 32×32 face regions, and
         // custom payload codecs (the wire format is concatenated face chunks, not the grid's row-major
@@ -140,14 +152,31 @@ namespace BlocksBeyondTheStars.Client
         private readonly Image[] _swatches = new Image[FacePalette.Colors.Length]; // index 0 reused as eraser
         private RectTransform _libList; // library column entries (rebuilt after a save)
 
+        // Outfit column.
+        private RectTransform _outfitList;
+        private Text _outfitStatus, _outfitEmpty;
+        private InputField _outfitName;
+        private string _outfitTyped = string.Empty;
+        private int _selectedOutfit = -1;
+        private readonly List<Text> _outfitLabels = new List<Text>();
+
         // Tools. Painting is the default; fill and the eyedropper are armed modes with a highlighted button,
         // and both can also be reached by modifier so they feel like a paint program (#899).
         private bool _picking;          // eyedropper armed: the next canvas click takes a colour, not paints one
         private bool _filling;          // fill armed: the next canvas click floods an area
         private Image _pickButton, _fillButton;
-        private int[] _undo;            // single-level undo snapshot (doubles as redo — Undo swaps)
-        private bool _hasUndo;
+        private Text _pickLabel, _fillLabel; // armed tools also recolour their LABEL: a cyan frame alone is
+                                             // easy to miss, and then the next click does something other
+                                             // than what the player expects
         private bool _stroking;         // a drag is in progress (so the undo snapshot is taken once per stroke)
+
+        // Undo/redo. It used to be ONE snapshot that Undo swapped in and out — a fine trick for the last
+        // brush stroke and useless for the five before it. The stack itself lives in PixelEditHistory,
+        // which also knows that a colour-wheel drag is one step and that the history spans the part tabs.
+        private readonly PixelEditHistory _history = new PixelEditHistory();
+        private byte[] _pendingBefore;  // grid before the edit in progress (BeginGridEdit → CommitGridEdit)
+        private int _pendingSubject = -1;
+        private Button _undoButton, _redoButton;
 
         private RectTransform _wheelRt;  // hue/saturation ring
         private RectTransform _wheelDot; // the draggable marker on it
@@ -211,8 +240,9 @@ namespace BlocksBeyondTheStars.Client
             _regionRows = Mathf.Max(1, _h / RegionCells);
             _activeRegion = 0;
             _grid = new int[_w * _h];
-            _hasUndo = false;
-            _undo = null;
+            _pendingBefore = null; // an edit half-open on the old canvas can never be closed on this one
+            _pendingSubject = -1;
+            _history.EndColorRun();
             _dirty = false;
 
             if (_tex != null)
@@ -243,13 +273,23 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_canvasRt == null) return;
 
+            if (!Input.GetMouseButton(0))
+            {
+                _history.EndColorRun(); // drag over: the next colour change starts its own history step
+            }
+
             UpdateColorWheel();
+            HandleHistoryKeys();
 
             // Which device is painting decides where the "cursor" is: the mouse pointer, or the pad's cell
             // cursor (#1198). Everything after the split — eyedropper, fill, stroke — is shared, so a tool
             // added here keeps working on both.
             bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
             UpdatePadFocus(pad);
+            if (pad && InputMap.PadDown(PadButton.Rb))
+            {
+                Undo(); // RB is free while this editor is up: the tab screen behind stands its shoulders down
+            }
             bool padCanvas = pad && _padCanvas;
             if (padCanvas)
             {
@@ -338,7 +378,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (leftDown || rightDown)
             {
-                TakeUndoSnapshot(); // one snapshot per stroke, not per pixel
+                BeginGridEdit(); // one history step per stroke, not per pixel
                 _stroking = true;
             }
 
@@ -346,12 +386,13 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Ends a stroke once every paint button is released — the preview is too costly to refresh
-        /// per pixel, so it lands here.</summary>
+        /// per pixel, and the whole stroke is one undo step, so both land here.</summary>
         private void EndStroke()
         {
             if (_stroking)
             {
                 _stroking = false;
+                CommitGridEdit();
                 RefreshPreview();
             }
         }
@@ -391,7 +432,7 @@ namespace BlocksBeyondTheStars.Client
             if (!pad)
             {
                 UiNav.SetSuspended(_ui.gameObject, false); // mouse in hand — the tools are always live
-                SetHint(Current.HintKey);                  // …and the hint goes back to the mouse wording
+                SetHint(HintKeyNow());                     // …and the hint goes back to the mouse wording
                 return;
             }
 
@@ -535,7 +576,7 @@ namespace BlocksBeyondTheStars.Client
                 y1 = y0 + RegionCells;
             }
 
-            TakeUndoSnapshot();
+            BeginGridEdit();
             if (replaceAll)
             {
                 for (int y = y0; y < y1; y++)
@@ -567,6 +608,37 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _dirty = true;
+            CommitGridEdit();
+            RenderAll();
+            RefreshPreview();
+        }
+
+        /// <summary>Paints the whole visible surface in the brush colour in ONE press — the active face
+        /// region, or the whole canvas in the square hosts, whatever was on it before. The flood tool only
+        /// ever takes the blob under the cursor, so "make this side all blue" used to mean clearing the
+        /// region first and then filling the emptiness; this is the same move without the detour.</summary>
+        private void FillWholeRegion()
+        {
+            int x0 = 0, y0 = 0, x1 = _w, y1 = _h;
+            if (RegionMode)
+            {
+                x0 = (_activeRegion % _regionCols) * RegionCells;
+                y0 = (_activeRegion / _regionCols) * RegionCells;
+                x1 = x0 + RegionCells;
+                y1 = y0 + RegionCells;
+            }
+
+            BeginGridEdit();
+            for (int y = y0; y < y1; y++)
+            {
+                for (int x = x0; x < x1; x++)
+                {
+                    _grid[y * _w + x] = _brush;
+                }
+            }
+
+            _dirty = true;
+            CommitGridEdit();
             RenderAll();
             RefreshPreview();
         }
@@ -588,26 +660,155 @@ namespace BlocksBeyondTheStars.Client
             stack.Push(cell);
         }
 
-        /// <summary>Remembers the canvas before a destructive step. One level, by design — but because
-        /// <see cref="Undo"/> SWAPS the snapshot in, pressing it twice puts the change back, which is what a
-        /// child actually does with an undo button.</summary>
-        private void TakeUndoSnapshot()
+        // ── undo / redo ──────────────────────────────────────────────────────────────────────────
+
+        /// <summary>Opens an edit: remembers the canvas before a destructive step. Taken once per stroke,
+        /// not per pixel — closed again by <see cref="CommitGridEdit"/>.</summary>
+        private void BeginGridEdit()
         {
-            _undo = (int[])_grid.Clone();
-            _hasUndo = true;
+            _pendingBefore = GridToBytes();
+            _pendingSubject = _active;
         }
 
-        private void Undo()
+        /// <summary>Closes the edit <see cref="BeginGridEdit"/> opened and pushes it — unless nothing
+        /// actually changed, which is most of what a nervous hand does (a stroke that repaints pixels
+        /// that were already that colour must not eat an undo step).</summary>
+        private void CommitGridEdit()
         {
-            if (!_hasUndo || _undo == null || _undo.Length != _grid.Length)
+            if (_pendingBefore == null)
             {
                 return;
             }
 
-            (_undo, _grid) = (_grid, _undo);
-            _dirty = true;
-            RenderAll();
+            if (_pendingSubject == _active)
+            {
+                _history.PushGrid(_active, _pendingBefore, GridToBytes());
+                RefreshHistoryButtons();
+            }
+
+            _pendingBefore = null;
+            _pendingSubject = -1;
+        }
+
+        /// <summary>Records a base-colour change. A wheel DRAG is ONE gesture, so while the button stays
+        /// down the running entry only grows its "after" — otherwise a two-second drag would fill the whole
+        /// history with sixty near-identical shades and push every brush stroke out of it.</summary>
+        private void NoteColorEdit(Color before, Color after, bool fromDrag)
+        {
+            _history.PushColor(_active, before, after, fromDrag);
+            RefreshHistoryButtons();
+        }
+
+        private void Undo()
+        {
+            if (_history.Undo() is { } edit)
+            {
+                ApplyEdit(edit, toBefore: true);
+            }
+        }
+
+        private void Redo()
+        {
+            if (_history.Redo() is { } edit)
+            {
+                ApplyEdit(edit, toBefore: false);
+            }
+        }
+
+        /// <summary>Puts one edit back (or forward). If it belongs to another part the tab comes along: a
+        /// change the player cannot see happening does not read as an undo at all.</summary>
+        private void ApplyEdit(PixelEditHistory.Edit edit, bool toBefore)
+        {
+            if (edit.Subject != _active)
+            {
+                SwitchSubject(edit.Subject);
+            }
+
+            if (!edit.IsColor)
+            {
+                BytesToGrid(toBefore ? edit.GridBefore : edit.GridAfter);
+                _dirty = true;
+            }
+            else if (Current?.SetBaseColor != null)
+            {
+                _history.EndColorRun();
+                Current.SetBaseColor(toBefore ? edit.ColorBefore : edit.ColorAfter);
+                UpdateBaseSwatch();
+                OnChanged?.Invoke();
+            }
+
+            RenderAll(); // both kinds re-tint the canvas: transparent pixels show the base colour
             RefreshPreview();
+            RefreshHistoryButtons();
+        }
+
+        /// <summary>Greys the two buttons out at the ends of the history, so "nothing happens" is something
+        /// the player can see before pressing rather than after.</summary>
+        private void RefreshHistoryButtons()
+        {
+            if (_undoButton != null)
+            {
+                _undoButton.interactable = _history.CanUndo;
+            }
+
+            if (_redoButton != null)
+            {
+                _redoButton.interactable = _history.CanRedo;
+            }
+        }
+
+        /// <summary>Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — the shortcuts a hand reaches for without being told.
+        /// Read every frame, not only while a paint button is down.</summary>
+        private void HandleHistoryKeys()
+        {
+            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)
+                || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
+            if (!ctrl)
+            {
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Z))
+            {
+                if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                {
+                    Redo();
+                }
+                else
+                {
+                    Undo();
+                }
+            }
+            else if (Input.GetKeyDown(KeyCode.Y))
+            {
+                Redo();
+            }
+        }
+
+        /// <summary>The grid as one byte per cell — the palette holds 32 entries, so an int per cell would
+        /// cost four times the memory for the same information.</summary>
+        private byte[] GridToBytes()
+        {
+            var bytes = new byte[_grid.Length];
+            for (int i = 0; i < _grid.Length; i++)
+            {
+                bytes[i] = (byte)Mathf.Clamp(_grid[i], 0, 255);
+            }
+
+            return bytes;
+        }
+
+        private void BytesToGrid(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length != _grid.Length)
+            {
+                return; // a snapshot of another part's canvas — never happens, but never corrupt this one
+            }
+
+            for (int i = 0; i < _grid.Length; i++)
+            {
+                _grid[i] = bytes[i];
+            }
         }
 
         /// <summary>The colour a grid cell shows in the editor. Transparent pixels are drawn in the subject's
@@ -666,8 +867,12 @@ namespace BlocksBeyondTheStars.Client
 
             // Shared scrim + opaque panel (#588). The old backdrop was an AddPanel, whose raycastTarget is
             // false, so it never actually blocked clicks reaching the menu behind — AddModalDim does.
-            float panelW = wide ? 1240f : (hasLibrary ? 950f : 700f);
-            var (_, panel) = UiKit.AddModalOverlay(root, (1920f - panelW) / 2f, 60f, panelW, 960f);
+            // 992 tall at y=48 (bottom 1040 of the 1080 design height, which ScreenMatchMode.Expand always
+            // fits): the second tool row needs the extra 32 px, and the hint line under the buttons is the
+            // last thing that may be clipped — it is where the controls are explained.
+            bool hasOutfits = OutfitNames != null;
+            float panelW = wide ? (hasOutfits ? 1500f : 1240f) : (hasLibrary ? 950f : 700f);
+            var (_, panel) = UiKit.AddModalOverlay(root, (1920f - panelW) / 2f, 48f, panelW, 992f);
             _title = UiKit.AddText(panel, 24f, 18f, panelW - 48f, 30f, L(Current.TitleKey ?? Current.LabelKey), 22,
                 UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
@@ -705,16 +910,31 @@ namespace BlocksBeyondTheStars.Client
             _swatches[0] = eraser;
             UiKit.AddText(eraser.transform, 0f, 0f, swatch, swatch, "E", 15, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
 
-            // Tool row: fill, eyedropper, undo — grouped so they read as a toolbox rather than as loose buttons.
-            // 200 wide because these carry the longest labels in the panel ("Farbe aufnehmen" in German, and
-            // longer still in Polish/Turkish): a label only auto-shrinks so far before it stops being readable
-            // at arm's length, so give it the room instead (#918).
-            float toolsY = paletteLabelY + 32f + 3f * pitch + 12f;
-            // The row stops at x=580: that is where the region-tile column starts, and the helmet's fifth tile
-            // reaches down to this row's top edge.
-            _fillButton = UiKit.AddButton(panel, 24f, toolsY, 200f, 44f, L("ui.face.fill"), () => SetFilling(!_filling)).image;
-            _pickButton = UiKit.AddButton(panel, 232f, toolsY, 200f, 44f, L("ui.face.pick"), () => SetPicking(!_picking)).image;
-            UiKit.AddButton(panel, 440f, toolsY, 140f, 44f, L("ui.face.undo"), Undo);
+            // Tool box: fill, fill-the-lot, eyedropper, undo, redo — under the palette, in TWO rows since
+            // five tools no longer fit across one.
+            // The right edge is whatever stands beside the tools in this host: the region-tile column at
+            // x=580 (the helmet's fifth tile reaches down to the first row's top edge) or, in the single-
+            // subject hosts, the colour wheel at x=470 — which is BUILT AFTER this row and so drew over the
+            // right end of it, swallowing the clicks meant for the undo button.
+            // The labels get real width on purpose ("Farbe aufnehmen" in German, longer still in Polish and
+            // Turkish): a label only auto-shrinks so far before it stops being readable at arm's length (#918).
+            float toolsY = paletteLabelY + 32f + 3f * pitch + 4f;
+            const float toolH = 40f, row2 = 46f, gap = 8f;
+            float toolW = (wide ? 580f : 470f) - 24f - gap;
+            float halfW = (toolW - gap) / 2f;
+            float quarterW = (toolW - halfW - 2f * gap) / 2f;
+
+            var fillBtn = UiKit.AddButton(panel, 24f, toolsY, halfW, toolH, L("ui.face.fill"), () => SetFilling(!_filling));
+            _fillButton = fillBtn.image;
+            _fillLabel = fillBtn.GetComponentInChildren<Text>();
+            UiKit.AddButton(panel, 24f + halfW + gap, toolsY, halfW, toolH, L("ui.face.fill_all"), FillWholeRegion);
+
+            var pickBtn = UiKit.AddButton(panel, 24f, toolsY + row2, halfW, toolH, L("ui.face.pick"), () => SetPicking(!_picking));
+            _pickButton = pickBtn.image;
+            _pickLabel = pickBtn.GetComponentInChildren<Text>();
+            _undoButton = UiKit.AddButton(panel, 24f + halfW + gap, toolsY + row2, quarterW, toolH, L("ui.face.undo"), Undo);
+            _redoButton = UiKit.AddButton(panel, 24f + halfW + quarterW + 2f * gap, toolsY + row2, quarterW, toolH, L("ui.face.redo"), Redo);
+            RefreshHistoryButtons();
 
             BuildColorWheel(panel, wide ? 900f : 470f, wide ? 300f : paletteLabelY + 8f);
             if (wide)
@@ -724,12 +944,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Buttons.
-            float buttonsY = toolsY + 58f;
+            float buttonsY = toolsY + 104f; // clears the second tool row
             UiKit.AddButton(panel, 24f, buttonsY, 220f, 56f, L("ui.face.apply"), Apply);
             UiKit.AddButton(panel, 260f, buttonsY, 180f, 56f, L("ui.face.clear"), ClearCanvas);
             UiKit.AddButton(panel, 456f, buttonsY, 220f, 56f, L("ui.menu.back"), Close);
 
-            _hint = UiKit.AddText(panel, 24f, buttonsY + 66f, panelW - 48f, 24f, L(Current.HintKey), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            _hint = UiKit.AddText(panel, 24f, buttonsY + 62f, panelW - 48f, 24f, L(HintKeyNow()), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             // Design library column (paint host only): name + save the current canvas, reload saved designs,
             // and share one as a code (#846) — the same set of moves the form library offers.
@@ -755,9 +975,10 @@ namespace BlocksBeyondTheStars.Client
                         if (OnImport?.Invoke() is { } imported)
                         {
                             _name = imported.Name;
-                            TakeUndoSnapshot();
+                            BeginGridEdit();
                             LoadFrom(imported.Pixels);
                             _dirty = true;
+                            CommitGridEdit();
                             RebuildLibraryList();
                         }
                     });
@@ -767,6 +988,11 @@ namespace BlocksBeyondTheStars.Client
                 listGo.transform.SetParent(panel, false);
                 _libList = UiKit.Place(listGo, 700f, 240f, 226f, 580f);
                 RebuildLibraryList();
+            }
+
+            if (hasOutfits)
+            {
+                BuildOutfitColumn(panel, panelW - 250f);
             }
 
             SetBrush(_brush, _swatches[_brush]);
@@ -816,7 +1042,7 @@ namespace BlocksBeyondTheStars.Client
             LoadSubject(index);
             BuildSubjectArea(canvasX, canvasY);
             _title.text = L(Current.TitleKey ?? Current.LabelKey);
-            _hint.text = L(Current.HintKey);
+            SetHint(HintKeyNow());
             HighlightTabs();
             UpdateBaseSwatch();
             RefreshPreview();
@@ -874,12 +1100,192 @@ namespace BlocksBeyondTheStars.Client
                 string pixels = entries[i].Pixels;
                 UiKit.AddButton(_libList, 0f, y, 226f, 42f, entries[i].Name, () =>
                 {
-                    TakeUndoSnapshot();
+                    BeginGridEdit();
                     LoadFrom(pixels);
                     _dirty = true;
+                    CommitGridEdit();
                 });
                 y += 50f;
             }
+        }
+
+        // ── outfits ──────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The outfit shelf beside the canvas: name field, Save, Rename, and one row per saved look with a
+        /// ✕ to drop it. Clicking a row PUTS THAT LOOK ON — every tab at once, colours included — which is
+        /// why it lives in the editor rather than on a menu card: this is where a player finds out whether
+        /// they like it. It used to exist only in the main menu's Avatar Designer, so the look you wore in
+        /// the game could not be swapped without quitting to the menu (#1047 was menu-only).
+        /// </summary>
+        private void BuildOutfitColumn(Transform panel, float x)
+        {
+            const float w = 226f;
+            UiKit.AddText(panel, x, 64f, w, 24f, L("ui.avatar.outfits"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _outfitName = UiKit.AddInput(panel, x, 92f, w, 42f, _outfitTyped, v => _outfitTyped = v, L("ui.avatar.outfit_name"), 24, 16);
+            UiKit.AddButton(panel, x, 142f, w, 44f, L("ui.avatar.outfit_save"), SaveOutfitPressed);
+            UiKit.AddButton(panel, x, 194f, w, 40f, L("ui.avatar.outfit_rename"), RenameOutfitPressed);
+
+            var listGo = new GameObject("OutfitList", typeof(RectTransform));
+            listGo.transform.SetParent(panel, false);
+            _outfitList = UiKit.Place(listGo, x, 246f, w, 380f);
+
+            _outfitEmpty = UiKit.AddText(panel, x, 252f, w, 90f, L("ui.avatar.outfit_none"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
+            _outfitEmpty.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            _outfitStatus = UiKit.AddText(panel, x, 636f, w, 90f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
+            _outfitStatus.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            RebuildOutfitList();
+        }
+
+        /// <summary>(Re)fills the outfit rows from the host. Cheap — the list is capped at a handful of rows
+        /// and only rebuilt when one of them changes.</summary>
+        private void RebuildOutfitList()
+        {
+            if (_outfitList == null)
+            {
+                return;
+            }
+
+            for (int i = _outfitList.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_outfitList.GetChild(i).gameObject);
+            }
+
+            _outfitLabels.Clear();
+            var names = OutfitNames?.Invoke() ?? new List<string>();
+            if (_selectedOutfit >= names.Count)
+            {
+                _selectedOutfit = -1;
+            }
+
+            if (_outfitEmpty != null)
+            {
+                _outfitEmpty.gameObject.SetActive(names.Count == 0);
+            }
+
+            float y = 0f;
+            for (int i = 0; i < names.Count; i++)
+            {
+                int idx = i;
+                string name = string.IsNullOrEmpty(names[i]) ? "?" : names[i];
+                var wear = UiKit.AddButton(_outfitList, 0f, y, 170f, 40f, name, () => WearOutfitPressed(idx));
+                var label = wear.GetComponentInChildren<Text>();
+                label.color = idx == _selectedOutfit ? UiKit.Cyan : UiKit.TextCol;
+                _outfitLabels.Add(label);
+                UiKit.AddButton(_outfitList, 178f, y, 48f, 40f, "✕", () => DeleteOutfitPressed(idx));
+                y += 46f;
+            }
+        }
+
+        private void SelectOutfit(int index)
+        {
+            _selectedOutfit = index;
+            for (int i = 0; i < _outfitLabels.Count; i++)
+            {
+                if (_outfitLabels[i] != null)
+                {
+                    _outfitLabels[i].color = i == index ? UiKit.Cyan : UiKit.TextCol;
+                }
+            }
+        }
+
+        private void SetOutfitStatus(string text)
+        {
+            if (_outfitStatus != null)
+            {
+                _outfitStatus.text = text ?? string.Empty;
+            }
+        }
+
+        /// <summary>Wears a saved look. The host swaps everything under the editor, so every tab is re-read
+        /// from it afterwards — otherwise the canvas would still hold the old paint and write it straight
+        /// back on the next tab switch.</summary>
+        private void WearOutfitPressed(int index)
+        {
+            if (OnWearOutfit == null)
+            {
+                return;
+            }
+
+            string status = OnWearOutfit(index);
+            ReloadSubjects();
+            SelectOutfit(index);
+            var names = OutfitNames?.Invoke();
+            if (names != null && index >= 0 && index < names.Count && _outfitName != null)
+            {
+                _outfitTyped = names[index];
+                _outfitName.text = _outfitTyped; // so Rename acts on a name the player can see and edit
+            }
+
+            SetOutfitStatus(status);
+        }
+
+        private void SaveOutfitPressed()
+        {
+            if (OnSaveOutfit == null)
+            {
+                return;
+            }
+
+            SetOutfitStatus(OnSaveOutfit(_outfitTyped ?? string.Empty));
+            RebuildOutfitList();
+        }
+
+        private void RenameOutfitPressed()
+        {
+            if (OnRenameOutfit == null)
+            {
+                return;
+            }
+
+            SetOutfitStatus(OnRenameOutfit(_selectedOutfit, _outfitTyped ?? string.Empty));
+            RebuildOutfitList();
+        }
+
+        private void DeleteOutfitPressed(int index)
+        {
+            if (OnDeleteOutfit == null)
+            {
+                return;
+            }
+
+            SetOutfitStatus(OnDeleteOutfit(index));
+            if (_selectedOutfit == index)
+            {
+                _selectedOutfit = -1;
+            }
+            else if (_selectedOutfit > index)
+            {
+                _selectedOutfit--;
+            }
+
+            RebuildOutfitList();
+        }
+
+        /// <summary>Re-reads every tab's payload and colour from the host after it swapped the whole look
+        /// under the editor. The history goes with it: the steps that led here belong to a look that is no
+        /// longer on the figure, and undoing into it would mix two outfits together.</summary>
+        private void ReloadSubjects()
+        {
+            foreach (var subject in _subjects)
+            {
+                if (subject.Fetch != null)
+                {
+                    subject.Pixels = subject.Fetch() ?? string.Empty;
+                }
+            }
+
+            _history.Clear();
+            RefreshHistoryButtons();
+
+            int active = _active;
+            LoadSubject(active);
+            BuildSubjectArea(24f, _subjects.Count > 1 ? 100f : 64f);
+            UpdateBaseSwatch();
+            RefreshPreview();
+            OnChanged?.Invoke();
         }
 
         /// <summary>
@@ -1026,7 +1432,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_wheelPaintsBase && Current?.SetBaseColor != null)
             {
-                SetBaseColor(picked);
+                SetBaseColor(picked, fromDrag: true); // a whole drag is one undo step, not sixty
                 return;
             }
 
@@ -1088,15 +1494,19 @@ namespace BlocksBeyondTheStars.Client
             UpdateBaseSwatch();
         }
 
-        private void SetBaseColor(Color c)
+        private void SetBaseColor(Color c) => SetBaseColor(c, fromDrag: false);
+
+        private void SetBaseColor(Color c, bool fromDrag)
         {
             if (Current?.SetBaseColor == null)
             {
                 return;
             }
 
+            Color before = Current.GetBaseColor?.Invoke() ?? c;
             _wheelPaintsBase = true;
             Current.SetBaseColor(c);
+            NoteColorEdit(before, c, fromDrag);
             UpdateBaseSwatch();
             RenderAll();   // transparent pixels show the base colour, so the whole canvas re-tints
             RefreshPreview();
@@ -1187,30 +1597,48 @@ namespace BlocksBeyondTheStars.Client
         private void SetPicking(bool on)
         {
             _picking = on;
-            if (_pickButton != null)
-            {
-                _pickButton.color = on ? UiKit.Cyan : UiKit.PanelFill;
-            }
-
+            Arm(_pickButton, _pickLabel, on);
             if (on)
             {
                 SetFilling(false);
             }
+
+            SetHint(HintKeyNow());
         }
 
         private void SetFilling(bool on)
         {
             _filling = on;
-            if (_fillButton != null)
-            {
-                _fillButton.color = on ? UiKit.Cyan : UiKit.PanelFill;
-            }
-
+            Arm(_fillButton, _fillLabel, on);
             if (on)
             {
                 SetPicking(false);
             }
+
+            SetHint(HintKeyNow());
         }
+
+        /// <summary>Paints an armed tool's button: cyan frame AND a dark label on it, so the state survives
+        /// a glance rather than needing a comparison with the button next to it.</summary>
+        private static void Arm(Image button, Text label, bool on)
+        {
+            if (button != null)
+            {
+                button.color = on ? UiKit.Cyan : UiKit.PanelFill;
+            }
+
+            if (label != null)
+            {
+                label.color = on ? UiKit.PanelFill : UiKit.TextCol;
+            }
+        }
+
+        /// <summary>Which hint the line under the buttons should carry right now: an armed tool says what the
+        /// next click will do, otherwise the subject's own hint.</summary>
+        private string HintKeyNow()
+            => _filling ? "ui.face.hint_fill_armed"
+             : _picking ? "ui.face.hint_pick_armed"
+             : Current?.HintKey ?? HintKey;
 
         private Image MakeSwatch(Transform parent, float x, float y, float size, Color color, Action onClick)
         {
@@ -1352,7 +1780,7 @@ namespace BlocksBeyondTheStars.Client
         /// region in region mode — wiping all faces of a part because you wanted to redo one would hurt.</summary>
         private void ClearCanvas()
         {
-            TakeUndoSnapshot();
+            BeginGridEdit();
             if (RegionMode)
             {
                 int col = (_activeRegion % _regionCols) * RegionCells, row = (_activeRegion / _regionCols) * RegionCells;
@@ -1367,6 +1795,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _dirty = true;
+            CommitGridEdit();
             RenderAll();
             RefreshPreview();
         }

@@ -1052,7 +1052,8 @@ separate unlock; admins can still disable it through server world rules.
 - Craft a **Paint Tool** (`paint_tool`, workshop recipe + the cheap `paint_tool` blueprint). Select it and
   **right-click a placed solid block** — a **32×32 pixel editor** opens (same palette and tools as the
   appearance screen: left-click paints, right-click erases, **E** is the eraser swatch, **Fill area** floods,
-  **Alt+click** picks up a colour and **Undo** takes a step back; unpainted pixels show the design's paper-white
+  **Fill everything** paints the whole canvas at once, **Alt+click** picks up a colour and **Undo** / **Redo**
+  walk 32 steps back and forth (`Ctrl+Z` / `Ctrl+Y`); unpainted pixels show the design's paper-white
   canvas, which is what the block will look like). **Apply** paints the
   design onto the block for everyone; **Clear + Apply** removes it. Works on every block form — panels/plates
   on a wall are the natural canvas, but slabs, ramps and plain cubes take a design too (all faces show it).
@@ -1319,9 +1320,14 @@ separate unlock; admins can still disable it through server world rules.
   in that colour on the canvas, because that is what will show through. The helmet takes the torso colour.
 - **Painting** — left-click paints, right-click erases, **E** is the eraser swatch. **Fill area** floods the
   area you click with the current colour (right-click fills it back to empty, **Shift** replaces that colour
-  everywhere on the face you are on). **Pick colour** takes the colour under the cursor for one click —
-  **Alt+click** or the **middle mouse button** do the same at any time. **Undo** takes the last step back;
-  press it again and the step returns.
+  everywhere on the face you are on); an armed tool colours its own button and label, and the line under the
+  buttons says what your next click will do. **Fill everything** needs no click on the canvas at all: it
+  paints the whole face you are on in the current colour, whatever was there. **Pick colour** takes the colour
+  under the cursor for one click — **Alt+click** or the **middle mouse button** do the same at any time.
+- **Undo / Redo** — **32 steps**, forwards and backwards, with `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` and **RB**
+  on the pad. The history covers the whole screen: it survives switching tabs, brings the tab back with the
+  step, and it takes back a **base colour** you changed by accident as readily as a brush stroke (one sweep of
+  the colour wheel is one step). Both buttons grey out when there is nothing left to take back or put back.
 - **Colours** — 32 paint colours plus the eraser, arranged so each hue has a lighter and a darker partner for
   shading. The colour wheel picks by hue (outward = more saturated) with a **brightness column** beside it, and
   snaps to the closest palette entry. Faces drawn at the old 16×16 size still work — they are scaled up
@@ -1331,8 +1337,16 @@ separate unlock; admins can still disable it through server world rules.
   limb, headed Left/Right) — click a tile to paint that face, and the tiles update while you draw so you always
   see the whole part. **Clear** wipes only the face you are on, and a fill never runs over onto another face.
   The helmet's front stays open, so your face always shows.
+- **Outfits** — the column on the right keeps up to **eight named looks** (the four body colours, your pixel
+  face and all four paintings). Type a name and press **Save outfit** to store what you are wearing (a new
+  outfit, or an update of the one that already has that name); **click a row to put that outfit on** — every
+  part and every colour at once; **Rename selected** renames the highlighted one, ✕ deletes it. Deleting the
+  outfit you are wearing does not undress you: what you wear is a copy. The same shelf is in the main-menu
+  **Avatar Designer**, over the same eight saved looks — there, loading one only puts it on the figure in the
+  designer and its **Apply** is still what makes it yours.
 - Everything here appears on **your figure** and **on your avatar for every other player** — it is
-  server-persistent, so your look follows you to any world.
+  server-persistent, so your look follows you to any world. When you put a whole outfit on in the game your own
+  figure changes at once; the other players' screens catch up over the next few seconds, one part at a time.
 
 ### Death & respawn
 - At 0 health you respawn at the ship's **Medbay heal-tank** (vitals restored); a salvage capsule may drop
@@ -1388,7 +1402,9 @@ ship elements and interaction markers are drawn as plain colour swatches so they
 look shown on the figure (a new outfit, or an update of the one that already has that name); click an
 outfit to load it back onto the figure, **Rename selected** renames the highlighted one to the name field,
 ✕ deletes it. Only **Apply** changes the avatar you wear in the game — loading or deleting an outfit never
-does — so the same look stays on your avatar until you apply another one.
+does — so the same look stays on your avatar until you apply another one. The same eight outfits are also
+reachable **in the game**, in the Appearance screen's outfit column, where clicking one puts it on straight
+away (see §Appearance).
 
 **Material Editor painting:** Left-click paints with the selected swatch, Right-click erases to the base
 colour; Fill/Flat/Clear and an RGB base-colour picker are in the side panel. "World type" targets which
