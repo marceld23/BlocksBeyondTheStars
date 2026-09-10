@@ -197,6 +197,24 @@ namespace BlocksBeyondTheStars.Client
             RefreshOutfitList();
         }
 
+        /// <summary>The saved outfits' names, in order — what the appearance screen's outfit column lists.</summary>
+        private List<string> OutfitNames()
+        {
+            var names = new List<string>();
+            var outfits = Shell?.Settings?.Outfits;
+            if (outfits == null)
+            {
+                return names;
+            }
+
+            foreach (var outfit in outfits)
+            {
+                names.Add(outfit.Name ?? string.Empty);
+            }
+
+            return names;
+        }
+
         /// <summary>Rebuilds the outfit rows from the settings (cheap: at most eight rows, and only on a change).</summary>
         private void RefreshOutfitList()
         {
@@ -271,13 +289,14 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Loads a saved outfit into the designer (scratch values, swatches, preview figure and the name
-        /// field) — the in-game avatar is untouched until Apply, which the status line says explicitly.</summary>
-        private void LoadOutfit(int index)
+        /// field) — the in-game avatar is untouched until Apply, which the status line says explicitly. Returns
+        /// the status line, because the appearance screen's outfit column shows it in its own panel.</summary>
+        private string LoadOutfit(int index)
         {
             var outfits = Shell?.Settings?.Outfits;
             if (outfits == null || index < 0 || index >= outfits.Count)
             {
-                return;
+                return string.Empty;
             }
 
             var o = outfits[index];
@@ -316,23 +335,27 @@ namespace BlocksBeyondTheStars.Client
             }
 
             SelectOutfit(index);
-            SetStatus(L("ui.avatar.outfit_loaded").Replace("{name}", _name));
+            string status = L("ui.avatar.outfit_loaded").Replace("{name}", _name);
+            SetStatus(status);
+            return status;
         }
 
-        /// <summary>Save outfit: stores the scratch look under the name field — overwriting an outfit that already
-        /// carries that name (case-insensitive), otherwise appending a new one up to the cap.</summary>
-        private void SaveOutfit()
+        /// <summary>The panel's Save button: the name field names the outfit.</summary>
+        private void SaveOutfit() => SaveOutfitNamed(_name);
+
+        /// <summary>Save outfit: stores the scratch look under <paramref name="wanted"/> — overwriting an outfit
+        /// that already carries that name (case-insensitive), otherwise appending a new one up to the cap.</summary>
+        private string SaveOutfitNamed(string wanted)
         {
             if (Shell?.Settings is not { } s)
             {
-                return;
+                return string.Empty;
             }
 
-            string name = (_name ?? string.Empty).Trim();
+            string name = (wanted ?? string.Empty).Trim();
             if (name.Length == 0)
             {
-                SetStatus(L("ui.avatar.need_name"));
-                return;
+                return Status(L("ui.avatar.need_name"));
             }
 
             s.Outfits ??= new List<AvatarOutfit>();
@@ -343,65 +366,63 @@ namespace BlocksBeyondTheStars.Client
                 s.Save();
                 RefreshOutfitList();
                 SelectOutfit(existing);
-                SetStatus(L("ui.avatar.outfit_updated").Replace("{name}", s.Outfits[existing].Name));
-                return;
+                return Status(L("ui.avatar.outfit_updated").Replace("{name}", s.Outfits[existing].Name));
             }
 
             if (s.Outfits.Count >= ClientSettings.MaxOutfits)
             {
-                SetStatus(L("ui.avatar.outfit_limit").Replace("{max}", ClientSettings.MaxOutfits.ToString()));
-                return;
+                return Status(L("ui.avatar.outfit_limit").Replace("{max}", ClientSettings.MaxOutfits.ToString()));
             }
 
             s.Outfits.Add(CaptureScratch(name));
             s.Save();
             RefreshOutfitList();
             SelectOutfit(s.Outfits.Count - 1);
-            SetStatus(L("ui.avatar.outfit_saved").Replace("{name}", name));
+            return Status(L("ui.avatar.outfit_saved").Replace("{name}", name));
         }
 
-        /// <summary>Rename selected: the highlighted outfit takes the name field's text (its pixels stay).</summary>
-        private void RenameSelectedOutfit()
+        /// <summary>The panel's Rename button: the highlighted row takes the name field's text.</summary>
+        private void RenameSelectedOutfit() => RenameOutfitAt(_selectedOutfit, _name);
+
+        /// <summary>Rename: an outfit takes a new name (its pixels stay).</summary>
+        private string RenameOutfitAt(int index, string wanted)
         {
             if (Shell?.Settings is not { } s || s.Outfits == null)
             {
-                return;
+                return string.Empty;
             }
 
-            if (_selectedOutfit < 0 || _selectedOutfit >= s.Outfits.Count)
+            if (index < 0 || index >= s.Outfits.Count)
             {
-                SetStatus(L("ui.avatar.outfit_select_first"));
-                return;
+                return Status(L("ui.avatar.outfit_select_first"));
             }
 
-            string name = (_name ?? string.Empty).Trim();
+            string name = (wanted ?? string.Empty).Trim();
             if (name.Length == 0)
             {
-                SetStatus(L("ui.avatar.need_name"));
-                return;
+                return Status(L("ui.avatar.need_name"));
             }
 
             int clash = s.Outfits.FindIndex(o => string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase));
-            if (clash >= 0 && clash != _selectedOutfit)
+            if (clash >= 0 && clash != index)
             {
-                SetStatus(L("ui.avatar.outfit_name_taken").Replace("{name}", s.Outfits[clash].Name));
-                return;
+                return Status(L("ui.avatar.outfit_name_taken").Replace("{name}", s.Outfits[clash].Name));
             }
 
-            s.Outfits[_selectedOutfit].Name = name;
+            s.Outfits[index].Name = name;
             s.Save();
             RefreshOutfitList();
-            SelectOutfit(_selectedOutfit);
-            SetStatus(L("ui.avatar.outfit_renamed").Replace("{name}", name));
+            SelectOutfit(index);
+            return Status(L("ui.avatar.outfit_renamed").Replace("{name}", name));
         }
 
         /// <summary>Deletes a saved outfit. The applied in-game look is a separate copy, so deleting even the outfit
         /// you are wearing changes nothing in the game — which is why this needs no confirmation.</summary>
-        private void DeleteOutfit(int index)
+        private string DeleteOutfit(int index)
         {
             if (Shell?.Settings is not { } s || s.Outfits == null || index < 0 || index >= s.Outfits.Count)
             {
-                return;
+                return string.Empty;
             }
 
             string name = s.Outfits[index].Name;
@@ -417,7 +438,15 @@ namespace BlocksBeyondTheStars.Client
             }
 
             RefreshOutfitList();
-            SetStatus(L("ui.avatar.outfit_deleted").Replace("{name}", name));
+            return Status(L("ui.avatar.outfit_deleted").Replace("{name}", name));
+        }
+
+        /// <summary>Shows a line in the designer's status area AND hands it back, so the appearance screen's
+        /// outfit column can print the same sentence in its own panel.</summary>
+        private string Status(string text)
+        {
+            SetStatus(text);
+            return text;
         }
 
         private void ColorRow(Transform panel, ref float y, string label, int which)
@@ -505,7 +534,23 @@ namespace BlocksBeyondTheStars.Client
                 });
             _faceEditor.PreviewState = () => AppearanceSubjects.Snapshot(
                 which => _col[which], () => _face, part => _bodyPaint[part]);
-            _faceEditor.OnClosed = () => _faceEditor = null;
+
+            // The same outfit shelf the panel behind carries, so a look can be picked up where it is being
+            // judged. Both write the same list, so the panel's rows are rebuilt when the screen closes.
+            _faceEditor.OutfitNames = OutfitNames;
+            _faceEditor.OnWearOutfit = LoadOutfit;
+            _faceEditor.OnSaveOutfit = SaveOutfitNamed;
+            _faceEditor.OnRenameOutfit = RenameOutfitAt;
+            _faceEditor.OnDeleteOutfit = DeleteOutfit;
+            _faceEditor.OnClosed = () =>
+            {
+                _faceEditor = null;
+                RefreshOutfitList();
+                if (_nameInput != null)
+                {
+                    _nameInput.text = _name; // an outfit worn in there renamed the designer's scratch look
+                }
+            };
         }
 
         private void Apply()

@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -389,6 +390,138 @@ namespace BlocksBeyondTheStars.Client
                 GetAppearanceColor, SetAppearanceColor);
             _faceEditor.PreviewState = () => AppearanceSubjects.Snapshot(
                 GetAppearanceColor, () => Settings.FacePixels, part => Settings.GetBodyPaint(part));
+            _faceEditor.OutfitNames = OutfitNames;
+            _faceEditor.OnWearOutfit = WearOutfit;
+            _faceEditor.OnSaveOutfit = SaveOutfit;
+            _faceEditor.OnRenameOutfit = RenameOutfit;
+            _faceEditor.OnDeleteOutfit = DeleteOutfit;
+        }
+
+        // ── outfits ──────────────────────────────────────────────────────────────────────────────
+        //
+        // Saved looks used to be a main-menu affair: you could keep eight of them in the Avatar Designer
+        // and there was no way to put one on without leaving the world. They live in the same settings
+        // file; the difference in here is that wearing one is immediate and has to reach everyone else,
+        // which the appearance send queue above already paces (a whole outfit is five payloads, so the
+        // last painting lands on other screens about ten seconds later — the local figure changes at once).
+
+        private string L(string key) => Game?.Localizer?.Get(key) ?? key;
+
+        /// <summary>The saved outfits' names, in order — the editor's outfit column asks for these.</summary>
+        public List<string> OutfitNames()
+        {
+            var names = new List<string>();
+            if (Settings?.Outfits == null)
+            {
+                return names;
+            }
+
+            foreach (var outfit in Settings.Outfits)
+            {
+                names.Add(outfit.Name ?? string.Empty);
+            }
+
+            return names;
+        }
+
+        /// <summary>Puts a saved look on: colours, face and all four paintings at once, each down its normal
+        /// path so the figure, the settings file and the other players all end up agreeing.</summary>
+        public string WearOutfit(int index)
+        {
+            if (Settings?.Outfits == null || index < 0 || index >= Settings.Outfits.Count)
+            {
+                return string.Empty;
+            }
+
+            var outfit = Settings.Outfits[index];
+            Settings.ApplyOutfit(outfit);
+            ApplyAppearance();                  // colours: figure + save + one message
+            ApplyFace(outfit.FacePixels);
+            for (int part = 0; part < BodyPaintKit.PartCount; part++)
+            {
+                ApplyBodyPaint(part, outfit.GetBodyPaint(part));
+            }
+
+            return L("ui.avatar.outfit_worn").Replace("{name}", outfit.Name ?? string.Empty);
+        }
+
+        /// <summary>Saves what the player is wearing under a name — overwriting the outfit that already
+        /// carries it (case-insensitively), otherwise adding one up to the cap.</summary>
+        public string SaveOutfit(string name)
+        {
+            if (Settings == null)
+            {
+                return string.Empty;
+            }
+
+            name = (name ?? string.Empty).Trim();
+            if (name.Length == 0)
+            {
+                return L("ui.avatar.need_name");
+            }
+
+            Settings.Outfits ??= new List<AvatarOutfit>();
+            int existing = Settings.Outfits.FindIndex(o => string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (existing >= 0)
+            {
+                Settings.Outfits[existing] = Settings.CaptureOutfit(Settings.Outfits[existing].Name);
+                Settings.Save();
+                return L("ui.avatar.outfit_updated").Replace("{name}", Settings.Outfits[existing].Name);
+            }
+
+            if (Settings.Outfits.Count >= ClientSettings.MaxOutfits)
+            {
+                return L("ui.avatar.outfit_limit").Replace("{max}", ClientSettings.MaxOutfits.ToString());
+            }
+
+            Settings.Outfits.Add(Settings.CaptureOutfit(name));
+            Settings.Save();
+            return L("ui.avatar.outfit_saved").Replace("{name}", name);
+        }
+
+        /// <summary>Renames the outfit the player last clicked (its pixels stay put).</summary>
+        public string RenameOutfit(int index, string name)
+        {
+            if (Settings?.Outfits == null)
+            {
+                return string.Empty;
+            }
+
+            if (index < 0 || index >= Settings.Outfits.Count)
+            {
+                return L("ui.avatar.outfit_select_first");
+            }
+
+            name = (name ?? string.Empty).Trim();
+            if (name.Length == 0)
+            {
+                return L("ui.avatar.need_name");
+            }
+
+            int clash = Settings.Outfits.FindIndex(o => string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (clash >= 0 && clash != index)
+            {
+                return L("ui.avatar.outfit_name_taken").Replace("{name}", Settings.Outfits[clash].Name);
+            }
+
+            Settings.Outfits[index].Name = name;
+            Settings.Save();
+            return L("ui.avatar.outfit_renamed").Replace("{name}", name);
+        }
+
+        /// <summary>Drops a saved outfit. What the player is wearing is a separate copy, so deleting even the
+        /// outfit they have on changes nothing about the figure — which is why this needs no confirmation.</summary>
+        public string DeleteOutfit(int index)
+        {
+            if (Settings?.Outfits == null || index < 0 || index >= Settings.Outfits.Count)
+            {
+                return string.Empty;
+            }
+
+            string name = Settings.Outfits[index].Name ?? string.Empty;
+            Settings.Outfits.RemoveAt(index);
+            Settings.Save();
+            return L("ui.avatar.outfit_deleted").Replace("{name}", name);
         }
 
         /// <summary>Kept for the older entry points (and any host that only wants the face): the appearance
