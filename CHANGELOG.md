@@ -11,7 +11,106 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
-## [Unreleased]
+## [2026.9.5] — 2026-09-10
+
+The big-build release. Almost everything below came from players who built **big** — a spaceport, a walled
+compound, a perimeter far past what the game had ever been asked to cover — and found the game's helpers
+stopping at the edge of a small base. So: a **power relay** that carries your base core's power out to the
+far corner, a **waterfall spout** that pours water down without flooding the floor, **double doors** whose
+two leaves finally swing apart instead of both the same way, and the wall check every base owner can now
+run on their own build. Nobody gets stuck any more either — sealed inside your own hull, frozen by a rescue
+that fired over and over, or unable to mine your own blocks under a parked ship. Hosted worlds in the
+browser stay up instead of dying seconds after they start. And plants and animals got a careful
+read-through: biome plants, calmer herds, crops that keep their own colour.
+
+ℹ️ **Compatibility:** the network protocol stays at version 5, saves migrate unchanged. The new plant
+rosters reach **new worlds only** — a world you already built in keeps exactly the plants it has.
+
+### 🔌 Power runs where you build it — the Power Relay (#1714)
+
+- A sentry post shoots 14 blocks, but it only worked within 8 blocks of your base core. On a compound of
+  80×80 that made it useless: the posts you actually need, out on the perimeter, were decoration.
+- The new **Power Relay** carries your core's power one zone further, and **relays chain** — core to relay
+  to relay to post — so you can run a line into the far corner of any build. Sixteen relays per base.
+- The sentry post's own description and VEGA's base-wall advice now say **"powered"** instead of "within 8
+  blocks of the core", because that is what the rule really is.
+
+### 💧 A waterfall that stays a waterfall — the Waterfall Spout (#1726)
+
+- A builder levelled an ~80×80 spaceport, placed water for a waterfall, and got a flood: on stepped ground
+  every step re-arms the spread, so the water crawled across the whole floor. That is exactly how water has
+  always worked, and changing it would change every lake and every sea in every save.
+- So there is a **new block** instead. The **Waterfall Spout** pours a column of water straight down from
+  its underside — **only** down. The fall never spreads sideways, and the cell it lands in does not spread
+  either, so you get a waterfall and not a puddle that eats your build. Hang it over an edge with open air
+  beneath it; mine the block under the fall or the spout itself and the column dries up. Placed flat on
+  solid ground it tells you so.
+- It survives a reload: the column comes back as a waterfall, not as a flood.
+
+### 🚪 Double doors that meet in the middle (#1729)
+
+- Two doors placed side by side both swung the same way, which looks wrong for what is obviously one wide
+  doorway. Now the game notices the pair by itself and hangs the right-hand leaf on the far post, so the
+  two halves swing **apart** — a proper double door.
+- It keeps up with your building: put a door next to an existing one and it becomes a pair on the spot,
+  take one away and the other goes back to a single door. Three in a row pair at the end, sliding doors
+  and mismatched pairs stay as they are, and doors on different floors or on opposite sides of a wall are
+  left alone.
+
+### 🧱 Checking your own walls, and lava that explains itself (#1727 #1728)
+
+- **`/basewalls` is open to base owners now.** It answers the one question a builder cannot answer by
+  walking the perimeter — *is there a gap somewhere, or is my compound simply bigger than the 48-block
+  reach?* — and it used to be admin-only. It names your core, its exact position, and where the ring is
+  open. It only ever reports bases **you** own.
+- **Water that reaches lava now says what happened.** Placing water on lava by hand always explained
+  itself, but a flood that found a lava trench on its own said nothing: the trench went dark, lava still
+  glowed under the new rock, and it looked like the game had stacked a block on top of your lava. It had
+  not — only the cells the water actually touched turn to rock. Now the game says so.
+
+### 🆘 Nobody stays stuck (#1708 #1709 #1710)
+
+- **Sealed inside your own ship?** There is a rescue for that now. Building yourself into your own hull
+  used to leave you with no way out at all — the block rescue cannot see ship hulls, and the ship rescue
+  needed two of them around you.
+- **The rescue no longer freezes you in place.** Being dug out could leave the player hovering, frozen and
+  unable to move: the rescue fired again every second and re-armed the short settle pause faster than it
+  could ever run out. It fires once now, and lets go.
+- **Your own blocks under a parked ship stay yours.** The guard that stops you mining the ground out from
+  under a landed ship protected *every* block beneath it, including the floor you laid yourself — and told
+  you a wooden door was ship hull while it did it.
+
+### ☁️ Hosted worlds in the browser stay up (#1704 #1705 #1706 #1707)
+
+- One hosted world died within seconds of every single start and was restarted over two thousand times in
+  eighteen hours. The save itself was fine — loading it just needed briefly more room than the world was
+  given, and the world was killed for space it was about to hand back. It now loads with room to spare.
+- **A world that cannot start no longer restarts forever.** The keep-awake pass hammered every dead world
+  every 30 seconds with no back-off and no giving up; now it waits longer between attempts and stops.
+- **A world no longer dies on a busy port.** Claiming its network port got exactly one attempt, so losing
+  a momentary race with a world that had just shut down killed it outright. It retries now.
+
+### 🌿 Plants and animals: a read-through (#1715 #1716 #1717 #1718 #1719 #1720 #1721 #1722 #1723 #1724)
+
+We measured the plant and animal generators against a full audit. Most of what it found had already been
+fixed over the summer; here is the rest.
+
+- **Biomes grow their own plants.** A world's plant roster only ever looked at the planet type, so a desert
+  strip on a forest world drew from a thinned-down pool. Every biome now contributes its own plants.
+  **New worlds only.**
+- **Crops keep their own colour.** Plants you farm yourself were taking the world's plant tint, so your
+  field came out the wrong colour for what you planted.
+- **Calmer, better-placed animals.** A herd used to check only one spot for water and lava before it
+  settled, so members could appear in places nothing should stand in. Spawn checks now look at the real
+  world, herds check where each animal is actually going, and the game counts wild animals rather than your
+  tame companions when it decides what to spawn next.
+- Plus internal tidying with no visible effect: one shared list of tall plants, one shared world-seed
+  formula, and a caching fix at the world seam.
+
+### ✨ Smaller things (#1711 #1712)
+
+- Cave creatures rest on the cave floor, not inside the rock above them (#1711).
+- The scan panel no longer cuts off its fourth line (#1712).
 
 ### 🎓 Credits
 
@@ -4834,7 +4933,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.4...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.5...HEAD
+[2026.9.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.4...v2026.9.5
 [2026.9.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.3...v2026.9.4
 [2026.9.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.2...v2026.9.3
 [2026.9.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.1...v2026.9.2
