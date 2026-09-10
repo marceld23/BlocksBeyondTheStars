@@ -21,6 +21,7 @@ namespace BlocksBeyondTheStars.Tests;
 /// river reaches. Plus the two invariants the package rests on: the sea percentile never sees a sea-relative
 /// row, and a generation-3 world without any active family is the generation-1 world, cell for cell.
 /// </summary>
+[Collection(RealTimeSensitiveCollection.Name)] // the cost guard below is a wall-clock ratio (#1735)
 public sealed class LandformGen3Tests
 {
     private static readonly GameContent Content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
@@ -359,7 +360,18 @@ public sealed class LandformGen3Tests
     // ---------- the cost guard ----------
 
     /// <summary>No generation-time budget existed before this package; the client bakes up to 32 768 columns
-    /// synchronously on its main thread, so a chunk must not get meaningfully dearer. Slow tier: main only.</summary>
+    /// synchronously on its main thread, so a chunk must not get meaningfully dearer. Slow tier: main only.
+    ///
+    /// <para>A wall-clock ratio measures the scheduler as much as the code, and this one measured the
+    /// scheduler on the v2026.9.5 release gate: it read "generation 3 took 2688 ms against 144 ms" and took
+    /// the release run down, while the SAME commit passed on main with the whole test billed at 0.96 s. CPU
+    /// contention from the parallel suite, not a regression — the guard is tight in absolute terms because
+    /// generation 1 is only ~100 ms, so the 250 ms constant is the entire cushion and one preemption spends
+    /// it. Two defences, both needed: the class runs in <see cref="RealTimeSensitiveCollection"/> so no other
+    /// collection competes for the cores, and each generation is measured three times with the FASTEST run
+    /// kept. A minimum is the sample least contaminated by preemption — a stall can only inflate a run,
+    /// never shorten one — whereas a single measurement is poisoned by the first stall that lands on it.
+    /// Keep both: the sequential island alone still leaves the runner's own noise inside a 250 ms budget.</para></summary>
     [Fact]
     [Trait("Category", "Slow")]
     public void GenerationThree_ChunkCost_StaysNearGenerationOne()
@@ -381,8 +393,16 @@ public sealed class LandformGen3Tests
             return sw.ElapsedMilliseconds;
         }
 
-        long t1 = Measure(1);
-        long t3 = Measure(3);
-        Assert.True(t3 <= 1.3 * t1 + 250, $"generation 3 took {t3} ms against {t1} ms for generation 1");
+        // Interleaved so a slow patch of the runner cannot land on one generation alone, and each round
+        // builds a fresh generator, so no round is cheapened by the previous one's memos.
+        long t1 = long.MaxValue, t3 = long.MaxValue;
+        for (int round = 0; round < 3; round++)
+        {
+            t1 = Math.Min(t1, Measure(1));
+            t3 = Math.Min(t3, Measure(3));
+        }
+
+        Assert.True(t3 <= 1.3 * t1 + 250,
+            $"generation 3 took {t3} ms against {t1} ms for generation 1 (fastest of 3 rounds each)");
     }
 }
