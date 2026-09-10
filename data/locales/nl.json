@@ -2680,7 +2680,7 @@
   "item.sentry_post.name": "Wachpost",
   "item.sentry_post.desc": "Een kleine automatische toren. Hij moet binnen je eigen basis staan, binnen 8 blokken van je basiscore — verder buiten is het alleen decoratie. Terwijl je thuis bent schiet hij tot 14 blokken ver op vijandige machines, vijandige dieren en op rovers die al een gevecht zijn begonnen. Hij schiet nooit op spelers, tamme dieren of mensen die alleen willen praten. Heeft geen stroom of munitie nodig.",
   "item.power_relay.name": "Stroomrelais",
-  "item.power_relay.desc": "Leidt de energie van je basiscore naar buiten. Elk relais reikt 8 blokken en voedt zowel wachtposten als volgende relais, zodat je een keten naar de verste hoek van een groot complex kunt bouwen. De eerste in de keten moet nog binnen bereik van de core staan. Gemaakt voor spaceports en perimeterwallen die groter zijn dan de basiszone.",
+  "item.power_relay.desc": "Leidt de energie van je basiscore naar buiten. Elk relais reikt 8 blokken en voedt zowel wachtposten als volgende relais, zodat je een keten naar de verste hoek van een groot complex kunt bouwen. De eerste in de keten moet nog binnen bereik van de core staan. Gemaakt voor spaceports en perimeterwallen die groter zijn dan de basiszone. Een basis kan een keten van maximaal 32 relais hebben.",
   "item.water_spout.name": "Watervaluitlaat",
   "item.water_spout.desc": "Giet een kolom water recht naar beneden uit zijn onderkant — en alleen naar beneden. De val stopt waar het landt en verspreidt zich nooit over de vloer, dus je krijgt een waterval in plaats van een overstroming. Hang het boven een rand met open lucht eronder; mijn het en de kolom droogt op.",
   "item.algae_ration.name": "Algenrantsoen",

@@ -336,6 +336,38 @@ public sealed partial class GameServer
 
     /// <summary>If a player-built door fills the mined cell's column (its ~3-tall opening), remove it, return the
     /// door item to the miner and forget it. Returns true if it handled the mine (a player door was there).</summary>
+    /// <summary>#1746: a stamped (station / settlement) door occupies the cell. Since the client aims at doors,
+    /// a mine intent can land on one of these too — it is protected like the walls around it and must be
+    /// answered as such, not with the "ghost block" heal an air cell would get.</summary>
+    private bool StampedDoorAt(Vector3i pos)
+    {
+        foreach (var d in _doors)
+        {
+            if (d.PlayerBuilt)
+            {
+                continue;
+            }
+
+            int by = (int)System.Math.Floor(d.Pos.Y);
+            if (pos.Y < by || pos.Y > by + 2)
+            {
+                continue;
+            }
+
+            // The doorway is Width cells wide along its wall axis and one cell deep across it.
+            float half = System.Math.Max(0.5f, d.Width * 0.5f);
+            bool along = d.AxisX
+                ? pos.X + 0.5f > d.Pos.X - half && pos.X + 0.5f < d.Pos.X + half && (int)System.Math.Floor(d.Pos.Z) == pos.Z
+                : pos.Z + 0.5f > d.Pos.Z - half && pos.Z + 0.5f < d.Pos.Z + half && (int)System.Math.Floor(d.Pos.X) == pos.X;
+            if (along)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private bool RemovePlayerDoorAt(PlayerSession session, Vector3i pos)
     {
         var door = _doors.FirstOrDefault(d => d.PlayerBuilt

@@ -2680,7 +2680,7 @@
   "item.sentry_post.name": "Strażnica",
   "item.sentry_post.desc": "Mała automatyczna wieżyczka. Musi stać wewnątrz twojej bazy, w promieniu 8 bloków od rdzenia bazy — dalej jest tylko dekoracją. Gdy jesteś w domu, strzela na odległość do 14 bloków do wrogich maszyn, wrogich zwierząt i rzezimieszków, którzy już zaczęli walkę. Nigdy nie strzela do graczy, udomowionych zwierząt ani osób, które chcą tylko porozmawiać. Nie potrzebuje zasilania ani amunicji.",
   "item.power_relay.name": "Przekaźnik zasilania",
-  "item.power_relay.desc": "Przenosi zasilanie z rdzenia bazy na zewnątrz. Każdy przekaźnik sięga na 8 bloków i zasila wartownie oraz kolejne przekaźniki, więc możesz poprowadzić łańcuch w daleki narożnik dużego kompleksu. Pierwszy w łańcuchu nadal musi znajdować się w zasięgu rdzenia. Zaprojektowany dla portów kosmicznych i murów obwodowych większych od strefy bazy.",
+  "item.power_relay.desc": "Przenosi zasilanie z rdzenia bazy na zewnątrz. Każdy przekaźnik sięga na 8 bloków i zasila wartownie oraz kolejne przekaźniki, więc możesz poprowadzić łańcuch w daleki narożnik dużego kompleksu. Pierwszy w łańcuchu nadal musi znajdować się w zasięgu rdzenia. Zaprojektowany dla portów kosmicznych i murów obwodowych większych od strefy bazy. Jedna baza może mieć łańcuch maksymalnie 32 przekaźników.",
   "item.water_spout.name": "Wodospad",
   "item.water_spout.desc": "Wylewa kolumnę wody prosto w dół spod swojej podstawy — i tylko w dół. Opad kończy się tam, gdzie spada i nigdy nie rozlewa się po podłodze, więc powstaje wodospad zamiast powodzi. Zawieś go nad krawędzią z otwartą przestrzenią poniżej; wydobądź go, a kolumna wyschnie.",
   "item.algae_ration.name": "Racja Glonowa",

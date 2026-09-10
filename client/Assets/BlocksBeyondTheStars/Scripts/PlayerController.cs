@@ -1231,16 +1231,23 @@ namespace BlocksBeyondTheStars.Client
             // Same fluid-aware target as the click (#1353): a tier-3 drill that needs two hits on lava used to
             // tap the lava cell and then, held, march through it to the rock behind — the lava never broke.
             // A parked-ship cell is a structure edit, which stays a per-click action (no hold-drilling hulls).
-            if (!AimTarget(out var hitCell, out _, out var aimedShip, HeldToolFluidAim()) || aimedShip != null)
+            // #1746: a player-built door is an entity standing in an AIR cell, so the voxel march never sees it —
+            // test the doors first. One the ray reaches before any solid cell is the target, and it comes out by
+            // hand (the server hands the item back), so the hand-mineable gate below does not apply to it.
+            bool doorAimed = TryAimDoor(out var hitCell);
+            if (!doorAimed)
             {
-                return;
-            }
+                if (!AimTarget(out hitCell, out _, out var aimedShip, HeldToolFluidAim()) || aimedShip != null)
+                {
+                    return;
+                }
 
-            // By hand, only soft hand-mineable blocks keep digging; hard blocks reject without a drill, so don't
-            // hammer the server with a hold the server will only refuse (the initial tap already surfaces the hint).
-            if (!drill && !IsHandMineable(hitCell))
-            {
-                return;
+                // By hand, only soft hand-mineable blocks keep digging; hard blocks reject without a drill, so don't
+                // hammer the server with a hold the server will only refuse (the initial tap already surfaces the hint).
+                if (!drill && !IsHandMineable(hitCell))
+                {
+                    return;
+                }
             }
 
             TriggerSwing(); // keep the mining chop going while held
@@ -3682,6 +3689,16 @@ namespace BlocksBeyondTheStars.Client
             // Water/lava surfaces are targets too (#1310) — for a placeable item (the block displaces the fluid,
             // #851) and for a tool that can actually mine a fluid (a tier-3 drill: mining beam, diamond drill);
             // anything else keeps aiming through them, so a basic drill still reaches the rock under a pond.
+            // #1746: a door the player built stands in an air cell the voxel march below cannot see. When the
+            // aim ray crosses one before any solid cell, that door is the thing to mine. Mining only — a block is
+            // still placed against real geometry, never "on" a door.
+            if (mine && TryAimDoor(out var doorCell))
+            {
+                SendMineHit(doorCell, HoldingDrill());
+                TriggerSwing();
+                return;
+            }
+
             if (!AimTarget(out var hitCell, out var placeCell, out var aimedShip,
                     fluidSurfaces: mine ? HeldToolFluidAim() : PlaceFluidAim()))
             {
@@ -3777,6 +3794,40 @@ namespace BlocksBeyondTheStars.Client
                 BlocksBeyondTheStars.Shared.World.WorldConstants.WrapDeltaX(worldCell.x - ship.Origin.X, Game.Circumference),
                 worldCell.y - ship.Origin.Y,
                 worldCell.z - ship.Origin.Z);
+
+        /// <summary>#1746: the base cell of a player-built door under the crosshair, when nothing solid stands
+        /// between the camera and it. Doors are entities (<see cref="DoorView"/>) in air cells, so the voxel
+        /// march in <see cref="AimTarget"/> walks straight through them — which is why mining a door did nothing
+        /// (and, until #1710, answered as "ship hull"). The server removes a door for any of its cells
+        /// (<c>RemovePlayerDoorAt</c>) and tells the player when a stamped door is protected instead.</summary>
+        private bool TryAimDoor(out Vector3Int cell)
+        {
+            cell = default;
+            if (DoorView.Instance == null || Camera == null || Game?.World == null)
+            {
+                return false;
+            }
+
+            Vector3 o = Camera.transform.position;
+            Vector3 dir = Camera.transform.forward;
+            if (!DoorView.Instance.AimDoor(o, dir, Reach, out cell, out float doorDist))
+            {
+                return false;
+            }
+
+            // A wall, a hull or the ground in front of the door wins — only a door the ray reaches first counts.
+            if (AimTarget(out var solid, out _, out _, FluidAim.None))
+            {
+                float solidDist = RayBox.Entry(o.x, o.y, o.z, dir.x, dir.y, dir.z,
+                    solid.x, solid.y, solid.z, solid.x + 1f, solid.y + 1f, solid.z + 1f);
+                if (solidDist < doorDist)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
         /// <summary>Like <see cref="AimBlock"/>, but the march also targets the cells of parked ship OBJECTS
         /// (ship-as-object): whichever solid cell the ray reaches first wins. <paramref name="ship"/> is set
