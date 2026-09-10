@@ -2680,7 +2680,7 @@
   "item.sentry_post.name": "Nöbet Kulesi",
   "item.sentry_post.desc": "Küçük bir otomatik taret. Üssünün içinde, üs çekirdeğine 8 blok içinde durmalı — daha uzağı sadece süs olur. Evdeyken düşmanca makineleri, düşmanca hayvanları ve kavga etmiş yağmacıları 14 bloğa kadar vurur. Oyuncuları, evcilleşmiş hayvanları veya sadece konuşmak isteyenleri asla hedef almaz. Güç veya mermi gerekmez.",
   "item.power_relay.name": "Güç Rölesi",
-  "item.power_relay.desc": "Ana üs çekirdeğinin gücünü dışarı taşır. Her röle 8 blok menzile sahiptir ve nöbet kulelerini ve daha uzak röleleri besler, böylece büyük bir kampüsün uzağına kadar bir zincir çekebilirsin. Zincirdeki ilk röle yine de çekirdeğin erişiminde durmak zorunda. Uzay limanları ve üs bölgesinden daha geniş çevre duvarları için tasarlandı.",
+  "item.power_relay.desc": "Ana üs çekirdeğinin gücünü dışarı taşır. Her röle 8 blok menzile sahiptir ve nöbet kulelerini ve daha uzak röleleri besler, böylece büyük bir kampüsün uzağına kadar bir zincir çekebilirsin. Zincirdeki ilk röle yine de çekirdeğin erişiminde durmak zorunda. Uzay limanları ve üs bölgesinden daha geniş çevre duvarları için tasarlandı. Bir üs en fazla 32 röleden oluşan bir zincir çalıştırabilir.",
   "item.water_spout.name": "Şelale Musluğu",
   "item.water_spout.desc": "Altından düz bir su sütunu döker — sadece aşağı doğru. Düşüş, yere düştüğü yerde sona erer ve zemin üzerinde yayılmaz, bu yüzden sel değil şelale elde edersin. Altında açık hava olacak şekilde bir kenarın üzerine as; madenciliğini yaparsan sütun kurur.",
   "item.algae_ration.name": "Alg Rasyonu",

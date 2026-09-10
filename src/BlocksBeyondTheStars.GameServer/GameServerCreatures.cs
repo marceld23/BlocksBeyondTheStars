@@ -542,6 +542,16 @@ public sealed partial class GameServer
             return false;
         }
 
+        // #1747: a room a player built is not a cave. The cave probe accepts any air pocket under the surface
+        // with a floor and headroom — which a hall carved out of a natural cave still is, seventy blocks from
+        // the base core where neither the spawn exclusion (24) nor the sealed-room fill (48) reaches, and the
+        // walled-yard gate below exempts cave dwellers on purpose (#1315). The player's own block edits around
+        // the spot settle it; only cave candidates pay the lookup.
+        if (sp.Habitat == CreatureHabitat.Cave && PlayerBuiltPocket(cell))
+        {
+            return false;
+        }
+
         // #1314: nothing spawns inside a base's sealed rooms — the volume the air fill already knows.
         if (InSealedBaseRoom(cell))
         {
@@ -551,6 +561,16 @@ public sealed partial class GameServer
         // #1315: nor inside a WALLED area of a base — an open-topped yard the outside-in fill cannot reach.
         // Ground-bound life only: a flier spawns above the wall, a cave dweller below it.
         return sp.Habitat is CreatureHabitat.Air or CreatureHabitat.Cave || !InWalledBaseArea(cell);
+    }
+
+    /// <summary>#1747: player block edits in the 3×5×3 box around a cave spawn spot — the floor row, the two
+    /// cells of body room and the ceiling above. A built floor, a built ceiling or a built wall each make the
+    /// pocket a room, not a cave.</summary>
+    private bool PlayerBuiltPocket(Vector3i cell)
+    {
+        var c = WorldConstants.CanonicalBlock(cell, _world.Circumference);
+        return _repo.HasPlayerBlockEdits(_world.LocationId,
+            new Vector3i(c.X - 1, c.Y - 1, c.Z - 1), new Vector3i(c.X + 1, c.Y + 3, c.Z + 1));
     }
 
     /// <summary>How many live wild individuals of one species a world may hold (#1325): a share of the
@@ -1959,6 +1979,14 @@ public sealed partial class GameServer
     {
         int x = (int)System.Math.Floor(at.X), z = (int)System.Math.Floor(at.Z);
         return SpawnSpotClear(_speciesRoster[0], at, x, z, _generator.SurfaceHeight(_world.Planet, x, z));
+    }
+
+    /// <summary>#1747 seam: the spawner's full reject list for a synthetic cave dweller at a spot.</summary>
+    public bool CaveSpawnSpotClearForTest(Vector3f at)
+    {
+        int x = (int)System.Math.Floor(at.X), z = (int)System.Math.Floor(at.Z);
+        var sp = new CreatureSpecies { Id = "test_cave", Habitat = CreatureHabitat.Cave };
+        return SpawnSpotClear(sp, at, x, z, _generator.SurfaceHeight(_world.Planet, x, z));
     }
 
     /// <summary>The per-species share of this world's live cap for one player on foot (#1325 seam).</summary>
