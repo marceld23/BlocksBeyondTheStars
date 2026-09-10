@@ -13,6 +13,12 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🎓 Credits
+
+- **Paul and Noa join the school-club block** in the README and the in-game Credits, in all 14 languages —
+  Paul for the club's second wave of browser reports (#1708, #1709, #1713), Noa for testing one computer-room
+  PC after another so the club knew which machines run the game.
+
 ## [2026.9.4] — 2026-09-08
 
 The living-world release. Animals finally **walk** instead of sliding along the ground: every creature has

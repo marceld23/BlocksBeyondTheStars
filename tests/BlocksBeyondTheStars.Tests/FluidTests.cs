@@ -526,6 +526,133 @@ public sealed class FluidTests : IDisposable
         }
     }
 
+    // --- The waterfall block (#1726) -------------------------------------------------------------------------
+    // The report: a levelled ~80×80 spaceport, one placed water block, and a flood it took concrete walls to
+    // stop. A falling cell is refilled at full strength, so every step of stepped ground re-arms a seven-cell
+    // spread — the documented Minecraft-style rule, just never weighed against a build that size. The waterfall
+    // block is the tool she asked for: a column that falls and ends where it lands, never a sheet.
+
+    [Fact]
+    public void AWaterfallBlock_PoursStraightDown_AndNeverFloodsTheFloor()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var water = _content.GetBlock("water")!.NumericId.Value;
+            int floor = 150; // a wide, flat floor high in the air — the spaceport
+            for (int x = -8; x <= 8; x++)
+                for (int z = -8; z <= 8; z++)
+                    server.World.SetBlock(new Vector3i(x, floor - 1, z), stone);
+
+            server.PlaceWaterSpoutForTest(0, floor + 6, 0); // hanging six blocks over the floor
+            for (int i = 0; i < 40; i++) server.Tick(0.3);
+
+            for (int y = floor; y <= floor + 5; y++)
+            {
+                Assert.Equal(water, server.World.GetBlock(new Vector3i(0, y, 0)).Value);
+            }
+
+            // The foot of the fall is exactly where an ordinary source would re-arm a seven-cell spread. Not this one.
+            for (int r = 1; r <= 7; r++)
+            {
+                Assert.True(server.World.GetBlock(new Vector3i(r, floor, 0)).IsAir, $"water spread {r} blocks east along the floor");
+                Assert.True(server.World.GetBlock(new Vector3i(0, floor, r)).IsAir, $"water spread {r} blocks south along the floor");
+            }
+        }
+    }
+
+    [Fact]
+    public void AWaterfallBlock_ThatIsRemoved_TakesItsColumnWithIt()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var water = _content.GetBlock("water")!.NumericId.Value;
+            int floor = 150;
+            for (int x = -3; x <= 3; x++)
+                for (int z = -3; z <= 3; z++)
+                    server.World.SetBlock(new Vector3i(x, floor - 1, z), stone);
+
+            server.PlaceWaterSpoutForTest(0, floor + 6, 0);
+            for (int i = 0; i < 40; i++) server.Tick(0.3);
+            Assert.Equal(water, server.World.GetBlock(new Vector3i(0, floor, 0)).Value); // it poured first
+
+            server.RemoveBlockForTest(0, floor + 6, 0); // mine the spout
+            for (int i = 0; i < 40; i++) server.Tick(0.3);
+
+            for (int y = floor; y <= floor + 5; y++)
+            {
+                Assert.True(server.World.GetBlock(new Vector3i(0, y, 0)).IsAir, $"the column at y={y} should have dried up with its spout gone");
+            }
+        }
+    }
+
+    [Fact]
+    public void AWaterfallBlock_OnSolidGround_StartsPouring_WhenTheGroundBeneathItIsDug()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var water = _content.GetBlock("water")!.NumericId.Value;
+            int y = 150;
+            for (int x = -3; x <= 3; x++)
+                for (int z = -3; z <= 3; z++)
+                {
+                    server.World.SetBlock(new Vector3i(x, y - 1, z), stone); // the slab the spout sits on
+                    server.World.SetBlock(new Vector3i(x, y - 6, z), stone); // a catch floor further down
+                }
+
+            server.PlaceWaterSpoutForTest(0, y, 0); // placed ON the slab: nothing to pour into yet
+            for (int i = 0; i < 10; i++) server.Tick(0.3);
+            Assert.True(server.World.GetBlock(new Vector3i(0, y - 5, 0)).IsAir, "nothing should pour through solid stone");
+
+            server.RemoveBlockForTest(0, y - 1, 0); // open the slab under it, as a player with a drill would
+            for (int i = 0; i < 40; i++) server.Tick(0.3);
+
+            for (int yy = y - 5; yy <= y - 1; yy++)
+            {
+                Assert.Equal(water, server.World.GetBlock(new Vector3i(0, yy, 0)).Value);
+            }
+
+            Assert.True(server.World.GetBlock(new Vector3i(1, y - 5, 0)).IsAir, "the foot of the fall must not spread over the catch floor");
+        }
+    }
+
+    [Fact]
+    public void AWaterfallBlock_KeepsItsColumnConfined_AfterAServerRestart()
+    {
+        var stone = _content.GetBlock("stone")!.NumericId;
+        var water = _content.GetBlock("water")!.NumericId.Value;
+        int floor = 150;
+
+        // Session 1: the spout pours its column onto a wide floor.
+        var server1 = Started(out var repo1);
+        for (int x = -8; x <= 8; x++)
+            for (int z = -8; z <= 8; z++)
+                server1.World.SetBlock(new Vector3i(x, floor - 1, z), stone);
+        server1.PlaceWaterSpoutForTest(0, floor + 6, 0);
+        for (int i = 0; i < 40; i++) server1.Tick(0.3);
+        Assert.Equal(water, server1.World.GetBlock(new Vector3i(0, floor, 0)).Value);
+        repo1.Dispose(); // restart on the same save
+
+        // Session 2: the column's "falling" flags are what keep its foot from spreading, and they are persisted
+        // with the levels (#657). Every reloaded cell is woken on load — if the flag were lost, the foot would
+        // now re-arm a full spread across the floor exactly like the flood in the report.
+        var server2 = Started(out var repo2);
+        using (repo2)
+        {
+            for (int i = 0; i < 40; i++) server2.Tick(0.3);
+            Assert.Equal(water, server2.World.GetBlock(new Vector3i(0, floor, 0)).Value); // column survived the reload
+            for (int r = 1; r <= 7; r++)
+            {
+                Assert.True(server2.World.GetBlock(new Vector3i(r, floor, 0)).IsAir, $"the reloaded foot spread {r} blocks along the floor");
+            }
+        }
+    }
+
     public void Dispose()
     {
         try

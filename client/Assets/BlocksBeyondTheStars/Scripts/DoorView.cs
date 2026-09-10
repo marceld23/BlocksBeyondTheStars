@@ -35,6 +35,7 @@ namespace BlocksBeyondTheStars.Client
             public Vector3 World;          // canonical world pos (gap centre, floor)
             public float Width;
             public bool AxisX;
+            public bool Mirrored;          // hinge: the leaf hangs on the RIGHT jamb — the right half of a double door (#1729)
             public bool Open;
             public float Anim;             // 0 closed → 1 open, eased toward Open
             public Transform Field;        // energy door: the translucent blue field shown in the open doorway
@@ -81,8 +82,11 @@ namespace BlocksBeyondTheStars.Client
             float w = d.Width;
             if (IsHinged(d.Kind))
             {
-                // Swing the leaf around its jamb edge by up to ~96°.
-                d.PanelA.localRotation = Quaternion.Euler(0f, -d.Anim * 96f, 0f);
+                // Swing the leaf around its jamb edge by up to ~96°. A mirrored leaf (the right-hand half of a
+                // double door, #1729) hangs on the opposite jamb and turns the other way round, so both halves
+                // open to the same side of the wall and meet in the middle when shut.
+                float sign = d.Mirrored ? 1f : -1f;
+                d.PanelA.localRotation = Quaternion.Euler(0f, sign * d.Anim * 96f, 0f);
             }
             else
             {
@@ -143,7 +147,7 @@ namespace BlocksBeyondTheStars.Client
 
                 if (d == null)
                 {
-                    d = Build(nd);
+                    d = Build(nd.Id, nd.Kind, new Vector3(nd.X, nd.Y, nd.Z), nd.Width, nd.AxisX, nd.Open, mirrored: false);
                     _doors[nd.Id] = d;
                 }
                 else if (d.Open != nd.Open)
@@ -170,21 +174,71 @@ namespace BlocksBeyondTheStars.Client
                     _doors.Remove(id);
                 }
             }
+
+            RefreshPairs();
         }
 
-        private Door Build(NetDoor nd)
+        /// <summary>
+        /// Double doors (#1729): two hand-operated doors of the same kind set side by side in one wall are a
+        /// pair, and the right-hand leaf has to hang on the right jamb so the two swing apart from their shared
+        /// edge — instead of both swinging the same way, with one half opening into the other. The server knows
+        /// nothing of pairs (each placed door is its own one-block record), so the pairing is inferred here from
+        /// the positions alone (<see cref="DoorPairs"/>) and re-checked on every door list: placing or removing
+        /// a neighbour can flip a leaf, which rebuilds that door's geometry in place, keeping its swing state.
+        /// </summary>
+        private void RefreshPairs()
         {
-            var go = new GameObject($"Door {nd.Kind} {nd.Id}");
+            if (_doors.Count < 2)
+            {
+                return;
+            }
+
+            var all = new List<DoorPairs.Door>(_doors.Count);
+            foreach (var d in _doors.Values)
+            {
+                all.Add(new DoorPairs.Door(d.Kind, IsHinged(d.Kind), d.World.x, d.World.y, d.World.z, d.AxisX));
+            }
+
+            List<int> flip = null;
+            foreach (var kv in _doors)
+            {
+                var d = kv.Value;
+                bool mirrored = IsHinged(d.Kind)
+                    && DoorPairs.MirrorsLeaf(new DoorPairs.Door(d.Kind, true, d.World.x, d.World.y, d.World.z, d.AxisX), all);
+                if (mirrored != d.Mirrored)
+                {
+                    (flip ??= new List<int>()).Add(kv.Key);
+                }
+            }
+
+            if (flip == null)
+            {
+                return;
+            }
+
+            foreach (int id in flip)
+            {
+                var old = _doors[id];
+                var fresh = Build(id, old.Kind, old.World, old.Width, old.AxisX, old.Open, !old.Mirrored);
+                fresh.Anim = old.Anim;
+                Destroy(old.Go);
+                _doors[id] = fresh;
+            }
+        }
+
+        private Door Build(int id, string kind, Vector3 world, float width, bool axisX, bool open, bool mirrored)
+        {
+            var go = new GameObject($"Door {kind} {id}");
             go.transform.SetParent(transform, true);
 
             // Build everything in an X-aligned frame (wall runs along local X); rotate 90° for a Z wall.
             var pivot = new GameObject("Pivot").transform;
             pivot.SetParent(go.transform, false);
-            pivot.localRotation = nd.AxisX ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
+            pivot.localRotation = axisX ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
 
-            float w = Mathf.Max(1f, nd.Width);
-            bool hinge = IsHinged(nd.Kind);
-            bool wood = nd.Kind == "wood";
+            float w = Mathf.Max(1f, width);
+            bool hinge = IsHinged(kind);
+            bool wood = kind == "wood";
             // The wooden door reads as lighter, warmer planks so it is telling apart from the metal hinge door.
             Color panelCol = wood ? new Color(0.58f, 0.40f, 0.22f)
                 : hinge ? new Color(0.45f, 0.30f, 0.16f) : new Color(0.62f, 0.69f, 0.78f);
@@ -194,13 +248,15 @@ namespace BlocksBeyondTheStars.Client
             Transform a, b = null;
             if (hinge)
             {
-                // One leaf, pivoting on the left jamb. The pivot sits at the jamb; the leaf extends +X from it.
+                // One leaf, pivoting on a jamb. The pivot sits at the jamb and the leaf extends from it toward the
+                // opening's centre — the left jamb by default, the right one for the mirrored half of a double door.
+                float jamb = mirrored ? w * 0.5f : -w * 0.5f;
                 a = new GameObject("Leaf").transform;
                 a.SetParent(pivot, false);
-                a.localPosition = new Vector3(-w * 0.5f, 0f, 0f);
+                a.localPosition = new Vector3(jamb, 0f, 0f);
                 var leaf = Panel(panelCol, trimCol);
                 leaf.transform.SetParent(a, false);
-                leaf.transform.localPosition = new Vector3(w * 0.5f, Height * 0.5f, 0f);
+                leaf.transform.localPosition = new Vector3(-jamb, Height * 0.5f, 0f);
                 leaf.transform.localScale = new Vector3(w * 0.96f, Height, Thickness);
             }
             else
@@ -216,14 +272,14 @@ namespace BlocksBeyondTheStars.Client
             // A solid collider that blocks the player while closed (the player uses a CharacterController).
             var col = go.AddComponent<BoxCollider>();
             col.center = new Vector3(0f, Height * 0.5f, 0f);
-            col.size = nd.AxisX ? new Vector3(w, Height, Thickness * 2f) : new Vector3(Thickness * 2f, Height, w);
+            col.size = axisX ? new Vector3(w, Height, Thickness * 2f) : new Vector3(Thickness * 2f, Height, w);
 
             // Energy door (item 35): a translucent blue energy field filling the opening, shown only while open
             // (the panels still slide apart). The field is purely visual + passable — no collider — so you walk
             // through it; the door's own collider above handles blocking while closed.
             Transform field = null;
             Material fieldMat = null;
-            if (nd.Kind == "energy")
+            if (kind == "energy")
             {
                 var fieldGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 StripCollider(fieldGo);
@@ -242,12 +298,13 @@ namespace BlocksBeyondTheStars.Client
                 PanelA = a,
                 PanelB = b,
                 Collider = col,
-                Kind = nd.Kind,
-                World = new Vector3(nd.X, nd.Y, nd.Z),
+                Kind = kind,
+                World = world,
                 Width = w,
-                AxisX = nd.AxisX,
-                Open = nd.Open,
-                Anim = nd.Open ? 1f : 0f,
+                AxisX = axisX,
+                Mirrored = mirrored,
+                Open = open,
+                Anim = open ? 1f : 0f,
                 Field = field,
                 FieldMat = fieldMat,
             };

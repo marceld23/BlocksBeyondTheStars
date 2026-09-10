@@ -24,6 +24,29 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌊 A waterfall, a pair of doors, and two names (#1726, #1729, 2026-09-10, branch feat/reports-0909-client)
+
+The client half of the 2026-09-09 decisions, plus the credits Marcel asked for the same day.
+
+- **#1726 — the waterfall spout.** She wanted a waterfall on a levelled ~80×80 spaceport and got a flood: a
+  falling cell is refilled at `FluidFull`, so every step of stepped ground re-arms a seven-cell spread. That is
+  the documented rule, and changing it would change every body of water in every save — so instead there is a
+  new block (option C). `water_spout` is a solid machine block, not a fluid, whose underside pours ordinary
+  water straight down; the column is marked *falling* all the way, and `FedByASpout` walks up from the foot of
+  the fall so the landing cell never spreads either. It wakes like a fluid (the cell beneath it mined, the
+  column drying up) and the player is told when it is placed on solid ground. New texture, workshop recipe
+  (2 metal panels + 1 water), DE/EN, and four tests including a restart — the confinement lives in the
+  persisted falling flags, so a reload must not turn the foot back into a flood.
+- **#1729 — double doors, inferred.** The server records each placed door as its own one-block doorway and
+  knows nothing of pairs, so the pairing is inferred client-side from positions alone: `DoorPairs.MirrorsLeaf`
+  (Client.Core, Unity-free, 8 tests) says which door of an adjacent same-kind pair is the right-hand half, and
+  `DoorView` hangs that leaf on the far jamb and swings it the other way round. Re-checked on every door list,
+  so placing or removing a neighbour flips a leaf by rebuilding it in place with its swing state kept. Three
+  in a row pair only at the end; slide doors, mixed kinds, other floors and doors across the wall never pair.
+- **Credits: Paul and Noa** join the Schul-AG block — README and `ui.credits.body` in all 14 languages, first
+  names only like the other children. Paul sent the club's second wave of browser reports (#1708, #1709,
+  #1713); Noa tested PC after PC in the computer room, which no report ever showed.
+
 ### 🔌 Power runs where you build it (#1714, #1727, #1728, 2026-09-09, branch feat/reports-0909-decisions)
 
 Marcel's calls on the decisions the second report batch raised. Three of the five are server-side and land

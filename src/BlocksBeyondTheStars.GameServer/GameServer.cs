@@ -4607,6 +4607,11 @@ public sealed partial class GameServer
             OnFluidRemoved(pos);
         }
 
+        if (blockDef.Key == WaterSpoutBlockKey)
+        {
+            StartSpout(session, pos); // #1726: a waterfall block starts pouring the moment it is placed
+        }
+
         ActivateGranular(pos); // #1319: placed sand with nothing under it drops; over lava it sinks
 
         SendInventory(session);

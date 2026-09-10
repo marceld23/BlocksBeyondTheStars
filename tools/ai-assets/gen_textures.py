@@ -201,6 +201,10 @@ TEXTURES = [
     # #1714: carries base power out to a sentry post beyond the base zone. Reads as a relay, not a generator —
     # heavy insulators and a conduit running through, so a chain of them looks like a power line.
     ("power_relay", "a sci-fi power relay pylon, a dark grey metal housing with two ceramic insulator rings, a thick cable conduit running through it and a bright glowing cyan energy core between the rings, small status lights, front view"),
+    # #1726: the waterfall spout — a machine block that pours a column of water straight down and never sideways.
+    # Reads as plumbing, not as water: a riveted housing with a wide nozzle underneath, so the player can see
+    # which way it pours before placing it over an edge.
+    ("water_spout", "a sci-fi water spout block, a dark blue-grey riveted metal housing with a wide round nozzle opening at the bottom edge, a short pipe running down into the nozzle, clear blue-white water pouring out of the nozzle underneath, a small blue status light, front view"),
     # Guardian machines (#1338): the plating tile WorldEntities/SpaceView load for the robot, scan-drone,
     # space drone, UFO and cruiser hulls — grey circuit-board armour, no lights (the red eyes are separate).
     # Post-processed by `guardian_plating` (see POST_PROCESS) before the tile is written, since the entity
