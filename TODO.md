@@ -102,6 +102,28 @@ here; the two that are client work (#1726 waterfall block, #1729 double doors) f
   Admins still see whichever core is nearest. The 48-block reach itself is unchanged; raising it needs a
   measurement of the flood fill first.
 
+### 🧱 One compile was bigger than a whole world's memory (#1740, #1741, 2026-09-10, branch fix/arcade-world-oom-jit)
+
+An arcade world was offline on the portal. It had in fact been dying on every start for two days — the kernel
+killed it 4–7 seconds in, `OOMKilled`, ~731 MB against the 768 MiB per-world fence, and the keep-awake pass
+restarted it every 30 s, 120 times an hour, without anything saying it was broken. The give-up guard from
+#1706 shipped that morning and finally latched it, which is how it became visible at all.
+
+- **#1740 — the JIT, not the game.** During the spike the managed heap sits at 42 MB and not one byte is
+  allocated: the memory is native, committed and released inside ~1.3 s, and `DOTNET_JITMinOpts=1` makes it
+  vanish. It is the optimizer compiling *one* method — `WorldGenerator.GetExtraBands` — and that single compile
+  costs **1.6 s and ~1.05 GB**. Measured on the same save: v2026.9.3 needed 31 ms and 14 MB; v2026.9.4, which
+  appended the three generation-3 band blocks (#1688–#1695), needed 1673 ms and 1055 MB. The blocks now live in
+  their own non-inlined `AppendGen3Bands` — 24 ms, 14 MB, and the failing world peaks at 86 MB instead of 1059.
+  A world is only exposed if its active planet carries extra bands at all, which is why the pool's other world
+  never flinched; on desktop the same compile is a 1.6 s hitch rather than a kill. Things that did not help:
+  `NoInlining` on the three helpers, on `SurfaceHeight`, on every callee, `TieredPGO=0`, `TieredCompilation=0`.
+- **#1741 — giving up must reach the picker too.** The reaper stopped restarting the dead world, but the join
+  path still offered exactly that world to the next guest as its wake-on-demand candidate. So as long as the
+  healthy world had headroom nobody noticed, and the moment it filled up, guests were sent into an instance the
+  gateway knew was dead. `PickWorldAsync` now skips given-up worlds and answers the friendly arcade-full notice
+  (#936/#941) instead; a world that comes back up is a candidate again. Two tests, both red before the fix.
+
 ### 🤔 Second batch of 2026-09-09 (#1726–#1729): seven reports, no defects — five decisions
 
 A second wave arrived the same evening, while the batch below was being fixed. Analysed against the code:

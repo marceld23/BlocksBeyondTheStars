@@ -133,6 +133,23 @@ public sealed partial class WorldGenerator
             }
         }
 
+        return AppendGen3Bands(planet, w, worldX, worldZ, bands, n);
+    }
+
+    /// <summary>The generation-3 material bands, split out of <see cref="GetExtraBands"/> and deliberately NOT
+    /// inlined back into it (#1740). Appending these three blocks to the method body pushed the JIT optimizer off
+    /// a cliff: compiling <see cref="GetExtraBands"/> went from 31 ms and 14 MB (v2026.9.3) to 1.6 s and ~1.05 GB
+    /// of transient native JIT memory (v2026.9.4, the generation-3 package #1688-#1695). That one compile is more
+    /// than a hosted world's whole 768 MiB container fence, so the kernel killed the instance seconds after start,
+    /// before anyone could join — and the keep-awake reaper restarted it every 30 s for two days. Keeping the
+    /// blocks behind their own call brings the compile back to 24 ms and 14 MB. Measured alternatives that did
+    /// NOT help: NoInlining on the three helpers themselves, on SurfaceHeight, or on every direct callee, and
+    /// DOTNET_TieredPGO=0 / DOTNET_TieredCompilation=0. The cost is in compiling the call sites inside the grown
+    /// method, so the method itself has to stay small — do not fold this back in, and add further band kinds
+    /// here rather than above.</summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private int AppendGen3Bands(PlanetType planet, WonderProfile w, int worldX, int worldZ, System.Span<ColumnBand> bands, int n)
+    {
         // Generation-3 material bands: icebergs standing in cold open water (false below generation 3).
         if (n < bands.Length && w.Icebergs && TryGetIcebergBand(planet, w, worldX, worldZ, out int ibLo, out int ibHi))
         {

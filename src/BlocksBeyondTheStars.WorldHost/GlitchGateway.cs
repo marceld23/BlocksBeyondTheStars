@@ -87,6 +87,12 @@ public sealed class GlitchGateway
     /// <summary>Worlds that crossed <see cref="MaxConsecutiveWakeFailures"/> and have not been reported yet.</summary>
     private readonly List<string> _givenUp = new();
 
+    /// <summary>Worlds this gateway has given up on, in a form a request thread may read (#1741). The backoff
+    /// dictionary above is plain state owned by the keep-awake pass, and a guest's join arrives on any thread —
+    /// so the give-up verdict is mirrored here rather than read from under the pass's feet. Entries leave again
+    /// when the world comes back up.</summary>
+    private readonly ConcurrentDictionary<string, byte> _givenUpOn = new(StringComparer.Ordinal);
+
     /// <summary>Guards the keep-awake pass against overlapping itself. The startup pass is fire-and-forget and
     /// a fresh pool can take a minute per world, so the 30 s reaper tick runs into it — and the backoff
     /// bookkeeping above is plain (non-concurrent) state. An overlapping tick SKIPS rather than queues: it
@@ -613,6 +619,7 @@ public sealed class GlitchGateway
             if (world.Status == WorldStatus.Running)
             {
                 _wakeBackoff.Remove(world.Id); // up again — forget the history, a later wobble starts over
+                _givenUpOn.TryRemove(world.Id, out _); // …and it may carry guests again (#1741)
                 continue;
             }
 
@@ -626,9 +633,13 @@ public sealed class GlitchGateway
             {
                 int failures = (_wakeBackoff.TryGetValue(world.Id, out var prev) ? prev.Failures : 0) + 1;
                 _wakeBackoff[world.Id] = (failures, now + WakeBackoffFor(failures));
-                if (failures == MaxConsecutiveWakeFailures)
+                if (failures >= MaxConsecutiveWakeFailures)
                 {
-                    _givenUp.Add(world.Id); // crossed the threshold on THIS pass — the reaper logs it once
+                    _givenUpOn[world.Id] = 0; // guests must not be sent there either (#1741)
+                    if (failures == MaxConsecutiveWakeFailures)
+                    {
+                        _givenUp.Add(world.Id); // crossed the threshold on THIS pass — the reaper logs it once
+                    }
                 }
             }
 
@@ -669,9 +680,7 @@ public sealed class GlitchGateway
     /// <summary>Test seam (#1706): how many consecutive failed wakes this gateway has recorded for a world,
     /// and whether it has given up on it.</summary>
     public (int Failures, bool GivenUp) WakeStateFor(string worldId)
-        => _wakeBackoff.TryGetValue(worldId, out var s)
-            ? (s.Failures, s.Failures >= MaxConsecutiveWakeFailures)
-            : (0, false);
+        => (_wakeBackoff.TryGetValue(worldId, out var s) ? s.Failures : 0, _givenUpOn.ContainsKey(worldId));
 
     /// <summary>Picks the arcade world for the next guest: a running world with player headroom first
     /// (probed live), then a sleeping one to wake on demand. Racy by design — the instance's own
@@ -695,7 +704,11 @@ public sealed class GlitchGateway
             }
         }
 
-        if (pool.FirstOrDefault(w => w.Status != WorldStatus.Running) is { } sleeping)
+        // …but never a world the keep-awake pass has given up on (#1741). The reaper stops RESTARTING such a
+        // world; before this, the picker still handed it to the next guest as its wake-on-demand candidate, so
+        // as soon as the healthy world filled up, guests were routed into an instance the gateway already knew
+        // was dead. They get the friendly full notice instead, which at least tells them something true.
+        if (pool.FirstOrDefault(w => w.Status != WorldStatus.Running && !_givenUpOn.ContainsKey(w.Id)) is { } sleeping)
         {
             return (sleeping, string.Empty);
         }

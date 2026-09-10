@@ -698,6 +698,106 @@ public sealed class GlitchGatewayTests : IDisposable
         Assert.False(gateway.WakeStateFor(worldId).GivenUp);
     }
 
+    /// <summary>#1741: giving up must reach the picker too. The reaper stopped restarting a world that never
+    /// survives its wake, but the join path still offered exactly that world to the next guest — so the moment
+    /// the healthy world filled up, guests were sent into an instance the gateway knew was dead.</summary>
+    [Fact]
+    public async Task Session_SkipsAGivenUpWorld_AndTakesTheHealthySleepingOneAsync()
+    {
+        var (gateway, registry, orchestrator, launcher, tick) = NewFlappingPool(worldCount: 2);
+
+        await tick(); // both arcade worlds created and woken
+        var pool = registry.ListWorldsByChannel(WorldChannel.Glitch);
+        string sick = pool[0].Id, healthy = pool[1].Id;
+        await GiveUpOnAsync(gateway, sick, tick);
+        Assert.True(gateway.WakeStateFor(sick).GivenUp);
+        Assert.False(gateway.WakeStateFor(healthy).GivenUp);
+
+        // Send the healthy world to sleep as well, so both are candidates for a wake-on-demand pick.
+        launcher.Running.Remove(registry.GetWorld(healthy)!.ContainerId!);
+        orchestrator.Reap();
+
+        var result = await gateway.SessionAsync(Install);
+
+        Assert.True(result.Ok, result.Error);
+        Assert.Equal(healthy, result.WorldId);
+    }
+
+    /// <summary>#1741: with nothing left to offer, the guest gets the friendly full answer the client already
+    /// renders (#936/#941) — not a token for a world that dies under them.</summary>
+    [Fact]
+    public async Task Session_ReportsFull_WhenEveryPoolWorldIsGivenUpOnAsync()
+    {
+        var (gateway, registry, _, _, tick) = NewFlappingPool(worldCount: 1);
+
+        await tick();
+        string worldId = registry.ListWorldsByChannel(WorldChannel.Glitch).Single().Id;
+        await GiveUpOnAsync(gateway, worldId, tick);
+
+        var result = await gateway.SessionAsync(Install);
+
+        Assert.False(result.Ok);
+        Assert.Equal("All arcade worlds are full right now — please try again in a few minutes.", result.Error);
+    }
+
+    /// <summary>A pool whose worlds start fine and are dead again by the next pass — the shape of an instance
+    /// killed seconds after startup. <c>tick</c> runs one keep-awake pass and then lets the reaper see the
+    /// corpses; the world named in <c>dead</c> never comes up, whatever the launcher says.</summary>
+    private (GlitchGateway Gateway, HostRegistry Registry, WorldOrchestrator Orchestrator, FakeLauncher Launcher, Func<Task> Tick)
+        NewFlappingPool(int worldCount)
+    {
+        var config = NewConfig();
+        config.GlitchWorldCount = worldCount;
+        var registry = NewRegistry(config);
+        var launcher = new FakeLauncher();
+        var orchestrator = new WorldOrchestrator(config, registry, launcher,
+            w => Task.FromResult(launcher.IsRunning(w.ContainerId)));
+        var gateway = new GlitchGateway(config, registry, orchestrator, new FakeGlitchApi(),
+            statusReader: _ => Task.FromResult<string?>(null), utcNow: () => _clock);
+        _dead = new HashSet<string>(StringComparer.Ordinal);
+
+        // The wake itself always succeeds — the container starts and reports healthy — and the world named dead
+        // is a corpse by the time the next pass looks. That is what an instance killed seconds after startup
+        // looks like to the control plane, and the only thing the failure accounting can key on.
+        async Task TickAsync()
+        {
+            await gateway.WakePoolAsync();
+            foreach (string id in _dead!)
+            {
+                if (registry.GetWorld(id)?.ContainerId is { } container)
+                {
+                    launcher.Running.Remove(container);
+                }
+            }
+
+            orchestrator.Reap();
+        }
+
+        return (gateway, registry, orchestrator, launcher, TickAsync);
+    }
+
+    /// <summary>Walks a world through <see cref="GlitchGateway.MaxConsecutiveWakeFailures"/> wakes that do not
+    /// stick, stepping the clock past each backoff window, until the gateway gives up on it.</summary>
+    private async Task GiveUpOnAsync(GlitchGateway gateway, string worldId, Func<Task> tick)
+    {
+        _dead!.Add(worldId);
+        for (int pass = 0; pass < GlitchGateway.MaxConsecutiveWakeFailures * 3; pass++)
+        {
+            if (gateway.WakeStateFor(worldId).GivenUp)
+            {
+                return;
+            }
+
+            _clock += TimeSpan.FromMinutes(31); // past the 30 min backoff ceiling
+            await tick();
+        }
+
+        Assert.Fail($"world {worldId} was never given up on");
+    }
+
+    private DateTimeOffset _clock = new(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
+    private HashSet<string>? _dead;
+
     public void Dispose()
     {
         foreach (var registry in _registries)
