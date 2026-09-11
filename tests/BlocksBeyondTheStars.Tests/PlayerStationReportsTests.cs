@@ -330,6 +330,132 @@ public sealed class PlayerStationReportsTests : IDisposable
         }
     }
 
+    // ---------------- #1773: the build west of the origin ----------------
+
+    /// <summary>Builds a second sealed 5×5×5 iron shell ON FOOT (the write-back path) west of the origin: x −6…−2,
+    /// y 64…68, z 8…12, with a 3-tall doorway at x −6 / z 10 that <paramref name="doorItem"/> fills (left open when
+    /// null). Interior x −5…−3, y 65…67, z 9…11 — nothing connects it to the seed hull.</summary>
+    private static void BuildWestRoomOnFoot(SvGameServer server, PlayerSession pilot, string? doorItem = "door_energy")
+    {
+        var p = pilot.State;
+        p.Inventory.Add("iron_wall", 200, 999);
+        p.Inventory.Add("door_energy", 2, 16);
+        p.Position = new Vector3f(-3.5f, 65.03f, 10.5f); // inside the future room, every shell cell within reach
+        for (int x = -6; x <= -2; x++)
+            for (int y = 64; y <= 68; y++)
+                for (int z = 8; z <= 12; z++)
+                {
+                    bool shell = x == -6 || x == -2 || y == 64 || y == 68 || z == 8 || z == 12;
+                    bool doorway = x == -6 && z == 10 && y >= 65 && y <= 67;
+                    if (shell && !doorway)
+                    {
+                        server.PlaceBlock("Owner", x, y, z, "iron_wall");
+                    }
+                }
+
+        if (doorItem != null)
+        {
+            server.PlaceBlock("Owner", -6, 65, 10, doorItem);
+        }
+    }
+
+    [Fact]
+    public void Room_WestOfTheOrigin_Breathes_AndItsDoorSeals()
+    {
+        // Lyxette (v2026.9.5): "immer noch angeblich undichte Räume" — oxygen full at x 2.75, draining at x −0.8
+        // inside one closed iron/glass room with energy doors. Every block WRITE canonicalises x into [0, circ), so
+        // a wall built at x −5 reached the cell grid at x ≈ 5947: the box never grew west, the pocket fill read
+        // x < 0 as the void, and the door there never matched its own column (#1773).
+        var transport = new RecordingTransport();
+        var server = NewServer("westroom", out var repo, transport);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildSealedBox(server, pilot);
+            BoardOwnStation(server, "Owner", id);
+            BuildWestRoomOnFoot(server, pilot);
+
+            // The grid holds the room where it was built — west of the origin, not a lap east of it.
+            var cells = server.StationCellsForTest(id);
+            Assert.True(cells.ContainsKey(new Vector3i(-6 - 8 - 2, 64 - 64 - 2, 8 - 8 - 2)), "the west wall must be a cell west of the seed hull");
+            Assert.DoesNotContain(cells.Keys, c => c.X > 100);
+
+            var inside = new Vector3f(-3.5f, 65.03f, 10.5f);
+            Assert.True(server.StationCellSealedForTest(id, new Vector3i(-4, 65, 10)), "the west room is a sealed pocket");
+            float o2 = pilot.State.Oxygen = 50f;
+            TickAt(server, pilot, inside);
+            Assert.True(pilot.State.Oxygen > o2, $"Oxygen should refill in the sealed west room (was {pilot.State.Oxygen}).");
+            Assert.DoesNotContain(transport.Sent, m => m is ServerMessage sm && sm.Text == "@station_air_lost");
+            Assert.False(server.FloatingOutsideStationForTest("Owner"), "the west room lies inside the gravity volume");
+
+            // The fill really sees the west walls: a hole in the roof leaks.
+            server.World.SetBlock(new Vector3i(-4, 68, 10), BlockId.Air);
+            float holed = pilot.State.Oxygen = 80f;
+            TickAt(server, pilot, inside, halfSeconds: 8);
+            Assert.True(pilot.State.Oxygen < holed, $"Oxygen should drain once the west roof has a hole (was {pilot.State.Oxygen}).");
+            Assert.Single(transport.Sent.Where(m => m is ServerMessage sm && sm.Text == "@station_air_lost"));
+        }
+    }
+
+    [Fact]
+    public void Room_WestOfTheOrigin_WithoutItsDoor_Leaks()
+    {
+        // The counter-check for the door column: the same room with the doorway left open is a hull leak.
+        var server = NewServer("westroom-open", out var repo, new RecordingTransport());
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildSealedBox(server, pilot);
+            BoardOwnStation(server, "Owner", id);
+            BuildWestRoomOnFoot(server, pilot, doorItem: null);
+            Assert.False(server.StationCellSealedForTest(id, new Vector3i(-4, 65, 10)), "an open doorway west of the origin is a hole");
+        }
+    }
+
+    [Fact]
+    public void PhantomEastCells_MoveBackWest_OnTheNextServerStart()
+    {
+        // A save written between #1558 and #1773 holds a west wing as cells a whole lap east (x ≈ 5947+). The next
+        // server start re-stamps the station and moves them back to where they were built, so the box and the air follow.
+        var iron = _content.GetBlock("iron_wall")!.NumericId;
+        var home = new Vector3i(-6 - 8 - 2, 65 - 64 - 2, 10 - 8 - 2); // where a wall at world x −6 belongs (cell = world − origin + stamp min)
+        Vector3i phantom;                                             // where it used to land: a lap east
+        string id;
+        {
+            var s1 = NewServer("phantom", out var repo1, new RecordingTransport());
+            using (repo1)
+            {
+                var pilot = s1.AddLocalPlayer("Owner");
+                id = BuildSealedBox(s1, pilot);
+                BoardOwnStation(s1, "Owner", id);
+                int circ = s1.World.Circumference; // the void world's lap the legacy cells sit on
+                Assert.True(circ > 0);
+                phantom = new Vector3i(home.X + circ, home.Y, home.Z);
+
+                // Inject the legacy shape into the live grid, then let a real on-foot edit persist the whole build.
+                ((Dictionary<Vector3i, BlockId>)s1.StationCellsForTest(id))[phantom] = iron;
+                pilot.State.Inventory.Add("iron_wall", 4, 99);
+                pilot.State.Position = new Vector3f(10.5f, 65.03f, 10.5f);
+                s1.PlaceBlock("Owner", 11, 67, 11, "iron_wall");
+                Assert.True(s1.StationCellsForTest(id).ContainsKey(phantom));
+                repo1.Flush();
+            }
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var s2 = NewServer("phantom", out var repo2, new RecordingTransport());
+        using (repo2)
+        {
+            var pilot = s2.AddLocalPlayer("Owner");
+            pilot.State.AboardShip = true;
+            BoardOwnStation(s2, "Owner", id);
+            var cells = s2.StationCellsForTest(id);
+            Assert.False(cells.ContainsKey(phantom), "the phantom east cell must be gone");
+            Assert.Equal(iron, cells[home]);
+        }
+    }
+
     [Fact]
     public void OpenHull_NeverBreathes_ButAnNpcStationStillDoes()
     {

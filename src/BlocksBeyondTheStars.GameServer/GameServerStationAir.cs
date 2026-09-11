@@ -354,13 +354,17 @@ public sealed partial class GameServer
         BroadcastNpcs();
     }
 
-    /// <summary>Whether a player-built door entity occupies the cell (its ~3-tall opening column).</summary>
+    /// <summary>Whether a player-built door entity occupies the cell (its ~3-tall opening column). The door is
+    /// stored canonical (x in [0, circ)), the fill walks the unwrapped space around the origin (#1558), so the
+    /// column is compared the short way round the seam (#1773) — otherwise no door west of x 0 ever seals.</summary>
     private bool PlayerDoorFillsCell(Vector3i c)
     {
+        int circ = _world.Circumference;
         foreach (var d in _doors)
         {
+            int dx = (int)System.Math.Floor(d.Pos.X) - c.X;
             if (d.PlayerBuilt
-                && (int)System.Math.Floor(d.Pos.X) == c.X && (int)System.Math.Floor(d.Pos.Z) == c.Z
+                && (circ > 0 ? WorldConstants.WrapDeltaX(dx, circ) == 0 : dx == 0) && (int)System.Math.Floor(d.Pos.Z) == c.Z
                 && c.Y >= (int)System.Math.Floor(d.Pos.Y) && c.Y <= (int)System.Math.Floor(d.Pos.Y) + 2)
             {
                 return true;

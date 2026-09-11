@@ -531,6 +531,7 @@ public sealed partial class GameServer
     private bool AbsorbStampedWorldIntoCells(BoardableStation station, SpaceStructure src)
     {
         string loc = _world.LocationId;
+        int moved = NormaliseStationCells(station, src); // #1773: phantom east cells first, so the box below is the real one
         var (min, max) = CellBox(src);
         var wmin = StationCellToWorld(station, min);
         var wmax = StationCellToWorld(station, max);
@@ -559,7 +560,8 @@ public sealed partial class GameServer
                                 continue; // see the summary: a mined cell and the pad cut look the same here
                             }
 
-                            var cell = WorldToStationCell(station, e.WorldPosition);
+                            var w = StationLocalWorld(station, e.WorldPosition); // #1773: chunk edits are canonical, the build is not
+                            var cell = WorldToStationCell(station, w);
                             if (src.Cells.ContainsKey(cell) && src.Get(cell).Value == e.Block)
                             {
                                 continue; // the grid already says so
@@ -567,7 +569,6 @@ public sealed partial class GameServer
 
                             src.Set(cell, new BlockId(e.Block), e.Tint, e.Glow, e.Shape);
                             added++;
-                            var w = e.WorldPosition;
                             if (w.X < minX) { minX = w.X; grew = true; }
                             if (w.Y < minY) { minY = w.Y; grew = true; }
                             if (w.Z < minZ) { minZ = w.Z; grew = true; }
@@ -583,7 +584,7 @@ public sealed partial class GameServer
             }
         }
 
-        if (added == 0)
+        if (added == 0 && moved == 0)
         {
             return false;
         }
@@ -593,7 +594,16 @@ public sealed partial class GameServer
             PersistStation(hostLoc, src);
         }
 
-        _log.Info($"Player station '{station.Name}': absorbed {added} interior block(s) from its world into the build (#1559).");
+        if (moved > 0)
+        {
+            _log.Info($"Player station '{station.Name}': moved {moved} cell(s) built west of the origin back from a lap east (#1773).");
+        }
+
+        if (added > 0)
+        {
+            _log.Info($"Player station '{station.Name}': absorbed {added} interior block(s) from its world into the build (#1559).");
+        }
+
         return true;
     }
 
@@ -677,7 +687,7 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                var cell = d.Pos.ToBlock();
+                var cell = StationLocalWorld(station, d.Pos.ToBlock()); // a door west of the origin is stored a lap east (#1773)
                 bmin = new Vector3i(System.Math.Min(bmin.X, cell.X), System.Math.Min(bmin.Y, cell.Y), System.Math.Min(bmin.Z, cell.Z));
                 bmax = new Vector3i(System.Math.Max(bmax.X, cell.X), System.Math.Max(bmax.Y, cell.Y + 2), System.Math.Max(bmax.Z, cell.Z));
             }
@@ -694,6 +704,55 @@ public sealed partial class GameServer
     /// <summary>Interior-world cell → build cell (the inverse of <see cref="StationCellToWorld"/>).</summary>
     private static Vector3i WorldToStationCell(BoardableStation station, Vector3i world)
         => new(world.X - station.Origin.X + station.StampMin.X, world.Y - station.Origin.Y + station.StampMin.Y, world.Z - station.Origin.Z + station.StampMin.Z);
+
+    /// <summary>The interior-world position of a block as the station sees it (#1773): the void world still
+    /// carries a circumference, so every block WRITE canonicalises X into [0, circ) — a wall built at x = −5 is
+    /// stored at x ≈ 5947. Boarders, doors and the air/gravity box live in the unwrapped space around the origin
+    /// (#1558), so the cell grid must too, or a whole west wing lands far east of the build and the pocket fill
+    /// reads x &lt; 0 as the void. Unwraps X to the lap nearest the origin; Z's latitude domain is already centred
+    /// on 0 and needs nothing.</summary>
+    private Vector3i StationLocalWorld(BoardableStation station, Vector3i world)
+    {
+        int circ = _world.Circumference;
+        if (circ <= 0)
+        {
+            return world;
+        }
+
+        return new Vector3i(station.Origin.X + WorldConstants.WrapDeltaX(world.X - station.Origin.X, circ), world.Y, world.Z);
+    }
+
+    /// <summary>Moves every cell whose interior-world position sits a lap east of the origin back to the
+    /// unwrapped spot it was built at (#1773): saves written between the unwrapped boarder (#1558) and this fix
+    /// hold a west wing as phantom cells at x ≈ 5947+. Returns how many cells moved.</summary>
+    private int NormaliseStationCells(BoardableStation station, SpaceStructure src)
+    {
+        List<Vector3i>? phantom = null;
+        foreach (var cell in src.Cells.Keys)
+        {
+            var world = StationCellToWorld(station, cell);
+            if (StationLocalWorld(station, world) != world)
+            {
+                (phantom ??= new List<Vector3i>()).Add(cell);
+            }
+        }
+
+        if (phantom == null)
+        {
+            return 0;
+        }
+
+        foreach (var cell in phantom)
+        {
+            var block = src.Get(cell);
+            var (tint, glow) = src.Mods.TryGetValue(cell, out var m) ? m : (0, 0);
+            int shape = src.Shapes.TryGetValue(cell, out var sh) ? sh : 0;
+            src.Set(cell, BlockId.Air);
+            src.Set(WorldToStationCell(station, StationLocalWorld(station, StationCellToWorld(station, cell))), block, tint, glow, shape);
+        }
+
+        return phantom.Count;
+    }
 
     /// <summary>A block changed inside a player station's interior world (#1481): mirror it into the station's
     /// cell grid and persist, so the edit survives the next server start (the re-stamp finds the cell already
@@ -715,7 +774,7 @@ public sealed partial class GameServer
             return;
         }
 
-        var cell = WorldToStationCell(station, world);
+        var cell = WorldToStationCell(station, StationLocalWorld(station, world)); // #1773: the edit arrives canonical
         bool sameMods = s.Mods.TryGetValue(cell, out var mods) ? mods == (tint, glow) : tint == 0 && glow == 0;
         bool sameShape = (s.Shapes.TryGetValue(cell, out var sh) ? sh : 0) == shape;
         if (block.IsAir ? !s.Cells.ContainsKey(cell) : s.Get(cell).Value == block.Value && sameMods && sameShape)
