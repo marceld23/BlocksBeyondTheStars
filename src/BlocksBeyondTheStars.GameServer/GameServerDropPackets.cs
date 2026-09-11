@@ -66,6 +66,20 @@ public sealed partial class GameServer
     /// one SQLite write per packet per tick; a restart mid-lifetime resumes within this much.</summary>
     private const double LootLifetimeCheckpoint = 30.0;
 
+    /// <summary>Lifetime of a creature-loot packet that hovers over lava or sits in fire (#1753). A trench
+    /// kill leaves its bundle one cell above the melt where nobody can reach it without stepping in; letting
+    /// it lie the full five minutes only litters the moat. Mining overflow keeps its immortality even there.</summary>
+    private const double LootOverFireLifetime = 60.0;
+
+    /// <summary>Seconds between footing checks (#1752): a packet whose support was mined, blasted, burnt or
+    /// drained away falls the next second instead of hanging in the air forever. One block read per packet.</summary>
+    private const double DropResettleInterval = 1.0;
+
+    /// <summary>Only packets this close to a joined player re-check their footing — their chunks are resident
+    /// anyway, so the read costs nothing, while a bundle on the far side of the planet must not drag its chunk
+    /// into memory once a second. A legacy floater heals the moment somebody comes near it.</summary>
+    private const float DropResettleRadius = 64f;
+
     /// <summary>How far below a spill origin a packet falls looking for support (#1311): an air kill used to
     /// leave the bundle hanging at the flier's altitude.</summary>
     private const int DropFallScan = 32;
@@ -106,6 +120,7 @@ public sealed partial class GameServer
                 // #1350: fresh loot merged into an aging packet used to inherit ITS timer — a kill next to a
                 // 4:50-old bundle vanished with it ten seconds later. The merge restarts the clock instead.
                 packet.LifetimeLeft = System.Math.Max(packet.LifetimeLeft, LootPacketLifetime);
+                CapLootOverFire(packet);
             }
 
             var stack = packet.Items.FirstOrDefault(s => s.Item == amount.Item);
@@ -301,6 +316,7 @@ public sealed partial class GameServer
         }
 
         bool anyRemoved = AgeLootPackets(elapsed);
+        anyRemoved |= ResettleDropPackets(elapsed);
         foreach (var session in JoinedInActiveWorld())
         {
             SetCurrent(session); // per-player ship cursor: the cargo hold we spill into must be THEIR ship's
@@ -411,6 +427,109 @@ public sealed partial class GameServer
         }
 
         return removed;
+    }
+
+    /// <summary>Whether a packet lying in <paramref name="cell"/> hovers over lava or sits in / over fire —
+    /// the spot nobody can pick it up from (#1753).</summary>
+    private bool OverLavaOrFire(Vector3i cell)
+    {
+        ushort here = _world.GetBlock(cell).Value;
+        ushort below = _world.GetBlock(new Vector3i(cell.X, cell.Y - 1, cell.Z)).Value;
+        return (_lavaId != 0 && below == _lavaId) || (_fireId != 0 && (here == _fireId || below == _fireId));
+    }
+
+    /// <summary>#1753: a creature-loot packet over lava / in fire burns away in <see cref="LootOverFireLifetime"/>
+    /// instead of the full lifetime. Never touches an overflow packet (<c>LifetimeLeft == 0</c> stays 0).</summary>
+    private void CapLootOverFire(StoredContainer packet)
+    {
+        if (IsLootPacket(packet) && packet.LifetimeLeft > LootOverFireLifetime && OverLavaOrFire(packet.Position))
+        {
+            packet.LifetimeLeft = LootOverFireLifetime;
+        }
+    }
+
+    /// <summary>
+    /// #1752: once a second, every packet within <see cref="DropResettleRadius"/> of a joined player re-runs
+    /// the settle it got at spill time. Until now <see cref="SettleDropCell"/> ran exactly once: mine the wall
+    /// top a bundle landed on, blast the ground under it, let the tongue of water it rested on dry up — and it
+    /// hung in the air for good, as did every packet spilled before #1311 taught fresh ones to fall. A packet
+    /// that lands on one of the same kind merges into it (the loot/overflow kinds never mix, #1312); one that
+    /// lands over lava or fire takes the short lifetime (#1753). Returns true when anything moved.
+    /// </summary>
+    private bool ResettleDropPackets(double elapsed)
+    {
+        _worlds.Active.SinceDropResettle += elapsed;
+        if (_worlds.Active.SinceDropResettle < DropResettleInterval)
+        {
+            return false;
+        }
+
+        _worlds.Active.SinceDropResettle = 0;
+        var anchors = JoinedInActiveWorld().Select(s => s.State.Position).ToList();
+        if (anchors.Count == 0)
+        {
+            return false;
+        }
+
+        bool changed = false;
+        double radiusSq = DropResettleRadius * DropResettleRadius;
+        foreach (var packet in _containers.Where(c => c.Kind == DropPacketKind).ToList())
+        {
+            if (!_containers.Contains(packet))
+            {
+                continue; // merged away by an earlier packet of this pass
+            }
+
+            var centre = Center(packet.Position);
+            if (!anchors.Any(a => WrapDistSq(a, centre) <= radiusSq))
+            {
+                continue;
+            }
+
+            var landing = SettleDropCell(packet.Position);
+            if (landing == packet.Position)
+            {
+                continue;
+            }
+
+            bool loot = IsLootPacket(packet);
+            var host = _containers.FirstOrDefault(c => c != packet && c.Kind == DropPacketKind && c.Position == landing && IsLootPacket(c) == loot);
+            if (host is null)
+            {
+                packet.Position = landing;
+                CapLootOverFire(packet);
+                _repo.SaveContainer(packet);
+            }
+            else
+            {
+                foreach (var stack in packet.Items.Where(s => !s.IsEmpty))
+                {
+                    var existing = host.Items.FirstOrDefault(s => s.Item == stack.Item);
+                    if (existing is null)
+                    {
+                        host.Items.Add(new ItemStack(stack.Item, stack.Count));
+                    }
+                    else
+                    {
+                        existing.Count += stack.Count;
+                    }
+                }
+
+                if (loot)
+                {
+                    host.LifetimeLeft = System.Math.Max(host.LifetimeLeft, packet.LifetimeLeft); // the fresher clock wins (#1350)
+                    CapLootOverFire(host);
+                }
+
+                _containers.Remove(packet);
+                _repo.DeleteContainer(packet.Id);
+                _repo.SaveContainer(host);
+            }
+
+            changed = true;
+        }
+
+        return changed;
     }
 
     /// <summary>Writes every creature-loot packet's remaining lifetime on every resident world (#1367) — the
