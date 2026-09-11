@@ -54,7 +54,7 @@ namespace BlocksBeyondTheStars.Client
         // because desktop geometry builds run on thread-pool workers (each thread runs at most one build at a
         // time, and none of these ever escapes the call), so a Clear() at the point of use is all the isolation
         // needed. On WebGL everything runs on the single main thread — same invariant, one buffer set.
-        [System.ThreadStatic] private static Dictionary<(int X, int Y, int Z), Vector4> _waterCellsScratch;
+        [System.ThreadStatic] private static Dictionary<(int X, int Y, int Z), WaterSurfaceData> _waterCellsScratch;
         // #1528: dense per-build scratch for the world-chunk path — the AO occluder probes, the skylight column
         // tops and the block-light flood all address a bounded window around the chunk, so a flat array indexed by
         // (coordinate - window origin) replaces a tuple-keyed dictionary (order 10^5 hash lookups per chunk).
@@ -405,84 +405,41 @@ namespace BlocksBeyondTheStars.Client
             System.Func<int, int, int, bool> loadedFn = Loaded;
 
             // Per-cell water classification cache for this build (each cell is sampled by up to four
-            // corners; classify it once).
-            var waterCells = _waterCellsScratch ??= new Dictionary<(int X, int Y, int Z), Vector4>();
+            // corners; classify it once). Plants and slim props standing in the water do not bound the body
+            // (#1749): a reed is not a shore, so the shore runs step over them.
+            var waterCells = _waterCellsScratch ??= new Dictionary<(int X, int Y, int Z), WaterSurfaceData>();
             waterCells.Clear();
-            Vector4 WaterCellData(BlockId waterId, int cwx, int cwy, int cwz)
+            bool PassableInWater(int px, int py, int pz)
+            {
+                var b = worldBlock(px, py, pz);
+                return traits.Has(b, TraitFlora) || traits.Has(b, TraitFoliage) || traits.Has(b, TraitSlimProp);
+            }
+
+            System.Func<int, int, int, bool> passableFn = PassableInWater;
+            WaterSurfaceData WaterCellData(BlockId waterId, int cwx, int cwy, int cwz)
             {
                 var key = (cwx, cwy, cwz);
                 if (!waterCells.TryGetValue(key, out var d))
                 {
-                    d = WaterSurface.Classify(worldBlock, waterId, cwx, cwy, cwz, loadedFn);
+                    d = WaterSurface.Classify(worldBlock, waterId, cwx, cwy, cwz, loadedFn, passableFn);
                     waterCells[key] = d;
                 }
 
                 return d;
             }
 
-            // #1701: the wave MODE, majority-filtered over the cell and its four edge neighbours. The mode is
-            // a hard branch in the shader (calm lake / open water / flowing river), and `Classify` decides it
-            // per cell against hard span thresholds — so a body of varying width, like a hand-dug moat that
-            // narrows at a corner, flipped single cells between "river" and "lake" and drew a visible seam
-            // through a surface the player reads as one. A majority vote removes exactly those isolated flips
-            // and leaves a real boundary (a brook meeting a lake) where it belongs. Ties keep the cell's own
-            // verdict, so nothing is invented. Mode and flow axis vote TOGETHER: a river's direction is part
-            // of its identity, and a majority mode with the wrong flow would scroll the water sideways.
-            Vector4 WaterCellDataSmoothed(BlockId waterId, int cwx, int cwy, int cwz)
+
+            // Corner-smoothed water weights for the water-surface corner at (cwx, cwz): averaged over the
+            // 4 cells meeting there, so a corner shared by neighbouring faces gets the IDENTICAL value from
+            // each — foam, openness and the brook weights all fade in smooth gradients instead of per-block
+            // steps, and wave displacement stays crack-free across block boundaries. Bank/step cells count
+            // as shore: full foam, nothing else — waves die exactly at the waterline. Since #1749 EVERYTHING
+            // the shader reads is averaged here; there is no per-face mode left to branch on.
+            // Layout: x = 1 + open (the "is water" marker stays > 0.5, #1374), y = foam, z = brook along X,
+            // w = brook along Z.
+            Vector4 WaterCorner(BlockId waterId, int cwx, int cwy, int cwz)
             {
-                var own = WaterCellData(waterId, cwx, cwy, cwz);
-                Vector4 best = own;
-                int bestVotes = 0;
-                for (int i = 0; i < 5; i++)
-                {
-                    int sx = cwx + (i == 1 ? -1 : i == 2 ? 1 : 0);
-                    int sz = cwz + (i == 3 ? -1 : i == 4 ? 1 : 0);
-                    if (worldBlock(sx, cwy, sz).Value != waterId.Value
-                        || !worldBlock(sx, cwy + 1, sz).IsAir || !Loaded(sx, cwy + 1, sz))
-                    {
-                        continue; // not a surface cell of this body — it has no vote
-                    }
-
-                    var cand = WaterCellData(waterId, sx, cwy, sz);
-                    int votes = 0;
-                    for (int j = 0; j < 5; j++)
-                    {
-                        int ox = cwx + (j == 1 ? -1 : j == 2 ? 1 : 0);
-                        int oz = cwz + (j == 3 ? -1 : j == 4 ? 1 : 0);
-                        if (worldBlock(ox, cwy, oz).Value != waterId.Value
-                            || !worldBlock(ox, cwy + 1, oz).IsAir || !Loaded(ox, cwy + 1, oz))
-                        {
-                            continue;
-                        }
-
-                        var other = WaterCellData(waterId, ox, cwy, oz);
-                        if (Mathf.Approximately(other.x, cand.x) && Mathf.Approximately(other.w, cand.w))
-                        {
-                            votes++;
-                        }
-                    }
-
-                    // Strictly greater keeps the cell's own verdict on a tie: it votes first (i == 0).
-                    if (votes > bestVotes)
-                    {
-                        bestVotes = votes;
-                        best = cand;
-                    }
-                }
-
-                // Only mode + flow are voted on; foam and amplitude stay this cell's own (they are already
-                // corner-smoothed downstream, where a vote would fight the gradient).
-                return new Vector4(best.x, own.y, own.z, best.w);
-            }
-
-            // Corner-smoothed foam + wave-amplitude factor for the water-surface corner at (cwx, cwz):
-            // averaged over the 4 cells meeting there, so a corner shared by neighbouring faces gets the
-            // IDENTICAL value from each — foam fades in smooth gradients instead of per-block steps, and
-            // wave displacement stays crack-free across block (and body-type) boundaries. Bank/step cells
-            // count as shore: full foam, zero amplitude — waves die exactly at the waterline.
-            Vector2 WaterCorner(BlockId waterId, int cwx, int cwy, int cwz)
-            {
-                float foam = 0f, amp = 0f;
+                float open = 0f, foam = 0f, flowX = 0f, flowZ = 0f;
                 for (int ox = -1; ox <= 0; ox++)
                 for (int oz = -1; oz <= 0; oz++)
                 {
@@ -491,24 +448,31 @@ namespace BlocksBeyondTheStars.Client
                         && worldBlock(cx, cwy + 1, cz).IsAir && Loaded(cx, cwy + 1, cz);
                     if (!surface)
                     {
+                        // A plant standing in the surface is part of the body, not its shore (#1749).
+                        if (PassableInWater(cx, cwy, cz))
+                        {
+                            continue;
+                        }
+
                         foam += 1f; // the shore itself
                         continue;
                     }
 
                     var d = WaterCellData(waterId, cx, cwy, cz);
-                    foam += d.y;
-                    amp += d.x > 1.5f && d.x < 2.5f ? 1f : d.x > 0.5f && d.x < 1.5f ? 0.25f : 0f;
+                    open += d.Open;
+                    foam += d.Foam;
+                    flowX += d.FlowX;
+                    flowZ += d.FlowZ;
                 }
 
-                return new Vector2(foam * 0.25f, amp * 0.25f);
+                return new Vector4(1f + open * 0.25f, foam * 0.25f, flowX * 0.25f, flowZ * 0.25f);
             }
 
             // #1701: per-corner light for a fluid's top face. Averages skylight and coloured block light over
             // the four AIR cells meeting at the corner (lx, lz) ∈ {0,1}² above the cell — a corner shared by
             // two neighbouring faces therefore gets the identical value from both, and a wide flat surface
-            // lights as one plane instead of a grid of per-face tiles with hard borders. The wave mode rides
-            // along unchanged in the second channel: it is a hard branch in the shader, so it must NOT be
-            // interpolated — mixing lake and river would run the pixels between them through "open water".
+            // lights as one plane instead of a grid of per-face tiles with hard borders. The face mode rides
+            // along unchanged in the second channel (lava surface / falling flank / flora tint mode).
             void AddCornerLight(List<Vector2> skyOut, List<Vector3> blOut, int bx, int airY, int bz,
                 int lx, int lz, float mode)
             {
@@ -712,12 +676,11 @@ namespace BlocksBeyondTheStars.Client
                     hasCap = true;
                 }
 
-                // Water SURFACE cells (air above) get a body classification — open water with gentle
-                // waves + coastal foam, calm lake, or flowing river — packed into the top face's
-                // TEXCOORD2 for the transparent shader. Other faces/blocks keep the flora-tint layout.
+                // Water SURFACE cells (air above) get their body weights — open water with gentle waves +
+                // coastal foam, brook ripples along X or Z, calm basin for the rest — packed per corner into
+                // the top face's TEXCOORD2 for the transparent shader. Other faces/blocks keep the flora-tint layout.
                 bool isWater = (tf & TraitWater) != 0;
                 bool isWaterSurface = isWater && worldBlock(wx, wy + 1, wz).IsAir && Loaded(wx, wy + 1, wz);
-                Vector4 waterData = isWaterSurface ? WaterCellDataSmoothed(id, wx, wy, wz) : Vector4.zero;
                 // Falling-water column (a waterfall): fed from above + open on its sides. Its vertical flanks
                 // would normally be culled (see the submerged-fluid test below) so the cascade reads flat; keep
                 // them and tag them mode 4 so the transparent shader streaks them downward.
@@ -1068,23 +1031,18 @@ namespace BlocksBeyondTheStars.Client
                     Vector3 faceBlDir = BlockLightDirAt(nx, ny, nz);
                     blockLightDir.Add(faceBlDir); blockLightDir.Add(faceBlDir); blockLightDir.Add(faceBlDir); blockLightDir.Add(faceBlDir);
                     // Water top faces carry the water-body data instead of the (always-zero-for-water)
-                    // flora tint; only the transparent shader ever reads these vertices. Foam + wave
-                    // amplitude are CORNER-smoothed (x=mode, y=foam, z=amp factor, w=flow axis 0=X/1=Z)
-                    // so they interpolate seamlessly across neighbouring blocks. Mode and flow stay per-face
-                    // on purpose — the shader BRANCHES on them, so an interpolated value would run the pixels
-                    // between a lake and a brook through "open water" — but since #1701 a face's mode is the
-                    // majority verdict of its neighbourhood, so one odd cell no longer draws a seam.
+                    // flora tint; only the transparent shader ever reads these vertices. Every channel is
+                    // CORNER-smoothed (x = 1 + open, y = foam, z = brook along X, w = brook along Z) so the
+                    // look blends seamlessly across neighbouring blocks. Until #1749 the mode and flow axis
+                    // were per-face hard branches, and a body of varying width — or one full of reeds — drew
+                    // a mosaic of ripple directions and brightness steps.
                     if (isWaterSurface && dir.Y == 1)
                     {
                         // Corner offsets follow FaceQuad's +Y order: (0,0) (0,1) (1,1) (1,0).
-                        var c00 = WaterCorner(id, wx, wy, wz);
-                        var c01 = WaterCorner(id, wx, wy, wz + 1);
-                        var c11 = WaterCorner(id, wx + 1, wy, wz + 1);
-                        var c10 = WaterCorner(id, wx + 1, wy, wz);
-                        leafUv.Add(new Vector4(waterData.x, c00.x, c00.y, waterData.w));
-                        leafUv.Add(new Vector4(waterData.x, c01.x, c01.y, waterData.w));
-                        leafUv.Add(new Vector4(waterData.x, c11.x, c11.y, waterData.w));
-                        leafUv.Add(new Vector4(waterData.x, c10.x, c10.y, waterData.w));
+                        leafUv.Add(WaterCorner(id, wx, wy, wz));
+                        leafUv.Add(WaterCorner(id, wx, wy, wz + 1));
+                        leafUv.Add(WaterCorner(id, wx + 1, wy, wz + 1));
+                        leafUv.Add(WaterCorner(id, wx + 1, wy, wz));
                     }
                     else if (isFallingWater && dir.Y == 0)
                     {

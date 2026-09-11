@@ -480,12 +480,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var data = WaterSurface.Classify(world.GetBlock, id, wx, top, wz);
-            if (data.x > 2.5f)
+            if (data.Channel > 0.5f)
             {
                 return "water_brook";
             }
 
-            return data.x > 1.5f ? "water_surf" : "water_shore";
+            return data.Open > 0.5f ? "water_surf" : "water_shore";
         }
 
         private void SetFluid(string id)
