@@ -11,6 +11,166 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.6] — 2026-09-12
+
+The new-planets release. The school club's third wave of ideas is in the game: **four new kinds of
+planet** — a Rainbow Planet of islands afloat on rainbow water, a Flower Planet guarded by one grinning
+flower, a Scrap Planet you can strip for parts, and a Gaming Planet with a monitor, a keyboard, a mouse and
+a PC tower the size of mountains — plus **Leni** the ice creature and the tree-sized **Paul flower**. Right
+behind it comes a **sixth generation of animals**: rays that glide under water and hover in the sky, air
+fish, hydras with up to three heads, creatures with two or three pairs of wings or fins, and **giant trees**
+with trunks you can walk into. Water rolls **its own colour** on every new world now, and the rain matches.
+Travel from a landed ship **takes off first** instead of teleporting, **saplings** grow into trees, the
+avatar editor got a real **undo** and **outfits you can put on in the game**, and the browser worlds no
+longer die on one oversized start-up. **Lyxette** sent another round of reports on 2026.9.5 and drove most
+of the fixes below — thank you! 🙏 And the take-off half of the transit was **contributed by ahmdkaml**.
+
+ℹ️ **Compatibility:** the network protocol stays at version 5, saves migrate unchanged. Every new planet,
+creature, giant tree and water colour reaches **new worlds only** — a world you already built in keeps
+exactly what it has, down to the block, and its water stays blue. One thing to know: the take-off transit
+needs a matching client, so update the desktop game before you join a hosted world with it (an old client
+gets a short free flight and is set down after six seconds).
+
+### 🌈 The school club's planets, creatures and plants (#1756 #1757 #1758 #1759 #1760 #1761 #1762 #1763 #1764 #1765)
+
+The third wave of ideas from the school club "Building Games with AI", built so that no existing world
+changes. Marcel's first playtests sent two of the planets back for a second pass — both are in here too.
+
+- **The Rainbow Planet** (Sophie's idea): almost all sea, rainbow water through and through, islands that
+  float **on** the surface with kelp forests hanging from their undersides, a seabed of diggable sand,
+  corals, algae and breathable air. The first version hung the islands in the sky and left the water blue;
+  now every island floats at the waterline, deck above and keel below, and the water is rainbow down to the
+  depths (#1757 #1758 #1759).
+- **The Flower Planet** (Damian's idea): rolling hills of nothing but flowers — sunflowers, tulips,
+  bluebells, orchids — and not a single tree. One creature lives here: the **flowerling**, a walking flower
+  with a bloom for a head. It smiles as long as you leave the planet alone and brings a patient visitor
+  berries and blocks; mine something in front of it and the smile becomes a mouth full of teeth (#1760).
+- **The Scrap Planet**: fields of mineable scrap that drop a random find — parts, metal, now and then
+  something better — plus more ruins and factories. A little stray scrap now turns up on every other solid
+  world too (#1761).
+- **The Gaming Planet** (Ben's idea): karst caves, PC desks, and a **monitor, a keyboard, a mouse and a PC
+  tower the size of mountains**. The gear can be mined and placed, never crafted. After the first look
+  ("too much meadow") it is gaming gear now: far fewer plants, a landmark every few hundred blocks, and
+  house-sized towers in between (#1762).
+- **Leni** (Lena's idea): an ice creature that lives only on snow and ice, always in pairs, hides, and gets
+  angry when you mine near it — the first hand-authored creature, and the mechanism that lets more follow
+  (#1763).
+- **The Paul flower** (Lena's idea): a rare, tree-sized flower with huge leaves and toxic petals (#1764).
+- The block atlas grew to 1024 tiles to make room for all of it (#1765).
+
+### 🐟 Generation 6: rays, air fish, hydras, more wings and fins, and giant trees (#1778 #1779 #1780 #1781 #1782 #1783)
+
+New worlds roll a sixth generation of body plans. Everything is procedural, so every world gets its own.
+
+- **Rays**: flat discs that glide on a wave running along their wing panels, with a whip tail and eyes on
+  top. A water ray hugs the sea bed; a sky ray hovers, swoops and banks, and never lands (#1778).
+- **Air fish**: fish-shaped animals sculling through the air on their fins (#1779).
+- **More than one head**: up to three heads side by side on a normal body — and on a titan, the **hydra**,
+  a fanned neck for each head, every head breathing and calling on its own (#1780).
+- **Two or three pairs of wings**, beating in dragonfly opposition or as a wave from back to front, and
+  **two or three pairs of fins** (#1781 #1782).
+- **Giant trees**: three to five times the size of a normal tree, with a trunk three to five blocks
+  thick, radial branches carrying balls of leaves and a hollow crown — shaped by the biome as a giant
+  broadleaf, conifer or jungle tree. They grow their own wood and leaves, **Giant tree trunk** and **Giant
+  tree leaves**, and show up as their own species on a scan (#1783).
+
+### 💧 Water in every colour, and rain to match (#1758)
+
+- Every world with a real sea and an atmosphere now rolls its own water colour: classic blue most of the
+  time, otherwise teal, green, yellow, violet or red, each a little different per world. **Old saves stay
+  blue.**
+- **The rain follows the water.** Rain, drizzle and sleet, the drops and streaks on your visor and the wash
+  when you dive all take the world's colour; on the Rainbow Planet the rain cycles through the hues. Snow,
+  hail, ash, sand, acid, meteors and spores keep their own look.
+
+### 🚀 Travel from a landed ship takes off first (#1614, server half — contributed by ahmdkaml)
+
+- Picking a destination on the map while your ship sat on a pad used to swap the world on the spot. Now
+  the checks run on the ground, the ship lifts off with the full take-off sequence, and the server sets you
+  down on the pad it reserved for you. A jump to another system from the surface takes off first, too.
+- Cross-system travel from the ground only goes to bodies you have already landed on — as it always did
+  from the map, but now it says so before the ship moves.
+- The landing half — a real descent instead of a cut — is the next step of #1614.
+
+### 🌱 Saplings that grow into trees, and leaves you can pick up (#1774)
+
+- A **sapling** is a hand recipe now (one log and two fibre make two), and leaves drop one now and then.
+  Plant it on dirt, grass or mud and after a couple of minutes it grows into a real tree — a four-to-five
+  block trunk with a leafy crown — as soon as the column above it is free.
+- **Tree, pine and palm leaves** drop themselves when mined and can be placed again.
+- The sapling got its own tile instead of the bush placeholder it shipped with (#1785).
+
+### 🎨 Avatar editor: an undo that keeps going, fill everything, and outfits in the game (#1737 #1738 #1739)
+
+Three things Marcel missed in the avatar editor. The main-menu designer, the in-game appearance screen and
+the block paint tool share one editor, so all three got them at once.
+
+- **A real undo.** The old undo took back one stroke and nothing before it. Now there are 32 steps with a
+  **Redo** beside them — `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y`, or **RB** on the pad. The history remembers
+  which part you painted and switches the tab back for you, a slip of the colour wheel counts as one step
+  you can undo, and both buttons grey out when there is nothing left to take back (#1737).
+- **Fill everything.** One press paints the whole visible surface, whatever was on it before. An armed
+  tool now shows on its own label, and the hint line under the buttons says what the next click will do
+  (#1738).
+- **Outfits in the game.** Your eight saved looks are no longer a main-menu affair: the outfit shelf is in
+  the in-game appearance screen too. Click a row and you are wearing it — colours, face and all four
+  paintings; other players see the change a few seconds later (#1739).
+- **The helmet frame around your face can be painted** at last, the face plate covers the whole front of
+  the head, and no rim of skin shows around a drawn face any more — Justus's report (#1776).
+- Three colour bugs: other players' avatars now update when they change colours, in-game colours match
+  what you picked in the menu, and body paint keeps every palette entry (#1777).
+
+### 🛰️ Stations: air west of the origin, and crew that stays aboard (#1773 #1775)
+
+- **A room built west of the station's origin line had no air and no gravity.** Every wall placed there
+  landed on the far side of the station's wrapped grid, so the room never grew west and a door there never
+  sealed. Fixed; existing stations tidy up their phantom cells on the next start.
+- **Station crew walked over a low parapet into vacuum.** Crew now stays inside the sealed pocket of their
+  post, treats a closed door as a wall, steps up only one block, and anyone found outside is set back home.
+
+### 🔧 Lyxette's round on 2026.9.5 (#1745 #1746 #1747 #1748 #1749 #1750 #1752 #1753)
+
+- **A waterfall curtain is a curtain again.** Side-by-side waterfall columns along a wall drew only the
+  first cell; every column now renders, mist and all (#1745).
+- **A door you built can be mined again.** The aim passed straight through door entities, so the click did
+  nothing at all (#1746).
+- **Cave creatures no longer spawn inside rooms you dug.** A shaped cave far from the base core counted as
+  wild cave; any pocket carrying your block edits is off limits now (#1747).
+- **Glowing blocks show through the distance haze** instead of fading exactly like rock (#1748).
+- **Water surfaces no longer read as a mosaic of blocks.** Neighbouring cells used to pick different
+  ripple directions and brightness; the ripples blend now, and a reed or a pillar standing in a lake no
+  longer ends the lake (#1749).
+- **Power relays: up to 32 per base**, twice as many as before (#1750).
+- **Drop bundles follow the ground.** Mine the block under a bundle and it falls the next second; a bundle
+  left floating by an old save lands as soon as somebody comes near (#1752).
+- **Loot over lava or fire burns away** within a minute — nobody could reach it anyway (#1753).
+
+### ☁️ Browser worlds: one start-up no longer eats a whole world's memory (#1740 #1741)
+
+- A hosted world was killed a few seconds into every start, over four thousand times in two days, and the
+  portal simply showed it offline. Loading one kind of planet briefly needed more memory than the whole
+  world is allowed — a warm-up cost, not the world itself. Split up, the same world now starts with room to
+  spare. On desktop the same warm-up was a short hitch on arrival on those planets; that is gone too.
+- **The arcade no longer hands you a world it has given up on.** When the healthy world is full you get the
+  "arcade full" notice instead of a join into a dead instance; a world that comes back is offered again.
+
+### 🧪 For playtesters: a save that starts on the planet you name (#1767)
+
+- `scripts/make-test-world.ps1 -Planet gamer_hills` creates a ready-to-play singleplayer world that starts
+  on the planet you choose — the create-world panel never lets you pick that — so you can sit somebody in
+  front of the Gaming Planet without rerolling worlds. `-List` shows every planet type.
+
+### 🎓 Credits (#1770 #1771)
+
+- **Every child of the school club, in one list**: Ben, Damian, Lena, Marie, Nikita, Noa, Paul and Sophie —
+  in the README and the in-game Credits in all 14 languages, no more "first day" and "second wave". And the
+  Rainbow Planet's inventor is **Sophie**, not Sophia.
+
+### ✨ Under the hood (#1735 #1743)
+
+- The stopwatch test that took the last release run down on its first attempt measures the code now, not
+  the runner's load (#1735), and one slow server test was trimmed to stay under the fast-tier budget (#1743).
+
 ## [2026.9.5] — 2026-09-10
 
 The big-build release. Almost everything below came from players who built **big** — a spaceport, a walled
@@ -4934,6 +5094,7 @@ A graphics-quality pass and a licensing/foundation cleanup.
 - Initial public release.
 
 [Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.5...HEAD
+[2026.9.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.5...v2026.9.6
 [2026.9.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.4...v2026.9.5
 [2026.9.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.3...v2026.9.4
 [2026.9.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.2...v2026.9.3
