@@ -322,6 +322,14 @@ public sealed partial class WorldGenerator
                                     chunk.Set(lx, ly, lz, mudId.IsAir ? subSurfaceId : mudId);
                                     bandHit = true;
                                 }
+                                else if (bands[b].Kind == BandKind.Afloat)
+                                {
+                                    // #1757: the keel of an island afloat — the biome's own ground, not the seabed
+                                    // sand the submerged column below it was given.
+                                    chunk.Set(lx, ly, lz, worldY == bands[b].Top ? biome.Surface
+                                        : worldY >= bands[b].Top - 2 ? biome.Sub : deepId);
+                                    bandHit = true;
+                                }
                             }
 
                             if (bandHit)
@@ -358,6 +366,11 @@ public sealed partial class WorldGenerator
                                         chunk.Set(lx, ly, lz, worldY == bands[b].Top && !seaWaterId.IsAir
                                             ? seaWaterId
                                             : worldY >= bands[b].Top - 2 ? subSurfaceId : deepId);
+                                        break;
+                                    case BandKind.Afloat:
+                                        // #1757: the deck of an island afloat (its keel was written before the sea fill).
+                                        chunk.Set(lx, ly, lz, worldY == bands[b].Top ? biome.Surface
+                                            : worldY >= bands[b].Top - 2 ? biome.Sub : deepId);
                                         break;
                                     case BandKind.Cap:
                                         chunk.Set(lx, ly, lz, deepId); // bare rock: arch bars, caps, lips
@@ -640,12 +653,14 @@ public sealed partial class WorldGenerator
                 }
 
                 // #1759 (generation 5): hanging kelp under the island — roots in the lowest island cell, grows down
-                // into the air below it, in patches so the underside reads as a fringe and not as stubble. The roster
-                // only activates the hanging species on a generation-5 world, so older islands stay bare below.
+                // into the air (or, under an island afloat, the water) below it, in patches so the underside reads
+                // as a fringe and not as stubble. The roster only activates the hanging species on a generation-5
+                // world, so older islands stay bare below.
                 if (flora && !_hangingFloraId.IsAir && col.IslandBottom != int.MinValue)
                 {
                     int hy = col.IslandBottom - 1 - origin.Y;
-                    if (hy >= 0 && hy < WorldConstants.ChunkSize && chunk.Get(lx, hy, lz).IsAir
+                    if (hy >= 0 && hy < WorldConstants.ChunkSize
+                        && (chunk.Get(lx, hy, lz).IsAir || (!seaWaterId.IsAir && chunk.Get(lx, hy, lz) == seaWaterId))
                         && FbmT(seed + 0x4A46, worldX, worldZ, 18.0, octaves: 2) > 0.45
                         && Noise.Value01(seed + 9003, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < System.Math.Min(0.6, floraDensity * 2.5))
                     {
@@ -1073,7 +1088,7 @@ public sealed partial class WorldGenerator
         bool materialBands = false; // generation 3: Ice / Fluid bands are written before the sea fill
         for (int b = 0; b < bandCount; b++)
         {
-            if (bands[b].Kind == BandKind.Island)
+            if (bands[b].Kind == BandKind.Island || bands[b].Kind == BandKind.Afloat)
             {
                 if (bands[b].Top > islandTop)
                 {
@@ -1083,6 +1098,11 @@ public sealed partial class WorldGenerator
                 if (islandBottom == int.MinValue || bands[b].Bottom < islandBottom)
                 {
                     islandBottom = bands[b].Bottom;
+                }
+
+                if (bands[b].Kind == BandKind.Afloat)
+                {
+                    materialBands = true; // #1757: the keel stands inside the sea span, written before the fill
                 }
             }
             else if (bands[b].Kind == BandKind.Ice || bands[b].Kind == BandKind.Fluid || bands[b].Kind == BandKind.Mat)

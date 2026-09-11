@@ -24,6 +24,23 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏝️ The rainbow planet's islands float on the sea (#1757 follow-up, 2026-09-11, branch fix/rainbow-islands-afloat)
+
+Marcel's first playtest of the school club wave: he spawned on land, the islands hung in the sky, the water
+was blue. The children meant islands *swimming* on the water and hardly any land. `rainbow_sea` now uses a
+new `buoyantIslands` type flag instead of the sky islands: the calibration floods 95–98 % of the terrain
+(its own quantile band), and `GetExtraBands` adds one `Afloat` band per island — a deck 1–5 blocks above the
+waterline, a keel 2–9 below it, open water underneath, grounded on a shoal where the sea is too shallow. The
+keel is written before the sea fill (like the generation-3 material bands) with the biome's own ground; the
+island flora pass and the hanging kelp see the band as before (the kelp may now root into water). The relief
+pool moved to hills + downs (the old archipelago domes were the land). Generation 5 only; the
+`rainbow_sea-gen5` golden is re-pinned, the other goldens did not move. Tests: the flood share and an island
+with water under its keel; the kelp scan runs around the sea level; the server announces water mode 2 for a
+rainbow start (`WaterTintMode` seam) and the real client receives it. The blue water was the shader: the
+screen-space block composited the refracted bed through the water and tinted the depths a hard-coded blue, which
+diluted the recolour — the deep tint now follows the world's colour and the composite is recoloured once more
+after the bed is mixed in. Marcel's second playtest: "Regenbogenwelt passt jetzt."
+
 ### 🧪 A save that starts on the planet you name (2026-09-11, branch feat/test-world-tool)
 
 `scripts/make-test-world.ps1 -Planet rainbow_sea` creates a ready-to-play singleplayer world that spawns on the

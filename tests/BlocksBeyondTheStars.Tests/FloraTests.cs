@@ -567,26 +567,53 @@ public sealed class FloraTests : IDisposable
         }
 
         Assert.NotNull(found);
+        // #1757 (2026-09-11): the rainbow planet's islands float on the SEA, not in the sky — the kelp roots in the
+        // keel below the waterline and hangs down into the water, so the scan runs around the sea level.
         var kelp = _content.GetBlock("flora_hangkelp")!.NumericId;
+        var water = _content.GetBlock("water")!.NumericId;
+        int sea = found!.SeaLevel(rainbow);
+        int seaChunk = WorldConstants.WorldToChunk(sea);
         int hanging = 0;
         int cs = WorldConstants.ChunkSize;
-        for (int cx = 0; cx < 10 && hanging == 0; cx++)
-            for (int cz = 0; cz < 10 && hanging == 0; cz++)
-                for (int cy = 5; cy <= 11; cy++)
+        for (int cx = 0; cx < 12 && hanging == 0; cx++)
+            for (int cz = 0; cz < 12 && hanging == 0; cz++)
+                for (int cy = seaChunk - 1; cy <= seaChunk; cy++)
                 {
-                    var chunk = found!.Generate(rainbow, new ChunkCoord(cx, cy, cz));
+                    var chunk = found.Generate(rainbow, new ChunkCoord(cx, cy, cz));
                     for (int x = 0; x < cs; x++)
                         for (int z = 0; z < cs; z++)
                             for (int y = 1; y < cs - 1; y++)
                             {
-                                if (chunk.Get(x, y, z) == kelp && !chunk.Get(x, y + 1, z).IsAir && chunk.Get(x, y - 1, z).IsAir)
+                                var host = chunk.Get(x, y + 1, z);
+                                if (chunk.Get(x, y, z) == kelp && !host.IsAir && host != water && chunk.Get(x, y - 1, z) == water)
                                 {
                                     hanging++;
                                 }
                             }
                 }
 
-        Assert.True(hanging > 0, "no hanging kelp under any island in the scanned sky band");
+        Assert.True(hanging > 0, "no hanging kelp under any island afloat around the waterline");
+    }
+
+    [Fact]
+    public void RainbowStart_ShipsTheRainbowWaterMode()
+    {
+        // #1758: the server derives the water mode from the START planet's type and carries it in the environment
+        // state — a rainbow-sea start must announce mode 2, or the client paints the classic blue.
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "rainbowtint"));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig
+        {
+            WorldName = "rainbowtint",
+            Seed = 7,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            StartPlanet = "rainbow_sea",
+        };
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        Assert.Equal("rainbow_sea", server.World.Planet.Key);
+        Assert.Equal((int)BlocksBeyondTheStars.Shared.World.FluidTints.Mode.Rainbow, server.WaterTintMode);
     }
 
     [Fact]

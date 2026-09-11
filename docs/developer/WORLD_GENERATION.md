@@ -1197,13 +1197,25 @@ authored content as an overlay after the procedural roster — so every existing
 generation-0/1/3 goldens did not move; five `*-gen5` groups pin the wave).
 
 **Four planet types** (`data/planets.json`, `minTerrainGeneration: 5`): `rainbow_sea` (Sophia: rainbow water,
-floating islands with kelp hanging from their undersides, kelp forests, a seabed of sand), `flower_fields`
+islands afloat on the sea with kelp hanging from their keels, kelp forests, a seabed of sand), `flower_fields`
 (Damian: flowers and nothing else, one authored creature), `scrapyard` (scrap, more ruins and factories, no
 life, toxic air) and `gamer_hills` (Ben: karst caves, PC props, mountain-sized gaming gear). New optional
 type fields, all no-ops by default: `seabedBlock` (every submerged sea column beyond the beach apron takes it,
 `ColumnContext.SeabedId`), `underwaterForests` (kelp/seagrass stalks 8–12 tall in patches, `StampWaterFlora`),
 `waterTint` (see below), `ruinsBias` / `factoriesBias` (multiply the per-body roll, caps unchanged),
-`authoredCreatures` + `creatureAbundance: "authored"`.
+`authoredCreatures` + `creatureAbundance: "authored"`, `buoyantIslands` (below).
+
+**Islands afloat (#1757, Marcel's playtest 2026-09-11).** The first cut gave the rainbow planet SKY islands
+(`floatingIslands`) and 44 % water; the children meant islands *swimming* on the water, and little land. A
+`buoyantIslands` type floods 95–98 % of its terrain (`BuildCalibration`, its own quantile band — the land is
+the islands, not the relief) and `GetExtraBands` adds one `BandKind.Afloat` band per mask blob
+(`TryGetBuoyantIsland`): a deck 1–5 blocks above the sea level, a keel 2–9 below it, both a function of the
+SEA LEVEL so every island floats at the same height; where the sea is too shallow the keel stops one cell
+above the seabed (the island grounds on a shoal). The keel is written before the sea fill like the
+generation-3 material bands (the biome's own ground, not the seabed sand the submerged column carries), the
+deck in the above-water pass; `IslandTop`/`IslandBottom` see the band like a sky island, so the island flora
+pass and the hanging kelp (#1759, now allowed to root into WATER below the keel) work unchanged. Generation
+5 only: a generation-4 save of a buoyant type is byte-identical to before.
 
 **Water colour (#1758).** `FluidTints.ForWorld(seed, locationId, planet)` → (rgb, mode) is the water
 counterpart of `FloraTints.ForWorld`: empty `waterTint` = the classic blue (mode 0, every existing world),

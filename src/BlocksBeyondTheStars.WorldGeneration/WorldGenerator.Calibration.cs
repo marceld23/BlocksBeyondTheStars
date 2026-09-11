@@ -120,7 +120,9 @@ public sealed partial class WorldGenerator
         var continent = ContinentProfileFor(planet, seed);
         if (waterAb > 0.0 && _content.GetBlock("water") is { } water)
         {
-            double frac = continent.Active
+            double frac = planet.BuoyantIslands
+                ? 0.95 + 0.03 * R01(0x5EA04)       // #1757: the land is the islands afloat — 95–98 % of the terrain floods
+                : continent.Active
                 ? System.Math.Clamp((1.0 - continent.LandFrac) * 0.97, 0.35, 0.75)
                 : waterAb >= 1.0
                     ? 0.78 + 0.19 * R01(0x5EA01)   // ocean-class band: 78–97 % water (islands guaranteed)

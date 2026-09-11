@@ -155,10 +155,14 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
 
                     // #1758 (school club wave 3): the world's water colour. A luminance recolour keeps the wave
                     // shading; mode 2 lays static rainbow bands across the world (by position, never animated).
+                    // `wtint` stays in scope: the screen-space block below composites the BED through the water
+                    // and tints the depths, and both must follow the world's colour or a sandy shallow sea reads
+                    // as sand with a faint hue and a deep one as the classic blue (Marcel's playtest 2026-09-11).
+                    float3 wtint = float3(1.0, 1.0, 1.0);
                     if (_Sc_WaterMode > 0.5)
                     {
                         float wlum = dot(col, float3(0.299, 0.587, 0.114));
-                        float3 wtint = _Sc_WaterTint.rgb;
+                        wtint = _Sc_WaterTint.rgb;
                         if (_Sc_WaterMode > 1.5)
                         {
                             float hue = frac((i.wp.x + i.wp.z) / 96.0);
@@ -254,7 +258,9 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     float3 Vw = normalize(i.wp - _WorldSpaceCameraPos);
                     float vertical = column * max(abs(Vw.y), 0.08); // floor keeps near-horizontal rays finite
                     float depth01 = saturate(vertical / 16.0);
-                    col = lerp(col, col * 0.6 + light * float3(0.03, 0.10, 0.16), depth01 * 0.45); // gentler, lighter deep tint
+                    // The deep tint follows the world's water colour (#1758); classic worlds keep the blue depths.
+                    float3 deepTint = _Sc_WaterMode > 0.5 ? wtint * 0.18 : float3(0.03, 0.10, 0.16);
+                    col = lerp(col, col * 0.6 + light * deepTint, depth01 * 0.45); // gentler, lighter deep tint
                     alpha = lerp(alpha, saturate(alpha + 0.08), depth01); // depth reads as colour, barely as opacity
                     float edge = 1.0 - saturate(column / 0.55);          // ~1 right at the waterline / around objects
                     if (edge > 0.01)
@@ -273,6 +279,13 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     float refr = 0.018 * (1.0 - depth01); // shallow distorts the visible bed; deep hides it anyway
                     float3 bed = SampleSceneColor(screenUV + wob * refr);
                     col = lerp(bed, col, saturate(alpha));
+                    // #1758: the bed is seen THROUGH coloured water — recolour the composite as well, else the
+                    // refracted sand wins over the tint and rainbow water looks like a sandy sea with a hue.
+                    if (_Sc_WaterMode > 0.5)
+                    {
+                        float clum = dot(col, float3(0.299, 0.587, 0.114));
+                        col = lerp(col, clum * wtint * 1.7, 0.55);
+                    }
 
                     // Screen-space reflection on the surface: mirror the view ray about the (wave-rippled) normal
                     // and march it through the depth buffer; on a hit reflect the opaque colour there, else fall

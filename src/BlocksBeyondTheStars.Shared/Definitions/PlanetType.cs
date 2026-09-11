@@ -102,6 +102,13 @@ public sealed class PlanetType
     /// above the surface — drifting voxel islands you reach by flying up or building a tower. Off by default.</summary>
     public bool FloatingIslands { get; set; }
 
+    /// <summary>Islands afloat on the sea (#1757, generation 5): lens-shaped land bodies whose top rises a few
+    /// blocks above the waterline and whose keel hangs a few blocks below it, with open water between the keel
+    /// and the seabed — the "schwimmende Inseln" of the rainbow planet. The world's own terrain stays almost
+    /// entirely submerged (the calibration floods 95–98 % of it), so the islands ARE the land. Off by default;
+    /// unrelated to <see cref="FloatingIslands"/> (the sky islands).</summary>
+    public bool BuoyantIslands { get; set; }
+
     /// <summary>Airless barren bodies (landable asteroids, and — set per-world — airless moons): replace the
     /// rolling terrain with mostly flat regolith pocked with round impact craters (item 33).</summary>
     public bool Cratered { get; set; }

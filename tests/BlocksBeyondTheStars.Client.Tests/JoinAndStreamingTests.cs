@@ -18,6 +18,20 @@ public sealed class JoinAndStreamingTests
     private static GameContent LoadContent() => ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
 
     [Fact]
+    public void RainbowStart_DeliversTheRainbowWaterModeToTheClient()
+    {
+        // #1758: the water colour rides in WorldEnvironment. A rainbow-sea start must reach the CLIENT as mode 2
+        // through the real codec — the message class is contractless, so a new field that silently dropped out
+        // of the wire format would leave the client painting the classic blue (Marcel's playtest 2026-09-11).
+        using var h = new ClientServerHarness(LoadContent(), c => c.StartPlanet = "rainbow_sea");
+        Networking.Messages.WorldEnvironment? env = null;
+        h.Client.WorldEnvironmentReceived += m => env = m;
+        h.Join("Sophia");
+        Assert.True(h.PumpUntil(() => env != null, maxTicks: 60), "no WorldEnvironment reached the client after join");
+        Assert.Equal(2, env!.WaterTintMode);
+    }
+
+    [Fact]
     public void Join_RaisesJoinAccepted_OnTheClient()
     {
         using var h = new ClientServerHarness(LoadContent());

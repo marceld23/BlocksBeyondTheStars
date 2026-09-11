@@ -164,7 +164,7 @@ public sealed class WorldGenerationGoldenTests
             ["icecap-gen3"] = 0x786cf683677e2526UL,
             ["river_lowlands-gen3"] = 0xee25a930cd9958d9UL,
             // Pinned 2026-09-11 (school club wave 3, generation 5; Windows 11, .NET 10).
-            ["rainbow_sea-gen5"] = 0xac5ecabf424a2d69UL,
+            ["rainbow_sea-gen5"] = 0xecea3d3d9016ba55UL, // re-pinned 2026-09-11: islands afloat on the sea (#1757)
             ["flower_fields-gen5"] = 0xe2e2a978c783cfbfUL,
             ["scrapyard-gen5"] = 0x7710a0c97aa3539aUL,
             ["gamer_hills-gen5"] = 0x7ac9750465c7fd67UL,
