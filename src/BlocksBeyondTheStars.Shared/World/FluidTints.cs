@@ -42,11 +42,14 @@ public static class FluidTints
     };
 
     /// <summary>The water colour and mode of one world. Deterministic from the seed and the body, like every
-    /// other per-world look; the same historical location hash as <see cref="FloraTints.ForWorld"/>.</summary>
-    public static (int Rgb, Mode Mode) ForWorld(long worldSeed, string? locationKey, PlanetType? planet)
+    /// other per-world look; the same historical location hash as <see cref="FloraTints.ForWorld"/>.
+    /// <paramref name="terrainGeneration"/> is the SAVE's generation: the colour is computed at runtime, not baked
+    /// into the world, so without this gate an old save would change colour the day its type opted in. Below
+    /// <see cref="WorldDescription.AuthoredContentGeneration"/> every world keeps the classic blue.</summary>
+    public static (int Rgb, Mode Mode) ForWorld(long worldSeed, string? locationKey, PlanetType? planet, int terrainGeneration)
     {
         string spec = planet?.WaterTint?.Trim() ?? string.Empty;
-        if (spec.Length == 0)
+        if (spec.Length == 0 || terrainGeneration < WorldDescription.AuthoredContentGeneration)
         {
             return (ClassicWater, Mode.Classic);
         }

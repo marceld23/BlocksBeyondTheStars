@@ -191,8 +191,8 @@ public sealed partial class GameServer
         // formula lives with the per-species colours (#1716) — one file for every flora colour.
         _floraTint = Shared.World.FloraTints.ForWorld(_meta.Seed, _world.LocationId);
         // #1758: the water colour, the same way — classic blue unless the type opts in (the rainbow planet, the
-        // "auto" palette of the generation-5 water types).
-        var (waterRgb, waterMode) = Shared.World.FluidTints.ForWorld(_meta.Seed, _world.LocationId, _world.Planet);
+        // "auto" palette of the water types) AND the save is generation 5: older saves keep their blue.
+        var (waterRgb, waterMode) = Shared.World.FluidTints.ForWorld(_meta.Seed, _world.LocationId, _world.Planet, _meta.Description.TerrainGeneration);
         _waterTint = waterRgb;
         _waterTintMode = (int)waterMode;
         // One seeded daytime sky hue per WORLD (blue → green → yellow → red, blue-dominant), so worlds with an

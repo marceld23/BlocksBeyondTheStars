@@ -24,6 +24,17 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 💧 Water in different colours, and rain to match (#1758 follow-up, 2026-09-11, branch feat/water-colours-auto)
+
+The children's "water in different colours per world" was built but switched on nowhere but the rainbow
+planet. Every type with a real water sea and an atmosphere (25 types; not the dry, lava or airless bodies)
+now carries `waterTint: "auto"` — a seeded, blue-dominant pick per world. `FluidTints.ForWorld` takes the
+save's terrain generation, so a pre-generation-5 save keeps the classic blue (the colour is computed at
+runtime, not baked). Marcel: "bedenke dabei auch die Farbe des Regens" — `WaterColours.cs` blends the 3D
+drops of rain, drizzle and sleet, the visor's beads, streaks and wet wash, and the underwater wash toward the
+world's colour; rainbow rain cycles through the hues. Tests: every water-sea type opts in and no other does,
+old saves stay blue, the palette rolls more than one family with blue the most common.
+
 ### ✏️ Sophie, not Sophia (2026-09-11, branch docs/sophie)
 
 Marcel: the rainbow planet's inventor is **Sophie**. Renamed in the credits and the rainbow planet description
