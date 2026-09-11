@@ -73,6 +73,8 @@ TEXTURES = [
     ("flora_fern", "lush green fern with feathery fronds, top-down"),
     ("flora_flower", "small wildflowers with pink and yellow blossoms on green stems, top-down"),
     ("flora_bush", "round leafy green bush with small red berries, top-down"),
+    # #1774: the plantable sapling — a young tree, read as a small plant billboard like the other flora_* tiles.
+    ("flora_sapling", "small young tree sapling with a thin brown stem and a few fresh bright green leaves, seen from the side, on a plain flat background"),
     ("flora_vine", "tangled green climbing vines with leaves, top-down"),
     ("flora_mushroom", "cluster of small mushrooms with red caps and white stems, top-down"),
     ("flora_cactus", "green desert cactus with spines and small flowers, top-down"),
