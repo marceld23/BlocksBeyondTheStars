@@ -26,7 +26,7 @@ public sealed class JoinAndStreamingTests
         using var h = new ClientServerHarness(LoadContent(), c => c.StartPlanet = "rainbow_sea");
         Networking.Messages.WorldEnvironment? env = null;
         h.Client.WorldEnvironmentReceived += m => env = m;
-        h.Join("Sophia");
+        h.Join("Sophie");
         Assert.True(h.PumpUntil(() => env != null, maxTicks: 60), "no WorldEnvironment reached the client after join");
         Assert.Equal(2, env!.WaterTintMode);
     }

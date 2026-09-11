@@ -24,11 +24,17 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ✏️ Sophie, not Sophia (2026-09-11, branch docs/sophie)
+
+Marcel: the rainbow planet's inventor is **Sophie**. Renamed in the credits and the rainbow planet description
+of all 14 locales (incl. the transliterations — Софи, Софі, ソフィー — and the Polish inflection), the README,
+WORLD_GENERATION.md, this file and the client test that joins as her.
+
 ### 🎓 Credits: every child of the school club, one list (2026-09-11, branch docs/schul-ag-credits-complete)
 
 Marcel: no more "first day / second wave / third wave" — the Schul-AG block of the credits simply names every
 child who took part. `ui.credits.body` in all 14 locales now carries one line — Ben, Damian, Lena, Marie,
-Nikita, Noa, Paul, Sophia (Latin names everywhere, the model had transliterated them into Hangul) — followed
+Nikita, Noa, Paul, Sophie (Latin names everywhere, the model had transliterated them into Hangul) — followed
 by Christopher Korb; the README's club section says the same and links the report and idea issues. The scrap
 planet, the per-world water colours and the islands with plants underneath stay group ideas without a name.
 
@@ -74,7 +80,7 @@ The third wave from the school club "Building Games with AI", shipped as **terra
 existing world changes (the generation-0/1/3 goldens are untouched; five new `*-gen5` groups pin the wave).
 Design record: docs/developer/WORLD_GENERATION.md §15.
 
-- **#1757 Rainbow planet (Sophia)** — `rainbow_sea`: rainbow water (static bands), floating islands, kelp
+- **#1757 Rainbow planet (Sophie)** — `rainbow_sea`: rainbow water (static bands), floating islands, kelp
   forests (`underwaterForests`), a seabed of diggable sand (`seabedBlock`), corals and algae, breathable air.
 - **#1758 Water colours** — `FluidTints.ForWorld` + `EnvironmentState.WaterTint/Mode` + a luminance recolour
   in the water shader; every existing world keeps the classic blue.
@@ -91,7 +97,7 @@ Design record: docs/developer/WORLD_GENERATION.md §15.
   after the procedural roster on generation-5 worlds; Leni: white shaggy fur, no tail, peaceful, in pairs,
   ONLY on snow and ice (`BiomeExclusive`), name "Leni <coined>".
 - **#1764 Paul flower (Lena)** — the `giant-paul` giant-flora row: tree-sized, huge leaves, toxic petals, rare.
-- **#1765 Scaffold** — atlas 32×32 (1024 tiles), `CurrentTerrainGeneration = 5`, credits for Sophia, Damian,
+- **#1765 Scaffold** — atlas 32×32 (1024 tiles), `CurrentTerrainGeneration = 5`, credits for Sophie, Damian,
   Lena and Ben in all 14 locales, docs §15.
 - Textures: 15 tiles generated with `tools/ai-assets` (approved by Marcel one by one before bundling).
 - Tests: goldens for the five gen-5 groups; type completeness + galaxy gating; strict theme, later-wave
