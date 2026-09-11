@@ -66,6 +66,38 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly Dictionary<string, Entry> _creatures = new Dictionary<string, Entry>();
 
+        /// <summary>#1760: tears the rig down and builds it again from the current traits. The floating labels and
+        /// the stasis shell are separate objects (not under the rig), so only the body parts and the animator go.
+        /// The old animator is destroyed at the end of the frame, so the freshly added one is the LAST component.</summary>
+        private void RebuildBody(Entry entry, NetCreature c)
+        {
+            var root = entry.Root;
+            if (root == null)
+            {
+                return;
+            }
+
+            foreach (var anim in root.GetComponents<CreatureAnimator>())
+            {
+                Destroy(anim);
+            }
+
+            for (int i = root.transform.childCount - 1; i >= 0; i--)
+            {
+                var child = root.transform.GetChild(i).gameObject;
+                if (child == entry.Nameplate || child == entry.Zzz || child == entry.Stasis)
+                {
+                    continue;
+                }
+
+                Destroy(child);
+            }
+
+            new CreatureBuilder { Ground = ProbeGround }.Build(root, c);
+            var anims = root.GetComponents<CreatureAnimator>();
+            entry.Animator = anims.Length > 0 ? anims[anims.Length - 1] : null;
+        }
+
         // Reused across frames: allocating these per Update is steady-state GC churn (worst on WebGL,
         // where all garbage lands on the single thread).
         private readonly HashSet<string> _seenScratch = new HashSet<string>();
@@ -332,6 +364,14 @@ namespace BlocksBeyondTheStars.Client
                         entry.AttackUntil = now + 0.22f;            // lunge
                         SpawnAttackFx(Vector3.Lerp(Game.PlayerPosition, entry.Settled, 0.35f) + Vector3.up * 0.9f);
                     }
+                }
+
+                // #1760: the flowerling's face follows its mood — the grin is built for a calm body and the toothed
+                // maw for a hostile one, so a hostility flip rebuilds the body (the Floral plan only; every other
+                // species keeps its one build and its red tint arrives with the next full refresh as before).
+                if (c.Hostile != entry.PrevHostile && c.BodyPlan == "Floral")
+                {
+                    RebuildBody(entry, c);
                 }
 
                 entry.PrevHull = c.Hull;

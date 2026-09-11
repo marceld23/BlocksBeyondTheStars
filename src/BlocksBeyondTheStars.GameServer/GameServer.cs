@@ -4115,6 +4115,15 @@ public sealed partial class GameServer
             yield.Add(new ItemAmount(item, drop.Count));
         }
 
+        // #1761: a scrap block hands over ONE draw from its weighted table on top of its fixed drops — a hash of
+        // the cell and the seed, so placing and breaking the same block on the same cell never yields twice.
+        int fixedDrops = yield.Count;
+        if (def.RandomDrops is { Count: > 0 } && WeightedDrop.Draw(def.RandomDrops, _meta.Seed, pos.X, pos.Y, pos.Z) is { } lucky)
+        {
+            yield.Add(lucky);
+            fixedDrops++;
+        }
+
         if (IsContainerBlock(def.Key))
         {
             yield.AddRange(CrateContentsAt(pos)); // a mined crate/wood box hands its stored stacks back too
@@ -4147,7 +4156,7 @@ public sealed partial class GameServer
         bool floraHarvest = IsFlora(current.Value);
         // #900: a spore bloom fattens the harvest — the reason to head out INTO the strange weather.
         int bloomBonus = floraHarvest ? WeatherHarvestBonus() : 0;
-        foreach (var drop in yield.Take(def.Drops.Count))
+        foreach (var drop in yield.Take(fixedDrops))
         {
             pool.Add(drop.Item, drop.Count + bloomBonus);
         }
@@ -4171,6 +4180,7 @@ public sealed partial class GameServer
         OnBlockMined(session, def.Key);
         ShipAiOnMine(session); // VEGA onboarding: the "mine a few blocks" stage counts every break
         ShipAiOnBlockBroken(session, def.Key); // VEGA context tips (#1077): digging score, by-hand streak, rare-ore learned
+        CreaturesOnBlockBroken(session, pos); // #1760: a flowerling that SEES this turns on the miner
     }
 
     /// <summary>Area mining for powerful drills: breaks the mineable, unprotected blocks around a centre.

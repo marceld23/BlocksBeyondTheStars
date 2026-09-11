@@ -801,6 +801,13 @@ public sealed partial class GameServer
         HoverAltitude = s.HoverAltitude,
         SocialGroupSize = s.SocialGroupSize,
         VoiceSeed = s.VoiceSeed, // without this a tamed companion loses its voice and re-derives a stranger's
+        // School club wave 3 (#1763): the authored traits — a tamed Leni keeps its fur, a tamed flowerling its face;
+        // the behaviour flags are inert on a companion (it never harms, never gifts) but travel with the snapshot.
+        BiomeSurfaces = (string[])s.BiomeSurfaces.Clone(),
+        BiomeExclusive = s.BiomeExclusive,
+        Hide = s.Hide,
+        AngeredByMining = s.AngeredByMining,
+        GiftsWhenCalm = s.GiftsWhenCalm,
     };
 
     // ---------------------------------------------------------------------------------------------

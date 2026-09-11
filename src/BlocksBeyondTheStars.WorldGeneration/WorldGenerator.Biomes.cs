@@ -136,6 +136,20 @@ public sealed partial class WorldGenerator
     /// <summary>How many distinct biomes this planet's world uses.</summary>
     public int BiomeCount(PlanetType planet) => ResolveBiomes(planet).Count;
 
+    /// <summary>The block KEY of the biome surface at a column (#1763: the ground an exclusive species asks for
+    /// where no chunk is loaded), or null on a void world.</summary>
+    public string? BiomeSurfaceKeyAt(PlanetType planet, int worldX, int worldZ)
+    {
+        var biomes = ResolveBiomes(planet);
+        if (biomes.Count == 0)
+        {
+            return null;
+        }
+
+        int index = System.Math.Clamp(BiomeIndexAt(planet, worldX, worldZ), 0, biomes.Count - 1);
+        return _content.BlockById(biomes[index].Surface)?.Key;
+    }
+
     /// <summary>Picks a biome per column: broad region noise (stretched so the outer list entries actually
     /// get real coverage — the raw FBM clusters around 0.5 and starved them) blended with the column's
     /// normalised ALTITUDE (#476), so a planet's biome list reads bottom-to-top: entry 0 hugs the lowlands,

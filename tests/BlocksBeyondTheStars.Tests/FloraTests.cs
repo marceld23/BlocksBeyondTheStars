@@ -491,6 +491,183 @@ public sealed class FloraTests : IDisposable
         }
     }
 
+    // ---------- School club wave 3 (generation 5): strict theme, later-wave species, hanging kelp, the Paul flower ----------
+
+    [Fact]
+    public void StrictFloralTheme_ActivatesOnlyFlowers_OnGenerationFive()
+    {
+        // #1760: Damian's flower fields grow flowers and nothing else — but only as a generation-5 roster; the
+        // same type rolled as an older generation keeps the classic 85 / 40 roll (a bush can activate).
+        var flowers = _content.GetPlanet("flower_fields")!;
+        for (long seed = 1; seed <= 12; seed++)
+        {
+            var gen5 = FloraGenerator.GenerateRoster(flowers, seed, 5);
+            Assert.NotEmpty(gen5.Where(s => s.Active));
+            foreach (var sp in gen5.Where(s => s.Active && !s.Aquatic))
+            {
+                var tags = FloraCatalog.All.First(c => c.Key == sp.BlockKey).Tags;
+                Assert.True((tags & FloraTag.Floral) != 0, $"seed {seed}: {sp.BlockKey} is no flower");
+            }
+        }
+
+        bool anyOffTheme = false;
+        for (long seed = 1; seed <= 12 && !anyOffTheme; seed++)
+        {
+            anyOffTheme = FloraGenerator.GenerateRoster(flowers, seed, 4)
+                .Any(s => s.Active && !s.Aquatic && (FloraCatalog.All.First(c => c.Key == s.BlockKey).Tags & FloraTag.Floral) == 0);
+        }
+
+        Assert.True(anyOffTheme, "the strict rule must not reach an older generation");
+    }
+
+    [Fact]
+    public void LaterWaveSpecies_StayInactive_OnOlderWorlds()
+    {
+        // #1756: a species appended for generation 5 (MinGeneration) never activates on a generation-4 world — an
+        // existing meadow keeps exactly the plants it had — while a generation-5 meadow may grow it.
+        var meadow = _content.GetPlanet("meadowlands")!;
+        var newcomers = new[] { "flora_sunblossom", "flora_tulip", "flora_hangkelp" };
+        bool anyOnGen5 = false;
+        for (long seed = 1; seed <= 30; seed++)
+        {
+            foreach (var sp in FloraGenerator.GenerateRoster(meadow, seed, 4))
+            {
+                if (newcomers.Contains(sp.BlockKey))
+                {
+                    Assert.False(sp.Active, $"seed {seed}: {sp.BlockKey} active on generation 4");
+                }
+            }
+
+            anyOnGen5 |= FloraGenerator.GenerateRoster(meadow, seed, 5).Any(s => s.Active && s.BlockKey == "flora_sunblossom");
+        }
+
+        Assert.True(anyOnGen5, "no generation-5 meadow activated the sunblossom in 30 seeds");
+    }
+
+    [Fact]
+    public void HangingKelp_IsPooledOnlyOnGenerationFive_AndGrowsUnderIslands()
+    {
+        // #1759: the hanging species is the roster's business (MinGeneration) — the generator pools it on a
+        // generation-5 sky world and never on an older one — and the chunks grow it under an island: rooted in
+        // the lowest island cell, air below it.
+        var rainbow = _content.GetPlanet("rainbow_sea")!;
+        WorldGenerator? found = null;
+        for (long seed = 1; seed <= 20 && found is null; seed++)
+        {
+            var gen = new WorldGenerator(seed * 977 + 5, _content);
+            gen.SetTerrainGeneration(5);
+            if (gen.HangingFloraForTest(rainbow) == "flora_hangkelp")
+            {
+                found = gen;
+            }
+
+            var gen4 = new WorldGenerator(seed * 977 + 5, _content);
+            gen4.SetTerrainGeneration(4);
+            Assert.Null(gen4.HangingFloraForTest(rainbow));
+        }
+
+        Assert.NotNull(found);
+        var kelp = _content.GetBlock("flora_hangkelp")!.NumericId;
+        int hanging = 0;
+        int cs = WorldConstants.ChunkSize;
+        for (int cx = 0; cx < 10 && hanging == 0; cx++)
+            for (int cz = 0; cz < 10 && hanging == 0; cz++)
+                for (int cy = 5; cy <= 11; cy++)
+                {
+                    var chunk = found!.Generate(rainbow, new ChunkCoord(cx, cy, cz));
+                    for (int x = 0; x < cs; x++)
+                        for (int z = 0; z < cs; z++)
+                            for (int y = 1; y < cs - 1; y++)
+                            {
+                                if (chunk.Get(x, y, z) == kelp && !chunk.Get(x, y + 1, z).IsAir && chunk.Get(x, y - 1, z).IsAir)
+                                {
+                                    hanging++;
+                                }
+                            }
+                }
+
+        Assert.True(hanging > 0, "no hanging kelp under any island in the scanned sky band");
+    }
+
+    [Fact]
+    public void SeabedBlock_TakesTheWholeSeaFloor_OnTheRainbowPlanet()
+    {
+        // #1757: beyond the beach apron a submerged column's floor is the type's seabed block — sand you can dig.
+        var rainbow = _content.GetPlanet("rainbow_sea")!;
+        var gen = new WorldGenerator(20260911, _content);
+        gen.SetTerrainGeneration(5);
+        int sea = gen.SeaLevel(rainbow);
+        Assert.True(sea > 0);
+        var sand = _content.GetBlock("sand")!.NumericId;
+        int checkedColumns = 0;
+        int lowest = int.MaxValue;
+        for (int x = 0; x < 2000 && checkedColumns < 5; x += 13)
+            for (int z = -600; z < 600 && checkedColumns < 5; z += 17)
+            {
+                int surface = gen.SurfaceHeight(rainbow, x, z);
+                lowest = System.Math.Min(lowest, surface);
+                if (surface > sea - 5)
+                {
+                    continue; // shallow: the beach apron (three deep) may own it
+                }
+
+                var chunk = gen.Generate(rainbow, new ChunkCoord(WorldConstants.WorldToChunk(x), WorldConstants.WorldToChunk(surface), WorldConstants.WorldToChunk(z)));
+                int lx = x - WorldConstants.WorldToChunk(x) * WorldConstants.ChunkSize;
+                int ly = surface - WorldConstants.WorldToChunk(surface) * WorldConstants.ChunkSize;
+                int lz = z - WorldConstants.WorldToChunk(z) * WorldConstants.ChunkSize;
+                var floor = chunk.Get(lx, ly, lz);
+                if (floor.IsAir || floor == _content.GetBlock("water")!.NumericId)
+                {
+                    continue; // a carved or flooded cell — not the floor we are after
+                }
+
+                Assert.Equal(sand, floor);
+                checkedColumns++;
+            }
+
+        Assert.True(checkedColumns > 0, $"no deep sea column found to check (sea {sea}, lowest surface {lowest})");
+    }
+
+    [Fact]
+    public void GiantPaulFlower_GrowsOnGenerationFiveMeadows_Only()
+    {
+        // #1764: Lena's Paul flower is a giant-flora row of generation 5 — off the table on generation 4, and on a
+        // generation-5 meadow the chunks carry its stem and its petal crown.
+        var meadow = _content.GetPlanet("meadowlands")!;
+        var gen4 = new WorldGenerator(31, _content);
+        gen4.SetTerrainGeneration(4);
+        Assert.DoesNotContain("giant-paul", gen4.GiantFloraForTest(meadow));
+
+        var gen5 = new WorldGenerator(31, _content);
+        gen5.SetTerrainGeneration(5);
+        Assert.Contains("giant-paul", gen5.GiantFloraForTest(meadow));
+
+        var stem = _content.GetBlock("paul_stem")!.NumericId;
+        var petals = _content.GetBlock("paul_petals")!.NumericId;
+        int stems = 0, crowns = 0;
+        int cs = WorldConstants.ChunkSize;
+        for (int cx = 0; cx < 24 && crowns == 0; cx++)
+            for (int cz = 0; cz < 24 && crowns == 0; cz++)
+            {
+                int wx = cx * cs + cs / 2, wz = cz * cs + cs / 2;
+                int surfaceCy = WorldConstants.WorldToChunk(gen5.SurfaceHeight(meadow, wx, wz));
+                foreach (int cy in new[] { surfaceCy - 1, surfaceCy, surfaceCy + 1 })
+                {
+                    var chunk = gen5.Generate(meadow, new ChunkCoord(cx, cy, cz));
+                    for (int x = 0; x < cs; x++)
+                        for (int z = 0; z < cs; z++)
+                            for (int y = 0; y < cs; y++)
+                            {
+                                var id = chunk.Get(x, y, z);
+                                if (id == stem) stems++;
+                                if (id == petals) crowns++;
+                            }
+                }
+            }
+
+        Assert.True(stems > 0 && crowns > 0, $"no Paul flower in the scanned meadow (stems {stems}, crowns {crowns})");
+    }
+
     public void Dispose()
     {
         try

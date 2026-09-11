@@ -69,8 +69,8 @@ public sealed partial class GameServer
         long fSeed = _meta.Seed ^ WorldGenerator.StableHash("factory:" + _world.LocationId); // per body (#478)
         var rng = new System.Random(unchecked((int)(fSeed ^ (fSeed >> 32))));
 
-        // Rare: most worlds get none.
-        double r = rng.NextDouble();
+        // Rare: most worlds get none. #1761: a type may bias its roll (the scrap planet: 2.5); 1.0 is the identical draw.
+        double r = rng.NextDouble() * System.Math.Max(0.0, planet.FactoriesBias);
         int count = r < 0.70 ? 0 : r < 0.92 ? 1 : 2;
         count = System.Math.Min(FactoryHardCap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
         if (count <= 0)

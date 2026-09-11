@@ -358,7 +358,7 @@ public class ContentTests
     [Fact]
     public void Validation_RejectsBlockCountExceedingAtlasLimit()
     {
-        var blocks = Enumerable.Range(1, 260)
+        var blocks = Enumerable.Range(1, 1030)
             .Select(i => new BlockDefinition { Key = $"block_{i}" })
             .ToList();
 
@@ -370,6 +370,89 @@ public class ContentTests
             shipModules: Array.Empty<ShipModuleDefinition>(),
             locales: new Dictionary<GameLocale, Dictionary<string, string>>()).Validate());
 
-        Assert.Contains(ex.Problems, p => p.Contains("256") || p.Contains("atlas"));
+        Assert.Contains(ex.Problems, p => p.Contains("1024") || p.Contains("atlas"));
+    }
+
+    // ---------- School club wave 3 (#1756) ----------
+
+    [Fact]
+    public void GamingBlocks_AreFoundNotCrafted_ButPlaceable()
+    {
+        // #1762: Marcel's rule — the gaming gear is mineable and placeable, never craftable.
+        var content = Load();
+        foreach (var key in new[] { "gaming_pc", "gaming_monitor", "gaming_keyboard", "gaming_mouse" })
+        {
+            Assert.NotNull(content.GetBlock(key));
+            var item = content.GetItem(key);
+            Assert.NotNull(item);
+            Assert.Equal(key, item!.PlacesBlock);
+            Assert.DoesNotContain(content.Recipes.Values, r => r.Outputs.Any(o => o.Item == key));
+        }
+    }
+
+    [Fact]
+    public void ScrapBlocks_DrawOneWeightedDrop_Deterministically()
+    {
+        // #1761: scrap yields "whatever is inside" — one weighted draw per mined cell, a hash of the cell and the
+        // seed, so the same cell always answers the same and nothing can be farmed by re-placing.
+        var content = Load();
+        foreach (var key in new[] { "scrap_pile", "scrap_metal", "broken_machine", "rusted_panel" })
+        {
+            var block = content.GetBlock(key);
+            Assert.NotNull(block?.RandomDrops);
+            Assert.True(block!.RandomDrops!.Sum(r => r.Weight) > 0);
+            foreach (var row in block.RandomDrops)
+            {
+                Assert.True(row.Item.Length == 0 || content.GetItem(row.Item) != null, $"{key}: unknown drop {row.Item}");
+            }
+        }
+
+        var table = content.GetBlock("scrap_pile")!.RandomDrops!;
+        var first = WeightedDrop.Draw(table, 7, 10, 60, 10);
+        var again = WeightedDrop.Draw(table, 7, 10, 60, 10);
+        Assert.Equal(first?.Item, again?.Item);
+
+        int nothing = 0, iron = 0;
+        for (int i = 0; i < 2000; i++)
+        {
+            var d = WeightedDrop.Draw(table, 7, i, 60, i * 3);
+            if (d is null) nothing++;
+            else if (d.Item == "iron_ore") iron++;
+        }
+
+        Assert.InRange(nothing, 40, 200);  // ~5 % "nothing"
+        Assert.InRange(iron, 400, 800);    // ~30 % iron
+    }
+
+    [Fact]
+    public void AuthoredCreatures_LoadFromData_AndTheTypesThatNameThemExist()
+    {
+        // #1763: creatures.json is optional content; the shipped one carries Leni and the flowerling.
+        var content = Load();
+        Assert.True(content.AuthoredCreatures.ContainsKey("leni"));
+        Assert.True(content.AuthoredCreatures.ContainsKey("flowerling"));
+        Assert.Equal("Leni", content.AuthoredCreatures["leni"].NamePrefix);
+        Assert.True(content.AuthoredCreatures["leni"].BiomeExclusive);
+        Assert.True(content.AuthoredCreatures["flowerling"].AngeredByMining && content.AuthoredCreatures["flowerling"].GiftsWhenCalm);
+        Assert.Single(content.AuthoredCreaturesFor(content.Planets["flower_fields"]));
+        Assert.Contains(content.AuthoredCreaturesFor(content.Planets["glacier"]), a => a.Key == "leni");
+        Assert.Empty(content.AuthoredCreaturesFor(content.Planets["meadowlands"]));
+    }
+
+    [Fact]
+    public void Validation_RejectsAnUnknownAuthoredCreature()
+    {
+        var content = Load();
+        var planet = content.Planets["flower_fields"];
+        planet.AuthoredCreatures.Add("no_such_creature");
+        try
+        {
+            var ex = Assert.Throws<ContentValidationException>(() => content.Validate());
+            Assert.Contains(ex.Problems, p => p.Contains("no_such_creature"));
+        }
+        finally
+        {
+            planet.AuthoredCreatures.Remove("no_such_creature");
+        }
     }
 }

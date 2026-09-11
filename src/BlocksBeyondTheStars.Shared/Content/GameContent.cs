@@ -296,8 +296,10 @@ public sealed class GameContent
         IEnumerable<ShipDefinition>? ships = null,
         IEnumerable<ShipLayout>? shipLayouts = null,
         IDictionary<GameLocale, Func<Dictionary<string, string>>>? lazyLocales = null,
-        IDictionary<GameLocale, double>? localeCoverage = null)
+        IDictionary<GameLocale, double>? localeCoverage = null,
+        IEnumerable<AuthoredCreature>? authoredCreatures = null)
     {
+        _authoredCreatures = (authoredCreatures ?? Enumerable.Empty<AuthoredCreature>()).ToDictionary(a => a.Key, StringComparer.OrdinalIgnoreCase);
         _blocks = blocks.ToDictionary(b => b.Key);
         _items = items.ToDictionary(i => i.Key);
         _recipes = recipes.ToDictionary(r => r.Key);
@@ -349,6 +351,27 @@ public sealed class GameContent
         {
             _blocksById[b.NumericId.Value] = b;
         }
+    }
+
+    private readonly Dictionary<string, AuthoredCreature> _authoredCreatures;
+
+    /// <summary>The authored creature species (#1763, <c>data/creatures.json</c>), keyed case-insensitively.</summary>
+    public IReadOnlyDictionary<string, AuthoredCreature> AuthoredCreatures => _authoredCreatures;
+
+    /// <summary>The authored records a planet type names, in its own order (unknown keys are skipped — validation
+    /// reports them). Empty for every type that names none.</summary>
+    public IReadOnlyList<AuthoredCreature> AuthoredCreaturesFor(PlanetType planet)
+    {
+        var list = new List<AuthoredCreature>();
+        foreach (var key in planet.AuthoredCreatures)
+        {
+            if (_authoredCreatures.TryGetValue(key, out var record))
+            {
+                list.Add(record);
+            }
+        }
+
+        return list;
     }
 
     private void AssignBlockIds()
@@ -706,9 +729,10 @@ public sealed class GameContent
     }
 
     /// <summary>
-    /// Mirrors client BlockTextureAtlas.Cols*Rows (16x16 tile atlas capacity).
+    /// Mirrors client BlockTextureAtlas.Cols*Rows (32x32 tile atlas capacity since the school club wave 3, #1765;
+    /// 16x16 = 256 before).
     /// </summary>
-    public const int AtlasTileCapacity = 256;
+    public const int AtlasTileCapacity = 1024;
 
     /// <summary>
     /// Cross-validates all references between definitions. Throws
@@ -748,6 +772,48 @@ public sealed class GameContent
             foreach (var drop in block.Drops)
             {
                 RequireItem($"Block '{block.Key}' drop", drop.Item);
+            }
+
+            // #1761: a weighted table needs at least one real row with a positive weight, and every named row
+            // must be an item (the empty item is the deliberate "nothing" outcome).
+            if (block.RandomDrops is { } table)
+            {
+                int weight = 0;
+                foreach (var row in table)
+                {
+                    RequireItem($"Block '{block.Key}' random drop", row.Item);
+                    if (row.Weight < 0)
+                    {
+                        problems.Add($"Block '{block.Key}' random drop '{row.Item}' has a negative weight.");
+                    }
+
+                    weight += System.Math.Max(0, row.Weight);
+                }
+
+                if (weight <= 0)
+                {
+                    problems.Add($"Block '{block.Key}' declares randomDrops without any positive weight.");
+                }
+            }
+        }
+
+        // #1763: an authored species must pass the same sanity band a rolled one always meets.
+        foreach (var creature in _authoredCreatures.Values)
+        {
+            if (string.IsNullOrWhiteSpace(creature.Key))
+            {
+                problems.Add("Authored creature has an empty key.");
+            }
+
+            RequireItem($"Authored creature '{creature.Key}' drop", creature.DropItem);
+            if (creature.Size < 0.3f || creature.Size > 6f || creature.Speed <= 0f || creature.SocialGroupSize < 1)
+            {
+                problems.Add($"Authored creature '{creature.Key}' has a size, speed or group size outside the sane band.");
+            }
+
+            foreach (var surface in creature.BiomeSurfaces)
+            {
+                RequireBlock($"Authored creature '{creature.Key}' biome surface", surface);
             }
         }
 
@@ -868,6 +934,25 @@ public sealed class GameContent
             RequireBlock($"Planet '{planet.Key}' sub-surface", planet.SubSurfaceBlock);
             RequireBlock($"Planet '{planet.Key}' deep", planet.DeepBlock);
             RequireBlock($"Planet '{planet.Key}' beach", planet.BeachBlock);
+            RequireBlock($"Planet '{planet.Key}' seabed", planet.SeabedBlock); // #1757
+            if (planet.RuinsBias < 0 || planet.FactoriesBias < 0)
+            {
+                problems.Add($"Planet '{planet.Key}' has a negative ruins/factories bias.");
+            }
+
+            // #1763: every authored key must exist, and an "authored" roster must name at least one.
+            foreach (var key in planet.AuthoredCreatures)
+            {
+                if (!_authoredCreatures.ContainsKey(key))
+                {
+                    problems.Add($"Planet '{planet.Key}' names unknown authored creature '{key}'.");
+                }
+            }
+
+            if (string.Equals(planet.CreatureAbundance, "authored", StringComparison.OrdinalIgnoreCase) && planet.AuthoredCreatures.Count == 0)
+            {
+                problems.Add($"Planet '{planet.Key}' has creatureAbundance \"authored\" but names no authored creature.");
+            }
             // Terrain tags (#1644): resolved once here so worldgen reads a flags enum, never the string list.
             planet.Tags = TerrainTags.Parse(planet.TerrainTags, out var unknownTag);
             if (unknownTag is not null)

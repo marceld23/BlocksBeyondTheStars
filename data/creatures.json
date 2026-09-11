@@ -1,0 +1,16 @@
+[
+  { "key": "leni", "namePrefix": "Leni",
+    "habitat": "Land", "activity": "Cathemeral", "temperament": "Passive", "locoStyle": "Grazer", "bodyPlan": "Standard",
+    "size": 1.4, "speed": 2.4,
+    "legs": 4, "hasWings": false, "hasTail": false, "bodySegments": 2, "colorRgb": 16053488, "bellyRgb": 15131864, "eyes": 2, "horns": 0, "hasCrest": false, "glows": false,
+    "socialGroupSize": 2,
+    "dropItem": "plant_fiber", "dropCount": 1, "dropKind": "Material",
+    "biomeSurfaces": ["snow", "ice"], "biomeExclusive": true, "hide": "shaggy" },
+  { "key": "flowerling", "namePrefix": "",
+    "habitat": "Land", "activity": "Diurnal", "temperament": "Territorial", "locoStyle": "Strider", "bodyPlan": "Floral",
+    "size": 1.6, "speed": 2.6, "attackDamage": 5.5,
+    "legs": 2, "hasWings": false, "hasTail": false, "bodySegments": 1, "colorRgb": 6270794, "bellyRgb": 15761536, "eyes": 2, "horns": 0, "hasCrest": false, "glows": false,
+    "socialGroupSize": 1,
+    "dropItem": "berries", "dropCount": 2, "dropKind": "Food",
+    "biomeSurfaces": [], "biomeExclusive": false, "hide": "petal", "angeredByMining": true, "giftsWhenCalm": true }
+]

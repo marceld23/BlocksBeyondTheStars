@@ -118,6 +118,14 @@ namespace BlocksBeyondTheStars.Client
             // with a dark pupil so they clearly read as eyes — spread in a row across the head front.
             AddEyes(c, unit, headScale);
 
+            // #1760: the flowerling — a ring of petals around the head, and a face that is a wide grin while it is
+            // calm and a toothed maw while it is hostile (the server flips Hostile with the mining grudge; the view
+            // rebuilds the body on that flip, so the face follows).
+            if (c.BodyPlan == "Floral")
+            {
+                AddFloralHead(c, unit, headScale, bellyColor);
+            }
+
             // Horns/spikes on top of the head — silhouette variety.
             int horns = Mathf.Clamp(c.Horns, 0, 4);
             if (horns > 0)
@@ -656,6 +664,46 @@ namespace BlocksBeyondTheStars.Client
                 new Vector3(0f, 0f, d * 0.44f), new Vector3(w * 0.92f, h * JawShare, d * 0.88f), mat);
         }
 
+        /// <summary>#1760: the flowerling's flower head — eight petal boxes fanned around the head in the belly (petal)
+        /// colour, a yellow disc behind the face, and the mouth: a wide dark grin when calm, a red maw with a row of
+        /// white teeth on the hinged jaw when hostile. Built on top of the standard head, so the eyes, the jaw hinge
+        /// and the blink all keep working.</summary>
+        private void AddFloralHead(NetCreature c, float unit, float headScale, Color petalColor)
+        {
+            float w = unit * 0.9f * headScale, h = unit * 0.85f * headScale, d = unit * 0.8f * headScale, headZ = unit * 0.45f;
+            var petalMat = Lit(petalColor, _petal ?? _hide);
+            var discMat = Lit(new Color(0.98f, 0.82f, 0.25f), null);
+            AddPartTo(_headPivot, "PetalDisc", new Vector3(0f, h * 0.15f, headZ - d * 0.35f), new Vector3(w * 1.35f, h * 1.35f, d * 0.12f), discMat);
+            const int Petals = 8;
+            for (int i = 0; i < Petals; i++)
+            {
+                float a = i / (float)Petals * Mathf.PI * 2f;
+                float r = Mathf.Max(w, h) * 0.95f;
+                var petal = NewPivot(_headPivot, "Petal" + i, new Vector3(Mathf.Cos(a) * r, h * 0.15f + Mathf.Sin(a) * r, headZ - d * 0.4f));
+                petal.localRotation = Quaternion.Euler(0f, 0f, a * Mathf.Rad2Deg);
+                AddPartTo(petal, "PetalBox", Vector3.zero, new Vector3(w * 0.95f, h * 0.5f, d * 0.1f), petalMat);
+            }
+
+            if (c.Hostile)
+            {
+                var mawMat = Lit(new Color(0.55f, 0.08f, 0.10f), null);
+                var toothMat = Lit(new Color(0.97f, 0.96f, 0.90f), null);
+                AddPartTo(_jawPivot, "Maw", new Vector3(0f, h * 0.16f, d * 0.12f), new Vector3(w * 0.8f, h * 0.22f, d * 0.7f), mawMat);
+                for (int t = 0; t < 4; t++)
+                {
+                    float tx = Mathf.Lerp(-w * 0.32f, w * 0.32f, t / 3f);
+                    AddPartTo(_jawPivot, "Tooth" + t, new Vector3(tx, h * 0.24f, d * 0.42f), new Vector3(w * 0.1f, h * 0.16f, d * 0.08f), toothMat);
+                }
+            }
+            else
+            {
+                var grinMat = Lit(new Color(0.12f, 0.08f, 0.10f), null);
+                AddPartTo(_headPivot, "Grin", new Vector3(0f, -h * 0.12f, headZ + d * 0.46f), new Vector3(w * 0.72f, h * 0.07f, d * 0.06f), grinMat);
+                AddPartTo(_headPivot, "GrinL", new Vector3(-w * 0.36f, -h * 0.02f, headZ + d * 0.46f), new Vector3(w * 0.08f, h * 0.14f, d * 0.06f), grinMat);
+                AddPartTo(_headPivot, "GrinR", new Vector3(w * 0.36f, -h * 0.02f, headZ + d * 0.46f), new Vector3(w * 0.08f, h * 0.14f, d * 0.06f), grinMat);
+            }
+        }
+
         /// <summary>An eyelid: a skin-coloured box over the eye, held at zero height (invisible) and scaled up
         /// to cover it for a blink. Cheap — one cube per eye — and blinking is out of all proportion to its
         /// cost for making a body read as alive rather than as a prop.</summary>
@@ -851,6 +899,7 @@ namespace BlocksBeyondTheStars.Client
         // Task 6 — more skin variety.
         private static Texture2D _mossy, _crystalline, _metallic, _banded, _shaggy;
         private static Texture2D _spined, _mottled, _iridescent, _barkskin, _veined;
+        private static Texture2D _petal; // #1760: the flowerling's petal ring
         private static bool _texLoaded;
 
         private static void EnsureTextures()
@@ -883,13 +932,31 @@ namespace BlocksBeyondTheStars.Client
             _iridescent = LoadTex("creature_iridescent");
             _barkskin = LoadTex("creature_barkskin");
             _veined = LoadTex("creature_veined");
+            _petal = LoadTex("creature_petal"); // #1760 (a missing tile falls back to the plain hide)
         }
+
+        /// <summary>#1763: an authored species names its hide tile ("fur", "shaggy", "petal", …); null when the name is
+        /// unknown or the tile did not load, so the caller falls through to the classic hashed pick.</summary>
+        private static Texture2D HideByName(string name) => name switch
+        {
+            "scales" => _scales, "fur" => _fur, "chitin" => _chitin, "hide" => _hide, "slime" => _slime,
+            "feathers" => _feathers, "spots" => _spots, "stripes" => _stripes, "warty" => _warty, "plated" => _plated,
+            "finned" => _finned, "tentacled" => _tentacled, "mossy" => _mossy, "crystalline" => _crystalline,
+            "metallic" => _metallic, "banded" => _banded, "shaggy" => _shaggy, "spined" => _spined, "mottled" => _mottled,
+            "iridescent" => _iridescent, "barkskin" => _barkskin, "veined" => _veined, "petal" => _petal,
+            _ => null,
+        };
 
         /// <summary>Picks a hide tile for the species: glowing → slime, winged → feathers, hostile → chitin/
         /// plated, otherwise a stable choice from a wide pool keyed off the species id (so each species looks
         /// consistent but the world's fauna spans many skins).</summary>
         private static Texture2D PickHide(NetCreature c)
         {
+            if (!string.IsNullOrEmpty(c.Hide) && HideByName(c.Hide) is { } named)
+            {
+                return named; // #1763: an authored species wears the hide it was designed with
+            }
+
             int h = StableIdHash(c.SpeciesId);
             if (c.Glows)
             {

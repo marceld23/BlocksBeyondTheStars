@@ -48,6 +48,14 @@ public enum TerrainTag
 
     /// <summary>Warm shallow-sea coasts: reef relief, lagoons, atolls and blue holes — terrain generation 3.</summary>
     Reef = 1 << 10,
+
+    /// <summary>Scrap country (school club wave 3, #1761): scrap heaps, wreck hulls and girders in the set dressing,
+    /// more ruins and factories — terrain generation 5.</summary>
+    Scrap = 1 << 11,
+
+    /// <summary>Gaming country (school club wave 3, #1762): PC desk props and the mountain-sized monitor, keyboard
+    /// and mouse landmarks — terrain generation 5.</summary>
+    Gaming = 1 << 12,
 }
 
 /// <summary>Parses the data-side tag names of <see cref="PlanetType.TerrainTags"/>.</summary>

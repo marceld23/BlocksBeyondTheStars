@@ -48,6 +48,7 @@ public enum CreatureBodyPlan
     Standard, // segment-row body + head + limbs (the original, and still the most common)
     Medusa,   // jellyfish: translucent bell, long rim tentacles, drifts in air or water (#637)
     Titan,    // elephant/giraffe-scale land megafauna: pillar legs, neck/trunk, tusks (#638)
+    Floral,   // a walking flower: two legs, a petal ring around the head, a grin that becomes a maw (#1760, authored only)
 }
 
 /// <summary>
@@ -168,6 +169,25 @@ public sealed class CreatureSpecies
     public string DropItem { get; set; } = string.Empty;
     public int DropCount { get; set; } = 1;
     public CreatureDropKind DropKind { get; set; } = CreatureDropKind.Food;
+
+    // --- Authored traits (school club wave 3, #1763 / #1760). Every rolled species keeps the defaults, so the
+    // spawner, the client and the companion snapshots behave exactly as before for them. ---
+
+    /// <summary>The biome SURFACE block keys this species is native to (authored species only; empty = any).</summary>
+    public string[] BiomeSurfaces { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>A hard rule: the species spawns only on ground whose block is in <see cref="BiomeSurfaces"/> —
+    /// Leni lives in the snow and the ice and nowhere else. The procedural affinity stays a bias.</summary>
+    public bool BiomeExclusive { get; set; }
+
+    /// <summary>The client's hide tile name ("fur", "shaggy", "petal", …); empty = the classic id-hashed pick.</summary>
+    public string Hide { get; set; } = string.Empty;
+
+    /// <summary>Turns hostile toward a player it sees breaking a block (the flowerling).</summary>
+    public bool AngeredByMining { get; set; }
+
+    /// <summary>Spills a small gift to a nearby player who has not mined for a while (the flowerling).</summary>
+    public bool GiftsWhenCalm { get; set; }
 
     /// <summary>Only Aggressive/PackHunter creatures roam and deal proximity damage.</summary>
     public bool Hostile => Temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;

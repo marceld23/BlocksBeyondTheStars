@@ -24,6 +24,36 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌈 The school club's planets, creatures and plants — generation 5 (#1756–#1765, 2026-09-11, branch feat/schul-ag-wave)
+
+The third wave from the school club "Building Games with AI", shipped as **terrain generation 5** so no
+existing world changes (the generation-0/1/3 goldens are untouched; five new `*-gen5` groups pin the wave).
+Design record: docs/developer/WORLD_GENERATION.md §15.
+
+- **#1757 Rainbow planet (Sophia)** — `rainbow_sea`: rainbow water (static bands), floating islands, kelp
+  forests (`underwaterForests`), a seabed of diggable sand (`seabedBlock`), corals and algae, breathable air.
+- **#1758 Water colours** — `FluidTints.ForWorld` + `EnvironmentState.WaterTint/Mode` + a luminance recolour
+  in the water shader; every existing world keeps the classic blue.
+- **#1759 Hanging flora** — `flora_hangkelp` roots in the underside of a floating island (`Species.Hanging`,
+  host-above regrow, a mirrored billboard).
+- **#1760 Flower planet + flowerling (Damian)** — `flower_fields` with the strict `floral` theme (flowers and
+  nothing else, no trees) and ONE authored creature: a walking flower that grins, drops berries and blocks for
+  a calm visitor, and turns on a miner it sees (`GameServerFlowerling.cs`).
+- **#1761 Scrap planet** — `scrapyard`: four scrap blocks with weighted random drops, dense scrap props,
+  `ruinsBias`/`factoriesBias`; stray scrap rarely on every other solid-ground world.
+- **#1762 Gaming planet (Ben)** — `gamer_hills`: karst caves, PC desk props, and a monitor, a keyboard and a
+  mouse the size of mountains (landmark rows); the gear is mineable and placeable, never craftable.
+- **#1763 Leni + authored species (Lena)** — `data/creatures.json`, `authoredCreatures` per type, appended
+  after the procedural roster on generation-5 worlds; Leni: white shaggy fur, no tail, peaceful, in pairs,
+  ONLY on snow and ice (`BiomeExclusive`), name "Leni <coined>".
+- **#1764 Paul flower (Lena)** — the `giant-paul` giant-flora row: tree-sized, huge leaves, toxic petals, rare.
+- **#1765 Scaffold** — atlas 32×32 (1024 tiles), `CurrentTerrainGeneration = 5`, credits for Sophia, Damian,
+  Lena and Ben in all 14 locales, docs §15.
+- Textures: 15 tiles generated with `tools/ai-assets` (approved by Marcel one by one before bundling).
+- Tests: goldens for the five gen-5 groups; type completeness + galaxy gating; strict theme, later-wave
+  species, hanging kelp under islands, seabed sand, the Paul flower; prop rows + gaming landmarks; authored
+  rosters, Leni's ground rule, the flowerling's anger and gifts; content (recipes, random drops, creatures.json).
+
 ### 📦 Bundles that follow the ground, and loot that burns over the moat (#1752, #1753, 2026-09-11, branch fix/reports-0911)
 
 Lyxette again, on 2026.9.5: "Es schweben immer noch solche Blöcke herum" — a drop bundle hanging four cells up in

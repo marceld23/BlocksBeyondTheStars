@@ -25,6 +25,7 @@ public enum FloraTag
     Wetland = 1 << 6,   // swamp / marsh / shore
     Tropical = 1 << 7,  // jungle heat
     Glow = 1 << 8,      // bioluminescent (cosmetic grouping)
+    Floral = 1 << 9,    // flowers — the strict "floral" theme of the flower planet (#1760) activates only these
 }
 
 /// <summary>How tall a flora billboard renders. <see cref="Tall"/> plants get a taller cross-billboard
@@ -66,8 +67,15 @@ public static class FloraCatalog
         FloraHeight Height = FloraHeight.Short,
         bool Cultivated = false,
         string[]? LateHosts = null,
-        bool Solid = false)
+        bool Solid = false,
+        bool Hanging = false,
+        int MinGeneration = 0)
     {
+        // Hanging (#1759): the plant roots in the block ABOVE it and grows downward — the underside of a floating
+        // island. World generation, the server's host check and regrow, and the client's billboard all read this
+        // one flag. MinGeneration (#1756): a species appended for a later wave rolls INACTIVE on every world whose
+        // terrain generation is older, so an existing world never gains a plant it did not have — its catalog
+        // index is still consumed, which is what keeps every older species' roster id where it was.
         /// <summary>Hosts a later terrain generation added (the peat of generation 3). They are NOT part of
         /// <see cref="Hosts"/> on purpose: the roster's host-coverage rule reads <see cref="Hosts"/>, and a host
         /// that only exists on new worlds must never change which species an older world activates. World
@@ -82,7 +90,7 @@ public static class FloraCatalog
         // Temperate / jungle greenery (grass, dirt, mud).
         new Species("flora_plant",       new[] { "grass", "dirt", "mud" }, Tags: FloraTag.Lush),
         new Species("flora_fern",        new[] { "grass", "dirt" }, Tags: FloraTag.Lush | FloraTag.Tropical, Height: FloraHeight.Tall),
-        new Species("flora_flower",      new[] { "grass", "alien_grass" }, Tags: FloraTag.Lush),
+        new Species("flora_flower",      new[] { "grass", "alien_grass" }, Tags: FloraTag.Lush | FloraTag.Floral), // Floral (#1760): no existing theme prefers it, so old rosters do not move
         new Species("flora_bush",        new[] { "grass" }, Tags: FloraTag.Lush),
         new Species("flora_vine",        new[] { "grass" }, Tags: FloraTag.Lush | FloraTag.Tropical, Height: FloraHeight.Tall),
         new Species("flora_mushroom",    new[] { "grass", "mud", "mycelium" }, Tags: FloraTag.Fungal, Solid: true),
@@ -97,7 +105,7 @@ public static class FloraCatalog
         new Species("flora_kelp",        new[] { "sand", "dirt", "mud", "stone" }, Aquatic: true, Tags: FloraTag.Wetland, Height: FloraHeight.Tall),
         new Species("flora_lily",        new[] { "water" }, Aquatic: true, Tags: FloraTag.Wetland),
         // Harsh worlds — icy tundra + volcanic ash.
-        new Species("flora_frostflower", new[] { "ice", "snow" }, Tags: FloraTag.Cold),
+        new Species("flora_frostflower", new[] { "ice", "snow" }, Tags: FloraTag.Cold | FloraTag.Floral),
         new Species("flora_emberbloom",  new[] { "basalt", "ash" }, Tags: FloraTag.Dry | FloraTag.Glow, Solid: true),
         // Crystalline (crystal/stone/basalt).
         new Species("flora_crystal",     new[] { "crystal", "stone", "basalt" }, Tags: FloraTag.Rocky | FloraTag.Glow, Solid: true),
@@ -105,8 +113,8 @@ public static class FloraCatalog
         // --- Task 6: more variety ---
         // Temperate / jungle greenery.
         new Species("flora_palm",        new[] { "grass", "sand" }, Tags: FloraTag.Tropical, Height: FloraHeight.Tall),
-        new Species("flora_orchid",      new[] { "grass", "mud", "alien_grass" }, Tags: FloraTag.Tropical | FloraTag.Lush),
-        new Species("flora_bellflower",  new[] { "grass", "alien_grass" }, Tags: FloraTag.Lush),
+        new Species("flora_orchid",      new[] { "grass", "mud", "alien_grass" }, Tags: FloraTag.Tropical | FloraTag.Lush | FloraTag.Floral),
+        new Species("flora_bellflower",  new[] { "grass", "alien_grass" }, Tags: FloraTag.Lush | FloraTag.Floral),
         new Species("flora_glowvine",    new[] { "grass", "mud", "mycelium", "alien_grass" }, Tags: FloraTag.Lush | FloraTag.Glow, Solid: true), // bioluminescent (ChunkMesher.GlowFor)
         // Stony / rocky.
         new Species("flora_moss",        new[] { "stone", "dirt" }, Tags: FloraTag.Rocky | FloraTag.Lush),
@@ -133,11 +141,18 @@ public static class FloraCatalog
 
         // --- Flora variety V2: fill the thin biomes (rock / ice / snow / salt / ash) + signature tall grass ---
         new Species("flora_grasstuft",   new[] { "grass", "dirt" }, Tags: FloraTag.Lush, Height: FloraHeight.Tall),  // waving tall grass — forest-floor / meadow staple
-        new Species("flora_rockflower",  new[] { "stone", "dirt" }, Tags: FloraTag.Rocky | FloraTag.Lush),
+        new Species("flora_rockflower",  new[] { "stone", "dirt" }, Tags: FloraTag.Rocky | FloraTag.Lush | FloraTag.Floral),
         new Species("flora_snowbush",    new[] { "snow", "ice" }, Tags: FloraTag.Cold),
         new Species("flora_icereed",     new[] { "ice", "snow" }, Tags: FloraTag.Cold, Height: FloraHeight.Tall),
         new Species("flora_saltgrass",   new[] { "salt", "sand" }, Tags: FloraTag.Dry, Height: FloraHeight.Tall),
         new Species("flora_cinderbush",  new[] { "ash", "basalt" }, Tags: FloraTag.Dry | FloraTag.Glow),
+
+        // --- School club wave 3 (#1756): generation-5 species. MinGeneration keeps them off every older world;
+        // they sit BEFORE the crops so the crops stay at the tail (see below), and the crops' indices moving is
+        // harmless — a crop never has a roster id. ---
+        new Species("flora_sunblossom",  new[] { "grass", "dirt" }, Tags: FloraTag.Lush | FloraTag.Floral, MinGeneration: 5),          // the flower fields' big round staple (#1760)
+        new Species("flora_tulip",       new[] { "grass" }, Tags: FloraTag.Lush | FloraTag.Floral, MinGeneration: 5),                  // slim cups in every colour (#1760)
+        new Species("flora_hangkelp",    new[] { "stone", "dirt", "grass" }, Tags: FloraTag.Wetland, Height: FloraHeight.Tall, Hanging: true, MinGeneration: 5), // the underside of a floating island (#1759)
 
         // --- Cultivated crops (#627): farmed, not wild. Grown in settlement/station greenhouses and by the
         // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible
@@ -190,6 +205,20 @@ public static class FloraCatalog
             if (sp.Key == key)
             {
                 return sp.Height == FloraHeight.Tall;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>True for a species that hangs from the block above it (see <see cref="Species.Hanging"/>, #1759).</summary>
+    public static bool IsHanging(string key)
+    {
+        foreach (var sp in All)
+        {
+            if (sp.Key == key)
+            {
+                return sp.Hanging;
             }
         }
 

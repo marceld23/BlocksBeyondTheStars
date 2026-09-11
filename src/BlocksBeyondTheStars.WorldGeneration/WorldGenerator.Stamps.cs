@@ -111,6 +111,17 @@ public sealed partial class WorldGenerator
         new("crashed-probe", 0xC2A5, 109, 0.00008, PropMaterial.Boulder, StampCrashedProbe, PropRuins, "iron_wall", "glass"),
         new("mining-rig", 0x3116, 113, 0.00008, PropMaterial.Boulder, StampMiningRig, PropRuins, "machine_block", "factory_pipe"),
         new("rune-stone", 0x2E5E, 127, 0.00012, PropMaterial.Boulder, StampRuneStone, PropRuins, "rune_stone"),
+        // School club wave 3 (#1761, #1762) — generation-5 rows, appended so nothing above moves. The scrap planet's
+        // own rows are dense; the "stray" rows are the same shapes on every other solid-ground world at a fortieth
+        // of the density; the gaming rows need the gaming tag.
+        new("scrap-heap", 0x5C2A1, 131, 0.012, PropMaterial.Boulder, StampScrapHeap, PropScrap, "scrap_pile", "scrap_metal"),
+        new("wreck-hull", 0x5C2A2, 137, 0.004, PropMaterial.Boulder, StampWreckHull, PropScrap, "rusted_panel", "broken_machine"),
+        new("girder", 0x5C2A3, 139, 0.006, PropMaterial.Boulder, StampGirder, PropScrap, "scrap_metal", "scrap_pile"),
+        new("stray-scrap-heap", 0x5C2A4, 149, 0.0003, PropMaterial.Boulder, StampScrapHeap, PropStrayScrap, "scrap_pile", "scrap_metal"),
+        new("stray-wreck-hull", 0x5C2A5, 151, 0.0001, PropMaterial.Boulder, StampWreckHull, PropStrayScrap, "rusted_panel", "broken_machine"),
+        new("stray-girder", 0x5C2A6, 157, 0.00015, PropMaterial.Boulder, StampGirder, PropStrayScrap, "scrap_metal", "scrap_pile"),
+        new("desk-setup", 0x6A3E1, 163, 0.006, PropMaterial.Boulder, StampDeskSetup, PropGaming, "gaming_pc", "gaming_monitor"),
+        new("pc-heap", 0x6A3E2, 167, 0.008, PropMaterial.Boulder, StampPcHeap, PropGaming, "gaming_pc", "gaming_keyboard"),
     };
 
     /// <summary>The prop rows active on this world (tests): the classic rows whose material exists here, plus

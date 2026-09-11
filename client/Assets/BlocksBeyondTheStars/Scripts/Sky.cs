@@ -33,6 +33,8 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int ColorId = Shader.PropertyToID("_Color");
         private static readonly int IndoorId = Shader.PropertyToID("_Sc_Indoor");
         private static readonly int FloraTintId = Shader.PropertyToID("_Sc_FloraTint");
+        private static readonly int WaterTintId = Shader.PropertyToID("_Sc_WaterTint"); // #1758: per-world water colour
+        private static readonly int WaterModeId = Shader.PropertyToID("_Sc_WaterMode"); // #1758: 0 classic, 1 tint, 2 rainbow
         private static readonly int LampColorId = Shader.PropertyToID("_Sc_LampColor");
         // Explicit distance haze for the block shaders (Unity's MixFog doesn't engage on the unlit voxels):
         // x=start, y=end, z=max strength (already faded out indoors), w=on.
@@ -217,10 +219,16 @@ namespace BlocksBeyondTheStars.Client
                 Color flora = Rgb(env.FloraTint);
                 flora.a = 1f;
                 Shader.SetGlobalColor(FloraTintId, ShaderColor.Srgb(flora));
+                // #1758: the water colour of this world (mode 0 = the classic blue, so an older server changes nothing).
+                Color water = Rgb(env.WaterTint);
+                water.a = 1f;
+                Shader.SetGlobalColor(WaterTintId, ShaderColor.Srgb(water));
+                Shader.SetGlobalFloat(WaterModeId, env.WaterTintMode);
             }
             else
             {
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f));
+                Shader.SetGlobalFloat(WaterModeId, 0f);
             }
 
             ApplyLighting(_time, intensity, sun, skyBase, spaceSky, constantLight: boarded);

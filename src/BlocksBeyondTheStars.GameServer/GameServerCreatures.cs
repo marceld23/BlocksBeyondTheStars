@@ -87,9 +87,11 @@ public sealed partial class GameServer
         // function, not a hand copy) — so two worlds of the same planet type host different species.
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
         long rosterSeed = BlocksBeyondTheStars.WorldGeneration.WorldGenerator.RosterSeedFor(_meta.Seed, _world.LocationId);
+        // #1763: the save's generation and the type's authored species — on a generation-5 world they join the
+        // roster after the procedural slots (Leni on the ice worlds, the flowerling on the flower fields).
         _speciesRoster = planet is null
             ? System.Array.Empty<CreatureSpecies>()
-            : CreatureGenerator.GenerateRoster(planet, rosterSeed).ToArray();
+            : CreatureGenerator.GenerateRoster(planet, rosterSeed, _meta.Description.TerrainGeneration, _content.AuthoredCreaturesFor(planet)).ToArray();
 
         _speciesById.Clear();
         _locoProfiles.Clear();
@@ -226,6 +228,8 @@ public sealed partial class GameServer
         {
             BroadcastCreatures(); // a boxed-in sleeper was removed (#1320)
         }
+
+        TickCalmGifts(targets); // #1760: a calm flowerling spills a gift for a player who has not been mining
 
         // Despawn creatures that drifted far from every player so the cap frees up and fauna keeps
         // appearing around players as they explore — life is spread across the whole planet, not just
@@ -525,6 +529,13 @@ public sealed partial class GameServer
             return false; // its body would materialise inside a wall / ruin masonry (#855)
         }
 
+        // #1763: an exclusive species (Leni: snow and ice) stands only on its own ground — the real block under
+        // its feet where the column is streamed in, the generator's biome surface where it is not.
+        if (sp.BiomeExclusive && !OnExclusiveGround(sp, cell))
+        {
+            return false;
+        }
+
         // Titans need level ground (#638): a 3×3 clearance whose surface stays within ±1 of the
         // centre column, so a six-block giant doesn't materialise half-buried in a cliff face —
         // creatures have no colliders, so the spawn spot is the only terrain check they ever get.
@@ -561,6 +572,33 @@ public sealed partial class GameServer
         // #1315: nor inside a WALLED area of a base — an open-topped yard the outside-in fill cannot reach.
         // Ground-bound life only: a flier spawns above the wall, a cave dweller below it.
         return sp.Habitat is CreatureHabitat.Air or CreatureHabitat.Cave || !InWalledBaseArea(cell);
+    }
+
+    /// <summary>#1763: whether the ground under a spawn cell is one of the species' <see cref="CreatureSpecies.BiomeSurfaces"/>.
+    /// Real blocks first (a snow field the player paved over is not Leni country any more); where the column is
+    /// not loaded, the generator's biome surface answers. An empty surface list never rejects.</summary>
+    private bool OnExclusiveGround(CreatureSpecies sp, Vector3i cell)
+    {
+        if (sp.BiomeSurfaces.Length == 0)
+        {
+            return true;
+        }
+
+        string? ground = null;
+        if (_world.IsChunkLoaded(WorldConstants.WorldToChunk(cell)))
+        {
+            for (int dy = 1; dy <= 3 && ground is null; dy++)
+            {
+                var below = _world.GetBlockIfLoaded(new Vector3i(cell.X, cell.Y - dy, cell.Z));
+                if (!below.IsAir)
+                {
+                    ground = _content.BlockById(below)?.Key;
+                }
+            }
+        }
+
+        ground ??= _generator.BiomeSurfaceKeyAt(_world.Planet, cell.X, cell.Z);
+        return ground is not null && System.Array.IndexOf(sp.BiomeSurfaces, ground) >= 0;
     }
 
     /// <summary>#1747: player block edits in the 3×5×3 box around a cave spawn spot — the floor row, the two
@@ -2502,6 +2540,7 @@ public sealed partial class GameServer
             // with the flag false, and every input the derivation needs is in that snapshot.
             HasFins = CreatureMotion.HasFins(sp),
             BodyPlan = (sp?.BodyPlan ?? CreatureBodyPlan.Standard).ToString(),
+            Hide = sp?.Hide ?? string.Empty, // #1763: an authored species' fixed hide tile
             NeckLength = sp?.NeckLength ?? 0,
             HasTrunk = sp?.HasTrunk ?? false,
             VoiceSeed = sp?.VoiceSeed ?? 0, // 0 → client falls back to hashing the trait tuple (#907)

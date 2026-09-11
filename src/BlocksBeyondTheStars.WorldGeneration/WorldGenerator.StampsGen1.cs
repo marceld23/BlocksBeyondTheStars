@@ -532,6 +532,8 @@ public sealed partial class WorldGenerator
         new("giant-fern", "mud", "wood_log", "tree_leaves", 0x6F3A0, 0.006, 1),
         new("giant-crystal", "crystal", "crystal", "crystal", 0x6C570, 0.004, 1),
         new("giant-cactus", "sand", "tree_leaves", "tree_leaves", 0x6CAC0, 0.0025, 1),
+        // School club wave 3 (#1764): Lena's Paul flower — a flower as tall as a tree on grass, rare, generation 5.
+        new("giant-paul", "grass", "paul_stem", "paul_petals", 0x9A01F, 0.0008, 5),
     };
 
     /// <summary>Stamps the generation-1 giant flora (#1648): the giant-mushroom recipe (per-column roll on the host
@@ -564,6 +566,11 @@ public sealed partial class WorldGenerator
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
         foreach (var row in GiantFloraKinds)
         {
+            if (row.Generation > _terrainGeneration)
+            {
+                continue; // a row of a later wave (#1764: generation 5) never grows on an older world
+            }
+
             var hostId = _content.GetBlock(row.Host)?.NumericId ?? BlockId.Air;
             var stemId = _content.GetBlock(row.Stem)?.NumericId ?? BlockId.Air;
             var capId = _content.GetBlock(row.Cap)?.NumericId ?? BlockId.Air;
@@ -649,6 +656,56 @@ public sealed partial class WorldGenerator
                                     SetCell(wx - 1, sy + 2, wz - 1, capId, false);
                                 }
 
+                                break;
+                            }
+
+                        case "giant-paul":
+                            {
+                                // #1764: a stem 6–10 tall, four leaf slabs of radius 3 between 40 % and 70 % of the
+                                // height, and a petal crown of radius 2 on top with a stem cell at its heart.
+                                var leafId = _content.GetBlock("paul_leaf")?.NumericId ?? capId;
+                                int height = System.Math.Clamp((int)System.Math.Round(8.0 * sizeF * hJit), 6, 10);
+                                int topY = sy + height;
+                                for (int ty = sy + 1; ty <= topY; ty++)
+                                {
+                                    SetCell(wx, ty, wz, stemId, true);
+                                }
+
+                                int[,] leafDirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+                                for (int i = 0; i < 4; i++)
+                                {
+                                    int ly = sy + 2 + (int)System.Math.Round(height * (0.4 + 0.1 * i)) - 2;
+                                    int ldx = leafDirs[i, 0], ldz = leafDirs[i, 1];
+                                    for (int r = 1; r <= 3; r++)
+                                    {
+                                        int side = r >= 2 ? 1 : 0; // the leaf widens to 3 across from the second cell out
+                                        for (int sdx = -side; sdx <= side; sdx++)
+                                        {
+                                            int px = wx + ldx * r + (ldx == 0 ? sdx : 0);
+                                            int pz = wz + ldz * r + (ldz == 0 ? sdx : 0);
+                                            SetCell(px, ly + (r == 3 ? 1 : 0), pz, leafId, false);
+                                        }
+                                    }
+                                }
+
+                                for (int pdx = -2; pdx <= 2; pdx++)
+                                    for (int pdz = -2; pdz <= 2; pdz++)
+                                    {
+                                        int ring = System.Math.Abs(pdx) + System.Math.Abs(pdz);
+                                        if (ring > 3 || (pdx == 0 && pdz == 0))
+                                        {
+                                            continue; // a rounded crown, the heart stays stem
+                                        }
+
+                                        SetCell(wx + pdx, topY + (ring <= 1 ? 1 : 0), wz + pdz, capId, false);
+                                        if (ring <= 1)
+                                        {
+                                            SetCell(wx + pdx, topY, wz + pdz, capId, false);
+                                        }
+                                    }
+
+                                SetCell(wx, topY + 1, wz, stemId, true);
+                                SetCell(wx, topY + 2, wz, capId, false);
                                 break;
                             }
 

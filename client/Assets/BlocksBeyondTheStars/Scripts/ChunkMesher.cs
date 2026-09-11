@@ -706,7 +706,9 @@ namespace BlocksBeyondTheStars.Client
                 if (atlas != null
                     && (isTorchProp || (foliage && (tf & TraitFloraPrefix) != 0)))
                 {
-                    float plantSky = Skylight(wx, wy + 1, wz); // open sky above the plant
+                    // #1759: a hanging plant roots in the ceiling and grows DOWN — its light comes from below.
+                    bool hangingPlant = (tf & TraitHangingFlora) != 0;
+                    float plantSky = Skylight(wx, hangingPlant ? wy - 1 : wy + 1, wz); // open sky above the plant (below a hanging one)
                     Vector3 plantBl = BlockLightAt(wx, wy, wz);  // coloured block-light reaching the plant
                     Vector3 plantBlDir = BlockLightDirAt(wx, wy, wz); // dominant light direction at the plant
                     var plantCol = new Color(matR, matG, 0.9f, emission);
@@ -758,7 +760,8 @@ namespace BlocksBeyondTheStars.Client
                         new Vector3(x, y, z), plantCol, uv, plantSky, isTorchProp && dyed ? dye : speciesTint,
                         plantBl, plantBlDir, plantLean,
                         plantJitter, plantSpin, plantH, plantW,
-                        isTorchProp ? (dyed ? 3f : 7f) : 1f); // 7 = flame flicker (no tint); 3 = dye; 1 = flora
+                        isTorchProp ? (dyed ? 3f : 7f) : 1f, // 7 = flame flicker (no tint); 3 = dye; 1 = flora
+                        hangingPlant);
                     continue;
                 }
 
@@ -1326,16 +1329,19 @@ namespace BlocksBeyondTheStars.Client
         private static void AddCrossPlant(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
             List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir, Vector3 cell, Color col, Rect uv, float sky,
             Color tint, Vector3 bl, Vector3 blDir, Vector2 lean, Vector2 centerJitter, float spinDeg,
-            float heightScale = 1f, float widthScale = 1f, float tintMode = 1f)
+            float heightScale = 1f, float widthScale = 1f, float tintMode = 1f, bool hanging = false)
         {
             // Each plane is a vertical quad through the cell centre, its floor line along a rosette angle; the
             // width scales about the middle and is clamped inside the cell to avoid bleeding into neighbours.
             // An off-centre rosette gives back the room its offset takes (radial bound), so the floor line
             // stays inside the cell — only the existing top lean ever crosses a cell border, as before.
+            // #1759: a HANGING plant is the same rosette mirrored — its root line is the cell's ceiling and the
+            // tip hangs down, with the tile's root end kept at the top (the V axis flips with it).
             float half = Mathf.Clamp(0.42f * widthScale, 0.18f, 0.49f);
             half = Mathf.Min(half, Mathf.Max(0.15f, 0.49f - centerJitter.magnitude));
-            float cx = cell.x + 0.5f + centerJitter.x, cz = cell.z + 0.5f + centerJitter.y, cy = cell.y;
-            var up = new Vector3(lean.x, heightScale, lean.y); // top tilts by the per-plant lean
+            float cx = cell.x + 0.5f + centerJitter.x, cz = cell.z + 0.5f + centerJitter.y, cy = hanging ? cell.y + 1f : cell.y;
+            var up = new Vector3(lean.x, hanging ? -heightScale : heightScale, lean.y); // top tilts by the per-plant lean
+            float vRoot = hanging ? uv.yMax : uv.y, vTip = hanging ? uv.y : uv.yMax;
 
             foreach (float deg in PlantPlaneAngles)
             {
@@ -1358,8 +1364,8 @@ namespace BlocksBeyondTheStars.Client
                         verts.Add(b); verts.Add(a); verts.Add(a + up); verts.Add(b + up);
                     }
 
-                    uvs.Add(new Vector2(uv.x, uv.y)); uvs.Add(new Vector2(uv.xMax, uv.y));
-                    uvs.Add(new Vector2(uv.xMax, uv.yMax)); uvs.Add(new Vector2(uv.x, uv.yMax));
+                    uvs.Add(new Vector2(uv.x, vRoot)); uvs.Add(new Vector2(uv.xMax, vRoot));
+                    uvs.Add(new Vector2(uv.xMax, vTip)); uvs.Add(new Vector2(uv.x, vTip));
                     for (int i = 0; i < 4; i++)
                     {
                         colors.Add(col);
@@ -2022,6 +2028,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitFire = 1u << 18;
         private const uint TraitExposesOpaqueFace = 1u << 19; // transparent | flora | foliage | slim prop (air handled by the caller)
         private const uint TraitCultivated = 1u << 20;        // #1716: a farmed crop — flora that keeps its authored colour (no tint mode)
+        private const uint TraitHangingFlora = 1u << 21;      // #1759: a plant rooted in the block ABOVE — the billboard grows downward
 
         private sealed class BlockTraits
         {
@@ -2063,6 +2070,7 @@ namespace BlocksBeyondTheStars.Client
                     if (key != null && TallFlora.Contains(key)) f |= TraitTallFlora;
                     if (key != null && SolidFlora.Contains(key)) f |= TraitSolidFlora;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsCultivated(key)) f |= TraitCultivated;
+                    if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsHanging(key)) f |= TraitHangingFlora;
                     if (key == "water") f |= TraitWater;
                     if (key == "lava") f |= TraitLava;
                     if (key == "fire") f |= TraitFire;

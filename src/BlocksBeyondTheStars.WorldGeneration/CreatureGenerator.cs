@@ -16,42 +16,129 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// </summary>
 public static class CreatureGenerator
 {
-    public static IReadOnlyList<CreatureSpecies> GenerateRoster(PlanetType planet, long worldSeed)
+    /// <summary>This world's roster. <paramref name="terrainGeneration"/> and <paramref name="authored"/> are the
+    /// school club wave (#1763): on a generation-5 world the type's authored species are appended AFTER the
+    /// procedural slots, so no rolled species ever moves; older worlds and callers of the two-argument form get
+    /// the procedural roster exactly as before.</summary>
+    public static IReadOnlyList<CreatureSpecies> GenerateRoster(PlanetType planet, long worldSeed,
+        int terrainGeneration = 0, IReadOnlyList<AuthoredCreature>? authored = null)
     {
         int count = planet.IsAirless ? 0 : AbundanceCount(planet.CreatureAbundance);
         var list = new List<CreatureSpecies>(count);
-        if (count == 0)
-        {
-            return list; // airless bodies (asteroids / airless moons+planets) + "none" worlds are lifeless
-        }
-
         long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);
         bool allowWater = HasWaterLife(planet);
         bool allowLava = HasLavaLife(planet);
         bool allowCave = planet.CaveThreshold > 0.0; // worlds with caves host subterranean fauna
         int biomeCount = System.Math.Max(1, planet.Biomes.Count);
-
         const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
-        for (int i = 0; i < count; i++)
+
+        if (count > 0)
         {
-            long s = unchecked(planetSeed ^ ((long)i * golden));
-            var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-            list.Add(MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount, forcedHabitat: null, speciesSeed: s));
+            for (int i = 0; i < count; i++)
+            {
+                long s = unchecked(planetSeed ^ ((long)i * golden));
+                var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+                list.Add(MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount, forcedHabitat: null, speciesSeed: s));
+            }
+
+            // Diversity guarantee (#640): every living world should field at least one ground species and
+            // one flier (and an aquatic one where the world has water life). Only the slots ADDED by the
+            // roster bump (index ≥ legacy count) may be re-drawn — each species draws its own sub-seed, so
+            // the legacy indices keep their exact pre-bump rolls and existing worlds keep their known fauna.
+            EnsureHabitatDiversity(list, LegacyAbundanceCount(planet.CreatureAbundance), planetSeed,
+                allowWater, allowLava, allowCave, biomeCount);
         }
 
-        // Diversity guarantee (#640): every living world should field at least one ground species and
-        // one flier (and an aquatic one where the world has water life). Only the slots ADDED by the
-        // roster bump (index ≥ legacy count) may be re-drawn — each species draws its own sub-seed, so
-        // the legacy indices keep their exact pre-bump rolls and existing worlds keep their known fauna.
-        EnsureHabitatDiversity(list, LegacyAbundanceCount(planet.CreatureAbundance), planetSeed,
-            allowWater, allowLava, allowCave, biomeCount);
+        // Airless bodies (asteroids / airless moons+planets) stay lifeless whatever the data says; otherwise the
+        // authored species join at the tail on a generation-5 world. Their sub-seed is salted with the key, not
+        // the slot, so adding a second authored species to a type never renames the first.
+        if (!planet.IsAirless && authored is { Count: > 0 }
+            && terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.AuthoredContentGeneration)
+        {
+            foreach (var record in authored)
+            {
+                long s = unchecked(planetSeed ^ ((long)list.Count * golden) ^ WorldGenerator.StableHash("authored:" + record.Key));
+                var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+                list.Add(MakeAuthoredSpecies(record, planet, rng, s));
+            }
+        }
 
         return list;
+    }
+
+    /// <summary>Builds the roster entry of an authored record (#1763): the designed traits verbatim, the name's
+    /// second word coined per world, the formulas of the rolled species where the record leaves a stat null, and
+    /// the derived fields (voice, fins) exactly as for a rolled species.</summary>
+    private static CreatureSpecies MakeAuthoredSpecies(AuthoredCreature a, PlanetType planet, System.Random rng, long speciesSeed)
+    {
+        bool hostile = a.Temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
+        string coined = NameGenerator.Creature(rng);
+        int space = coined.IndexOf(' ');
+        string second = space > 0 ? coined.Substring(0, space) : coined;
+
+        // The biome affinity by surface block: the first of the type's biomes whose surface the record names, so a
+        // rolled roster's "native to biome n" pass still prefers Leni on the snow. The hard rule is BiomeExclusive,
+        // which the spawner checks against the ground under the animal's feet.
+        int affinity = -1;
+        for (int i = 0; i < planet.Biomes.Count && affinity < 0; i++)
+        {
+            if (a.BiomeSurfaces.Contains(planet.Biomes[i].SurfaceBlock))
+            {
+                affinity = i;
+            }
+        }
+
+        var species = new CreatureSpecies
+        {
+            Id = "au_" + a.Key,
+            NameKey = "creature.generic.name",
+            Name = string.IsNullOrWhiteSpace(a.NamePrefix) ? coined : a.NamePrefix + " " + second,
+            Habitat = a.Habitat,
+            Activity = a.Activity,
+            Temperament = a.Temperament,
+            LocoStyle = a.LocoStyle,
+            BodyPlan = a.BodyPlan,
+            Size = a.Size,
+            MaxHealth = a.MaxHealth ?? 10f + a.Size * 8f + (hostile ? 10f : 0f),
+            Speed = a.Speed,
+            AttackDamage = a.AttackDamage ?? (hostile ? 4.5f : 0f),
+            Legs = a.Legs,
+            HasWings = a.HasWings,
+            HasTail = a.HasTail,
+            BodySegments = a.BodySegments,
+            ColorRgb = a.ColorRgb,
+            BellyRgb = a.BellyRgb,
+            Eyes = a.Eyes,
+            Horns = a.Horns,
+            HasCrest = a.HasCrest,
+            Glows = a.Glows,
+            SocialGroupSize = a.SocialGroupSize,
+            HoverAltitude = a.HoverAltitude,
+            BiomeAffinity = affinity,
+            DropItem = a.DropItem,
+            DropCount = a.DropCount,
+            DropKind = a.DropKind,
+            BiomeSurfaces = a.BiomeSurfaces.ToArray(),
+            BiomeExclusive = a.BiomeExclusive,
+            Hide = a.Hide,
+            AngeredByMining = a.AngeredByMining,
+            GiftsWhenCalm = a.GiftsWhenCalm,
+        };
+
+        species.VoiceSeed = unchecked((int)(speciesSeed ^ (speciesSeed >> 32)) ^ 0x5EED_1CE);
+        species.HasFins = CreatureMotion.FinsFor(species);
+        if (species.Habitat == CreatureHabitat.Air && species.HoverAltitude <= 0f)
+        {
+            species.HoverAltitude = 3f + (float)rng.NextDouble() * 9f;
+        }
+
+        return species;
     }
 
     private static int AbundanceCount(string? abundance) => (abundance ?? "few").ToLowerInvariant() switch
     {
         "none" => 0,
+        "authored" => 0, // #1763: only the type's authored species
         "many" => 9, // was 6 before the roster bump (#640)
         _ => 5,      // "few" / unknown — was 3 before the roster bump (#640)
     };
@@ -61,6 +148,7 @@ public static class CreatureGenerator
     private static int LegacyAbundanceCount(string? abundance) => (abundance ?? "few").ToLowerInvariant() switch
     {
         "none" => 0,
+        "authored" => 0,
         "many" => 6,
         _ => 3,
     };
