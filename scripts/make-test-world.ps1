@@ -47,6 +47,10 @@
   Print the planet types the chosen client knows, with display names, and exit.
 .PARAMETER ShowServerLog
   Echo the server's log lines while the world is being created.
+.PARAMETER Launch
+  Start the SAME client afterwards, so the world is opened by a build that knows the planet. Opening a
+  save with an older client is not harmless: its server does not know the type, adopts another planet as
+  the start and SAVES that — the world is then permanently a different planet (recreate it with -Force).
 
 .EXAMPLE
   ./scripts/make-test-world.ps1
@@ -75,7 +79,8 @@ param(
     [switch] $Sandbox,
     [switch] $Force,
     [switch] $List,
-    [switch] $ShowServerLog
+    [switch] $ShowServerLog,
+    [switch] $Launch
 )
 
 $ErrorActionPreference = 'Stop'
@@ -302,7 +307,15 @@ foreach ($key in $Planet) {
 Write-Host ""
 if ($made -gt 0) {
     Write-Host "$made world(s) ready. Start the game → Singleplayer → pick the world from the list; you spawn on that planet." -ForegroundColor Green
+    Write-Host "Open them ONLY with this client ($clientDir) or a newer one: an older client's server does not know" -ForegroundColor Yellow
+    Write-Host "the planet, picks another start planet and saves that — the world would keep the wrong planet for good." -ForegroundColor Yellow
 }
 else {
     Write-Host "No world was created." -ForegroundColor Yellow
+}
+
+if ($Launch) {
+    $game = Join-Path $clientDir 'BlocksBeyondTheStars.exe'
+    Write-Host "Starting $game ..." -ForegroundColor Cyan
+    Start-Process -FilePath $game -WorkingDirectory $clientDir | Out-Null
 }

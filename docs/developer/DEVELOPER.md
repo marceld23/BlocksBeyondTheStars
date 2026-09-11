@@ -271,7 +271,7 @@ with the launcher's own arguments plus that flag, lets it create the save, and s
 world then sits in the Singleplayer picker like any other:
 
 ```powershell
-./scripts/make-test-world.ps1                                            # "Regenbogenplanet" on rainbow_sea
+./scripts/make-test-world.ps1 -Launch                                    # "Regenbogenplanet" on rainbow_sea, then start that client
 ./scripts/make-test-world.ps1 -Planet flower_fields,scrapyard,gamer_hills,glacier -Peaceful
 ./scripts/make-test-world.ps1 -Planet gamer_hills -World "Bens Welt" -Sandbox -Force
 ./scripts/make-test-world.ps1 -List                                      # planet keys the client knows
@@ -279,7 +279,9 @@ world then sits in the Singleplayer picker like any other:
 
 It prefers `client/Build/Windows`, then the installed game (`-Client <folder>` overrides), and writes to
 that client's saves folder (portable marker honoured). The client must know the planet type — a
-generation-5 planet needs a build that contains it.
+generation-5 planet needs a build that contains it — and so must the client that later OPENS the save:
+an older client's server silently adopts another start planet and saves it (`-Launch` starts the right
+one; recreate a spoiled world with `-Force`).
 
 To package the built player locally as a Velopack installer/update feed, run
 `scripts/publish-client-installer.ps1` after a successful `build-client.ps1` (it ships the launcher exe as
