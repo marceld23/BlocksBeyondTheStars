@@ -23,6 +23,7 @@ public sealed partial class GameServer
 {
     private const double NpcBroadcastInterval = 0.2;  // position-sync cadence (client interpolates between)
     private const float NpcWanderLeash = 1.6f;        // how far an NPC drifts from its home marker
+    private const int NpcStepUp = 1;                  // blocks a stroller steps up in one tick (#1775: a parapet is not a step)
     private const float NpcFaceRange = 6f;            // turn to face a player within this range
     private const double NpcMoveDtCap = 0.25;         // cap per-step movement so big ticks can't jump
 
@@ -249,8 +250,18 @@ public sealed partial class GameServer
         // column scan + O(n²) separation + wall sweep it would pay are the whole cost of a far settlement.
         float aoi = MaxStreamRadiusBlocks(targets) + 2 * BlocksBeyondTheStars.Shared.World.WorldConstants.ChunkSize;
         float aoiSq = aoi * aoi;
+        var crewStation = ActivePlayerStation(); // #1775: on a player station the crew is kept to its sealed pocket
         foreach (var npc in _npcs)
         {
+            // #1775: the net — a crew member outside the pocket its post breathes in (a legacy spawn inside the hull,
+            // a wall built around it, a door it slipped through) is set back home rather than left in the vacuum.
+            if (crewStation != null && OutsideCrewPocket(crewStation, npc.Home, npc.Pos))
+            {
+                npc.Pos = npc.Home;
+                npc.Loco.ModeTimer = 0f;
+                continue;
+            }
+
             bool inReach = false;
             foreach (var t in targets)
             {
@@ -281,17 +292,22 @@ public sealed partial class GameServer
             // floor drops them instead of leaving them hanging in mid-air. Capped at ±2 blocks per step (a
             // strolling settler doesn't climb cliffs). When the column has no answer (chunk unloaded
             // server-side, someone walled the cell in, or only a far-off cell) fall back to the home marker's
-            // floor Y — never the noise surface, which inside a stamped settlement can be metres off.
+            // floor Y — never the noise surface, which inside a stamped settlement can be metres off. Up is
+            // one block at most (#1775): the upward probe used to lift a stroller onto any wall whose top sat two
+            // above its feet — a station's one-block parapet — from where the next step dropped it outside.
             int gx = (int)System.Math.Floor(res.Position.X), gz = (int)System.Math.Floor(res.Position.Z);
             int refY = (int)System.Math.Floor(npc.Pos.Y);
-            float nextY = TryGroundFeetYAt(gx, gz, refY, out int feet) && System.Math.Abs(feet - refY) <= 2
+            float nextY = TryGroundFeetYAt(gx, gz, refY, out int feet) && feet - refY <= NpcStepUp && refY - feet <= 2
                 ? feet : npc.Home.Y;
             var next = SeparateFromNpcs(npc, new Vector3f(res.Position.X, nextY, res.Position.Z), moveDt);
 
             // NPCs don't wander into the player's ship — or through their building's walls/doors. The world
             // check sweeps the whole step (not just the endpoint) so an NPC can't tunnel through a one-block
-            // wall or station glass pane when its wander arc clears it on the far side.
-            if (!EntityBlockedByShip(next) && !PathBlockedByWorld(npc.Pos, next))
+            // wall or station glass pane when its wander arc clears it on the far side. On a player station a
+            // step that would leave the sealed pocket of the NPC's post is a wall too (#1775) — the doorway
+            // included, whichever way the door stands: the crew lives in its room.
+            if (!EntityBlockedByShip(next) && !PathBlockedByWorld(npc.Pos, next)
+                && (crewStation == null || !OutsideCrewPocket(crewStation, npc.Home, next)))
             {
                 npc.Pos = next;
             }
@@ -389,7 +405,35 @@ public sealed partial class GameServer
         for (int s = 1; s <= steps; s++)
         {
             float f = s / (float)steps;
-            if (BlockedByWorld(new Vector3f(from.X + dx * f, to.Y, from.Z + dz * f)))
+            var at = new Vector3f(from.X + dx * f, to.Y, from.Z + dz * f);
+            if (BlockedByWorld(at) || ClosedDoorBlocks(at))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>A closed door entity is a wall to a walking NPC (#1775): a doorway is air in the block grid — the
+    /// door fills it as an entity — so the crew used to stroll through a shut airlock into the vacuum outside.
+    /// Covers the door's gap (its width along the wall axis, one cell across it, three cells high).</summary>
+    private bool ClosedDoorBlocks(Vector3f pos)
+    {
+        int y = (int)System.Math.Floor(pos.Y);
+        int circ = _world.Circumference;
+        foreach (var d in _doors)
+        {
+            int floor = (int)System.Math.Floor(d.Pos.Y);
+            if (d.Open || y < floor || y > floor + 2)
+            {
+                continue;
+            }
+
+            float cx = (float)(circ > 0 ? WorldConstants.WrapDeltaX((double)pos.X - d.Pos.X, circ) : pos.X - d.Pos.X);
+            float cz = pos.Z - d.Pos.Z;
+            float along = d.AxisX ? cx : cz, across = d.AxisX ? cz : cx;
+            if (System.Math.Abs(across) < 0.5f && System.Math.Abs(along) < d.Width / 2f)
             {
                 return true;
             }

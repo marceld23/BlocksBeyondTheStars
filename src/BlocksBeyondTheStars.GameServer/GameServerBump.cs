@@ -178,6 +178,7 @@ public sealed partial class GameServer
         object npcs = new List<object>();
         object others = new List<object>();
         object containers = new List<object>();
+        object doors = new List<object>(); // #1773: a door is an entity, never a voxel — without this a doorway reads as a hole
 
         if (inSpace && _playerInstance.TryGetValue(p.PlayerId, out var instanceId)
             && _spaceInstances.TryGetValue(instanceId, out var instance))
@@ -258,6 +259,8 @@ public sealed partial class GameServer
                 .Select(npc => new { npc.Id, npc.Role, npc.Theme, x = npc.Pos.X, y = npc.Pos.Y, z = npc.Pos.Z }).ToList();
             others = _sessions.Values.Where(o => o.Joined && o.ConnectionId != session.ConnectionId && WrapDistSq(p.Position, o.State.Position) < r2)
                 .Select(o => new { o.State.Name, x = o.State.Position.X, y = o.State.Position.Y, z = o.State.Position.Z }).ToList();
+            doors = _doors.Where(d => WrapDistSq(p.Position, d.Pos) < r2)
+                .Select(d => new { d.Id, d.Kind, d.PlayerBuilt, d.Open, x = d.Pos.X, y = d.Pos.Y, z = d.Pos.Z }).ToList();
             containers = _containers.Where(c => Dist2(p.Position, c.Position) < r2)
                 .Select(c => new { c.Id, c.Kind, items = c.Items.Count, c.Position.X, c.Position.Y, c.Position.Z }).ToList();
         }
@@ -326,7 +329,7 @@ public sealed partial class GameServer
                 ship = new { _ship.ShipType, _ship.Hull, hullMax = _shipHullMax, _ship.Shield, shieldMax = _shipShieldMax, modules = _ship.Modules },
                 surroundings = blocks,
                 surroundingsCensus = census, // wider block-type histogram (terrain + voxel flora); empty in space
-                nearby = new { creatures, npcs, players = others, containers },
+                nearby = new { creatures, npcs, players = others, containers, doors },
                 space, // ship flight position + nearby space entities when flying; null on a surface/interior
                 historyBefore = session.History,
             };

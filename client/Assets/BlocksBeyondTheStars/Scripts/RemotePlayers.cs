@@ -35,6 +35,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Seated;            // sit pose (#806) — avatar lowered onto the chair seat
             public bool Hidden;            // stealth field active, or the player is up in space — no avatar
             public int Gear = -1;          // cached so gear is only rebuilt on change
+            public int Skin, Torso, Arms, Legs; // #1777: cached colours — re-applied when a presence carries new ones
             public string Held = "\0";     // cached held item key
             public double LastUpdate;      // when the newest presence arrived — drives the stale timeout (#958)
             public bool TimedOut;          // hidden because updates stopped (kept separate from Hidden: that
@@ -208,8 +209,23 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 avatar.SetVisible(true);
-                r = new Remote { Go = go, Avatar = avatar, Name = m.Name, Interp = new RemoteEntityInterpolator(InterpolationDelay) };
+                r = new Remote
+                {
+                    Go = go, Avatar = avatar, Name = m.Name, Interp = new RemoteEntityInterpolator(InterpolationDelay),
+                    Skin = m.Skin, Torso = m.Torso, Arms = m.Arms, Legs = m.Legs,
+                };
                 _remotes[m.PlayerId] = r;
+            }
+
+            // #1777: a suit recoloured in the game reaches everyone else — the colours used to be applied on the
+            // first presence only, so the others kept seeing the creation-time look until they reconnected.
+            if (m.Skin != r.Skin || m.Torso != r.Torso || m.Arms != r.Arms || m.Legs != r.Legs)
+            {
+                r.Skin = m.Skin;
+                r.Torso = m.Torso;
+                r.Arms = m.Arms;
+                r.Legs = m.Legs;
+                r.Avatar.ApplyColors(Rgb(m.Skin), Rgb(m.Torso), Rgb(m.Arms), Rgb(m.Legs));
             }
 
             r.Name = m.Name;

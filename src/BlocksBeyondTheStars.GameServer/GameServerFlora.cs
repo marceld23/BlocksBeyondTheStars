@@ -25,6 +25,11 @@ public sealed partial class GameServer
 {
     private const double FloraRegrowSeconds = 30.0;
 
+    /// <summary>Seconds a planted sapling takes to become a tree (#1774), and how long it waits before looking
+    /// again when the room above it is taken.</summary>
+    private const double SaplingGrowSeconds = 150.0;
+    private const double SaplingRetrySeconds = 30.0;
+
     private readonly HashSet<ushort> _floraIds = new();
     private readonly Dictionary<ushort, HashSet<ushort>> _floraHostIds = new();
     private readonly Dictionary<ushort, BlocksBeyondTheStars.Shared.Definitions.FloraSpecies> _floraSpeciesByBlock = new();
@@ -36,6 +41,12 @@ public sealed partial class GameServer
     private Dictionary<Vector3i, (ushort FloraId, double Timer)> _floraRegrow => _worlds.Active.FloraRegrow;
 
     private readonly HashSet<ushort> _floraHangingIds = new(); // #1759: species whose host is the block above
+
+    // #1774: the sapling — flora for placement and harvest (host + hull rules), but no catalog species: it sits in
+    // no world roster, no greenhouse grows it, and instead of regrowing it turns into a tree.
+    private ushort _saplingId;
+    private ushort _saplingLogId;
+    private ushort _saplingLeafId;
 
     private void InitFlora()
     {
@@ -55,6 +66,16 @@ public sealed partial class GameServer
             {
                 _floraHangingIds.Add(flora.NumericId.Value); // #1759: roots in the block ABOVE
             }
+        }
+
+        _saplingId = 0;
+        if (_content.GetBlock("flora_sapling") is { } sapling && sapling.NumericId.Value != 0)
+        {
+            _saplingId = sapling.NumericId.Value;
+            _floraIds.Add(_saplingId);
+            _floraHostIds[_saplingId] = HostIds("dirt", "grass", "mud");
+            _saplingLogId = _content.GetBlock("wood_log")?.NumericId.Value ?? 0;
+            _saplingLeafId = _content.GetBlock("tree_leaves")?.NumericId.Value ?? 0;
         }
 
         // Per-BODY flora roster (#478): each archetype block gets this world's coined name + edible/toxic
@@ -120,6 +141,92 @@ public sealed partial class GameServer
     }
 
     private bool IsFlora(ushort id) => id != 0 && _floraIds.Contains(id);
+
+    /// <summary>The planted young tree (#1774): flora that grows UP instead of back.</summary>
+    private bool IsSapling(ushort id) => id != 0 && id == _saplingId;
+
+    /// <summary>A sapling was planted: its growth rides the regrow queue (persisted like a harvest), so a tree
+    /// planted before a restart still comes. No sprout cue — the sapling itself is the cue.</summary>
+    private void ScheduleSaplingGrowth(Vector3i pos)
+    {
+        _floraRegrow[pos] = (_saplingId, SaplingGrowSeconds);
+        _repo.SaveFloraRegrow(_world.LocationId, pos, _saplingId, SaplingGrowSeconds);
+    }
+
+    /// <summary>A sapling picked up before it grew is gone for good (it is in the pocket now) — drop its timer.</summary>
+    private void ForgetSaplingGrowth(Vector3i pos)
+    {
+        if (_floraRegrow.Remove(pos))
+        {
+            _repo.DeleteFloraRegrow(_world.LocationId, pos);
+        }
+    }
+
+    /// <summary>Test seam (#1774): how the world's tree from a sapling is shaped at a cell.</summary>
+    public bool TryGrowTreeForTest(int x, int y, int z) => TryGrowTree(new Vector3i(x, y, z));
+
+    /// <summary>Turns the sapling at <paramref name="pos"/> into a small tree (#1774): a trunk of four or five
+    /// logs and a round crown of leaves, the shape the world generator's broadleaf uses. The trunk column must
+    /// be free (a ceiling two blocks up keeps the sapling waiting); leaves only ever fill air, so a crown pressed
+    /// against a wall is simply flatter on that side. On a void world the trunk top must sit inside the hull
+    /// like any planted cell. Returns false when the tree could not grow yet.</summary>
+    private bool TryGrowTree(Vector3i pos)
+    {
+        if (_saplingLogId == 0 || _saplingLeafId == 0 || _world.GetBlock(pos).Value != _saplingId)
+        {
+            return false;
+        }
+
+        int height = 4 + (System.Math.Abs(pos.X * 31 + pos.Z * 17 + pos.Y) % 2); // 4 or 5, fixed per cell
+        for (int dy = 1; dy < height; dy++)
+        {
+            var c = new Vector3i(pos.X, pos.Y + dy, pos.Z);
+            if (!_world.GetBlock(c).IsAir || ShipInteriorContains(new Vector3f(c.X, c.Y, c.Z)))
+            {
+                return false; // no room for the trunk yet
+            }
+        }
+
+        var top = new Vector3i(pos.X, pos.Y + height - 1, pos.Z);
+        if (!IsFloraEnclosedForVoidWorld(top))
+        {
+            return false; // a station hall must hold the crown as well
+        }
+
+        var log = new BlockId(_saplingLogId);
+        var leaf = new BlockId(_saplingLeafId);
+        for (int dy = 0; dy < height; dy++)
+        {
+            var c = new Vector3i(pos.X, pos.Y + dy, pos.Z);
+            _world.SetBlock(c, log);
+            BroadcastToWorld(new BlockChanged { X = c.X, Y = c.Y, Z = c.Z, Block = log.Value });
+        }
+
+        // The crown: two full rings around the top two trunk cells (corners clipped), a smaller ring above, a cap.
+        for (int dy = -1; dy <= 2; dy++)
+        {
+            int r = dy <= 0 ? 2 : dy == 1 ? 1 : 0;
+            for (int dx = -r; dx <= r; dx++)
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    if (r == 2 && System.Math.Abs(dx) == 2 && System.Math.Abs(dz) == 2)
+                    {
+                        continue; // clipped corners keep the crown round
+                    }
+
+                    var c = new Vector3i(top.X + dx, top.Y + dy, top.Z + dz);
+                    if (!_world.GetBlock(c).IsAir || ShipInteriorContains(new Vector3f(c.X, c.Y, c.Z)))
+                    {
+                        continue; // leaves fill air only — never the trunk, a wall or a neighbour's crown
+                    }
+
+                    _world.SetBlock(c, leaf);
+                    BroadcastToWorld(new BlockChanged { X = c.X, Y = c.Y, Z = c.Z, Block = leaf.Value });
+                }
+        }
+
+        return true;
+    }
 
     /// <summary>True if the flora may be planted at the cell — the block below must be a valid host (for a hanging
     /// species, #1759, the block ABOVE).</summary>
@@ -321,6 +428,22 @@ public sealed partial class GameServer
             if (timer > 0)
             {
                 _floraRegrow[pos] = (floraId, timer);
+                continue;
+            }
+
+            // #1774: a sapling's timer means "try to grow", not "come back": gone → forget it; no room → ask again later.
+            if (IsSapling(floraId))
+            {
+                if (_world.GetBlock(pos).Value != floraId || TryGrowTree(pos))
+                {
+                    (done ??= new List<Vector3i>()).Add(pos);
+                }
+                else
+                {
+                    _floraRegrow[pos] = (floraId, SaplingRetrySeconds);
+                    _repo.SaveFloraRegrow(_world.LocationId, pos, floraId, SaplingRetrySeconds);
+                }
+
                 continue;
             }
 

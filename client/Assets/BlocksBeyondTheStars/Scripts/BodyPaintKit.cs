@@ -106,7 +106,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 for (int x = 0; x < w; x++)
                 {
-                    int v = grid[y * w + x] & 0xF;
+                    int v = grid[y * w + x] & (FacePalette.Size - 1); // #1777: the editor offers all 32 entries — 0xF dropped 16–31
                     any |= v != 0;
                     int chunk = (y / Face) * cols + (x / Face);
                     chars[chunk * BodyPaint.ChunkPixels + (y % Face) * Face + (x % Face)] = HexChar(v);

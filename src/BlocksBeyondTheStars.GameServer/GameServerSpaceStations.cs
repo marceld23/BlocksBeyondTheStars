@@ -579,6 +579,7 @@ public sealed partial class GameServer
     /// </summary>
     private void SpawnStationNpcs(BoardableStation station)
     {
+        _stationCrewSpotsTaken.Clear();
         var rng = new System.Random(unchecked((int)(_meta.Seed ^ WorldGenerator.StableHash("station-npc:" + station.Id))));
         int added = 0;
         int vendorIndex = 0;
@@ -615,8 +616,10 @@ public sealed partial class GameServer
             bool robotic = npcTheme == "researchers"; // research staff are service androids
 
             // Markers sit centred in the air cell above the floor (+0.5); drop the NPC's feet onto the
-            // floor surface (the integer Y) so the crew stands on the deck instead of floating over it.
-            var standing = new Vector3f(pos.X, (float)System.Math.Floor(pos.Y), pos.Z);
+            // floor surface (the integer Y) so the crew stands on the deck instead of floating over it. On a
+            // player station the marker is the vendor / board BLOCK itself, so the post keeper takes the nearest
+            // standable cell beside it that holds air (#1775).
+            var standing = StationCrewSpot(station, pos, rng, jitter: 0);
             var npc = MakeNpc(role, npcTheme, robotic, standing, rng);
             if (role == "quartermaster")
             {
@@ -640,7 +643,7 @@ public sealed partial class GameServer
         for (int i = 0; i < extra && spots.Count > 0; i++)
         {
             var b = spots[rng.Next(spots.Count)];
-            var home = new Vector3f(b.X + (float)(rng.NextDouble() * 4 - 2), (float)System.Math.Floor(b.Y), b.Z + (float)(rng.NextDouble() * 4 - 2));
+            var home = StationCrewSpot(station, b, rng, jitter: 2); // #1775: a standable cell in the post's air, never inside the hull
             bool robot = rng.NextDouble() < 0.3; // ~30% androids
             var npc = MakeNpc("settler", "traders", robot, home, rng);
             npc.Size = 0.9f + (float)rng.NextDouble() * 0.22f;
