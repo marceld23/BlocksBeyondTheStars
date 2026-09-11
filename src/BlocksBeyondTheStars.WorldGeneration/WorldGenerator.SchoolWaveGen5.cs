@@ -148,13 +148,35 @@ public sealed partial class WorldGenerator
         }
     }
 
+    /// <summary>A PC tower (Marcel's playtest 2026-09-11): a 2 × 2 case 5–7 high standing on the hill, the top two cells of
+    /// its front a glowing monitor strip — the house-sized step between the desk props and the mountain-sized tower.</summary>
+    private static void StampPcTower(PropStamp s)
+    {
+        var rgb = s.Secondary.IsAir ? s.Material : s.Secondary;
+        int height = 5 + s.ShapeHash % 3;
+        for (int dx = 0; dx <= 1; dx++)
+            for (int dz = 0; dz <= 1; dz++)
+            {
+                int py = s.Generator.SurfaceHeight(s.Planet, s.Wx + dx, s.Wz + dz);
+                for (int dy = 1; dy <= height; dy++)
+                {
+                    bool strip = dx == 0 && dz == 0 && dy >= height - 1;
+                    s.Set(s.Wx + dx, py + dy, s.Wz + dz, strip ? rgb : s.Material);
+                }
+            }
+    }
+
     // ---------------- gaming landmarks (#1762): a monitor, a keyboard and a mouse the size of mountains ----------------
 
     private const long GiantMonitorSalt = 0x6A3E10;
     private const long GiantKeyboardSalt = 0x6A3E20;
     private const long GiantMouseSalt = 0x6A3E30;
-    private const double GamingCellSize = 2400.0; // ≈ 2–3 candidate cells on a default world → about one of each
-    private const double GamingChance = 0.6;
+    private const long GiantPcSalt = 0x6A3E40;
+    // Marcel's playtest 2026-09-11 ("und das oft"): one candidate per 720-block cell at 90 % — every family shows up
+    // several times per world instead of about once (was 2 400 / 60 %), and the four families' grids are offset by
+    // their salts, so a walk of a few hundred blocks passes a monitor, a keyboard, a mouse or a tower.
+    private const double GamingCellSize = 720.0;
+    private const double GamingChance = 0.9;
     private const double GamingMargin = 72.0;     // the widest extent (the keyboard's 40 + its cable) plus slack
 
     /// <summary>The gaming landmarks grow on generation-5 worlds carrying the <c>gaming</c> tag — solid ground, never
@@ -268,6 +290,59 @@ public sealed partial class WorldGenerator
         }
 
         return 0.0;
+    }
+
+    /// <summary>The giant PC tower (Marcel's playtest 2026-09-11: "Landschaftsstrukturen, die aussehen wie Gaming-PCs"):
+    /// a 20–26 × 14–18 box 44–59 tall. Its +X side is a tempered-glass panel, the front (−Z) carries a two-wide
+    /// vertical RGB strip of monitor blocks (they glow), the rest is the PC case.</summary>
+    private double GiantPcOffset(WonderProfile w, int worldX, int worldZ)
+    {
+        if (!TryGetHotspot(w.Seed ^ GiantPcSalt, GamingCellSize, GamingChance, GamingMargin, worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return 0.0;
+        }
+
+        double halfX = 10.0 + ((h >> 16) & 0x3), halfZ = 7.0 + ((h >> 18) & 0x3);
+        if (System.Math.Abs(dx) > halfX || System.Math.Abs(dz) > halfZ)
+        {
+            return 0.0;
+        }
+
+        return 44.0 + ((h >> 20) & 0xF);             // 44..59 tall
+    }
+
+    private BlockId? GiantPcPaint(WonderProfile w, int worldX, int worldZ, int surfaceY, out int fillToY)
+    {
+        fillToY = int.MinValue;
+        double rise = GiantPcOffset(w, worldX, worldZ);
+        if (rise <= 0.0)
+        {
+            return null;
+        }
+
+        var pc = _content.GetBlock("gaming_pc")?.NumericId ?? BlockId.Air;
+        if (pc.IsAir)
+        {
+            return null;
+        }
+
+        // The same hotspot again for the column's place on the box (the offset only says "inside").
+        TryGetHotspot(w.Seed ^ GiantPcSalt, GamingCellSize, GamingChance, GamingMargin, worldX, worldZ, out ulong h, out double dx, out double dz);
+        double halfX = 10.0 + ((h >> 16) & 0x3), halfZ = 7.0 + ((h >> 18) & 0x3);
+        var glass = _content.GetBlock("glass")?.NumericId ?? BlockId.Air;
+        var rgb = _content.GetBlock("gaming_monitor")?.NumericId ?? BlockId.Air;
+        fillToY = surfaceY - (int)rise;
+        if (!glass.IsAir && dx > halfX - 1.0 && System.Math.Abs(dz) < halfZ - 1.0)
+        {
+            return glass;                            // the side panel
+        }
+
+        if (!rgb.IsAir && dz < -halfZ + 1.0 && System.Math.Abs(dx) < 1.0)
+        {
+            return rgb;                              // the front's RGB strip
+        }
+
+        return pc;
     }
 
     private BlockId? GiantMousePaint(WonderProfile w, int worldX, int worldZ, int surfaceY, out int fillToY)

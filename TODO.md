@@ -24,6 +24,15 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🖥️ The gaming planet is gaming gear, not meadow (#1762 follow-up, 2026-09-11, branch fix/gaming-world-more-pcs)
+
+Marcel's playtest: "zu viel Natur", and Ben's first wish — structures shaped like gaming PCs — was missing,
+and everything was rare. `gamer_hills` cuts flora to 0.03 and trees to 0.0015; a fourth landmark row
+`giant-pc` (a 20–26 × 14–18 box 44–59 tall: PC case, a tempered-glass side panel, a glowing RGB strip up the
+front) joins the monitor, keyboard and mouse; the hotspot cells shrink from 2 400 blocks at 60 % to 720 at
+90 %, so each family shows several times per world; a house-sized `pc-tower` prop (2 × 2 × 5–7, monitor strip
+on top) fills the ground between them. Generation 5 only; the `gamer_hills-gen5` golden is re-pinned.
+
 ### 🏝️ The rainbow planet's islands float on the sea (#1757 follow-up, 2026-09-11, branch fix/rainbow-islands-afloat)
 
 Marcel's first playtest of the school club wave: he spawned on land, the islands hung in the sky, the water

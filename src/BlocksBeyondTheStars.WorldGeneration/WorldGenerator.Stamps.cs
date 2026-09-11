@@ -122,6 +122,8 @@ public sealed partial class WorldGenerator
         new("stray-girder", 0x5C2A6, 157, 0.00015, PropMaterial.Boulder, StampGirder, PropStrayScrap, "scrap_metal", "scrap_pile"),
         new("desk-setup", 0x6A3E1, 163, 0.006, PropMaterial.Boulder, StampDeskSetup, PropGaming, "gaming_pc", "gaming_monitor"),
         new("pc-heap", 0x6A3E2, 167, 0.008, PropMaterial.Boulder, StampPcHeap, PropGaming, "gaming_pc", "gaming_keyboard"),
+        // Marcel's playtest 2026-09-11 ("Strukturen, die aussehen wie Gaming-PCs, und das oft"): house-sized PC towers.
+        new("pc-tower", 0x6A3E3, 173, 0.0025, PropMaterial.Boulder, StampPcTower, PropGaming, "gaming_pc", "gaming_monitor"),
     };
 
     /// <summary>The prop rows active on this world (tests): the classic rows whose material exists here, plus
