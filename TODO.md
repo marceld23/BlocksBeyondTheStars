@@ -24,6 +24,14 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎓 Credits: every child of the school club, one list (2026-09-11, branch docs/schul-ag-credits-complete)
+
+Marcel: no more "first day / second wave / third wave" — the Schul-AG block of the credits simply names every
+child who took part. `ui.credits.body` in all 14 locales now carries one line — Ben, Damian, Lena, Marie,
+Nikita, Noa, Paul, Sophia (Latin names everywhere, the model had transliterated them into Hangul) — followed
+by Christopher Korb; the README's club section says the same and links the report and idea issues. The scrap
+planet, the per-world water colours and the islands with plants underneath stay group ideas without a name.
+
 ### 🖥️ The gaming planet is gaming gear, not meadow (#1762 follow-up, 2026-09-11, branch fix/gaming-world-more-pcs)
 
 Marcel's playtest: "zu viel Natur", and Ben's first wish — structures shaped like gaming PCs — was missing,

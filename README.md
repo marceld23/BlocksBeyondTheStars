@@ -194,11 +194,12 @@ and our short **[Code of Conduct](CODE_OF_CONDUCT.md)** (the gist: be kind to on
 
 ### School club "Building Games with AI"
 
-The after-school club (Schul-AG „Spiele entwickeln mit KI“) playtests the browser build, and its reports go straight into the game:
+The after-school club (Schul-AG „Spiele entwickeln mit KI“) plays, tests and designs with us. The children's
+bug reports from the browser build went straight into the game ([#1453](https://github.com/marceld23/BlocksBeyondTheStars/issues/1453)–[#1462](https://github.com/marceld23/BlocksBeyondTheStars/issues/1462), [#1708](https://github.com/marceld23/BlocksBeyondTheStars/issues/1708)–[#1713](https://github.com/marceld23/BlocksBeyondTheStars/issues/1713)),
+and their ideas became whole planets, animals and plants — the rainbow planet, the flower planet and its
+flowerling, the scrap planet, the gaming planet, Leni the ice creature and the Paul flower ([#1756](https://github.com/marceld23/BlocksBeyondTheStars/issues/1756)–[#1765](https://github.com/marceld23/BlocksBeyondTheStars/issues/1765)):
 
-- **Ben**, **Marie** and **Nikita** — the first club day's reports — a bed that looked unusable, a frozen body after the heal-tank retrieval, a landing on the sea floor with no way off the planet, and see-through block edges ([#1456](https://github.com/marceld23/BlocksBeyondTheStars/issues/1456), [#1462](https://github.com/marceld23/BlocksBeyondTheStars/issues/1462), [#1453](https://github.com/marceld23/BlocksBeyondTheStars/issues/1453)–[#1455](https://github.com/marceld23/BlocksBeyondTheStars/issues/1455), [#1459](https://github.com/marceld23/BlocksBeyondTheStars/issues/1459))
-- **Paul** — the club's second wave of browser reports — a respawn inside a block, and a landing that showed nothing but sky ([#1708](https://github.com/marceld23/BlocksBeyondTheStars/issues/1708), [#1709](https://github.com/marceld23/BlocksBeyondTheStars/issues/1709), [#1713](https://github.com/marceld23/BlocksBeyondTheStars/issues/1713))
-- **Noa** — tested the game on one computer-room PC after another, tirelessly, so the club knew which machines run it
+- **Ben**, **Damian**, **Lena**, **Marie**, **Nikita**, **Noa**, **Paul** and **Sophia** — the children of the club
 - **Christopher Korb** (K&K Multimedia) — IT support for the club
 
 ### Contributors
