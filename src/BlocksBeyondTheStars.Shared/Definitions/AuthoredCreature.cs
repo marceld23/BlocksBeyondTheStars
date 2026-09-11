@@ -47,6 +47,11 @@ public sealed class AuthoredCreature
     public int SocialGroupSize { get; set; } = 1;
     public float HoverAltitude { get; set; }
 
+    /// <summary>Heads / wing pairs / fin pairs (#1780-#1782); the defaults are the classic single head, pair, pair.</summary>
+    public int Heads { get; set; } = 1;
+    public int WingPairs { get; set; } = 1;
+    public int FinPairs { get; set; } = 1;
+
     public string DropItem { get; set; } = "creature_meat";
     public int DropCount { get; set; } = 1;
     public CreatureDropKind DropKind { get; set; } = CreatureDropKind.Food;

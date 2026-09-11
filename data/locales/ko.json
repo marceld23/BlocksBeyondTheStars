@@ -27,6 +27,8 @@
   "block.grass.name": "잔디",
   "block.wood_log.name": "나무 통나무",
   "block.tree_leaves.name": "나뭇잎",
+  "block.giant_log.name": "거대한 나무 줄기",
+  "block.giant_leaves.name": "거대한 나뭇잎",
   "item.wood_log.name": "나무 통나무",
   "block.crystal.name": "크리스털",
   "block.snow.name": "눈",

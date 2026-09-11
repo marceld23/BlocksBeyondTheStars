@@ -1562,7 +1562,7 @@ namespace BlocksBeyondTheStars.Client
             var key = content.BlockById(id)?.Key;
             return key != null
                 && (key.StartsWith("flora_", System.StringComparison.Ordinal)
-                    || key == "tree_leaves" || key == "pine_needles" || key == "palm_frond");
+                    || key == "tree_leaves" || key == "pine_needles" || key == "palm_frond" || key == "giant_leaves");
         }
 
         /// <summary>True for the tree trunk (wood_log): the block shader recolours it with a per-world DARK
@@ -1571,7 +1571,7 @@ namespace BlocksBeyondTheStars.Client
         private static bool IsWoodBlock(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitWood);
 
         private static bool IsWoodBlockSlow(GameContent content, BlockId id)
-            => content.BlockById(id)?.Key == "wood_log";
+            => content.BlockById(id)?.Key is "wood_log" or "giant_log";
 
         // Tall cross-billboard flora (an upper vegetation layer above the low ground cover) and the structural /
         // solid / glowing-cap flora that read better as solid cubes (everything else leafy, plus tree crowns,
@@ -1604,7 +1604,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            return key == "tree_leaves" || key == "pine_needles" || key == "palm_frond"
+            return key == "tree_leaves" || key == "pine_needles" || key == "palm_frond" || key == "giant_leaves"
                 || (key.StartsWith("flora_", System.StringComparison.Ordinal) && !SolidFlora.Contains(key));
         }
 

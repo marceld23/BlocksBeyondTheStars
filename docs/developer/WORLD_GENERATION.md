@@ -1275,3 +1275,90 @@ moved the hotspot cells from 2 400 blocks at 60 % to **720 blocks at 90 %** — 
 world — added the tower row and the house-sized `pc-tower` prop, and cut the type's flora to 0.03 / trees
 to 0.0015. The atlas is **32 × 32** tiles
 (`BlockTextureAtlas.Cols/Rows`, `GameContent.AtlasTileCapacity = 1024`).
+
+
+## 16. Generation 6 — the new kinds wave (#1778–#1783, 2026-09-11)
+
+Marcel's idea list after the fauna architecture analysis: rays under water and in the sky, fish that live in
+the air, multi-headed, multi-winged and multi-finned bodies, and giant trees. Shipped as **terrain generation
+6**; the terrain of every older type equals generation 5.
+
+**The discipline.** Every roll of the wave sits at the END of `CreatureGenerator.MakeSpecies`
+(`ApplyNewKinds`, after the body plans, the social roll, the voice seed, the fins derivation and the hover
+altitude) and runs only when the save's generation is ≥ `WorldDescription.NewKindsGeneration` (6). A
+generation-5 roster is therefore bit-for-bit the classic two-argument roster (`CreatureNewKindsTests`
+serialises both). The diversity re-draw (`EnsureHabitatDiversity`) passes the generation through, so a
+re-drawn niche slot rolls the wave too. Nothing is persisted: the roster is re-derived on every start, and a
+companion snapshot carries the three counts (`CloneSpecies`).
+
+**Roll order inside the wave.** Body first: a standard-plan Air or Water species becomes a **ray** with
+20 % (`ApplyRayPlan`); a standard-plan Air species that stayed an air animal becomes an **air fish** with 25 %
+(`ApplyAirFish`). Then the counts for whatever body came out: **heads** (standard ground bodies 92/6/2 for
+1/2/3, titans 80/15/5 — the hydra; never a medusa, a ray or the flowerling), **wing pairs** (winged Air
+72/20/8, winged ground gliders 90/10; never on a ray, whose wings are its body), then the fins are re-derived
+for the body (`CreatureMotion.FinsFor`) and **fin pairs** rolled for the legless finned ones (60/30/10).
+
+**The ray (#1778).** `CreatureBodyPlan.Ray`: legs 0, wings, no fins (the plan is excluded from `FinsFor`
+like the medusa), no tentacles or gas sac, 1–2 segments, a tail, size 1.2–3, passive / skittish /
+territorial (never a hunter), speed 1.2–2.6. In water: `LocoStyle` Drifter or Schooler, motion class
+Swimmer, and `CreatureMotion.IsBottomDweller` → `WaterColumnY(bottom: true)` keeps it in a low band just
+above the sea bed. In the air: `LocoStyle.Glider`, and the class **between hoverer and flier** —
+`CreatureMotion.IsSkyGlider` → `MotionClass.Hoverer` (it never lands, never runs the perch state machine,
+never folds anything up), but the hoverer branch eases at `SkyGliderEaseRate` (3.5 blocks/s instead of the
+gas sac's 2) and the Glider profile's vertical amplitude gives it real swoops. The client
+(`CreatureMotion.IsSkyGliderBody` from the wire fields) pitches a sky glider into its vertical motion and
+banks it into turns like a flier; a water ray is the only swimmer that banks. Rig: `CreatureBuilder.BuildRay`
+— a flat disc, each wing a chain of three panels along the span, a five-link whip tail, eyes on the top
+surface, the species' horns as cephalic lobes; `CreatureAnimator.PoseRayWings` runs a travelling wave along
+each side (root panel leads, each panel outboard lags 0.9 rad, 1.4 Hz in water / 1.8 Hz in the sky, wider on
+the move), and the body's fish-weave is damped to a quarter.
+
+**The air fish (#1779).** A fish that lives in the air like a bird — not a leaping fish: `ApplyAirFish`
+sets legs 0, no wings, a tail, `LocoStyle.Glider`, and `CreatureMotion.IsAirFish` (Air ∧ legless ∧ neither
+medusa nor ray) makes `FinsFor` true — safe for every older world because no older Air species is legless.
+It is a sky glider too (hoverer class, glider ease, pitch and banking); the client sculls its fins in the air
+(`PoseFins`: 2.2 Hz and three quarters of the water amplitude, never folded) and gives it the swimmer's body
+weave (`RigDescription.Aquatic`). It spawns wherever an Air species spawns.
+
+**Heads (#1780).** `CreatureSpecies.Heads` / `NetCreature.Heads` / `AuthoredCreature.Heads`. The standard
+builder places the heads side by side at the body front, each with its own eyes, jaw and horns; the titan
+builder grows one neck chain per head, fanned ±24° and offset across the shoulders (`_neckChain` collects
+every segment, so the graze gesture still bends every neck). `RigDescription.Heads[]` / `Jaws[]`; the animator
+breathes and gestures each head on its own phase (the others a beat behind the first), only the first head
+carries the gaze (the others follow a third of it and glance about on their own), and a vocalisation opens
+one jaw at a time — the heads take turns (`_jawOpenHead`).
+
+**Wing pairs (#1781).** `WingPairs`; `AddWings(pairs, zSpan)` spreads the pairs along the torso like the leg
+rows (each a little narrower and shorter toward the rear), `WingRig.Row/Rows`; `PoseWings` lags each row (two
+pairs π apart like a dragonfly's, three a rear-to-front wave) and beats 30 % faster per extra pair (the
+insect read). The perch fold already loops every wing.
+
+**Fin pairs (#1782).** `FinPairs`; the fins are a typed rig now (`FinRig { Pivot, Kind, Side, Row }` —
+Pectoral / Caudal / Dorsal) instead of an index-typed array. Pairs sit along the flanks between the head and
+the hips, shrinking toward the rear, sculling with a 0.8 rad lag per row; a three-paired body carries a second,
+smaller dorsal toward the tail.
+
+**Giant trees (#1783).** `WorldGenerator.GiantTrees.cs`, a pass of its own called after the giant flora in
+`Generate` on a generation-6 world with trees. NOT a `TreeKind`: `StampTrees` is bounded by its 4-cell margin
+and the 18-cell `MaxStampRise` every stacked chunk relies on for its skip test; the giant pass has its own
+`GiantTreeMargin = 16` and `GiantTreeRise = 64`. Per column: a `Noise.Value01` roll against
+`GiantTreeDensity = 0.0007` rejects 99.93 % of the margin columns before anything else runs (the #1527
+first-reject), then the forest mask must exceed 0.62 (landmarks of the deep woods only — about one tree per
+38×38 inside a wood), the biome must grow trees, the theme's palette decides the shape (`GiantShapeFor`:
+conifer → giant conifer, jungle → giant jungle tree, broadleaf → giant broadleaf; desert / ashen / fungal /
+crystal / floral grow none), then the tree line, the sea, ponds / rivers / beaches and the earthy-ground rule
+exactly as for ordinary trees. Size 3–5 (the sum of two noise reads, bell-shaped), the trunk rounds from it
+(3×3 to 5×5), and the footprint's surfaces may not step more than 4 — the trunk roots from the LOWEST of
+them, overwriting, so it grows out of the slope instead of floating. Shapes: broadleaf 21–35 high, 4–6
+radial branches at 55–76 % height each ending in a leaf ball, a domed hollow crown radius 8–13; conifer
+27–45 high, a hollow cone of tiers (every third layer full) radius 7–11 tapering to a spike, short branches in
+the lower tiers; jungle 30–50 high on buttress roots, 5–6 long high branches, a wide flat hollow canopy radius
+9–15. Branches and leaves only fill air; the crown is a shell (`GiantCrownShell`) so the grove floor keeps its
+light and the mesher does not carry thousands of hidden cubes. Own blocks `giant_log` (drops two `wood_log`)
+and `giant_leaves` (foliage: the mesher's leaf cutout, the per-world leaf hue, the flier canopy rule, the
+walk-through rule, the settlement vegetation clear, the leaf-alpha bake) and an own species
+`TreeGenerator.GenerateGiant` (`tr1`, own salt) the scanner reaches through `TreeSpeciesForBlock`, which is a
+per-block map now. Tests: `GiantTreeTests`.
+
+**Watch items.** Structures still never look at stamps (a settlement may sit under a giant crown — the same
+class as the open "structures never read caves" item); a felled giant is a few hundred logs.

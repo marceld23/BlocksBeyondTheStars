@@ -223,8 +223,8 @@ namespace BlocksBeyondTheStars.Client
                 // trunk (wood_log) rolls its own DARK per-world bark hue (ForWood) so it always reads clearly
                 // darker than the leaves it carries, never the same colour.
                 bool isLeaf = def.Key.StartsWith("flora_", System.StringComparison.Ordinal)
-                    || def.Key == "tree_leaves" || def.Key == "pine_needles" || def.Key == "palm_frond";
-                bool isWood = def.Key == "wood_log";
+                    || def.Key == "tree_leaves" || def.Key == "pine_needles" || def.Key == "palm_frond" || def.Key == "giant_leaves";
+                bool isWood = def.Key == "wood_log" || def.Key == "giant_log";
                 if (!isLeaf && !isWood)
                 {
                     continue;

@@ -27,6 +27,8 @@
   "block.grass.name": "Gras",
   "block.wood_log.name": "Holzstamm",
   "block.tree_leaves.name": "Laub",
+  "block.giant_log.name": "Riesenbaumstamm",
+  "block.giant_leaves.name": "Riesenbaumlaub",
   "item.wood_log.name": "Holzstamm",
   "block.crystal.name": "Kristall",
   "block.snow.name": "Schnee",

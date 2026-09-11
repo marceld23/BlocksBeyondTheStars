@@ -179,8 +179,15 @@ public sealed class WorldDescription
     public int TerrainGeneration { get; set; }
 
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
-    /// #1715 flora roster).</summary>
-    public const int CurrentTerrainGeneration = 5;
+    /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees).</summary>
+    public const int CurrentTerrainGeneration = 6;
+
+    /// <summary>The generation of the new-kinds wave (#1778-#1783): the Ray body plan (water + sky), the air fish,
+    /// multi-headed / multi-winged / multi-finned bodies and the giant trees. Every roll of this wave is appended
+    /// AFTER the last generation-5 roll and only applied on a world of this generation or later, so an older
+    /// world's roster stays bit-for-bit what it was; the giant trees are a separate stamp pass gated the same
+    /// way (an older world's woods never change).</summary>
+    public const int NewKindsGeneration = 6;
 
     /// <summary>The generation of the school club wave 3 (#1756): the gen-5 planet types, the authored species
     /// overlay on the creature rosters, the strict floral theme, hanging flora, the new prop / giant-flora /

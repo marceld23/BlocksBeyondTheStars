@@ -20,6 +20,7 @@ namespace BlocksBeyondTheStars.Tests;
 /// choice persistence (milestones) and consequences (standing / fragment / gift / later radio call) all
 /// live server-side; the client only renders resolved text and returns an index. Works with AiLevel Off.
 /// </summary>
+[Collection(RealTimeSensitiveCollection.Name)] // #1786: 7 s locally, billed 131 s in the parallel queue on a PR shard (#1362 pattern)
 public sealed class NpcDialogTests : IDisposable
 {
     private readonly string _root;

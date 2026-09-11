@@ -27,6 +27,8 @@
   "block.grass.name": "Трава",
   "block.wood_log.name": "Колода",
   "block.tree_leaves.name": "Листя",
+  "block.giant_log.name": "Стовбур велетенського дерева",
+  "block.giant_leaves.name": "Листя велетенського дерева",
   "item.wood_log.name": "Колода",
   "block.crystal.name": "Кристал",
   "block.snow.name": "Сніг",

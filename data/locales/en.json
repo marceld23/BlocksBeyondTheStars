@@ -27,6 +27,8 @@
   "block.grass.name": "Grass",
   "block.wood_log.name": "Wood Log",
   "block.tree_leaves.name": "Leaves",
+  "block.giant_log.name": "Giant tree trunk",
+  "block.giant_leaves.name": "Giant tree leaves",
   "item.wood_log.name": "Wood Log",
   "block.crystal.name": "Crystal",
   "block.snow.name": "Snow",

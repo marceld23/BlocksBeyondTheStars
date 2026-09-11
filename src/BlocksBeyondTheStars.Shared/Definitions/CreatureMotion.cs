@@ -43,7 +43,11 @@ public static class CreatureMotion
 
         if (sp.Habitat == CreatureHabitat.Air)
         {
+            // A sky glider (#1778 sky ray, #1779 air fish) is a hoverer too: it never lands — the server keeps it
+            // on the buoyant band and the client never folds anything up on a perch — but it cruises and swoops
+            // like a flier (see <see cref="IsSkyGlider"/>).
             return sp.BodyPlan == CreatureBodyPlan.Medusa || sp.HasGasSac || sp.LocoStyle == LocomotionStyle.Drifter
+                || IsSkyGlider(sp)
                 ? MotionClass.Hoverer
                 : MotionClass.Flier;
         }
@@ -69,9 +73,15 @@ public static class CreatureMotion
     /// </summary>
     public static bool FinsFor(CreatureSpecies sp)
     {
-        if (sp.BodyPlan == CreatureBodyPlan.Medusa)
+        if (sp.BodyPlan is CreatureBodyPlan.Medusa or CreatureBodyPlan.Ray)
         {
-            return false;
+            return false; // a ray's wings are its whole anatomy, like the medusa's bell
+        }
+
+        if (IsAirFish(sp))
+        {
+            return true; // #1779: fins are the air fish's only limbs. No existing Air species is legless, so this
+                         // branch changes nothing for any world created before it existed.
         }
 
         bool water = sp.Habitat == CreatureHabitat.Water;
@@ -91,6 +101,37 @@ public static class CreatureMotion
     /// persisted, so the derivation fills it back in). Use this at the wire boundary, not the raw property.
     /// </summary>
     public static bool HasFins(CreatureSpecies? sp) => sp != null && (sp.HasFins || FinsFor(sp));
+
+    /// <summary>An air fish (#1779): a legless, finned Air body that is neither a medusa nor a ray — a fish shape
+    /// that lives in the air like a bird. Derived from the body, not from the fins flag, so it holds before the
+    /// flag is set.</summary>
+    public static bool IsAirFish(CreatureSpecies sp)
+        => sp.Habitat == CreatureHabitat.Air && sp.Legs <= 0
+           && sp.BodyPlan != CreatureBodyPlan.Medusa && sp.BodyPlan != CreatureBodyPlan.Ray;
+
+    /// <summary>A sky glider (#1778 / #1779): the class between hoverer and flier — never lands (it is a
+    /// <see cref="MotionClass.Hoverer"/>), but cruises at a flier's pace, swoops on its wave and banks into turns.
+    /// The sky ray and the air fish.</summary>
+    public static bool IsSkyGlider(CreatureSpecies sp)
+        => sp.Habitat == CreatureHabitat.Air && (sp.BodyPlan == CreatureBodyPlan.Ray || IsAirFish(sp));
+
+    /// <summary>The same rule from the wire descriptor's fields, for the client (which draws the pitch and the
+    /// banking from it).</summary>
+    public static bool IsSkyGliderBody(string? habitat, string? bodyPlan, int legs)
+    {
+        if (!string.Equals(habitat, "Air", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        bool ray = string.Equals(bodyPlan, "Ray", System.StringComparison.OrdinalIgnoreCase);
+        bool medusa = string.Equals(bodyPlan, "Medusa", System.StringComparison.OrdinalIgnoreCase);
+        return ray || (legs <= 0 && !medusa);
+    }
+
+    /// <summary>A water ray (#1778) hugs the bed of its column instead of porpoising the whole water body.</summary>
+    public static bool IsBottomDweller(CreatureSpecies sp)
+        => sp.Habitat == CreatureHabitat.Water && sp.BodyPlan == CreatureBodyPlan.Ray;
 
     /// <summary>The class in effect right now: amphibians swim while in water and walk/crawl ashore
     /// (#1334); everyone else keeps <see cref="ClassOf"/>.</summary>

@@ -34,7 +34,7 @@ public sealed class BlockTileAlphaTests
     /// <summary>Tiles whose alpha channel is a deliberate cutout mask, baked after bundling.</summary>
     private static bool IsIntentionalCutout(string key)
         => key.StartsWith("flora_", StringComparison.Ordinal)          // bake_leaf_alpha.py
-        || key is "tree_leaves" or "pine_needles" or "palm_frond"      // bake_leaf_alpha.py
+        || key is "tree_leaves" or "pine_needles" or "palm_frond" or "giant_leaves" // bake_leaf_alpha.py (#1783 giant crown)
         || key is "fire"                                               // bundle_fire.py — the flame silhouette
         || key.StartsWith("creature_", StringComparison.Ordinal)       // billboards, not block tiles
         || key.StartsWith("microfauna_", StringComparison.Ordinal)

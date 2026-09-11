@@ -686,6 +686,14 @@ public sealed partial class WorldGenerator
             StampGiantFloraGen1(planet, seed, chunk, coord, biomes, fluidLevel);
         }
 
+        // Generation 6 (#1783): the giant trees — rare landmarks inside the woods, on their own block pair, in
+        // the shape of the biome theme's own trees. A separate pass with its own margin and rise, so the
+        // ordinary tree scan keeps its 4-cell margin; an older world never grows one.
+        if (trees && wonderGates.Generation >= WorldDescription.NewKindsGeneration)
+        {
+            StampGiantTrees(planet, seed, chunk, coord, biomes, fluidLevel);
+        }
+
         if (geysers)
         {
             StampGeysers(planet, seed, chunk, coord, geyserVentId, fluidLevel);

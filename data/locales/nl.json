@@ -27,6 +27,8 @@
   "block.grass.name": "Gras",
   "block.wood_log.name": "Boomstam",
   "block.tree_leaves.name": "Bladeren",
+  "block.giant_log.name": "Reusachtige boomstam",
+  "block.giant_leaves.name": "Reusachtige boombladeren",
   "item.wood_log.name": "Boomstam",
   "block.crystal.name": "Kristal",
   "block.snow.name": "Sneeuw",

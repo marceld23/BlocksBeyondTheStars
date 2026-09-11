@@ -33,4 +33,24 @@ public static class TreeGenerator
             Toxic = rng.NextDouble() < 0.3, // most trees are benign; a notable minority is toxic (matches flora)
         };
     }
+
+    /// <summary>This world's GIANT tree species (#1783, generation 6): the landmark trees grow on their own block
+    /// pair (<c>giant_log</c> + <c>giant_leaves</c>), so they carry a second coined name and their own toxic roll.
+    /// Own salt, so adding it changed nothing about the ordinary tree's name. Null where no tree can grow.</summary>
+    public static TreeSpecies? GenerateGiant(PlanetType planet, long worldSeed)
+    {
+        if (planet.IsAirless || planet.FloraDensity <= 0)
+        {
+            return null;
+        }
+
+        long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key) ^ 0x61A4773EE5;
+        var rng = new System.Random(unchecked((int)(planetSeed ^ (planetSeed >> 32))));
+        return new TreeSpecies
+        {
+            Id = "tr1",
+            Name = NameGenerator.Tree(rng),
+            Toxic = rng.NextDouble() < 0.3,
+        };
+    }
 }

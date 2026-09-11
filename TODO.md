@@ -24,6 +24,44 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🐟 Rays, air fish, hydras, more wings and fins, and giant trees — generation 6 (#1778–#1783, 2026-09-11, branch feat/new-kinds-gen6)
+
+Marcel's idea list of 2026-09-11, shipped as **terrain generation 6** so no existing world changes: every
+creature roll of the wave is appended after the last generation-5 roll and applied only on a generation-6
+world (a generation-5 roster is bit-for-bit the classic roster — a test serialises both), the giant trees
+are a separate stamp pass gated the same way. All of it is procedural — any new world may roll the kinds —
+and every trait is authorable in `data/creatures.json` too. Design record: docs/developer/WORLD_GENERATION.md
+§16, the rig in docs/developer/CREATURE_RIG.md.
+
+- **#1778 Rays** — `CreatureBodyPlan.Ray` (20 % of the standard-plan Air and Water species): a flat disc on
+  one pair of wing panels, each side a chain of three panels the animator runs a travelling wave along, a
+  five-link whip tail, eyes on top. A water ray hugs the sea bed (`WaterColumnY(bottom:)`), a sky ray is the
+  class between hoverer and flier — `CreatureMotion.IsSkyGlider`: a `Hoverer` (never lands, never perches)
+  with the Glider style, a faster cruise ease (`SkyGliderEaseRate`), pitch into its swoops and banking into
+  its turns; a water ray banks too (`CreatureView`).
+- **#1779 Air fish** — 25 % of the standard-plan Air species that did not become rays: legless, wingless,
+  finned, tailed, gliding, a sky glider like the ray. `CreatureMotion.FinsFor` grows fins on a legless Air
+  body (no older Air species is legless, so nothing older changes); the fins scull in the air, slow and small.
+- **#1780 Heads** — `Heads` 1–3 (6 % / 2 % on standard ground bodies, 15 % / 5 % on titans = the hydra):
+  side by side at the front, or each on its own fanned neck on a titan; the animator breathes and gestures
+  each head on its own phase, only the first head carries the gaze, the jaws take turns calling.
+- **#1781 Wing pairs** — `WingPairs` 1–3 (20 % / 8 % of winged Air species, 10 % two pairs on ground
+  gliders): pairs along the torso like the leg rows, `WingRig.Row`, a per-row lag (two pairs in opposition,
+  three a rear-to-front wave) and an insect beat rate.
+- **#1782 Fin pairs** — `FinPairs` 1–3 (30 % / 10 % of legless finned bodies): `FinRig` (kind, side, row)
+  replaces the index-typed fin array; pairs along the flanks with a metachronal lag, a second dorsal on
+  three-paired bodies.
+- **#1783 Giant trees** — `giant_log` + `giant_leaves` (own blocks, so the scanner names them as their own
+  coined species `tr1`), `WorldGenerator.GiantTrees.cs`: a pass with its own 16-cell margin and 64-cell rise,
+  ~one tree per 38×38 inside forest patches, size 3–5 → trunk 3×3–5×5 rooted from the lowest surface of the
+  footprint, radial branches with leaf balls, a hollow crown shell; shape by theme (giant broadleaf, giant
+  conifer, giant jungle tree). Textures generated with `tools/ai-assets` + the leaf alpha baked.
+- Wire: `NetCreature.Heads/WingPairs/FinPairs` (additive), `BodyPlan = "Ray"`; companion snapshots carry all
+  three. `CurrentTerrainGeneration = 6`, `NewKindsGeneration = 6`.
+- Tests: `CreatureNewKindsTests` (gen-5 bit-for-bit, determinism, every plan's invariants and occurrence,
+  the motion rules, authored counts), `GiantTreeTests` (envelope per shape, theme shapes, a gen-6 wood grows
+  one and regenerates identically across the stacked chunks, gen 5 never does, the species, the blocks),
+  `FloraVarietyTests` holds `giant_leaves` in the leaf-alpha list. Locale keys in all 14 locales.
 ### 🌳 Air west of the origin, crew that stays aboard, saplings, and a helmet frame you can paint (#1773–#1777, 2026-09-11, branch fix/reports-0911b)
 
 The evening's three F1 reports on 2026.9.5 — two from Lyxette on her station, one from Justus about his avatar.

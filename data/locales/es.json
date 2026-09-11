@@ -27,6 +27,8 @@
   "block.grass.name": "Hierba",
   "block.wood_log.name": "Tronco",
   "block.tree_leaves.name": "Hojas",
+  "block.giant_log.name": "Tronco de árbol gigante",
+  "block.giant_leaves.name": "Hojas de árbol gigante",
   "item.wood_log.name": "Tronco",
   "block.crystal.name": "Cristal",
   "block.snow.name": "Nieve",

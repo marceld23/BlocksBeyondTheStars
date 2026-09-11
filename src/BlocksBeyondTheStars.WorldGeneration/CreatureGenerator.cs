@@ -38,7 +38,7 @@ public static class CreatureGenerator
             {
                 long s = unchecked(planetSeed ^ ((long)i * golden));
                 var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-                list.Add(MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount, forcedHabitat: null, speciesSeed: s));
+                list.Add(MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount, forcedHabitat: null, speciesSeed: s, terrainGeneration));
             }
 
             // Diversity guarantee (#640): every living world should field at least one ground species and
@@ -46,7 +46,7 @@ public static class CreatureGenerator
             // roster bump (index ≥ legacy count) may be re-drawn — each species draws its own sub-seed, so
             // the legacy indices keep their exact pre-bump rolls and existing worlds keep their known fauna.
             EnsureHabitatDiversity(list, LegacyAbundanceCount(planet.CreatureAbundance), planetSeed,
-                allowWater, allowLava, allowCave, biomeCount);
+                allowWater, allowLava, allowCave, biomeCount, terrainGeneration);
         }
 
         // Airless bodies (asteroids / airless moons+planets) stay lifeless whatever the data says; otherwise the
@@ -114,6 +114,9 @@ public static class CreatureGenerator
             Glows = a.Glows,
             SocialGroupSize = a.SocialGroupSize,
             HoverAltitude = a.HoverAltitude,
+            Heads = System.Math.Clamp(a.Heads, 1, 3),         // #1780-#1782: an authored species may use the gen-6 bodies
+            WingPairs = System.Math.Clamp(a.WingPairs, 1, 3),
+            FinPairs = System.Math.Clamp(a.FinPairs, 1, 3),
             BiomeAffinity = affinity,
             DropItem = a.DropItem,
             DropCount = a.DropCount,
@@ -158,7 +161,7 @@ public static class CreatureGenerator
     /// (Water/Amphibian, only on water worlds). Each fix regenerates one slot from a niche-salted seed
     /// with a forced habitat, preferring slots whose habitat is over-represented in the roster.</summary>
     private static void EnsureHabitatDiversity(List<CreatureSpecies> list, int legacyCount, long planetSeed,
-        bool allowWater, bool allowLava, bool allowCave, int biomeCount)
+        bool allowWater, bool allowLava, bool allowCave, int biomeCount, int terrainGeneration)
     {
         if (list.Count <= legacyCount)
         {
@@ -208,11 +211,11 @@ public static class CreatureGenerator
             const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
             long s = unchecked(planetSeed ^ ((long)pick * golden) ^ WorldGenerator.StableHash("niche:" + niche));
             var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-            list[pick] = MakeSpecies(pick, rng, allowWater, allowLava, allowCave, biomeCount, niche, speciesSeed: s);
+            list[pick] = MakeSpecies(pick, rng, allowWater, allowLava, allowCave, biomeCount, niche, speciesSeed: s, terrainGeneration);
         }
     }
 
-    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, bool allowCave, int biomeCount, CreatureHabitat? forcedHabitat, long speciesSeed)
+    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, bool allowCave, int biomeCount, CreatureHabitat? forcedHabitat, long speciesSeed, int terrainGeneration)
     {
         var habitat = forcedHabitat ?? PickHabitat(rng, allowWater, allowLava, allowCave);
         bool cave = habitat == CreatureHabitat.Cave;
@@ -321,7 +324,110 @@ public static class CreatureGenerator
             species.HoverAltitude = 3f + (float)rng.NextDouble() * 9f; // 3..12
         }
 
+        // Generation 6 (#1778-#1782): rays, air fish, extra heads / wing pairs / fin pairs. Rolled AFTER every
+        // roll above and applied only on a generation-6 world, so a species of any older world keeps every
+        // trait it had — the same discipline as the body plans (appended) and the authored overlay (gated).
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.NewKindsGeneration)
+        {
+            ApplyNewKinds(rng, species);
+        }
+
         return species;
+    }
+
+    /// <summary>The generation-6 kinds (#1778-#1782), in a fixed roll order: first the body (ray / air fish),
+    /// then the counts that depend on it. Standard-plan Air and Water species may become rays (20 %), a standard
+    /// Air species that stayed an air animal may become an air fish (25 %); heads, wing pairs and fin pairs are
+    /// rolled for whichever body came out.</summary>
+    private static void ApplyNewKinds(System.Random rng, CreatureSpecies sp)
+    {
+        bool airOrWater = sp.Habitat is CreatureHabitat.Air or CreatureHabitat.Water;
+        if (airOrWater && sp.BodyPlan == CreatureBodyPlan.Standard && rng.NextDouble() < 0.20)
+        {
+            ApplyRayPlan(rng, sp);
+        }
+        else if (sp.Habitat == CreatureHabitat.Air && sp.BodyPlan == CreatureBodyPlan.Standard && rng.NextDouble() < 0.25)
+        {
+            ApplyAirFish(rng, sp);
+        }
+
+        // Heads (#1780): a few standard ground bodies carry two or three; titans more often (the hydra).
+        // Never on a medusa (a bell has no head), a ray (its eyes sit on the disc) or the flowerling.
+        bool ground = sp.Habitat is CreatureHabitat.Land or CreatureHabitat.Cave or CreatureHabitat.Lava or CreatureHabitat.Amphibian;
+        if (sp.BodyPlan == CreatureBodyPlan.Standard && ground)
+        {
+            sp.Heads = Weighted(rng, 1, 92, 2, 6, 3, 2);
+        }
+        else if (sp.BodyPlan == CreatureBodyPlan.Titan)
+        {
+            sp.Heads = Weighted(rng, 1, 80, 2, 15, 3, 5);
+        }
+
+        // Wing pairs (#1781): a fifth of the winged air species carry two pairs, a few three (the dragonfly);
+        // a winged ground bird sometimes two. A ray's wings ARE its body — one pair, always.
+        if (sp.HasWings && sp.BodyPlan != CreatureBodyPlan.Ray)
+        {
+            sp.WingPairs = sp.Habitat == CreatureHabitat.Air
+                ? Weighted(rng, 1, 72, 2, 20, 3, 8)
+                : Weighted(rng, 1, 90, 2, 10);
+        }
+
+        // Fins are derived (FinsFor), so re-read them for the body that came out; then the pair count (#1782)
+        // for the legless finned bodies — the fish and the air fish.
+        sp.HasFins = CreatureMotion.FinsFor(sp);
+        if (sp.HasFins && sp.Legs <= 0)
+        {
+            sp.FinPairs = Weighted(rng, 1, 60, 2, 30, 3, 10);
+        }
+    }
+
+    /// <summary>The ray (#1778): a flat disc on one pair of wing panels that beat as a travelling wave, a whip
+    /// tail, eyes on top — under water a bottom-hugging glider, in the air a sky glider that never lands (see
+    /// <see cref="CreatureMotion.IsSkyGlider"/>). Never a hunter: passive, skittish or territorial at most.</summary>
+    private static void ApplyRayPlan(System.Random rng, CreatureSpecies sp)
+    {
+        sp.BodyPlan = CreatureBodyPlan.Ray;
+        sp.Legs = 0;
+        sp.HasWings = true;
+        sp.HasTail = true;
+        sp.HasGasSac = false;
+        sp.HasCrest = false;
+        sp.EyeStalks = false;
+        sp.Tentacles = 0;
+        sp.Horns = rng.NextDouble() < 0.3 ? 2 : 0;                  // cephalic lobes on some
+        sp.BodySegments = 1 + rng.Next(2);                          // 1..2 — a disc, or a slightly longer one
+        sp.Eyes = Weighted(rng, 2, 80, 0, 10, 4, 10);
+        sp.Size = 1.2f + (float)rng.NextDouble() * 1.8f;            // 1.2..3
+        sp.Temperament = (CreatureTemperament)Weighted(rng,
+            (int)CreatureTemperament.Passive, 55,
+            (int)CreatureTemperament.Skittish, 30,
+            (int)CreatureTemperament.Territorial, 15);
+        sp.MaxHealth = 10f + sp.Size * 8f;
+        sp.AttackDamage = sp.Temperament == CreatureTemperament.Territorial ? 2f + (float)rng.NextDouble() * 3f : 0f;
+        sp.Speed = 1.2f + (float)rng.NextDouble() * 1.4f;           // 1.2..2.6 — an unhurried glide
+        sp.LocoStyle = sp.Habitat == CreatureHabitat.Air
+            ? LocomotionStyle.Glider                                // the sky ray swoops
+            : rng.NextDouble() < 0.6 ? LocomotionStyle.Drifter : LocomotionStyle.Schooler;
+        sp.SocialGroupSize = 1 + rng.Next(3);                       // 1..3
+        sp.Heads = 1;
+        sp.WingPairs = 1;
+        sp.FinPairs = 1;
+    }
+
+    /// <summary>The air fish (#1779): a fish body that lives in the air like a bird — legless, wingless, finned,
+    /// tailed, gliding on its swoop wave and never landing (a sky glider, see <see cref="CreatureMotion.IsSkyGlider"/>).
+    /// Everything else (colour, size, temperament, eyes, glow) stays as rolled.</summary>
+    private static void ApplyAirFish(System.Random rng, CreatureSpecies sp)
+    {
+        sp.Legs = 0;
+        sp.HasWings = false;
+        sp.HasTail = true;
+        sp.HasGasSac = false;
+        sp.EyeStalks = false;
+        sp.Tentacles = rng.NextDouble() < 0.15 ? 2 : 0;             // the odd barbel pair
+        sp.LocoStyle = LocomotionStyle.Glider;
+        sp.Heads = 1;
+        sp.WingPairs = 1;
     }
 
     /// <summary>Rolls whether this species gets a non-standard body plan (#637/#638) and, if so,
