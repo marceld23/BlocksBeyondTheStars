@@ -1196,7 +1196,7 @@ gated on the generation, a new type gated by `minTerrainGeneration: 5`, append-o
 authored content as an overlay after the procedural roster — so every existing world is byte-identical (the
 generation-0/1/3 goldens did not move; five `*-gen5` groups pin the wave).
 
-**Four planet types** (`data/planets.json`, `minTerrainGeneration: 5`): `rainbow_sea` (Sophia: rainbow water,
+**Four planet types** (`data/planets.json`, `minTerrainGeneration: 5`): `rainbow_sea` (Sophie: rainbow water,
 islands afloat on the sea with kelp hanging from their keels, kelp forests, a seabed of sand), `flower_fields`
 (Damian: flowers and nothing else, one authored creature), `scrapyard` (scrap, more ruins and factories, no
 life, toxic air) and `gamer_hills` (Ben: karst caves, PC props, mountain-sized gaming gear). New optional
