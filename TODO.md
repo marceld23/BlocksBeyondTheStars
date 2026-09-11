@@ -24,6 +24,51 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌳 Air west of the origin, crew that stays aboard, saplings, and a helmet frame you can paint (#1773–#1777, 2026-09-11, branch fix/reports-0911b)
+
+The evening's three F1 reports on 2026.9.5 — two from Lyxette on her station, one from Justus about his avatar.
+
+- **#1773 the station's air ends at x = 0.** "Immer noch angeblich undichte Räume": her oxygen was full at x 2.75
+  and drained at x −0.8 inside one closed iron/glass room with energy doors. Since #1558 a boarder's position is
+  unwrapped, but every block WRITE still canonicalises X into [0, circ) and hands that position to the cell grid
+  (`WriteBackStationCell`), the absorb pass and the door entities — a wall built at x −5 landed at x ≈ 5947, so
+  `BoundsMin.X` never left the origin, `FillStationPocket` (raw coordinates, no `CanonicalBlock` anywhere) read
+  x < 0 as the void, and `PlayerDoorFillsCell` compared 5946 with −6. Now `StationLocalWorld` unwraps every
+  position the grid stores to the lap nearest the origin (write-back, absorb, door bounds), `NormaliseStationCells`
+  moves the phantom east cells of existing saves back on the next start, the door column is compared across the
+  seam, and the bump snapshot lists doors (a doorway used to read as a hole, since a door is an entity, never a
+  voxel). Gravity follows for free (`BeyondStationBox` reads the same bounds). Tests: a room built on foot west of
+  the origin breathes and its door seals, the same room without the door leaks, phantom cells migrate.
+- **#1775 station crew has no containment.** "Hier läuft einer außerhalb der Eisenmauer herum" — the filler crew was
+  homed at the post ± 2 blocks with no standable and no air check (a post beside the hull put a settler inside
+  the wall), the post keeper stood inside the vendor block, a stroller stepped two blocks up onto a one-block
+  parapet (`TryGroundFeetYAt` scans upward, `PathBlockedByWorld` sweeps at the destination height only), and a
+  closed door was air to it. `StationCrewSpot` now picks standable cells inside the post's sealed pocket
+  (jittered first, then the rings, then a deck down/up; legacy spot last), the step-up is one block, a closed door
+  entity blocks (`ClosedDoorBlocks`), a step that would leave the pocket is a wall, and a crew member found
+  outside its pocket is set back home. Same bug class as #1482 (walking machines), never applied to people.
+- **#1774 saplings that grow into trees.** Lyxette's arboretum: crops already grew on plain dirt aboard a station
+  (every crop hosts on `dirt`; the tray is an alternative), but trees were worldgen only and leaves had no item.
+  A `sapling` item + `flora_sapling` block (hand recipe 1 log + 2 fibre → 2; leaves drop one 1-in-10) plants on
+  dirt/grass/mud under the flora rules (host below, inside the hull on a void world), rides the persisted regrow
+  queue with a 150 s clock, and `TryGrowTree` stamps a 4–5 log trunk with a round crown of `tree_leaves` once the
+  column is free — under a low ceiling it retries every 30 s. Picked up, it stays a sapling (no regrow). It is
+  deliberately NO catalog species: no world roster, no greenhouse grows it, and the client renders anything
+  `flora_*` as a billboard anyway. `tree_leaves` / `pine_needles` / `palm_frond` drop themselves and place. The
+  sapling tile is the bush texture for now. Manual: Greenhouses. Tests: `SaplingTests`.
+- **#1776 the helmet frame around the face.** Justus: "ein Rand neben meinem Gesicht, den ich nicht umfärben kann".
+  The four helmet bars reach past the face plate and frame the drawn face; `FaceChunks` gave the helmet's front
+  `-1` (#874, "the front stays open"), so their lips always showed the flat suit tint. Each bar's front lip now
+  continues its own strip past the strip's front edge (`PaintSeg.FrontChunk` + `Lip`, `LipBand` = ⅛ of the chunk),
+  the face plate covers the whole head front (`FacePlateScale` 0.9 → 1.0, no skin rim), and the visor band hides
+  while a custom face is drawn (it covered the top rows). Payload stays five chunks. Hint text updated (14 locales).
+  His second wish — repixel AND recolour in the game — already existed: Character tab → "Aussehen" is the same
+  editor as the menu designer, colours included.
+- **#1777 three avatar colour bugs.** `RemotePlayers` applied skin/torso/arms/legs on the first presence only, so
+  others kept seeing creation-time colours until they reconnected (now re-applied whenever a presence carries new
+  ones); `ApplyColors` skipped `ShaderColor.Srgb` and rendered an in-game colour brighter than after a restart;
+  `BodyPaintKit.FromCanvas` masked `& 0xF` and dropped palette entries 16–31 on every body canvas.
+
 ### 💧 Water in different colours, and rain to match (#1758 follow-up, 2026-09-11, branch feat/water-colours-auto)
 
 The children's "water in different colours per world" was built but switched on nowhere but the rainbow

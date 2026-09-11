@@ -47,7 +47,8 @@ namespace BlocksBeyondTheStars.Client
         // the opaque head (front at 0.295 < 0.5), which is why a drawn face showed nothing. Nudge if a build
         // shows it floating/clipping.
         private const float FacePlateZ = 0.5f;        // head front (local) — plate front (0.5 + half-depth) sits just proud
-        private const float FacePlateScale = 0.9f;    // covers the face, leaving a thin skin border
+        private const float FacePlateScale = 1.0f;    // covers the whole head front (#1776: the 0.9 left a skin-coloured rim around a drawn face)
+        private GameObject _visorBand;                 // the suit's forehead glass — hidden while a custom face is drawn (#1776)
         private readonly List<GameObject> _faceFeatures = new List<GameObject>();
         private GameObject _facePlate;
         private Material _faceMat;
@@ -70,7 +71,20 @@ namespace BlocksBeyondTheStars.Client
             public int Row;            // limb row: 0 = single-row part / left limb, 1 = right limb
             public Material OrigMat;   // to restore when the painting is cleared
             public Mesh OrigMesh;      // the shared primitive cube mesh, ditto
+            public int FrontChunk = -1; // #1776: the chunk the cube's +z face continues (the helmet frame's lips), −1 = solid pad
+            public int Lip = LipNone;   // #1776: which chunk edge that lip extends past (see the Lip* constants)
         }
+
+        // #1776: the helmet shell's four bars reach past the face plate and frame the drawn face; their FRONT lips
+        // used to sit on the solid-tint pad (suit colour, never paintable — "der Rand neben meinem Gesicht"). Now
+        // each lip continues its own strip past the strip's front edge, so a painted helmet frames the face in
+        // the painting. LipBand is how much of the chunk the lip re-samples beyond that edge.
+        private const int LipNone = 0;
+        private const int LipOuterRight = 1;   // the lip's outer corner meets the chunk's u = 1 edge (the left bar)
+        private const int LipOuterLeft = 2;    // … the chunk's u = 0 edge (the right bar)
+        private const int LipOuterTop = 3;     // … the chunk's v = 1 edge (the chin)
+        private const int LipOuterBottom = 4;  // … the chunk's v = 0 edge (the top)
+        private const float LipBand = 0.125f;
 
         private readonly List<PaintSeg>[] _paintSegs =
         {
@@ -203,22 +217,25 @@ namespace BlocksBeyondTheStars.Client
         private void BuildSuit()
         {
             // Helmet shell in the torso material: tints with the player's suit colour. The five shell cubes
-            // are the paintable "helmet" part (#874) — the front stays open (the face must show), so the
-            // painting covers right/back/left/chin/top only; the visor band stays procedural.
-            RegisterPaint(BodyPaint.Helmet, 0,
-                AddCube("SuitHelmetTop", _head, new Vector3(0f, 0.56f, 0f), new Vector3(1.16f, 0.16f, 1.16f), _torso));
+            // are the paintable "helmet" part (#874): right/back/left/chin/top strips. The front stays open (the
+            // face must show), but the four bars' front LIPS — the frame around the face — continue their strips
+            // (#1776; chunk order right 0 | back 1 | left 2 | chin 3 | top 4). The visor band stays procedural.
+            RegisterPaintLip(BodyPaint.Helmet, 0,
+                AddCube("SuitHelmetTop", _head, new Vector3(0f, 0.56f, 0f), new Vector3(1.16f, 0.16f, 1.16f), _torso), 4, LipOuterBottom);
             RegisterPaint(BodyPaint.Helmet, 0,
                 AddCube("SuitHelmetBack", _head, new Vector3(0f, 0.04f, -0.55f), new Vector3(1.16f, 1.2f, 0.14f), _torso));
-            RegisterPaint(BodyPaint.Helmet, 0,
-                AddCube("SuitHelmetL", _head, new Vector3(-0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso));
-            RegisterPaint(BodyPaint.Helmet, 0,
-                AddCube("SuitHelmetR", _head, new Vector3(0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso));
-            RegisterPaint(BodyPaint.Helmet, 0,
-                AddCube("SuitHelmetChin", _head, new Vector3(0f, -0.56f, 0.03f), new Vector3(1.16f, 0.14f, 1.1f), _torso));
+            RegisterPaintLip(BodyPaint.Helmet, 0,
+                AddCube("SuitHelmetL", _head, new Vector3(-0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso), 2, LipOuterRight);
+            RegisterPaintLip(BodyPaint.Helmet, 0,
+                AddCube("SuitHelmetR", _head, new Vector3(0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso), 0, LipOuterLeft);
+            RegisterPaintLip(BodyPaint.Helmet, 0,
+                AddCube("SuitHelmetChin", _head, new Vector3(0f, -0.56f, 0.03f), new Vector3(1.16f, 0.14f, 1.1f), _torso), 3, LipOuterTop);
 
             // Raised visor band across the forehead — dark glossy glass, clear of the brow (brow top ≈ 0.20).
-            AddCube("SuitVisorBand", _head, new Vector3(0f, 0.36f, 0.52f), new Vector3(1.0f, 0.3f, 0.12f),
+            // Hidden while a custom face is drawn (#1776): it covered the top rows of the drawn face.
+            _visorBand = AddCube("SuitVisorBand", _head, new Vector3(0f, 0.36f, 0.52f), new Vector3(1.0f, 0.3f, 0.12f),
                 Lit(new Color(0.10f, 0.22f, 0.28f), _visorTex));
+            ApplyFaceVisibility();
 
             // Collar ring where the helmet locks onto the suit (world units — child of the body root).
             AddCube("SuitCollar", transform, new Vector3(0f, 1.645f, 0f), new Vector3(0.32f, 0.11f, 0.32f), _torso);
@@ -526,10 +543,12 @@ namespace BlocksBeyondTheStars.Client
             _torsoColor = torso;
             _armsColor = arms;
             _legsColor = legs;
-            _skin.color = skin;
-            _torso.color = torso;
-            _arms.color = arms;
-            _legs.color = legs;
+            // #1777: through the same conversion Lit() applies when the figure is built — a colour changed in the
+            // game used to skip it and render brighter (Linear colour space) than the same colour after a restart.
+            _skin.color = ShaderColor.Srgb(skin);
+            _torso.color = ShaderColor.Srgb(torso);
+            _arms.color = ShaderColor.Srgb(arms);
+            _legs.color = ShaderColor.Srgb(legs);
 
             // A custom face composites its transparent pixels onto the skin, so re-bake it when skin changes.
             if (!FacePalette.IsEmpty(_faceString))
@@ -623,6 +642,15 @@ namespace BlocksBeyondTheStars.Client
                     pr.enabled = _visible && custom;
                 }
             }
+
+            if (_visorBand != null)
+            {
+                var vr = _visorBand.GetComponent<Renderer>();
+                if (vr != null)
+                {
+                    vr.enabled = _visible && !custom; // #1776: the glass gives way to the drawn face
+                }
+            }
         }
 
         // ── body paint (#874) ────────────────────────────────────────────────────────────────────
@@ -635,6 +663,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Registers a cube whose part frame is NOT its direct parent (limb segments hang from
         /// elbow/knee/hand pivots) — the caller passes the rest-pose centre in the part frame explicitly.</summary>
         private void RegisterPaint(int part, int row, GameObject go, Vector3 partFrameCenter)
+            => RegisterPaint(part, row, go, partFrameCenter, -1, LipNone);
+
+        /// <summary>Registers a helmet bar whose front lip continues <paramref name="frontChunk"/> past the
+        /// chunk edge <paramref name="lip"/> names (#1776).</summary>
+        private void RegisterPaintLip(int part, int row, GameObject go, int frontChunk, int lip)
+            => RegisterPaint(part, row, go, go.transform.localPosition, frontChunk, lip);
+
+        private void RegisterPaint(int part, int row, GameObject go, Vector3 partFrameCenter, int frontChunk, int lip)
         {
             _paintSegs[part].Add(new PaintSeg
             {
@@ -644,6 +680,8 @@ namespace BlocksBeyondTheStars.Client
                 Row = row,
                 OrigMat = go.GetComponent<Renderer>().sharedMaterial,
                 OrigMesh = go.GetComponent<MeshFilter>().sharedMesh,
+                FrontChunk = frontChunk,
+                Lip = lip,
             });
         }
 
@@ -739,7 +777,7 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    var mesh = BuildPaintedMesh(seg.Center, seg.Size, min, max, part, row);
+                    var mesh = BuildPaintedMesh(seg.Center, seg.Size, min, max, part, row, seg.FrontChunk, seg.Lip);
                     _paintMeshes[part].Add(mesh);
                     seg.Go.GetComponent<MeshFilter>().sharedMesh = mesh;
                     seg.Go.GetComponent<Renderer>().sharedMaterial = _paintMats[part];
@@ -780,7 +818,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Builds a unit-cube mesh for one segment whose UVs project the part's atlas planar per
         /// axis: painted faces map the corner's position within the row's bounding box into their chunk's
         /// UV rect; unpainted faces (tops/soles/open front) sit on the solid-tint pad.</summary>
-        private static Mesh BuildPaintedMesh(Vector3 center, Vector3 size, Vector3 bbMin, Vector3 bbMax, int part, int row)
+        private static Mesh BuildPaintedMesh(Vector3 center, Vector3 size, Vector3 bbMin, Vector3 bbMax, int part, int row,
+            int frontChunk = -1, int lip = LipNone)
         {
             var chunks = FaceChunks(part, row);
             var solid = BodyPaintKit.SolidRect(part);
@@ -805,6 +844,12 @@ namespace BlocksBeyondTheStars.Client
                 };
 
                 int chunk = chunks[f];
+                bool lipFace = f == 4 && chunk < 0 && frontChunk >= 0 && lip != LipNone; // #1776: a helmet bar's front lip
+                if (lipFace)
+                {
+                    chunk = frontChunk;
+                }
+
                 Rect rect = chunk >= 0 ? BodyPaintKit.ChunkRect(part, chunk) : solid;
                 for (int i = 0; i < 4; i++)
                 {
@@ -824,6 +869,24 @@ namespace BlocksBeyondTheStars.Client
                     // within the row's bounding box along the two axes this face spreads over.
                     Vector3 p = center + Vector3.Scale(corners[i], size);
                     float u, vv;
+                    if (lipFace)
+                    {
+                        // The lip re-samples a band past its strip's front edge: the outer corner sits ON the edge,
+                        // the inner edge (against the face) LipBand further in — so the painting wraps round.
+                        float xf = size.x > 0f ? (p.x - (center.x - size.x * 0.5f)) / size.x : 0.5f; // 0 = −x side
+                        float yf = size.y > 0f ? (p.y - (center.y - size.y * 0.5f)) / size.y : 0.5f; // 0 = bottom
+                        switch (lip)
+                        {
+                            case LipOuterRight: u = 1f - xf * LipBand; vv = YFrac(p, bbMin, ext); break;          // left bar: outer = −x
+                            case LipOuterLeft: u = (1f - xf) * LipBand; vv = YFrac(p, bbMin, ext); break;         // right bar: outer = +x
+                            case LipOuterTop: u = XFrac(p, bbMin, ext); vv = 1f - yf * LipBand; break;            // chin: outer = bottom
+                            default: u = XFrac(p, bbMin, ext); vv = (1f - yf) * LipBand; break;                   // top: outer = top
+                        }
+
+                        uvs[v] = new Vector2(rect.xMin + Mathf.Clamp01(u) * rect.width, rect.yMin + Mathf.Clamp01(vv) * rect.height);
+                        continue;
+                    }
+
                     switch (f)
                     {
                         case 0: u = Mathf.InverseLerp(bbMax.z, bbMin.z, p.z); vv = YFrac(p, bbMin, ext); break; // +x

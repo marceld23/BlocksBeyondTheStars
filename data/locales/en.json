@@ -2100,7 +2100,7 @@
   "ui.paint.body.top": "Top",
   "ui.paint.row.left": "Left",
   "ui.paint.row.right": "Right",
-  "ui.paint.body.helmet_hint": "Left-click to paint · right-click to erase · Alt+click picks up a colour · the helmet front stays open, so your face is always visible",
+  "ui.paint.body.helmet_hint": "Left-click to paint · right-click to erase · Alt+click picks up a colour · the frame around your face takes the painting too; only the face itself stays open",
   "ui.paint.title": "Paint block",
   "ui.appearance.title": "Appearance",
   "ui.appearance.more_colors": "More colours (and any colour you like) in the appearance screen",

@@ -2100,7 +2100,7 @@
   "ui.paint.body.top": "Oben",
   "ui.paint.row.left": "Links",
   "ui.paint.row.right": "Rechts",
-  "ui.paint.body.helmet_hint": "Linksklick malt · Rechtsklick radiert · Alt+Klick nimmt eine Farbe auf · die Helm-Vorderseite bleibt offen, dein Gesicht ist immer sichtbar",
+  "ui.paint.body.helmet_hint": "Linksklick malt · Rechtsklick radiert · Alt+Klick nimmt eine Farbe auf · der Rahmen um dein Gesicht wird mitbemalt; nur das Gesicht selbst bleibt frei",
   "ui.paint.title": "Block bemalen",
   "ui.appearance.title": "Aussehen",
   "ui.appearance.more_colors": "Mehr Farben (und jede beliebige) im Aussehen-Editor",
