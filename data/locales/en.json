@@ -2680,7 +2680,7 @@
   "item.sentry_post.name": "Sentry Post",
   "item.sentry_post.desc": "A small automatic turret. It has to be on your power grid: within 8 blocks of your base core, or beside a power relay that is chained back to the core. Off the grid it is only decoration. While you are home it fires up to 14 blocks at hostile machines, at hostile animals and at robbers who have already started a fight. It never shoots at players, tame animals or people who just want to talk. Needs no ammunition.",
   "item.power_relay.name": "Power Relay",
-  "item.power_relay.desc": "Carries your base core's power outward. Each relay reaches 8 blocks and feeds sentry posts as well as further relays, so you can run a chain into the far corner of a large compound. The first one in the chain still has to stand within reach of the core. Built for spaceports and perimeter walls larger than the base zone.",
+  "item.power_relay.desc": "Carries your base core's power outward. Each relay reaches 8 blocks and feeds sentry posts as well as further relays, so you can run a chain into the far corner of a large compound. The first one in the chain still has to stand within reach of the core. Built for spaceports and perimeter walls larger than the base zone. A base can run a chain of up to 32 relays.",
   "item.water_spout.name": "Waterfall Spout",
   "item.water_spout.desc": "Pours a column of water straight down from its underside — and only down. The fall ends where it lands and never spreads across the floor, so you get a waterfall instead of a flood. Hang it over an edge with open air beneath it; mine it and the column dries up.",
   "item.algae_ration.name": "Algae Ration",

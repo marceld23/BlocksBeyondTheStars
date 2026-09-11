@@ -348,8 +348,10 @@ public sealed partial class GameServer
 
     /// <summary>Hard cap on the relays one base's chain may follow. Each relay costs another 17³ walk on the
     /// rescan beat, so this is what keeps a relay-tiled compound from turning that beat into a world sweep.
-    /// Sixteen hops reach far past any build we have seen.</summary>
-    private const int MaxPowerRelaysPerBase = 16;
+    /// Sixteen hops did not cover the 80×80 spaceport that asked for relays in the first place (#1750); thirty-two
+    /// is about 157k block reads per rescan per base, still far below a millisecond budget that matters. The
+    /// relay's item text quotes this number — change both.</summary>
+    private const int MaxPowerRelaysPerBase = 32;
 
     /// <summary>Tells the player straight away when a sentry block was placed where it can never fire (#1699):
     /// outside every base zone they own on this body. Three things can silence a post — no base zone, the owner

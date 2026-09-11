@@ -3925,6 +3925,14 @@ public sealed partial class GameServer
             return;
         }
 
+        // #1746: the client can aim at doors now, so a stamped station / settlement door arrives here as well.
+        // It is protected like the wall it sits in — say so, rather than healing a "ghost block" at its air cell.
+        if (StampedDoorAt(pos))
+        {
+            Reject(session, "mine", IsStationBlock(pos) ? "@srv.protect.station" : "@srv.protect.settlement");
+            return;
+        }
+
         var current = _world.GetBlock(pos);
         if (current.IsAir)
         {

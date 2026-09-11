@@ -307,6 +307,12 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     float haze = saturate((camDist - _Sc_Fog.x) / max(1.0, _Sc_Fog.y - _Sc_Fog.x)) * _Sc_Fog.z;
                     float3 hazeCol = (_Sc_Sky.a < 0.5) ? light : _Sc_Sky.rgb;
                     col = lerp(col, hazeCol, haze);
+
+                    // #1748: a beacon must outlast the haze. The emission above went into `col` BEFORE this
+                    // lerp, so a warning light on a far tower faded exactly like the rock beside it. Half the
+                    // glow comes back in proportion to the haze: rock still dissolves into the sky, a light
+                    // still reads as a light at the edge of the view.
+                    col += albedo * i.mat.a * (3.0 * lavaGlow) * haze * 0.5;
                 }
 
                 half4 outc = half4(col, 1);

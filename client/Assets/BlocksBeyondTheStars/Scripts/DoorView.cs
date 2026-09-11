@@ -407,6 +407,32 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The nearest hinge door within reach of a point (for the player's E-toggle), or 0 if none.</summary>
+        /// <summary>#1746: the door the aim ray crosses first within <paramref name="reach"/> — as the base cell
+        /// the server keys doors on (the floor of the doorway centre, the same formula <c>RemovePlayerDoorAt</c>
+        /// matches with) plus its distance along the ray. Each door is tested as a slab the depth of its
+        /// collider, in SCENE space like <see cref="NearestHinge"/>. Stamped station doors answer too: the
+        /// server tells the player those are protected, instead of healing a "ghost block" at an air cell.</summary>
+        public bool AimDoor(Vector3 origin, Vector3 dir, float reach, out Vector3Int cell, out float distance)
+        {
+            cell = default;
+            distance = float.PositiveInfinity;
+            foreach (var d in _doors.Values)
+            {
+                Vector3 c = Game != null ? Game.ScenePos(d.World.x, d.World.y, d.World.z) : d.World;
+                float hx = d.AxisX ? d.Width * 0.5f : Thickness * 2f;
+                float hz = d.AxisX ? Thickness * 2f : d.Width * 0.5f;
+                float t = RayBox.Entry(origin.x, origin.y, origin.z, dir.x, dir.y, dir.z,
+                    c.x - hx, c.y, c.z - hz, c.x + hx, c.y + Height, c.z + hz);
+                if (t <= reach && t < distance)
+                {
+                    distance = t;
+                    cell = new Vector3Int(Mathf.FloorToInt(d.World.x), Mathf.FloorToInt(d.World.y), Mathf.FloorToInt(d.World.z));
+                }
+            }
+
+            return distance <= reach;
+        }
+
         public int NearestHinge(Vector3 worldPos, float reach)
         {
             int best = 0;

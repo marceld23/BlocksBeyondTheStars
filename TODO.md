@@ -48,6 +48,19 @@ was a stranded **mining-overflow** bundle — immortal by design (#1312), but it
 - Not changed: the opaque-face lighting behind #1749 (Lyxette's answer supports the "bed lit per face" reading;
   she calls it ambience, so it stays a cosmetic item).
 
+### 🚪 A curtain you can see, a door you can take down, a cave that is a room (#1745–#1748, #1750, 2026-09-10, branch fix/reports-0910)
+
+Lyxette's 2026-09-10 reports, the first on 2026.9.5. Two were client bugs hiding behind correct servers:
+a row of waterfall blocks poured a sheet the client drew one cell of — `WaterfallDetect` wanted two open sides
+and a curtain column has one (the rule now knows a sheet from a pool by its neighbours, and moved to
+Client.Core with tests, #1745); and a player-built door could not be mined at all, because the voxel aim
+march walks through an entity standing in an air cell (`TryAimDoor` tests the doors first, ranked by
+`RayBox` against the first solid cell; a stamped door answers "protected" instead of a ghost heal, #1746).
+A creature asleep in her walled underground hall was a legitimate cave spawn — the walled-yard gate exempts
+cave dwellers and her hall is far outside every base radius — so a cave pocket with player edits around it
+no longer counts as a cave (#1747). Emissive blocks now bleed through the distance haze (#1748), and the
+relay chain cap is 32 (#1750, item text in all locales). Open: the water-bed mosaic (#1749, playtest).
+
 ### 🎨 A real undo, a fuller fill, and outfits you can put on in the game (#1737–#1739, 2026-09-10, branch feat/avatar-editor-tools)
 
 Three things Marcel missed in the avatar editor. Two of them turned out to be about the editor the whole

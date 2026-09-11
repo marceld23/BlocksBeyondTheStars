@@ -2680,7 +2680,7 @@
   "item.sentry_post.name": "Posto de Sentinela",
   "item.sentry_post.desc": "Uma pequena torre automática. Precisa ficar dentro da sua própria base, a até 8 blocos do núcleo da base — mais longe vira só decoração. Enquanto você estiver em casa, ela atira até 14 blocos em máquinas hostis, em animais agressivos e em ladrões que já começaram uma briga. Nunca atira em jogadores, animais domesticados ou pessoas que só querem conversar. Não precisa de energia nem de munição.",
   "item.power_relay.name": "Relé de Energia",
-  "item.power_relay.desc": "Leva a energia do núcleo da sua base para fora. Cada relé alcança 8 blocos e alimenta postos sentinela e outros relés, permitindo uma cadeia até o canto mais distante de um grande complexo. O primeiro da cadeia ainda precisa estar ao alcance do núcleo. Projetado para espaçopórticos e muros perimetrais maiores que a zona da base.",
+  "item.power_relay.desc": "Leva a energia do núcleo da sua base para fora. Cada relé alcança 8 blocos e alimenta postos sentinela e outros relés, permitindo uma cadeia até o canto mais distante de um grande complexo. O primeiro da cadeia ainda precisa estar ao alcance do núcleo. Projetado para espaçopórticos e muros perimetrais maiores que a zona da base. Uma base pode ter uma cadeia de até 32 relés.",
   "item.water_spout.name": "Bocal de Cachoeira",
   "item.water_spout.desc": "Despeja uma coluna de água diretamente para baixo a partir de sua face inferior — e somente para baixo. A queda termina onde a água cai e nunca se espalha pelo chão, então você tem uma cachoeira em vez de uma inundação. Pendure-a sobre uma borda com ar aberto embaixo; ao minerá-la a coluna seca.",
   "item.algae_ration.name": "Ração de Algas",
