@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using System.Linq;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
@@ -352,6 +353,108 @@ public sealed partial class GameServer
         _npcs.Clear();
         SpawnStationNpcs(station); // deterministic from the station seed: the same faces come back; a newly open post tells the boarders
         BroadcastNpcs();
+    }
+
+    // ---------------- #1775: the crew stays inside the hull ----------------
+
+    /// <summary>Cells the current spawn pass already handed to a crew member, so two settlers don't share one.</summary>
+    private readonly HashSet<Vector3i> _stationCrewSpotsTaken = new();
+
+    /// <summary>Where a crew member stands for a marker (#1775). The old rule homed the filler crew at the marker
+    /// plus a blind ±2 jitter and the post keeper on the marker's floor cell — on a player station that is the
+    /// vendor block itself, and a post two blocks from the hull put a settler inside the wall or in the vacuum
+    /// beyond it ("Hier läuft einer außerhalb der Eisenmauer herum"). Now a spot must be standable (a floor
+    /// under two free cells, judged the way the NPC walks) and, on a player station, lie in the sealed pocket
+    /// of its post. Random cells within <paramref name="jitter"/> are tried first (a crowd, not a queue), then
+    /// the rings around the marker on the marker's floor, then one deck down and up; the legacy spot is the
+    /// last resort so an odd procedural layout keeps its crew exactly where it always stood.</summary>
+    private Vector3f StationCrewSpot(BoardableStation station, Vector3f marker, System.Random rng, int jitter)
+    {
+        int mx = (int)System.Math.Floor(marker.X), my = (int)System.Math.Floor(marker.Y), mz = (int)System.Math.Floor(marker.Z);
+        bool playerStation = IsPlayerStationId(station.Id);
+        var legacy = jitter > 0
+            ? new Vector3f(marker.X + (float)(rng.NextDouble() * 2 * jitter - jitter), my, marker.Z + (float)(rng.NextDouble() * 2 * jitter - jitter))
+            : new Vector3f(marker.X, my, marker.Z);
+
+        for (int i = 0; i < (jitter > 0 ? 8 : 0); i++)
+        {
+            if (TryCrewCell(station, mx + rng.Next(-jitter, jitter + 1), my, mz + rng.Next(-jitter, jitter + 1), playerStation, out var spot))
+            {
+                return spot;
+            }
+        }
+
+        foreach (int y in new[] { my, my - 1, my + 1 })
+        {
+            for (int r = 0; r <= jitter + 1; r++)
+                for (int dx = -r; dx <= r; dx++)
+                    for (int dz = -r; dz <= r; dz++)
+                    {
+                        if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz)) != r)
+                        {
+                            continue; // ring r only
+                        }
+
+                        if (TryCrewCell(station, mx + dx, y, mz + dz, playerStation, out var spot))
+                        {
+                            return spot;
+                        }
+                    }
+        }
+
+        return legacy;
+    }
+
+    private bool TryCrewCell(BoardableStation station, int x, int y, int z, bool playerStation, out Vector3f spot)
+    {
+        spot = default;
+        var cell = new Vector3i(x, y, z);
+        if (_stationCrewSpotsTaken.Contains(cell) || StandableSpot(x, y, z) is not { } s)
+        {
+            return false;
+        }
+
+        if (playerStation && !InSealedStationPocket(station, cell))
+        {
+            return false;
+        }
+
+        _stationCrewSpotsTaken.Add(cell);
+        spot = s;
+        return true;
+    }
+
+    /// <summary>The player station whose interior world is active, once stamped — the crew's containment volume
+    /// is its sealed pocket (#1775); null on planets, NPC stations and before the stamp.</summary>
+    private BoardableStation? ActivePlayerStation()
+        => IsPlayerStationWorld(_world.LocationId)
+            && _stationsById.TryGetValue(_world.LocationId.Substring("station:".Length), out var station)
+            && station.Stamped
+            ? station
+            : null;
+
+    /// <summary>Whether a crew member's feet cell lies outside the sealed pocket its home sits in. False while the
+    /// home itself is not in a sealed pocket (a breached room follows the plain walking rules — the re-staffing
+    /// takes the crew away shortly anyway).</summary>
+    private bool OutsideCrewPocket(BoardableStation station, Vector3f home, Vector3f pos)
+    {
+        var homeCell = new Vector3i((int)System.Math.Floor(home.X), (int)System.Math.Floor(home.Y), (int)System.Math.Floor(home.Z));
+        if (!InSealedStationPocket(station, homeCell))
+        {
+            return false;
+        }
+
+        var cell = new Vector3i((int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z));
+        return !InSealedStationPocket(station, cell);
+    }
+
+    /// <summary>Test seam (#1775): puts an NPC somewhere, as if it had wandered there.</summary>
+    public void MoveNpcForTest(int id, Vector3f pos)
+    {
+        if (_npcs.FirstOrDefault(n => n.Id == id) is { } npc)
+        {
+            npc.Pos = pos;
+        }
     }
 
     /// <summary>Whether a player-built door entity occupies the cell (its ~3-tall opening column). The door is

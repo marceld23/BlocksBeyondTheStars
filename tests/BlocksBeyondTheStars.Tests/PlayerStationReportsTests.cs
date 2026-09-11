@@ -249,6 +249,67 @@ public sealed class PlayerStationReportsTests : IDisposable
         }
     }
 
+    // ---------------- #1775: the crew stays inside the hull ----------------
+
+    private static Vector3i Feet(Vector3f pos)
+        => new((int)Math.Floor(pos.X), (int)Math.Floor(pos.Y), (int)Math.Floor(pos.Z));
+
+    [Fact]
+    public void Crew_StandsOnTheFloor_InsideTheSealedRoom()
+    {
+        // Lyxette (v2026.9.5): "Hier läuft einer außerhalb der Eisenmauer herum" — the filler crew was homed at
+        // the post ± 2 blocks with no standable and no air check, so a post beside the hull put a settler inside
+        // the wall or beyond it, and the post keeper's feet sat inside the vendor block itself (#1775).
+        var server = NewServer("crewfloor", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildSealedBox(server, pilot, vendorItem: "station_vendor");
+            BoardOwnStation(server, "Owner", id);
+
+            var crew = server.NpcSnapshots;
+            Assert.Equal(3, crew.Count); // the vendor + the small tier's two civilians
+            foreach (var npc in crew)
+            {
+                var feet = Feet(npc.Pos);
+                Assert.True(server.StationCellSealedForTest(id, feet), $"{npc.Role} #{npc.Id} stands at {feet}, outside the sealed room");
+                Assert.True(server.World.GetBlock(feet).IsAir, $"{npc.Role} #{npc.Id} stands inside a block at {feet}");
+                Assert.False(server.World.GetBlock(new Vector3i(feet.X, feet.Y - 1, feet.Z)).IsAir, $"{npc.Role} #{npc.Id} floats at {feet}");
+                Assert.Equal(feet, Feet(npc.Home));
+            }
+
+            Assert.Equal(3, crew.Select(n => Feet(n.Pos)).Distinct().Count()); // nobody shares a cell
+        }
+    }
+
+    [Fact]
+    public void Crew_NeverWalksOutOfTheRoom_AndIsSetBackHome_WhenOutside()
+    {
+        var server = NewServer("crewwalk", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildSealedBox(server, pilot, vendorItem: "station_vendor");
+            BoardOwnStation(server, "Owner", id);
+            var inside = new Vector3f(10.5f, 65.03f, 10.5f);
+
+            // A minute of strolling in a 3×3 room with a door in its east wall: everyone is still in the pocket.
+            TickAt(server, pilot, inside, halfSeconds: 120);
+            foreach (var npc in server.NpcSnapshots)
+            {
+                Assert.True(server.StationCellSealedForTest(id, Feet(npc.Pos)), $"{npc.Role} #{npc.Id} left the room: {npc.Pos}");
+            }
+
+            // A crew member that somehow ends up beyond the hull (a legacy spawn, a wall built around it) is back
+            // home on the next tick instead of strolling in the vacuum.
+            var vendor = server.NpcSnapshots.First(n => n.Role == "vendor");
+            server.MoveNpcForTest(vendor.Id, new Vector3f(10.5f + 2 + 6, 65f, 10.5f));
+            TickAt(server, pilot, inside, halfSeconds: 2);
+            var back = server.NpcSnapshots.First(n => n.Id == vendor.Id);
+            Assert.Equal(Feet(vendor.Home), Feet(back.Pos));
+        }
+    }
+
     // ---------------- #1487: nobody staffs a post that is open to space ----------------
 
     [Fact]
