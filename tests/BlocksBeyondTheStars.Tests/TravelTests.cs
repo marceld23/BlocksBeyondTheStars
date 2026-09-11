@@ -4,6 +4,8 @@
 using System;
 using System.IO;
 using System.Linq;
+using BlocksBeyondTheStars.Networking;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -25,6 +27,39 @@ public sealed class TravelTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_travel_" + Guid.NewGuid().ToString("N"));
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+    }
+
+    private (SvGameServer server, LoopbackClientTransport client) StartedWithClient(
+    out SqliteWorldRepository repo,
+    bool jumpDrive = true)
+    {
+        repo = new SqliteWorldRepository(new SaveGamePaths(_root, "travel_client"));
+        var link = new LoopbackLink();
+        var st = new LoopbackServerTransport(link);
+        var client = new LoopbackClientTransport(link);
+        var config = new ServerConfig
+        {
+            WorldName = "travel_client",
+            Seed = 1,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false
+        };
+        config.Rules.FreeSpaceFlight = true;
+
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        client.Connect("loopback", 0);
+        client.Send(
+            NetCodec.Encode(new JoinRequest { PlayerName = "Pilot" }),
+            DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        if (jumpDrive && !server.Ship.HasModule("jump_generator"))
+        {
+            server.Ship.Modules.Add("jump_generator");
+        }
+
+        return (server, client);
     }
 
     private SvGameServer Started(out SqliteWorldRepository repo, bool jumpDrive = true)
@@ -126,6 +161,204 @@ public sealed class TravelTests : IDisposable
             server.SetInstantTravelForTest(false);
             Assert.True(server.QuickTravelForTest("Pilot", home));
             Assert.Equal(home, session.CurrentLocationId);
+        }
+    }
+
+    [Fact]
+    public void Travel_FromLandedShip_SameSystem_UsesAutomaticTransit()
+    {
+        var (server, client) = StartedWithClient(out var repo);
+        using (repo)
+        {
+            var pilot = server.Sessions[1];
+            var origin = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
+            var destination = server.Galaxy.AllBodies().First(b =>
+                b.Kind == CelestialKind.Planet
+                && !string.IsNullOrEmpty(b.PlanetType)
+                && _content.GetPlanet(b.PlanetType!) is not null
+                && b.SystemId == origin.SystemId
+                && b.Id != origin.Id);
+
+            pilot.State.LandedBodies.Add(destination.Id);
+
+            client.Send(
+                NetCodec.Encode(new TravelIntent
+                {
+                    DestinationBodyId = destination.Id
+                }),
+                DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+
+            Assert.True(server.InSpace("Pilot"));
+            Assert.Equal(destination.Id, pilot.PendingTransitBodyId);
+            Assert.True(pilot.AutomaticTransit);
+            Assert.NotEqual(destination.Id, pilot.CurrentLocationId);
+
+            client.Send(
+                NetCodec.Encode(new TransitLaunchDoneIntent()),
+                DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Equal(destination.Id, pilot.CurrentLocationId);
+            Assert.Null(pilot.PendingTransitBodyId);
+            Assert.False(pilot.AutomaticTransit);
+        }
+    }
+
+    [Fact]
+    public void Travel_FromLandedShip_CrossSystem_UsesAutomaticTransit()
+    {
+        var (server, client) = StartedWithClient(out var repo, jumpDrive: true);
+        using (repo)
+        {
+            var pilot = server.Sessions[1];
+            var origin = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
+
+            // Pick a landable planet in a different star system
+            var destination = server.Galaxy.AllBodies().First(b =>
+                b.Kind == CelestialKind.Planet
+                && !string.IsNullOrEmpty(b.PlanetType)
+                && _content.GetPlanet(b.PlanetType!) is not null
+                && b.SystemId != origin.SystemId);
+
+            // Mark destination as previously visited to satisfy travel eligibility
+            pilot.State.LandedBodies.Add(destination.Id);
+
+            // Send TravelIntent to initiate cross-system transit
+            client.Send(
+                NetCodec.Encode(new TravelIntent
+                {
+                    DestinationBodyId = destination.Id
+                }),
+                DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+
+            // Player is now launched into space in automatic transit toward B, but hasn't landed yet
+            Assert.True(server.InSpace("Pilot"));
+            Assert.Equal(destination.Id, pilot.PendingTransitBodyId);
+            Assert.True(pilot.AutomaticTransit);
+            Assert.NotEqual(destination.Id, pilot.CurrentLocationId);
+
+            // Client finishes the launch sequence
+            client.Send(
+                NetCodec.Encode(new TransitLaunchDoneIntent()),
+                DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+
+            // Player completes hyperspace warp and lands on B
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Equal(destination.Id, pilot.CurrentLocationId);
+            Assert.Null(pilot.PendingTransitBodyId);
+            Assert.False(pilot.AutomaticTransit);
+        }
+    }
+
+    [Fact]
+    public void Travel_FromLandedShip_CrossSystemToNeverVisitedBody_IsRejectedWithoutClaimingPad()
+    {
+        var (server, client) = StartedWithClient(out var repo, jumpDrive: true);
+        using (repo)
+        {
+            var pilot = server.Sessions[1];
+            var origin = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
+
+            var destination = server.Galaxy.AllBodies().First(b =>
+                b.Kind == CelestialKind.Planet
+                && !string.IsNullOrEmpty(b.PlanetType)
+                && _content.GetPlanet(b.PlanetType!) is not null
+                && b.SystemId != origin.SystemId
+                && !pilot.State.LandedBodies.Contains(b.Id));
+
+            Assert.DoesNotContain(destination.Id, pilot.State.LandedBodies);
+            Assert.Equal(-1, server.AssignedPadForTest("Pilot"));
+
+            client.Send(
+                NetCodec.Encode(new TravelIntent
+                {
+                    DestinationBodyId = destination.Id
+                }),
+                DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Null(pilot.PendingTransitBodyId);
+            Assert.False(pilot.AutomaticTransit);
+            Assert.Equal(origin.Id, pilot.CurrentLocationId);
+            Assert.Equal(-1, server.AssignedPadForTest("Pilot"));
+        }
+    }
+
+    [Fact]
+    public void Hyperjump_FromFlyingShip_RemainsNormalFlight()
+    {
+        var (server, client) = StartedWithClient(out var repo, jumpDrive: true);
+        using (repo)
+        {
+            var pilot = server.Sessions[1];
+            var origin = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
+
+            server.EnterSpace("Pilot", skipLaunch: true, hyperjump: false);
+
+            Assert.True(server.InSpace("Pilot"));
+            Assert.False(pilot.AutomaticTransit);
+            Assert.Null(pilot.PendingTransitBodyId);
+
+            var target = server.Galaxy.Systems.First(s =>
+                s.Id != origin.SystemId
+                && s.Bodies.Any(b =>
+                    b.Kind == CelestialKind.Planet
+                    && !string.IsNullOrEmpty(b.PlanetType)
+                    && _content.GetPlanet(b.PlanetType!) is not null));
+
+            server.HyperjumpToSystem("Pilot", target.Id);
+
+            Assert.True(server.InSpace("Pilot"));
+            Assert.False(pilot.AutomaticTransit);
+            Assert.Null(pilot.PendingTransitBodyId);
+
+            var anchor = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
+            Assert.Equal(target.Id, anchor.SystemId);
+        }
+    }
+
+    [Fact]
+    public void Travel_FromLandedShip_Timeout_LandsOnDestination()
+    {
+        var (server, client) = StartedWithClient(out var repo);
+        using (repo)
+        {
+            var pilot = server.Sessions[1];
+            var origin = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
+
+            var destination = server.Galaxy.AllBodies().First(b =>
+                b.Kind == CelestialKind.Planet
+                && !string.IsNullOrEmpty(b.PlanetType)
+                && _content.GetPlanet(b.PlanetType!) is not null
+                && b.SystemId == origin.SystemId
+                && b.Id != origin.Id);
+
+            pilot.State.LandedBodies.Add(destination.Id);
+
+            client.Send(
+                NetCodec.Encode(new TravelIntent
+                {
+                    DestinationBodyId = destination.Id
+                }),
+                DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+
+            Assert.True(server.InSpace("Pilot"));
+            Assert.Equal(destination.Id, pilot.PendingTransitBodyId);
+            Assert.True(pilot.AutomaticTransit);
+
+            // Do not send TransitLaunchDoneIntent.
+            server.Tick(6.0);
+
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Equal(destination.Id, pilot.CurrentLocationId);
+            Assert.Null(pilot.PendingTransitBodyId);
+            Assert.False(pilot.AutomaticTransit);
         }
     }
 

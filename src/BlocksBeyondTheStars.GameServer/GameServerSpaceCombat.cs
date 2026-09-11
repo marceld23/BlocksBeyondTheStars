@@ -2217,6 +2217,9 @@ public sealed partial class GameServer
             Entities = instance.Entities.Select(ToNet).ToArray(),
             SkipLaunch = skipLaunch,
             Hyperjump = hyperjump,
+            // Automatic landed-ship transit: tell the client that finishing
+            // the launch animation should signal the server to continue.
+            AutomaticTransit = session.AutomaticTransit,
             SystemName = systemName,
             BodyName = bodyName,
             // Other real pilots PLUS the peaceful NPC traders out here — both ride the flight view's
@@ -2295,6 +2298,8 @@ public sealed partial class GameServer
 
     private void HandleEnterSpace(PlayerSession session)
     {
+        session.AutomaticTransit = false;
+        session.PendingTransitBodyId = null;
         // If the player is inside the ship interior, they are parked in space (the interior is only ever
         // entered from a space instance) — so returning to flight must SKIP the planet take-off animation and
         // restore the ship where it was parked, exactly like the helm (B40). Only a launch from a real planet
@@ -2495,8 +2500,9 @@ public sealed partial class GameServer
         // you fly to its worlds and land manually from there.
         var anchor = system.Bodies.FirstOrDefault(b => !string.IsNullOrEmpty(b.PlanetType)) ?? system.Bodies[0];
 
+        bool wasLanded = !InSpace(playerId);
         // Launching off a surface? Remove the parked ship from the OLD world before we switch systems.
-        if (!InSpace(playerId) && SetActiveWorld(session.CurrentLocationId))
+        if (wasLanded && SetActiveWorld(session.CurrentLocationId))
         {
             RemoveLandedShip(session);
         }
@@ -2527,7 +2533,14 @@ public sealed partial class GameServer
             _finaleReturn[playerId] = origin.Id;
         }
 
-        EnterSpace(playerId, skipLaunch: true, hyperjump: true); // warp in; no surface take-off
+        if (wasLanded)
+        {
+            session.AutomaticTransit = true;
+            session.PendingTransitBodyId = null;
+            session.TransitLaunchTimer = 0;
+        }
+
+        EnterSpace(playerId, skipLaunch: !wasLanded, hyperjump: true); // landed ships take off before the warp
         SendStarMap(session); // refresh the travel screen with the now-known system
         // The landing path says where you arrived; the in-flight arrival said nothing, so the chat scrollback
         // never told the pilot the jump had happened at all (#1565).
@@ -2539,11 +2552,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>Test/util entry: leave space and land on a specific body (system-scale flight landing).</summary>
-    public void LandOnBody(string playerId, string destinationBodyId)
+    public void LandOnBody(string playerId, string destinationBodyId, int padIndex = -1)
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
-            HandleLeaveSpace(session, new LeaveSpaceIntent { DestinationBodyId = destinationBodyId });
+            HandleLeaveSpace(session, new LeaveSpaceIntent { DestinationBodyId = destinationBodyId, PadIndex = padIndex });
         }
     }
 
@@ -2562,7 +2575,6 @@ public sealed partial class GameServer
     private void HandleLeaveSpace(PlayerSession session, LeaveSpaceIntent intent)
     {
         string dest = intent.DestinationBodyId ?? string.Empty;
-
         // From an EVA spacewalk you can only land on an asteroid — not a planet or moon.
         if (session.State.InEva)
         {

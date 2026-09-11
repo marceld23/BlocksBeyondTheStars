@@ -218,6 +218,9 @@ public static class NetCodec
         // item 20 S1: the player's own ship as a voxel structure for the flight view (replaces the cube model).
         Register(105, typeof(SpaceShipDesign));
 
+        // Automatic landed-ship transit (#1614): client signals that the launch animation has completed.
+        Register(236, typeof(TransitLaunchDoneIntent)); // Client -> Server
+
         // item 20 S2: free-space EVA build/mine on a voxel structure (client intent + server broadcast).
         Register(106, typeof(StructureEditIntent));
         Register(107, typeof(StructureBlockChanged));
@@ -493,6 +496,7 @@ public static class NetCodec
 
         // Base sentry (#1214): cosmetic shot tracer.
         Register(227, typeof(SentryShot));                   // Server -> Client
+
     }
 
     private static void Register(byte tag, Type type)

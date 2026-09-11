@@ -141,6 +141,10 @@ public sealed class ServerConfig
     /// (BBTS_AI_TIMEOUT, default 30 s) so the backend's template fallback beats this deadline.</summary>
     public int AiTimeoutSeconds { get; set; } = 35;
 
+    /// <summary>Maximum time (seconds) to wait for the client to report that an automatic landed-ship
+    /// launch has finished before the server completes the pending transit itself.</summary>
+    public double TransitLaunchTimeoutSeconds { get; set; } = 6.0;
+
     /// <summary>Endpoint the server POSTs automatic crash reports to — the ReportHost bug-report inbox, shared
     /// with player feedback + client crashes (server reports are shaped to the same contract). Uploading stays
     /// OFF until <see cref="CrashReportApiKey"/> is also set, so a self-hosted server never phones home unless

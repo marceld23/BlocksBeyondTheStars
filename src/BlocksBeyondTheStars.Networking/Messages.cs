@@ -270,6 +270,11 @@ public sealed class TravelIntent
     public int PadIndex { get; set; } = -1;
 }
 
+/// <summary>launch done during transit travel move on to the next step</summary>
+public sealed class TransitLaunchDoneIntent
+{
+}
+
 /// <summary>Client fires a built ship weapon at a space entity. The server validates and resolves the hit.
 /// Contractless-additive aim fields (#693): the ship's forward direction at the moment of firing, so the
 /// server can enforce a firing arc. An all-zero direction (older client) skips the arc check.</summary>
@@ -1467,6 +1472,8 @@ public sealed class SpaceState
     /// <summary>True when the player arrived in this flight via a hyperjump into a new star system — the
     /// client plays the warp VFX as the view opens (there is no surface take-off).</summary>
     public bool Hyperjump { get; set; }
+
+    public bool AutomaticTransit { get; set; } = false;
 
     /// <summary>Friendly names of the star system and the body this flight is anchored on (#1565). An in-flight
     /// hyperjump never lands, so no <see cref="WorldReset"/> carries the new identity — the HUD, the F1 form and

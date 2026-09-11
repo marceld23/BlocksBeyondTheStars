@@ -618,6 +618,7 @@ namespace BlocksBeyondTheStars.Client
         }
         public bool InSpace { get; private set; }
         public bool SpaceSkipLaunch { get; private set; }    // entered space already airborne (helm) → no take-off anim
+        public bool SpaceAutomaticTransit { get; private set; } // #1614: this flight is an automatic landed-ship transit (launch → signal → landing)
         public NetCombatEntity[] PlanetEnemies { get; private set; } = System.Array.Empty<NetCombatEntity>();
 
         // --- Crosshair enemy aiming (#693): published by PlayerController every frame ---
@@ -2187,6 +2188,7 @@ namespace BlocksBeyondTheStars.Client
                 if (!InSpace)
                 {
                     SpaceSkipLaunch = m.SkipLaunch; // latched on entry only (later updates don't re-trigger Enter)
+                    SpaceAutomaticTransit = m.AutomaticTransit; // #1614: latched with it — the launch sequence reads it once it ends
                     if (m.Hyperjump)
                     {
                         HyperjumpStarted?.Invoke(); // warp VFX as we arrive in flight in a new system
