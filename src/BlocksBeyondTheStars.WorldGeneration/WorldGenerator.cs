@@ -968,7 +968,8 @@ public sealed partial class WorldGenerator
                 w.ActivePaintCycles = cycles.ToArray();
                 w.AnyBands = planet.FloatingIslands || w.Arches || w.SeaStacks || w.Hoodoos || w.Cenotes
                     || w.NaturalBridges || w.CoastalOverhangs || w.IceCornices || w.MushroomRocks // #1646
-                    || w.Icebergs;
+                    || w.Icebergs
+                    || (planet.BuoyantIslands && _terrainGeneration >= WorldDescription.AuthoredContentGeneration); // #1757
                 // #703 hybrid fade; #1645: on a multi-style world the fade runs whenever more than one style was
                 // rolled — identity styles (flats, spires) stay pure only as the sole pick.
                 w.HybridEligible = _terrainGeneration >= 1 && w.Styles.Length != 0

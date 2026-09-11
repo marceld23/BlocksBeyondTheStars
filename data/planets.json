@@ -730,12 +730,12 @@
   {
     "key": "rainbow_sea", "minTerrainGeneration": 5, "floraTheme": "tropical", "exotic": true, "baseTemperature": 25, "nameKey": "planet.rainbow_sea.name", "atmosphereHeight": 220, "cloudColor": 16115455, "cloudDensity": 0.45,
     "terrainTags": ["wetland", "reef"],
-    "baseHeight": 56, "amplitude": 26, "terrainScale": 64.0, "terrainStyle": "archipelago",
-    "terrainStyles": ["archipelago", "hills"],
+    "baseHeight": 56, "amplitude": 26, "terrainScale": 64.0, "terrainStyle": "hills",
+    "terrainStyles": ["hills", "downs"],
     "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.72, "dataCacheRarity": 0.0012,
-    "weather": "dynamic", "stormChance": 0.45, "dayLengthSeconds": 600, "worldRadius": 900, "floraDensity": 0.14, "treeDensity": 0.02, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 3, "waterAbundance": 0.95, "beachBlock": "sand",
-    "floatingIslands": true, "waterTint": "rainbow", "seabedBlock": "sand", "underwaterForests": true,
+    "weather": "dynamic", "stormChance": 0.45, "dayLengthSeconds": 600, "worldRadius": 900, "floraDensity": 0.14, "treeDensity": 0.02, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 3, "waterAbundance": 1.0, "beachBlock": "sand",
+    "buoyantIslands": true, "waterTint": "rainbow", "seabedBlock": "sand", "underwaterForests": true,
     "weatherVolatility": 1.1, "seasonAmplitude": 0.25,
     "weatherEvents": { "gale": 1.4, "drizzle": 1.4, "fog": 0.8 },
     "biomes": [

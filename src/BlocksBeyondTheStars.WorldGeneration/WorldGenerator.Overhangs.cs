@@ -33,6 +33,9 @@ public sealed partial class WorldGenerator
         Fluid = 5,
         /// <summary>Generation 3, part 5: a floating vegetation mat — one cell of mud at a lake's water top.</summary>
         Mat = 6,
+        /// <summary>Generation 5 (#1757): an island afloat on the sea — deck above the waterline, keel below it,
+        /// open water under the keel. Written before the sea fill like the material bands.</summary>
+        Afloat = 7,
     }
 
     /// <summary>One extra solid/fluid band of a column (#705), in inclusive world-Y coordinates.</summary>
@@ -85,6 +88,14 @@ public sealed partial class WorldGenerator
                     }
                 }
             }
+        }
+
+        // #1757 (generation 5): islands afloat on the sea — one lens per mask blob, keel below the waterline, deck
+        // above it. Never on an older generation, so a generation-4 save of the same type stays byte-identical.
+        if (planet.BuoyantIslands && w.Generation >= BlocksBeyondTheStars.Shared.World.WorldDescription.AuthoredContentGeneration
+            && n < bands.Length && TryGetBuoyantIsland(planet, seed, worldX, worldZ, out int biLo, out int biHi))
+        {
+            bands[n++] = new ColumnBand { Bottom = biLo, Top = biHi, Kind = BandKind.Afloat };
         }
 
         if (n < bands.Length && w.Arches && TryGetArchBar(planet, seed, worldX, worldZ, out int arcLo, out int arcHi))
@@ -204,6 +215,39 @@ public sealed partial class WorldGenerator
         if (sp > 0.70)
         {
             bottom -= (int)((sp - 0.70) / 0.30 * 8.0);
+        }
+
+        return true;
+    }
+
+    /// <summary>The band of an island afloat on the sea at this column (#1757), or <c>false</c> where none floats.
+    /// One mask blob = one island: a low deck 1–5 blocks above the waterline, a keel 2–9 blocks below it, so a
+    /// swimmer sees the hull and the kelp that hangs from it. The keel never enters the seabed — where the sea is
+    /// too shallow the island simply grounds on the shoal. Islands are a function of the SEA LEVEL, not of the
+    /// terrain, so they float at the same height everywhere.</summary>
+    private bool TryGetBuoyantIsland(PlanetType planet, long seed, int worldX, int worldZ, out int bottom, out int top)
+    {
+        top = int.MinValue;
+        bottom = int.MaxValue;
+        int sea = SeaLevel(planet);
+        if (sea == int.MinValue)
+        {
+            return false;
+        }
+
+        double im = FbmT(seed + 0xB0A7, worldX, worldZ, planet.TerrainScale * 1.4, octaves: 3);
+        if (im <= 0.63)
+        {
+            return false;
+        }
+
+        double t = (im - 0.63) / 0.37;
+        top = sea + 1 + (int)(t * 4.0);
+        bottom = sea - 2 - (int)(t * 7.0);
+        int seabed = SurfaceHeight(planet, worldX, worldZ);
+        if (bottom <= seabed)
+        {
+            bottom = seabed + 1; // grounded on a shoal
         }
 
         return true;

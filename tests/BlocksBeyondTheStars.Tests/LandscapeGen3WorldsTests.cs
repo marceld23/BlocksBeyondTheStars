@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
@@ -111,7 +112,7 @@ public sealed class LandscapeGen3WorldsTests
 
         // The data fields each child asked for.
         var rainbow = Content.Planets["rainbow_sea"];
-        Assert.True(rainbow.FloatingIslands && rainbow.UnderwaterForests && rainbow.SeabedBlock == "sand" && rainbow.WaterTint == "rainbow" && rainbow.Exotic);
+        Assert.True(rainbow.BuoyantIslands && !rainbow.FloatingIslands && rainbow.UnderwaterForests && rainbow.SeabedBlock == "sand" && rainbow.WaterTint == "rainbow" && rainbow.Exotic);
         var flowers = Content.Planets["flower_fields"];
         Assert.Equal(0.0, flowers.TreeDensity);
         Assert.Equal("authored", flowers.CreatureAbundance);
@@ -121,6 +122,66 @@ public sealed class LandscapeGen3WorldsTests
         Assert.True(scrap.RuinsBias > 1.0 && scrap.FactoriesBias > 1.0);
         var gamer = Content.Planets["gamer_hills"];
         Assert.True(gamer.HasTag(TerrainTag.Gaming) && gamer.HasTag(TerrainTag.Karst) && gamer.Atmosphere == "breathable");
+    }
+
+    [Fact]
+    public void RainbowPlanet_IsAlmostAllSea_WithIslandsAfloat()
+    {
+        // #1757 (Marcel, 2026-09-11): little land and a few islands SWIMMING on the water — not sky islands. The
+        // terrain floods 95–98 %; the land is the lens-shaped islands whose deck rises above the waterline and
+        // whose keel hangs below it with open water underneath.
+        var rainbow = Content.Planets["rainbow_sea"];
+        var gen = new WorldGenerator(20260911, Content);
+        gen.SetTerrainGeneration(5);
+        int sea = gen.SeaLevel(rainbow);
+        Assert.True(sea > 0);
+
+        int columns = 0, flooded = 0;
+        for (int x = 0; x < 3000; x += 23)
+            for (int z = -700; z < 700; z += 29)
+            {
+                columns++;
+                if (gen.SurfaceHeight(rainbow, x, z) < sea)
+                {
+                    flooded++;
+                }
+            }
+
+        Assert.True(flooded >= columns * 0.93, $"only {flooded}/{columns} sampled columns lie under the sea");
+
+        var water = Content.GetBlock("water")!.NumericId;
+        var chunks = new Dictionary<ChunkCoord, ChunkData>();
+        BlockId At(int x, int y, int z)
+        {
+            var cc = new ChunkCoord(WorldConstants.WorldToChunk(x), WorldConstants.WorldToChunk(y), WorldConstants.WorldToChunk(z));
+            if (!chunks.TryGetValue(cc, out var chunk))
+            {
+                chunk = gen.Generate(rainbow, cc);
+                chunks[cc] = chunk;
+            }
+
+            int cs = WorldConstants.ChunkSize;
+            return chunk.Get(x - cc.X * cs, y - cc.Y * cs, z - cc.Z * cs);
+        }
+
+        int afloat = 0, decks = 0;
+        for (int x = 0; x < 400 && afloat == 0; x += 3)
+            for (int z = 0; z < 400 && afloat == 0; z += 3)
+            {
+                var deck = At(x, sea + 1, z);
+                if (deck.IsAir || deck == water || gen.SurfaceHeight(rainbow, x, z) >= sea)
+                {
+                    continue; // open sea, or the rare natural shoal
+                }
+
+                decks++;
+                if (At(x, sea - 12, z) == water)
+                {
+                    afloat++; // solid deck above the waterline, open water twelve below it: an island afloat
+                }
+            }
+
+        Assert.True(afloat > 0, $"no island with water under its keel in 400×400 blocks ({decks} deck columns seen)");
     }
 
     [Fact]

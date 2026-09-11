@@ -97,6 +97,9 @@ public sealed partial class GameServer
     /// <summary>The planet's uniform flora base hue (0xRRGGBB) — all plant life is re-tinted to this.</summary>
     public int FloraTint => _floraTint;
 
+    /// <summary>The water colour mode the environment message carries (#1758: 0 classic, 1 tint, 2 rainbow) — test seam.</summary>
+    public int WaterTintMode => _waterTintMode;
+
     /// <summary>Whether the current planet's atmosphere is breathable (no suit-oxygen drain on the surface).</summary>
     public bool AtmosphereBreathable => _breathable;
 
