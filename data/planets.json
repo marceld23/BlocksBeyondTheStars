@@ -804,13 +804,13 @@
     "terrainStyles": ["downs", "flats"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.55, "dataCacheRarity": 0.002,
-    "weather": "dynamic", "stormChance": 0.3, "dayLengthSeconds": 600, "worldRadius": 880, "floraDensity": 0.16, "treeDensity": 0.012, "creatureAbundance": "few", "atmosphere": "breathable", "spawnWeight": 5, "waterAbundance": 0.4,
+    "weather": "dynamic", "stormChance": 0.3, "dayLengthSeconds": 600, "worldRadius": 880, "floraDensity": 0.03, "treeDensity": 0.0015, "creatureAbundance": "few", "atmosphere": "breathable", "spawnWeight": 5, "waterAbundance": 0.4,
     "weatherVolatility": 0.9, "seasonAmplitude": 0.3,
     "weatherEvents": { "drizzle": 1.2, "fog": 1.0 },
     "biomes": [
-      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraDensityMul": 1.2 },
-      { "surfaceBlock": "dirt",  "subSurfaceBlock": "dirt", "floraDensityMul": 0.8, "treeDensityMul": 0.5 },
-      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraTheme": "savanna", "floraDensityMul": 1.0, "treeDensityMul": 0.7 }
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraDensityMul": 0.8 },
+      { "surfaceBlock": "dirt",  "subSurfaceBlock": "dirt", "floraDensityMul": 0.4, "treeDensityMul": 0.3 },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraTheme": "savanna", "floraDensityMul": 0.6, "treeDensityMul": 0.5 }
     ],
     "ores": [
       { "block": "iron_ore",   "rarity": 0.06, "minDepth": 4, "maxDepth": 2048 },

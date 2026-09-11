@@ -605,6 +605,9 @@ public sealed partial class WorldGenerator
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.GiantKeyboardPaint(w, x, z, y, out fill)),
         new("giant-mouse", w => w.GamingLandmarks, static (g, p, w, x, z) => g.GiantMouseOffset(w, x, z),
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.GiantMousePaint(w, x, z, y, out fill)),
+        // Marcel's playtest 2026-09-11: the PC tower itself, the structure Ben named first.
+        new("giant-pc", w => w.GamingLandmarks, static (g, p, w, x, z) => g.GiantPcOffset(w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.GiantPcPaint(w, x, z, y, out fill)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>

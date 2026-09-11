@@ -167,7 +167,7 @@ public sealed class WorldGenerationGoldenTests
             ["rainbow_sea-gen5"] = 0xecea3d3d9016ba55UL, // re-pinned 2026-09-11: islands afloat on the sea (#1757)
             ["flower_fields-gen5"] = 0xe2e2a978c783cfbfUL,
             ["scrapyard-gen5"] = 0x7710a0c97aa3539aUL,
-            ["gamer_hills-gen5"] = 0x7ac9750465c7fd67UL,
+            ["gamer_hills-gen5"] = 0xff174bd31c1655e3UL, // re-pinned 2026-09-11: less nature, more gaming gear (#1762)
             ["meadowlands-gen5"] = 0x6a1d26df3784c73cUL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls

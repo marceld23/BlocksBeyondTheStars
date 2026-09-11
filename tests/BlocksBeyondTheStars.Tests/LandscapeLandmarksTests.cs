@@ -137,9 +137,10 @@ public sealed class LandscapeLandmarksTests
         Assert.Contains("giant-monitor", order);
         Assert.Contains("giant-keyboard", order);
         Assert.Contains("giant-mouse", order);
+        Assert.Contains("giant-pc", order);
         Assert.DoesNotContain("giant-monitor", Gen(1, 5).LandmarkOrderForTest(Content.Planets["meadowlands"]));
 
-        foreach (var (row, maxRise) in new[] { ("giant-monitor", 43.0), ("giant-keyboard", 8.0), ("giant-mouse", 16.0) })
+        foreach (var (row, maxRise) in new[] { ("giant-monitor", 43.0), ("giant-keyboard", 8.0), ("giant-mouse", 16.0), ("giant-pc", 59.0) })
         {
             (double Min, double Max, int Hits) scan = default;
             WorldGenerator? found = null;
@@ -165,7 +166,7 @@ public sealed class LandscapeLandmarksTests
         // #1761 / #1762: the scrap and gaming rows sit at the table's tail (precedence untouched); the scrap
         // planet gets its dense rows, every other solid-ground world the stray ones, and generation 4 none at all.
         var order = WorldGenerator.PropOrderForTest();
-        var tail = new[] { "scrap-heap", "wreck-hull", "girder", "stray-scrap-heap", "stray-wreck-hull", "stray-girder", "desk-setup", "pc-heap" };
+        var tail = new[] { "scrap-heap", "wreck-hull", "girder", "stray-scrap-heap", "stray-wreck-hull", "stray-girder", "desk-setup", "pc-heap", "pc-tower" };
         Assert.Equal(tail, order.Skip(order.Length - tail.Length).ToArray());
 
         var scrap = Gen(1, 5).PropActiveForTest(Content.Planets["scrapyard"], false, true);
@@ -185,6 +186,7 @@ public sealed class LandscapeLandmarksTests
         var gamer = Gen(1, 5).PropActiveForTest(Content.Planets["gamer_hills"], false, false);
         Assert.Contains("desk-setup", gamer);
         Assert.Contains("pc-heap", gamer);
+        Assert.Contains("pc-tower", gamer);
         Assert.Contains("stray-scrap-heap", gamer);
     }
 

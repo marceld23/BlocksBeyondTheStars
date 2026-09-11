@@ -1259,9 +1259,13 @@ player is told (`srv.flowerling.gift`).
 twice; `gaming_pc/monitor/keyboard/mouse` placeable but never craftable; `paul_stem/leaf/petals` with fixed
 colours outside the flora tint; `flora_sunblossom`, `flora_tulip`, `flora_hangkelp`). Eight prop rows at the
 table's tail (`scrap-heap`, `wreck-hull`, `girder` on the scrap tag; the same three as `stray-*` on every
-other solid-ground world at a fortieth of the density; `desk-setup`, `pc-heap` on the gaming tag). The Paul
-flower is the `giant-paul` row of `GiantFloraKinds` (stem 6–10, four leaf slabs, a petal crown; generation 5).
-The gaming landmarks are three `LandmarkKinds` rows in `WorldGenerator.SchoolWaveGen5.cs` (`giant-monitor`
-slab 52–82 × 36–43, `giant-keyboard` plateau with key bumps, `giant-mouse` dome with a cable ridge), hotspot
-cells of 2 400 blocks, painted with the gaming blocks down to the ground. The atlas is **32 × 32** tiles
+other solid-ground world at a fortieth of the density; `desk-setup`, `pc-heap`, `pc-tower` on the gaming tag).
+The Paul flower is the `giant-paul` row of `GiantFloraKinds` (stem 6–10, four leaf slabs, a petal crown;
+generation 5). The gaming landmarks are four `LandmarkKinds` rows in `WorldGenerator.SchoolWaveGen5.cs`
+(`giant-monitor` slab 52–82 × 36–43, `giant-keyboard` plateau with key bumps, `giant-mouse` dome with a cable
+ridge, `giant-pc` box 20–26 × 14–18 × 44–59 with a glass side panel and a glowing RGB strip), painted with the
+gaming blocks down to the ground. Marcel's playtest (2026-09-11, "zu viel Natur … Gaming-PCs, und das oft")
+moved the hotspot cells from 2 400 blocks at 60 % to **720 blocks at 90 %** — several of each family per
+world — added the tower row and the house-sized `pc-tower` prop, and cut the type's flora to 0.03 / trees
+to 0.0015. The atlas is **32 × 32** tiles
 (`BlockTextureAtlas.Cols/Rows`, `GameContent.AtlasTileCapacity = 1024`).
