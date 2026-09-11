@@ -24,6 +24,17 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚀 Release v2026.9.6 — the new-planets release (2026-09-12, branch release/2026.9.6)
+
+Everything merged since v2026.9.5 (17 PRs, 41 issues): the school club's generation-5 planets (#1756–#1765, follow-ups
+#1768/#1769), generation 6 creatures + giant trees (#1778–#1783), water colours + rain (#1758 / PR #1772), the
+landed-ship take-off transit (#1614 **server half**, PR #1676 by ahmdkaml — the landing half stays open), saplings +
+station/avatar fixes (#1773–#1777, #1785), avatar-editor undo/fill/outfits (#1737–#1739), hosted-world OOM (#1740/#1741),
+Lyxette's 2026.9.5 round (#1745–#1753), test guards (#1735/#1743), credits (PRs #1770/#1771), the test-world script
+(PR #1767). CHANGELOG section written thematically; `data/whatsnew.json` re-exported with the DE+EN release post.
+Protocol stays 5. Fleet: server image `2026.9.6`, worldhost re-pinned (Shared changed), reports unchanged; after the
+deploy the per-world memory fence goes back from 1536m to 768m (#1740 mitigation).
+
 ### 🐟 Rays, air fish, hydras, more wings and fins, and giant trees — generation 6 (#1778–#1783, 2026-09-11, branch feat/new-kinds-gen6)
 
 Marcel's idea list of 2026-09-11, shipped as **terrain generation 6** so no existing world changes: every
