@@ -203,5 +203,7 @@
   { "key": "paul_petals", "nameKey": "block.paul_petals.name", "category": "terrain", "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 6967256, "flammable": true, "drops": [ { "item": "paul_petals", "count": 1 }, { "item": "toxic_berries", "count": 2 } ] },
   { "key": "flora_sunblossom", "nameKey": "block.flora_sunblossom.name", "category": "flora", "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 }, { "item": "berries", "count": 1 } ] },
   { "key": "flora_tulip",      "nameKey": "block.flora_tulip.name",      "category": "flora", "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 }, { "item": "berries", "count": 1 } ] },
-  { "key": "flora_hangkelp",   "nameKey": "block.flora_hangkelp.name",   "category": "flora", "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 2 } ] }
+  { "key": "flora_hangkelp",   "nameKey": "block.flora_hangkelp.name",   "category": "flora", "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 2 } ] },
+  { "key": "giant_log",        "nameKey": "block.giant_log.name",        "category": "building", "hardness": 2.2, "requiredTool": "drill", "minToolTier": 1, "flammable": true, "drops": [ { "item": "wood_log", "count": 2 } ] },
+  { "key": "giant_leaves",     "nameKey": "block.giant_leaves.name",     "category": "flora",    "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "flammable": true, "drops": [] }
 ]

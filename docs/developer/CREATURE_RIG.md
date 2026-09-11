@@ -23,7 +23,8 @@ The same descriptor must always yield the same body: every client draws a specie
 per-individual variation is derived from `StableIdHash(SpeciesId)`, never from `Random` at build
 time. (`Random` inside the animator is fine — that is per-client cosmetic timing, not body shape.)
 
-Three body plans branch in `Build`: **Standard**, **Titan** (#638) and **Medusa** (#637).
+Four body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637) and **Ray** (#1778);
+the flowerling (#1760) is the standard body with a petal head.
 
 ## Rig conventions
 
@@ -138,6 +139,37 @@ Geometrically: pectorals on the flanks, a vertical caudal on the tail's last lin
 the species is not already wearing a crest there. They beat on the paddle phase, and an amphibian
 ashore folds them flat instead of rowing at nothing.
 
+## Several heads, wing pairs and fin pairs (generation 6)
+
+`Heads`, `WingPairs` and `FinPairs` (#1780–#1782) are counts on the descriptor, 1 on every body of an older
+world. The rule for all three is the same: the parts are placed along the body like the leg rows, every part
+states its identity (`WingRig.Row/Rows`, `FinRig.Kind/Side/Row`, `RigDescription.Heads[]/Jaws[]`), and the
+animator never lets them move in lockstep — a copied part reads as one part drawn twice.
+
+- **Heads** sit side by side at the front of a standard body, or each on its own fanned neck on a titan
+  (the hydra). Each head breathes and gestures on its own phase (the later heads a beat behind), only the
+  first head carries the gaze while the others follow a third of it and glance about, and a call opens one
+  jaw at a time — they take turns.
+- **Wing pairs** beat with a per-row lag: two pairs in opposition like a dragonfly, three as a rear-to-front
+  wave, and 30 % faster per extra pair. The perch fold loops every pair.
+- **Fin pairs** scull with a 0.8 rad lag per row (the metachronal wave); three pairs also get a second dorsal.
+
+## The ray (#1778)
+
+`BuildRay`: a flat disc, one wing per side built as a chain of three nested panels along the span, a
+five-link whip tail, eyes on the top surface, the species' horns as cephalic lobes. `PoseRayWings` runs a
+travelling wave outward along each side (the root panel leads and is the stiffest; each panel outboard lags
+0.9 rad), slow in the water and a touch quicker in the sky, and the body's fish-weave is damped to a quarter
+— a disc glides. A water ray banks into turns like a flier (the only swimmer that does); a sky ray is a
+**sky glider**: a hoverer on the wire (it never lands), but `CreatureView` pitches it into its swoops and
+banks it like a flier, from `CreatureMotion.IsSkyGliderBody`.
+
+## The air fish (#1779)
+
+A legless, wingless, finned Air body: the standard build with fins, the swimmer's body weave
+(`RigDescription.Aquatic`), and `PoseFins` sculling in the air — slower and smaller than in water, and never
+folded, because a hovering fish rows all the time. Also a sky glider.
+
 ## Foot planting
 
 The gait alone stops the skate, but it does it in the *body's* frame: all feet sit on one flat plane
@@ -189,7 +221,9 @@ by the server suite:
 - `CreatureIkTests` — the load-bearing test runs the solved angles back through forward kinematics
   and asserts the foot lands on the target, swept across the whole reachable volume. That checks the
   solver against the rig's actual frame convention rather than against remembered numbers.
-- `CreatureFinsTests` — fins only on water and amphibian bodies, never on a medusa, deterministic per
+- `CreatureNewKindsTests` — the generation-6 wave: a generation-5 roster is bit-for-bit the classic one,
+  every ray / air fish / count holds its invariants and actually occurs, the motion rules for the new bodies.
+- `CreatureFinsTests` — fins only on water and amphibian bodies (and, since #1779, a legless Air body), never on a medusa, deterministic per
   seed, and every generated species matches the derivation (which is what makes the snapshot lift safe).
 
 Assertions are on **ranges, orderings and invariants**, never trig-derived float goldens: Windows and

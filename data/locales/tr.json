@@ -27,6 +27,8 @@
   "block.grass.name": "Çimen",
   "block.wood_log.name": "Kütük",
   "block.tree_leaves.name": "Yapraklar",
+  "block.giant_log.name": "Dev ağaç gövdesi",
+  "block.giant_leaves.name": "Dev ağaç yaprakları",
   "item.wood_log.name": "Kütük",
   "block.crystal.name": "Kristal",
   "block.snow.name": "Kar",

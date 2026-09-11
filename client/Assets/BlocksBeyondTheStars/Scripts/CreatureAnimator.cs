@@ -38,11 +38,19 @@ namespace BlocksBeyondTheStars.Client
         private Transform[] _tail = System.Array.Empty<Transform>();
         private Transform[] _neck = System.Array.Empty<Transform>();
         private Transform[] _trunk = System.Array.Empty<Transform>();
-        private Transform[] _fins = System.Array.Empty<Transform>();
+        private FinRig[] _fins = System.Array.Empty<FinRig>();
+        private Transform[][] _rayWings = System.Array.Empty<Transform[]>();
         private Transform[][] _tentacles = System.Array.Empty<Transform[]>();
-        private Transform _head;
+        private Transform _head;   // the first head — the one that carries the gaze and the neck share
         private Transform _jaw;
-        private Quaternion _jawRest = Quaternion.identity;
+        private Transform[] _heads = System.Array.Empty<Transform>();   // #1780: every head, first one = _head
+        private Transform[] _jaws = System.Array.Empty<Transform>();
+        private Quaternion[] _jawRests = System.Array.Empty<Quaternion>();
+        private int _jawOpenHead;  // which head's jaw the current pulse opens (they take turns)
+        private int _jawTurn;
+        private int _wingRows = 1; // #1781: the most wing pairs any wing reports — sets the beat rate
+        private bool _skyGlider;   // #1778/#1779: a hoverer that glides — fins scull in the air, the wing wave runs
+        private bool _ray;         // #1778: the ray plan — wing wave instead of a flap, a gentler body weave
         private Transform[] _eyelids = System.Array.Empty<Transform>();
         private Transform[] _ears = System.Array.Empty<Transform>();
         private Quaternion[] _earRest = System.Array.Empty<Quaternion>();
@@ -149,11 +157,27 @@ namespace BlocksBeyondTheStars.Client
             _tail = _rig.Tail ?? System.Array.Empty<Transform>();
             _neck = _rig.Neck ?? System.Array.Empty<Transform>();
             _trunk = _rig.Trunk ?? System.Array.Empty<Transform>();
-            _fins = _rig.Fins ?? System.Array.Empty<Transform>();
+            _fins = _rig.Fins ?? System.Array.Empty<FinRig>();
+            _rayWings = _rig.RayWings ?? System.Array.Empty<Transform[]>();
             _tentacles = _rig.Tentacles ?? System.Array.Empty<Transform[]>();
             _head = _rig.Head;
             _jaw = _rig.Jaw;
-            _jawRest = _jaw != null ? _jaw.localRotation : Quaternion.identity;
+            _heads = _rig.Heads != null && _rig.Heads.Length > 0 ? _rig.Heads : (_head != null ? new[] { _head } : System.Array.Empty<Transform>());
+            _jaws = _rig.Jaws != null && _rig.Jaws.Length > 0 ? _rig.Jaws : (_jaw != null ? new[] { _jaw } : System.Array.Empty<Transform>());
+            _jawRests = new Quaternion[_jaws.Length];
+            for (int i = 0; i < _jaws.Length; i++)
+            {
+                _jawRests[i] = _jaws[i] != null ? _jaws[i].localRotation : Quaternion.identity;
+            }
+
+            _wingRows = 1;
+            foreach (var w in _wings)
+            {
+                _wingRows = Mathf.Max(_wingRows, w?.Rows ?? 1);
+            }
+
+            _skyGlider = _rig.SkyGlider;
+            _ray = string.Equals(_rig.BodyPlan, "Ray", System.StringComparison.OrdinalIgnoreCase);
             _eyelids = _rig.Eyelids ?? System.Array.Empty<Transform>();
             _ears = _rig.Ears ?? System.Array.Empty<Transform>();
             _earRest = new Quaternion[_ears.Length];
@@ -224,6 +248,7 @@ namespace BlocksBeyondTheStars.Client
             _jawDeg = deg;
             _jawDur = 0.17f;
             _jawT = 0f;
+            _jawOpenHead = _jaws.Length == 0 ? 0 : _jawTurn++ % _jaws.Length; // #1780: the heads take turns calling
         }
 
         /// <summary>A hard snap of the jaw for an attack.</summary>
@@ -237,6 +262,7 @@ namespace BlocksBeyondTheStars.Client
             _jawDeg = 55f;
             _jawDur = 0.22f;
             _jawT = 0f;
+            _jawOpenHead = _jaws.Length == 0 ? 0 : _jawTurn++ % _jaws.Length;
         }
 
         /// <summary>Where the player is, so an idle animal can look up at them. Passing
@@ -352,6 +378,7 @@ namespace BlocksBeyondTheStars.Client
             PoseBody(dt, t, moving, undulates);
             PoseLegs(dt, gaitAmp, moving, crawler, t);
             PoseWings(dt, t, moving, flier, hoverer);
+            PoseRayWings(t, moving);
             PoseTail(t, moving, undulates);
             float neckShare = PoseHead(dt, t, moving);
             PoseNeck(t, neckShare);
@@ -514,21 +541,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float rate = hoverer ? 3f : 6f + moving * 6f;
-            float beat = Mathf.Sin(t * rate);
+            // #1781: a multi-paired body beats faster (the insect read) — two pairs 1.3×, three 1.6×.
+            rate *= 1f + 0.3f * (_wingRows - 1);
             float amp = Mathf.Lerp(14f, hoverer ? 22f : 42f, moving) * (1f - _wingFold);
-            float shoulderZ = beat * amp;
-            // The wrist trails the shoulder by roughly a fifth of a beat, which is what gives a wingbeat its
-            // whip instead of the flat see-saw a single rigid slab produced.
-            float wristZ = Mathf.Sin(t * rate - 1.3f) * amp * 0.45f;
-            float twist = Mathf.Max(0f, -beat) * 10f * (1f - _wingFold); // angle of attack on the downstroke
-
-            if (gliding)
-            {
-                // Spread and still, with a little dihedral — a ground bird's long flat bound (#1334).
-                shoulderZ = 8f;
-                wristZ = Mathf.Sin(t * 1.6f) * 3f;
-                twist = 0f;
-            }
 
             for (int i = 0; i < _wings.Length; i++)
             {
@@ -536,6 +551,24 @@ namespace BlocksBeyondTheStars.Client
                 if (wing?.Shoulder == null)
                 {
                     continue;
+                }
+
+                // Each row lags the one in front of it (#1781): two pairs beat in opposition like a dragonfly's,
+                // three run a rear-to-front wave — the wing version of the metachronal crawl.
+                float lag = wing.Rows <= 1 ? 0f : wing.Row * (wing.Rows == 2 ? Mathf.PI : Mathf.PI * 2f / 3f);
+                float beat = Mathf.Sin(t * rate - lag);
+                float shoulderZ = beat * amp;
+                // The wrist trails the shoulder by roughly a fifth of a beat, which is what gives a wingbeat its
+                // whip instead of the flat see-saw a single rigid slab produced.
+                float wristZ = Mathf.Sin(t * rate - 1.3f - lag) * amp * 0.45f;
+                float twist = Mathf.Max(0f, -beat) * 10f * (1f - _wingFold); // angle of attack on the downstroke
+
+                if (gliding)
+                {
+                    // Spread and still, with a little dihedral — a ground bird's long flat bound (#1334).
+                    shoulderZ = 8f;
+                    wristZ = Mathf.Sin(t * 1.6f) * 3f;
+                    twist = 0f;
                 }
 
                 float side = wing.Side == 0 ? 1f : -1f; // mirror left/right
@@ -549,6 +582,47 @@ namespace BlocksBeyondTheStars.Client
                 {
                     wing.Wrist.localRotation = wing.WristRest
                         * Quaternion.Euler(0f, -WingFoldYaw * _wingFold * side, wristZ * side);
+                }
+            }
+        }
+
+        /// <summary>The ray's wings (#1778): a travelling wave along each side — the root panel leads and each
+        /// panel outboard of it lags by most of a radian, so the edge ripples the way a real ray's fin edge does
+        /// instead of the whole side flapping as one slab. Slow in the water, a touch quicker in the sky, wider on
+        /// the move; asleep it barely stirs.</summary>
+        private void PoseRayWings(float t, float moving)
+        {
+            if (_rayWings.Length == 0)
+            {
+                return;
+            }
+
+            float rate = (_motionClass == MotionClass.Swimmer ? 1.4f : 1.8f) + moving * 0.6f;
+            if (_asleep)
+            {
+                rate *= 0.5f;
+            }
+
+            float amp = Mathf.Lerp(12f, 26f, moving) * (_asleep ? 0.5f : 1f);
+            for (int s = 0; s < _rayWings.Length; s++)
+            {
+                var chain = _rayWings[s];
+                if (chain == null)
+                {
+                    continue;
+                }
+
+                float side = s == 0 ? 1f : -1f;
+                for (int k = 0; k < chain.Length; k++)
+                {
+                    if (chain[k] == null)
+                    {
+                        continue;
+                    }
+
+                    float ph = t * rate - k * 0.9f;
+                    float panelAmp = amp * (k == 0 ? 0.7f : 1f); // the root panel is the stiff one
+                    chain[k].localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(ph) * panelAmp * side);
                 }
             }
         }
@@ -606,6 +680,11 @@ namespace BlocksBeyondTheStars.Client
                 weave = Mathf.Sin(sp - 0.7f) * Mathf.Lerp(5f, 15f, moving); // body lags the tail beat
                 roll = Mathf.Sin(sp - 1.2f) * Mathf.Lerp(2f, 7f, moving);
                 glide = _aquatic ? Mathf.Sin(t * 1.1f) * 0.05f : 0f;    // slow rise/sink bob
+                if (_ray)
+                {
+                    weave *= 0.25f; // #1778: a disc glides; the wing wave carries the life, not a fish weave
+                    roll *= 0.6f;
+                }
             }
 
             // The gait's weight shift. Scaled by how much of the gait is actually showing, so a standing
@@ -653,10 +732,13 @@ namespace BlocksBeyondTheStars.Client
             _body.localScale = new Vector3(1f + squash * 0.6f, 1f - squash, 1f + squash * 0.6f);
         }
 
-        /// <summary>Head: breathing + a per-temperament idle gesture (graze / alert / lunge) while stationary.</summary>
+        /// <summary>Head: breathing + a per-temperament idle gesture (graze / alert / lunge) while stationary.
+        /// A multi-headed body (#1780) poses every head from the same gesture, but out of step: each head breathes
+        /// on its own phase, lags the gesture a little, and only the first head carries the gaze — the others
+        /// look around on their own, so three heads never read as one head copied twice.</summary>
         private float PoseHead(float dt, float t, float moving)
         {
-            if (_head == null)
+            if (_head == null || _heads.Length == 0)
             {
                 return 0f;
             }
@@ -664,16 +746,10 @@ namespace BlocksBeyondTheStars.Client
             // A gesture is shared out over the neck joints and the head, so a long-necked animal bends its
             // whole neck to reach the ground instead of nodding at the top of a rigid column.
             int gestureJoints = _neck.Length + 1;
-            float gesture = 0f;
-            float pitch = 0f, yaw = 0f;
-            if (_asleep)
+            float gestureNow = 0f;
+            float gaze = 0f;
+            if (!_asleep)
             {
-                pitch = 22f + Mathf.Sin(t * 0.6f) * 2f; // head rests low, slow sleeping breath
-            }
-            else
-            {
-                pitch += Mathf.Sin(t * 1.6f) * 3f * (1f - moving); // gentle idle breathing
-
                 if (moving < 0.25f)
                 {
                     _gestureTimer -= dt;
@@ -686,31 +762,66 @@ namespace BlocksBeyondTheStars.Client
                 if (_gestureT < _gestureDur)
                 {
                     _gestureT += dt;
-                    float f = Mathf.Clamp01(_gestureT / _gestureDur);
-                    float p = Mathf.Sin(f * Mathf.PI); // 0 → 1 → 0
-                    switch (_idleKind)
-                    {
-                        case Idle.Graze: gesture += 52f * p; break;                         // dip head to the ground
-                        case Idle.Alert: gesture -= 16f * p; yaw += _gestureLook * Mathf.Sin(f * Mathf.PI * 2f); break; // snap up + look
-                        case Idle.Lunge: gesture += 34f * p * (0.6f + 0.4f * Mathf.Sin(f * Mathf.PI * 3f)); break;       // sharp aggressive thrust
-                        default: gesture += 4f * p; break;
-                    }
                 }
 
-                yaw += StepGaze(dt, moving);
+                gaze = StepGaze(dt, moving);
             }
 
-            pitch += gesture / gestureJoints;
-
-            // Lying down: the head lowers and tucks to one side.
-            if (_rest > 0f)
+            for (int h = 0; h < _heads.Length; h++)
             {
-                pitch = Mathf.Lerp(pitch, 34f, _rest);
-                yaw = Mathf.Lerp(yaw, 26f * _restSide, _rest);
+                var head = _heads[h];
+                if (head == null)
+                {
+                    continue;
+                }
+
+                float off = h * 1.7f; // per-head phase, so the heads breathe and glance out of step
+                float pitch = 0f, yaw = 0f;
+                float gesture = 0f;
+                if (_asleep)
+                {
+                    pitch = 22f + Mathf.Sin(t * 0.6f + off) * 2f; // head rests low, slow sleeping breath
+                }
+                else
+                {
+                    pitch += Mathf.Sin(t * 1.6f + off) * 3f * (1f - moving); // gentle idle breathing
+
+                    if (_gestureT < _gestureDur)
+                    {
+                        // The other heads run the same gesture a beat behind the first.
+                        float f = Mathf.Clamp01((_gestureT - h * 0.12f) / _gestureDur);
+                        float p = Mathf.Sin(f * Mathf.PI); // 0 → 1 → 0
+                        switch (_idleKind)
+                        {
+                            case Idle.Graze: gesture += 52f * p; break;                         // dip head to the ground
+                            case Idle.Alert: gesture -= 16f * p; yaw += _gestureLook * Mathf.Sin(f * Mathf.PI * 2f); break; // snap up + look
+                            case Idle.Lunge: gesture += 34f * p * (0.6f + 0.4f * Mathf.Sin(f * Mathf.PI * 3f)); break;       // sharp aggressive thrust
+                            default: gesture += 4f * p; break;
+                        }
+                    }
+
+                    // The first head looks at the player; the others follow only a little and glance about on
+                    // their own, which is what makes a hydra read as several minds.
+                    yaw += h == 0 ? gaze : gaze * 0.35f + Mathf.Sin(t * 0.7f + off) * 6f;
+                }
+
+                pitch += gesture / gestureJoints;
+
+                // Lying down: the head lowers and tucks to one side.
+                if (_rest > 0f)
+                {
+                    pitch = Mathf.Lerp(pitch, 34f, _rest);
+                    yaw = Mathf.Lerp(yaw, 26f * _restSide, _rest);
+                }
+
+                head.localRotation = Quaternion.Euler(pitch, yaw, 0f);
+                if (h == 0)
+                {
+                    gestureNow = gesture;
+                }
             }
 
-            _head.localRotation = Quaternion.Euler(pitch, yaw, 0f);
-            return gesture / gestureJoints;
+            return gestureNow / gestureJoints;
         }
 
         /// <summary>An idle animal turns its head to look at the player — passives glance over now and then,
@@ -756,10 +867,11 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The jaw: one open per vocalisation pulse, a hard snap for a bite, and a slack breathing
-        /// mouth while asleep.</summary>
+        /// mouth while asleep. On a multi-headed body (#1780) the pulse opens one head's jaw — they take turns —
+        /// while every jaw goes slack in sleep.</summary>
         private void PoseJaw(float dt, float t)
         {
-            if (_jaw == null)
+            if (_jaws.Length == 0)
             {
                 return;
             }
@@ -771,12 +883,17 @@ namespace BlocksBeyondTheStars.Client
                 open = Mathf.Sin(Mathf.Clamp01(_jawT / _jawDur) * Mathf.PI) * _jawDeg;
             }
 
-            if (_asleep)
+            float slack = _asleep ? 5f + Mathf.Sin(t * 0.6f) * 3f : 0f;
+            for (int i = 0; i < _jaws.Length; i++)
             {
-                open = Mathf.Max(open, 5f + Mathf.Sin(t * 0.6f) * 3f);
-            }
+                if (_jaws[i] == null)
+                {
+                    continue;
+                }
 
-            _jaw.localRotation = _jawRest * Quaternion.Euler(open, 0f, 0f);
+                float mine = i == _jawOpenHead ? open : 0f;
+                _jaws[i].localRotation = _jawRests[i] * Quaternion.Euler(Mathf.Max(mine, slack), 0f, 0f);
+            }
         }
 
         /// <summary>Blinking. Held shut while asleep; otherwise an occasional single or double blink. The lid
@@ -930,9 +1047,11 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Fins beat on the paddle phase: pectorals sculling out of phase with each other, the tail
+        /// <summary>Fins beat on the paddle phase: pectorals sculling out of phase with each other (and, on a
+        /// multi-finned body, each row a little behind the one in front — the metachronal wave, #1782), the tail
         /// fin sweeping with the body's undulation, the dorsal barely moving. Ashore (an amphibian out of the
-        /// water) they fold flat against the body instead of rowing at nothing.</summary>
+        /// water) they fold flat against the body instead of rowing at nothing. An air fish (#1779) sculls in the
+        /// air — slower and smaller, a hover rather than a swim.</summary>
         private void PoseFins(float t, float moving)
         {
             if (_fins.Length == 0)
@@ -941,32 +1060,38 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool inWater = _motionClass == MotionClass.Swimmer;
-            float folded = inWater ? 0f : 1f;
+            bool inAir = _skyGlider && !inWater;
+            float folded = inWater || inAir ? 0f : 1f;
             _finFold = Mathf.MoveTowards(_finFold, folded, Time.deltaTime * 2.5f);
 
-            float rate = 5f + moving * 4f;
-            float amp = Mathf.Lerp(9f, 26f, moving) * (1f - _finFold);
+            float rate = inAir ? 2.2f + moving * 1.6f : 5f + moving * 4f;
+            float amp = Mathf.Lerp(9f, 26f, moving) * (1f - _finFold) * (inAir ? 0.75f : 1f);
             for (int i = 0; i < _fins.Length; i++)
             {
-                if (_fins[i] == null)
+                var fin = _fins[i];
+                if (fin?.Pivot == null)
                 {
                     continue;
                 }
 
-                // 0/1 are the pectorals (mirrored), 2 the caudal, 3 the dorsal.
-                if (i < 2)
+                switch (fin.Kind)
                 {
-                    float side = i == 0 ? 1f : -1f;
-                    float beat = Mathf.Sin(t * rate + (i == 0 ? 0f : Mathf.PI)) * amp;
-                    _fins[i].localRotation = Quaternion.Euler(beat * 0.5f, 0f, (beat + 55f * _finFold) * side);
-                }
-                else if (i == 2)
-                {
-                    _fins[i].localRotation = Quaternion.Euler(0f, Mathf.Sin(t * rate * 0.6f) * amp * 0.8f, 0f);
-                }
-                else
-                {
-                    _fins[i].localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 1.4f) * 3f);
+                    case FinKind.Pectoral:
+                    {
+                        float side = fin.Side == 0 ? 1f : -1f;
+                        float lag = fin.Row * 0.8f;
+                        float beat = Mathf.Sin(t * rate + (fin.Side == 0 ? 0f : Mathf.PI) - lag) * amp;
+                        fin.Pivot.localRotation = Quaternion.Euler(beat * 0.5f, 0f, (beat + 55f * _finFold) * side);
+                        break;
+                    }
+
+                    case FinKind.Caudal:
+                        fin.Pivot.localRotation = Quaternion.Euler(0f, Mathf.Sin(t * rate * 0.6f) * amp * 0.8f, 0f);
+                        break;
+
+                    default:
+                        fin.Pivot.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 1.4f) * 3f);
+                        break;
                 }
             }
         }

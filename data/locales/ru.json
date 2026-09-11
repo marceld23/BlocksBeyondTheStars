@@ -27,6 +27,8 @@
   "block.grass.name": "Трава",
   "block.wood_log.name": "Бревно",
   "block.tree_leaves.name": "Листва",
+  "block.giant_log.name": "Бревно гигантского дерева",
+  "block.giant_leaves.name": "Листва гигантского дерева",
   "item.wood_log.name": "Бревно",
   "block.crystal.name": "Кристалл",
   "block.snow.name": "Снег",

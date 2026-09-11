@@ -27,6 +27,8 @@
   "block.grass.name": "Grama",
   "block.wood_log.name": "Tora de Madeira",
   "block.tree_leaves.name": "Folhas",
+  "block.giant_log.name": "Tronco gigante",
+  "block.giant_leaves.name": "Folhas gigantes",
   "item.wood_log.name": "Tora de Madeira",
   "block.crystal.name": "Cristal",
   "block.snow.name": "Neve",

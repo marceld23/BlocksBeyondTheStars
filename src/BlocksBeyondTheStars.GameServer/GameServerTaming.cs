@@ -692,6 +692,9 @@ public sealed partial class GameServer
                 BodyPlan = sp.BodyPlan.ToString(),
                 NeckLength = sp.NeckLength,
                 HasTrunk = sp.HasTrunk,
+                Heads = System.Math.Max(1, sp.Heads),
+                WingPairs = System.Math.Max(1, sp.WingPairs),
+                FinPairs = System.Math.Max(1, sp.FinPairs),
             };
         }).ToArray();
 
@@ -798,6 +801,9 @@ public sealed partial class GameServer
         BodyPlan = s.BodyPlan,
         NeckLength = s.NeckLength,
         HasTrunk = s.HasTrunk,
+        Heads = System.Math.Max(1, s.Heads),         // #1780-#1782: a hydra companion keeps its heads (0 = a pre-wave snapshot)
+        WingPairs = System.Math.Max(1, s.WingPairs),
+        FinPairs = System.Math.Max(1, s.FinPairs),
         HoverAltitude = s.HoverAltitude,
         SocialGroupSize = s.SocialGroupSize,
         VoiceSeed = s.VoiceSeed, // without this a tamed companion loses its voice and re-derives a stranger's

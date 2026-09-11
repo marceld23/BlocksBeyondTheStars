@@ -808,7 +808,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string key = def.Key;
-            return key != "water" && key != "lava" && key != "tree_leaves"
+            return key != "water" && key != "lava" && key != "tree_leaves" && key != "giant_leaves"
                 && key != "torch" && key != "lantern" && key != "ladder"
                 && !key.StartsWith("flora_", System.StringComparison.Ordinal);
         }

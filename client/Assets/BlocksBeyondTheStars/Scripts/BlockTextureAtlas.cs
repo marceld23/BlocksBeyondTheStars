@@ -201,7 +201,7 @@ namespace BlocksBeyondTheStars.Client
         /// mechanism is what grass-on-top, crate lids and machine fronts will want next.
         /// </para>
         /// </summary>
-        private static readonly string[] CapTileKeys = { "wood_log" };
+        private static readonly string[] CapTileKeys = { "wood_log", "giant_log" };
 
         private readonly System.Collections.Generic.Dictionary<ushort, ushort> _capTiles = new();
 
@@ -1178,6 +1178,8 @@ namespace BlocksBeyondTheStars.Client
             "grass" => new Color(0.32f, 0.62f, 0.28f),
             "wood_log" => new Color(0.42f, 0.29f, 0.16f),   // brown bark
             "tree_leaves" => new Color(0.22f, 0.50f, 0.20f), // forest-green canopy
+            "giant_log" => new Color(0.34f, 0.21f, 0.12f),   // #1783: darker, older bark
+            "giant_leaves" => new Color(0.16f, 0.42f, 0.18f), // #1783: a deeper canopy green
             "crystal" => new Color(0.55f, 0.75f, 0.95f),
             "ancient_brick" => new Color(0.60f, 0.56f, 0.47f), // weathered sandy masonry
             "rune_stone" => new Color(0.48f, 0.50f, 0.55f),    // cold grey slate, carved (glyphs in Decorate)

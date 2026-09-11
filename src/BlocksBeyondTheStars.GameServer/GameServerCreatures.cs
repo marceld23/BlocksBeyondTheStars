@@ -2052,6 +2052,7 @@ public sealed partial class GameServer
     private const float FlierClimbRate = 5f;     // blocks/s a flier climbs back to its hover band
     private const float FlierCruiseRate = 4f;    // blocks/s the hover target is eased at (#652)
     private const float HovererEaseRate = 2f;    // slower — a gas sac lags the terrain instead of tracing it
+    private const float SkyGliderEaseRate = 3.5f; // #1778/#1779: a sky ray / air fish never lands, but it cruises like a flier
     private const float LandHovererHeight = 0.8f; // a floating land grazer rides this far above its feet
     private const float PerchReach = 2f;         // a perch may sit this far below the hover band's floor
     private const float TakeOffSettle = 0.3f;    // within this of the hover target → cruising again
@@ -2102,7 +2103,8 @@ public sealed partial class GameServer
             case MotionClass.Swimmer:
                 c.Vert.Airborne = false;
                 return new Vector3f(p.X, WaterColumnY(x, z, vertWave, surface,
-                    holdY: sp.Habitat == CreatureHabitat.Amphibian ? p.Y : null), p.Z);
+                    holdY: sp.Habitat == CreatureHabitat.Amphibian ? p.Y : null,
+                    bottom: CreatureMotion.IsBottomDweller(sp)), p.Z);
 
             case MotionClass.Hoverer:
                 {
@@ -2116,7 +2118,8 @@ public sealed partial class GameServer
                         ? RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y - HoverOf(sp))) + HoverOf(sp)
                         : RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y)) + LandHovererHeight;
                     float target = baseY + prof.VertAmp * vertWave;
-                    return new Vector3f(p.X, VerticalMotion.Ease(p.Y, target, dt, HovererEaseRate, 24f), p.Z);
+                    float ease = CreatureMotion.IsSkyGlider(sp) ? SkyGliderEaseRate : HovererEaseRate;
+                    return new Vector3f(p.X, VerticalMotion.Ease(p.Y, target, dt, ease, 24f), p.Z);
                 }
 
             case MotionClass.Flier:
@@ -2280,7 +2283,7 @@ public sealed partial class GameServer
     /// <para>#1697: real blocks first. The generator only knows the water the world was born with, so a
     /// swimmer in a hand-dug pool snapped to the noise surface — the pre-excavation ground — instead of
     /// porpoising in the water it was standing in.</para></summary>
-    private float WaterColumnY(int x, int z, float vertWave, int surface, float? holdY = null)
+    private float WaterColumnY(int x, int z, float vertWave, int surface, float? holdY = null, bool bottom = false)
     {
         int waterTopY = int.MinValue, seabedY = int.MinValue;
         int bedFeet = SubmergedFeetYAt(x, z, (int)System.Math.Round(holdY ?? surface + 1f), FluidColumnScan);
@@ -2302,6 +2305,13 @@ public sealed partial class GameServer
         }
 
         float lo = seabedY + 1f, hi = waterTopY - 0.5f;
+        if (bottom)
+        {
+            // #1778: a ray hugs the bed — a low band just above the seabed, lifting a little on its wave.
+            float band = System.Math.Min(hi - lo, 1.5f);
+            return System.Math.Min(hi, lo + 0.3f + band * 0.6f * (0.5f + 0.5f * vertWave));
+        }
+
         return lo + (hi - lo) * (0.5f + 0.45f * vertWave);
     }
 
@@ -2543,6 +2553,9 @@ public sealed partial class GameServer
             Hide = sp?.Hide ?? string.Empty, // #1763: an authored species' fixed hide tile
             NeckLength = sp?.NeckLength ?? 0,
             HasTrunk = sp?.HasTrunk ?? false,
+            Heads = System.Math.Max(1, sp?.Heads ?? 1),         // #1780-#1782 (generation 6); a pre-wave snapshot carries 0
+            WingPairs = System.Math.Max(1, sp?.WingPairs ?? 1),
+            FinPairs = System.Math.Max(1, sp?.FinPairs ?? 1),
             VoiceSeed = sp?.VoiceSeed ?? 0, // 0 → client falls back to hashing the trait tuple (#907)
         };
     }

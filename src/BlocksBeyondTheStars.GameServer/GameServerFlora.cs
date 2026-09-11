@@ -34,10 +34,10 @@ public sealed partial class GameServer
     private readonly Dictionary<ushort, HashSet<ushort>> _floraHostIds = new();
     private readonly Dictionary<ushort, BlocksBeyondTheStars.Shared.Definitions.FloraSpecies> _floraSpeciesByBlock = new();
 
-    // This world's single tree species + the block ids (trunk + leaves) it covers, so a scan of either
-    // reads as the same coined, edible/toxic tree (built in InitFlora; see TreeSpeciesForBlock).
-    private BlocksBeyondTheStars.Shared.Definitions.TreeSpecies? _treeSpecies;
-    private readonly HashSet<ushort> _treeBlockIds = new();
+    // This world's tree species by block id: the trunk + leaves of the ordinary trees share one coined,
+    // edible/toxic tree, the giant trees' blocks (#1783, generation 6) a second one — so a scan of a trunk or
+    // a leaf reads as the tree it belongs to (built in InitFlora; see TreeSpeciesForBlock).
+    private readonly Dictionary<ushort, BlocksBeyondTheStars.Shared.Definitions.TreeSpecies> _treeSpeciesByBlock = new();
     private Dictionary<Vector3i, (ushort FloraId, double Timer)> _floraRegrow => _worlds.Active.FloraRegrow;
 
     private readonly HashSet<ushort> _floraHangingIds = new(); // #1759: species whose host is the block above
@@ -99,18 +99,29 @@ public sealed partial class GameServer
         }
 
         // Per-body tree species (#478): the trunk (wood_log) and crown (tree_leaves) share this world's one
-        // coined name + edible/toxic trait, surfaced when the player scans a tree.
-        _treeSpecies = null;
-        _treeBlockIds.Clear();
+        // coined name + edible/toxic trait, surfaced when the player scans a tree. The giant trees (#1783) are a
+        // second species on their own blocks — only on a generation-6 world, where they can actually grow.
+        _treeSpeciesByBlock.Clear();
         if (planet != null && BlocksBeyondTheStars.WorldGeneration.TreeGenerator.Generate(planet, rosterSeed) is { } tree)
         {
-            _treeSpecies = tree;
-            foreach (var key in new[] { "wood_log", "tree_leaves" })
+            MapTreeBlocks(tree, "wood_log", "tree_leaves");
+        }
+
+        if (planet != null
+            && _meta.Description.TerrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.NewKindsGeneration
+            && BlocksBeyondTheStars.WorldGeneration.TreeGenerator.GenerateGiant(planet, rosterSeed) is { } giant)
+        {
+            MapTreeBlocks(giant, BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLogKey, BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLeavesKey);
+        }
+    }
+
+    private void MapTreeBlocks(BlocksBeyondTheStars.Shared.Definitions.TreeSpecies tree, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (_content.GetBlock(key) is { } b && b.NumericId.Value != 0)
             {
-                if (_content.GetBlock(key) is { } b && b.NumericId.Value != 0)
-                {
-                    _treeBlockIds.Add(b.NumericId.Value);
-                }
+                _treeSpeciesByBlock[b.NumericId.Value] = tree;
             }
         }
     }
@@ -119,7 +130,7 @@ public sealed partial class GameServer
     /// (trunk or leaves), else null. Trunk and leaves both map to the same species — one tree, one identity.
     /// Used by the scanner to name + classify a scanned tree.</summary>
     public BlocksBeyondTheStars.Shared.Definitions.TreeSpecies? TreeSpeciesForBlock(string blockKey)
-        => _treeSpecies != null && _content.GetBlock(blockKey) is { } b && _treeBlockIds.Contains(b.NumericId.Value) ? _treeSpecies : null;
+        => _content.GetBlock(blockKey) is { } b && _treeSpeciesByBlock.TryGetValue(b.NumericId.Value, out var tree) ? tree : null;
 
     /// <summary>This world's generated flora species for a block key (name + toxic trait), or null if the
     /// block isn't flora here. Used by the scanner to name + classify a scanned plant.</summary>

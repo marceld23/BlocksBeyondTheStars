@@ -228,8 +228,12 @@ namespace BlocksBeyondTheStars.Client
                 if (vel.sqrMagnitude > 1e-5f)
                 {
                     entry.FaceDir = Vector3.Slerp(entry.FaceDir, vel.normalized, 1f - Mathf.Exp(-8f * dt));
+                    // #1778/#1779: a sky ray or an air fish is a hoverer with a nose — it pitches into its swoops and
+                    // banks into its turns like a flier; a water ray banks too (the only swimmer that does).
+                    bool skyGlider = CreatureMotion.IsSkyGliderBody(c.Habitat, c.BodyPlan, c.Legs);
+                    bool ray = string.Equals(c.BodyPlan, "Ray", System.StringComparison.OrdinalIgnoreCase);
                     bool medusa = string.Equals(c.BodyPlan, "Medusa", System.StringComparison.OrdinalIgnoreCase)
-                        || c.Motion == "hoverer"; // a buoyant body has no nose to pitch either (#1333)
+                        || (c.Motion == "hoverer" && !skyGlider); // a buoyant body has no nose to pitch either (#1333)
                     float targetPitch = 0f, targetRoll = 0f;
                     // While the feet are planted on real ground the rig tilts the body from the plane they
                     // describe, which is strictly better than guessing the slope from vertical velocity — and
@@ -240,11 +244,12 @@ namespace BlocksBeyondTheStars.Client
                         float horiz = vel.magnitude;
                         targetPitch = Mathf.Clamp(
                             Mathf.Atan2(vel3.y, Mathf.Max(horiz, 0.01f)) * Mathf.Rad2Deg, -25f, 25f);
-                        if (string.Equals(c.Habitat, "Air", System.StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(c.Habitat, "Air", System.StringComparison.OrdinalIgnoreCase) || ray)
                         {
                             float turnRate = Vector3.SignedAngle(entry.PrevFaceDir, entry.FaceDir, Vector3.up)
                                 / Mathf.Max(dt, 1e-4f);
-                            targetRoll = Mathf.Clamp(-turnRate * 0.25f, -20f, 20f);
+                            float bank = ray || skyGlider ? 28f : 20f; // a broad disc leans harder into a turn
+                            targetRoll = Mathf.Clamp(-turnRate * 0.25f, -bank, bank);
                         }
                     }
 
@@ -687,7 +692,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 string key = def.Key;
-                if (key == "water" || key == "lava" || key == "tree_leaves"
+                if (key == "water" || key == "lava" || key == "tree_leaves" || key == "giant_leaves"
                     || key.StartsWith("flora_", System.StringComparison.Ordinal))
                 {
                     continue; // stand on the bed, not on the surface, and not on a leaf

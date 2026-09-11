@@ -1751,6 +1751,12 @@ public sealed class NetCreature
     public int NeckLength { get; set; }
     public bool HasTrunk { get; set; }
 
+    /// <summary>Heads / wing pairs / fin pairs (#1780-#1782, generation 6). Additive: an older client ignores them and
+    /// draws the classic single head / pair / pair; an older server leaves them at 0, which the client reads as 1.</summary>
+    public int Heads { get; set; } = 1;
+    public int WingPairs { get; set; } = 1;
+    public int FinPairs { get; set; } = 1;
+
     /// <summary>The hide tile the client paints the body with ("fur", "shaggy", "petal", …) for an authored species
     /// (#1763); empty = the classic id-hashed pick. Additive: an older client ignores it.</summary>
     public string Hide { get; set; } = string.Empty;
@@ -1896,6 +1902,9 @@ public sealed class NetCompanion
     public string BodyPlan { get; set; } = "Standard"; // #637/#638 — the portrait renders the real plan
     public int NeckLength { get; set; }
     public bool HasTrunk { get; set; }
+    public int Heads { get; set; } = 1;     // #1780-#1782 (generation 6) — the portrait shows every head, wing pair and fin pair
+    public int WingPairs { get; set; } = 1;
+    public int FinPairs { get; set; } = 1;
 }
 
 /// <summary>Server → client: the player's full companion roster (for the Companions menu tab).</summary>

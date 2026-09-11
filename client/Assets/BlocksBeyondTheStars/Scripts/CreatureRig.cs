@@ -50,14 +50,37 @@ namespace BlocksBeyondTheStars.Client
         public float Length => UpperLen + LowerLen;
     }
 
-    /// <summary>One wing: a shoulder that beats and (once jointed) a wrist that folds the outer panel away.</summary>
+    /// <summary>One wing: a shoulder that beats and (once jointed) a wrist that folds the outer panel away.
+    /// <see cref="Row"/> / <see cref="Rows"/> (#1781): a multi-winged body carries its pairs along the torso, and
+    /// the animator lags each row so the pairs beat as a wave instead of one copied flap.</summary>
     public sealed class WingRig
     {
         public Transform Shoulder;
         public Transform Wrist;    // null until the jointed limbs are built
         public int Side;           // 0 = left, 1 = right
+        public int Row;            // 0 = the front-most pair
+        public int Rows = 1;       // how many pairs this body has
         public Quaternion ShoulderRest = Quaternion.identity;
         public Quaternion WristRest = Quaternion.identity;
+    }
+
+    /// <summary>What a fin is, so the animator poses it by kind instead of by array index (#1782).</summary>
+    public enum FinKind : byte
+    {
+        Pectoral, // a flank fin — sculls, mirrored per side, lagged per row
+        Caudal,   // the vertical tail fin — sweeps with the body's undulation
+        Dorsal,   // the back fin — barely moves
+    }
+
+    /// <summary>One fin. Pectorals carry a side and a row (a multi-finned body has two or three pairs along the
+    /// flanks); the caudal and dorsal fins are single.</summary>
+    public sealed class FinRig
+    {
+        public Transform Pivot;
+        public FinKind Kind;
+        public int Side;           // 0 = left, 1 = right (pectorals)
+        public int Row;            // 0 = the front-most pair (pectorals)
+        public int Rows = 1;
     }
 
     /// <summary>
@@ -84,12 +107,18 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Trunk segments from the head down (elephant).</summary>
         public Transform[] Trunk = System.Array.Empty<Transform>();
 
-        /// <summary>Pectoral fins, then the tail fin plate — a legless swimmer's only limbs.</summary>
-        public Transform[] Fins = System.Array.Empty<Transform>();
+        /// <summary>The fins, each with its kind, side and row (#1782) — a legless swimmer's only limbs.</summary>
+        public FinRig[] Fins = System.Array.Empty<FinRig>();
+
+        /// <summary>Ray plan (#1778): one panel chain per side, root panel first — the wave travels outward.</summary>
+        public Transform[][] RayWings = System.Array.Empty<Transform[]>();
 
         // --- head ---
+        /// <summary>The first (or only) head; <see cref="Heads"/> lists every head on a multi-headed body (#1780).</summary>
         public Transform Head;
         public Transform Jaw;
+        public Transform[] Heads = System.Array.Empty<Transform>();
+        public Transform[] Jaws = System.Array.Empty<Transform>();
         public Transform[] Eyelids = System.Array.Empty<Transform>();
         public Transform[] Ears = System.Array.Empty<Transform>();
 
@@ -103,6 +132,7 @@ namespace BlocksBeyondTheStars.Client
         public bool Hostile;
         public bool Asleep;
         public bool Aquatic;       // water or amphibian — undulates instead of striding
+        public bool SkyGlider;     // #1778/#1779: a sky ray or air fish — a hoverer that glides; fins scull in the air
         public string Temperament = string.Empty;
         public string BodyPlan = "Standard";
         public float Size = 1f;

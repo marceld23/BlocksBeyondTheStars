@@ -571,7 +571,7 @@ public sealed partial class GameServer
     private static bool IsWalkThroughProp(string key, bool foliagePasses)
         => key.StartsWith("flora_", System.StringComparison.Ordinal)
             || key is "torch" or "lantern" or "ladder"
-            || (foliagePasses && key == "tree_leaves");
+            || (foliagePasses && (key == "tree_leaves" || key == BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLeavesKey));
 
     // NOTE: BroadcastNpcs runs on the 0.2 s position-sync cadence — per-receiver standings (#1118) must
     // NOT ride on it; they go out via SendNpcs (world entry) and explicitly when a relationship changes.

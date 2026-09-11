@@ -27,6 +27,8 @@
   "block.grass.name": "草地",
   "block.wood_log.name": "原木",
   "block.tree_leaves.name": "树叶",
+  "block.giant_log.name": "巨型树干",
+  "block.giant_leaves.name": "巨型树叶",
   "item.wood_log.name": "原木",
   "block.crystal.name": "晶体",
   "block.snow.name": "雪",

@@ -27,6 +27,8 @@
   "block.grass.name": "Trawa",
   "block.wood_log.name": "Kłoda",
   "block.tree_leaves.name": "Liście",
+  "block.giant_log.name": "Olbrzymi pień",
+  "block.giant_leaves.name": "Olbrzymie liście",
   "item.wood_log.name": "Kłoda",
   "block.crystal.name": "Kryształ",
   "block.snow.name": "Śnieg",

@@ -30,8 +30,11 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<Transform> _ears = new List<Transform>();
         private readonly List<Transform[]> _tentacleChains = new List<Transform[]>();
         private readonly List<Transform> _trunkChain = new List<Transform>();
-        private readonly List<Transform> _fins = new List<Transform>();
-        private Transform _headPivot;
+        private readonly List<FinRig> _fins = new List<FinRig>();
+        private readonly List<Transform[]> _rayWings = new List<Transform[]>();
+        private readonly List<Transform> _heads = new List<Transform>();
+        private readonly List<Transform> _jaws = new List<Transform>();
+        private Transform _headPivot; // the head being built right now (a multi-headed body builds several in turn)
         private Transform _jawPivot;
         private Material _bodyMat;
         private Light _glow;
@@ -51,6 +54,12 @@ namespace BlocksBeyondTheStars.Client
             if (c.BodyPlan == "Titan")
             {
                 BuildTitan(root, c);
+                return;
+            }
+
+            if (c.BodyPlan == "Ray")
+            {
+                BuildRay(root, c);
                 return;
             }
 
@@ -110,33 +119,40 @@ namespace BlocksBeyondTheStars.Client
             float frontZ = (segments - 1) * 0.5f * segLen + segLen * 0.6f;
             // Head on a neck pivot (behind the head) so it can bob/graze/lunge as an idle gesture, with a
             // hinged lower jaw so the species' voice actually moves a mouth (the calls have been coming out
-            // of a sealed head since #902).
-            _headPivot = NewPivot(body.transform, "Head", new Vector3(0f, bodyY + unit * 0.2f, frontZ - unit * 0.45f));
-            AddHeadBox(unit * 0.9f * headScale, unit * 0.85f * headScale, unit * 0.8f * headScale, unit * 0.45f, _bodyMat);
-
-            // Eyes: optional (0 = eyeless) and a random count (often two, sometimes three/four/six). Bigger,
-            // with a dark pupil so they clearly read as eyes — spread in a row across the head front.
-            AddEyes(c, unit, headScale);
-
-            // #1760: the flowerling — a ring of petals around the head, and a face that is a wide grin while it is
-            // calm and a toothed maw while it is hostile (the server flips Hostile with the mining grudge; the view
-            // rebuilds the body on that flip, so the face follows).
-            if (c.BodyPlan == "Floral")
+            // of a sealed head since #902). A multi-headed body (#1780) carries its heads side by side at the
+            // front, each with its own eyes, jaw and horns; the animator poses them out of step.
+            int heads = Mathf.Clamp(c.Heads, 1, 3);
+            float headW = unit * 0.9f * headScale;
+            for (int hd = 0; hd < heads; hd++)
             {
-                AddFloralHead(c, unit, headScale, bellyColor);
-            }
+                float hx = heads == 1 ? 0f : Mathf.Lerp(-headW * 0.5f * (heads - 1), headW * 0.5f * (heads - 1), hd / (float)(heads - 1));
+                _headPivot = NewPivot(body.transform, heads == 1 ? "Head" : "Head" + hd, new Vector3(hx, bodyY + unit * 0.2f, frontZ - unit * 0.45f));
+                AddHeadBox(headW, unit * 0.85f * headScale, unit * 0.8f * headScale, unit * 0.45f, _bodyMat);
 
-            // Horns/spikes on top of the head — silhouette variety.
-            int horns = Mathf.Clamp(c.Horns, 0, 4);
-            if (horns > 0)
-            {
-                var hornMat = Lit(new Color(0.20f, 0.17f, 0.15f), null);
-                float hornH = unit * 0.5f * headScale;
-                for (int hn = 0; hn < horns; hn++)
+                // Eyes: optional (0 = eyeless) and a random count (often two, sometimes three/four/six). Bigger,
+                // with a dark pupil so they clearly read as eyes — spread in a row across the head front.
+                AddEyes(c, unit, headScale);
+
+                // #1760: the flowerling — a ring of petals around the head, and a face that is a wide grin while it is
+                // calm and a toothed maw while it is hostile (the server flips Hostile with the mining grudge; the view
+                // rebuilds the body on that flip, so the face follows).
+                if (c.BodyPlan == "Floral")
                 {
-                    float hx = horns == 1 ? 0f : Mathf.Lerp(-unit * 0.30f * headScale, unit * 0.30f * headScale, hn / (float)(horns - 1));
-                    AddPartTo(_headPivot, "Horn" + hn, new Vector3(hx, unit * (0.5f * headScale + 0.25f * legLong), unit * 0.05f),
-                        new Vector3(unit * 0.13f, hornH, unit * 0.13f), hornMat);
+                    AddFloralHead(c, unit, headScale, bellyColor);
+                }
+
+                // Horns/spikes on top of the head — silhouette variety.
+                int horns = Mathf.Clamp(c.Horns, 0, 4);
+                if (horns > 0)
+                {
+                    var hornMat = Lit(new Color(0.20f, 0.17f, 0.15f), null);
+                    float hornH = unit * 0.5f * headScale;
+                    for (int hn = 0; hn < horns; hn++)
+                    {
+                        float hxn = horns == 1 ? 0f : Mathf.Lerp(-unit * 0.30f * headScale, unit * 0.30f * headScale, hn / (float)(horns - 1));
+                        AddPartTo(_headPivot, "Horn" + hn, new Vector3(hxn, unit * (0.5f * headScale + 0.25f * legLong), unit * 0.05f),
+                            new Vector3(unit * 0.13f, hornH, unit * 0.13f), hornMat);
+                    }
                 }
             }
 
@@ -163,7 +179,8 @@ namespace BlocksBeyondTheStars.Client
             if (c.HasWings)
             {
                 AddWings(body.transform, unit * 0.9f, unit * 1.2f, unit * 0.08f,
-                    new Vector3(unit * 0.45f, bodyY + unit * 0.2f, 0f), _bodyMat);
+                    new Vector3(unit * 0.45f, bodyY + unit * 0.2f, 0f), _bodyMat,
+                    Mathf.Clamp(c.WingPairs, 1, 3), hipSpan + segLen * 0.1f);
             }
 
             if (c.HasTail)
@@ -178,14 +195,24 @@ namespace BlocksBeyondTheStars.Client
             if (c.HasFins)
             {
                 float finLen = unit * 0.75f;
-                for (int f = 0; f < 2; f++)
+                int finPairs = Mathf.Clamp(c.FinPairs, 1, 3);
+                float finFront = frontZ - unit * 0.7f;
+                float finRear = -(segments - 1) * 0.5f * segLen + segLen * 0.1f;
+                for (int row = 0; row < finPairs; row++)
                 {
-                    float sx = f == 0 ? -1f : 1f;
-                    var pec = NewPivot(body.transform, f == 0 ? "FinL" : "FinR",
-                        new Vector3(sx * unit * 0.5f * bodyWide, bodyY - unit * 0.1f, frontZ - unit * 0.7f));
-                    AddPartTo(pec, "FinBlade", new Vector3(sx * finLen * 0.5f, 0f, -finLen * 0.15f),
-                        new Vector3(finLen, unit * 0.07f, finLen * 0.8f), bellyMat);
-                    _fins.Add(pec);
+                    // One pair sits behind the head as before; extra pairs (#1782) space out toward the tail and
+                    // shrink a little, like the fins along a cuttlefish's flank.
+                    float fz = finPairs == 1 ? finFront : Mathf.Lerp(finFront, finRear, row / (float)(finPairs - 1));
+                    float rowLen = finLen * (1f - 0.12f * row);
+                    for (int f = 0; f < 2; f++)
+                    {
+                        float sx = f == 0 ? -1f : 1f;
+                        var pec = NewPivot(body.transform, (f == 0 ? "FinL" : "FinR") + (row == 0 ? "" : row.ToString()),
+                            new Vector3(sx * unit * 0.5f * bodyWide * TaperAt(fz, segLen, segments), bodyY - unit * 0.1f, fz));
+                        AddPartTo(pec, "FinBlade", new Vector3(sx * rowLen * 0.5f, 0f, -rowLen * 0.15f),
+                            new Vector3(rowLen, unit * 0.07f, rowLen * 0.8f), bellyMat);
+                        _fins.Add(new FinRig { Pivot = pec, Kind = FinKind.Pectoral, Side = f, Row = row, Rows = finPairs });
+                    }
                 }
 
                 var tailFinParent = _tailChain.Count > 0 ? _tailChain[_tailChain.Count - 1] : body.transform;
@@ -196,14 +223,22 @@ namespace BlocksBeyondTheStars.Client
                     new Vector3(0f, _tailChain.Count > 0 ? 0f : bodyY, tailFinZ));
                 AddPartTo(caudal, "FinTailBlade", new Vector3(0f, 0f, -finLen * 0.45f),
                     new Vector3(unit * 0.07f, finLen * 1.5f, finLen * 0.9f), bellyMat);
-                _fins.Add(caudal);
+                _fins.Add(new FinRig { Pivot = caudal, Kind = FinKind.Caudal });
 
                 if (!c.HasCrest)
                 {
                     var dorsal = NewPivot(body.transform, "FinDorsal", new Vector3(0f, bodyY + unit * 0.45f, 0f));
                     AddPartTo(dorsal, "FinDorsalBlade", new Vector3(0f, finLen * 0.4f, -finLen * 0.1f),
                         new Vector3(unit * 0.07f, finLen * 0.8f, finLen), bellyMat);
-                    _fins.Add(dorsal);
+                    _fins.Add(new FinRig { Pivot = dorsal, Kind = FinKind.Dorsal });
+                    if (finPairs >= 3)
+                    {
+                        // A three-paired body also carries a second, smaller dorsal toward the tail.
+                        var dorsal2 = NewPivot(body.transform, "FinDorsal2", new Vector3(0f, bodyY + unit * 0.4f, finRear - segLen * 0.2f));
+                        AddPartTo(dorsal2, "FinDorsalBlade", new Vector3(0f, finLen * 0.28f, -finLen * 0.05f),
+                            new Vector3(unit * 0.07f, finLen * 0.55f, finLen * 0.7f), bellyMat);
+                        _fins.Add(new FinRig { Pivot = dorsal2, Kind = FinKind.Dorsal });
+                    }
                 }
             }
 
@@ -483,62 +518,80 @@ namespace BlocksBeyondTheStars.Client
             // Nested pivots, so lowering the head actually lowers the NECK. As a static stack the graze
             // gesture could only nod the head at the top of a rigid column — a giraffe that cannot reach the
             // ground. The chain distributes the gesture and the animal really bends down.
+            // A hydra (#1780) grows one neck per head, fanned out from the shoulders.
             int neck = Mathf.Clamp(c.NeckLength, 0, 3);
-            var neckParent = body.transform;
-            float headY = bodyY + unit * 0.25f;
-            float headZ = frontZ - unit * 0.35f;
-            for (int nk = 0; nk < neck; nk++)
+            int heads = Mathf.Clamp(c.Heads, 1, 3);
+            for (int hd = 0; hd < heads; hd++)
             {
-                float taper = 1f - 0.15f * nk;
-                var seg = NewPivot(neckParent, "Neck" + nk, nk == 0
-                    ? new Vector3(0f, headY, headZ - unit * 0.05f)
-                    : new Vector3(0f, unit * 0.62f, unit * 0.18f));
-                AddPartTo(seg, "NeckSeg" + nk, new Vector3(0f, unit * 0.34f, unit * 0.09f),
-                    new Vector3(unit * 0.55f * taper, unit * 0.75f, unit * 0.55f * taper), _bodyMat);
-                _neckChain.Add(seg);
-                neckParent = seg;
-                headY += unit * 0.62f;
-                headZ += unit * 0.18f;
-            }
-
-            _headPivot = NewPivot(neckParent, "Head", neck > 0
-                ? new Vector3(0f, unit * 0.82f, unit * 0.23f)
-                : new Vector3(0f, headY + unit * 0.2f, headZ));
-            AddHeadBox(unit * 0.95f * headScale, unit * 0.85f * headScale, unit * 0.9f * headScale, unit * 0.45f, _bodyMat);
-
-            AddEyes(c, unit, headScale);
-
-            // Ears: two flat slabs at the head sides — the elephant read, and scale-scaffolding for the eye.
-            // On pivots at the top edge, so they can flick on a long idle.
-            for (int e = 0; e < 2; e++)
-            {
-                float ex = (e == 0 ? -1f : 1f) * unit * 0.55f * headScale;
-                _ears.Add(AddPivotPart(_headPivot, e == 0 ? "EarL" : "EarR",
-                    new Vector3(ex, unit * 0.5f * headScale, unit * 0.2f),
-                    new Vector3(0f, -unit * 0.3f * headScale, 0f),
-                    new Vector3(unit * 0.12f, unit * 0.6f * headScale, unit * 0.5f * headScale), _bodyMat));
-            }
-
-            // Tusks: the species' horns, worn forward from the lower jaw instead of upright on the crown.
-            int tusks = Mathf.Clamp(c.Horns, 0, 4);
-            if (tusks > 0)
-            {
-                var tuskMat = Lit(new Color(0.92f, 0.88f, 0.78f), null); // ivory
-                for (int tk = 0; tk < tusks; tk++)
+                float fan = heads == 1 ? 0f : Mathf.Lerp(-1f, 1f, hd / (float)(heads - 1));
+                float xOff = fan * unit * 0.5f * bodyWide;
+                float yaw = fan * 24f;
+                var neckParent = body.transform;
+                float headY = bodyY + unit * 0.25f;
+                float headZ = frontZ - unit * 0.35f;
+                for (int nk = 0; nk < neck; nk++)
                 {
-                    float hx = tusks == 1 ? 0f : Mathf.Lerp(-unit * 0.3f * headScale, unit * 0.3f * headScale, tk / (float)(tusks - 1));
-                    AddPartTo(_headPivot, "Tusk" + tk, new Vector3(hx, -unit * 0.25f * headScale, unit * 0.6f * headScale),
-                        new Vector3(unit * 0.12f, unit * 0.12f, unit * 0.7f * headScale), tuskMat);
-                }
-            }
+                    float taper = 1f - 0.15f * nk;
+                    var seg = NewPivot(neckParent, "Neck" + nk + (heads == 1 ? "" : "_" + hd), nk == 0
+                        ? new Vector3(xOff, headY, headZ - unit * 0.05f)
+                        : new Vector3(0f, unit * 0.62f, unit * 0.18f));
+                    if (nk == 0)
+                    {
+                        seg.localRotation = Quaternion.Euler(0f, yaw, 0f);
+                    }
 
-            // Trunk: shrinking segments hanging from the head front, slightly forward — the elephant.
-            if (c.HasTrunk)
-            {
-                // A chain, so the trunk can curl and sway instead of hanging off the head like a pipe.
-                _trunkChain.AddRange(AddChain(_headPivot, "Trunk",
-                    new Vector3(0f, -unit * 0.2f * headScale, unit * 0.5f * headScale), unit * 0.04f,
-                    4, unit * 0.3f, unit * 0.42f, 0.17f, _bodyMat));
+                    AddPartTo(seg, "NeckSeg" + nk, new Vector3(0f, unit * 0.34f, unit * 0.09f),
+                        new Vector3(unit * 0.55f * taper, unit * 0.75f, unit * 0.55f * taper), _bodyMat);
+                    _neckChain.Add(seg);
+                    neckParent = seg;
+                    headY += unit * 0.62f;
+                    headZ += unit * 0.18f;
+                }
+
+                _headPivot = NewPivot(neckParent, heads == 1 ? "Head" : "Head" + hd, neck > 0
+                    ? new Vector3(0f, unit * 0.82f, unit * 0.23f)
+                    : new Vector3(xOff, headY + unit * 0.2f, headZ));
+                if (neck == 0)
+                {
+                    _headPivot.localRotation = Quaternion.Euler(0f, yaw, 0f);
+                }
+
+                AddHeadBox(unit * 0.95f * headScale, unit * 0.85f * headScale, unit * 0.9f * headScale, unit * 0.45f, _bodyMat);
+
+                AddEyes(c, unit, headScale);
+
+                // Ears: two flat slabs at the head sides — the elephant read, and scale-scaffolding for the eye.
+                // On pivots at the top edge, so they can flick on a long idle.
+                for (int e = 0; e < 2; e++)
+                {
+                    float ex = (e == 0 ? -1f : 1f) * unit * 0.55f * headScale;
+                    _ears.Add(AddPivotPart(_headPivot, e == 0 ? "EarL" : "EarR",
+                        new Vector3(ex, unit * 0.5f * headScale, unit * 0.2f),
+                        new Vector3(0f, -unit * 0.3f * headScale, 0f),
+                        new Vector3(unit * 0.12f, unit * 0.6f * headScale, unit * 0.5f * headScale), _bodyMat));
+                }
+
+                // Tusks: the species' horns, worn forward from the lower jaw instead of upright on the crown.
+                int tusks = Mathf.Clamp(c.Horns, 0, 4);
+                if (tusks > 0)
+                {
+                    var tuskMat = Lit(new Color(0.92f, 0.88f, 0.78f), null); // ivory
+                    for (int tk = 0; tk < tusks; tk++)
+                    {
+                        float hx = tusks == 1 ? 0f : Mathf.Lerp(-unit * 0.3f * headScale, unit * 0.3f * headScale, tk / (float)(tusks - 1));
+                        AddPartTo(_headPivot, "Tusk" + tk, new Vector3(hx, -unit * 0.25f * headScale, unit * 0.6f * headScale),
+                            new Vector3(unit * 0.12f, unit * 0.12f, unit * 0.7f * headScale), tuskMat);
+                    }
+                }
+
+                // Trunk: shrinking segments hanging from the head front, slightly forward — the elephant.
+                if (c.HasTrunk)
+                {
+                    // A chain, so the trunk can curl and sway instead of hanging off the head like a pipe.
+                    _trunkChain.AddRange(AddChain(_headPivot, "Trunk",
+                        new Vector3(0f, -unit * 0.2f * headScale, unit * 0.5f * headScale), unit * 0.04f,
+                        4, unit * 0.3f, unit * 0.42f, 0.17f, _bodyMat));
+                }
             }
 
             if (c.HasTail)
@@ -573,30 +626,150 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A pair of two-panel wings: shoulder → inner panel → wrist → outer panel. The wrist is what
         /// makes a fold read as a fold — the single slab this replaces could only be rotated bodily up over
         /// the back, which is not what a bird does with its wings when it lands.</summary>
-        private void AddWings(Transform parent, float span, float chord, float thick, Vector3 shoulderPos, Material mat)
+        private void AddWings(Transform parent, float span, float chord, float thick, Vector3 shoulderPos, Material mat,
+            int pairs = 1, float zSpan = 0f)
         {
             float inner = span * 0.45f, outer = span - span * 0.45f;
-            for (int w = 0; w < 2; w++)
+            // Extra pairs (#1781) sit along the torso like the leg rows, each a little narrower in chord so they
+            // do not overlap, and slightly shorter toward the rear (the dragonfly's hind wings are the broad ones,
+            // but a rear pair that is longer than the body reads wrong on a blocky animal).
+            if (pairs > 1)
             {
-                float sx = w == 0 ? -1f : 1f;
-                var shoulder = NewPivot(parent, w == 0 ? "WingL" : "WingR",
-                    new Vector3(sx * shoulderPos.x, shoulderPos.y, shoulderPos.z));
-                AddPartTo(shoulder, "WingInner", new Vector3(sx * inner * 0.5f, 0f, 0f),
-                    new Vector3(inner, thick, chord), mat);
-
-                var wrist = NewPivot(shoulder, "WingWrist", new Vector3(sx * inner, 0f, 0f));
-                AddPartTo(wrist, "WingOuter", new Vector3(sx * outer * 0.5f, 0f, 0f),
-                    new Vector3(outer, thick * 0.8f, chord * 0.82f), mat);
-
-                _wings.Add(new WingRig
-                {
-                    Shoulder = shoulder,
-                    Wrist = wrist,
-                    Side = w,
-                    ShoulderRest = shoulder.localRotation,
-                    WristRest = wrist.localRotation,
-                });
+                chord = Mathf.Min(chord, 2f * zSpan / pairs * 0.85f);
             }
+
+            for (int row = 0; row < pairs; row++)
+            {
+                float z = pairs == 1 ? shoulderPos.z : Mathf.Lerp(shoulderPos.z + zSpan, shoulderPos.z - zSpan, row / (float)(pairs - 1));
+                float rowScale = 1f - 0.08f * row;
+                for (int w = 0; w < 2; w++)
+                {
+                    float sx = w == 0 ? -1f : 1f;
+                    string side = w == 0 ? "WingL" : "WingR";
+                    var shoulder = NewPivot(parent, row == 0 ? side : side + row,
+                        new Vector3(sx * shoulderPos.x, shoulderPos.y, z));
+                    AddPartTo(shoulder, "WingInner", new Vector3(sx * inner * rowScale * 0.5f, 0f, 0f),
+                        new Vector3(inner * rowScale, thick, chord), mat);
+
+                    var wrist = NewPivot(shoulder, "WingWrist", new Vector3(sx * inner * rowScale, 0f, 0f));
+                    AddPartTo(wrist, "WingOuter", new Vector3(sx * outer * rowScale * 0.5f, 0f, 0f),
+                        new Vector3(outer * rowScale, thick * 0.8f, chord * 0.82f), mat);
+
+                    _wings.Add(new WingRig
+                    {
+                        Shoulder = shoulder,
+                        Wrist = wrist,
+                        Side = w,
+                        Row = row,
+                        Rows = pairs,
+                        ShoulderRest = shoulder.localRotation,
+                        WristRest = wrist.localRotation,
+                    });
+                }
+            }
+        }
+
+        /// <summary>The ray plan (#1778): a flat disc on one pair of wing panels — each side a chain of three panels
+        /// along the span, so the animator can run a travelling wave outward the way a real ray's fin edge ripples —
+        /// a long whip tail, eyes on the top surface, and on some species a pair of cephalic lobes at the front.
+        /// The same body swims along the sea bed and, on an Air species, glides through the sky.</summary>
+        private void BuildRay(GameObject root, NetCreature c)
+        {
+            float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3.5f);
+            Color baseColor = Rgb(c.ColorRgb);
+            Color bellyColor = Rgb(c.BellyRgb);
+            if (c.Hostile)
+            {
+                baseColor = Color.Lerp(baseColor, new Color(0.85f, 0.2f, 0.15f), 0.25f);
+            }
+
+            if (c.Asleep)
+            {
+                baseColor *= 0.85f;
+            }
+
+            if (!string.IsNullOrEmpty(c.OwnerId))
+            {
+                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
+            }
+
+            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
+            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
+
+            int idh = StableIdHash(c.SpeciesId);
+            float wide = 0.9f + ((idh >> 5) & 7) / 7f * 0.4f; // 0.9..1.3 — some rays are broader than long
+
+            var body = new GameObject("BodyRig");
+            body.transform.SetParent(root.transform, false);
+
+            int segments = Mathf.Clamp(c.BodySegments, 1, 2);
+            float length = unit * (1.7f + 0.5f * (segments - 1));
+            float halfW = unit * 0.8f * wide;
+            float thick = unit * 0.32f;
+            float bodyY = unit * 0.7f;
+            AddPart(body, "Disc", new Vector3(0f, bodyY, 0f), new Vector3(halfW * 2f, thick, length), _bodyMat);
+            AddPart(body, "Belly", new Vector3(0f, bodyY - thick * 0.45f, 0f), new Vector3(halfW * 1.9f, thick * 0.3f, length * 0.92f), bellyMat);
+
+            // The wing panels: three per side, nested, each a little shorter in chord than the one inboard of it,
+            // so the silhouette is the classic diamond.
+            float panelW = unit * 0.7f * wide;
+            float panelThick = unit * 0.1f;
+            for (int side = 0; side < 2; side++)
+            {
+                float sx = side == 0 ? -1f : 1f;
+                var chain = new Transform[3];
+                var parent = body.transform;
+                for (int k = 0; k < 3; k++)
+                {
+                    float chord = length * (k == 0 ? 0.95f : k == 1 ? 0.72f : 0.42f);
+                    var pivot = NewPivot(parent, (side == 0 ? "RayWingL" : "RayWingR") + k,
+                        k == 0 ? new Vector3(sx * halfW, bodyY, 0f) : new Vector3(sx * panelW, 0f, 0f));
+                    AddPartTo(pivot, "Panel", new Vector3(sx * panelW * 0.5f, 0f, -length * 0.02f * k),
+                        new Vector3(panelW, panelThick, chord), _bodyMat);
+                    chain[k] = pivot;
+                    parent = pivot;
+                }
+
+                _rayWings.Add(chain);
+            }
+
+            // The whip tail: five thin links off the rear edge.
+            AddTail(body.transform, new Vector3(0f, bodyY, -length * 0.5f), unit * 2.2f, unit * 0.14f, 5, bellyMat);
+
+            // Eyes on the top surface, up front; the pivot lets the head-idle nod and the gaze work on them.
+            float headScale = 0.6f;
+            _headPivot = NewPivot(body.transform, "Head", new Vector3(0f, bodyY + thick * 0.5f, length * 0.28f));
+            AddEyes(c, unit, headScale);
+            _heads.Add(_headPivot);
+
+            // Cephalic lobes (the species' horns worn forward): two flat flaps at the front corners.
+            if (c.Horns > 0)
+            {
+                for (int l = 0; l < 2; l++)
+                {
+                    float sx = l == 0 ? -1f : 1f;
+                    AddPart(body, "Lobe" + l, new Vector3(sx * halfW * 0.55f, bodyY, length * 0.5f + unit * 0.2f),
+                        new Vector3(unit * 0.22f, thick * 0.8f, unit * 0.45f), bellyMat);
+                }
+            }
+
+            if (c.Glows)
+            {
+                var go = new GameObject("Glow");
+                go.transform.SetParent(body.transform, false);
+                go.transform.localPosition = new Vector3(0f, bodyY, 0f);
+                _glow = go.AddComponent<Light>();
+                _glow.type = LightType.Point;
+                _glow.range = unit * 6f;
+                _glow.intensity = 1.1f;
+                _glow.color = Rgb(c.ColorRgb);
+                _glow.shadows = LightShadows.None;
+            }
+
+            var rig = Describe(c, body.transform, unit, unit, idh);
+            rig.Aquatic = true; // the body glides and rolls gently; the wing wave is the rest of the performance
+            var anim = root.AddComponent<CreatureAnimator>();
+            anim.Init(rig);
         }
 
         /// <summary>A tapering tail as a chain of nested pivots, so the beat travels outward as a wave instead
@@ -662,6 +835,8 @@ namespace BlocksBeyondTheStars.Client
             _jawPivot = AddPivotPart(_headPivot, "Jaw",
                 new Vector3(0f, -h * (0.5f - JawShare * 0.5f), headZ - d * 0.44f),
                 new Vector3(0f, 0f, d * 0.44f), new Vector3(w * 0.92f, h * JawShare, d * 0.88f), mat);
+            _heads.Add(_headPivot);
+            _jaws.Add(_jawPivot);
         }
 
         /// <summary>#1760: the flowerling's flower head — eight petal boxes fanned around the head in the belly (petal)
@@ -774,14 +949,19 @@ namespace BlocksBeyondTheStars.Client
                 Tentacles = _tentacleChains.ToArray(),
                 Trunk = _trunkChain.ToArray(),
                 Fins = _fins.ToArray(),
-                Head = _headPivot,
-                Jaw = _jawPivot,
+                RayWings = _rayWings.ToArray(),
+                Head = _heads.Count > 0 ? _heads[0] : _headPivot,
+                Jaw = _jaws.Count > 0 ? _jaws[0] : _jawPivot,
+                Heads = _heads.ToArray(),
+                Jaws = _jaws.ToArray(),
                 Eyelids = _eyelids.ToArray(),
                 Ears = _ears.ToArray(),
                 Body = body,
                 Hostile = c.Hostile,
                 Asleep = c.Asleep,
-                Aquatic = c.Habitat == "Water" || c.Habitat == "Amphibian",
+                Aquatic = c.Habitat == "Water" || c.Habitat == "Amphibian"
+                    || CreatureMotion.IsSkyGliderBody(c.Habitat, c.BodyPlan, c.Legs), // #1779: an air fish weaves like a fish
+                SkyGlider = CreatureMotion.IsSkyGliderBody(c.Habitat, c.BodyPlan, c.Legs),
                 Temperament = c.Temperament ?? string.Empty,
                 BodyPlan = c.BodyPlan ?? "Standard",
                 Size = c.Size,

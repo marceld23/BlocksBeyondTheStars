@@ -49,6 +49,7 @@ public enum CreatureBodyPlan
     Medusa,   // jellyfish: translucent bell, long rim tentacles, drifts in air or water (#637)
     Titan,    // elephant/giraffe-scale land megafauna: pillar legs, neck/trunk, tusks (#638)
     Floral,   // a walking flower: two legs, a petal ring around the head, a grin that becomes a maw (#1760, authored only)
+    Ray,      // a flat disc that flies on wing waves — under water, or hovering through the sky (#1778, generation 6)
 }
 
 /// <summary>
@@ -142,6 +143,19 @@ public sealed class CreatureSpecies
 
     /// <summary>Titan plan only (#638): a segmented trunk hanging from the head (elephant).</summary>
     public bool HasTrunk { get; set; }
+
+    /// <summary>How many heads the body carries (#1780, generation 6): 1 = the classic single head, 2-3 = side by
+    /// side on a standard body, or each on its own neck on a titan (the hydra). Rolled AFTER every older roll and
+    /// only on a generation-6 world, so every older species keeps its one head.</summary>
+    public int Heads { get; set; } = 1;
+
+    /// <summary>How many wing PAIRS a winged body carries (#1781, generation 6): 1 = the classic pair, 2-3 = pairs
+    /// spread along the torso beating with a row lag (the dragonfly read). Ignored without <see cref="HasWings"/>.</summary>
+    public int WingPairs { get; set; } = 1;
+
+    /// <summary>How many pectoral fin PAIRS a finned body carries (#1782, generation 6): 1 = the classic pair, 2-3 =
+    /// pairs along the flanks sculling with a row lag. Ignored without <see cref="HasFins"/>.</summary>
+    public int FinPairs { get; set; } = 1;
 
     /// <summary>How high above the ground an <see cref="CreatureHabitat.Air"/> species hovers (#637) —
     /// per-species instead of one global constant, so the sky gets layers. 0 = the legacy default.</summary>

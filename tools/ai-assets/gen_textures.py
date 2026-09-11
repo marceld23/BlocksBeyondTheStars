@@ -44,6 +44,9 @@ TEXTURES = [
     ("carbon", "black carbon coal rock with shiny flecks"),
     ("wood_log", "brown tree bark wood log surface with vertical wood grain"),
     ("tree_leaves", "dense leafy green tree foliage canopy with small overlapping leaves, top-down"),
+    # #1783 generation 6 — the giant trees' own block pair (a scan names them as their own species).
+    ("giant_log", "ancient giant tree bark, deeply furrowed dark reddish-brown wood with thick vertical ridges and moss in the grooves"),
+    ("giant_leaves", "dense canopy of large broad dark green leaves of an ancient giant tree with pale veins, overlapping, top-down"),
     ("iron_wall", "grey sci-fi metal hull plate with rivets and panel seams"),
     ("crystal", "pale glowing blue crystal facets"),
     ("glass", "clear pale blue glass pane with a faint reflection"),
