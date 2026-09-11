@@ -24,7 +24,7 @@
   { "key": "coral_rock",   "nameKey": "block.coral_rock.name", "category": "terrain",   "hardness": 1.2, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "coral_rock", "count": 1 } ] },
   { "key": "grass",        "nameKey": "block.grass.name", "category": "terrain",        "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "dirt", "count": 1 } ] },
   { "key": "wood_log",     "nameKey": "block.wood_log.name", "category": "building",     "hardness": 1.6, "requiredTool": "drill", "minToolTier": 1, "flammable": true, "drops": [ { "item": "wood_log", "count": 1 } ] },
-  { "key": "tree_leaves",  "nameKey": "block.tree_leaves.name", "category": "flora",  "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "flammable": true, "drops": [] },
+  { "key": "tree_leaves",  "nameKey": "block.tree_leaves.name", "category": "flora",  "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "flammable": true, "drops": [ { "item": "tree_leaves", "count": 1 } ], "randomDrops": [ { "item": "sapling", "count": 1, "weight": 1 }, { "item": "", "count": 0, "weight": 9 } ] },
   { "key": "crystal",      "nameKey": "block.crystal.name", "category": "ore",      "hardness": 3.5, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "crystal", "count": 1 } ] },
   { "key": "snow",         "nameKey": "block.snow.name", "granular": true, "category": "terrain",         "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "snow", "count": 1 } ] },
   { "key": "salt",         "nameKey": "block.salt.name", "category": "terrain",         "hardness": 0.8, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "salt", "count": 1 } ] },
@@ -108,8 +108,8 @@
   { "key": "flora_icereed",   "nameKey": "block.flora_icereed.name", "category": "flora",   "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 2 } ] },
   { "key": "flora_saltgrass", "nameKey": "block.flora_saltgrass.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 2 } ] },
   { "key": "flora_cinderbush","nameKey": "block.flora_cinderbush.name", "category": "flora","hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 }, { "item": "crystal", "count": 1 } ] },
-  { "key": "pine_needles",    "nameKey": "block.pine_needles.name", "category": "flora",    "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [] },
-  { "key": "palm_frond",      "nameKey": "block.palm_frond.name", "category": "flora",      "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [] },
+  { "key": "pine_needles",    "nameKey": "block.pine_needles.name", "category": "flora",    "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "pine_needles", "count": 1 } ], "randomDrops": [ { "item": "sapling", "count": 1, "weight": 1 }, { "item": "", "count": 0, "weight": 9 } ] },
+  { "key": "palm_frond",      "nameKey": "block.palm_frond.name", "category": "flora",      "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "flammable": true, "drops": [ { "item": "palm_frond", "count": 1 } ], "randomDrops": [ { "item": "sapling", "count": 1, "weight": 1 }, { "item": "", "count": 0, "weight": 9 } ] },
   { "key": "fire",         "nameKey": "block.fire.name", "category": "terrain",         "hardness": 0, "requiredTool": "none", "minToolTier": 0, "mineable": false, "solid": false, "emission": 0.95, "color": 16734488, "drops": [] },
   { "key": "ash",          "nameKey": "block.ash.name", "granular": true, "category": "terrain",          "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 2829355, "drops": [ { "item": "ash", "count": 1 } ] },
   { "key": "radio_beacon", "nameKey": "block.radio_beacon.name", "category": "machine", "hardness": 1.8, "requiredTool": "none", "minToolTier": 0, "emission": 0.45, "drops": [ { "item": "radio_beacon", "count": 1 } ] },
@@ -174,6 +174,7 @@
   // Grain is the cereal the campfire meals will want; the mushroom bed yields the giant-cap material.
   { "key": "flora_cropgrain", "nameKey": "block.flora_cropgrain.name", "category": "flora",   "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "color": 13214778, "flammable": true, "drops": [ { "item": "grain", "count": 2 }, { "item": "plant_fiber", "count": 1 } ] },
   { "key": "flora_cropshroom","nameKey": "block.flora_cropshroom.name", "category": "flora",  "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "color": 12162154, "flammable": true, "drops": [ { "item": "mushroom_cap", "count": 2 }, { "item": "plant_fiber", "count": 1 } ] },
+  { "key": "flora_sapling",   "nameKey": "block.flora_sapling.name", "category": "flora",    "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "flammable": true, "drops": [ { "item": "sapling", "count": 1 } ] },
 
   // Low-tech furniture & survival batch (#803-#809). The bed is the pre-tech heal-tank precursor
   // (home spawn + weak heal), the campfire a warmth/light/cooking station, the wood crate the

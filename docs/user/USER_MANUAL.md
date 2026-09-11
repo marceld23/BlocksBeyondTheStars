@@ -842,6 +842,12 @@ separate unlock; admins can still disable it through server world rules.
 - Want your own? Craft **seeds** by hand — 3 berries → 2 berry seeds, 3 grain → 2 grain seeds, 2 mushroom caps →
   2 mushroom spawn — and plant them on soil (mushrooms also take mud and mycelium) — or on a crafted
   **hydroponic tray** (workshop), which lets any crop root with no soil at all.
+- **Trees grow from saplings.** Craft a **sapling** by hand (1 log + 2 plant fibre → 2 saplings) or pick one up
+  now and then when you clear leaves. Plant it on soil, grass or mud with **four free blocks above it**; after a
+  couple of minutes it becomes a tree with a log trunk and a leafy crown. Under a low ceiling it simply waits.
+  Leaves, needles and fronds drop as blocks now, so you can build and shape a canopy by hand — and a sapling
+  planted on the dirt floor of a sealed station hall grows just like one on a planet, so an arboretum in orbit
+  is a matter of dirt, saplings and headroom. A sapling you pick up stays a sapling.
 
 ### Ruins & treasure chests
 - **Ruins** are the collapsed remains of fallen settlements — mostly surviving ground walls, one

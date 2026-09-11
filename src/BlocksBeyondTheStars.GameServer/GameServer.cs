@@ -4244,7 +4244,11 @@ public sealed partial class GameServer
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
         WriteBackStationCell(pos, BlockId.Air); // #1481: an interior edit is part of the station's build from now on
-        if (floraHarvest)
+        if (IsSapling(current.Value))
+        {
+            ForgetSaplingGrowth(pos); // #1774: a picked sapling is in the pocket, not regrowing
+        }
+        else if (floraHarvest)
         {
             ScheduleFloraRegrow(pos, current.Value); // regrows if the host stays intact
         }
@@ -4668,6 +4672,10 @@ public sealed partial class GameServer
 
         _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape, session.State.PlayerId);
         WriteBackStationCell(pos, blockDef.NumericId, placeTint, placeGlow, placeShape); // #1481: an interior edit is part of the station's build from now on
+        if (IsSapling(blockDef.NumericId.Value))
+        {
+            ScheduleSaplingGrowth(pos); // #1774: a planted sapling starts its clock
+        }
 
         if (IsContainerBlock(blockDef.Key))
         {

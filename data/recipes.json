@@ -245,6 +245,8 @@
   // Grain + mushroom seeds (#1204): the same hand-sown deal — one greenhouse harvest starts your own bed.
   { "key": "seed_grain",   "station": "hand", "inputs": [ { "item": "grain", "count": 3 } ],       "outputs": [ { "item": "grain_seed", "count": 2 } ] },
   { "key": "seed_shroom",  "station": "hand", "inputs": [ { "item": "mushroom_cap", "count": 2 } ], "outputs": [ { "item": "shroom_seed", "count": 2 } ] },
+  // Saplings (#1774): a log and some fibre make two young trees by hand — leaves drop one now and then as well.
+  { "key": "sapling",      "station": "hand", "inputs": [ { "item": "wood_log", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling", "count": 2 } ] },
   // The hydroponic tray the high-tech greenhouses grow crops in — the one host block that is not soil.
   { "key": "hydro_tray",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "plant_fiber", "count": 2 }, { "item": "brass_fitting", "count": 1 } ], "outputs": [ { "item": "hydro_tray", "count": 2 } ] },
 
