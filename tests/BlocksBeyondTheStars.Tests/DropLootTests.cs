@@ -473,6 +473,167 @@ public sealed class DropLootTests : IDisposable
         }
     }
 
+    // ---------------- #1752: packets keep following the ground ----------------
+
+    /// <summary>Lyxette (2026-09-11): "Es schweben immer noch solche Blöcke herum" — a bundle four cells up in
+    /// the open sky. Settling ran once, at spill time; the wall top it landed on was mined away later.</summary>
+    [Fact]
+    public void MiningTheBlockUnderAPacket_LetsItFallTheNextSecond()
+    {
+        var server = Started(out var repo, "resettle");
+        using (repo)
+        {
+            const int x = 14, z = 14;
+            int top = SurfaceTopY(server, x, z);
+            var stone = _content.GetBlock("stone")!.NumericId;
+            for (int dy = 1; dy <= 3; dy++)
+            {
+                server.World.SetBlock(new Vector3i(x, top + dy, z), stone); // a pillar
+            }
+
+            var p = server.AddLocalPlayer("Builder");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(x + 6.5f, top + 1, z + 0.5f); // near, but out of pickup reach
+
+            server.SpillToGroundForTest(new Vector3i(x, top + 4, z), "iron_ore", 2);
+            Assert.Equal(top + 4, Assert.Single(server.DropPackets).Position.Y); // on the pillar
+
+            for (int dy = 3; dy >= 1; dy--)
+            {
+                server.RemoveBlockForTest(x, top + dy, z); // mine the pillar away
+            }
+
+            Assert.Equal(top + 4, Assert.Single(server.DropPackets).Position.Y); // not yet — the sweep does it
+            server.Tick(1.0);
+
+            var packet = Assert.Single(server.DropPackets);
+            Assert.Equal(top + 1, packet.Position.Y);
+            Assert.Equal(2, packet.Items.Single(s => s.Item == "iron_ore").Count); // nothing lost on the way down
+            Assert.Equal(0, packet.LifetimeLeft); // overflow stays overflow
+        }
+    }
+
+    [Fact]
+    public void APacketFallingOntoAnother_MergesIntoIt_SameKindOnly()
+    {
+        var server = Started(out var repo, "resettle-merge");
+        using (repo)
+        {
+            const int x = 16, z = 16;
+            int top = SurfaceTopY(server, x, z);
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var p = server.AddLocalPlayer("Builder");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(x + 6.5f, top + 1, z + 0.5f);
+
+            server.SpillToGroundForTest(new Vector3i(x, top + 1, z), "stone", 3); // overflow on the ground
+            for (int dy = 2; dy <= 4; dy++)
+            {
+                server.World.SetBlock(new Vector3i(x, top + dy, z), stone); // a pillar over it, out of merge radius
+            }
+
+            server.SpillToGroundForTest(new Vector3i(x, top + 5, z), "iron_ore", 2); // overflow on the pillar
+            server.SpillToGroundForTest(new Vector3i(x, top + 5, z), "creature_meat", 1, creatureLoot: true); // loot on the pillar
+            Assert.Equal(3, server.DropPackets.Count);
+
+            for (int dy = 4; dy >= 2; dy--)
+            {
+                server.RemoveBlockForTest(x, top + dy, z);
+            }
+
+            server.Tick(1.0);
+
+            Assert.Equal(2, server.DropPackets.Count);
+            var overflow = Assert.Single(server.DropPackets, c => c.LifetimeLeft == 0);
+            Assert.Equal(top + 1, overflow.Position.Y);
+            Assert.Equal(3, overflow.Items.Single(s => s.Item == "stone").Count);
+            Assert.Equal(2, overflow.Items.Single(s => s.Item == "iron_ore").Count); // merged in
+            var loot = Assert.Single(server.DropPackets, c => c.LifetimeLeft > 0);
+            Assert.Equal(top + 1, loot.Position.Y); // fell too, but never into the overflow bundle (#1312)
+            Assert.Equal("creature_meat", Assert.Single(loot.Items).Item);
+        }
+    }
+
+    [Fact]
+    public void AFloaterFromAnOldSave_LandsWhenSomebodyComesNear()
+    {
+        const string world = "legacy-floater";
+        const int x = 18, z = 18;
+        int top;
+        var server = Started(out var repo, world);
+        using (repo)
+        {
+            server.AddLocalPlayer("Settler").State.AboardShip = false;
+            top = SurfaceTopY(server, x, z);
+            server.SpillToGroundForTest(new Vector3i(x, top + 1, z), "iron_ore", 2);
+            var packet = Assert.Single(server.DropPackets);
+            packet.Position = new Vector3i(x, top + 8, z); // what a save from before #1311 holds
+            repo.SaveContainer(packet);
+        }
+
+        var reloaded = Started(out var repo2, world);
+        using (repo2)
+        {
+            Assert.Equal(top + 8, Assert.Single(reloaded.DropPackets).Position.Y); // loaded as stored
+            var p = reloaded.AddLocalPlayer("Settler");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(x + 6.5f, top + 1, z + 0.5f);
+
+            reloaded.Tick(1.0);
+
+            Assert.Equal(top + 1, Assert.Single(reloaded.DropPackets).Position.Y);
+        }
+    }
+
+    // ---------------- #1753: loot over lava burns away fast ----------------
+
+    [Fact]
+    public void ALootBundleOverLava_BurnsAwayInAMinute_OverflowBesideItStays()
+    {
+        var server = Started(out var repo, "lava-loot");
+        using (repo)
+        {
+            const int x = 20, z = 20;
+            int top = SurfaceTopY(server, x, z);
+            var lava = _content.GetBlock("lava")!.NumericId;
+            server.World.SetBlock(new Vector3i(x, top + 1, z), lava); // the trench
+            server.World.SetBlock(new Vector3i(x + 6, top + 1, z), lava);
+
+            var p = server.AddLocalPlayer("Settler");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(x + 3.5f, top + 1, z + 12.5f);
+
+            server.SpillToGroundForTest(new Vector3i(x, top + 1, z), "creature_meat", 1, creatureLoot: true); // died in the melt
+            server.SpillToGroundForTest(new Vector3i(x + 6, top + 1, z), "iron_ore", 2); // overflow over the melt
+
+            var loot = Assert.Single(server.DropPackets, c => c.LifetimeLeft > 0);
+            Assert.Equal(top + 2, loot.Position.Y); // hovers one cell above the lava
+            Assert.InRange(loot.LifetimeLeft, 1.0, 60.0); // not the usual 300
+            Assert.Equal(0, Assert.Single(server.DropPackets, c => c.LifetimeLeft == 0).LifetimeLeft);
+
+            for (int i = 0; i < 7; i++)
+            {
+                server.Tick(10.0); // 70 s with a player on the world
+            }
+
+            var left = Assert.Single(server.DropPackets);
+            Assert.Equal("iron_ore", Assert.Single(left.Items).Item); // the overflow is still there, forever
+        }
+    }
+
+    [Fact]
+    public void ALootBundleOnDryGround_KeepsTheFullFiveMinutes()
+    {
+        var server = Started(out var repo, "dry-loot");
+        using (repo)
+        {
+            server.AddLocalPlayer("Settler").State.AboardShip = false;
+            int top = SurfaceTopY(server, 22, 22);
+            server.SpillToGroundForTest(new Vector3i(22, top + 1, 22), "creature_meat", 1, creatureLoot: true);
+            Assert.InRange(Assert.Single(server.DropPackets).LifetimeLeft, 299.0, 300.0);
+        }
+    }
+
     public void Dispose()
     {
         try

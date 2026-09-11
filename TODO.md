@@ -24,6 +24,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📦 Bundles that follow the ground, and loot that burns over the moat (#1752, #1753, 2026-09-11, branch fix/reports-0911)
+
+Lyxette again, on 2026.9.5: "Es schweben immer noch solche Blöcke herum" — a drop bundle hanging four cells up in
+the open sky, and the meat her sentries and lava trench produce "stays". The snapshot said what the code
+confirmed: the sentry/lava/player kill paths all leave an expiring loot packet (5 min, #1312), so the floater
+was a stranded **mining-overflow** bundle — immortal by design (#1312), but it had stopped following the ground.
+
+- **#1752 packets re-settle.** `SettleDropCell` + `Fall` used to run exactly once, at spill time. Mine the wall
+  top a bundle landed on, blast the ground under it, let the water it rested on dry up — and it hung there for
+  good; so did every packet spilled before #1311 taught fresh ones to fall. Now `ResettleDropPackets` runs
+  inside the 4 Hz sweep once a second for every packet within 64 cells of a joined player (their chunks are
+  resident anyway; a bundle on the far side of the planet must not drag its chunk in). A packet that lands on
+  one of its own kind merges into it — loot never into overflow (#1312). Deliberately NOT done in
+  `LoadContainers`: that runs before the landing pads reach worldgen, and `World.GetBlock` generates chunks.
+- **#1753 loot over lava or fire burns away in 60 s.** A trench kill spills at the lava cell, settles to the air
+  above it and stops on the melt — one cell up, unreachable without stepping in. Maintainer decision: keep
+  #1312 (loot 5 min, overflow never) and cap only creature loot that hovers over lava / sits in or over fire, at
+  spill time and whenever a packet re-settles onto such a cell. Overflow over lava stays immortal.
+- Tests: `DropLootTests` +5 (pillar mined → falls the next second; falling onto another bundle merges, same
+  kind only; a floater from an old save lands when somebody comes near; loot over lava ≤ 60 s while the overflow
+  beside it stays; loot on dry ground keeps 300 s).
+- Not changed: the opaque-face lighting behind #1749 (Lyxette's answer supports the "bed lit per face" reading;
+  she calls it ambience, so it stays a cosmetic item).
+
 ### 🎨 A real undo, a fuller fill, and outfits you can put on in the game (#1737–#1739, 2026-09-10, branch feat/avatar-editor-tools)
 
 Three things Marcel missed in the avatar editor. Two of them turned out to be about the editor the whole
