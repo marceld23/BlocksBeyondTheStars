@@ -48,6 +48,16 @@ was a stranded **mining-overflow** bundle — immortal by design (#1312), but it
 - Not changed: the opaque-face lighting behind #1749 (Lyxette's answer supports the "bed lit per face" reading;
   she calls it ambience, so it stays a cosmetic item).
 
+### 🌊 Water that blends instead of switching (#1749, 2026-09-11, branch fix/water-mode-1749)
+
+The mosaic Lyxette photographed on her moat and Marcel on a swamp lake was not the bed and not the screen-space
+path (it showed on the Low preset, at noon): it was the water MODE. The surface classified river / open / calm per
+cell from shore runs, every reed or pillar in the water ended a run, and the transparent shader branched on the
+verdict, so neighbouring cells drew different ripple directions and brightness. `WaterSurface` (now Client.Core,
+nine tests) returns continuous weights (open, brook along X / Z, foam) with linear ramps across the old thresholds,
+steps over plants and slim props, and the mesher averages every channel over block corners; both shader passes
+blend the three looks by weight and take the wave amplitude from the same weights. The #1701 majority vote is gone.
+
 ### 🚪 A curtain you can see, a door you can take down, a cave that is a room (#1745–#1748, #1750, 2026-09-10, branch fix/reports-0910)
 
 Lyxette's 2026-09-10 reports, the first on 2026.9.5. Two were client bugs hiding behind correct servers:
