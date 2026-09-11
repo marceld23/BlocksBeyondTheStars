@@ -385,7 +385,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 GUI.depth = 10;
                 var prevWater = GUI.color;
-                GUI.color = new Color(0.15f, 0.40f, 0.62f, 0.34f * _underwater);
+                // #1758: the wash takes the world's water colour — swimming in a green sea looks green.
+                GUI.color = WaterColours.Blend(new Color(0.15f, 0.40f, 0.62f, 0.34f * _underwater), Game.Environment, 0.8f, Time.time);
                 GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
                 GUI.color = prevWater;
             }
@@ -416,7 +417,7 @@ namespace BlocksBeyondTheStars.Client
                     if (_dtrail[i] > 0.002f)
                     {
                         float tp = _dtrail[i] * h;
-                        GUI.color = new Color(0.6f, 0.7f, 0.85f, a * 0.22f);
+                        GUI.color = WaterColours.Blend(new Color(0.6f, 0.7f, 0.85f, a * 0.22f), Game.Environment, 0.7f, Time.time); // #1758
                         GUI.DrawTexture(new Rect(x - s * 0.18f, y - tp, s * 0.36f, tp), Texture2D.whiteTexture);
                     }
 
@@ -457,7 +458,7 @@ namespace BlocksBeyondTheStars.Client
                     "ash" => new Color(0.30f, 0.22f, 0.18f),
                     "sandstorm" => new Color(0.74f, 0.62f, 0.40f),
                     "snow" or "hail" => new Color(0.72f, 0.78f, 0.84f),
-                    _ => new Color(0.42f, 0.52f, 0.62f),
+                    _ => WaterColours.Blend(new Color(0.42f, 0.52f, 0.62f), env, 0.5f, t), // #1758: wet air in the water's colour
                 };
                 float washStrength = precip == "sandstorm" ? 0.22f : 0.05f;
                 GUI.color = new Color(wash.r, wash.g, wash.b, washStrength + env.Intensity * 0.07f);
@@ -470,7 +471,7 @@ namespace BlocksBeyondTheStars.Client
                     int count = Mathf.RoundToInt(Max * Mathf.Clamp01(0.45f + env.Intensity * 0.55f));
                     float speedBoost = env.Weather == "storm" ? 1.5f : 1f;
                     float slant = env.Weather == "storm" ? 12f : 5f;
-                    GUI.color = new Color(0.62f, 0.78f, 1f, 0.42f);
+                    GUI.color = WaterColours.Blend(new Color(0.62f, 0.78f, 1f, 0.42f), env, 0.75f, t); // #1758: rain in the world's water colour
                     for (int i = 0; i < count; i++)
                     {
                         float y = ((_phase[i] + t * _speed[i] * speedBoost) % 1f) * (h + 40f) - 20f;

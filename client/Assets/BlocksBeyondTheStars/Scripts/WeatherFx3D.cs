@@ -139,7 +139,10 @@ namespace BlocksBeyondTheStars.Client
                 Debug.Log($"[Weather3D] precipitation '{precip}' (weather {env.Weather}, intensity {env.Intensity:0.00}, exposed {Game?.ExposedToSky})");
             }
 
-            Color drop = ShaderColor.Srgb(s.Color);
+            // #1758: WATER precipitation takes the world's water colour (rain, drizzle, sleet); snow, hail, ash, sand,
+            // acid, meteors and spores keep their own look. A rainbow world's rain cycles through the colours.
+            Color styled = precip is "rain" or "drizzle" or "sleet" ? WaterColours.Blend(s.Color, env, 0.75f, Time.time) : s.Color;
+            Color drop = ShaderColor.Srgb(styled);
             if (_mat.color != drop) { _mat.color = drop; } // all drops share one material → one precip form at a time
             // Intensity comes from the SMOOTHED client value (#900), so an episode's swell and fade shows
             // as a ramp in the drop count rather than a 5 s staircase.

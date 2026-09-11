@@ -1223,7 +1223,13 @@ counterpart of `FloraTints.ForWorld`: empty `waterTint` = the classic blue (mode
 `"#rrggbb"` = fixed. The server ships `EnvironmentState.WaterTint/WaterTintMode`, `Sky.cs` sets
 `_Sc_WaterTint/_Sc_WaterMode`, and the transparent shader's water branch (both subshaders) recolours by
 luminance. The block `water` stays the single fluid id — the automaton, the creatures and worldgen never
-learn about colour.
+learn about colour. Since Marcel's go on 2026-09-11 every type with a real water sea and an atmosphere
+(25 of them, from `rocky` to `gamer_hills`; not the dry, lava or airless bodies) carries `"auto"`, and
+`ForWorld` takes the SAVE's terrain generation: the colour is computed at runtime, not baked, so the gate is
+what keeps a pre-generation-5 save blue. The palette stays blue-dominant (55 % classic blue, then teal, green,
+yellow, violet, red). Rain follows the water (`WaterColours.cs`): the 3D drops of rain, drizzle and sleet, the
+visor's beads, streaks and wet wash, and the underwater wash blend toward the world's colour (a rainbow world's
+rain cycles through the hues); snow, hail, ash, sand, acid, meteors and spores keep their own look.
 
 **Hanging flora (#1759).** `FloraCatalog.Species.Hanging` — the plant roots in the block ABOVE. The roster
 activates `flora_hangkelp` on generation-5 worlds only (`MinGeneration`), worldgen places it at
