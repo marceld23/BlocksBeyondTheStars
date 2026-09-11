@@ -265,6 +265,24 @@ Useful parameters:
 > or `data/`, run the **full** build *without* `-SkipPrereqs` — those changes reach the
 > client only through the synced DLLs/content from step 1.
 
+**Playtest a chosen planet.** The create-world panel never lets you pick the planet you spawn on; the
+server does (`--start-planet`). `scripts/make-test-world.ps1` runs the built client's bundled server once
+with the launcher's own arguments plus that flag, lets it create the save, and stops it gracefully — the
+world then sits in the Singleplayer picker like any other:
+
+```powershell
+./scripts/make-test-world.ps1 -Launch                                    # "Regenbogenplanet" on rainbow_sea, then start that client
+./scripts/make-test-world.ps1 -Planet flower_fields,scrapyard,gamer_hills,glacier -Peaceful
+./scripts/make-test-world.ps1 -Planet gamer_hills -World "Bens Welt" -Sandbox -Force
+./scripts/make-test-world.ps1 -List                                      # planet keys the client knows
+```
+
+It prefers `client/Build/Windows`, then the installed game (`-Client <folder>` overrides), and writes to
+that client's saves folder (portable marker honoured). The client must know the planet type — a
+generation-5 planet needs a build that contains it — and so must the client that later OPENS the save:
+an older client's server silently adopts another start planet and saves it (`-Launch` starts the right
+one; recreate a spoiled world with `-Force`).
+
 To package the built player locally as a Velopack installer/update feed, run
 `scripts/publish-client-installer.ps1` after a successful `build-client.ps1` (it ships the launcher exe as
 `--mainExe`). Add `-Msi` to also build the machine-wide WiX MSI (its ProductVersion major maxes out at 255,

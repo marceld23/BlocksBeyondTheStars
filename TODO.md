@@ -24,6 +24,16 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧪 A save that starts on the planet you name (2026-09-11, branch feat/test-world-tool)
+
+`scripts/make-test-world.ps1 -Planet rainbow_sea` creates a ready-to-play singleplayer world that spawns on the
+chosen planet type — the create-world panel never offers that, the server always understood `--start-planet`.
+The script runs the client's bundled server once with the launcher's own arguments, lets it create the save, and
+stops it the way the client does (stdin). The world appears in the Singleplayer picker under the planet's German
+display name ("Regenbogenplanet"); `-Planet a,b,c` makes several, `-Peaceful` / `-Sandbox` apply the panel's
+presets, `-List` prints the planet keys the client knows. Made for the school club playtest of the generation-5
+planets; the save is an ordinary save, nothing in the game changed. Documented in docs/developer/DEVELOPER.md.
+
 ### 🌈 The school club's planets, creatures and plants — generation 5 (#1756–#1765, 2026-09-11, branch feat/schul-ag-wave)
 
 The third wave from the school club "Building Games with AI", shipped as **terrain generation 5** so no
