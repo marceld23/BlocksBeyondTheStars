@@ -20,8 +20,10 @@ namespace BlocksBeyondTheStars.Client
         // 16x16 = 256 tile slots (1024x1024 atlas). data/blocks.json already has 80 blocks; the old 8x8 = 64
         // slots silently left every block with id >= 64 (the newer flora + doors) untextured — a grey, alpha-
         // less tile, which also broke their cutout leaves. Keep this comfortably above the block count.
-        public const int Cols = 16;
-        public const int Rows = 16;
+        // School club wave 3 (#1765): 32x32 = 1024 slots (2048x2048 atlas) — the wave adds ~15 blocks to 173 and the
+        // variants fill 33 slots from the top; GameContent.AtlasTileCapacity mirrors this number.
+        public const int Cols = 32;
+        public const int Rows = 32;
 
         public Texture2D Texture { get; }
 

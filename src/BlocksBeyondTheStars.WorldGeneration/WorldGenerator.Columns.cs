@@ -175,6 +175,13 @@ public sealed partial class WorldGenerator
         bool beachPossible = !beachId.IsAir && !seaWaterId.IsAir
             && ((fluidId == seaWaterId && fluidLevel != int.MinValue) || riverField.FillFluid == seaWaterId);
 
+        // #1757 (generation 5): a type may name the block of its whole seabed — the rainbow planet's diggable sand.
+        var seabedId = _terrainGeneration >= WorldDescription.AuthoredContentGeneration && !string.IsNullOrEmpty(planet.SeabedBlock)
+            ? _content.GetBlock(planet.SeabedBlock)?.NumericId ?? BlockId.Air
+            : BlockId.Air;
+        // #1757: the seabed forests — tall kelp stands in patches instead of the 2–4 cell stalks.
+        bool underwaterForests = _terrainGeneration >= WorldDescription.AuthoredContentGeneration && planet.UnderwaterForests;
+
         var origin = WorldConstants.ChunkOrigin(coord);
 
         // Scratch spans reused by every column (#705/#708) — allocated once per chunk (CA2014).
@@ -225,6 +232,7 @@ public sealed partial class WorldGenerator
             ScreeId = screeId,
             SandstoneId = sandstoneId,
             AshId = ashId,
+            SeabedId = seabedId,
         };
 
         // #1527: per-chunk ore invariants + one lazily built noise lattice per (column, field): slot 0 caves,
@@ -614,7 +622,8 @@ public sealed partial class WorldGenerator
                     // A coral-rock floor (a generation-3 reef) grows four times the seabed flora.
                     StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop - iceTop,
                         kelpId, iceTop > 0 ? BlockId.Air : lilyId, coralId, seagrassId,
-                        !coralRockId.IsAir && surfaceId == coralRockId ? floraDensity * 4.0 : floraDensity);
+                        !coralRockId.IsAir && surfaceId == coralRockId ? floraDensity * 4.0 : floraDensity,
+                        underwaterForests);
                 }
 
                 // Sky islands grow their own surface flora on top — a floating meadow, not a bare slab.
@@ -627,6 +636,20 @@ public sealed partial class WorldGenerator
                         && Noise.Value01(seed + 9002, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < isleDensity)
                     {
                         chunk.Set(lx, ify, lz, isleFlora);
+                    }
+                }
+
+                // #1759 (generation 5): hanging kelp under the island — roots in the lowest island cell, grows down
+                // into the air below it, in patches so the underside reads as a fringe and not as stubble. The roster
+                // only activates the hanging species on a generation-5 world, so older islands stay bare below.
+                if (flora && !_hangingFloraId.IsAir && col.IslandBottom != int.MinValue)
+                {
+                    int hy = col.IslandBottom - 1 - origin.Y;
+                    if (hy >= 0 && hy < WorldConstants.ChunkSize && chunk.Get(lx, hy, lz).IsAir
+                        && FbmT(seed + 0x4A46, worldX, worldZ, 18.0, octaves: 2) > 0.45
+                        && Noise.Value01(seed + 9003, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < System.Math.Min(0.6, floraDensity * 2.5))
+                    {
+                        chunk.Set(lx, hy, lz, _hangingFloraId);
                     }
                 }
             }
@@ -703,6 +726,10 @@ public sealed partial class WorldGenerator
         /// <summary>A generation-3 landmark paint set the surface block, so the surface flora follows the painted
         /// block instead of the biome's (part 5). Never true on a generation 0–2 column.</summary>
         public bool PaintedHost;
+
+        /// <summary>School club wave 3 (#1759): the lowest cell of the column's sky-island bands (the underside a
+        /// hanging plant roots in), or MinValue when no island stands over this column.</summary>
+        public int IslandBottom = int.MinValue;
     }
 
     /// <summary>The per-chunk constants the column phase reads (resolved once per Generate call).</summary>
@@ -721,6 +748,7 @@ public sealed partial class WorldGenerator
         public bool Gen1Paints; // #1647
         public BlockId GrassId, DirtId, MudId, SandId, StoneId, GraniteId, MossStoneId, ScreeId, SandstoneId, AshId; // #1647
         public double PondThreshold;
+        public BlockId SeabedId; // #1757: the floor of every submerged sea column beyond the beach apron (Air = classic)
     }
 
     private ColumnProfile ColumnProfileFor(ColumnContext c, int worldX, int worldZ,
@@ -942,6 +970,14 @@ public sealed partial class WorldGenerator
             }
         }
 
+        // #1757 (generation 5): beyond the beach apron the whole sea floor takes the type's seabed block — sand you
+        // can dig in on the rainbow planet. Never on a river, a pond or a dry column; Air (every other type) = classic.
+        if (!c.SeabedId.IsAir && !beachHere && surfaceY < fluidLevel && fluidId == seaWaterId && seabedY == surfaceY)
+        {
+            surfaceId = c.SeabedId;
+            subSurfaceId = c.SeabedId;
+        }
+
         // Generation-1 paints (#1647) on plain dry land (no body on the column, no beach): marsh mud, oasis
         // ring, spring crust, playa salt, scree slopes, ash fall, dry beds, deck bands, soil patches, moss.
         if (c.Gen1Paints && !beachHere && seabedY == surfaceY && waterTop <= surfaceY && surfaceY > fluidLevel
@@ -1033,12 +1069,21 @@ public sealed partial class WorldGenerator
         // sky-island fill; islandTop below feeds the island flora pass like before.
         int bandCount = anyBands ? GetExtraBands(planet, worldX, worldZ, bands) : 0;
         int islandTop = int.MinValue;
+        int islandBottom = int.MinValue; // #1759: the lowest island cell — where a hanging plant roots
         bool materialBands = false; // generation 3: Ice / Fluid bands are written before the sea fill
         for (int b = 0; b < bandCount; b++)
         {
-            if (bands[b].Kind == BandKind.Island && bands[b].Top > islandTop)
+            if (bands[b].Kind == BandKind.Island)
             {
-                islandTop = bands[b].Top;
+                if (bands[b].Top > islandTop)
+                {
+                    islandTop = bands[b].Top;
+                }
+
+                if (islandBottom == int.MinValue || bands[b].Bottom < islandBottom)
+                {
+                    islandBottom = bands[b].Bottom;
+                }
             }
             else if (bands[b].Kind == BandKind.Ice || bands[b].Kind == BandKind.Fluid || bands[b].Kind == BandKind.Mat)
             {
@@ -1145,6 +1190,7 @@ public sealed partial class WorldGenerator
             BeachHere = beachHere,
             Bands = bandCount > 0 ? bands.Slice(0, bandCount).ToArray() : System.Array.Empty<ColumnBand>(),
             IslandTop = islandTop,
+            IslandBottom = islandBottom,
             CavernHere = cavernHere,
             CavLo = cavLo,
             CavHi = cavHi,

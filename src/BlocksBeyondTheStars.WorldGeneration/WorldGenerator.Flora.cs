@@ -18,10 +18,19 @@ public sealed partial class WorldGenerator
     /// is needed (unlike trees). Density is generous so a lake reads as visibly planted, not bare.</summary>
     private void StampWaterFlora(ChunkData chunk, Vector3i origin, int lx, int lz, long seed,
         int worldX, int worldZ, int surfaceY, int fluidLevel, BlockId kelpId, BlockId lilyId,
-        BlockId coralId, BlockId seagrassId, double floraDensity)
+        BlockId coralId, BlockId seagrassId, double floraDensity, bool forests = false)
     {
         int columnDepth = fluidLevel - surfaceY; // water cells above the seabed (>= 1 here)
         double roll = Noise.Value01(seed + 9007, WorldConstants.WrapX(worldX, _circumference), 11, Wz(worldZ));
+
+        // #1757 (generation 5, UnderwaterForests): inside a forest patch the stalks grow to twelve cells and three
+        // times as many columns carry one — a kelp forest you swim through, not a lawn. Outside the patches the
+        // classic rule below applies unchanged; older worlds never pass `forests`.
+        bool forestHere = forests && FbmT(seed + 0x5EAF0, worldX, worldZ, 18.0, octaves: 2) > 0.52;
+        if (forestHere)
+        {
+            floraDensity *= 3.0;
+        }
 
         // The seabed plant for this column: pick deterministically among the active seabed archetypes, then
         // place it if the planting roll lands in this column's (generous) density band. Coral sits as a single
@@ -41,6 +50,11 @@ public sealed partial class WorldGenerator
             {
                 var stalk = stalkOptions[System.Math.Min(stalkOptions.Count - 1, (int)(pick * stalkOptions.Count))];
                 int height = 2 + (int)(roll * 997) % 3; // 2..4 cells
+                if (forestHere)
+                {
+                    height = 8 + (int)(roll * 997) % 5; // 8..12 cells (#1757)
+                }
+
                 int top = System.Math.Min(fluidLevel - 1, surfaceY + height);
                 for (int wy = surfaceY + 1; wy <= top; wy++)
                 {
@@ -86,6 +100,7 @@ public sealed partial class WorldGenerator
     private long _floraResolvedSalt; // the body salt the pools were resolved under (#478 — per-body rosters)
     private bool _kelpActive, _lilyActive; // whether the seabed kelp / surface lily archetypes grow on this world
     private bool _coralActive, _seagrassActive; // the other two seabed archetypes (coral reefs / seagrass)
+    private BlockId _hangingFloraId = BlockId.Air; // #1759: the species hanging from island undersides (Air = none)
     // surface block id -> the pool of (this world's active) flora that may grow on it.
     private readonly System.Collections.Generic.Dictionary<ushort, BlockId[]> _floraBySurface = new();
     // flora block id -> its climate tags (for theme-weighted, patchy species selection).
@@ -120,13 +135,24 @@ public sealed partial class WorldGenerator
         _lilyActive = active.Contains("flora_lily");
         _coralActive = active.Contains("flora_coral");
         _seagrassActive = active.Contains("flora_seagrass");
+        // #1759: the one hanging species of this world (the underside of a floating island), or Air. The roster
+        // only activates it on a generation-5 world (FloraCatalog MinGeneration), so older islands stay bare below.
+        _hangingFloraId = BlockId.Air;
+        foreach (var sp in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
+        {
+            if (sp.Hanging && active.Contains(sp.Key) && _content.GetBlock(sp.Key) is { } hang)
+            {
+                _hangingFloraId = hang.NumericId;
+                break;
+            }
+        }
 
         var acc = new System.Collections.Generic.Dictionary<ushort, System.Collections.Generic.List<BlockId>>();
         foreach (var sp in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
         {
-            if (sp.Aquatic || !active.Contains(sp.Key) || _content.GetBlock(sp.Key) is not { } flora)
+            if (sp.Aquatic || sp.Hanging || !active.Contains(sp.Key) || _content.GetBlock(sp.Key) is not { } flora)
             {
-                continue; // aquatic flora are placed in submerged columns; inactive forms don't grow here
+                continue; // aquatic flora are placed in submerged columns, hanging flora under islands; inactive forms don't grow here
             }
 
             _floraTagByBlock[flora.NumericId.Value] = sp.Tags;
@@ -163,6 +189,13 @@ public sealed partial class WorldGenerator
         {
             _floraBySurface[kv.Key] = kv.Value.ToArray();
         }
+    }
+
+    /// <summary>The block key of this world's hanging species (#1759), or null when none is active (tests).</summary>
+    internal string? HangingFloraForTest(PlanetType planet)
+    {
+        ResolveFlora(planet);
+        return _hangingFloraId.IsAir ? null : _content.BlockById(_hangingFloraId)?.Key;
     }
 
     /// <summary>

@@ -1744,6 +1744,10 @@ public sealed class NetCreature
     public int NeckLength { get; set; }
     public bool HasTrunk { get; set; }
 
+    /// <summary>The hide tile the client paints the body with ("fur", "shaggy", "petal", …) for an authored species
+    /// (#1763); empty = the classic id-hashed pick. Additive: an older client ignores it.</summary>
+    public string Hide { get; set; } = string.Empty;
+
     /// <summary>Seed for this species' generated voice (#907) — the client derives phrase, cadence and
     /// timbre from it via <c>CreatureVoices.Derive</c>. Additive field: an older client ignores it and
     /// a newer client falls back to hashing the trait tuple when a legacy server sends 0, so the wire
@@ -2266,6 +2270,14 @@ public sealed class WorldEnvironment
     /// to its texture luminance and re-tinted by this colour, so a world's plant life shares one base colour
     /// (green / brown / pink / purple …) regardless of the underlying tile. White = no tint.</summary>
     public int FloraTint { get; set; } = 0xFFFFFF;
+
+    /// <summary>This world's water colour, packed 0xRRGGBB (#1758, school club wave 3), read only when
+    /// <see cref="WaterTintMode"/> is 1. Additive: an older client ignores it, an older server sends the default.</summary>
+    public int WaterTint { get; set; } = 0x336BD9;
+
+    /// <summary>How the client colours the water (#1758): 0 = the classic blue (every existing world), 1 = multiply
+    /// <see cref="WaterTint"/> in, 2 = static rainbow bands by position (the rainbow planet). Additive.</summary>
+    public int WaterTintMode { get; set; }
 
     /// <summary>This world's walkable east–west circumference in blocks (longitude wrap + day/night span).
     /// Varies by body size — asteroids small, planets large — so the client wraps/renders at the right size.</summary>

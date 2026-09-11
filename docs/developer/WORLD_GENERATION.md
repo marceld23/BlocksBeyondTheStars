@@ -1186,3 +1186,70 @@ list to it; #1722 `WorldGenerator.RosterSeedFor` — the one roster-seed formula
 server's rosters equal the generators' output for it; #1723 `WonderFor`'s lock-free fast path holds key +
 profile in one immutable slot; #1724 the column memos key on the **wrapped** column, guarded by a test that
 every generation's landforms are identical across both seams (`SurfaceHeightAndChunks_AreTheSame_AcrossBothSeams`).
+
+## 15. Generation 5 — the school club wave (#1756–#1765, 2026-09-11)
+
+The third wave from the school club "Building Games with AI": the children's planets, creatures and plants.
+`WorldDescription.CurrentTerrainGeneration` is **5** (`AuthoredContentGeneration`); the terrain of every older
+type equals generation 4. Everything in the wave follows the four rules of the earlier waves — a new table row
+gated on the generation, a new type gated by `minTerrainGeneration: 5`, append-only catalogs and enums, and
+authored content as an overlay after the procedural roster — so every existing world is byte-identical (the
+generation-0/1/3 goldens did not move; five `*-gen5` groups pin the wave).
+
+**Four planet types** (`data/planets.json`, `minTerrainGeneration: 5`): `rainbow_sea` (Sophia: rainbow water,
+floating islands with kelp hanging from their undersides, kelp forests, a seabed of sand), `flower_fields`
+(Damian: flowers and nothing else, one authored creature), `scrapyard` (scrap, more ruins and factories, no
+life, toxic air) and `gamer_hills` (Ben: karst caves, PC props, mountain-sized gaming gear). New optional
+type fields, all no-ops by default: `seabedBlock` (every submerged sea column beyond the beach apron takes it,
+`ColumnContext.SeabedId`), `underwaterForests` (kelp/seagrass stalks 8–12 tall in patches, `StampWaterFlora`),
+`waterTint` (see below), `ruinsBias` / `factoriesBias` (multiply the per-body roll, caps unchanged),
+`authoredCreatures` + `creatureAbundance: "authored"`.
+
+**Water colour (#1758).** `FluidTints.ForWorld(seed, locationId, planet)` → (rgb, mode) is the water
+counterpart of `FloraTints.ForWorld`: empty `waterTint` = the classic blue (mode 0, every existing world),
+`"auto"` = a seeded blue-dominant palette pick (mode 1), `"rainbow"` = static bands by position (mode 2),
+`"#rrggbb"` = fixed. The server ships `EnvironmentState.WaterTint/WaterTintMode`, `Sky.cs` sets
+`_Sc_WaterTint/_Sc_WaterMode`, and the transparent shader's water branch (both subshaders) recolours by
+luminance. The block `water` stays the single fluid id — the automaton, the creatures and worldgen never
+learn about colour.
+
+**Hanging flora (#1759).** `FloraCatalog.Species.Hanging` — the plant roots in the block ABOVE. The roster
+activates `flora_hangkelp` on generation-5 worlds only (`MinGeneration`), worldgen places it at
+`ColumnProfile.IslandBottom − 1` in patches, the server's `IsValidFloraHost` and regrow read the host above
+for hanging ids, and the mesher's `AddCrossPlant` mirrors the rosette (root at the top, V flipped, skylight
+from below, `TraitHangingFlora`).
+
+**Species of a later wave (`MinGeneration`).** A catalog species appended for generation 5 draws its
+roll like every other (the rng stream is untouched) but stays inactive on an older world, and it is never
+the pick that covers a bare host there. The strict `floral` theme (`Theme.Strict`) activates only species
+carrying its preferred tag (`FloraTag.Floral`, added to the five flower species — no older theme prefers
+it, so no older roster moves) and covers only the surfaces the planet actually has.
+
+**Authored species (#1763).** `data/creatures.json` → `GameContent.AuthoredCreatures`; a type names them in
+`authoredCreatures`. `CreatureGenerator.GenerateRoster(planet, seed, generation, authored)` appends them after
+the procedural slots on a generation-5 world as `au_<key>` (sub-seed salted with the key, the name's second
+word coined per world: "Leni Tarak"). New `CreatureSpecies` traits: `BiomeSurfaces` + `BiomeExclusive` (a
+hard rule against the ground under the animal's feet, real blocks first, the generator's biome surface where
+no chunk is loaded — `OnExclusiveGround`), `Hide` (a named hide tile, `NetCreature.Hide`), `AngeredByMining`
+and `GiftsWhenCalm`. Leni rides on `glacier`, `icecap`, `frozen_ocean` and `boreal`; the flowerling is the
+flower fields' only species (`CreatureBodyPlan.Floral`: a petal ring around the head, a grin while calm, a
+toothed maw while hostile — the view rebuilds the body on the hostility flip).
+
+**The flowerling's rules (#1760, `GameServerFlowerling.cs`).** Every block break is reported to
+`CreaturesOnBlockBroken`: a mining-angered species within 16 blocks WITH line of sight takes a 60 s grudge
+(`ProvokeTimer`; the species is Territorial, so the provoked path hunts and bites with its own damage).
+`TickCalmGifts` (1 Hz): a calm individual with a player within 3 blocks whose last break on this world is
+older than 120 s spills berries ×1–2 (60 %) or a stone / log / iron / copper block, once per 45 s, and the
+player is told (`srv.flowerling.gift`).
+
+**Blocks and props.** 14 blocks (`scrap_pile`, `scrap_metal`, `broken_machine`, `rusted_panel` with a
+`randomDrops` table — `WeightedDrop.Draw` hashes the cell and the seed, so a re-placed block never yields
+twice; `gaming_pc/monitor/keyboard/mouse` placeable but never craftable; `paul_stem/leaf/petals` with fixed
+colours outside the flora tint; `flora_sunblossom`, `flora_tulip`, `flora_hangkelp`). Eight prop rows at the
+table's tail (`scrap-heap`, `wreck-hull`, `girder` on the scrap tag; the same three as `stray-*` on every
+other solid-ground world at a fortieth of the density; `desk-setup`, `pc-heap` on the gaming tag). The Paul
+flower is the `giant-paul` row of `GiantFloraKinds` (stem 6–10, four leaf slabs, a petal crown; generation 5).
+The gaming landmarks are three `LandmarkKinds` rows in `WorldGenerator.SchoolWaveGen5.cs` (`giant-monitor`
+slab 52–82 × 36–43, `giant-keyboard` plateau with key bumps, `giant-mouse` dome with a cable ridge), hotspot
+cells of 2 400 blocks, painted with the gaming blocks down to the ground. The atlas is **32 × 32** tiles
+(`BlockTextureAtlas.Cols/Rows`, `GameContent.AtlasTileCapacity = 1024`).

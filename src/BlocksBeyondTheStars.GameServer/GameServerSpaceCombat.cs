@@ -54,6 +54,9 @@ public sealed class CombatEntity
     /// <summary>Seconds an aggressor that gave up will ignore the player (wanders off, won't chase or attack).</summary>
     public double GiveUpTimer { get; set; }
 
+    /// <summary>Server uptime after which a gift-giving species (#1760, the flowerling) may spill its next gift.</summary>
+    public double GiftReadyAt { get; set; }
+
     /// <summary>For asteroids: size tier (2 = large, 1 = medium, 0 = small). Large ones split when destroyed.</summary>
     public int AsteroidTier { get; set; }
 

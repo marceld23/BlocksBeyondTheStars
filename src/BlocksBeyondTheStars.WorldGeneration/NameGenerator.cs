@@ -147,6 +147,11 @@ public static class NameGenerator
         ["coral_sea"] = (new[] { "m", "n", "th", "s", "l", "ner" }, new[] { "mar", "une", "ea", "ys", "aris", "ion" }),
         ["icecap"] = (new[] { "fr", "kr", "th", "v", "sk", "h", "gl" }, new[] { "heim", "fell", "gard", "yr", "os", "ost" }),
         ["river_lowlands"] = (new[] { "l", "m", "n", "v", "s", "y" }, new[] { "ia", "ora", "une", "elle", "ys", "ana" }),
+        // School club wave 3 (#1756): the four generation-5 types borrow their nearest kin's flavour.
+        ["rainbow_sea"] = (new[] { "m", "n", "th", "s", "l", "ner" }, new[] { "mar", "une", "ea", "ys", "aris", "ion" }),
+        ["flower_fields"] = (new[] { "l", "m", "n", "v", "s", "y" }, new[] { "ia", "ora", "une", "elle", "ys", "ana" }),
+        ["scrapyard"] = (new[] { "s", "z", "k", "r", "dr", "sh" }, new[] { "ara", "un", "akh", "ir", "um", "at" }),
+        ["gamer_hills"] = (new[] { "l", "m", "n", "v", "s", "y" }, new[] { "ia", "ora", "une", "elle", "ys", "ana" }),
     };
 
     /// <summary>Substrings no coined celestial name may contain (EN + DE) — the syllable mill can and

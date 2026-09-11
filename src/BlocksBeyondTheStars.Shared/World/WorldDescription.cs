@@ -180,7 +180,13 @@ public sealed class WorldDescription
 
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
     /// #1715 flora roster).</summary>
-    public const int CurrentTerrainGeneration = 4;
+    public const int CurrentTerrainGeneration = 5;
+
+    /// <summary>The generation of the school club wave 3 (#1756): the gen-5 planet types, the authored species
+    /// overlay on the creature rosters, the strict floral theme, hanging flora, the new prop / giant-flora /
+    /// landmark rows and per-world water tints. The terrain of every older type equals generation 4; everything
+    /// in this wave is an appended table row or a data field with a classic no-op default.</summary>
+    public const int AuthoredContentGeneration = 5;
 
     /// <summary>The generation from which the flora roster's activation roll reads the biome themes as well as
     /// the planet theme (#1715). Older worlds keep the planet-only roll — a changed roll would rename and

@@ -93,6 +93,15 @@ public sealed class WorldGenerationGoldenTests
         new("coral_sea-gen3", 20260903, "coral_sea", 0, false, null, 3),
         new("icecap-gen3", 20260903, "icecap", 0, false, null, 3),
         new("river_lowlands-gen3", 20260903, "river_lowlands", 0, false, null, 3),
+        // School club wave 3 (#1756, generation 5): the four new types where the wave's rows are dense — a
+        // seabed of sand and kelp forests, flower fields, scrap props, the gaming landmarks — plus a meadow on
+        // generation 5 (stray scrap, the Paul flower, hanging plants would need islands). Every generation-0/1/3
+        // group above must never move: the wave is table rows gated on generation 5.
+        new("rainbow_sea-gen5", 20260903, "rainbow_sea", 0, false, null, 5),
+        new("flower_fields-gen5", 20260903, "flower_fields", 0, false, null, 5),
+        new("scrapyard-gen5", 20260903, "scrapyard", 0, false, null, 5),
+        new("gamer_hills-gen5", 20260903, "gamer_hills", 0, false, null, 5),
+        new("meadowlands-gen5", 20260903, "meadowlands", 0, false, null, 5),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -154,6 +163,12 @@ public sealed class WorldGenerationGoldenTests
             ["coral_sea-gen3"] = 0x1fb61378b5bb1fa2UL,
             ["icecap-gen3"] = 0x786cf683677e2526UL,
             ["river_lowlands-gen3"] = 0xee25a930cd9958d9UL,
+            // Pinned 2026-09-11 (school club wave 3, generation 5; Windows 11, .NET 10).
+            ["rainbow_sea-gen5"] = 0xac5ecabf424a2d69UL,
+            ["flower_fields-gen5"] = 0xe2e2a978c783cfbfUL,
+            ["scrapyard-gen5"] = 0x7710a0c97aa3539aUL,
+            ["gamer_hills-gen5"] = 0x7ac9750465c7fd67UL,
+            ["meadowlands-gen5"] = 0x6a1d26df3784c73cUL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

@@ -60,6 +60,8 @@ public sealed partial class GameServer
     private int _cloudColor { get => _worlds.Active.CloudColor; set => _worlds.Active.CloudColor = value; }
     private int _skyColor { get => _worlds.Active.SkyColor; set => _worlds.Active.SkyColor = value; }
     private int _floraTint { get => _worlds.Active.FloraTint; set => _worlds.Active.FloraTint = value; }
+    private int _waterTint { get => _worlds.Active.WaterTint; set => _worlds.Active.WaterTint = value; }         // #1758
+    private int _waterTintMode { get => _worlds.Active.WaterTintMode; set => _worlds.Active.WaterTintMode = value; } // #1758
     private float _cloudDensity { get => _worlds.Active.CloudDensity; set => _worlds.Active.CloudDensity = value; }
     private bool _breathable { get => _worlds.Active.Breathable; set => _worlds.Active.Breathable = value; }
     private bool _spaceSky { get => _worlds.Active.SpaceSky; set => _worlds.Active.SpaceSky = value; }
@@ -185,6 +187,11 @@ public sealed partial class GameServer
         // WORLD_GENERATION.md §3. Airless/floraless worlds still carry a value; it just goes unused. The
         // formula lives with the per-species colours (#1716) — one file for every flora colour.
         _floraTint = Shared.World.FloraTints.ForWorld(_meta.Seed, _world.LocationId);
+        // #1758: the water colour, the same way — classic blue unless the type opts in (the rainbow planet, the
+        // "auto" palette of the generation-5 water types).
+        var (waterRgb, waterMode) = Shared.World.FluidTints.ForWorld(_meta.Seed, _world.LocationId, _world.Planet);
+        _waterTint = waterRgb;
+        _waterTintMode = (int)waterMode;
         // One seeded daytime sky hue per WORLD (blue → green → yellow → red, blue-dominant), so worlds with an
         // atmosphere don't all share the same blue sky. Seeded from LocationId ^ Seed (like AtmosphereDensity) so
         // two same-type worlds differ. Airless bodies (space sky) carry a value but the client ignores it.
@@ -304,6 +311,8 @@ public sealed partial class GameServer
             CloudColor = _cloudColor,
             SkyColor = _skyColor,
             FloraTint = _floraTint,
+            WaterTint = _waterTint,         // #1758
+            WaterTintMode = _waterTintMode, // #1758
             Circumference = _world.Circumference,
             LatitudeLimit = WorldConstants.LatitudeLimitFor(_world.Circumference),
             CloudDensity = _cloudDensity,

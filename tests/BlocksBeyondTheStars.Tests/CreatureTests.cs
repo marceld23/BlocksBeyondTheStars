@@ -8,6 +8,8 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -1339,6 +1341,151 @@ public sealed class CreatureTests : IDisposable
             int before = server.World.LoadedChunkCount;
             server.CaveFloorForTest(4000, 4000); // far outside anything streamed in
             Assert.Equal(before, server.World.LoadedChunkCount);
+        }
+    }
+
+    // ---------- School club wave 3 (#1763 / #1760): authored species ----------
+
+    [Fact]
+    public void AuthoredSpecies_JoinAfterTheProceduralSlots_OnGenerationFiveOnly()
+    {
+        // Leni (#1763) rides on the ice worlds: the procedural roster is byte-for-byte what it always was, and on
+        // a generation-5 world one more species follows it; the flower fields (#1760) host the flowerling alone.
+        var glacier = _content.GetPlanet("glacier")!;
+        var authored = _content.AuthoredCreaturesFor(glacier);
+        Assert.Contains(authored, a => a.Key == "leni");
+
+        var classic = CreatureGenerator.GenerateRoster(glacier, 4242);
+        var gen4 = CreatureGenerator.GenerateRoster(glacier, 4242, 4, authored);
+        var gen5 = CreatureGenerator.GenerateRoster(glacier, 4242, 5, authored);
+        Assert.Equal(classic.Select(s => s.Id + s.Name), gen4.Select(s => s.Id + s.Name));
+        Assert.Equal(classic.Count + 1, gen5.Count);
+        Assert.Equal(classic.Select(s => s.Id + s.Name), gen5.Take(classic.Count).Select(s => s.Id + s.Name));
+
+        var leni = gen5[^1];
+        Assert.Equal("au_leni", leni.Id);
+        Assert.StartsWith("Leni ", leni.Name);
+        Assert.Equal(2, leni.SocialGroupSize);
+        Assert.True(leni.BiomeExclusive);
+        Assert.Contains("snow", leni.BiomeSurfaces);
+        Assert.False(leni.HasTail);
+        Assert.Equal(4, leni.Legs);
+        Assert.Equal(CreatureTemperament.Passive, leni.Temperament);
+        Assert.Equal("shaggy", leni.Hide);
+
+        var flowers = _content.GetPlanet("flower_fields")!;
+        var flowerlings = CreatureGenerator.GenerateRoster(flowers, 4242, 5, _content.AuthoredCreaturesFor(flowers));
+        var only = Assert.Single(flowerlings);
+        Assert.Equal("au_flowerling", only.Id);
+        Assert.Equal(CreatureBodyPlan.Floral, only.BodyPlan);
+        Assert.True(only.AngeredByMining && only.GiftsWhenCalm);
+        Assert.Equal(2, only.Legs);
+        Assert.Empty(CreatureGenerator.GenerateRoster(flowers, 4242, 4, _content.AuthoredCreaturesFor(flowers)));
+
+        foreach (var sp in gen5.Concat(flowerlings))
+        {
+            Assert.True(BlocksBeyondTheStars.Shared.Definitions.LocomotionController.ForSpecies(sp).CruiseSpeed > 0f);
+        }
+    }
+
+    [Fact]
+    public void Leni_SpawnsOnlyOnSnowOrIce()
+    {
+        // #1763: BiomeExclusive is a hard rule against the ground under the animal's feet, real blocks first.
+        var server = Started("glacier", out var repo, c => c.World.TerrainGeneration = 5);
+        using (repo)
+        {
+            Assert.Contains(server.SpeciesRoster, s => s.Id == "au_leni");
+            var snow = _content.GetBlock("snow")!.NumericId;
+            var dirt = _content.GetBlock("dirt")!.NumericId;
+            var spot = new Vector3i(40, 90, 40);
+            for (int dy = 0; dy <= 3; dy++)
+            {
+                server.World.SetBlock(new Vector3i(spot.X, spot.Y + dy, spot.Z), BlockId.Air);
+            }
+
+            var at = new Vector3f(spot.X + 0.5f, spot.Y, spot.Z + 0.5f);
+            server.World.SetBlock(new Vector3i(spot.X, spot.Y - 1, spot.Z), snow);
+            Assert.True(server.SpawnSpotClearForSpeciesTest("au_leni", at), "Leni refused the snow");
+
+            server.World.SetBlock(new Vector3i(spot.X, spot.Y - 1, spot.Z), dirt);
+            Assert.False(server.SpawnSpotClearForSpeciesTest("au_leni", at), "Leni accepted bare dirt");
+        }
+    }
+
+    /// <summary>A flower-fields world of generation 5 with the player standing on cleared ground at (x, z) and a
+    /// flowerling a few blocks away. Returns the creature id and the player's feet Y.</summary>
+    private (SvGameServer Server, SqliteWorldRepository Repo, string Creature, int FeetY, BlocksBeyondTheStars.GameServer.PlayerSession Player)
+        FlowerlingScene()
+    {
+        var server = Started("flower_fields", out var repo, c => c.World.TerrainGeneration = 5);
+        int x = 24, z = 24;
+        int surface = 120;
+        while (surface > 1 && server.World.GetBlock(new Vector3i(x, surface, z)).IsAir)
+        {
+            surface--;
+        }
+
+        // Clear a box of air over the ground (the flower fields are dense, and a flower in the sightline would
+        // be a test of the flora, not of the rule).
+        for (int dx = -3; dx <= 6; dx++)
+            for (int dz = -3; dz <= 6; dz++)
+                for (int dy = 1; dy <= 4; dy++)
+                {
+                    server.World.SetBlock(new Vector3i(x + dx, surface + dy, z + dz), BlockId.Air);
+                }
+
+        var p = server.AddLocalPlayer("Justus");
+        p.State.AboardShip = false;
+        p.State.Position = new Vector3f(x + 0.5f, surface + 1, z + 0.5f);
+        p.State.Inventory.SetSlot(0, new ItemStack("basic_drill", 1));
+        string id = server.SpawnCreatureAtForTest(new Vector3f(x + 3.5f, surface + 1, z + 3.5f), "au_flowerling");
+        return (server, repo, id, surface + 1, p);
+    }
+
+    [Fact]
+    public void Flowerling_TurnsOnAMiner_ItCanSee()
+    {
+        // #1760: a block broken in front of it → a grudge (the provoke timer runs, it reads hostile and bites);
+        // no grudge while nobody mines.
+        var (server, repo, id, feetY, p) = FlowerlingScene();
+        using (repo)
+        {
+            Assert.Equal(0.0, server.ProvokeTimerForTest(id));
+            var stone = new Vector3i(25, feetY, 24);
+            server.World.SetBlock(stone, _content.GetBlock("stone")!.NumericId);
+            server.MineBlock("Justus", stone.X, stone.Y, stone.Z);
+            Assert.True(server.World.GetBlock(stone).IsAir, "the stone was not mined");
+            Assert.True(server.ProvokeTimerForTest(id) > 0.0, "the flowerling did not mind the mining");
+            Assert.NotNull(server.LastBlockBreakForTest("Justus"));
+        }
+    }
+
+    [Fact]
+    public void Flowerling_GiftsACalmVisitor_ButNotAMiner()
+    {
+        // #1760: a player who has not mined for two minutes and stands close gets a present; a miner does not.
+        var (server, repo, id, feetY, p) = FlowerlingScene();
+        using (repo)
+        {
+            p.State.Position = new Vector3f(26.5f, feetY, 26.5f); // within three blocks of the flowerling
+            int before = server.DropPackets.Count;
+            server.AdvanceGiftClockForTest(130);
+            server.Tick(0.1);
+            Assert.True(server.DropPackets.Count > before, "no gift for a calm visitor");
+            var items = server.DropPackets.SelectMany(c => c.Items).Select(s => s.Item).ToList();
+            Assert.Contains(items, i => i == "berries" || i == "stone" || i == "wood_log" || i == "iron_ore" || i == "copper_ore");
+
+            // A cooldown, then mining: no second gift while the miner is a miner.
+            var stone = new Vector3i(27, feetY, 24);
+            server.World.SetBlock(stone, _content.GetBlock("stone")!.NumericId);
+            p.State.Position = new Vector3f(26.5f, feetY, 24.5f);
+            server.MineBlock("Justus", stone.X, stone.Y, stone.Z);
+            int afterGift = server.DropPackets.Count;
+            p.State.Position = new Vector3f(26.5f, feetY, 26.5f);
+            server.AdvanceGiftClockForTest(60);
+            server.Tick(0.1);
+            Assert.Equal(afterGift, server.DropPackets.Count);
         }
     }
 

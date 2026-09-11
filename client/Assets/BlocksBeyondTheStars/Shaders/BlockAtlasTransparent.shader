@@ -46,6 +46,8 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             float4 _Sc_SunDir;
             float4 _Sc_Sky;   // sky colour (set by Sky.cs) — water SSR sky fallback
             float _Sc_ScreenFx; // 1 when the depth+opaque textures exist (Medium+); 0 on Low → water uses the simple look
+            float4 _Sc_WaterTint; // #1758: per-world water colour (Sky.cs); read in mode 1
+            float _Sc_WaterMode;  // #1758: 0 = the classic blue, 1 = tint, 2 = static rainbow bands by position
 
             // SRP Batcher (#573): per-MATERIAL properties only. The _Sc_* globals above stay outside — they are
             // set once per frame via Shader.SetGlobal*, not per material.
@@ -145,6 +147,21 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
                     // and through it while swimming.
                     alpha = tex.a;
+
+                    // #1758 (school club wave 3): the world's water colour. A luminance recolour keeps the wave
+                    // shading; mode 2 lays static rainbow bands across the world (by position, never animated).
+                    if (_Sc_WaterMode > 0.5)
+                    {
+                        float wlum = dot(col, float3(0.299, 0.587, 0.114));
+                        float3 wtint = _Sc_WaterTint.rgb;
+                        if (_Sc_WaterMode > 1.5)
+                        {
+                            float hue = frac((i.wp.x + i.wp.z) / 96.0);
+                            wtint = saturate(abs(frac(hue + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0);
+                            wtint = lerp(float3(0.5, 0.5, 0.5), wtint, 0.85);
+                        }
+                        col = lerp(col, wlum * wtint * 2.2, 0.85);
+                    }
 
                     float mode = i.water.x;
                     float t = _Time.y;
@@ -338,6 +355,8 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             fixed4 _Sc_Light;   // system sun colour x day brightness x weather (a>0.5 = set)
             float4 _Sc_SunDir;  // world-space direction TO the sun
             float _BaseAlpha;
+            float4 _Sc_WaterTint; // #1758: per-world water colour (Sky.cs); read in mode 1
+            float _Sc_WaterMode;  // #1758: 0 = the classic blue, 1 = tint, 2 = static rainbow bands by position
 
             struct appdata
             {
@@ -420,6 +439,20 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
                     // and through it while swimming.
                     alpha = tex.a;
+
+                    // #1758: the world's water colour — mirrors the URP pass (luminance recolour; mode 2 = static rainbow).
+                    if (_Sc_WaterMode > 0.5)
+                    {
+                        float wlum = dot(col, fixed3(0.299, 0.587, 0.114));
+                        float3 wtint = _Sc_WaterTint.rgb;
+                        if (_Sc_WaterMode > 1.5)
+                        {
+                            float hue = frac((i.wp.x + i.wp.z) / 96.0);
+                            wtint = saturate(abs(frac(hue + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0);
+                            wtint = lerp(float3(0.5, 0.5, 0.5), wtint, 0.85);
+                        }
+                        col = lerp(col, wlum * wtint * 2.2, 0.85);
+                    }
 
                     float mode = i.water.x;
                     float t = _Time.y;

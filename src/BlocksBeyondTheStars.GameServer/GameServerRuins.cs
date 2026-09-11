@@ -61,7 +61,8 @@ public sealed partial class GameServer
         // Rare: most worlds get none, occasionally one, rarely two — nudged up a touch on bigger worlds and
         // when the structures frequency is set above normal.
         double sizeFactor = System.Math.Clamp(_world.Circumference / SettlementRefCirc, 0.5, 2.0);
-        double r = rng.NextDouble() / sizeFactor;
+        // #1761: a type may bias its roll (the scrap planet: 2.0); 1.0 is the identical draw for every other type.
+        double r = rng.NextDouble() / sizeFactor * System.Math.Max(0.0, planet.RuinsBias);
         int count = r < 0.55 ? 0 : r < 0.85 ? 1 : 2;
         count = System.Math.Min(RuinHardCap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
         if (count <= 0)

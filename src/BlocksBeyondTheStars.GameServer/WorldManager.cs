@@ -258,6 +258,8 @@ internal sealed class LoadedWorld
     public int CloudColor { get; set; } = 0xEDEFF2;
     public int SkyColor { get; set; } = 0x8CBFF2;
     public int FloraTint { get; set; } = 0xFFFFFF;
+    public int WaterTint { get; set; } = 0x336BD9; // #1758: the water colour of this world (mode 1)
+    public int WaterTintMode { get; set; }         // #1758: 0 classic, 1 tint, 2 rainbow
     public float CloudDensity { get; set; } = 0.45f;
     public bool Breathable { get; set; }
     public bool SpaceSky { get; set; }

@@ -41,6 +41,15 @@ public sealed class BlockDefinition
     /// <summary>Items produced when this block is mined.</summary>
     public List<ItemAmount> Drops { get; set; } = new();
 
+    /// <summary>
+    /// A weighted table from which ONE entry is drawn when the block is mined, on top of <see cref="Drops"/>
+    /// (school club wave 3, #1761: scrap yields "whatever is inside"). The draw is a hash of the cell and the
+    /// world seed, never a random stream, so a block re-placed on the same cell yields the same thing again —
+    /// nothing to farm by placing and breaking. An entry with an empty item is the "nothing" outcome. Null or
+    /// empty = the classic fixed drops only.
+    /// </summary>
+    public List<WeightedDrop>? RandomDrops { get; set; }
+
     // --- Optional render hints (data-driven appearance for custom materials) ---
     // When null the client falls back to its built-in per-key look; when set they let a
     // material authored in the Material Editor render correctly without any code change.

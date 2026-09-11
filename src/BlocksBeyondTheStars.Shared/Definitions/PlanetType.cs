@@ -178,6 +178,32 @@ public sealed class PlanetType
     /// Beaches only form where the shore's fluid is water — lava seas keep their volcanic coasts.</summary>
     public string BeachBlock { get; set; } = string.Empty;
 
+    // --- School club wave 3 (#1756, generation 5). Every field defaults to its classic no-op. ---
+
+    /// <summary>The floor block of every submerged column beyond the beach apron (#1757: a seabed of sand you can
+    /// dig in). Empty = the classic rule (the biome's own surface block). Read on generation-5 worlds only.</summary>
+    public string SeabedBlock { get; set; } = string.Empty;
+
+    /// <summary>When true, the seabed kelp and seagrass grow in tall forest patches (#1757) instead of the 2–4 cell
+    /// stalks — generation 5 only.</summary>
+    public bool UnderwaterForests { get; set; }
+
+    /// <summary>The colour of this type's water (#1758): empty = the classic blue on every world; "auto" = one
+    /// seeded hue per world from a blue-dominant palette; "rainbow" = static rainbow bands by position; or a
+    /// fixed 0xRRGGBB written as "#rrggbb". Read by <c>FluidTints.ForWorld</c>.</summary>
+    public string WaterTint { get; set; } = string.Empty;
+
+    /// <summary>Multiplies the per-body ruins roll (#1761): 1.0 = the classic draw; the hard cap stays.</summary>
+    public double RuinsBias { get; set; } = 1.0;
+
+    /// <summary>Multiplies the per-body factories roll (#1761): 1.0 = the classic draw; the hard cap stays.</summary>
+    public double FactoriesBias { get; set; } = 1.0;
+
+    /// <summary>Keys into <c>data/creatures.json</c> (#1763): authored species appended to this type's roster on
+    /// generation-5 worlds, after the procedural slots. With <see cref="CreatureAbundance"/> "authored" the roster
+    /// is these and nothing else.</summary>
+    public List<string> AuthoredCreatures { get; set; } = new();
+
     /// <summary>0..1 — how much surface lava this world has (lava seas in basins on volcanic/airless worlds).
     /// <c>null</c> = auto (volcanic worlds get a moderate amount). Watery worlds get no lava SEA — their
     /// molten side comes from volcanoes (summit crater pools + vents, #477) and the deep lava table
@@ -198,7 +224,8 @@ public sealed class PlanetType
 
     /// <summary>
     /// How much life this world has: "none" (barren), "few" or "many". Drives how many
-    /// procedural <see cref="CreatureSpecies"/> the world derives and the live spawn caps.
+    /// procedural <see cref="CreatureSpecies"/> the world derives and the live spawn caps. "authored" (#1763)
+    /// = no procedural species at all, only <see cref="AuthoredCreatures"/>.
     /// </summary>
     public string CreatureAbundance { get; set; } = "few";
 

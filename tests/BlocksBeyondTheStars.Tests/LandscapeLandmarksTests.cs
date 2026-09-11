@@ -124,6 +124,70 @@ public sealed class LandscapeLandmarksTests
         Assert.DoesNotContain("yardangs", order); // no wind tag on rocky
     }
 
+    // ---------- School club wave 3 (generation 5): the gaming landmarks and the new prop rows ----------
+
+    [Fact]
+    public void GamingLandmarks_GrowOnGenerationFiveOnly_AndStayInsideTheirCell()
+    {
+        // #1762: Ben's monitor, keyboard and mouse are landmark rows gated on the gaming tag + generation 5. Each
+        // rises inside the designed band and, like every hotspot family, sits a full extent inside its cell.
+        var gamer = Content.Planets["gamer_hills"];
+        Assert.DoesNotContain("giant-monitor", Gen(1, 4).LandmarkOrderForTest(gamer));
+        var order = Gen(1, 5).LandmarkOrderForTest(gamer);
+        Assert.Contains("giant-monitor", order);
+        Assert.Contains("giant-keyboard", order);
+        Assert.Contains("giant-mouse", order);
+        Assert.DoesNotContain("giant-monitor", Gen(1, 5).LandmarkOrderForTest(Content.Planets["meadowlands"]));
+
+        foreach (var (row, maxRise) in new[] { ("giant-monitor", 43.0), ("giant-keyboard", 8.0), ("giant-mouse", 16.0) })
+        {
+            (double Min, double Max, int Hits) scan = default;
+            WorldGenerator? found = null;
+            for (long s = 1; s <= 12 && found is null; s++)
+            {
+                var gen = Gen(s * 6151 + 3, 5);
+                scan = Scan(gen, row, gamer, 6);
+                if (scan.Hits > 0)
+                {
+                    found = gen;
+                }
+            }
+
+            Assert.NotNull(found);
+            Assert.True(scan.Min >= 0.0, $"{row} digs into the ground ({scan.Min})");
+            Assert.True(scan.Max <= maxRise, $"{row} rises {scan.Max} > {maxRise}");
+        }
+    }
+
+    [Fact]
+    public void Gen5PropRows_AppendAfterEveryOlderRow_AndGateByTagAndGeneration()
+    {
+        // #1761 / #1762: the scrap and gaming rows sit at the table's tail (precedence untouched); the scrap
+        // planet gets its dense rows, every other solid-ground world the stray ones, and generation 4 none at all.
+        var order = WorldGenerator.PropOrderForTest();
+        var tail = new[] { "scrap-heap", "wreck-hull", "girder", "stray-scrap-heap", "stray-wreck-hull", "stray-girder", "desk-setup", "pc-heap" };
+        Assert.Equal(tail, order.Skip(order.Length - tail.Length).ToArray());
+
+        var scrap = Gen(1, 5).PropActiveForTest(Content.Planets["scrapyard"], false, true);
+        Assert.Contains("scrap-heap", scrap);
+        Assert.Contains("wreck-hull", scrap);
+        Assert.DoesNotContain("stray-scrap-heap", scrap);
+        Assert.DoesNotContain("desk-setup", scrap);
+
+        var meadow5 = Gen(1, 5).PropActiveForTest(Content.Planets["meadowlands"], false, false);
+        Assert.Contains("stray-scrap-heap", meadow5);
+        Assert.Contains("stray-girder", meadow5);
+        Assert.DoesNotContain("scrap-heap", meadow5);
+
+        var meadow4 = Gen(1, 4).PropActiveForTest(Content.Planets["meadowlands"], false, false);
+        Assert.DoesNotContain("stray-scrap-heap", meadow4);
+
+        var gamer = Gen(1, 5).PropActiveForTest(Content.Planets["gamer_hills"], false, false);
+        Assert.Contains("desk-setup", gamer);
+        Assert.Contains("pc-heap", gamer);
+        Assert.Contains("stray-scrap-heap", gamer);
+    }
+
     // ---------- landmark shapes ----------
 
     [Theory]

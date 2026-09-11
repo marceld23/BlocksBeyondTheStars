@@ -445,6 +445,9 @@ public sealed partial class WorldGenerator
         // Terrain generation 3, part 7 — ice as a volume.
         public bool Glaciers, IceSheets, HangingValleys, IceCaves, SheetCaves;
 
+        // School club wave 3 (#1762, generation 5): the gaming planet's mountain-sized monitor, keyboard and mouse.
+        public bool GamingLandmarks;
+
         /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
         public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
@@ -594,6 +597,14 @@ public sealed partial class WorldGenerator
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.GlacierPaint(p, w, x, z, y, out fill)),
         new("ice-sheet", w => w.IceSheets, static (g, p, w, x, z) => g.IceSheetOffset(w, x, z),
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.IceSheetPaint(w, x, z, y, out fill)),
+        // School club wave 3 (#1762, generation 5) — Ben's gaming planet: a monitor, a keyboard and a mouse the size
+        // of mountains. Land rows, appended last; the gate is false below generation 5 and off the gaming tag.
+        new("giant-monitor", w => w.GamingLandmarks, static (g, p, w, x, z) => g.GiantMonitorOffset(w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.GiantMonitorPaint(w, x, z, y, out fill)),
+        new("giant-keyboard", w => w.GamingLandmarks, static (g, p, w, x, z) => g.GiantKeyboardOffset(w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.GiantKeyboardPaint(w, x, z, y, out fill)),
+        new("giant-mouse", w => w.GamingLandmarks, static (g, p, w, x, z) => g.GiantMouseOffset(w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.GiantMousePaint(w, x, z, y, out fill)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -654,6 +665,7 @@ public sealed partial class WorldGenerator
             ["rainbowStrata"] = w.RainbowStrata,
             ["dripstone"] = w.Dripstone,
             ["obsidianFields"] = w.ObsidianFields,
+            ["gamingLandmarks"] = w.GamingLandmarks, // school club wave 3 (#1762)
             ["lavaFlows"] = w.LavaFlows,
             ["barchans"] = w.Barchans,
             ["frostPolygons"] = w.FrostPolygons,
@@ -922,6 +934,13 @@ public sealed partial class WorldGenerator
                     w.HangingValleys = HasHangingValleys(planet);
                     w.IceCaves = HasIceCaves(planet);
                     w.SheetCaves = HasSheetCaves(planet);
+                }
+
+                if (_terrainGeneration >= WorldDescription.AuthoredContentGeneration)
+                {
+                    // School club wave 3: the gaming landmarks (#1762). Everything else of the wave is a prop row,
+                    // a giant-flora row or a data field that reads the generation itself.
+                    w.GamingLandmarks = HasGamingLandmarks(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);

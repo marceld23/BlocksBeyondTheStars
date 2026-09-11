@@ -44,7 +44,8 @@ public static class FloraGenerator
         // theme's 40 % — a wetland species that rolled inactive could never grow there, and PickWeight (which
         // does read the biome theme) cannot add back what was never activated. The union of preferred tags is
         // data-only, so the roster stays a pure function of (type, seed, generation).
-        FloraTag preferred = FloraThemes.Resolve(planet.FloraTheme).Preferred;
+        var planetTheme = FloraThemes.Resolve(planet.FloraTheme);
+        FloraTag preferred = planetTheme.Preferred;
         if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BiomeThemeRosterGeneration)
         {
             foreach (var biome in planet.Biomes)
@@ -55,6 +56,10 @@ public static class FloraGenerator
                 }
             }
         }
+
+        // #1760 (generation ≥ 5): a strict planet theme (the flower fields) activates only its preferred tags.
+        // No theme older than this wave is strict, so the roll below is unchanged for every existing world.
+        bool strict = terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.AuthoredContentGeneration && planetTheme.Strict;
 
         int i = 0;
         foreach (var archetype in FloraCatalog.All)
@@ -78,24 +83,36 @@ public static class FloraGenerator
                 BlockKey = archetype.Key,
                 Toxic = rng.NextDouble() < 0.3,  // most flora is benign; a notable minority is toxic
                 Aquatic = archetype.Aquatic,
-                Active = rng.NextDouble() < FloraThemes.ActivationChance(preferred, archetype.Tags),
+                // A species of a later wave (#1756, MinGeneration) draws its roll like every other — the draw keeps
+                // the rng stream identical — but stays inactive on a world whose generation predates it.
+                Active = rng.NextDouble() < FloraThemes.ActivationChance(preferred, archetype.Tags, strict)
+                    && archetype.MinGeneration <= terrainGeneration,
             });
             i++;
         }
 
-        EnsureCoverage(list);
+        EnsureCoverage(list, planet, terrainGeneration, strict ? preferred : FloraTag.None);
         return list;
     }
 
     /// <summary>Force-activates the minimum flora so no part of the world goes bare: every land host surface
     /// keeps at least one active land species, and the seas keep at least one active aquatic species.</summary>
-    private static void EnsureCoverage(List<FloraSpecies> roster)
+    private static void EnsureCoverage(List<FloraSpecies> roster, PlanetType planet, int terrainGeneration, FloraTag strictTags)
     {
         // Every host surface used by a land archetype must have an active species, or that surface grows nothing.
+        // A hanging species (#1759) roots in a ceiling, never on a surface, so it neither needs cover nor gives it;
+        // a species gated behind a later generation (#1756) must never be the pick that covers an older world; and
+        // under a strict theme (#1760, strictTags ≠ None) only an on-theme species may be the pick — a bare patch
+        // beats a bush on the flower planet.
+        bool strict = strictTags != FloraTag.None;
+        bool Eligible(string blockKey)
+            => FloraCatalog.All.FirstOrDefault(s => s.Key == blockKey) is { } sp && !sp.Hanging && sp.MinGeneration <= terrainGeneration
+               && (!strict || (sp.Tags & strictTags) != 0);
+
         var landHosts = new HashSet<string>();
         foreach (var sp in FloraCatalog.All)
         {
-            if (sp.Cultivated)
+            if (sp.Cultivated || sp.Hanging)
             {
                 continue; // a crop's host (a greenhouse bed / hydroponic tray) is no world surface — nothing to cover
             }
@@ -109,12 +126,25 @@ public static class FloraGenerator
             }
         }
 
+        // A strict theme (#1760) covers only the surfaces this planet actually has: forcing a reed onto "mud" for
+        // a world without mud would put an off-theme plant on the roster for nothing.
+        if (strict)
+        {
+            var own = new HashSet<string> { planet.SurfaceBlock, planet.BeachBlock };
+            foreach (var biome in planet.Biomes)
+            {
+                own.Add(biome.SurfaceBlock);
+            }
+
+            landHosts.IntersectWith(own);
+        }
+
         foreach (var host in landHosts)
         {
             bool covered = roster.Any(r => r.Active && !r.Aquatic && HostsFor(r.BlockKey).Contains(host));
             if (!covered)
             {
-                var pick = roster.FirstOrDefault(r => !r.Aquatic && HostsFor(r.BlockKey).Contains(host));
+                var pick = roster.FirstOrDefault(r => !r.Aquatic && Eligible(r.BlockKey) && HostsFor(r.BlockKey).Contains(host));
                 if (pick != null)
                 {
                     pick.Active = true;

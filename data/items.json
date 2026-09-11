@@ -244,5 +244,16 @@
   { "key": "tar",        "nameKey": "item.tar.name",        "category": "material", "maxStack": 1024, "placesBlock": "tar" },
   { "key": "bone",       "nameKey": "item.bone.name",       "category": "material", "maxStack": 1024, "placesBlock": "bone" },
   { "key": "sandstone",  "nameKey": "item.sandstone.name",  "category": "material", "maxStack": 1024, "placesBlock": "sandstone" },
-  { "key": "scree",      "nameKey": "item.scree.name",      "category": "material", "maxStack": 1024, "placesBlock": "scree" }
+  { "key": "scree",      "nameKey": "item.scree.name",      "category": "material", "maxStack": 1024, "placesBlock": "scree" },
+  { "key": "scrap_pile",     "nameKey": "item.scrap_pile.name",     "category": "block", "maxStack": 64, "placesBlock": "scrap_pile",     "descriptionKey": "item.scrap_pile.desc" },
+  { "key": "scrap_metal",    "nameKey": "item.scrap_metal.name",    "category": "block", "maxStack": 64, "placesBlock": "scrap_metal",    "descriptionKey": "item.scrap_metal.desc" },
+  { "key": "broken_machine", "nameKey": "item.broken_machine.name", "category": "block", "maxStack": 64, "placesBlock": "broken_machine", "descriptionKey": "item.broken_machine.desc" },
+  { "key": "rusted_panel",   "nameKey": "item.rusted_panel.name",   "category": "block", "maxStack": 64, "placesBlock": "rusted_panel",   "descriptionKey": "item.rusted_panel.desc" },
+  { "key": "gaming_pc",       "nameKey": "item.gaming_pc.name",       "category": "block", "maxStack": 64, "placesBlock": "gaming_pc",       "descriptionKey": "item.gaming_pc.desc" },
+  { "key": "gaming_monitor",  "nameKey": "item.gaming_monitor.name",  "category": "block", "maxStack": 64, "placesBlock": "gaming_monitor",  "descriptionKey": "item.gaming_monitor.desc" },
+  { "key": "gaming_keyboard", "nameKey": "item.gaming_keyboard.name", "category": "block", "maxStack": 64, "placesBlock": "gaming_keyboard", "descriptionKey": "item.gaming_keyboard.desc" },
+  { "key": "gaming_mouse",    "nameKey": "item.gaming_mouse.name",    "category": "block", "maxStack": 64, "placesBlock": "gaming_mouse",    "descriptionKey": "item.gaming_mouse.desc" },
+  { "key": "paul_stem",   "nameKey": "item.paul_stem.name",   "category": "block", "maxStack": 64, "placesBlock": "paul_stem",   "descriptionKey": "item.paul_stem.desc" },
+  { "key": "paul_leaf",   "nameKey": "item.paul_leaf.name",   "category": "block", "maxStack": 64, "placesBlock": "paul_leaf",   "descriptionKey": "item.paul_leaf.desc" },
+  { "key": "paul_petals", "nameKey": "item.paul_petals.name", "category": "block", "maxStack": 64, "placesBlock": "paul_petals", "descriptionKey": "item.paul_petals.desc" }
 ]

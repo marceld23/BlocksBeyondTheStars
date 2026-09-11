@@ -43,8 +43,12 @@ public static class FloraThemes
         double DensityMul,
         double TreeMul,
         TreeKind[] Trees,
-        TreeKind[]? TreesGen1 = null)
+        TreeKind[]? TreesGen1 = null,
+        bool Strict = false)
     {
+        // Strict (#1760, generation ≥ 5): a strict theme activates ONLY species carrying one of its preferred
+        // tags — the flower planet grows flowers and nothing else. Every classic theme is non-strict, so the
+        // 85 / 40 roll and with it every existing roster stay exactly as they were.
         /// <summary>The palette a generation-1 world draws from (#1648): the classic kinds plus the new ones;
         /// generation-0 worlds keep <see cref="Trees"/> so their woods never change.</summary>
         public TreeKind[] PaletteFor(int generation) => generation >= 1 && TreesGen1 is { } g1 ? g1 : Trees;
@@ -83,6 +87,11 @@ public static class FloraThemes
             new[] { TreeKind.None }),
         new("ashen", FloraTag.Dry | FloraTag.Glow, 0.8, 0.4,
             new[] { TreeKind.Dead }),
+        // School club wave 3 (#1760): Damian's flower planet — fields of flowers in every colour, no trees, and no
+        // other plant at all (Strict). Only a generation-5 type names it.
+        new("floral", FloraTag.Floral, 1.6, 0.0,
+            new[] { TreeKind.None },
+            Strict: true),
     };
 
     /// <summary>Resolves a theme by name (case-insensitive); empty/unknown → temperate.</summary>
@@ -113,6 +122,11 @@ public static class FloraThemes
     /// (#1715).</summary>
     public static double ActivationChance(FloraTag preferred, FloraTag speciesTags)
         => (preferred & speciesTags) != 0 ? 0.85 : 0.40;
+
+    /// <summary>The roll with a strict theme (#1760): off-theme species never activate; on-theme species keep the
+    /// 85 % so a strict world still varies from seed to seed.</summary>
+    public static double ActivationChance(FloraTag preferred, FloraTag speciesTags, bool strict)
+        => (preferred & speciesTags) != 0 ? 0.85 : (strict ? 0.0 : 0.40);
 
     /// <summary>Relative pick weight (≥1) for a species with these tags under this theme — themed species
     /// dominate a patch, off-theme ones still appear for variety.</summary>

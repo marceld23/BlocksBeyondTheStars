@@ -35,10 +35,13 @@ public sealed partial class GameServer
     private readonly HashSet<ushort> _treeBlockIds = new();
     private Dictionary<Vector3i, (ushort FloraId, double Timer)> _floraRegrow => _worlds.Active.FloraRegrow;
 
+    private readonly HashSet<ushort> _floraHangingIds = new(); // #1759: species whose host is the block above
+
     private void InitFlora()
     {
         _floraIds.Clear();
         _floraHostIds.Clear();
+        _floraHangingIds.Clear();
         foreach (var sp in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
         {
             if (_content.GetBlock(sp.Key) is not { } flora || flora.NumericId.Value == 0)
@@ -48,6 +51,10 @@ public sealed partial class GameServer
 
             _floraIds.Add(flora.NumericId.Value);
             _floraHostIds[flora.NumericId.Value] = HostIds(sp.Hosts.Concat(sp.LateHosts).ToArray()); // regrow on a late host too
+            if (sp.Hanging)
+            {
+                _floraHangingIds.Add(flora.NumericId.Value); // #1759: roots in the block ABOVE
+            }
         }
 
         // Per-BODY flora roster (#478): each archetype block gets this world's coined name + edible/toxic
@@ -114,7 +121,8 @@ public sealed partial class GameServer
 
     private bool IsFlora(ushort id) => id != 0 && _floraIds.Contains(id);
 
-    /// <summary>True if the flora may be planted at the cell — the block below must be a valid host.</summary>
+    /// <summary>True if the flora may be planted at the cell — the block below must be a valid host (for a hanging
+    /// species, #1759, the block ABOVE).</summary>
     private bool IsValidFloraHost(ushort floraId, Vector3i pos)
     {
         if (!_floraHostIds.TryGetValue(floraId, out var hosts))
@@ -122,8 +130,9 @@ public sealed partial class GameServer
             return false;
         }
 
-        ushort below = _world.GetBlock(new Vector3i(pos.X, pos.Y - 1, pos.Z)).Value;
-        return hosts.Contains(below);
+        int hostY = _floraHangingIds.Contains(floraId) ? pos.Y + 1 : pos.Y - 1;
+        ushort host = _world.GetBlock(new Vector3i(pos.X, hostY, pos.Z)).Value;
+        return hosts.Contains(host);
     }
 
     private static readonly Vector3i[] FloraHorizontalDirs =

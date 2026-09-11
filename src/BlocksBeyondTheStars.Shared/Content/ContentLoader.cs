@@ -87,8 +87,11 @@ public static class ContentLoader
             }
         }
 
+        // #1763: the authored creature species are optional content — no creatures.json → none.
+        var authoredCreatures = LoadArray<AuthoredCreature>(Path.Combine(dataDir, "creatures.json"));
+
         var content = new GameContent(blocks, items, recipes, blueprints, modules, locales, planets, missions, ships, shipLayouts,
-            lazyLocales, LoadLocaleCoverage(Path.Combine(dataDir, "locale_coverage.json")));
+            lazyLocales, LoadLocaleCoverage(Path.Combine(dataDir, "locale_coverage.json")), authoredCreatures);
 
         // Optional hand-designed structure template pools (empty when the files are absent).
         var stationTemplates = LoadArray<StructureTemplate>(Path.Combine(dataDir, "station_templates.json"));
