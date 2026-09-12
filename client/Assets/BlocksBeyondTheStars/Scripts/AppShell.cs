@@ -124,6 +124,14 @@ namespace BlocksBeyondTheStars.Client
         public bool BrowserWorldBooting { get; private set; }
         private bool _serverPending;                          // prepared, waiting to spawn once the screen is up
         private System.Threading.Tasks.Task<bool> _serverLaunch; // the off-thread spawn (so Process.Start can't freeze us)
+
+        /// <summary>The desktop twin of <see cref="BrowserWorldBooting"/>: true while the bundled server this
+        /// shell spawned for the world being entered has not yet reported that it listens (its "started on
+        /// port" line, relayed by <see cref="LocalServerLauncher.Ready"/>). A fresh world generates for
+        /// 10–20 s first. The loading screen holds its hand-off on this (<see cref="LoadingHandoffPolicy"/>),
+        /// so the progress bar — not the rig's nameless "Loading world…" curtain — covers the boot (#1800).
+        /// False when no bundled server was launched (remote join, or the manual-server fallback).</summary>
+        public bool LocalServerBooting => _hostLocal && (_serverPending || _serverLaunch != null) && !_localServer.Ready;
         private GameObject _gameRoot;
 
         public bool ContentReady { get; private set; }
@@ -840,7 +848,7 @@ namespace BlocksBeyondTheStars.Client
                 Port = _localServer.Port.ToString();
                 Password = password ?? "";
                 HostInfo = hosting ? $"{LocalLanIp()}:{_localServer.Port}" : "";
-                _loading.MinShow = 2.5f; // give the server time to start listening
+                _loading.MinShow = 2.5f; // minimum only — the hand-off then waits for the server's ready line (LocalServerBooting)
                 _serverPending = true;
             }
             else
@@ -1075,6 +1083,17 @@ namespace BlocksBeyondTheStars.Client
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
             Phase = ShellPhase.InGame;
+        }
+
+        /// <summary>The loading screen waited the whole <see cref="LoadingHandoffPolicy.LocalBootCeilingSeconds"/>
+        /// for the bundled server to report ready and it never did (alive but wedged, or its log line never
+        /// came): stop it and go back to the menu with the launch-failed notice instead of launching into a
+        /// world that cannot be joined. A server that DIES is caught earlier by the launch watcher in Update.</summary>
+        public void AbortLocalServerBoot()
+        {
+            Debug.LogError($"Local server did not report ready within {LoadingHandoffPolicy.LocalBootCeilingSeconds:0} s — returning to menu.");
+            ReturnToMenu();
+            MenuNotice = L("ui.sp.server_failed");
         }
 
         // NOTE (#413 N2): Alt-Tab cursor re-lock used to live in an OnApplicationFocus handler here — with
@@ -1631,7 +1650,8 @@ namespace BlocksBeyondTheStars.Client
 
             // With the loading screen now on screen, spawn the prepared local server on a background thread —
             // so a blocking Process.Start (Defender first-scan of the freshly-built EXE) can't freeze the menu
-            // or the loading bar. The connect happens after MinShow, by which time it's listening.
+            // or the loading bar. The loading screen then holds until the server reports that it listens
+            // (LocalServerBooting → LoadingHandoffPolicy), so the rig dials a server that is already there.
             if (_serverPending && _uiLoading != null)
             {
                 _serverPending = false;

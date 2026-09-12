@@ -148,6 +148,8 @@ namespace BlocksBeyondTheStars.Client
                 return true;
             }
 
+            _ready = false; // a previous run's ready flag must not pass as this one's (the shell gates the loading screen on it)
+
             Port = port;
             if (string.IsNullOrWhiteSpace(worldName))
             {
@@ -338,6 +340,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _process.Dispose();
                 _process = null;
+                _ready = false;
             }
         }
 
