@@ -65,6 +65,41 @@ namespace BlocksBeyondTheStars.Client
             return field != null && field.isFocused;
         }
 
+        /// <summary>Hands keyboard focus back before a screen hides itself with <c>canvas.enabled = false</c> (#1804).
+        /// A field left focused under a disabled canvas crashes the next caret rebuild; <see cref="InputFocusGuard"/>
+        /// catches the canvas toggle on every field, this is the explicit hand-back for screens that close
+        /// programmatically while the player may be typing. <paramref name="within"/> limits it to fields under that
+        /// transform, so another screen's field is never touched.</summary>
+        public static void ReleaseTextFieldFocus(Transform within = null)
+        {
+            var es = EventSystem.current;
+            var selected = es != null ? es.currentSelectedGameObject : null;
+            if (selected == null || (within != null && !selected.transform.IsChildOf(within)))
+            {
+                return;
+            }
+
+            var field = selected.GetComponent<InputField>();
+            if (field == null)
+            {
+                return;
+            }
+
+            var guard = selected.GetComponent<InputFocusGuard>();
+            if (guard != null)
+            {
+                guard.Release();
+                return;
+            }
+
+            if (field.isFocused)
+            {
+                field.DeactivateInputField();
+            }
+
+            es.SetSelectedGameObject(null);
+        }
+
         private static Font _font;
         private static Sprite _panelSprite;
         private static Sprite _dialogSprite;
@@ -1267,12 +1302,16 @@ namespace BlocksBeyondTheStars.Client
     }
 
     /// <summary>
-    /// Releases keyboard focus when an input field's dialog is deactivated (#1791). uGUI never deselects a
-    /// deactivated <see cref="InputField"/> on its own: the caret keeps its place in the canvas rebuild queue, and
-    /// rebuilding it once the field's own objects are gone throws inside <c>InputField.GenerateCaret</c> — a client
-    /// crash the feedback dialog (#1683) and the chat box (#1634) each fixed for themselves before a third dialog
-    /// crashed the same way. Attached by <see cref="UiKit.AddInput"/> to every field it builds, so the release runs
-    /// from the field's own <c>OnDisable</c> — before any rebuild — whichever screen hides it.
+    /// Releases keyboard focus when an input field's screen goes away (#1791, #1804). Screens hide two ways.
+    /// <c>SetActive(false)</c> / destroy: uGUI's own <c>InputField.OnDisable</c> deactivates the field, and this
+    /// guard only drops the EventSystem selection uGUI leaves behind (#1634 — a hidden field otherwise stays the
+    /// "selected" object until the next world click). <c>canvas.enabled = false</c>: the GameObject stays active,
+    /// nothing deactivates the field, the caret blink keeps queueing rebuilds, and the next one dereferences
+    /// <c>Text.canvas</c>, which is null once no enabled Canvas sits above the field — the
+    /// <c>NullReferenceException</c> in <c>InputField.GenerateCaret</c> behind four crash reports (#1683, #1791,
+    /// #1804; the per-dialog fixes before this one only covered the first path). Unity sends
+    /// <c>OnCanvasHierarchyChanged</c> to every child when a parent Canvas is toggled, so the release runs before that
+    /// rebuild. Attached by <see cref="UiKit.AddInput"/> to every field it builds.
     /// </summary>
     public sealed class InputFocusGuard : MonoBehaviour
     {
@@ -1280,7 +1319,21 @@ namespace BlocksBeyondTheStars.Client
 
         public void Init(InputField field) => _field = field;
 
-        private void OnDisable()
+        private void OnDisable() => Release();
+
+        private void OnCanvasHierarchyChanged()
+        {
+            // Exactly the property GenerateCaret dereferences. It re-caches through parent canvases, so a nested
+            // canvas toggled under a still-enabled root leaves the field alone; only a field with NO live canvas
+            // above it is released.
+            if (_field != null && _field.isFocused && _field.textComponent != null && _field.textComponent.canvas == null)
+            {
+                Release();
+            }
+        }
+
+        /// <summary>Deactivates the field if it is focused and drops the EventSystem selection if it points here.</summary>
+        public void Release()
         {
             if (_field == null)
             {

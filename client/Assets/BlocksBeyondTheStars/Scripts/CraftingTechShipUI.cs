@@ -227,6 +227,10 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_canvas != null)
             {
+                // #1804: this screen closes programmatically (GameMenu.CloseForTransition on a hyperjump / transit
+                // arrival) while the player may be typing a Funk line or a photo note. A field left focused under a
+                // disabled canvas throws in the next caret rebuild — hand focus back before the canvas goes.
+                UiKit.ReleaseTextFieldFocus(_canvas.transform);
                 _canvas.enabled = false;
             }
 
