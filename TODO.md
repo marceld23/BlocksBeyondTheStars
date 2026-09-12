@@ -24,6 +24,18 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 💬 Chat window: holo panel + outline text like VEGA, fitted to the lines, gone when the chat closes (#1799, 2026-09-12, branch feat/chat-window-contrast)
+
+Marcel's playtest note after #1798: the chat text was often unreadable for want of a background. The scrollback was the
+only HUD text with neither a backplate nor an outline — a bare legacy `Text` at 16 px over the world, built in #643
+before the look pass. `ChatUi` now frames it in VEGA's speech-panel chrome (`UiHolo.AddPanel`, same fill/radius/glow,
+bitmap fallback automatic) with TMP outline text at 18 px. The window hugs its content: `ChatUi.ResolveWindow` (pure,
+EditMode-tested) ends it at the lane bottom, grows it upward by the measured block plus padding, caps the block so the
+top never rises over the toast, and takes the input row in as the window's bottom row while typing (no lines → a
+compact input frame). No lines and no typing → no window. A `CanvasGroup` on the window drives the fades via `UiTween`
+(0.15 s in; 0.6 s out when the last line ages out in Auto mode; 0.15 s on Esc / the J key / Off), instant under reduced
+motion; a line arriving mid-fade reverses the tween. Lane arbitration with VEGA (#1795) is unchanged underneath.
+
 ### ⏳ Singleplayer: the progress bar covers the server boot, not a nameless curtain (#1800, 2026-09-12, branch fix/sp-loading-handoff)
 
 Marcel's playtest note after the generation-5/6 worldgen: a new singleplayer world showed the progress bar (0 → 100 %
@@ -40,7 +52,7 @@ but never reports ready is given up on at the connect loop's 120 s ceiling (`Abo
 the rig build + dial + join (~1 s); in-game hosting shares the path. Stage-based real progress (server stage lines)
 stays a possible follow-up.
 
-### 💬 Chat yields to VEGA + the ship menu boots like the HUD (2026-09-12, branch feat/chat-vega-lane-menu-holo, LOCAL — not merged)
+### 💬 Chat yields to VEGA + the ship menu boots like the HUD (2026-09-12, branch feat/chat-vega-lane-menu-holo, PR #1798, merged)
 
 Two of Marcel's playtest notes. **Chat ↔ VEGA:** the chat overlay (#643) and VEGA's speech panel + objective chip
 (#482) had both been placed in the "free" left HUD column — the chat's scrollback (y 280…590, sorted above VEGA)
