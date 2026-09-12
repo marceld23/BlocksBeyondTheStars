@@ -107,9 +107,13 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnMineProgress(MiningProgress m)
         {
-            _crackX = m.X;
-            _crackY = m.Y;
-            _crackZ = m.Z;
+            // #1829: the server echoes the CANONICAL cell; the outline lives in scene space (the transform runs
+            // unbounded across the wrap seam). Map it once here so the crack compare and the pickup still match
+            // after a lap — past the seam the tint never lit and the mined tile never flew ("Wo ist die Animation?").
+            var scene = SceneCell(m.X, m.Y, m.Z);
+            _crackX = scene.x;
+            _crackY = scene.y;
+            _crackZ = scene.z;
             _crackFrac = Mathf.Clamp01(m.Fraction);
             _crackAt = Time.time;
             if (Game?.World != null)
@@ -122,7 +126,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnBlock(BlockChanged m)
         {
-            var pos = new Vector3(m.X + 0.5f, m.Y + 0.5f, m.Z + 0.5f);
+            var cell = SceneCell(m.X, m.Y, m.Z); // #1829: canonical → scene, else the flash pops one world-lap away
+            var pos = new Vector3(cell.x + 0.5f, cell.y + 0.5f, cell.z + 0.5f);
             SpawnBurst(pos, m.Block == 0 ? _digMat : _placeMat);
             if (m.Block != 0)
             {
@@ -130,11 +135,24 @@ namespace BlocksBeyondTheStars.Client
             }
 
             FlashAt(pos); // the final-hit pop
-            if (m.X == _crackX && m.Y == _crackY && m.Z == _crackZ && _crackBlock.Value != 0)
+            if (cell.x == _crackX && cell.y == _crackY && cell.z == _crackZ && _crackBlock.Value != 0)
             {
                 HudUi.Instance?.FlyPickup(pos, _crackBlock); // mined tile flies into the hotbar
                 _crackBlock = default;
             }
+        }
+
+        /// <summary>A canonical block cell as the scene cell nearest the player (<see cref="GameBootstrap.ScenePos"/>);
+        /// the identity when no game is wired up (edit-mode rigs).</summary>
+        private Vector3Int SceneCell(int x, int y, int z)
+        {
+            if (Game == null)
+            {
+                return new Vector3Int(x, y, z);
+            }
+
+            var p = Game.ScenePos(x + 0.5f, y + 0.5f, z + 0.5f);
+            return new Vector3Int(Mathf.FloorToInt(p.x), y, Mathf.FloorToInt(p.z));
         }
 
         /// <summary>A bright one-shot pop slightly proud of the broken block — the "final hit" flash.</summary>

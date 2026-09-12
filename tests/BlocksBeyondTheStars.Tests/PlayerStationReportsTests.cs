@@ -713,6 +713,144 @@ public sealed class PlayerStationReportsTests : IDisposable
         Assert.Equal(16.0, beam!.Stats["tractor_range"]);
     }
 
+    // ---------------- Player reports 2026-09-12 (Lyxette): the roof spawn, the doorway "leak", the sapling ----------------
+
+    /// <summary>A sealed 25×5×5 hall (cells x −2…22, y/z −2…2) with its floor row plated over AND a 1-high crawl gap
+    /// up to x = 19, so the only standable cells INSIDE sit at the far +X end — while the roof's outer face above
+    /// the box centre is standable too (support below, vacuum above) and NEARER. Before #1833 the spawn search
+    /// took the roof.</summary>
+    private static string BuildLongHallWithABlockedCentre(SvGameServer server, PlayerSession pilot)
+    {
+        string playerId = pilot.State.PlayerId;
+        server.EnterSpace(playerId);
+        pilot.State.InEva = true;
+        pilot.State.InstantBuild = true;
+        server.DeployStationCoreForTest(playerId);
+        string id = server.OwnedStationIdForTest(playerId)!;
+        for (int x = -2; x <= 22; x++)
+            for (int y = -2; y <= 2; y++)
+                for (int z = -2; z <= 2; z++)
+                {
+                    if (x == 0 && y == 0 && z == 0)
+                    {
+                        continue; // the core
+                    }
+
+                    bool shell = x == -2 || x == 22 || Math.Abs(y) == 2 || Math.Abs(z) == 2;
+                    bool doorway = x == 22 && y == -1 && z == 0;
+                    bool packed = (y == -1 || y == 1) && x <= 19; // floor and ceiling rows built over → 1-high gap only
+                    if ((shell && !doorway) || packed)
+                    {
+                        Edit(server, playerId, id, x, y, z, "iron_wall");
+                    }
+                }
+
+        Edit(server, playerId, id, 22, -1, 0, "door_slide");
+        Assert.True(server.StationIsBoardableForTest(id));
+        return id;
+    }
+
+    [Fact]
+    public void Docking_NeverSpawnsOnTheRoof_WhenTheHullHoldsAir()
+    {
+        string id;
+        {
+            var s1 = NewServer("roofspawn", out var repo1);
+            using (repo1)
+            {
+                var pilot = s1.AddLocalPlayer("Owner");
+                id = BuildLongHallWithABlockedCentre(s1, pilot);
+                BoardOwnStation(s1, "Owner", id); // the first stamp cuts its pad through the packed centre column
+                repo1.Flush();
+            }
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var s2 = NewServer("roofspawn", out var repo2);
+        using (repo2)
+        {
+            var pilot = s2.AddLocalPlayer("Owner");
+            pilot.State.AboardShip = true;
+            BoardOwnStation(s2, "Owner", id); // the top-up restores the packed centre → the spawn has to move
+
+            var feet = new Vector3i((int)Math.Floor(pilot.State.Position.X), (int)Math.Floor(pilot.State.Position.Y), (int)Math.Floor(pilot.State.Position.Z));
+            Assert.Equal(BoxWorld(0, -1, 0).Y, feet.Y); // on the deck (world y 65) — not on the roof (y 69)
+            Assert.True(feet.X >= BoxWorld(20, 0, 0).X, $"the spawn moved to the free end of the hall, not up: {feet}");
+            Assert.True(s2.StationPocketSizeForTest(id, feet) > 0, "…and it holds air");
+        }
+    }
+
+    [Fact]
+    public void StandingInTheDoorway_OrInThePond_KeepsTheRoomSealed()
+    {
+        var s = NewServer("doorair", out var repo);
+        using (repo)
+        {
+            var pilot = s.AddLocalPlayer("Owner");
+            string id = BuildSealedBox(s, pilot);
+            BoardOwnStation(s, "Owner", id);
+
+            var inside = BoxWorld(1, -1, 0);
+            var door = BoxWorld(2, -1, 0); // the slide door in the +X wall
+            Assert.True(s.StationPocketSizeForTest(id, inside) > 0, "the box holds air");
+            Assert.True(s.StationPocketSizeForTest(id, door) > 0, "the doorway is part of that pocket, not a hole in the hull (#1836)");
+
+            var water = _content.GetBlock("water")!.NumericId;
+            s.World.SetBlock(inside, water);
+            Assert.True(s.StationPocketSizeForTest(id, inside) > 0, "a pond cell is breathed from its head cell, not a wall (#1836)");
+        }
+    }
+
+    /// <summary>A sealed 5×5×11 shaft of a hall (cells −2…2 in x/z, y −2…8): room for a trunk of five and its crown.</summary>
+    private static string BuildTallSealedBox(SvGameServer server, PlayerSession pilot)
+    {
+        string playerId = pilot.State.PlayerId;
+        server.EnterSpace(playerId);
+        pilot.State.InEva = true;
+        pilot.State.InstantBuild = true;
+        server.DeployStationCoreForTest(playerId);
+        string id = server.OwnedStationIdForTest(playerId)!;
+        for (int x = -2; x <= 2; x++)
+            for (int y = -2; y <= 8; y++)
+                for (int z = -2; z <= 2; z++)
+                {
+                    bool shell = Math.Abs(x) == 2 || Math.Abs(z) == 2 || y == -2 || y == 8;
+                    bool doorway = x == 2 && y == -1 && z == 0;
+                    if (shell && !doorway)
+                    {
+                        Edit(server, playerId, id, x, y, z, "iron_wall");
+                    }
+                }
+
+        Edit(server, playerId, id, 2, -1, 0, "door_slide");
+        Assert.True(server.StationIsBoardableForTest(id));
+        return id;
+    }
+
+    [Fact]
+    public void ASapling_GrowsIntoATree_InsideASealedStationHall()
+    {
+        var s = NewServer("sapling", out var repo);
+        using (repo)
+        {
+            var pilot = s.AddLocalPlayer("Owner");
+            string id = BuildTallSealedBox(s, pilot);
+            BoardOwnStation(s, "Owner", id);
+
+            var soil = BoxWorld(1, -1, 1);
+            var cell = BoxWorld(1, 0, 1);
+            pilot.State.Inventory.Add("dirt", 1, 99);
+            pilot.State.Inventory.Add("sapling", 1, 99);
+            s.PlaceBlock("Owner", soil.X, soil.Y, soil.Z, "dirt");
+            s.PlaceBlock("Owner", cell.X, cell.Y, cell.Z, "sapling");
+            Assert.Equal(_content.GetBlock("flora_sapling")!.NumericId.Value, s.World.GetBlock(cell).Value);
+
+            s.Tick(200.0); // > SaplingGrowSeconds — before #1835 the crown probe failed forever on a void world
+            Assert.Equal(_content.GetBlock("wood_log")!.NumericId.Value, s.World.GetBlock(cell).Value);
+        }
+    }
+
     public void Dispose()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();

@@ -363,10 +363,17 @@ namespace BlocksBeyondTheStars.Client
         private string InferDamageCause()
         {
             var p = Game.PlayerPosition;
-            var id = Game.World != null
-                ? Game.World.GetBlock(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z))
-                : default;
-            if (Game.Content?.BlockById(id)?.Key == "lava") { return "ui.hud.dmg_lava"; }
+            if (Game.World != null && Game.Content != null)
+            {
+                // #1839: lava carries a collider, so the player stands ON it — the feet cell is air and the melt is
+                // one below. The same two cells the server's InLava reads, so the cause matches the damage.
+                int bx = Mathf.FloorToInt(p.x), by = Mathf.FloorToInt(p.y), bz = Mathf.FloorToInt(p.z);
+                if (Game.Content.BlockById(Game.World.GetBlock(bx, by, bz))?.Key == "lava"
+                    || Game.Content.BlockById(Game.World.GetBlock(bx, by - 1, bz))?.Key == "lava")
+                {
+                    return "ui.hud.dmg_lava";
+                }
+            }
             if (Game.Oxygen <= 0.5f) { return "ui.hud.dmg_suffocate"; }
             if (Game.Hunger <= 0.5f) { return "ui.hud.dmg_starve"; }
             // Exposure damage (#666): the suit is out of energy and climate control lost the fight —

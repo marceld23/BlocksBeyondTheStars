@@ -334,6 +334,29 @@ public sealed partial class GameServer
         return dx * dx + dy * dy + dz * dz <= (double)CoreChamberReach * CoreChamberReach;
     }
 
+    /// <summary>#1830: the heart of the Guardian core — the 3×3 pedestal, the core column, its corner pillars and
+    /// panes, from the plated floor to the pillar tops — cannot be mined. The column is a bare-hand light block and
+    /// the chamber stamp is one-shot (<see cref="StampGuardianCoreChamber"/>), so a mined core never came back:
+    /// "3: Ich kann ihn abbauen." The shell stays diggable — Route B (mining down through it) is a documented way
+    /// in, and the hack is a channel, not a demolition.</summary>
+    private bool IsGuardianCoreProtected(Vector3i pos)
+    {
+        var aw = _worlds.Active;
+        if (!aw.HasCoreChamber)
+        {
+            return false;
+        }
+
+        var c = aw.CoreChamberCenter; // (ax, floorY + 1, az) — see the stamp
+        int dx = WorldConstants.WrapDeltaX(pos.X - c.X, _world.Circumference); // int overload: the wrapped column delta
+        int dz = pos.Z - c.Z;
+        int dy = pos.Y - (c.Y - 1); // relative to the chamber floor level
+        return dx >= -1 && dx <= 1 && dz >= -1 && dz <= 1 && dy >= -1 && dy <= 5;
+    }
+
+    /// <summary>Test seam (#1830): whether the active world protects the cell as part of the Guardian core.</summary>
+    public bool IsGuardianCoreProtectedForTest(int x, int y, int z) => IsGuardianCoreProtected(new Vector3i(x, y, z));
+
     /// <summary>Applies the finale respawn rule (P6): if the ship would respawn the clone inside the Guardian
     /// system and a pre-finale return location was recorded for this player, returns that body instead (and
     /// consumes the record) so the clone re-grows on the world it launched from. Otherwise returns
