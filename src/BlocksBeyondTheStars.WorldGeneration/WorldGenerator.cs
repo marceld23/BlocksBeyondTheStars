@@ -75,6 +75,22 @@ public sealed partial class WorldGenerator
     public void SetWorldMode(int circumference, bool cratered, IReadOnlyList<LandingPadFlatten>? landingPads,
         string? locationId = null, double frontierOreBoost = 1.0)
     {
+        // #1816: ServerWorld re-applies the mode before EVERY chunk it generates. Re-applying the identical mode
+        // must not wipe the column memos (#1526), or every stacked chunk of a column pays the column phase again.
+        // Pads are compared by content, not reference: the server's pad list is mutable and can grow in place.
+        if (_modeApplied
+            && _circumference == circumference
+            && _crateredWorld == cratered
+            && _locationId == (locationId ?? string.Empty)
+            && _frontierOreBoost.Equals(frontierOreBoost)
+            && SamePads(_padSnapshot, landingPads))
+        {
+            _landingPads = landingPads ?? System.Array.Empty<LandingPadFlatten>();
+            return;
+        }
+
+        _modeApplied = true;
+        _padSnapshot = SnapshotPads(landingPads);
         _circumference = circumference;
         _crateredWorld = cratered;
         _landingPads = landingPads ?? System.Array.Empty<LandingPadFlatten>();
@@ -86,6 +102,51 @@ public sealed partial class WorldGenerator
         // calibration cache needs no key extension.
         _frontierOreBoost = frontierOreBoost;
         InvalidateColumnCaches(); // #1526: the column memos assume a fixed world mode
+    }
+
+    /// <summary>#1816: whether <see cref="SetWorldMode"/> has configured this instance at least once.</summary>
+    private bool _modeApplied;
+
+    /// <summary>#1816: a copy of the pads the current mode was applied with (the caller's list may mutate).</summary>
+    private LandingPadFlatten[] _padSnapshot = System.Array.Empty<LandingPadFlatten>();
+
+    private static LandingPadFlatten[] SnapshotPads(IReadOnlyList<LandingPadFlatten>? pads)
+    {
+        if (pads is null || pads.Count == 0)
+        {
+            return System.Array.Empty<LandingPadFlatten>();
+        }
+
+        var copy = new LandingPadFlatten[pads.Count];
+        for (int i = 0; i < copy.Length; i++)
+        {
+            copy[i] = pads[i];
+        }
+
+        return copy;
+    }
+
+    private static bool SamePads(LandingPadFlatten[] snapshot, IReadOnlyList<LandingPadFlatten>? pads)
+    {
+        int count = pads?.Count ?? 0;
+        if (snapshot.Length != count)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            var a = snapshot[i];
+            var b = pads![i];
+            if (a.CenterX != b.CenterX || a.CenterZ != b.CenterZ || a.SurfaceY != b.SurfaceY || a.Radius != b.Radius
+                || a.Islet != b.Islet || a.PlateauRadius != b.PlateauRadius || a.IsletRadius != b.IsletRadius
+                || a.ClassicShape != b.ClassicShape)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>Rare-vein multiplier for the CURRENT body (#1122), set per world via

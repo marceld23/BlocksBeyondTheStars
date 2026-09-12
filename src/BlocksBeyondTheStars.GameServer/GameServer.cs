@@ -2612,8 +2612,8 @@ public sealed partial class GameServer
     /// regenerate on demand (with persisted edits re-applied) if the player returns. The client unloads its own
     /// far chunks too (~384 blocks, #966), so each session's sent-set is also pruned by that session's OWN
     /// distance below — the cache eviction alone only forgets chunks far from EVERY player, which left a
-    /// returning player's sent-set stale wherever another player kept the area alive (#1030). Honours <see cref="ServerConfig.MaxLoadedChunksPerPlayer"/>
-    /// in spirit by keeping the resident set proportional to the view, not the distance travelled.</summary>
+    /// returning player's sent-set stale wherever another player kept the area alive (#1030). The resident set stays
+    /// proportional to the view, not the distance travelled (the never-read MaxLoadedChunksPerPlayer knob is gone, #1824).</summary>
     private void SweepFarChunks()
     {
         var anchors = new List<ChunkCoord>();

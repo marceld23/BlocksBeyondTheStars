@@ -51,7 +51,6 @@ public sealed class ServerConfig
     public int BackupIntervalMinutes { get; set; } = 60;
 
     public int ViewDistanceChunks { get; set; } = 4;
-    public int MaxLoadedChunksPerPlayer { get; set; } = 256;
 
     /// <summary>How many chunks the server streams to each player per tick. Raised from the historical hard-coded
     /// 12 to keep the (larger, default-4) view filling promptly — a wider view distance has quadratically more

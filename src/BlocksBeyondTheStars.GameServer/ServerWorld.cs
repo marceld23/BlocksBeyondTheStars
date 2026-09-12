@@ -105,7 +105,34 @@ public sealed class ServerWorld
         }
 
         _loaded[coord] = chunk;
+        ChunkLoads++;
         return chunk;
+    }
+
+    /// <summary>#1824: how many chunks this world has loaded so far — a cheap "something new is resident" signal
+    /// for systems that wait on terrain (parked fluid cells re-check when it moves).</summary>
+    public long ChunkLoads { get; private set; }
+
+    /// <summary>#1824: whether every chunk within <paramref name="reach"/> cells of <paramref name="world"/> is resident
+    /// or may be loaded (<paramref name="mayLoad"/>, null = never). Only the chunks the reach box actually crosses are
+    /// probed (a cell deep inside its chunk costs one lookup).</summary>
+    public bool IsNeighbourhoodLoaded(Vector3i world, int reach, System.Func<ChunkCoord, bool>? mayLoad = null)
+    {
+        world = WorldConstants.CanonicalBlock(world, Circumference);
+        var lo = WorldConstants.WorldToChunk(new Vector3i(world.X - reach, world.Y - reach, world.Z - reach));
+        var hi = WorldConstants.WorldToChunk(new Vector3i(world.X + reach, world.Y + reach, world.Z + reach));
+        for (int cx = lo.X; cx <= hi.X; cx++)
+            for (int cy = lo.Y; cy <= hi.Y; cy++)
+                for (int cz = lo.Z; cz <= hi.Z; cz++)
+                {
+                    var coord = WorldConstants.CanonicalChunk(new ChunkCoord(cx, cy, cz), Circumference);
+                    if (!_loaded.ContainsKey(coord) && (mayLoad is null || !mayLoad(coord)))
+                    {
+                        return false;
+                    }
+                }
+
+        return true;
     }
 
     public BlockId GetBlock(Vector3i world)

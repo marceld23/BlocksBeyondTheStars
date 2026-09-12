@@ -310,6 +310,11 @@ public sealed partial class GameServer
         for (int guard = 0; guard < 256; guard++) // a column is at most a world's height tall
         {
             var up = new Vector3i(c.X, c.Y + 1, c.Z);
+            if (!_world.IsNeighbourhoodLoaded(up, 0, _fluidMayLoad))
+            {
+                return true; // #1824: the column runs into an unloaded chunk — stay confined rather than generate it
+            }
+
             ushort u = _world.GetBlock(up).Value;
             if (IsSpout(u))
             {
@@ -343,7 +348,7 @@ public sealed partial class GameServer
 
     private void TickFluids(double dt)
     {
-        if (_activeFluid.Count == 0)
+        if (_activeFluid.Count == 0 && _worlds.Active.ParkedFluid.Count == 0) // parked cells (#1824) still need their re-check
         {
             _sinceFluid = 0;
             return;
@@ -370,6 +375,8 @@ public sealed partial class GameServer
     /// repository transaction).</summary>
     private void StepFluids(bool lavaRests)
     {
+        CollectFluidAnchors();
+        UnparkFluid();
         var todo = new List<Vector3i>(_activeFluid);
         _activeFluid.Clear();
         int budget = FluidUpdatesPerTick;
@@ -379,6 +386,17 @@ public sealed partial class GameServer
             if (budget-- <= 0)
             {
                 _activeFluid.Add(pos); // defer leftover to the next step
+                continue;
+            }
+
+            // #1824: the automaton reads (and wakes) cells up to two away. If that neighbourhood reaches into a
+            // chunk that is not resident and lies outside every player's keep range, each GetBlock there would
+            // GENERATE terrain inside the simulation step — outside the streaming budget, for nobody's view, only for
+            // the next sweep to evict it again. Park the cell instead (Minecraft freezes simulation at the loaded
+            // edge the same way); it resumes once the chunk is resident or a player comes within range.
+            if (!_world.IsNeighbourhoodLoaded(pos, FluidReach, _fluidMayLoad))
+            {
+                _worlds.Active.ParkedFluid.Add(pos);
                 continue;
             }
 
@@ -485,6 +503,78 @@ public sealed partial class GameServer
             }
         }
     }
+
+    /// <summary>#1824: how far (cells) one fluid step reads around a woken cell — its neighbours, and the neighbours
+    /// of a filled neighbour through <see cref="WakeNeighbors"/>.</summary>
+    private const int FluidReach = 2;
+
+    /// <summary>#1824: the canonical chunks of the players on the active world and the sweep's keep radius — a chunk
+    /// the fluid step would have to load is fine inside that range (the stream would load it anyway).</summary>
+    private readonly List<ChunkCoord> _fluidAnchors = new();
+    private int _fluidKeepSq;
+    private System.Func<ChunkCoord, bool>? _fluidMayLoadCache;
+
+    private System.Func<ChunkCoord, bool> _fluidMayLoad => _fluidMayLoadCache ??= FluidMayLoad;
+
+    private void CollectFluidAnchors()
+    {
+        _fluidAnchors.Clear();
+        int maxView = 1;
+        foreach (var session in JoinedInActiveWorld())
+        {
+            _fluidAnchors.Add(WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(session.State.Position.ToBlock()), _world.Circumference));
+            maxView = Math.Max(maxView, EffectiveViewRadius(session));
+        }
+
+        int keep = maxView + 4; // SweepFarChunks' keep radius
+        _fluidKeepSq = keep * keep;
+    }
+
+    /// <summary>No player on the world (tests, a server-side stamp) keeps the old behaviour: load what is read.</summary>
+    private bool FluidMayLoad(ChunkCoord coord)
+    {
+        if (_fluidAnchors.Count == 0)
+        {
+            return true;
+        }
+
+        foreach (var anchor in _fluidAnchors)
+        {
+            if (WorldConstants.WrappedChunkDistanceSquared(coord, anchor, _world.Circumference) <= _fluidKeepSq)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>#1824: moves parked cells back into the woken set once their neighbourhood may be read again — after
+    /// a chunk load, and once a second anyway (a player walking closer changes the answer without a load).</summary>
+    private void UnparkFluid()
+    {
+        var parked = _worlds.Active.ParkedFluid;
+        if (parked.Count == 0
+            || (_worlds.Active.ParkedFluidCheckedAt == _world.ChunkLoads && (_worlds.Active.FluidStep & 3) != 0))
+        {
+            return;
+        }
+
+        _worlds.Active.ParkedFluidCheckedAt = _world.ChunkLoads;
+        parked.RemoveWhere(p =>
+        {
+            if (!_world.IsNeighbourhoodLoaded(p, FluidReach, _fluidMayLoad))
+            {
+                return false;
+            }
+
+            _activeFluid.Add(p);
+            return true;
+        });
+    }
+
+    /// <summary>Test seam (#1824): how many fluid cells currently wait at the loaded edge.</summary>
+    public int ParkedFluidCountForTest => _worlds.Active.ParkedFluid.Count;
 
     /// <summary>The level a <i>flowing</i> cell can sustain from its surroundings: full if the same fluid sits
     /// directly above (a falling column feeds it), otherwise the strongest horizontal neighbour's level minus
