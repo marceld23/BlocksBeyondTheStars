@@ -104,6 +104,11 @@ namespace BlocksBeyondTheStars.Client
         private readonly LocalServerLauncher _localServer = new LocalServerLauncher();
         private bool _hostLocal;
 
+        /// <summary>The bundled server this shell is starting for the world being entered, or null when the
+        /// target is a remote host. GameBootstrap's connect loop keeps knocking while it comes up
+        /// (<see cref="ConnectRetryPolicy"/>) instead of applying the remote-host retry budget.</summary>
+        public LocalServerLauncher LocalServer => _hostLocal ? _localServer : null;
+
         /// <summary>The in-process singleplayer host (browser builds; usable in the editor for testing).
         /// Null until the first browser-singleplayer start; survives returns to the menu stopped.</summary>
         public BrowserLocalServer BrowserServer { get; private set; }
@@ -1533,6 +1538,7 @@ namespace BlocksBeyondTheStars.Client
             if (Phase == ShellPhase.MainMenu && _uiMenu == null)
             {
                 _uiMenu = UiMainMenu.Build(this);
+                UiKit.BootScreen(_uiMenu); // the HUD's boot-up feel for the shell screens too (#1796)
                 WhatsNew.BeginFetch(this); // one-per-session background load of the release notes (#543)
 
                 // Land the bombastic intro sting on the first menu reveal (logo + full UI), rather
@@ -1662,6 +1668,7 @@ namespace BlocksBeyondTheStars.Client
             if (Phase == ShellPhase.Settings && _uiSettings == null)
             {
                 _uiSettings = UiSettings.Build(this);
+                UiKit.BootScreen(_uiSettings);
             }
             else if (Phase != ShellPhase.Settings && _uiSettings != null)
             {
@@ -1672,6 +1679,7 @@ namespace BlocksBeyondTheStars.Client
             if (Phase == ShellPhase.Credits && _uiCredits == null)
             {
                 _uiCredits = UiCredits.Build(this);
+                UiKit.BootScreen(_uiCredits);
             }
             else if (Phase != ShellPhase.Credits && _uiCredits != null)
             {
@@ -1682,6 +1690,7 @@ namespace BlocksBeyondTheStars.Client
             if (Phase == ShellPhase.Editors && _uiEditors == null)
             {
                 _uiEditors = UiEditors.Build(this);
+                UiKit.BootScreen(_uiEditors);
             }
             else if (Phase != ShellPhase.Editors && _uiEditors != null)
             {
@@ -1692,6 +1701,7 @@ namespace BlocksBeyondTheStars.Client
             if (Phase == ShellPhase.SaveSelect && _uiSaveSelect == null)
             {
                 _uiSaveSelect = UiSaveSelect.Build(this);
+                UiKit.BootScreen(_uiSaveSelect);
             }
             else if (Phase != ShellPhase.SaveSelect && _uiSaveSelect != null)
             {

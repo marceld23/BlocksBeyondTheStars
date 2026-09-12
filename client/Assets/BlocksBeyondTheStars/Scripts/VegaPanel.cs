@@ -33,9 +33,10 @@ namespace BlocksBeyondTheStars.Client
 
         // Left-column layout in HUD reference units (1536×864). The column is full: vitals end at y 260,
         // the toast sits at 268, the scan panel starts at 650 and the hotbar backplate owns y 742…834 /
-        // x 400…1136. These two constants are what a layout tweak should move (#482).
-        private const float SpeechY = 396f, SpeechH = 190f;
-        private const float ChipY = 594f;
+        // x 400…1136. These two constants are what a layout tweak should move (#482). They are public
+        // because the chat overlay shares the lane and yields to whichever of the two is up (ChatUi).
+        public const float SpeechY = 396f, SpeechH = 190f;
+        public const float ChipY = 594f;
 
         // The speech body's text rect — the page splitter (#736) measures wrapped lines against exactly
         // this box, so a page can never be taller than what VerticalWrapMode.Truncate would show.
@@ -161,6 +162,13 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The live panel (one per rig), for client-side one-shot hints (<see cref="SayLocal"/>).</summary>
         public static VegaPanel Instance { get; private set; }
+
+        /// <summary>Whether the speech panel (y <see cref="SpeechY"/>…) is currently drawn. The chat overlay
+        /// polls this to keep its scrollback out of the same left-column band.</summary>
+        public bool SpeechVisible => _speech != null && _speech.activeSelf;
+
+        /// <summary>Whether the objective chip (y <see cref="ChipY"/>…) is currently drawn — see <see cref="SpeechVisible"/>.</summary>
+        public bool ChipVisible => _chip != null && _chip.activeSelf;
 
         /// <summary>A client-side hint spoken in VEGA's voice without a server round-trip (#1663) — for UI
         /// lessons only the client knows the moment for (the first time a screen opens). Follows the advisor

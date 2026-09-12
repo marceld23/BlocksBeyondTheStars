@@ -1810,6 +1810,12 @@ namespace BlocksBeyondTheStars.Client
         private bool _joinSendFailureLogged;
         private float _retryTimer;
         private int _retries;
+        private float _connectWaited;   // seconds since the initial dial (the local-server ceiling)
+        private bool _localReadyDialed; // the launcher's "started on port" signal has been acted on
+
+        /// <summary>The bundled server this client spawned (set by WorldRig from the shell), or null for a
+        /// remote host. Switches the connect loop to the patient local budget — see <see cref="ConnectRetryPolicy"/>.</summary>
+        public LocalServerLauncher LocalServer;
 
         private void Start()
         {
@@ -2551,25 +2557,38 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else
                 {
-                    // Safety net: re-attempt the connection a few times (e.g. the local
-                    // singleplayer server is still starting up).
+                    // Re-dial until the server answers — ConnectRetryPolicy decides how patiently: a remote
+                    // host gets a few attempts, the bundled local server gets as long as a fresh world takes
+                    // to generate (it used to get the remote budget and lost the race by seconds).
                     _retryTimer += Time.deltaTime;
-                    if (_retryTimer >= 2f)
+                    _connectWaited += Time.deltaTime;
+                    bool local = LocalServer != null;
+                    bool readySignal = local && !_localReadyDialed && LocalServer.Ready;
+                    switch (ConnectRetryPolicy.Next(local, readySignal, _retryTimer, _retries, _connectWaited))
                     {
-                        if (_retries < 6)
-                        {
+                        case ConnectRetryPolicy.Verdict.Retry:
+                            if (readySignal)
+                            {
+                                _localReadyDialed = true;
+                                Debug.Log($"Local server reports ready after {_connectWaited:0.0} s — connecting.");
+                            }
+
                             _retryTimer = 0f;
                             _retries++;
                             Network.Connect(Host, Port);
-                        }
-                        else if (string.IsNullOrEmpty(ConnectFailedReason))
-                        {
-                            // All retries spent and still no connection: give up loudly. Disconnected
-                            // never fires for a never-connected session, so this flag is the only
-                            // signal AppShell gets to bail back to the menu with a message (#409).
-                            Debug.LogError($"Could not connect to {Host}:{Port} after {_retries} retries — giving up.");
-                            ConnectFailedReason = Localizer?.Get("ui.connect.failed") ?? "Could not connect to the server.";
-                        }
+                            break;
+
+                        case ConnectRetryPolicy.Verdict.GiveUp:
+                            if (string.IsNullOrEmpty(ConnectFailedReason))
+                            {
+                                // All retries spent and still no connection: give up loudly. Disconnected
+                                // never fires for a never-connected session, so this flag is the only
+                                // signal AppShell gets to bail back to the menu with a message (#409).
+                                Debug.LogError($"Could not connect to {Host}:{Port} after {_retries} retries ({_connectWaited:0} s) — giving up.");
+                                ConnectFailedReason = Localizer?.Get("ui.connect.failed") ?? "Could not connect to the server.";
+                            }
+
+                            break;
                     }
                 }
             }

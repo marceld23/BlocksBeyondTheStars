@@ -184,6 +184,55 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Set from <see cref="ClientSettings.Apply"/>: reduced-effects users keep instant panel snaps.</summary>
         public static bool ReducedMotion;
 
+        /// <summary>
+        /// The HUD's boot-up feel for a whole shell screen (main menu, settings, save select, …): the screen
+        /// fades in as a whole, every top-level element rises and fades up in build order with a short stagger
+        /// (the systems coming online one after another), and every holo frame under the root wipes on
+        /// left→right (<see cref="UiHolo.PlayReveal"/>). Call once right after the screen is built. Elements
+        /// that are inactive at that moment (modal dialogs, overlays) are skipped — they get their own
+        /// TransitionIn when they open. Instant under <see cref="ReducedMotion"/>.
+        /// </summary>
+        public static void BootScreen(GameObject canvasRoot, float stagger = 0.035f, float maxStagger = 0.45f)
+        {
+            if (canvasRoot == null)
+            {
+                return;
+            }
+
+            TransitionIn(canvasRoot);
+            var root = canvasRoot.transform;
+            if (ReducedMotion)
+            {
+                UiHolo.PlayReveal(root); // snaps every shape to fully drawn
+                return;
+            }
+
+            int n = 0;
+            for (int i = 0; i < root.childCount; i++)
+            {
+                var child = root.GetChild(i) as RectTransform;
+                if (child == null || !child.gameObject.activeSelf)
+                {
+                    continue;
+                }
+
+                var group = child.GetComponent<CanvasGroup>();
+                if (group == null)
+                {
+                    group = child.gameObject.AddComponent<CanvasGroup>();
+                }
+
+                float delay = Mathf.Min(n * stagger, maxStagger);
+                n++;
+                group.alpha = 0f;
+                UiTween.Alpha(group, 1f, 0.24f, UiTween.Ease.OutQuad, delay);
+                var home = child.anchoredPosition;
+                UiTween.Move(child, home + new Vector2(0f, -10f), home, 0.28f, UiTween.Ease.OutCubic, delay);
+            }
+
+            UiHolo.PlayReveal(root, 0.34f, 0.06f, 0.04f);
+        }
+
         /// <summary>Fade+rise-in transition (~0.14 s, unscaled) on a UI root: attaches/reuses a CanvasGroup
         /// and animates alpha 0→1 plus a small upward slide. Instant under <see cref="ReducedMotion"/>.
         /// Canvas roots only fade (their RectTransform is driven by the canvas).</summary>
