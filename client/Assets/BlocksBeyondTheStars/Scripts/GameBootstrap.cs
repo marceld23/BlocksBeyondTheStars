@@ -1600,12 +1600,16 @@ namespace BlocksBeyondTheStars.Client
         // ViewDistanceChunks is the join-time value the server actually streams at (0 = server default 4).
         private (float Cull, float Collider, float Unload) EffectiveChunkDistances()
         {
+            int vd = ViewDistanceChunks > 0 ? ViewDistanceChunks : 4;
             if (!BrowserDevice.IsMobileBrowser)
             {
-                return (ChunkDrawDistanceBlocks, ChunkColliderDistanceBlocks, ChunkUnloadDistanceBlocks);
+                // Above view distance 14 the fog edge (vd × 16 blocks) reaches the fixed 256-block cull, which
+                // would clip the last hazed ring by chunk centre; grow the cull with the view like mobile does
+                // (16 → 288), still well inside the 384-block unload.
+                float desktopCull = Mathf.Max(ChunkDrawDistanceBlocks, (vd + 2) * WorldConstants.ChunkSize);
+                return (desktopCull, ChunkColliderDistanceBlocks, ChunkUnloadDistanceBlocks);
             }
 
-            int vd = ViewDistanceChunks > 0 ? ViewDistanceChunks : 4;
             float cull = Mathf.Min(ChunkDrawDistanceBlocks, (vd + 2) * WorldConstants.ChunkSize);
             float collider = Mathf.Min(ChunkColliderDistanceBlocks, cull);
             float unload = Mathf.Min(ChunkUnloadDistanceBlocks, (vd + 4) * WorldConstants.ChunkSize);

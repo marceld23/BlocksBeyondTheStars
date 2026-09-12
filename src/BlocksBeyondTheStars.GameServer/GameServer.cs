@@ -2218,8 +2218,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>Upper bound on a client-requested render distance (matches the in-game slider's max), so a
-    /// spoofed JoinRequest can't make the server stream/generate an enormous column (memory/CPU DoS).</summary>
-    private const int MaxClientViewDistanceChunks = 8;
+    /// spoofed JoinRequest can't make the server stream/generate an enormous column (memory/CPU DoS). Raised from 8
+    /// to 16 with the slider: the view streams as a disc (<see cref="IsColumnInStreamDisc"/>), so 16 plus the
+    /// load-ahead ring still stays inside the sweep's 20-chunk sent-set prune and the client's 24-chunk unload.</summary>
+    private const int MaxClientViewDistanceChunks = 16;
 
     /// <summary>Horizontal radius (chunks, Chebyshev) within which the FULL vertical span streams — so caves,
     /// overhangs and digging straight down near the player are always covered. Beyond it, only the surface band
@@ -2259,6 +2261,20 @@ public sealed partial class GameServer
     /// (#388). The extra ring is always past <see cref="NearFullColumnRadius"/>, so it streams only the cheap far
     /// surface band, and stays within the sweep's keepRadius (maxViewRadius + 4) so it is not immediately evicted.</summary>
     private const int LoadAheadRings = 1;
+
+    /// <summary>Whether the column (dx, dz) chunks from the player's chunk belongs to a view of
+    /// <paramref name="streamRadius"/> chunks (view radius + load-ahead). The fog edge is a CIRCLE, so the square's
+    /// corners were never visible — yet they sat farther out (radius × √2) than the sweep's keep/prune radius
+    /// (view + 4), so the sweep evicted them and the streamer regenerated them every 10 s (already at view distance
+    /// 8, far worse at 16). Measured to the column's NEAREST edge (the player can stand anywhere in their own chunk),
+    /// so every column the fog circle reaches still streams, load-ahead ring included; every column within
+    /// <see cref="NearFullColumnRadius"/> the loop visits is kept for any radius.</summary>
+    internal static bool IsColumnInStreamDisc(int dx, int dz, int streamRadius)
+    {
+        int ax = System.Math.Max(System.Math.Abs(dx) - 1, 0);
+        int az = System.Math.Max(System.Math.Abs(dz) - 1, 0);
+        return ax * ax + az * az <= streamRadius * streamRadius;
+    }
 
     /// <summary>#1507: a settled view is re-enumerated at least this often (ticks) even when nothing observable
     /// changed — a cheap safety net against any sent-set change the count-based check could miss.</summary>
@@ -2363,6 +2379,11 @@ public sealed partial class GameServer
             for (int dx = -streamRadius; dx <= streamRadius; dx++)
                 for (int dz = -streamRadius; dz <= streamRadius; dz++)
                 {
+                    if (!IsColumnInStreamDisc(dx, dz, streamRadius))
+                    {
+                        continue; // a square corner past the round fog edge — never visible, and outside the sweep's keep radius
+                    }
+
                     int loDy, hiDy;
                     if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz)) <= NearFullColumnRadius)
                     {

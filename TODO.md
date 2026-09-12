@@ -24,6 +24,22 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔭 View distance goes to 16 — and the view streams as a disc (#1813, 2026-09-12, branch feat/view-distance-16)
+
+Marcel: raise the view-distance maximum to 16 chunks; a native desktop client's first run now starts at 8, the browser
+build keeps its old defaults (4, phone/tablet browsers 3), and returning players keep their saved value. The settings stepper
+now runs 1–16 and the server clamps a join request to 16 (`MaxClientViewDistanceChunks`, was 8). Raising the cap alone
+would have thrashed: the server streamed a SQUARE of (view + 1) chunks, whose corners (≈ radius × √2 = 24 chunks at 16)
+lie past the sweep's keep/prune radius (view + 4, capped at 20) — the sweep forgot them and the streamer regenerated and
+re-sent them every 10 s (172 of 3822 chunks per sweep at 16; the corners past view + 4 exist from view 8 up). The fog edge is round, so
+the corners were never visible: `StreamChunks` now skips columns outside a disc measured to each column's nearest edge
+(`IsColumnInStreamDisc`) — every column the fog circle reaches and the whole near-column square still stream, and
+fewer chunks go out at every view distance. Desktop client: the fixed 256-block renderer cull grows to (view + 2) × 16
+above view 14 so the last hazed ring is not clipped (unload stays 384). Tests: `StreamDisc_CoversTheFogCircle_…` (fast,
+all 16 slider values) and `ClientViewDistance_ReachesSixteen_…` (Slow: streams 14 chunks out, clamps a spoofed 99, the
+sweep keeps the whole view — fails with 172 forgotten chunks without the disc). Cost: at 16 a fresh view is ~3800
+chunks, ≈ 16 s to fill at the default 16 chunks/tick; the bundled singleplayer server must be rebuilt to get the cap.
+
 ### 🚀 Release v2026.9.7 — the city release (2026-09-12, branch release/2026.9.7)
 
 Everything merged since v2026.9.6 (8 PRs, 14 issues): terrain **generation 7** — the G.D.S. city world (#1793 / PR #1803)

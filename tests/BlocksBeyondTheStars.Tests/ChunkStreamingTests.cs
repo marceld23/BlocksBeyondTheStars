@@ -297,6 +297,112 @@ public sealed class ChunkStreamingTests : IDisposable
         Assert.False(server.World.IsChunkLoaded(beyondClientView), "nothing beyond the client's requested radius (plus the one-ring load-ahead) should stream");
     }
 
+    /// <summary>The view streams as a disc, not a square: the fog edge is round, and the square's corners sat
+    /// beyond the sweep's keep/prune radius (view + 4), so they were evicted and regenerated every sweep. For every
+    /// slider value the disc must (a) keep the whole near column square, (b) reach every column the fog circle
+    /// touches, and (c) stay inside view + 4 with the near column's vertical span on top — or the sweep thrashes.</summary>
+    [Fact]
+    public void StreamDisc_CoversTheFogCircle_AndStaysInsideTheSweepKeepRadius_ForEverySliderValue()
+    {
+        for (int view = 1; view <= 16; view++)
+        {
+            int stream = view + 1; // + the one-ring load-ahead
+            int keep = view + 4;   // SweepFarChunks keep radius / sent-set prune (capped at 20 = 16 + 4)
+            for (int dx = -stream; dx <= stream; dx++)
+                for (int dz = -stream; dz <= stream; dz++)
+                {
+                    bool inDisc = SvGameServer.IsColumnInStreamDisc(dx, dz, stream);
+                    int nearX = Math.Max(Math.Abs(dx) - 1, 0), nearZ = Math.Max(Math.Abs(dz) - 1, 0);
+
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) <= 3)
+                    {
+                        Assert.True(inDisc, $"view {view}: near column ({dx},{dz}) must stream (caves/digging)");
+                    }
+
+                    if (nearX * nearX + nearZ * nearZ < view * view)
+                    {
+                        Assert.True(inDisc, $"view {view}: column ({dx},{dz}) reaches into the fog circle and must stream");
+                    }
+
+                    if (inDisc)
+                    {
+                        Assert.True(dx * dx + dz * dz + 3 * 3 <= keep * keep,
+                            $"view {view}: streamed column ({dx},{dz}) lies outside the sweep's keep radius {keep}");
+                    }
+                }
+
+            Assert.False(view >= 3 && SvGameServer.IsColumnInStreamDisc(stream, stream, stream),
+                $"view {view}: the square's corner must no longer stream");
+        }
+    }
+
+    /// <summary>The slider goes to 16 now: the server honours a view distance past the old cap of 8, clamps a
+    /// spoofed larger request to 16, and the sweep keeps the whole streamed disc of a player who stands still.</summary>
+    [Fact]
+    [Trait("Category", "Slow")]
+    public void ClientViewDistance_ReachesSixteen_IsClampedThere_AndTheSweepKeepsTheWholeView()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vd16"));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig
+        {
+            WorldName = "vd16",
+            Seed = 1,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            ViewDistanceChunks = 4,
+            ChunkStreamPerTick = ServerConfig.ChunkStreamPerTickCeiling, // drain the big view as fast as the host allows
+        };
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+
+        var p = server.AddLocalPlayer("Lookout");
+        p.ViewDistance = 99; // a spoofed request — must clamp to the slider's 16
+        var center = WorldConstants.WorldToChunk(p.State.Position.ToBlock());
+        int circumference = server.World.Circumference;
+
+        // Fill the view until nothing new arrives; tiny dt so the 10 s sweep never trips while streaming.
+        int stable = 0, last = -1;
+        for (int i = 0; i < 400 && stable < 3; i++)
+        {
+            server.TickForTest(0.01);
+            stable = p.SentChunks.Count == last ? stable + 1 : 0;
+            last = p.SentChunks.Count;
+        }
+
+        bool StreamedColumn(int dx, int dz)
+        {
+            for (int cy = center.Y - 8; cy <= center.Y + 8; cy++)
+            {
+                if (p.SentChunks.Contains(WorldConstants.CanonicalChunk(new ChunkCoord(center.X + dx, cy, center.Z + dz), circumference)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        Assert.True(StreamedColumn(14, 0), "a column 14 chunks out (past the old cap of 8) should stream at view distance 16");
+        Assert.True(StreamedColumn(0, -17), "the load-ahead ring (16 + 1) should stream");
+        Assert.False(StreamedColumn(18, 0), "a request above 16 must be clamped — nothing past 16 + 1 may stream");
+        Assert.False(StreamedColumn(17, 17), "the square's corner past the round fog edge must not stream");
+
+        var streamed = new System.Collections.Generic.List<ChunkCoord>(p.SentChunks);
+        for (int i = 0; i < 15; i++)
+        {
+            server.TickForTest(1.0); // run past the sweep interval, standing still
+        }
+
+        int dropped = 0;
+        foreach (var c in streamed)
+        {
+            if (!p.SentChunks.Contains(c)) dropped++;
+        }
+
+        Assert.True(dropped == 0, $"the sweep forgot {dropped} of {streamed.Count} streamed chunks although the player never moved (would re-stream every 10 s)");
+    }
+
     [Fact]
     [Trait("Category", "Slow")]
     public void FarColumns_StreamOnlyTheSurfaceBand_WhileNearColumnsStreamTheFullVerticalSpan()
