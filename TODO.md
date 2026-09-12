@@ -34,6 +34,23 @@ stuck. Fix: wake and place the window first, then focus (while typing the window
 coverage possible for the MonoBehaviour order; verified with a local Unity build. Engine rule for any future field
 inside a togglable panel: activate the hierarchy, then the field.
 
+### ⌨️ Fourth `InputField.GenerateCaret` crash: a focused field survives `canvas.enabled = false` (#1804, 2026-09-12, branch fix/caret-canvas-disable)
+
+Lyxette's v2026.9.6 crash report — the same uGUI `NullReferenceException` as v2026.9.2 (Lyxette), v2026.9.5 (Justus,
+#1791) and #1683. Reading uGUI 2.0.0's `GenerateCaret`, the only real null is `m_TextComponent.canvas`: `Graphic.canvas`
+is null once no ancestor Canvas is active and enabled. `SetActive(false)` / destroy can never get there — uGUI's own
+`InputField.OnDisable` deactivates the field first — so #1634, #1683 and #1791 cured the selection leak, not the crash.
+The crash needs a screen that hides with `canvas.enabled = false` while a field is focused: the GameObject stays active,
+the caret blink keeps queueing rebuilds, the next one throws (twice a second until something deactivates the field).
+The only such screen with text fields is `CraftingTechShipUI` (Funk, photo note, crew/companion/base names, missions,
+search); Esc/Tab are guarded by `typingRecent` and a mouse click deselects first, so the path is the programmatic
+close — `GameMenu.CloseForTransition` on `HyperjumpStarted` (incl. the #1614 transit arrival, new in 9.6) or the
+`SpaceViewActive` flip. Fix: `InputFocusGuard` (on every `UiKit.AddInput` field) now also handles
+`OnCanvasHierarchyChanged` — focused + `textComponent.canvas == null` → deactivate + deselect — and
+`CraftingTechShipUI.Hide()` hands focus back explicitly (`UiKit.ReleaseTextFieldFocus(_canvas.transform)`) before the
+canvas goes. Not reproducible from the payload (no log tail); manual check: TAB menu → click into the search box →
+hyperjump → no exception in `Player.log`.
+
 ### 💬 Chat window: holo panel + outline text like VEGA, fitted to the lines, gone when the chat closes (#1799, 2026-09-12, branch feat/chat-window-contrast)
 
 Marcel's playtest note after #1798: the chat text was often unreadable for want of a background. The scrollback was the
