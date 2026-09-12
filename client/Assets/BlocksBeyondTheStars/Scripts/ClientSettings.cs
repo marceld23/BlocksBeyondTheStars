@@ -192,12 +192,17 @@ namespace BlocksBeyondTheStars.Client
         public int WindowedWidth = 1600;
         public int WindowedHeight = 900;
 
-        // Default render distance in 16-block chunks (slider range 1–8 in the settings menu). Raised from the old
+        // Default render distance in 16-block chunks (slider range 1–16 in the settings menu). Raised from the old
         // default of 2 (≈32 m — a near, foggy horizon) to 4 (≈64 m) so the world reads farther out of the box; the
         // per-planet/weather haze still scales off this (Sky.ApplyFog), so denser-atmosphere worlds stay hazier.
         // Singleplayer forwards this to the bundled server as the streaming radius (AppShell → --view-distance),
         // and the server now reclaims out-of-range chunks (far-chunk sweep), so the larger radius stays bounded.
+        // This field default is the conservative fallback (browser/tablet first run, a settings file recovered
+        // from scratch); a native desktop first run gets DesktopDefaultViewDistanceChunks instead (Load).
         public int ViewDistanceChunks = 4;
+
+        /// <summary>View distance a native desktop client starts with on a genuine first run.</summary>
+        public const int DesktopDefaultViewDistanceChunks = 8;
 
         /// <summary>Player UI-scale multiplier for the HUD (0.8–1.6, 1 = shipped default). Applied in
         /// <see cref="Apply"/> via <see cref="UiKit.SetUserScale"/>, which divides the HUD canvases'
@@ -857,6 +862,12 @@ namespace BlocksBeyondTheStars.Client
                         settings.ViewDistanceChunks = 3;
                         settings.MusicMode = MusicMode.Synth;
                     }
+                }
+                else
+                {
+                    // A native desktop client starts with a far horizon (8 of the 1–16 slider). The browser and
+                    // tablets keep the conservative field default (4, phone/tablet browsers 3 above).
+                    settings.ViewDistanceChunks = DesktopDefaultViewDistanceChunks;
                 }
             }
 

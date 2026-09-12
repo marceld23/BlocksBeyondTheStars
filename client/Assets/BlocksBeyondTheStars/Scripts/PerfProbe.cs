@@ -48,7 +48,7 @@ namespace BlocksBeyondTheStars.Client
         private float _idleSeconds = 30f;
         private float _walkSeconds = 60f;
         private string _presetOverride;   // -perfPreset Potato|Low|Medium|High; null = keep the player's settings
-        private int _vdOverride = -1;     // -perfVd 1..8; -1 = keep
+        private int _vdOverride = -1;     // -perfVd 1..16; -1 = keep
 
         // -perfFeature "ssao=off,depth=off,smaa=off,scatter=off,shadowmap=2048,shadowdist=40": after the preset
         // is applied, force individual cost-bearing features off (or to a value) so a run isolates ONE feature's

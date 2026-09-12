@@ -83,9 +83,10 @@ namespace BlocksBeyondTheStars.Client
             // the window change without leaving the menu (resolution/mode changes are pushed via Apply()).
             Cycle(ref y, L("ui.settings.window_mode"), L(WindowModeKey(S.Window)),
                 () => { S.Window = (WindowMode)(((int)S.Window + 1) % 3); S.Apply(); Rebuild(); });
-            Stepper(ref y, L("ui.settings.view_distance"), (S.ViewDistanceChunks - 1) / 7f, 1, 8,
-                () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks - 1, 1, 8); Rebuild(); },
-                () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks + 1, 1, 8); Rebuild(); },
+            // 1–16 chunks; the server clamps a join request to the same range (GameServer.MaxClientViewDistanceChunks).
+            Stepper(ref y, L("ui.settings.view_distance"), (S.ViewDistanceChunks - 1) / 15f, 1, 16,
+                () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks - 1, 1, 16); Rebuild(); },
+                () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks + 1, 1, 16); Rebuild(); },
                 S.ViewDistanceChunks.ToString());
             if (_shell.CurrentBoot != null)
             {
