@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 
 namespace BlocksBeyondTheStars.WorldGeneration;
@@ -113,7 +114,12 @@ public static class CityGenerator
     public static (int X, int Z) ModuleOrigin(int gx, int gz)
         => (Street + gx * (ModuleSize + Street), Street + gz * (ModuleSize + Street));
 
-    public static SettlementStructure Generate(long seed, GameContent content, IReadOnlyList<OpenZone> openZones)
+    /// <summary>Composes the city. <paramref name="modules"/> (#1827) are the authored district modules the
+    /// world allows (tier <see cref="StructureRoles.MetropolisTier"/>, role <c>city_*</c>); with
+    /// <paramref name="moduleChance"/> per district, a hash of seed + grid cell decides whether a district is
+    /// stamped from a module of its role instead of the procedural one. Plaza and open districts never are.</summary>
+    public static SettlementStructure Generate(long seed, GameContent content, IReadOnlyList<OpenZone> openZones,
+        IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0)
     {
         int w = Footprint, l = Footprint, h = Height;
         var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (int)WorldGenerator.StableHash("city:gds")));
@@ -136,9 +142,17 @@ public static class CityGenerator
 
         var blocks = new ushort[w * h * l];
         var mods = new Dictionary<int, (int Tint, int Glow)>();
+        var shapes = new Dictionary<int, int>();
         var markers = new List<SettlementMarker>();
         int buildings = 0;
         int tint = 0; // the tint the Set closure applies to wall/accent cells while a building is stamped
+
+        // Interiors (#1828): town-style furniture; the houses light their rooms from the deck (#1808), so no
+        // floor lamps.
+        var furniture = RoomFurnisher.PaletteFor(RoomFurnisher.Style.Town, content);
+        furniture.CeilingLit = true;
+
+        ushort Get(int x, int y, int z) => x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= l ? (ushort)0 : blocks[(x * h + y) * l + z];
 
         bool Open(int x, int z)
         {
@@ -167,6 +181,7 @@ public static class CityGenerator
 
             int idx = (x * h + y) * l + z;
             blocks[idx] = b;
+            shapes.Remove(idx); // a plain stamp is a cube
             if (tint != 0 && b != 0 && (b == wall || b == stone || b == paving))
             {
                 mods[idx] = (tint, 0);
@@ -175,6 +190,21 @@ public static class CityGenerator
             {
                 mods.Remove(idx); // air, an untinted stamp or a light over a tinted cell: no tint survives
             }
+        }
+
+        // The cell sink for modules + furniture: an explicit shape / tint / glow per cell, the district tint
+        // never applied (a module brings its own colours), the open zones honoured like everything else.
+        void SetCell(int x, int y, int z, ushort b, int shape, int cellTint, int glow)
+        {
+            if (x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= l || (y > 0 && Open(x, z)))
+            {
+                return;
+            }
+
+            int idx = (x * h + y) * l + z;
+            blocks[idx] = b;
+            if (b != 0 && (cellTint != 0 || glow != 0)) mods[idx] = (cellTint, glow); else mods.Remove(idx);
+            if (b != 0 && shape != 0) shapes[idx] = shape; else shapes.Remove(idx);
         }
 
         void Fill(int x0, int y0, int z0, int x1, int y1, int z1, ushort b)
@@ -228,6 +258,36 @@ public static class CityGenerator
 
                 tint = 0;
                 Fill(mx, 0, mz, mx + ModuleSize - 1, 0, mz + ModuleSize - 1, paving); // module floor
+
+                // #1827: an authored district of this role? Stamped centred on the paved floor; its own
+                // markers (residents, vendors, doors, rooms) replace the procedural ones.
+                if (role != Role.Plaza && role != Role.Open)
+                {
+                    string moduleRole = role switch
+                    {
+                        Role.Market => StructureRoles.CityMarket,
+                        Role.Hall => StructureRoles.CityHall,
+                        Role.Garden => StructureRoles.CityGarden,
+                        Role.Tower => StructureRoles.CityTower,
+                        _ => StructureRoles.CityHousing,
+                    };
+                    var authored = SettlementGenerator.PickModule(modules, moduleChance, $"citymodule:{seed}:{gx}:{gz}", moduleRole,
+                        m => m.Tier == StructureRoles.MetropolisTier, ModuleSize, h - 1, ModuleSize);
+                    if (authored != null)
+                    {
+                        var moduleMarkers = new List<SettlementMarker>();
+                        SettlementGenerator.StampModule(authored, mx + (ModuleSize - authored.Width) / 2, 0, mz + (ModuleSize - authored.Length) / 2,
+                            content, Get, SetCell, moduleMarkers, furniture, WorldGenerator.StableHash($"furnish:city:{seed}:{gx}:{gz}"));
+                        foreach (var m in moduleMarkers)
+                        {
+                            markers.Add(m);
+                            if (m.Type == "npc" || m.Type == "vendor") buildings++;
+                        }
+
+                        continue;
+                    }
+                }
+
                 switch (role)
                 {
                     case Role.Plaza:
@@ -258,14 +318,15 @@ public static class CityGenerator
         StampWall();
 
         tint = 0;
-        return new SettlementStructure(w, h, l, Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings), mods);
+        return new SettlementStructure(w, h, l, Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings), mods, shapes);
 
         // ------------------------------------------------------------------ modules
 
-        void House(int ox, int oz, int fp, int storeys, int doorSide, bool red)
+        void House(int ox, int oz, int fp, int storeys, int doorSide, bool red, RoomFurnisher.RoomRole groundRole = RoomFurnisher.RoomRole.House)
         {
             tint = red ? Red : Purple;
-            SettlementGenerator.StampBuilding(Set, ox, oz, fp, storeys, wall, wall, glass, ladder, doorSide, 0, rng, ruined: false, ceilingLight: lamp);
+            SettlementGenerator.StampBuilding(Set, ox, oz, fp, storeys, wall, wall, glass, ladder, doorSide, 0, rng, ruined: false, ceilingLight: lamp,
+                furnish: furniture, setCell: SetCell, furnishSeed: WorldGenerator.StableHash($"furnish:city:{seed}:{ox}:{oz}"), groundRole: groundRole);
             tint = 0;
             SettlementGenerator.DecorateAround(Set, ox, oz, fp, doorSide, lamp, fern, false, rng);
             buildings++;
@@ -323,17 +384,17 @@ public static class CityGenerator
             // Two vendors and the mission board in the front row, stalls behind, a lamp at each corner.
             int fp = 6;
             var (ox0, oz0) = (mx + 3, mz + 3);
-            House(ox0, oz0, fp, 2, 1, false);
+            House(ox0, oz0, fp, 2, 1, false, RoomFurnisher.RoomRole.Market);
             markers.Add(new SettlementMarker("vendor", new Vector3i(ox0 + fp / 2, 1, oz0 + fp / 2)));
             DoorMarker(ox0, oz0, fp, 1);
 
             var (ox1, oz1) = (mx + ModuleSize - 3 - fp, mz + 3);
-            House(ox1, oz1, fp, 2, 1, true);
+            House(ox1, oz1, fp, 2, 1, true, RoomFurnisher.RoomRole.Market);
             markers.Add(new SettlementMarker("vendor", new Vector3i(ox1 + fp / 2, 1, oz1 + fp / 2)));
             DoorMarker(ox1, oz1, fp, 1);
 
             var (ox2, oz2) = (mx + ModuleSize / 2 - fp / 2, mz + ModuleSize - 3 - fp);
-            House(ox2, oz2, fp, 2, 0, false);
+            House(ox2, oz2, fp, 2, 0, false, RoomFurnisher.RoomRole.Board);
             markers.Add(new SettlementMarker("mission_board", new Vector3i(ox2 + fp / 2, 1, oz2 + fp / 2)));
             DoorMarker(ox2, oz2, fp, 0);
 

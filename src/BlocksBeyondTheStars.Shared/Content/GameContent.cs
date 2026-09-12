@@ -79,11 +79,42 @@ public sealed class GameContent
         StructurePacks = packs.ToList();
     }
 
+    /// <summary>The settlement building MODULES (#1826: templates with a <see cref="StructureTemplate.Role"/>)
+    /// a world may compose into its settlements and city: pack-filtered like whole templates, planet-type
+    /// filtered like settlements, in pool order (the composers pick by hash, so the order is part of the
+    /// determinism contract — never sort). Empty when no module fits.</summary>
+    public IReadOnlyList<StructureTemplate> SettlementModulesFor(IReadOnlyCollection<string>? enabledPacks, string? planetType)
+    {
+        var list = new List<StructureTemplate>();
+        foreach (var t in SettlementTemplates)
+        {
+            if (!t.IsModule || !StructureRoles.IsKnown(t.Role) || t.Width <= 0 || t.Height <= 0 || t.Length <= 0)
+            {
+                continue;
+            }
+
+            bool packOk = enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(t.PackOrDefault);
+            bool planetOk = t.PlanetTypes.Count == 0 || string.IsNullOrEmpty(planetType)
+                || t.PlanetTypes.Contains(planetType!, StringComparer.OrdinalIgnoreCase);
+            if (packOk && planetOk)
+            {
+                list.Add(t);
+            }
+        }
+
+        return list;
+    }
+
     private static Dictionary<string, List<StructureTemplate>> GroupByTier(IReadOnlyList<StructureTemplate> pool)
     {
         var byTier = new Dictionary<string, List<StructureTemplate>>(StringComparer.OrdinalIgnoreCase);
         foreach (var t in pool)
         {
+            if (t.IsModule)
+            {
+                continue; // #1826: a building module is composed INTO a settlement, never rolled as one
+            }
+
             var tier = string.IsNullOrWhiteSpace(t.Tier) ? "medium" : t.Tier;
             if (!byTier.TryGetValue(tier, out var list))
             {
@@ -112,6 +143,10 @@ public sealed class GameContent
     /// <summary>A settlement template by exact key (pinned replays, #1115), or null when it no longer exists.</summary>
     public StructureTemplate? SettlementTemplateByKey(string key)
         => _settlementsByTier.Values.SelectMany(l => l).FirstOrDefault(t => t.Key == key);
+
+    /// <summary>A settlement building module by exact key (#1826), or null — whole templates never match.</summary>
+    public StructureTemplate? SettlementModuleByKey(string key)
+        => SettlementTemplates.FirstOrDefault(t => t.IsModule && t.Key == key);
 
     /// <summary>A station template by exact key (pinned replays, #1115), or null when it no longer exists.</summary>
     public StructureTemplate? StationTemplateByKey(string key)

@@ -24,6 +24,42 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏘️ Building modules + procedural interiors — a template is a whole settlement OR a part of one, and every room gets furniture (#1826 / #1827 / #1828, 2026-09-13, branch feat/settlement-modules-interiors)
+
+Marcel: a settlement made in the Town editor should be usable either as a complete structure (as today) or as an
+element the procedural composers build a settlement from — and the buildings' interiors should be furnished
+procedurally, for both. **Contract (#1826):** `StructureTemplate.Role` (`role` in the JSON; `StructureRoles`) — empty
+= a whole settlement (the classic pinned path), `house` / `market` / `board` / `greenhouse` = a plot module (6 × 6, up
+to the tier's storey height: `SettlementGenerator.PlotModuleEnvelope`), `city_*` = a 32 × 32 district of the G.D.S.
+city (tier `metropolis`). A plot module's tier picks its style (hamlet/village vs town/city); pack + planet types filter
+like whole templates; `GameContent.SettlementModulesFor` lists them and `GroupByTier` keeps them OUT of the whole
+pools. Town editor: a **Use as** stepper (whole · house · market · mission board · greenhouse · city housing / market /
+hall / garden / tower), the size line shows the module envelope, a **Room** marker joins the palette, `role` rides in
+the bundle meta and the user-content template, `tools/merge_structure.py` carries it, loading a template restores the
+stepper; locale keys `ui.struct.role` / `ui.role.*` / `ui.marker.room` / `ui.struct.size_module` / `ui.tier.metropolis`
+(en + de). **Composition (#1827):** `SettlementGenerator.Generate(…, modules, chance)` decides per plot by a HASH of
+tier + seed + plot (never an rng draw — every plot that stays procedural is byte-identical, test-guarded), stamps the
+module centred (`StampModule`), translates its markers, adds a missing vendor / board / inhabitant in the first free
+cell over the centre (`FreeCellAbove`), takes doors only from the module's door markers, lets ruins decay it like the
+rest; `CityGenerator.Generate(…, modules, chance)` does the same per district (never plaza / open). Server: the
+per-plot chance is the world option `SettlementTemplateUse` (Rare 15 %; Off disables both), and
+`StructurePlacementRecord.Modules` gates it — a fresh stamp writes 1, records from older saves and legacy re-derives
+stay 0, so an existing world's layout never changes under its blocks (round-trip test through a real save).
+**Interiors (#1828):** `RoomFurnisher` furnishes a floor region along its walls — bed, table + chair (#805 shapes on
+the style's material), crate, plant, light, market counter, terminal — from a hash-seeded `Random` of its own; the
+resident's cell, the door lane, the ladder corner and every deck row stay clear; palettes for village (wood / stone /
+torch), town (steel / crate / light), alien (iron / data cache); the G.D.S. houses skip the floor lamp (deck lights,
+#1808). `StampBuilding` furnishes every storey of every procedural building; a `room` marker floods an authored floor
+(cap 256 cells, other marker cells + door lanes reserved, role from the marker inside: vendor → market, mission board →
+office, else home) in whole templates and modules alike. Existing worlds get furniture in their settlements on the
+next start (air cells inside protected rooms only); layouts stay pinned. Two shipped example modules
+(`tools/gen_settlement_modules.py` → `data/settlement_templates.json`): `timber_cottage` (village house, log posts +
+stone under a log gable, hinged door) and `iron_flat` (town house, two iron/glass storeys, ladder, deck lights, slide
+door). Tests: `SettlementModuleTests` (13 — contract, plot / style / size filters, byte-identical plots, vendor
+fallback, off switches, furnished procedural rooms with clear lanes, room marker exactness + cap, city districts +
+open zones, city houses without floor lamps, the record gate through a save) + `KnownMarkers` += `room`. Docs:
+USER_MANUAL §6, `docs/developer/STATION_SETTLEMENT_EDITOR.md` §3b.
+
 ### 🔭 View distance goes to 16 — and the view streams as a disc (#1813, 2026-09-12, branch feat/view-distance-16)
 
 Marcel: raise the view-distance maximum to 16 chunks; a native desktop client's first run now starts at 8, the browser

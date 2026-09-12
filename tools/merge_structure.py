@@ -89,6 +89,12 @@ def merged_entry(meta, layout, existing):
             entry["planetTypes"] = list(meta["planetTypes"])
         else:
             entry.pop("planetTypes", None)  # the editor cleared the restriction on purpose
+    # #1826: whole structure ("" / absent) or a building module with a role (house, market, city_housing …).
+    if "role" in meta:
+        if meta["role"]:
+            entry["role"] = meta["role"]
+        else:
+            entry.pop("role", None)  # saved as a whole structure again
     return entry
 
 

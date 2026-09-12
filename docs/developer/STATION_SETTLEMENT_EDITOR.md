@@ -254,6 +254,40 @@ style export). The editors (P2/P3) then make authoring them in-game easy.
 
 ---
 
+## 3b. Building modules + procedural interiors (#1826 / #1827 / #1828, 2026-09-13)
+
+A settlement template has two uses, selected by `StructureTemplate.Role` (`role` in the JSON, the editor's
+**Use as** stepper, carried by `tools/merge_structure.py`):
+
+| role | used by | envelope | markers it should carry |
+|---|---|---|---|
+| `""` (whole, default) | `PickSettlementTemplate` — the whole settlement, pinned per world (#1115) | — | as before |
+| `house` / `market` / `board` / `greenhouse` | `SettlementGenerator.Generate(..., modules, chance)` — one plot of that role | `PlotModuleEnvelope(tier)`: 6 × (storeys·4 + 3) × 6 | `npc` / `vendor` / `mission_board` (+ `greenhouse`), `door_*`, `room` |
+| `city_housing` / `city_market` / `city_hall` / `city_garden` / `city_tower` | `CityGenerator.Generate(..., modules, chance)` — one district | 32 × 19 × 32, tier `metropolis` | what the district needs |
+
+- Style match: a plot module's tier picks the settlements it may enter (`hamlet`/`village` → village-style,
+  `town`/`city` → town-style, `StructureRoles.IsTownStyleTier`). Pack + `planetTypes` filter like whole
+  templates (`GameContent.SettlementModulesFor`). Modules are excluded from the whole-template pools
+  (`GroupByTier` skips them), so a module never becomes a settlement on its own.
+- The pick is a **hash** (`SettlementGenerator.PickModule`: `module:{tier}:{seed}:{plot}` → chance, then a
+  weighted pick), never an rng draw — every plot / district that stays procedural is byte-identical with or
+  without modules (`SettlementModuleTests.Plots_ThatStayProcedural_AreByteIdentical…`). The module is stamped
+  centred in its plot (`StampModule`); a missing role marker is added in the first free cell over the centre
+  column (`FreeCellAbove`), doors come only from the module's door markers.
+- The per-plot chance is `WorldDescription.SettlementTemplateUse.Probability()` (Rare 15 % by default; Off
+  disables whole templates and modules). `StructurePlacementRecord.Modules` gates it per instance: a fresh stamp
+  writes 1, records from older saves and legacy re-derives stay 0 — an existing world's layout never changes.
+- **Interiors** (`RoomFurnisher`): every storey of a procedural building (`StampBuilding` with a palette + cell
+  sink) and every authored floor under a `room` marker (`FurnishAuthoredRooms`: flood fill capped at 256
+  cells, every other marker cell and the lane in front of each door reserved, role from the marker found
+  inside) gets wall-hugging pieces — bed, table + chair (#805 shapes on the style's material), storage,
+  plant, light, market counter, terminal — from a hash-seeded `Random` of its own; nothing is written into a
+  deck row, the resident's cell, the door lane or the ladder corner. Palettes: village (wood/stone/torch),
+  town (steel/crate/light), alien (iron/data cache). The G.D.S. houses light from the deck, so `CeilingLit`
+  skips the floor lamp there.
+- Shipped examples (`tools/gen_settlement_modules.py` → `data/settlement_templates.json`): `timber_cottage`
+  (house, village, 6 × 7 × 6) and `iron_flat` (house, town, 6 × 9 × 6, two storeys, deck lights).
+
 ## 4. Open questions
 1. **Marker parity:** confirm the full marker vocabulary each editor must expose (vendor, mission board,
    medbay/heal-tank, hangar, quarters, npc spawn, loot) so authored structures are fully functional.
