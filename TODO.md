@@ -36,6 +36,22 @@ compact input frame). No lines and no typing → no window. A `CanvasGroup` on t
 (0.15 s in; 0.6 s out when the last line ages out in Auto mode; 0.15 s on Esc / the J key / Off), instant under reduced
 motion; a line arriving mid-fade reverses the tween. Lane arbitration with VEGA (#1795) is unchanged underneath.
 
+### ⏳ Singleplayer: the progress bar covers the server boot, not a nameless curtain (#1800, 2026-09-12, branch fix/sp-loading-handoff)
+
+Marcel's playtest note after the generation-5/6 worldgen: a new singleplayer world showed the progress bar (0 → 100 %
+in 2.5 s), then a dark "Loading world…" curtain with **no world name** for 10–20 s, then the same curtain with the
+system · planet name. The shell's `LoadingScreen` was purely time-based and handed off to `LaunchGame` after MinShow no
+matter what; the rig's `WorldLoadingOverlay` then rose with an empty `LocationName` (it only arrives with the join),
+while the bundled server still did its whole boot behind it — SQLite init + NetCodec warm-up, `BuildGalaxy`, `LoadWorld`
+with every structure stamp, and only then the transport (Player.log 2026-09-12: 10.6 s rainbow sea, 20.2 s coral sea).
+`LoadingHandoffPolicy` (pure, EditMode-tested) now holds the bar screen on `AppShell.LocalServerBooting` — the desktop
+twin of the browser host's `BrowserWorldBooting` gate (#771) — until `LocalServerLauncher.Ready` relays the server's
+"started on port" line; the bar creeps from 60 % toward 85 % meanwhile and snaps to 100 % on ready. A server that lives
+but never reports ready is given up on at the connect loop's 120 s ceiling (`AbortLocalServerBoot` → menu +
+`ui.sp.server_failed`); a server that dies is still caught by the launch watcher. The nameless curtain now covers only
+the rig build + dial + join (~1 s); in-game hosting shares the path. Stage-based real progress (server stage lines)
+stays a possible follow-up.
+
 ### 💬 Chat yields to VEGA + the ship menu boots like the HUD (2026-09-12, branch feat/chat-vega-lane-menu-holo, PR #1798, merged)
 
 Two of Marcel's playtest notes. **Chat ↔ VEGA:** the chat overlay (#643) and VEGA's speech panel + objective chip
@@ -66,6 +82,26 @@ Lyxette's 2026.9.5 round (#1745–#1753), test guards (#1735/#1743), credits (PR
 (PR #1767). CHANGELOG section written thematically; `data/whatsnew.json` re-exported with the DE+EN release post.
 Protocol stays 5. Fleet: server image `2026.9.6`, worldhost re-pinned (Shared changed), reports unchanged; after the
 deploy the per-world memory fence goes back from 1536m to 768m (#1740 mitigation).
+
+### 🏙️ Generation 7 — the city world: a lava desert with one guarded city (#1793, 2026-09-12, branch feat/gds-city-planet)
+
+Justus's F1 idea, decided with Marcel the same day (cities: yes; one gigantic city from 32×32 modules; cool only
+in the rooms; lava sea and rivers; friendly machine guardians in a new look; "G.D.S." stays text and mysterious;
+rare; the landing pad inside the city). Design record: docs/developer/WORLD_GENERATION.md §17.
+
+- **Planet** `gds_desert` (data): gen-7 gated, exotic, `spawnWeight 1`, volcanic sand desert, lava sea + rivers,
+  no flora/fauna, breathable at 55 °C, `cityWorld: "gds"`, `npcOutfits` purple/red. `CurrentTerrainGeneration = 7`.
+- **Composer** `CityGenerator`: 7×7 modules + 4-wide streets = 256² as ONE metropolis-tier settlement — plaza
+  (pad), markets, hall, gardens (pool + trees), corner towers, housing; per-cell purple/red tints; walled with
+  four gates; open zones for the pad ring and the wreck site. `StampCityWorld` replaces the hospitality roll
+  on a city world, centres the city on pad 0, pins it as settlement 0 (`city:gds`); phases B–D moved into
+  `CommitSettlements`.
+- **Cool rooms**: `InCityShelter` (inside the footprint + roofed) → 22 °C.
+- **G.D.S.**: `guard_post` marker → role `guardian` (machine, purple chassis, `NetNpc.Look = "gds_guard"`, leash
+  14); client stripe band + glowing pupils (`PlayerAvatar.SetGuardianLook`); `DialogDefinition.PlanetTypes`
+  filter + two G.D.S. dialogues; guardian greeting persona; `npc.role/greet.guardian`; VEGA `vega.hint.world.gds`;
+  name syllables; desert ambience. Locale keys in all 14 locales.
+- Tests: `CityWorldTests`. Not yet: hand-authored modules overriding the procedural ones.
 
 ### 🕳️ Player reports 2026-09-12 — the shaft that was "the void", the orphaned reply dialog, 2-block gaps, the caret, and the way to the Guardian core (#1788–#1792, 2026-09-12, branch fix/reports-2026-09-12)
 

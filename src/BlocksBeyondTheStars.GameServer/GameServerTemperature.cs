@@ -136,6 +136,11 @@ public sealed partial class GameServer
         var (weather, _) = BiomeWeatherAt(p.Position);
         float t = CurrentTemperature(weather, _dayFraction, p.Position);
         t = ApplyLocalSources(p.Position, t);
+        if (InCityShelter(p.Position))
+        {
+            t = CityComfortC; // #1793: under a roof inside the walls the G.D.S. city is cool, whatever the desert does
+        }
+
         session.EffectiveTemperatureC = t;
 
         float severity = TemperatureSeverityFor(t);
@@ -213,6 +218,25 @@ public sealed partial class GameServer
 
         return t;
     }
+
+    /// <summary>The temperature inside the city world's buildings (#1793) — the one cool place on the planet.</summary>
+    private const float CityComfortC = 22f;
+
+    /// <summary>True inside the city world's walls AND under a roof (#1793): the city is climate-controlled in
+    /// its rooms, not on its streets — a garden or the landing plaza is as hot as the desert outside.</summary>
+    private bool InCityShelter(Shared.Geometry.Vector3f pos)
+    {
+        if (_worlds.Active.CityFootprint is not { } city)
+        {
+            return false;
+        }
+
+        int px = (int)System.Math.Floor(pos.X), pz = (int)System.Math.Floor(pos.Z);
+        return px >= city.MinX && px <= city.MaxX && pz >= city.MinZ && pz <= city.MaxZ && RoofedAt(pos);
+    }
+
+    /// <summary>Test seam (#1793).</summary>
+    public bool InCityShelterForTest(Shared.Geometry.Vector3f pos) => InCityShelter(pos);
 
     /// <summary>Server-side open-sky check (#667): a solid block within <see cref="ShelterScanHeight"/>
     /// above the head means the player is under cover. Loaded-chunk reads only — the column above a

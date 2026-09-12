@@ -89,6 +89,7 @@ public sealed partial class GameServer
                 : string.IsNullOrEmpty(d.Role) || string.Equals(d.Role, npc.Role, StringComparison.OrdinalIgnoreCase);
             if (!matches
                 || d.Nodes.Count == 0
+                || (d.PlanetTypes.Count > 0 && !d.PlanetTypes.Contains(_worlds.Active.PlanetType, StringComparer.OrdinalIgnoreCase)) // #1793
                 || StageRank(d.MinStage) > stage
                 || (d.OncePerPlayer && p.Milestones.Contains(DialogDoneMilestonePrefix + d.Key + ":done")))
             {

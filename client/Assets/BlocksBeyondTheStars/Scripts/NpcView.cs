@@ -101,7 +101,9 @@ namespace BlocksBeyondTheStars.Client
         private string FallbackGreeting(string role)
         {
             var loc = Game?.Localizer;
-            string key = role == "quartermaster" ? "npc.greet.quartermaster" : "npc.greet.vendor";
+            string key = role == "quartermaster" ? "npc.greet.quartermaster"
+                : role == "guardian" ? "npc.greet.guardian" // #1793
+                : "npc.greet.vendor";
             return loc != null ? loc.Get(key) : string.Empty;
         }
 
@@ -152,6 +154,10 @@ namespace BlocksBeyondTheStars.Client
                     int seed = nd.FaceVariant != 0 ? nd.FaceVariant : unchecked((nd.Id * 486187739) ^ StableHash(nd.Name));
                     Color? hair = !nd.IsRobot && (seed & 0x7) != 0 ? HairTones[(int)((uint)(seed >> 8) % (uint)HairTones.Length)] : (Color?)null;
                     avatar.Build(skin, outfit, outfit * 0.9f, legs, spacesuit: false, variantSeed: nd.IsRobot ? 0 : seed, hair: hair);
+                    if (nd.Look == "gds_guard")
+                    {
+                        avatar.SetGuardianLook(); // #1793: the G.D.S. machines — red stripe band, glowing eyes
+                    }
                     avatar.SetVisible(true);
 
                     if (nd.Size > 0f && !Mathf.Approximately(nd.Size, 1f))

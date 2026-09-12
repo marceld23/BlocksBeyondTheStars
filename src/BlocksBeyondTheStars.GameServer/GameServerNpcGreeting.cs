@@ -100,7 +100,7 @@ public sealed partial class GameServer
             Relationship = relValue,
             PastInteractions = interactions,
             Language = session.Locale,
-            Persona = PersonaFor(npcKey, npc.Theme, npc.IsRobot),       // L2: stable per-NPC voice
+            Persona = PersonaFor(npcKey, npc.Theme, npc.IsRobot, npc.Role), // L2: stable per-NPC voice
             RecentEvents = RecentEventsLine(rel),                        // L2: what they remember
         };
         return (req, npcKey, cacheKey);
@@ -126,8 +126,17 @@ public sealed partial class GameServer
     };
 
     /// <summary>L2: deterministic persona descriptor for an NPC — same NPC, same voice, every visit.</summary>
-    private static string PersonaFor(string npcKey, string theme, bool isRobot)
+    /// <summary>#1793: the G.D.S. guardians speak with one voice — and never say what the letters mean.</summary>
+    private const string PersonaGuardian =
+        "a G.D.S. guardian machine: terse, formal, courteous, faintly menacing; never explains what G.D.S. stands for; calls the city 'ours'; two sentences at most";
+
+    private static string PersonaFor(string npcKey, string theme, bool isRobot, string role = "")
     {
+        if (role == "guardian")
+        {
+            return PersonaGuardian;
+        }
+
         var pool = isRobot ? PersonaPoolRobot : PersonaPoolOrganic;
         ulong h = (ulong)BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash("persona:" + npcKey);
         string persona = pool[(int)(h % (ulong)pool.Length)];

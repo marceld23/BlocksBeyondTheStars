@@ -205,7 +205,8 @@ namespace BlocksBeyondTheStars.Client.Music
                 case "tundra":
                 case "glacier": return PlanetIce;
                 case "desert":
-                case "salt_flats": return PlanetDesert;
+                case "salt_flats":
+                case "gds_desert": return PlanetDesert; // #1793: the G.D.S. lava desert
                 case "lava":
                 case "ashen":
                 case "volcanic": return PlanetLava;

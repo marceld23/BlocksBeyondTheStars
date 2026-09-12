@@ -23,6 +23,10 @@ public sealed partial class GameServer
 {
     private const double NpcBroadcastInterval = 0.2;  // position-sync cadence (client interpolates between)
     private const float NpcWanderLeash = 1.6f;        // how far an NPC drifts from its home marker
+    private const float GuardianLeash = 14f;          // #1793: a G.D.S. guardian walks a beat, inside the walls and around them
+
+    /// <summary>The client-side look key of a G.D.S. guardian (#1793): glowing red eyes and the red stripe band.</summary>
+    internal const string GuardianLook = "gds_guard";
     private const int NpcStepUp = 1;                  // blocks a stroller steps up in one tick (#1775: a parapet is not a step)
     private const float NpcFaceRange = 6f;            // turn to face a player within this range
     private const double NpcMoveDtCap = 0.25;         // cap per-step movement so big ticks can't jump
@@ -66,6 +70,7 @@ public sealed partial class GameServer
         public uint OutfitRgb;
         public uint LegsRgb;
         public bool IsRobot;
+        public string Look = string.Empty; // #1793: additive client look key ("" = the plain avatar)
         public double WanderPhase;
         public LocomotionState Loco; // stop-and-go loiter/stroll state
     }
@@ -81,6 +86,10 @@ public sealed partial class GameServer
 
     /// <summary>Number of NPCs currently populating the world's settlement.</summary>
     public int NpcCount => _npcs.Count;
+
+    /// <summary>Test seam (#1793): the palette + look the client will render for every NPC.</summary>
+    public IReadOnlyList<(int Id, string Role, bool IsRobot, uint SkinRgb, uint OutfitRgb, uint LegsRgb, string Look)> NpcLooksForTest
+        => _npcs.Select(n => (n.Id, n.Role, n.IsRobot, n.SkinRgb, n.OutfitRgb, n.LegsRgb, n.Look)).ToList();
 
     /// <summary>
     /// Populates an inhabited settlement with NPCs from its markers: a vendor at the market, a
@@ -115,6 +124,7 @@ public sealed partial class GameServer
                     "vendor" => "vendor",
                     "mission_board" => "quartermaster",
                     "npc" => "settler",
+                    "guard_post" => "guardian", // #1793: the G.D.S. machines that watch the city
                     _ => null,
                 };
 
@@ -127,6 +137,10 @@ public sealed partial class GameServer
                 // goods; settlers/the quartermaster keep the settlement's own theme (its identity).
                 string npcTheme = role == "vendor" ? VendorThemeFor(settlement.Name, vendorIndex++, settlementTheme) : settlementTheme;
                 bool robotic = npcTheme == "researchers" && rng.Next(100) < 60; // most research staff are service androids — but not all (#711)
+                if (role == "guardian")
+                {
+                    robotic = true; // every guardian is a machine (decided after the draw so the rng stream stays put)
+                }
 
                 // NPCs have no physics, so place their feet on top of the floor block. Markers sit centred
                 // in the air cell above the floor (+0.5 from the cell-centre conversion), so Floor() drops
@@ -136,6 +150,10 @@ public sealed partial class GameServer
                 var standing = new Vector3f(pos.X, (float)System.Math.Floor(System.Math.Max(settlement.Min.Y + 1f, pos.Y)), pos.Z);
                 var npc = MakeNpc(role, npcTheme, robotic, standing, rng);
                 npc.Settlement = settlement.Name;
+                if (role == "guardian")
+                {
+                    DressGuardian(npc);
+                }
                 if (role == "quartermaster")
                 {
                     npc.Name = CoinGiverName(settlement.Name); // the mission-giver's name matches its missions (item 13)
@@ -180,10 +198,18 @@ public sealed partial class GameServer
         // Trousers are picked independently of the top, so two NPCs sharing a jacket colour still differ.
         uint[] legsTones = { 0x4A4E57, 0x5C5346, 0x3E4A5C, 0x6B5C4A, 0x777C85, 0x4E3D30 };
 
+        // #1793: a planet type may dictate its inhabitants' wardrobe — the G.D.S. city dresses in purple and red.
+        var wardrobe = _world.Planet?.NpcOutfitRgb;
+        if (wardrobe is { Length: > 0 })
+        {
+            outfitByTheme = wardrobe;
+        }
+
         string nameKey = role switch
         {
             "vendor" => "npc.role.vendor",
             "quartermaster" => "npc.role.quartermaster",
+            "guardian" => "npc.role.guardian",
             _ => $"npc.theme.{theme}",
         };
 
@@ -280,7 +306,8 @@ public sealed partial class GameServer
             // Loiter ↔ stroll around home: stand a while, then potter to a new spot within the leash, then stand
             // again (instead of forever tracing one closed drift loop). Stray past the leash → head straight home.
             float hx = npc.Pos.X - npc.Home.X, hz = npc.Pos.Z - npc.Home.Z;
-            bool beyondLeash = hx * hx + hz * hz > NpcWanderLeash * NpcWanderLeash;
+            float leash = npc.Role == "guardian" ? GuardianLeash : NpcWanderLeash; // #1793: guardians patrol
+            bool beyondLeash = hx * hx + hz * hz > leash * leash;
             var intent = beyondLeash ? MoveMode.Seek : MoveMode.Roam;
             Vector3f? target = beyondLeash ? npc.Home : (Vector3f?)null;
 
@@ -602,5 +629,19 @@ public sealed partial class GameServer
         LegsRgb = n.LegsRgb,
         IsRobot = n.IsRobot,
         FaceVariant = CharacterFaceVariant(n), // #1128: an authored character keeps one face everywhere
+        Look = n.Look,
     };
+
+    /// <summary>The G.D.S. guardian (#1793): a friendly machine in the city's colours — dark purple chassis and
+    /// plating, the red stripe band and glowing eyes drawn by the client from <see cref="GuardianLook"/>. A head
+    /// taller than the people it guards.</summary>
+    private static void DressGuardian(ServerNpc npc)
+    {
+        npc.IsRobot = true;
+        npc.SkinRgb = 0x3A1F5C;
+        npc.OutfitRgb = 0x4B2A78;
+        npc.LegsRgb = 0x2C1746;
+        npc.Look = GuardianLook;
+        npc.Size = 1.08f;
+    }
 }

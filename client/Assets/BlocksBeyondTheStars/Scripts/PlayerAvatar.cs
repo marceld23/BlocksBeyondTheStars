@@ -943,6 +943,39 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>
+        /// The G.D.S. guardian look (#1793): a red stripe band around the chest and the abdomen, and the pupils
+        /// swapped for self-lit red — a machine that watches. Called once, right after <see cref="Build"/>; the
+        /// server has already painted the chassis purple through the ordinary palette.
+        /// </summary>
+        public void SetGuardianLook()
+        {
+            var stripe = Lit(new Color(0.88f, 0.13f, 0.16f), null);
+            var glow = Lit(new Color(1f, 0.22f, 0.22f), null);
+            if (glow.HasProperty("_Floor"))
+            {
+                glow.SetFloat("_Floor", 1f); // fully lit from every side — reads as an emitter without a bloom pass
+            }
+
+            AddCube("StripeChest", transform, new Vector3(0f, 1.45f, 0f), new Vector3(0.60f, 0.08f, 0.36f), stripe);
+            AddCube("StripeAbdomen", transform, new Vector3(0f, 1.18f, 0f), new Vector3(0.48f, 0.06f, 0.32f), stripe);
+            foreach (var feature in _faceFeatures)
+            {
+                if (feature == null || (feature.name != "PupilL" && feature.name != "PupilR"))
+                {
+                    continue;
+                }
+
+                var r = feature.GetComponent<Renderer>();
+                if (r != null)
+                {
+                    r.sharedMaterial = glow;
+                }
+
+                feature.transform.localScale = new Vector3(0.12f, 0.11f, 0.03f);
+            }
+        }
+
         public void SetVisible(bool visible)
         {
             _visible = visible;
