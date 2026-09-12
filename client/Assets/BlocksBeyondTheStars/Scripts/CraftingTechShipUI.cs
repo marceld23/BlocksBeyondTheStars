@@ -103,6 +103,14 @@ namespace BlocksBeyondTheStars.Client
 
         private const float W = 1920f, H = 1080f;
 
+        // Holo chrome (the HUD's UiHolo panels, not the bitmap sprite) for the three frames, so the menu can
+        // boot the way the HUD does: each frame wipes on left→right with a short stagger while its pane's
+        // content fades up behind the wipe. Frames in sidebar → list → detail order; a null Shape means the
+        // holo shader is unavailable (bitmap fallback) and only the fades play.
+        private readonly Image[] _frames = new Image[3];
+        private readonly CanvasGroup[] _paneGroups = new CanvasGroup[3];
+        private CanvasGroup _headerGroup;
+
         // --- public control (from GameMenu) ---
 
         public void ShowMode(Mode mode)
@@ -129,7 +137,70 @@ namespace BlocksBeyondTheStars.Client
             RebuildSidebar();
             RebuildList();
             RebuildDetail();
-            UiKit.TransitionIn(_canvas.gameObject); // fade-in on open + tab change
+            PlayReveal(); // the HUD's boot-up feel on open + tab change
+        }
+
+        /// <summary>
+        /// The menu's take on the HUD's boot reveal (<see cref="HudUi"/> → <see cref="UiHolo.PlayReveal"/>):
+        /// the whole screen still fades (backdrop, logo, footer — the old TransitionIn), the header fades
+        /// first, then the three holo frames wipe on left→right one after another and each pane's content
+        /// fades up once its frame's wipe is past the half-way mark. Played on open AND on every tab change
+        /// (ShowMode) — never on the live rebuilds Update triggers, those would flicker. Timings are kept
+        /// short enough that LB/RB cycling through the tabs stays snappy; a re-trigger mid-play restarts
+        /// cleanly because every tween is keyed to its target. Instant under reduced motion.
+        /// </summary>
+        private void PlayReveal()
+        {
+            UiKit.TransitionIn(_canvas.gameObject);
+            if (UiKit.ReducedMotion)
+            {
+                if (_headerGroup != null)
+                {
+                    _headerGroup.alpha = 1f;
+                }
+
+                for (int i = 0; i < _frames.Length; i++)
+                {
+                    var s = _frames[i] != null ? _frames[i].GetComponent<UiHolo.Shape>() : null;
+                    if (s != null)
+                    {
+                        s.Reveal = 1f;
+                    }
+
+                    if (_paneGroups[i] != null)
+                    {
+                        _paneGroups[i].alpha = 1f;
+                    }
+                }
+
+                return;
+            }
+
+            const float wipe = 0.30f, stagger = 0.07f, lead = 0.04f, contentFade = 0.22f;
+            if (_headerGroup != null)
+            {
+                _headerGroup.alpha = 0f;
+                UiTween.Alpha(_headerGroup, 1f, 0.18f, UiTween.Ease.OutQuad);
+            }
+
+            for (int i = 0; i < _frames.Length; i++)
+            {
+                float at = lead + i * stagger;
+                var shape = _frames[i] != null ? _frames[i].GetComponent<UiHolo.Shape>() : null;
+                if (shape != null)
+                {
+                    UiTween.Kill(shape);
+                    shape.Reveal = 0f;
+                    UiTween.To(0f, 1f, wipe, r => { if (shape != null) { shape.Reveal = r; } }, UiTween.Ease.OutCubic, at, null, shape);
+                }
+
+                var group = _paneGroups[i];
+                if (group != null)
+                {
+                    group.alpha = 0f;
+                    UiTween.Alpha(group, 1f, contentFade, UiTween.Ease.OutQuad, at + wipe * 0.45f);
+                }
+            }
         }
 
         private string _pendingCategory; // a category to select when the mode next opens (e.g. "market")
@@ -498,14 +569,22 @@ namespace BlocksBeyondTheStars.Client
             _header.SetParent(root, false);
             UiKit.Place(_header.gameObject, 0, 0, W, 132);
 
-            // Panels.
-            UiKit.AddPanel(root, 40, 150, 320, 820, UiKit.Panel);    // sidebar
-            UiKit.AddPanel(root, 380, 150, 820, 820, UiKit.Panel);   // list
-            UiKit.AddPanel(root, 1220, 150, 660, 820, UiKit.Panel);  // detail
+            // Panels — holo chrome (same shader + colour family as the HUD's panels), see PlayReveal.
+            _frames[0] = UiHolo.AddPanel(root, 40, 150, 320, 820, UiKit.Panel, 12f, 1.5f, 1f);    // sidebar
+            _frames[1] = UiHolo.AddPanel(root, 380, 150, 820, 820, UiKit.Panel, 12f, 1.5f, 1f);   // list
+            _frames[2] = UiHolo.AddPanel(root, 1220, 150, 660, 820, UiKit.Panel, 12f, 1.5f, 1f);  // detail
 
             _sidebar = MakeScroll(root, 50, 162, 300, 796);
             _listContent = MakeScroll(root, 392, 220, 796, 742);
             _detail = MakeScroll(root, 1232, 162, 636, 796);
+
+            // One CanvasGroup per scroll VIEW (the content under it is rebuilt per tab; the view survives),
+            // so a pane's content can fade up behind its frame's wipe. Header likewise — BuildHeader clears
+            // its children, not the header object itself.
+            _paneGroups[0] = _sidebar.parent.gameObject.AddComponent<CanvasGroup>();
+            _paneGroups[1] = _listContent.parent.gameObject.AddComponent<CanvasGroup>();
+            _paneGroups[2] = _detail.parent.gameObject.AddComponent<CanvasGroup>();
+            _headerGroup = _header.gameObject.AddComponent<CanvasGroup>();
 
             // Gate row between the tab bar and the panels (#1071/#1072): "what do I need" (hint), "where is it"
             // (live distance + arrow), a Show-on-compass button and a "craft one" jump. Used to sit INSIDE the

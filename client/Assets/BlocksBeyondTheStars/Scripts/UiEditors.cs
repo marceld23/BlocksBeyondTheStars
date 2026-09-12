@@ -41,7 +41,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.back"), () => shell.GoTo(ShellPhase.MainMenu), "btn_exit");
 
             // Description panel (right): what the editors export + the developer-tool caveat.
-            UiKit.AddPanel(root, 980f, 244f, 560f, 420f, UiKit.PanelFill);
+            UiHolo.AddPanel(root, 980f, 244f, 560f, 420f, UiKit.Panel, 18f, 1.5f, 1f); // holo frame — wipes on with the screen boot (#1796)
             UiKit.AddText(root, 1004f, 262f, 520f, 24f, shell.L("ui.editors.info_title"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddText(root, 1004f, 300f, 520f, 250f, shell.L("ui.editors.info_body"), 16, UiKit.TextCol, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
             UiKit.AddText(root, 1004f, 560f, 520f, 90f, shell.L("ui.editors.dev.note"), 14, UiKit.Warn, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;

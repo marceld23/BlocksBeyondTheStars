@@ -24,6 +24,26 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 💬 Chat yields to VEGA + the ship menu boots like the HUD (2026-09-12, branch feat/chat-vega-lane-menu-holo, LOCAL — not merged)
+
+Two of Marcel's playtest notes. **Chat ↔ VEGA:** the chat overlay (#643) and VEGA's speech panel + objective chip
+(#482) had both been placed in the "free" left HUD column — the chat's scrollback (y 280…590, sorted above VEGA)
+drew straight across a story line and its input row sat exactly on the chip. The chat now yields: `ChatUi.ResolveLane`
+(pure, EditMode-tested) ends the scrollback above the speech panel while a line is up, stacks the input row directly
+under the shortened scrollback while typing with either VEGA element up, and keeps the old lane when VEGA is quiet;
+`VegaPanel` exposes `SpeechVisible` / `ChipVisible` and the two lane constants. The scrollback is also measured against
+its lane now (TextGenerator, scale 1) so a shorter band drops the oldest rows instead of growing upward over the vitals.
+**Ship menu:** the three frames are UiHolo panels (the HUD's shader, same colour) and `ShowMode` plays the HUD's
+boot-up feel on open and on every tab change — header fade, then sidebar → list → detail wipe on left→right with a
+0.07 s stagger while each pane's content fades up behind the wipe; never on the live rebuilds, instant under reduced
+motion. The shell screens get the same treatment (`UiKit.BootScreen`, called by AppShell after each build): main menu,
+settings, credits, editors and save-select fade in as a whole while their top-level elements rise in build order with
+a short stagger and their frames — now UiHolo panels — wipe on. **Singleplayer connect race:** a fresh world took 16 s of server-side generation while the client's
+connect budget was the remote one (initial dial + 6 × 2 s ≈ 14 s) — it gave up in the very second the server logged
+"started on port", and the menu blamed the antivirus. `ConnectRetryPolicy` (pure, EditMode-tested) now gives the
+bundled local server a patient budget (knock once a second, ceiling 120 s) and `LocalServerLauncher.Ready` relays the
+server's startup line so the client dials the instant it listens; remote hosts keep the short #409 budget.
+
 ### 🚀 Release v2026.9.6 — the new-planets release (2026-09-12, branch release/2026.9.6)
 
 Everything merged since v2026.9.5 (17 PRs, 41 issues): the school club's generation-5 planets (#1756–#1765, follow-ups

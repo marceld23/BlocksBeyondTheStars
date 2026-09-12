@@ -30,6 +30,15 @@ namespace BlocksBeyondTheStars.Client
         public int Port { get; private set; } = DefaultPort;
         public bool IsRunning => _process != null && !_process.HasExited;
 
+        // Set from the stdout reader thread when the server prints its "started on port" line — the
+        // moment it accepts connections. Volatile: read on the main thread by GameBootstrap's retry loop.
+        private volatile bool _ready;
+
+        /// <summary>True once the spawned server has reported that it listens (its startup log line). A
+        /// fresh world can take 15 s+ to generate first; this is what lets the client connect the instant the
+        /// server is there instead of guessing with a fixed retry budget (see <see cref="ConnectRetryPolicy"/>).</summary>
+        public bool Ready => _ready;
+
         /// <summary>Root folder holding the singleplayer save worlds (one subfolder per world).</summary>
         public static string SavesRoot => Path.Combine(AppPaths.Root, "singleplayer-saves");
 
@@ -258,8 +267,22 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
+            _ready = false;
             var proc = new Process { StartInfo = _pendingPsi, EnableRaisingEvents = true };
-            proc.OutputDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) Debug.Log($"[server] {e.Data}"); };
+            proc.OutputDataReceived += (_, e) =>
+            {
+                if (string.IsNullOrEmpty(e.Data))
+                {
+                    return;
+                }
+
+                Debug.Log($"[server] {e.Data}");
+                // GameServer.Start's final line: "Server '<name>' started on port <n>, world '<w>' (...)".
+                if (!_ready && e.Data.Contains("started on port"))
+                {
+                    _ready = true;
+                }
+            };
             proc.ErrorDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) Debug.LogWarning($"[server] {e.Data}"); };
 
             try

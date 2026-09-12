@@ -34,12 +34,56 @@ namespace BlocksBeyondTheStars.Client
         private int _openFrame = -1;
         private float _nextRefresh = float.MaxValue;
         private const int MaxLog = 40;
-        private const int VisibleLines = 12; // the 310-px lane fits 12 rows; a /tp list is usually 8-15 lines
+        private const int VisibleLines = 12; // the full 310-px lane fits 12 rows; a /tp list is usually 8-15 lines
         private const float FadeSeconds = 12f;   // how long a line stays up in the Auto mode
         private const float FadeOutSeconds = 0.6f; // the dim-out at the end (one Text = the block fades as one)
 
-        // The free left lane in HUD reference space (1536×864) — see EnsureBuilt.
+        // The left lane in HUD reference space (1536×864) — see EnsureBuilt and ResolveLane.
         private const float LaneX = 10f, LaneW = 380f;
+        private const float LaneTop = 280f, LaneBottom = 590f; // between the toast (268) and VEGA's chip (594)
+        private const float InputRowY = 596f, InputRowH = 44f, LaneGap = 6f;
+
+        // VEGA visibility as of the last refresh — the lane is re-resolved when either flips (Update).
+        private bool _vegaSpeechSeen, _vegaChipSeen;
+
+        /// <summary>Where the scrollback and the input row sit this frame, in HUD reference units.</summary>
+        public readonly struct ChatLane
+        {
+            public ChatLane(float logY, float logH, float inputY)
+            {
+                LogY = logY;
+                LogH = logH;
+                InputY = inputY;
+            }
+
+            public float LogY { get; }
+
+            public float LogH { get; }
+
+            public float InputY { get; }
+        }
+
+        /// <summary>
+        /// Lane arbitration with VEGA: the chat (#643) and VEGA's speech panel + objective chip (#482) were
+        /// both placed in the "free" left column, and the chat — sorted above VEGA — drew straight across a
+        /// story line while its input row sat exactly on the objective chip. VEGA is the story-critical,
+        /// transient one, so the chat yields: while a speech line is up the scrollback ends above the
+        /// panel, and while typing with either VEGA element up the input row stacks directly under the
+        /// (shortened) scrollback instead of on top of the chip. With VEGA quiet the lane is the old one.
+        /// Pure so an EditMode test can pin the geometry.
+        /// </summary>
+        public static ChatLane ResolveLane(bool typing, bool speechVisible, bool chipVisible)
+        {
+            float bottom = speechVisible ? VegaPanel.SpeechY - LaneGap : LaneBottom;
+            float inputY = InputRowY;
+            if (typing && (speechVisible || chipVisible))
+            {
+                inputY = bottom - InputRowH;
+                bottom = inputY - LaneGap;
+            }
+
+            return new ChatLane(LaneTop, Mathf.Max(0f, bottom - LaneTop), inputY);
+        }
 
         /// <summary>A scrollback entry with the (unscaled) time it arrived, which is what the fade reads.</summary>
         private readonly struct ChatLine
@@ -108,6 +152,16 @@ namespace BlocksBeyondTheStars.Client
             if (_canvas != null && !_capturing && _canvas.enabled == hideForContext)
             {
                 _canvas.enabled = !hideForContext;
+            }
+
+            // Lane arbitration (see ResolveLane): whenever VEGA's speech panel or objective chip appears or
+            // goes, the scrollback re-lays out around it. Two bool reads per frame — no allocation.
+            var vega = VegaPanel.Instance;
+            bool speechUp = vega != null && vega.SpeechVisible;
+            bool chipUp = vega != null && vega.ChipVisible;
+            if (speechUp != _vegaSpeechSeen || chipUp != _vegaChipSeen)
+            {
+                RefreshLog();
             }
 
             // Fade tick: the scrollback ages out on its own, so re-render when the next line is due to go
@@ -756,6 +810,17 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // Lane first: the geometry decides how many lines fit below.
+            var vega = VegaPanel.Instance;
+            _vegaSpeechSeen = vega != null && vega.SpeechVisible;
+            _vegaChipSeen = vega != null && vega.ChipVisible;
+            var lane = ResolveLane(_typing, _vegaSpeechSeen, _vegaChipSeen);
+            UiKit.Place(_log.gameObject, LaneX, lane.LogY, LaneW, lane.LogH);
+            if (_inputRow != null)
+            {
+                UiKit.Place(_inputRow.gameObject, LaneX, lane.InputY, LaneW, InputRowH);
+            }
+
             _nextRefresh = float.MaxValue;
             var mode = Mode;
 
@@ -790,14 +855,37 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Fit the block to the lane: the Text is LowerLeft + Overflow, so an over-tall block would grow
+            // UPWARD out of the lane over the vitals and the toast. Drop the oldest lines until what is
+            // left fits — measured with the Text's own generator at scale 1 (canvas units), at most a dozen
+            // cheap measurements per refresh, and refreshes are rare (a new line, a fade tick, a VEGA flip).
+            string block = Join(from);
+            if (_log.font != null && _lines.Count > from)
+            {
+                var settings = _log.GetGenerationSettings(new Vector2(LaneW, 0f));
+                settings.scaleFactor = 1f;
+                var gen = _log.cachedTextGeneratorForLayout;
+                while (from < _lines.Count - 1 && gen.GetPreferredHeight(block, settings) > lane.LogH)
+                {
+                    from++;
+                    block = Join(from);
+                }
+            }
+
+            _log.text = block;
+            _log.color = new Color(0.86f, 0.93f, 1f, alpha);
+        }
+
+        /// <summary>The scrollback from index <paramref name="from"/> to the newest line, one per row.</summary>
+        private string Join(int from)
+        {
             var sb = new System.Text.StringBuilder();
             for (int i = from; i < _lines.Count; i++)
             {
                 sb.AppendLine(_lines[i].Text);
             }
 
-            _log.text = sb.ToString();
-            _log.color = new Color(0.86f, 0.93f, 1f, alpha);
+            return sb.ToString();
         }
 
         private void OnDestroy()
@@ -824,18 +912,21 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 25; // below menus (50) / map (60), above the HUD (10) and the world
             var root = _canvas.transform;
 
-            // Both rows live in the free left lane between the vitals panel (ends y 260) and the scan panel
+            // Both rows live in the left lane between the vitals panel (ends y 260) and the scan panel
             // (starts y 650). The old bottom-left placement covered ~85 % of the scan panel plus the left
             // hotbar cells and the controls hint line. WIDTH IS CAPPED for the same reason the scan panel
             // caps its own: the hotbar backplate owns x 400…1136, so this lane must not reach x 400.
             // In the flight view the lane is clear too — its instruments sit at the very bottom (y 818+).
-            _log = UiKit.AddText(root, LaneX, 280, LaneW, 310, string.Empty, 16, new Color(0.86f, 0.93f, 1f, 0.8f), TextAnchor.LowerLeft);
+            // The lane is SHARED with VEGA (speech panel y 396…586, objective chip y 594…642): these rects
+            // are the VEGA-quiet defaults, RefreshLog re-places both rows via ResolveLane whenever VEGA
+            // shows or hides one of hers.
+            _log = UiKit.AddText(root, LaneX, LaneTop, LaneW, LaneBottom - LaneTop, string.Empty, 16, new Color(0.86f, 0.93f, 1f, 0.8f), TextAnchor.LowerLeft);
             _log.horizontalOverflow = HorizontalWrapMode.Wrap;
             _log.verticalOverflow = VerticalWrapMode.Overflow;
             _log.supportRichText = true;
 
             // Input row (hidden until typing), directly under the scrollback and clear of the scan panel.
-            _inputRow = UiKit.AddPanel(root, LaneX, 596, LaneW, 44, UiKit.Panel).rectTransform;
+            _inputRow = UiKit.AddPanel(root, LaneX, InputRowY, LaneW, InputRowH, UiKit.Panel).rectTransform;
             var inputGo = new GameObject("ChatInput", typeof(RectTransform));
             inputGo.transform.SetParent(_inputRow, false);
             UiKit.Place(inputGo, 8, 6, LaneW - 16f, 32);

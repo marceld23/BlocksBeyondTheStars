@@ -120,7 +120,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(root, 364f, 180f, 1000f, 26f, shell.L(host ? "ui.host.subtitle" : "ui.save.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             // ── Existing worlds (left) ────────────────────────────────────────────────────────
-            var left = UiKit.AddPanel(root, 90f, 250f, 720f, 640f, UiKit.PanelFill).transform;
+            var left = UiHolo.AddPanel(root, 90f, 250f, 720f, 640f, UiKit.Panel, 18f, 1.5f, 1f).transform; // holo frames — wipe on with the screen boot (#1796)
             UiKit.AddText(left, 20f, 16f, 680f, 26f, shell.L("ui.save.existing"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             // Delete-confirmation dialog (built below, shown on demand) — captured by the row buttons.
@@ -152,7 +152,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // ── New world (right) ─────────────────────────────────────────────────────────────
-            var right = UiKit.AddPanel(root, 850f, 250f, 700f, 540f, UiKit.PanelFill).transform;
+            var right = UiHolo.AddPanel(root, 850f, 250f, 700f, 540f, UiKit.Panel, 18f, 1.5f, 1f).transform;
             UiKit.AddText(right, 20f, 16f, 660f, 26f, shell.L("ui.save.new"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             var nameLabel = UiKit.AddText(right, 20f, 54f, 660f, 24f, shell.L("ui.save.name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
 
@@ -296,7 +296,7 @@ namespace BlocksBeyondTheStars.Client
             // ── Host options (host mode only): player cap + optional join password ───────────────
             if (host)
             {
-                var bar = UiKit.AddPanel(root, 850f, 800f, 700f, 186f, UiKit.PanelFill).transform;
+                var bar = UiHolo.AddPanel(root, 850f, 800f, 700f, 186f, UiKit.Panel, 18f, 1.5f, 1f).transform;
                 UiKit.AddText(bar, 20f, 8f, 300f, 24f, shell.L("ui.host.max_players"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
                 Text count = null;
                 UiKit.AddButton(bar, 20f, 38f, 46f, 46f, "-", () =>

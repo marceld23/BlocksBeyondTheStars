@@ -26,7 +26,7 @@ namespace BlocksBeyondTheStars.Client
             UiNav.Enable(canvas.gameObject); // let a gamepad drive the menu (inert on keyboard/mouse)
 
             // --- SYSTEM CHECK panel (decorative flavour) ---
-            UiKit.AddPanel(root, 40f, 40f, 280f, 220f, UiKit.PanelFill);
+            UiHolo.AddPanel(root, 40f, 40f, 280f, 220f, UiKit.Panel, 18f, 1.5f, 1f); // holo frame — wipes on with the screen boot (#1796)
             UiKit.AddText(root, 60f, 54f, 250f, 22f, shell.L("ui.menu.system_check"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             string[] sysKeys = { "ui.sys.engines", "ui.sys.shields", "ui.sys.life_support", "ui.sys.comms", "ui.sys.navigation" };
             string[] sysIcons = { "sys_engines", "sys_shields", "sys_life", "sys_comms", "sys_nav" };
@@ -86,7 +86,7 @@ namespace BlocksBeyondTheStars.Client
             }
             // Accented like the native menu: the name gates every play action (#221); panel edges flush
             // with the button column, content inset — see the native branch below.
-            UiKit.AddPanel(root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f));
+            UiHolo.AddPanel(root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f), 14f, 1.2f, 0.8f);
             UiKit.AddText(root, bx + 16f, by, bw - 32f, 24f, shell.L("ui.menu.connect_name"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             // Capped at the server's join limit (#1368): a longer name was truncated server-side, so the settings
             // remembered a name that was not the player's actual id.
@@ -299,7 +299,7 @@ namespace BlocksBeyondTheStars.Client
             // The name is the gate for every play action (#221) — make the field read as step one, not
             // as a side note: an accented backdrop + bold cyan label instead of the plain grey line.
             // The panel's outer edges sit exactly on the button column (bx..bx+bw); content insets instead.
-            UiKit.AddPanel(root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f));
+            UiHolo.AddPanel(root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f), 14f, 1.2f, 0.8f);
             UiKit.AddText(root, bx + 16f, by, bw - 32f, 24f, shell.L("ui.menu.connect_name"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddInput(root, bx + 16f, by + 30f, bw - 32f, 46f, natName[0], v => natName[0] = v, maxLength: Protocol.MaxPlayerNameLength); // the server's join cap (#1368)
             var natWarn = UiKit.AddText(root, bx, by + 80f, bw, 22f, "", 14,
@@ -353,7 +353,7 @@ namespace BlocksBeyondTheStars.Client
             // --- World / server info panel (bottom-right, decorative) ---
             // Its bottom edge (672+250=922) lines up with the menu column's last entry ("Quit" ends
             // at 434+62*7+54=922), so the two columns close on one shared baseline.
-            UiKit.AddPanel(root, 1290f, 672f, 590f, 250f, UiKit.PanelFill);
+            UiHolo.AddPanel(root, 1290f, 672f, 590f, 250f, UiKit.Panel, 18f, 1.5f, 1f);
             UiKit.AddText(root, 1314f, 688f, 540f, 24f, shell.L("ui.menu.world_info"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             AddInfo(root, 728f, "info_mode", shell.L("ui.info.mode_title"), shell.L("ui.info.mode_desc"));
             AddInfo(root, 792f, "info_multiplayer", shell.L("ui.info.mp_title"), shell.L("ui.info.mp_desc"));
