@@ -24,6 +24,17 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚀 Release v2026.9.7 — the city release (2026-09-12, branch release/2026.9.7)
+
+Everything merged since v2026.9.6 (8 PRs, 14 issues): terrain **generation 7** — the G.D.S. city world (#1793 / PR #1803)
+with its ceiling lights follow-up (#1808 / PR #1809); the chat holo window + VEGA lane arbitration + the input-focus
+order fix (#1795/#1799/#1806, PRs #1798/#1801/#1807); the singleplayer connect budget and the loading hand-off
+(#1797/#1800, PRs #1798/#1802); the ship-menu and shell-screen boot (#1796 / PR #1798); and the 2026-09-12 report round
+— void rescue over a dug shaft, the feedback dialog outliving the rig, 2-block openings, the Guardian-core hint and the
+third/fourth `GenerateCaret` crash (#1788–#1792/#1804, PRs #1794/#1805). CHANGELOG section written thematically;
+`data/whatsnew.json` re-exported with the DE+EN release post. Protocol stays 5, saves migrate unchanged; the city world
+reaches new galaxies only. Fleet: server image `2026.9.7`, worldhost re-pinned if `Shared/**` changed, reports unchanged.
+
 ### ⌨️ Chat input takes keys again when opened over an empty scrollback (#1806, 2026-09-12, branch fix/chat-input-focus-order)
 
 Marcel's playtest of #1801: open the chat with no lines on screen and the input row appears but takes no keys — no text,
