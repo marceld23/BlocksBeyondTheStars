@@ -608,7 +608,7 @@ public static class SettlementGenerator
 
     /// <summary>Stamps one hollow building of N storeys with a roof, a door on a chosen side, a window
     /// band and an accent stripe; multi-storey buildings get climbable ladders between decks.</summary>
-    private static void StampBuilding(System.Action<int, int, int, ushort> set, int ox, int oz, int fp, int storeys,
+    internal static void StampBuilding(System.Action<int, int, int, ushort> set, int ox, int oz, int fp, int storeys,
         ushort wall, ushort accent, ushort glass, ushort ladder, int doorSide, int roofStyle, System.Random rng, bool ruined)
     {
         int height = storeys * FloorH;
@@ -741,7 +741,7 @@ public static class SettlementGenerator
     }
 
     /// <summary>A lamp post and a little garden patch next to a building's door.</summary>
-    private static void DecorateAround(System.Action<int, int, int, ushort> set, int ox, int oz, int fp, int doorSide,
+    internal static void DecorateAround(System.Action<int, int, int, ushort> set, int ox, int oz, int fp, int doorSide,
         ushort lamp, ushort flora, bool alien, System.Random rng)
     {
         int mid = fp / 2;

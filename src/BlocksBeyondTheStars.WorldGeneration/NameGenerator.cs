@@ -152,6 +152,8 @@ public static class NameGenerator
         ["flower_fields"] = (new[] { "l", "m", "n", "v", "s", "y" }, new[] { "ia", "ora", "une", "elle", "ys", "ana" }),
         ["scrapyard"] = (new[] { "s", "z", "k", "r", "dr", "sh" }, new[] { "ara", "un", "akh", "ir", "um", "at" }),
         ["gamer_hills"] = (new[] { "l", "m", "n", "v", "s", "y" }, new[] { "ia", "ora", "une", "elle", "ys", "ana" }),
+        // The G.D.S. lava desert (#1793) sounds like its desert kin.
+        ["gds_desert"] = (new[] { "s", "z", "k", "r", "dr", "sh" }, new[] { "ara", "un", "akh", "ir", "um", "at" }),
     };
 
     /// <summary>Substrings no coined celestial name may contain (EN + DE) — the syllable mill can and

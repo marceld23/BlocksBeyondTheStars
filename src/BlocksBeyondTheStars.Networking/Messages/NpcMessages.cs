@@ -43,6 +43,10 @@ public sealed class NetNpc
     /// place they occupy. Additive (contractless): 0 = unset, the client derives the face from id + name
     /// as before.</summary>
     public int FaceVariant { get; set; }
+
+    /// <summary>Client-side look key (#1793): "gds_guard" = a G.D.S. guardian machine (glowing red eyes, a red
+    /// stripe band). Additive (contractless): "" = unset, the plain avatar as before.</summary>
+    public string Look { get; set; } = string.Empty;
 }
 
 /// <summary>Full set of NPCs the client should currently render (server → client).</summary>

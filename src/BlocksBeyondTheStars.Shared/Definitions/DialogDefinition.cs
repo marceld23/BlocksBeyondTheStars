@@ -29,6 +29,10 @@ public sealed class DialogDefinition
     /// <summary>True → each player can complete this dialogue once per save (persisted as a milestone).</summary>
     public bool OncePerPlayer { get; set; }
 
+    /// <summary>Planet-type keys this dialogue is offered on (#1793) — empty = every world. The G.D.S. lines
+    /// belong to the lava-desert city and nowhere else; an unknown key simply never matches.</summary>
+    public List<string> PlanetTypes { get; set; } = new();
+
     /// <summary>The nodes, entered at index 0. 2–3 nodes cover every authored dialogue.</summary>
     public List<DialogNode> Nodes { get; set; } = new();
 }

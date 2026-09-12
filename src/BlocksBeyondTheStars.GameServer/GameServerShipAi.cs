@@ -369,6 +369,7 @@ public sealed partial class GameServer
             "fungal" => "fungal",
             "ice" or "tundra" => "ice",
             "volcanic" or "ashen" => "volcanic",
+            "gds_desert" => "gds", // #1793: the lava desert with the one guarded city
             _ => string.Empty,
         };
         if (id.Length > 0)

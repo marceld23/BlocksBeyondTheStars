@@ -208,6 +208,10 @@ internal sealed class LoadedWorld
     public Vector3i CoreChamberCenter { get; set; }
     public bool HasCoreChamber { get; set; }
 
+    // The city world's one walled city (#1793): its world-space footprint (inclusive X/Z bounds), set when the
+    // composer stamps it. The temperature hazard reads it — a roofed cell inside the walls is climate-controlled.
+    public (int MinX, int MinZ, int MaxX, int MaxZ)? CityFootprint { get; set; }
+
     // Per-world simulation timers/counters (so each resident world ticks independently). Weather + time
     // stay global for now (all resident worlds share the sky — a temporary limitation, refined in P7).
     public double CreatureSpawnTimer { get; set; }
