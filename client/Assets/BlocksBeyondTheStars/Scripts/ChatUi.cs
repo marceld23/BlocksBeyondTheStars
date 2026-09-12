@@ -311,8 +311,15 @@ namespace BlocksBeyondTheStars.Client
             Game.ChatTyping = true;
             _inputRow.gameObject.SetActive(true);
             _input.text = string.Empty;
-            _input.ActivateInputField();
+
+            // Wake and place the window BEFORE focusing the field (#1806): the input row lives inside the
+            // holo window since #1801, and the window is inactive whenever it has nothing to show (empty
+            // scrollback, aged-out lines, muted). uGUI's ActivateInputField silently no-ops on a field
+            // under an inactive parent — the row then appeared but took no keys, and with _typing already
+            // set neither Enter nor Esc could get the player out. While typing the window always has a
+            // height (ResolveWindow), so RefreshLog is guaranteed to activate it.
             RefreshLog();
+            _input.ActivateInputField();
         }
 
         private void OnDisable()
