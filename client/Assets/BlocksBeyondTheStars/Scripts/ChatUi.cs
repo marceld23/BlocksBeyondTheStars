@@ -2,20 +2,24 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Player chat overlay, built in the modern uGUI design: a scrollback of recent lines plus an input box
-    /// opened with <b>Enter</b> (Esc cancels). Sending requires a comm radio (server-enforced; the rejection
-    /// shows as a toast). Messages broadcast to all connected players.
+    /// Player chat overlay: a scrollback of recent lines plus an input box opened with <b>Enter</b> (Esc
+    /// cancels). Sending requires a comm radio (server-enforced; the rejection shows as a toast). Messages
+    /// broadcast to all connected players.
     ///
-    /// The log gets out of the way by itself: lines age out after <see cref="FadeSeconds"/> unless the
-    /// player picked another <see cref="ChatVisibility"/>, and the toggle key (default J) mutes it for the
-    /// session. Opening the input always brings the recent lines back, whatever the mode — /help and
-    /// /report answers would be unreadable otherwise (#636).
+    /// The scrollback lives in a holo window (#1799) — the same chrome as VEGA's speech panel, fitted to the
+    /// lines it shows — so the text reads on snow, sand and sky where the bare overlay of #643 washed out.
+    /// The window comes and goes with its content: lines age out after <see cref="FadeSeconds"/> unless the
+    /// player picked another <see cref="ChatVisibility"/>, the toggle key (default J) mutes it for the
+    /// session, and no lines means no window. Opening the input always brings the recent lines back,
+    /// whatever the mode — /help and /report answers would be unreadable otherwise (#636) — and the input
+    /// row joins the window as its bottom row until Enter/Esc closes it again.
     /// </summary>
     public sealed class ChatUi : MonoBehaviour
     {
@@ -27,21 +31,26 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly List<ChatLine> _lines = new();
         private Canvas _canvas;
-        private Text _log;
+        private RectTransform _window;
+        private CanvasGroup _windowGroup;
+        private TextMeshProUGUI _log;
         private RectTransform _inputRow;
         private InputField _input;
-        private bool _typing, _subscribed, _built, _hostAnnounced, _reportTipShown, _hiddenByKey, _capturing;
+        private bool _typing, _subscribed, _built, _hostAnnounced, _reportTipShown, _hiddenByKey, _capturing, _windowShown;
         private int _openFrame = -1;
         private float _nextRefresh = float.MaxValue;
         private const int MaxLog = 40;
-        private const int VisibleLines = 12; // the full 310-px lane fits 12 rows; a /tp list is usually 8-15 lines
+        private const int VisibleLines = 12; // the full lane fits 12 rows at 18 px; a /tp list is usually 8-15 lines
         private const float FadeSeconds = 12f;   // how long a line stays up in the Auto mode
-        private const float FadeOutSeconds = 0.6f; // the dim-out at the end (one Text = the block fades as one)
+        private const float FadeOutSeconds = 0.6f; // the window's dim-out once its last line has aged out
+        private const float ShowSeconds = 0.15f;   // the window's fade-in, and its fade-out on an explicit close
+        private const int LogFontSize = 18;        // between the old bare overlay (16) and VEGA's chip (20)
 
-        // The left lane in HUD reference space (1536×864) — see EnsureBuilt and ResolveLane.
+        // The left lane in HUD reference space (1536×864) — see EnsureBuilt, ResolveLane and ResolveWindow.
         private const float LaneX = 10f, LaneW = 380f;
         private const float LaneTop = 280f, LaneBottom = 590f; // between the toast (268) and VEGA's chip (594)
         private const float InputRowY = 596f, InputRowH = 44f, LaneGap = 6f;
+        private const float WindowPad = 10f; // holo window inset around the text block
 
         // VEGA visibility as of the last refresh — the lane is re-resolved when either flips (Update).
         private bool _vegaSpeechSeen, _vegaChipSeen;
@@ -83,6 +92,54 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return new ChatLane(LaneTop, Mathf.Max(0f, bottom - LaneTop), inputY);
+        }
+
+        /// <summary>The holo window's rect this frame plus where its two rows sit inside it, in HUD reference
+        /// units. <see cref="H"/> is 0 when there is nothing to frame (no lines, not typing).</summary>
+        public readonly struct ChatWindow
+        {
+            public ChatWindow(float y, float h, float textH, float inputY, float capacity)
+            {
+                Y = y;
+                H = h;
+                TextH = textH;
+                InputY = inputY;
+                Capacity = capacity;
+            }
+
+            /// <summary>Window top, canvas space (x = <c>LaneX</c>, width = <c>LaneW</c>).</summary>
+            public float Y { get; }
+
+            /// <summary>Window height; 0 = hidden.</summary>
+            public float H { get; }
+
+            /// <summary>Height of the text block inside the window (0 = no block). It sits at <c>WindowPad</c>.</summary>
+            public float TextH { get; }
+
+            /// <summary>Window-local top of the input row (only meaningful while typing).</summary>
+            public float InputY { get; }
+
+            /// <summary>The tallest text block that fits — the caller drops rows until its block measures at most this.</summary>
+            public float Capacity { get; }
+        }
+
+        /// <summary>
+        /// The window hugs its content (#1799): it ends where the lane ends (or under the input row while
+        /// typing), grows upward by exactly the measured text block plus padding, and never rises above the
+        /// lane top — the toast sits right there. While typing the input row is the window's bottom row, so
+        /// the box the player types into is framed together with the lines it answers; with no lines that
+        /// leaves a compact input frame. No text and no typing → no window at all. Pure for the EditMode test.
+        /// </summary>
+        public static ChatWindow ResolveWindow(bool typing, bool speechVisible, bool chipVisible, float contentH)
+        {
+            var lane = ResolveLane(typing, speechVisible, chipVisible);
+            float bottom = typing ? lane.InputY + InputRowH : lane.LogY + lane.LogH;
+            float inputH = typing ? InputRowH : 0f;
+            float capacity = Mathf.Max(0f, bottom - LaneTop - inputH - 2f * WindowPad);
+            float textH = Mathf.Clamp(contentH, 0f, capacity);
+            float textBlock = textH > 0f ? textH + 2f * WindowPad : 0f;
+            float h = textBlock + inputH;
+            return new ChatWindow(bottom - h, h, textH, textBlock, capacity);
         }
 
         /// <summary>A scrollback entry with the (unscaled) time it arrived, which is what the fade reads.</summary>
@@ -805,21 +862,14 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private void RefreshLog()
         {
-            if (_log == null)
+            if (_log == null || _window == null)
             {
                 return;
             }
 
-            // Lane first: the geometry decides how many lines fit below.
             var vega = VegaPanel.Instance;
             _vegaSpeechSeen = vega != null && vega.SpeechVisible;
             _vegaChipSeen = vega != null && vega.ChipVisible;
-            var lane = ResolveLane(_typing, _vegaSpeechSeen, _vegaChipSeen);
-            UiKit.Place(_log.gameObject, LaneX, lane.LogY, LaneW, lane.LogH);
-            if (_inputRow != null)
-            {
-                UiKit.Place(_inputRow.gameObject, LaneX, lane.InputY, LaneW, InputRowH);
-            }
 
             _nextRefresh = float.MaxValue;
             var mode = Mode;
@@ -827,19 +877,13 @@ namespace BlocksBeyondTheStars.Client
             // While the input is open the recent scrollback shows in full, whatever the mode: you cannot
             // answer what you cannot read, and "off" still has to show /help and /report replies.
             bool keepAll = _typing || mode == ChatVisibility.Always;
-            if (!keepAll && mode == ChatVisibility.Off)
-            {
-                _log.text = string.Empty;
-                return;
-            }
-
+            bool showLines = keepAll || mode != ChatVisibility.Off;
             float now = Time.unscaledTime;
-            int from = Mathf.Max(0, _lines.Count - VisibleLines);
-            float alpha = _typing ? 1f : 0.8f;
-            if (!keepAll)
+            int from = showLines ? Mathf.Max(0, _lines.Count - VisibleLines) : _lines.Count;
+            if (showLines && !keepAll)
             {
-                // Auto: drop what has aged out, and dim the whole block over its final moment. One Text
-                // component means one colour, so the block fades as a unit rather than line by line.
+                // Auto: drop what has aged out. The oldest row still up is the next to go, so that is the
+                // next moment worth redrawing at; once the last one is gone the whole window dims out.
                 while (from < _lines.Count && now - _lines[from].Time >= FadeSeconds)
                 {
                     from++;
@@ -847,33 +891,101 @@ namespace BlocksBeyondTheStars.Client
 
                 if (from < _lines.Count)
                 {
-                    float remaining = _lines[_lines.Count - 1].Time + FadeSeconds - now;
-                    alpha *= Mathf.Clamp01(remaining / FadeOutSeconds);
-                    _nextRefresh = remaining > FadeOutSeconds
-                        ? Mathf.Min(_lines[from].Time + FadeSeconds, _lines[_lines.Count - 1].Time + FadeSeconds - FadeOutSeconds)
-                        : 0f; // inside the dim-out: redraw every frame until it is gone
+                    _nextRefresh = _lines[from].Time + FadeSeconds;
                 }
             }
 
-            // Fit the block to the lane: the Text is LowerLeft + Overflow, so an over-tall block would grow
-            // UPWARD out of the lane over the vitals and the toast. Drop the oldest lines until what is
-            // left fits — measured with the Text's own generator at scale 1 (canvas units), at most a dozen
-            // cheap measurements per refresh, and refreshes are rare (a new line, a fade tick, a VEGA flip).
-            string block = Join(from);
-            if (_log.font != null && _lines.Count > from)
+            // Fit the block to the window's capacity: drop the oldest lines until what is left measures in
+            // (TMP lays the block out against the window's inner width without rendering it). At most a
+            // dozen measurements per refresh, and refreshes are rare (a new line, a fade tick, a VEGA flip).
+            // A window that is hidden right now is woken for the measurement — TMP needs a live rect.
+            string block = from < _lines.Count ? Join(from) : string.Empty;
+            float textH = 0f;
+            if (block.Length > 0)
             {
-                var settings = _log.GetGenerationSettings(new Vector2(LaneW, 0f));
-                settings.scaleFactor = 1f;
-                var gen = _log.cachedTextGeneratorForLayout;
-                while (from < _lines.Count - 1 && gen.GetPreferredHeight(block, settings) > lane.LogH)
+                if (!_window.gameObject.activeSelf)
+                {
+                    _window.gameObject.SetActive(true);
+                }
+
+                float capacity = ResolveWindow(_typing, _vegaSpeechSeen, _vegaChipSeen, float.MaxValue).Capacity;
+                textH = Measure(block);
+                while (from < _lines.Count - 1 && textH > capacity)
                 {
                     from++;
                     block = Join(from);
+                    textH = Measure(block);
                 }
             }
 
-            _log.text = block;
-            _log.color = new Color(0.86f, 0.93f, 1f, alpha);
+            var win = ResolveWindow(_typing, _vegaSpeechSeen, _vegaChipSeen, textH);
+            bool visible = win.H > 0f;
+            if (visible)
+            {
+                // Content and geometry change only while there is something to show: a window on its way
+                // out keeps its last lines so they dim rather than vanish a beat before the frame does.
+                _log.text = block;
+                UiKit.Place(_window.gameObject, LaneX, win.Y, LaneW, win.H);
+                UiKit.Place(_log.gameObject, WindowPad, WindowPad, LaneW - 2f * WindowPad, Mathf.Max(win.TextH, 1f));
+                if (_inputRow != null)
+                {
+                    UiKit.Place(_inputRow.gameObject, 0f, win.InputY, LaneW, InputRowH);
+                }
+            }
+
+            // Lines that aged out dim over their final moment; an explicit close (Esc, the J key, the Off
+            // mode) or an empty scrollback goes as briskly as the window came.
+            bool agedOut = !visible && showLines && _lines.Count > 0 && !_typing;
+            SetWindowShown(visible, agedOut ? FadeOutSeconds : ShowSeconds);
+        }
+
+        /// <summary>Height of <paramref name="block"/> laid out at the window's inner width, canvas units.</summary>
+        private float Measure(string block)
+            => _log.GetPreferredValues(block, LaneW - 2f * WindowPad, 10000f).y;
+
+        /// <summary>Fades the holo window in (<see cref="ShowSeconds"/>) or out over <paramref name="fadeOut"/>
+        /// and deactivates it once gone. A line arriving mid-fade simply reverses the tween from where it is.</summary>
+        private void SetWindowShown(bool shown, float fadeOut)
+        {
+            if (_window == null || _windowGroup == null)
+            {
+                return;
+            }
+
+            if (shown)
+            {
+                if (!_window.gameObject.activeSelf)
+                {
+                    _window.gameObject.SetActive(true);
+                }
+
+                if (!_windowShown)
+                {
+                    _windowShown = true;
+                    UiTween.Alpha(_windowGroup, 1f, ShowSeconds);
+                }
+
+                return;
+            }
+
+            if (!_windowShown)
+            {
+                if (_window.gameObject.activeSelf)
+                {
+                    _window.gameObject.SetActive(false); // woken for a measurement that found nothing to show
+                }
+
+                return;
+            }
+
+            _windowShown = false;
+            UiTween.Alpha(_windowGroup, 0f, fadeOut, UiTween.Ease.OutCubic, 0f, () =>
+            {
+                if (_window != null && !_windowShown)
+                {
+                    _window.gameObject.SetActive(false);
+                }
+            });
         }
 
         /// <summary>The scrollback from index <paramref name="from"/> to the newest line, one per row.</summary>
@@ -890,6 +1002,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
+            // A window fade still running would poke a destroyed CanvasGroup — drop it first.
+            if (_windowGroup != null)
+            {
+                UiTween.Kill(_windowGroup);
+            }
+
             // Top-level canvas — destroy it with the component so chat doesn't linger on the menu.
             if (_canvas != null)
             {
@@ -917,25 +1035,49 @@ namespace BlocksBeyondTheStars.Client
             // hotbar cells and the controls hint line. WIDTH IS CAPPED for the same reason the scan panel
             // caps its own: the hotbar backplate owns x 400…1136, so this lane must not reach x 400.
             // In the flight view the lane is clear too — its instruments sit at the very bottom (y 818+).
-            // The lane is SHARED with VEGA (speech panel y 396…586, objective chip y 594…642): these rects
-            // are the VEGA-quiet defaults, RefreshLog re-places both rows via ResolveLane whenever VEGA
-            // shows or hides one of hers.
-            _log = UiKit.AddText(root, LaneX, LaneTop, LaneW, LaneBottom - LaneTop, string.Empty, 16, new Color(0.86f, 0.93f, 1f, 0.8f), TextAnchor.LowerLeft);
-            _log.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _log.verticalOverflow = VerticalWrapMode.Overflow;
-            _log.supportRichText = true;
+            // The lane is SHARED with VEGA (speech panel y 396…586, objective chip y 594…642): RefreshLog
+            // re-places the window via ResolveLane/ResolveWindow whenever VEGA shows or hides one of hers.
+            //
+            // The window (#1799) is VEGA's speech-panel chrome — same fill, radius and glow — so the two
+            // read as one family in the column; the bare overlay of #643 had no backplate and washed out
+            // on bright ground. It starts hidden and transparent; RefreshLog sizes it to its lines and
+            // fades it in and out (a CanvasGroup — UiHolo keeps the vertex alpha free for exactly that).
+            var panel = UiHolo.AddPanel(root, LaneX, LaneBottom, LaneW, 1f, new Color(0.05f, 0.10f, 0.16f, 0.82f), 12f, 1.5f, 1.2f);
+            panel.gameObject.name = "ChatWindow";
+            _window = panel.rectTransform;
+            _windowGroup = _window.gameObject.AddComponent<CanvasGroup>();
+            _windowGroup.alpha = 0f;
+            _windowGroup.interactable = true;
+            _windowGroup.blocksRaycasts = true; // the input field inside must stay clickable
 
-            // Input row (hidden until typing), directly under the scrollback and clear of the scan panel.
-            _inputRow = UiKit.AddPanel(root, LaneX, InputRowY, LaneW, InputRowH, UiKit.Panel).rectTransform;
+            _log = UiText.Add(_window, WindowPad, WindowPad, LaneW - 2f * WindowPad, 1f, string.Empty, LogFontSize, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Normal, UiText.Look.Outline);
+            UiText.Wrap(_log); // wrap inside the window; the block is fitted to its measured height, never clipped
+
+            // Input row (hidden until typing): the window's bottom row while the box is open, so what the
+            // player types sits in the same frame as the lines it answers.
+            var rowGo = new GameObject("ChatInputRow", typeof(RectTransform));
+            rowGo.transform.SetParent(_window, false);
+            _inputRow = rowGo.GetComponent<RectTransform>();
+            UiKit.Place(rowGo, 0f, 0f, LaneW, InputRowH);
             var inputGo = new GameObject("ChatInput", typeof(RectTransform));
             inputGo.transform.SetParent(_inputRow, false);
-            UiKit.Place(inputGo, 8, 6, LaneW - 16f, 32);
+            UiKit.Place(inputGo, WindowPad, 6, LaneW - 2f * WindowPad, 32);
             var img = inputGo.AddComponent<Image>();
-            img.color = new Color(0.04f, 0.09f, 0.18f, 0.95f);
+            var field = UiHolo.Apply(img, UiHolo.Style.Panel, 6f, 1f, 0.5f); // a darker holo well inside the window
+            if (field != null)
+            {
+                img.color = new Color(0.02f, 0.05f, 0.10f, 1f);
+                field.FillOpacity = 0.9f;
+            }
+            else
+            {
+                img.color = new Color(0.04f, 0.09f, 0.18f, 0.95f); // bitmap fallback: the old flat field
+            }
+
             _input = inputGo.AddComponent<InputField>();
-            var txt = UiKit.AddText(inputGo.transform, 8, 0, LaneW - 32f, 32, string.Empty, 17, UiKit.TextCol, TextAnchor.MiddleLeft);
+            var txt = UiKit.AddText(inputGo.transform, 8, 0, LaneW - 2f * WindowPad - 16f, 32, string.Empty, LogFontSize, UiKit.TextCol, TextAnchor.MiddleLeft);
             txt.supportRichText = false;
-            var ph = UiKit.AddText(inputGo.transform, 8, 0, LaneW - 32f, 32, L("ui.chat.send_hint"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Italic);
+            var ph = UiKit.AddText(inputGo.transform, 8, 0, LaneW - 2f * WindowPad - 16f, 32, L("ui.chat.send_hint"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Italic);
             _input.textComponent = txt;
             _input.placeholder = ph;
             // Room for a pasted build share code — the server refuses over-long codes with a clear hint
@@ -944,6 +1086,7 @@ namespace BlocksBeyondTheStars.Client
             _input.lineType = InputField.LineType.SingleLine;
             _input.onEndEdit.AddListener(OnEndEdit);
             _inputRow.gameObject.SetActive(false);
+            _window.gameObject.SetActive(false); // no lines yet — no window (RefreshLog wakes it)
 
             _built = true;
         }
