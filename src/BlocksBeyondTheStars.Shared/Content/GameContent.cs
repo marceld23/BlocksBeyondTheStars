@@ -955,6 +955,27 @@ public sealed class GameContent
             }
             // Terrain tags (#1644): resolved once here so worldgen reads a flags enum, never the string list.
             planet.Tags = TerrainTags.Parse(planet.TerrainTags, out var unknownTag);
+            // City worlds (#1793): the composer key must be one the server knows, and every authored outfit
+            // must be a colour — parsed once here so the NPC caster never re-reads strings.
+            if (planet.CityWorld.Length > 0 && !string.Equals(planet.CityWorld, "gds", StringComparison.OrdinalIgnoreCase))
+            {
+                problems.Add($"Planet '{planet.Key}' names unknown city composer '{planet.CityWorld}'.");
+            }
+
+            var outfits = new List<uint>();
+            foreach (var hex in planet.NpcOutfits)
+            {
+                if (hex.Length == 6 && uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out uint rgb))
+                {
+                    outfits.Add(rgb);
+                }
+                else
+                {
+                    problems.Add($"Planet '{planet.Key}' has a malformed npcOutfits colour '{hex}' (expected RRGGBB).");
+                }
+            }
+
+            planet.NpcOutfitRgb = outfits.ToArray();
             if (unknownTag is not null)
             {
                 problems.Add($"Planet '{planet.Key}' carries unknown terrain tag '{unknownTag}'.");

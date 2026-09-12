@@ -821,6 +821,31 @@
     ]
   },
   {
+    "key": "gds_desert", "minTerrainGeneration": 7, "cityWorld": "gds", "exotic": true, "floraTheme": "desert", "baseTemperature": 55, "nameKey": "planet.gds_desert.name", "atmosphereHeight": 200, "cloudColor": 13404240, "cloudDensity": 0.15,
+    "terrainTags": ["volcanic", "buttes", "wind"],
+    "baseHeight": 62, "amplitude": 9, "terrainScale": 64.0, "terrainStyle": "flats",
+    "terrainStyles": ["flats", "dunes"],
+    "surfaceBlock": "sand", "subSurfaceBlock": "sandstone", "deepBlock": "stone", "surfaceDepth": 5,
+    "caveThreshold": 0.8, "dataCacheRarity": 0.001,
+    "weather": "dynamic", "stormChance": 0.2, "dayLengthSeconds": 640, "worldRadius": 900, "floraDensity": 0.0, "treeDensity": 0.0, "creatureAbundance": "none", "atmosphere": "breathable", "spawnWeight": 1, "waterAbundance": 0.0, "lavaAbundance": 0.35,
+    "ruinsBias": 0.0, "factoriesBias": 0.0,
+    "npcOutfits": ["4B2A78", "5E3391", "8A1C24", "B22A33", "3A1F5C", "C8202A"],
+    "weatherVolatility": 1.1, "seasonAmplitude": 0.15,
+    "weatherEvents": { "gale": 2.0, "heatwave": 3.0, "fog": 0.1 },
+    "biomes": [
+      { "surfaceBlock": "sand", "subSurfaceBlock": "sandstone" },
+      { "surfaceBlock": "sandstone", "subSurfaceBlock": "sandstone", "reliefMul": 1.3 },
+      { "surfaceBlock": "basalt", "subSurfaceBlock": "basalt", "reliefMul": 0.8 }
+    ],
+    "ores": [
+      { "block": "gold_ore", "rarity": 0.02, "minDepth": 20, "maxDepth": 2048 },
+      { "block": "sulfur_ore", "rarity": 0.04, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "silicate", "rarity": 0.07, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 6, "maxDepth": 2048 },
+      { "block": "iron_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 2048 }
+    ]
+  },
+  {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,

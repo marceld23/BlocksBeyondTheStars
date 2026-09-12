@@ -298,4 +298,17 @@ public sealed class PlanetType
     /// structure in the void (space sky, life support — see the station planet type).
     /// </summary>
     public bool Void { get; set; }
+
+    /// <summary>The city composer this world type runs instead of the settlement roll (#1793): "" = the ordinary
+    /// hospitality-driven settlements; "gds" = exactly ONE gigantic walled city centred on landing pad 0, the
+    /// G.D.S. city of the lava desert. Never combined with the classic roll.</summary>
+    public string CityWorld { get; set; } = string.Empty;
+
+    /// <summary>Outfit colours (RRGGBB hex, no prefix) this type's inhabitants wear instead of their trade's
+    /// palette (#1793) — the G.D.S. city dresses in purple and red. Empty = the classic per-trade wardrobe.</summary>
+    public List<string> NpcOutfits { get; set; } = new();
+
+    /// <summary>The <see cref="NpcOutfits"/> parsed once at content load; empty when none are authored.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public uint[] NpcOutfitRgb { get; set; } = System.Array.Empty<uint>();
 }

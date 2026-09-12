@@ -1362,3 +1362,57 @@ per-block map now. Tests: `GiantTreeTests`.
 
 **Watch items.** Structures still never look at stamps (a settlement may sit under a giant crown — the same
 class as the open "structures never read caves" item); a felled giant is a few hundred logs.
+
+## 17. Generation 7 — the city world (#1793, 2026-09-12)
+
+Justus's idea from an F1 report: a rare lava desert with ONE gigantic city, cool inside its walls, guarded by
+friendly machines of the "G.D.S." — letters nobody in the game explains. Everything about the planet is data;
+the city is a new composer; the guardians are settlement NPCs with a look of their own.
+
+**The type.** `gds_desert` in `data/planets.json`: `minTerrainGeneration 7`, `exotic`, `spawnWeight 1` (about
+one planet in three or four galaxies; the exotic-worlds slider scales it), `terrainTags volcanic/buttes/wind`,
+sand over sandstone, `waterAbundance 0` + `lavaAbundance 0.35` (a lava sea and the volcanic lava rivers), no
+flora, no fauna, breathable but 55 °C. `ruinsBias`/`factoriesBias 0`. Two new fields: `cityWorld: "gds"`
+routes the settlement stamp to the composer; `npcOutfits` (RRGGBB list) dresses every civilian from the
+planet's wardrobe instead of the trade palette (`PlanetType.NpcOutfitRgb`, parsed at content load).
+`CurrentTerrainGeneration` is 7 (`CityWorldsGeneration`); older galaxies never roll the type.
+
+**The composer** (`WorldGeneration/CityGenerator.cs`). A 7×7 grid of 32×32 modules with 4-wide streets =
+256 blocks a side, returned as ONE `SettlementStructure` (tier `metropolis`) so the ordinary stamper does the
+carve, the shelf seat, the markers, the doors, the boards and the residents. Module roles by grid position
+(`RoleAt`): the centre is the landing plaza (steel paving, eight lamp posts, four guard posts around the pad),
+the inner ring holds two markets (vendors, the mission board, glass-canopied stalls), the hall (14-wide, a red
+crown) and gardens, every third outer module is a garden (grass, an 8×8 pool, six trees, ferns), the corners
+are 14-tall watch towers, the rest is housing (3×3 plots on the settlement generator's stride, one to three
+storeys, `StampBuilding` reused). Walls are `iron_wall` tinted per cell — purple (`0x3A1F5C`) or red
+(`0x8A1C24`) per house — the perimeter wall is purple with a red band and four gates on the axis streets, with
+guard posts inside and ON the footprint rim outside the gates. Open zones (the pad ring, the wreck crash site
+at pad 0 − 56/+56) are handed in as rectangles the composer leaves as paved ground; a module they intersect
+becomes an open square. Deterministic from the body seed.
+
+**The stamp** (`GameServerSettlements.StampCityWorld`). A city world skips the hospitality roll entirely:
+one settlement, centred on landing pad 0, `GroundY` = the pad's ground, seat `shelf`, pinned as settlement 0
+with template `city:gds`; `CommitSettlements` (phases B–D, shared with the roll) does the rest. The footprint
+is kept on `LoadedWorld.CityFootprint`.
+
+**Cool rooms** (`GameServerTemperature.InCityShelter`). Inside the footprint AND `RoofedAt` → the effective
+temperature is `CityComfortC` = 22 °C. Streets, gardens and the plaza stay desert-hot. No climate physics.
+
+**The G.D.S.** Marker `guard_post` → NPC role `guardian`: always a machine, chassis `0x3A1F5C`, plating
+`0x4B2A78`, legs `0x2C1746`, `NetNpc.Look = "gds_guard"` (additive), `GuardianLeash` 14 blocks so they walk a
+beat; the client draws a red stripe band on the chest and the abdomen and swaps the pupils for self-lit red
+(`PlayerAvatar.SetGuardianLook`). They never fight — there is no faction model, by design. `dialogs.json`
+gained `planetTypes`; the two G.D.S. dialogues are offered on `gds_desert` only and come first in the file so
+they win over the generic settler line. The LLM greeting persona for guardians is one fixed voice that never
+explains the letters. VEGA: `vega.hint.world.gds` on landing; name syllables share the desert flavour;
+ambience uses the desert track.
+
+**Tests.** `CityWorldTests`: the type is data-complete and gen-7-gated; the composer is deterministic, keeps
+the open zones clear, stands the wall and opens the gate, places every role and enough markers; a server on
+the type stamps exactly one metropolis around pad 0, spawns guardians in the look and civilians in the
+wardrobe, shelters a settler at home but not a guard on the plaza, and serves the G.D.S. lines — and a jungle
+world does none of it.
+
+**Watch items.** Hand-authored modules (`settlement_templates.json` with `planetTypes` + a role) are the
+intended next step and are not wired yet; bandit camps and monuments still place by their own rules and may
+seat near the walls; the wreck stamps into its open square as before.

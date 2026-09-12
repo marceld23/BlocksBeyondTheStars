@@ -86,7 +86,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private static readonly string[] WorldOrder =
-            { "asteroid", "ocean", "corrupted", "fungal", "ice", "volcanic" };
+            { "asteroid", "ocean", "corrupted", "fungal", "ice", "volcanic", "gds" };
 
         /// <summary>
         /// Groups wrapped text lines into pages that fit a fixed-height box. Inputs are the wrap layout the

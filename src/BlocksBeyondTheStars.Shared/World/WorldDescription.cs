@@ -180,7 +180,12 @@ public sealed class WorldDescription
 
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees).</summary>
-    public const int CurrentTerrainGeneration = 6;
+    public const int CurrentTerrainGeneration = 7;
+
+    /// <summary>The generation of the city worlds (#1793): the G.D.S. lava desert with its one walled city. A
+    /// data-only planet type gated on this generation, so no older galaxy ever rolls it; the composer itself
+    /// keys off the type, not the generation.</summary>
+    public const int CityWorldsGeneration = 7;
 
     /// <summary>The generation of the new-kinds wave (#1778-#1783): the Ray body plan (water + sky), the air fish,
     /// multi-headed / multi-winged / multi-finned bodies and the giant trees. Every roll of this wave is appended

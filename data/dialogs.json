@@ -1,5 +1,38 @@
 [
   {
+    "key": "gds_guardian",
+    "role": "guardian",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "planetTypes": ["gds_desert"],
+    "nodes": [
+      {
+        "promptKey": "dlg.gds_guardian.prompt",
+        "choices": [
+          { "textKey": "dlg.gds_guardian.c_who", "responseKey": "dlg.gds_guardian.r_who" },
+          { "textKey": "dlg.gds_guardian.c_safe", "responseKey": "dlg.gds_guardian.r_safe", "consequence": "standing:1" },
+          { "textKey": "dlg.gds_guardian.c_bye", "responseKey": "dlg.gds_guardian.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "gds_settler",
+    "role": "settler",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "planetTypes": ["gds_desert"],
+    "nodes": [
+      {
+        "promptKey": "dlg.gds_settler.prompt",
+        "choices": [
+          { "textKey": "dlg.gds_settler.c_cool", "responseKey": "dlg.gds_settler.r_cool", "consequence": "standing:1" },
+          { "textKey": "dlg.gds_settler.c_bye", "responseKey": "dlg.gds_settler.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
     "key": "settler_neighbours",
     "role": "settler",
     "minStage": "",

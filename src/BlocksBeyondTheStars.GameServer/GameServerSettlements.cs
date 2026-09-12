@@ -58,6 +58,12 @@ public sealed partial class GameServer
     /// <summary>Number of inhabited (non-ruin) settlements on this world.</summary>
     public int InhabitedSettlementCount => _settlements.Count(s => !s.Ruined);
 
+    /// <summary>Test seam (#1793): the city world's footprint, null on every other world.</summary>
+    public (int MinX, int MinZ, int MaxX, int MaxZ)? CityFootprintForTest => _worlds.Active.CityFootprint;
+
+    /// <summary>Test seam: the settlement tiers on this world, in stamp order.</summary>
+    public IReadOnlyList<string> SettlementTiersForTest => _settlements.Select(s => s.Tier).ToList();
+
     /// <summary>Per-settlement world-space bounds + flags — test seam for placement/collision checks.</summary>
     public IReadOnlyList<(int MinX, int MinZ, int MaxX, int MaxZ, bool Ruined, bool OnIsland)> SettlementsForTest
         => _settlements.Select(s => (s.Min.X, s.Min.Z, s.Max.X, s.Max.Z, s.Ruined, s.OnIsland)).ToList();
@@ -230,6 +236,13 @@ public sealed partial class GameServer
 
         // World options: the chosen settlement frequency scales the density (Off ⇒ none).
         double factor = _meta.Description.Settlements.StructureFactor();
+        if (factor > 0 && planet.CityWorld.Length > 0)
+        {
+            // #1793: a city world gets its one composed city instead of the roll — no hospitality, no ruins.
+            StampCityWorld(planet, rng, sSeed, planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock);
+            return;
+        }
+
         double h = Hospitability(planet);
         if (factor <= 0 || h <= 0)
         {
@@ -383,6 +396,17 @@ public sealed partial class GameServer
             return;
         }
 
+        CommitSettlements(placed, surface, rng);
+
+        int ruins = _settlements.Count(s => s.Ruined);
+        _log.Info($"Stamped {placed.Count}/{requested} settlement(s) on '{_world.LocationId}' " +
+                  $"({_settlements.Count - ruins} inhabited, {ruins} ruined; H={h:F2}, size={sizeFactor:F2}, char={character:F1}).");
+    }
+
+    /// <summary>Phases B–D of a settlement stamp, shared by the hospitality roll and the city composer (#1793):
+    /// voxels in one transaction, then instances + markers + boards + loot, then residents and doors.</summary>
+    private void CommitSettlements(List<PlacedSettlement> placed, string surface, System.Random rng)
+    {
         // Phase B — stamp every settlement's voxels in ONE transaction (hundreds–thousands of cells each).
         _repo.RunInTransaction(() =>
         {
@@ -436,10 +460,77 @@ public sealed partial class GameServer
         // Phase D — populate inhabited settlements with NPCs and hang real doors in the doorways.
         SpawnSettlementNpcs(rng);
         RegisterDoors();
+    }
 
-        int ruins = _settlements.Count(s => s.Ruined);
-        _log.Info($"Stamped {placed.Count}/{requested} settlement(s) on '{_world.LocationId}' " +
-                  $"({_settlements.Count - ruins} inhabited, {ruins} ruined; H={h:F2}, size={sizeFactor:F2}, char={character:F1}).");
+    /// <summary>The city world (#1793): instead of the hospitality roll, exactly ONE gigantic walled city composed
+    /// by <see cref="CityGenerator"/>, centred on landing pad 0 so the ship comes down on the plaza inside the
+    /// walls. The pad ring and the wreck crash site are handed to the composer as open zones — the crash site
+    /// becomes a square inside the city, the pad its landing plaza. Pinned like every settlement (kind
+    /// "settlement", index 0, template "city:gds") so an existing save keeps its city where it stood.</summary>
+    private void StampCityWorld(PlanetType planet, System.Random rng, long sSeed, string surface)
+    {
+        if (_landingPads.Count == 0)
+        {
+            return;
+        }
+
+        var pad = _landingPads[0];
+        int size = CityGenerator.Footprint;
+        var origin = new Vector3i(pad.CenterX - size / 2, pad.CenterY, pad.CenterZ - size / 2);
+        int groundY = pad.CenterY;
+        string name;
+        var rec = FindPlacementRecord("settlement", 0);
+        if (rec is { Placed: true })
+        {
+            origin = new Vector3i(rec.X, rec.GroundY, rec.Z);
+            groundY = rec.GroundY;
+            name = rec.Name;
+        }
+        else
+        {
+            name = CityDisplayName(RngFor(sSeed, "cityname"));
+            RecordPlacement("settlement", 0, origin, groundY, false, "shelf", name, "city:" + planet.CityWorld);
+        }
+
+        // Open zones in structure-local coordinates: the pad ring (the plaza keeps it clear for the ship) and
+        // the wreck crash site, which stamps at its fixed offset from pad 0 whatever stands there.
+        int padHalf = LandingPadRadius + 3;
+        var (wreckX, wreckZ) = WreckAnchorFor(_landingPads);
+        var zones = new List<CityGenerator.OpenZone>
+        {
+            new(pad.CenterX - padHalf - origin.X, pad.CenterZ - padHalf - origin.Z, pad.CenterX + padHalf - origin.X, pad.CenterZ + padHalf - origin.Z),
+            new(wreckX - WreckReservedHalfExtent - origin.X, wreckZ - WreckReservedHalfExtent - origin.Z,
+                wreckX + WreckReservedHalfExtent - origin.X, wreckZ + WreckReservedHalfExtent - origin.Z),
+        };
+
+        var structure = CityGenerator.Generate(sSeed, _content, zones);
+        var placed = new List<PlacedSettlement>
+        {
+            new PlacedSettlement
+            {
+                Structure = structure,
+                Origin = origin,
+                GroundY = groundY,
+                Tier = CityGenerator.Tier,
+                Ruined = false,
+                OnIsland = false,
+                Name = name,
+                Rng = rng,
+                Seat = "shelf",
+            },
+        };
+        SavePlacementRecords();
+        ReportStamp("settlement", 1, 1);
+        _worlds.Active.CityFootprint = (origin.X, origin.Z, origin.X + structure.Width - 1, origin.Z + structure.Length - 1);
+        CommitSettlements(placed, surface, rng);
+        _log.Info($"Stamped the '{planet.CityWorld}' city '{name}' ({structure.Width}×{structure.Length}, {_npcs.Count} residents) around pad 0 on '{_world.LocationId}'.");
+    }
+
+    /// <summary>The G.D.S. city's name (#1793): a root the desert-world names share, under the initials nobody explains.</summary>
+    private static string CityDisplayName(System.Random rng)
+    {
+        string[] roots = { "Veyra", "Sarath", "Ossira", "Tarmun", "Zephar", "Kel-Dun", "Ilvane", "Quorra" };
+        return "G.D.S. " + roots[rng.Next(roots.Length)];
     }
 
     /// <summary>Carves the footprint clear of terrain, lays a flat foundation, then stamps the structure's blocks.
