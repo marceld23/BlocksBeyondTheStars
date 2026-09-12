@@ -2176,11 +2176,25 @@ namespace BlocksBeyondTheStars.Client
         {
             float capsuleTop = _crouched ? CrouchHeight : StandHeight;
 
-            // Walk upward from the head in step-sized samples and stop at the first solid cell.
+            // Walk upward from the head in step-sized samples and stop at the first solid cell. #1790: the capsule is
+            // radius + skin wide, so the probe covers its whole footprint — the centre, the four sides and the four
+            // diagonals — not just the column under transform.position. Walking a 2-high corridor a little off the
+            // column centre, or reaching a lintel whose ceiling block sits in the NEXT column, the single centre sample
+            // still read "air", the full 0.6 m sweep stayed armed and the player wedged exactly as before ("Ich kann
+            // immernoch nicht durch 2 Blöcke hohe Gänge"). Same neighbouring-column reach the wedge guard in
+            // LiftOutOfBlockAt already uses (#1460).
             float headroom = DefaultStepOffset;
+            float reach = _controller.radius + _controller.skinWidth;
+            float diag = reach * 0.7071f;
+            var feet = transform.position;
             for (float probe = 0.1f; probe <= DefaultStepOffset + 0.05f; probe += 0.1f)
             {
-                if (IsCollidingKey(BlockKeyAt(transform.position + Vector3.up * (capsuleTop + probe))))
+                float up = capsuleTop + probe;
+                if (CeilingAt(feet, up, 0f, 0f)
+                    || CeilingAt(feet, up, reach, 0f) || CeilingAt(feet, up, -reach, 0f)
+                    || CeilingAt(feet, up, 0f, reach) || CeilingAt(feet, up, 0f, -reach)
+                    || CeilingAt(feet, up, diag, diag) || CeilingAt(feet, up, -diag, diag)
+                    || CeilingAt(feet, up, diag, -diag) || CeilingAt(feet, up, -diag, -diag))
                 {
                     headroom = Mathf.Max(0f, probe - 0.1f);
                     break;
@@ -2189,6 +2203,11 @@ namespace BlocksBeyondTheStars.Client
 
             _controller.stepOffset = Mathf.Min(DefaultStepOffset, headroom);
         }
+
+        /// <summary>A colliding block <paramref name="up"/> above the feet, sampled <paramref name="dx"/>/<paramref name="dz"/>
+        /// off the capsule axis (the step-offset probe's footprint samples, #1790).</summary>
+        private bool CeilingAt(Vector3 feet, float up, float dx, float dz)
+            => IsCollidingKey(BlockKeyAt(new Vector3(feet.x + dx, feet.y + up, feet.z + dz)));
 
         /// <summary>The step height used in the open — matches the value WorldRig sets up so a slab (0.5) and each
         /// stair tread are walked up without jumping.</summary>

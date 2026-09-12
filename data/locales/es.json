@@ -2880,6 +2880,7 @@
   "vega.hint.world.asteroid": "Un asteroide: baja gravedad, sin aire, cráteres profundos. Los metales raros suelen estar en las zonas profundas.",
   "vega.hint.world.ocean": "Mundo oceánico. La tierra es el recurso escaso aquí. Procura no aparcar en la rompiente.",
   "vega.hint.seabed": "Estamos en el fondo del mar. La plataforma mantiene el agua fuera mientras no excaves sus paredes. Para despegar: E en la cabina.",
+  "vega.hint.guardian_core": "El núcleo del Guardián no está bajo nuestra plataforma: se encuentra en una cámara debajo del único pozo con anillo de hierro en este planeta. He marcado la apertura en tu mapa (M); la brújula muestra la distancia. Ve hasta allí, no cavas aquí.",
   "vega.hint.swim": "Bajo el agua: Espacio te mantiene arriba, el oxígeno baja. En tierra se recarga.",
   "vega.hint.world.corrupted": "Este mundo se percibe… mal. Mis sensores se ponen nerviosos. Las masas terrestres flotantes no son obra mía.",
   "vega.hint.world.fungal": "Un mundo fúngico. Los hongos son del tamaño de edificios. Las esporas son mayormente inofensivas. Mayormente.",

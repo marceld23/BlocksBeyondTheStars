@@ -2880,6 +2880,7 @@
   "vega.hint.world.asteroid": "Asteroida: niska grawitacja, brak powietrza, głębokie kratery. Rzadkie metale są tu jak w głębi.",
   "vega.hint.world.ocean": "Świat oceaniczny. Ląd jest tu rzadkim zasobem. Staraj się nie zaparkować w wodzie.",
   "vega.hint.seabed": "Stoimy na dnie morza. Lądowisko trzyma wodę z dala, dopóki nie wykopiesz jego ścian. Aby odlecieć: E przy kokpicie.",
+  "vega.hint.guardian_core": "Rdzeń Strażnika nie znajduje się pod naszą platformą — leży w komorze pod tym szybem z żelaznym pierścieniem na tej planecie. Oznaczyłem otwór na twojej mapie (M); kompas pokazuje odległość. Idź tam pieszo, nie kop tutaj.",
   "vega.hint.swim": "Pod wodą: Spacja utrzymuje cię na powierzchni, tlen ubywa. Na lądzie się odnawia.",
   "vega.hint.world.corrupted": "Ten świat... czyta się źle. Czuję to w sensorach. Dryfujące masy lądu to nie moje dzieło.",
   "vega.hint.world.fungal": "Świat grzybowy. Grzyby są wielkości budynków. Zarodniki są przeważnie nieszkodliwe. Przeważnie.",

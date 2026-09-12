@@ -35,6 +35,36 @@ Lyxette's 2026.9.5 round (#1745–#1753), test guards (#1735/#1743), credits (PR
 Protocol stays 5. Fleet: server image `2026.9.6`, worldhost re-pinned (Shared changed), reports unchanged; after the
 deploy the per-world memory fence goes back from 1536m to 768m (#1740 mitigation).
 
+### 🕳️ Player reports 2026-09-12 — the shaft that was "the void", the orphaned reply dialog, 2-block gaps, the caret, and the way to the Guardian core (#1788–#1792, 2026-09-12, branch fix/reports-2026-09-12)
+
+Justus's evening of 2026-09-11 (five F1 reports + a client crash, v2026.9.5) and Lyxette's crash of 2026-09-12 (v2026.9.6).
+Every report was checked against the server snapshot and the code before anything was changed.
+
+- **#1788 The void rescue teleported a player falling down their own shaft** — `IsInVoid` read "16 under the
+  surface + no ground within 24" as the bottomless void, but since B46 every column ends in bedrock 256–2048
+  blocks down; a 50-block dig was "the void" and `TickVoidRescue` snapped the digger to the ship's heal tank every
+  second ("Ich werde im End Level immer wieder zum Schiff tp"). Now a position above the column's floor
+  (`WorldGenerator.FloorDepth`) is never the void — a cave, a mega-cavern or a dug shaft always ends on something.
+  Tests carve their void THROUGH the floor (`FloorDepthForTest`); a new test drops a player down a 160-block shaft
+  and expects to be left alone.
+- **#1789 FeedbackUi outlived the world rig** — both dialog canvases are top-level while the component sits on
+  the rig root, and there was no `OnDestroy`: a reply overlay open during ReturnToMenu stayed in the main menu
+  and its OK button crashed in `CancelInvoke` (Lyxette). `OnDestroy` now destroys both canvases and releases the
+  world hold, like `ChatUi`. Also stops two hidden canvases leaking per world join.
+- **#1790 2-block-high openings still wedged the player** (follow-up to #454/#609) — `UpdateStepOffset`
+  sampled the ceiling in the one column under the capsule axis; off-centre in a corridor, or at a lintel whose
+  block sits in the next column, the 0.6 m step sweep stayed armed. The probe now covers the capsule footprint
+  (centre, four sides, four diagonals at radius + skin).
+- **#1791 Third `InputField.GenerateCaret` crash** — #1683 and #1634 fixed the feedback dialog and the chat box
+  one at a time; a third dialog crashed the same way. `UiKit.AddInput` now attaches `InputFocusGuard`, which
+  deactivates the field and clears the EventSystem selection from the field's own `OnDisable` — all 63 fields.
+- **#1792 The way to the Guardian core** — the chamber is 20 blocks deep but sits under ONE aperture at (48, 24)
+  while pads ring the planet; Justus dug 50 blocks under his ship and then used `goto_core`. The `guardian_core`
+  POI gets its own map look (◎, hot rose, legend row — six legend slots per row now), the compass a third line +
+  blip with the distance, and VEGA says once on landing (`vega.hint.guardian_core`, 14 locales) that the core is
+  under the marked shaft, not under the ship.
+- Not code: **#1793** Justus's city-planet idea (analysis to follow on the issue).
+
 ### 🐟 Rays, air fish, hydras, more wings and fins, and giant trees — generation 6 (#1778–#1783, 2026-09-11, branch feat/new-kinds-gen6)
 
 Marcel's idea list of 2026-09-11, shipped as **terrain generation 6** so no existing world changes: every

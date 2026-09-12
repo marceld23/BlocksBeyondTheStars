@@ -2880,6 +2880,7 @@
   "vega.hint.world.asteroid": "An asteroid: low gravity, no air, deep craters. The rare metals like the deep ones.",
   "vega.hint.world.ocean": "Ocean world. Land is the rare resource here. Try not to park in the surf.",
   "vega.hint.seabed": "We are parked on the sea floor. The landing pad keeps the water out — as long as you don't mine its walls. To leave: E at the cockpit.",
+  "vega.hint.guardian_core": "The Guardian's core is not under our pad — it sits in a chamber beneath the one iron-ringed shaft on this planet. I have marked the aperture on your map (M); the compass shows the distance. Walk there, do not dig here.",
   "vega.hint.swim": "Underwater: Space keeps you up, the oxygen counts down. It refills back on land.",
   "vega.hint.world.corrupted": "This world reads… wrong. My sensors itch. The floating landmasses are not my doing.",
   "vega.hint.world.fungal": "A fungal world. The mushrooms are building-sized. The spores are mostly harmless. Mostly.",

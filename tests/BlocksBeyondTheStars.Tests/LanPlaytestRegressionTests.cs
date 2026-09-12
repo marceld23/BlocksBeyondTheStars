@@ -546,16 +546,17 @@ public sealed class LanPlaytestRegressionTests : IDisposable
 
         server.RequestLandingPadsForTest(mary, mary.CurrentLocationId); // serves Mary → the ship cursor points at her
 
-        // Carve a deep air shaft below the host and drop him in (the world has a bedrock floor, so the
-        // void has to be made, not found) — the same setup SpawnSafetyTests uses.
+        // Carve a hole through the bedrock floor below the host and drop him under it (the world has a bedrock
+        // floor, so the void has to be made, not found — and since #1788 only a position BELOW that floor counts)
+        // — the same setup SpawnSafetyTests uses.
         int bx = (int)System.Math.Floor(host.State.Position.X), bz = (int)System.Math.Floor(host.State.Position.Z);
-        int top = (int)host.State.Position.Y;
-        for (int y = top; y > top - 160; y--)
+        int floorY = (int)host.State.Position.Y - server.FloorDepthForTest;
+        for (int y = floorY + 8; y > floorY - 70; y--)
         {
             server.World.SetBlock(new Vector3i(bx, y, bz), BlockId.Air);
         }
 
-        host.State.Position = new Vector3f(bx + 0.5f, top - 50, bz + 0.5f);
+        host.State.Position = new Vector3f(bx + 0.5f, floorY - 35, bz + 0.5f);
         Assert.True(server.IsInVoidForTest(host.State.Position), "the host must start in the void for the rescue to fire");
 
         server.RunVoidRescueForTest();

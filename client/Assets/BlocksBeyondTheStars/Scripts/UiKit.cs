@@ -963,6 +963,10 @@ namespace BlocksBeyondTheStars.Client
             // keyboard/mouse.
             input.gameObject.AddComponent<PadTextEntryBridge>().Init(input, placeholder);
 
+            // #1791: hand focus back the moment the field's dialog goes inactive — every field, not one dialog at a
+            // time (the feedback dialog got this in #1683, the chat box in #1634, and a third dialog crashed anyway).
+            input.gameObject.AddComponent<InputFocusGuard>().Init(input);
+
             return input;
         }
 
@@ -1209,6 +1213,40 @@ namespace BlocksBeyondTheStars.Client
                         _img.enabled = busy;
                     }
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Releases keyboard focus when an input field's dialog is deactivated (#1791). uGUI never deselects a
+    /// deactivated <see cref="InputField"/> on its own: the caret keeps its place in the canvas rebuild queue, and
+    /// rebuilding it once the field's own objects are gone throws inside <c>InputField.GenerateCaret</c> — a client
+    /// crash the feedback dialog (#1683) and the chat box (#1634) each fixed for themselves before a third dialog
+    /// crashed the same way. Attached by <see cref="UiKit.AddInput"/> to every field it builds, so the release runs
+    /// from the field's own <c>OnDisable</c> — before any rebuild — whichever screen hides it.
+    /// </summary>
+    public sealed class InputFocusGuard : MonoBehaviour
+    {
+        private InputField _field;
+
+        public void Init(InputField field) => _field = field;
+
+        private void OnDisable()
+        {
+            if (_field == null)
+            {
+                return;
+            }
+
+            if (_field.isFocused)
+            {
+                _field.DeactivateInputField();
+            }
+
+            var es = EventSystem.current;
+            if (es != null && es.currentSelectedGameObject == gameObject)
+            {
+                es.SetSelectedGameObject(null);
             }
         }
     }

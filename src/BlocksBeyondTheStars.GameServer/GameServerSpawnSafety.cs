@@ -7,10 +7,11 @@ using BlocksBeyondTheStars.Shared.Geometry;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// Keeps players out of the bottomless void. The world has no bedrock floor (Y is unbounded), so a player
-/// who ends up below the terrain with nothing under them falls forever — and because their position is
-/// persisted and restored verbatim on the next join, a single fall can poison a save so every launch drops
-/// them again. Two guards close that loop: <see cref="EnsureSafeSpawn"/> validates a player's position when
+/// Keeps players out of the bottomless void. Y is unbounded, so a player who ends up below the terrain with
+/// nothing under them falls forever — and because their position is persisted and restored verbatim on the
+/// next join, a single fall can poison a save so every launch drops them again. Since B46 every generated
+/// column ends in unmineable bedrock, so "nothing under them" can only happen BELOW that floor (#1788): a
+/// cave, a mega-cavern or a shaft the player dug always ends on something. Two guards close that loop: <see cref="EnsureSafeSpawn"/> validates a player's position when
 /// they join (self-healing a poisoned save), and <see cref="TickVoidRescue"/> recovers anyone caught
 /// plummeting at runtime before that fall can be saved.
 /// </summary>
@@ -56,6 +57,15 @@ public sealed partial class GameServer
         if (pos.Y >= surface - VoidBelowSurface)
         {
             return false; // at/above the terrain (or standing on the ship/in a building)
+        }
+
+        // #1788: every generated column ends in unmineable bedrock FloorDepth blocks under its surface (B46), so a
+        // player above that floor ALWAYS has ground beneath them — a cave, a mega-cavern, or the shaft they dug
+        // themselves — and they will land. The 24-block probe alone read any dig deeper than that as "the void"
+        // and yanked a player falling down their own 50-block shaft back to the ship's heal tank once a second.
+        if (pos.Y >= surface - _generator.FloorDepth(_world.Planet))
+        {
+            return false;
         }
 
         return !HasGroundWithin(pos, VoidProbeDepth);
@@ -458,6 +468,9 @@ public sealed partial class GameServer
 
     /// <summary>Test entrypoint: whether a position is in the bottomless void of the active world.</summary>
     public bool IsInVoidForTest(Vector3f pos) => IsInVoid(pos);
+
+    /// <summary>Depth of the active world's bedrock floor under its surface — tests carve their "void" below it (#1788).</summary>
+    public int FloorDepthForTest => _generator.FloorDepth(_world.Planet);
 
     /// <summary>Test entrypoint: whether a position is sealed inside solid blocks.</summary>
     public bool IsEntombedForTest(Vector3f pos) => IsEntombed(pos);
