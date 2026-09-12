@@ -198,11 +198,16 @@ public sealed partial class GameServer
             }
         }
 
-        var top = new Vector3i(pos.X, pos.Y + height - 1, pos.Z);
-        if (!IsFloraEnclosedForVoidWorld(top))
+        // #1835: on a void world the hall must hold the tree — judged at the SAPLING's cell, which has the floor the
+        // enclosure probe starts from. The old check ran the probe at the crown cell, whose "floor" is the trunk
+        // column just verified to be air, so it read every sapling on a station as "opens to the void" and retried
+        // for ever ("Warum werden die Setzlinge nicht größer?"). The crown column itself is checked for room above.
+        if (!IsFloraEnclosedForVoidWorld(pos))
         {
-            return false; // a station hall must hold the crown as well
+            return false; // a station hall must hold the tree as well
         }
+
+        var top = new Vector3i(pos.X, pos.Y + height - 1, pos.Z);
 
         var log = new BlockId(_saplingLogId);
         var leaf = new BlockId(_saplingLeafId);

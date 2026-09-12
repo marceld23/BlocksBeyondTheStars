@@ -192,6 +192,31 @@ public sealed partial class GameServer
         leak = StationLeak.Hull;
         if (IsStationAirtightCell(start))
         {
+            // #1836: a door cell (built or stamped) and a fluid cell count as walls for the fill, but the player DOES
+            // stand in them — in the doorway between two rooms, in the pond of the arboretum. Reading that as "inside
+            // a wall → hull open" fired the breach warning on every door transit. Judge the pocket from the air the
+            // player is actually breathing: the head cell or a neighbour, whichever holds a sealed pocket.
+            if (StartCellIsPassable(start))
+            {
+                foreach (var alt in StartCellAlternatives(start))
+                {
+                    if (IsStationAirtightCell(alt))
+                    {
+                        continue;
+                    }
+
+                    var pocket = FillStationPocket(station, alt, out sealedPocket, out leak);
+                    if (sealedPocket)
+                    {
+                        pocket.Add(start);
+                        return pocket;
+                    }
+                }
+
+                sealedPocket = false;
+                leak = StationLeak.Hull;
+            }
+
             cells.Add(start);
             return cells; // standing inside a wall cell: no pocket to breathe from
         }
@@ -248,6 +273,35 @@ public sealed partial class GameServer
         }
 
         return cells;
+    }
+
+    /// <summary>A cell the fill treats as a wall although a player can occupy it: a door (built into an air cell or a
+    /// stamped door block) or a fluid (#1836).</summary>
+    private bool StartCellIsPassable(Vector3i c)
+    {
+        var id = _world.GetBlockIfLoaded(c);
+        if (id.IsAir)
+        {
+            return PlayerDoorFillsCell(c);
+        }
+
+        if (IsFluid(id.Value))
+        {
+            return true;
+        }
+
+        return _content.BlockById(id)?.Key.StartsWith("door_", System.StringComparison.Ordinal) == true;
+    }
+
+    /// <summary>Where to look for the pocket around an occupied wall-like cell: the head first (a pond is one deep, a
+    /// doorway is walked through upright), then the four sides.</summary>
+    private static IEnumerable<Vector3i> StartCellAlternatives(Vector3i c)
+    {
+        yield return new Vector3i(c.X, c.Y + 1, c.Z);
+        yield return new Vector3i(c.X + 1, c.Y, c.Z);
+        yield return new Vector3i(c.X - 1, c.Y, c.Z);
+        yield return new Vector3i(c.X, c.Y, c.Z + 1);
+        yield return new Vector3i(c.X, c.Y, c.Z - 1);
     }
 
     /// <summary>Airtight for station purposes: an airtight full cube (walls, glass, force field), any door block

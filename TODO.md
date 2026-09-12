@@ -60,6 +60,47 @@ fallback, off switches, furnished procedural rooms with clear lanes, room marker
 open zones, city houses without floor lamps, the record gate through a save) + `KnownMarkers` += `room`. Docs:
 USER_MANUAL §6, `docs/developer/STATION_SETTLEMENT_EDITOR.md` §3b.
 
+### 🛰️ Player reports 2026-09-12, evening — the glow past the seam, the diggable Guardian core, the roof spawn, ruin pillars, station saplings, the doorway "leak", 2-block gaps again (#1829–#1839, 2026-09-13, branch fix/player-reports-2026-09-12-night)
+
+Justus (eight F1 reports, v2026.9.7 — asteroid world + the Guardian core) and Lyxette (four, her station). Every report was
+read against the server snapshot and the code first; the ideas from the same evening are filed as #1840–#1847 (drones on
+asteroids, sinking into lava, zero-g construction, codex find location, notes tab, chat banner, furniture, a grass block).
+
+- **#1829 The mining glow vanished "too far from the ship"** — `MiningFx` was the one view script that never mapped server
+  coordinates through `ScenePos`: the server echoes the canonical cell, the outline lives in the unbounded scene space, and
+  past a wrap seam (Z −314 → +319 in the report, period 640 on a 1296 asteroid) the crack compare never matched and the
+  final-hit flash popped a world-lap away. Both messages now map through `SceneCell`.
+- **#1830 The Guardian core could be mined** — no finale guard in `HandleMine`/`BreakArea`, and the column is a bare-hand
+  light block on a one-shot stamp. `IsGuardianCoreProtected` covers the 3×3 heart (pedestal, column, pillars, panes) from
+  the floor plate to the pillar tops; the shell stays diggable (Route B). `@srv.protect.core` EN+DE.
+- **#1831 No breach hint after joining a save on the core body** — `FinaleView` learned the system only from `WorldReset`;
+  `JoinAccepted` never reached it, so the fire hold mined the core instead of channelling. The gate now reads the star
+  map's active location id (`guardian_finale*`), off in the space view, with the name as fallback.
+- **#1832 "Craft an item" over the finale** — the VEGA onboarding chip beat `story.obj.finale` unconditionally; once the
+  Guardian system is revealed the story objective wins (key, target, progress).
+- **#1833 Docking put Lyxette on the airless roof** — `TryFindStandableInStation` accepted any standable cell up to the top
+  of the build; the roof's outer face qualified and was nearest once the centre column was walled in. Two passes now: a
+  cell inside a sealed pocket first, anything standable only when no pocket exists; boarding sets `AwaitingSpawnAdopt`.
+- **#1834 Ruin pillars and glowing runes placed as plain cubes** — `ancient_brick`/`rune_stone` were not in
+  `TintableDefaults`, so `HandlePlace` stripped the form and glow that `BreakBlockAt` had put into the item; the client
+  ghost showed the pillar anyway. Both keys added; `HeldPlaceShape` now mirrors the `Shapeable` gate.
+- **#1835 Saplings never grew on a station** — the void-enclosure probe ran at the crown cell, whose floor is the air
+  trunk column → "opens to the void" for ever. Judged at the sapling's cell now (berry bushes have no ripening by design).
+- **#1836 False "station is no longer airtight"** — `FillStationPocket` declared a hull breach whenever the START cell was
+  airtight, which a built/stamped door cell and a water cell are; every door transit and pond dip fired the one-shot
+  warning, and the toast had no lifetime. The fill now seeds from the head/neighbour of a door or fluid cell and takes the
+  first sealed pocket; the client clears the banner when life support reports the station sealed again.
+- **#1837 2-block openings still wedged (the #1790 probe was one column short)** — the lintel sits in the NEXT column and
+  the step-up engages at contact, radius + skin before it. `UpdateStepOffset(move)` now samples ahead along the move
+  (centre + both shoulders, `AheadProbe` 0.55 m beyond the capsule edge) as well.
+- **#1838 Fall damage for a flyer** — `HandleFallDamage` now bails for `CreativeFlightFor || Fly`, like `InSpace`.
+- **#1839 "You take damage!" on lava** — `InferDamageCause` samples feet and feet−1, matching the server's `InLava`.
+
+Tests: core column unmineable + protection box, finale objective over the tutorial chip, flyer takes no fall damage,
+ruin masonry shapeable/tintable, roof spawn (25-long hall with a packed centre), doorway/pond pocket, sapling grows in a
+sealed station hall. Local Unity player build before merge (client: MiningFx, FinaleView, HudUi, PlayerController,
+GameBootstrap).
+
 ### 🔭 View distance goes to 16 — and the view streams as a disc (#1813, 2026-09-12, branch feat/view-distance-16)
 
 Marcel: raise the view-distance maximum to 16 chunks; a native desktop client's first run now starts at 8, the browser

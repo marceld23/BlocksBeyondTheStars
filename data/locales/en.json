@@ -3844,6 +3844,7 @@
   "srv.protect.factory": "This factory is protected — claim it with an access code to rebuild it.",
   "srv.protect.settlement": "This settlement is protected.",
   "srv.protect.station": "This station is protected.",
+  "srv.protect.core": "The Guardian core is beyond your tools — breach it, don't dig it.",
   "srv.ration.food_only": "Only food can go in the ration dispenser.",
   "srv.ration.full": "The ration dispenser is full.",
   "srv.ration.no_food": "You don't have that food.",

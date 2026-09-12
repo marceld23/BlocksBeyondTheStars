@@ -2172,7 +2172,7 @@ namespace BlocksBeyondTheStars.Client
         /// Problem"; the earlier skin-width fix only removed part of the cause). Step height is therefore capped
         /// to the headroom actually available, which still climbs slabs and stair treads in the open.
         /// </summary>
-        private void UpdateStepOffset()
+        private void UpdateStepOffset(Vector3 move)
         {
             float capsuleTop = _crouched ? CrouchHeight : StandHeight;
 
@@ -2187,6 +2187,24 @@ namespace BlocksBeyondTheStars.Client
             float reach = _controller.radius + _controller.skinWidth;
             float diag = reach * 0.7071f;
             var feet = transform.position;
+
+            // #1837: the lintel of a 2-high doorway sits in the NEXT column, and the step-up engages the moment the
+            // forward sweep touches it — with the capsule centre still radius + skin (plus a frame of approach) short
+            // of that column, where every footprint sample above reads air. So the 0.6 m sweep stayed armed, the
+            // raised capsule (1.8 + 0.6) met the lintel at 2.0 and the walk wedged; a crouch or a jump got through
+            // ("Ich kann immernoch nur unter 2 Blöcken durch wenn ich springe oder mich ducke"). Sample the column
+            // ahead along the move as well — centre and both shoulders — so the cap is set before the sweep can reach.
+            bool moving = move.x * move.x + move.z * move.z > 1e-6f;
+            float ax = 0f, az = 0f, lx = 0f, lz = 0f;
+            if (moving)
+            {
+                var dir = new Vector3(move.x, 0f, move.z).normalized;
+                ax = dir.x * (reach + AheadProbe);
+                az = dir.z * (reach + AheadProbe);
+                lx = -dir.z * reach;
+                lz = dir.x * reach;
+            }
+
             for (float probe = 0.1f; probe <= DefaultStepOffset + 0.05f; probe += 0.1f)
             {
                 float up = capsuleTop + probe;
@@ -2194,7 +2212,9 @@ namespace BlocksBeyondTheStars.Client
                     || CeilingAt(feet, up, reach, 0f) || CeilingAt(feet, up, -reach, 0f)
                     || CeilingAt(feet, up, 0f, reach) || CeilingAt(feet, up, 0f, -reach)
                     || CeilingAt(feet, up, diag, diag) || CeilingAt(feet, up, -diag, diag)
-                    || CeilingAt(feet, up, diag, -diag) || CeilingAt(feet, up, -diag, -diag))
+                    || CeilingAt(feet, up, diag, -diag) || CeilingAt(feet, up, -diag, -diag)
+                    || (moving && (CeilingAt(feet, up, ax, az)
+                        || CeilingAt(feet, up, ax + lx, az + lz) || CeilingAt(feet, up, ax - lx, az - lz))))
                 {
                     headroom = Mathf.Max(0f, probe - 0.1f);
                     break;
@@ -2212,6 +2232,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The step height used in the open — matches the value WorldRig sets up so a slab (0.5) and each
         /// stair tread are walked up without jumping.</summary>
         private const float DefaultStepOffset = 0.6f;
+
+        /// <summary>How far beyond the capsule edge the step-offset probe looks along the move (#1837): past the
+        /// contact distance (radius + skin) and a frame of approach, into the column the next sweep would enter.</summary>
+        private const float AheadProbe = 0.55f;
 
         // --- Observer mode (issue #487) -------------------------------------------------------------
 
@@ -3223,7 +3247,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Cap the auto-step to the headroom above the head before moving, so a 2-block-high opening stays
             // walkable instead of wedging the capsule (see UpdateStepOffset).
-            UpdateStepOffset();
+            UpdateStepOffset(move);
 
             _controller.Move(move * Time.deltaTime);
 
@@ -3985,6 +4009,14 @@ namespace BlocksBeyondTheStars.Client
             int shape = BlocksBeyondTheStars.Shared.State.ItemKey.Shape(held);
             if (shape > 0)
             {
+                // #1834: the server honours a carried form only on a Shapeable block (HandlePlace); on anything else
+                // the item places a plain cube — so the ghost and the rotate key must say cube too, not pillar.
+                string placed = Game?.Content?.GetItem(BlocksBeyondTheStars.Shared.State.ItemKey.Base(held))?.PlacesBlock;
+                if (!string.IsNullOrEmpty(placed) && Game.Content.GetBlock(placed) is { Shapeable: false })
+                {
+                    return 0;
+                }
+
                 cycle = PropOrientation.Full; // a crafted form is a building block: all 24 orientations
                 return shape;
             }

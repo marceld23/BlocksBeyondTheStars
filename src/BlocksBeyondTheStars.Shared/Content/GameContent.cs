@@ -434,6 +434,7 @@ public sealed class GameContent
         "moss_stone", "sandstone", "scree", "bone", // #1647 landscape-variety terrain set (tar keeps its fluid look)
         "iron_wall", "steel_wall", "bronze_block", "brass_block", "steel_floor", "metal_panel", "concrete",
         "cargo_floor", "medbay_panel", "lab_panel", "engine_panel",
+        "ancient_brick", "rune_stone", // #1834 ruin masonry: a mined pillar keeps its form, a mined rune its glow
     };
 
     private void MarkTintableDefaults()

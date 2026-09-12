@@ -3999,6 +3999,15 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Test seam (#1838): the client reported a hard landing at <paramref name="impactSpeed"/>.</summary>
+    public void FallDamageForTest(string playerId, float impactSpeed)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleFallDamage(session, new FallDamageIntent { ImpactSpeed = impactSpeed });
+        }
+    }
+
     /// <summary>Runs the authoritative mine validator for a player until the block breaks (used by local
     /// play / tests). Hard blocks now need several drill hits, so this applies hits up to a safe cap.</summary>
     public void MineBlock(string playerId, int x, int y, int z)
@@ -4174,6 +4183,14 @@ public sealed partial class GameServer
             return; // piloting in space — there is no on-foot fall to take
         }
 
+        if (Rules.CreativeFlightFor(p.ModeOverride) || p.Fly)
+        {
+            // #1838: a suit that can fly never takes a fall. The client's own guard only knows the ACTIVE flight
+            // mode (cleared by the double-tap toggle, water and ladders), so a flyer who dropped down a shaft with
+            // the mode off reported a real impact — and died of it ("Den Sturz hast du nicht überlebt").
+            return;
+        }
+
         float over = intent.ImpactSpeed - FallSafeImpactSpeed;
         if (over <= 0f)
         {
@@ -4277,6 +4294,14 @@ public sealed partial class GameServer
         if (!harvestingPlant && IsStationBlock(pos))
         {
             Reject(session, "mine", "@srv.protect.station");
+            return;
+        }
+
+        // #1830: the Guardian core is breached, not dug out — its column was a bare-hand light block and the
+        // one-shot stamp never brought it back once a player had mined it.
+        if (IsGuardianCoreProtected(pos))
+        {
+            Reject(session, "mine", "@srv.protect.core");
             return;
         }
 
@@ -4497,6 +4522,7 @@ public sealed partial class GameServer
                     var p = new Vector3i(center.X + dx, center.Y + dy, center.Z + dz);
                     var b = _world.GetBlock(p);
                     if (b.IsAir || IsShipBlock(p) || IsSettlementProtected(p, b) || IsStationBlock(p)
+                        || IsGuardianCoreProtected(p) // #1830
                         || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
                     {
                         continue;

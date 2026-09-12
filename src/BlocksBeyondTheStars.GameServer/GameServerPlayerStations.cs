@@ -648,13 +648,24 @@ public sealed partial class GameServer
     /// lies nearest to <paramref name="near"/> — the spawn spot when the box centre is built shut (#1493).</summary>
     private bool TryFindStandableInStation(BoardableStation station, Vector3i near, out Vector3i spot)
     {
+        // #1833: two passes — a standable cell that HOLDS AIR first, any standable cell only when the build has no
+        // sealed pocket at all. The roof's outer face is "standable" too (support below, two free cells of vacuum
+        // above) and on a build whose centre column is walled in it was the NEAREST such cell: Lyxette docked and
+        // was set down on top of her station, in the vacuum.
+        _stationAir.Remove(station.Id); // the stamp just rewrote the hull — judge the pockets on what the world holds now
+        return TryFindStandableInStation(station, near, sealedOnly: true, out spot)
+            || TryFindStandableInStation(station, near, sealedOnly: false, out spot);
+    }
+
+    private bool TryFindStandableInStation(BoardableStation station, Vector3i near, bool sealedOnly, out Vector3i spot)
+    {
         spot = default;
         long best = long.MaxValue;
         for (int x = station.BoundsMin.X; x <= station.BoundsMax.X; x++)
             for (int z = station.BoundsMin.Z; z <= station.BoundsMax.Z; z++)
                 for (int y = station.BoundsMin.Y + 1; y <= station.BoundsMax.Y + 1; y++)
                 {
-                    if (!StandableAt(x, y, z))
+                    if (!StandableAt(x, y, z) || (sealedOnly && !InSealedStationPocket(station, new Vector3i(x, y, z))))
                     {
                         continue;
                     }

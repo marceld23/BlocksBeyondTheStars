@@ -3844,6 +3844,7 @@
   "srv.protect.factory": "Diese Fabrik ist geschützt — beanspruche sie mit einem Zugangscode, um umzubauen.",
   "srv.protect.settlement": "Diese Siedlung ist geschützt.",
   "srv.protect.station": "Diese Station ist geschützt.",
+  "srv.protect.core": "Der Wächter-Kern hält deinem Werkzeug stand — knacke ihn, statt ihn abzubauen.",
   "srv.ration.food_only": "In den Rationsspender passt nur Essen.",
   "srv.ration.full": "Der Rationsspender ist voll.",
   "srv.ration.no_food": "Dieses Essen hast du nicht.",
