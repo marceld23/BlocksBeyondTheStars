@@ -167,13 +167,13 @@ public static class CityGenerator
 
             int idx = (x * h + y) * l + z;
             blocks[idx] = b;
-            if (b == 0)
-            {
-                mods.Remove(idx);
-            }
-            else if (tint != 0 && (b == wall || b == stone || b == paving))
+            if (tint != 0 && b != 0 && (b == wall || b == stone || b == paving))
             {
                 mods[idx] = (tint, 0);
+            }
+            else
+            {
+                mods.Remove(idx); // air, an untinted stamp or a light over a tinted cell: no tint survives
             }
         }
 
@@ -265,7 +265,7 @@ public static class CityGenerator
         void House(int ox, int oz, int fp, int storeys, int doorSide, bool red)
         {
             tint = red ? Red : Purple;
-            SettlementGenerator.StampBuilding(Set, ox, oz, fp, storeys, wall, wall, glass, ladder, doorSide, 0, rng, ruined: false);
+            SettlementGenerator.StampBuilding(Set, ox, oz, fp, storeys, wall, wall, glass, ladder, doorSide, 0, rng, ruined: false, ceilingLight: lamp);
             tint = 0;
             SettlementGenerator.DecorateAround(Set, ox, oz, fp, doorSide, lamp, fern, false, rng);
             buildings++;
@@ -447,7 +447,7 @@ public static class CityGenerator
         void StampTower(int mx, int mz, bool west, bool north)
         {
             // A 7×7 watch tower, 14 tall, purple with two red bands, in the corner that faces the wall; two
-            // guards at its foot, a lamp on top.
+            // guards at its foot, a lamp on top and lights inside the shaft.
             int fp = 7, height = 14;
             int ox = west ? mx + 2 : mx + ModuleSize - 2 - fp;
             int oz = north ? mz + 2 : mz + ModuleSize - 2 - fp;
@@ -478,6 +478,14 @@ public static class CityGenerator
             }
 
             Set(ox + fp / 2, height + 1, oz + fp / 2, lamp);
+            // The shaft is lit too (#1808): a light set into the roof over the middle and one into each of the
+            // two outer walls at every red band, so the climb never goes dark.
+            Set(ox + fp / 2, height, oz + fp / 2, lamp);
+            int wx = ox + (west ? 0 : fp - 1), wz = oz + (north ? 0 : fp - 1);
+            Set(wx, 4, oz + 3, lamp);
+            Set(ox + 3, 4, wz, lamp);
+            Set(wx, 9, oz + 3, lamp);
+            Set(ox + 3, 9, wz, lamp);
             markers.Add(new SettlementMarker("guard_post", new Vector3i(ox + dx + (west ? 2 : -2), 1, oz + 3)));
             markers.Add(new SettlementMarker("guard_post", new Vector3i(ox + 3, 1, oz + dz + (north ? 2 : -2))));
             buildings++;

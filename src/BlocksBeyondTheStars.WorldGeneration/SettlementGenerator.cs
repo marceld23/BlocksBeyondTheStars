@@ -609,7 +609,8 @@ public static class SettlementGenerator
     /// <summary>Stamps one hollow building of N storeys with a roof, a door on a chosen side, a window
     /// band and an accent stripe; multi-storey buildings get climbable ladders between decks.</summary>
     internal static void StampBuilding(System.Action<int, int, int, ushort> set, int ox, int oz, int fp, int storeys,
-        ushort wall, ushort accent, ushort glass, ushort ladder, int doorSide, int roofStyle, System.Random rng, bool ruined)
+        ushort wall, ushort accent, ushort glass, ushort ladder, int doorSide, int roofStyle, System.Random rng, bool ruined,
+        ushort ceilingLight = 0)
     {
         int height = storeys * FloorH;
         for (int x = 0; x < fp; x++)
@@ -670,6 +671,33 @@ public static class SettlementGenerator
         }
 
         StampRoof(set, ox, oz, fp, height, roofStyle, wall, accent, rng);
+
+        // Ceiling lights (#1808): a light block set INTO the deck above every storey — one over the middle
+        // of a small room, a 2×2 grid over a wide one — so the rooms are lit and the roof stays a solid
+        // cover (the cool-room check reads the ceiling as a roof, and nothing hangs into the walkway).
+        if (ceilingLight != 0)
+        {
+            foreach (var (lx, lz) in CeilingLightCells(fp))
+            {
+                for (int f = 1; f <= storeys; f++)
+                {
+                    set(ox + lx, f * FloorH, oz + lz, ceilingLight);
+                }
+            }
+        }
+    }
+
+    /// <summary>Where the ceiling lights of a room <paramref name="fp"/> wide go: the centre cell up to nine
+    /// wide, a quarter-point 2×2 grid beyond that. Local (x, z) cells, always inside the shell.</summary>
+    internal static (int X, int Z)[] CeilingLightCells(int fp)
+    {
+        if (fp <= 9)
+        {
+            return new[] { (fp / 2, fp / 2) };
+        }
+
+        int a = fp / 4, b = fp - 1 - fp / 4;
+        return new[] { (a, a), (b, a), (a, b), (b, b) };
     }
 
     /// <summary>Caps a building: a flat parapet (a low accent rim) or a pitched, stepped roof.</summary>

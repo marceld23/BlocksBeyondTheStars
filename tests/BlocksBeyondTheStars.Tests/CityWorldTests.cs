@@ -194,6 +194,67 @@ public sealed class CityWorldTests : IDisposable
         Assert.True(trunks >= 12, $"trees in the gardens, found {trunks} trunks");
     }
 
+    [Fact]
+    public void CityComposer_LightsEveryRoom_AndKeepsTheCeilingsSolid()
+    {
+        // #1808: every building has a light in the ceiling of every storey, and the towers' shafts are lit.
+        var a = CityGenerator.Generate(42, _content, StandardZones());
+        ushort lamp = _content.GetBlock("strip_light_warm")!.NumericId.Value;
+        ushort wall = _content.GetBlock("iron_wall")!.NumericId.Value;
+
+        // Every door marker belongs to a house; the cell straight above its threshold row is a room, and the
+        // deck over that room holds a lamp somewhere on the same storey within the house's reach.
+        int litHouses = 0, doors = 0;
+        foreach (var m in a.Markers)
+        {
+            if (m.Type != "door_slide") continue;
+            doors++;
+            bool lit = false;
+            for (int dx = -7; dx <= 7 && !lit; dx++)
+                for (int dz = -7; dz <= 7 && !lit; dz++)
+                {
+                    int x = m.LocalPos.X + dx, z = m.LocalPos.Z + dz;
+                    if (x < 0 || z < 0 || x >= a.Width || z >= a.Length) continue;
+                    lit = a.Get(x, 4, z) == lamp;
+                }
+
+            if (lit) litHouses++;
+        }
+
+        Assert.True(doors >= 20);
+        Assert.Equal(doors, litHouses);
+
+        // Ceiling lights sit IN the deck, never below it: the cell under every deck lamp is air (the room),
+        // so the roof stays a solid cover for the cool-room check.
+        int deckLamps = 0, lowBandLamps = 0;
+        for (int x = 0; x < a.Width; x++)
+            for (int z = 0; z < a.Length; z++)
+                for (int y = 4; y <= 12; y += 4)
+                {
+                    if (a.Get(x, y, z) != lamp) continue;
+                    ushort below = a.Get(x, y - 1, z);
+                    if (below == 0) deckLamps++;
+                    else if (y == 4 && below == wall) lowBandLamps++; // a tower's lower band lamp
+                    // anything else is a lamp post (stone below) — not a ceiling light
+                    Assert.Equal(0, a.GetModifier(x, y, z).Tint);
+                }
+
+        Assert.True(deckLamps >= 30, $"a deck lamp per storey per building, found {deckLamps}");
+        Assert.Equal(8, lowBandLamps);
+
+        // The four corner towers: a lamp set into the roof over the shaft and one in each red band.
+        int shaftRoofLamps = 0, bandLamps = 0;
+        for (int x = 0; x < a.Width; x++)
+            for (int z = 0; z < a.Length; z++)
+            {
+                if (a.Get(x, 14, z) == lamp && a.Get(x, 13, z) == 0) shaftRoofLamps++;
+                if (a.Get(x, 9, z) == lamp && (a.Get(x, 8, z) == wall)) bandLamps++;
+            }
+
+        Assert.Equal(4, shaftRoofLamps);
+        Assert.True(bandLamps >= 8, $"two band lamps per tower, found {bandLamps}");
+    }
+
     private static ulong Hash(SettlementStructure s)
     {
         ulong h = 1469598103934665603UL;
