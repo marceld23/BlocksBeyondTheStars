@@ -1245,6 +1245,7 @@ public sealed partial class GameServer
     {
         SaveAll();
         _repo.Flush();
+        _chunkGenPool?.Dispose(); // #1817: release the worker threads
         _transport.Stop();
         _log.Info("Server stopped and world saved.");
     }
@@ -2276,6 +2277,124 @@ public sealed partial class GameServer
         return ax * ax + az * az <= streamRadius * streamRadius;
     }
 
+    /// <summary>#1818: how far ahead (seconds of the player's current horizontal velocity) the streaming order looks.
+    /// A speeder or jetpack flight gets the terrain it is flying into before the terrain it leaves behind.</summary>
+    private const float StreamLookAheadSeconds = 1.25f;
+
+    /// <summary>#1818: the streaming order of one candidate chunk (lower = sooner), from its offset to the player's
+    /// chunk, the horizontal look direction (unit vector, or zero) and the look-ahead shift (chunks). The near ring
+    /// (Chebyshev ≤ 1 horizontally) always comes first, by plain distance — the footing never waits for scenery.
+    /// Beyond it the distance is measured from the look-ahead anchor and weighted by the direction: ×1 straight
+    /// ahead, ×1.5 to the side, ×2 behind. With no look direction and no motion the order is the old nearest-first.</summary>
+    internal static int StreamPriorityKey(int dx, int dy, int dz, float forwardX, float forwardZ, float aheadDx, float aheadDz)
+    {
+        int plainSq = dx * dx + dy * dy + dz * dz;
+        if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz)) <= 1)
+        {
+            return plainSq; // 0..11 for the near column span (dy −3..+2): always ahead of every far key (≥ 16)
+        }
+
+        float ax = dx - aheadDx;
+        float az = dz - aheadDz;
+        float distSq = ax * ax + dy * dy + az * az;
+        float len = (float)System.Math.Sqrt(dx * dx + dz * dz);
+        float facing = (dx * forwardX + dz * forwardZ) / len; // −1 behind … +1 ahead; 0 without a look direction
+        float factor = 1f + 0.5f * (1f - facing);
+        double key = 16.0 + distSq * factor * 8.0;
+        return key >= int.MaxValue ? int.MaxValue : (int)key;
+    }
+
+    /// <summary>#1818: updates the session's smoothed horizontal velocity from its position (wrap-aware). A gap of
+    /// more than two seconds or a jump longer than a speeder can cover resets it (teleport, travel, respawn).</summary>
+    private void SampleStreamVelocity(PlayerSession session)
+    {
+        var pos = session.State.Position;
+        double since = _uptime - session.StreamSampleAt;
+        if (session.StreamSampleAt < 0 || since > 2.0 || since < 0)
+        {
+            session.StreamSampleX = pos.X;
+            session.StreamSampleZ = pos.Z;
+            session.StreamSampleAt = _uptime;
+            session.StreamVelX = 0f;
+            session.StreamVelZ = 0f;
+            return;
+        }
+
+        if (since < 0.2)
+        {
+            return; // sample over a few ticks so the per-tick position jitter averages out
+        }
+
+        int circumference = _world.Circumference;
+        float ddx = WrapDelta(pos.X - session.StreamSampleX, circumference);
+        float ddz = WrapDelta(pos.Z - session.StreamSampleZ, WorldConstants.LatitudePeriodFor(circumference));
+        float vx = 0f, vz = 0f;
+        if (ddx * ddx + ddz * ddz <= 96f * 96f)
+        {
+            vx = (float)(ddx / since);
+            vz = (float)(ddz / since);
+            float speed = (float)System.Math.Sqrt(vx * vx + vz * vz);
+            const float MaxSpeed = 120f; // blocks/s — well above any speeder
+            if (speed > MaxSpeed)
+            {
+                vx *= MaxSpeed / speed;
+                vz *= MaxSpeed / speed;
+            }
+        }
+
+        session.StreamVelX = 0.5f * (session.StreamVelX + vx);
+        session.StreamVelZ = 0.5f * (session.StreamVelZ + vz);
+        session.StreamSampleX = pos.X;
+        session.StreamSampleZ = pos.Z;
+        session.StreamSampleAt = _uptime;
+
+        static float WrapDelta(float d, int period)
+        {
+            if (period <= 0)
+            {
+                return d;
+            }
+
+            float half = period * 0.5f;
+            while (d > half)
+            {
+                d -= period;
+            }
+
+            while (d < -half)
+            {
+                d += period;
+            }
+
+            return d;
+        }
+    }
+
+    /// <summary>#1817: the background chunk generator, started on the first streaming pass that needs it (null when
+    /// <see cref="ServerConfig.ChunkGenWorkers"/> is 0 or the platform cannot start threads).</summary>
+    private ChunkGenerationPool? _chunkGenPool;
+    private bool _chunkGenPoolTried;
+    private readonly List<ChunkCoord> _streamBatch = new();
+    private readonly List<ChunkCoord> _streamSpeculate = new();
+
+    private ChunkGenerationPool? ChunkGenPool()
+    {
+        if (!_chunkGenPoolTried)
+        {
+            _chunkGenPoolTried = true;
+            _chunkGenPool = ChunkGenerationPool.TryStart(_generator, _config.ChunkGenWorkers);
+            if (_chunkGenPool != null)
+            {
+                _log.Info($"Chunk generation runs on {_chunkGenPool.Workers} worker thread(s).");
+            }
+        }
+
+        return _chunkGenPool;
+    }
+
+    /// <summary>Diagnostics (#1817): chunks the streamer adopted from a worker vs generated on the tick thread.</summary>
+    public long ChunksFromWorkersForTest => _chunkGenPool?.AdoptedFromWorkers ?? 0;
+
     /// <summary>#1507: a settled view is re-enumerated at least this often (ticks) even when nothing observable
     /// changed — a cheap safety net against any sent-set change the count-based check could miss.</summary>
     private const int StreamSettledRecheckTicks = 30;
@@ -2331,12 +2450,25 @@ public sealed partial class GameServer
         int minChunkY = WorldConstants.WorldToChunk(MinBuildY);
         int maxChunkY = WorldConstants.WorldToChunk(MaxBuildY);
 
+        // #1817: finished background generations become resident first, so this pass sends them for free.
+        var pool = ChunkGenPool();
+        if (pool != null)
+        {
+            pool.BeginPass();
+            pool.AdoptReady(_world, 64);
+        }
+
+        _streamSpeculate.Clear();
+        bool anyEnumerated = false;
+
         foreach (var session in JoinedInActiveWorld())
         {
             if (spectatorsOnly && !session.Spectating)
             {
                 continue; // paused-world streaming (#996) serves only the observers
             }
+
+            SampleStreamVelocity(session); // #1818: every pass, so the look-ahead is current when the view unsettles
 
             int radius = EffectiveViewRadius(session); // per-player: honour the client's View Distance slider
             int streamRadius = radius + LoadAheadRings; // load one hazed ring past the fog edge so it fades in, not pops (#388)
@@ -2360,6 +2492,15 @@ public sealed partial class GameServer
 
             session.StreamSettled = false;
             StreamEnumerationsForTest++;
+            anyEnumerated = true;
+
+            // #1818: look direction (yaw 0 = +Z, 90 = +X) and a look-ahead shift along the current velocity, in chunks.
+            double yawRad = session.State.Yaw * System.Math.PI / 180.0;
+            float forwardX = (float)System.Math.Sin(yawRad);
+            float forwardZ = (float)System.Math.Cos(yawRad);
+            float aheadMax = streamRadius * 0.5f;
+            float aheadDx = System.Math.Clamp(session.StreamVelX * StreamLookAheadSeconds / WorldConstants.ChunkSize, -aheadMax, aheadMax);
+            float aheadDz = System.Math.Clamp(session.StreamVelZ * StreamLookAheadSeconds / WorldConstants.ChunkSize, -aheadMax, aheadMax);
 
             // Collect the not-yet-sent chunks in the view column and stream them NEAREST-FIRST. The player's
             // own chunk (its floor) then loads before everything else, so a freshly spawned/teleported player
@@ -2375,7 +2516,7 @@ public sealed partial class GameServer
             // player's own altitude still streams its visible shell.
             var planet = _world.Planet;
             int seaLevel = _generator.SeaLevel(planet); // int.MinValue on a dry world; cached per world
-            var pending = new List<(ChunkCoord Coord, int DistSq)>();
+            var pending = new List<(ChunkCoord Coord, int Key)>();
             for (int dx = -streamRadius; dx <= streamRadius; dx++)
                 for (int dz = -streamRadius; dz <= streamRadius; dz++)
                 {
@@ -2436,7 +2577,7 @@ public sealed partial class GameServer
                             continue;
                         }
 
-                        pending.Add((coord, dx * dx + dy * dy + dz * dz));
+                        pending.Add((coord, StreamPriorityKey(dx, dy, dz, forwardX, forwardZ, aheadDx, aheadDz)));
                     }
                 }
 
@@ -2451,30 +2592,65 @@ public sealed partial class GameServer
                 continue;
             }
 
-            pending.Sort((a, b) => a.DistSq.CompareTo(b.DistSq));
+            pending.Sort((a, b) => a.Key.CompareTo(b.Key));
 
+            // Send in batches. Without a generation pool a batch is one chunk (the historical loop). With one, a batch
+            // is generated in parallel on the workers AND this thread before it goes out in order (#1817) — the pass
+            // sends exactly what it always sent, the generation just stops being serial.
             int sent = 0;
-            foreach (var (coord, _) in pending)
+            int idx = 0;
+            int batchSize = pool == null ? 1 : pool.Workers + 1;
+            var batch = _streamBatch;
+            while (idx < pending.Count && sent < perTickBudget)
             {
-                if (sent >= perTickBudget)
-                {
-                    break;
-                }
-
                 // Time budget spent (see above) — but only after at least one send, so progress is guaranteed.
                 if (streamTimer != null && sent > 0 && streamTimer.Elapsed.TotalMilliseconds >= _config.ChunkStreamBudgetMs)
                 {
                     break;
                 }
 
-                if (session.SentChunks.Contains(coord))
+                batch.Clear();
+                while (idx < pending.Count && batch.Count < batchSize && sent + batch.Count < perTickBudget)
                 {
-                    continue; // two view offsets can map to the same wrapped chunk — send it once
+                    var candidate = pending[idx++].Coord;
+                    if (session.SentChunks.Contains(candidate) || batch.Contains(candidate))
+                    {
+                        continue; // two view offsets can map to the same wrapped chunk — send it once
+                    }
+
+                    batch.Add(candidate);
                 }
 
-                StreamChunkNow(session, coord);
-                sent++;
+                if (batch.Count == 0)
+                {
+                    break;
+                }
+
+                pool?.EnsureGenerated(_world, batch);
+                foreach (var coord in batch)
+                {
+                    StreamChunkNow(session, coord);
+                    sent++;
+                }
             }
+
+            // #1817: the chunks right behind this pass's budget are the next pass's work — start them now.
+            if (pool != null)
+            {
+                for (int i = idx; i < pending.Count && _streamSpeculate.Count < pool.Workers * 6; i++)
+                {
+                    var next = pending[i].Coord;
+                    if (!session.SentChunks.Contains(next) && !_world.IsChunkLoaded(next))
+                    {
+                        _streamSpeculate.Add(next);
+                    }
+                }
+            }
+        }
+
+        if (pool != null && anyEnumerated)
+        {
+            pool.Speculate(_world, _streamSpeculate);
         }
     }
 

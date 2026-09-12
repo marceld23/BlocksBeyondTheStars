@@ -152,6 +152,14 @@ public sealed class PlayerSession
     public int StreamSettledSentCount { get; set; }
     public int StreamSettledTicks { get; set; }
 
+    /// <summary>#1818: the player's horizontal velocity (blocks/s) as the streamer sees it — sampled from successive
+    /// positions, smoothed, zeroed on a teleport-sized jump. Drives the streaming look-ahead.</summary>
+    public float StreamVelX { get; set; }
+    public float StreamVelZ { get; set; }
+    public float StreamSampleX { get; set; }
+    public float StreamSampleZ { get; set; }
+    public double StreamSampleAt { get; set; } = -1;
+
     /// <summary>Uptime at which each chunk last triggered a full ghost re-stream for this session (#965), so a
     /// burst of ghosts in one chunk costs one re-stream (and one log line), not one per cell.</summary>
     public Dictionary<ChunkCoord, double> GhostChunkSeen { get; } = new();

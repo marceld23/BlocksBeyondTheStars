@@ -88,7 +88,20 @@ public sealed class ServerWorld
         // airless-moon cratering, pad flattening AND the body identity (#478) together — a partial set
         // here previously left stale state of whatever world was configured last.
         _generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost);
-        var chunk = _generator.Generate(Planet, coord);
+        return Store(coord, _generator.Generate(Planet, coord));
+    }
+
+    /// <summary>#1817: takes a chunk a worker generated for this world (with this world's mode) into the cache —
+    /// persisted edits are applied here, on the tick thread, exactly as <see cref="GetOrLoadChunk"/> does. A chunk
+    /// that got loaded inline in the meantime wins (generation is deterministic, the two are identical).</summary>
+    public ChunkData AdoptGenerated(ChunkCoord coord, ChunkData generated)
+    {
+        coord = WorldConstants.CanonicalChunk(coord, Circumference);
+        return _loaded.TryGetValue(coord, out var cached) ? cached : Store(coord, generated);
+    }
+
+    private ChunkData Store(ChunkCoord coord, ChunkData chunk)
+    {
         foreach (var edit in _repo.LoadChunkEdits(LocationId, coord))
         {
             var local = WorldConstants.WorldToLocal(edit.WorldPosition);

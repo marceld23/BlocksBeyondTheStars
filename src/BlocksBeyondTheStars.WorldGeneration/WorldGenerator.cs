@@ -110,44 +110,31 @@ public sealed partial class WorldGenerator
     /// <summary>#1816: a copy of the pads the current mode was applied with (the caller's list may mutate).</summary>
     private LandingPadFlatten[] _padSnapshot = System.Array.Empty<LandingPadFlatten>();
 
-    private static LandingPadFlatten[] SnapshotPads(IReadOnlyList<LandingPadFlatten>? pads)
-    {
-        if (pads is null || pads.Count == 0)
-        {
-            return System.Array.Empty<LandingPadFlatten>();
-        }
-
-        var copy = new LandingPadFlatten[pads.Count];
-        for (int i = 0; i < copy.Length; i++)
-        {
-            copy[i] = pads[i];
-        }
-
-        return copy;
-    }
+    private static LandingPadFlatten[] SnapshotPads(IReadOnlyList<LandingPadFlatten>? pads) => LandingPadFlatten.Snapshot(pads);
 
     private static bool SamePads(LandingPadFlatten[] snapshot, IReadOnlyList<LandingPadFlatten>? pads)
+        => LandingPadFlatten.SameList(snapshot, pads);
+
+    /// <summary>#1817: a fresh generator with this one's seed, content and galaxy-global settings (world options,
+    /// continents, lava-core volcanoes, terrain generation) but no world mode — the chunk-generation pool gives each
+    /// worker thread its own, so no mutable generator state is ever shared between threads. Goldens prove a fresh
+    /// instance generates exactly what a warm one does.</summary>
+    public WorldGenerator CreateSibling()
     {
-        int count = pads?.Count ?? 0;
-        if (snapshot.Length != count)
-        {
-            return false;
-        }
-
-        for (int i = 0; i < count; i++)
-        {
-            var a = snapshot[i];
-            var b = pads![i];
-            if (a.CenterX != b.CenterX || a.CenterZ != b.CenterZ || a.SurfaceY != b.SurfaceY || a.Radius != b.Radius
-                || a.Islet != b.Islet || a.PlateauRadius != b.PlateauRadius || a.IsletRadius != b.IsletRadius
-                || a.ClassicShape != b.ClassicShape)
-            {
-                return false;
-            }
-        }
-
-        return true;
+        var sibling = new WorldGenerator(_worldSeed, _content);
+        sibling._floraFactor = _floraFactor;
+        sibling._oreFactor = _oreFactor;
+        sibling._continentsEnabled = _continentsEnabled;
+        sibling._lavaCoreVolcanoes = _lavaCoreVolcanoes;
+        sibling._terrainGeneration = _terrainGeneration;
+        return sibling;
     }
+
+    /// <summary>#1817: whether a sibling made now would still match this generator's galaxy-global settings.</summary>
+    public bool SharesGlobalSettingsWith(WorldGenerator other)
+        => _worldSeed == other._worldSeed && _floraFactor.Equals(other._floraFactor) && _oreFactor.Equals(other._oreFactor)
+            && _continentsEnabled == other._continentsEnabled && _lavaCoreVolcanoes == other._lavaCoreVolcanoes
+            && _terrainGeneration == other._terrainGeneration;
 
     /// <summary>Rare-vein multiplier for the CURRENT body (#1122), set per world via
     /// <see cref="SetWorldMode"/>. 1.0 = home/near systems and all legacy callers.</summary>
