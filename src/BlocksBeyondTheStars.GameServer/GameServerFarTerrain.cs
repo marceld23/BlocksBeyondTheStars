@@ -207,6 +207,43 @@ public sealed partial class GameServer
         return msg;
     }
 
+    /// <summary>#1820: the active world's generator settings for the client's far terrain.</summary>
+    internal FarTerrainWorldInfo BuildFarTerrainWorldInfo()
+    {
+        var world = _world;
+        var pads = world.LandingPadFlats;
+        var packed = new int[pads.Count * FarTerrainWorldInfo.PadStride];
+        for (int i = 0; i < pads.Count; i++)
+        {
+            var pad = pads[i];
+            int o = i * FarTerrainWorldInfo.PadStride;
+            packed[o] = pad.CenterX;
+            packed[o + 1] = pad.CenterZ;
+            packed[o + 2] = pad.SurfaceY;
+            packed[o + 3] = pad.Radius;
+            packed[o + 4] = pad.Islet ? 1 : 0;
+            packed[o + 5] = pad.PlateauRadius;
+            packed[o + 6] = pad.IsletRadius;
+            packed[o + 7] = pad.ClassicShape ? 1 : 0;
+        }
+
+        return new FarTerrainWorldInfo
+        {
+            WorldId = WorldIdOf(world.LocationId),
+            LocationId = world.LocationId,
+            PlanetType = world.PlanetKey,
+            Circumference = world.Circumference,
+            Cratered = world.Cratered,
+            ContinentsEnabled = _meta.Description.TerrainContinents,
+            LavaCoreVolcanoes = _meta.Description.LavaCoreVolcanoes,
+            TerrainGeneration = _meta.Description.TerrainGeneration,
+            Void = world.Planet.Void,
+            Pads = packed,
+        };
+    }
+
+    private void SendFarTerrainWorldInfo(PlayerSession session) => Send(session, BuildFarTerrainWorldInfo());
+
     /// <summary>Test seam: runs a tile request the way the dispatcher would (active world = the player's).</summary>
     internal void FarTerrainTileRequestForTest(PlayerSession session, FarTerrainTileRequest request)
     {

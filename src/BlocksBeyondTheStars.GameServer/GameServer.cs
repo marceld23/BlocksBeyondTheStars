@@ -2478,6 +2478,11 @@ public sealed partial class GameServer
             }
 
             SampleStreamVelocity(session); // #1818: every pass, so the look-ahead is current when the view unsettles
+            if (session.FarInfoDue)
+            {
+                session.FarInfoDue = false;
+                SendFarTerrainWorldInfo(session); // #1820: after the JoinAccepted / WorldReset that introduced the world
+            }
 
             int radius = EffectiveViewRadius(session); // per-player: honour the client's View Distance slider
             int streamRadius = radius + LoadAheadRings; // load one hazed ring past the fog edge so it fades in, not pops (#388)
@@ -6752,6 +6757,7 @@ public sealed partial class GameServer
         {
             case WorldReset reset:
                 reset.WorldId = WorldIdOf(session.CurrentLocationId); // the stream that follows is this world's
+                session.FarInfoDue = true; // #1820: the far view needs the new world's generator settings
                 break;
             case BlockChanged change:
                 change.WorldId = WorldIdOf(session.CurrentLocationId);

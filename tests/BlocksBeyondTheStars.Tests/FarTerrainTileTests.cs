@@ -90,6 +90,26 @@ public sealed class FarTerrainTileTests : IDisposable
     }
 
     [Fact]
+    public void TheWorldInfo_CarriesTheGeneratorSettings_AndGoesOutOnTheFirstPass()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "info"));
+        var config = new ServerConfig { WorldName = "info", Seed = 9, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var server = new SvGameServer(config, Content, new LoopbackServerTransport(new LoopbackLink()), repo);
+        server.Start();
+        var p = server.AddLocalPlayer("Surveyor");
+        Assert.True(p.FarInfoDue);
+        server.TickForTest(0.1);
+        Assert.False(p.FarInfoDue, "the first streaming pass sends the world info");
+
+        var info = server.BuildFarTerrainWorldInfo();
+        Assert.Equal(server.World.Circumference, info.Circumference);
+        Assert.Equal(server.World.LocationId, info.LocationId);
+        Assert.Equal(server.World.LandingPadFlats.Count * FarTerrainWorldInfo.PadStride, info.Pads.Length);
+        Assert.False(info.Void);
+        server.Stop();
+    }
+
+    [Fact]
     public void TheTileMessages_AreRegistered_AndRoundTrip()
     {
         var tile = new FarTerrainTile

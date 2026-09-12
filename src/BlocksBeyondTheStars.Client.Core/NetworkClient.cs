@@ -164,6 +164,9 @@ namespace BlocksBeyondTheStars.Client
         // Far terrain (#1821): the persisted builds of one far-view tile (only for the current world).
         public event Action<FarTerrainTile>? FarTerrainTileReceived;
 
+        // Far terrain (#1820): the current world's generator settings (after every join / world switch).
+        public event Action<FarTerrainWorldInfo>? FarTerrainWorldInfoReceived;
+
         // First-scan ledger backing the Codex "Discoveries" chapter (#484): a full snapshot on join,
         // then a one-entry delta per first-time scan.
         public event Action<DiscoveryLog>? DiscoveryLogReceived;
@@ -904,6 +907,7 @@ namespace BlocksBeyondTheStars.Client
                 case JoinRejected m: JoinRejected?.Invoke(m); break;
                 case ChunkDataMessage m: if (AcceptWorldStream(m.WorldId, m)) { ChunkReceived?.Invoke(m); } break;
                 case BlockChanged m: if (AcceptWorldStream(m.WorldId, m)) { BlockChanged?.Invoke(m); } break;
+                case FarTerrainWorldInfo m: FarTerrainWorldInfoReceived?.Invoke(m); break; // #1820
                 case FarTerrainTile m: // #1821: another world's tile is simply dropped — the far view re-asks per world
                     if (m.WorldId == 0 || m.WorldId == CurrentWorldId) { FarTerrainTileReceived?.Invoke(m); }
                     break;

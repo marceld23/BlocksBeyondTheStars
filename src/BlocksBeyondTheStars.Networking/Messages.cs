@@ -835,6 +835,30 @@ public sealed class JoinRejected
     public string Reason { get; set; } = string.Empty;
 }
 
+/// <summary>Server → client (#1820): everything the client's own generator needs to draw THIS world's far terrain
+/// exactly as the server generates it — sent after every JoinAccepted / WorldReset. The preview generators (minimap,
+/// orbit sphere) approximate; the far view sits next to real chunks, so it must match them.</summary>
+public sealed class FarTerrainWorldInfo
+{
+    public int WorldId { get; set; }
+    public string LocationId { get; set; } = string.Empty;
+    public string PlanetType { get; set; } = string.Empty;
+    public int Circumference { get; set; }
+    public bool Cratered { get; set; }
+    public bool ContinentsEnabled { get; set; }
+    public bool LavaCoreVolcanoes { get; set; }
+    public int TerrainGeneration { get; set; }
+
+    /// <summary>A void world (station, ship interior) has no terrain: the far view switches off.</summary>
+    public bool Void { get; set; }
+
+    /// <summary>The world's flattened landing pads, <see cref="PadStride"/> ints each: centreX, centreZ, surfaceY,
+    /// radius, islet (0/1), plateauRadius, isletRadius, classicShape (0/1).</summary>
+    public int[] Pads { get; set; } = System.Array.Empty<int>();
+
+    public const int PadStride = 8;
+}
+
 /// <summary>Client → server (#1821): which far-terrain tiles the client's far view needs. Tiles are
 /// <see cref="FarTerrainTile.TileBlocks"/>-block squares on the canonical block grid; the server answers each with a
 /// <see cref="FarTerrainTile"/> and re-sends it when an edit changes it.</summary>

@@ -166,6 +166,10 @@ public sealed class PlayerSession
     public double FarTileTokens { get; set; } = 64;
     public double FarTileTokensAt { get; set; }
 
+    /// <summary>#1820: the next streaming pass sends this session its world's FarTerrainWorldInfo (set on join and
+    /// whenever a WorldReset goes out).</summary>
+    public bool FarInfoDue { get; set; } = true;
+
     /// <summary>Uptime at which each chunk last triggered a full ghost re-stream for this session (#965), so a
     /// burst of ghosts in one chunk costs one re-stream (and one log line), not one per cell.</summary>
     public Dictionary<ChunkCoord, double> GhostChunkSeen { get; } = new();
