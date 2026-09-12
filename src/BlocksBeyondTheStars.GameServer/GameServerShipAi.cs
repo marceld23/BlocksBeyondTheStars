@@ -96,16 +96,22 @@ public sealed partial class GameServer
     private void SendVegaObjective(PlayerSession session)
         => SendVegaLine(session, string.Empty, 0);
 
+    /// <summary>#1832: once the Guardian system is revealed the finale IS the objective — the onboarding chip
+    /// ("craft an item") must not sit over it while the player stands in the core chamber. The stages still
+    /// complete in the background; the chip shows the story until the core is won.</summary>
+    private bool FinaleObjectiveOverridesTutorial
+        => StoryActive && _story is not null && _storyState.GuardianSystemRevealed && !_storyState.GuardianDefeated;
+
     private string VegaObjectiveKey(PlayerState p)
     {
         int i = VegaStageIndex(p);
-        return i < VegaStages.Length ? "vega.obj." + VegaStages[i].Id : StoryObjectiveKey(p);
+        return i < VegaStages.Length && !FinaleObjectiveOverridesTutorial ? "vega.obj." + VegaStages[i].Id : StoryObjectiveKey(p);
     }
 
     private int VegaObjectiveTarget(PlayerState p)
     {
         int i = VegaStageIndex(p);
-        if (i < VegaStages.Length)
+        if (i < VegaStages.Length && !FinaleObjectiveOverridesTutorial)
         {
             return VegaStages[i].Target;
         }
@@ -120,7 +126,7 @@ public sealed partial class GameServer
     {
         var p = session.State;
         int i = VegaStageIndex(p);
-        if (i < VegaStages.Length)
+        if (i < VegaStages.Length && !FinaleObjectiveOverridesTutorial)
         {
             return VegaStages[i].Id == "mine" ? session.VegaMineCount : 0;
         }

@@ -286,4 +286,62 @@ public sealed class GameServerFinaleTests : IDisposable
             // best-effort temp cleanup
         }
     }
+    // ---------------- Player reports 2026-09-12: the core is breached, not dug out (#1830 / #1832 / #1838) ----------------
+
+    [Fact]
+    public void The_core_column_cannot_be_mined()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            var centre = server.LoadGuardianCoreForTest();
+            pilot.CurrentLocationId = SvGameServer.GuardianCoreBodyId;
+            pilot.State.Position = new Vector3f(centre.X + 2.5f, centre.Y + 0.5f, centre.Z + 2.5f);
+
+            var core = new Vector3i(centre.X, centre.Y, centre.Z); // the light column at the heart of the chamber
+            ushort before = server.World.GetBlock(core).Value;
+            Assert.NotEqual(0, before);
+            Assert.True(server.IsGuardianCoreProtectedForTest(core.X, core.Y, core.Z));
+
+            server.MineBlock("Pilot", core.X, core.Y, core.Z); // a bare hand — the column is a 0.5-hardness light block
+            Assert.Equal(before, server.World.GetBlock(core).Value);
+
+            // The shell around it stays diggable (Route B) and so does the world beyond the chamber.
+            Assert.False(server.IsGuardianCoreProtectedForTest(core.X + 5, core.Y, core.Z));
+            Assert.False(server.IsGuardianCoreProtectedForTest(core.X + 8, core.Y, core.Z + 8));
+        }
+    }
+
+    [Fact]
+    public void The_finale_objective_beats_the_tutorial_chip_once_the_system_is_revealed()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            Assert.StartsWith("vega.obj.", server.ObjectiveKeyForTest("Pilot")); // a fresh player is in VEGA's onboarding
+
+            CompleteTheArc(server);
+            Assert.Equal("story.obj.finale", server.ObjectiveKeyForTest("Pilot")); // …until the finale is on the map
+        }
+    }
+
+    [Fact]
+    public void A_flying_player_takes_no_fall_damage()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            pilot.State.Health = 100f;
+            pilot.State.Fly = true;
+            server.FallDamageForTest("Pilot", 18f); // over the safe 14 — a hard landing on foot
+            Assert.Equal(100f, pilot.State.Health);
+
+            pilot.State.Fly = false;
+            server.FallDamageForTest("Pilot", 18f);
+            Assert.True(pilot.State.Health < 100f, "without flight the same landing hurts");
+        }
+    }
 }

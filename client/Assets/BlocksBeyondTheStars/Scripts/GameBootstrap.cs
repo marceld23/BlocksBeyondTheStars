@@ -1117,6 +1117,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Last server feedback line (craft result / rejection / message) for a HUD toast.</summary>
         public string LastMessage { get; private set; } = string.Empty;
 
+        /// <summary>The resolved station hull-open warning while it is the toast (#1836) — cleared once the station
+        /// reports the pocket sealed again, so the banner does not outlive the leak.</summary>
+        private string _stationAirWarning = string.Empty;
+
         /// <summary>Shows a transient HUD message from a client-side system (e.g. the VEGA autopilot).</summary>
         public void ShowMessage(string text) => LastMessage = text ?? string.Empty;
 
@@ -1236,8 +1240,9 @@ namespace BlocksBeyondTheStars.Client
             // #1473: a player-built station's hull is open — no air outside a sealed pocket until it is patched.
             if (text == "@station_air_lost")
             {
-                return Localizer?.Get("ui.station.air_lost")
+                _stationAirWarning = Localizer?.Get("ui.station.air_lost")
                     ?? "Warning: the station is no longer airtight — helmet on until the hull is patched!";
+                return _stationAirWarning;
             }
 
             // #1559: the pocket is closed but bigger than the life-support budget.
@@ -3209,6 +3214,13 @@ namespace BlocksBeyondTheStars.Client
             Hunger = m.Hunger;
             SuitClimateActive = m.SuitClimateActive;
             LifeSupportSource = m.LifeSupportSource;
+            if (m.LifeSupportSource == 2 && _stationAirWarning.Length > 0 && LastMessage == _stationAirWarning)
+            {
+                // #1836: the station reports the pocket sealed again — the hull-open banner has no lifetime of its own
+                // and would stay pinned over a breathing player until the next server line replaced it.
+                LastMessage = string.Empty;
+                _stationAirWarning = string.Empty;
+            }
             // Comfort: auto-stow loose materials into the cargo hold the moment you board the ship (off by
             // default — opt in via Settings). Fires only on the not-aboard → aboard edge, and reuses the same
             // server-authoritative bulk "stow all" intent the cargo tab's button sends.

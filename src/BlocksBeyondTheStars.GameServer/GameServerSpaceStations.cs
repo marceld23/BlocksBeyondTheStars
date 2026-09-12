@@ -287,6 +287,7 @@ public sealed partial class GameServer
         session.State.AboardShip = false;
         session.State.InEva = false; // docking ends any spacewalk — the station has life support
         session.SentChunks.Clear();
+        session.AwaitingSpawnAdopt = true; // #1833: like every other server teleport — the client's stale stream must not drag them back (#865)
         MarkArrivedOnBody(session, station.Id); // boarding marks the station visited → a travel-screen target
 
         Send(session, new SpaceClosed { Reason = "@srv.station.docked", ShipDisabled = false });

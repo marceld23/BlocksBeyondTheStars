@@ -59,7 +59,14 @@ namespace BlocksBeyondTheStars.Client
 
         private GUIStyle _box, _title, _body, _choice, _hint, _bar, _barFill;
 
-        private bool OnGuardianWorld => string.Equals(_systemName, GuardianSystemName, System.StringComparison.Ordinal);
+        /// <summary>On the finale body, on foot. #1831: judged by the location id first — <c>JoinAccepted</c> names the
+        /// system too, but only <c>WorldReset</c> ever reached <see cref="_systemName"/>, so a save joined while
+        /// standing in the core chamber had no breach hint and the fire hold MINED the core instead of channelling
+        /// the hack. The system name stays as the fallback for a star map that has not arrived yet.</summary>
+        private bool OnGuardianWorld
+            => !(Game?.SpaceViewActive ?? false)
+               && ((Game?.StarMap?.ActiveLocationId is { } here && here.StartsWith("guardian_finale", System.StringComparison.Ordinal))
+                   || string.Equals(_systemName, GuardianSystemName, System.StringComparison.Ordinal));
         private bool FinaleActive => Game?.Story != null && Game.Story.GuardianSystemRevealed && !Game.Story.GuardianDefeated;
 
         /// <summary>True while holding the breach control would do something: finale live, on the Guardian

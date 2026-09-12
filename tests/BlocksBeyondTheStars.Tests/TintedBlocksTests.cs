@@ -157,4 +157,18 @@ public sealed class TintedBlocksTests : IDisposable
         }
         catch { }
     }
+    /// <summary>#1834: the ruin stamps build narrow pillars (BlockShape.Post) and glowing runes from these two
+    /// blocks; mining recovers form and glow into the item, and placing must keep them — before, both keys were
+    /// missing from the shapeable/tintable set and every "Alter Ziegel · Pfeiler" came back as a plain cube.</summary>
+    [Fact]
+    public void RuinMasonry_KeepsItsFormAndGlow_OnPlacement()
+    {
+        foreach (var key in new[] { "ancient_brick", "rune_stone" })
+        {
+            var def = _content.GetBlock(key);
+            Assert.NotNull(def);
+            Assert.True(def!.Tintable, key + " must be tintable (glow)");
+            Assert.True(def.Shapeable, key + " must be shapeable (pillar)");
+        }
+    }
 }
