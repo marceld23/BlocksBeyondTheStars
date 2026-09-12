@@ -11,6 +11,93 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.7] — 2026-09-12
+
+The city release. New worlds can roll a **lava desert with one gigantic walled city** on it — the only cool,
+green place on a 55 °C planet, kept by the friendly machines of the **G.D.S.**, letters nobody in the game
+will explain to you. It is Justus's idea, and it is the seventh generation of worlds. Next to it, the
+**chat finally looks like it belongs on the HUD**: a holo window with outlined text, exactly as tall as the
+lines in it, and it steps aside when VEGA is talking. **Starting a singleplayer world** no longer gives up
+halfway or drops you behind a nameless dark curtain, the **ship menu and the menu screens boot** like the
+rest of the interface, and a **round of player reports** took care of a rescue that yanked you out of your
+own mine shaft, two-block doorways that still wedged you, and the crash that kept hitting the chat and
+photo-note fields. Thanks to **Justus** and **Lyxette** for the reports 🙏
+
+ℹ️ **Compatibility:** the network protocol stays at version 5, saves migrate unchanged. The city world reaches
+**new galaxies only** — a world you already built in keeps exactly what it has.
+
+### 🏙️ Generation 7: the city world (#1793 #1808)
+
+Justus's idea, and rare: about one planet in three or four galaxies.
+
+- **A lava desert.** Sand over sandstone, buttes carved by the wind, a lava sea and lava rivers, no water,
+  no plants, no animals, 55 °C. You can breathe, but you will not want to stay outside.
+- **One city, 256 blocks across.** A purple wall with a red band and four gates, streets in a grid, a
+  landing plaza around the pad with lamps and guard posts, two markets, a hall, gardens with pools and
+  trees, watch towers on the corners and houses of one to three storeys in between — every house tinted
+  purple or red on its own.
+- **Inside is cool.** Anywhere in the city under a roof it is 22 °C. The streets, the gardens and the plaza
+  stay desert-hot, so a walk across town is still a walk across a desert.
+- **The G.D.S.** Machines with a red stripe across the chest and self-lit red eyes walk their beat inside
+  the walls and around the gates. They never fight anybody. Nobody in the city knows what the letters stand
+  for, and they will tell you so.
+- **Every room has a light in its ceiling** — houses, market shops, the hall, and the tower shafts all the
+  way up the ladder. (Marcel's first walk through the city was in the dark; this is the fix. A city you
+  already generated keeps its dark rooms — the city is built once, when the world is made.)
+
+### 💬 The chat is a window now (#1795 #1799 #1806)
+
+- **A holo window like VEGA's speech panel** sits behind the chat: same glow, same frame, and the text has
+  the outlined look at 18 px instead of bare white letters over the world. It was unreadable on snow, sand,
+  water and sky before.
+- **It fits the lines.** The window grows upward with the text and no further, and it is simply **gone**
+  when there is nothing to show — it fades in when a line arrives and out when the last one ages away.
+  While you type, the input row is the bottom row of the window.
+- **It yields to VEGA.** When a story line or the objective chip is up, the chat ends above them instead of
+  drawing across them, and the input row stacks underneath. With VEGA quiet, nothing changes.
+- **Opening the chat over an empty screen works again.** For a few hours on the way here, pressing Enter
+  with no chat lines on screen gave you an input row that took no keys at all. Fixed before anybody outside
+  saw it.
+
+### ⏳ Starting a singleplayer world (#1797 #1800)
+
+- **The game no longer gives up on your own world.** Building a fresh world takes longer than dialling a
+  server across the internet — the client waited about fourteen seconds and then reported it could not
+  connect. Now it waits for the world to say it is ready, up to two minutes, and starts the moment it is.
+- **No more nameless dark curtain.** The progress bar used to race to 100 %, hand over to an anonymous
+  "Loading world…" screen for ten to twenty seconds, and only then name the system and the planet. The bar
+  covers the whole build now and creeps along while the world is made; the named screen takes over for the
+  landing.
+
+### 🎛️ The ship menu and the menu screens boot like the HUD (#1796)
+
+- The three panels of the TAB menu are holo frames now and **boot on open and on every tab change** —
+  header, then sidebar, list and detail wiping on one after another, with the content fading up behind.
+- The main menu, settings, credits, editors and the save list do the same on the way in: the screen fades
+  up, the elements rise in order, the frames wipe on. Instant if you have reduced motion switched on.
+
+### 🐛 From your reports (#1788 #1789 #1790 #1791 #1792 #1804)
+
+Justus sent five reports and a crash, Lyxette another crash — thank you both 🙏
+
+- **Digging a deep shaft no longer teleports you back to the ship.** The rescue that catches you when you
+  fall out of the world counted a fifty-block hole as "the void" and snapped you to the heal tank once a
+  second. Every column ends on bedrock these days, so a cave, a cavern or a shaft you dug yourself is
+  never the void any more (#1788).
+- **Two-block-high openings let you through.** A doorway with exactly two blocks of headroom could still
+  wedge you if you walked in off-centre or under a lintel sitting in the next column. The check now looks
+  at the whole width of your suit, not one pillar under your feet (#1790).
+- **The fourth caret crash is dealt with — properly this time.** Three earlier fixes cured the symptom
+  next to it; this one is the cause. A text field that still had the cursor in it when a screen was
+  switched off — the TAB menu closing for a hyperjump, for instance — kept blinking into nothing and threw
+  twice a second until the game fell over. Every input field in the game now hands the cursor back when its
+  screen goes away (#1791 #1804).
+- **The reply dialog no longer follows you into the main menu.** A feedback reply left open while you
+  returned to the menu stayed on screen and crashed when you pressed OK (#1789).
+- **The way to the Guardian core.** VEGA says once, when you land on the last world, that the core sits
+  under the one iron-ringed shaft marked on your map — not under the ship. The shaft has its own mark on
+  the map, its own legend row, and the compass shows the distance to it (#1792).
+
 ## [2026.9.6] — 2026-09-12
 
 The new-planets release. The school club's third wave of ideas is in the game: **four new kinds of
@@ -5093,7 +5180,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.5...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.7...HEAD
+[2026.9.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.6...v2026.9.7
 [2026.9.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.5...v2026.9.6
 [2026.9.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.4...v2026.9.5
 [2026.9.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.3...v2026.9.4
