@@ -30,6 +30,9 @@ internal sealed class ChunkGenerationPool : IDisposable
     /// <summary>A result nobody adopted is dropped after this many streaming passes (the player turned away).</summary>
     private const int ReadyTtlPasses = 150;
 
+    /// <summary>How long the tick waits for a worker's share of a batch before generating it itself.</summary>
+    private const int WorkerStallMs = 10_000;
+
     /// <summary>Upper bound of speculative jobs queued at once, per worker.</summary>
     private const int SpeculativePerWorker = 6;
 
@@ -218,14 +221,29 @@ internal sealed class ChunkGenerationPool : IDisposable
                 continue;
             }
 
+            bool timedOut = false;
             lock (_lock)
             {
+                var started = System.Diagnostics.Stopwatch.StartNew();
                 while (!job.Done && !_disposed)
                 {
-                    Monitor.Wait(_lock);
+                    if (started.ElapsedMilliseconds > WorkerStallMs)
+                    {
+                        timedOut = true; // a worker that never answers must not hang the tick — generate it here
+                        break;
+                    }
+
+                    Monitor.Wait(_lock, 250);
                 }
 
                 _jobs.Remove((job.World, job.Coord));
+            }
+
+            if (timedOut)
+            {
+                job.World.GetOrLoadChunk(job.Coord);
+                GeneratedInline++;
+                continue;
             }
 
             Adopt(job);

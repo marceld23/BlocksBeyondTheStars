@@ -3338,14 +3338,18 @@ namespace BlocksBeyondTheStars.Client
             job.Error = null;
             MeshBuildsDispatched++;
 
-#if UNITY_WEBGL && !UNITY_EDITOR
-            // WebGL: no worker threads — build inline on the main thread. DrainBuiltChunks still uploads the
-            // result next frame, exactly as it does for the async path on every other platform.
-            job.Run();
-#else
-            // One static callback + the job as state: no Task, no closure, no execution-context capture.
-            System.Threading.ThreadPool.UnsafeQueueUserWorkItem(RunMeshJob, job);
-#endif
+            if (InlineChunkWork)
+            {
+                // WebGL: no worker threads — build inline on the main thread (within the #1819 frame budget).
+                // DrainBuiltChunks still uploads the result, exactly as it does for the async path elsewhere.
+                // A runtime check (not #if) so the PR CI and the desktop build compile both paths.
+                job.Run();
+            }
+            else
+            {
+                // One static callback + the job as state: no Task, no closure, no execution-context capture.
+                System.Threading.ThreadPool.UnsafeQueueUserWorkItem(RunMeshJob, job);
+            }
 
             return true;
         }
@@ -3589,24 +3593,19 @@ namespace BlocksBeyondTheStars.Client
         private void StartColliderBake(ChunkCoord coord, ChunkView view, Mesh collider, int bakeGen)
         {
             var mcol = view.Collider;
-#if UNITY_WEBGL && !UNITY_EDITOR
-            // WebGL: no worker threads to bake on, so cook synchronously by assigning the mesh directly —
-            // MeshCollider.sharedMesh cooks the collision mesh on the spot. The collider is live in THIS
-            // frame, so the spawn ground-check raycast finds footing and the player never falls through.
-            if (mcol != null)
-            {
-                // #1819: cooked by DrainSyncCooks within the frame's cook budget, nearest first — the footing chunk
-                // always cooks the same frame it is drained, so the spawn ground check still finds its floor.
-                EnqueueSyncCook(coord, collider, bakeGen);
-            }
-            else
-            {
-                Destroy(collider);
-            }
-#else
             if (mcol == null)
             {
                 Destroy(collider);
+                return;
+            }
+
+            // WebGL: no worker threads to bake on, so the mesh is cooked synchronously by assigning it directly —
+            // MeshCollider.sharedMesh cooks on the spot. #1819: cooked by DrainSyncCooks within the frame's cook
+            // budget, nearest first; the footing chunk always cooks the frame it is drained, so the spawn ground-check
+            // raycast still finds its floor. A runtime check (not #if) so the PR CI and the desktop build compile it.
+            if (InlineChunkWork)
+            {
+                EnqueueSyncCook(coord, collider, bakeGen);
                 return;
             }
 
@@ -3627,7 +3626,6 @@ namespace BlocksBeyondTheStars.Client
 
                 _bakedColliders.Enqueue((capturedCoord, capturedCollider, bakeGen, epoch));
             });
-#endif
         }
 
         /// <summary>Assigns collision meshes whose off-thread <see cref="Physics.BakeMesh"/> has finished.

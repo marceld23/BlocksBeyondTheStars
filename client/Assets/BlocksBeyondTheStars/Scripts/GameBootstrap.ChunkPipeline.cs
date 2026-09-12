@@ -229,6 +229,27 @@ namespace BlocksBeyondTheStars.Client
             VisibilityCullingActive = !openSky;
             if (VisibilityCullingActive)
             {
+                // The far columns stream only a band around their surface (server vertical LOD), so the walk needs to know,
+                // per column, where the loaded band ends: unloaded chunks ABOVE it are open air the walk passes through
+                // (a distant ridge is reached over the top), unloaded chunks below it are rock (the walk stops).
+                _columnBands.Clear();
+                int minY = camChunk.Y, maxY = camChunk.Y;
+                foreach (var key in World.Chunks.Keys)
+                {
+                    var col = (key.X, key.Z);
+                    if (_columnBands.TryGetValue(col, out var band))
+                    {
+                        _columnBands[col] = (Mathf.Min(band.Min, key.Y), Mathf.Max(band.Max, key.Y));
+                    }
+                    else
+                    {
+                        _columnBands[col] = (key.Y, key.Y);
+                    }
+
+                    minY = Mathf.Min(minY, key.Y);
+                    maxY = Mathf.Max(maxY, key.Y);
+                }
+
                 // The walk runs in the camera's scene space; chunk keys are canonical. SceneX/Z map a canonical origin
                 // to the copy nearest the player, so a raw coordinate is looked up by canonicalising it.
                 int circ = Circumference;
@@ -241,8 +262,15 @@ namespace BlocksBeyondTheStars.Client
                         return conn;
                     }
 
-                    return World.TryGetChunk(key, out _) ? ChunkVisibility.AllConnected : (ushort?)null;
-                }, 24, 12, _walkScratch);
+                    if (World.TryGetChunk(key, out _))
+                    {
+                        return ChunkVisibility.AllConnected; // loaded, not meshed yet — never hide what we cannot judge
+                    }
+
+                    return _columnBands.TryGetValue((key.X, key.Z), out var b) && key.Y > b.Max
+                        ? ChunkVisibility.Passable
+                        : ChunkVisibility.Blocked;
+                }, 24, minY, maxY + 1, _walkScratch);
                 foreach (var raw in _walkScratch)
                 {
                     _walkVisible.Add(WorldConstants.CanonicalChunk(raw, circ));
@@ -251,6 +279,9 @@ namespace BlocksBeyondTheStars.Client
 
             ApplyChunkRendererStates();
         }
+
+        /// <summary>#1823: lowest / highest loaded chunk Y per canonical column, rebuilt per walk.</summary>
+        private readonly Dictionary<(int X, int Z), (int Min, int Max)> _columnBands = new Dictionary<(int, int), (int, int)>();
 
         /// <summary>#1823: whether the visibility walk lets a chunk be drawn.</summary>
         private bool VisibleByWalk(ChunkCoord canonical) => !VisibilityCullingActive || _walkVisible.Contains(canonical);

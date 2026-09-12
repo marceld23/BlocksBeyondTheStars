@@ -114,9 +114,14 @@ public sealed class FarTerrainTileTests : IDisposable
     {
         var tile = new FarTerrainTile
         {
-            WorldId = 3, TileX = -2, TileZ = 7, Version = 4,
-            Cells = new byte[] { 0, 17, 255 }, TopY = new short[] { 70, -40, 300 },
-            Blocks = new ushort[] { 1, 2, 3 }, Tints = new[] { 0, 0x123456, 0 },
+            WorldId = 3,
+            TileX = -2,
+            TileZ = 7,
+            Version = 4,
+            Cells = new byte[] { 0, 17, 255 },
+            TopY = new short[] { 70, -40, 300 },
+            Blocks = new ushort[] { 1, 2, 3 },
+            Tints = new[] { 0, 0x123456, 0 },
         };
         var back = Assert.IsType<FarTerrainTile>(NetCodec.Decode(NetCodec.Encode(tile)));
         Assert.Equal(tile.Cells, back.Cells);

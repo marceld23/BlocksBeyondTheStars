@@ -36,7 +36,11 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
     {
         private readonly Dictionary<(int Tx, int Tz), Dictionary<int, FarEditTop>> _tiles = new Dictionary<(int, int), Dictionary<int, FarEditTop>>();
         private readonly Dictionary<(int Tx, int Tz), int> _versions = new Dictionary<(int, int), int>();
-        private readonly HashSet<(int Tx, int Tz)> _requested = new HashSet<(int, int)>();
+        /// <summary>Tiles asked for: when the request went out, or +∞ once the server answered. A request the server
+        /// dropped (paused, spectating, rate limit) or lost is asked again after <see cref="RetryAfterSeconds"/>.</summary>
+        private readonly Dictionary<(int Tx, int Tz), double> _requested = new Dictionary<(int, int), double>();
+
+        public const double RetryAfterSeconds = 8.0;
         private readonly List<(int Tx, int Tz)> _changed = new List<(int, int)>();
 
         public int Circumference { get; private set; } = WorldConstants.Circumference;
@@ -58,7 +62,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
         public bool Apply(FarTerrainTile tile)
         {
             var key = (tile.TileX, tile.TileZ);
-            _requested.Add(key);
+            _requested[key] = double.PositiveInfinity; // answered
             if (_versions.TryGetValue(key, out int have) && have >= tile.Version)
             {
                 return false; // a stale re-send
@@ -133,9 +137,10 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
             return any;
         }
 
-        /// <summary>Up to <paramref name="max"/> not-yet-requested tiles within <paramref name="range"/> of a scene
-        /// position, nearest first, as flat (tx, tz) pairs — marked requested.</summary>
-        public int[] NextRequest(float sceneX, float sceneZ, int range, int max)
+        /// <summary>Up to <paramref name="max"/> tiles within <paramref name="range"/> of a scene position that were never
+        /// asked for, or asked for more than <see cref="RetryAfterSeconds"/> ago without an answer — nearest first, as
+        /// flat (tx, tz) pairs, marked requested at <paramref name="now"/>.</summary>
+        public int[] NextRequest(float sceneX, float sceneZ, int range, int max, double now)
         {
             if (range <= 0 || max <= 0)
             {
@@ -158,7 +163,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
 
                     var canon = WorldConstants.CanonicalBlock(new Vector3i((cx + dx) * t, 0, (cz + dz) * t), Circumference);
                     var key = (canon.X >> 6, canon.Z >> 6);
-                    if (!_requested.Contains(key))
+                    if (!_requested.TryGetValue(key, out double at) || now - at > RetryAfterSeconds)
                     {
                         candidates.Add((key.Item1, key.Item2, d));
                     }
@@ -166,6 +171,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
 
             candidates.Sort((a, b) => a.D.CompareTo(b.D));
             var pairs = new List<int>(Math.Min(max, candidates.Count) * 2);
+            var taken = new HashSet<(int, int)>();
             foreach (var c in candidates)
             {
                 if (pairs.Count / 2 >= max)
@@ -173,8 +179,9 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
                     break;
                 }
 
-                if (_requested.Add((c.Tx, c.Tz)))
+                if (taken.Add((c.Tx, c.Tz))) // two scene tiles can wrap onto one canonical tile
                 {
+                    _requested[(c.Tx, c.Tz)] = now;
                     pairs.Add(c.Tx);
                     pairs.Add(c.Tz);
                 }

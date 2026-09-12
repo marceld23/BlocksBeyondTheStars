@@ -3261,7 +3261,7 @@ public sealed partial class GameServer
         PauseIntent or ChatIntent or VoiceFrame or BumpReport or SaveGameIntent
             or SelectHotbarIntent or AdminCommandIntent => true,
         RequestStarMap or RequestMissions or RequestCompanionsIntent
-            or RequestAllianceListIntent or RequestLandingPadsIntent => true,
+            or RequestAllianceListIntent or RequestLandingPadsIntent or FarTerrainTileRequest => true, // reads (#1821: the far view keeps filling in)
         // The crew/marker envelopes (#1216/#1217) carry reads AND writes — only the read passes a pause.
         CrewActionIntent c => c.Kind == "list",
         MarkerActionIntent m => m.Kind == "list",

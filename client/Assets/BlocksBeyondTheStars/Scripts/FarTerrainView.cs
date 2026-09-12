@@ -329,7 +329,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _requestTimer = TileRequestSeconds;
-            var pairs = _overlay.NextRequest(p.x, p.z, ActiveRange, FarTerrainTile.MaxTilesPerRequest / 2);
+            var pairs = _overlay.NextRequest(p.x, p.z, ActiveRange, FarTerrainTile.MaxTilesPerRequest / 2, Time.unscaledTimeAsDouble);
             if (pairs.Length > 0)
             {
                 Game.Network.SendFarTerrainTileRequest(pairs);

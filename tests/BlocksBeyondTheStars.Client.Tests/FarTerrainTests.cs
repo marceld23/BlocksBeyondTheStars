@@ -94,8 +94,13 @@ public sealed class FarTerrainTests
         overlay.Reset(6000);
         var tile = new FarTerrainTile
         {
-            TileX = 0, TileZ = 0, Version = 2,
-            Cells = new byte[] { 0, 17 }, TopY = new short[] { 120, 90 }, Blocks = new ushort[] { 5, 6 }, Tints = new[] { 0, 0x00FF00 },
+            TileX = 0,
+            TileZ = 0,
+            Version = 2,
+            Cells = new byte[] { 0, 17 },
+            TopY = new short[] { 120, 90 },
+            Blocks = new ushort[] { 5, 6 },
+            Tints = new[] { 0, 0x00FF00 },
         };
         Assert.True(overlay.Apply(tile));
         Assert.True(overlay.TryGetTop(1, 1, out var top));
@@ -106,11 +111,16 @@ public sealed class FarTerrainTests
         Assert.True(overlay.TryGetTopInArea(0, 0, 8, out var best));
         Assert.Equal(121, best.Top);
 
-        var first = overlay.NextRequest(100f, 100f, 256, 4);
+        var first = overlay.NextRequest(100f, 100f, 256, 4, now: 10.0);
         Assert.Equal(8, first.Length);
         Assert.Equal((1, 1), (first[0], first[1])); // the tile under (100, 100)
-        var second = overlay.NextRequest(100f, 100f, 256, 1000);
+        var second = overlay.NextRequest(100f, 100f, 256, 1000, now: 11.0);
         Assert.DoesNotContain((first[2], first[3]), Pairs(second));
+
+        // An unanswered request is asked again after the retry window; an answered tile (0,0) is not.
+        var retry = overlay.NextRequest(100f, 100f, 256, 1000, now: 11.0 + FarTerrainOverlay.RetryAfterSeconds + 1);
+        Assert.Contains((first[2], first[3]), Pairs(retry));
+        Assert.DoesNotContain((0, 0), Pairs(retry));
     }
 
     private static IEnumerable<(int, int)> Pairs(int[] flat)
@@ -158,8 +168,13 @@ public sealed class FarTerrainTests
         // A 400-block tower in the cell under vertex (1, 1) = world (8, 8).
         overlay.Apply(new FarTerrainTile
         {
-            TileX = 0, TileZ = 0, Version = 1,
-            Cells = new byte[] { (byte)(2 * FarTerrainTile.CellsPerSide + 2) }, TopY = new short[] { 400 }, Blocks = new ushort[] { 3 }, Tints = new[] { 0 },
+            TileX = 0,
+            TileZ = 0,
+            Version = 1,
+            Cells = new byte[] { (byte)(2 * FarTerrainTile.CellsPerSide + 2) },
+            TopY = new short[] { 400 },
+            Blocks = new ushort[] { 3 },
+            Tints = new[] { 0 },
         });
         var built = new FarPatchBuilder(key, 512, source).BuildGeometry(overlay, (s, e, t) => e ? 0xFF0000FFu : 0xFF808080u);
         int v = 1 * 17 + 1;
@@ -185,18 +200,32 @@ public sealed class FarTerrainTests
     {
         var camera = new ChunkCoord(0, 0, 0);
         var sealedCave = new List<ChunkCoord>();
-        ChunkVisibility.Walk(camera, c => c == camera ? ChunkVisibility.AllConnected : (ushort)0, 4, 4, sealedCave);
+        ChunkVisibility.Walk(camera, c => c == camera ? ChunkVisibility.AllConnected : 0, 4, -4, 4, sealedCave);
         Assert.Contains(new ChunkCoord(1, 0, 0), sealedCave);      // the rock around the cave is seen (its faces)
         Assert.DoesNotContain(new ChunkCoord(3, 0, 0), sealedCave); // nothing behind it
         Assert.DoesNotContain(new ChunkCoord(0, 3, 0), sealedCave); // no surface above a sealed cave
 
         var openAir = new List<ChunkCoord>();
-        ChunkVisibility.Walk(camera, c => ChunkVisibility.AllConnected, 2, 1, openAir);
+        ChunkVisibility.Walk(camera, c => ChunkVisibility.AllConnected, 2, -1, 1, openAir);
         Assert.Equal(5 * 3 * 5, openAir.Count);
 
         var unloaded = new List<ChunkCoord>();
-        ChunkVisibility.Walk(camera, c => Math.Abs(c.X) <= 1 ? ChunkVisibility.AllConnected : (ushort?)null, 4, 0, unloaded);
+        ChunkVisibility.Walk(camera, c => Math.Abs(c.X) <= 1 ? ChunkVisibility.AllConnected : ChunkVisibility.Blocked, 4, 0, 0, unloaded);
         Assert.DoesNotContain(unloaded, c => Math.Abs(c.X) > 1);
+
+        // The vertical-LOD case: a ridge 6 chunks east whose loaded band sits 3 chunks above the camera, the air between
+        // never streamed. Passable air above every column's band lets the walk reach the ridge over the top; the ridge's
+        // rock (loaded, solid) is drawn, the passable air is not.
+        var ridge = new List<ChunkCoord>();
+        ChunkVisibility.Walk(camera, c =>
+        {
+            if (c.X == 0 && c.Y == 0) return ChunkVisibility.AllConnected; // the camera's column at ground level (air)
+            if (c.X == 6 && c.Y == 3) return 0;                            // the ridge's surface band chunk (solid)
+            if (c.X == 6) return c.Y > 3 ? ChunkVisibility.Passable : ChunkVisibility.Blocked;
+            return c.Y > 0 ? ChunkVisibility.Passable : ChunkVisibility.Blocked;
+        }, 8, -2, 5, ridge);
+        Assert.Contains(new ChunkCoord(6, 3, 0), ridge);
+        Assert.DoesNotContain(ridge, c => c.Y > 0 && c.X != 6); // pass-through air is never "visible"
     }
 
     [Fact]

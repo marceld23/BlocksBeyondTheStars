@@ -126,72 +126,133 @@ namespace BlocksBeyondTheStars.Client
             return mask;
         }
 
+        /// <summary>What the walk finds at a chunk: a loaded chunk answers its connectivity mask (0..<see cref="AllConnected"/>),
+        /// an unloaded chunk answers <see cref="Blocked"/> (rock, or nothing streamed there — the walk stops) or
+        /// <see cref="Passable"/> (open air above a column's streamed band: the walk passes through without drawing
+        /// anything). The far columns stream only a band around their surface, so the air between the camera's
+        /// altitude and a distant ridge is usually NOT loaded — without the pass-through a canopy or a roof would hide
+        /// every distant hill.</summary>
+        public const int Blocked = -1;
+        public const int Passable = -2;
+
+        [ThreadStatic]
+        private static byte[]? _seenScratch;
+
+        [ThreadStatic]
+        private static int[]? _walkQueue;
+
         /// <summary>
-        /// Walks from the camera's chunk and adds every chunk that may be visible to <paramref name="visible"/>.
+        /// Walks from the camera's chunk and adds every loaded chunk that may be visible to <paramref name="visible"/>.
+        /// Dense bookkeeping over the walk box (no per-node allocation): at radius 24 / 12 chunk layers that is ~60k cells.
         /// </summary>
         /// <param name="camera">The chunk holding the camera (raw, unwrapped coordinates).</param>
-        /// <param name="connectivityOf">The connectivity of a chunk (raw coordinates — the caller wraps), or null
-        /// when the chunk is not loaded: the walk does not continue through it (nothing there can be drawn, and nothing
-        /// behind it is streamed). A loaded chunk not meshed yet should report <see cref="AllConnected"/>.</param>
+        /// <param name="classify">See <see cref="Blocked"/> / <see cref="Passable"/>; raw coordinates — the caller wraps.
+        /// A loaded chunk not meshed yet should report <see cref="AllConnected"/>.</param>
         /// <param name="horizontalRadius">Chebyshev radius (chunks) the walk may reach.</param>
-        /// <param name="verticalRadius">How many chunks up / down the walk may reach.</param>
-        public static void Walk(ChunkCoord camera, Func<ChunkCoord, ushort?> connectivityOf, int horizontalRadius,
-            int verticalRadius, ICollection<ChunkCoord> visible)
+        /// <param name="minChunkY">Lowest chunk Y the walk visits (inclusive).</param>
+        /// <param name="maxChunkY">Highest chunk Y the walk visits (inclusive) — one above the highest loaded chunk is
+        /// enough: everything higher is open air a path could take just as well one layer lower.</param>
+        public static void Walk(ChunkCoord camera, Func<ChunkCoord, int> classify, int horizontalRadius,
+            int minChunkY, int maxChunkY, ICollection<ChunkCoord> visible)
         {
-            var seen = new HashSet<ChunkCoord> { camera };
+            minChunkY = Math.Min(minChunkY, camera.Y);
+            maxChunkY = Math.Max(maxChunkY, camera.Y);
+            int side = 2 * horizontalRadius + 1;
+            int height = maxChunkY - minChunkY + 1;
+            int cells = side * side * height;
+            var seen = _seenScratch;
+            if (seen == null || seen.Length < cells)
+            {
+                seen = _seenScratch = new byte[cells];
+            }
+            else
+            {
+                Array.Clear(seen, 0, cells);
+            }
+
+            // Queue entries: cell index, entry face, direction bits (packed: index << 9 | dirs << 3 | entry).
+            var queue = _walkQueue;
+            if (queue == null || queue.Length < cells)
+            {
+                queue = _walkQueue = new int[cells];
+            }
+
+            int head = 0, tail = 0;
+            int Index(int x, int y, int z) => ((z - camera.Z + horizontalRadius) * height + (y - minChunkY)) * side + (x - camera.X + horizontalRadius);
+            seen[Index(camera.X, camera.Y, camera.Z)] = 1;
             visible.Add(camera);
-            var queue = new Queue<(ChunkCoord Coord, int Entry, int Dirs)>();
             // The camera's own chunk connects to every face (the camera can stand anywhere inside it).
             for (int d = 0; d < 6; d++)
             {
-                Step(camera, d, 1 << d);
+                Step(camera.X, camera.Y, camera.Z, d, 1 << d);
             }
 
-            while (queue.Count > 0)
+            while (head < tail)
             {
-                var (coord, entry, dirs) = queue.Dequeue();
-                ushort? conn = connectivityOf(coord);
-                if (conn is null)
+                int packed = queue[head++];
+                int index = packed >> 9;
+                int dirs = (packed >> 3) & 0x3F;
+                int entry = packed & 7;
+                int x = index % side + camera.X - horizontalRadius;
+                int rest = index / side;
+                int y = rest % height + minChunkY;
+                int z = rest / height + camera.Z - horizontalRadius;
+                int kind = classify(new ChunkCoord(x, y, z));
+                if (kind == Blocked)
                 {
                     continue;
                 }
 
+                ushort conn = kind == Passable ? AllConnected : (ushort)kind;
                 for (int d = 0; d < 6; d++)
                 {
-                    if ((dirs & (1 << Opposite(d))) != 0 || !Connects(conn.Value, entry, d))
+                    if ((dirs & (1 << Opposite(d))) != 0 || !Connects(conn, entry, d))
                     {
                         continue; // never back toward the camera; only through an open passage
                     }
 
-                    Step(coord, d, dirs | (1 << d));
+                    Step(x, y, z, d, dirs | (1 << d));
                 }
             }
 
-            void Step(ChunkCoord from, int dir, int dirs)
+            void Step(int fx, int fy, int fz, int dir, int dirs)
             {
-                var next = dir switch
+                int nx = fx, ny = fy, nz = fz;
+                switch (dir)
                 {
-                    NegX => new ChunkCoord(from.X - 1, from.Y, from.Z),
-                    PosX => new ChunkCoord(from.X + 1, from.Y, from.Z),
-                    NegY => new ChunkCoord(from.X, from.Y - 1, from.Z),
-                    PosY => new ChunkCoord(from.X, from.Y + 1, from.Z),
-                    NegZ => new ChunkCoord(from.X, from.Y, from.Z - 1),
-                    _ => new ChunkCoord(from.X, from.Y, from.Z + 1),
-                };
+                    case NegX: nx--; break;
+                    case PosX: nx++; break;
+                    case NegY: ny--; break;
+                    case PosY: ny++; break;
+                    case NegZ: nz--; break;
+                    default: nz++; break;
+                }
 
-                if (Math.Abs(next.X - camera.X) > horizontalRadius || Math.Abs(next.Z - camera.Z) > horizontalRadius
-                    || Math.Abs(next.Y - camera.Y) > verticalRadius || !seen.Add(next))
+                if (Math.Abs(nx - camera.X) > horizontalRadius || Math.Abs(nz - camera.Z) > horizontalRadius
+                    || ny < minChunkY || ny > maxChunkY)
                 {
                     return;
                 }
 
-                if (connectivityOf(next) is null)
+                int index = Index(nx, ny, nz);
+                if (seen[index] != 0)
                 {
-                    return; // not loaded: nothing to show there, and the walk does not tunnel through
+                    return;
                 }
 
-                visible.Add(next);
-                queue.Enqueue((next, Opposite(dir), dirs));
+                seen[index] = 1;
+                int kind = classify(new ChunkCoord(nx, ny, nz));
+                if (kind == Blocked)
+                {
+                    return; // rock, or nothing streamed there: nothing to show, and the walk does not tunnel through
+                }
+
+                if (kind != Passable)
+                {
+                    visible.Add(new ChunkCoord(nx, ny, nz)); // a loaded chunk the camera can reach
+                }
+
+                queue[tail++] = (index << 9) | (dirs << 3) | Opposite(dir);
             }
         }
     }
