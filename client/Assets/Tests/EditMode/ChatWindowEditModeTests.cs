@@ -63,9 +63,17 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.That(w.TextH, Is.EqualTo(w.Capacity));
             Assert.That(w.Capacity, Is.EqualTo(LaneBottom - LaneTop - 2f * Pad));
 
+            // With VEGA quiet the input row sits BELOW the lane (y 596), so the window reaches down to it and
+            // the text block gains that room rather than losing rows to the row.
             var typing = ChatUi.ResolveWindow(typing: true, speechVisible: false, chipVisible: false, contentH: 5000f);
             Assert.That(typing.Y, Is.EqualTo(LaneTop));
-            Assert.That(typing.Capacity, Is.LessThan(w.Capacity), "the input row costs text rows, not lane");
+            Assert.That(typing.Capacity, Is.EqualTo(596f + InputH - LaneTop - InputH - 2f * Pad));
+            Assert.That(typing.Capacity, Is.GreaterThan(w.Capacity), "the window spans lane + input row");
+
+            // With VEGA's chip up the row stacks inside the lane instead, and there it does cost text rows.
+            var chip = ChatUi.ResolveWindow(typing: true, speechVisible: false, chipVisible: true, contentH: 5000f);
+            Assert.That(chip.Y, Is.EqualTo(LaneTop));
+            Assert.That(chip.Capacity, Is.LessThan(w.Capacity), "the input row costs text rows inside the lane");
         }
 
         [Test]
