@@ -835,6 +835,44 @@ public sealed class JoinRejected
     public string Reason { get; set; } = string.Empty;
 }
 
+/// <summary>Client → server (#1821): which far-terrain tiles the client's far view needs. Tiles are
+/// <see cref="FarTerrainTile.TileBlocks"/>-block squares on the canonical block grid; the server answers each with a
+/// <see cref="FarTerrainTile"/> and re-sends it when an edit changes it.</summary>
+public sealed class FarTerrainTileRequest
+{
+    /// <summary>The world the client asks about (the WorldId of its last JoinAccepted / WorldReset).</summary>
+    public int WorldId { get; set; }
+
+    /// <summary>Flat (tileX, tileZ) pairs, canonical tile indices. The server serves at most
+    /// <see cref="FarTerrainTile.MaxTilesPerRequest"/> pairs per request.</summary>
+    public int[] Tiles { get; set; } = System.Array.Empty<int>();
+}
+
+/// <summary>Server → client (#1821): the persisted builds of one far-terrain tile — cities, settlements, ruins and
+/// player builds, which the client's seed-based far terrain cannot know. One entry per
+/// <see cref="CellBlocks"/>×<see cref="CellBlocks"/> cell that holds any non-air edit: the highest such edit's height,
+/// block and tint. The four arrays run in step; an empty tile has empty arrays.</summary>
+public sealed class FarTerrainTile
+{
+    public const int TileBlocks = 64;
+    public const int CellBlocks = 4;
+    public const int CellsPerSide = TileBlocks / CellBlocks;
+    public const int MaxTilesPerRequest = 48;
+
+    public int WorldId { get; set; }
+    public int TileX { get; set; }
+    public int TileZ { get; set; }
+
+    /// <summary>Bumped whenever an edit inside the tile changes it (the client keeps the newest).</summary>
+    public int Version { get; set; }
+
+    /// <summary>Cell index within the tile: cellZ × <see cref="CellsPerSide"/> + cellX.</summary>
+    public byte[] Cells { get; set; } = System.Array.Empty<byte>();
+    public short[] TopY { get; set; } = System.Array.Empty<short>();
+    public ushort[] Blocks { get; set; } = System.Array.Empty<ushort>();
+    public int[] Tints { get; set; } = System.Array.Empty<int>();
+}
+
 public sealed class ChunkDataMessage
 {
     public int Cx { get; set; }

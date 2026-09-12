@@ -20,8 +20,10 @@ public static class Protocol
     /// channel (ChannelsCount = 2 on both peers; a v4 peer drops channel-1 packets) — so a lost chunk fragment
     /// no longer stalls presence, creatures and chat behind its resend. ChunkDataMessage, BlockChanged,
     /// WorldReset and JoinAccepted carry a WorldId, which lets the client order the two channels: world-stream
-    /// messages of a world it has not been told about yet wait, those of the world it just left are dropped.</summary>
-    public const int Version = 5;
+    /// messages of a world it has not been told about yet wait, those of the world it just left are dropped.
+    /// v6 (#1821): FarTerrainTileRequest / FarTerrainTile — the far view asks the server for the persisted builds
+    /// (cities, settlements, player builds) of distant tiles; a v5 server cannot decode the request.</summary>
+    public const int Version = 6;
 
     public const int DefaultGameplayPort = 31415;
     public const int DefaultAdminPort = 31416;

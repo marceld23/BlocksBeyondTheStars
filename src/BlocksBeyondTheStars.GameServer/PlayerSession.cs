@@ -160,6 +160,12 @@ public sealed class PlayerSession
     public float StreamSampleZ { get; set; }
     public double StreamSampleAt { get; set; } = -1;
 
+    /// <summary>#1821: far-terrain tiles this client asked for on its current world, with the version it has.</summary>
+    public Dictionary<(int Tx, int Tz), int> FarTilesSent { get; } = new();
+    public int FarTilesWorldId { get; set; }
+    public double FarTileTokens { get; set; } = 64;
+    public double FarTileTokensAt { get; set; }
+
     /// <summary>Uptime at which each chunk last triggered a full ghost re-stream for this session (#965), so a
     /// burst of ghosts in one chunk costs one re-stream (and one log line), not one per cell.</summary>
     public Dictionary<ChunkCoord, double> GhostChunkSeen { get; } = new();

@@ -161,6 +161,9 @@ namespace BlocksBeyondTheStars.Client
         // Weather-scanner reading (#900): what the sky is doing, what is coming and how far off the front is.
         public event Action<WeatherForecast>? WeatherForecastReceived;
 
+        // Far terrain (#1821): the persisted builds of one far-view tile (only for the current world).
+        public event Action<FarTerrainTile>? FarTerrainTileReceived;
+
         // First-scan ledger backing the Codex "Discoveries" chapter (#484): a full snapshot on join,
         // then a one-entry delta per first-time scan.
         public event Action<DiscoveryLog>? DiscoveryLogReceived;
@@ -718,6 +721,12 @@ namespace BlocksBeyondTheStars.Client
         public void SendMinigameResult(string gameKey, int score, int rating, bool completed)
             => Send(new MinigameResultIntent { GameKey = gameKey ?? string.Empty, Score = score, Rating = rating, Completed = completed });
 
+        // --- Far terrain (#1821) ---
+
+        /// <summary>Asks for the persisted builds of far-view tiles: flat (tileX, tileZ) pairs on the canonical grid.</summary>
+        public void SendFarTerrainTileRequest(int[] tilePairs)
+            => Send(new FarTerrainTileRequest { WorldId = CurrentWorldId, Tiles = tilePairs });
+
         // --- Navigation & missions (M23) ---
         public void SendRequestStarMap() => Send(new RequestStarMap());
 
@@ -895,6 +904,9 @@ namespace BlocksBeyondTheStars.Client
                 case JoinRejected m: JoinRejected?.Invoke(m); break;
                 case ChunkDataMessage m: if (AcceptWorldStream(m.WorldId, m)) { ChunkReceived?.Invoke(m); } break;
                 case BlockChanged m: if (AcceptWorldStream(m.WorldId, m)) { BlockChanged?.Invoke(m); } break;
+                case FarTerrainTile m: // #1821: another world's tile is simply dropped — the far view re-asks per world
+                    if (m.WorldId == 0 || m.WorldId == CurrentWorldId) { FarTerrainTileReceived?.Invoke(m); }
+                    break;
                 case InventoryUpdate m: InventoryUpdated?.Invoke(m); break;
                 case PlayerStateUpdate m: PlayerStateUpdated?.Invoke(m); break;
                 case CraftResult m: CraftCompleted?.Invoke(m); break;

@@ -237,6 +237,26 @@ public readonly struct BlockEdit
     }
 }
 
+/// <summary>#1821: the highest non-air persisted edit of one (x, z) block column — what a far view needs to draw
+/// builds and structures it cannot derive from the seed.</summary>
+public readonly struct EditColumnTop
+{
+    public readonly int X;
+    public readonly int Y;
+    public readonly int Z;
+    public readonly ushort Block;
+    public readonly int Tint;
+
+    public EditColumnTop(int x, int y, int z, ushort block, int tint)
+    {
+        X = x;
+        Y = y;
+        Z = z;
+        Block = block;
+        Tint = tint;
+    }
+}
+
 /// <summary>A scheduled surface-flora regrowth: a harvested plant that returns on its cell after a delay,
 /// as long as its host block stays intact. Persisted so the regrow survives a server restart — otherwise a
 /// harvest-then-restart removes the plant for good (the harvest leaves a persisted air edit that overrides
@@ -348,6 +368,10 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Loads all stored block edits that fall inside the given chunk.</summary>
     IReadOnlyList<BlockEdit> LoadChunkEdits(string planet, ChunkCoord chunk);
+
+    /// <summary>#1821: for every (x, z) column inside the inclusive horizontal box that holds a non-air edit, the
+    /// highest such edit (any height). Bounded by the box — the far-terrain tiles ask 64×64 blocks at a time.</summary>
+    IReadOnlyList<EditColumnTop> LoadEditColumnTops(string planet, int minX, int minZ, int maxX, int maxZ);
 
     /// <summary>Stores (inserts or replaces) a scheduled flora regrowth, keyed by its world cell.</summary>
     void SaveFloraRegrow(string planet, Vector3i worldPosition, ushort block, double timer);

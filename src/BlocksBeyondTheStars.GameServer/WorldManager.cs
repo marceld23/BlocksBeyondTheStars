@@ -92,6 +92,14 @@ internal sealed class MonumentInstance
 /// landing zones). GameServer reaches this state through forwarding properties pointing at the active
 /// world, so several bodies can be resident at once (one per occupied location) with isolated content.
 /// </summary>
+/// <summary>#1821: one far-terrain tile on a world — the last built message and whether an edit invalidated it.</summary>
+internal sealed class FarTerrainTileState
+{
+    public int Version;
+    public bool Dirty = true;
+    public BlocksBeyondTheStars.Networking.Messages.FarTerrainTile? Message;
+}
+
 internal sealed class LoadedWorld
 {
     public required ServerWorld World { get; init; }
@@ -145,6 +153,9 @@ internal sealed class LoadedWorld
     public long PresenceViewerSignature { get; set; }
     public Dictionary<Vector3i, byte> FluidLevel { get; } = new();
     public HashSet<Vector3i> ActiveFluid { get; } = new();
+
+    /// <summary>#1821: far-terrain tile summaries built on request, by tile index; rebuilt when an edit dirties them.</summary>
+    public Dictionary<(int Tx, int Tz), FarTerrainTileState> FarTiles { get; } = new();
 
     /// <summary>#1824: woken fluid cells whose neighbourhood reaches into an unloaded chunk. They sit out the
     /// automaton (it must never generate terrain) until a chunk load makes their neighbourhood whole again.</summary>

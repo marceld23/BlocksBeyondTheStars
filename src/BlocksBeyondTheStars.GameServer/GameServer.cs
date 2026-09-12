@@ -584,6 +584,8 @@ public sealed partial class GameServer
         LoadWeatherDeposits(); // #900: restore settled snow so a restart doesn't strand cells that can never melt
         var resident = world.World;
         resident.BlockSet += cell => MarkBaseWallsDirty(resident, cell); // #1367: a build inside a base's box refreshes its wall fill
+        var farWorld = world;
+        resident.BlockSet += cell => MarkFarTileDirty(farWorld, cell); // #1821: a far view sees builds change
         LoadContainers(); // every world, void ones included: a station's placed crates persist like a planet's (#1562)
 
         // A void world (an orbital station) has no terrain, so it gets none of the OTHER planet-surface
@@ -1500,6 +1502,8 @@ public sealed partial class GameServer
             _sinceChunkSweep = 0;
         }
 
+        bool farTilesDue = FarTileRefreshDue(deltaSeconds); // #1821: re-send far-terrain tiles an edit changed
+
         foreach (var locId in ticking)
         {
             if (!SetActiveWorld(locId))
@@ -1540,6 +1544,11 @@ public sealed partial class GameServer
             if (sweepDue)
             {
                 Guard("SweepFarChunks", SweepFarChunks);
+            }
+
+            if (farTilesDue)
+            {
+                Guard("RefreshFarTiles", RefreshFarTiles);
             }
         }
 
@@ -3277,6 +3286,7 @@ public sealed partial class GameServer
         switch (message)
         {
             case MoveIntent move: HandleMove(session, move); break;
+            case FarTerrainTileRequest farTiles: HandleFarTerrainTileRequest(session, farTiles); break; // #1821
             case SelectHotbarIntent hotbar: session.State.SelectedHotbarSlot = System.Math.Clamp(hotbar.Slot, 0, HotbarSlots - 1); break;
             case MoveItemIntent moveItem: HandleMoveItem(session, moveItem); break;
             case DiscardItemIntent discard: HandleDiscardItem(session, discard); break;
@@ -6746,6 +6756,9 @@ public sealed partial class GameServer
             case BlockChanged change:
                 change.WorldId = WorldIdOf(session.CurrentLocationId);
                 mode = DeliveryMode.ReliableOrderedBulk;
+                break;
+            case FarTerrainTile:
+                mode = DeliveryMode.ReliableOrderedBulk; // #1821: terrain data rides the world-stream channel
                 break;
         }
 

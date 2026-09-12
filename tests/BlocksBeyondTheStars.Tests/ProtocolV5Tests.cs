@@ -14,9 +14,9 @@ namespace BlocksBeyondTheStars.Tests;
 public sealed class ProtocolV5Tests
 {
     [Fact]
-    public void Version_IsFive_AndBulkIsItsOwnChannel()
+    public void BulkIsItsOwnChannel()
     {
-        Assert.Equal(5, Protocol.Version);
+        Assert.True(Protocol.Version >= 5); // v6 (#1821) kept the v5 channel layout
         Assert.Equal(1, DeliveryMode.ReliableOrderedBulk.Channel());
         Assert.Equal(0, DeliveryMode.ReliableOrdered.Channel());
         Assert.Equal(0, DeliveryMode.Sequenced.Channel());
