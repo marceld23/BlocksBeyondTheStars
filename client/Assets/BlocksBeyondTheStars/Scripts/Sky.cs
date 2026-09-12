@@ -421,6 +421,11 @@ namespace BlocksBeyondTheStars.Client
         {
             bool fog = !spaceSky && (Game == null || !Game.SpaceViewActive);
             RenderSettings.fog = fog;
+            if (Game != null)
+            {
+                Game.FogActive = fog; // #1822: the renderer cull reads it
+            }
+
             if (!fog)
             {
                 Shader.SetGlobalVector(FogId, new Vector4(0f, 1f, 0f, 0f)); // distance haze off
@@ -442,7 +447,10 @@ namespace BlocksBeyondTheStars.Client
             // the server streams one chunk beyond this basis (GameServer.StreamChunks), the last VISIBLE ring is
             // fully hazed before it materializes and fades in as the player approaches.
             float airDensity = Game?.Environment?.AtmosphereDensity ?? 0.4f;
-            float far = renderDist * Mathf.Lerp(1.0f, 0.85f, Mathf.Clamp01(airDensity));
+            // #1822: with far terrain behind the chunks the haze no longer has to hide their edge — it reaches out
+            // toward the far-view range, by how thin the air is (FarHaze). Far view off = the mapping above, unchanged.
+            int farView = Game?.FarView != null ? Game.FarView.ActiveRange : 0;
+            float far = BlocksBeyondTheStars.Client.FarTerrain.FarHaze.BaseFar(renderDist, farView, airDensity);
 
             far *= Mathf.Lerp(1f, 0.8f, weatherIntensity); // storms haze in a bit more
             far *= Mathf.Lerp(0.9f, 1f, day);                // night a touch hazier than day

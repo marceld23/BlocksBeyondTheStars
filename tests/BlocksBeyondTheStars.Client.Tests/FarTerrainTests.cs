@@ -150,7 +150,7 @@ public sealed class FarTerrainTests
         overlay.Reset(6000);
         var key = new FarPatchKey(0, 0, 0);
 
-        var plain = new FarPatchBuilder(key, 512, source, overlay).BuildGeometry((s, e, t) => 0xFF808080);
+        var plain = new FarPatchBuilder(key, 512, source).BuildGeometry(overlay, (s, e, t) => 0xFF808080);
         Assert.Equal(17 * 17 + 4 * 17, plain.VertexCount);
         Assert.Equal(16 * 16 * 6 + 4 * 16 * 6, plain.Indices.Length);
         Assert.All(plain.Indices, i => Assert.InRange(i, 0, plain.VertexCount - 1));
@@ -161,7 +161,7 @@ public sealed class FarTerrainTests
             TileX = 0, TileZ = 0, Version = 1,
             Cells = new byte[] { (byte)(2 * FarTerrainTile.CellsPerSide + 2) }, TopY = new short[] { 400 }, Blocks = new ushort[] { 3 }, Tints = new[] { 0 },
         });
-        var built = new FarPatchBuilder(key, 512, source, overlay).BuildGeometry((s, e, t) => e ? 0xFF0000FFu : 0xFF808080u);
+        var built = new FarPatchBuilder(key, 512, source).BuildGeometry(overlay, (s, e, t) => e ? 0xFF0000FFu : 0xFF808080u);
         int v = 1 * 17 + 1;
         Assert.True(built.Positions[v * 3 + 1] > 390f, $"the tower should raise its vertex (y={built.Positions[v * 3 + 1]})");
         Assert.Equal(0xFF0000FFu, built.Colors[v]);

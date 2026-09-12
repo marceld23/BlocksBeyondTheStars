@@ -22,15 +22,15 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
     }
 
     /// <summary>
-    /// Samples one far-terrain patch a row at a time (#1820) — the browser build runs it on the render thread, so a
-    /// patch spreads over as many frames as the time budget needs — and turns the samples into a grid mesh with skirts.
-    /// Builds (the persisted structures from <see cref="FarTerrainOverlay"/>) raise a vertex where they stand taller
-    /// than the terrain.
+    /// Samples one far-terrain patch a row at a time (#1820) and turns the samples into a grid mesh with skirts. The
+    /// terrain sampling (<see cref="SampleRow"/>) touches only the <see cref="FarTerrainSource"/>, so the desktop client
+    /// runs it on a background thread; the browser build runs it on the render thread, a row at a time within the frame
+    /// budget. <see cref="BuildGeometry"/> merges the builds from <see cref="FarTerrainOverlay"/> — persisted structures
+    /// raise a vertex where they stand taller than the terrain — and must run on the thread that owns the overlay.
     /// </summary>
     public sealed class FarPatchBuilder
     {
         private readonly FarTerrainSource _source;
-        private readonly FarTerrainOverlay _overlay;
         private readonly int _cell;
         private readonly int _n;           // cells per side; vertices per side = _n + 1
         private readonly int _side;        // sampled points per side including a one-point border for the normals
@@ -42,14 +42,18 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
 
         public FarPatchKey Key { get; }
         public int Range { get; }
+
+        /// <summary>The far-terrain epoch this build belongs to (a world change discards older builds).</summary>
+        public int Epoch { get; }
+
         public bool Sampled => _row >= _side;
 
-        public FarPatchBuilder(FarPatchKey key, int range, FarTerrainSource source, FarTerrainOverlay overlay)
+        public FarPatchBuilder(FarPatchKey key, int range, FarTerrainSource source, int epoch = 0)
         {
             Key = key;
             Range = range;
+            Epoch = epoch;
             _source = source;
-            _overlay = overlay;
             _cell = FarTerrainLayout.CellSize(key.Level);
             _n = FarTerrainLayout.CellsPerPatch(key.Level);
             _side = _n + 3;
@@ -59,7 +63,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
             _edits = new FarEditTop[_side * _side];
         }
 
-        /// <summary>Samples one row of points. Call until <see cref="Sampled"/>.</summary>
+        /// <summary>Samples one row of terrain points. Call until <see cref="Sampled"/>.</summary>
         public void SampleRow()
         {
             if (Sampled)
@@ -73,16 +77,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
             for (int i = 0; i < _side; i++)
             {
                 int x = Key.OriginX + (i - 1) * _cell;
-                var s = _source.Sample(x, z, detail);
-                int idx = j * _side + i;
-                _samples[idx] = s;
-                _top[idx] = s.Top;
-                if (_overlay.TryGetTopInArea(x - _cell / 2, z - _cell / 2, _cell, out var build) && build.Top > s.Top)
-                {
-                    _top[idx] = build.Top;
-                    _edited[idx] = true;
-                    _edits[idx] = build;
-                }
+                _samples[j * _side + i] = _source.Sample(x, z, detail);
             }
 
             _row++;
@@ -90,12 +85,29 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
 
         /// <summary>Builds the mesh arrays. <paramref name="colorOf"/> maps a column (and its build, if one stands
         /// there) to a vertex colour.</summary>
-        public FarPatchGeometry BuildGeometry(Func<FarSample, bool, FarEditTop, uint> colorOf)
+        public FarPatchGeometry BuildGeometry(FarTerrainOverlay overlay, Func<FarSample, bool, FarEditTop, uint> colorOf)
         {
             while (!Sampled)
             {
                 SampleRow();
             }
+
+            for (int j = 0; j < _side; j++)
+                for (int i = 0; i < _side; i++)
+                {
+                    int idx = j * _side + i;
+                    var s = _samples[idx];
+                    _top[idx] = s.Top;
+                    _edited[idx] = false;
+                    int x = Key.OriginX + (i - 1) * _cell;
+                    int z = Key.OriginZ + (j - 1) * _cell;
+                    if (overlay.TryGetTopInArea(x - _cell / 2, z - _cell / 2, _cell, out var build) && build.Top > s.Top)
+                    {
+                        _top[idx] = build.Top;
+                        _edited[idx] = true;
+                        _edits[idx] = build;
+                    }
+                }
 
             int vs = _n + 1;
             int skirt = 4 * vs;

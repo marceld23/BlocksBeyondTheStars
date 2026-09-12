@@ -1112,6 +1112,13 @@ namespace BlocksBeyondTheStars.Client
             // build (worker) thread, because it is pure struct maths — doing it in ToMeshes would put a
             // per-vertex loop back on the main thread right next to the upload.
             data.ColliderHash = ChunkMeshData.HashCollider(colliderVerts, colliderTris); // #1529: on the worker
+            // #1823: which faces see each other through non-opaque cells — the visibility walk's input. A cell blocks
+            // sight only as a plain opaque cube: air, glass, fluids, flora, foliage, props and shaped blocks let it through.
+            data.Connectivity = BlocksBeyondTheStars.Client.ChunkVisibility.ComputeConnectivity((x, y, z) =>
+            {
+                var id = chunk.Get(x, y, z);
+                return traits.ExposesOpaqueFace(id) || chunk.GetShape(x, y, z) != 0;
+            });
             data.Pack();
 
             // Return plain data — the Unity Mesh upload happens in ChunkMeshData.ToMeshes() on the main thread.
@@ -2433,6 +2440,10 @@ namespace BlocksBeyondTheStars.Client
         /// the one the chunk already carries (tint/glow/paint edits, neighbour re-dirties). 0 = not computed.</summary>
         public ulong ColliderHash;
 
+        /// <summary>#1823: face-to-face connectivity through non-opaque cells (see <c>ChunkVisibility</c>), computed on
+        /// the worker. Not part of the mesh; GameBootstrap feeds it to the visibility walk.</summary>
+        public ushort Connectivity = BlocksBeyondTheStars.Client.ChunkVisibility.AllConnected;
+
         public static ulong HashCollider(List<Vector3> verts, List<int> tris)
         {
             ulong h = 14695981039346656037UL;
@@ -2494,6 +2505,7 @@ namespace BlocksBeyondTheStars.Client
                 BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear();
                 PackedCount = 0; // the array itself stays — it is the buffer the next build packs into
                 ColliderHash = 0;
+                Connectivity = BlocksBeyondTheStars.Client.ChunkVisibility.AllConnected;
                 Bounds = default;
                 ColliderBounds = default;
                 _pooled = true;

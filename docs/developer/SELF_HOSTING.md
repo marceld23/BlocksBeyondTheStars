@@ -89,6 +89,13 @@ command line**, so env vars override the file but the in-game host's CLI flags s
 | `BBS_SHIP_WEAPONS` | `rules.shipWeapons` | `BBS_SPACE_NPCS` | `rules.spaceNpcEnemies` |
 | `BBS_DATABASE_PROVIDER` (`BBS_DATABASE`) | `databaseProvider` | `BBS_POSTGRES_CONNECTION_STRING` (`DATABASE_URL`) | `postgresConnectionString` |
 | `BBS_AI_LEVEL` | `aiLevel` | `BBS_AI_BACKEND_URL` | `aiBackendUrl` |
+| `BBS_CHUNK_STREAM_PER_TICK` | `chunkStreamPerTick` | `BBS_CHUNK_STREAM_BUDGET_MS` | `chunkStreamBudgetMs` |
+| `BBS_CHUNK_GEN_WORKERS` | `chunkGenWorkers` (default 2, 0 = generate inline on the tick) | `BBS_TICK_TIMING_LOG_SECONDS` | `tickTimingLogSeconds` |
+
+**Chunk generation workers** (`chunkGenWorkers`, CLI `--chunk-gen-workers`): first-visit chunks are generated on this
+many background threads, each with its own world generator (up to ~18 MB of terrain memos per thread at view distance
+8). A streaming pass still sends exactly the chunks it always sent; it just stops waiting on one core. On a small
+container with little RAM, `1` keeps most of the gain.
 
 ### Fleet admin vs. world admin
 

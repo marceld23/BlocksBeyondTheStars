@@ -25,6 +25,12 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly int[] PairBit = BuildPairBits();
 
+        [ThreadStatic]
+        private static bool[]? _visitedScratch;
+
+        [ThreadStatic]
+        private static int[]? _queueScratch;
+
         private static int[] BuildPairBits()
         {
             var bits = new int[36];
@@ -50,8 +56,10 @@ namespace BlocksBeyondTheStars.Client
         public static ushort ComputeConnectivity(Func<int, int, int, bool> isOpen)
         {
             const int S = WorldConstants.ChunkSize;
-            var visited = new bool[S * S * S];
-            var queue = new int[S * S * S];
+            // Per-thread scratch: every chunk build on every mesh worker runs this, so no per-call garbage.
+            var visited = _visitedScratch ??= new bool[S * S * S];
+            var queue = _queueScratch ??= new int[S * S * S];
+            Array.Clear(visited, 0, visited.Length);
             ushort mask = 0;
             for (int start = 0; start < visited.Length; start++)
             {

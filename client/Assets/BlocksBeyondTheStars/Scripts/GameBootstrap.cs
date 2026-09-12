@@ -19,7 +19,7 @@ namespace BlocksBeyondTheStars.Client
     /// incoming chunk/state messages into the rendered world. Attach to a single GameObject
     /// in the scene and assign a material for chunk meshes.
     /// </summary>
-    public sealed class GameBootstrap : MonoBehaviour
+    public sealed partial class GameBootstrap : MonoBehaviour
     {
         [Header("Connection")]
         public string Host = "127.0.0.1";
@@ -1499,6 +1499,8 @@ namespace BlocksBeyondTheStars.Client
             public ulong ColliderHash;    // #1529: hash of the collider geometry the chunk carries (or holds pending)
             public Mesh PendingCollider;  // #1529: built but not cooked — the chunk was beyond collider range
             public int PendingColliderGen;
+            public bool DistanceVisible = true; // #1823: inside the renderer cull distance (RepositionChunks)
+            public bool ShadowsOnly;            // #1823: hidden by the visibility walk but still casting
         }
 
         private readonly Dictionary<ChunkCoord, ChunkView> _chunkObjects = new Dictionary<ChunkCoord, ChunkView>();
@@ -1607,6 +1609,14 @@ namespace BlocksBeyondTheStars.Client
                 // would clip the last hazed ring by chunk centre; grow the cull with the view like mobile does
                 // (16 → 288), still well inside the 384-block unload.
                 float desktopCull = Mathf.Max(ChunkDrawDistanceBlocks, (vd + 2) * WorldConstants.ChunkSize);
+                // #1822: with the far view off the haze is at full strength by vd × 16 on every world that has fog —
+                // chunks beyond (vd + 2) × 16 were drawn only to be painted over in the sky colour. Airless worlds
+                // (no fog) and a far view (haze pushed out, real chunks preferred over the far terrain) keep the reach.
+                if (FarViewBlocks <= 0 && FogActive)
+                {
+                    desktopCull = (vd + 2) * WorldConstants.ChunkSize;
+                }
+
                 return (desktopCull, ChunkColliderDistanceBlocks, ChunkUnloadDistanceBlocks);
             }
 
@@ -2602,6 +2612,8 @@ namespace BlocksBeyondTheStars.Client
             ReturnRetiredChunkArrays(); // #1555
             DrainBuiltChunks();
             DrainBakedColliders();
+            DrainSyncCooks(); // #1819: browser collider cooks within their own frame budget
+            SampleMotion();   // #1818: the build order looks ahead along the player's velocity
 
             // Kick off off-thread (re)builds for chunks that changed, but cap how many we DISPATCH per frame (P1)
             // so a burst of chunks arriving while moving fast spreads over several frames instead of stalling one.
@@ -2620,12 +2632,13 @@ namespace BlocksBeyondTheStars.Client
                 _dirtyDistScratch.Clear();
                 for (int i = 0; i < _dirtyScratch.Count; i++)
                 {
-                    _dirtyDistScratch.Add(ChunkDistSqToPlayer(_dirtyScratch[i], pp));
+                    _dirtyDistScratch.Add(BuildOrderKey(_dirtyScratch[i], pp)); // #1818: nearest first, then ahead
                 }
 
                 int budget = Mathf.Max(1, MeshChunksPerFrame);
                 int built = 0;
-                while (built < budget && _dirtyScratch.Count > 0)
+                _frameWork.Restart(); // #1819: the browser builds inline — a time budget, not a count, decides
+                while (BuildBudgetLeft(built, budget) && _dirtyScratch.Count > 0)
                 {
                     int best = 0;
                     float bestDist = _dirtyDistScratch[0];
@@ -2677,6 +2690,8 @@ namespace BlocksBeyondTheStars.Client
                 _sinceReposTick = 0f;
                 RepositionChunks();
             }
+
+            UpdateVisibility(); // #1823: re-walks when the camera changes chunk or chunk connectivity changed
         }
 
         private int _lastReposX = int.MinValue;
@@ -2698,6 +2713,8 @@ namespace BlocksBeyondTheStars.Client
             float colliderSq = collider * collider;
             float unloadSq = unload * unload;
             float cookDrop = ColliderCookAheadDrop(); // #1583: the descent the cook gate reaches down along
+            float shadowSq = CurrentShadowDistance(); // #1823: hidden chunks inside it keep casting
+            shadowSq *= shadowSq;
             _unloadScratch.Clear();
             foreach (var kv in _chunkObjects)
             {
@@ -2733,11 +2750,12 @@ namespace BlocksBeyondTheStars.Client
                 // Distance culling: disable the renderer of chunks well beyond the draw distance so the
                 // accumulated far chunks stop costing draw calls; re-enabled when the player moves back into
                 // range. Frustum culling Unity does for free once the per-chunk bounds are correct.
-                bool visible = distSq <= cullSq;
-                if (view.RendererEnabled != visible && view.Renderer != null)
+                // #1823: combined with the visibility walk (ApplyRendererState) — a chunk behind solid rock stays hidden
+                // even inside the draw distance.
+                view.DistanceVisible = distSq <= cullSq;
+                if (view.Renderer != null)
                 {
-                    view.Renderer.enabled = visible;
-                    view.RendererEnabled = visible;
+                    ApplyRendererState(kv.Key, view, distSq, shadowSq);
                 }
 
                 // Near-only colliders: only chunks within reach keep an ACTIVE collider; far ones are disabled so
@@ -2788,6 +2806,13 @@ namespace BlocksBeyondTheStars.Client
                 _colliderAppliedGen.Remove(coord);
                 _meshGen.Remove(coord);
                 _meshFailCounts.Remove(coord);
+                ForgetConnectivity(coord); // #1823
+                if (_syncCooks.TryGetValue(coord, out var parkedCook)) // #1819: a browser cook still waiting
+                {
+                    Destroy(parkedCook.Collider);
+                    _syncCooks.Remove(coord);
+                }
+
                 World.RemoveChunk(coord);
                 RetireChunkArray(WorldConstants.CanonicalChunk(coord, Circumference)); // #1555
             }
@@ -3040,6 +3065,19 @@ namespace BlocksBeyondTheStars.Client
             _colliderAppliedGen.Clear();
             _meshGen.Clear();
             _meshFailCounts.Clear();
+            foreach (var parked in _syncCooks.Values) // #1819: browser cooks of the old world
+            {
+                if (parked.Collider != null)
+                {
+                    Destroy(parked.Collider);
+                }
+            }
+
+            _syncCooks.Clear();
+            _connectivity.Clear(); // #1823
+            _walkVisible.Clear();
+            _visibilityDirty = true;
+            FarView?.ResetWorld(); // #1820: the new world's info + tiles arrive after this reset
             World.Clear();
 
             ServerSpawn = null; // re-snap at the new spawn once the next PlayerState arrives
@@ -3344,7 +3382,11 @@ namespace BlocksBeyondTheStars.Client
         /// superseded or world-changed builds). Mirrors <see cref="DrainBakedColliders"/>.</summary>
         private void DrainBuiltChunks()
         {
-            while (_builtChunks.TryDequeue(out var built))
+            // #1819: on desktop the workers can finish a burst between two frames; uploading all of them at once is a
+            // spike of its own. Cap the uploads per frame — the rest stay queued (in completion order) for the next.
+            int uploads = 0;
+            int uploadCap = InlineChunkWork ? int.MaxValue : Mathf.Max(1, MaxChunkUploadsPerFrame);
+            while (uploads < uploadCap && _builtChunks.TryDequeue(out var built))
             {
                 var job = built; // recycled on every exit path below (#1550)
                 if (built.Data == null)
@@ -3387,6 +3429,7 @@ namespace BlocksBeyondTheStars.Client
 
                 _meshFailCounts.Remove(built.Coord); // healthy again — a later transient fault gets fresh retries
                 ApplyChunkMesh(built.Coord, built.Data);
+                uploads++;
                 // The upload copied everything into the Unity meshes (+ GroundScatter's matrices), so the
                 // pooled geometry buffers can go back for the next build.
                 built.Data.Release();
@@ -3403,6 +3446,7 @@ namespace BlocksBeyondTheStars.Client
             // non-readable mesh cannot be rewritten. So every rebuild gets a fresh mesh and the outgoing one is
             // destroyed below; Unity never collects Mesh objects, and A2's rebuild rate would grow that leak fast.
             bool exists = _chunkObjects.TryGetValue(coord, out var view) && view?.Go != null;
+            RecordConnectivity(coord, data.Connectivity); // #1823: the visibility walk reads what this build found
             // #1529: a rebuild whose collider geometry hashes identically to what the chunk already carries (or
             // holds pending) needs no new collision Mesh and no cook — tint/glow/paint edits and neighbour
             // re-dirties are the common case.
@@ -3447,6 +3491,9 @@ namespace BlocksBeyondTheStars.Client
                 var mc = go.AddComponent<MeshCollider>();
                 view = new ChunkView { Go = go, Filter = filter, Renderer = mr, Collider = mc, ScenePos = scenePos, ScenePosKnown = true };
                 _chunkObjects[coord] = view;
+                // #1823: a chunk arriving behind solid rock starts hidden (the next reposition refines the distance cull).
+                float shadow = CurrentShadowDistance();
+                ApplyRendererState(coord, view, ChunkDistSqToPlayer(coord, PlayerPosition), shadow * shadow);
             }
 
             var staleMesh = view!.Filter.sharedMesh; // the mesh this rebuild replaces (null on the first build)
@@ -3548,13 +3595,9 @@ namespace BlocksBeyondTheStars.Client
             // frame, so the spawn ground-check raycast finds footing and the player never falls through.
             if (mcol != null)
             {
-                var oldWebgl = mcol.sharedMesh; // freshly cooked each remesh — free the previous one (leak otherwise)
-                mcol.sharedMesh = collider;
-                _colliderAppliedGen[coord] = bakeGen; // #1493: cooked on the spot — the fall-guard log must not call it pending
-                if (oldWebgl != null && oldWebgl != collider)
-                {
-                    Destroy(oldWebgl);
-                }
+                // #1819: cooked by DrainSyncCooks within the frame's cook budget, nearest first — the footing chunk
+                // always cooks the same frame it is drained, so the spawn ground check still finds its floor.
+                EnqueueSyncCook(coord, collider, bakeGen);
             }
             else
             {

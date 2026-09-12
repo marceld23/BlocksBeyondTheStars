@@ -404,6 +404,14 @@ namespace BlocksBeyondTheStars.Client
             sky.ViewChunks = shell.Settings.ViewDistanceChunks; // scale distance fog to the render distance
             sky.FogEnabled = shell.Settings.VolumetricFog;      // "Volumetric fog / light shafts" toggle → distance haze + god-rays
 
+            // Far terrain (#1820): the low-resolution horizon beyond the streamed chunks, and the haze that reaches it (#1822).
+            var farView = root.AddComponent<FarTerrainView>();
+            farView.Game = boot;
+            farView.Camera = cam;
+            farView.RangeSetting = shell.Settings.FarViewBlocks;
+            boot.FarView = farView;
+            boot.FarViewBlocks = shell.Settings.FarViewBlocks;
+
             // Procedural nebula backdrop behind the stars in deep space (colour + depth instead of flat black).
             var nebula = root.AddComponent<NebulaField>();
             nebula.Game = boot;

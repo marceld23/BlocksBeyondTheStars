@@ -40,6 +40,51 @@ all 16 slider values) and `ClientViewDistance_ReachesSixteen_…` (Slow: streams
 sweep keeps the whole view — fails with 172 forgotten chunks without the disc). Cost: at 16 a fresh view is ~3800
 chunks, ≈ 16 s to fill at the default 16 chunks/tick; the bundled singleplayer server must be rebuilt to get the cap.
 
+### 🏔️ Chunk pipeline & far terrain — the horizon beyond the chunks, generation off the tick, visibility culling (epic #1815: #1816–#1824, 2026-09-12, branch feat/chunk-pipeline-far-terrain) — ⚠ RELEASE NOTE: protocol v6, older game versions cannot join
+**Why.** A comparison with Minecraft Java's chunk pipeline (streaming, generation, section meshing, visibility) showed
+most of its ideas already here; what was missing was a horizon beyond the streamed chunks, generation off the tick
+thread, view/travel-aware ordering, visibility culling and time budgets on the browser's single thread. Marcel's
+decisions: far view desktop 1024 / browser + tablet 512, with cities and player builds; long crisp horizons on thin and
+airless worlds; 2 generation threads; WebGL threads parked (Unity Web has no C# threads — only Burst jobs with
+COOP/COEP headers, which glitch.fun cannot send).
+
+**What changed.**
+- **#1816** `WorldGenerator.SetWorldMode` returns early for an unchanged mode (pads by content). `ServerWorld` re-applies the
+  mode before every chunk, which had wiped the #1526 column memos between every two chunks in the real server path.
+- **#1817** `ChunkGenerationPool`: `ServerConfig.ChunkGenWorkers` (default 2, `--chunk-gen-workers`, `BBS_CHUNK_GEN_WORKERS`; the
+  browser singleplayer uses 0) threads, each with its own sibling generator. A streaming pass sends exactly what it sent
+  before, but generates each batch in parallel (workers + tick thread) and pre-generates the next chunks of the view;
+  persisted edits are applied on adoption, on the tick thread.
+- **#1818** `StreamPriorityKey` (server) and `ChunkBuildPriority` (client mesh dispatch): the near ring by plain distance
+  first, then distance from a velocity look-ahead anchor, weighted ×1 ahead / ×1.5 beside / ×2 behind the look direction.
+- **#1819** Browser: inline chunk builds stop on a 4 ms (tablet 2 ms) frame budget instead of a count of 2, collider cooks
+  are parked and cooked nearest-first on their own 3 ms (2 ms) budget (the footing chunk always cooks). Desktop: at most
+  8 finished builds upload per frame.
+- **#1820** Far terrain: `FarTerrainWorldInfo` (tag 239) carries the world's exact generator settings after every join /
+  world switch; `Client.Core/FarTerrain` samples the same generator (`FarTerrainSource` matches the streamed chunks
+  column for column) into 128-block near patches (8-block cells, to 384 blocks) and 256-block far patches (32-block
+  cells, to the range); `FarTerrainView` builds one small mesh per patch (desktop samples on a background thread, the
+  browser a row at a time on a 2.5 ms budget), the new `FarTerrain` shader discards columns where real chunks are drawn
+  (a 64×64 column mask) and the far level inside the near disc. Setting **Far view** Off / 512 / 1024 (applies live; 14 locales).
+- **#1821** Builds in the far view: `IWorldRepository.LoadEditColumnTops` (SQLite / PostgreSQL / memory),
+  `FarTerrainTileRequest` / `FarTerrainTile` (tags 237/238) — per 4×4 cell of a 64-block tile the top edit's height,
+  block and tint; range-checked (1344 blocks, wrap-aware), token-bucket limited, re-sent every 2 s when `BlockSet`
+  dirties a held tile. Cities, settlements and player builds stand on the horizon.
+- **#1822** `FarHaze.BaseFar`: with the far view on, the haze ends at 95 % (thin air) … 32 % (soupy) of the far range, never
+  inside the chunks; airless stays fog-free, weather still clamps against the streamed edge. Far view off keeps the old
+  mapping, and the desktop renderer cull then drops to (view + 2) × 16 on fogged worlds.
+- **#1823** Visibility culling: the mesher records face connectivity through non-opaque cells (`ChunkMeshData.Connectivity`);
+  when the camera is not under the open sky a walk from its chunk (never back toward the camera, only through connected
+  faces) decides which chunks may be seen — hidden ones inside the shadow distance switch to shadows-only.
+- **#1824** Fluid cells whose neighbourhood would load a chunk outside every player's keep range park instead of generating
+  terrain in the fluid step (resume after a chunk load or when a player comes within range); dead `MaxLoadedChunksPerPlayer` removed.
+
+**Tests.** Server: column memos survive the server path, parked fluid resumes, pool output equals inline output bit for
+bit (and siblings on parallel threads equal the single-thread goldens), streaming order, far tiles (repository tops on
+SQLite + memory, range refusal, re-send on edit, world info), codec round trips + golden tag list. Client: far-view
+defaults/cycle/clamp, haze mapping, the far source against the streamed chunks, overlay, layout, patch geometry,
+connectivity and the visibility walk, build order.
+
 ### 🚀 Release v2026.9.7 — the city release (2026-09-12, branch release/2026.9.7)
 
 Everything merged since v2026.9.6 (8 PRs, 14 issues): terrain **generation 7** — the G.D.S. city world (#1793 / PR #1803)
