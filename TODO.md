@@ -35,6 +35,18 @@ third/fourth `GenerateCaret` crash (#1788–#1792/#1804, PRs #1794/#1805). CHANG
 `data/whatsnew.json` re-exported with the DE+EN release post. Protocol stays 5, saves migrate unchanged; the city world
 reaches new galaxies only. Fleet: server image `2026.9.7`, worldhost re-pinned if `Shared/**` changed, reports unchanged.
 
+### 🪐 World options: the planet-type list scrolls instead of running under the footer (#1811, 2026-09-12, branch fix/1811-worldopt-planet-list-scroll)
+
+Marcel's screenshot: on *World options → Planet type frequencies* the last left rows (Rock planet, Savanna world) sat under
+"Reset overrides", and the white slider handles fused into tall columns. The page fitted its row pitch to the type count
+but clamped it at 40 px; 37 selectable types (the city world #1793 was the latest) need 19 rows per column → 68 px under
+the footer, clicks landing on the buttons. The handles were 42 px tall: a horizontal uGUI `Slider` stretches the handle
+over the slider height and ADDS `sizeDelta.y` (16 + 26). Fix: the rows live in a clipped `ScrollRect` viewport between the
+note and the footer at a fixed 56 px pitch (inline auto-hide scrollbar, pad navigation scrolls via `UiNav`); handles are
+16 + 10 = 26 px on every world-options page. "Reset overrides" now also moves the sliders back (the map was cleared, the
+rows kept their old values), and the page re-reads the options each time it opens. `WorldOptionsLayoutTests` gained the
+advanced-page guards (viewport above the footer, fixed pitch, handle fits a row); verified with a local Unity build.
+
 ### ⌨️ Chat input takes keys again when opened over an empty scrollback (#1806, 2026-09-12, branch fix/chat-input-focus-order)
 
 Marcel's playtest of #1801: open the chat with no lines on screen and the input row appears but takes no keys — no text,
