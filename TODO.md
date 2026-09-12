@@ -124,6 +124,10 @@ rare; the landing pad inside the city). Design record: docs/developer/WORLD_GENE
   on a city world, centres the city on pad 0, pins it as settlement 0 (`city:gds`); phases B–D moved into
   `CommitSettlements`.
 - **Cool rooms**: `InCityShelter` (inside the footprint + roofed) → 22 °C.
+- **Lit rooms** (#1808, 2026-09-12, branch fix/city-interior-lights): Marcel's first walk — every room was dark.
+  `StampBuilding(ceilingLight:)` sets a warm strip light INTO the deck above every storey (centre cell, 2×2 grid
+  over wide rooms); towers get shaft lights in the roof and at both red bands; `CityGenerator.Set` no longer
+  leaves a tint on a cell overwritten by a light. Ordinary settlements unchanged. Existing saves stay dark.
 - **G.D.S.**: `guard_post` marker → role `guardian` (machine, purple chassis, `NetNpc.Look = "gds_guard"`, leash
   14); client stripe band + glowing pupils (`PlayerAvatar.SetGuardianLook`); `DialogDefinition.PlanetTypes`
   filter + two G.D.S. dialogues; guardian greeting persona; `npc.role/greet.guardian`; VEGA `vega.hint.world.gds`;

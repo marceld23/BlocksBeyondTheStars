@@ -1398,6 +1398,14 @@ is kept on `LoadedWorld.CityFootprint`.
 **Cool rooms** (`GameServerTemperature.InCityShelter`). Inside the footprint AND `RoofedAt` → the effective
 temperature is `CityComfortC` = 22 °C. Streets, gardens and the plaza stay desert-hot. No climate physics.
 
+**Lit rooms** (#1808). `StampBuilding` takes an optional `ceilingLight`: a light block set INTO the deck above
+every storey — the centre cell of a room up to nine wide, a quarter-point 2×2 grid over a wider one
+(`CeilingLightCells`). Set into the deck rather than hung under it, the roof stays a solid cover for
+`RoofedAt` and nothing pokes into the walkway. The city passes the warm strip light for every house, shop and
+the hall; the towers get a light in the roof over the shaft and one in each outer wall at both red bands.
+`CityGenerator.Set` drops the tint of a cell it overwrites with a non-tint block, so a light in a purple deck
+is not purple. Ordinary settlements pass nothing and are unchanged.
+
 **The G.D.S.** Marker `guard_post` → NPC role `guardian`: always a machine, chassis `0x3A1F5C`, plating
 `0x4B2A78`, legs `0x2C1746`, `NetNpc.Look = "gds_guard"` (additive), `GuardianLeash` 14 blocks so they walk a
 beat; the client draws a red stripe band on the chest and the abdomen and swaps the pupils for self-lit red
