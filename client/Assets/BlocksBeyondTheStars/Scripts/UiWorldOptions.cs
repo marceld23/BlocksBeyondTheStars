@@ -21,6 +21,14 @@ namespace BlocksBeyondTheStars.Client
         /// y 64). Every page places its bottom controls on this line so nothing overlaps or misaligns.</summary>
         private const float FooterY = 778f;
 
+        /// <summary>The advanced page's scrolling planet-type list: view-local top and height of its viewport
+        /// (from under the page note to 16 px above the footer) and the fixed row pitch inside it. The list
+        /// scrolls instead of squeezing its rows (#1811: 37 types at a 40 px floor ran 68 px under the
+        /// footer buttons); WorldOptionsLayoutTests holds these sums.</summary>
+        private const float AdvancedListY = 86f;
+        private const float AdvancedListH = 676f;
+        private const float AdvancedRowPitch = 56f;
+
         /// <summary>Builds the (initially hidden) overlay; returns its root for the caller to toggle.</summary>
         public static GameObject Build(AppShell shell, Transform root, WorldCreationOptions opt)
         {
@@ -143,15 +151,17 @@ namespace BlocksBeyondTheStars.Client
                 main.SetActive(false);
                 structures.SetActive(true);
             });
+            System.Action refreshAdvanced = null;
             UiKit.AddButton(main.transform, 620f, FooterY, 560f, 48f, shell.L("ui.worldopt.advanced"), () =>
             {
                 main.SetActive(false);
                 advanced.SetActive(true);
+                refreshAdvanced?.Invoke(); // a preset may have replaced the per-type map since the page was built
             });
             UiKit.AddButton(main.transform, 1290f, FooterY, 280f, 48f, shell.L("ui.worldopt.done"), () => overlay.SetActive(false), "btn_singleplayer");
 
             // ── Advanced: per-planet-type frequencies ──────────────────────────────────────
-            BuildAdvanced(shell, advanced.transform, opt, freqSteps, () =>
+            refreshAdvanced = BuildAdvanced(shell, advanced.transform, opt, freqSteps, () =>
             {
                 advanced.SetActive(false);
                 main.SetActive(true);
@@ -170,10 +180,20 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The advanced page: every selectable planet type with its own frequency slider.
         /// Untouched rows follow the data weights + the simple exotic slider; touched rows write the
-        /// per-type override map (which replaces ALL weights server-side once any entry exists).</summary>
-        private static void BuildAdvanced(AppShell shell, Transform parent, WorldCreationOptions opt,
+        /// per-type override map (which replaces ALL weights server-side once any entry exists).
+        /// Returns a refresher that re-reads every row from <paramref name="opt"/>.</summary>
+        private static System.Action BuildAdvanced(AppShell shell, Transform parent, WorldCreationOptions opt,
             string[] freqSteps, System.Action onBack)
         {
+            var rebuilders = new List<System.Action>();
+            void Refresh()
+            {
+                foreach (var r in rebuilders)
+                {
+                    r();
+                }
+            }
+
             UiKit.AddText(parent, 30f, 4f, 1000f, 28f, shell.L("ui.worldopt.advanced_title"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             var note = UiKit.AddText(parent, 30f, 34f, 1520f, 44f, shell.L("ui.worldopt.advanced_note"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
             note.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -189,7 +209,7 @@ namespace BlocksBeyondTheStars.Client
                 .ToList();
             if (types is null)
             {
-                return;
+                return Refresh;
             }
 
             // Default index = the type's data weight mapped onto the Frequency scale (display only).
@@ -201,24 +221,25 @@ namespace BlocksBeyondTheStars.Client
                 _ => 4,     // Frequent
             };
 
-            // Two columns whose row pitch follows the type count (#1649 added eight types — 29 selectable): the
-            // longer column must end above the footer, so the pitch shrinks from the comfortable 56 px down to
-            // 40 px (a slider row is 40 px tall) before the list would ever run under the Back button.
-            const float FirstRowY = 86f;
+            // Two columns at a fixed pitch inside a scrolling viewport between the note and the footer. The type
+            // count is data (37 selectable since #1793) and only grows, so the list scrolls rather than squeezing
+            // its rows: a fitted pitch clamped at 40 px ran the left column 68 px under the footer buttons (#1811).
+            var content = BuildAdvancedViewport(parent);
             int perColumn = Mathf.Max(1, Mathf.CeilToInt(types.Count / 2f));
-            float pitch = Mathf.Clamp((FooterY - 16f - FirstRowY) / perColumn, 40f, 56f);
+            content.sizeDelta = new Vector2(0f, perColumn * AdvancedRowPitch);
+            const float FirstRowY = 4f;
             float x = 30f, y = FirstRowY;
             int row = 0;
             foreach (var p in types)
             {
                 string key = p.Key;
                 string label = shell.L(p.NameKey) + (p.Exotic ? " ◆" : string.Empty);
-                AddSliderRow(parent, x, y, 740f, label, freqSteps,
+                AddSliderRow(content, x, y, 740f, label, freqSteps,
                     () => opt.PlanetTypes.TryGetValue(key, out var v) ? v : DefaultIndex(p.SpawnWeight),
                     v => opt.PlanetTypes[key] = v,
-                    rebuilders: null);
+                    rebuilders);
 
-                y += pitch;
+                y += AdvancedRowPitch;
                 if (++row == perColumn)
                 {
                     x = 820f;
@@ -226,7 +247,50 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            UiKit.AddButton(parent, 30f, FooterY, 420f, 48f, shell.L("ui.worldopt.advanced_reset"), () => opt.PlanetTypes.Clear());
+            // Reset also moves the sliders back — before, the map was cleared but every row kept showing its override.
+            UiKit.AddButton(parent, 30f, FooterY, 420f, 48f, shell.L("ui.worldopt.advanced_reset"), () =>
+            {
+                opt.PlanetTypes.Clear();
+                Refresh();
+            });
+            return Refresh;
+        }
+
+        /// <summary>The advanced page's clipped, vertically scrolling viewport (AdvancedListY..+AdvancedListH);
+        /// returns its content, onto which rows are placed absolutely (top-left) like everywhere else on the
+        /// page. The caller sizes the content's height from the row count.</summary>
+        private static RectTransform BuildAdvancedViewport(Transform parent)
+        {
+            var viewGo = new GameObject("PlanetTypeScroll", typeof(RectTransform));
+            viewGo.transform.SetParent(parent, false);
+            UiKit.Place(viewGo, 0f, AdvancedListY, 1580f, AdvancedListH);
+
+            var scroll = viewGo.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 28f;
+            viewGo.AddComponent<RectMask2D>();
+
+            // A near-transparent graphic so the wheel/drag has something to hit between the rows.
+            var hit = viewGo.AddComponent<Image>();
+            hit.color = new Color(0f, 0f, 0f, 0.001f);
+
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            contentGo.transform.SetParent(viewGo.transform, false);
+            var content = contentGo.GetComponent<RectTransform>();
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.anchoredPosition = Vector2.zero;
+            content.sizeDelta = Vector2.zero;
+
+            scroll.viewport = viewGo.GetComponent<RectTransform>();
+            scroll.content = content;
+
+            // Shows that the list continues below the fold; auto-hides if every type ever fits again.
+            UiKit.AddInlineScrollbar(scroll);
+            return content;
         }
 
         /// <summary>The authored-structures page: how readily hand-designed station/settlement templates are
@@ -324,7 +388,9 @@ namespace BlocksBeyondTheStars.Client
             var handleGo = new GameObject("Handle", typeof(RectTransform));
             handleGo.transform.SetParent(go.transform, false);
             var handleRt = handleGo.GetComponent<RectTransform>();
-            handleRt.sizeDelta = new Vector2(18f, 26f);
+            // A horizontal Slider stretches the handle over the slider's full 16 px height, so y is ADDED to it:
+            // 10 → a 26 px handle. The old 26 made it 42 px — taller than a row, so stacked handles merged (#1811).
+            handleRt.sizeDelta = new Vector2(18f, 10f);
             var handle = handleGo.AddComponent<Image>();
             handle.sprite = UiKit.SolidSprite;
             handle.color = Color.white;

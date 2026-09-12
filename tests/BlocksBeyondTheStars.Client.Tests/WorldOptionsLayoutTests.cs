@@ -101,4 +101,50 @@ public sealed class WorldOptionsLayoutTests
             + $"buttons start at y={footerY}. The bottom row would be drawn underneath them and could not be "
             + $"clicked (#983). Reduce RowH, drop a row, or move the row to the other column.");
     }
+
+    /// <summary>The planet-type page is data-driven (one row per selectable type in <c>data/planets.json</c>),
+    /// so its rows live in a scrolling viewport. That viewport — not the row count — must end above the
+    /// footer (#1811: a fitted pitch clamped at 40 px ran 37 types 68 px under the buttons).</summary>
+    [Fact]
+    public void AdvancedPage_ListViewport_EndsAboveTheFooterButtons()
+    {
+        string source = Source();
+        float footerY = Constant(source, @"FooterY = ([0-9.]+)f;", "FooterY");
+        float listY = Constant(source, @"const float AdvancedListY = ([0-9.]+)f;", "AdvancedListY");
+        float listH = Constant(source, @"const float AdvancedListH = ([0-9.]+)f;", "AdvancedListH");
+
+        Assert.True(
+            listY + listH + MinClearance <= footerY,
+            $"The planet-type list viewport ends at y={listY + listH}, but the footer buttons start at y={footerY} (#1811).");
+    }
+
+    /// <summary>The list must scroll, never squeeze: its content is sized from the row count at a fixed pitch
+    /// that leaves a gap between rows — so adding planet types lengthens the scroll range instead of pushing
+    /// rows under the footer or into each other.</summary>
+    [Fact]
+    public void AdvancedPage_Rows_ScrollAtAFixedPitch()
+    {
+        string source = Source();
+        float pitch = Constant(source, @"const float AdvancedRowPitch = ([0-9.]+)f;", "AdvancedRowPitch");
+
+        Assert.True(pitch >= LabelH + MinClearance, $"AdvancedRowPitch {pitch} leaves no gap between {LabelH} px rows.");
+        Assert.Matches(@"content\.sizeDelta = new Vector2\(0f, perColumn \* AdvancedRowPitch\);", source);
+        Assert.Matches(@"y \+= AdvancedRowPitch;", source);
+        Assert.DoesNotMatch(@"Mathf\.Clamp\(\(FooterY", source); // the fitted, clamped pitch that overflowed
+    }
+
+    /// <summary>A horizontal uGUI Slider stretches its handle over the slider height and ADDS sizeDelta.y, so the
+    /// handle's real height is slider height + sizeDelta.y. It must fit inside a row, or the handles of stacked
+    /// rows merge into one white column (#1811: 16 + 26 = 42 px on a 40 px pitch).</summary>
+    [Fact]
+    public void SliderHandle_FitsInsideARow()
+    {
+        string source = Source();
+        float sliderH = Constant(source, @"UiKit\.Place\(go, x \+ 290f, y \+ 12f, w - 290f - 150f, ([0-9.]+)f\);", "the slider height");
+        float handleExtra = Constant(source, @"handleRt\.sizeDelta = new Vector2\([0-9.]+f, ([0-9.]+)f\);", "the handle sizeDelta.y");
+
+        Assert.True(
+            sliderH + handleExtra <= LabelH - MinClearance,
+            $"The slider handle is {sliderH + handleExtra} px tall, but a row is {LabelH} px — stacked handles would touch.");
+    }
 }
