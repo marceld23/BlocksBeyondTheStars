@@ -24,6 +24,16 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ⌨️ Chat input takes keys again when opened over an empty scrollback (#1806, 2026-09-12, branch fix/chat-input-focus-order)
+
+Marcel's playtest of #1801: open the chat with no lines on screen and the input row appears but takes no keys — no text,
+no Esc, and Enter would not reopen it. Since #1801 the row lives inside the holo window, and the window is inactive
+whenever it has nothing to show; `ChatUi.OpenInput` focused the field BEFORE `RefreshLog` woke the window, and uGUI's
+`ActivateInputField` silently no-ops on a field under an inactive parent. With `_typing` already set, the player was
+stuck. Fix: wake and place the window first, then focus (while typing the window always has a height). No automated
+coverage possible for the MonoBehaviour order; verified with a local Unity build. Engine rule for any future field
+inside a togglable panel: activate the hierarchy, then the field.
+
 ### 💬 Chat window: holo panel + outline text like VEGA, fitted to the lines, gone when the chat closes (#1799, 2026-09-12, branch feat/chat-window-contrast)
 
 Marcel's playtest note after #1798: the chat text was often unreadable for want of a background. The scrollback was the
