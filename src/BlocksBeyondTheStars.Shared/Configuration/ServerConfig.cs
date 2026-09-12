@@ -51,7 +51,6 @@ public sealed class ServerConfig
     public int BackupIntervalMinutes { get; set; } = 60;
 
     public int ViewDistanceChunks { get; set; } = 4;
-    public int MaxLoadedChunksPerPlayer { get; set; } = 256;
 
     /// <summary>How many chunks the server streams to each player per tick. Raised from the historical hard-coded
     /// 12 to keep the (larger, default-4) view filling promptly — a wider view distance has quadratically more
@@ -79,6 +78,23 @@ public sealed class ServerConfig
     /// singleplayer): a cheap tick still streams the full ChunkStreamPerTick, but a burst of expensive
     /// first-visit generations can't stall the frame. Dedicated servers leave this off.</summary>
     public double ChunkStreamBudgetMs { get; set; }
+
+    /// <summary>Background threads that generate first-visit chunks (#1817). The tick only queues the missing
+    /// chunks of a view and adopts finished ones (persisted edits are applied on the tick thread), so exploring no
+    /// longer stretches the tick. 0 = the historical inline generation — the in-browser singleplayer has no C#
+    /// threads and always uses 0. Each worker owns its own generator (up to ~18 MB of column memos at view 8).
+    /// Clamped to 0..<see cref="ChunkGenWorkersCeiling"/>. CLI <c>--chunk-gen-workers</c>, env
+    /// <c>BBS_CHUNK_GEN_WORKERS</c>.</summary>
+    public int ChunkGenWorkers
+    {
+        get => _chunkGenWorkers;
+        set => _chunkGenWorkers = Math.Clamp(value, 0, ChunkGenWorkersCeiling);
+    }
+
+    private int _chunkGenWorkers = 2;
+
+    /// <summary>Upper bound for <see cref="ChunkGenWorkers"/>.</summary>
+    public const int ChunkGenWorkersCeiling = 8;
 
     /// <summary>Opt-in tick profiling (#1504): when > 0, the server accumulates the wall-clock time of every
     /// Guard-wrapped tick system and logs one summary line every this-many seconds of sim time — the top systems
@@ -467,6 +483,9 @@ public sealed class ServerConfig
                 case "chunk-budget-ms":
                     if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var csb) && csb >= 0) { ChunkStreamBudgetMs = csb; applied.Add("chunk-stream-budget-ms"); }
                     break;
+                case "chunk-gen-workers":
+                    if (int.TryParse(value, out var cgw) && cgw >= 0) { ChunkGenWorkers = cgw; applied.Add("chunk-gen-workers"); }
+                    break;
                 case "free-flight":
                     if (bool.TryParse(value, out var ff)) { Rules.FreeSpaceFlight = ff; applied.Add("free-flight"); }
                     break;
@@ -781,6 +800,7 @@ public sealed class ServerConfig
         if (Env("BBS_VIEW_DISTANCE") is { } vdStr && int.TryParse(vdStr, out var vd)) { ViewDistanceChunks = vd; applied.Add("BBS_VIEW_DISTANCE"); }
         if (Env("BBS_CHUNK_STREAM_PER_TICK") is { } csptStr && int.TryParse(csptStr, out var cspt) && cspt >= 1) { ChunkStreamPerTick = cspt; applied.Add("BBS_CHUNK_STREAM_PER_TICK"); }
         if (Env("BBS_CHUNK_STREAM_BUDGET_MS") is { } csbStr && double.TryParse(csbStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var csb) && csb >= 0) { ChunkStreamBudgetMs = csb; applied.Add("BBS_CHUNK_STREAM_BUDGET_MS"); }
+        if (Env("BBS_CHUNK_GEN_WORKERS") is { } cgwStr && int.TryParse(cgwStr, out var cgw) && cgw >= 0) { ChunkGenWorkers = cgw; applied.Add("BBS_CHUNK_GEN_WORKERS"); }
         if (Env("BBS_TICK_TIMING_LOG_SECONDS") is { } ttlStr && double.TryParse(ttlStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ttl) && ttl >= 0) { TickTimingLogSeconds = ttl; applied.Add("BBS_TICK_TIMING_LOG_SECONDS"); }
         if (Env("BBS_FREE_FLIGHT") is { } ffStr && bool.TryParse(ffStr, out var ff)) { Rules.FreeSpaceFlight = ff; applied.Add("BBS_FREE_FLIGHT"); }
         if (Env("BBS_SPACE_COMBAT") is { } scStr && Enum.TryParse<SpaceCombatMode>(scStr, ignoreCase: true, out var sc)) { Rules.SpaceCombat = sc; applied.Add("BBS_SPACE_COMBAT"); }

@@ -43,4 +43,47 @@ public readonly struct LandingPadFlatten
         IsletRadius = islet ? System.Math.Max(PlateauRadius, isletRadius) : radius;
         ClassicShape = islet && classicShape;
     }
+
+    /// <summary>Field-wise equality (the generator's mode checks and the chunk-generation pool compare pad lists).</summary>
+    public bool SameAs(LandingPadFlatten other)
+        => CenterX == other.CenterX && CenterZ == other.CenterZ && SurfaceY == other.SurfaceY && Radius == other.Radius
+            && Islet == other.Islet && PlateauRadius == other.PlateauRadius && IsletRadius == other.IsletRadius
+            && ClassicShape == other.ClassicShape;
+
+    /// <summary>Whether two pad lists hold the same pads in the same order (null = empty).</summary>
+    public static bool SameList(IReadOnlyList<LandingPadFlatten>? a, IReadOnlyList<LandingPadFlatten>? b)
+    {
+        int count = a?.Count ?? 0;
+        if ((b?.Count ?? 0) != count)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            if (!a![i].SameAs(b![i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>A detached copy of a pad list (the server's list is mutable and grows in place).</summary>
+    public static LandingPadFlatten[] Snapshot(IReadOnlyList<LandingPadFlatten>? pads)
+    {
+        if (pads is null || pads.Count == 0)
+        {
+            return System.Array.Empty<LandingPadFlatten>();
+        }
+
+        var copy = new LandingPadFlatten[pads.Count];
+        for (int i = 0; i < copy.Length; i++)
+        {
+            copy[i] = pads[i];
+        }
+
+        return copy;
+    }
 }

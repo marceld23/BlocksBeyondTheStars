@@ -49,12 +49,14 @@ public sealed class ServerQuickWinsTests : IDisposable
         var server = Start("fluid_tx", out var repo);
         using (repo)
         {
-            server.AddLocalPlayer("Plumber");
+            var plumber = server.AddLocalPlayer("Plumber");
             int before = repo.TransactionsBegun;
 
             // A water source high in the air column: it falls and spreads, so every fluid step touches many
-            // cells (each a SetBlock + fluid-cell row). Per cell that used to be one autocommit each.
-            server.PlaceFluidSource("water", 0, 130, 0);
+            // cells (each a SetBlock + fluid-cell row). Per cell that used to be one autocommit each. Placed above
+            // the player: since #1824 a flow far outside every player's range waits instead of generating terrain.
+            var feet = plumber.State.Position.ToBlock();
+            server.PlaceFluidSource("water", feet.X, feet.Y + 40, feet.Z);
             for (int i = 0; i < 8; i++)
             {
                 server.TickForTest(0.3); // 2.4 s ≈ 9 fluid steps at the 0.25 s cadence

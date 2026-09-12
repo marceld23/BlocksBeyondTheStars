@@ -75,6 +75,22 @@ public sealed partial class WorldGenerator
     public void SetWorldMode(int circumference, bool cratered, IReadOnlyList<LandingPadFlatten>? landingPads,
         string? locationId = null, double frontierOreBoost = 1.0)
     {
+        // #1816: ServerWorld re-applies the mode before EVERY chunk it generates. Re-applying the identical mode
+        // must not wipe the column memos (#1526), or every stacked chunk of a column pays the column phase again.
+        // Pads are compared by content, not reference: the server's pad list is mutable and can grow in place.
+        if (_modeApplied
+            && _circumference == circumference
+            && _crateredWorld == cratered
+            && _locationId == (locationId ?? string.Empty)
+            && _frontierOreBoost.Equals(frontierOreBoost)
+            && SamePads(_padSnapshot, landingPads))
+        {
+            _landingPads = landingPads ?? System.Array.Empty<LandingPadFlatten>();
+            return;
+        }
+
+        _modeApplied = true;
+        _padSnapshot = SnapshotPads(landingPads);
         _circumference = circumference;
         _crateredWorld = cratered;
         _landingPads = landingPads ?? System.Array.Empty<LandingPadFlatten>();
@@ -87,6 +103,38 @@ public sealed partial class WorldGenerator
         _frontierOreBoost = frontierOreBoost;
         InvalidateColumnCaches(); // #1526: the column memos assume a fixed world mode
     }
+
+    /// <summary>#1816: whether <see cref="SetWorldMode"/> has configured this instance at least once.</summary>
+    private bool _modeApplied;
+
+    /// <summary>#1816: a copy of the pads the current mode was applied with (the caller's list may mutate).</summary>
+    private LandingPadFlatten[] _padSnapshot = System.Array.Empty<LandingPadFlatten>();
+
+    private static LandingPadFlatten[] SnapshotPads(IReadOnlyList<LandingPadFlatten>? pads) => LandingPadFlatten.Snapshot(pads);
+
+    private static bool SamePads(LandingPadFlatten[] snapshot, IReadOnlyList<LandingPadFlatten>? pads)
+        => LandingPadFlatten.SameList(snapshot, pads);
+
+    /// <summary>#1817: a fresh generator with this one's seed, content and galaxy-global settings (world options,
+    /// continents, lava-core volcanoes, terrain generation) but no world mode — the chunk-generation pool gives each
+    /// worker thread its own, so no mutable generator state is ever shared between threads. Goldens prove a fresh
+    /// instance generates exactly what a warm one does.</summary>
+    public WorldGenerator CreateSibling()
+    {
+        var sibling = new WorldGenerator(_worldSeed, _content);
+        sibling._floraFactor = _floraFactor;
+        sibling._oreFactor = _oreFactor;
+        sibling._continentsEnabled = _continentsEnabled;
+        sibling._lavaCoreVolcanoes = _lavaCoreVolcanoes;
+        sibling._terrainGeneration = _terrainGeneration;
+        return sibling;
+    }
+
+    /// <summary>#1817: whether a sibling made now would still match this generator's galaxy-global settings.</summary>
+    public bool SharesGlobalSettingsWith(WorldGenerator other)
+        => _worldSeed == other._worldSeed && _floraFactor.Equals(other._floraFactor) && _oreFactor.Equals(other._oreFactor)
+            && _continentsEnabled == other._continentsEnabled && _lavaCoreVolcanoes == other._lavaCoreVolcanoes
+            && _terrainGeneration == other._terrainGeneration;
 
     /// <summary>Rare-vein multiplier for the CURRENT body (#1122), set per world via
     /// <see cref="SetWorldMode"/>. 1.0 = home/near systems and all legacy callers.</summary>

@@ -142,6 +142,10 @@ namespace BlocksBeyondTheStars.Client
                     // Phone/tablet browsers halve the budget (#1425): world streaming slows down, frames
                     // smooth out — the right trade on a device that can't hold 30 fps to begin with.
                     ChunkStreamBudgetMs = BrowserDevice.IsMobileBrowser ? 3.0 : 6.0,
+
+                    // #1817: Unity Web has no C# threads (System.Threading is unsupported), so chunk generation
+                    // stays inline on this thread; the pool would fail to start anyway, this makes it explicit.
+                    ChunkGenWorkers = 0,
                 };
 
                 // Same as the native bundled host (#642): the solo player is the WorldAdmin, so admin

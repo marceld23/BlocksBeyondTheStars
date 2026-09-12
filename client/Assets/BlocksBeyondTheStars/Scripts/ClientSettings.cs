@@ -204,6 +204,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>View distance a native desktop client starts with on a genuine first run.</summary>
         public const int DesktopDefaultViewDistanceChunks = 8;
 
+        /// <summary>"Far view" (#1820): how far the low-resolution far terrain beyond the streamed chunks reaches, in
+        /// blocks — 0 (off), 512 or 1024. Stored as -1 until resolved: <see cref="Load"/> then picks the platform
+        /// default (native desktop 1024; every browser build and phone/tablet 512) for new AND existing installs, and
+        /// the resolved value is what gets saved from then on.</summary>
+        public int FarViewBlocks = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Unset;
+
+        /// <summary>Whether this device gets the lighter far-view default.</summary>
+        public static bool FarViewLightDevice => Application.platform == RuntimePlatform.WebGLPlayer || Application.isMobilePlatform;
+
         /// <summary>Player UI-scale multiplier for the HUD (0.8–1.6, 1 = shipped default). Applied in
         /// <see cref="Apply"/> via <see cref="UiKit.SetUserScale"/>, which divides the HUD canvases'
         /// reference resolution — a smaller reference draws the same layout bigger. Menus deliberately do
@@ -870,6 +879,10 @@ namespace BlocksBeyondTheStars.Client
                     settings.ViewDistanceChunks = DesktopDefaultViewDistanceChunks;
                 }
             }
+
+            // #1820: resolve the far view — an unset value (every install from before, and a fresh one) takes the
+            // platform default; anything else snaps to a supported step.
+            settings.FarViewBlocks = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Normalize(settings.FarViewBlocks, FarViewLightDevice);
 
             bool tokenChanged = false;
             if (string.IsNullOrEmpty(settings.PlayerToken))

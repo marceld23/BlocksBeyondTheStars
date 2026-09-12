@@ -50,11 +50,12 @@ public sealed class ProtocolV4Tests : IDisposable
         };
 
     [Fact]
-    public void Version_IsFive()
+    public void Version_IsSix()
     {
-        // v4 = LZ4 + BlueprintsUnchanged (this file); v5 = the second LiteNetLib channel + WorldId (ProtocolV5Tests).
-        Assert.Equal(5, Protocol.Version);
-        Assert.Equal(5, new JoinRequest().ProtocolVersion);
+        // v4 = LZ4 + BlueprintsUnchanged (this file); v5 = the second LiteNetLib channel + WorldId (ProtocolV5Tests);
+        // v6 = the far-terrain tile request/answer (#1821, FarTerrainTileTests).
+        Assert.Equal(6, Protocol.Version);
+        Assert.Equal(6, new JoinRequest().ProtocolVersion);
     }
 
     [Fact]

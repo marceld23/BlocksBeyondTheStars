@@ -95,6 +95,20 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.view_distance_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
                 y += 28f;
             }
+
+            // #1820: the far terrain beyond the streamed chunks — Off / 512 / 1024 blocks, applied live.
+            Cycle(ref y, L("ui.settings.far_view"), FarViewLabel(S.FarViewBlocks), () =>
+            {
+                S.FarViewBlocks = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Next(S.FarViewBlocks);
+                var boot = _shell.CurrentBoot;
+                if (boot != null)
+                {
+                    boot.FarViewBlocks = S.FarViewBlocks;
+                    boot.FarView?.SetRange(S.FarViewBlocks);
+                }
+
+                Rebuild();
+            });
             // UI scale (#483): drives UiKit.UserScale, which divides the HUD canvases' reference resolution.
             // Applies live via S.Apply() so the player can size the HUD while looking at it from the pause
             // menu. Menus are deliberately unaffected (absolute 1920 layout).
@@ -634,6 +648,11 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int[] FpsCaps = { 0, 30, 60, 72, 90, 120, 144, 240 };
 
         private string FpsCapLabel(int cap) => cap <= 0 ? L("ui.settings.fps_cap.unlimited") : cap + " fps";
+
+        /// <summary>#1820: "Off" or the far-view range in blocks.</summary>
+        private string FarViewLabel(int blocks) => blocks <= 0
+            ? L("ui.settings.far_view.off")
+            : L("ui.settings.far_view.blocks").Replace("{n}", blocks.ToString());
 
         private static int NextFpsCap(int current)
         {

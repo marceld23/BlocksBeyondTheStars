@@ -49,6 +49,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
     // use and disposed with the connection. Every caller holds _gate, so a command is never used concurrently.
     private SqliteCommand? _setBlockCmd;
     private SqliteCommand? _loadChunkEditsCmd;
+    private SqliteCommand? _loadEditColumnTopsCmd;
     private SqliteCommand? _saveFluidCellCmd;
     private SqliteCommand? _deleteFluidCellCmd;
     private SqliteCommand? _saveFireCellCmd;
@@ -78,11 +79,12 @@ public sealed class SqliteWorldRepository : IWorldRepository
     {
         _setBlockCmd?.Dispose();
         _loadChunkEditsCmd?.Dispose();
+        _loadEditColumnTopsCmd?.Dispose();
         _saveFluidCellCmd?.Dispose();
         _deleteFluidCellCmd?.Dispose();
         _saveFireCellCmd?.Dispose();
         _deleteFireCellCmd?.Dispose();
-        _setBlockCmd = _loadChunkEditsCmd = _saveFluidCellCmd = _deleteFluidCellCmd = _saveFireCellCmd = _deleteFireCellCmd = null;
+        _setBlockCmd = _loadChunkEditsCmd = _loadEditColumnTopsCmd = _saveFluidCellCmd = _deleteFluidCellCmd = _saveFireCellCmd = _deleteFireCellCmd = null;
     }
 
     /// <summary>Diagnostic: how many <see cref="RunInTransaction"/> batches were opened (nested calls join the
@@ -585,6 +587,38 @@ public sealed class SqliteWorldRepository : IWorldRepository
             {
                 var pos = new Vector3i(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2));
                 result.Add(new BlockEdit(pos, (ushort)reader.GetInt32(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetInt32(6)));
+            }
+        }
+
+        return result;
+    }
+
+    public IReadOnlyList<EditColumnTop> LoadEditColumnTops(string planet, int minX, int minZ, int maxX, int maxZ)
+    {
+        var result = new List<EditColumnTop>();
+        lock (_gate)
+        {
+            // The inner query finds each column's top non-air y; the join reads that row's block through the
+            // (planet, x, y, z) key. Bounded by the x range on the key, so a 64-block tile is a short range scan.
+            var cmd = Prepared(ref _loadEditColumnTopsCmd,
+                "SELECT e.x, e.y, e.z, e.block, e.tint FROM block_edit e JOIN (" +
+                "SELECT x, z, MAX(y) AS top FROM block_edit WHERE planet = $p AND block <> 0 " +
+                "AND x BETWEEN $minx AND $maxx AND z BETWEEN $minz AND $maxz GROUP BY x, z) t " +
+                "ON e.planet = $p AND e.x = t.x AND e.z = t.z AND e.y = t.top;",
+                ("$p", SqliteType.Text), ("$minx", SqliteType.Integer), ("$maxx", SqliteType.Integer),
+                ("$minz", SqliteType.Integer), ("$maxz", SqliteType.Integer));
+            var ps = cmd.Parameters;
+            ps[0].Value = planet;
+            ps[1].Value = minX;
+            ps[2].Value = maxX;
+            ps[3].Value = minZ;
+            ps[4].Value = maxZ;
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new EditColumnTop(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2),
+                    (ushort)reader.GetInt32(3), reader.GetInt32(4)));
             }
         }
 

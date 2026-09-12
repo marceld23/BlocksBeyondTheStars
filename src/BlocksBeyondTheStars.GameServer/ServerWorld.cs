@@ -88,7 +88,20 @@ public sealed class ServerWorld
         // airless-moon cratering, pad flattening AND the body identity (#478) together — a partial set
         // here previously left stale state of whatever world was configured last.
         _generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost);
-        var chunk = _generator.Generate(Planet, coord);
+        return Store(coord, _generator.Generate(Planet, coord));
+    }
+
+    /// <summary>#1817: takes a chunk a worker generated for this world (with this world's mode) into the cache —
+    /// persisted edits are applied here, on the tick thread, exactly as <see cref="GetOrLoadChunk"/> does. A chunk
+    /// that got loaded inline in the meantime wins (generation is deterministic, the two are identical).</summary>
+    public ChunkData AdoptGenerated(ChunkCoord coord, ChunkData generated)
+    {
+        coord = WorldConstants.CanonicalChunk(coord, Circumference);
+        return _loaded.TryGetValue(coord, out var cached) ? cached : Store(coord, generated);
+    }
+
+    private ChunkData Store(ChunkCoord coord, ChunkData chunk)
+    {
         foreach (var edit in _repo.LoadChunkEdits(LocationId, coord))
         {
             var local = WorldConstants.WorldToLocal(edit.WorldPosition);
@@ -105,7 +118,34 @@ public sealed class ServerWorld
         }
 
         _loaded[coord] = chunk;
+        ChunkLoads++;
         return chunk;
+    }
+
+    /// <summary>#1824: how many chunks this world has loaded so far — a cheap "something new is resident" signal
+    /// for systems that wait on terrain (parked fluid cells re-check when it moves).</summary>
+    public long ChunkLoads { get; private set; }
+
+    /// <summary>#1824: whether every chunk within <paramref name="reach"/> cells of <paramref name="world"/> is resident
+    /// or may be loaded (<paramref name="mayLoad"/>, null = never). Only the chunks the reach box actually crosses are
+    /// probed (a cell deep inside its chunk costs one lookup).</summary>
+    public bool IsNeighbourhoodLoaded(Vector3i world, int reach, System.Func<ChunkCoord, bool>? mayLoad = null)
+    {
+        world = WorldConstants.CanonicalBlock(world, Circumference);
+        var lo = WorldConstants.WorldToChunk(new Vector3i(world.X - reach, world.Y - reach, world.Z - reach));
+        var hi = WorldConstants.WorldToChunk(new Vector3i(world.X + reach, world.Y + reach, world.Z + reach));
+        for (int cx = lo.X; cx <= hi.X; cx++)
+            for (int cy = lo.Y; cy <= hi.Y; cy++)
+                for (int cz = lo.Z; cz <= hi.Z; cz++)
+                {
+                    var coord = WorldConstants.CanonicalChunk(new ChunkCoord(cx, cy, cz), Circumference);
+                    if (!_loaded.ContainsKey(coord) && (mayLoad is null || !mayLoad(coord)))
+                    {
+                        return false;
+                    }
+                }
+
+        return true;
     }
 
     public BlockId GetBlock(Vector3i world)

@@ -92,6 +92,14 @@ internal sealed class MonumentInstance
 /// landing zones). GameServer reaches this state through forwarding properties pointing at the active
 /// world, so several bodies can be resident at once (one per occupied location) with isolated content.
 /// </summary>
+/// <summary>#1821: one far-terrain tile on a world — the last built message and whether an edit invalidated it.</summary>
+internal sealed class FarTerrainTileState
+{
+    public int Version;
+    public bool Dirty = true;
+    public BlocksBeyondTheStars.Networking.Messages.FarTerrainTile? Message;
+}
+
 internal sealed class LoadedWorld
 {
     public required ServerWorld World { get; init; }
@@ -145,6 +153,16 @@ internal sealed class LoadedWorld
     public long PresenceViewerSignature { get; set; }
     public Dictionary<Vector3i, byte> FluidLevel { get; } = new();
     public HashSet<Vector3i> ActiveFluid { get; } = new();
+
+    /// <summary>#1821: far-terrain tile summaries built on request, by tile index; rebuilt when an edit dirties them.</summary>
+    public Dictionary<(int Tx, int Tz), FarTerrainTileState> FarTiles { get; } = new();
+
+    /// <summary>#1824: woken fluid cells whose neighbourhood reaches into an unloaded chunk. They sit out the
+    /// automaton (it must never generate terrain) until a chunk load makes their neighbourhood whole again.</summary>
+    public HashSet<Vector3i> ParkedFluid { get; } = new();
+
+    /// <summary>#1824: <see cref="ServerWorld.ChunkLoads"/> when the parked set was last re-checked.</summary>
+    public long ParkedFluidCheckedAt { get; set; } = -1;
     public HashSet<Vector3i> FallingFluid { get; } = new(); // flowing cells filled from above (feed a waterfall)
     public HashSet<Vector3i> ActiveGranular { get; } = new(); // loose blocks woken by a mutation (#1319) — transient, never saved
     public int FluidStep { get; set; } // fluid steps so far — lava advances on every second one (#1316)

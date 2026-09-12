@@ -497,6 +497,10 @@ public static class NetCodec
         // Base sentry (#1214): cosmetic shot tracer.
         Register(227, typeof(SentryShot));                   // Server -> Client
 
+        // Far terrain (#1821, protocol v6): the persisted builds of a far-view tile.
+        Register(237, typeof(FarTerrainTileRequest));        // Client -> Server
+        Register(238, typeof(FarTerrainTile));               // Server -> Client
+        Register(239, typeof(FarTerrainWorldInfo));          // Server -> Client (#1820: the world's generator settings)
     }
 
     private static void Register(byte tag, Type type)

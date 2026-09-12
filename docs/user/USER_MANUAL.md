@@ -281,6 +281,17 @@ separate unlock; admins can still disable it through server world rules.
 - **Codex and DataQubes screens** — use the top-right **Close** button, **Esc**, or **Tab** to return to play.
   **< Menu** returns from the full-screen screen to the normal Tab menu.
 
+### View distance and far view (Settings → Graphics)
+
+- **View distance (chunks, 1–16)** — how far the real, walkable world streams around you. It costs the most:
+  every step up loads many more chunks. It takes effect the next time a world starts.
+- **Far view (Off · 512 · 1024 blocks)** — a lightweight low-detail horizon *beyond* the streamed chunks: mountains,
+  valleys, seas and lava seas out to the chosen distance, plus cities, settlements, ruins and player builds as they
+  stand. You cannot walk or mine it; as you get closer, the real chunks replace it. It applies at once, even from the
+  pause menu. Defaults: **1024** on the desktop client, **512** in the browser and on tablets.
+- With the far view on, the haze reaches farther: worlds with thin air show a long, clear horizon, airless moons are
+  crisp to the edge, dense atmospheres still close in — and fog, sandstorms and ash storms still pull the view in hard.
+
 ### Arcade (minigames)
 - The **DataQubes Arcade** holds 20 built-in minigames. Locked cabinets unlock through data cubes you find
   in the world; beating your **best score** on a completed run pays **+5/+10/+15 knowledge** by rating.
@@ -1032,9 +1043,9 @@ separate unlock; admins can still disable it through server world rules.
 - While raised, the mouse gets proportionally finer and the head-bob is damped, so a 6× view stays steady.
   The scope draws its own reticle and a magnification readout; the optic drops automatically when you open
   a menu, mount a speeder, switch hotbar slot or go third-person.
-- **They do not extend the render distance** — the world only exists as far as your view-distance setting
-  streams it, so magnification enlarges what is already there. Seeing *past* the haze is what thermal mode
-  is for.
+- **They do not extend the render distance** — the walkable world only exists as far as your view-distance setting
+  streams it (beyond it the low-detail far view, §4), so magnification enlarges what is already there. Seeing *past*
+  the haze is what thermal mode is for.
 - **Thermal Binoculars** (`thermal_binoculars`) are the upgrade: research the blueprint (needs the
   `binoculars` blueprint first) and craft them at the workshop — the recipe **consumes a plain pair**.
   Press **I** while looking through them to switch infrared on and off.

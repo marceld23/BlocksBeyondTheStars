@@ -76,6 +76,42 @@ public sealed class FluidTests : IDisposable
     }
 
     [Fact]
+    public void WaterFarFromEveryPlayer_WaitsAtTheLoadedEdge_InsteadOfGeneratingTerrain_AndFlowsWhenAPlayerComes()
+    {
+        // #1824: a woken fluid cell whose neighbourhood reaches into an unloaded chunk outside every player's keep
+        // range must not generate that chunk inside the fluid step; it resumes once a player is within range.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var water = _content.GetBlock("water")!.NumericId.Value;
+            var p = server.AddLocalPlayer("Surveyor");
+            p.State.Position = new Vector3f(0.5f, 132f, 0.5f);
+
+            // 40 chunks east, on the chunk's east edge: the step would read into chunk 41, far outside the range.
+            int x = 40 * 16 + 15, y = 130, z = 5;
+            server.PlaceFluidSource("water", x, y, z);
+            var unloaded = new Shared.World.ChunkCoord(41, Shared.World.WorldConstants.WorldToChunk(y), 0);
+            for (int i = 0; i < 6; i++)
+            {
+                server.TickForTest(0.3);
+            }
+
+            Assert.False(server.World.IsChunkLoaded(unloaded), "the fluid step generated a chunk nobody can see");
+            Assert.True(server.ParkedFluidCountForTest > 0, "the frontier cell should wait, parked");
+            Assert.True(server.World.GetBlockIfLoaded(new Vector3i(x, y - 1, z)).IsAir, "a parked cell must not flow");
+
+            p.State.Position = new Vector3f(x + 0.5f, y + 2f, z + 0.5f); // a player arrives
+            for (int i = 0; i < 8; i++)
+            {
+                server.TickForTest(0.3);
+            }
+
+            Assert.Equal(0, server.ParkedFluidCountForTest);
+            Assert.Equal(water, server.World.GetBlock(new Vector3i(x, y - 1, z)).Value);
+        }
+    }
+
+    [Fact]
     public void WaterBody_RefillsAMinedHole()
     {
         var server = Started(out var repo);

@@ -76,7 +76,7 @@ First-version settings (a deliberately small subset of §6.2):
 
 | Group | MVP settings |
 |---|---|
-| Graphics | Quality **preset** (Potato/Low/Medium/High), fullscreen, view distance (chunks), UI scale |
+| Graphics | Quality **preset** (Potato/Low/Medium/High), fullscreen, view distance (chunks), far view (off/512/1024 blocks, #1820), UI scale |
 | Audio | Master, music, SFX volumes; "audio on start screen" toggle |
 | Controls | Mouse sensitivity, invert-Y |
 | Language | **German / English** (drives the `Localizer`) |

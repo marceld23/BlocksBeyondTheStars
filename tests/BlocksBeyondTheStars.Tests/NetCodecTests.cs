@@ -287,6 +287,9 @@ public sealed class NetCodecTests
         [234] = typeof(UninstallShipModuleIntent),
         [235] = typeof(RecallVehicleIntent),
         [236] = typeof(TransitLaunchDoneIntent),
+        [237] = typeof(FarTerrainTileRequest),
+        [238] = typeof(FarTerrainTile),
+        [239] = typeof(FarTerrainWorldInfo),
 
     };
 

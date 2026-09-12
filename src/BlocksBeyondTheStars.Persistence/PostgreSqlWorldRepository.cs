@@ -515,6 +515,33 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         return result;
     }
 
+    public IReadOnlyList<EditColumnTop> LoadEditColumnTops(string planet, int minX, int minZ, int maxX, int maxZ)
+    {
+        var result = new List<EditColumnTop>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT e.x, e.y, e.z, e.block, e.tint FROM block_edit e JOIN (" +
+                              "SELECT x, z, MAX(y) AS top FROM block_edit WHERE planet = @p AND block <> 0 " +
+                              "AND x BETWEEN @minx AND @maxx AND z BETWEEN @minz AND @maxz GROUP BY x, z) t " +
+                              "ON e.planet = @p AND e.x = t.x AND e.z = t.z AND e.y = t.top;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            cmd.Parameters.AddWithValue("@minx", minX);
+            cmd.Parameters.AddWithValue("@maxx", maxX);
+            cmd.Parameters.AddWithValue("@minz", minZ);
+            cmd.Parameters.AddWithValue("@maxz", maxZ);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new EditColumnTop(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2),
+                    (ushort)reader.GetInt32(3), reader.GetInt32(4)));
+            }
+        }
+
+        return result;
+    }
+
     // --- Players ---
 
     public PlayerState? LoadPlayer(string playerId)

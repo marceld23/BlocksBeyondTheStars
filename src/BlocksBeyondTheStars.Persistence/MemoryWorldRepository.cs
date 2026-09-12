@@ -590,6 +590,40 @@ public sealed class MemoryWorldRepository : IWorldRepository
         }
     }
 
+    public IReadOnlyList<EditColumnTop> LoadEditColumnTops(string planet, int minX, int minZ, int maxX, int maxZ)
+    {
+        lock (_gate)
+        {
+            var minChunk = WorldConstants.WorldToChunk(new Vector3i(minX, 0, minZ));
+            var maxChunk = WorldConstants.WorldToChunk(new Vector3i(maxX, 0, maxZ));
+            var tops = new Dictionary<(int X, int Z), EditColumnTop>();
+            foreach (var bucketEntry in _blockEditsByChunk)
+            {
+                var ck = bucketEntry.Key;
+                if (ck.Planet != planet || ck.Cx < minChunk.X || ck.Cx > maxChunk.X || ck.Cz < minChunk.Z || ck.Cz > maxChunk.Z)
+                {
+                    continue;
+                }
+
+                foreach (var key in bucketEntry.Value)
+                {
+                    if (key.X < minX || key.X > maxX || key.Z < minZ || key.Z > maxZ
+                        || !_blockEdits.TryGetValue(key, out var value) || value.Block == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!tops.TryGetValue((key.X, key.Z), out var top) || key.Y > top.Y)
+                    {
+                        tops[(key.X, key.Z)] = new EditColumnTop(key.X, key.Y, key.Z, value.Block, value.Tint);
+                    }
+                }
+            }
+
+            return new List<EditColumnTop>(tops.Values);
+        }
+    }
+
     public bool HasPlayerBlockEdits(string planet, Vector3i min, Vector3i max)
     {
         lock (_gate)
