@@ -50,25 +50,56 @@ public sealed class SpawnSafetyTests : IDisposable
         return server;
     }
 
-    /// <summary>Carves a deep air shaft in the player's column and returns a position in it the server counts as
-    /// "the void" (well below the terrain with nothing within reach below) — the shape of a position persisted
-    /// mid-fall. The world has a bedrock floor (B46), so the void has to be made, not found.</summary>
+    /// <summary>Carves a hole through the bedrock floor under the player's column and returns a position below that
+    /// floor with nothing within reach beneath it — the only shape the server still counts as "the void" (#1788:
+    /// above the floor every fall ends on something, so a deep dig is no longer rescued). The world has a bedrock
+    /// floor (B46), so the void has to be made, not found.</summary>
     private static Vector3f MakeVoidBelow(SvGameServer server, Vector3f from)
     {
         int bx = (int)System.Math.Floor(from.X), bz = (int)System.Math.Floor(from.Z);
-        int top = (int)from.Y;
-        for (int y = top; y > top - 160; y--)
+        int floorY = (int)from.Y - server.FloorDepthForTest; // the spawn sits a couple of blocks over the surface
+        for (int y = floorY + 8; y > floorY - 70; y--)
         {
-            server.World.SetBlock(new Vector3i(bx, y, bz), BlockId.Air); // a deep, empty shaft (clears terrain + floor)
+            server.World.SetBlock(new Vector3i(bx, y, bz), BlockId.Air); // through the lava band and the bedrock, into nothing
         }
 
-        var voidPos = new Vector3f(from.X, top - 50, from.Z); // mid-shaft: far below the surface, no ground within reach
+        var voidPos = new Vector3f(from.X, floorY - 35, from.Z); // under the floor, no ground within reach
         if (!server.IsInVoidForTest(voidPos))
         {
-            throw new Xunit.Sdk.XunitException("The carved shaft should read as the void.");
+            throw new Xunit.Sdk.XunitException("A position below the carved-open bedrock floor should read as the void.");
         }
 
         return voidPos;
+    }
+
+    [Fact]
+    public void RuntimeRescue_LeavesAPlayerFallingDownTheirOwnShaftAlone()
+    {
+        // #1788: a player dug a 1-wide shaft 50+ blocks deep and fell into it; the 24-block ground probe read the
+        // fall as "the void" and teleported them to the ship's heal tank once a second ("Ich werde im End Level
+        // immer wieder zum Schiff tp"). Above the bedrock floor there is always ground to land on — leave them be.
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Digger");
+            var spawn = p.State.Position;
+            int bx = (int)System.Math.Floor(spawn.X), bz = (int)System.Math.Floor(spawn.Z);
+            int top = (int)spawn.Y;
+            for (int y = top; y > top - 160; y--)
+            {
+                server.World.SetBlock(new Vector3i(bx, y, bz), BlockId.Air); // a deep shaft, far past the old 24-block probe
+            }
+
+            var falling = new Vector3f(bx + 0.5f, top - 50, bz + 0.5f);
+            p.State.Position = falling;
+            Assert.False(server.IsInVoidForTest(falling), "a shaft above the bedrock floor is not the void");
+
+            server.RunVoidRescueForTest();
+
+            Assert.Equal(falling.X, p.State.Position.X);
+            Assert.Equal(falling.Y, p.State.Position.Y);
+            Assert.Equal(falling.Z, p.State.Position.Z);
+        }
     }
 
     [Fact]

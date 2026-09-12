@@ -382,6 +382,14 @@ public sealed partial class GameServer
         {
             ShipAiHintOnce(session, "seabed");
         }
+
+        // The finale body (#1792): the core chamber sits under ONE iron-ringed aperture, thousands of blocks from
+        // most pads — a player who dug 50 blocks straight down under the ship never had a chance. Point at the map
+        // marker once, on landing.
+        if (_worlds.Active.HasCoreChamber)
+        {
+            ShipAiHintOnce(session, "guardian_core");
+        }
     }
 
     /// <summary>Per-second advisor poll: vitals coaching, full inventory, nightfall, nearby ruins, and the

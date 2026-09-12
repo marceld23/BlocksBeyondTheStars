@@ -82,6 +82,9 @@ namespace BlocksBeyondTheStars.Client
         /// crosshair for as long as it is up.</summary>
         public static bool SuppressCrosshair;
         private TMP_Text _locTitle, _locPlace, _toast, _inSpace, _prompt, _loot, _hint, _todText, _compassDist, _compassWpDist;
+        private TMP_Text _compassCoreDist; // Guardian core distance under the waypoint line (#1792)
+        private RectTransform _compassCore;
+        private int _lastCompassCoreDist = int.MinValue;
         private TMP_Text _observer; // SPECTATOR badge while fleet-admin observer mode is active (issue #487)
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
         private TMP_Text _playtimeText;
@@ -613,6 +616,10 @@ namespace BlocksBeyondTheStars.Client
             // Waypoint distance on its own line under the ship distance — before #592 the compass number
             // was the SHIP only and the waypoint's distance existed nowhere outside the map panel.
             _compassWpDist = UiText.Add(comp.transform, 0, 118, 120, 18, string.Empty, 14, new Color(1f, 0.85f, 0.3f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            // The Guardian core (#1792): a third line + blip in the map marker's colour, only while the finale body
+            // publishes the core POI — the one place on that planet worth walking to, so it gets the ship's treatment.
+            _compassCoreDist = UiText.Add(comp.transform, 0, 136, 120, 18, string.Empty, 14, WorldMap.GuardianCoreCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _compassCore = Blip(comp.transform, WorldMap.GuardianCoreCol, 10f);
             _compassShip = Blip(comp.transform, new Color(0.3f, 0.8f, 1f), 8f);
             // The waypoint blip is the map_waypoint ICON, not another plain square — at 7 px amber it was
             // nearly indistinguishable from the 6 px amber beacon blips (#592).
@@ -731,7 +738,7 @@ namespace BlocksBeyondTheStars.Client
                 UiText.Style(glow, UiText.Look.Glow);
             }
 
-            foreach (var outline in new TMP_Text[] { _locPlace, _loot, _hint, _todText, _compassDist, _compassWpDist, _dmgCause, _playtimeText,
+            foreach (var outline in new TMP_Text[] { _locPlace, _loot, _hint, _todText, _compassDist, _compassWpDist, _compassCoreDist, _dmgCause, _playtimeText,
                          _wreckName, _wreckProg, _wreckHint, _shipRepairProg, _shipRepairHint, _tameMood, _tameNeed, _tameTrust,
                          _speederSpeed, _speederHullLabel, _speederFuelLabel, _speederHint })
             {
@@ -1866,6 +1873,18 @@ namespace BlocksBeyondTheStars.Client
                 _compassWpDist.text = wpDistNow >= 0 ? $"{CompassLabel("ui.map.waypoint", "Waypoint")} {wpDistNow} m" : string.Empty;
             }
 
+            // Guardian core (#1792): the finale body's one aperture. A player dug 50 blocks straight down under
+            // the ship looking for it — the chamber is 20 blocks deep, but 2000 blocks away. Blip + distance line
+            // in the map marker's colour, like the waypoint's.
+            bool haveCore = TryGetGuardianCore(out var corePos);
+            PlaceBlip(_compassCore, haveCore, corePos, radius, out float coreDist);
+            int coreDistNow = haveCore ? Mathf.RoundToInt(coreDist) : -1;
+            if (coreDistNow != _lastCompassCoreDist)
+            {
+                _lastCompassCoreDist = coreDistNow;
+                _compassCoreDist.text = coreDistNow >= 0 ? $"{CompassLabel("poi.guardian_core", "Guardian core")} {coreDistNow} m" : string.Empty;
+            }
+
             // Player-placed beacons (item 37): amber blips, pooled since their count varies.
             var beacons = Game.Beacons;
             int bn = beacons?.Length ?? 0;
@@ -1925,6 +1944,27 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The caption in front of a compass distance — the same locale keys the planet-map legend
         /// uses (#1594), so both panels call the ship and the waypoint the same thing.</summary>
+        /// <summary>The Guardian core's ground position from the planet's POI list (#1792) — present on the finale
+        /// body only. At the player's own height, so the flat compass distance is the walk, not the dig.</summary>
+        private bool TryGetGuardianCore(out Vector3 pos)
+        {
+            var pois = Game.PlanetPois;
+            if (pois != null)
+            {
+                for (int i = 0; i < pois.Length; i++)
+                {
+                    if (pois[i].Type == "guardian_core")
+                    {
+                        pos = new Vector3(pois[i].X, Game.PlayerPosition.y, pois[i].Z);
+                        return true;
+                    }
+                }
+            }
+
+            pos = Vector3.zero;
+            return false;
+        }
+
         private string CompassLabel(string key, string fallback)
         {
             var loc = Game?.Localizer;

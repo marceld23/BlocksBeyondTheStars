@@ -213,9 +213,12 @@ namespace BlocksBeyondTheStars.Client
                     ("map_wreck", "ui.map.wreck", new Color(1f, 0.55f, 0.3f)),
                     ("map_station", "ui.map.other", new Color(0.8f, 0.8f, 0.9f)),
                     (null, "poi.fragment", new Color(0.45f, 0.95f, 1f)), // glyph-only legend row (⦿)
+                    (null, "poi.guardian_core", GuardianCoreCol), // glyph-only legend row (◎), #1792
                 };
-                const int perRow = 5;
-                const float slotW = 168f, rowH = 34f;
+                // Six slots per row (was five at 168 px): the twelfth entry would have started a third row under the
+                // buttons at y=880. 140 px still holds the longest label at 15 px ("Netzfragment-Signal" wraps nowhere).
+                const int perRow = 6;
+                const float slotW = 140f, rowH = 34f;
                 for (int li = 0; li < entries.Length; li++)
                 {
                     float lx = ix + (li % perRow) * slotW;
@@ -228,7 +231,7 @@ namespace BlocksBeyondTheStars.Client
                         lx += 32f;
                     }
 
-                    string legendLabel = entries[li].icon == null ? "⦿ " + L(entries[li].key) : L(entries[li].key);
+                    string legendLabel = entries[li].icon == null ? PoiLook(entries[li].key == "poi.guardian_core" ? "guardian_core" : "fragment_signal").glyph + " " + L(entries[li].key) : L(entries[li].key);
                     UiKit.AddText(root, lx, ly, slotW - 36f, 30, legendLabel, 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
                 }
             }
@@ -524,8 +527,13 @@ namespace BlocksBeyondTheStars.Client
             "landing" => ("⊕", new Color(0.5f, 0.85f, 1f), "map_pad"),
             "alien_shrine" => ("✶", new Color(0.55f, 1f, 0.6f), null), // #1129 one-of-a-kind site; glyph fallback
             "observatory" => ("◉", new Color(0.7f, 0.85f, 1f), null), // #1129 one-of-a-kind site; glyph fallback
+            "guardian_core" => ("◎", GuardianCoreCol, null), // the finale's one aperture (#1792) — no icon art yet; glyph
             _ => ("◆", new Color(0.8f, 0.8f, 0.9f), "map_station"),
         };
+
+        /// <summary>The Guardian core marker's colour (#1792) — shared with the HUD compass line so the two read as one
+        /// thing. Hot rose: nothing else on the map or the dial uses it.</summary>
+        public static readonly Color GuardianCoreCol = new Color(1f, 0.32f, 0.5f);
 
         /// <summary>A map marker: a generated HUD ICON when one exists (uGUI icon pass), else the unicode
         /// glyph as fallback — both tinted with the marker colour, drawn on a dark backing disc so the

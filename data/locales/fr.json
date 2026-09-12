@@ -2880,6 +2880,7 @@
   "vega.hint.world.asteroid": "Un astéroïde : faible gravité, pas d'air, cratères profonds. Les métaux rares aiment les profondeurs.",
   "vega.hint.world.ocean": "Monde océanique. La terre est la ressource rare ici. Évite de te garer dans les vagues.",
   "vega.hint.seabed": "Nous sommes posés sur le fond marin. La plateforme retient l'eau tant que tu ne creuses pas ses parois. Pour décoller : E au cockpit.",
+  "vega.hint.guardian_core": "Le noyau du Gardien n'est pas sous notre plateforme — il se trouve dans une salle sous le puits entouré d'un anneau de fer sur cette planète. J'ai marqué l'ouverture sur ta carte (M) ; la boussole indique la distance. Va-y à pied, ne creuse pas ici.",
   "vega.hint.swim": "Sous l'eau : Espace te maintient en surface, l'oxygène diminue. Il se recharge sur la terre ferme.",
   "vega.hint.world.corrupted": "Ce monde se lit… mal. Mes capteurs me démangent. Les masses terrestres flottantes ne sont pas de mon fait.",
   "vega.hint.world.fungal": "Un monde fongique. Les champignons ont la taille de bâtiments. Les spores sont pour la plupart inoffensives. La plupart.",

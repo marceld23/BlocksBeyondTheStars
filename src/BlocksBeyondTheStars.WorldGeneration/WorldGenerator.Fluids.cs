@@ -37,6 +37,10 @@ public sealed partial class WorldGenerator
     private static int FloorDepthFor(long seed)
         => WorldFloorMinDepth + (int)((ulong)(seed ^ 0x466C6F6F72L) % (ulong)(WorldFloorMaxDepth - WorldFloorMinDepth + 1));
 
+    /// <summary>How far under its surface this planet's unmineable bedrock begins — the deepest any dig can reach,
+    /// so a position above it always has ground somewhere beneath it (the void rescue relies on that, #1788).</summary>
+    public int FloorDepth(PlanetType planet) => FloorDepthFor(PlanetSeed(planet));
+
     private const int PondMaxDepth = 5;     // deepest carve at a pond's centre (≥2 is swimmable)
     private const double PondBand = 0.10;   // mask range from "rim" (depth 0) to "centre" (full depth)
     private const int PondMaxSlope = 4;     // only carve on flat ground (Δheight over ±2 in x+z) so water sits level

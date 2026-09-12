@@ -2880,6 +2880,7 @@
   "vega.hint.world.asteroid": "Ein Asteroid: wenig Schwerkraft, keine Luft, tiefe Krater. Die seltenen Metalle mögen die tiefen.",
   "vega.hint.world.ocean": "Ozeanwelt. Land ist hier die knappe Ressource. Park möglichst nicht in der Brandung.",
   "vega.hint.seabed": "Wir stehen auf dem Meeresgrund. Der Landeplatz hält das Wasser draußen – solange du seine Wände nicht anbaust. Zum Abflug: E am Cockpit.",
+  "vega.hint.guardian_core": "Der Wächterkern liegt nicht unter unserem Landeplatz – er sitzt in einer Kammer unter dem einen eisengefassten Schacht auf diesem Planeten. Ich habe die Öffnung auf deiner Karte (M) markiert, der Kompass zeigt die Entfernung. Geh hin, grab hier nicht.",
   "vega.hint.swim": "Unter Wasser: Leertaste hält dich oben, der Sauerstoff zählt runter. Wieder an Land füllt er sich.",
   "vega.hint.world.corrupted": "Diese Welt liest sich… falsch. Meine Sensoren jucken. Die schwebenden Landmassen sind nicht mein Werk.",
   "vega.hint.world.fungal": "Eine Pilzwelt. Die Pilze haben Gebäudegröße. Die Sporen sind überwiegend harmlos. Überwiegend.",

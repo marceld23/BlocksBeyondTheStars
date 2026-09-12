@@ -144,6 +144,37 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>
+        /// Both dialogs are TOP-LEVEL canvases (UiKit.CreateCanvas parents nothing), while this component lives on
+        /// the world rig root — so they outlived the rig (#1789). A reply overlay open while the world was torn down
+        /// (ReturnToMenu) stayed on screen in the main menu; its OK button then ran <see cref="AcknowledgeAndClose"/>
+        /// on the destroyed component and <c>CancelInvoke</c> threw <c>ArgumentNullException: self</c>. And every
+        /// world join leaked two hidden canvases. Same treatment as <c>ChatUi.OnDestroy</c>.
+        /// </summary>
+        private void OnDestroy()
+        {
+            if (_open || _replyOpen)
+            {
+                // Balance the hold taken by Open/ShowThread; the network is gone by now, so the pause message is a
+                // no-op, but the local counter must not carry into the next world.
+                _open = false;
+                _replyOpen = false;
+                WorldHold.Release();
+            }
+
+            if (_dialogCanvas != null)
+            {
+                Destroy(_dialogCanvas.gameObject);
+                _dialogCanvas = null;
+            }
+
+            if (_replyCanvas != null)
+            {
+                Destroy(_replyCanvas.gameObject);
+                _replyCanvas = null;
+            }
+        }
+
         /// <summary>The install's reply-thread credential: a one-way hash of the install secret. Desktop and
         /// play.* builds hash the name-claim token (stable per install — the <c>/play/</c> path never changes);
         /// the glitch.fun arcade hashes the Glitch install id instead, because the browser-local token there
