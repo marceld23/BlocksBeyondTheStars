@@ -52,7 +52,12 @@ shapes their grid. Every composition is **pinned**, so nothing looks different a
 - **#1876 Ground kits.** `SettlementLayoutSpec` / `CityLayoutSpec` (pinned as `KitLayout`), `AssignKitModules` fills
   plots and districts (required first, weighted draws, modules-only squares), `CityGenerator.RoleAtFor` with a district
   map, default kits per tier + the G.D.S. city kit (`tools/gen_settlement_modules.py`).
-- **#1877 Editor.** Use-as for stations, port brush, seal check, kit panel, test assembly — see the issue.
+- **#1877 Editor.** Station and Town editor: *Use as* whole structure / kit module with kit field and function
+  stepper, port brushes (door / wide / ladder) + port-door option, *Check seal* paints leaks red and gates the export,
+  *Kits…* panel (`KitEditorPanel`: shipped + user kits, entries table, save to user content + `kit.json` bundle),
+  *Assemble* previews the kit with the real composer; `tools/merge_structure.py` merges kits, functions and ports.
+- Verified: non-Slow server suite 3164/3164, local Unity build green. **Open: Marcel's playtest** (city save doors,
+  fresh-world stations with cabins and docked modules, reload stability, editor ports / seal / kits).
 - Docs: [docs/developer/STATION_SETTLEMENT_EDITOR.md](docs/developer/STATION_SETTLEMENT_EDITOR.md) §3c,
   [docs/developer/WORLD_GENERATION.md](docs/developer/WORLD_GENERATION.md) §18, [docs/developer/NPC_ROUTINES.md](docs/developer/NPC_ROUTINES.md).
 

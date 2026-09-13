@@ -334,6 +334,21 @@ per-instance stream is still drawn so `ruined` / `island` never shift). Shipped:
 (43 station modules, 5 station kits) and `tools/gen_settlement_modules.py` (the default settlement kits + the G.D.S.
 city kit).
 
+**Editor (#1877)** (`StructureEditor.cs`, `KitEditorPanel.cs`): *Use as* toggles whole structure / kit module in both
+editors; module mode shows the kit field (+ **Kits…**), the function stepper (`StructureRoles.StationFunctions`, or the
+plot / district roles — a known role is mirrored into `role` so the legacy per-plot composer still finds the module),
+the port-door stepper (`StructurePorts.DoorOptions`), **Check seal** and **Assemble**. Port brushes are palette entries of
+kind `port` (`door`, `wide`, `ladder`): left-click writes `tag[:door]` into `CellData.Port` of the hit block,
+middle-click clears it; ports render cyan-tinted. Export builds a `StructureTemplate` from the room and refuses port
+errors (`StructurePorts.Validate`) and — station modules only — leaks (`StructureSeal.FindLeaks`, painted red); cells
+carry `port`, meta and template JSON carry `kit` / `function`. The kit panel lists shipped kits of the editor's kinds
+(`station`, or `settlement` + `city`) overlaid by `usercontent/structure_kits/*.json`, edits every `StructureKit` field
+and the entries table, and saves the user file plus `<kind>_exports/<key>/kit.json`. **Assemble** composes the named
+kit with the current seed (`StationKitComposer.Compose`, `SettlementGenerator.Generate` with `SettlementLayoutSpec.FromKit`,
+`CityGenerator.Generate` with `CityLayoutSpec.FromKit`) over the shipped pool plus the user's template files and loads
+the result as a whole structure. `tools/merge_structure.py` merges `kit.json` into `data/structure_kits.json` (defaults
+stripped) and keeps `kit`, `function` and non-empty `port` fields.
+
 ## 4. Open questions
 1. **Marker parity:** confirm the full marker vocabulary each editor must expose (vendor, mission board,
    medbay/heal-tank, hangar, quarters, npc spawn, loot) so authored structures are fully functional.

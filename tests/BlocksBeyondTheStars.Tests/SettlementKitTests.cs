@@ -136,7 +136,13 @@ public sealed class SettlementKitTests : IDisposable
     {
         var kit = new StructureKit
         {
-            Key = "ck", Kind = "city", Tier = "metropolis", Grid = 5, DistrictSize = 24, Street = 3, Height = 18,
+            Key = "ck",
+            Kind = "city",
+            Tier = "metropolis",
+            Grid = 5,
+            DistrictSize = 24,
+            Street = 3,
+            Height = 18,
             RoleMap = { "TRGRT", "RGMGR", "RMPMR", "RGHGR", "TRRRT" },
         };
         var layout = CityLayoutSpec.FromKit(kit);
