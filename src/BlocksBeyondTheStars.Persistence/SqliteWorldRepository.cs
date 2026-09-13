@@ -659,18 +659,52 @@ public sealed class SqliteWorldRepository : IWorldRepository
         return result;
     }
 
+    /// <summary>
+    /// The far-tile column query (#1821). The inner query finds each column's top non-air y inside the box —
+    /// a range scan on the (planet, x, y, z) key. The outer side MUST be the key lookup of exactly those rows:
+    /// written as a plain JOIN, SQLite put <c>block_edit e</c> on the outer side with only <c>planet = ?</c> to
+    /// search on, i.e. a scan of EVERY edit on the planet per tile, plus a bloom filter over the subquery. On a
+    /// city save (808k edits) that was 50–90 ms per tile — empty desert tiles included — and the client asks for
+    /// 48 tiles a second after joining, so the tick stalled for a minute and doors opened seconds late (#1871).
+    /// <c>CROSS JOIN</c> is SQLite's documented way to pin the join order: the subquery drives, <c>e</c> is
+    /// looked up by its full key (0–19 ms on the same save). Internal so a test can pin the plan.
+    /// </summary>
+    internal const string EditColumnTopsSql =
+        "SELECT e.x, e.y, e.z, e.block, e.tint FROM (" +
+        "SELECT x, z, MAX(y) AS top FROM block_edit WHERE planet = $p AND block <> 0 " +
+        "AND x BETWEEN $minx AND $maxx AND z BETWEEN $minz AND $maxz GROUP BY x, z) t " +
+        "CROSS JOIN block_edit e ON e.planet = $p AND e.x = t.x AND e.y = t.top AND e.z = t.z;";
+
+    /// <summary>Test seam (#1871): SQLite's query plan for <see cref="EditColumnTopsSql"/>, one detail line per
+    /// step — the test pins the join order (a full-key lookup on <c>e</c>, no automatic index, no planet-wide scan).</summary>
+    internal IReadOnlyList<string> ExplainEditColumnTopsForTest()
+    {
+        var plan = new List<string>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "EXPLAIN QUERY PLAN " + EditColumnTopsSql;
+            cmd.Parameters.AddWithValue("$p", "plan");
+            cmd.Parameters.AddWithValue("$minx", 0);
+            cmd.Parameters.AddWithValue("$maxx", 63);
+            cmd.Parameters.AddWithValue("$minz", 0);
+            cmd.Parameters.AddWithValue("$maxz", 63);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                plan.Add(reader.GetString(reader.FieldCount - 1)); // the "detail" column comes last
+            }
+        }
+
+        return plan;
+    }
+
     public IReadOnlyList<EditColumnTop> LoadEditColumnTops(string planet, int minX, int minZ, int maxX, int maxZ)
     {
         var result = new List<EditColumnTop>();
         lock (_gate)
         {
-            // The inner query finds each column's top non-air y; the join reads that row's block through the
-            // (planet, x, y, z) key. Bounded by the x range on the key, so a 64-block tile is a short range scan.
-            var cmd = Prepared(ref _loadEditColumnTopsCmd,
-                "SELECT e.x, e.y, e.z, e.block, e.tint FROM block_edit e JOIN (" +
-                "SELECT x, z, MAX(y) AS top FROM block_edit WHERE planet = $p AND block <> 0 " +
-                "AND x BETWEEN $minx AND $maxx AND z BETWEEN $minz AND $maxz GROUP BY x, z) t " +
-                "ON e.planet = $p AND e.x = t.x AND e.z = t.z AND e.y = t.top;",
+            var cmd = Prepared(ref _loadEditColumnTopsCmd, EditColumnTopsSql,
                 ("$p", SqliteType.Text), ("$minx", SqliteType.Integer), ("$maxx", SqliteType.Integer),
                 ("$minz", SqliteType.Integer), ("$maxz", SqliteType.Integer));
             var ps = cmd.Parameters;

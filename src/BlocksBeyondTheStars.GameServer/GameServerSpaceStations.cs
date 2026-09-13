@@ -45,6 +45,10 @@ public sealed partial class GameServer
         public List<(string Type, Vector3f Pos)> Markers { get; } = new();
         public Vector3f Spawn { get; set; }
 
+        /// <summary>#1874: the kit composition this station was baked from (null = a template or the procedural
+        /// generator). A kit station's crew lives in its cabins (<see cref="SpawnKitStationCrew"/>).</summary>
+        public StationComposition? Kit { get; set; }
+
         /// <summary>World-space box of the stamped build (player stations; #1473 sealed-air reach box).</summary>
         public Vector3i BoundsMin { get; set; }
         public Vector3i BoundsMax { get; set; }
@@ -521,14 +525,81 @@ public sealed partial class GameServer
         // so a later, bigger pool must never re-pick a different layout under them. Stations pinned
         // before the feature (map entry absent, void world no longer virgin) replay the LEGACY pool,
         // which reproduces the pre-#1115 selection draw-for-draw.
+        // #1874: modular stations are the standard — a FRESH station draws from one joint random table of the
+        // complete templates and the kits of its tier (by weight; Off = the procedural generator as before) and pins
+        // "kit:<key>" plus the composition. A pinned kit station replays its composition, never the kit. Pinned
+        // templates and legacy replays keep the old path draw for draw.
         StationStructure structure;
         var roll = new System.Random(unchecked((int)(sSeed ^ (sSeed >> 32))));
+        var packs = _meta.Description.EnabledStructurePacks;
         StructureTemplate? template = null;
+        StationStructure? kitStructure = null;
+        StationComposition? composition = null;
         bool pinned = _meta.StationTemplates.TryGetValue(station.Id, out var pinnedKey);
-        if (roll.NextDouble() < _meta.Description.StationTemplateUse.Probability())
+        bool pinnedKit = pinned && pinnedKey!.StartsWith("kit:", System.StringComparison.Ordinal);
+        bool fresh = !pinned && _worlds.Active.VirginAtLoad;
+        double useP = _meta.Description.StationTemplateUse.Probability();
+        bool legacyHit = roll.NextDouble() < useP; // consumed for every station: the legacy stream contract (#1115)
+        if (pinnedKit)
         {
-            template = _content.PickStationTemplate(station.SizeTier, _meta.Description.EnabledStructurePacks, roll,
-                legacyOnly: !pinned && !_worlds.Active.VirginAtLoad);
+            if (_meta.StationKits.TryGetValue(station.Id, out var rec))
+            {
+                composition = FromRecord(rec);
+                kitStructure = StationKitComposer.Replay(composition, key => _content.TemplateByKey(StructureKit.KindStation, key), _content, station.SizeTier, out var failure);
+                if (kitStructure is null)
+                {
+                    _log.Warn($"Station '{station.Name}': pinned kit composition cannot be replayed ({failure}) — falling back to the procedural interior.");
+                    composition = null;
+                }
+            }
+            else
+            {
+                _log.Warn($"Station '{station.Name}' is pinned to a kit but has no composition record — falling back to the procedural interior.");
+            }
+        }
+        else if (fresh)
+        {
+            if (useP > 0)
+            {
+                var templates = _content.CompleteTemplatesFor(StructureKit.KindStation, station.SizeTier, packs, null);
+                var kits = _content.KitsFor(StructureKit.KindStation, station.SizeTier, packs, null);
+                int total = 0;
+                foreach (var t in templates) total += System.Math.Max(1, t.Weight);
+                foreach (var k in kits) total += System.Math.Max(1, k.Weight);
+                if (total > 0)
+                {
+                    int r = roll.Next(total);
+                    StructureKit? kit = null;
+                    foreach (var t in templates)
+                    {
+                        r -= System.Math.Max(1, t.Weight);
+                        if (r < 0) { template = t; break; }
+                    }
+
+                    if (template is null)
+                    {
+                        foreach (var k in kits)
+                        {
+                            r -= System.Math.Max(1, k.Weight);
+                            if (r < 0) { kit = k; break; }
+                        }
+                    }
+
+                    if (kit != null)
+                    {
+                        kitStructure = StationKitComposer.Compose(kit, key => _content.TemplateByKey(StructureKit.KindStation, key), sSeed, _content, out composition, out var failure);
+                        if (kitStructure is null)
+                        {
+                            _log.Warn($"Station '{station.Name}': kit '{kit.Key}' could not be assembled ({failure}) — procedural interior instead.");
+                            composition = null;
+                        }
+                    }
+                }
+            }
+        }
+        else if (legacyHit)
+        {
+            template = _content.PickStationTemplate(station.SizeTier, packs, roll, legacyOnly: !pinned);
             if (pinned)
             {
                 // The roll's draw is consumed above (stream contract); the pinned layout wins ("" = procedural).
@@ -538,15 +609,26 @@ public sealed partial class GameServer
 
         if (!pinned)
         {
-            _meta.StationTemplates[station.Id] = template?.Key ?? string.Empty;
+            if (composition != null)
+            {
+                _meta.StationTemplates[station.Id] = "kit:" + composition.KitKey;
+                _meta.StationKits[station.Id] = ToRecord(composition);
+            }
+            else
+            {
+                _meta.StationTemplates[station.Id] = template?.Key ?? string.Empty;
+            }
+
             _repo.SaveMetadata(_meta);
         }
 
-        structure = template != null
-            ? StationGenerator.FromTemplate(template, _content)
-            : StationGenerator.Generate(station.SizeTier, sSeed, _content);
+        structure = kitStructure
+            ?? (template != null
+                ? StationGenerator.FromTemplate(template, _content)
+                : StationGenerator.Generate(station.SizeTier, sSeed, _content));
 
         station.Structure = structure;
+        station.Kit = kitStructure != null ? composition : null;
 
         // Stamp the whole station in one transaction (hundreds of voxels, otherwise one WAL commit each).
         ushort GetStructureCell(Vector3i p) =>
@@ -636,6 +718,13 @@ public sealed partial class GameServer
     /// </summary>
     private void SpawnStationNpcs(BoardableStation station)
     {
+        if (station.Kit != null)
+        {
+            SpawnKitStationCrew(station); // #1874: one resident per cabin, the posts staffed by residents
+            MaybeSpawnVisitingTrader(station);
+            return;
+        }
+
         _stationCrewSpotsTaken.Clear();
         var rng = new System.Random(unchecked((int)(_meta.Seed ^ WorldGenerator.StableHash("station-npc:" + station.Id))));
         int added = 0;

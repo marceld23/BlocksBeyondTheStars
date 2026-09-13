@@ -288,6 +288,67 @@ A settlement template has two uses, selected by `StructureTemplate.Role` (`role`
 - Shipped examples (`tools/gen_settlement_modules.py` → `data/settlement_templates.json`): `timber_cottage`
   (house, village, 6 × 7 × 6) and `iron_flat` (house, town, 6 × 9 × 6, two storeys, deck lights).
 
+## 3c. Structure kits — modules that dock, kits that compose (#1873–#1876, 2026-09-13)
+
+A template is either **complete** (rolled as one piece, as before) or a **module** of a **kit**:
+
+| field | on | meaning |
+|---|---|---|
+| `kit` | template | the kit key every segment that fits together shares (`station_small_1`); a kit may also borrow a module of another kit by key |
+| `function` | template | what the module is for — stations: `hub corridor cabins canteen bar market mission medbay hydro storage hangar room` (`StructureRoles.StationFunctions`); settlements: the plot roles; cities: `city_*`. Empty falls back to `role` |
+| `pinOnly` | template | never rolled for a new structure; stays for the worlds that pinned it (the four original station templates) |
+| `port` | block cell | `tag[:door]` — `door` (2 × 3 standard), `wide`, `ladder` (floor / ceiling) or any word; door option `slide` (default), `energy`, `hinge`, `open`. The wall block stays: it is the seal while nothing docks, and it is cut when a module docks |
+
+**Kits** live in `data/structure_kits.json` and `usercontent/structure_kits/<key>.json` (`StructureKit`): `key`, `name`,
+`kind` (`station` | `settlement` | `city`), `tier`, `pack`, `weight`, `planetTypes`, `modulesMin/Max`, `start`
+(stations), `maxExtent`, `entries[] = { module, min, max, required, weight, rotate }`, and the grid: settlements
+`colsMin/Max`, `rowsMin/Max`, `plotStride`, `building`, `storeys`, `modulesOnly`; cities `grid`, `districtSize`,
+`street`, `height`, `roleMap` (one string per row, letters `P O M H G T R`). `GameContent.SetStructureKits` validates
+(unknown module keys are dropped with a warning; a station kit needs an entry) and `KitsFor(kind, tier, packs, planet)`
+returns them in pool order.
+
+**Ports** (`StructurePorts`): the tagged cells of one outer face, grouped into filled rectangles; the cell behind every
+port cell must be air; a port on a corner or on a marker is an error. Two ports dock when tag and rectangle are equal
+and the faces are opposite. **Seal** (`StructureSeal.FindLeaks`): a flood fill through air from every marker and every
+port's inner cell must never reach the bounding box — the leak cells are returned for the editor. **Rotation**
+(`TemplateTransform.RotateY`): cells, shape yaw + up-face, markers and ports turn together.
+
+**Station composer** (`StationKitComposer`): the start module at the origin, then the required entries' minimum copies
+(kit order), then weighted draws up to the target count; every module tries every open port × its ports × 4 rotations
+(unless `rotate: false`) in a hash-shuffled order and takes the first fit (compatible ports, adjacent walls, no
+bounding-box overlap, inside `maxExtent`); a required module that never fits restarts with the next hash lane (8
+attempts), then the composer fails and the server uses the procedural generator. Baking opens both port walls of a
+joint (a two-deep doorway with a `door_<option>` marker, a ladder column for vertical joints), joins ports that happen
+to coincide, furnishes `room` / `cabin` markers by function (`RoomFurnisher.Style.Station`) and emits `lounge`
+markers in canteens and bars. The composition (module, origin, turns) is pinned in `WorldMetadata.StationKits` and
+`StationTemplates[id] = "kit:<key>"`; `Replay` bakes it without the kit. Selection for a FRESH station: one joint table
+of complete templates (non-pinOnly) and kits of the tier, drawn by weight; `StationTemplateUse = Off` keeps the
+procedural generator.
+
+**Settlement and city kits**: `SettlementLayoutSpec.FromKit` / `CityLayoutSpec.FromKit` shape the grid (pinned in
+`StructurePlacementRecord.KitLayout`), `SettlementGenerator.AssignKitModules` fills the plots / districts — required
+entries first onto the first free slot of the matching role, then weighted draws until `max` — and the per-slot picks are
+pinned in `Composition` (`Modules = 2`, `Kit`). Replays read the record only, so a changed or deleted kit never morphs a
+stamped settlement. Selection mirrors the stations (joint table via `RngFor(instSeed, "kitpick")`; the legacy roll on the
+per-instance stream is still drawn so `ruined` / `island` never shift). Shipped: `tools/gen_station_modules.py`
+(43 station modules, 5 station kits) and `tools/gen_settlement_modules.py` (the default settlement kits + the G.D.S.
+city kit).
+
+**Editor (#1877)** (`StructureEditor.cs`, `KitEditorPanel.cs`): *Use as* toggles whole structure / kit module in both
+editors; module mode shows the kit field (+ **Kits…**), the function stepper (`StructureRoles.StationFunctions`, or the
+plot / district roles — a known role is mirrored into `role` so the legacy per-plot composer still finds the module),
+the port-door stepper (`StructurePorts.DoorOptions`), **Check seal** and **Assemble**. Port brushes are palette entries of
+kind `port` (`door`, `wide`, `ladder`): left-click writes `tag[:door]` into `CellData.Port` of the hit block,
+middle-click clears it; ports render cyan-tinted. Export builds a `StructureTemplate` from the room and refuses port
+errors (`StructurePorts.Validate`) and — station modules only — leaks (`StructureSeal.FindLeaks`, painted red); cells
+carry `port`, meta and template JSON carry `kit` / `function`. The kit panel lists shipped kits of the editor's kinds
+(`station`, or `settlement` + `city`) overlaid by `usercontent/structure_kits/*.json`, edits every `StructureKit` field
+and the entries table, and saves the user file plus `<kind>_exports/<key>/kit.json`. **Assemble** composes the named
+kit with the current seed (`StationKitComposer.Compose`, `SettlementGenerator.Generate` with `SettlementLayoutSpec.FromKit`,
+`CityGenerator.Generate` with `CityLayoutSpec.FromKit`) over the shipped pool plus the user's template files and loads
+the result as a whole structure. `tools/merge_structure.py` merges `kit.json` into `data/structure_kits.json` (defaults
+stripped) and keeps `kit`, `function` and non-empty `port` fields.
+
 ## 4. Open questions
 1. **Marker parity:** confirm the full marker vocabulary each editor must expose (vendor, mission board,
    medbay/heal-tank, hangar, quarters, npc spawn, loot) so authored structures are fully functional.

@@ -243,10 +243,14 @@ public sealed partial class GameServer
         var modules = _content.SettlementModulesFor(_meta.Description.EnabledStructurePacks, planet.Key);
         double moduleChance = modules.Count == 0 ? 0.0 : _meta.Description.SettlementTemplateUse.Probability();
 
+        // #1876: kit entries name modules by key, from every pack — a pack toggled off later must not make a pinned
+        // module vanish under a stamped settlement.
+        var kitPool = _content.SettlementTemplates.Where(t => t.IsModule).ToList();
+
         if (factor > 0 && planet.CityWorld.Length > 0)
         {
             // #1793: a city world gets its one composed city instead of the roll — no hospitality, no ruins.
-            StampCityWorld(planet, rng, sSeed, planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock, modules, moduleChance);
+            StampCityWorld(planet, rng, sSeed, planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock, modules, moduleChance, kitPool);
             return;
         }
 
@@ -294,25 +298,81 @@ public sealed partial class GameServer
             bool ruined;
             SettlementStructure structure;
 
-            // #1115: the record is consulted BEFORE the template pick — a pinned instance replays its
-            // exact template, and a pre-pinning record replays against the LEGACY pool only, which
-            // reproduces the old selection stream draw-for-draw. The template ROLL itself is stream-stable
-            // (same probability from the metadata, same draw), so hit/miss never changes on a replay.
+            // #1115 / #1876: the record is consulted BEFORE any pick — a pinned instance replays its template or its
+            // kit composition, a pre-pinning record replays against the LEGACY pool only (draw for draw), and a
+            // FRESH instance draws from the joint table of complete templates and kits (modular is the standard)
+            // on a lane of its own, so the per-instance stream — the legacy roll, ruined, island — is the same at
+            // the stamp and on every replay.
             var pinRec = FindPlacementRecord("settlement", i);
-            bool legacyReplay = pinRec is { Placed: true, Template.Length: 0 }  // pinned era, before pinning
-                || (pinRec is null && !_worlds.Active.VirginAtLoad);            // pre-#586 world, same deal
+            bool pinnedKit = pinRec is { Placed: true, Modules: >= 2 };
+            bool fresh = pinRec is null && _worlds.Active.VirginAtLoad;
+            bool legacyReplay = (pinRec is { Placed: true, Template.Length: 0 } && !pinnedKit) // pinned era, before pinning
+                || (pinRec is null && !_worlds.Active.VirginAtLoad);                         // pre-#586 world, same deal
 
-            // #1827: modules only where the record allows them — a fresh world records 1; records from before
-            // modules existed and legacy re-derives stay 0, so their layout never changes under the blocks.
+            // #1827: modules only where the record allows them — a fresh world records 1 (2 for a kit); records from
+            // before modules existed and legacy re-derives stay 0, so their layout never changes under the blocks.
             bool modulesOn = pinRec is null ? _worlds.Active.VirginAtLoad : pinRec.Modules >= 1;
-            var template = ir.NextDouble() < _meta.Description.SettlementTemplateUse.Probability()
-                ? _content.PickSettlementTemplate(tier, _meta.Description.EnabledStructurePacks, ir, _world.Planet.Key,
-                    legacyOnly: legacyReplay)
+            double useP = _meta.Description.SettlementTemplateUse.Probability();
+            var packs = _meta.Description.EnabledStructurePacks;
+            // The legacy roll is drawn for every instance, and its pick when it hits (stream contract).
+            var template = ir.NextDouble() < useP
+                ? _content.PickSettlementTemplate(tier, packs, ir, _world.Planet.Key, legacyOnly: legacyReplay)
                 : null;
-            if (pinRec is { Placed: true, Template.Length: > 0 } && template != null)
+            StructureKit? kit = null;
+            SettlementLayoutSpec? layout = null;
+            if (pinRec is { Placed: true, Template.Length: > 0 })
             {
-                // The roll's draw is consumed above (stream contract); the pinned layout wins.
-                template = _content.SettlementTemplateByKey(pinRec.Template) ?? template;
+                template = _content.SettlementTemplateByKey(pinRec.Template) ?? template; // the pinned layout wins
+            }
+            else if (pinnedKit)
+            {
+                template = null;
+                kit = _content.KitByKey(pinRec!.Kit); // may be gone: the pinned grid + composition replay without it
+                if (SettlementLayoutSpec.TryParse(pinRec.KitLayout, out var pinnedLayout))
+                {
+                    layout = pinnedLayout;
+                }
+            }
+            else if (fresh && useP > 0)
+            {
+                // D1 (Marcel 2026-09-13): one joint random table of complete templates and kits, drawn by weight.
+                template = null;
+                var templates = _content.CompleteTemplatesFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key);
+                var kits = _content.KitsFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key);
+                int total = 0;
+                foreach (var t in templates) total += System.Math.Max(1, t.Weight);
+                foreach (var k in kits) total += System.Math.Max(1, k.Weight);
+                if (total > 0)
+                {
+                    int r = RngFor(instSeed, "kitpick").Next(total);
+                    foreach (var t in templates)
+                    {
+                        r -= System.Math.Max(1, t.Weight);
+                        if (r < 0) { template = t; break; }
+                    }
+
+                    if (template is null)
+                    {
+                        foreach (var k in kits)
+                        {
+                            r -= System.Math.Max(1, k.Weight);
+                            if (r < 0) { kit = k; break; }
+                        }
+                    }
+                }
+
+                if (kit != null)
+                {
+                    layout = SettlementLayoutSpec.FromKit(kit, tier, RngFor(instSeed, "kitlayout"));
+                }
+            }
+
+            // #1872: the module per plot is pinned in the record — a pinned list replays, a fresh (or not yet pinned)
+            // instance records what the composer picks, so a later pool change never morphs the buildings.
+            List<string>? composition = null;
+            if (modulesOn)
+            {
+                composition = pinRec?.Composition is { } pinned ? new List<string>(pinned) : new List<string>();
             }
 
             if (template != null)
@@ -320,12 +380,19 @@ public sealed partial class GameServer
                 tier = template.Tier;
                 ruined = false;
                 structure = SettlementGenerator.FromTemplate(template, _content);
+                composition = null; // a whole template holds no plots
             }
             else
             {
                 ruined = ir.NextDouble() < RuinChance(h);
+                bool kitPath = kit != null || pinnedKit;
                 structure = SettlementGenerator.Generate(tier, ruined, instSeed, surface, _content,
-                    modulesOn ? modules : null, moduleChance);
+                    modulesOn ? modules : null, moduleChance, composition, _log.Warn, layout, kit, kitPath ? kitPool : null);
+                if (pinRec is { Placed: true } && pinRec.Composition is null && composition is { Count: > 0 })
+                {
+                    pinRec.Composition = composition; // freeze the current picks of a pre-#1872 record once
+                    _placementRecordsDirty = true;
+                }
             }
 
             bool wantIsland = planet.FloatingIslands && ir.NextDouble() < 0.5;
@@ -382,7 +449,9 @@ public sealed partial class GameServer
                 }
 
                 name = UniqueName(SettlementDisplayName(tier, ruined, RngFor(instSeed, "name")), usedNames);
-                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty, modules: 1);
+                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty,
+                    modules: kit != null ? 2 : 1, composition: composition, kit: kit?.Key ?? string.Empty,
+                    kitLayout: kit != null && layout is { } spec ? spec.Serialize() : string.Empty);
             }
 
             placed.Add(new PlacedSettlement
@@ -480,7 +549,7 @@ public sealed partial class GameServer
     /// becomes a square inside the city, the pad its landing plaza. Pinned like every settlement (kind
     /// "settlement", index 0, template "city:gds") so an existing save keeps its city where it stood.</summary>
     private void StampCityWorld(PlanetType planet, System.Random rng, long sSeed, string surface,
-        IReadOnlyList<StructureTemplate> modules, double moduleChance)
+        IReadOnlyList<StructureTemplate> modules, double moduleChance, IReadOnlyList<StructureTemplate> kitPool)
     {
         if (_landingPads.Count == 0)
         {
@@ -488,12 +557,49 @@ public sealed partial class GameServer
         }
 
         var pad = _landingPads[0];
-        int size = CityGenerator.Footprint;
+        var rec = FindPlacementRecord("settlement", 0);
+
+        // #1876: a kit city — the record pins the kit and its grid; a fresh city draws a city kit for this planet
+        // type (by weight) when one exists, else the composer's own map. Off keeps the map procedural.
+        StructureKit? cityKit = null;
+        var cityLayout = CityLayoutSpec.Default;
+        bool kitCity = false;
+        if (rec is { Placed: true, Modules: >= 2 })
+        {
+            kitCity = true;
+            cityKit = _content.KitByKey(rec.Kit);
+            if (!CityLayoutSpec.TryParse(rec.KitLayout, out cityLayout))
+            {
+                cityLayout = CityLayoutSpec.Default;
+            }
+        }
+        else if (rec is null && _meta.Description.SettlementTemplateUse.Probability() > 0)
+        {
+            var kits = _content.KitsFor(StructureKit.KindCity, null, _meta.Description.EnabledStructurePacks, planet.Key);
+            int total = 0;
+            foreach (var k in kits) total += System.Math.Max(1, k.Weight);
+            if (total > 0)
+            {
+                int r = RngFor(sSeed, "citykit").Next(total);
+                foreach (var k in kits)
+                {
+                    r -= System.Math.Max(1, k.Weight);
+                    if (r < 0) { cityKit = k; break; }
+                }
+
+                if (cityKit != null)
+                {
+                    kitCity = true;
+                    cityLayout = CityLayoutSpec.FromKit(cityKit);
+                }
+            }
+        }
+
+        int size = cityLayout.Footprint;
         var origin = new Vector3i(pad.CenterX - size / 2, pad.CenterY, pad.CenterZ - size / 2);
         int groundY = pad.CenterY;
         string name;
         bool modulesOn;
-        var rec = FindPlacementRecord("settlement", 0);
         if (rec is { Placed: true })
         {
             origin = new Vector3i(rec.X, rec.GroundY, rec.Z);
@@ -505,7 +611,8 @@ public sealed partial class GameServer
         {
             name = CityDisplayName(RngFor(sSeed, "cityname"));
             modulesOn = true;
-            RecordPlacement("settlement", 0, origin, groundY, false, "shelf", name, "city:" + planet.CityWorld, modules: 1);
+            RecordPlacement("settlement", 0, origin, groundY, false, "shelf", name, "city:" + planet.CityWorld,
+                modules: kitCity ? 2 : 1, kit: cityKit?.Key ?? string.Empty, kitLayout: kitCity ? cityLayout.Serialize() : string.Empty);
         }
 
         // Open zones in structure-local coordinates: the pad ring (the plaza keeps it clear for the ship) and
@@ -519,7 +626,19 @@ public sealed partial class GameServer
                 wreckX + WreckReservedHalfExtent - origin.X, wreckZ + WreckReservedHalfExtent - origin.Z),
         };
 
-        var structure = CityGenerator.Generate(sSeed, _content, zones, modulesOn ? modules : null, moduleChance);
+        // #1872: the module per district is pinned like a settlement's plots (see StampSettlement).
+        List<string>? composition = modulesOn
+            ? (rec?.Composition is { } pinned ? new List<string>(pinned) : new List<string>())
+            : null;
+        var structure = CityGenerator.Generate(sSeed, _content, zones, modulesOn ? modules : null, moduleChance, composition, _log.Warn,
+            kitCity ? cityLayout : null, cityKit, kitCity ? kitPool : null);
+        if (composition is { Count: > 0 } && (rec ?? FindPlacementRecord("settlement", 0)) is { } cityRec && cityRec.Composition is null)
+        {
+            cityRec.Composition = composition;
+            _placementRecordsDirty = true;
+            SavePlacementRecords();
+        }
+
         var placed = new List<PlacedSettlement>
         {
             new PlacedSettlement
@@ -838,7 +957,8 @@ public sealed partial class GameServer
     /// <summary>Pins where a structure instance landed (#586). Batched — call
     /// <see cref="SavePlacementRecords"/> once per stamper after its loop.</summary>
     private void RecordPlacement(string kind, int index, Vector3i origin, int groundY, bool onIsland,
-        string seat, string name, string template = "", int modules = 0)
+        string seat, string name, string template = "", int modules = 0, List<string>? composition = null, string kit = "",
+        string kitLayout = "")
     {
         var rec = FindPlacementRecord(kind, index);
         if (rec is null)
@@ -846,6 +966,14 @@ public sealed partial class GameServer
             rec = new StructurePlacementRecord { LocationId = _world.LocationId, Kind = kind, Index = index, Modules = modules };
             _meta.Placements.Add(rec);
         }
+
+        if (composition is not null)
+        {
+            rec.Composition = composition; // #1872: which module went into each slot
+        }
+
+        rec.Kit = kit; // #1876
+        rec.KitLayout = kitLayout;
 
         rec.Placed = true;
         rec.X = origin.X;

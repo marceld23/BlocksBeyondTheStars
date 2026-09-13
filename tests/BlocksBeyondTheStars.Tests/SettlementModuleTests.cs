@@ -562,6 +562,7 @@ public sealed class SettlementModuleTests : IDisposable
         whole.Add(Box("gold_house", StructureRoles.House, "village", 6, 7, 6, "gold_block", ("npc", 3, 1, 3), ("door_hinge", 2, 1, 0)));
         whole.Add(Box("gold_flat", StructureRoles.House, "town", 6, 9, 6, "gold_block", ("npc", 3, 1, 3), ("door_slide", 2, 1, 0)));
         content.SetStructureTemplates(content.StationTemplates, whole);
+        content.SetStructureKits(Array.Empty<StructureKit>()); // #1876: this test exercises the legacy per-plot pick, not a kit
         var gold = new BlockId(content.GetBlock("gold_block")!.NumericId.Value);
 
         for (long seed = 1; seed <= 12; seed++)
@@ -645,6 +646,147 @@ public sealed class SettlementModuleTests : IDisposable
                     Assert.Equal(0, goldCells);
                     server2.Stop();
                 }
+            }
+
+            return;
+        }
+
+        Assert.Fail("no seed in 1..12 stamped a gold module on meadowlands at Frequent — the composer should make this common");
+    }
+
+    // ---------------- #1872: the module per plot is pinned ----------------
+
+    /// <summary>Every block in the rows a settlement's buildings occupy, per settlement box — the layout under test.</summary>
+    private static Dictionary<(int, int), ushort[]> Snapshot(SvGameServer server)
+    {
+        var shot = new Dictionary<(int, int), ushort[]>();
+        foreach (var box in server.SettlementsForTest)
+        {
+            int gy = server.PlacementRecordsForTest.First(r => r.Kind == "settlement" && r.X == box.MinX && r.Z == box.MinZ).GroundY;
+            var cells = new List<ushort>();
+            for (int x = box.MinX; x <= box.MaxX; x++)
+                for (int z = box.MinZ; z <= box.MaxZ; z++)
+                    for (int y = gy; y <= gy + 14; y++)
+                    {
+                        cells.Add(server.World.GetBlock(new Vector3i(x, y, z)).Value);
+                    }
+
+            shot[(box.MinX, box.MinZ)] = cells.ToArray();
+        }
+
+        return shot;
+    }
+
+    [Fact]
+    public void Composition_IsPinnedPerPlot_AndSurvivesAPoolChange()
+    {
+        // Before #1872 a record pinned only "modules on"; the pick per plot was a hash over the pool AS LOADED, so a
+        // module added to the pool (a shipped one, a user-content export) re-dealt the buildings of an existing
+        // settlement on the next load. Now the record lists the module per plot and the composer replays the list.
+        var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        var whole = content.SettlementTemplates.Where(t => !t.IsModule).ToList();
+        whole.Add(Box("gold_house", StructureRoles.House, "village", 6, 7, 6, "gold_block", ("npc", 3, 1, 3), ("door_hinge", 2, 1, 0)));
+        whole.Add(Box("gold_flat", StructureRoles.House, "town", 6, 9, 6, "gold_block", ("npc", 3, 1, 3), ("door_slide", 2, 1, 0)));
+        content.SetStructureTemplates(content.StationTemplates, whole);
+        content.SetStructureKits(Array.Empty<StructureKit>()); // #1876: this test exercises the legacy per-plot pick, not a kit
+
+        // The changed pool: a heavy iron module in FRONT of the gold ones for both styles — the hash pick over this
+        // pool would land on iron on most plots.
+        var changed = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        var pool2 = changed.SettlementTemplates.Where(t => !t.IsModule).ToList();
+        var ironHouse = Box("iron_house", StructureRoles.House, "village", 6, 7, 6, "iron_wall", ("npc", 3, 1, 3), ("door_hinge", 2, 1, 0));
+        var ironFlat = Box("iron_flat_b", StructureRoles.House, "town", 6, 9, 6, "iron_wall", ("npc", 3, 1, 3), ("door_slide", 2, 1, 0));
+        ironHouse.Weight = 99;
+        ironFlat.Weight = 99;
+        pool2.Add(ironHouse);
+        pool2.Add(ironFlat);
+        pool2.Add(whole.First(t => t.Key == "gold_house"));
+        pool2.Add(whole.First(t => t.Key == "gold_flat"));
+        changed.SetStructureTemplates(changed.StationTemplates, pool2);
+        changed.SetStructureKits(Array.Empty<StructureKit>());
+        var gold = new BlockId(content.GetBlock("gold_block")!.NumericId.Value);
+
+        for (long seed = 1; seed <= 12; seed++)
+        {
+            string world = $"pinned_{seed}";
+            Dictionary<(int, int), ushort[]> first;
+            List<(int Index, List<string> Composition)> pinned;
+            var server = Started(content, world, seed, out var repo);
+            using (repo)
+            {
+                var recs = server.PlacementRecordsForTest.Where(r => r.Kind == "settlement" && r.Placed && r.Template.Length == 0).ToList();
+                if (recs.Count == 0)
+                {
+                    server.Stop();
+                    continue;
+                }
+
+                first = Snapshot(server);
+                bool anyGold = first.Values.Any(cells => cells.Any(c => c == gold.Value));
+                if (!anyGold)
+                {
+                    server.Stop();
+                    continue; // only ruins / open plots on this world — next seed
+                }
+
+                // A fresh stamp pins the module of every plot, gold included.
+                Assert.All(recs, r => Assert.NotNull(r.Composition));
+                Assert.Contains(recs, r => r.Composition!.Any(k => k.StartsWith("gold_", StringComparison.Ordinal)));
+                pinned = recs.Select(r => (r.Index, new List<string>(r.Composition!))).ToList();
+                server.Stop();
+            }
+
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+            // Reload with the changed pool: byte-identical buildings, the pinned lists untouched.
+            var server2 = Started(changed, world, seed, out var repo2);
+            using (repo2)
+            {
+                Assert.Equal(first, Snapshot(server2));
+                foreach (var (index, list) in pinned)
+                {
+                    Assert.Equal(list, server2.PlacementRecordsForTest.First(r => r.Kind == "settlement" && r.Index == index).Composition);
+                }
+
+                server2.Stop();
+            }
+
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+            // A save from before the list existed (Modules = 1, no composition) freezes its CURRENT picks on the next
+            // load with the pool it was stamped with — and from then on the changed pool cannot touch it either.
+            {
+                var repo3 = new SqliteWorldRepository(new SaveGamePaths(_root, world));
+                repo3.Initialize();
+                var meta = repo3.LoadMetadata()!;
+                foreach (var r in meta.Placements)
+                {
+                    r.Composition = null;
+                }
+
+                repo3.SaveMetadata(meta);
+                repo3.Dispose();
+                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            }
+
+            var server3 = Started(content, world, seed, out var repo4);
+            using (repo4)
+            {
+                Assert.Equal(first, Snapshot(server3));
+                foreach (var (index, list) in pinned)
+                {
+                    Assert.Equal(list, server3.PlacementRecordsForTest.First(r => r.Kind == "settlement" && r.Index == index).Composition);
+                }
+
+                server3.Stop();
+            }
+
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            var server4 = Started(changed, world, seed, out var repo5);
+            using (repo5)
+            {
+                Assert.Equal(first, Snapshot(server4));
+                server4.Stop();
             }
 
             return;

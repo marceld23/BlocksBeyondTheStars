@@ -60,8 +60,12 @@ public sealed class GameContent
     private Dictionary<string, List<StructureTemplate>> _stationsByTier = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, List<StructureTemplate>> _settlementsByTier = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>All distinct pack names present across both pools (for the world-creation pack picker).</summary>
+    /// <summary>All distinct pack names present across both pools and the kits (for the world-creation pack picker).</summary>
     public IReadOnlyList<string> StructurePacks { get; private set; } = System.Array.Empty<string>();
+
+    /// <summary>Structure kits (#1873): the module names with their entries. Set after the templates, since a kit's
+    /// entries resolve against them.</summary>
+    public IReadOnlyList<StructureKit> StructureKits { get; private set; } = System.Array.Empty<StructureKit>();
 
     /// <summary>Populates the optional structure-template pools (called by the content loader). Builds the
     /// tier-matched sub-pools + the distinct pack list used by selection and the creation UI.</summary>
@@ -72,11 +76,180 @@ public sealed class GameContent
 
         _stationsByTier = GroupByTier(StationTemplates);
         _settlementsByTier = GroupByTier(SettlementTemplates);
+        RefreshStructurePacks();
+    }
 
+    /// <summary>
+    /// Populates the kit pool (#1873), validating each kit against the template pools: an entry whose module key
+    /// resolves nowhere is dropped (with a warning), a required entry places at least one, a kit with an unknown
+    /// kind, no key or no usable entry is dropped. Pool order is kept — the composers draw by weight in this order.
+    /// </summary>
+    public void SetStructureKits(IReadOnlyList<StructureKit>? kits, Action<string>? warn = null)
+    {
+        var kept = new List<StructureKit>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kit in kits ?? System.Array.Empty<StructureKit>())
+        {
+            if (kit == null || string.IsNullOrWhiteSpace(kit.Key))
+            {
+                warn?.Invoke("Skipping a structure kit without a key.");
+                continue;
+            }
+
+            string kind = kit.KindOrDefault;
+            if (System.Array.IndexOf(StructureKit.Kinds, kind) < 0)
+            {
+                warn?.Invoke($"Skipping structure kit '{kit.Key}': unknown kind '{kit.Kind}' (station | settlement | city).");
+                continue;
+            }
+
+            if (!seen.Add(kit.Key))
+            {
+                warn?.Invoke($"Skipping structure kit '{kit.Key}': a kit with that key is already loaded.");
+                continue;
+            }
+
+            kit.Kind = kind;
+            var entries = new List<KitEntry>();
+            foreach (var e in kit.Entries)
+            {
+                if (e == null || string.IsNullOrWhiteSpace(e.Module))
+                {
+                    continue;
+                }
+
+                if (TemplateByKey(kind, e.Module) is null)
+                {
+                    warn?.Invoke($"Structure kit '{kit.Key}': entry '{e.Module}' names no {kind} module — dropped.");
+                    continue;
+                }
+
+                if (e.Required && e.Min < 1)
+                {
+                    e.Min = 1;
+                }
+
+                if (e.Max < e.Min)
+                {
+                    e.Max = e.Min;
+                }
+
+                entries.Add(e);
+            }
+
+            kit.Entries = entries;
+            if (entries.Count == 0 && kind == StructureKit.KindStation)
+            {
+                warn?.Invoke($"Skipping structure kit '{kit.Key}': it has no usable entry."); // a station needs a start module
+                continue;
+            }
+
+            if (kit.Start.Length > 0 && TemplateByKey(kind, kit.Start) is null)
+            {
+                warn?.Invoke($"Structure kit '{kit.Key}': start module '{kit.Start}' does not exist — the first required entry starts the composition.");
+                kit.Start = string.Empty;
+            }
+
+            kept.Add(kit);
+        }
+
+        StructureKits = kept;
+        RefreshStructurePacks();
+    }
+
+    private void RefreshStructurePacks()
+    {
         var packs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var t in StationTemplates) packs.Add(t.PackOrDefault);
         foreach (var t in SettlementTemplates) packs.Add(t.PackOrDefault);
+        foreach (var k in StructureKits) packs.Add(k.PackOrDefault);
         StructurePacks = packs.ToList();
+    }
+
+    /// <summary>A template of either pool by key — modules included (the kit entries resolve through here);
+    /// station kits look in the station pool, settlement and city kits in the settlement pool.</summary>
+    public StructureTemplate? TemplateByKey(string kind, string key)
+    {
+        var pool = kind == StructureKit.KindStation ? StationTemplates : SettlementTemplates;
+        foreach (var t in pool)
+        {
+            if (t.Key == key)
+            {
+                return t;
+            }
+        }
+
+        return null;
+    }
+
+    public StructureKit? KitByKey(string key)
+    {
+        foreach (var k in StructureKits)
+        {
+            if (k.Key == key)
+            {
+                return k;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The kits a slot may draw from (#1873): of <paramref name="kind"/>, of <paramref name="tier"/> (null = any
+    /// tier, for city kits), in the enabled packs and on the planet type, in pool order (the draw is weighted over
+    /// this order — never sort).
+    /// </summary>
+    public IReadOnlyList<StructureKit> KitsFor(string kind, string? tier, IReadOnlyCollection<string>? enabledPacks, string? planetType)
+    {
+        var list = new List<StructureKit>();
+        foreach (var k in StructureKits)
+        {
+            if (k.KindOrDefault != kind)
+            {
+                continue;
+            }
+
+            if (tier != null && !string.Equals(string.IsNullOrWhiteSpace(k.Tier) ? "medium" : k.Tier, tier, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            bool packOk = enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(k.PackOrDefault);
+            bool planetOk = k.PlanetTypes.Count == 0 || string.IsNullOrEmpty(planetType)
+                || k.PlanetTypes.Contains(planetType!, StringComparer.OrdinalIgnoreCase);
+            if (packOk && planetOk)
+            {
+                list.Add(k);
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>The COMPLETE templates of a tier a slot may draw from — non-module, not pin-only, in the enabled
+    /// packs and on the planet — for the joint random table with the kits (#1874).</summary>
+    public IReadOnlyList<StructureTemplate> CompleteTemplatesFor(string kind, string tier, IReadOnlyCollection<string>? enabledPacks, string? planetType)
+    {
+        var byTier = kind == StructureKit.KindStation ? _stationsByTier : _settlementsByTier;
+        var list = new List<StructureTemplate>();
+        if (!byTier.TryGetValue(string.IsNullOrWhiteSpace(tier) ? "medium" : tier, out var candidates))
+        {
+            return list;
+        }
+
+        foreach (var t in candidates)
+        {
+            bool packOk = enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(t.PackOrDefault);
+            bool planetOk = t.PlanetTypes.Count == 0 || string.IsNullOrEmpty(planetType)
+                || t.PlanetTypes.Contains(planetType!, StringComparer.OrdinalIgnoreCase);
+            if (!t.PinOnly && packOk && planetOk)
+            {
+                list.Add(t);
+            }
+        }
+
+        return list;
     }
 
     /// <summary>The settlement building MODULES (#1826: templates with a <see cref="StructureTemplate.Role"/>)
@@ -166,6 +339,16 @@ public sealed class GameContent
             if (candidates.Count == 0)
             {
                 return null; // no legacy template in this tier — exactly the pre-#1115 outcome (no draw)
+            }
+        }
+        else
+        {
+            // #1874: a pin-only template stays for the worlds that pinned it (the legacy replay above still
+            // sees it) and is never rolled for a new structure.
+            candidates = candidates.Where(t => !t.PinOnly).ToList();
+            if (candidates.Count == 0)
+            {
+                return null;
             }
         }
 

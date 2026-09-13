@@ -306,7 +306,7 @@ public sealed partial class GameServer
 
     /// <summary>A villager or a crew member finds its bed and its seat once (#1867): the nearest ones around its marker
     /// nobody else has claimed. Base residents get theirs from the base index instead.</summary>
-    private void EnsureNpcFurniture(ServerNpc npc)
+    private void EnsureNpcFurniture(ServerNpc npc, int reach = FurnitureSearchReach)
     {
         if (npc.BaseId > 0 || npc.FurnitureScanned)
         {
@@ -321,8 +321,8 @@ public sealed partial class GameServer
         ushort bedId = _content.GetBlock(BedBlock)?.NumericId.Value ?? 0;
         double bestBed = double.MaxValue, bestSeat = double.MaxValue;
         Vector3i? bed = null, seat = null;
-        for (int dx = -FurnitureSearchReach; dx <= FurnitureSearchReach; dx++)
-            for (int dz = -FurnitureSearchReach; dz <= FurnitureSearchReach; dz++)
+        for (int dx = -reach; dx <= reach; dx++)
+            for (int dz = -reach; dz <= reach; dz++)
                 for (int dy = -2; dy <= 3; dy++)
                 {
                     var c = new Vector3i(home.X + dx, home.Y + dy, home.Z + dz);

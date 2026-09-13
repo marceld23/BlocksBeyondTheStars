@@ -28,6 +28,21 @@ public sealed partial class GameServer
     private const double FarTileTokenBurst = 160;
     private const int FarTilesSentCap = 4096;
 
+    /// <summary>#1871: wall-clock milliseconds one tick spends BUILDING tiles from the repository. A built-up world
+    /// (a city, a big base) made every tile a repository query worth tens of milliseconds and the client asks for
+    /// up to 48 a second right after joining; built in the handler, that froze the tick for a minute — doors and
+    /// NPCs reacted seconds late while the client-side walk felt fine. Now requests queue per session and this
+    /// budget paces the builds (at least one per tick, so a queue never starves). Cached tiles cost nothing and
+    /// are still answered in the handler.</summary>
+    private const double FarTileBuildBudgetMs = 4.0;
+
+    /// <summary>Queued tiles per session beyond which further requests are dropped (the client re-asks later).</summary>
+    private const int FarTileQueueCap = 512;
+
+    /// <summary>Test seam (#1871): overrides <see cref="FarTileBuildBudgetMs"/>; 0 = exactly one build per tick,
+    /// negative = unlimited (drain the queue in one tick).</summary>
+    internal double? FarTileBudgetMsForTest { get; set; }
+
     /// <summary>How often dirty tiles are rebuilt and re-sent to the clients holding them.</summary>
     private const double FarTileRefreshSeconds = 2.0;
     private double _sinceFarTileRefresh;
@@ -66,6 +81,8 @@ public sealed partial class GameServer
         if (session.FarTilesWorldId != worldId)
         {
             session.FarTilesSent.Clear();
+            session.FarTileQueue.Clear();
+            session.FarTileQueued.Clear();
             session.FarTilesWorldId = worldId;
         }
 
@@ -97,15 +114,84 @@ public sealed partial class GameServer
             }
 
             session.FarTileTokens -= 1;
-            var message = FarTileMessage(world, tx, tz, worldId);
-            if (session.FarTilesSent.Count >= FarTilesSentCap)
+            var key = (tx, tz);
+            if (world.FarTiles.TryGetValue(key, out var cached) && !cached.Dirty && cached.Message is not null)
             {
-                session.FarTilesSent.Clear();
+                SendFarTile(session, world, tx, tz, worldId); // already built: free, answered at once (the old path)
+                continue;
             }
 
-            session.FarTilesSent[(tx, tz)] = message.Version;
-            Send(session, message);
+            // #1871: a build costs a repository query — queued for ServeFarTiles, never done in the handler.
+            if (session.FarTileQueued.Add(key))
+            {
+                if (session.FarTileQueue.Count >= FarTileQueueCap)
+                {
+                    session.FarTileQueued.Remove(key);
+                    break; // the client re-asks what it still lacks
+                }
+
+                session.FarTileQueue.Enqueue(key);
+            }
         }
+    }
+
+    /// <summary>Builds (or fetches) one tile and sends it, recording the version the session holds.</summary>
+    private void SendFarTile(PlayerSession session, LoadedWorld world, int tx, int tz, int worldId)
+    {
+        var message = FarTileMessage(world, tx, tz, worldId);
+        if (session.FarTilesSent.Count >= FarTilesSentCap)
+        {
+            session.FarTilesSent.Clear();
+        }
+
+        session.FarTilesSent[(tx, tz)] = message.Version;
+        Send(session, message);
+    }
+
+    /// <summary>
+    /// #1871: builds the queued tiles of every session on the active world under <see cref="FarTileBuildBudgetMs"/>
+    /// of wall-clock time per tick — round-robin across sessions, at least one tile per tick when anything waits.
+    /// Guard-registered right after the chunk stream.
+    /// </summary>
+    private void ServeFarTiles()
+    {
+        var world = _worlds.Active;
+        if (world is null)
+        {
+            return;
+        }
+
+        int worldId = WorldIdOf(world.LocationId);
+        double budgetMs = FarTileBudgetMsForTest ?? FarTileBuildBudgetMs;
+        long start = System.Diagnostics.Stopwatch.GetTimestamp();
+        int built = 0;
+        bool any;
+        do
+        {
+            any = false;
+            foreach (var session in JoinedInActiveWorld())
+            {
+                if (session.FarTileQueue.Count == 0 || session.FarTilesWorldId != worldId)
+                {
+                    session.FarTileQueue.Clear(); // a stale queue from a world the player left
+                    session.FarTileQueued.Clear();
+                    continue;
+                }
+
+                var (tx, tz) = session.FarTileQueue.Dequeue();
+                session.FarTileQueued.Remove((tx, tz));
+                SendFarTile(session, world, tx, tz, worldId);
+                built++;
+                any = true;
+
+                double elapsedMs = (System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                if (budgetMs >= 0 && (elapsedMs >= budgetMs || budgetMs == 0))
+                {
+                    return; // the budget is spent (at least one tile went out)
+                }
+            }
+        }
+        while (any);
     }
 
     private static bool WithinFarRange(double px, double pz, double cx, double cz, int circumference, int latPeriod)
@@ -244,11 +330,20 @@ public sealed partial class GameServer
 
     private void SendFarTerrainWorldInfo(PlayerSession session) => Send(session, BuildFarTerrainWorldInfo());
 
-    /// <summary>Test seam: runs a tile request the way the dispatcher would (active world = the player's).</summary>
-    internal void FarTerrainTileRequestForTest(PlayerSession session, FarTerrainTileRequest request)
+    /// <summary>Test seam: runs a tile request the way the dispatcher would (active world = the player's) and,
+    /// unless <paramref name="queueOnly"/>, serves everything it queued in one go (#1871) — the pre-queue contract
+    /// for tests that look at the answer straight away.</summary>
+    internal void FarTerrainTileRequestForTest(PlayerSession session, FarTerrainTileRequest request, bool queueOnly = false)
     {
         SetActiveWorld(session.CurrentLocationId);
         HandleFarTerrainTileRequest(session, request);
+        if (!queueOnly)
+        {
+            double? saved = FarTileBudgetMsForTest;
+            FarTileBudgetMsForTest = -1;
+            ServeFarTiles();
+            FarTileBudgetMsForTest = saved;
+        }
     }
 
     /// <summary>Whether this tick re-sends changed tiles (decided once per tick, like the chunk sweep).</summary>

@@ -131,6 +131,36 @@ def entry(key, name, tier, role, height, cells):
     }
 
 
+KITS = DATA / "structure_kits.json"
+
+
+def default_kits():
+    """The default settlement kits (#1876): today's grid per tier with the shipped house modules as optional entries
+    (so a kit village looks like a village), plus the G.D.S. city kit reproducing the composer's own 7×7 map."""
+    kits = []
+    for tier, module in (("hamlet", "timber_cottage"), ("village", "timber_cottage"), ("town", "iron_flat"), ("city", "iron_flat")):
+        kits.append({
+            "key": f"{tier}_default_1",
+            "name": f"{tier.capitalize()} Default 1",
+            "kind": "settlement",
+            "tier": tier,
+            "pack": "default",
+            "weight": 2,
+            "entries": [{"module": module, "min": 0, "max": 2, "required": False, "weight": 1}],
+        })
+    kits.append({
+        "key": "city_gds_default_1",
+        "name": "G.D.S. City Default 1",
+        "kind": "city",
+        "tier": "metropolis",
+        "pack": "default",
+        "weight": 1,
+        "planetTypes": ["gds_desert"],
+        "entries": [],
+    })
+    return kits
+
+
 def main():
     pool = _load(POOL) if POOL.exists() else []
     for new in (timber_cottage(), iron_flat()):
@@ -141,6 +171,16 @@ def main():
             pool.append(new)
         print(f"{new['key']}: {len(new['cells'])} cells, {new['width']}x{new['height']}x{new['length']}, role {new['role']}")
     _dump(POOL, pool)
+
+    kit_pool = _load(KITS) if KITS.exists() else []
+    for kit in default_kits():
+        existing = next((e for e in kit_pool if e.get("key") == kit["key"]), None)
+        if existing is not None:
+            kit_pool[kit_pool.index(existing)] = kit
+        else:
+            kit_pool.append(kit)
+        print(f"{kit['key']}: {kit['kind']} {kit['tier']}, {len(kit['entries'])} entries")
+    _dump(KITS, kit_pool)
 
 
 if __name__ == "__main__":

@@ -166,6 +166,12 @@ public sealed class PlayerSession
     public double FarTileTokens { get; set; } = 64;
     public double FarTileTokensAt { get; set; }
 
+    /// <summary>#1871: accepted tile requests still waiting for their build. Tiles are built under a per-tick budget
+    /// (<c>ServeFarTiles</c>), never in the request handler — a burst of requests on a built-up world used to stall
+    /// the tick for a minute. <see cref="FarTileQueued"/> mirrors the queue so a re-ask of a queued tile is a no-op.</summary>
+    public Queue<(int Tx, int Tz)> FarTileQueue { get; } = new();
+    public HashSet<(int Tx, int Tz)> FarTileQueued { get; } = new();
+
     /// <summary>#1820: the next streaming pass sends this session its world's FarTerrainWorldInfo (set on join and
     /// whenever a WorldReset goes out).</summary>
     public bool FarInfoDue { get; set; } = true;

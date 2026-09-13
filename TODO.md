@@ -24,6 +24,43 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧩 Modular structure kits — stations from docking modules, settlement and city kits, the far-tile stall (#1878: #1871 #1872 #1873 #1874 #1875 #1876 #1877, 2026-09-13/14, branch feat/modular-kits)
+
+Marcel's model: a structure is either **complete** (today's templates) or a **module** of a **kit** — the module name every
+segment that fits together shares ("Small Station 1"). A kit entry says how many modules, which are mandatory and which
+random; station modules dock **airtight** through wall **ports**; villages and cities use the same kit table and the kit
+shapes their grid. Every composition is **pinned**, so nothing looks different after a reload.
+
+- **#1871 Far-tile fix (first).** The far-terrain column query let SQLite scan every edit of the planet per tile
+  (50–90 ms on the city save, empty tiles included) and tiles were built inside the request handler, 48 a second after
+  joining — the tick stalled for a minute and doors opened seconds late. `CROSS JOIN` pins the join order (0–19 ms),
+  PostgreSQL uses `DISTINCT ON`, requests queue per session and `ServeFarTiles` builds them under a 4 ms per-tick budget.
+- **#1872 Pinned plots.** `StructurePlacementRecord.Composition` lists the module per plot / district; the composers
+  replay the list, never the pool (a pool change used to re-deal the buildings of an existing settlement); pre-#1872
+  records freeze their current picks once.
+- **#1873 Contract.** `StructureTemplate.Kit/Function/PinOnly`, `TemplateCell.Port` (`tag[:slide|energy|hinge|open]`),
+  `StructureKit` (`data/structure_kits.json`, `usercontent/structure_kits/`), `TemplateTransform.RotateY`,
+  `StructurePorts` (collect/validate/compatible), `StructureSeal.FindLeaks`.
+- **#1874 Station composer.** `StationKitComposer`: required modules first, weighted draws, four rotations, no overlap,
+  eight attempts then the procedural fallback; joints opened on both sides with a door marker per port, ladder shafts
+  for vertical ports, rooms furnished by function, `lounge` markers in canteens and bars. Fresh stations draw from ONE
+  joint table of complete templates and kits (Off = procedural), pin `kit:<key>` + `WorldMetadata.StationKits`, and
+  replay the pinned modules. Crew = one resident per `cabin` marker with its own bed, the posts staffed by residents,
+  the canteen in the evening, no filler crew. Station path limits (96, 16, 8000).
+- **#1875 Content.** `tools/gen_station_modules.py`: 43 modules in three sizes, kits small … colossal (crew 4 / 6 / 10 /
+  14 / 20, two decks from large up); the four original templates are `pinOnly` and return as room modules.
+- **#1876 Ground kits.** `SettlementLayoutSpec` / `CityLayoutSpec` (pinned as `KitLayout`), `AssignKitModules` fills
+  plots and districts (required first, weighted draws, modules-only squares), `CityGenerator.RoleAtFor` with a district
+  map, default kits per tier + the G.D.S. city kit (`tools/gen_settlement_modules.py`).
+- **#1877 Editor.** Station and Town editor: *Use as* whole structure / kit module with kit field and function
+  stepper, port brushes (door / wide / ladder) + port-door option, *Check seal* paints leaks red and gates the export,
+  *Kits…* panel (`KitEditorPanel`: shipped + user kits, entries table, save to user content + `kit.json` bundle),
+  *Assemble* previews the kit with the real composer; `tools/merge_structure.py` merges kits, functions and ports.
+- Verified: non-Slow server suite 3164/3164, local Unity build green. **Open: Marcel's playtest** (city save doors,
+  fresh-world stations with cabins and docked modules, reload stability, editor ports / seal / kits).
+- Docs: [docs/developer/STATION_SETTLEMENT_EDITOR.md](docs/developer/STATION_SETTLEMENT_EDITOR.md) §3c,
+  [docs/developer/WORLD_GENERATION.md](docs/developer/WORLD_GENERATION.md) §18, [docs/developer/NPC_ROUTINES.md](docs/developer/NPC_ROUTINES.md).
+
 ### 🏡 Living NPCs — beds bring residents, posts at home, a daily routine with routes and doors, jobs with yield, the station night (#1851: #1865 #1866 #1867 #1868 #1869, 2026-09-13, branch feat/living-npcs-1851)
 
 Lyxette asked where her settler should walk, whether a big base attracts more people and what they do all day. Every

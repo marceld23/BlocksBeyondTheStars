@@ -587,10 +587,12 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT e.x, e.y, e.z, e.block, e.tint FROM block_edit e JOIN (" +
-                              "SELECT x, z, MAX(y) AS top FROM block_edit WHERE planet = @p AND block <> 0 " +
-                              "AND x BETWEEN @minx AND @maxx AND z BETWEEN @minz AND @maxz GROUP BY x, z) t " +
-                              "ON e.planet = @p AND e.x = t.x AND e.z = t.z AND e.y = t.top;";
+            // #1871: one range scan of the key, the top row per column chosen by the ORDER BY — the old
+            // self-join let the planner scan every edit of the planet per tile (see SqliteWorldRepository).
+            cmd.CommandText = "SELECT DISTINCT ON (x, z) x, y, z, block, tint FROM block_edit " +
+                              "WHERE planet = @p AND block <> 0 " +
+                              "AND x BETWEEN @minx AND @maxx AND z BETWEEN @minz AND @maxz " +
+                              "ORDER BY x, z, y DESC;";
             cmd.Parameters.AddWithValue("@p", planet);
             cmd.Parameters.AddWithValue("@minx", minX);
             cmd.Parameters.AddWithValue("@maxx", maxX);

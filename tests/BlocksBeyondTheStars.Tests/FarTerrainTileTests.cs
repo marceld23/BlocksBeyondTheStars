@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.Networking;
@@ -131,6 +132,102 @@ public sealed class FarTerrainTileTests : IDisposable
 
         var request = new FarTerrainTileRequest { WorldId = 3, Tiles = new[] { 1, 2, 3, 4 } };
         Assert.Equal(request.Tiles, Assert.IsType<FarTerrainTileRequest>(NetCodec.Decode(NetCodec.Encode(request))).Tiles);
+    }
+
+    // ---------------- #1871: the far-tile query must never scan the planet, and builds are paced per tick ----------------
+
+    [Fact]
+    public void ColumnTopsQueryPlan_LooksUpTheOuterRowsByTheirFullKey_NeverScansThePlanet()
+    {
+        // On a city save (808k edits) the old plain JOIN put block_edit on the outer side with only planet=? to
+        // search on — a scan of every edit on the planet per tile (50–90 ms, empty tiles included). The CROSS
+        // JOIN pins the order; this test pins the plan so a future SQLite or query edit cannot bring it back.
+        using var sqlite = new SqliteWorldRepository(new SaveGamePaths(_root, "plan_sqlite"));
+        sqlite.Initialize();
+        var plan = sqlite.ExplainEditColumnTopsForTest();
+        Assert.NotEmpty(plan);
+        Assert.Contains(plan, step => step.Contains("x=?", StringComparison.Ordinal) && step.Contains("y=?", StringComparison.Ordinal) && step.Contains("z=?", StringComparison.Ordinal));
+        Assert.DoesNotContain(plan, step => step.Contains("AUTOMATIC", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(plan, step => step.Contains("BLOOM", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private sealed class RecordingTransport : IServerTransport
+    {
+        public event Action<int>? ClientConnected;
+        public event Action<int>? ClientDisconnected;
+        public event Action<int, byte[]>? PayloadReceived;
+
+        public readonly List<FarTerrainTile> Tiles = new();
+
+        public void Start(int port) { }
+
+        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
+        {
+            if (NetCodec.Decode(payload) is FarTerrainTile t) Tiles.Add(t);
+        }
+
+        public void Broadcast(byte[] payload, DeliveryMode mode) { }
+
+        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
+        public void Stop() { }
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public void TileBuilds_ArePacedByThePerTickBudget_AndCachedTilesAnswerAtOnce()
+    {
+        // A request burst on a built-up world used to build every tile inside the handler and freeze the tick for
+        // a minute (doors opened seconds late). Now a request queues the builds; ServeFarTiles drains the queue
+        // under a wall-clock budget — pinned here to "one build per tick" so the pacing is observable.
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "paced"));
+        var transport = new RecordingTransport();
+        var config = new ServerConfig { WorldName = "paced", Seed = 11, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var server = new SvGameServer(config, Content, transport, repo);
+        server.Start();
+        var p = server.AddLocalPlayer("Watcher");
+        server.TickForTest(0.1); // the world-info pass
+        server.FarTileBudgetMsForTest = 0;
+
+        var feet = p.State.Position.ToBlock();
+        int circ = server.World.Circumference;
+        var origin = Shared.World.WorldConstants.CanonicalBlock(feet, circ);
+        int tx0 = origin.X >> 6, tz0 = origin.Z >> 6;
+        var pairs = new List<int>();
+        for (int i = 0; i < 24; i++)
+        {
+            pairs.Add(tx0 + i % 6 - 3);
+            pairs.Add(tz0 + i / 6 - 2);
+        }
+
+        server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = pairs.ToArray() }, queueOnly: true);
+        Assert.Empty(transport.Tiles); // nothing is built in the handler any more
+        Assert.Equal(24, p.FarTileQueue.Count);
+
+        server.TickForTest(0.1);
+        Assert.Single(transport.Tiles); // one build per tick at budget 0
+        for (int i = 0; i < 23; i++)
+        {
+            server.TickForTest(0.1);
+        }
+
+        Assert.Equal(24, transport.Tiles.Count);
+        Assert.Equal(24, transport.Tiles.Select(t => (t.TileX, t.TileZ)).Distinct().Count()); // every tile once
+        Assert.Empty(p.FarTileQueue);
+
+        // Asking again for tiles the world has cached is answered inside the handler — free, no queue.
+        server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = pairs.Take(8).ToArray() }, queueOnly: true);
+        Assert.Equal(28, transport.Tiles.Count);
+        Assert.Empty(p.FarTileQueue);
+
+        // A re-ask of a tile that is still queued is a no-op: the queue holds each tile once.
+        transport.Tiles.Clear();
+        var fresh = new[] { tx0 + 9, tz0, tx0 + 9, tz0, tx0 + 10, tz0 };
+        server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = fresh }, queueOnly: true);
+        Assert.Equal(2, p.FarTileQueue.Count);
+        server.FarTileBudgetMsForTest = -1; // unlimited: the queue drains in one tick
+        server.TickForTest(0.1);
+        Assert.Equal(2, transport.Tiles.Count);
+        server.Stop();
     }
 
     public void Dispose()
