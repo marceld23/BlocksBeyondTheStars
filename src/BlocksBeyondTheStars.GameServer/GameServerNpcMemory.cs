@@ -37,6 +37,12 @@ public sealed partial class GameServer
     /// by its hash minted a new settler (NPC + roster entry) on every rename (#1262).</summary>
     private static string BaseSettlerKey(int baseId) => NpcKey("base_" + baseId, "settler");
 
+    /// <summary>A base resident's memory key (#1865): the PERSON in a slot, whatever job they hold — slot 0 is the
+    /// founding settler's pre-existing key, the residents the beds brought are <c>base_&lt;id&gt;#&lt;slot&gt;:settler</c>.
+    /// A resident who takes over the trading post stays the same acquaintance (the relationship's role follows).</summary>
+    private static string BaseResidentKey(int baseId, int slot)
+        => slot == 0 ? BaseSettlerKey(baseId) : NpcKey($"base_{baseId}#{slot}", "settler");
+
     /// <summary>The board location id from a board mission id (strips the trailing _&lt;slot&gt;).</summary>
     private static string LocationKeyOfMission(string missionId)
     {
@@ -84,13 +90,29 @@ public sealed partial class GameServer
 
     /// <summary>Records that the player took a mission from a board's quartermaster (item 14).</summary>
     private void RecordMissionAccepted(PlayerState player, string missionId, string giverName)
-        => RecordNpcInteraction(player, NpcKey(LocationKeyOfMission(missionId), "quartermaster"), giverName, "quartermaster", NpcInteractionKind.MissionAccepted, NpcPlaceFor(player));
+    {
+        // #1865: a base board's quartermaster is one of the base's residents — the job goes on that person's memory.
+        if (IsBaseMission(missionId) && BaseResidentWithJob(player, "quartermaster") is { } qm)
+        {
+            RecordNpcInteraction(player, BaseResidentKey(qm.BaseId, qm.BaseSlot), qm.Name, "quartermaster", NpcInteractionKind.MissionAccepted, qm.Settlement);
+            return;
+        }
+
+        RecordNpcInteraction(player, NpcKey(LocationKeyOfMission(missionId), "quartermaster"), giverName, "quartermaster", NpcInteractionKind.MissionAccepted, NpcPlaceFor(player));
+    }
 
     /// <summary>Records a barter the player just made at a settlement/station vendor (item 14); no-op aboard ship.</summary>
     private void RecordVendorTrade(PlayerState player)
     {
         string locationKey;
         var vendor = NearestNpc(player, "vendor");
+        if (NearBaseVendor(player) && BaseResidentWithJob(player, "vendor") is { } resident)
+        {
+            // #1865: the trader at home is a resident — the barter goes on that person's memory.
+            RecordNpcInteraction(player, BaseResidentKey(resident.BaseId, resident.BaseSlot), resident.Name, "vendor", NpcInteractionKind.Trade, resident.Settlement);
+            return;
+        }
+
         if (NearSettlementVendor(player))
         {
             locationKey = SettlementLocationKey(vendor?.Settlement ?? string.Empty);

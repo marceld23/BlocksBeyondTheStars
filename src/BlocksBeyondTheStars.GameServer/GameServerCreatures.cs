@@ -115,17 +115,14 @@ public sealed partial class GameServer
 
     // --- Day/night activity (ties into the World-systems clock) ---
 
-    private bool IsNight => TimeOfDay < 0.25f || TimeOfDay > 0.75f;
-
-    private bool IsDawnOrDusk => (TimeOfDay >= 0.20f && TimeOfDay <= 0.30f)
-                                 || (TimeOfDay >= 0.70f && TimeOfDay <= 0.80f);
-
-    /// <summary>Whether a species is awake/active right now (else it is sleeping/resting).</summary>
-    private bool SpeciesActive(CreatureSpecies s) => s.Activity switch
+    /// <summary>Whether a species is awake/active right now at <paramref name="at"/> (else it is sleeping/resting).
+    /// Day and night are LOCAL (#1865): the sky a player sees is shifted by longitude, so an animal on the far side
+    /// of the planet keeps the hours of the sun above it, not of the world clock.</summary>
+    private bool SpeciesActive(CreatureSpecies s, Vector3f at) => s.Activity switch
     {
-        CreatureActivity.Diurnal => !IsNight,
-        CreatureActivity.Nocturnal => IsNight,
-        CreatureActivity.Crepuscular => IsDawnOrDusk,
+        CreatureActivity.Diurnal => !IsNightAt(at),
+        CreatureActivity.Nocturnal => IsNightAt(at),
+        CreatureActivity.Crepuscular => IsDawnOrDuskAt(at),
         _ => true, // Cathemeral
     };
 
@@ -273,7 +270,7 @@ public sealed partial class GameServer
 
             // Hostile species attack; so do provoked (territorial) creatures fighting back.
             bool aggressiveNow = sp.Hostile || creature.ProvokeTimer > 0;
-            if (!aggressiveNow || !SpeciesActive(sp))
+            if (!aggressiveNow || !SpeciesActive(sp, creature.Position))
             {
                 continue;
             }
@@ -905,7 +902,7 @@ public sealed partial class GameServer
 
             // A creature in its off-phase is asleep — but a player coming within wake distance stirs it (being
             // hit does too, via ProvokeCreature). Once roused it stays alert for a while, then settles back.
-            if (!SpeciesActive(sp) && creature.AwakeOverrideTimer <= 0 && nearest is { } wakePos
+            if (!SpeciesActive(sp, creature.Position) && creature.AwakeOverrideTimer <= 0 && nearest is { } wakePos
                 && WrapDistSq(creature.Position, wakePos) <= CreatureWakeDistance * CreatureWakeDistance)
             {
                 creature.AwakeOverrideTimer = CreatureWakeSeconds;
@@ -917,7 +914,7 @@ public sealed partial class GameServer
             // falls through to normal temperament-driven behaviour (skittish ones flee, hunters seek, others
             // just wander).
             var motion = EffectiveMotion(creature, sp);
-            bool asleep = !SpeciesActive(sp) && creature.AwakeOverrideTimer <= 0;
+            bool asleep = !SpeciesActive(sp, creature.Position) && creature.AwakeOverrideTimer <= 0;
 
             // #1320: a sleeper skips every collision gate on the movement path, so a player building a wall
             // or floor THROUGH a sleeping herd left the bodies embedded in the masonry all night. Re-validate
@@ -2628,7 +2625,7 @@ public sealed partial class GameServer
     private NetCreature ToNetCreature(CombatEntity e)
     {
         _speciesById.TryGetValue(e.SpeciesId, out var sp);
-        bool asleep = sp != null && !SpeciesActive(sp) && e.AwakeOverrideTimer <= 0 && !e.IsCompanion; // roused or companion → not asleep
+        bool asleep = sp != null && !SpeciesActive(sp, e.Position) && e.AwakeOverrideTimer <= 0 && !e.IsCompanion; // roused or companion → not asleep
 
         // Motion class + vertical state on the wire (#1333, additive): a walker is airborne mid-jump/fall (with
         // its velocity so the client can integrate the arc between updates), a flier is airborne unless perched,

@@ -722,7 +722,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void ApplyCaptureEnv(WorldEnvironment env)
         {
-            env.TimeOfDay = Mathf.Repeat(_captureLocalTime - PlayerPosition.x / Circumference, 1f);
+            env.TimeOfDay = Mathf.Repeat(_captureLocalTime - (string.IsNullOrEmpty(StationName) ? PlayerPosition.x / Circumference : 0f), 1f); // #1869: no longitude aboard a station
             env.Weather = "clear";
             env.Precipitation = "none";
             env.Intensity = 0f;
@@ -782,9 +782,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Time-of-day at the player's position — the server's global day fraction shifted by the
         /// player's longitude (world X), wrapped to 0..1. Drives the sky + HUD clock, so two players at
-        /// different X see different times (one's day side, the other's night side).</summary>
+        /// different X see different times (one's day side, the other's night side). Aboard a station there is no
+        /// longitude (#1869): the station clock is the local clock, the same one its crew sleeps by and its deck lights
+        /// dim to — walking across the deck no longer moves the HUD clock.</summary>
         public float LocalTimeOfDay
-            => Mathf.Repeat((Environment != null ? Environment.TimeOfDay : 0.5f) + PlayerPosition.x / Circumference, 1f);
+            => Mathf.Repeat((Environment != null ? Environment.TimeOfDay : 0.5f)
+                            + (string.IsNullOrEmpty(StationName) ? PlayerPosition.x / Circumference : 0f), 1f);
 
         /// <summary>
         /// Maps an authoritative (canonical) world X to the Unity scene X nearest the player. World-X is a

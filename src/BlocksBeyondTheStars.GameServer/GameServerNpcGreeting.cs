@@ -81,7 +81,7 @@ public sealed partial class GameServer
             ? StationLocationKey(st)
             : SettlementLocationKey(npc.Settlement);
         string npcKey = !string.IsNullOrEmpty(npc.CharacterId) ? "char:" + npc.CharacterId
-            : npc.BaseId > 0 ? BaseSettlerKey(npc.BaseId) // a base settler is keyed by base id, rename-proof (#1262)
+            : npc.BaseId > 0 ? BaseResidentKey(npc.BaseId, npc.BaseSlot) // a base resident is keyed by base id + slot, rename-proof (#1262, #1865)
             : NpcKey(locationKey, npc.Role);
 
         var rel = player.NpcMemory.TryGetValue(npcKey, out var r) ? r : null;

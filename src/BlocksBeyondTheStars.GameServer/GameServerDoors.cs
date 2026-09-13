@@ -48,6 +48,7 @@ public sealed partial class GameServer
         public double AutoCloseTimer;  // slide doors: counts down once no player is near
         public bool PlayerBuilt;       // placed by a player (persisted + removable by mining), not stamped
         public float OpenRange = 4.5f; // proximity at which a slide door opens (SlideDoorOpenRange; tighter for the hatch)
+        public double NpcHeldUntil;    // #1866: a hand door an NPC swung open closes after this uptime (0 = a player's, left alone)
     }
 
     /// <summary>Doors the player swings by hand with E (as opposed to slide/energy doors, which the server opens
@@ -287,13 +288,42 @@ public sealed partial class GameServer
             }
         }
 
+        // #1866: an NPC walking a route opens the slide doors on it like a player; idle NPCs don't (a vendor standing
+        // beside a doorway must not hold it open all day).
+        foreach (var npc in _npcs)
+        {
+            if (npc.Goal is not null)
+            {
+                _doorTargets.Add(npc.Pos);
+            }
+        }
+
         var targets = _doorTargets;
         bool changed = false;
         foreach (var door in _doors)
         {
             if (door.Kind != "slide" && door.Kind != "energy")
             {
-                continue; // hinge doors are manual (HandleDoorInteract); slide + energy auto-open on proximity
+                // hinge doors are manual (HandleDoorInteract); slide + energy auto-open on proximity. A hand door an NPC
+                // swung open (#1866) closes behind them once nobody stands in its gap.
+                if (door.Open && door.NpcHeldUntil > 0 && _uptime >= door.NpcHeldUntil)
+                {
+                    bool someoneInGap = false;
+                    for (int i = 0; i < targets.Count && !someoneInGap; i++)
+                    {
+                        someoneInGap = WrapDistSq(targets[i], door.Pos) <= 1.2f * 1.2f;
+                    }
+
+                    if (!someoneInGap)
+                    {
+                        door.Open = false;
+                        door.NpcHeldUntil = 0;
+                        MarkBaseWallsDirty(_world, door.Pos.ToBlock());
+                        changed = true;
+                    }
+                }
+
+                continue;
             }
 
             bool near = false;
@@ -338,6 +368,7 @@ public sealed partial class GameServer
         }
 
         door.Open = !door.Open;
+        door.NpcHeldUntil = 0; // #1866: the player owns this door's state now — no NPC closes it behind them
         MarkBaseWallsDirty(_world, door.Pos.ToBlock()); // #1367: a shut gate is a wall to the fill, an open one a gap
 
         // #1852: the other leaf of a double door follows this one, so one E swings the whole gateway. The

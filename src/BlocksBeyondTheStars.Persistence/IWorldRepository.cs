@@ -564,6 +564,15 @@ public interface IWorldRepository : IDisposable
     /// longitude seam must be asked as two boxes.</summary>
     bool TryGetPlayerBlockEditBounds(string planet, Vector3i min, Vector3i max, out Vector3i lo, out Vector3i hi);
 
+    /// <summary>#1865: every stored edit inside the inclusive box whose block is one of <paramref name="blocks"/>
+    /// OR whose packed shape descriptor carries one of <paramref name="shapeIndices"/> (the 6-bit form index,
+    /// <c>(shape &gt;&gt; 2) &amp; 63</c>) — capped at <paramref name="limit"/> rows. Air edits never match. A base
+    /// indexes its beds, seats, posts and workshops with one bounded query instead of scanning a million voxels:
+    /// every one of those was placed by a player, so the edit store holds them all. Coordinates are canonical — a
+    /// box that straddles the longitude seam must be asked as two boxes.</summary>
+    IReadOnlyList<BlockEdit> ListBlockEditsMatching(string planet, Vector3i min, Vector3i max,
+        IReadOnlyCollection<ushort> blocks, IReadOnlyCollection<int> shapeIndices, int limit);
+
     /// <summary>True if the location holds ANY persisted block edit, by any writer — worldgen stamps
     /// included. This is the ground truth for "was this world ever materialised before?" (#586): a world
     /// with zero edits has never had its stamp chain run, so the placement search may use the current

@@ -40,6 +40,11 @@ namespace BlocksBeyondTheStars.Client
         // x=start, y=end, z=max strength (already faded out indoors), w=on.
         private static readonly int FogId = Shader.PropertyToID("_Sc_Fog");
         private float _indoor; // smoothed ship-interior fill (0 outside → 1 aboard)
+        private float _stationDim = 1f; // #1869: smoothed station deck light (1 by day → StationNightFloor at night)
+
+        /// <summary>How far a station's deck light drops at station night (#1869) — dim, never dark: the corridors
+        /// stay walkable, the strip lights still glow.</summary>
+        private const float StationNightFloor = 0.45f;
 
         /// <summary>Twilight band half-width in sun-height units: dusk/dawn is active while the sun is within this
         /// of the horizon (|sin(sunAngle)| ≤ band). 0.34 ≈ the sun within ~20° of the horizon — a civil+nautical
@@ -244,8 +249,14 @@ namespace BlocksBeyondTheStars.Client
             // spends less of the cycle reading as dark. The sky colour + fog below still use the raw `day` so the
             // visible terminator stays tied to the real sun height.
             float dayLit = day * (2f - day);
-            // Inside an orbital station there is no day/night — it's lit by its own constant lighting.
-            float brightness = constantLight ? 1f : Mathf.Lerp(0.35f, 1f, dayLit); // night floor → noon
+            // Inside an orbital station there is no sun — it's lit by its own lighting. Since #1869 that lighting keeps
+            // the station clock: the deck dims at station night (the crew is asleep) and comes back up by morning.
+            // Emissive strip lights stay bright (they are the lamps); only the fill drops. Smoothed so a clock step
+            // or boarding at night fades instead of snapping.
+            float stationTarget = constantLight ? Mathf.Lerp(StationNightFloor, 1f, dayLit) : 1f;
+            _stationDim = Mathf.MoveTowards(_stationDim, stationTarget, Time.deltaTime * 0.5f);
+            float stationDim = constantLight ? _stationDim : 1f;
+            float brightness = constantLight ? stationDim : Mathf.Lerp(0.35f, 1f, dayLit); // night floor → noon
             // Storms darken — but only to 0.78 now (was 0.65, #1457): the block light goes through the sRGB→linear
             // conversion below, so 0.65 landed in the shader as ~0.38 of noon, and on the overcast-only worlds
             // (swamp, ashen, fungal never clear) every daytime read as dusk. A grey day should still be a day.
@@ -279,7 +290,7 @@ namespace BlocksBeyondTheStars.Client
             Color litSun = constantLight ? warmSun : warmSun * lift;
 
             // Stations use a clean neutral interior light (not the system sun's tint).
-            Color tint = constantLight ? new Color(0.95f, 0.96f, 1f) : litSun * (brightness * weatherDim);
+            Color tint = constantLight ? new Color(0.95f, 0.96f, 1f) * stationDim : litSun * (brightness * weatherDim);
 
             // A lightning strike lights the WORLD for a moment (#900), not just the screen: the block light
             // global is pushed toward a cold white, so the whole landscape flares out of a dark storm.
@@ -298,7 +309,7 @@ namespace BlocksBeyondTheStars.Client
             // sunlit outdoors seen through the windows. Smoothed so boarding/leaving fades.
             // Interior fill light: aboard your ship, or boarded on a station (its life-support lighting).
             bool litInterior = Game != null && (Game.Aboard || !string.IsNullOrEmpty(Game.StationName));
-            float indoorTarget = litInterior ? 1f : 0f;
+            float indoorTarget = litInterior ? stationDim : 0f; // #1869: a station's fill follows its night
             _indoor = Mathf.MoveTowards(_indoor, indoorTarget, Time.deltaTime * 3f);
             Shader.SetGlobalFloat(IndoorId, _indoor);
 

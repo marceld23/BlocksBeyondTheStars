@@ -514,7 +514,7 @@ public sealed partial class GameServer
             }
 
             // First nightfall out on a surface (not aboard / docked) — warn about the dark.
-            bool night = _dayFraction < 0.15 || _dayFraction > 0.85;
+            bool night = LocalDayFraction(session.State.Position) is < 0.15 or > 0.85; // #1865: the local sun
             if (night && !p.AboardShip && !InStation(p.PlayerId))
             {
                 ShipAiHintOnce(session, "night");
@@ -687,7 +687,8 @@ public sealed partial class GameServer
     {
         var p = session.State;
         string world = _world.Planet?.Key ?? "space";
-        string phase = _dayFraction is < 0.15 or > 0.85 ? "night" : _dayFraction is < 0.3 or > 0.7 ? "twilight" : "day";
+        double localDay = LocalDayFraction(session.State.Position); // #1865: the local sun
+        string phase = localDay is < 0.15 or > 0.85 ? "night" : localDay is < 0.3 or > 0.7 ? "twilight" : "day";
         int fragments = p.Milestones.Count(m => m.StartsWith("vega:mem:", System.StringComparison.Ordinal));
         string aboard = p.AboardShip ? "aboard the ship" : "on foot";
         // Temperature awareness (#671): only mentioned while the suit is actually fighting the climate,
@@ -704,7 +705,7 @@ public sealed partial class GameServer
     private string VegaBanterKey(PlayerSession session)
     {
         string world = _world.Planet?.Key ?? "space";
-        bool night = _dayFraction is < 0.15 or > 0.85;
+        bool night = LocalDayFraction(session.State.Position) is < 0.15 or > 0.85; // #1865: the local sun
         return $"banter|{world}|{(night ? "night" : "day")}|{session.Locale}";
     }
 

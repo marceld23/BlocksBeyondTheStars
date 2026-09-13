@@ -38,12 +38,13 @@ public sealed partial class GameServer
         var objective = def.Objectives.FirstOrDefault();
         var reward = def.Rewards.FirstOrDefault();
         bool settlementBoard = def.Id.StartsWith("settle_", System.StringComparison.Ordinal);
+        bool baseBoard = IsBaseMission(def.Id); // #1865: the board at a player's home
         string settlementName = settlementBoard ? SettlementForBoardMission(def.Id)?.Name ?? _settlementName : string.Empty;
         return new MissionTextRequest
         {
             GiverName = def.GiverName,
-            Place = settlementBoard && !string.IsNullOrEmpty(settlementName) ? settlementName : "an orbital station",
-            Theme = settlementBoard ? SettlementTradeFor(settlementName) : "traders",
+            Place = baseBoard ? "a homestead" : settlementBoard && !string.IsNullOrEmpty(settlementName) ? settlementName : "an orbital station",
+            Theme = baseBoard ? "settlers" : settlementBoard ? SettlementTradeFor(settlementName) : "traders",
             NeedItem = objective?.Target ?? string.Empty,
             Required = objective?.Required ?? 0,
             RewardItem = reward?.Item ?? string.Empty,

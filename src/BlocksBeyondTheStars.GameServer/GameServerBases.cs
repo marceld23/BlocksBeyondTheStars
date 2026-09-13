@@ -234,6 +234,7 @@ public sealed partial class GameServer
         _bases.Remove(basePoint);
         ForgetBaseAir(basePoint.Id); // the life-support field (cube + sealed rooms) dies with the core
         ForgetBaseWalls(basePoint.Id); // ...and so does the fence rule (#1315)
+        ForgetBaseIndex(basePoint.Id); // ...and what its residents used (#1865) — they leave on the next scan
         _repo.DeleteBase(body, pos.X, pos.Y, pos.Z);
         BroadcastBasesOn(body);
         if (FindSessionByPlayerId(basePoint.OwnerId) is { } owner)

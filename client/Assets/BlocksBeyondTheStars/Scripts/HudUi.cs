@@ -1048,6 +1048,12 @@ namespace BlocksBeyondTheStars.Client
                     // target the scan can't acquire read as "titans can't be scanned" (#1458).
                     prompt = loc.Get("ui.scan.use_hint");
                 }
+                else if (string.IsNullOrEmpty(Game.InSpeeder) && NearestTalkableNpc() is { } npcName)
+                {
+                    // #1869: E has talked to people since #1127, but nothing on screen ever said so. Same reach and
+                    // the same "no station block in reach" rule as PlayerController's E.
+                    prompt = string.Format(loc.Get("ui.hud.talk"), npcName, InputMap.Glyph(InputAction.Interact));
+                }
                 else if (string.IsNullOrEmpty(Game.InSpeeder) && OwnParkedVehicleOutOfReach(out string vehicleKind, out float vehicleDist))
                 {
                     // An own vehicle a few metres off but beyond the pack-up reach (#1661): the X action used to
@@ -1068,6 +1074,27 @@ namespace BlocksBeyondTheStars.Client
             RefreshShipRepair(loc);
             RefreshTaming(loc);
             RefreshSpeeder(loc);
+        }
+
+        /// <summary>The name of the NPC E would talk to right now (#1869), or null — the reach PlayerController uses.</summary>
+        private string NearestTalkableNpc()
+        {
+            var npcs = Game.Npcs;
+            var here = Game.PlayerPosition;
+            string best = null;
+            float bestSq = 4.5f * 4.5f;
+            for (int i = 0; i < npcs.Length; i++)
+            {
+                var d = new Vector3(npcs[i].X, npcs[i].Y, npcs[i].Z) - here;
+                float sq = d.sqrMagnitude;
+                if (sq < bestSq)
+                {
+                    bestSq = sq;
+                    best = string.IsNullOrEmpty(npcs[i].Name) ? Game.Localizer?.Get(npcs[i].NameKey) ?? string.Empty : npcs[i].Name;
+                }
+            }
+
+            return best;
         }
 
         /// <summary>Own vehicles parked (not driven) on this world — the cockpit recall prompt's gate (#1661).</summary>

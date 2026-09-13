@@ -14,8 +14,13 @@ namespace BlocksBeyondTheStars.GameServer;
 /// The world notices your base (#1120, stages 1–2): trader ships prefer landing on worlds with a founded
 /// base (stage 1, see <c>PickLandableBody</c>) and hail the base owner over the radio when they set down;
 /// a settler NPC moves in once a base carries enough machines (stage 2) — they greet, count as a KNOWN
-/// acquaintance, and appear in the "People you know" roster. No NPC ever damages a block; family/peaceful
-/// presets get exactly these two friendly stages (bandit scouting is a later, opt-in feature — D4/#1122).
+/// acquaintance, and appear in the "People you know" roster. No NPC ever damages a block.
+/// <para><b>Residents (#1865):</b> every bed inside the base (core zone, sealed room, walled yard or closed room —
+/// see <see cref="BaseIndex"/>) brings one more resident, up to <see cref="BaseResidentCap"/>: 1 + beds. Slot 0 is
+/// the founding settler (today's identity and memory key); slots 1..4 are the people the beds brought. Each
+/// resident takes a bed in slot order (the newest sleeps rough until one more bed stands), a chair or bench for
+/// the evening, and a job derived from what the base holds (#1868): the trading post and the mission board are
+/// staffed first, then a guard for a walled base, a gardener for crops, a craftsman for a workbench.</para>
 /// </summary>
 public sealed partial class GameServer
 {
@@ -23,19 +28,32 @@ public sealed partial class GameServer
     /// settler moves in — a bare marker post is a claim, not a home.</summary>
     private const int BaseSettlerMachineCount = 3;
 
-    /// <summary>How often ONE base is (re)checked — the scan walks the base's 17³ zone, so it round-robins.</summary>
+    /// <summary>How often ONE base is (re)checked — round-robins over the bases on the active world.</summary>
     private const double BaseLifeScanInterval = 10.0;
 
-    /// <summary>Settler NPC ids per base id, with the world they live on (transient — NPCs are per-world
-    /// and respawn via the scan; the world id keeps the sweep from touching same-numbered NPCs of other
-    /// worlds, #1152).</summary>
-    private readonly Dictionary<int, (string WorldId, int NpcId)> _baseSettlerNpcIds = new();
+    /// <summary>Most residents a base holds (Marcel 2026-09-13: 1 + one per bed, max five).</summary>
+    private const int BaseResidentCap = 5;
+
+    /// <summary>How far from its resting spot a resident looks for a chair or bench.</summary>
+    private const int ResidentSeatReach = 10;
+
+    /// <summary>One resident of a base: its slot and the NPC standing for it on the base's world (transient — NPCs
+    /// are per-world and respawn via the scan; the world id keeps the sweep from touching same-numbered NPCs of
+    /// other worlds, #1152).</summary>
+    internal sealed class BaseResident
+    {
+        public int Slot;
+        public string WorldId = string.Empty;
+        public int NpcId;
+    }
+
+    private readonly Dictionary<int, List<BaseResident>> _baseResidents = new();
 
     private double _nextBaseLifeAt;
     private int _baseLifeCursor;
 
-    /// <summary>Round-robin base scan (Guard-registered): spawns a settler when a base earned one, and
-    /// removes the settler again when its base was dissolved.</summary>
+    /// <summary>Round-robin base scan (Guard-registered): keeps each base's residents in step with its beds, posts
+    /// and workshops, and removes them again when their base was dissolved.</summary>
     private void TickBaseLife()
     {
         if (_uptime < _nextBaseLifeAt)
@@ -44,26 +62,7 @@ public sealed partial class GameServer
         }
 
         _nextBaseLifeAt = _uptime + BaseLifeScanInterval;
-
-        // A dissolved base takes its settler with it — but only ever on the settler's own world: NPC ids
-        // restart at 1 per world, so a blind remove-by-id could delete an unrelated NPC elsewhere (#1152).
-        foreach (var (baseId, settler) in _baseSettlerNpcIds.ToList())
-        {
-            if (settler.WorldId != _world.LocationId)
-            {
-                continue; // that world isn't loaded — handled once it is active again
-            }
-
-            if (_bases.All(b => b.Id != baseId))
-            {
-                _baseSettlerNpcIds.Remove(baseId);
-                int removed = _npcs.RemoveAll(n => n.Id == settler.NpcId && n.Role == "settler");
-                if (removed > 0)
-                {
-                    BroadcastNpcs();
-                }
-            }
-        }
+        SweepDissolvedBaseResidents();
 
         var here = _bases.Where(b => b.Planet == _world.LocationId).ToList();
         if (here.Count == 0)
@@ -71,33 +70,344 @@ public sealed partial class GameServer
             return;
         }
 
-        var candidate = here[_baseLifeCursor++ % here.Count];
-        if (HasLiveBaseSettler(candidate))
+        UpdateBaseResidents(here[_baseLifeCursor++ % here.Count]);
+    }
+
+    /// <summary>A dissolved base takes its residents with it — but only ever on their own world: NPC ids restart at 1
+    /// per world, so a blind remove-by-id could delete an unrelated NPC elsewhere (#1152).</summary>
+    private void SweepDissolvedBaseResidents()
+    {
+        foreach (var (baseId, list) in _baseResidents.ToList())
         {
-            RehomeWedgedSettler(candidate); // the owner may have built over the settler's spot since
-            return;
+            if (_bases.Any(b => b.Id == baseId))
+            {
+                continue;
+            }
+
+            int removed = 0;
+            foreach (var r in list.Where(r => r.WorldId == _world.LocationId).ToList())
+            {
+                removed += _npcs.RemoveAll(n => n.Id == r.NpcId && n.BaseId == baseId);
+                list.Remove(r);
+            }
+
+            _baseMarkers.RemoveAll(m => m.BaseId == baseId);
+            if (list.Count == 0)
+            {
+                _baseResidents.Remove(baseId);
+            }
+
+            if (removed > 0)
+            {
+                BroadcastNpcs();
+            }
+        }
+    }
+
+    /// <summary>Brings one base's residents in step with the base: spawns the missing slots, sends the surplus away,
+    /// and re-assigns beds, seats, jobs and posts.</summary>
+    private void UpdateBaseResidents(ServerBase b)
+    {
+        var idx = RefreshBaseIndex(b);
+        if (!_baseResidents.TryGetValue(b.Id, out var list))
+        {
+            _baseResidents[b.Id] = list = new List<BaseResident>();
         }
 
-        if (CountBaseMachines(candidate) < BaseSettlerMachineCount)
+        // A world switch cleared the NPC list: a stale mapping must not block the respawn (#1152).
+        list.RemoveAll(r => r.WorldId == _world.LocationId && !_npcs.Any(n => n.Id == r.NpcId && n.BaseId == b.Id));
+
+        // The first settler needs the machines; once a base has one, beds alone bring the rest (and a machine
+        // mined for a moment never sends the founding settler away).
+        bool founded = list.Any(r => r.Slot == 0);
+        int desired = founded || CountBaseMachines(b) >= BaseSettlerMachineCount
+            ? System.Math.Min(BaseResidentCap, 1 + idx.BedHeads.Count)
+            : 0;
+
+        bool changed = false;
+        foreach (var r in list.Where(r => r.Slot >= desired).ToList())
         {
-            return;
+            _npcs.RemoveAll(n => n.Id == r.NpcId && n.BaseId == b.Id); // a bed went — its sleeper moves on
+            list.Remove(r);
+            changed = true;
         }
 
-        SpawnBaseSettler(candidate);
+        for (int slot = 0; slot < desired; slot++)
+        {
+            if (!list.Any(r => r.Slot == slot))
+            {
+                var npc = SpawnBaseResident(b, slot);
+                list.Add(new BaseResident { Slot = slot, WorldId = b.Planet, NpcId = npc.Id });
+                changed = true;
+            }
+        }
+
+        list.Sort((p, q) => p.Slot.CompareTo(q.Slot));
+        changed |= AssignBaseResidents(b, idx, list);
+        if (changed)
+        {
+            BroadcastNpcs();
+        }
+    }
+
+    /// <summary>The live NPCs of a base's residents on the active world, in slot order.</summary>
+    private List<ServerNpc> ResidentNpcs(ServerBase b)
+    {
+        var result = new List<ServerNpc>();
+        if (!_baseResidents.TryGetValue(b.Id, out var list))
+        {
+            return result;
+        }
+
+        foreach (var r in list)
+        {
+            if (r.WorldId == _world.LocationId && _npcs.FirstOrDefault(n => n.Id == r.NpcId && n.BaseId == b.Id) is { } npc)
+            {
+                result.Add(npc);
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
-    /// Where the base settler lives. The first version put them at a fixed core+(2, 1, 2) with no look at
-    /// what stood there, so an owner who had built a wall, a machine or a stair on that spot got a settler
-    /// permanently wedged inside it — the leash kept walking them back into the block (#1248, a player
-    /// report). Try the classic spot first (existing bases keep their settler where it was when it is free),
-    /// then ring outwards through the base zone for the nearest column with two air cells over a floor that
-    /// is not inside a parked ship; the classic spot is the last resort when the whole zone is built solid.
+    /// Hands out beds, seats, jobs and posts to a base's residents (#1865/#1868). Deterministic: residents in slot
+    /// order take the beds and seats in the index's order and the jobs in priority order — trading post, mission
+    /// board, guard (a walled base or a sentry post), gardener (crops, trays, saplings), craftsman (workbench,
+    /// forge). Returns whether anything the client sees changed.
     /// </summary>
-    private Vector3f SettlerHomeNear(Vector3i core)
+    private bool AssignBaseResidents(ServerBase b, BaseIndex idx, List<BaseResident> list)
+    {
+        var residents = ResidentNpcs(b);
+        bool changed = false;
+
+        // --- jobs, in priority order ---
+        var patrol = residents.Count > 0 ? GuardPatrolFor(b) : null;
+        var jobs = new List<string>();
+        if (idx.VendorPosts.Count > 0)
+        {
+            jobs.Add("vendor");
+        }
+
+        if (idx.Boards.Count > 0)
+        {
+            jobs.Add("quartermaster");
+        }
+
+        if (patrol != null || idx.SentryPosts.Count > 0)
+        {
+            jobs.Add("guard");
+        }
+
+        if (idx.Crops.Count + idx.Trays.Count + idx.Saplings.Count > 0)
+        {
+            jobs.Add("gardener");
+        }
+
+        if (idx.Workbenches.Count + idx.Forges.Count > 0)
+        {
+            jobs.Add("craftsman");
+        }
+
+        var takenHomes = new HashSet<Vector3i>();
+        var takenSeats = new HashSet<Vector3i>();
+        string boardKey = BaseBoardKey(b);
+        for (int i = 0; i < residents.Count; i++)
+        {
+            var npc = residents[i];
+            string job = i < jobs.Count ? jobs[i] : string.Empty;
+            changed |= ApplyResidentJob(b, npc, job, boardKey);
+
+            // --- bed + resting spot ---
+            Vector3i? bed = i < idx.BedHeads.Count ? idx.BedHeads[i] : null;
+            Vector3f? rest = bed is { } head ? BedSideSpot(head, takenHomes) : null;
+            rest ??= ResidentHomeNear(b.Cell, takenHomes);
+            takenHomes.Add(rest.Value.ToBlock());
+            if (!System.Nullable.Equals(npc.Bed, bed))
+            {
+                npc.Bed = bed;
+                npc.PhaseCheckedAt = double.NegativeInfinity; // re-think where to sleep
+            }
+
+            npc.Rest = rest.Value;
+
+            // --- the evening seat: the nearest free one within reach of the resting spot ---
+            Vector3i? seat = null;
+            double bestSq = ResidentSeatReach * ResidentSeatReach;
+            foreach (var s in idx.Seats)
+            {
+                double d = WrapDistSq(npc.Rest, s);
+                if (d <= bestSq && !takenSeats.Contains(s))
+                {
+                    bestSq = d;
+                    seat = s;
+                }
+            }
+
+            if (seat is { } taken)
+            {
+                takenSeats.Add(taken);
+            }
+
+            if (!System.Nullable.Equals(npc.Seat, seat))
+            {
+                npc.Seat = seat;
+                npc.PhaseCheckedAt = double.NegativeInfinity;
+            }
+
+            // --- the work spot ---
+            var work = ResidentWorkSpot(npc, idx, patrol, takenHomes) ?? npc.Rest;
+            if (!npc.HasWork || !npc.Work.Equals(work))
+            {
+                npc.Work = work;
+                npc.HasWork = true;
+                npc.PhaseCheckedAt = double.NegativeInfinity;
+            }
+
+            npc.Patrol = npc.Job == "guard" ? patrol : null;
+
+            // #1248/#1658: a resident whose idle spot got built over or flooded moves out of it at once.
+            if (npc.Pose == 0 && npc.Goal is null)
+            {
+                var hc = npc.Home.ToBlock();
+                if (StandableSpot(hc.X, hc.Y, hc.Z) is null)
+                {
+                    npc.Home = npc.Rest;
+                    npc.Pos = npc.Rest;
+                    npc.Path = null;
+                    changed = true;
+                }
+            }
+        }
+
+        changed |= RefreshBaseMarkers(b, idx, residents);
+        return changed;
+    }
+
+    /// <summary>Gives a resident its job: the role the roster and the dialogues know, the nameplate's role key, the
+    /// trade profession and what it carries. Returns whether the client-visible state changed.</summary>
+    private bool ApplyResidentJob(ServerBase b, ServerNpc npc, string job, string boardKey)
+    {
+        if (npc.Job == job && npc.NameKey.Length > 0)
+        {
+            return false;
+        }
+
+        npc.Job = job;
+        string role = job is "vendor" or "quartermaster" ? job : "settler";
+        npc.NameKey = job switch
+        {
+            "vendor" => "npc.role.vendor",
+            "quartermaster" => "npc.role.quartermaster",
+            "guard" => "npc.role.guard",
+            "gardener" => "npc.role.gardener",
+            "craftsman" => "npc.role.craftsman",
+            _ => "npc.theme.settlers",
+        };
+        npc.Theme = job == "vendor" ? SettlementTradeFor(boardKey) : "settlers";
+        npc.Held = job switch
+        {
+            "gardener" => "npc_hoe",
+            "craftsman" => "npc_hammer",
+            "guard" => "blade",
+            _ => string.Empty,
+        };
+        npc.SiteCursor = 0;
+        npc.SiteUntil = 0;
+        npc.PhaseCheckedAt = double.NegativeInfinity;
+
+        if (npc.Role != role)
+        {
+            npc.Role = role;
+
+            // The resident stays the same person (the memory key is the slot), only what they do changed.
+            if (FindSessionByPlayerId(b.OwnerId) is { } owner
+                && owner.State.NpcMemory.TryGetValue(BaseResidentKey(b.Id, npc.BaseSlot), out var rel))
+            {
+                rel.Role = role;
+                SendNpcStandings(owner);
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Where a resident works by day (#1868): beside its post, its workbench or its first garden site, on
+    /// its patrol; null for a settler without a job (it idles at its resting spot).</summary>
+    private Vector3f? ResidentWorkSpot(ServerNpc npc, BaseIndex idx, List<Vector3f>? patrol, HashSet<Vector3i> taken)
+    {
+        Vector3i? anchor = npc.Job switch
+        {
+            "vendor" when idx.VendorPosts.Count > 0 => idx.VendorPosts[0],
+            "quartermaster" when idx.Boards.Count > 0 => idx.Boards[0],
+            "craftsman" when idx.Workbenches.Count > 0 => idx.Workbenches[0],
+            "craftsman" when idx.Forges.Count > 0 => idx.Forges[0],
+            "gardener" => GardenSites(idx).Select(s => (Vector3i?)s).FirstOrDefault(),
+            _ => null,
+        };
+
+        if (npc.Job == "guard" && patrol is { Count: > 0 })
+        {
+            return patrol[0];
+        }
+
+        return anchor is { } a ? SpotBeside(a, taken) : null;
+    }
+
+    /// <summary>Where a resident rests beside its bed: a standable cell next to the head, then next to the foot.</summary>
+    private Vector3f? BedSideSpot(Vector3i head, HashSet<Vector3i> taken)
+    {
+        var (fx, fz) = FurnitureShapes.TryBedPartnerOffset(_world.GetShape(head), out int dx, out int dz) ? (dx, dz) : (0, 0);
+        var cells = new List<Vector3i>
+        {
+            new(head.X + fz, head.Y, head.Z - fx),
+            new(head.X - fz, head.Y, head.Z + fx),
+            new(head.X + fx + fz, head.Y, head.Z + fz - fx),
+            new(head.X + fx - fz, head.Y, head.Z + fz + fx),
+            new(head.X - fx, head.Y, head.Z - fz),
+        };
+
+        foreach (var c in cells)
+        {
+            if (!taken.Contains(c) && StandableSpot(c.X, c.Y, c.Z) is { } spot)
+            {
+                return spot;
+            }
+        }
+
+        return SpotBeside(head, taken);
+    }
+
+    /// <summary>A standable cell beside a block (its four sides on its own level, then one down, then one up).</summary>
+    private Vector3f? SpotBeside(Vector3i block, HashSet<Vector3i> taken)
+    {
+        foreach (int dy in new[] { 0, -1, 1 })
+        {
+            foreach (var (dx, dz) in WallFillDirs)
+            {
+                var c = new Vector3i(block.X + dx, block.Y + dy, block.Z + dz);
+                if (!taken.Contains(c) && StandableSpot(c.X, c.Y, c.Z) is { } spot)
+                {
+                    return spot;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Where a base resident without a bed lives. The first version put them at a fixed core+(2, 1, 2) with no look
+    /// at what stood there, so an owner who had built a wall, a machine or a stair on that spot got a settler
+    /// permanently wedged inside it (#1248, a player report). Try the classic spot first (existing bases keep their
+    /// settler where it was when it is free), then ring outwards through the base zone for the nearest column with
+    /// two air cells over a floor that is not inside a parked ship and not another resident's spot.
+    /// </summary>
+    private Vector3f ResidentHomeNear(Vector3i core, HashSet<Vector3i> taken)
     {
         var legacy = new Vector3f(core.X + 2.5f, core.Y + 1f, core.Z + 2.5f);
-        if (StandableSpot(core.X + 2, core.Y + 1, core.Z + 2) is { } classic)
+        var classicCell = new Vector3i(core.X + 2, core.Y + 1, core.Z + 2);
+        if (!taken.Contains(classicCell) && StandableSpot(classicCell.X, classicCell.Y, classicCell.Z) is { } classic)
         {
             return classic;
         }
@@ -106,7 +416,7 @@ public sealed partial class GameServer
             for (int dx = -r; dx <= r; dx++)
                 for (int dz = -r; dz <= r; dz++)
                 {
-                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r || (dx == 0 && dz == 0))
+                    if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz)) != r || (dx == 0 && dz == 0))
                     {
                         continue; // ring r only — inner rings were already searched
                     }
@@ -115,7 +425,8 @@ public sealed partial class GameServer
                     // yard all count, a basement further down does not (the settler should be seen).
                     for (int y = core.Y + 2; y >= core.Y - 2; y--)
                     {
-                        if (StandableSpot(core.X + dx, y, core.Z + dz) is { } spot)
+                        var c = new Vector3i(core.X + dx, y, core.Z + dz);
+                        if (!taken.Contains(c) && StandableSpot(c.X, c.Y, c.Z) is { } spot)
                         {
                             return spot;
                         }
@@ -124,6 +435,9 @@ public sealed partial class GameServer
 
         return legacy;
     }
+
+    /// <summary>Where the base settler lives when nothing else is known (kept for the trader/visitor helpers).</summary>
+    private Vector3f SettlerHomeNear(Vector3i core) => ResidentHomeNear(core, new HashSet<Vector3i>());
 
     /// <summary>The feet position for a cell a human-sized NPC can stand in: a blocking floor under two
     /// free cells, outside every parked ship's hull (nobody moves into the owner's cockpit); null otherwise.
@@ -159,7 +473,7 @@ public sealed partial class GameServer
             for (int dx = -r; dx <= r; dx++)
                 for (int dz = -r; dz <= r; dz++)
                 {
-                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r)
+                    if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz)) != r)
                     {
                         continue;
                     }
@@ -183,42 +497,9 @@ public sealed partial class GameServer
         return best;
     }
 
-    /// <summary>A settler whose home cell got built over since they moved in (#1248) is moved to the nearest
-    /// free spot — otherwise the leash walks them straight back into the new wall every tick.</summary>
-    private void RehomeWedgedSettler(ServerBase b)
-    {
-        if (!_baseSettlerNpcIds.TryGetValue(b.Id, out var s) || _npcs.FirstOrDefault(n => n.Id == s.NpcId && n.Role == "settler") is not { } npc)
-        {
-            return;
-        }
-
-        int hx = (int)Math.Floor(npc.Home.X), hy = (int)Math.Floor(npc.Home.Y), hz = (int)Math.Floor(npc.Home.Z);
-        if (StandableSpot(hx, hy, hz) is not null)
-        {
-            return; // the home is still a place to stand
-        }
-
-        var home = SettlerHomeNear(b.Cell);
-        if (home.Equals(npc.Home))
-        {
-            return; // nothing better in the zone — leave them rather than jitter every scan
-        }
-
-        npc.Home = home;
-        npc.Pos = home;
-        BroadcastNpcs();
-    }
-
-    /// <summary>Whether the base's settler is actually standing on the active world — a world switch clears
-    /// the NPC list, so a stale mapping must not block the respawn (#1152).</summary>
-    private bool HasLiveBaseSettler(ServerBase b)
-        => _baseSettlerNpcIds.TryGetValue(b.Id, out var s)
-            && s.WorldId == _world.LocationId
-            && _npcs.Any(n => n.Id == s.NpcId && n.BaseId == b.Id && n.Role == "settler");
-
-    /// <summary>Renaming a base keeps its settler (#1262): the live NPC's display settlement and the owner's
-    /// roster entry follow the new name. Before this the scan compared the NPC's settlement to the base name,
-    /// saw "no settler" after a rename and spawned a second one under a fresh name-hash key.</summary>
+    /// <summary>Renaming a base keeps its residents (#1262): the live NPCs' display settlement and the owner's roster
+    /// entries follow the new name. Before this the scan compared the NPC's settlement to the base name, saw "no
+    /// settler" after a rename and spawned a second one under a fresh name-hash key.</summary>
     private void RenameBaseSettler(ServerBase b, string newName)
     {
         foreach (var npc in _npcs)
@@ -229,10 +510,15 @@ public sealed partial class GameServer
             }
         }
 
-        if (FindSessionByPlayerId(b.OwnerId) is { } owner
-            && owner.State.NpcMemory.TryGetValue(BaseSettlerKey(b.Id), out var rel))
+        if (FindSessionByPlayerId(b.OwnerId) is { } owner)
         {
-            rel.Place = newName;
+            for (int slot = 0; slot < BaseResidentCap; slot++)
+            {
+                if (owner.State.NpcMemory.TryGetValue(BaseResidentKey(b.Id, slot), out var rel))
+                {
+                    rel.Place = newName;
+                }
+            }
         }
     }
 
@@ -263,16 +549,16 @@ public sealed partial class GameServer
 
         // Stale name-keyed copies of a settler we now know by base id: same coined name (the settler's
         // look and name are seeded from the base id, so every duplicate carried the same name).
-        var known = new HashSet<string>(StringComparer.Ordinal);
+        var known = new HashSet<string>(System.StringComparer.Ordinal);
         foreach (var (key, rel) in mem)
         {
-            if (key.StartsWith("base_", StringComparison.Ordinal) && rel.Role == "settler")
+            if (key.StartsWith("base_", System.StringComparison.Ordinal) && rel.Role == "settler")
             {
                 known.Add(rel.Name);
             }
         }
 
-        foreach (var stale in mem.Where(kv => kv.Key.StartsWith("settle_", StringComparison.Ordinal)
+        foreach (var stale in mem.Where(kv => kv.Key.StartsWith("settle_", System.StringComparison.Ordinal)
                      && kv.Value.Role == "settler" && known.Contains(kv.Value.Name)).Select(kv => kv.Key).ToList())
         {
             mem.Remove(stale);
@@ -319,21 +605,24 @@ public sealed partial class GameServer
         return count;
     }
 
-    /// <summary>Stage 2: a settler moves in — deterministic look per base, home beside the core, KNOWN to
-    /// the owner from day one (the plan's "counts as a known NPC"), announced over the owner's radio.</summary>
-    private void SpawnBaseSettler(ServerBase b)
+    /// <summary>A resident moves in — a deterministic look and name per (base, slot) (slot 0 keeps the founding
+    /// settler's seed), KNOWN to the owner from day one (the plan's "counts as a known NPC"), announced over the
+    /// owner's radio.</summary>
+    private ServerNpc SpawnBaseResident(ServerBase b, int slot)
     {
-        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash("base-settler:" + b.Id)));
-        var home = SettlerHomeNear(b.Cell);
+        string seed = slot == 0 ? "base-settler:" + b.Id : $"base-settler:{b.Id}:{slot}";
+        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash(seed)));
+        var home = ResidentHomeNear(b.Cell, new HashSet<Vector3i>(ResidentNpcs(b).Select(n => n.Home.ToBlock())));
         var npc = MakeNpc("settler", "settlers", robotic: false, home, rng);
         npc.Settlement = b.Name; // display name for greetings/dialogs — the memory key is the base ID (#1262)
         npc.BaseId = b.Id;
+        npc.BaseSlot = slot;
+        npc.Rest = home;
+        npc.RoutineEnabled = true; // #1867
+        npc.Leash = ResidentLeash;
         _npcs.Add(npc);
-        BroadcastNpcs();
 
-        string npcKey = BaseSettlerKey(b.Id);
-        _baseSettlerNpcIds[b.Id] = (b.Planet, npc.Id);
-
+        string npcKey = BaseResidentKey(b.Id, slot);
         if (FindSessionByPlayerId(b.OwnerId) is { Joined: true } owner)
         {
             // The plan says the settler "counts as a known NPC": seed the acquaintance so the nameplate
@@ -351,9 +640,11 @@ public sealed partial class GameServer
 
             SendNpcStandings(owner);
             TryNpcRadioCall(owner, npcKey, npc.Name, b.Name, b.Planet,
-                "settler:" + b.Id, "npc.call.settler", string.Empty, isMission: false);
+                slot == 0 ? "settler:" + b.Id : $"settler:{b.Id}:{slot}", "npc.call.settler", string.Empty, isMission: false);
             _repo.SavePlayer(owner.State);
         }
+
+        return npc;
     }
 
     /// <summary>Stage 1's hail (#1120): a trader just set down on a body — base owners there get a call
@@ -384,6 +675,16 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Test seam: the settler NPC id for a base, or null when none moved in yet.</summary>
-    public int? BaseSettlerForTest(int baseId) => _baseSettlerNpcIds.TryGetValue(baseId, out var s) ? s.NpcId : null;
+    /// <summary>Test seam: the founding settler's NPC id for a base, or null when none moved in yet.</summary>
+    public int? BaseSettlerForTest(int baseId)
+        => _baseResidents.TryGetValue(baseId, out var list) && list.FirstOrDefault(r => r.Slot == 0) is { } r ? r.NpcId : null;
+
+    /// <summary>Test seam (#1865): a base's residents on the active world — slot, NPC id, role, job, bed, seat.</summary>
+    public IReadOnlyList<(int Slot, int NpcId, string Role, string Job, Vector3i? Bed, Vector3i? Seat)> BaseResidentsForTest(int baseId)
+    {
+        var b = _bases.FirstOrDefault(x => x.Id == baseId);
+        return b is null
+            ? new List<(int, int, string, string, Vector3i?, Vector3i?)>()
+            : ResidentNpcs(b).Select(n => (n.BaseSlot, n.Id, n.Role, n.Job, n.Bed, n.Seat)).ToList();
+    }
 }

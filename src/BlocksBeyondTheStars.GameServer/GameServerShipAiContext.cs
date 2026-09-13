@@ -448,7 +448,7 @@ public sealed partial class GameServer
         {
             RefreshVegaProbe(session);
             var probe = session.VegaProbe;
-            bool night = _dayFraction < 0.15 || _dayFraction > 0.85;
+            bool night = LocalDayFraction(session.State.Position) is < 0.15 or > 0.85; // #1865: the local sun
             bool underground = probe.SolidAbove >= VegaTipUndergroundSolid;
             bool dark = (night || underground) && !probe.LightNear;
             bool hasLamp = p.Inventory.Has("suit_lamp", 1);

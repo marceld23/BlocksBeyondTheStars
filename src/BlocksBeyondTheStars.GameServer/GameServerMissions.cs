@@ -213,6 +213,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsBaseMission(missionId) && !NearBaseMissionBoard(session.State))
+        {
+            MissionFail(session, missionId, "@srv.mission.board_base"); // #1865
+            return;
+        }
+
         if (session.State.Missions.Any(m => m.MissionId == missionId))
         {
             MissionFail(session, missionId, "@srv.mission.accepted");
@@ -269,6 +275,12 @@ public sealed partial class GameServer
         if (IsStationMission(missionId) && !NearSpaceStationMissionBoard(session.State))
         {
             MissionFail(session, missionId, "@srv.mission.return_station");
+            return;
+        }
+
+        if (IsBaseMission(missionId) && !NearBaseMissionBoard(session.State))
+        {
+            MissionFail(session, missionId, "@srv.mission.return_base"); // #1865
             return;
         }
 
@@ -896,7 +908,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>A board (giver) mission id — settlement or station — vs. a system/player mission.</summary>
-    private static bool IsBoardMissionId(string id) => id.StartsWith("settle_") || id.StartsWith("station_");
+    private static bool IsBoardMissionId(string id) => id.StartsWith("settle_") || id.StartsWith("station_") || IsBaseMission(id);
 
     /// <summary>Seeds a giver board's first window (slots 0..BoardWindow-1) at stamp time, so the board offers
     /// missions even before any player has opened the list; the per-player window then slides as they take them.</summary>
@@ -944,6 +956,7 @@ public sealed partial class GameServer
         var currentBoardIds = new HashSet<string>();
         EnsureSettlementWindow(player, currentBoardIds);
         EnsureStationWindow(player, currentBoardIds);
+        EnsureBaseWindow(player, currentBoardIds); // #1865: the mission board at home
         SyncCampBountyProgress(session); // held camp bounties whose camp fell while away complete here (#730)
 
         var available = new List<NetMission>();
