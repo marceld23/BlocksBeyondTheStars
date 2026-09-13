@@ -24,6 +24,55 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛰️ Player reports 2026-09-13, morning — double doors, the diagonal waterfall glare, sinking gas-sac animals, scouts in the fortress, the station's borrowed sky, trees invisible from space, hotkeys typed into F1, the nameless net-fragment objective (#1852–#1860 + #1840 #1845 #1847, 2026-09-13, branch reports-0913)
+
+Lyxette, thirteen F1 reports from one morning on v2026.9.8 (her planet base on Seana and her station). Every report was read
+against the server snapshot, the screenshot and the code; her settler question is filed as design issue #1851 (parked). Three
+of the ideas from the evening before rode along because they were small.
+
+- **#1852 A double door opened one leaf at a time, with a black post between the leaves** — pairing was visual only (#1729
+  mirrored the hinge side); the server toggled exactly one id and `DoorView` drew both jamb posts for every door, so two posts
+  met at the shared jamb. `DoorPairing.IsPartner` (same kind, axis, height, one block along the leaf) now swings the partner
+  with one E; `DoorPairs.PartnerSides` drops the post on a shared jamb (the middle leaf of three loses both).
+- **#1853 A diagonal glare crawled across the waterfalls** — the mode-4 streak phase added `x+z` linearly, tilting the bands
+  41°. `across` now enters only as a nested perturbation, like the ripple term, in both SubShaders.
+- **#1854 Gas-sac animals sank into floors and cave rock, over and over** — a gas sac makes a land species a hoverer, and the
+  hoverer branch trusted `RestSurfaceYAt` with no ground clamp; the fallback handed back the creature's own, already-sunk cell
+  (6.6023 on a floor whose top is 7 = 6 + 0.8 − 0.2 wave). The rest probe now searches through rock for the nearest real
+  floor, the target never drops below it, and `LiftEmbeddedHoverer` runs before the 2-second sideways displacement.
+- **#1855 Bandit scouts appeared inside a walled fortress** — the spawn was a blind bearing at 40 blocks with no enclosure
+  check, the fence was the radius-8 zone cube and bandits had no wall or fluid collision. Spawns now try 4 radii × 8 bearings
+  and reject `InWalledBaseArea`/`InSealedBaseRoom`/fluid/rampart columns (robbers too); the scout fence is the enclosure;
+  bandit steps refuse walls higher than one block and fluids.
+- **#1856 The station sky showed a grey moon and an ice world that do not exist; "Port Nou" stayed Uncharted after months of
+  trading; no "You are here" aboard; the station's star colour was hashed from an empty system name** — one root: station
+  worlds are `station:<bodyId>` and `Galaxy.FindBody` is exact. `ResolveLocationBody` strips the prefix (player stations resolve
+  their host via `_stationHostBody`, and the station body now carries `ParentId`); used by the visited stamp (docking + wrecks
+  stamp it too), `LocationNamesFor`, the weather star and the star map's active id. `SkyBodiesView` builds the host's sky on a
+  station; `StationBackdrop` lost its decorative moon and sibling.
+- **#1857 Trees grown aboard a station were invisible from space (the pond was not)** — the exterior meshes the structure
+  cell grid, which only player edits mirrored; `TryGrowTree` and crop regrow now mirror every cell through a deferred batch
+  (one row write + one design broadcast per tree).
+- **#1858 Typing "e" and "u" into the F1 dialog docked her and undocked her** — the dialog registered as menu owner only
+  after the end-of-frame screenshot, and no gameplay verb consulted `TextFieldFocused()`. `InputGate` now sits in
+  `InputMap.Down/Held/Up` (every verb but Esc/Tab is swallowed while a text field has focus), the owner is set on the opening
+  frame, V in flight is guarded, the flight early-outs include chat typing, the flight prompts hide under a menu.
+- **#1859 "A net fragment lies on this world" never said which world, stuck in orbit, promised a signal that only a
+  900-second tip could produce, and the chip cut "(7/204)"** — `ShipAiLine.ObjectiveArg` + `story.obj.fragment_on` name the
+  body; the 1 Hz VEGA tick re-sends the objective whenever (key, arg, progress, target) changes; the fragment POI is revealed
+  while the objective is active and the compass shows its distance; the chip auto-fits (font 17, counter on its own line).
+- **#1860 The status toast never expired** — `HudToastPolicy`: 8 s (warnings 15 s) + 0.5 s fade, sequence-numbered so an
+  identical line re-sent shows again; the EVA-pinned "no longer airtight" and the stale "life support lost" clear themselves.
+- **#1840 Scan-drones on asteroids** — unlit red threat strip, fin caps and an underside emitter, eye 0.24 wide (space model
+  gets the strip). **#1845** — "You are in chat" banner below the crosshair while the chat field has focus. **#1847** — a
+  `grass` item (dirt + plant fibre by hand; grass drops grass), so a station arboretum can have green ground.
+
+Tests: pair toggle + partner sides + jamb posts, grass item/recipe/drop, land hoverer rises onto a floor and never re-sinks,
+scouts never spawn inside a closed ring nor climb it, station docking marks Visited + names resolve + tree reaches the grid,
+objective names the body and moves on, ShipAiLine round trip, InputGate/ChatBanner/HudToastPolicy/VegaObjectiveChip EditMode.
+Locales EN+DE: `ui.chat.typing_banner`, `story.obj.fragment_on`, `ui.hud.compass_fragment`, `item.grass.*`; coverage manifest
+regenerated. Local Unity build required (client/Assets + shader).
+
 ### 🏘️ Building modules + procedural interiors — a template is a whole settlement OR a part of one, and every room gets furniture (#1826 / #1827 / #1828, 2026-09-13, branch feat/settlement-modules-interiors)
 
 Marcel: a settlement made in the Town editor should be usable either as a complete structure (as today) or as an

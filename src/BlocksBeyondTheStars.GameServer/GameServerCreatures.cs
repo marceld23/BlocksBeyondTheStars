@@ -927,6 +927,11 @@ public sealed partial class GameServer
             // #1357: an AWAKE animal walled in by the player never checked its own cell either — the swept
             // step check samples only the cells ahead, so every step out of the block read as blocked and a
             // cathemeral grazer stood inside the masonry for good. Same check, rate-limited per creature.
+            // #1854: a floating land grazer that got into the masonry is first put back on the nearest real
+            // floor THROUGH the rock — the sideways relocation below evicts an animal it finds no spot for,
+            // and a gas sac that drifted into a cave's ceiling has its floor right under it.
+            LiftEmbeddedHoverer(creature, sp, motion);
+
             if (asleep || _uptime >= creature.NextBodyCheckAt)
             {
                 creature.NextBodyCheckAt = _uptime + AwakeBodyCheckInterval;
@@ -941,6 +946,7 @@ public sealed partial class GameServer
             {
                 creature.Position = ResolveVertical(creature, sp, motion, creature.Position, 0f, profile, moveDt,
                     asleep: true, MoveMode.Roam, moving: false);
+                LiftEmbeddedHoverer(creature, sp, motion); // #1854: a sleeping gas sac does not sink either
                 continue;
             }
 
@@ -965,6 +971,7 @@ public sealed partial class GameServer
                     {
                         creature.Position = ResolveVertical(creature, sp, motion, creature.Position, 0f, profile, moveDt,
                             asleep: false, MoveMode.Seek, moving: false);
+                        LiftEmbeddedHoverer(creature, sp, motion); // #1854
                         continue;
                     }
 
@@ -1107,6 +1114,41 @@ public sealed partial class GameServer
 
         c.Position = ResolveVertical(c, sp, motion, new Vector3f(targetX, cur.Y, targetZ), vertWave, prof, dt,
             asleep: false, intent, moving, groundHint);
+        LiftEmbeddedHoverer(c, sp, motion);
+    }
+
+    /// <summary>#1854: a floating LAND grazer whose body ended up inside a block after the vertical resolve is
+    /// put back on the nearest real floor this very tick instead of easing out of the masonry over seconds —
+    /// its class has no gravity resolve to clamp it (walkers get <see cref="VerticalMotion.Ground"/>), and the
+    /// buoyant ease is slow on purpose. The floor is looked for through the rock in both directions (the
+    /// cave under it counts, the surface above it counts, whichever is nearer); with none in reach the
+    /// body is lifted to the first clear cell above. Air hoverers keep their canopy freedom and are left alone.</summary>
+    private void LiftEmbeddedHoverer(CombatEntity c, CreatureSpecies sp, MotionClass motion)
+    {
+        if (motion != MotionClass.Hoverer || sp.Habitat == CreatureHabitat.Air
+            || !CreatureBodyBlocked(sp, c.Position, foliagePasses: false))
+        {
+            return;
+        }
+
+        int x = (int)System.Math.Floor(c.Position.X), z = (int)System.Math.Floor(c.Position.Z);
+        int y = (int)System.Math.Floor(c.Position.Y);
+        if (TryNearestStandableThroughRock(x, z, y, CreatureHeadroom(sp), CreatureWideGroundScan, out int feet)
+            && !CreatureBodyBlocked(sp, new Vector3f(c.Position.X, feet, c.Position.Z), foliagePasses: false))
+        {
+            c.Position = new Vector3f(c.Position.X, feet, c.Position.Z);
+            return;
+        }
+
+        for (int dy = 1; dy <= CreatureWideGroundScan; dy++)
+        {
+            var lifted = new Vector3f(c.Position.X, y + dy, c.Position.Z);
+            if (!CreatureBodyBlocked(sp, lifted, foliagePasses: false))
+            {
+                c.Position = lifted;
+                return;
+            }
+        }
     }
 
     /// <summary>Every barrier a step must pass (#1331): ship hull, energy fence, the terrain gate (wild fauna;
@@ -1602,6 +1644,19 @@ public sealed partial class GameServer
             return top + 1;
         }
 
+        // #1854: the reference cell is INSIDE a block — a gas-sac grazer that bobbed into a player's concrete
+        // floor, a cave hoverer that eased into the rock. The narrow probe breaks at the first solid cell going
+        // down and finds only masonry or hillside in the six above, and the answer used to be refY, the
+        // creature's own sunk cell: refY + 0.8 is where the next tick eased it to, a stable fixed point 0.2
+        // under the block top (the reported 6.6023 on a floor with its top at 7, −11.1965 in the rock). Look
+        // THROUGH the rock for the nearest real floor in either direction, within the wide window a ground
+        // mover's own probe uses (#1320), so the animal comes back onto its floor or down into its cave.
+        if (IsSupportCell(x, refY, z)
+            && TryNearestStandableThroughRock(x, z, refY, CreatureBodyMinHeight, CreatureWideGroundScan, out int through))
+        {
+            return through;
+        }
+
         // #1711: the last resort is the generator's noise surface — the height this column has where nothing
         // has been dug. For a creature under a ROOF that Y is on the far side of solid rock, and handing it
         // back parks the animal inside the ceiling: a player photographed one asleep halfway into the stone
@@ -1611,6 +1666,33 @@ public sealed partial class GameServer
         // cave species, and any animal below a ceiling has the same problem.
         int surface = _generator.SurfaceHeight(_world.Planet, x, z) + 1;
         return RoofBetween(x, z, refY, surface) ? refY : surface;
+    }
+
+    /// <summary>The nearest standable feet cell to <paramref name="refY"/> in either direction, looking THROUGH
+    /// solid cells (#1854) — for a body that is already embedded, where <see cref="TryGroundFeetYAt(int, int, int, int, int, out int)"/>
+    /// stops at the first block under it. Distance decides, and at equal distance up wins (a creature 0.2 below
+    /// a floor belongs on that floor, not in the cellar under it). Both directions reach <paramref name="maxScan"/>
+    /// cells; a feet cell needs <paramref name="headroom"/> air cells. No-load reads: an unloaded column has no
+    /// support anywhere and answers false, so the caller keeps its noise-surface fallback for those.</summary>
+    private bool TryNearestStandableThroughRock(int x, int z, int refY, int headroom, int maxScan, out int feetY)
+    {
+        for (int r = 1; r <= maxScan; r++)
+        {
+            if (StandableAt(x, refY + r, z, headroom))
+            {
+                feetY = refY + r;
+                return true;
+            }
+
+            if (StandableAt(x, refY - r, z, headroom))
+            {
+                feetY = refY - r;
+                return true;
+            }
+        }
+
+        feetY = refY;
+        return false;
     }
 
     /// <summary>True when the column between a creature and a candidate rest Y above it is not open (#1711):
@@ -2114,10 +2196,21 @@ public sealed partial class GameServer
                     // #1697: the band rides on what the creature would come down onto — the surface of a
                     // fluid body when the column holds one, the ground otherwise. Measuring from the BED
                     // parked gas sacs and sleeping fliers inside a player's water moat.
-                    float baseY = sp.Habitat == CreatureHabitat.Air
-                        ? RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y - HoverOf(sp))) + HoverOf(sp)
-                        : RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y)) + LandHovererHeight;
+                    bool airborne = sp.Habitat == CreatureHabitat.Air;
+                    int rest = airborne
+                        ? RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y - HoverOf(sp)))
+                        : RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y));
+                    float baseY = rest + (airborne ? HoverOf(sp) : LandHovererHeight);
                     float target = baseY + prof.VertAmp * vertWave;
+                    if (!airborne)
+                    {
+                        // #1854: a floating land grazer rides 0.8 above its feet cell, but its vertical-life
+                        // wave can be a full block (the glider cadence) — at the trough the target sat 0.2
+                        // INSIDE the floor, floor() moved the reference cell into the block, and from there the
+                        // probe walked the animal down a cell at a time. The feet never go below the rest cell.
+                        target = System.Math.Max(target, rest);
+                    }
+
                     float ease = CreatureMotion.IsSkyGlider(sp) ? SkyGliderEaseRate : HovererEaseRate;
                     return new Vector3f(p.X, VerticalMotion.Ease(p.Y, target, dt, ease, 24f), p.Z);
                 }

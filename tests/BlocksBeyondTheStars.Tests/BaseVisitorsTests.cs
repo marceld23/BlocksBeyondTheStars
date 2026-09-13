@@ -246,6 +246,157 @@ public sealed class BaseVisitorsTests : IDisposable
         Assert.Equal(1, list.Counters.TryGetValue("base:defended", out int n) ? n : 0);
     }
 
+    // ---------------- #1855: scouts inside a walled fortress ----------------
+
+    private static int SurfaceTopY(SvGameServer server, int x, int z)
+    {
+        for (int y = 200; y > -200; y--)
+        {
+            if (!server.World.GetBlock(new Vector3i(x, y, z)).IsAir)
+            {
+                return y;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>A fortress far wider than the radius-8 zone: a stone pad floating above every natural feature
+    /// out to the base's whole reach box (so the outside-in fill of #1315 starts on it), a 2-high ring of walls
+    /// at Chebyshev <paramref name="ring"/>, the core at the centre and the owner inside. Returns the base id,
+    /// the core cell and the feet level on the pad.</summary>
+    private (int Id, Vector3i Core, int Feet) Fortress(SvGameServer server, PlayerSession owner, int cx, int cz, int ring)
+    {
+        const int reach = 48;
+        var stone = _content.GetBlock("stone")!.NumericId;
+        int maxTop = int.MinValue;
+        for (int dx = -reach; dx <= reach; dx++)
+            for (int dz = -reach; dz <= reach; dz++)
+            {
+                maxTop = Math.Max(maxTop, SurfaceTopY(server, cx + dx, cz + dz));
+            }
+
+        int padY = maxTop + 8;
+        for (int dx = -reach; dx <= reach; dx++)
+            for (int dz = -reach; dz <= reach; dz++)
+            {
+                server.World.SetBlock(new Vector3i(cx + dx, padY, cz + dz), stone);
+                if (Math.Abs(dx) == ring || Math.Abs(dz) == ring)
+                {
+                    if (Math.Abs(dx) <= ring && Math.Abs(dz) <= ring)
+                    {
+                        server.World.SetBlock(new Vector3i(cx + dx, padY + 1, cz + dz), stone);
+                        server.World.SetBlock(new Vector3i(cx + dx, padY + 2, cz + dz), stone);
+                    }
+                }
+            }
+
+        owner.State.Position = new Vector3f(cx + 2.5f, padY + 1, cz + 0.5f);
+        var core = new Vector3i(cx, padY + 1, cz);
+        server.PlaceBaseForTest(owner, core);
+        int id = server.BaseSnapshots.Single(b => b.OwnerId == owner.State.PlayerId).Id;
+        return (id, core, padY + 1);
+    }
+
+    private static int ChebyshevXZ(Vector3i core, Vector3f pos)
+        => Math.Max(Math.Abs((int)Math.Floor(pos.X) - core.X), Math.Abs((int)Math.Floor(pos.Z) - core.Z));
+
+    /// <summary>The report: "bandit scouts appear inside my fortress". The bearing was blind and the distance a
+    /// fixed 40 blocks, so a ring of walls wider than that had the pair materialise inside. The spawn now tries
+    /// bearings and radii and takes only open ground — outside every walled yard, like the wildlife spawner.</summary>
+    [Fact]
+    public void Scouts_NeverSpawnInsideAClosedWallRing()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("visitors_fortress", transport, visitors: true);
+        var owner = Owner(server);
+        int cx = (int)Math.Floor(owner.State.Position.X), cz = (int)Math.Floor(owner.State.Position.Z);
+        var (baseId, core, feet) = Fortress(server, owner, cx, cz, ring: 44); // wider than the 40-block spawn ring
+        Assert.True(server.InWalledBaseAreaForTest(cx + 40, feet, cz), "the fixture: the old spawn ring lies inside the walls");
+
+        for (int visit = 0; visit < 6; visit++)
+        {
+            Assert.True(server.SpawnScoutsForTest(baseId), $"visit {visit} found no open ground around the fortress");
+        }
+
+        var scouts = Scouts(server);
+        Assert.Equal(12, scouts.Count);
+        Assert.All(scouts, s =>
+        {
+            // Strictly outside: Chebyshev 44 is the wall itself, and a scout on the rampart is not outside either.
+            Assert.True(ChebyshevXZ(core, s.Position) > 44, $"a scout spawned inside (or on) the walls at {s.Position}, core {core}, pad feet {feet}");
+            Assert.False(server.InWalledBaseAreaForTest((int)Math.Floor(s.Position.X), (int)Math.Floor(s.Position.Y), (int)Math.Floor(s.Position.Z)),
+                $"a scout spawned on fenced-in ground at {s.Position}");
+        });
+    }
+
+    /// <summary>Even a scout that spawned outside used to end up inside: its fence was the radius-8 zone cube,
+    /// and a bandit step knew no walls — a two-block wall read as a step, so it climbed over and walked to an
+    /// edge point that lay inside the player's walls. One scout at the foot of the wall, one already ON the
+    /// wall top with the yard right below it: neither gets inside — the climb is refused as a wall, the step
+    /// down as a step onto fenced-in ground.</summary>
+    [Fact]
+    public void Scouts_NeitherClimbTheWall_NorStepDownIntoTheYard()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("visitors_walls", transport, visitors: true);
+        var owner = Owner(server);
+        int cx = (int)Math.Floor(owner.State.Position.X), cz = (int)Math.Floor(owner.State.Position.Z);
+        var (baseId, core, feet) = Fortress(server, owner, cx, cz, ring: 20);
+        Assert.True(server.SpawnScoutsForTest(baseId));
+
+        var scouts = Scouts(server);
+        Assert.Equal(2, scouts.Count);
+        scouts[0].Position = new Vector3f(cx + 24.5f, feet, cz + 0.5f);     // outside, four blocks from the +X wall
+        scouts[1].Position = new Vector3f(cx + 20.5f, feet + 2, cz + 0.5f); // on the wall top, the yard one step down
+
+        for (int i = 0; i < 600; i++)
+        {
+            server.TickBanditsForTest(0.1);
+            foreach (var s in server.Bandits.Where(b => b.ScoutBaseId > 0 && b.BanditPhase == BanditPhase.Scouting))
+            {
+                Assert.True(ChebyshevXZ(core, s.Position) >= 20, $"a scout got inside the walls at t={i / 10.0:0.0}s: {s.Position}");
+            }
+        }
+
+        Assert.Equal(feet, scouts[0].Position.Y, 1); // it never climbed
+    }
+
+    /// <summary>A shut wooden gate is a door ENTITY, not a block — the body sweep sees air there. The enclosure
+    /// fence is what stops a scout at the gate: the doorway cell and everything behind it read as fenced in
+    /// (#1315: a shut door counts as wall), so the step onto the threshold is refused.</summary>
+    [Fact]
+    public void AScout_DoesNotWalkThroughAShutGate()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("visitors_gate", transport, visitors: true);
+        var owner = Owner(server);
+        int cx = (int)Math.Floor(owner.State.Position.X), cz = (int)Math.Floor(owner.State.Position.Z);
+        var (baseId, core, feet) = Fortress(server, owner, cx, cz, ring: 20);
+
+        // A 1-wide gateway in the +X wall, filled with a wooden door (placed shut).
+        server.RemoveBlockForTest(cx + 20, feet, cz);
+        server.RemoveBlockForTest(cx + 20, feet + 1, cz);
+        owner.State.Inventory.Add("door_wood", 2, 16);
+        owner.State.Position = new Vector3f(cx + 21.5f, feet, cz + 0.5f);
+        server.PlaceBlock(owner.State.PlayerId, cx + 20, feet, cz, "door_wood");
+        var door = server.DoorSnapshots.Single(d => d.Kind == "wood");
+        Assert.False(door.Open);
+        Assert.True(server.World.GetBlock(new Vector3i(cx + 20, feet, cz)).IsAir, "the fixture: a door leaves its cell air");
+        Assert.True(server.InWalledBaseAreaForTest(cx + 19, feet, cz), "the fixture: a shut gate keeps the yard closed");
+        owner.State.Position = new Vector3f(cx + 2.5f, feet, cz + 0.5f); // back inside, so the scouts have someone to look at
+
+        Assert.True(server.SpawnScoutsForTest(baseId));
+        var scout = Scouts(server)[0];
+        scout.Position = new Vector3f(cx + 23.5f, feet, cz + 0.5f); // in front of the gate, its edge point straight behind it
+
+        for (int i = 0; i < 300; i++)
+        {
+            server.TickBanditsForTest(0.1);
+            Assert.True(ChebyshevXZ(core, scout.Position) >= 20, $"the scout walked through the shut gate at t={i / 10.0:0.0}s: {scout.Position}");
+        }
+    }
+
     public void Dispose()
     {
         foreach (var repo in _repos)

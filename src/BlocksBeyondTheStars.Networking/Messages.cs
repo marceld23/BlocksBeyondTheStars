@@ -2504,6 +2504,11 @@ public sealed class ShipAiLine
     /// <summary>Locale key of the active objective chip; empty ⇒ clear the chip.</summary>
     public string ObjectiveKey { get; set; } = string.Empty;
 
+    /// <summary>Optional {0} substitution for the objective chip (#1859) — already a display string, e.g. the
+    /// body name in "a net fragment lies on {0}". Empty ⇒ the localized key is shown as-is. Additive: an
+    /// older peer simply never fills it.</summary>
+    public string ObjectiveArg { get; set; } = string.Empty;
+
     /// <summary>Progress toward the objective (e.g. blocks mined so far). 0/0 ⇒ no counter shown.</summary>
     public int ObjectiveProgress { get; set; }
 

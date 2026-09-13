@@ -54,6 +54,50 @@ public sealed partial class GameServer
     /// on proximity). The wooden door is a cheap early-game hinge door — same behaviour, wood instead of metal.</summary>
     private static bool IsHandOperated(string kind) => kind == "hinge" || kind == "wood";
 
+    /// <summary>
+    /// Double doors (#1852): two hand-operated doors a player set side by side in one wall are one gateway,
+    /// so E on either leaf swings both — the client already hangs the right-hand leaf on the far jamb
+    /// (#1729), but until now each leaf still toggled alone. The server keeps no pair record; like the
+    /// client's <c>DoorPairs</c> the partner is inferred from positions alone. The rule is a pure static so
+    /// it is covered by plain tests.
+    /// </summary>
+    internal static class DoorPairing
+    {
+        /// <summary>Slack on every coordinate comparison — positions are block centres, so anything short of
+        /// half a block is noise.</summary>
+        private const float Tolerance = 0.05f;
+
+        /// <summary>
+        /// True when <paramref name="other"/> is the other leaf of a double door with <paramref name="door"/>:
+        /// both player-built and hand-operated, the same kind, the same wall axis, the same floor, and exactly
+        /// one block apart ALONG the wall (one block apart across it is two parallel walls, not one doorway).
+        /// A door two blocks off, a slide door, a stamped settlement door, or a door on another floor never
+        /// partners.
+        /// </summary>
+        public static bool IsPartner(ServerDoor door, ServerDoor other)
+        {
+            if (ReferenceEquals(door, other) || !door.PlayerBuilt || !other.PlayerBuilt)
+            {
+                return false;
+            }
+
+            if (!IsHandOperated(door.Kind) || door.Kind != other.Kind || door.AxisX != other.AxisX)
+            {
+                return false;
+            }
+
+            if (System.Math.Abs(other.Pos.Y - door.Pos.Y) > Tolerance)
+            {
+                return false;
+            }
+
+            // The wall axis is the direction the leaf runs along: a door in an X wall has its neighbour at X ± 1.
+            float along = door.AxisX ? other.Pos.X - door.Pos.X : other.Pos.Z - door.Pos.Z;
+            float across = door.AxisX ? other.Pos.Z - door.Pos.Z : other.Pos.X - door.Pos.X;
+            return System.Math.Abs(across) <= Tolerance && System.Math.Abs(System.Math.Abs(along) - 1f) <= Tolerance;
+        }
+    }
+
     /// <summary>Door kind for a structure door MARKER id (settlement/station templates + editors). The
     /// energy door is the airtight one (#793) — village/city/station authors can place it explicitly.</summary>
     private static string DoorKindForMarker(string markerType) => markerType switch
@@ -295,6 +339,18 @@ public sealed partial class GameServer
 
         door.Open = !door.Open;
         MarkBaseWallsDirty(_world, door.Pos.ToBlock()); // #1367: a shut gate is a wall to the fill, an open one a gap
+
+        // #1852: the other leaf of a double door follows this one, so one E swings the whole gateway. The
+        // DoorList broadcast below carries every door, so both leaves reach the clients in one message.
+        foreach (var other in _doors)
+        {
+            if (other.Open != door.Open && DoorPairing.IsPartner(door, other))
+            {
+                other.Open = door.Open;
+                MarkBaseWallsDirty(_world, other.Pos.ToBlock());
+            }
+        }
+
         BroadcastDoors();
     }
 

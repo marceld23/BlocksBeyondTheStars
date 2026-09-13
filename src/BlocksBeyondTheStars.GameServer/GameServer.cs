@@ -661,12 +661,7 @@ public sealed partial class GameServer
         LoadBeacons();     // placed radio beacons restore their label/owner entities (the blocks come back via edits)
         LoadBeams();       // placed beam blocks restore their name/owner entities (the blocks come back via edits)
 
-        var body = _galaxy?.FindBody(locationId);
-        if (body is not null && body.Status != GenerationStatus.Visited)
-        {
-            body.Status = GenerationStatus.Visited;
-            _repo.SetLocationStatus(body.Id, body.Status.ToString());
-        }
+        MarkBodyVisited(locationId); // #1856: resolves a station world's `station:` id to its body, so stations chart too
 
         // P3: if a peaceful trader landed on this body while its world was unloaded, re-create its parked ship
         // + pilot now that the world is resident again (the registry is the source of truth, not world state).
@@ -4480,7 +4475,9 @@ public sealed partial class GameServer
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
-        WriteBackStationCell(pos, BlockId.Air); // #1481: an interior edit is part of the station's build from now on
+        // #1481: an interior edit is part of the station's build from now on. A harvested plant leaves Air in the grid
+        // as in the world (the grid mirrors what stands there); its regrowth writes it back (#1857, StepFlora).
+        WriteBackStationCell(pos, BlockId.Air);
         if (IsSapling(current.Value))
         {
             ForgetSaplingGrowth(pos); // #1774: a picked sapling is in the pocket, not regrowing
@@ -6350,19 +6347,18 @@ public sealed partial class GameServer
         => LocationNamesFor(_worlds.Active?.LocationId ?? _meta.ActiveLocationId);
 
     /// <summary>Resolves the friendly (system, planet) names for any body id — resident or not (#1567: a bump
-    /// filed in flight right after a hyperjump describes a body that has never been loaded). Falls back to the
-    /// active world's planet type for non-galaxy locations (stations, ship interiors).</summary>
+    /// filed in flight right after a hyperjump describes a body that has never been loaded). A boarded station's
+    /// <c>station:&lt;id&gt;</c> world resolves to its station body (#1856): the station's system, the station's
+    /// name. Falls back to the active world's planet type for locations the galaxy does not carry (ship interiors).</summary>
     private (string System, string Planet) LocationNamesFor(string locationId)
     {
-        foreach (var sys in _galaxy.Systems)
+        if (ResolveLocationBody(locationId) is { } body)
         {
-            foreach (var body in sys.Bodies)
-            {
-                if (body.Id == locationId)
-                {
-                    return (sys.Name, body.Name);
-                }
-            }
+            // A player station's system is its HOST body's (like RelaySystemOf): the star-map entry can sit under
+            // the save's default system on multi-world servers.
+            string systemId = ResolveLocationHostBody(locationId)?.SystemId ?? body.SystemId;
+            var sys = _galaxy.Systems.FirstOrDefault(s => s.Id == systemId);
+            return (sys?.Name ?? string.Empty, body.Name);
         }
 
         return (string.Empty, _worlds.Active?.PlanetType ?? _meta.DefaultPlanetType);
@@ -6390,7 +6386,10 @@ public sealed partial class GameServer
         // currently on always counts (covers legacy saves + the very first spawn before anything was marked).
         var landed = new HashSet<string>(session.State.LandedBodies);
         var known = new HashSet<string>(session.State.KnownSystems);
-        if (_galaxy?.FindBody(session.CurrentLocationId) is { } hereBody)
+        // #1856: aboard a station the location id is the station's WORLD (`station:<id>`); the map speaks body ids,
+        // so resolve it — "you are here" then lands on the station body and the client can find its system.
+        var hereBody = ResolveLocationBody(session.CurrentLocationId);
+        if (hereBody is not null)
         {
             landed.Add(hereBody.Id);
             if (!string.IsNullOrEmpty(hereBody.SystemId))
@@ -6402,7 +6401,7 @@ public sealed partial class GameServer
         Send(session, new StarMapData
         {
             Systems = systems,
-            ActiveLocationId = session.CurrentLocationId,
+            ActiveLocationId = hereBody?.Id ?? session.CurrentLocationId,
             Players = players,
             LandedBodyIds = landed.ToArray(),
             KnownSystemIds = known.ToArray(),

@@ -247,10 +247,24 @@ public sealed partial class GameServer
         // Same placement idea as the machine spawner: outside immediate view, on the surface.
         double ang = _banditRng.NextDouble() * System.Math.PI * 2.0;
         float dist = 35f + (float)(_banditRng.NextDouble() * 15.0);
-        int ex = (int)System.Math.Round(player.Position.X + System.Math.Cos(ang) * dist);
-        int ez = (int)System.Math.Round(player.Position.Z + System.Math.Sin(ang) * dist);
-        // Real-block ground when the column is loaded (player builds/pits are honoured); noise surface otherwise.
-        int ey = GroundFeetYAt(ex, ez, _generator.SurfaceHeight(_world.Planet, ex, ez) + 1);
+        int ex = 0, ez = 0, ey = 0;
+        bool placed = false;
+        // #1855: a few bearings, so a robber never starts inside the mark's walled yard or in her moat —
+        // the same rejection the base scouts use. No open column → no robber this time.
+        for (int k = 0; k < ScoutSpawnBearings && !placed; k++)
+        {
+            double a = ang + k * (System.Math.PI * 2.0 / ScoutSpawnBearings);
+            ex = (int)System.Math.Round(player.Position.X + System.Math.Cos(a) * dist);
+            ez = (int)System.Math.Round(player.Position.Z + System.Math.Sin(a) * dist);
+            // Real-block ground when the column is loaded (player builds/pits are honoured); noise surface otherwise.
+            ey = GroundFeetYAt(ex, ez, _generator.SurfaceHeight(_world.Planet, ex, ez) + 1);
+            placed = !BanditColumnRejected(ex, ey, ez);
+        }
+
+        if (!placed)
+        {
+            return;
+        }
 
         bool gunner = _banditRng.NextDouble() < 0.4;
         var bandit = new CombatEntity
@@ -520,6 +534,15 @@ public sealed partial class GameServer
             return false;
         }
 
+        // #1855: the ground delta alone read a two-block wall as a step and a moat as a floor — a bandit
+        // climbed the player's wall and waded the water. The creature rules apply now: one block up at most,
+        // no body inside a block, no feet in or on a fluid.
+        if (BanditStepBlockedByTerrain(bandit.Position, candidate, prevGround, groundY))
+        {
+            bandit.Loco.ModeTimer = 0f;
+            return false;
+        }
+
         // A base scout is fenced OUT of the zone exactly like the energy fence fences creatures (#1224): the
         // step that would cross the line is refused, so the scout is never inside even for the one tick the
         // locomotion's inertia would carry it over the edge point.
@@ -531,6 +554,96 @@ public sealed partial class GameServer
 
         bandit.Position = candidate;
         return res.Moving;
+    }
+
+    /// <summary>A bandit's body for collision purposes: feet + head, like the smallest creature.</summary>
+    private const int BanditBodyHeight = 2;
+
+    /// <summary>The terrain gate for a bandit step (#1855), the walker rules in miniature: a rise past one block
+    /// is a wall (the walled-yard rule and the creature gate agree: two blocks is a wall — before this, the
+    /// ±3 ground tolerance let a robber climb a fortress wall); the swept body along the step must be clear
+    /// of colliding blocks and fluids (<see cref="BanditBodyBlocked"/>); and the feet cell must not rest on
+    /// water or lava — a moat is a moat. The existing ±3 drop tolerance stays for the way down.</summary>
+    private bool BanditStepBlockedByTerrain(Vector3f cur, Vector3f cand, int curFeet, int candFeet)
+    {
+        if (candFeet - curFeet > CreatureMotion.StepUpLimit(MotionClass.Walker))
+        {
+            return true;
+        }
+
+        int fx = (int)System.Math.Floor(cand.X), fz = (int)System.Math.Floor(cand.Z);
+        if (IsFluid(_world.GetBlockIfLoaded(new Vector3i(fx, candFeet - 1, fz)).Value))
+        {
+            return true; // feet on water or lava
+        }
+
+        // Swept at the candidate's height so a ledge just climbed does not read as a wall — the same shape as
+        // the creatures' path sweep (#855), sampled every quarter block so a sprinting bandit cannot tunnel
+        // through a one-block wall between two ticks.
+        float dx = cand.X - cur.X, dz = cand.Z - cur.Z;
+        float dist = (float)System.Math.Sqrt(dx * dx + dz * dz);
+        int steps = System.Math.Max(1, (int)System.Math.Ceiling(dist / 0.25f));
+        for (int s = 1; s <= steps; s++)
+        {
+            float f = s / (float)steps;
+            if (BanditBodyBlocked(cur.X + dx * f, candFeet, cur.Z + dz * f))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a bandit body with its feet at <paramref name="feetY"/> sits inside a colliding block
+    /// or a fluid at a spot. No-load reads (an unloaded chunk is air), walk-through props pass.</summary>
+    private bool BanditBodyBlocked(float x, int feetY, float z)
+    {
+        int bx = (int)System.Math.Floor(x), bz = (int)System.Math.Floor(z);
+        for (int dy = 0; dy < BanditBodyHeight; dy++)
+        {
+            if (IsCollidingBlock(_world.GetBlockIfLoaded(new Vector3i(bx, feetY + dy, bz)), fluidsPass: false, foliagePasses: false))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a bandit may NOT be placed with its feet at a column's feet cell (#1855): inside a
+    /// walled base area or a sealed base room (the two enclosure predicates the creature spawner honours —
+    /// the player noticed her animals respect the walls and her scouts did not), or standing in or on water
+    /// or lava (real blocks when the column is loaded, the generator's fluid bodies otherwise).</summary>
+    private bool BanditColumnRejected(int x, int feetY, int z)
+    {
+        var feet = new Vector3i(x, feetY, z);
+        if (InWalledBaseArea(feet) || InSealedBaseRoom(feet))
+        {
+            return true;
+        }
+
+        // A wall top or a cliff edge is no place to appear either: the ground probe stops at the first block
+        // it meets and climbs onto it, so a column through a fortress wall answered the rampart — the fill
+        // reads the air above a wall as open, and a bandit would materialise on the battlements. The ground
+        // must not drop two or more blocks to any neighbour column.
+        foreach (var (dx, dz) in WallFillDirs)
+        {
+            if (TryGroundFeetYAt(x + dx, z + dz, feetY, out int neighbourFeet) && feetY - neighbourFeet >= 2)
+            {
+                return true;
+            }
+        }
+
+        if (_world.IsChunkLoaded(WorldConstants.WorldToChunk(WorldConstants.CanonicalBlock(feet, _world.Circumference))))
+        {
+            return IsFluid(_world.GetBlockIfLoaded(feet).Value)
+                || IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, feetY - 1, z)).Value);
+        }
+
+        // Unloaded: the probe answered the noise surface, so ask the generator what fills that column.
+        return (_generator.TryGetWaterSurface(_world.Planet, x, z, out int waterTop, out _) && feetY <= waterTop + 1)
+            || (_generator.TryGetLavaSurface(_world.Planet, x, z, out int lavaTop, out _) && feetY <= lavaTop + 1);
     }
 
     private (MoveMode, Vector3f?) CampGuardIntent(CombatEntity guard, List<PlayerSession> targets)

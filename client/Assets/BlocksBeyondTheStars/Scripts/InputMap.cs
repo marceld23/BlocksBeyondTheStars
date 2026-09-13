@@ -307,11 +307,50 @@ namespace BlocksBeyondTheStars.Client
         public static bool ModalCaptures(InputAction action)
             => ModalCapture && (action == InputAction.UiCancel || action == InputAction.UiMenu);
 
+        // The text-entry gate (#1858), cached once per frame: TextFieldFocused walks the EventSystem selection
+        // and GetComponent<InputField>, and Down/Held/Up are polled dozens of times a frame. Frame-stable like
+        // Injected(): a field that loses focus mid-frame (Enter closing the chat box) keeps the rest of that
+        // frame's polls swallowed, so the closing keystroke never doubles as a gameplay verb.
+        private static int _textEntryFrame = -1;
+        private static bool _textEntryActive;
+
+        /// <summary>Test seam: pins <see cref="TextEntryActive"/> (an EditMode test has no EventSystem to focus a
+        /// field in). Null in normal play.</summary>
+        public static bool? TextEntryOverrideForTest;
+
+        /// <summary>True while the player is typing — a focused uGUI text field or the pad's on-screen keyboard
+        /// (<see cref="UiKit.TextFieldFocused"/>), sampled at most once per frame. While it is true every
+        /// gameplay action reads "not pressed" from <see cref="Down"/> / <see cref="Held"/> / <see cref="Up"/>;
+        /// only the two menu verbs pass (<see cref="InputGate.Allows"/>). Public so call sites that also read
+        /// the continuous axes can hold still on the same answer.</summary>
+        public static bool TextEntryActive
+        {
+            get
+            {
+                if (TextEntryOverrideForTest.HasValue)
+                {
+                    return TextEntryOverrideForTest.Value;
+                }
+
+                if (Time.frameCount != _textEntryFrame)
+                {
+                    _textEntryFrame = Time.frameCount;
+                    _textEntryActive = UiKit.TextFieldFocused();
+                }
+
+                return _textEntryActive;
+            }
+        }
+
+        /// <summary>The two gates every discrete poll passes: the pad modal capture and the text-entry gate.</summary>
+        private static bool Passes(InputAction action) => !ModalCaptures(action) && InputGate.Allows(action, TextEntryActive);
+
         // Discrete rebindable actions — combined across all backends so a pad button, the touch USE button, or
         // the bound key all fire the action. The keyboard resolution is unchanged (DesktopInputSource calls Key).
-        public static bool Down(InputAction action) => !ModalCaptures(action) && (_desktop.ActionDown(action) || _pad.ActionDown(action) || _touch.ActionDown(action) || Injected(action));
-        public static bool Held(InputAction action) => !ModalCaptures(action) && (_desktop.ActionHeld(action) || _pad.ActionHeld(action) || _touch.ActionHeld(action));
-        public static bool Up(InputAction action) => !ModalCaptures(action) && (_desktop.ActionUp(action) || _pad.ActionUp(action) || _touch.ActionUp(action));
+        // Typing into any text field (#1858) swallows them all except UiCancel / UiMenu — see Passes.
+        public static bool Down(InputAction action) => Passes(action) && (_desktop.ActionDown(action) || _pad.ActionDown(action) || _touch.ActionDown(action) || Injected(action));
+        public static bool Held(InputAction action) => Passes(action) && (_desktop.ActionHeld(action) || _pad.ActionHeld(action) || _touch.ActionHeld(action));
+        public static bool Up(InputAction action) => Passes(action) && (_desktop.ActionUp(action) || _pad.ActionUp(action) || _touch.ActionUp(action));
 
         // ---- Continuous locomotion / camera / interaction core -------------------------------------------
         // Each merges the backends. Movement + look are additive (mouse delta + stick delta + touch); the

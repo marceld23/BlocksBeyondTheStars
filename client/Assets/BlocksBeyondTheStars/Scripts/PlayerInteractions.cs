@@ -43,9 +43,11 @@ namespace BlocksBeyondTheStars.Client
                 || !string.IsNullOrEmpty(Game.PendingTradeFrom);
             Game.SetMenuOwner(this, modal);
 
-            if (modal || Game.MenuOpen || Game.SpaceViewActive || Game.ChatTyping)
+            // The text-entry gate is already inside InputMap.Down (#1858); named here too so a "U" typed into
+            // any field stays a letter even if a future verb here reads a raw key.
+            if (modal || Game.MenuOpen || Game.SpaceViewActive || Game.ChatTyping || InputMap.TextEntryActive)
             {
-                return; // don't start new interactions while a panel/space view/chat is up
+                return; // don't start new interactions while a panel/space view/chat/text field is up
             }
 
             // Leave a boarded space station (returns you to your ship). Boarding it is otherwise a one-way trip.

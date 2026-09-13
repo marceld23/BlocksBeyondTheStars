@@ -77,7 +77,9 @@ namespace BlocksBeyondTheStars.Client
         private int _prologueLineIndex;
 
         private string _objectiveKey = string.Empty;
+        private string _objectiveArg = string.Empty; // {0} of the objective line (#1859: the fragment world's name)
         private int _objProgress, _objTarget;
+        private RectTransform _chipRect; // grows from 48 to 72 for a three-line objective (#1859)
 
         // VEGA's non-verbal vocoder voice (#761): short ElevenLabs chatter variants chained while a
         // page types out. No words → language-independent, nothing to re-record when texts change.
@@ -129,10 +131,13 @@ namespace BlocksBeyondTheStars.Client
             // Objective chip: small persistent strip below the speech spot. (Skipping/restarting the
             // tutorial lives in the Settings tab — the mouse is captured for camera control out here,
             // so a button on the chip was unreachable.)
-            _chip = UiHolo.AddPanel(_canvas.transform, 24, ChipY, 640, 48, new Color(0.05f, 0.10f, 0.16f, 0.66f), 10f, 1.2f, 0.9f).gameObject;
-            _chipText = UiText.Add(_chip.transform, 14, 0, 614, 48, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
+            _chip = UiHolo.AddPanel(_canvas.transform, 24, ChipY, 640, VegaObjectiveChip.HeightNormal, new Color(0.05f, 0.10f, 0.16f, 0.66f), 10f, 1.2f, 0.9f).gameObject;
+            _chipRect = _chip.GetComponent<RectTransform>();
+            _chipText = UiText.Add(_chip.transform, 14, 0, VegaObjectiveChip.TextWidth, VegaObjectiveChip.HeightNormal, string.Empty, VegaObjectiveChip.FontLarge, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
             // Wrap + truncate as a safety net — the UiKit default (Overflow) would let an over-long
-            // objective label spill outside the chip background (#736 side finding).
+            // objective label spill outside the chip background (#736 side finding). The objective is fitted
+            // first (FitChip, #1859): a long line drops to the small font, the counter moves to its own line
+            // and the chip grows a row, so truncation only ever bites a pathological string.
             UiText.Wrap(_chipText, truncate: true);
             _chip.SetActive(false);
 
@@ -311,6 +316,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnLine(ShipAiLine m)
         {
             _objectiveKey = m.ObjectiveKey ?? string.Empty;
+            _objectiveArg = m.ObjectiveArg ?? string.Empty;
             _objProgress = m.ObjectiveProgress;
             _objTarget = m.ObjectiveTarget;
 
@@ -377,8 +383,32 @@ namespace BlocksBeyondTheStars.Client
             _chip.SetActive(hasObjective);
             if (hasObjective)
             {
-                string counter = _objTarget > 1 ? $"  ({Mathf.Min(_objProgress, _objTarget)}/{_objTarget})" : string.Empty;
-                _chipText.text = $"{L("ui.vega.objective")}: {L(_objectiveKey)}{counter}";
+                string counter = _objTarget > 1 ? $"({Mathf.Min(_objProgress, _objTarget)}/{_objTarget})" : string.Empty;
+                FitChip($"{L("ui.vega.objective")}: {VegaObjectiveChip.Format(L(_objectiveKey), _objectiveArg)}", counter);
+            }
+        }
+
+        /// <summary>Fits the objective into the chip (#1859). One line at the large font when it fits the text
+        /// width; otherwise the small font, the counter on its own line (so "(128/204)" is never the part the
+        /// truncation eats), and the chip grows a row when the wrapped text needs three lines. Measured with
+        /// TMP's preferred sizes: <c>preferredWidth</c> is the unwrapped single-line width, <c>preferredHeight</c>
+        /// the wrapped height at the rect's width.</summary>
+        private void FitChip(string body, string counter)
+        {
+            _chipText.fontSize = VegaObjectiveChip.FontLarge;
+            _chipText.text = VegaObjectiveChip.Compose(body, counter, ownLine: false);
+            bool oneLine = _chipText.preferredWidth <= VegaObjectiveChip.TextWidth;
+            if (!oneLine)
+            {
+                _chipText.fontSize = VegaObjectiveChip.FontSmall;
+                _chipText.text = VegaObjectiveChip.Compose(body, counter, ownLine: true);
+            }
+
+            float height = VegaObjectiveChip.Height(oneLine ? 0f : _chipText.preferredHeight);
+            if (_chipRect != null && !Mathf.Approximately(_chipRect.sizeDelta.y, height))
+            {
+                _chipRect.sizeDelta = new Vector2(_chipRect.sizeDelta.x, height);
+                _chipText.rectTransform.sizeDelta = new Vector2(VegaObjectiveChip.TextWidth, height);
             }
         }
 
@@ -758,5 +788,49 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_canvas.gameObject);
             }
         }
+    }
+
+    /// <summary>The objective chip's pure text/layout rules (#1859), kept free of any canvas so the EditMode
+    /// tests can pin them: the {0} substitution with its fallback, the counter placement, and the chip height.
+    /// The geometry constants are the chip's: 640×48 at x 24 / y <see cref="VegaPanel.ChipY"/> in the left
+    /// column; the tall variant (72) reaches 16 px into the scan panel's lane (y 650) — accepted for the rare
+    /// three-line objective, since the scan panel only shows while scanning.</summary>
+    public static class VegaObjectiveChip
+    {
+        public const float FontLarge = 20f;
+        public const float FontSmall = 17f;
+        public const float HeightNormal = 48f;
+        public const float HeightTall = 72f;
+        public const float TextWidth = 614f;
+
+        /// <summary>The objective line with its {0} argument filled in — the template as-is when there is no
+        /// argument, and also when the template is not a valid format string (a stray brace in a translation
+        /// must never blank the chip).</summary>
+        public static string Format(string template, string arg)
+        {
+            if (string.IsNullOrEmpty(template) || string.IsNullOrEmpty(arg))
+            {
+                return template ?? string.Empty;
+            }
+
+            try
+            {
+                return string.Format(template, arg);
+            }
+            catch (System.FormatException)
+            {
+                return template;
+            }
+        }
+
+        /// <summary>Objective text + counter: inline after two spaces on a short line, on its own line when the
+        /// objective already needs wrapping (the counter must never be the part that gets cut).</summary>
+        public static string Compose(string body, string counter, bool ownLine)
+            => string.IsNullOrEmpty(counter) ? body ?? string.Empty : (body ?? string.Empty) + (ownLine ? "\n" : "  ") + counter;
+
+        /// <summary>Chip height for a wrapped text height: the normal row while two small-font lines fit, the
+        /// tall row (three lines) beyond that.</summary>
+        public static float Height(float wrappedTextHeight)
+            => wrappedTextHeight <= HeightNormal ? HeightNormal : HeightTall;
     }
 }

@@ -12,6 +12,10 @@ namespace BlocksBeyondTheStars.Client
     /// viewport shows real space — the nearby planet, the star, and the stars beyond. Opaque hull walls
     /// occlude the backdrop, so it only shows through the windows. Hidden everywhere else (it follows the
     /// camera so the bodies stay at "infinity"). Presentation only.
+    /// The REST of the system — its moons, neighbour planets, asteroids — is no longer faked here (#1856: the
+    /// old grey "moon" and "ice sibling" spheres were decoration with no body behind them); since the server
+    /// sends the station's body id as the active location, <see cref="SkyBodiesView"/> renders the real
+    /// bodies of the host's sky, and this keeps only what that view leaves out: the host itself and the sun.
     /// </summary>
     public sealed class StationBackdrop : MonoBehaviour
     {
@@ -104,23 +108,9 @@ namespace BlocksBeyondTheStars.Client
             smr.receiveShadows = false;
             _sun = sun.transform;
 
-            // #1474: something for the other walls too — a grey moon behind (-Z) and a distant sibling world
-            // off the -X wall, so no window looks at empty black.
-            var moon = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            moon.name = "BackdropMoon";
-            StripCollider(moon);
-            moon.transform.SetParent(_root.transform, false);
-            moon.transform.localPosition = new Vector3(-150f, 70f, -560f);
-            moon.transform.localScale = Vector3.one * 120f;
-            moon.GetComponent<Renderer>().sharedMaterial = new Material(litShader) { color = ShaderColor.Srgb(new Color(0.62f, 0.60f, 0.58f)) };
-
-            var sibling = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            sibling.name = "BackdropSibling";
-            StripCollider(sibling);
-            sibling.transform.SetParent(_root.transform, false);
-            sibling.transform.localPosition = new Vector3(-600f, 40f, -80f);
-            sibling.transform.localScale = Vector3.one * 160f;
-            sibling.GetComponent<Renderer>().sharedMaterial = new Material(litShader) { color = ShaderColor.Srgb(PlanetColor("ice")) };
+            // The other walls used to get a hard-coded grey moon (-Z) and an "ice" sibling world (-X) so no window
+            // looked at empty black (#1474). Gone with #1856: SkyBodiesView now hangs the system's REAL moons,
+            // planets and asteroids in the station sky, in their true directions, so the fakes only contradicted them.
 
             _root.SetActive(false);
         }
@@ -131,14 +121,16 @@ namespace BlocksBeyondTheStars.Client
             var map = Game?.StarMap;
             if (map?.Systems != null)
             {
-                // #1474: the boarded station's HOST body — the station's star-map entry shares the host's system
-                // coordinates (AddStationBodyToGalaxy), so the planet/moon at the same spot is the one outside.
+                // The boarded station's HOST body. #1856: the server sends the station's body id as the active
+                // location, and a player station carries its host in ParentId — a direct lookup. Older servers
+                // (no body id / no ParentId) fall back to the #1474 route: the station by name, then the planet or
+                // moon at the station's system coordinates (AddStationBodyToGalaxy places it on top of its host).
                 BlocksBeyondTheStars.Networking.Messages.NetBody station = null;
                 foreach (var sys in map.Systems)
                 {
                     foreach (var b in sys.Bodies)
                     {
-                        if (b.Kind == "SpaceStation" && b.Name == Game.StationName)
+                        if (b.Kind == "SpaceStation" && (b.Id == map.ActiveLocationId || (station == null && b.Name == Game.StationName)))
                         {
                             station = b;
                         }
@@ -152,7 +144,8 @@ namespace BlocksBeyondTheStars.Client
                         foreach (var b in sys.Bodies)
                         {
                             if ((b.Kind == "Planet" || b.Kind == "Moon") && !string.IsNullOrEmpty(b.PlanetType)
-                                && Mathf.Abs(b.SystemX - station.SystemX) < 0.5f && Mathf.Abs(b.SystemZ - station.SystemZ) < 0.5f)
+                                && (b.Id == station.ParentId
+                                    || (Mathf.Abs(b.SystemX - station.SystemX) < 0.5f && Mathf.Abs(b.SystemZ - station.SystemZ) < 0.5f)))
                             {
                                 return b.PlanetType;
                             }

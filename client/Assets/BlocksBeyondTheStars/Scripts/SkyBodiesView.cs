@@ -16,6 +16,7 @@ namespace BlocksBeyondTheStars.Client
     /// own unique sky choreography (a slow huge moon here, two fast crossing asteroids there), stable across
     /// sessions. Bodies rise and set, are tinted by their planet type, sized by their real walkable size, and
     /// read a touch brighter at night. Pure client ambience driven by the star map; terrain occludes them.
+    /// Aboard a station the set is the HOST body's (#1856) — the hull occludes it, the windows show it.
     /// </summary>
     public sealed class SkyBodiesView : MonoBehaviour
     {
@@ -269,6 +270,21 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // #1856: aboard a station the active body IS the station (the server now sends its body id). Its sky is
+            // the sky of the body it orbits: anchor the perspective + the choreography on the HOST — the station's
+            // ParentId when the server set it (player stations), else the nearest planet/moon of the system — and
+            // leave the host itself out (it is the big backdrop sphere outside the windows, see StationBackdrop).
+            string anchorId = map.ActiveLocationId;
+            if (current != null && current.Kind == "SpaceStation")
+            {
+                var host = HostBodyOf(system, current);
+                if (host != null)
+                {
+                    current = host;
+                    anchorId = host.Id;
+                }
+            }
+
             // Collect candidates first and CAP them (#548): an archetype system can carry many moons, and
             // every sky body costs a sphere + a texture bake per world load. Keep the most prominent ones
             // (apparent size ≈ real size / real distance); the far tail wouldn't read as more than a dot.
@@ -278,7 +294,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool isLandable = body.Kind is "Planet" or "Moon"
                     || WorldConstants.IsAsteroidType(body.PlanetType);
-                if (isLandable && body.Id != map.ActiveLocationId)
+                if (isLandable && body.Id != map.ActiveLocationId && body.Id != anchorId)
                 {
                     candidates.Add(body);
                 }
@@ -308,8 +324,9 @@ namespace BlocksBeyondTheStars.Client
             foreach (var body in candidates)
             {
 
-                // Deterministic per (current planet, body): the sky choreography is unique to each world.
-                int h = Hash(map.ActiveLocationId + "|" + body.Id);
+                // Deterministic per (current planet, body): the sky choreography is unique to each world. A station
+                // keys on its host, so its windows show the host's sky (#1856).
+                int h = Hash(anchorId + "|" + body.Id);
 
                 var cls = WorldConstants.IsAsteroidType(body.PlanetType)
                     ? WorldConstants.WorldSizeClass.Asteroid
@@ -427,6 +444,43 @@ namespace BlocksBeyondTheStars.Client
                     Size = apparent,
                 });
             }
+        }
+
+        /// <summary>The body a station orbits (#1856): its <c>ParentId</c> when the server set one (player
+        /// stations carry their host), else the nearest planet/moon of the system by system-space distance
+        /// (procedural stations share their host's coordinates). Null when the system holds no such body.</summary>
+        private static NetBody HostBodyOf(NetStarSystem system, NetBody station)
+        {
+            if (!string.IsNullOrEmpty(station.ParentId))
+            {
+                foreach (var body in system.Bodies)
+                {
+                    if (body.Id == station.ParentId)
+                    {
+                        return body;
+                    }
+                }
+            }
+
+            NetBody nearest = null;
+            float bestSq = float.MaxValue;
+            foreach (var body in system.Bodies)
+            {
+                if (body.Kind != "Planet" && body.Kind != "Moon")
+                {
+                    continue;
+                }
+
+                float dx = body.SystemX - station.SystemX, dy = body.SystemY - station.SystemY, dz = body.SystemZ - station.SystemZ;
+                float dsq = dx * dx + dy * dy + dz * dz;
+                if (dsq < bestSq)
+                {
+                    bestSq = dsq;
+                    nearest = body;
+                }
+            }
+
+            return nearest;
         }
 
         /// <summary>Sky tint per planet type — fallback only (the data-driven

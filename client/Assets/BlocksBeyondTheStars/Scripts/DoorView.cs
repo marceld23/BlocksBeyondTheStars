@@ -36,6 +36,7 @@ namespace BlocksBeyondTheStars.Client
             public float Width;
             public bool AxisX;
             public bool Mirrored;          // hinge: the leaf hangs on the RIGHT jamb — the right half of a double door (#1729)
+            public DoorPairs.Sides Partners; // hinge: the local sides sharing a jamb with a partner leaf — no post there (#1852)
             public bool Open;
             public float Anim;             // 0 closed → 1 open, eased toward Open
             public Transform Field;        // energy door: the translucent blue field shown in the open doorway
@@ -185,10 +186,13 @@ namespace BlocksBeyondTheStars.Client
         /// nothing of pairs (each placed door is its own one-block record), so the pairing is inferred here from
         /// the positions alone (<see cref="DoorPairs"/>) and re-checked on every door list: placing or removing
         /// a neighbour can flip a leaf, which rebuilds that door's geometry in place, keeping its swing state.
+        /// The same neighbourhood decides which jamb is shared with a partner (#1852): that jamb gets no post,
+        /// so a double door no longer shows a dark bar where its leaves meet. A door whose partner is removed
+        /// is rebuilt too — it gets its post and its default swing back.
         /// </summary>
         private void RefreshPairs()
         {
-            if (_doors.Count < 2)
+            if (_doors.Count == 0)
             {
                 return;
             }
@@ -199,34 +203,42 @@ namespace BlocksBeyondTheStars.Client
                 all.Add(new DoorPairs.Door(d.Kind, IsHinged(d.Kind), d.World.x, d.World.y, d.World.z, d.AxisX));
             }
 
-            List<int> flip = null;
+            List<KeyValuePair<int, DoorPairs.Sides>> changed = null;
             foreach (var kv in _doors)
             {
                 var d = kv.Value;
-                bool mirrored = IsHinged(d.Kind)
-                    && DoorPairs.MirrorsLeaf(new DoorPairs.Door(d.Kind, true, d.World.x, d.World.y, d.World.z, d.AxisX), all);
-                if (mirrored != d.Mirrored)
+                var partners = IsHinged(d.Kind)
+                    ? DoorPairs.PartnerSides(new DoorPairs.Door(d.Kind, true, d.World.x, d.World.y, d.World.z, d.AxisX), all)
+                    : DoorPairs.Sides.None;
+                if (partners != d.Partners)
                 {
-                    (flip ??= new List<int>()).Add(kv.Key);
+                    (changed ??= new List<KeyValuePair<int, DoorPairs.Sides>>()).Add(new KeyValuePair<int, DoorPairs.Sides>(kv.Key, partners));
                 }
             }
 
-            if (flip == null)
+            if (changed == null)
             {
                 return;
             }
 
-            foreach (int id in flip)
+            foreach (var kv in changed)
             {
-                var old = _doors[id];
-                var fresh = Build(id, old.Kind, old.World, old.Width, old.AxisX, old.Open, !old.Mirrored);
+                var old = _doors[kv.Key];
+                var fresh = Build(kv.Key, old.Kind, old.World, old.Width, old.AxisX, old.Open, DoorPairs.MirrorsLeaf(kv.Value), kv.Value);
                 fresh.Anim = old.Anim;
                 Destroy(old.Go);
-                _doors[id] = fresh;
+                _doors[kv.Key] = fresh;
             }
         }
 
-        private Door Build(int id, string kind, Vector3 world, float width, bool axisX, bool open, bool mirrored)
+        /// <summary>Whether the jamb post on one local side of a door is drawn (#1852): a jamb shared with a
+        /// partner leaf gets none, since each door used to put its own post there and the two coincident
+        /// posts read as a black bar splitting the double door.</summary>
+        public static bool WantsJambPost(DoorPairs.Sides partners, bool plusSide)
+            => (partners & (plusSide ? DoorPairs.Sides.Plus : DoorPairs.Sides.Minus)) == DoorPairs.Sides.None;
+
+        private Door Build(int id, string kind, Vector3 world, float width, bool axisX, bool open, bool mirrored,
+            DoorPairs.Sides partners = DoorPairs.Sides.None)
         {
             var go = new GameObject($"Door {kind} {id}");
             go.transform.SetParent(transform, true);
@@ -265,9 +277,17 @@ namespace BlocksBeyondTheStars.Client
                 b = MakePanel(pivot, panelCol, trimCol, w * 0.5f);
             }
 
-            // Frame trim: two jamb posts (sci-fi doors glow) so the opening reads as a real doorway.
-            Post(pivot, trimCol, -w * 0.5f);
-            Post(pivot, trimCol, w * 0.5f);
+            // Frame trim: two jamb posts (sci-fi doors glow) so the opening reads as a real doorway — except on
+            // a jamb shared with a partner leaf, where the double door's two posts would meet in a black bar (#1852).
+            if (WantsJambPost(partners, plusSide: false))
+            {
+                Post(pivot, trimCol, -w * 0.5f);
+            }
+
+            if (WantsJambPost(partners, plusSide: true))
+            {
+                Post(pivot, trimCol, w * 0.5f);
+            }
 
             // A solid collider that blocks the player while closed (the player uses a CharacterController).
             var col = go.AddComponent<BoxCollider>();
@@ -303,6 +323,7 @@ namespace BlocksBeyondTheStars.Client
                 Width = w,
                 AxisX = axisX,
                 Mirrored = mirrored,
+                Partners = partners,
                 Open = open,
                 Anim = open ? 1f : 0f,
                 Field = field,

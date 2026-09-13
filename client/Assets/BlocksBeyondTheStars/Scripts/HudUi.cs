@@ -68,6 +68,9 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color HullC = new Color(0.6f, 0.66f, 0.74f);
         private static readonly Color ShieldC = new Color(0.4f, 0.7f, 1f);
 
+        /// <summary>The net-fragment signal's colour — the planet map's "fragment_signal" marker tint (#1859).</summary>
+        private static readonly Color FragmentSignalCol = new Color(0.45f, 0.95f, 1f);
+
         private Canvas _canvas;
         private GameObject _crosshair, _locationPanel, _vitalsPanel, _shipRows;
 
@@ -85,6 +88,9 @@ namespace BlocksBeyondTheStars.Client
         private TMP_Text _compassCoreDist; // Guardian core distance under the waypoint line (#1792)
         private RectTransform _compassCore;
         private int _lastCompassCoreDist = int.MinValue;
+        private TMP_Text _compassFragDist; // nearest net-fragment signal (#1859) — shares the core line's row
+        private RectTransform _compassFrag;
+        private int _lastCompassFragDist = int.MinValue;
         private TMP_Text _observer; // SPECTATOR badge while fleet-admin observer mode is active (issue #487)
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
         private TMP_Text _playtimeText;
@@ -202,6 +208,9 @@ namespace BlocksBeyondTheStars.Client
         private CanvasGroup _toastGroup;  // toast slide/fade
         private Vector2 _toastBasePos;
         private string _lastToastMsg = string.Empty;
+        private int _lastToastSeq = -1;  // GameBootstrap.LastMessageSeq of the toast up (#1860)
+        private float _toastAge = -1f;   // seconds since the toast came up; -1 = none up
+        private float _toastHold;        // HudToastPolicy hold of the toast up (before the fade-out)
         private bool _bootPending = true; // play the boot reveal on the first visible frame (and after a respawn)
         private bool _wasDead;
         private WorldLoadingOverlay _veil;
@@ -231,6 +240,7 @@ namespace BlocksBeyondTheStars.Client
             // stale pickups) and gains queued during the hidden-hotbar states must keep draining away.
             UpdatePickupFeed(Time.deltaTime);
             UpdateResearchToast(Time.deltaTime);
+            UpdateToast(Time.deltaTime); // #1860: the status toast ages out even while a menu hides the canvas
 
             // While the binocular optic is raised its own reticle takes over — two crosshairs stacked on top of
             // each other read as a rendering bug (BinocularOptic owns the flag and always clears it).
@@ -627,6 +637,11 @@ namespace BlocksBeyondTheStars.Client
             // publishes the core POI — the one place on that planet worth walking to, so it gets the ship's treatment.
             _compassCoreDist = UiText.Add(comp.transform, 0, 136, 120, 18, string.Empty, 14, WorldMap.GuardianCoreCol, TextAnchor.MiddleCenter, FontStyle.Bold);
             _compassCore = Blip(comp.transform, WorldMap.GuardianCoreCol, 10f);
+            // The net-fragment signal (#1859): the story chip says "follow VEGA's signal", so the signal gets the
+            // core's treatment — a blip in the map marker's colour plus a distance line. It SHARES the core's
+            // caption row (the core wins when both exist): a fourth row would sit on the time-of-day panel below.
+            _compassFragDist = UiText.Add(comp.transform, 0, 136, 120, 18, string.Empty, 14, FragmentSignalCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _compassFrag = Blip(comp.transform, FragmentSignalCol, 10f);
             _compassShip = Blip(comp.transform, new Color(0.3f, 0.8f, 1f), 8f);
             // The waypoint blip is the map_waypoint ICON, not another plain square — at 7 px amber it was
             // nearly indistinguishable from the 6 px amber beacon blips (#592).
@@ -745,7 +760,7 @@ namespace BlocksBeyondTheStars.Client
                 UiText.Style(glow, UiText.Look.Glow);
             }
 
-            foreach (var outline in new TMP_Text[] { _locPlace, _loot, _hint, _todText, _compassDist, _compassWpDist, _compassCoreDist, _dmgCause, _playtimeText,
+            foreach (var outline in new TMP_Text[] { _locPlace, _loot, _hint, _todText, _compassDist, _compassWpDist, _compassCoreDist, _compassFragDist, _dmgCause, _playtimeText,
                          _wreckName, _wreckProg, _wreckHint, _shipRepairProg, _shipRepairHint, _tameMood, _tameNeed, _tameTrust,
                          _speederSpeed, _speederHullLabel, _speederFuelLabel, _speederHint })
             {
@@ -786,6 +801,8 @@ namespace BlocksBeyondTheStars.Client
         private void ShowToast(string msg)
         {
             _toast.text = msg;
+            _toastAge = msg.Length == 0 ? -1f : 0f; // #1860: arm the lifetime; an empty message has none
+            _toastHold = HudToastPolicy.HoldSeconds(msg);
             if (_toastGroup == null || msg.Length == 0)
             {
                 return;
@@ -799,6 +816,31 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiTween.Alpha(_toastGroup, 1f, 0.22f, UiTween.Ease.OutQuad);
+        }
+
+        /// <summary>Toast lifetime (#1860): the status line used to stay until the next server message replaced
+        /// it — "Life support lost" sat over a player breathing station air for the rest of the session. After
+        /// <see cref="HudToastPolicy.HoldSeconds"/> it fades over <see cref="HudToastPolicy.FadeSeconds"/>, then
+        /// the message is blanked on the game state (so the SAME line re-sent later shows again — Refresh compares
+        /// text and sequence). The slide-in tween is long finished by the time the fade drives the alpha.</summary>
+        private void UpdateToast(float dt)
+        {
+            if (_toastAge < 0f)
+            {
+                return;
+            }
+
+            _toastAge += dt;
+            if (_toastAge > _toastHold && _toastGroup != null)
+            {
+                _toastGroup.alpha = HudToastPolicy.Alpha(_toastAge, _toastHold);
+            }
+
+            if (HudToastPolicy.Expired(_toastAge, _toastHold))
+            {
+                _toastAge = -1f;
+                Game?.ExpireMessage(_lastToastSeq); // the next Refresh sees an empty message and blanks the label
+            }
         }
 
         /// <summary>Sends the player's chosen response in the current taming ritual (read from the live state).</summary>
@@ -897,8 +939,12 @@ namespace BlocksBeyondTheStars.Client
             RefreshPlaytime(loc);
 
             string toastMsg = Game.LastMessage ?? string.Empty;
-            if (!string.Equals(toastMsg, _lastToastMsg, System.StringComparison.Ordinal))
+            int toastSeq = Game.LastMessageSeq;
+            // #1860: the sequence tells a RE-SENT identical line from the one already shown — after the previous
+            // toast expired and blanked the message, the same warning must slide in again.
+            if (toastSeq != _lastToastSeq || !string.Equals(toastMsg, _lastToastMsg, System.StringComparison.Ordinal))
             {
+                _lastToastSeq = toastSeq;
                 _lastToastMsg = toastMsg;
                 ShowToast(toastMsg);
             }
@@ -1892,6 +1938,20 @@ namespace BlocksBeyondTheStars.Client
                 _compassCoreDist.text = coreDistNow >= 0 ? $"{CompassLabel("poi.guardian_core", "Guardian core")} {coreDistNow} m" : string.Empty;
             }
 
+            // Net-fragment signal (#1859): the nearest revealed fragment marker on this world — the story chip
+            // says "follow VEGA's signal", this is the signal. The core keeps the row when both are on the map.
+            Vector3 fragPos = Vector3.zero; // assigned up front: the out-call is skipped while the core holds the row
+            bool haveFrag = !haveCore && TryGetFragmentSignal(out fragPos);
+            PlaceBlip(_compassFrag, haveFrag, fragPos, radius, out float fragDist);
+            int fragDistNow = haveFrag ? Mathf.RoundToInt(fragDist) : -1;
+            if (fragDistNow != _lastCompassFragDist)
+            {
+                _lastCompassFragDist = fragDistNow;
+                _compassFragDist.text = fragDistNow >= 0
+                    ? string.Format(CompassLabel("ui.hud.compass_fragment", "Fragment {0} m"), fragDistNow)
+                    : string.Empty;
+            }
+
             // Player-placed beacons (item 37): amber blips, pooled since their count varies.
             var beacons = Game.Beacons;
             int bn = beacons?.Length ?? 0;
@@ -1970,6 +2030,38 @@ namespace BlocksBeyondTheStars.Client
 
             pos = Vector3.zero;
             return false;
+        }
+
+        /// <summary>The nearest revealed net-fragment signal on this world (#1859), from the planet's POI list —
+        /// the server puts every unread fragment there while the story objective points at it. Flat distance at
+        /// the player's own height, wrap-resolved through the same bearing the blips use.</summary>
+        private bool TryGetFragmentSignal(out Vector3 pos)
+        {
+            pos = Vector3.zero;
+            float best = float.MaxValue;
+            var pois = Game.PlanetPois;
+            if (pois == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < pois.Length; i++)
+            {
+                if (pois[i].Type != "fragment_signal")
+                {
+                    continue;
+                }
+
+                var candidate = new Vector3(pois[i].X, Game.PlayerPosition.y, pois[i].Z);
+                CompassBearing(candidate, out float dist);
+                if (dist < best)
+                {
+                    best = dist;
+                    pos = candidate;
+                }
+            }
+
+            return best < float.MaxValue;
         }
 
         private string CompassLabel(string key, string fallback)
@@ -2631,5 +2723,61 @@ namespace BlocksBeyondTheStars.Client
             _hitMarker.SetActive(true);
             UiTween.Scale(_hitMarker.transform, 1.7f, 1f, 0.18f, UiTween.Ease.OutCubic); // recoil: snaps in from wide
         }
+    }
+
+    /// <summary>The status toast's lifetime rules (#1860), pure so the EditMode tests can pin them: how long a
+    /// message holds before it fades, how the fade runs, and when it counts as gone. Warnings hold longer; they
+    /// are recognised by the resolved text's opening ("Warning:" / "Warnung:" / "Life support lost" …) because
+    /// the HUD only ever sees the localized line, never its key.</summary>
+    public static class HudToastPolicy
+    {
+        public const float HoldNormalSeconds = 8f;
+        public const float HoldWarningSeconds = 15f;
+        public const float FadeSeconds = 0.5f;
+
+        /// <summary>Openings of the localized warning lines (EN + DE) — ui.base.air_lost, ui.station.air_lost,
+        /// ui.station.air_too_large, ui.base.air_left. Ordinal, case-sensitive: these are our own strings.</summary>
+        private static readonly string[] WarningPrefixes =
+        {
+            "Warning", "Warnung", "⚠", "Life support lost", "Lebenserhaltung verloren",
+        };
+
+        public static bool IsWarning(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+            {
+                return false;
+            }
+
+            string trimmed = message.TrimStart();
+            for (int i = 0; i < WarningPrefixes.Length; i++)
+            {
+                if (trimmed.StartsWith(WarningPrefixes[i], System.StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Seconds the toast stays fully visible before the fade-out starts.</summary>
+        public static float HoldSeconds(string message)
+            => IsWarning(message) ? HoldWarningSeconds : HoldNormalSeconds;
+
+        /// <summary>Alpha at <paramref name="age"/> seconds: 1 through the hold, then a linear fade to 0.</summary>
+        public static float Alpha(float age, float hold)
+        {
+            if (age <= hold)
+            {
+                return 1f;
+            }
+
+            float a = 1f - ((age - hold) / FadeSeconds);
+            return a < 0f ? 0f : a > 1f ? 1f : a;
+        }
+
+        /// <summary>True once the hold and the fade have both run out.</summary>
+        public static bool Expired(float age, float hold) => age >= hold + FadeSeconds;
     }
 }

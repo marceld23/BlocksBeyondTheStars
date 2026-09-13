@@ -80,4 +80,52 @@ public sealed class DoorPairsTests
         var floors = new[] { Wood(0.5f, 10f, 0.5f, true), Wood(1.5f, 13f, 0.5f, true) };
         Assert.False(DoorPairs.MirrorsLeaf(floors[1], floors));
     }
+
+    // ---------------- #1852: the shared jamb ----------------
+
+    [Fact]
+    public void PartnerSides_NamesTheSharedJamb_OfEachLeaf()
+    {
+        // An X wall: the left leaf's partner is on its local +X, the right leaf's on its local −X.
+        var pair = new[] { Wood(0.5f, 10f, 0.5f, axisX: true), Wood(1.5f, 10f, 0.5f, axisX: true) };
+        Assert.Equal(DoorPairs.Sides.Plus, DoorPairs.PartnerSides(pair[0], pair));
+        Assert.Equal(DoorPairs.Sides.Minus, DoorPairs.PartnerSides(pair[1], pair));
+
+        // A Z wall: local +X is world −Z, so the door with the greater Z has its partner on local −X.
+        var zPair = new[] { Wood(0.5f, 10f, 0.5f, axisX: false), Wood(0.5f, 10f, 1.5f, axisX: false) };
+        Assert.Equal(DoorPairs.Sides.Minus, DoorPairs.PartnerSides(zPair[0], zPair));
+        Assert.Equal(DoorPairs.Sides.Plus, DoorPairs.PartnerSides(zPair[1], zPair));
+    }
+
+    [Fact]
+    public void PartnerSides_IsNone_ForALoneDoor_ASlideDoor_OrAGap()
+    {
+        var alone = new[] { Wood(0.5f, 10f, 0.5f, true) };
+        Assert.Equal(DoorPairs.Sides.None, DoorPairs.PartnerSides(alone[0], alone));
+
+        var slides = new[] { new DoorPairs.Door("slide", false, 0.5f, 10f, 0.5f, true), new DoorPairs.Door("slide", false, 1.5f, 10f, 0.5f, true) };
+        Assert.Equal(DoorPairs.Sides.None, DoorPairs.PartnerSides(slides[0], slides));
+
+        var gap = new[] { Wood(0.5f, 10f, 0.5f, true), Wood(2.5f, 10f, 0.5f, true) };
+        Assert.Equal(DoorPairs.Sides.None, DoorPairs.PartnerSides(gap[0], gap));
+        Assert.Equal(DoorPairs.Sides.None, DoorPairs.PartnerSides(gap[1], gap));
+
+        var stacked = new[] { Wood(0.5f, 10f, 0.5f, true), Wood(0.5f, 10f, 1.5f, true) };
+        Assert.Equal(DoorPairs.Sides.None, DoorPairs.PartnerSides(stacked[0], stacked));
+    }
+
+    [Fact]
+    public void ThreeInARow_TheMiddleLeafSharesBothJambs_AndKeepsTheDefaultSwing()
+    {
+        var row = new[] { Wood(0.5f, 10f, 0.5f, true), Wood(1.5f, 10f, 0.5f, true), Wood(2.5f, 10f, 0.5f, true) };
+        Assert.Equal(DoorPairs.Sides.Plus, DoorPairs.PartnerSides(row[0], row));
+        Assert.Equal(DoorPairs.Sides.Minus | DoorPairs.Sides.Plus, DoorPairs.PartnerSides(row[1], row));
+        Assert.Equal(DoorPairs.Sides.Minus, DoorPairs.PartnerSides(row[2], row));
+
+        // The swing rule reads the same neighbourhood: only a sole −X partner mirrors the leaf.
+        Assert.False(DoorPairs.MirrorsLeaf(DoorPairs.Sides.Plus));
+        Assert.False(DoorPairs.MirrorsLeaf(DoorPairs.Sides.Minus | DoorPairs.Sides.Plus));
+        Assert.True(DoorPairs.MirrorsLeaf(DoorPairs.Sides.Minus));
+        Assert.False(DoorPairs.MirrorsLeaf(DoorPairs.Sides.None));
+    }
 }

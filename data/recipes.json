@@ -222,6 +222,8 @@
   { "key": "water_ice",          "station": "hand",     "inputs": [ { "item": "ice", "count": 2 } ],                                      "outputs": [ { "item": "water", "count": 1 } ] },
   { "key": "fiber_mycelium",     "station": "hand",     "inputs": [ { "item": "mycelium", "count": 1 } ],                                 "outputs": [ { "item": "plant_fiber", "count": 2 } ] },
   { "key": "fiber_alien_grass",  "station": "hand",     "inputs": [ { "item": "alien_grass", "count": 1 } ],                              "outputs": [ { "item": "plant_fiber", "count": 2 } ] },
+  // #1847: turf you can carry — mined grass now drops itself, and a spade of dirt plus a handful of fibre grows a fresh block.
+  { "key": "grass",              "station": "hand",     "inputs": [ { "item": "dirt", "count": 1 }, { "item": "plant_fiber", "count": 1 } ], "outputs": [ { "item": "grass", "count": 1 } ] },
   { "key": "crate",       "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 3 }, { "item": "wood_log", "count": 2 } ], "outputs": [ { "item": "crate", "count": 1 } ] },
   { "key": "door_wood",   "station": "hand",     "inputs": [ { "item": "wood_log", "count": 4 } ],                                          "outputs": [ { "item": "door_wood", "count": 1 } ] },
   { "key": "torch",       "station": "hand",     "inputs": [ { "item": "wood_log", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "torch", "count": 4 } ] },

@@ -215,6 +215,7 @@ public sealed partial class GameServer
         {
             var c = new Vector3i(pos.X, pos.Y + dy, pos.Z);
             _world.SetBlock(c, log);
+            MirrorStationCellDeferred(c, log); // #1857: a tree grown aboard a player station is part of its build
             BroadcastToWorld(new BlockChanged { X = c.X, Y = c.Y, Z = c.Z, Block = log.Value });
         }
 
@@ -237,10 +238,12 @@ public sealed partial class GameServer
                     }
 
                     _world.SetBlock(c, leaf);
+                    MirrorStationCellDeferred(c, leaf); // #1857
                     BroadcastToWorld(new BlockChanged { X = c.X, Y = c.Y, Z = c.Z, Block = leaf.Value });
                 }
         }
 
+        FlushMirroredStationCells(); // #1857: one row write + one design refresh for the whole tree
         return true;
     }
 
@@ -473,9 +476,14 @@ public sealed partial class GameServer
                 && IsValidFloraHost(floraId, pos) && IsFloraEnclosedForVoidWorld(pos))
             {
                 _world.SetBlock(pos, new BlockId(floraId));
+                // #1857: the harvest wrote Air into the station's cell grid (see WriteBackStationCell in the mine
+                // path); the regrowth puts the plant back there too, so the hull seen from outside keeps its garden.
+                MirrorStationCellDeferred(pos, new BlockId(floraId));
                 BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = floraId });
             }
         }
+
+        FlushMirroredStationCells(); // #1857: one row write + one design refresh per step, however many cells regrew
 
         if (done != null)
         {
