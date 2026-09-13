@@ -31,8 +31,26 @@ public sealed class StructureTemplate
     /// settlement on its own — it is excluded from the whole-template pools.</summary>
     public string Role { get; set; } = string.Empty;
 
-    /// <summary>True when this template is a building module (<see cref="Role"/> set), false for a whole structure.</summary>
-    public bool IsModule => !string.IsNullOrWhiteSpace(Role);
+    /// <summary>The structure KIT this module belongs to (#1873): the module name every segment that fits together
+    /// shares ("station_small_1"). A kit entry (<see cref="StructureKit"/>) lists the modules by key, so a module
+    /// may also be borrowed by other kits. Empty = not a kit module.</summary>
+    public string Kit { get; set; } = string.Empty;
+
+    /// <summary>What a kit module is for (#1873): a station function (<see cref="StructureRoles.StationFunctions"/>:
+    /// hub, corridor, cabins, canteen, bar, market, mission, medbay, hydro, storage, hangar, room) or, for settlement
+    /// and city kits, one of the plot / district roles. Empty falls back to <see cref="Role"/>.</summary>
+    public string Function { get; set; } = string.Empty;
+
+    /// <summary>The function of a module, whichever field carries it (<see cref="Function"/> first, else <see cref="Role"/>).</summary>
+    public string FunctionOrRole => string.IsNullOrWhiteSpace(Function) ? Role : Function;
+
+    /// <summary>True on a template that stays ONLY for pinned replays (#1874: the four original tiny stations) —
+    /// never rolled for a new structure, but a world that pinned it keeps it. Never remove such a template.</summary>
+    public bool PinOnly { get; set; }
+
+    /// <summary>True when this template is a building module (<see cref="Role"/> or <see cref="Kit"/> set), false
+    /// for a whole structure.</summary>
+    public bool IsModule => !string.IsNullOrWhiteSpace(Role) || !string.IsNullOrWhiteSpace(Kit);
 
     /// <summary>Relative selection weight within its tier sub-pool (higher = more likely). Clamped to ≥1
     /// at selection time so a 0/negative value never makes a template unpickable by accident.</summary>
@@ -92,6 +110,42 @@ public static class StructureRoles
     /// <summary>Whether a settlement tier builds town-style (modern iron/glass, multi-storey) — the same split
     /// the procedural generator uses; a plot module only ever lands in a settlement of its own style.</summary>
     public static bool IsTownStyleTier(string? tier) => tier == "town" || tier == "city";
+
+    // --- station kit functions (#1873) ---
+
+    public const string Hub = "hub";
+    public const string Corridor = "corridor";
+    public const string Cabins = "cabins";
+    public const string Canteen = "canteen";
+    public const string Bar = "bar";
+    public const string Mission = "mission";
+    public const string Medbay = "medbay";
+    public const string Hydro = "hydro";
+    public const string Storage = "storage";
+    public const string Hangar = "hangar";
+    public const string Room = "room";
+
+    /// <summary>What a station kit module can be — the vocabulary the composer's furnishing and crew posts read.
+    /// <see cref="Market"/> is shared with the settlement plot roles (a market is a market).</summary>
+    public static readonly string[] StationFunctions = { Hub, Corridor, Cabins, Canteen, Bar, Market, Mission, Medbay, Hydro, Storage, Hangar, Room };
+
+    /// <summary>Functions a canteen or bar module's rooms count as a lounge: where the crew sits in the evening.</summary>
+    public static bool IsLoungeFunction(string? function) => function == Canteen || function == Bar;
+
+    public static bool IsStationFunction(string? function) => function != null && System.Array.IndexOf(StationFunctions, function) >= 0;
+
+    /// <summary>The functions a kit of <paramref name="kind"/> (station / settlement / city) accepts on its modules.</summary>
+    public static string[] FunctionsForKind(string? kind) => kind switch
+    {
+        StructureKit.KindStation => StationFunctions,
+        StructureKit.KindCity => CityRoles,
+        _ => PlotRoles,
+    };
+
+    /// <summary>Whether <paramref name="function"/> is one a module of a <paramref name="kind"/> kit may carry — any
+    /// unknown word counts as a dwelling / a plain room, so an author's "tavern" is never rejected.</summary>
+    public static bool IsKnownFunction(string? kind, string? function)
+        => !string.IsNullOrEmpty(function);
 }
 
 /// <summary>One cell of a <see cref="StructureTemplate"/>: a block or an interaction marker.</summary>
@@ -111,4 +165,13 @@ public sealed class TemplateCell
 
     /// <summary>Packed shape + orientation (<c>ShapeCode.Pack(shape, facing)</c>; 0 = plain cube).</summary>
     public int Shape { get; set; }
+
+    /// <summary>
+    /// A docking PORT on a wall block (#1873, block cells only): <c>tag[:door]</c> — the tag says which ports fit
+    /// together (<c>door</c>, <c>wide</c>, <c>ladder</c>, or any word; equal tag + equal rectangle + opposite faces
+    /// dock), the door option says what fills the opened joint: <c>slide</c> (default), <c>energy</c>, <c>hinge</c>
+    /// or <c>open</c> (no door). The block itself stays in the data: it is the seal while nothing docks here, and it
+    /// is cut away when a module docks. Empty = a plain block.
+    /// </summary>
+    public string Port { get; set; } = string.Empty;
 }
