@@ -11,6 +11,105 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.8] — 2026-09-13
+
+The horizon release. Until now a planet ended where the loaded chunks ended: a wall of fog a few hundred
+blocks out, and nothing behind it. Now there is a **world behind the fog** — mountains, valleys, coasts and
+seas drawn all the way to the horizon, and on them the **cities, villages and your own builds**, exactly
+where they stand. The **view distance slider goes to 16**, worlds fill in faster and in the order you look
+and travel, the browser stops stuttering while it loads, and caves and interiors no longer cost you frames
+for what you cannot see. Next to that, **villages are built from modules now**: a building you draw in the
+Town editor can be a whole settlement or one house the generator places among its own — and **every room
+gets furniture**, in every village, town and city, including the ones you already have. A **round of twelve
+evening reports** from Justus and Lyxette closed out the day. Thank you both 🙏
+
+⚠️ **Compatibility:** the network **protocol moves to version 6**. Older game versions cannot join a 2026.9.8
+server (or host one for an older client) — the desktop game updates itself on start, the browser is always
+current. Saves migrate unchanged; the far view works in every world you already have, and your existing
+villages keep their layout under the new furniture.
+
+### 🌄 The world beyond the chunks (#1813 #1815 #1820 #1821 #1822)
+
+- **Terrain to the horizon.** Beyond the streamed chunks the planet continues as a low-resolution
+  landscape drawn from the same generator — column for column what the real chunks will be when you get
+  there, so nothing pops or shifts as you approach. A new **Far view** setting under Graphics: Off, 512 or
+  1024 blocks. Desktop starts at 1024, browser and tablet at 512; it applies live, in 14 languages.
+- **Your builds are out there too.** The far landscape shows what stands on the surface: a walled city,
+  a village roof, the tower you raised last week. Change a block and the distant tile updates.
+- **The haze reaches the far view.** With the far view on, the fog no longer closes in at the chunk edge;
+  it ends at the far range, thin on thin-air worlds, denser where the air is dense, and weather still pulls
+  it in. Airless worlds stay razor-sharp. Far view off keeps the fog exactly where it was.
+- **View distance up to 16 chunks** (was 8), in singleplayer and on servers. First-run default on desktop is
+  now 8; browser builds keep 4, phone and tablet 3. Players who set their own value keep it.
+- **The view is a disc, not a square.** The corners of the old square lay outside the fog and were never
+  visible, yet they were loaded, dropped and reloaded every ten seconds while you stood still. Gone.
+
+### ⚡ Worlds load faster and in the right order (#1816 #1817 #1818 #1819 #1823 #1824)
+
+- **Chunks are generated on worker threads** on servers and in singleplayer — two by default, and the next
+  chunks are prepared while the current batch goes out. A dedicated server can set the count.
+- **What is near you and where you are heading comes first.** Streaming and building both order the chunks
+  by distance from you and then by where you are looking and moving, so the ground ahead of a fast ship is
+  there when you arrive.
+- **The browser stops stuttering while it loads.** Chunk building and collision cooking take a fixed few
+  milliseconds per frame instead of whole frames; the ground under your feet always cooks first. The desktop
+  build caps its uploads per frame too.
+- **Caves and interiors cost you nothing you cannot see.** When you are underground or under a roof, only the
+  chunks that could be visible from where you stand are drawn; the rest still cast their shadows.
+- Two server fixes found on the way: the terrain cache that was wiped between every two chunks now survives,
+  and water and lava far outside every player's range wait instead of waking whole chunks for nobody.
+
+### 🏘️ Building modules and furnished rooms (#1826 #1827 #1828)
+
+- **A template is a whole settlement or a part of one.** In the Town editor a new **Use as** stepper marks
+  a template as a whole structure (as before) or a module: a house, market, notice board or greenhouse of
+  6 × 6 blocks for hamlets, villages and towns, or a 32 × 32 district of the G.D.S. city. The size line shows
+  the module envelope, and a template's pack and planet types filter it like before.
+- **The generator mixes your modules in.** Each plot decides by a hash of tier, seed and place — a village
+  on the same seed is the same village, and every plot that stays procedural is identical to before. Doors
+  come from the module's door markers; a missing vendor, board or inhabitant is added over the centre; ruins
+  decay a module like everything else. The **Town templates** world option sets how often
+  (Rare = about one plot in seven, Off disables modules). Two example modules ship: a timber cottage for
+  villages and a two-storey iron flat for towns.
+- **Every room has furniture.** Bed, table and chair, a crate, a plant, a light, a market counter or a
+  terminal, hugging the walls and leaving the resident's place, the door lane and the ladder corner free.
+  Villages get wood, stone and torches; towns steel, crates and lights; alien ruins iron and data caches.
+  A **room** marker in the editor furnishes an authored floor the same way.
+- **Existing worlds get the furniture too** — on the next start, in the empty air of their protected rooms
+  only. Layouts do not change under your blocks.
+
+### 🐛 From your reports (#1829 #1830 #1831 #1832 #1833 #1834 #1835 #1836 #1837 #1838 #1839)
+
+Justus sent eight reports from one evening, Lyxette four — thank you both 🙏
+
+- **The mining glow no longer vanishes far from the ship.** On the far side of a world's seam the block you
+  were digging showed no cracks and no light (#1829).
+- **The Guardian core cannot be mined away.** The heart of the core was a light block you could break by hand
+  and it never came back. The 3 × 3 core is protected now, with a message; the shell around it stays diggable
+  (#1830).
+- **Rejoining a save on the core body works like a fresh landing:** the breach hint, the shaft mark and the
+  finale objective show up even when you were not there for the reveal (#1831).
+- **No "Craft an item" inside the core chamber.** Once the Guardian system is revealed, the story objective
+  wins over the tutorial chip (#1832).
+- **Docking no longer puts you on the roof.** The spawn search now prefers a cell inside a sealed pocket of
+  the station; the open, airless roof is the last resort (#1833).
+- **Ruin pillars and glowing runes place as shapes again,** not as plain cubes, and the placement ghost
+  shows the shape you will get (#1834).
+- **Saplings grow on stations.** The check that made sure a sapling was not planted in the void looked at
+  the crown instead of the roots (#1835).
+- **No false "station is no longer airtight"** when you stand in a door cell or in the pond, and the banner
+  clears once the station is sealed again instead of staying up forever (#1836).
+- **Two-block openings, third time:** a lintel sitting in the next column could still wedge you on 2026.9.7.
+  The step check now looks half a metre ahead along your movement, centre and shoulders (#1837).
+- **No fall damage while flying** (#1838), and standing **on** lava now says lava, not "You take damage!"
+  (#1839).
+
+### 🎛️ World options (#1811)
+
+- The **Planet type frequencies** list scrolls instead of running under the footer buttons — the last rows
+  were unreachable — and the slider handles fit inside their rows instead of fusing into white columns.
+  "Reset overrides" now actually resets the sliders on screen.
+
 ## [2026.9.7] — 2026-09-12
 
 The city release. New worlds can roll a **lava desert with one gigantic walled city** on it — the only cool,
@@ -5181,6 +5280,7 @@ A graphics-quality pass and a licensing/foundation cleanup.
 - Initial public release.
 
 [Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.7...HEAD
+[2026.9.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.7...v2026.9.8
 [2026.9.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.6...v2026.9.7
 [2026.9.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.5...v2026.9.6
 [2026.9.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.4...v2026.9.5
