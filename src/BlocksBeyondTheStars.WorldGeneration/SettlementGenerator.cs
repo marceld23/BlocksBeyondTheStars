@@ -369,7 +369,10 @@ public static class SettlementGenerator
                 // plot reads from must not shift), its result is simply ignored there.
                 bool greenhouse = greenhousePlots.Contains(plotIndex);
                 bool skip = !town && !greenhouse && plotIndex > 0 && rng.NextDouble() < 0.18 && plotIndex != 1;
-                if (assigned != null && assigned[plotIndex].Length > 0)
+                bool pinnedHere = replay
+                    ? plotIndex < composition!.Count && composition[plotIndex].Length > 0
+                    : assigned != null && assigned[plotIndex].Length > 0;
+                if (pinnedHere)
                 {
                     skip = false; // a plot the kit filled is never an open square (the draw above is consumed as always)
                 }
@@ -669,15 +672,6 @@ public static class SettlementGenerator
             return assigned;
         }
 
-        static string SlotRoleOf(StructureTemplate m) => m.FunctionOrRole switch
-        {
-            StructureRoles.Market => StructureRoles.Market,
-            StructureRoles.Board => StructureRoles.Board,
-            StructureRoles.Greenhouse => StructureRoles.Greenhouse,
-            var city when StructureRoles.IsCityRole(city) => city,
-            _ => StructureRoles.House,
-        };
-
         var resolved = new List<(KitEntry Entry, StructureTemplate Module)>();
         foreach (var e in kit.Entries)
         {
@@ -788,6 +782,17 @@ public static class SettlementGenerator
     /// non-empty key no longer resolves (a module was removed or resized after the world was stamped; the
     /// #1115 rule is "never remove a template", and this is why).
     /// </summary>
+    /// <summary>The slot role a module fills (#1876): market / board / greenhouse / a city district role by its
+    /// function, anything else (a house, a tavern, a free name) a dwelling plot.</summary>
+    internal static string SlotRoleOf(StructureTemplate m) => m.FunctionOrRole switch
+    {
+        StructureRoles.Market => StructureRoles.Market,
+        StructureRoles.Board => StructureRoles.Board,
+        StructureRoles.Greenhouse => StructureRoles.Greenhouse,
+        var city when StructureRoles.IsCityRole(city) => city,
+        _ => StructureRoles.House,
+    };
+
     internal static StructureTemplate? ModuleByKey(IReadOnlyList<StructureTemplate>? modules, string key, string role,
         System.Func<StructureTemplate, bool> styleOk, int maxW, int maxH, int maxL, System.Action<string>? warn)
     {
@@ -802,7 +807,7 @@ public static class SettlementGenerator
             {
                 if (m.Key == key)
                 {
-                    if (m.Role == role && styleOk(m) && m.Width > 0 && m.Height > 0 && m.Length > 0
+                    if (SlotRoleOf(m) == role && styleOk(m) && m.Width > 0 && m.Height > 0 && m.Length > 0
                         && m.Width <= maxW && m.Height <= maxH && m.Length <= maxL)
                     {
                         return m;

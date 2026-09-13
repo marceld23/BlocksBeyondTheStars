@@ -125,8 +125,9 @@ public sealed class SettlementKitTests : IDisposable
         var layout = SettlementLayoutSpec.FromKit(kit, "village", new Random(1));
         var composition = new List<string>();
         var s = SettlementGenerator.Generate("village", false, 5, "grass", Base, null, 0, composition, null, layout, kit, pool);
-        // market (module) + board (procedural, a service) + one house module — every other plot stays a square.
-        Assert.Equal(3, s.BuildingCount);
+        // market (module) + board (procedural, a service) + the greenhouses (services too) + one house module —
+        // every other dwelling plot stays a square.
+        Assert.Equal(3 + s.Markers.Count(m => m.Type == "greenhouse"), s.BuildingCount);
         Assert.Equal(1, composition.Count(k => k == "gold_house"));
     }
 

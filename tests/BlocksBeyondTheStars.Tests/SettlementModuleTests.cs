@@ -562,6 +562,7 @@ public sealed class SettlementModuleTests : IDisposable
         whole.Add(Box("gold_house", StructureRoles.House, "village", 6, 7, 6, "gold_block", ("npc", 3, 1, 3), ("door_hinge", 2, 1, 0)));
         whole.Add(Box("gold_flat", StructureRoles.House, "town", 6, 9, 6, "gold_block", ("npc", 3, 1, 3), ("door_slide", 2, 1, 0)));
         content.SetStructureTemplates(content.StationTemplates, whole);
+        content.SetStructureKits(Array.Empty<StructureKit>()); // #1876: this test exercises the legacy per-plot pick, not a kit
         var gold = new BlockId(content.GetBlock("gold_block")!.NumericId.Value);
 
         for (long seed = 1; seed <= 12; seed++)
@@ -687,6 +688,7 @@ public sealed class SettlementModuleTests : IDisposable
         whole.Add(Box("gold_house", StructureRoles.House, "village", 6, 7, 6, "gold_block", ("npc", 3, 1, 3), ("door_hinge", 2, 1, 0)));
         whole.Add(Box("gold_flat", StructureRoles.House, "town", 6, 9, 6, "gold_block", ("npc", 3, 1, 3), ("door_slide", 2, 1, 0)));
         content.SetStructureTemplates(content.StationTemplates, whole);
+        content.SetStructureKits(Array.Empty<StructureKit>()); // #1876: this test exercises the legacy per-plot pick, not a kit
 
         // The changed pool: a heavy iron module in FRONT of the gold ones for both styles — the hash pick over this
         // pool would land on iron on most plots.
@@ -701,6 +703,7 @@ public sealed class SettlementModuleTests : IDisposable
         pool2.Add(whole.First(t => t.Key == "gold_house"));
         pool2.Add(whole.First(t => t.Key == "gold_flat"));
         changed.SetStructureTemplates(changed.StationTemplates, pool2);
+        changed.SetStructureKits(Array.Empty<StructureKit>());
         var gold = new BlockId(content.GetBlock("gold_block")!.NumericId.Value);
 
         for (long seed = 1; seed <= 12; seed++)
