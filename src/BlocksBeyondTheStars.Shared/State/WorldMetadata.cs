@@ -173,8 +173,21 @@ public sealed class StructurePlacementRecord
     /// <summary>Settlement records (#1827): whether authored building MODULES may be composed into this
     /// instance's plots / districts. 0 = never (records from before modules existed, and legacy re-derives —
     /// their layout must not change under the stamped blocks), 1 = plot + district modules. Written once at
-    /// the first stamp, never bumped afterwards.</summary>
+    /// the first stamp, never bumped afterwards. 2 = composed from a structure KIT (#1876), see <see cref="Kit"/>.</summary>
     public int Modules { get; set; }
+
+    /// <summary>Settlement records (#1876): the structure kit this instance was composed from, "" for none.</summary>
+    public string Kit { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Settlement records (#1872): WHICH module went into each plot (settlements) or district (the city), in slot
+    /// order — the module key, "" for a procedural building or an empty plot. The composers replay this list and
+    /// never the pool: before it existed the pick was a hash over the pool AS LOADED, so adding or removing a module
+    /// (shipped data, a user-content export, a toggled pack) changed the buildings of an existing settlement on the
+    /// next load, stamped over its old blocks. Null on records from before the list existed — the loader freezes
+    /// their current picks into it once (the roster pattern, #1299), so nothing changes and later pool edits are safe.
+    /// </summary>
+    public System.Collections.Generic.List<string>? Composition { get; set; }
 
     /// <summary>Factory records only (#1299): the recipe roster this factory offers, frozen at first stamp so a
     /// growing factory recipe set never re-rolls what an existing (possibly claimed) factory makes. Null on

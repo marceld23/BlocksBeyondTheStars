@@ -119,9 +119,15 @@ public static class CityGenerator
     /// <paramref name="moduleChance"/> per district, a hash of seed + grid cell decides whether a district is
     /// stamped from a module of its role instead of the procedural one. Plaza and open districts never are.</summary>
     public static SettlementStructure Generate(long seed, GameContent content, IReadOnlyList<OpenZone> openZones,
-        IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0)
+        IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0,
+        IList<string>? composition = null, System.Action<string>? warn = null)
     {
         int w = Footprint, l = Footprint, h = Height;
+
+        // #1872: the module per district is pinned (index = gx * Modules + gz): a non-empty list replays, an empty
+        // one records, null neither — see SettlementGenerator.Generate.
+        bool replay = composition is { Count: > 0 };
+        bool record = composition is { Count: 0 };
         var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (int)WorldGenerator.StableHash("city:gds")));
 
         ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
@@ -261,6 +267,7 @@ public static class CityGenerator
 
                 // #1827: an authored district of this role? Stamped centred on the paved floor; its own
                 // markers (residents, vendors, doors, rooms) replace the procedural ones.
+                StructureTemplate? authored = null;
                 if (role != Role.Plaza && role != Role.Open)
                 {
                     string moduleRole = role switch
@@ -271,21 +278,30 @@ public static class CityGenerator
                         Role.Tower => StructureRoles.CityTower,
                         _ => StructureRoles.CityHousing,
                     };
-                    var authored = SettlementGenerator.PickModule(modules, moduleChance, $"citymodule:{seed}:{gx}:{gz}", moduleRole,
-                        m => m.Tier == StructureRoles.MetropolisTier, ModuleSize, h - 1, ModuleSize);
-                    if (authored != null)
-                    {
-                        var moduleMarkers = new List<SettlementMarker>();
-                        SettlementGenerator.StampModule(authored, mx + (ModuleSize - authored.Width) / 2, 0, mz + (ModuleSize - authored.Length) / 2,
-                            content, Get, SetCell, moduleMarkers, furniture, WorldGenerator.StableHash($"furnish:city:{seed}:{gx}:{gz}"));
-                        foreach (var m in moduleMarkers)
-                        {
-                            markers.Add(m);
-                            if (m.Type == "npc" || m.Type == "vendor") buildings++;
-                        }
+                    int district = gx * Modules + gz;
+                    bool StyleOk(StructureTemplate m) => m.Tier == StructureRoles.MetropolisTier;
+                    authored = replay
+                        ? SettlementGenerator.ModuleByKey(modules, district < composition!.Count ? composition[district] : string.Empty, moduleRole, StyleOk, ModuleSize, h - 1, ModuleSize, warn)
+                        : SettlementGenerator.PickModule(modules, moduleChance, $"citymodule:{seed}:{gx}:{gz}", moduleRole, StyleOk, ModuleSize, h - 1, ModuleSize);
+                }
 
-                        continue;
+                if (record)
+                {
+                    composition!.Add(authored?.Key ?? string.Empty); // #1872: plaza / open districts pin "" too
+                }
+
+                if (authored != null)
+                {
+                    var moduleMarkers = new List<SettlementMarker>();
+                    SettlementGenerator.StampModule(authored, mx + (ModuleSize - authored.Width) / 2, 0, mz + (ModuleSize - authored.Length) / 2,
+                        content, Get, SetCell, moduleMarkers, furniture, WorldGenerator.StableHash($"furnish:city:{seed}:{gx}:{gz}"));
+                    foreach (var m in moduleMarkers)
+                    {
+                        markers.Add(m);
+                        if (m.Type == "npc" || m.Type == "vendor") buildings++;
                     }
+
+                    continue;
                 }
 
                 switch (role)

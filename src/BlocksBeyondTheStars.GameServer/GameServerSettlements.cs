@@ -315,17 +315,31 @@ public sealed partial class GameServer
                 template = _content.SettlementTemplateByKey(pinRec.Template) ?? template;
             }
 
+            // #1872: the module per plot is pinned in the record — a pinned list replays, a fresh (or not yet pinned)
+            // instance records what the composer picks, so a later pool change never morphs the buildings.
+            List<string>? composition = null;
+            if (modulesOn)
+            {
+                composition = pinRec?.Composition is { } pinned ? new List<string>(pinned) : new List<string>();
+            }
+
             if (template != null)
             {
                 tier = template.Tier;
                 ruined = false;
                 structure = SettlementGenerator.FromTemplate(template, _content);
+                composition = null; // a whole template holds no plots
             }
             else
             {
                 ruined = ir.NextDouble() < RuinChance(h);
                 structure = SettlementGenerator.Generate(tier, ruined, instSeed, surface, _content,
-                    modulesOn ? modules : null, moduleChance);
+                    modulesOn ? modules : null, moduleChance, composition, _log.Warn);
+                if (pinRec is { Placed: true } && pinRec.Composition is null && composition is { Count: > 0 })
+                {
+                    pinRec.Composition = composition; // freeze the current picks of a pre-#1872 record once
+                    _placementRecordsDirty = true;
+                }
             }
 
             bool wantIsland = planet.FloatingIslands && ir.NextDouble() < 0.5;
@@ -382,7 +396,8 @@ public sealed partial class GameServer
                 }
 
                 name = UniqueName(SettlementDisplayName(tier, ruined, RngFor(instSeed, "name")), usedNames);
-                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty, modules: 1);
+                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty, modules: 1,
+                    composition: composition);
             }
 
             placed.Add(new PlacedSettlement
@@ -519,7 +534,18 @@ public sealed partial class GameServer
                 wreckX + WreckReservedHalfExtent - origin.X, wreckZ + WreckReservedHalfExtent - origin.Z),
         };
 
-        var structure = CityGenerator.Generate(sSeed, _content, zones, modulesOn ? modules : null, moduleChance);
+        // #1872: the module per district is pinned like a settlement's plots (see StampSettlement).
+        List<string>? composition = modulesOn
+            ? (rec?.Composition is { } pinned ? new List<string>(pinned) : new List<string>())
+            : null;
+        var structure = CityGenerator.Generate(sSeed, _content, zones, modulesOn ? modules : null, moduleChance, composition, _log.Warn);
+        if (composition is { Count: > 0 } && (rec ?? FindPlacementRecord("settlement", 0)) is { } cityRec && cityRec.Composition is null)
+        {
+            cityRec.Composition = composition;
+            _placementRecordsDirty = true;
+            SavePlacementRecords();
+        }
+
         var placed = new List<PlacedSettlement>
         {
             new PlacedSettlement
@@ -838,7 +864,7 @@ public sealed partial class GameServer
     /// <summary>Pins where a structure instance landed (#586). Batched — call
     /// <see cref="SavePlacementRecords"/> once per stamper after its loop.</summary>
     private void RecordPlacement(string kind, int index, Vector3i origin, int groundY, bool onIsland,
-        string seat, string name, string template = "", int modules = 0)
+        string seat, string name, string template = "", int modules = 0, List<string>? composition = null, string kit = "")
     {
         var rec = FindPlacementRecord(kind, index);
         if (rec is null)
@@ -846,6 +872,13 @@ public sealed partial class GameServer
             rec = new StructurePlacementRecord { LocationId = _world.LocationId, Kind = kind, Index = index, Modules = modules };
             _meta.Placements.Add(rec);
         }
+
+        if (composition is not null)
+        {
+            rec.Composition = composition; // #1872: which module went into each slot
+        }
+
+        rec.Kit = kit; // #1876
 
         rec.Placed = true;
         rec.X = origin.X;

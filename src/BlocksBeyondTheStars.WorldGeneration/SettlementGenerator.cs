@@ -224,10 +224,16 @@ public static class SettlementGenerator
     /// or not modules exist. Rooms are furnished (#1828) on the way.
     /// </summary>
     public static SettlementStructure Generate(string tier, bool ruined, long seed, string biomeSurfaceBlock, GameContent content,
-        IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0)
+        IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0,
+        IList<string>? composition = null, System.Action<string>? warn = null)
     {
         bool town = IsTownStyle(tier);
         var (baseCols, baseRows, baseFloors) = Layout(tier);
+
+        // #1872: the module per plot is pinned. A non-empty list REPLAYS (index = plot index, "" = procedural);
+        // an empty list RECORDS what this composition picks; null neither (the legacy path).
+        bool replay = composition is { Count: > 0 };
+        bool record = composition is { Count: 0 };
 
         // Use a stable hash (not string.GetHashCode, which is randomized per process) so the build
         // is genuinely deterministic from the seed across runs.
@@ -340,6 +346,11 @@ public static class SettlementGenerator
                 bool skip = !town && !greenhouse && plotIndex > 0 && rng.NextDouble() < 0.18 && plotIndex != 1;
                 if (skip)
                 {
+                    if (record)
+                    {
+                        composition!.Add(string.Empty); // an open square holds no module (#1872)
+                    }
+
                     plotIndex++;
                     continue;
                 }
@@ -368,8 +379,15 @@ public static class SettlementGenerator
                     : plotIndex == 1 ? StructureRoles.Board
                     : StructureRoles.House;
                 long plotHash = (long)WorldGenerator.StableHash($"furnish:{tier}:{seed}:{plotIndex}");
-                var module = PickModule(modules, moduleChance, $"module:{tier}:{seed}:{plotIndex}", plotRole,
-                    m => StructureRoles.IsTownStyleTier(m.Tier) == town, Building, h - 1, Building);
+                bool StyleOk(StructureTemplate m) => StructureRoles.IsTownStyleTier(m.Tier) == town;
+                var module = replay
+                    ? ModuleByKey(modules, plotIndex < composition!.Count ? composition[plotIndex] : string.Empty, plotRole, StyleOk, Building, h - 1, Building, warn)
+                    : PickModule(modules, moduleChance, $"module:{tier}:{seed}:{plotIndex}", plotRole, StyleOk, Building, h - 1, Building);
+                if (record)
+                {
+                    composition!.Add(module?.Key ?? string.Empty); // #1872: pinned for every later load
+                }
+
                 var moduleMarkers = new List<SettlementMarker>();
                 if (module != null)
                 {
@@ -590,6 +608,42 @@ public static class SettlementGenerator
         }
 
         return fit[fit.Count - 1];
+    }
+
+    /// <summary>
+    /// The pinned module of a slot (#1872): the pool's module with <paramref name="key"/>, provided it still has the
+    /// slot's role, the settlement's style and fits the envelope — else null (procedural), with a warning when a
+    /// non-empty key no longer resolves (a module was removed or resized after the world was stamped; the
+    /// #1115 rule is "never remove a template", and this is why).
+    /// </summary>
+    internal static StructureTemplate? ModuleByKey(IReadOnlyList<StructureTemplate>? modules, string key, string role,
+        System.Func<StructureTemplate, bool> styleOk, int maxW, int maxH, int maxL, System.Action<string>? warn)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return null;
+        }
+
+        if (modules != null)
+        {
+            foreach (var m in modules)
+            {
+                if (m.Key == key)
+                {
+                    if (m.Role == role && styleOk(m) && m.Width > 0 && m.Height > 0 && m.Length > 0
+                        && m.Width <= maxW && m.Height <= maxH && m.Length <= maxL)
+                    {
+                        return m;
+                    }
+
+                    warn?.Invoke($"Pinned module '{key}' no longer fits its {role} slot — the slot falls back to a procedural building.");
+                    return null;
+                }
+            }
+        }
+
+        warn?.Invoke($"Pinned module '{key}' is missing from the pool — the {role} slot falls back to a procedural building.");
+        return null;
     }
 
     /// <summary>Stamps a module's cells at (<paramref name="ox"/>, <paramref name="oy"/>, <paramref name="oz"/>)
