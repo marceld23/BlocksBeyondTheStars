@@ -523,5 +523,85 @@
         "weight": 2
       }
     ]
+  },
+  {
+    "key": "hamlet_default_1",
+    "name": "Hamlet Default 1",
+    "kind": "settlement",
+    "tier": "hamlet",
+    "pack": "default",
+    "weight": 2,
+    "entries": [
+      {
+        "module": "timber_cottage",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "village_default_1",
+    "name": "Village Default 1",
+    "kind": "settlement",
+    "tier": "village",
+    "pack": "default",
+    "weight": 2,
+    "entries": [
+      {
+        "module": "timber_cottage",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "town_default_1",
+    "name": "Town Default 1",
+    "kind": "settlement",
+    "tier": "town",
+    "pack": "default",
+    "weight": 2,
+    "entries": [
+      {
+        "module": "iron_flat",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "city_default_1",
+    "name": "City Default 1",
+    "kind": "settlement",
+    "tier": "city",
+    "pack": "default",
+    "weight": 2,
+    "entries": [
+      {
+        "module": "iron_flat",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "city_gds_default_1",
+    "name": "G.D.S. City Default 1",
+    "kind": "city",
+    "tier": "metropolis",
+    "pack": "default",
+    "weight": 1,
+    "planetTypes": [
+      "gds_desert"
+    ],
+    "entries": []
   }
 ]

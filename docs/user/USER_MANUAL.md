@@ -694,6 +694,11 @@ separate unlock; admins can still disable it through server world rules.
   until you seal it. Visiting traders still dock regardless. Windows show the planet you orbit, the sun and a moon.
   The crew keeps the **station clock**: at station night the deck lights dim and the crew sleeps in the beds of
   their rooms (see *Daily routines & jobs*).
+- **Stations are built from modules.** A new station is assembled from docking segments — an arrival hall,
+  corridors, a market hall, a mission office, a canteen or a bar, a medbay, hydroponics, a store room, the hangar,
+  and **crew quarters with one cabin per crew member** (bed, locker, lamp, a chair). Big stations have two decks
+  joined by a ladder shaft. The crew works its post by day, sits in the canteen in the evening and sleeps in its own
+  cabin at night; you may walk into the cabins. A station you have boarded before keeps its layout for good.
 - **Gravity ends at the hull**: inside your station's box (plus a few blocks around it) you walk; step or fall
   past that and the suit **floats** — jump rises, crouch sinks, so you drift back to the deck or build the
   outer hull from outside. Drift very far away and you are set back on the pad. **U** always returns you to
@@ -1006,7 +1011,8 @@ separate unlock; admins can still disable it through server world rules.
   nameplate, a soft *z z z* above them). Without a bed they rest where they live. Talk to a sleeper and you get
   a mumbled *"come back in the morning"*. This goes for your residents, for **villagers** (every house has a
   bed) and for **station crew** — a station keeps its own clock, and its deck lights **dim at station night**
-  (the HUD clock shows it).
+  (the HUD clock shows it). On a modular station every crew member has a **cabin of its own** and the evening is
+  spent in the **canteen or bar**.
 - **They find their way.** People walk around walls, up single steps and **through doors**: sliding doors
   open for them like for you, and they swing a wooden or hinged door open and it **closes behind them** (a door
   you opened yourself is left as you left it). Only when there truly is no way — you walled someone in — and

@@ -138,9 +138,9 @@ public sealed class GameContent
             }
 
             kit.Entries = entries;
-            if (entries.Count == 0)
+            if (entries.Count == 0 && kind == StructureKit.KindStation)
             {
-                warn?.Invoke($"Skipping structure kit '{kit.Key}': it has no usable entry.");
+                warn?.Invoke($"Skipping structure kit '{kit.Key}': it has no usable entry."); // a station needs a start module
                 continue;
             }
 

@@ -349,7 +349,7 @@ public static class SettlementGenerator
             : index == 1 ? StructureRoles.Board
             : StructureRoles.House;
         bool KitStyleOk(StructureTemplate m) => StructureRoles.IsTownStyleTier(m.Tier) == town;
-        var kitPool = kit != null ? kitModules : null;
+        var kitPool = kitModules; // a kit's modules come from every pack; null = the legacy pool below
         string[]? assigned = kit != null && !replay
             ? AssignKitModules(kit, kitPool, cols * rows, PlotRoleAt, m => KitStyleOk(m) && m.Width <= building && m.Height <= h - 1 && m.Length <= building, seed)
             : null;
@@ -410,7 +410,7 @@ public static class SettlementGenerator
                     : StructureRoles.House;
                 long plotHash = (long)WorldGenerator.StableHash($"furnish:{tier}:{seed}:{plotIndex}");
                 bool StyleOk(StructureTemplate m) => StructureRoles.IsTownStyleTier(m.Tier) == town;
-                var pool = kit != null ? kitPool : modules;
+                var pool = kitPool ?? modules;
                 var module = replay
                     ? ModuleByKey(pool, plotIndex < composition!.Count ? composition[plotIndex] : string.Empty, plotRole, StyleOk, building, h - 1, building, warn)
                     : assigned != null

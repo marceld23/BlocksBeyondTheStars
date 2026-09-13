@@ -104,6 +104,16 @@ Wire (additive, contractless — no codec tag): `NetNpc.Pose`, `NetNpc.ActivityK
   (floor 0.45, smoothed); emissive strip lights stay bright. `LocalTimeOfDay` drops the longitude aboard a station.
 - `HudUi`: *"Talk to … (E)"* beside an NPC within 4.5 m.
 
+## 9. Kit station crew (`GameServerStationCrew.cs`, #1874)
+
+A station composed from a kit (`BoardableStation.Kit != null`) spawns **one resident per `cabin` marker** instead of
+the post keepers + filler crew: the posts (vendor, mission board, greenhouse, hangar, medbay, canteen/bar `lounge`) are
+staffed by residents in marker order; the rest stroll the arrival hall by day. Each resident starts AT its post
+(`Home = Work`), rests at its cabin spot (`Rest`), finds its own bed within `CabinFurnitureReach` (4) via
+`EnsureNpcFurniture(npc, reach)` and takes an evening seat from the pool of chairs and benches around the `lounge`
+markers (`LoungeSeats`, round-robin). The routine (§6) then walks them post → lounge → bed. Path searches on void worlds
+use `StationPathLimits (96, 16, 8000)` so a cabin two decks away is reachable. Test: `StationKitServerTests`.
+
 ## Tests
 
 `NpcGridPathTests`, `BaseResidentsTests`, `NpcRoutineTests`, `NpcJobsTests`, the station-night case in

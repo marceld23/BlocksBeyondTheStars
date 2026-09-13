@@ -1424,3 +1424,22 @@ world does none of it.
 **Watch items.** Hand-authored modules (`settlement_templates.json` with `planetTypes` + a role) are the
 intended next step and are not wired yet; bandit camps and monuments still place by their own rules and may
 seat near the walls; the wreck stamps into its open square as before.
+
+## 18. Modular structure kits (#1871–#1878, 2026-09-13)
+
+Stations, villages and cities can be composed from **kits** — sets of editor modules that dock (stations) or fill the
+plots and districts (settlements, cities); the contract, the composer and the pins are documented in
+[STATION_SETTLEMENT_EDITOR.md §3c](STATION_SETTLEMENT_EDITOR.md). What matters for world generation:
+
+- **Selection.** A fresh station or settlement draws from ONE joint random table of the tier's complete templates
+  (non-`pinOnly`) and kits, weighted (`StationTemplateUse` / `SettlementTemplateUse` = Off keeps the procedural
+  generator only). The draw uses a lane of its own (`RngFor(instSeed, "kitpick")`, `roll` for stations after the legacy
+  roll), so the per-instance stream that decides `ruined` and the island wish is the same at the stamp and on replay.
+- **Pins.** Stations: `WorldMetadata.StationTemplates[id] = "kit:<key>"` + `StationKits[id]` (module, origin, turns).
+  Settlements / the city: `StructurePlacementRecord.Kit`, `KitLayout` (the grid), `Composition` (module per slot),
+  `Modules = 2`. A replay never consults the kit or the pool order again; a pinned module that vanished falls back to
+  a procedural building with a warning (never remove a shipped module — the #1115 rule).
+- **Legacy.** Records with `Modules ≤ 1` and pre-record worlds replay exactly as before; a record with `Modules = 1`
+  and no composition freezes its current picks on the first load after #1872.
+- **Far tiles (#1871).** `LoadEditColumnTops` pins the SQLite join order (`CROSS JOIN`) and tile builds are paced by
+  `ServeFarTiles` (4 ms per tick) — a built-up world no longer stalls the tick after a join.
