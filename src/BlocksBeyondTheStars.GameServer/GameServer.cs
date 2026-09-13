@@ -1543,6 +1543,7 @@ public sealed partial class GameServer
             Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);
             Guard("TickShipAi", deltaSeconds, TickShipAi); // VEGA advisor hints + memory-fragment redemption
             Guard("StreamChunks", StreamChunks);
+            Guard("ServeFarTiles", ServeFarTiles); // #1871: far-terrain tile builds under a per-tick budget
             Guard("FlushEntityLists", FlushEntityLists); // #1530: one list per type + one player state per session per tick
             if (sweepDue)
             {
