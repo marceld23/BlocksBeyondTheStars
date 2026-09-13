@@ -59,9 +59,17 @@ namespace BlocksBeyondTheStars.Client
             ("lore", "ui.wiki.lore"),               // found story texts: fragments, memories, field records (#1111)
         };
 
-        public void Show()
+        /// <summary>Opens the Codex. <paramref name="chapter"/> is a deep link (#1843: the Progress block's
+        /// "Discoveries" button lands on that chapter); null keeps whatever the reader looked at last.</summary>
+        public void Show(string chapter = null)
         {
             EnsureCanvas();
+
+            bool jump = !string.IsNullOrEmpty(chapter) && chapter != _chapter;
+            if (jump)
+            {
+                _chapter = chapter;
+            }
 
             // Rebuild ONLY on the disabled→enabled transition (mirrors ArcadeUI/CraftingTechShipUI).
             // GameMenu.Update calls Show() every frame while the Codex is open; rebuilding each frame
@@ -73,6 +81,10 @@ namespace BlocksBeyondTheStars.Client
                 _canvas.enabled = true;
                 Rebuild();
                 UiKit.TransitionIn(_canvas.gameObject);
+            }
+            else if (jump)
+            {
+                Rebuild(); // already open on another chapter: switch like a sidebar click would
             }
         }
 
@@ -311,7 +323,7 @@ namespace BlocksBeyondTheStars.Client
             // found on another planet lists as its own discovery — which is exactly what it is.
             foreach (var kind in new[] { "place", "creature", "microfauna", "tree", "flora", "block", "monument", "asteroid" })
             {
-                var names = new List<string>();
+                var names = new List<(string Name, string Where)>();
                 foreach (var pair in log)
                 {
                     int colon = pair.Key.IndexOf(':');
@@ -324,7 +336,7 @@ namespace BlocksBeyondTheStars.Client
                     string subject = string.IsNullOrEmpty(pair.Value)
                         ? (colon > 0 ? pair.Key.Substring(colon + 1) : pair.Key) // pre-#484 entry: raw key
                         : pair.Value;
-                    names.Add(SubjectName(subject));
+                    names.Add((SubjectName(subject), WhereFound(pair.Key, kind)));
                 }
 
                 if (names.Count == 0)
@@ -332,17 +344,49 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                names.Sort((a, b) => string.Compare(a, b, StringComparison.CurrentCultureIgnoreCase));
+                names.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
                 sb.Append("<b>").Append(L("ui.wiki.discoveries." + kind)).Append(" (").Append(names.Count).Append(")</b>\n"); // per-kind tally (#1103)
-                foreach (var name in names)
+                foreach (var (name, where) in names)
                 {
-                    sb.Append("  • ").Append(name).Append('\n');
+                    sb.Append("  • ").Append(name);
+                    if (!string.IsNullOrEmpty(where))
+                    {
+                        sb.Append("  —  <color=#9fb4c8>").Append(where).Append("</color>"); // dim, like the "?" fillers
+                    }
+
+                    sb.Append('\n');
                 }
 
                 sb.Append('\n');
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>The "found on Kepler, Sol" suffix for a discovery (#1843), or null when the server recorded no
+        /// site for it (scanned before sites existed, or somewhere the galaxy cannot place — older entries then
+        /// read exactly as before). A PLACE is found where it is, so its line carries only the system name.</summary>
+        private string WhereFound(string ledgerKey, string kind)
+        {
+            var sites = Game?.DiscoveryWhere;
+            if (sites == null || !sites.TryGetValue(ledgerKey, out var site))
+            {
+                return null;
+            }
+
+            if (kind == "place")
+            {
+                return string.IsNullOrEmpty(site.System) ? null : site.System;
+            }
+
+            if (string.IsNullOrEmpty(site.Body))
+            {
+                return null;
+            }
+
+            string line = string.Format(L("ui.wiki.discoveries.where"), site.Body, site.System);
+            // A body the galaxy filed under no system: drop the dangling ", " the template leaves behind.
+            return string.IsNullOrEmpty(site.System) ? line.TrimEnd(' ', ',') : line;
         }
 
         /// <summary>Localizes a discovery subject: a block/item key resolves through the content tables, a

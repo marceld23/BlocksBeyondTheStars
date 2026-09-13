@@ -290,6 +290,9 @@ public sealed class NetCodecTests
         [237] = typeof(FarTerrainTileRequest),
         [238] = typeof(FarTerrainTile),
         [239] = typeof(FarTerrainWorldInfo),
+        [241] = typeof(NoteActionIntent),
+        [242] = typeof(NoteList),
+        [240] = typeof(SetStationZeroGIntent),
 
     };
 

@@ -252,12 +252,44 @@ public sealed class CustomShapeTests
     [Fact]
     public void ShapeCode_CustomIdsLiveAboveTheBuiltInForms()
     {
+        // Frozen: saves persist custom forms BY index from 19 upward (#842), so the low built-in range can
+        // never grow — newer built-ins take the top of the 6-bit field instead (#1846).
+        Assert.Equal(19, ShapeCode.FirstCustom);
         Assert.Equal(ShapeCode.Count, ShapeCode.FirstCustom);
         Assert.False(ShapeCode.IsCustomShape(ShapeCode.Count - 1));
         Assert.True(ShapeCode.IsCustomShape(ShapeCode.FirstCustom));
         Assert.True(ShapeCode.IsCustomShape(ShapeCode.LastCustom));
         Assert.False(ShapeCode.IsCustomShape(ShapeCode.LastCustom + 1));
-        Assert.Equal(45, ShapeCode.MaxCustomShapes);
+        Assert.Equal(60, ShapeCode.LastCustom);
+        Assert.Equal(42, ShapeCode.MaxCustomShapes);
+    }
+
+    [Fact]
+    public void ShapeCode_BuiltInsSpanBothRanges_AndCustomsSitBetween()
+    {
+        // Low range: the cube and the original forms; high range: the #1846 furniture at 61..63.
+        Assert.True(ShapeCode.IsBuiltIn(0));
+        Assert.True(ShapeCode.IsBuiltIn((int)BlockShape.Pot));
+        Assert.False(ShapeCode.IsBuiltIn(ShapeCode.Count));
+        Assert.False(ShapeCode.IsBuiltIn(ShapeCode.LastCustom));
+        Assert.True(ShapeCode.IsBuiltIn((int)BlockShape.BedFoot));
+        Assert.True(ShapeCode.IsBuiltIn((int)BlockShape.BedHead));
+        Assert.True(ShapeCode.IsBuiltIn((int)BlockShape.Bench));
+        Assert.Equal(63, (int)BlockShape.Bench);
+        Assert.False(ShapeCode.IsBuiltIn(64));
+        Assert.False(ShapeCode.IsBuiltIn(-1));
+
+        // A high built-in is a valid, placeable form and NOT a custom one — nothing may mistake the bench for
+        // a player-designed id and ask the registry (or the icon voxels) for it.
+        Assert.True(ShapeCode.IsValidShape((int)BlockShape.Bench));
+        Assert.False(ShapeCode.IsCustomShape((int)BlockShape.Bench));
+        Assert.False(ShapeCode.IsCustomDescriptor(ShapeCode.Pack(BlockShape.Bench, 2)));
+        Assert.True(ShapeCode.IsPlaceableShape((int)BlockShape.Bench, null));
+
+        // The enumeration covers exactly the two ranges, low first.
+        var all = ShapeCode.BuiltInShapeIndices().ToList();
+        Assert.Equal(Enumerable.Range(1, ShapeCode.Count - 1).Concat(new[] { 61, 62, 63 }), all);
+        Assert.All(all, i => Assert.True(ShapeCode.IsBuiltIn(i)));
     }
 
     [Fact]
@@ -283,7 +315,7 @@ public sealed class CustomShapeTests
         Assert.False(ShapeCode.IsPlaceableShape(ShapeCode.FirstCustom, null));
         Assert.False(ShapeCode.IsPlaceableShape(ShapeCode.FirstCustom, _ => false));
         Assert.True(ShapeCode.IsPlaceableShape(ShapeCode.FirstCustom, id => id == ShapeCode.FirstCustom));
-        Assert.False(ShapeCode.IsPlaceableShape(ShapeCode.LastCustom + 1, _ => true));
+        Assert.False(ShapeCode.IsPlaceableShape(ShapeCode.LastHighBuiltIn + 1, _ => true)); // past the 6-bit field
     }
 
     // ── share codes (#846) ───────────────────────────────────────────────────────────────────────

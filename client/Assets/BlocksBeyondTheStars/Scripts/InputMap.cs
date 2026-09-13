@@ -42,6 +42,7 @@ namespace BlocksBeyondTheStars.Client
         SpeederExit,          // dismount the speeder — default F
         SpeederRefuel,        // refuel the speeder — default R
         Disembark,            // leave a boarded station / undock — default U
+        ToggleStationZeroG,   // zero-g construction mode on a boarded player station, per player (#1842) — default O
         RequestTrade,         // request a trade with a nearby player — default T
         RequestDock,          // request to dock with a nearby player — default K
 
@@ -156,7 +157,7 @@ namespace BlocksBeyondTheStars.Client
         public static readonly InputAction[] VehicleRemappable =
         {
             InputAction.SpeederBoost, InputAction.SpeederExit, InputAction.SpeederRefuel,
-            InputAction.Disembark, InputAction.RequestTrade, InputAction.RequestDock,
+            InputAction.Disembark, InputAction.ToggleStationZeroG, InputAction.RequestTrade, InputAction.RequestDock,
         };
 
         /// <summary>Menu verbs shown in the rebinding UI with their PAD column only (#1198). Their keyboard
@@ -206,6 +207,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.SpeederExit => KeyCode.F,
             InputAction.SpeederRefuel => KeyCode.R,
             InputAction.Disembark => KeyCode.U,
+            InputAction.ToggleStationZeroG => KeyCode.O, // the last free letter (#1842); only read while on a player station
             InputAction.RequestTrade => KeyCode.T,
             InputAction.RequestDock => KeyCode.K,
             InputAction.VegaContinue => KeyCode.N,  // the key VegaPanel always used; now rebindable + reachable from pad/touch (#1041)
@@ -472,6 +474,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.SpeederExit => "ui.key.speeder_exit",
             InputAction.SpeederRefuel => "ui.key.speeder_refuel",
             InputAction.Disembark => "ui.key.disembark",
+            InputAction.ToggleStationZeroG => "ui.key.toggle_station_zero_g",
             InputAction.RequestTrade => "ui.key.request_trade",
             InputAction.RequestDock => "ui.key.request_dock",
             InputAction.VegaContinue => "ui.key.vega_continue",

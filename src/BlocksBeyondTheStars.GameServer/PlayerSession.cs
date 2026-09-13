@@ -270,6 +270,17 @@ public sealed class PlayerSession
     /// whether the lamp is CARRIED otherwise). Session-scoped — a rejoin starts with the lamp off, like the client.</summary>
     public bool LampOn { get; set; }
 
+    /// <summary>Zero-g construction mode on the boarded player-built station (#1842): the suit floats everywhere
+    /// on the station, not only beyond its gravity volume. Per player, session-only and deliberately never
+    /// persisted — it is cleared on leaving the station, on any world change and on disconnect, so a rejoin
+    /// always lands walking. Any boarder of a player station may set it for themselves.</summary>
+    public bool StationZeroG { get; set; }
+
+    /// <summary>Server uptime (seconds) at which <see cref="StationZeroG"/> was last switched OFF, or negative
+    /// infinity. A fall reported within the grace window after that is not a fall: the player was hovering
+    /// in zero-g when the gravity came back, and the drop to the deck is the mode's doing, not theirs.</summary>
+    public double StationZeroGOffAt { get; set; } = double.NegativeInfinity;
+
     /// <summary>Uptime before which VEGA says no further context tip (global cadence, shared with banter).</summary>
     public double VegaTipReadyAt { get; set; }
 

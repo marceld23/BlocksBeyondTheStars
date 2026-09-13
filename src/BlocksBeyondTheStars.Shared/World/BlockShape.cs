@@ -35,6 +35,64 @@ public enum BlockShape : byte
     Fence = 16,   // two posts + two full-width rails along X (yaw-oriented like Beam); rails meet across cells
     Sheet = 17,   // ultra-thin 1/16 plate (rugs, veneers) — the Panel's little sibling
     Pot = 18,     // small centred planter box with a rim (bowls, pots)
+
+    // More furniture (#1846), allocated TOP-DOWN from the 6-bit ceiling: player-designed forms are persisted
+    // BY INDEX from ShapeCode.FirstCustom (19) upward, so appending 19, 20, … here would silently rename every
+    // saved custom form. The two bed halves are STAMPED by the server on a placed bed, never chosen by the
+    // player (they are not in the Shape picker); the bench is.
+    BedFoot = 61, // foot half of the two-cell bed: mattress + footboard at local +Z (yaw-oriented like BedHead)
+    BedHead = 62, // head half of the two-cell bed: mattress + pillow + headboard at local −Z; the foot lies at +Z
+    Bench = 63,   // full-width seat + low full-width backrest toward +Z (yaw-oriented like Chair); benches join
+}
+
+/// <summary>What the furniture forms mean to gameplay (#806 sitting, #1846 the two-cell bed): the one place
+/// that knows which forms are seats and how the two bed halves find each other, shared by the client (sit on
+/// E, stand up when the seat vanishes) and the server (place/mine the bed as a pair).</summary>
+public static class FurnitureShapes
+{
+    /// <summary>True when a cell of this form can be sat on (E while aiming at it).</summary>
+    public static bool IsSeat(int shapeIndex)
+        => shapeIndex == (int)BlockShape.Chair || shapeIndex == (int)BlockShape.Bench;
+
+    /// <summary>True when the form is one half of the two-cell bed.</summary>
+    public static bool IsBedHalf(int shapeIndex)
+        => shapeIndex == (int)BlockShape.BedHead || shapeIndex == (int)BlockShape.BedFoot;
+
+    /// <summary>
+    /// The horizontal step from a bed half to its partner cell, read from the half's packed descriptor: the
+    /// head's foot lies where its local +Z points after the yaw (<see cref="ShapeCode.YawDirection"/>), the
+    /// foot's head the opposite way. False for anything that is not a bed half (the legacy one-cell bed
+    /// included — it has no partner).
+    /// </summary>
+    public static bool TryBedPartnerOffset(int descriptor, out int dx, out int dz)
+    {
+        int shape = ShapeCode.ShapeOf(descriptor);
+        if (!IsBedHalf(shape))
+        {
+            dx = dz = 0;
+            return false;
+        }
+
+        var (x, z) = ShapeCode.YawDirection(ShapeCode.OrientationOf(descriptor));
+        int sign = shape == (int)BlockShape.BedHead ? 1 : -1;
+        dx = x * sign;
+        dz = z * sign;
+        return true;
+    }
+
+    /// <summary>The packed descriptor of the OTHER half of a bed: same yaw and up-face, the complementary form,
+    /// no paint (the design rides on the item, not on the stamped halves). 0 for a non-bed descriptor.</summary>
+    public static int BedPartnerDescriptor(int descriptor)
+    {
+        int shape = ShapeCode.ShapeOf(descriptor);
+        if (!IsBedHalf(shape))
+        {
+            return 0;
+        }
+
+        int other = shape == (int)BlockShape.BedHead ? (int)BlockShape.BedFoot : (int)BlockShape.BedHead;
+        return ShapeCode.Pack(other, ShapeCode.OrientationOf(descriptor), ShapeCode.UpFaceOf(descriptor));
+    }
 }
 
 /// <summary>How much of the orientation a prop's rotate-key cycle may reach (#909). The cycle the player
@@ -71,7 +129,7 @@ public static class PropShapes
     /// can be stamped with.</summary>
     public static int DefaultPlaceShape(string blockKey) => blockKey switch
     {
-        "bed" => (int)BlockShape.Slab,
+        "bed" => (int)BlockShape.BedHead,     // the head half; the server stamps the foot on the next cell (#1846)
         "campfire" => (int)BlockShape.Slab,
         "rug" => (int)BlockShape.Sheet,
         "flower_pot" => (int)BlockShape.Pot,
@@ -83,6 +141,11 @@ public static class PropShapes
     /// <summary>The form a ladder takes when it hugs no wall: a slim pole through the cell. The mesher has
     /// always drawn a free-standing ladder this way; since #909 the choice can also be stored.</summary>
     public const int LadderFreeStanding = (int)BlockShape.Post;
+
+    /// <summary>The one-cell bed every bed was before #1846: the form ship layouts, station templates and old
+    /// saves still carry, and the one a cramped procedural room falls back to. Still a bed for the home spawn
+    /// and the heal check (those go by block id), still stripped from the mined drop.</summary>
+    public const int BedSingleCell = (int)BlockShape.Slab;
 
     /// <summary>How far this prop's placement orientation may be steered.</summary>
     public static PropOrientation OrientationOf(string blockKey) => blockKey switch
@@ -99,7 +162,9 @@ public static class PropShapes
     public static bool IsStampedForm(string blockKey, int shape)
         => shape != 0
            && (shape == DefaultPlaceShape(blockKey)
-               || (shape == LadderFreeStanding && blockKey == "ladder"));
+               || (shape == LadderFreeStanding && blockKey == "ladder")
+               // A bed's foot half and the legacy one-cell bed both drop as a plain "bed" (#1846).
+               || (blockKey == "bed" && (shape == (int)BlockShape.BedFoot || shape == BedSingleCell)));
 
     /// <summary>The form + up-face a ladder is stamped with for a chosen mount face: an up-face pointing away
     /// from one of the four walls keeps the plate, anything else (no wall to hug) becomes the pole. Server and
@@ -153,13 +218,45 @@ public static class PropShapes
 /// </summary>
 public static class ShapeCode
 {
-    /// <summary>Number of distinct <see cref="BlockShape"/> forms (including <see cref="BlockShape.Cube"/>).</summary>
+    /// <summary>One past the LOW built-in range of <see cref="BlockShape"/> (0..18, <see cref="BlockShape.Cube"/>
+    /// included) — the first index handed to player-designed forms, which is why it must never grow (#1846):
+    /// newer built-ins live at the top of the field instead, see <see cref="FirstHighBuiltIn"/>.</summary>
     public const int Count = 19;
+
+    /// <summary>First index of the HIGH built-in range (<see cref="BlockShape.BedFoot"/> .. <see cref="BlockShape.Bench"/>),
+    /// allocated top-down from the 6-bit ceiling so saved custom-form ids stay where they are (#1846).</summary>
+    public const int FirstHighBuiltIn = (int)BlockShape.BedFoot;
+
+    /// <summary>Last index the 6-bit shape field can hold — also the last high built-in.</summary>
+    public const int LastHighBuiltIn = 63;
+
+    /// <summary>True when <paramref name="shapeIndex"/> names a built-in form (the cube included): the low
+    /// enum range below <see cref="Count"/> or the high range at the top of the field. Everything between is
+    /// reserved for player-designed forms.</summary>
+    public static bool IsBuiltIn(int shapeIndex)
+        => (shapeIndex >= 0 && shapeIndex < Count)
+           || (shapeIndex >= FirstHighBuiltIn && shapeIndex <= LastHighBuiltIn);
+
+    /// <summary>Every built-in form index except the cube, low range first — for tables that must cover all of
+    /// them (labels, icons) without hard-coding the two ranges.</summary>
+    public static System.Collections.Generic.IEnumerable<int> BuiltInShapeIndices()
+    {
+        for (int i = 1; i < Count; i++)
+        {
+            yield return i;
+        }
+
+        for (int i = FirstHighBuiltIn; i <= LastHighBuiltIn; i++)
+        {
+            yield return i;
+        }
+    }
 
     /// <summary>The default up-face (local +Y points to world +Y): the original, pre-orientation behaviour.</summary>
     public const int UpPlusY = 0;
 
-    /// <summary>Packs a shape index (0..63) + yaw (0..3) + up-face (0..5) into one stored descriptor.</summary>
+    /// <summary>Packs a shape index (0..63) + yaw (0..3) + up-face (0..5) into one stored descriptor. Yaw is a
+    /// quarter-turn count whose world meaning is <see cref="YawDirection"/>.</summary>
     public static int Pack(int shape, int yaw, int upFace) => ((upFace & 0x7) << 8) | ((shape & 0x3F) << 2) | (yaw & 0x3);
 
     /// <summary>Packs a shape index (0..63) + a yaw orientation (0..3), up-face defaulting to +Y (compat overload).</summary>
@@ -185,21 +282,62 @@ public static class ShapeCode
     public static bool IsCube(int descriptor) => ShapeOf(descriptor) == 0;
 
     /// <summary>True when <paramref name="shapeIndex"/> names a real (non-cube) BUILT-IN shape we can build.
-    /// Player-designed forms live above this range — see <see cref="IsCustomShape"/>.</summary>
-    public static bool IsValidShape(int shapeIndex) => shapeIndex > 0 && shapeIndex < Count;
+    /// Player-designed forms live between the two built-in ranges — see <see cref="IsCustomShape"/>.</summary>
+    public static bool IsValidShape(int shapeIndex) => shapeIndex > 0 && IsBuiltIn(shapeIndex);
+
+    /// <summary>The world direction a yaw-oriented form's local +Z points to after <paramref name="yaw"/>
+    /// quarter-turns — the SAME rotation the client mesher applies to the geometry (<c>BlockShapeGeometry.Yaw</c>:
+    /// 0 = +Z, 1 = −X, 2 = −Z, 3 = +X; see also the ramp note in <c>MonumentGenerator</c>). Anything that
+    /// reasons about where a form's front/foot/backrest ends up in the world must go through here, or its
+    /// idea of the cell and the drawn geometry drift apart by a quarter turn.</summary>
+    public static (int X, int Z) YawDirection(int yaw) => (yaw & 3) switch
+    {
+        1 => (-1, 0),
+        2 => (0, -1),
+        3 => (1, 0),
+        _ => (0, 1),
+    };
+
+    /// <summary>
+    /// The geometry yaw whose local +Z points where the PLAYER is looking, given the look direction as the
+    /// quarter-turn index placement derives from the player's heading (0 = +Z, 1 = +X, 2 = −Z, 3 = −X — the
+    /// Unity euler convention). That index is NOT a geometry yaw: the mesher's rotation runs the other way
+    /// round for ±X (<see cref="YawDirection"/>), so a form stamped with the raw heading faces the player on
+    /// N/S and away on E/W. The two-cell bed (#1846) routes its auto yaw through here so the foot always lands
+    /// in the cell the player faces; other yaw-oriented forms keep the raw heading (a separate issue).
+    /// </summary>
+    public static int YawFacingForward(int headingQuarterTurns) => (headingQuarterTurns & 3) switch
+    {
+        1 => YawToward(1, 0),
+        2 => YawToward(0, -1),
+        3 => YawToward(-1, 0),
+        _ => YawToward(0, 1),
+    };
+
+    /// <summary>The yaw that points a form's local +Z along a unit horizontal step — the inverse of
+    /// <see cref="YawDirection"/>. A zero or diagonal step yields 0.</summary>
+    public static int YawToward(int dx, int dz) => (dx, dz) switch
+    {
+        (-1, 0) => 1,
+        (0, -1) => 2,
+        (1, 0) => 3,
+        _ => 0,
+    };
 
     // --- Player-designed forms (#842) ---
-    // The shape field is 6 bits (0..63) and only 19 values are built-in, so the free indices ABOVE the enum
-    // are handed out to player-designed forms registered per save (see CustomShape + the server registry).
-    // A custom form therefore rides through crafting, the item key, placing, persistence and mining with no
-    // format change whatsoever: it is just another shape index. Descriptor bits 27..31 stay reserved zero as
-    // the escape hatch if 45 slots per save ever prove too few (widening them is additive, not a migration).
+    // The shape field is 6 bits (0..63); the built-in forms take the low range (0..18) and, since #1846, a
+    // few slots at the very top (61..63). The free indices BETWEEN the two are handed out to player-designed
+    // forms registered per save (see CustomShape + the server registry). A custom form therefore rides through
+    // crafting, the item key, placing, persistence and mining with no format change whatsoever: it is just
+    // another shape index. Descriptor bits 27..31 stay reserved zero as the escape hatch if the slots per
+    // save ever prove too few (widening them is additive, not a migration).
 
-    /// <summary>First shape index handed out to player-designed forms (one past the built-in enum).</summary>
+    /// <summary>First shape index handed out to player-designed forms (one past the low built-in range).
+    /// Persisted saves store custom forms BY this index, so it is frozen at 19.</summary>
     public const int FirstCustom = Count;
 
-    /// <summary>Last shape index the 6-bit descriptor field can hold.</summary>
-    public const int LastCustom = 63;
+    /// <summary>Last shape index a player-designed form can take: right below the high built-in range.</summary>
+    public const int LastCustom = FirstHighBuiltIn - 1;
 
     /// <summary>How many player-designed forms one save can hold at a time.</summary>
     public const int MaxCustomShapes = LastCustom - FirstCustom + 1;

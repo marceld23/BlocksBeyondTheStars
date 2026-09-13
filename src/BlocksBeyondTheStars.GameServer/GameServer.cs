@@ -2095,6 +2095,7 @@ public sealed partial class GameServer
         // recovery to the ship — permanent free life support). Always drop it here: every non-station respawn
         // target below leaves the station, and the station home spawn re-registers it itself.
         _boardedStation.Remove(p.PlayerId);
+        ClearStationZeroG(session); // #1842: the chosen float dies with the boarding
 
         if (sameWorld)
         {
@@ -3391,6 +3392,7 @@ public sealed partial class GameServer
             case DeployStationCoreIntent: HandleDeployStationCore(session); break;
             case BoardStationIntent boardStation: HandleBoardStation(session, boardStation); break;
             case LeaveStationIntent: HandleLeaveStation(session); break;
+            case SetStationZeroGIntent stationZeroG: HandleSetStationZeroG(session, stationZeroG); break; // #1842: zero-g construction mode
             case RepairWreckIntent repairWreck: HandleRepairWreck(session, repairWreck); break;
             case ClaimWreckIntent: HandleClaimWreck(session); break;
             case RepairShipIntent repairShip: HandleRepairShip(session, repairShip); break;
@@ -3405,6 +3407,7 @@ public sealed partial class GameServer
             case DissolveAllianceIntent allianceDis: HandleDissolveAlliance(session, allianceDis); break;
             case CrewActionIntent crewAction: HandleCrewAction(session, crewAction); break;
             case MarkerActionIntent markerAction: HandleMarkerAction(session, markerAction); break;
+            case NoteActionIntent noteAction: HandleNoteAction(session, noteAction); break; // player notes (#1844)
             case StorySelectIntent storySelect: HandleStorySelect(session, storySelect); break;
             case NetFragmentFoundIntent netFrag: HandleNetFragmentFound(session, netFrag); break;
             case CoreHackIntent coreHack: HandleCoreHack(session, coreHack); break;
@@ -3674,6 +3677,7 @@ public sealed partial class GameServer
         SendFactories(session);   // factories on the join world (animated machines + production terminals)
         SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
         BackfillPlaceDiscoveries(session); // pre-#1113 saves: mirror already-landed bodies into "Places" first
+        BackfillScanSites(session); // pre-#1843 saves: derive WHERE for place/monument keys from the body id
         SendDiscoveryLog(session); // the first-scan ledger, for the Codex "Discoveries" chapter (#484)
 
         // Achievements: settle anything that came due while a reward had nowhere to go, retro-award entries that
@@ -3686,6 +3690,7 @@ public sealed partial class GameServer
         SendCrewList(session);     // crew roster + open invites (#1216)
         OnMarkerOwnerJoined(session); // the loaded state is the truth for this player's shared markers (#1293)
         SendMarkers(session);      // own + shared map markers on the join world (#1217)
+        SendNotes(session);        // the player's own notes (#1844)
         SendStoryStateOnJoin(session); // story meter + per-player beat catch-up (P0)
         SendRelayNetwork(session); // SPS relay meters + jump lanes (#1125)
         ArmNpcRadioOnJoin(session); // NPC calls (#1119): quiet period first; the join scan then catches up
@@ -4178,6 +4183,11 @@ public sealed partial class GameServer
             return; // piloting in space — there is no on-foot fall to take
         }
 
+        if (session.StationZeroG || InStationZeroGFallGrace(session))
+        {
+            return; // #1842: hovering in zero-g construction mode, or dropped to the deck because it was just switched off
+        }
+
         if (Rules.CreativeFlightFor(p.ModeOverride) || p.Fly)
         {
             // #1838: a suit that can fly never takes a fall. The client's own guard only knows the ACTIVE flight
@@ -4478,6 +4488,11 @@ public sealed partial class GameServer
         // #1481: an interior edit is part of the station's build from now on. A harvested plant leaves Air in the grid
         // as in the world (the grid mirrors what stands there); its regrowth writes it back (#1857, StepFlora).
         WriteBackStationCell(pos, BlockId.Air);
+        if (def.Key == BedBlock)
+        {
+            ClearBedPartner(session, pos, current, dropDescriptor); // #1846: a two-cell bed falls as one piece
+        }
+
         if (IsSapling(current.Value))
         {
             ForgetSaplingGrowth(pos); // #1774: a picked sapling is in the pocket, not regrowing
@@ -4624,6 +4639,14 @@ public sealed partial class GameServer
         }
 
         // Furniture turns but never tips: a bed/campfire on a wall would break its sit/heal/warmth checks.
+        // A bed placed without an explicit turn (#1846) must put its foot in the cell the player FACES: the
+        // raw heading index is mirrored against the geometry yaw for ±X, so it is converted here — the client
+        // ghost does the same, an explicit rotate-key yaw is honoured as sent (foot = geometry direction).
+        if (blockKey == BedBlock && !(place.Yaw >= 0 && place.Yaw <= 3))
+        {
+            facing = ShapeCode.YawFacingForward(facing);
+        }
+
         return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, ShapeCode.UpPlusY);
     }
 
@@ -4632,6 +4655,87 @@ public sealed partial class GameServer
     /// neighbour, in <see cref="ShapeCode.WallFaces"/> order), so those placements keep landing where they
     /// always did. The client normally decides this itself and sends the answer, because it can also honour
     /// the wall the player actually aimed at.</summary>
+    /// <summary>
+    /// The cell a bed's foot half takes for a head placed at <paramref name="head"/> with the stamped
+    /// <paramref name="headDescriptor"/> (#1846), when it can take it: free (air, or a fluid the bed displaces
+    /// like the head does), inside reach, not the player's own head cell, and on none of the protected ground
+    /// the head itself is refused on. Same Y as the head, so the build band needs no second look. The seam
+    /// wrap is applied, so a bed across the world seam works like any other two-cell edit.
+    /// </summary>
+    private bool TryBedFootCell(PlayerSession session, Vector3i head, int headDescriptor, out Vector3i foot)
+    {
+        foot = head;
+        if (!FurnitureShapes.TryBedPartnerOffset(headDescriptor, out int dx, out int dz))
+        {
+            return false;
+        }
+
+        foot = WorldConstants.CanonicalBlock(new Vector3i(head.X + dx, head.Y, head.Z + dz), _world.Circumference);
+        var existing = _world.GetBlock(foot);
+        if (!existing.IsAir && !IsFluid(existing.Value))
+        {
+            return false;
+        }
+
+        var feet = session.State.Position;
+        int fx = (int)System.Math.Floor(feet.X), fy = (int)System.Math.Floor(feet.Y), fz = (int)System.Math.Floor(feet.Z);
+        if (foot.X == fx && foot.Z == fz && foot.Y == fy + 1)
+        {
+            return false;
+        }
+
+        if (!WithinReach(session.State, foot)
+            || (!session.State.IsAdmin && IsOnLandingPad(foot))
+            || IsStationBlock(foot)
+            || IsFactoryProtected(foot, session.State.PlayerId, session.State.IsAdmin)
+            || IsBaseProtected(foot, session.State.PlayerId, session.State.IsAdmin))
+        {
+            return false;
+        }
+
+        var footF = new Vector3f(foot.X, foot.Y, foot.Z);
+        return !ShipInteriorContains(footF) && !ConstructionContains(footF);
+    }
+
+    /// <summary>
+    /// Takes the other half of a two-cell bed down with the half that was just mined (#1846), when the partner
+    /// cell really holds it (same block, the complementary form, the same yaw — a stray bed half left by a
+    /// world edit is not somebody else's bed). The partner yields nothing: the mined half already dropped the
+    /// whole bed. Cleared, mirrored and broadcast like any broken block; a legacy one-cell bed has no partner.
+    /// </summary>
+    private void ClearBedPartner(PlayerSession session, Vector3i pos, BlockId bed, int minedDescriptor)
+    {
+        if (!FurnitureShapes.TryBedPartnerOffset(minedDescriptor, out int dx, out int dz))
+        {
+            return;
+        }
+
+        var partner = WorldConstants.CanonicalBlock(new Vector3i(pos.X + dx, pos.Y, pos.Z + dz), _world.Circumference);
+        if (_world.GetBlock(partner).Value != bed.Value)
+        {
+            return;
+        }
+
+        int partnerDescriptor = _world.GetShape(partner);
+        int expected = FurnitureShapes.BedPartnerDescriptor(minedDescriptor);
+        if (ShapeCode.ShapeOf(partnerDescriptor) != ShapeCode.ShapeOf(expected)
+            || ShapeCode.OrientationOf(partnerDescriptor) != ShapeCode.OrientationOf(expected))
+        {
+            return;
+        }
+
+        _world.SetBlock(partner, BlockId.Air, owner: session.State.PlayerId);
+        _miningProgress.Remove(partner);
+        BroadcastToWorld(new BlockChanged { X = partner.X, Y = partner.Y, Z = partner.Z, Block = BlockId.AirValue });
+        WriteBackStationCell(partner, BlockId.Air);
+        if (HasFluidNeighbor(partner))
+        {
+            OnFluidRemoved(partner);
+        }
+
+        OnSupportRemoved(partner);
+    }
+
     private int DeriveLadderMount(Vector3i pos) => PropShapes.DeriveLadderMount(
         face =>
         {
@@ -4823,6 +4927,22 @@ public sealed partial class GameServer
             }
         }
 
+        // A bed is two cells long (#1846): the foot half lands on the cell the head's yaw points to. The foot
+        // cell is put through the same checks the head cell just passed — free, in reach, not the player's own
+        // head, no protected ground — BEFORE the item is consumed, so a bed jammed against a wall is refused
+        // with a reason instead of leaving a lone head half (or writing into someone else's base).
+        Vector3i? bedFoot = null;
+        if (blockDef.Key == BedBlock)
+        {
+            if (!TryBedFootCell(session, pos, StampPropShape(session, place, blockDef.Key, pos), out var foot))
+            {
+                Reject(session, "place", "@srv.place.bed_room");
+                return;
+            }
+
+            bedFoot = foot;
+        }
+
         // Creative mode and admin instant-build place without consuming materials.
         bool free = !Rules.CraftingCostsMaterialsFor(session.State.ModeOverride) || session.State.InstantBuild;
         var pool = new MaterialPool(_content, session.State, _ship);
@@ -4907,6 +5027,24 @@ public sealed partial class GameServer
 
         _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape, session.State.PlayerId);
         WriteBackStationCell(pos, blockDef.NumericId, placeTint, placeGlow, placeShape); // #1481: an interior edit is part of the station's build from now on
+        if (bedFoot is { } footCell)
+        {
+            // The foot half (#1846): the same block with the partner form and the head's yaw, written, mirrored
+            // and broadcast exactly like the head — the save, the wire, the station grid and the block-id based
+            // home-spawn/heal scans all see two bed cells. A fluid it displaces is dropped like the head's.
+            int footShape = FurnitureShapes.BedPartnerDescriptor(placeShape);
+            bool footIntoFluid = IsFluid(_world.GetBlock(footCell).Value);
+            _world.SetBlock(footCell, blockDef.NumericId, placeTint, placeGlow, footShape, session.State.PlayerId);
+            WriteBackStationCell(footCell, blockDef.NumericId, placeTint, placeGlow, footShape);
+            BroadcastToWorld(new BlockChanged { X = footCell.X, Y = footCell.Y, Z = footCell.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow, Shape = footShape });
+            NudgeCreatureBodyChecks(footCell);
+            if (footIntoFluid)
+            {
+                UntrackFluid(footCell);
+                OnFluidRemoved(footCell);
+            }
+        }
+
         if (IsSapling(blockDef.NumericId.Value))
         {
             ScheduleSaplingGrowth(pos); // #1774: a planted sapling starts its clock
@@ -6338,6 +6476,7 @@ public sealed partial class GameServer
             // A creative world lets everybody fly; a per-player Creative override (#1121) grants it too;
             // /fly keeps working as the per-player admin cheat.
             CanFly = Rules.CreativeFlightFor(p.ModeOverride) || p.Fly,
+            StationZeroG = session.StationZeroG, // #1842: chosen float on a player station (session-only)
         });
     }
 

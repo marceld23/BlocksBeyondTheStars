@@ -84,7 +84,7 @@ public sealed class ItemNamesTests
         foreach (string language in new[] { "en", "de" })
         {
             var loc = Loc(language);
-            for (int shape = 1; shape < ShapeCode.Count; shape++)
+            foreach (int shape in ShapeCode.BuiltInShapeIndices()) // both ranges: the enum and the #1846 furniture at the top
             {
                 string label = ItemNames.ShapeLabel(loc, shape);
                 Assert.False(string.IsNullOrEmpty(label), $"{language}: shape {shape} has no label");

@@ -862,6 +862,10 @@ namespace BlocksBeyondTheStars.Client
             if (!string.IsNullOrEmpty(Game.StationName))
             {
                 place = $"{Game.StationName}  ({loc.Get("ui.hud.station")})";
+                if (Game.StationZeroG)
+                {
+                    place += $"  ·  {loc.Get("ui.hud.station_zero_g")}"; // #1842: the chosen float, not a drift
+                }
             }
             else
             {

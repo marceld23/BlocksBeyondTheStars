@@ -104,7 +104,8 @@ namespace BlocksBeyondTheStars.Client
                 _ui?.Hide();
                 _arcadeUi?.Hide();
                 EnsureWikiUi();
-                _wikiUi.Show();
+                _wikiUi.Show(_wikiChapter);
+                _wikiChapter = null; // consumed by this one call (see the field)
                 return;
             }
 
@@ -135,8 +136,14 @@ namespace BlocksBeyondTheStars.Client
         /// as the Tab key does (at the current tab), so a marketing shot can show the Tab menu over the cockpit.</summary>
         public void SetMenuOpen(bool open) => SetOpen(open);
 
-        /// <summary>Opens the in-game Wiki ("Codex") screen — an always-available menu point.</summary>
-        public void OpenWiki() { _browser = BrowserScreen.Wiki; SetOpen(true); }
+        /// <summary>Codex chapter a deep link asked for (#1843), handed to the FIRST <c>WikiUI.Show</c> after
+        /// <see cref="OpenWiki"/> and cleared — Show runs every frame while the Codex is open, so a sticky
+        /// value would drag the reader back each time they clicked another chapter.</summary>
+        private string _wikiChapter;
+
+        /// <summary>Opens the in-game Wiki ("Codex") screen — an always-available menu point.
+        /// <paramref name="chapter"/> deep-links to a chapter id ("discoveries"); null keeps the last one.</summary>
+        public void OpenWiki(string chapter = null) { _wikiChapter = chapter; _browser = BrowserScreen.Wiki; SetOpen(true); }
 
         /// <summary>Opens the Arcade collection screen — an always-available menu point.</summary>
         public void OpenArcade() { Game?.MarkArcadeSeen(); _browser = BrowserScreen.Arcade; SetOpen(true); }

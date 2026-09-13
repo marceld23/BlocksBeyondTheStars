@@ -118,6 +118,9 @@ namespace BlocksBeyondTheStars.Client
                 case BlockShape.Fence: Fence(faces); break;                                        // posts + rails along X
                 case BlockShape.Sheet: Box(faces, 0f, 0f, 0f, 1f, 0.0625f, 1f); break;             // 1/16 rug/veneer plate
                 case BlockShape.Pot: Pot(faces); break;                                            // small centred planter
+                case BlockShape.Bench: Bench(faces); break;                                        // full-width seat + low backrest (#1846)
+                case BlockShape.BedHead: BedHead(faces); break;                                    // two-cell bed, head half (#1846)
+                case BlockShape.BedFoot: BedFoot(faces); break;                                    // two-cell bed, foot half (#1846)
                 default: return null; // Cube / unknown → no custom geometry
                 }
             }
@@ -310,6 +313,37 @@ namespace BlocksBeyondTheStars.Client
         {
             Box(f, 0.28f, 0f, 0.28f, 0.72f, 0.42f, 0.72f); // body
             Box(f, 0.24f, 0.36f, 0.24f, 0.76f, 0.5f, 0.76f); // slightly wider rim
+        }
+
+        // #1846: a bench is a chair whose seat and backrest span the full X width, so a row of benches reads as
+        // one long seat (like tables and fence rails, the cell-spanning boxes meet across cells). The backrest is
+        // lower than a chair's — a park bench, not a pew. Legs poke into the seat like the chair's.
+        private static void Bench(List<Face> f)
+        {
+            Box(f, 0f, 0.35f, 0.1f, 1f, 0.5f, 0.9f);       // seat, full width
+            Box(f, 0f, 0.4f, 0.72f, 1f, 0.78f, 0.9f);      // low backrest toward +Z (yaw turns it), full width
+            Box(f, 0.06f, 0f, 0.14f, 0.2f, 0.4f, 0.26f);   // four legs
+            Box(f, 0.8f, 0f, 0.14f, 0.94f, 0.4f, 0.26f);
+            Box(f, 0.06f, 0f, 0.74f, 0.2f, 0.4f, 0.86f);
+            Box(f, 0.8f, 0f, 0.74f, 0.94f, 0.4f, 0.86f);
+        }
+
+        // #1846: the two-cell bed. Both halves keep the legacy one-cell bed's slab as their mattress, so a bed
+        // from an old save, a ship layout or a cramped procedural room (still a Slab) matches the new ones in
+        // height. The head half's foot side is local +Z — the server writes the foot half on the cell that
+        // ShapeCode.YawDirection(yaw) points to, and the foot's footboard faces the same way, so the two boards
+        // close the bed at both ends. Trim boxes are inset from the mattress faces (never coplanar).
+        private static void BedHead(List<Face> f)
+        {
+            Box(f, 0f, 0f, 0f, 1f, 0.5f, 1f);                  // mattress (= the legacy slab)
+            Box(f, 0.15f, 0.45f, 0.12f, 0.85f, 0.62f, 0.45f);  // pillow, sunk into the mattress
+            Box(f, 0.02f, 0.45f, 0.02f, 0.98f, 0.85f, 0.1f);   // headboard at −Z
+        }
+
+        private static void BedFoot(List<Face> f)
+        {
+            Box(f, 0f, 0f, 0f, 1f, 0.5f, 1f);                  // mattress
+            Box(f, 0.02f, 0.45f, 0.9f, 0.98f, 0.68f, 0.98f);   // footboard at +Z
         }
 
         private const float Cx = 0.5f, Cz = 0.5f, R = 0.5f;

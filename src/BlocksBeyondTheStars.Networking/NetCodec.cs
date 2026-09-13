@@ -334,6 +334,8 @@ public static class NetCodec
         Register(233, typeof(MarkerList));               // Server -> Client (visible markers + pings)
         Register(234, typeof(UninstallShipModuleIntent)); // Client -> Server (remove a fitted module, #1269)
         Register(235, typeof(RecallVehicleIntent));      // Client -> Server (call a stranded speeder/boat back to the ship, #1661)
+        Register(241, typeof(NoteActionIntent));         // Client -> Server (player notes: set/remove, #1844)
+        Register(242, typeof(NoteList));                 // Server -> Client (the player's own notes, #1844)
 
         // Always-available "Shape" crafting: re-form a held building material into another geometric shape
         // (sphere/dome/pyramid/ramp/…). Output is the same item with the shape encoded in its key.
@@ -501,6 +503,9 @@ public static class NetCodec
         Register(237, typeof(FarTerrainTileRequest));        // Client -> Server
         Register(238, typeof(FarTerrainTile));               // Server -> Client
         Register(239, typeof(FarTerrainWorldInfo));          // Server -> Client (#1820: the world's generator settings)
+
+        // Zero-g construction mode on a player-built station (#1842): per-player, session-only toggle.
+        Register(240, typeof(SetStationZeroGIntent));        // Client -> Server
     }
 
     private static void Register(byte tag, Type type)
