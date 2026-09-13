@@ -47,6 +47,18 @@ public sealed class NetNpc
     /// <summary>Client-side look key (#1793): "gds_guard" = a G.D.S. guardian machine (glowing red eyes, a red
     /// stripe band). Additive (contractless): "" = unset, the plain avatar as before.</summary>
     public string Look { get; set; } = string.Empty;
+
+    /// <summary>Body pose (#1867): 0 = standing/walking, 1 = seated on a chair or bench, 2 = lying in bed asleep.
+    /// Additive (contractless): 0 = unset, the plain standing avatar as before.</summary>
+    public byte Pose { get; set; }
+
+    /// <summary>Locale key of what the NPC is doing right now (#1867/#1868), e.g. <c>npc.activity.sleeping</c> —
+    /// shown on the nameplate. Additive (contractless): "" = nothing to show.</summary>
+    public string ActivityKey { get; set; } = string.Empty;
+
+    /// <summary>What the NPC carries (#1868): <c>npc_hoe</c> (gardener), <c>npc_hammer</c> (craftsman), <c>blade</c>
+    /// (guard) — a render hint, not an item. Additive (contractless): "" = empty-handed as before.</summary>
+    public string Held { get; set; } = string.Empty;
 }
 
 /// <summary>Full set of NPCs the client should currently render (server → client).</summary>

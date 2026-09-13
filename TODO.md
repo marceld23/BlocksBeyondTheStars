@@ -24,6 +24,46 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏡 Living NPCs — beds bring residents, posts at home, a daily routine with routes and doors, jobs with yield, the station night (#1851: #1865 #1866 #1867 #1868 #1869, 2026-09-13, branch feat/living-npcs-1851)
+
+Lyxette asked where her settler should walk, whether a big base attracts more people and what they do all day. Every
+design choice was Marcel's (beds as homes, 1 + beds up to 5, barter at home, work/sit/sleep, pathfinding with a teleport
+only as the emergency exit, NPCs open doors, stations and villages too with a dimmed station night, jobs visible and
+with yield, the guard on the night shift). Developer map: [docs/developer/NPC_ROUTINES.md](docs/developer/NPC_ROUTINES.md).
+
+- **#1865 Base life.** Local time on the server (`LocalDayFraction` = the client's longitude-shifted clock; void worlds
+  use the world clock) — creature activity and VEGA's night tips used the world clock, so animals on the far side slept
+  under a noon sun. A **base index** per base from one filtered block-edit query (`IWorldRepository.ListBlockEditsMatching`,
+  all three repositories): beds (head only), chairs/benches, trading posts, boards, crates, workbenches, forges, crops,
+  trays, saplings, sentry posts — counted only inside the base (core zone, walled yard beside the thing, sealed base
+  room or a closed room: walls, roof, door). Residents = min(5, 1 + beds) once the first settler earned the base;
+  slot 0 keeps the founding settler's key, slot n is `base_<id>#n:settler`. A trading post / mission board inside the
+  base is staffed by a resident: barter (`MarketAvailable`, `VendorThemeAt`) and a base board (`home_<hash>_…`, keyed by
+  the core cell) with accept/turn-in at the board; placing a post says why it is not staffed (`srv.base.post_*`).
+- **#1866 Pathfinding.** `NpcGridPath` (Shared, pure A*: standable feet cells, 4 moves, up 1 / down 2, doors dearer,
+  ±48×±8 box, 3000 nodes) — one search per tick (`TickNpcPaths`), waypoint following in `MoveNpcs`, re-route after 4 s
+  stuck, unobserved teleport after 3 failures (nobody within 24 blocks). Slide/energy doors open for walking NPCs; a
+  walker swings a hinge/wood door open (`OpenDoorForNpc`) and it closes behind them (`ServerDoor.NpcHeldUntil`), a
+  player's door is left alone. On a player station a route stays in sealed pockets and doorways.
+- **#1867 Routine.** `TickNpcRoutine`: day (≥ 0.22) at work, evening (≥ 0.68) on a chair/bench, night (≥ 0.78) in their
+  bed — by the local sun; stations by the station clock. Base residents get beds and seats from the index, villagers
+  and crew find theirs within 8 blocks of their marker; guardians and visiting traders keep their posts. Wire additive:
+  `NetNpc.Pose` (0/1/2), `ActivityKey`, `Held`. A sleeper answers a talk sleepily.
+- **#1868 Jobs.** Vendor, quartermaster, guard (walled yard or sentry post; patrols the inside of the wall on the night
+  shift, radio warning + sends scouts/approaching robbers away, never fights), gardener (harvests a standing crop into a
+  base crate every 90 s, regrowth as for a player, tends saplings; no crate → tends only), craftsman (every 300 s:
+  2 plant fibre, or 2 iron ore from a crate → 1 ingot with a forge). `NpcDepositToContainer` lets consumables in,
+  respects filters and wood-box slots; the player's stash rule is unchanged.
+- **#1869 Client.** Sit pose (like a seated remote) and a new lying pose (root on its back along the bed, "z z z"),
+  hoe/hammer meshes, activity on the nameplate, the station deck dims at station night (`Sky`: fill, ambient and
+  interior fill to 0.45, strip lights stay bright; `LocalTimeOfDay` has no longitude aboard), "Talk to … (E)" prompt.
+
+Deviations from the build plan, decided in the code: the base index reads the block-edit store instead of scanning voxels
+(cost); the guard notices scouts without a line of sight (they stand right outside a wall that hides eyes, not voices).
+Tests: `NpcGridPathTests`, `BaseResidentsTests`, `NpcRoutineTests`, `NpcJobsTests`, station night in
+`PlayerStationReportsTests`, village beds in `SettlementNpcTests` (Slow); `DoorTests`/`SettlementNpcTests` pin midday.
+⚠ OPEN: Marcel's playtest (lying pose offsets, hoe/hammer look, station dim level, walking through settlement doors).
+
 ### 🏰 Land creatures spawned and walked into a large walled base (#1862, 2026-09-13, branch walls-0913)
 
 Four verified causes behind one report, all server-side; no client or data change.

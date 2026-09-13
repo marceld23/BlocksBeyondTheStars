@@ -684,6 +684,7 @@ public sealed partial class GameServer
             }
 
             ApplyAuthoredCharacter(npc, "station", station.Id); // #1128: a pack face may claim this slot
+            npc.RoutineEnabled = true; // #1867: the crew keeps the station clock — a post by day, a bunk at night
             _npcs.Add(npc);
             added++;
         }
@@ -704,6 +705,7 @@ public sealed partial class GameServer
             bool robot = rng.NextDouble() < 0.3; // ~30% androids
             var npc = MakeNpc("settler", "traders", robot, home, rng);
             npc.Size = 0.9f + (float)rng.NextDouble() * 0.22f;
+            npc.RoutineEnabled = true; // #1867
             _npcs.Add(npc);
             added++;
         }

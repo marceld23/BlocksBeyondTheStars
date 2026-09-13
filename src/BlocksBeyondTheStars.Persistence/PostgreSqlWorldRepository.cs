@@ -500,6 +500,44 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         }
     }
 
+    public IReadOnlyList<BlockEdit> ListBlockEditsMatching(string planet, Vector3i min, Vector3i max,
+        IReadOnlyCollection<ushort> blocks, IReadOnlyCollection<int> shapeIndices, int limit)
+    {
+        var result = new List<BlockEdit>();
+        if ((blocks.Count == 0 && shapeIndices.Count == 0) || limit <= 0)
+        {
+            return result;
+        }
+
+        // The id lists are integers the server built itself (never player text), so they are inlined; the box and
+        // the planet stay parameters.
+        string blockList = blocks.Count == 0 ? "-1" : string.Join(",", blocks.Select(b => ((int)b).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        string shapeList = shapeIndices.Count == 0 ? "-1" : string.Join(",", shapeIndices.Select(s => s.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT x, y, z, block, tint, glow, shape FROM block_edit WHERE planet = @p AND block <> 0 " +
+                              "AND x BETWEEN @minx AND @maxx AND y BETWEEN @miny AND @maxy AND z BETWEEN @minz AND @maxz " +
+                              $"AND (block IN ({blockList}) OR ((shape >> 2) & 63) IN ({shapeList})) LIMIT @lim;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            cmd.Parameters.AddWithValue("@minx", min.X);
+            cmd.Parameters.AddWithValue("@maxx", max.X);
+            cmd.Parameters.AddWithValue("@miny", min.Y);
+            cmd.Parameters.AddWithValue("@maxy", max.Y);
+            cmd.Parameters.AddWithValue("@minz", min.Z);
+            cmd.Parameters.AddWithValue("@maxz", max.Z);
+            cmd.Parameters.AddWithValue("@lim", limit);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var pos = new Vector3i(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2));
+                result.Add(new BlockEdit(pos, (ushort)reader.GetInt32(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetInt32(6)));
+            }
+        }
+
+        return result;
+    }
+
     public bool HasAnyBlockEdits(string planet)
     {
         lock (_gate)

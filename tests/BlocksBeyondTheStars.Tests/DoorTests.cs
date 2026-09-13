@@ -191,6 +191,10 @@ public sealed class DoorTests : IDisposable
         {
             var p = server.AddLocalPlayer("Visitor");
 
+            // #1867: midday at this door — the villagers are at their spots. At dusk they walk to their chairs and
+            // beds, and a door a walking villager passes opens for them like for a player.
+            server.SetLocalDayFractionForTest(0.45, door.Pos.X);
+
             // Standing well clear: the door stays shut.
             p.State.Position = new Vector3f(door.Pos.X + 50f, door.Pos.Y, door.Pos.Z + 50f);
             server.TickForTest(0.5);

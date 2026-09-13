@@ -165,7 +165,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if ((sp.Hostile || w.ProvokeTimer > 0) && SpeciesActive(sp)
+            if ((sp.Hostile || w.ProvokeTimer > 0) && SpeciesActive(sp, w.Position)
                 && WrapDistSq(w.Position, at) <= r2 && HasLineOfSight(w.Position, at))
             {
                 return true;

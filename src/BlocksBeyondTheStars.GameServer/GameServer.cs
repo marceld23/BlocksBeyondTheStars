@@ -585,6 +585,9 @@ public sealed partial class GameServer
         var resident = world.World;
         resident.BlockSet += cell => MarkBaseWallsDirty(resident, cell); // #1367: a build inside a base's box refreshes its wall fill
         resident.PlayerBlockSet += cell => GrowBaseWallReach(resident, cell); // #1862: what a player builds sizes the base's fill box
+        resident.BlockSet += cell => MarkBaseIndexDirty(resident, cell); // #1865: a bed, a post or a crop changed near a base
+        var npcWorld = world;
+        resident.BlockSet += cell => MarkNpcPathsDirty(npcWorld, cell); // #1866: a wall built across a walking NPC's route
         var farWorld = world;
         resident.BlockSet += cell => MarkFarTileDirty(farWorld, cell); // #1821: a far view sees builds change
         LoadContainers(); // every world, void ones included: a station's placed crates persist like a planet's (#1562)
@@ -683,10 +686,12 @@ public sealed partial class GameServer
         _banditCamps.Clear();
         _monuments.Clear();
         _npcs.Clear();
+        _worlds.Active.NpcPathQueue.Clear(); // #1866
         _doors.Clear();
         _dataCubes.Clear();
         _settlements.Clear();
         _settlementMarkers.Clear();
+        _baseMarkers.Clear(); // #1865: rebuilt with the residents by the next base-life scan
         _wreckMarkers.Clear();
         _floraRegrow.Clear();
         _fluidLevel.Clear();
@@ -1522,6 +1527,8 @@ public sealed partial class GameServer
             Guard("TickWeather", deltaSeconds, TickWeather);
             Guard("TickFlora", deltaSeconds, TickFlora);
             Guard("TickCreatures", deltaSeconds, TickCreatures);
+            Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
+            Guard("TickNpcPaths", deltaSeconds, TickNpcPaths); // #1866: at most one NPC path search per tick
             Guard("TickNpcs", deltaSeconds, TickNpcs);
             Guard("TickStationStaffing", deltaSeconds, TickStationStaffing); // #1487: crew only staffs posts in sealed rooms
             Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
@@ -4474,6 +4481,10 @@ public sealed partial class GameServer
         {
             RemoveBeamAt(pos); // mining a beam block forgets its name/owner + map marker (teleporter pad)
         }
+        else if (def.Key is "station_vendor" or "mission_board")
+        {
+            OnBasePostChanged(null, pos, placed: false); // #1865: the post's keeper goes back to being a settler
+        }
 
         // Bank the yield computed above. The crate case already handed its own stacks over in
         // RemoveCrateContainer, so only the block's own drops are added here.
@@ -5070,6 +5081,10 @@ public sealed partial class GameServer
         else if (blockDef.Key == SentryBlockKey)
         {
             WarnIfSentryOutsideBase(session, pos); // #1699: a post outside a base zone never fires — say so
+        }
+        else if (blockDef.Key is "station_vendor" or "mission_board")
+        {
+            OnBasePostChanged(session, pos, placed: true); // #1865: a post at home is staffed by a resident
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow, Shape = placeShape });
@@ -6201,7 +6216,8 @@ public sealed partial class GameServer
     /// </summary>
     private bool MarketAvailable(PlayerState player)
         => player.AboardShip || NearSettlementVendor(player) || NearSpaceStationVendor(player)
-           || NearLandedTraderPilot(player); // P3: barter with a peaceful trader landed on a planet surface
+           || NearLandedTraderPilot(player) // P3: barter with a peaceful trader landed on a planet surface
+           || NearBaseVendor(player); // #1865: the trading post at home, staffed by a resident
 
     private void SaveAll()
     {

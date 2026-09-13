@@ -37,6 +37,14 @@ namespace BlocksBeyondTheStars.Client
             public string CachedGreetingSource;
             public string CachedGreetingQuoted;
             public float GreetingUntil;    // world time after which the bubble fades out
+
+            // #1869: the routine as the server reports it.
+            public byte Pose;              // 0 stand, 1 sit, 2 lie asleep
+            public string Held = string.Empty;
+            public string ActivityKey = string.Empty;
+            public string CachedActivityKey;
+            public string CachedActivityText;
+            public GameObject Zzz;         // the soft "z z z" over a sleeper
         }
 
         private const float GreetingSeconds = 7f; // how long a greeting bubble stays up
@@ -64,18 +72,96 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Track the latest target without fully catching up before the next snapshot arrives, so the
                 // NPC keeps gliding (and its walk cycle keeps running) instead of stop-start jerking.
-                n.SettledWorld = Vector3.Lerp(n.SettledWorld, n.Target, WorldDelta * 5f);
-                n.Go.transform.position = Game != null ? Game.ScenePos(n.SettledWorld.x, n.SettledWorld.y, n.SettledWorld.z) : n.SettledWorld;
-                n.Go.transform.rotation = Quaternion.Euler(0f, n.Yaw, 0f);
+                n.SettledWorld = n.Pose != 0
+                    ? n.Target // #1869: sitting down / lying down is a snap onto the furniture, not a glide
+                    : Vector3.Lerp(n.SettledWorld, n.Target, WorldDelta * 5f);
+                var scene = Game != null ? Game.ScenePos(n.SettledWorld.x, n.SettledWorld.y, n.SettledWorld.z) : n.SettledWorld;
+                if (n.Pose == 1)
+                {
+                    // Seated (#1869), exactly like a seated remote player (#806): the pelvis drops onto the seat.
+                    n.Go.transform.position = scene + Vector3.down * 0.45f;
+                    n.Go.transform.rotation = Quaternion.Euler(0f, n.Yaw, 0f);
+                }
+                else if (n.Pose == 2)
+                {
+                    // Asleep in bed (#1869): the server's position is the middle of the bed and its facing points from
+                    // the foot to the head. The avatar's pivot is its feet, so they go half a body toward the foot;
+                    // the root lies on its back (pitched up) with the head toward the headboard, on the mattress.
+                    var headward = Quaternion.Euler(0f, n.Yaw, 0f) * Vector3.forward;
+                    n.Go.transform.position = scene - headward * (0.9f * n.Go.transform.localScale.y) + Vector3.up * 0.62f;
+                    n.Go.transform.rotation = Quaternion.Euler(-90f, n.Yaw + 180f, 0f);
+                }
+                else
+                {
+                    n.Go.transform.position = scene;
+                    n.Go.transform.rotation = Quaternion.Euler(0f, n.Yaw, 0f);
+                }
+
+                UpdateZzz(n);
 
                 // Ambient work gestures: a periodic tool/arm swing so settlement NPCs look busy (miners chip
-                // away often, settlers/builders place now and then, vendors gesture occasionally).
+                // away often, settlers/builders place now and then, vendors gesture occasionally). Nobody swings a
+                // hammer from a chair or in their sleep (#1869).
+                if (n.Pose != 0)
+                {
+                    continue;
+                }
+
                 n.GestureTimer -= WorldDelta;
                 if (n.GestureTimer <= 0f)
                 {
                     n.Avatar?.Swing();
                     n.GestureTimer = Random.Range(n.GestureLo, n.GestureHi);
                 }
+            }
+        }
+
+        /// <summary>A soft "z z z" floats over a sleeping NPC (#1869), the sleeping animals' sign (CreatureView).</summary>
+        private void UpdateZzz(Npc n)
+        {
+            if (n.Pose != 2)
+            {
+                if (n.Zzz != null && n.Zzz.activeSelf)
+                {
+                    n.Zzz.SetActive(false);
+                }
+
+                return;
+            }
+
+            if (n.Zzz == null)
+            {
+                var z = new GameObject("NpcZzz");
+                z.transform.SetParent(transform, true);
+                var tm = z.AddComponent<TextMesh>();
+                tm.font = UiKit.Font;
+                var mr = z.GetComponent<MeshRenderer>();
+                if (mr != null && UiKit.Font != null)
+                {
+                    mr.sharedMaterial = UiKit.Font.material;
+                }
+
+                tm.fontSize = 48;
+                tm.characterSize = 0.05f;
+                tm.anchor = TextAnchor.LowerCenter;
+                tm.alignment = TextAlignment.Center;
+                tm.text = "z z z";
+                tm.color = new Color(0.8f, 0.88f, 1f, 0.85f);
+                n.Zzz = z;
+            }
+
+            if (!n.Zzz.activeSelf)
+            {
+                n.Zzz.SetActive(true);
+            }
+
+            var cam = Camera.main;
+            float bob = Mathf.Sin(WorldNow * 1.2f) * 0.08f;
+            var headward = Quaternion.Euler(0f, n.Yaw, 0f) * Vector3.forward;
+            n.Zzz.transform.position = n.Go.transform.position + headward * (1.6f * n.Go.transform.localScale.y) + Vector3.up * (0.7f + bob);
+            if (cam != null)
+            {
+                n.Zzz.transform.rotation = Quaternion.LookRotation(n.Zzz.transform.position - cam.transform.position);
             }
         }
 
@@ -114,6 +200,11 @@ namespace BlocksBeyondTheStars.Client
                 if (n.Go != null)
                 {
                     Destroy(n.Go);
+                }
+
+                if (n.Zzz != null)
+                {
+                    Destroy(n.Zzz);
                 }
             }
 
@@ -181,6 +272,31 @@ namespace BlocksBeyondTheStars.Client
                 n.Target = new Vector3(nd.X, nd.Y, nd.Z);
                 n.Yaw = nd.Facing * Mathf.Rad2Deg;
                 n.Label = Label(nd);
+
+                // #1869: pose, tool and activity — applied only when they change (a held mesh is rebuilt on change).
+                if (nd.Pose != n.Pose)
+                {
+                    n.Pose = nd.Pose;
+                    n.Avatar.SetSeated(nd.Pose == 1);
+                    n.Avatar.SetLying(nd.Pose == 2);
+                    if (nd.Pose == 0)
+                    {
+                        n.SettledWorld = n.Target; // standing up starts from where it got up, not from the mattress
+                    }
+                }
+
+                string held = nd.Pose == 0 ? nd.Held ?? string.Empty : string.Empty; // the tool is put away to sit or sleep
+                if (held != n.Held)
+                {
+                    n.Held = held;
+                    var (kind, tint) = HeldItem.ForNpc(held);
+                    n.Avatar.SetHeldItem(kind, tint);
+                    var (lo, hi) = WorkCadence(nd);
+                    n.GestureLo = lo;
+                    n.GestureHi = hi;
+                }
+
+                n.ActivityKey = nd.ActivityKey ?? string.Empty;
             }
 
             if (_npcs.Count > seen.Count)
@@ -197,6 +313,11 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var id in stale)
                 {
                     Destroy(_npcs[id].Go);
+                    if (_npcs[id].Zzz != null)
+                    {
+                        Destroy(_npcs[id].Zzz);
+                    }
+
                     _npcs.Remove(id);
                 }
             }
@@ -208,6 +329,16 @@ namespace BlocksBeyondTheStars.Client
         {
             string theme = (nd.Theme ?? string.Empty).ToLowerInvariant();
             string role = (nd.Role ?? string.Empty).ToLowerInvariant();
+
+            // #1869: a working resident's tool sets the pace — the craftsman hammers, the gardener hoes, the guard
+            // keeps the blade still.
+            switch (nd.Held)
+            {
+                case "npc_hammer": return (1.2f, 2.4f);
+                case "npc_hoe": return (2.0f, 3.5f);
+                case "blade": return (30f, 60f);
+            }
+
             if (theme.Contains("miner"))
             {
                 return (1.2f, 2.4f);
@@ -261,8 +392,25 @@ namespace BlocksBeyondTheStars.Client
                     label = n.CachedLabel;
                 }
 
-                // Names only read up close: fade out between 18 m and 28 m so distant NPCs stay anonymous.
-                labels.World(cam, n.Go.transform.position + Vector3.up * 2.1f, label, UiKit.Cyan, false, 18f, 28f);
+                // #1869: what they are doing joins the plate ("asleep", "at the counter", "on patrol").
+                if (n.ActivityKey.Length > 0)
+                {
+                    if (!ReferenceEquals(n.CachedActivityKey, n.ActivityKey) || n.CachedActivityText == null
+                        || !n.CachedActivityText.StartsWith(label, System.StringComparison.Ordinal))
+                    {
+                        n.CachedActivityKey = n.ActivityKey;
+                        n.CachedActivityText = $"{label} · {Game?.Localizer?.Get(n.ActivityKey) ?? n.ActivityKey}";
+                    }
+
+                    label = n.CachedActivityText;
+                }
+
+                // Names only read up close: fade out between 18 m and 28 m so distant NPCs stay anonymous. A sleeper's
+                // plate sits low over the bed instead of two metres over an empty mattress.
+                var plateAnchor = n.Pose == 2 ? n.Go.transform.position + Vector3.up * 0.9f
+                    : n.Pose == 1 ? n.Go.transform.position + Vector3.up * 1.7f
+                    : n.Go.transform.position + Vector3.up * 2.1f;
+                labels.World(cam, plateAnchor, label, UiKit.Cyan, false, 18f, 28f);
 
                 // A live greeting bubble sits just above the nameplate (item 15).
                 if (!string.IsNullOrEmpty(n.Greeting) && WorldNow < n.GreetingUntil)

@@ -15,7 +15,17 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class HeldItem
     {
-        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand }
+        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer }
+
+        /// <summary>What a working NPC carries (#1869), from the server's <c>NetNpc.Held</c> hint — not an item:
+        /// the gardener's hoe, the craftsman's hammer, the guard's blade.</summary>
+        public static (Kind kind, Color tint) ForNpc(string held) => held switch
+        {
+            "npc_hoe" => (Kind.Hoe, new Color(0.62f, 0.64f, 0.68f)),
+            "npc_hammer" => (Kind.Hammer, new Color(0.50f, 0.52f, 0.56f)),
+            "blade" => (Kind.Blade, new Color(0.80f, 0.84f, 0.90f)),
+            _ => (Kind.None, Color.white),
+        };
 
         /// <summary>Resolves a block key to its atlas texture + tile UV rect, so a held block shows its REAL
         /// in-world texture instead of a flat map colour. Wired by GameBootstrap once the atlas exists; null
@@ -175,6 +185,19 @@ namespace BlocksBeyondTheStars.Client
                     // LitColor's fixed key light + Linear colour space sink dark tints to a black silhouette
                     // without the ambient lift PlayerAvatar.Lit applies (#1427). Cuff included.
                     LiftAmbient(forearm, cuffGo, fist, thumb);
+                    break;
+
+                case Kind.Hoe:
+                    // #1869: a long wooden shaft with a flat iron blade bent down at its far end.
+                    var wood = new Color(0.45f, 0.30f, 0.16f);
+                    Cube(holder.transform, new Vector3(0f, 0f, 0.20f), new Vector3(0.045f, 0.045f, 0.70f), wood);   // shaft
+                    Cube(holder.transform, new Vector3(0f, -0.07f, 0.54f), new Vector3(0.16f, 0.14f, 0.03f), tint); // blade
+                    break;
+
+                case Kind.Hammer:
+                    // #1869: a short handle with a heavy head across its end.
+                    Cube(holder.transform, new Vector3(0f, 0f, 0.12f), new Vector3(0.05f, 0.05f, 0.34f), new Color(0.40f, 0.27f, 0.15f)); // handle
+                    Cube(holder.transform, new Vector3(0f, 0f, 0.30f), new Vector3(0.09f, 0.18f, 0.09f), tint);                             // head
                     break;
 
                 default: // Tool

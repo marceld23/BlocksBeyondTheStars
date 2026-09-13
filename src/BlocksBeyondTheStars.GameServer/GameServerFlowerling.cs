@@ -85,7 +85,7 @@ public sealed partial class GameServer
         foreach (var c in _creatures)
         {
             if (c.IsCompanion || c.ProvokeTimer > 0 || c.FrozenTimer > 0 || _uptime < c.GiftReadyAt
-                || !_speciesById.TryGetValue(c.SpeciesId, out var sp) || !sp.GiftsWhenCalm || !SpeciesActive(sp))
+                || !_speciesById.TryGetValue(c.SpeciesId, out var sp) || !sp.GiftsWhenCalm || !SpeciesActive(sp, c.Position))
             {
                 continue;
             }

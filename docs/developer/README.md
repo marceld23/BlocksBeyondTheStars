@@ -67,6 +67,8 @@ refreshed 2026-08-08.
   limbs, fins, foot planting on real blocks, and the distance LOD tiers.
 - [CREATURE_TAMING.md](CREATURE_TAMING.md) — taming wild creatures into companions.
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
+- [NPC_ROUTINES.md](NPC_ROUTINES.md) — living NPCs: base residents, the daily routine, pathfinding with doors,
+  jobs with yield, and the station night.
 - [MATTER_CONVERTER.md](MATTER_CONVERTER.md) — the Transmuter station: craft scarce ore from spare
   terrain (lossy `matter_dust` intermediate, no Tier-3 output).
 - [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md) — factories with roster-limited

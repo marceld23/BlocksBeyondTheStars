@@ -73,6 +73,47 @@ public sealed partial class GameServer
 
     // Public accessors (HUD / tests).
     public float TimeOfDay => (float)_dayFraction;
+
+    /// <summary>The day fraction the sky shows at this position (#1865). The client draws the sun from
+    /// <c>TimeOfDay + X / Circumference</c> (<c>GameBootstrap.LocalTimeOfDay</c>), so everything on the server that
+    /// reacts to "night" — sleeping animals, VEGA's lamp tips, NPC routines — must ask the same question or it
+    /// contradicts the sky above the player. A void world (a station deck, a ship cabin) has no longitude: its
+    /// world clock is the local clock.</summary>
+    private double LocalDayFraction(BlocksBeyondTheStars.Shared.Geometry.Vector3f pos)
+    {
+        if (_world.Planet?.Void == true || _world.Circumference <= 0)
+        {
+            return _dayFraction;
+        }
+
+        double t = (_dayFraction + pos.X / (double)_world.Circumference) % 1.0;
+        return t < 0 ? t + 1.0 : t;
+    }
+
+    /// <summary>Night at this position: the local sun is below the horizon (the client's sunrise/sunset are 0.25/0.75).</summary>
+    private bool IsNightAt(BlocksBeyondTheStars.Shared.Geometry.Vector3f pos)
+    {
+        double t = LocalDayFraction(pos);
+        return t < 0.25 || t > 0.75;
+    }
+
+    /// <summary>Dawn or dusk at this position (crepuscular species are awake then).</summary>
+    private bool IsDawnOrDuskAt(BlocksBeyondTheStars.Shared.Geometry.Vector3f pos)
+    {
+        double t = LocalDayFraction(pos);
+        return (t >= 0.20 && t <= 0.30) || (t >= 0.70 && t <= 0.80);
+    }
+
+    /// <summary>Test seam (#1865): the local day fraction at longitude <paramref name="x"/>.</summary>
+    public double LocalDayFractionForTest(float x) => LocalDayFraction(new BlocksBeyondTheStars.Shared.Geometry.Vector3f(x, 0f, 0f));
+
+    /// <summary>Test seam (#1865): pins the WORLD clock so the LOCAL clock at longitude <paramref name="x"/> reads
+    /// <paramref name="fraction"/> — tests place things at arbitrary X and must not depend on the world clock.</summary>
+    public void SetLocalDayFractionForTest(double fraction, float x)
+    {
+        double shift = _world.Planet?.Void == true || _world.Circumference <= 0 ? 0.0 : x / (double)_world.Circumference;
+        _dayFraction = (((fraction - shift) % 1.0) + 1.0) % 1.0;
+    }
     public string Weather => _weatherState;
     public int SunColor => _sunColor;
 

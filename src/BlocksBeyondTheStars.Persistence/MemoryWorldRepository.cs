@@ -678,6 +678,37 @@ public sealed class MemoryWorldRepository : IWorldRepository
         }
     }
 
+    public IReadOnlyList<BlockEdit> ListBlockEditsMatching(string planet, Vector3i min, Vector3i max,
+        IReadOnlyCollection<ushort> blocks, IReadOnlyCollection<int> shapeIndices, int limit)
+    {
+        var result = new List<BlockEdit>();
+        lock (_gate)
+        {
+            foreach (var kv in _blockEdits)
+            {
+                if (result.Count >= limit)
+                {
+                    break;
+                }
+
+                var k = kv.Key;
+                var v = kv.Value;
+                if (k.Planet != planet || v.Block == 0
+                    || k.X < min.X || k.X > max.X
+                    || k.Y < min.Y || k.Y > max.Y
+                    || k.Z < min.Z || k.Z > max.Z
+                    || !(blocks.Contains(v.Block) || shapeIndices.Contains((v.Shape >> 2) & 63)))
+                {
+                    continue;
+                }
+
+                result.Add(new BlockEdit(new Vector3i(k.X, k.Y, k.Z), v.Block, v.Tint, v.Glow, v.Shape));
+            }
+        }
+
+        return result;
+    }
+
     public bool HasAnyBlockEdits(string planet)
     {
         lock (_gate)

@@ -73,7 +73,54 @@ public sealed partial class GameServer
         public string Look = string.Empty; // #1793: additive client look key ("" = the plain avatar)
         public double WanderPhase;
         public LocomotionState Loco; // stop-and-go loiter/stroll state
+
+        // --- #1865: base residents ---
+        public int BaseSlot; // 0 = the base's founding settler; 1..4 = the residents its beds brought
+
+        /// <summary>How far this NPC strolls around <see cref="Home"/> while idle (was one constant for everyone).</summary>
+        public float Leash = NpcWanderLeash;
+
+        // --- #1866: pathfinding ---
+        public Vector3f? Goal;            // where the NPC is walking to (null = idle around Home)
+        public NpcArrival Arrival;        // what to do on reaching the goal
+        public float GoalLeash = NpcWanderLeash; // the leash around the goal once reached
+        public List<Vector3f>? Path;      // waypoints (feet positions) toward the goal
+        public int PathIndex;
+        public bool PathQueued;
+        public int PathFailures;
+        public double PathRetryAt;
+        public Vector3f LastProgressPos;
+        public double LastProgressAt;
+
+        // --- #1867: the daily routine ---
+        public bool RoutineEnabled;       // base residents, villagers and station crew; never guardians or visiting traders
+        public NpcPhase Phase = NpcPhase.Unset;
+        public double PhaseCheckedAt = double.NegativeInfinity;
+        public Vector3f Work;             // the day anchor (defaults to the spawn home)
+        public bool HasWork;
+        public Vector3f Rest;             // where the NPC idles when not at work (its spawn home)
+        public Vector3i? Bed;             // head cell of the bed this NPC sleeps in
+        public Vector3i? Seat;            // chair / bench cell for the evening
+        public bool FurnitureScanned;     // villagers / crew look for a bed and a seat once, lazily
+        public byte Pose;                 // 0 stand, 1 sit, 2 lie (NetNpc.Pose)
+        public string ActivityKey = string.Empty;
+        public string Held = string.Empty;
+
+        // --- #1868: jobs ---
+        public string Job = string.Empty; // "", "vendor", "quartermaster", "guard", "gardener", "craftsman"
+        public int SiteCursor;
+        public double SiteUntil;
+        public double NextYieldAt;
+        public List<Vector3f>? Patrol;
+        public int PatrolIndex;
+        public double NextSightAt;
     }
+
+    /// <summary>What an NPC does when it reaches its walk goal (#1867).</summary>
+    internal enum NpcArrival : byte { None, LieInBed, SitOnSeat }
+
+    /// <summary>The routine phase an NPC is in (#1867).</summary>
+    internal enum NpcPhase : byte { Unset, Day, Evening, Night }
 
     private List<ServerNpc> _npcs => _worlds.Active.Npcs;
     private double _npcBroadcastTimer { get => _worlds.Active.NpcBroadcastTimer; set => _worlds.Active.NpcBroadcastTimer = value; }
@@ -160,6 +207,7 @@ public sealed partial class GameServer
                 }
 
                 ApplyAuthoredCharacter(npc, "settlement", settlement.Name); // #1128: a pack face may claim this slot
+                npc.RoutineEnabled = role != "guardian"; // #1867: villagers keep a daily routine; the G.D.S. machines never sleep
                 _npcs.Add(npc);
             }
         }
@@ -225,6 +273,7 @@ public sealed partial class GameServer
             Name = name,
             Home = home,
             Pos = home,
+            Rest = home, // #1867: where it idles when not at work (a base resident's is re-assigned by the base scan)
             Facing = (float)(rng.NextDouble() * System.Math.PI * 2),
             Size = 0.92f + (float)rng.NextDouble() * 0.16f, // people vary a little (±8 %), not like fauna (#711)
             SkinRgb = robotic ? chassisTones[rng.Next(chassisTones.Length)] : skinTones[rng.Next(skinTones.Length)],
@@ -303,13 +352,47 @@ public sealed partial class GameServer
                 continue;
             }
 
-            // Loiter ↔ stroll around home: stand a while, then potter to a new spot within the leash, then stand
-            // again (instead of forever tracing one closed drift loop). Stray past the leash → head straight home.
-            float hx = npc.Pos.X - npc.Home.X, hz = npc.Pos.Z - npc.Home.Z;
-            float leash = npc.Role == "guardian" ? GuardianLeash : NpcWanderLeash; // #1793: guardians patrol
-            bool beyondLeash = hx * hx + hz * hz > leash * leash;
-            var intent = beyondLeash ? MoveMode.Seek : MoveMode.Roam;
-            Vector3f? target = beyondLeash ? npc.Home : (Vector3f?)null;
+            // #1867: someone sitting on a chair or lying in bed stays put (a seated one still looks at a visitor).
+            if (npc.Pose != 0)
+            {
+                if (npc.Pose == 1 && NearestPlayerPosition(targets, npc.Pos) is { } visitor
+                    && WrapDistSq(visitor, npc.Pos) <= NpcFaceRange * NpcFaceRange)
+                {
+                    npc.Facing = (float)System.Math.Atan2(visitor.X - npc.Pos.X, visitor.Z - npc.Pos.Z);
+                }
+
+                continue;
+            }
+
+            MoveMode intent;
+            Vector3f? target;
+            bool following = false;
+            if (npc.Goal is { } goal)
+            {
+                // #1866: walking somewhere — along a route, through doors.
+                if (GoalStep(npc, goal, targets) is not { } step)
+                {
+                    continue; // waiting for a route, or just arrived
+                }
+
+                intent = step.Intent;
+                target = step.Target;
+                following = true;
+            }
+            else
+            {
+                // Loiter ↔ stroll around home: stand a while, then potter to a new spot within the leash, then stand
+                // again (instead of forever tracing one closed drift loop). Stray past the leash → head straight home.
+                float hx = (float)WorldConstants.WrapDeltaX((double)npc.Pos.X - npc.Home.X, _world.Circumference), hz = npc.Pos.Z - npc.Home.Z;
+                float leash = npc.Role == "guardian" ? GuardianLeash : npc.Leash; // #1793: guardians patrol; #1865: residents stroll wider
+                bool beyondLeash = hx * hx + hz * hz > leash * leash;
+                intent = beyondLeash ? MoveMode.Seek : leash <= 0.05f ? MoveMode.Pause : MoveMode.Roam;
+                target = beyondLeash ? Unwrapped(npc.Pos, npc.Home) : (Vector3f?)null;
+                if (intent == MoveMode.Pause)
+                {
+                    continue; // a zero leash: stand exactly here (the vendor behind the counter)
+                }
+            }
 
             var res = LocomotionController.Step(npc.Loco, NpcProfile, npc.Pos, intent, target, moveDt, (uint)npc.Id);
             npc.Loco = res.State;
@@ -325,16 +408,30 @@ public sealed partial class GameServer
             int gx = (int)System.Math.Floor(res.Position.X), gz = (int)System.Math.Floor(res.Position.Z);
             int refY = (int)System.Math.Floor(npc.Pos.Y);
             float nextY = TryGroundFeetYAt(gx, gz, refY, out int feet) && feet - refY <= NpcStepUp && refY - feet <= 2
-                ? feet : npc.Home.Y;
-            var next = SeparateFromNpcs(npc, new Vector3f(res.Position.X, nextY, res.Position.Z), moveDt);
+                ? feet : following ? npc.Pos.Y : npc.Home.Y;
+            var raw = new Vector3f(res.Position.X, nextY, res.Position.Z);
+
+            // #1866: a walker on its route passes other people instead of shoving them back into a doorway (two
+            // settlers meeting in a one-wide corridor used to push each other to a standstill).
+            var next = following ? raw : SeparateFromNpcs(npc, raw, moveDt);
 
             // NPCs don't wander into the player's ship — or through their building's walls/doors. The world
             // check sweeps the whole step (not just the endpoint) so an NPC can't tunnel through a one-block
             // wall or station glass pane when its wander arc clears it on the far side. On a player station a
-            // step that would leave the sealed pocket of the NPC's post is a wall too (#1775) — the doorway
-            // included, whichever way the door stands: the crew lives in its room.
-            if (!EntityBlockedByShip(next) && !PathBlockedByWorld(npc.Pos, next)
-                && (crewStation == null || !OutsideCrewPocket(crewStation, npc.Home, next)))
+            // step that would leave the sealed pocket of the NPC's post is a wall too (#1775): the crew walks
+            // from room to room through the station's doors, never out into the vacuum.
+            bool blocked = EntityBlockedByShip(next) || PathBlockedByTerrain(npc.Pos, next)
+                || (crewStation != null && OutsideCrewPocket(crewStation, npc.Home, next));
+            if (!blocked && ClosedDoorOnStep(npc.Pos, next) is { } door)
+            {
+                blocked = true;
+                if (following)
+                {
+                    OpenDoorForNpc(door); // #1866: a hinge/wooden door swings open; a slide door opens by itself next tick
+                }
+            }
+
+            if (!blocked)
             {
                 npc.Pos = next;
             }
@@ -345,7 +442,8 @@ public sealed partial class GameServer
 
             // Face the nearest player if one is close; else face the way it's walking (and keep the last facing
             // while standing still, so a paused NPC doesn't snap back to a default heading).
-            var nearest = NearestPlayerPosition(targets, npc.Pos);
+            // Someone walking somewhere (#1866) looks where they are going, not over the shoulder at a passer-by.
+            var nearest = following ? null : NearestPlayerPosition(targets, npc.Pos);
             if (nearest is { } np && WrapDistSq(np, npc.Pos) <= NpcFaceRange * NpcFaceRange)
             {
                 npc.Facing = (float)System.Math.Atan2(np.X - npc.Pos.X, np.Z - npc.Pos.Z);
@@ -425,6 +523,11 @@ public sealed partial class GameServer
     /// inside) a solid block. Samples the segment every ~quarter block so an NPC can't tunnel through a one-block
     /// wall or glass pane in a single wander step (the endpoint alone could land in open air on the far side).</summary>
     private bool PathBlockedByWorld(Vector3f from, Vector3f to)
+        => PathBlockedByTerrain(from, to) || ClosedDoorOnStep(from, to) is not null;
+
+    /// <summary>The wall half of <see cref="PathBlockedByWorld"/> (#1866): blocks only, no doors — the mover asks about
+    /// doors separately, because a walking NPC opens a door where a wall stops it.</summary>
+    private bool PathBlockedByTerrain(Vector3f from, Vector3f to)
     {
         float dx = to.X - from.X, dz = to.Z - from.Z;
         float dist = (float)System.Math.Sqrt(dx * dx + dz * dz);
@@ -433,7 +536,7 @@ public sealed partial class GameServer
         {
             float f = s / (float)steps;
             var at = new Vector3f(from.X + dx * f, to.Y, from.Z + dz * f);
-            if (BlockedByWorld(at) || ClosedDoorBlocks(at))
+            if (BlockedByWorld(at))
             {
                 return true;
             }
@@ -632,6 +735,9 @@ public sealed partial class GameServer
         IsRobot = n.IsRobot,
         FaceVariant = CharacterFaceVariant(n), // #1128: an authored character keeps one face everywhere
         Look = n.Look,
+        Pose = n.Pose,               // #1867
+        ActivityKey = n.ActivityKey, // #1867/#1868
+        Held = n.Held,               // #1868
     };
 
     /// <summary>The G.D.S. guardian (#1793): a friendly machine in the city's colours — dark purple chassis and

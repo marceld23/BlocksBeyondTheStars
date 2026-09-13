@@ -158,6 +158,8 @@ public sealed class SettlementNpcTests : IDisposable
                 bool anyMoved = false;
                 for (int i = 0; i < 60; i++)
                 {
+                    // #1867: midday at the settlement — at dusk the residents walk off to their chairs and beds.
+                    server.SetLocalDayFractionForTest(0.45, p.State.Position.X);
                     server.TickForTest(0.5);
                     foreach (var n in server.NpcSnapshots)
                     {
@@ -181,6 +183,40 @@ public sealed class SettlementNpcTests : IDisposable
         }
 
         throw new Xunit.Sdk.XunitException("No inhabited settlement had a strolling NPC across 80 seeds.");
+    }
+
+    [Fact]
+    [Trait("Category", "Slow")]
+    public void AtNight_TheVillagersGoToBed_InTheirFurnishedHouses()
+    {
+        // #1867 (Marcel 2026-09-13: "villages too"): every furnished settlement house has a bed (#1828), and at night
+        // the people who live there walk to one and lie down.
+        for (long seed = 1; seed <= 80; seed++)
+        {
+            var server = Start(seed, out var repo);
+            using (repo)
+            {
+                if (!server.HasSettlement || server.SettlementRuined || server.NpcCount == 0)
+                {
+                    continue;
+                }
+
+                var p = server.AddLocalPlayer("Visitor");
+                p.State.AboardShip = false;
+                p.State.Position = server.NpcSnapshots[0].Home;
+                for (int i = 0; i < 360; i++)
+                {
+                    server.SetLocalDayFractionForTest(0.9, p.State.Position.X);
+                    server.TickForTest(0.25);
+                    if (server.NpcSnapshots.Any(n => server.NpcRoutineForTest(n.Id).Pose == 2))
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+
+        throw new Xunit.Sdk.XunitException("No villager went to bed at night across 80 seeds.");
     }
 
     public void Dispose()

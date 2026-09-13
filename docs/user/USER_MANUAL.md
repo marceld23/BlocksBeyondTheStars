@@ -692,6 +692,8 @@ separate unlock; admins can still disable it through server world rules.
   **force-field block** seals an opening you want to keep. **Crew** (two civilians) moves in once you build a
   **trading post** or a **mission board** aboard — in a sealed room; a post open to space stays unstaffed
   until you seal it. Visiting traders still dock regardless. Windows show the planet you orbit, the sun and a moon.
+  The crew keeps the **station clock**: at station night the deck lights dim and the crew sleeps in the beds of
+  their rooms (see *Daily routines & jobs*).
 - **Gravity ends at the hull**: inside your station's box (plus a few blocks around it) you walk; step or fall
   past that and the suit **floats** — jump rises, crouch sinks, so you drift back to the deck or build the
   outer hull from outside. Drift very far away and you are set back on the pad. **U** always returns you to
@@ -762,6 +764,8 @@ separate unlock; admins can still disable it through server world rules.
   **Bandits** slider and **Planet enemies** on, plus Survival — with hostiles off the sentry post is silent,
   so no scouts come either, and the switch is not even offered. An update never turns it on for you: on
   worlds from before the option existed it stays off until you flip it yourself.
+- **Residents, posts and jobs**: beds bring people, and a trading post or mission board at home is staffed by
+  one of them — see *People you know* and *Daily routines & jobs* below.
 - On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
   *"You have a base/station here"*; you can also rename the base from there.
 
@@ -990,7 +994,41 @@ separate unlock; admins can still disable it through server world rules.
   or *off*.
 - **Your base attracts life.** Trader ships prefer worlds with a founded base. Once your base holds a few
   machines (workbench, forge, …), a **settler moves in** — they know you from day one and count toward your
-  people. No visitor ever damages a block.
+  people. **Every bed** you place inside your base brings **one more resident**, up to **five** people: a bed
+  counts in the core zone, in a sealed room, inside your walls, or in any **closed room** (walls, a roof and a
+  door) at the base — a bed out in the open field brings nobody. Take a bed away and its sleeper moves on.
+  No visitor ever damages a block.
+- **E to talk.** Standing next to someone shows *"Talk to … (E)"*.
+
+### Daily routines & jobs
+- **People keep the hours of the sun above them.** By day they are at work, in the evening they sit down on a
+  **chair or bench** near home, and at night they walk to **their bed** and sleep in it (*"asleep"* on the
+  nameplate, a soft *z z z* above them). Without a bed they rest where they live. Talk to a sleeper and you get
+  a mumbled *"come back in the morning"*. This goes for your residents, for **villagers** (every house has a
+  bed) and for **station crew** — a station keeps its own clock, and its deck lights **dim at station night**
+  (the HUD clock shows it).
+- **They find their way.** People walk around walls, up single steps and **through doors**: sliding doors
+  open for them like for you, and they swing a wooden or hinged door open and it **closes behind them** (a door
+  you opened yourself is left as you left it). Only when there truly is no way — you walled someone in — and
+  **nobody is watching** do they turn up at the other side.
+- **Jobs come from what your base holds** — one job per resident, in this order:
+  - **Trading post** (the *Trade Post* block): a resident becomes your **trader** — barter right at home.
+  - **Mission board**: a resident becomes your **quartermaster** — board jobs at home (take them and hand
+    them in at the board).
+  - **Walls around the base** (or a sentry post): the **guard** walks the inside of the wall on the **night
+    shift** and sleeps by day. Bandit scouts watching your base or a robber closing in get a warning to you
+    over the radio and are **sent on their way** — the guard never fights; a robber who already attacks is the
+    sentry's business.
+  - **Crops, hydroponic trays or saplings**: the **gardener** (with a hoe) walks from bed to bed, **harvests**
+    ripe crops into a **crate** at the base (they regrow as if you had picked them) and helps saplings grow
+    faster. No crate — the gardener only tends.
+  - **Workbench or forge**: the **craftsman** (with a hammer) puts two **plant fibres** into a base crate every
+    five minutes — or, with a forge and **iron ore** in the crate, smelts **two ore into one ingot** (the same
+    as the workbench would).
+  - A crate that only takes certain items (a filter) or a full wooden box is respected: what does not fit
+    stays in the field.
+- A post, a crop or a workbench only counts **inside the base** (the same rule as for beds). A trading post
+  or a mission board placed where nobody can staff it tells you why.
 
 ### Trade
 - **Player ↔ player:** press **T** near a player (pad/touch: **Actions → trade**) to send a request; the
@@ -1164,7 +1202,8 @@ separate unlock; admins can still disable it through server world rules.
   and structures line up exactly). North/south (latitude) does not wrap.
 - **Day/night is by location** — because X is a longitude, a planet has a real day/night terminator: one
   player can be in daylight while another, far away, is in night, and one lap around the world is one day.
-  The clock still advances.
+  The clock still advances. Animals and people keep the hours of the sun above **them**: on the far side of the
+  planet the day-active animals are asleep while yours are grazing.
 - **Weather comes in episodes** — it swells, holds and fades rather than switching on and off, and every
   world has its own temper: some flip between squalls, others brood under one sky for minutes. Storms
   build through the afternoon, mist gathers around dawn, and a slow wet/dry season rides on top.

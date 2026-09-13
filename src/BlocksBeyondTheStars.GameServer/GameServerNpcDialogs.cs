@@ -119,6 +119,13 @@ public sealed partial class GameServer
             return;
         }
 
+        if (npc.Pose == 2)
+        {
+            // #1867: someone asleep in bed mumbles and stays there — no dialogue, no job talk at midnight.
+            Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = Localize(session.Locale, "npc.greet.sleepy") });
+            return;
+        }
+
         string npcKey = DialogNpcKey(session, npc);
         var dialog = PickDialog(session, npc, npcKey);
         if (dialog is null)

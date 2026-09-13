@@ -32,6 +32,11 @@ public sealed partial class GameServer
             }
         }
 
+        if (BaseAround(player) is { } home)
+        {
+            return home.Name; // #1865: the people at a base live there
+        }
+
         return _boardedStation.TryGetValue(player.PlayerId, out var stationId)
             ? _galaxy?.FindBody(stationId)?.Name ?? string.Empty
             : string.Empty;
@@ -43,7 +48,7 @@ public sealed partial class GameServer
         => !string.IsNullOrEmpty(npc.CharacterId)
             ? "char:" + npc.CharacterId // an authored character (#1128) remembers the player GLOBALLY
             : npc.BaseId > 0
-                ? BaseSettlerKey(npc.BaseId) // a founded base's settler: keyed by base id, rename-proof (#1262)
+                ? BaseResidentKey(npc.BaseId, npc.BaseSlot) // a base resident: keyed by base id + slot, rename-proof (#1262, #1865)
             : !string.IsNullOrEmpty(npc.Settlement)
                 ? NpcKey(SettlementLocationKey(npc.Settlement), npc.Role)
                 : _boardedStation.TryGetValue(session.State.PlayerId, out var stationId)

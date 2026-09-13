@@ -103,6 +103,7 @@ namespace BlocksBeyondTheStars.Client
         private Color _torsoColor, _armsColor, _legsColor;
 
         private bool _seated;     // sit pose (#806): thighs forward, knees bent — set from the presence flag
+        private bool _lying;      // #1869: asleep in bed — limbs straight and still (the caller lays the root flat)
 
         private float _phase;     // per-instance offset so avatars don't move in lockstep
         private Vector3 _lastPos;
@@ -356,7 +357,19 @@ namespace BlocksBeyondTheStars.Client
             bool airborne = Mathf.Abs(vy) > 2.6f;
             bool idle = moving < 0.03f && !airborne;
 
-            if (_seated)
+            if (_lying)
+            {
+                // Asleep in bed (#1869): arms along the body, legs straight, a slow breath in the arms only. The
+                // root is laid on its back by the caller, so no walk, jump or swing may move a limb.
+                float breath = Mathf.Sin(Time.time * 0.9f + _phase) * 1.5f;
+                armL = armR = 6f + breath;
+                elbowL = elbowR = 8f;
+                legL = legR = 0f;
+                kneeL = kneeR = 0f;
+                headYaw = 0f;
+                _swingTimer = 0f;
+            }
+            else if (_seated)
             {
                 // Sitting on a chair (#806): thighs forward, knees bent, hands resting toward the lap,
                 // with the idle look-around kept so the sitter doesn't freeze into a statue.
@@ -412,6 +425,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Poses the avatar seated (#806) — thighs forward, knees bent. Driven from the presence
         /// broadcast for remotes; the caller also lowers the avatar so the pelvis meets the seat.</summary>
         public void SetSeated(bool seated) => _seated = seated;
+
+        /// <summary>Poses the avatar lying asleep (#1869) — limbs straight and still. The caller rotates the root onto
+        /// its back along the bed and lifts it onto the mattress.</summary>
+        public void SetLying(bool lying) => _lying = lying;
 
         /// <summary>Plays a tool/weapon swing of the right arm (mining, attacking, placing). Re-calling
         /// while a swing is in progress is ignored, so holding to drill produces a continuous chop.</summary>

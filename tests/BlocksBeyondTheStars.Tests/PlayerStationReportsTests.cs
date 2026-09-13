@@ -249,6 +249,45 @@ public sealed class PlayerStationReportsTests : IDisposable
         }
     }
 
+    [Fact]
+    public void TheCrew_KeepsTheStationClock_RestsAtStationNight_AndStaysInTheRoom()
+    {
+        // #1867: a station has no sun, but its crew keeps the station clock (no longitude on a deck) — without a bunk
+        // in the room they rest where they stand at station night, and back on duty by day. Nobody leaves the air.
+        var server = NewServer("crewnight", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildSealedBox(server, pilot, vendorItem: "station_vendor");
+            BoardOwnStation(server, "Owner", id);
+            var inside = new Vector3f(10.5f, 65.03f, 10.5f);
+            Assert.Equal(server.LocalDayFractionForTest(0f), server.LocalDayFractionForTest(5000f), 6); // one clock aboard
+
+            for (int i = 0; i < 20; i++)
+            {
+                server.SetLocalDayFractionForTest(0.9, 0f);
+                pilot.State.Position = inside;
+                server.TickForTest(0.5);
+            }
+
+            var vendor = server.NpcSnapshots.First(n => n.Role == "vendor");
+            Assert.Equal("npc.activity.resting", server.NpcRoutineForTest(vendor.Id).Activity);
+            foreach (var npc in server.NpcSnapshots)
+            {
+                Assert.True(server.StationCellSealedForTest(id, Feet(npc.Pos)), $"{npc.Role} #{npc.Id} left the room at night: {npc.Pos}");
+            }
+
+            for (int i = 0; i < 20; i++)
+            {
+                server.SetLocalDayFractionForTest(0.45, 0f);
+                pilot.State.Position = inside;
+                server.TickForTest(0.5);
+            }
+
+            Assert.Equal(string.Empty, server.NpcRoutineForTest(vendor.Id).Activity);
+        }
+    }
+
     // ---------------- #1775: the crew stays inside the hull ----------------
 
     private static Vector3i Feet(Vector3f pos)
