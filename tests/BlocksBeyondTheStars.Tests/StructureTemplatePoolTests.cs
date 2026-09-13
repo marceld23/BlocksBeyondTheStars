@@ -26,7 +26,7 @@ public sealed class StructureTemplatePoolTests : IDisposable
     {
         "vendor", "mission_board", "hangar", "heal_tank", "quarters", "npc", "spawn", "loot",
         "door_slide", "door_hinge", "data_terminal", "bandit_stash", "relic_cache", "chest", "module",
-        "greenhouse",
+        "greenhouse", "room", // room = furnish this floor procedurally (#1828)
     };
 
     private readonly string _root;

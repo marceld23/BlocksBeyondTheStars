@@ -170,6 +170,12 @@ public sealed class StructurePlacementRecord
     /// a growing pool never morphs their layout under the stamped blocks.</summary>
     public string Template { get; set; } = string.Empty;
 
+    /// <summary>Settlement records (#1827): whether authored building MODULES may be composed into this
+    /// instance's plots / districts. 0 = never (records from before modules existed, and legacy re-derives —
+    /// their layout must not change under the stamped blocks), 1 = plot + district modules. Written once at
+    /// the first stamp, never bumped afterwards.</summary>
+    public int Modules { get; set; }
+
     /// <summary>Factory records only (#1299): the recipe roster this factory offers, frozen at first stamp so a
     /// growing factory recipe set never re-rolls what an existing (possibly claimed) factory makes. Null on
     /// records from before roster pinning — the loader freezes the current roll into it once.</summary>

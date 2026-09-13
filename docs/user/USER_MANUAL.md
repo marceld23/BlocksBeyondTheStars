@@ -1402,6 +1402,20 @@ and press **Generate**: the same generator the world uses builds a station / set
 room, markers included, ready to edit and save as a template. Villages use the **Surface block** field as their
 material (e.g. `grass`, `sand`, `stone`).
 
+**Town editor — whole settlement or building module (Use as).** Every settlement template is either a **whole
+structure** (the default: world-gen may drop the complete settlement onto a planet exactly as you built it) or a
+**building module**: set **Use as** to *House*, *Market*, *Mission board* or *Greenhouse* and the procedural
+settlement builder uses your building for one plot of that kind — in hamlets and villages when the tier is
+*Hamlet* / *Village*, in towns and cities when it is *Town* / *City*. The size line under the tier then shows the
+plot envelope it must fit (6 × 6 blocks, up to the tier's storey height). The *City …* roles are 32 × 32
+districts of the G.D.S. city (tier *Metropolis*). Place the markers the role needs (an inhabitant, a vendor, a
+mission board, a door); a missing vendor / board / inhabitant is added automatically over the module's centre.
+Put a **Room** marker on the floor of any room you want furnished: the game floods that floor and places a bed,
+a table and chair, crates, a plant and a light in the settlement's style, keeping the door lane and the
+residents' spots clear — procedural buildings are furnished the same way. How often modules appear follows the
+world option *Settlement templates* (*Off* disables whole templates and modules alike); a world keeps the
+layout it was created with.
+
 **Textures.** Placed blocks show their real block textures (dye and glow tint them like in-game); station tiles,
 ship elements and interaction markers are drawn as plain colour swatches so they stand out.
 

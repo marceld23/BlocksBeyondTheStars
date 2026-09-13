@@ -23,6 +23,17 @@ public sealed class StructureTemplate
     /// set of packs and world-gen only rolls templates from the enabled packs. Empty ⇒ "default".</summary>
     public string Pack { get; set; } = "default";
 
+    /// <summary>How world-gen uses this template (#1826). Empty = a WHOLE structure rolled as one piece (the
+    /// classic path: the whole settlement / station is this template). A role name from
+    /// <see cref="StructureRoles"/> = a building MODULE: the procedural settlement composer stamps it into a
+    /// plot whose role matches (<c>house</c> / <c>market</c> / <c>board</c> / <c>greenhouse</c>), the city
+    /// composer into a district (<c>city_housing</c> / <c>city_market</c> / …). A module never becomes a
+    /// settlement on its own — it is excluded from the whole-template pools.</summary>
+    public string Role { get; set; } = string.Empty;
+
+    /// <summary>True when this template is a building module (<see cref="Role"/> set), false for a whole structure.</summary>
+    public bool IsModule => !string.IsNullOrWhiteSpace(Role);
+
     /// <summary>Relative selection weight within its tier sub-pool (higher = more likely). Clamped to ≥1
     /// at selection time so a 0/negative value never makes a template unpickable by accident.</summary>
     public int Weight { get; set; } = 1;
@@ -44,6 +55,43 @@ public sealed class StructureTemplate
 
     /// <summary>The pack this template belongs to, normalized ("default" when unset).</summary>
     public string PackOrDefault => string.IsNullOrWhiteSpace(Pack) ? "default" : Pack;
+}
+
+/// <summary>The module roles a settlement template can take (#1826) — the vocabulary the editor's "Use as"
+/// stepper, the merge tool and the composers share. Plot modules (<see cref="PlotRoles"/>) replace one
+/// building of a procedural settlement and must fit its plot (6 × 6, up to the tier's storey height); city
+/// modules (<see cref="CityRoles"/>) replace one 32 × 32 district of the composed city (#1793) and carry the
+/// tier <see cref="MetropolisTier"/>.</summary>
+public static class StructureRoles
+{
+    public const string House = "house";
+    public const string Market = "market";
+    public const string Board = "board";
+    public const string Greenhouse = "greenhouse";
+    public const string CityHousing = "city_housing";
+    public const string CityMarket = "city_market";
+    public const string CityHall = "city_hall";
+    public const string CityGarden = "city_garden";
+    public const string CityTower = "city_tower";
+
+    /// <summary>The tier value of a city-composer module: the district envelope, not a settlement size.</summary>
+    public const string MetropolisTier = "metropolis";
+
+    public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse };
+    public static readonly string[] CityRoles = { CityHousing, CityMarket, CityHall, CityGarden, CityTower };
+
+    /// <summary>Every role, in the order the editor's stepper walks them (whole first).</summary>
+    public static readonly string[] All = { string.Empty, House, Market, Board, Greenhouse, CityHousing, CityMarket, CityHall, CityGarden, CityTower };
+
+    public static bool IsCityRole(string? role) => role != null && System.Array.IndexOf(CityRoles, role) >= 0;
+
+    public static bool IsPlotRole(string? role) => role != null && System.Array.IndexOf(PlotRoles, role) >= 0;
+
+    public static bool IsKnown(string? role) => string.IsNullOrEmpty(role) || IsPlotRole(role) || IsCityRole(role);
+
+    /// <summary>Whether a settlement tier builds town-style (modern iron/glass, multi-storey) — the same split
+    /// the procedural generator uses; a plot module only ever lands in a settlement of its own style.</summary>
+    public static bool IsTownStyleTier(string? tier) => tier == "town" || tier == "city";
 }
 
 /// <summary>One cell of a <see cref="StructureTemplate"/>: a block or an interaction marker.</summary>

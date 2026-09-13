@@ -236,10 +236,17 @@ public sealed partial class GameServer
 
         // World options: the chosen settlement frequency scales the density (Off ⇒ none).
         double factor = _meta.Description.Settlements.StructureFactor();
+
+        // #1827: the authored building modules this world may compose into its settlements — pack- and
+        // planet-filtered once here, picked per plot by hash in the composers. The template-use option is the
+        // one knob: its probability is the per-plot module chance, and Off switches modules off with it.
+        var modules = _content.SettlementModulesFor(_meta.Description.EnabledStructurePacks, planet.Key);
+        double moduleChance = modules.Count == 0 ? 0.0 : _meta.Description.SettlementTemplateUse.Probability();
+
         if (factor > 0 && planet.CityWorld.Length > 0)
         {
             // #1793: a city world gets its one composed city instead of the roll — no hospitality, no ruins.
-            StampCityWorld(planet, rng, sSeed, planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock);
+            StampCityWorld(planet, rng, sSeed, planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock, modules, moduleChance);
             return;
         }
 
@@ -294,6 +301,10 @@ public sealed partial class GameServer
             var pinRec = FindPlacementRecord("settlement", i);
             bool legacyReplay = pinRec is { Placed: true, Template.Length: 0 }  // pinned era, before pinning
                 || (pinRec is null && !_worlds.Active.VirginAtLoad);            // pre-#586 world, same deal
+
+            // #1827: modules only where the record allows them — a fresh world records 1; records from before
+            // modules existed and legacy re-derives stay 0, so their layout never changes under the blocks.
+            bool modulesOn = pinRec is null ? _worlds.Active.VirginAtLoad : pinRec.Modules >= 1;
             var template = ir.NextDouble() < _meta.Description.SettlementTemplateUse.Probability()
                 ? _content.PickSettlementTemplate(tier, _meta.Description.EnabledStructurePacks, ir, _world.Planet.Key,
                     legacyOnly: legacyReplay)
@@ -313,7 +324,8 @@ public sealed partial class GameServer
             else
             {
                 ruined = ir.NextDouble() < RuinChance(h);
-                structure = SettlementGenerator.Generate(tier, ruined, instSeed, surface, _content);
+                structure = SettlementGenerator.Generate(tier, ruined, instSeed, surface, _content,
+                    modulesOn ? modules : null, moduleChance);
             }
 
             bool wantIsland = planet.FloatingIslands && ir.NextDouble() < 0.5;
@@ -354,7 +366,7 @@ public sealed partial class GameServer
 
                 seat = "legacy";
                 name = UniqueName(SettlementDisplayName(tier, ruined, ir), usedNames);
-                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty);
+                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty, modules: 0);
             }
             else
             {
@@ -370,7 +382,7 @@ public sealed partial class GameServer
                 }
 
                 name = UniqueName(SettlementDisplayName(tier, ruined, RngFor(instSeed, "name")), usedNames);
-                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty);
+                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty, modules: 1);
             }
 
             placed.Add(new PlacedSettlement
@@ -467,7 +479,8 @@ public sealed partial class GameServer
     /// walls. The pad ring and the wreck crash site are handed to the composer as open zones — the crash site
     /// becomes a square inside the city, the pad its landing plaza. Pinned like every settlement (kind
     /// "settlement", index 0, template "city:gds") so an existing save keeps its city where it stood.</summary>
-    private void StampCityWorld(PlanetType planet, System.Random rng, long sSeed, string surface)
+    private void StampCityWorld(PlanetType planet, System.Random rng, long sSeed, string surface,
+        IReadOnlyList<StructureTemplate> modules, double moduleChance)
     {
         if (_landingPads.Count == 0)
         {
@@ -479,17 +492,20 @@ public sealed partial class GameServer
         var origin = new Vector3i(pad.CenterX - size / 2, pad.CenterY, pad.CenterZ - size / 2);
         int groundY = pad.CenterY;
         string name;
+        bool modulesOn;
         var rec = FindPlacementRecord("settlement", 0);
         if (rec is { Placed: true })
         {
             origin = new Vector3i(rec.X, rec.GroundY, rec.Z);
             groundY = rec.GroundY;
             name = rec.Name;
+            modulesOn = rec.Modules >= 1; // #1827: a city stamped before modules existed keeps its districts
         }
         else
         {
             name = CityDisplayName(RngFor(sSeed, "cityname"));
-            RecordPlacement("settlement", 0, origin, groundY, false, "shelf", name, "city:" + planet.CityWorld);
+            modulesOn = true;
+            RecordPlacement("settlement", 0, origin, groundY, false, "shelf", name, "city:" + planet.CityWorld, modules: 1);
         }
 
         // Open zones in structure-local coordinates: the pad ring (the plaza keeps it clear for the ship) and
@@ -503,7 +519,7 @@ public sealed partial class GameServer
                 wreckX + WreckReservedHalfExtent - origin.X, wreckZ + WreckReservedHalfExtent - origin.Z),
         };
 
-        var structure = CityGenerator.Generate(sSeed, _content, zones);
+        var structure = CityGenerator.Generate(sSeed, _content, zones, modulesOn ? modules : null, moduleChance);
         var placed = new List<PlacedSettlement>
         {
             new PlacedSettlement
@@ -822,12 +838,12 @@ public sealed partial class GameServer
     /// <summary>Pins where a structure instance landed (#586). Batched — call
     /// <see cref="SavePlacementRecords"/> once per stamper after its loop.</summary>
     private void RecordPlacement(string kind, int index, Vector3i origin, int groundY, bool onIsland,
-        string seat, string name, string template = "")
+        string seat, string name, string template = "", int modules = 0)
     {
         var rec = FindPlacementRecord(kind, index);
         if (rec is null)
         {
-            rec = new StructurePlacementRecord { LocationId = _world.LocationId, Kind = kind, Index = index };
+            rec = new StructurePlacementRecord { LocationId = _world.LocationId, Kind = kind, Index = index, Modules = modules };
             _meta.Placements.Add(rec);
         }
 

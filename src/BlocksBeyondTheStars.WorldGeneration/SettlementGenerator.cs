@@ -112,10 +112,43 @@ public static class SettlementGenerator
     };
 
     /// <summary>Town-style settlements (modern iron/glass, multi-storey) vs primitive village-style.</summary>
-    private static bool IsTownStyle(string tier) => tier == "town" || tier == "city";
+    private static bool IsTownStyle(string tier) => StructureRoles.IsTownStyleTier(tier);
+
+    /// <summary>The largest plot module (#1826) that fits EVERY settlement of a tier: the building footprint by
+    /// the tier's base storey height plus the roof cap (a town rolled with an extra storey has more room, but a
+    /// module sized to the base height is never turned away). The editor shows this envelope.</summary>
+    public static (int W, int H, int L) PlotModuleEnvelope(string tier)
+    {
+        var (_, _, floors) = Layout(tier);
+        return (Building, floors * FloorH + RoofCap, Building);
+    }
+
+    /// <summary>The marker an author places on a floor cell to have that room furnished procedurally (#1828).</summary>
+    public const string RoomMarker = "room";
+
+    /// <summary>The most floor cells a <see cref="RoomMarker"/> flood-fills — a marker on open ground stops here.</summary>
+    private const int RoomCap = 256;
+
+    /// <summary>A cell sink over a local voxel grid + its sparse tint/glow and shape tables (the shape a
+    /// structure carries per cell, <see cref="SettlementStructure.GetShape"/>).</summary>
+    private static RoomFurnisher.CellSink SinkFor(ushort[] blocks, int w, int h, int l,
+        Dictionary<int, (int Tint, int Glow)> mods, Dictionary<int, int> shapes)
+        => (x, y, z, b, shape, tint, glow) =>
+        {
+            if (x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= l)
+            {
+                return;
+            }
+
+            int idx = (x * h + y) * l + z;
+            blocks[idx] = b;
+            if (b != 0 && (tint != 0 || glow != 0)) mods[idx] = (tint, glow); else mods.Remove(idx);
+            if (b != 0 && shape != 0) shapes[idx] = shape; else shapes.Remove(idx);
+        };
 
     /// <summary>Builds a settlement structure from a hand-designed template (the editor export) — blocks
-    /// become voxels, markers become vendor/mission_board/npc points. Templates are intact (not ruined).</summary>
+    /// become voxels, markers become vendor/mission_board/npc points. Templates are intact (not ruined).
+    /// Rooms the author marked with a <see cref="RoomMarker"/> are furnished (#1828).</summary>
     public static SettlementStructure FromTemplate(StructureTemplate t, GameContent content)
     {
         int w = System.Math.Max(1, t.Width), h = System.Math.Max(1, t.Height), l = System.Math.Max(1, t.Length);
@@ -150,6 +183,10 @@ public static class SettlementGenerator
             }
         }
 
+        FurnishAuthoredRooms((x, y, z) => blocks[(x * h + y) * l + z], w, h, l, markers,
+            RoomFurnisher.PaletteFor(RoomFurnisher.StyleFor(t.Tier, alien: false), content),
+            (long)WorldGenerator.StableHash("furnish:" + t.Key), SinkFor(blocks, w, h, l, mods, shapes));
+
         // Fallback vendor for templates without one — in a FREE cell (#480, was ST-9): the old fixed centre
         // spot could sit inside a wall, burying the vendor. Scan upward at the centre for the first air cell
         // with something solid below; a fully solid column falls back to the roof.
@@ -179,7 +216,15 @@ public static class SettlementGenerator
         return new SettlementStructure(w, h, l, t.Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings), mods, shapes);
     }
 
-    public static SettlementStructure Generate(string tier, bool ruined, long seed, string biomeSurfaceBlock, GameContent content)
+    /// <summary>
+    /// Builds a procedural settlement. <paramref name="modules"/> (#1827) are the authored building modules the
+    /// world allows (pack / planet filtered by the caller); with <paramref name="moduleChance"/> per plot, a
+    /// HASH of tier + seed + plot decides whether a plot is built from a module of its role instead of the
+    /// procedural building — never an rng draw, so every plot that stays procedural is byte-identical whether
+    /// or not modules exist. Rooms are furnished (#1828) on the way.
+    /// </summary>
+    public static SettlementStructure Generate(string tier, bool ruined, long seed, string biomeSurfaceBlock, GameContent content,
+        IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0)
     {
         bool town = IsTownStyle(tier);
         var (baseCols, baseRows, baseFloors) = Layout(tier);
@@ -255,13 +300,15 @@ public static class SettlementGenerator
         int l = rows * Plot + 1;
         int h = floors * FloorH + 1 + RoofCap;
         var blocks = new ushort[w * h * l];
-        void Set(int x, int y, int z, ushort b)
-        {
-            if (x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < l)
-            {
-                blocks[(x * h + y) * l + z] = b;
-            }
-        }
+        var mods = new Dictionary<int, (int Tint, int Glow)>();
+        var shapes = new Dictionary<int, int>();
+        var setCell = SinkFor(blocks, w, h, l, mods, shapes);
+        void Set(int x, int y, int z, ushort b) => setCell(x, y, z, b, 0, 0, 0);
+        ushort Get(int x, int y, int z) => blocks[(x * h + y) * l + z];
+
+        // Interiors (#1828): the style's furniture palette; every procedural room is furnished from a hash of
+        // its plot so the main stream never shifts.
+        var furniture = RoomFurnisher.PaletteFor(RoomFurnisher.StyleFor(tier, alien), content);
 
         var markers = new List<SettlementMarker>();
 
@@ -313,13 +360,37 @@ public static class SettlementGenerator
                 int ox = cxp * Plot + 1 + off;
                 int oz = czp * Plot + 1 + off;
 
-                if (greenhouse)
+                // #1827: an authored module for this plot? Its role is the plot's role; it must fit the plot
+                // and match the settlement's style. Picked by hash, so the rng stream above and below is the
+                // same with or without modules. A module brings its own markers (door, npc, room …).
+                string plotRole = greenhouse ? StructureRoles.Greenhouse
+                    : plotIndex == 0 ? StructureRoles.Market
+                    : plotIndex == 1 ? StructureRoles.Board
+                    : StructureRoles.House;
+                long plotHash = (long)WorldGenerator.StableHash($"furnish:{tier}:{seed}:{plotIndex}");
+                var module = PickModule(modules, moduleChance, $"module:{tier}:{seed}:{plotIndex}", plotRole,
+                    m => StructureRoles.IsTownStyleTier(m.Tier) == town, Building, h - 1, Building);
+                var moduleMarkers = new List<SettlementMarker>();
+                if (module != null)
+                {
+                    ox = cxp * Plot + 1 + (Building - module.Width) / 2;
+                    oz = czp * Plot + 1 + (Building - module.Length) / 2;
+                    fp = System.Math.Max(module.Width, module.Length);
+                    StampModule(module, ox, 0, oz, content, Get, setCell, moduleMarkers, furniture, plotHash);
+                    int side = DoorSideOf(moduleMarkers, ox, oz, module.Width, module.Length);
+                    if (side >= 0) doorSide = side;
+                }
+                else if (greenhouse)
                 {
                     StampGreenhouse(Set, ox, oz, fp, town, frame, glass, bed, CropFor(plotIndex), growLight, doorSide, rng, ruined);
                 }
                 else
                 {
-                    StampBuilding(Set, ox, oz, fp, storeys, wall, accent, glass, ladder, doorSide, roofStyle, rng, ruined);
+                    var groundRole = plotIndex == 0 ? RoomFurnisher.RoomRole.Market
+                        : plotIndex == 1 ? RoomFurnisher.RoomRole.Board
+                        : RoomFurnisher.RoomRole.House;
+                    StampBuilding(Set, ox, oz, fp, storeys, wall, accent, glass, ladder, doorSide, roofStyle, rng, ruined,
+                        furnish: furniture, setCell: setCell, furnishSeed: plotHash, groundRole: groundRole);
                 }
 
                 buildings++;
@@ -337,6 +408,27 @@ public static class SettlementGenerator
                         1 => "mission_board",
                         _ => "npc",
                     };
+
+                    if (module != null)
+                    {
+                        // The module's own markers stand in for the procedural ones. A missing role marker (a
+                        // market module without a vendor …) is added over the module's centre column, in the
+                        // first free cell — exactly the FromTemplate fallback.
+                        markers.AddRange(moduleMarkers);
+                        if (!moduleMarkers.Exists(m => m.Type == role))
+                        {
+                            markers.Add(new SettlementMarker(role, new Vector3i(centre.X, FreeCellAbove(Get, h, centre.X, centre.Z), centre.Z)));
+                        }
+
+                        if (greenhouse && !moduleMarkers.Exists(m => m.Type == "greenhouse"))
+                        {
+                            markers.Add(new SettlementMarker("greenhouse", centre));
+                        }
+
+                        plotIndex++;
+                        continue;
+                    }
+
                     markers.Add(new SettlementMarker(role, centre));
 
                     // A greenhouse also announces itself: the resident standing in the aisle is its gardener
@@ -444,7 +536,197 @@ public static class SettlementGenerator
                 }
         }
 
-        return new SettlementStructure(w, h, l, tier, ruined, inhabitant, blocks, markers, buildings);
+        return new SettlementStructure(w, h, l, tier, ruined, inhabitant, blocks, markers, buildings, mods, shapes);
+    }
+
+    // --- authored building modules (#1827) ------------------------------------------------------------------
+
+    /// <summary>
+    /// Picks the module for one slot, or null. The decision is a HASH of <paramref name="hashKey"/> (never an
+    /// rng draw): under <paramref name="chance"/> the slot takes a module, and among the candidates — the
+    /// <paramref name="role"/> the slot needs, <paramref name="styleOk"/>, and fitting the envelope — a second
+    /// hash picks one weighted by <see cref="StructureTemplate.Weight"/>. Pool order matters for the pick,
+    /// so callers pass the content's list unsorted.
+    /// </summary>
+    internal static StructureTemplate? PickModule(IReadOnlyList<StructureTemplate>? modules, double chance, string hashKey,
+        string role, System.Func<StructureTemplate, bool> styleOk, int maxW, int maxH, int maxL)
+    {
+        if (modules == null || modules.Count == 0 || chance <= 0)
+        {
+            return null;
+        }
+
+        double roll = (WorldGenerator.StableHash(hashKey) & 0xFFFFFF) / (double)0x1000000;
+        if (roll >= chance)
+        {
+            return null;
+        }
+
+        var fit = new List<StructureTemplate>();
+        int total = 0;
+        foreach (var m in modules)
+        {
+            if (m.Role == role && styleOk(m) && m.Width > 0 && m.Height > 0 && m.Length > 0
+                && m.Width <= maxW && m.Height <= maxH && m.Length <= maxL)
+            {
+                fit.Add(m);
+                total += System.Math.Max(1, m.Weight);
+            }
+        }
+
+        if (fit.Count == 0)
+        {
+            return null;
+        }
+
+        int pick = (int)((WorldGenerator.StableHash(hashKey + ":pick") & 0x7fffffff) % total);
+        foreach (var m in fit)
+        {
+            pick -= System.Math.Max(1, m.Weight);
+            if (pick < 0)
+            {
+                return m;
+            }
+        }
+
+        return fit[fit.Count - 1];
+    }
+
+    /// <summary>Stamps a module's cells at (<paramref name="ox"/>, <paramref name="oy"/>, <paramref name="oz"/>)
+    /// of the destination grid, translates its markers into <paramref name="markersOut"/> and furnishes the
+    /// rooms it marks (#1828). <paramref name="get"/> reads the destination (for the room flood fill).</summary>
+    internal static void StampModule(StructureTemplate module, int ox, int oy, int oz, GameContent content,
+        System.Func<int, int, int, ushort> get, RoomFurnisher.CellSink setCell, List<SettlementMarker> markersOut,
+        RoomFurnisher.Palette furniture, long furnishSeed)
+    {
+        int w = module.Width, h = module.Height, l = module.Length;
+        var local = new List<SettlementMarker>();
+        foreach (var cell in module.Cells)
+        {
+            if (cell.X < 0 || cell.Y < 0 || cell.Z < 0 || cell.X >= w || cell.Y >= h || cell.Z >= l)
+            {
+                continue;
+            }
+
+            if (cell.Kind == "marker")
+            {
+                local.Add(new SettlementMarker(cell.Id, new Vector3i(cell.X, cell.Y, cell.Z)));
+            }
+            else
+            {
+                ushort id = content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
+                if (id != 0)
+                {
+                    setCell(ox + cell.X, oy + cell.Y, oz + cell.Z, id, cell.Shape, cell.Tint, cell.Glow);
+                }
+            }
+        }
+
+        FurnishAuthoredRooms((x, y, z) => get(ox + x, oy + y, oz + z), w, h, l, local, furniture, furnishSeed,
+            (x, y, z, b, shape, tint, glow) => setCell(ox + x, oy + y, oz + z, b, shape, tint, glow));
+
+        foreach (var m in local)
+        {
+            markersOut.Add(new SettlementMarker(m.Type, new Vector3i(ox + m.LocalPos.X, oy + m.LocalPos.Y, oz + m.LocalPos.Z)));
+        }
+    }
+
+    /// <summary>Which wall of a module box its first door marker sits on (0 −Z, 1 +Z, 2 −X, 3 +X), or −1
+    /// when it has none — the lamp post and garden go beside the door.</summary>
+    internal static int DoorSideOf(IReadOnlyList<SettlementMarker> markers, int ox, int oz, int w, int l)
+    {
+        foreach (var m in markers)
+        {
+            if (!m.Type.StartsWith("door_", System.StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (m.LocalPos.Z == oz) return 0;
+            if (m.LocalPos.Z == oz + l - 1) return 1;
+            if (m.LocalPos.X == ox) return 2;
+            if (m.LocalPos.X == ox + w - 1) return 3;
+        }
+
+        return -1;
+    }
+
+    /// <summary>The first air cell with something solid under it, scanning up the column (x, z) from y = 1;
+    /// the top row when the column is solid all the way (the FromTemplate vendor fallback, #480).</summary>
+    internal static int FreeCellAbove(System.Func<int, int, int, ushort> get, int h, int x, int z)
+    {
+        for (int y = 1; y < h; y++)
+        {
+            if (get(x, y, z) == 0 && get(x, y - 1, z) != 0)
+            {
+                return y;
+            }
+        }
+
+        return h - 1;
+    }
+
+    /// <summary>
+    /// Furnishes every room an author marked (#1828): each <see cref="RoomMarker"/> flood-fills the floor it
+    /// stands on (<see cref="RoomFurnisher.FloodRoom"/>), every other marker cell in that room and the cells
+    /// around each door marker stay free, and the room's role follows the marker found inside it — a vendor
+    /// makes a market, a mission board an office, anything else a home. Coordinates are those of the markers.
+    /// </summary>
+    internal static void FurnishAuthoredRooms(System.Func<int, int, int, ushort> get, int w, int h, int l,
+        IReadOnlyList<SettlementMarker> markers, RoomFurnisher.Palette furniture, long seed, RoomFurnisher.CellSink setCell)
+    {
+        int n = 0;
+        foreach (var room in markers)
+        {
+            if (room.Type != RoomMarker)
+            {
+                continue;
+            }
+
+            n++;
+            var region = RoomFurnisher.FloodRoom(get, w, h, l, room.LocalPos.X, room.LocalPos.Y, room.LocalPos.Z, RoomCap, out int clearance);
+            if (region.Count == 0)
+            {
+                continue;
+            }
+
+            var cells = new HashSet<(int X, int Z)>(region);
+            var reserved = new HashSet<(int X, int Z)>();
+            var role = RoomFurnisher.RoomRole.House;
+            foreach (var m in markers)
+            {
+                if (m.Type == RoomMarker || m.LocalPos.Y != room.LocalPos.Y)
+                {
+                    continue;
+                }
+
+                var at = (m.LocalPos.X, m.LocalPos.Z);
+                if (m.Type.StartsWith("door_", System.StringComparison.Ordinal))
+                {
+                    // The doorway is air over floor, so the flood fill reaches it: the gap itself, the second
+                    // door column and the lane through it stay free.
+                    reserved.Add(at);
+                    foreach (var d in new[] { (0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (-1, 1), (1, -1), (-1, -1) })
+                    {
+                        reserved.Add((at.Item1 + d.Item1, at.Item2 + d.Item2));
+                    }
+
+                    continue;
+                }
+
+                if (!cells.Contains(at))
+                {
+                    continue;
+                }
+
+                reserved.Add(at);
+                if (m.Type == "vendor") role = RoomFurnisher.RoomRole.Market;
+                else if (m.Type == "mission_board" && role != RoomFurnisher.RoomRole.Market) role = RoomFurnisher.RoomRole.Board;
+            }
+
+            var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (n * 7919)));
+            RoomFurnisher.Furnish(setCell, region, room.LocalPos.Y, clearance, furniture, role, reserved, rng);
+        }
     }
 
     /// <summary>Wall height of a greenhouse (the y of its ceiling row): a village garden house is low enough
@@ -607,10 +889,14 @@ public static class SettlementGenerator
     }
 
     /// <summary>Stamps one hollow building of N storeys with a roof, a door on a chosen side, a window
-    /// band and an accent stripe; multi-storey buildings get climbable ladders between decks.</summary>
+    /// band and an accent stripe; multi-storey buildings get climbable ladders between decks. With a
+    /// <paramref name="furnish"/> palette and a <paramref name="setCell"/> sink every storey is furnished
+    /// (#1828): the ground floor for <paramref name="groundRole"/>, the upper ones as living quarters, from
+    /// <paramref name="furnishSeed"/> — the NPC's spot, the door lane and the ladder stay clear.</summary>
     internal static void StampBuilding(System.Action<int, int, int, ushort> set, int ox, int oz, int fp, int storeys,
         ushort wall, ushort accent, ushort glass, ushort ladder, int doorSide, int roofStyle, System.Random rng, bool ruined,
-        ushort ceilingLight = 0)
+        ushort ceilingLight = 0, RoomFurnisher.Palette? furnish = null, RoomFurnisher.CellSink? setCell = null,
+        long furnishSeed = 0, RoomFurnisher.RoomRole groundRole = RoomFurnisher.RoomRole.House)
     {
         int height = storeys * FloorH;
         for (int x = 0; x < fp; x++)
@@ -683,6 +969,49 @@ public static class SettlementGenerator
                 {
                     set(ox + lx, f * FloorH, oz + lz, ceilingLight);
                 }
+            }
+        }
+
+        // Interiors (#1828). The region is the hollow room of each storey (one cell in from the shell); the
+        // NPC's centre cell, the two door columns' first interior row and the ladder corner stay free.
+        if (furnish != null && setCell != null && fp >= 4)
+        {
+            int fm = fp / 2, fw0 = System.Math.Max(1, fm - 1), fw1 = fm;
+            for (int f = 0; f < storeys; f++)
+            {
+                var region = new List<(int X, int Z)>();
+                for (int x = 1; x < fp - 1; x++)
+                    for (int z = 1; z < fp - 1; z++)
+                    {
+                        region.Add((ox + x, oz + z));
+                    }
+
+                var reserved = new HashSet<(int X, int Z)>();
+                if (f == 0)
+                {
+                    reserved.Add((ox + fm, oz + fm)); // the resident's spot
+                    for (int wv = fw0; wv <= fw1; wv++)
+                    {
+                        switch (doorSide)
+                        {
+                            case 0: reserved.Add((ox + wv, oz + 1)); break;
+                            case 1: reserved.Add((ox + wv, oz + fp - 2)); break;
+                            case 2: reserved.Add((ox + 1, oz + wv)); break;
+                            default: reserved.Add((ox + fp - 2, oz + wv)); break;
+                        }
+                    }
+                }
+
+                if (storeys > 1)
+                {
+                    reserved.Add((ox + 1, oz + 1)); // the ladder …
+                    reserved.Add((ox + 2, oz + 1)); // … and the step off it
+                    reserved.Add((ox + 1, oz + 2));
+                }
+
+                var role = f == 0 ? groundRole : RoomFurnisher.RoomRole.Upper;
+                var roomRng = new System.Random(unchecked((int)(furnishSeed ^ (furnishSeed >> 32)) ^ (f * 7919)));
+                RoomFurnisher.Furnish(setCell, region, f * FloorH + 1, FloorH - 1, furnish, role, reserved, roomRng);
             }
         }
     }

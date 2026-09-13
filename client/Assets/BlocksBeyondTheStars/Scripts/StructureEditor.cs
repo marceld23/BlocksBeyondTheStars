@@ -69,10 +69,14 @@ namespace BlocksBeyondTheStars.Client
 
         private string TierLabel(string slug) => L("ui.tier." + slug);
 
+        /// <summary>The "Use as" label of a role (#1826): whole structure, or one of the module roles.</summary>
+        private string RoleLabel(string role) => L("ui.role." + (string.IsNullOrEmpty(role) ? "whole" : role));
+
         private string _key = "my_structure";
         private string _name = "My Structure";
         private string _pack = "default";   // template pack; a world enables a set of packs
         private int _weight = 1;            // relative selection weight within its tier
+        private string _role = string.Empty; // #1826: "" = a whole structure, else a building-module role (StructureRoles)
         private string _planetTypes = string.Empty; // settlements only: comma-separated planet-type keys (#1115); blank = every world
         private int _seed = 1;              // procedural starting point (#1401): seed fed to the world-gen generator
         private string _surface = "grass";  // settlements only: the biome surface block the generator builds villages from
@@ -86,7 +90,7 @@ namespace BlocksBeyondTheStars.Client
             _palette = BuildPalette();
             _tiers = EditorMode == Mode.Station
                 ? new[] { "small", "medium", "large", "huge", "colossal" } // colossal = the rare mega-station (#1402)
-                : new[] { "hamlet", "village", "town", "city" };
+                : new[] { "hamlet", "village", "town", "city", StructureRoles.MetropolisTier }; // metropolis = a city-composer district module (#1826)
             _key = EditorMode == Mode.Station ? "my_station" : "my_settlement";
             _name = EditorMode == Mode.Station ? "My Station" : "My Settlement";
 
@@ -147,6 +151,7 @@ namespace BlocksBeyondTheStars.Client
             M("door_slide", new Color(0.40f, 0.85f, 0.95f)),
             M("door_hinge", new Color(0.60f, 0.40f, 0.20f)),
             M("door_energy", new Color(0.35f, 0.80f, 1f)), // the airtight air-curtain door (#793)
+            M("room", new Color(0.75f, 0.55f, 0.85f)),     // furnish this floor procedurally (#1828)
             M("loot", new Color(0.8f, 0.7f, 0.3f)),
             M("greenhouse", new Color(0.45f, 0.85f, 0.35f)),    // the generator's garden-house marker (#626, #1401)
             M("chest", new Color(0.75f, 0.55f, 0.25f)),         // loot chest (stilt_hamlet, #1398)
@@ -350,6 +355,7 @@ namespace BlocksBeyondTheStars.Client
             public string key, name, kind, tier, pack, layout;
             public int weight = 1;
             public List<string> planetTypes = new(); // carried through so a re-merge keeps the restriction (#1399)
+            public string role = string.Empty;       // #1826: "" = whole structure, else a building-module role
         }
 
         // Data-shaped StructureTemplate (matches the server's StructureTemplate JSON) written straight to
@@ -359,6 +365,7 @@ namespace BlocksBeyondTheStars.Client
             public string key, name, tier, kind, pack;
             public int weight = 1;
             public List<string> planetTypes = new();
+            public string role = string.Empty;
             public int width, height, length;
             public List<CellJson> cells = new();
         }
@@ -412,10 +419,13 @@ namespace BlocksBeyondTheStars.Client
             string pack = string.IsNullOrWhiteSpace(_pack) ? "default" : Slug(_pack);
             int weight = Mathf.Max(1, _weight);
             var planetTypes = EditorMode == Mode.Settlement ? PlanetTypeList() : new List<string>();
+            // #1826: a module's role rides along; a city-district module always carries the metropolis tier.
+            string role = EditorMode == Mode.Settlement ? _role ?? string.Empty : string.Empty;
+            string tier = StructureRoles.IsCityRole(role) ? StructureRoles.MetropolisTier : _tiers[_tier];
             var meta = new MetaJson
             {
-                key = key, name = _name, kind = modeName, tier = _tiers[_tier], pack = pack, weight = weight, layout = $"{key}.json",
-                planetTypes = planetTypes,
+                key = key, name = _name, kind = modeName, tier = tier, pack = pack, weight = weight, layout = $"{key}.json",
+                planetTypes = planetTypes, role = role,
             };
 
             try
@@ -430,8 +440,8 @@ namespace BlocksBeyondTheStars.Client
                 //    reads — so this structure can appear in your NEXT new world without any merge/rebuild.
                 var tpl = new TemplateJson
                 {
-                    key = key, name = _name, tier = _tiers[_tier], kind = modeName, pack = pack, weight = weight,
-                    planetTypes = planetTypes,
+                    key = key, name = _name, tier = tier, kind = modeName, pack = pack, weight = weight,
+                    planetTypes = planetTypes, role = role,
                     width = layout.width, height = layout.height, length = layout.length, cells = layout.cells,
                 };
                 string userDir = Path.Combine(AppPaths.Root, "usercontent", modeName + "_templates");
@@ -511,7 +521,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         Label = string.IsNullOrEmpty(t.name) ? t.key : t.name,
                         Detail = Detail(t.tier, t.width, t.length, t.height, t.cells.Count),
-                        Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false),
+                        Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false, role: t.role),
                     });
                 }
             }
@@ -602,12 +612,12 @@ namespace BlocksBeyondTheStars.Client
                 cells.Add(new CellJson { x = c.X, y = c.Y, z = c.Z, kind = c.Kind, id = c.Id, tint = c.Tint, glow = c.Glow, shape = c.Shape });
             }
 
-            ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true);
+            ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true, role: t.Role);
         }
 
         /// <summary>Common load path for built-in and user templates: cells + form fields, then the status
         /// (skipped cells, copy hint) and a UI rebuild.</summary>
-        private void ApplyTemplate(string key, string name, string tier, string pack, int weight, List<string> planetTypes, IEnumerable<CellJson> cells, bool copy)
+        private void ApplyTemplate(string key, string name, string tier, string pack, int weight, List<string> planetTypes, IEnumerable<CellJson> cells, bool copy, string role = "")
         {
             var skippedIds = new List<string>();
             int skipped = ApplyCells(cells, skippedIds);
@@ -617,6 +627,7 @@ namespace BlocksBeyondTheStars.Client
             _pack = string.IsNullOrEmpty(pack) ? "default" : pack;
             _weight = Mathf.Max(1, weight);
             _planetTypes = planetTypes != null ? string.Join(", ", planetTypes) : string.Empty;
+            _role = StructureRoles.IsKnown(role) ? role ?? string.Empty : string.Empty; // #1826
             int ti = System.Array.IndexOf(_tiers, tier);
             if (ti >= 0) _tier = ti;
 
@@ -650,6 +661,18 @@ namespace BlocksBeyondTheStars.Client
                 return string.Format(L("ui.struct.size_station"), modules, floors, rw, rh, rl);
             }
 
+            // A module's envelope (#1826): a city district, or the plot building of the tier.
+            if (StructureRoles.IsCityRole(_role) || tier == StructureRoles.MetropolisTier)
+            {
+                return string.Format(L("ui.struct.size_module"), CityGenerator.ModuleSize, CityGenerator.Height - 1, CityGenerator.ModuleSize);
+            }
+
+            if (!string.IsNullOrEmpty(_role))
+            {
+                var (mw, mh, ml) = SettlementGenerator.PlotModuleEnvelope(tier);
+                return string.Format(L("ui.struct.size_module"), mw, mh, ml);
+            }
+
             var (cols, rows, baseFloors) = SettlementGenerator.Layout(tier);
             bool town = tier == "town" || tier == "city";
             int p = SettlementGenerator.Plot;
@@ -668,6 +691,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string tier = _tiers[_tier];
+            if (tier == StructureRoles.MetropolisTier)
+            {
+                tier = "city"; // the district envelope has no settlement generator of its own; a city is the closest start
+            }
+
             var cells = new List<CellJson>();
             try
             {
@@ -751,7 +779,8 @@ namespace BlocksBeyondTheStars.Client
                     meta?.weight ?? 1,
                     meta?.planetTypes,
                     layout?.cells ?? new List<CellJson>(),
-                    copy: false);
+                    copy: false,
+                    role: meta?.role ?? string.Empty);
             }
             catch (Exception e)
             {
@@ -798,6 +827,7 @@ namespace BlocksBeyondTheStars.Client
         private Text _statusLabel;
         private Text _blocksLabel;
         private Text _tierLabel;
+        private Text _roleLabel;
         private Text _sizeHintLabel;
         private Text _weightLabel;
         private Text _shapeLabel;
@@ -864,6 +894,33 @@ namespace BlocksBeyondTheStars.Client
             // What the procedural generator builds for this tier, so a template matches its scale (#1402).
             _sizeHintLabel = UiKit.AddText(meta, 16f, y, 348f, 22f, SizeHint(_tiers[_tier]), 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
             y += 26f;
+
+            // Use as (#1826): a whole settlement, or a building module the composers stamp into one plot of a
+            // procedural settlement / one district of the composed city. A city role pins the metropolis tier.
+            if (EditorMode == Mode.Settlement)
+            {
+                UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.role"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+                _roleLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, RoleLabel(_role), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () =>
+                {
+                    int i = System.Array.IndexOf(StructureRoles.All, _role ?? string.Empty);
+                    _role = StructureRoles.All[(i + 1) % StructureRoles.All.Length];
+                    int metropolis = System.Array.IndexOf(_tiers, StructureRoles.MetropolisTier);
+                    if (StructureRoles.IsCityRole(_role) && metropolis >= 0)
+                    {
+                        _tier = metropolis;
+                    }
+                    else if (_tier == metropolis)
+                    {
+                        _tier = System.Array.IndexOf(_tiers, "village");
+                    }
+
+                    _tierLabel.text = TierLabel(_tiers[_tier]);
+                    _roleLabel.text = RoleLabel(_role);
+                    if (_sizeHintLabel != null) _sizeHintLabel.text = SizeHint(_tiers[_tier]);
+                });
+                y += 32f;
+            }
 
             // Template pack (a world enables a set of packs) + selection weight within the tier.
             UiKit.AddText(meta, 16f, y, 348f, 22f, L("ui.struct.pack"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
