@@ -1,0 +1,527 @@
+[
+  {
+    "key": "station_small_1",
+    "name": "Small Station 1",
+    "kind": "station",
+    "tier": "small",
+    "pack": "default",
+    "weight": 2,
+    "modulesMin": 5,
+    "modulesMax": 8,
+    "start": "st_small_hub",
+    "entries": [
+      {
+        "module": "st_small_hub",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_small_hangar",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1,
+        "rotate": false
+      },
+      {
+        "module": "st_small_cabins4",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_small_market",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_small_canteen",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "st_small_storage",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_small_corridor",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "pocket_waystation_room",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "station_medium_1",
+    "name": "Medium Station 1",
+    "kind": "station",
+    "tier": "medium",
+    "pack": "default",
+    "weight": 2,
+    "modulesMin": 8,
+    "modulesMax": 12,
+    "start": "st_medium_hub",
+    "entries": [
+      {
+        "module": "st_medium_hub",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_hangar",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1,
+        "rotate": false
+      },
+      {
+        "module": "st_medium_cabins4",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_cabins2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_market",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_mission",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_canteen",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_medbay",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_medium_hydro",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_medium_bar",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_storage",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_corridor",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_medium_junction",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "outpost_room",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "observation_spire_room",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "station_large_1",
+    "name": "Large Station 1",
+    "kind": "station",
+    "tier": "large",
+    "pack": "default",
+    "weight": 2,
+    "modulesMin": 11,
+    "modulesMax": 16,
+    "start": "st_large_hub",
+    "entries": [
+      {
+        "module": "st_large_hub",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_large_hangar",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1,
+        "rotate": false
+      },
+      {
+        "module": "st_large_cabins4",
+        "min": 2,
+        "max": 2,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_large_cabins2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_large_market",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_large_mission",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_large_canteen",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_large_medbay",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_large_hydro",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_large_bar",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_large_storage",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_large_corridor",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_large_junction",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_large_ladder_junction",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "twin_dock_hall",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "station_huge_1",
+    "name": "Huge Station 1",
+    "kind": "station",
+    "tier": "huge",
+    "pack": "default",
+    "weight": 2,
+    "modulesMin": 15,
+    "modulesMax": 22,
+    "start": "st_huge_hub",
+    "entries": [
+      {
+        "module": "st_huge_hub",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_hangar",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1,
+        "rotate": false
+      },
+      {
+        "module": "st_huge_cabins4",
+        "min": 3,
+        "max": 3,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_cabins2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_market",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_mission",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_canteen",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_bar",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_medbay",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_hydro",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_storage",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_corridor",
+        "min": 0,
+        "max": 4,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_huge_junction",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_huge_ladder_junction",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      }
+    ]
+  },
+  {
+    "key": "station_colossal_1",
+    "name": "Colossal Station 1",
+    "kind": "station",
+    "tier": "colossal",
+    "pack": "default",
+    "weight": 2,
+    "modulesMin": 20,
+    "modulesMax": 30,
+    "start": "st_colossal_hub",
+    "entries": [
+      {
+        "module": "st_colossal_hub",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_colossal_hangar",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1,
+        "rotate": false
+      },
+      {
+        "module": "st_colossal_cabins4",
+        "min": 5,
+        "max": 5,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_colossal_market",
+        "min": 2,
+        "max": 2,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_colossal_mission",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_colossal_canteen",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_colossal_bar",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_colossal_medbay",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_colossal_hydro",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_colossal_storage",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "st_colossal_corridor",
+        "min": 0,
+        "max": 5,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_colossal_junction",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_colossal_ladder_junction",
+        "min": 2,
+        "max": 3,
+        "required": true,
+        "weight": 2
+      }
+    ]
+  }
+]

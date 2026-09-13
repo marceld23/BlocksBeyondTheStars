@@ -357,7 +357,10 @@ def storage(tier):
     m.lights()
     m.door_port("x+")
     m.door_port("x-")
+    cz = l // 2
     for z in range(1, l - 1, 2):
+        if z in (cz - 1, cz):
+            continue  # the way in from the ±X ports stays clear
         m.block(1, 1, z, CRATE)
         m.block(w - 2, 1, z, CRATE)
         if z % 4 == 1:

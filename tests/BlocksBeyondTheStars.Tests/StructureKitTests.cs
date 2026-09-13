@@ -121,6 +121,45 @@ public sealed class StructureKitTests
     }
 
     [Fact]
+    public void ShippedStationModules_ValidateAndSeal_AndEveryShippedKitComposes()
+    {
+        // #1875: the generated content is live on day one — every kit module docks and seals, every kit assembles.
+        var c = Content();
+        var modules = c.StationTemplates.Where(t => t.Kit.Length > 0).ToList();
+        Assert.True(modules.Count >= 40, $"expected the generated station modules, found {modules.Count}");
+        foreach (var m in modules)
+        {
+            Assert.True(c.KitByKey(m.Kit) != null, $"module '{m.Key}' names an unknown kit '{m.Kit}'");
+            var errors = BlocksBeyondTheStars.WorldGeneration.StructurePorts.Validate(m);
+            Assert.True(errors.Count == 0, $"module '{m.Key}': {string.Join(" | ", errors)}");
+            Assert.True(BlocksBeyondTheStars.WorldGeneration.StructurePorts.Collect(m).Count > 0, $"module '{m.Key}' has no port");
+            var leaks = BlocksBeyondTheStars.WorldGeneration.StructureSeal.FindLeaks(m);
+            Assert.True(leaks.Count == 0, $"module '{m.Key}' leaks at {string.Join(", ", leaks.Take(5))}");
+        }
+
+        foreach (string key in new[] { "hub_outpost", "pocket_waystation", "observation_spire", "twin_dock_bazaar" })
+        {
+            Assert.True(c.TemplateByKey("station", key)!.PinOnly, $"'{key}' stays for pinned worlds only");
+        }
+
+        var kits = c.StructureKits.Where(k => k.Kind == StructureKit.KindStation).ToList();
+        Assert.Equal(new[] { "small", "medium", "large", "huge", "colossal" }, kits.Select(k => k.Tier));
+        foreach (var kit in kits)
+        {
+            for (long seed = 1; seed <= 5; seed++)
+            {
+                var s = BlocksBeyondTheStars.WorldGeneration.StationKitComposer.Compose(kit, key => c.TemplateByKey("station", key), seed, c, out var comp, out var failure);
+                Assert.True(s != null, $"kit '{kit.Key}' seed {seed}: {failure}");
+                Assert.InRange(comp.Modules.Count, kit.EffectiveBounds().Min, kit.EffectiveBounds().Max);
+                Assert.Contains(s!.Markers, m => m.Type == "spawn");
+                Assert.Contains(s.Markers, m => m.Type == "cabin");
+                Assert.Contains(s.Markers, m => m.Type == "vendor");
+                Assert.Contains(s.Markers, m => m.Type == "hangar");
+            }
+        }
+    }
+
+    [Fact]
     public void UserContentFolder_LoadsKits_KeyFromTheFileName_UnreadableFileWarned()
     {
         var root = Path.Combine(Path.GetTempPath(), "bbts_kits_" + Guid.NewGuid().ToString("N"));

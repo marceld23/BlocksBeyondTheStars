@@ -59,27 +59,29 @@ public sealed partial class GameServer
             string theme = role == "vendor" ? VendorThemeFor(station.Id, vendorIndex++, "traders") : "traders";
             bool robotic = theme == "researchers" || (role == "settler" && rng.NextDouble() < 0.3);
 
-            // Feet on the cabin floor beside the marker (#1775: a standable cell that holds air).
-            var home = StationCrewSpot(station, cabinPos, rng, jitter: 0);
-            var npc = MakeNpc(role, theme, robotic, home, rng);
-            npc.Rest = home;
+            // The cabin spot is where the resident rests at night (#1775: a standable cell that holds air); the crew
+            // starts its day at the post (the hall for those without one), so a boarder meets a staffed station at once.
+            var cabinSpot = StationCrewSpot(station, cabinPos, rng, jitter: 0);
+            var work = hasPost
+                ? StationCrewSpot(station, posts[i].Pos, rng, jitter: 0)
+                : StationCrewSpot(station, station.Spawn, rng, jitter: 2);
+            var npc = MakeNpc(role, theme, robotic, work, rng);
+            npc.Rest = cabinSpot;
+            npc.Work = work;
+            npc.HasWork = true;
             npc.RoutineEnabled = true;
             if (role == "quartermaster")
             {
                 npc.Name = CoinGiverName(station.Id); // the mission-giver's name matches its missions (item 13)
             }
 
-            if (role != "settler" || hasPost)
+            if (hasPost)
             {
                 npc.Job = role is "vendor" or "quartermaster" ? role : string.Empty; // the post leash + nameplate
-                npc.Work = StationCrewSpot(station, posts[i].Pos, rng, jitter: 0);
-                npc.HasWork = true;
                 ApplyAuthoredCharacter(npc, "station", station.Id); // #1128: a pack face may claim this slot
             }
             else
             {
-                npc.Work = StationCrewSpot(station, station.Spawn, rng, jitter: 2); // the hall, by day
-                npc.HasWork = true;
                 npc.Size = 0.9f + (float)rng.NextDouble() * 0.22f;
             }
 
