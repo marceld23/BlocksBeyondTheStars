@@ -236,4 +236,140 @@ public sealed class StationGravityTests : IDisposable
             Assert.True(server.InStation("Owner"), "the rescue keeps him aboard, it does not undock him");
         }
     }
+
+    // ---- Zero-g construction mode (#1842): a per-player, session-only toggle for any boarder of a player station ----
+
+    [Fact]
+    public void ZeroGMode_On_FloatsOnThePad_AndOff_WalksAgain()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("zerog", out var repo, transport);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            BuildAndBoard(server, pilot);
+            var deck = new Vector3f(10.5f, 65f, 10.5f);
+            TickAt(server, pilot, deck);
+            Assert.False(server.FloatingOutsideStationForTest("Owner"));
+
+            server.SetStationZeroGForTest("Owner", true);
+            Assert.True(server.StationZeroGForTest("Owner"));
+            Assert.True(server.FloatingOutsideStationForTest("Owner"), "the float applies at once, right on the pad");
+            Assert.Contains(transport.Sent, m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g_on");
+            Assert.Contains(transport.Sent, m => m is PlayerStateUpdate ps && ps.StationZeroG && ps.AboveAtmosphere);
+            // The chosen float is not a drift over the edge: no "you have left the station's gravity" hint.
+            Assert.DoesNotContain(transport.Sent, m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g");
+
+            TickAt(server, pilot, deck);
+            Assert.True(server.FloatingOutsideStationForTest("Owner"), "the tick keeps the chosen float");
+
+            server.SetStationZeroGForTest("Owner", false);
+            Assert.False(server.StationZeroGForTest("Owner"));
+            Assert.False(server.FloatingOutsideStationForTest("Owner"), "gravity is back the moment the mode goes off");
+            Assert.Contains(transport.Sent, m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g_off");
+            Assert.Contains(transport.Sent, m => m is PlayerStateUpdate ps && !ps.StationZeroG && !ps.AboveAtmosphere);
+        }
+    }
+
+    [Fact]
+    public void ZeroGMode_IsIgnored_WhenNotOnAPlayerStation()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("zerog_planet", out var repo, transport);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Walker");
+            Assert.False(server.InStation("Walker"));
+
+            server.SetStationZeroGForTest("Walker", true);
+
+            Assert.False(server.StationZeroGForTest("Walker"), "on a planet the toggle does nothing");
+            Assert.False(pilot.State.AboveAtmosphere);
+            Assert.DoesNotContain(transport.Sent, m => m is ServerMessage sm && sm.Text.StartsWith("@srv.station.zero_g_", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void ZeroGMode_Clears_OnLeavingTheStation()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("zerog_leave", out var repo, transport);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            BuildAndBoard(server, pilot);
+            server.SetStationZeroGForTest("Owner", true);
+            Assert.True(server.StationZeroGForTest("Owner"));
+
+            server.LeaveStation("Owner");
+
+            Assert.False(server.InStation("Owner"));
+            Assert.False(server.StationZeroGForTest("Owner"), "the mode is per boarding — leaving drops it");
+            Assert.False(pilot.State.AboveAtmosphere || server.FloatingOutsideStationForTest("Owner"));
+        }
+    }
+
+    [Fact]
+    public void ZeroGMode_DriftRescue_StillFires_Beyond64Blocks()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("zerog_drift", out var repo, transport);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            BuildAndBoard(server, pilot);
+            server.SetStationZeroGForTest("Owner", true);
+
+            pilot.State.Position = new Vector3f(10.5f, 65f - 100f, 10.5f);
+            server.RunVoidRescueForTest();
+
+            Assert.True(pilot.State.Position.Y > 60f, $"expected the pad, got {pilot.State.Position}");
+            Assert.Contains(transport.Sent, m => m is RespawnNotice r && r.Reason == "@srv.station.drifted_back");
+            Assert.True(server.InStation("Owner"));
+            Assert.True(server.StationZeroGForTest("Owner"), "the rescue moves him back, the chosen mode stays on");
+        }
+    }
+
+    [Fact]
+    public void ZeroGMode_FallDamage_IsWaived_ForThreeSecondsAfterSwitchingOff()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("zerog_fall", out var repo, transport);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            BuildAndBoard(server, pilot);
+            pilot.State.Health = 100f;
+
+            // While hovering in the mode a reported impact is not a fall either.
+            server.SetStationZeroGForTest("Owner", true);
+            server.FallDamageForTest("Owner", 30f);
+            Assert.Equal(100f, pilot.State.Health);
+
+            // Switched off → the drop to the deck is the mode's doing: no damage within the grace window.
+            server.SetStationZeroGForTest("Owner", false);
+            server.TickForTest(0.5);
+            server.FallDamageForTest("Owner", 30f);
+            Assert.Equal(100f, pilot.State.Health);
+
+            // Past the grace window a hard landing hurts as usual.
+            for (int i = 0; i < 8; i++)
+            {
+                server.TickForTest(0.5);
+            }
+
+            server.FallDamageForTest("Owner", 30f);
+            Assert.True(pilot.State.Health < 100f, "after the grace window a hard landing is a real fall again");
+        }
+    }
+
+    [Fact]
+    public void SetStationZeroGIntent_RoundTripsThroughNetCodec()
+    {
+        var on = NetCodec.Decode(NetCodec.Encode(new SetStationZeroGIntent { Enabled = true }));
+        var off = NetCodec.Decode(NetCodec.Encode(new SetStationZeroGIntent { Enabled = false }));
+
+        Assert.True(Assert.IsType<SetStationZeroGIntent>(on).Enabled);
+        Assert.False(Assert.IsType<SetStationZeroGIntent>(off).Enabled);
+    }
 }

@@ -64,6 +64,7 @@ namespace BlocksBeyondTheStars.Client
             new Entry(InputAction.RequestTrade, u => u.OnFoot && u.Interactions != null && u.Interactions.CanRequestTradeOrDock),
             new Entry(InputAction.RequestDock, u => u.OnFoot && u.Interactions != null && u.Interactions.CanRequestTradeOrDock),
             new Entry(InputAction.Disembark, u => u.OnFoot && u.Interactions != null && u.Interactions.CanDisembark),
+            new Entry(InputAction.ToggleStationZeroG, u => u.OnFoot && u.Interactions != null && u.Interactions.CanToggleStationZeroG), // #1842
             new Entry(InputAction.LootContainer, u => u.OnFoot && u.Player != null && u.Player.NearContainer),
             new Entry(InputAction.DepositToCrate, u => u.OnFoot && u.Player != null && u.Player.NearCrate),
             new Entry(InputAction.RepairWreck, u => u.OnFoot && u.Player != null && u.Player.NearWreck),

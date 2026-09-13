@@ -55,7 +55,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool custom = ShapeCode.IsCustomShape(shape);
-            if (!custom && shape >= ShapeCode.Count)
+            if (!custom && !ShapeCode.IsBuiltIn(shape))
             {
                 return null;
             }
@@ -227,6 +227,16 @@ namespace BlocksBeyondTheStars.Client
                     return v <= 0.1f;
                 case BlockShape.Pot: // small centred planter with a wider rim
                     return (u >= 0.28f && u <= 0.72f && v <= 0.42f) || (u >= 0.22f && u <= 0.78f && v >= 0.34f && v <= 0.5f);
+                case BlockShape.Bench: // side view like the chair, but a lower backrest and the seat running edge to edge (#1846)
+                    return (v >= 0.35f && v <= 0.5f)
+                        || (u >= 0.72f && u <= 0.9f && v >= 0.35f && v <= 0.78f)
+                        || (v <= 0.35f && ((u >= 0.06f && u <= 0.2f) || (u >= 0.8f && u <= 0.94f)));
+                case BlockShape.BedHead: // side view: mattress slab, a pillow bump and the headboard on the left (#1846)
+                    return v <= 0.5f
+                        || (u >= 0.12f && u <= 0.45f && v <= 0.62f)
+                        || (u >= 0.02f && u <= 0.1f && v <= 0.85f);
+                case BlockShape.BedFoot: // side view: mattress slab and the footboard on the right (#1846)
+                    return v <= 0.5f || (u >= 0.9f && u <= 0.98f && v <= 0.68f);
                 default:
                     return true; // cube — full tile (callers never ask us for this)
             }

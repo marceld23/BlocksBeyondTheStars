@@ -196,6 +196,9 @@ namespace BlocksBeyondTheStars.Client
         public event Action<CrewInviteNotice>? CrewInviteReceived;
         public event Action<MarkerList>? MarkerListReceived;
 
+        // Player notes (#1844): the server pushes the full set on join and after every set/remove.
+        public event Action<NoteList>? NoteListReceived;
+
         // Creature taming + companions: the live ritual state, the finished result, and the player's roster.
         public event Action<TameProgress>? TameProgressReceived;
         public event Action<TameResult>? TameResultReceived;
@@ -685,6 +688,9 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendLeaveStation() => Send(new LeaveStationIntent());
 
+        /// <summary>#1842: switch zero-g construction mode on the boarded player station on/off for this player.</summary>
+        public void SendSetStationZeroG(bool enabled) => Send(new SetStationZeroGIntent { Enabled = enabled });
+
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
 
         /// <summary>#1072: ask where the nearest station of this kind is (a CraftingStation name, "research" or "shipbuild").</summary>
@@ -795,6 +801,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Raises a transient "look here" ping at a world position (server-side TTL + rate limit).</summary>
         public void SendMarkerPing(float x, float y, float z)
             => Send(new MarkerActionIntent { Kind = "ping", X = x, Y = y, Z = z });
+
+        // --- Player notes (#1844) ---
+        /// <summary>Creates (empty id) or updates (own id) a titled note. The server clamps, screens and echoes
+        /// the whole list back.</summary>
+        public void SendNoteSet(string id, string title, string body)
+            => Send(new NoteActionIntent { Kind = "set", Id = id ?? string.Empty, Title = title ?? string.Empty, Body = body ?? string.Empty });
+
+        /// <summary>Deletes one of my notes.</summary>
+        public void SendNoteRemove(string id) => Send(new NoteActionIntent { Kind = "remove", Id = id ?? string.Empty });
 
         /// <summary>Ends an existing alliance with a partner (one-sided — either side may dissolve it).</summary>
         public void SendDissolveAlliance(string partnerId) => Send(new DissolveAllianceIntent { PartnerId = partnerId ?? string.Empty });
@@ -1003,6 +1018,7 @@ namespace BlocksBeyondTheStars.Client
                 case CrewList m: CrewListReceived?.Invoke(m); break;
                 case CrewInviteNotice m: CrewInviteReceived?.Invoke(m); break;
                 case MarkerList m: MarkerListReceived?.Invoke(m); break;
+                case NoteList m: NoteListReceived?.Invoke(m); break;
                 case StoryStateMessage m: StoryStateReceived?.Invoke(m); break;
                 case NetFragmentList m: NetFragmentsReceived?.Invoke(m); break;
                 case NetFragmentRevealed m: NetFragmentRevealedReceived?.Invoke(m); break;

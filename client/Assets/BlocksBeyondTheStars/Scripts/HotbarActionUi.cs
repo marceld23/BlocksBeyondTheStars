@@ -48,6 +48,7 @@ namespace BlocksBeyondTheStars.Client
             (12, "ui.shape.lowramp"), (13, "ui.shape.quartercube"),
             (14, "ui.shape.table"), (15, "ui.shape.chair"), (16, "ui.shape.fence"),
             (17, "ui.shape.sheet"), (18, "ui.shape.pot"),
+            ((int)BlockShape.Bench, "ui.shape.bench"), // #1846 — the bed halves up there are server-stamped, not offered
         };
 
         private Canvas _canvas;

@@ -603,7 +603,7 @@ namespace BlocksBeyondTheStars.Client
 
                 bool chairGone = Game?.World == null
                     || Game.Health <= 0f // dying stands you up so the respawn teleport gets a live controller
-                    || ShapeCode.ShapeOf(Game.World.GetShape(seat.x, seat.y, seat.z)) != (int)BlockShape.Chair;
+                    || !FurnitureShapes.IsSeat(ShapeCode.ShapeOf(Game.World.GetShape(seat.x, seat.y, seat.z)));
                 bool wantsUp = Time.frameCount != _satFrame
                     && (InputMap.JumpDown() || InputMap.CrouchHeld() || InputMap.Down(InputAction.Interact)
                         || Mathf.Abs(InputMap.MoveX()) > 0.3f || Mathf.Abs(InputMap.MoveY()) > 0.3f);
@@ -1774,9 +1774,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // A chair-shaped cell in any material seats the player (#806).
+            // A chair- or bench-shaped cell in any material seats the player (#806, #1846).
             if (_seatCell is null && AimBlock(out var chairHit, out _)
-                && ShapeCode.ShapeOf(Game.World.GetShape(chairHit.x, chairHit.y, chairHit.z)) == (int)BlockShape.Chair)
+                && FurnitureShapes.IsSeat(ShapeCode.ShapeOf(Game.World.GetShape(chairHit.x, chairHit.y, chairHit.z))))
             {
                 SitDown(chairHit);
                 return;
@@ -4133,6 +4133,13 @@ namespace BlocksBeyondTheStars.Client
 
                 case PropOrientation.YawOnly:
                     upFace = ShapeCode.UpPlusY; // the server pins it; promising anything else would be a lie
+                    if (shape == (int)BlockShape.BedHead && _placeYaw < 0)
+                    {
+                        // Auto: the server puts the bed's foot in the cell the player faces (#1846), which for
+                        // ±X is not the raw heading yaw — mirror that here or the ghost's headboard flips.
+                        yaw = ShapeCode.YawFacingForward(yaw);
+                    }
+
                     break;
 
                 default:

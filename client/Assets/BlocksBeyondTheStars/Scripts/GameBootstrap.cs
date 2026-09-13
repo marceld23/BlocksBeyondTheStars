@@ -263,6 +263,11 @@ namespace BlocksBeyondTheStars.Client
         /// into space); nothing sets it yet, so it's a no-op until that lands.</summary>
         public bool OnFootInSpace { get; set; }
 
+        /// <summary>Zero-g construction mode on the boarded player station (#1842), server-authoritative and
+        /// session-only. While set, <see cref="OnFootInSpace"/> is a chosen float rather than a drift over the
+        /// deck's edge: the HUD shows a badge and the toggle hints instead of the atmosphere wording.</summary>
+        public bool StationZeroG { get; private set; }
+
         /// <summary>Fleet-admin observer mode (issue #487), server-authoritative. The controller switches to
         /// free flight without collision, the HUD hides the hotbar/viewmodel and shows the SPECTATOR badge.
         /// Never set locally: invisibility is the server's decision, and the client only reflects it.</summary>
@@ -466,6 +471,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Map markers + live pings visible on the current world (#1217): own + shared-by-allies/crew.
         /// Replaced wholesale by every <see cref="MarkerList"/>; cleared on a world switch.</summary>
         public NetMarker[] Markers { get; private set; } = System.Array.Empty<NetMarker>();
+
+        /// <summary>This player's own notes (#1844), newest first. Replaced wholesale by every <see cref="NoteList"/>.</summary>
+        public NetNote[] Notes { get; private set; } = System.Array.Empty<NetNote>();
+
+        /// <summary>Bumped on every <see cref="NoteList"/> — the menu hashes THIS (plus the count) instead of the
+        /// note text, so the open editor is only rebuilt when the server actually answered a save/delete.</summary>
+        public int NotesVersion { get; private set; }
 
         /// <summary>This player's tamed-creature roster, for the Companions menu tab. Refreshed by the server.</summary>
         public CompanionList Companions { get; private set; } = new CompanionList();
@@ -803,6 +815,13 @@ namespace BlocksBeyondTheStars.Client
         /// before that the ledger never left the server, so a scan left no permanent record in the UI.</summary>
         public readonly System.Collections.Generic.Dictionary<string, string> Discoveries
             = new System.Collections.Generic.Dictionary<string, string>();
+
+        /// <summary>Where each discovery was made (#1843): ledger key → (body name, system name) as the server
+        /// recorded them at scan time. Entries without a known site — scanned before the game recorded sites,
+        /// or somewhere the galaxy cannot place — are simply absent, and the Codex shows no location line for
+        /// them. Cleared together with <see cref="Discoveries"/> on the join snapshot.</summary>
+        public readonly System.Collections.Generic.Dictionary<string, (string Body, string System)> DiscoveryWhere
+            = new System.Collections.Generic.Dictionary<string, (string Body, string System)>();
 
         /// <summary>Persisted explored-map cells per body (#1113), as the server sent them on arrival —
         /// the planet map draws these as "remembered" ground under its live fog. Keyed by body id so an
@@ -2193,6 +2212,11 @@ namespace BlocksBeyondTheStars.Client
                 ShowMessage(t.Replace("{name}", m.FromName).Replace("{crew}", m.CrewName));
             };
             Network.MarkerListReceived += m => Markers = m?.Markers ?? System.Array.Empty<NetMarker>();
+            Network.NoteListReceived += m =>
+            {
+                Notes = m?.Notes ?? System.Array.Empty<NetNote>();
+                NotesVersion++;
+            };
             Network.CompanionsReceived += m => Companions = m ?? new CompanionList();
             Network.SpeedersReceived += m => Speeders = m.Speeders ?? System.Array.Empty<NetSpeeder>();
             Network.SpeederFxReceived += m =>
@@ -2474,13 +2498,24 @@ namespace BlocksBeyondTheStars.Client
                 if (m.Full)
                 {
                     Discoveries.Clear(); // the join snapshot replaces whatever a previous session left
+                    DiscoveryWhere.Clear();
                 }
 
                 var entries = m.Entries ?? System.Array.Empty<string>();
                 var names = m.Names ?? System.Array.Empty<string>();
+                // Where each was found (#1843) — parallel arrays an older server leaves empty, so index-guard.
+                var bodyNames = m.BodyNames ?? System.Array.Empty<string>();
+                var systemNames = m.SystemNames ?? System.Array.Empty<string>();
                 for (int i = 0; i < entries.Length; i++)
                 {
                     Discoveries[entries[i]] = i < names.Length ? names[i] ?? string.Empty : string.Empty;
+
+                    string bodyName = i < bodyNames.Length ? bodyNames[i] ?? string.Empty : string.Empty;
+                    string systemName = i < systemNames.Length ? systemNames[i] ?? string.Empty : string.Empty;
+                    if (bodyName.Length > 0 || systemName.Length > 0)
+                    {
+                        DiscoveryWhere[entries[i]] = (bodyName, systemName);
+                    }
                 }
             };
             Network.WreckRepairStatusChanged += m => Wreck = m.Claimed ? null : m;
@@ -3270,11 +3305,26 @@ namespace BlocksBeyondTheStars.Client
 
             CanFly = m.CanFly;
 
+            // Zero-g construction mode on a player station (#1842): its own hints, worded for the station, replace
+            // the planet's "left the atmosphere" line for the float that comes with the flip.
+            bool zeroGChanged = m.StationZeroG != StationZeroG;
+            StationZeroG = m.StationZeroG;
+            if (zeroGChanged)
+            {
+                LastMessage = m.StationZeroG
+                    ? string.Format(Localizer?.Get("hud.station.zero_g.on") ?? "Construction mode: zero gravity. Press {0} to walk again.",
+                        InputMap.Glyph(InputAction.ToggleStationZeroG))
+                    : Localizer?.Get("hud.station.zero_g.off") ?? LastMessage;
+            }
+
             // Built/climbed above the atmosphere → zero-g float on foot + space sky (item 10).
             if (m.AboveAtmosphere != OnFootInSpace)
             {
                 OnFootInSpace = m.AboveAtmosphere;
-                LastMessage = Localizer?.Get(m.AboveAtmosphere ? "hud.atmosphere.left" : "hud.atmosphere.entered") ?? LastMessage;
+                if (!zeroGChanged && !m.StationZeroG)
+                {
+                    LastMessage = Localizer?.Get(m.AboveAtmosphere ? "hud.atmosphere.left" : "hud.atmosphere.entered") ?? LastMessage;
+                }
             }
 
             // Boarding or leaving a space station is a server-side teleport (to the station interior, or

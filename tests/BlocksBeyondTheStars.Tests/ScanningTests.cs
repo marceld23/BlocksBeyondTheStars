@@ -11,6 +11,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -243,7 +244,8 @@ public sealed class ScanningTests : IDisposable
         var server = Started("rocky", out var repo, r => r.FreeSpaceFlight = true);
         using (repo)
         {
-            server.AddLocalPlayer("Pilot");
+            var p = server.AddLocalPlayer("Pilot");
+            string home = p.State.CurrentLocationId; // the body the flight instance is anchored to
             server.EnterSpace("Pilot");
             var asteroid = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Asteroid);
 
@@ -251,6 +253,12 @@ public sealed class ScanningTests : IDisposable
             Assert.Equal("asteroid", result.Kind);
             Assert.NotEmpty(result.Drops);
             Assert.All(result.Drops, d => Assert.Equal(0, d.Count)); // type only — the client omits "×n"
+
+            // In flight the site is the body the space instance belongs to, not the ship interior (#1843).
+            var site = p.State.ScannedWhere["asteroid"];
+            Assert.Equal(home, site.BodyId);
+            Assert.Equal(server.Galaxy.FindBody(home)!.Name, site.BodyName);
+            Assert.False(string.IsNullOrEmpty(site.SystemName));
         }
     }
 
@@ -261,6 +269,11 @@ public sealed class ScanningTests : IDisposable
         {
             Entries = new[] { "creature:sp0", "block:iron_ore" },
             Names = new[] { "Sky Grazer", "iron_ore" },
+            // Where each was found (#1843) — the second entry predates sites, so all four are empty for it.
+            BodyIds = new[] { "sys1-p2", string.Empty },
+            BodyNames = new[] { "Kepler", string.Empty },
+            SystemIds = new[] { "sys1", string.Empty },
+            SystemNames = new[] { "Sol", string.Empty },
             Full = true,
         };
 
@@ -268,7 +281,120 @@ public sealed class ScanningTests : IDisposable
             BlocksBeyondTheStars.Networking.NetCodec.Decode(BlocksBeyondTheStars.Networking.NetCodec.Encode(log)));
         Assert.Equal(log.Entries, decoded.Entries);
         Assert.Equal(log.Names, decoded.Names);
+        Assert.Equal(log.BodyIds, decoded.BodyIds);
+        Assert.Equal(log.BodyNames, decoded.BodyNames);
+        Assert.Equal(log.SystemIds, decoded.SystemIds);
+        Assert.Equal(log.SystemNames, decoded.SystemNames);
         Assert.True(decoded.Full);
+    }
+
+    [Fact]
+    public void FirstScan_RecordsWhereItWasFound_RescanKeepsIt_AndAPlaceEntryCarriesItsSite()
+    {
+        var server = Started("rocky", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Scout");
+            string home = p.State.CurrentLocationId;
+            var homeBody = server.Galaxy.FindBody(home)!;
+            var homeSystem = server.Galaxy.Systems.First(s => s.Id == homeBody.SystemId);
+
+            // The first scan remembers WHERE (#1843): body + system, by id and by name.
+            server.ScanSubject("Scout", "microfauna", "wisp");
+            var site = p.State.ScannedWhere["microfauna:wisp"];
+            Assert.Equal(homeBody.Id, site.BodyId);
+            Assert.Equal(homeBody.Name, site.BodyName);
+            Assert.Equal(homeSystem.Id, site.SystemId);
+            Assert.Equal(homeSystem.Name, site.SystemName);
+
+            // A re-scan is not a discovery: the recorded site stays exactly as first written.
+            p.State.ScannedWhere["microfauna:wisp"] = new ScanSite { BodyId = "elsewhere", BodyName = "Elsewhere" };
+            server.ScanSubject("Scout", "microfauna", "wisp");
+            Assert.Equal("elsewhere", p.State.ScannedWhere["microfauna:wisp"].BodyId);
+
+            // A first landing's "Places" entry is found where it is: the body itself, in its system.
+            var other = server.Galaxy.Systems.SelectMany(s => s.Bodies).First(b => b.Id != home);
+            server.MarkArrivedOnBodyForTest(p, other.Id);
+            var placeSite = p.State.ScannedWhere["place:" + other.Id];
+            Assert.Equal(other.Id, placeSite.BodyId);
+            Assert.Equal(other.Name, placeSite.BodyName);
+            Assert.Equal(server.Galaxy.Systems.First(s => s.Id == other.SystemId).Name, placeSite.SystemName);
+        }
+    }
+
+    [Fact]
+    public void ScannedWhere_SurvivesThePlayerSnapshotRoundTrip()
+    {
+        var state = new PlayerState { PlayerId = "p1", Name = "Scout" };
+        state.Scanned.Add("creature:sp0");
+        state.ScannedNames["creature:sp0"] = "Sky Grazer";
+        state.ScannedWhere["creature:sp0"] = new ScanSite { BodyId = "sys1-p2", BodyName = "Kepler", SystemId = "sys1", SystemName = "Sol" };
+        state.Scanned.Add("block:iron_ore"); // a pre-#1843 entry: name only, no site
+
+        var restored = StateMapper.FromSnapshot(StateMapper.ToSnapshot(state));
+
+        var site = Assert.Contains("creature:sp0", (IDictionary<string, ScanSite>)restored.ScannedWhere);
+        Assert.NotSame(state.ScannedWhere["creature:sp0"], site); // a copy, not an alias into the live state
+        Assert.Equal("sys1-p2", site.BodyId);
+        Assert.Equal("Kepler", site.BodyName);
+        Assert.Equal("sys1", site.SystemId);
+        Assert.Equal("Sol", site.SystemName);
+        Assert.DoesNotContain("block:iron_ore", restored.ScannedWhere.Keys);
+    }
+
+    [Fact]
+    public void Join_BackfillsScanSites_ForLegacyPlaceAndMonumentKeys()
+    {
+        // A save from before #1843 has ledger keys but no sites. For the keys that embed a body id the site is
+        // derivable, so the join fills them in — silently, before the full snapshot goes out.
+        var paths = new SaveGamePaths(_root, "rocky");
+        var config = new ServerConfig { WorldName = "rocky", Seed = 4242, StartPlanet = "rocky", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false, DataDir = TestPaths.DataDir() };
+        string home;
+        using (var repo = new SqliteWorldRepository(paths))
+        {
+            var link = new LoopbackLink();
+            using var st = new LoopbackServerTransport(link);
+            using var client = new LoopbackClientTransport(link);
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+            JoinAndDrain(server, client, "Vet");
+
+            var state = server.Sessions[1].State;
+            home = state.CurrentLocationId;
+            Assert.Contains("place:" + home, state.ScannedWhere.Keys);      // the live path records it
+            state.ScannedWhere.Clear();                                     // …now make the save look pre-#1843
+            state.Scanned.Add("monument:" + home + ":obelisk");             // a legacy rune scan, no site either
+            state.Scanned.Add("creature:sp_legacy");                        // nothing to derive a site from
+            server.Stop(); // saves the doctored state
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        using (var repo2 = new SqliteWorldRepository(paths))
+        {
+            var link = new LoopbackLink();
+            using var st = new LoopbackServerTransport(link);
+            using var client = new LoopbackClientTransport(link);
+            var server = new SvGameServer(config, _content, st, repo2);
+            server.Start();
+            JoinAndDrain(server, client, "Vet");
+
+            var state = server.Sessions[1].State;
+            var body = server.Galaxy.FindBody(home)!;
+            Assert.Equal(body.Name, state.ScannedWhere["place:" + home].BodyName);
+            Assert.Equal(body.Id, state.ScannedWhere["monument:" + home + ":obelisk"].BodyId);
+            Assert.False(string.IsNullOrEmpty(state.ScannedWhere["place:" + home].SystemName));
+            Assert.DoesNotContain("creature:sp_legacy", state.ScannedWhere.Keys); // stays without a site
+            server.Stop();
+        }
+    }
+
+    private static void JoinAndDrain(SvGameServer server, LoopbackClientTransport client, string name)
+    {
+        client.Connect("loopback", 0);
+        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = name }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
     }
 
     [Fact]

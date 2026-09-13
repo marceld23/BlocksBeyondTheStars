@@ -94,12 +94,8 @@ public sealed partial class GameServer
             session.State.KnowledgePoints += KnowledgeFirstLanding;
         }
 
-        Send(session, new DiscoveryLog
-        {
-            Entries = new[] { PlaceLedgerPrefix + body.Id },
-            Names = new[] { body.Name },
-            Full = false,
-        });
+        string placeKey = PlaceLedgerPrefix + body.Id;
+        Send(session, DiscoveryDelta(placeKey, body.Name, session.State.ScannedWhere.TryGetValue(placeKey, out var site) ? site : null));
         if (!spawnWorld)
         {
             SendInventory(session); // the knowledge total just changed
@@ -107,8 +103,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>Adds the ledger entry alone — no knowledge, no messages. Shared by the live path and the
-    /// join backfill.</summary>
-    private static bool TryAddPlaceEntry(PlayerState p, CelestialBody body)
+    /// join backfill. The site (#1843) is the body itself: a place is found where it is.</summary>
+    private bool TryAddPlaceEntry(PlayerState p, CelestialBody body)
     {
         string key = PlaceLedgerPrefix + body.Id;
         if (!p.Scanned.Add(key))
@@ -117,6 +113,7 @@ public sealed partial class GameServer
         }
 
         p.ScannedNames[key] = body.Name;
+        p.ScannedWhere[key] = SiteForBody(body);
         return true;
     }
 

@@ -105,6 +105,9 @@ public static class ItemNames
         BlockShape.Fence => "ui.shape.fence",
         BlockShape.Sheet => "ui.shape.sheet",
         BlockShape.Pot => "ui.shape.pot",
+        BlockShape.Bench => "ui.shape.bench",
+        BlockShape.BedHead => "ui.shape.bedhead",
+        BlockShape.BedFoot => "ui.shape.bedfoot",
         _ => null,
     };
 }

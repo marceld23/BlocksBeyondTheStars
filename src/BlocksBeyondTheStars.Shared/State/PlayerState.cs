@@ -109,6 +109,12 @@ public sealed class PlayerState
     /// existed simply have none, and the client falls back to the raw key. Persisted.</summary>
     public Dictionary<string, string> ScannedNames { get; set; } = new();
 
+    /// <summary>Where each <see cref="Scanned"/> entry was found (#1843): ledger key → body + system, captured
+    /// at scan time like <see cref="ScannedNames"/>. Entries scanned before this existed (or that the galaxy
+    /// could not place — a ship interior) simply have none; the join backfill derives a site for keys that
+    /// embed a body id (<c>place:</c>, <c>monument:</c>). Written on the FIRST scan only. Persisted.</summary>
+    public Dictionary<string, ScanSite> ScannedWhere { get; set; } = new();
+
     /// <summary>Suit ration dispenser: food loaded here is auto-eaten when hunger runs low. Small capacity.</summary>
     public Inventory RationStore { get; set; } = new(RationStoreSlots);
 
@@ -241,6 +247,9 @@ public sealed class PlayerState
     /// <summary>Named map markers this player saved (#1217) — per world, capped server-side at 8 per world.
     /// Shared ones are shown to allies + crew on the same body while this player is online. Persisted.</summary>
     public List<PlayerMarker> Markers { get; set; } = new();
+
+    /// <summary>Titled free-text notes this player wrote (#1844) — private, capped server-side at 20. Persisted.</summary>
+    public List<PlayerNote> Notes { get; set; } = new();
 
     /// <summary>The ids of every ship in this player's fleet, in order — the index over the per-ship save rows
     /// (#848). Before this, only the ACTIVE ship was saved and the fleet was rebuilt from scratch on every join,
