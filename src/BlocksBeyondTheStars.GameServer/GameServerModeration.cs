@@ -191,7 +191,7 @@ public sealed partial class GameServer
     /// name is persistent and shown to everyone who walks past it, so "Basis f***" is a worse answer than
     /// "pick another name" — and Mask is also the verdict that carries personal data, which must not be
     /// stored at all.</summary>
-    private string? ScreenPlayerName(PlayerSession session, string clean, string surface)
+    private string? ScreenPlayerName(PlayerSession session, string clean, string surface, string reason = "@srv.name.blocked")
     {
         var mode = EffectiveChatMode;
         if (clean.Length == 0 || mode == ChatMode.Open)
@@ -216,7 +216,7 @@ public sealed partial class GameServer
 
         _log.Info($"Name filter: refused a {surface} name from '{who}' " +
                   $"({(result.Pii ? "personal data: " : "term: ")}{result.MatchedTerm}).");
-        Reject(session, surface, "@srv.name.blocked");
+        Reject(session, surface, reason);
         return null;
     }
 

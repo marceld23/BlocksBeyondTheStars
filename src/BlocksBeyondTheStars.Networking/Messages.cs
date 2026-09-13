@@ -469,6 +469,15 @@ public sealed class BoardStationIntent
 /// <summary>Client leaves the currently boarded station and returns to the ship.</summary>
 public sealed class LeaveStationIntent { }
 
+/// <summary>Client → server (#1842): the boarder of a player-built station switches zero-g construction mode on
+/// (<c>Enabled</c> = true) or off for THEMSELVES — the suit floats everywhere on the station, so the outer hull
+/// can be built from any side without stepping off the deck. Per player, session-only (never persisted); the
+/// server ignores it while the player is not on a player station.</summary>
+public sealed class SetStationZeroGIntent
+{
+    public bool Enabled { get; set; }
+}
+
 /// <summary>Client repairs one damaged/missing wreck hull cell with a matching block item.</summary>
 public sealed class RepairWreckIntent
 {
@@ -613,6 +622,21 @@ public sealed class DiscoveryLog
 
     /// <summary>False = append <see cref="Entries"/> to what the client already has; true = replace.</summary>
     public bool Full { get; set; }
+
+    /// <summary>Where each entry was found (#1843), parallel to <see cref="Entries"/>: the galaxy body id the
+    /// player stood on (or orbited) at scan time. Empty string = unknown — an entry from before the game
+    /// recorded sites, or a scan the galaxy could not place (a ship interior); the client then shows no
+    /// location line. Additive fields: an older peer leaves all four empty.</summary>
+    public string[] BodyIds { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>The body's display name per entry (parallel to <see cref="BodyIds"/>); empty = unknown.</summary>
+    public string[] BodyNames { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>The star system id per entry (parallel to <see cref="BodyIds"/>); empty = unknown.</summary>
+    public string[] SystemIds { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>The star system's display name per entry (parallel to <see cref="BodyIds"/>); empty = unknown.</summary>
+    public string[] SystemNames { get; set; } = System.Array.Empty<string>();
 }
 
 /// <summary>An item + quantity in a trade offer.</summary>
@@ -1085,6 +1109,11 @@ public sealed class PlayerStateUpdate
     /// The client offers the double-tap-jump toggle only while this is set. New field on an existing
     /// contractless MessagePack message: an older client ignores it, an older server leaves it false.</summary>
     public bool CanFly { get; set; }
+
+    /// <summary>Zero-g construction mode (#1842) is on for this player on their boarded player station: the
+    /// float is chosen, not a drift over the edge — the HUD words its hints and badge accordingly. New field on
+    /// an existing contractless MessagePack message: an older client ignores it, an older server leaves it false.</summary>
+    public bool StationZeroG { get; set; }
 }
 
 public sealed class CraftResult

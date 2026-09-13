@@ -95,17 +95,40 @@ namespace BlocksBeyondTheStars.Client
             var faces = BlockShapeGeometry.Build(shapeIndex, yaw, upFace);
             var verts = new List<Vector3>();
             var tris = new List<int>();
+
+            void Add(BlockShapeGeometry.Face f)
+            {
+                int b = verts.Count;
+                verts.Add(f.A); verts.Add(f.B); verts.Add(f.C);
+                tris.Add(b); tris.Add(b + 1); tris.Add(b + 2);
+                if (f.IsQuad)
+                {
+                    verts.Add(f.D);
+                    tris.Add(b); tris.Add(b + 2); tris.Add(b + 3);
+                }
+            }
+
             if (faces != null && faces.Count > 0)
             {
                 foreach (var f in faces)
                 {
-                    int b = verts.Count;
-                    verts.Add(f.A); verts.Add(f.B); verts.Add(f.C);
-                    tris.Add(b); tris.Add(b + 1); tris.Add(b + 2);
-                    if (f.IsQuad)
+                    Add(f);
+                }
+
+                // A bed is two cells (#1846): preview the foot half on the cell the head's yaw points to, so
+                // "where does the other half go?" is answered by looking. The server refuses the place when
+                // that cell is not free, so a ghost foot inside a wall is the warning itself.
+                if (shapeIndex == (int)BlockShape.BedHead
+                    && FurnitureShapes.TryBedPartnerOffset(ShapeCode.Pack(shapeIndex, yaw, upFace), out int dx, out int dz))
+                {
+                    var foot = BlockShapeGeometry.Build((int)BlockShape.BedFoot, yaw, upFace);
+                    var shift = new Vector3(dx, 0f, dz);
+                    if (foot != null)
                     {
-                        verts.Add(f.D);
-                        tris.Add(b); tris.Add(b + 2); tris.Add(b + 3);
+                        foreach (var f in foot)
+                        {
+                            Add(f.Map(p => p + shift));
+                        }
                     }
                 }
             }

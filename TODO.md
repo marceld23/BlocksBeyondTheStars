@@ -24,6 +24,37 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛋️ Ideas from the 2026-09-12 reports — a bench and a two-cell bed, zero-g construction on your station, where a discovery was found, notes under the Story tab (#1846 #1842 #1843 #1844, 2026-09-13, branch ideas-0913)
+
+The four ideas that were left after the morning batch, each decided with the maintainer first: lava stays walkable (#1841
+closed, not planned), notes are a Story-tab category rather than a thirteenth tab, zero-g is a per-player switch that is not
+saved, tables and chairs already existed (the Shape action) so only what was missing got built. #1851 (living NPCs) stays parked.
+
+- **#1846 A bench and a two-cell bed** — tables and chairs were already a Shape-action exchange for every buildable material;
+  what was missing was a bench and a bed longer than one block. New built-in forms are allocated **top-down** (`Bench = 63`,
+  `BedHead = 62`, `BedFoot = 61`; `ShapeCode.IsBuiltIn`, custom forms keep 19–60) so no saved custom form shifts. The bench is a
+  seat like the chair and joins with its neighbours. Placing a `bed` now writes head + foot (the foot always in the cell you
+  face; a blocked foot cell refuses with `@srv.place.bed_room`), mining either half clears both and drops one bed, the home
+  spawn arms on either half, the placement ghost previews the foot, generated rooms get the two-cell bed where it fits and the
+  old one-cell bed everywhere else (and the chairs in generated rooms face their table again on ±X).
+- **#1842 Zero-g construction mode** — `SetStationZeroGIntent` (tag 240): aboard a player station **O** toggles the float for
+  you alone (session-only, cleared on leaving); `OutsideStationGravity` honours it, the drift rescue still fires at 64 blocks,
+  and fall damage is waived for three seconds after switching gravity back on. HUD: station-specific hints and a ZERO-G badge.
+- **#1843 Where a discovery was found** — `ScanSite` (body + system, names recorded server-side at the first scan, in space
+  from the instance) on `PlayerState.ScannedWhere`, persisted, shipped as additive `DiscoveryLog` arrays; the Codex chapter shows
+  "found on <planet>, <system>" per entry, place entries name their system; legacy `place:`/`monument:` keys are backfilled on
+  join; the Achievements block links straight into the Discoveries chapter (`OpenWiki("discoveries")`).
+- **#1844 Notes** — a `Notes` category under the Story tab: up to 20 titled notes per player (title 40, body 2000, newlines
+  kept), server-persisted like markers (`NoteActionIntent`/`NoteList`, tags 241/242), title screened like a name, body masked
+  like chat; `NoteMarkup` renders `§0–§f` colours, `§l` bold, `§r` reset with tags closed per line; drafts survive rebuilds,
+  a refused save keeps the typed text; Preview/Edit toggle, Save, Delete.
+
+Tests: bed pair (head+foot, facing, refusals, mining either half, legacy slab, home spawn), shape ranges, bench seat, zero-g
+(on/off, ignored off-station, clears on leaving, drift rescue, fall grace, codec), scan sites (first scan, snapshot round trip,
+join backfill, DiscoveryLog round trip), notes (cap, clamp, newlines, screening, reload, join push, codec) + NoteMarkup.
+Locales EN+DE: `ui.shape.bench/bedhead/bedfoot`, `srv.place.bed_room`, zero-g keys, `ui.wiki.discoveries.where/open`,
+`ui.notes.*`, `srv.note.*`; coverage manifest regenerated. Local Unity build required (client/Assets).
+
 ### 🛰️ Player reports 2026-09-13, morning — double doors, the diagonal waterfall glare, sinking gas-sac animals, scouts in the fortress, the station's borrowed sky, trees invisible from space, hotkeys typed into F1, the nameless net-fragment objective (#1852–#1860 + #1840 #1845 #1847, 2026-09-13, branch reports-0913)
 
 Lyxette, thirteen F1 reports from one morning on v2026.9.8 (her planet base on Seana and her station). Every report was read

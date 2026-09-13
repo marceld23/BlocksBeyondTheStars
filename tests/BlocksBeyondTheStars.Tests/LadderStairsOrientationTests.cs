@@ -218,7 +218,10 @@ public sealed class LadderStairsOrientationTests : IDisposable
         Assert.True(PropShapes.IsStampedForm("ladder", (int)BlockShape.Panel));
         Assert.True(PropShapes.IsStampedForm("ladder", PropShapes.LadderFreeStanding));
         Assert.True(PropShapes.IsStampedForm("stairs", (int)BlockShape.Stairs));
-        Assert.True(PropShapes.IsStampedForm("bed", (int)BlockShape.Slab));
+        Assert.True(PropShapes.IsStampedForm("bed", (int)BlockShape.Slab)); // the legacy one-cell bed (#1846)
+        Assert.True(PropShapes.IsStampedForm("bed", (int)BlockShape.BedHead));
+        Assert.True(PropShapes.IsStampedForm("bed", (int)BlockShape.BedFoot));
+        Assert.Equal((int)BlockShape.BedHead, PropShapes.DefaultPlaceShape("bed"));
         Assert.False(PropShapes.IsStampedForm("ladder", (int)BlockShape.Sphere));
         Assert.False(PropShapes.IsStampedForm("stone", (int)BlockShape.Post));
         Assert.False(PropShapes.IsStampedForm("ladder", 0));

@@ -310,6 +310,7 @@ public sealed partial class GameServer
         // life support, no weather) — the same robust WorldReset path planet travel uses, so the player no
         // longer falls through to the planet.
         string stationLoc = "station:" + station.Id;
+        ClearStationZeroG(session); // #1842: every boarding starts walking
         LoadWorld(StationPlanetType, stationLoc); // loads/creates the void world + sets the Active cursor
         SetCurrent(session);
         if (_playerStationCells.TryGetValue(station.Id, out var playerCells))
@@ -444,6 +445,8 @@ public sealed partial class GameServer
         {
             return;
         }
+
+        ClearStationZeroG(session); // #1842: zero-g construction mode is per boarding (also the disconnect path)
 
         string stationLoc = session.CurrentLocationId; // the station world being left
         var (returnLoc, returnType) = _boardedReturn.TryGetValue(playerId, out var r)

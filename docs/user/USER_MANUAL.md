@@ -124,6 +124,7 @@ Last updated: 2026-08-26.
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
 | **U** | Undock from a player / leave a boarded space station |
+| **O** | Aboard your own (or any player-built) station: toggle **zero-g construction mode** for yourself — the suit floats over the decks (Jump rises, Crouch sinks) so you can extend the hull without walking; press again to walk. Not saved; off whenever you board |
 | **V** | Toggle first / third-person camera |
 | **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
 | **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter) — rebindable; gamepad **View** (Back), touch **NEXT ▶** |
@@ -265,9 +266,12 @@ separate unlock; admins can still disable it through server world rules.
 ## 4. Menus & HUD
 
 - **Tab menu** — tabs for Inventory, Crafting, Tech (blueprints), Ship (modules/build), Map, Missions,
-  Character (appearance), plus **Story**, **Companions** (tamed creatures, see §5), **Alliances** (see §5) and
+  Character (appearance), plus **Story** (the story log, and a **Notes** category: up to 20 titled notes of your own,
+  saved with your character — `§0`–`§f` colours a span, `§l` makes it bold, `§r` resets), **Companions** (tamed
+  creatures, see §5), **Alliances** (see §5) and
   **Achievements**, with **Settings** pinned far right. The **Achievements** tab opens with a **Progress** block —
-  research N of M blueprints, Codex discoveries, story %, achievements done — and a **Journey** grid of your
+  research N of M blueprints, Codex discoveries (with a button straight into the Codex chapter, where every entry
+  now names the planet and system it was first scanned on), story %, achievements done — and a **Journey** grid of your
   lifetime tallies (worlds visited, systems entered, blocks mined/placed, subjects scanned, missions …); the
   goals below run from the first blocks to the late game (thousands of blocks, dozens of worlds, the whole
   tech tree, your own station or ship, the Guardian finale) and each pays an item reward. The **Blueprints** tab
@@ -1274,13 +1278,16 @@ separate unlock; admins can still disable it through server world rules.
 - Any held **building material** can be re-formed into a non-cube **shape** — **slab, pyramid, dome (half-sphere),
   sphere, ramp, stairs, cone, cylinder, panel** (thin plate), **post** (slim pillar), **beam** (horizontal bar),
   **low ramp** (gentle half-height wedge), **quarter cube** (small corner block), plus the **furniture forms**:
-  **table, chair, fence** (posts + rails that connect across cells), **sheet** (an ultra-thin 1/16 plate for
-  veneers) and **pot** (a small planter) — so a *wooden* table and an *iron* table are the same form on
+  **table, chair, bench, fence** (posts + rails that connect across cells; benches join up too), **sheet** (an
+  ultra-thin 1/16 plate for veneers) and **pot** (a small planter) — so a *wooden* table and an *iron* table are the same form on
   different materials. Every shape still places, mines and
   stacks like a block (form and dye colour combine freely). Shaped forms are **player-craft only**: world-gen,
   settlements, stations and ships stay plain cubes.
-- **Sitting:** press **E** on any **chair**-shaped cell to sit down — the camera settles to seat height and
-  other players see you sitting. Stand up with **E**, jump, crouch or any movement key.
+- **Sitting:** press **E** on any **chair**- or **bench**-shaped cell to sit down — the camera settles to seat height
+  and other players see you sitting. Stand up with **E**, jump, crouch or any movement key.
+- **Beds are two cells long:** placing a bed writes the head end where you aim and the foot end in the cell you are
+  facing (the preview shows both); the foot cell must be free. Mining either half takes the whole bed back, and **E**
+  on either half sets your home spawn. Beds placed before this change stay one cell.
 - Do it in the **Crafting** menu under the **"Formen" / "Shape"** category: pick a building block, choose a form
   button (it's a free 1:1 reshape that keeps the block's colour), and **cube** reverts to a plain block.
 - **Orientation:** by default a shape **auto-orients** — it follows the way you're facing, and building against a

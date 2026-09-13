@@ -78,7 +78,7 @@ public static class RoomFurnisher
         var p = new Palette
         {
             Bed = B("bed"),
-            BedShape = ShapeCode.Pack(PropShapes.DefaultPlaceShape("bed"), 0),
+            BedShape = ShapeCode.Pack(PropShapes.BedSingleCell, 0), // the one-cell fallback; a room with space gets the two-cell bed (#1846)
             Plant = B("flower_pot"),
             PlantShape = ShapeCode.Pack(PropShapes.DefaultPlaceShape("flower_pot"), 0),
         };
@@ -243,9 +243,10 @@ public static class RoomFurnisher
             return fallback;
         }
 
-        // A bed lies along its wall; a chair faces its table. Yaw: 0 = +Z, 1 = +X, 2 = −Z, 3 = −X.
+        // A one-cell bed lies along its wall; a chair faces its table. The yaw's world meaning is
+        // ShapeCode.YawDirection (the client's rotation: 0 = +Z, 1 = −X, 2 = −Z, 3 = +X) — a form's local +Z
+        // (the chair's backrest, the bed head's foot side) ends up on that side of the cell.
         int YawAlongWall((int X, int Z) c) => cells.Contains((c.X, c.Z + 1)) && cells.Contains((c.X, c.Z - 1)) ? 0 : 1;
-        int YawToward(int dx, int dz) => dz > 0 ? 0 : dx > 0 ? 1 : dz < 0 ? 2 : 3;
 
         void Put((int X, int Z) c, ushort block, int shape)
         {
@@ -272,7 +273,19 @@ public static class RoomFurnisher
             {
                 case Piece.Bed:
                     if (p.Bed == 0) continue;
-                    Put(c, p.Bed, ShapeCode.Pack(ShapeCode.ShapeOf(p.BedShape), YawAlongWall(c)));
+                    // A two-cell bed (#1846): head against the wall, foot on a free neighbour — along the wall
+                    // when there is one, else out into the room. A cramped cell keeps the one-cell bed.
+                    if (FreeNeighbour(c, preferInside: false) is { } footCell)
+                    {
+                        int bedYaw = ShapeCode.YawToward(footCell.X - c.X, footCell.Z - c.Z);
+                        Put(c, p.Bed, ShapeCode.Pack(BlockShape.BedHead, bedYaw));
+                        Put(footCell, p.Bed, ShapeCode.Pack(BlockShape.BedFoot, bedYaw));
+                    }
+                    else
+                    {
+                        Put(c, p.Bed, ShapeCode.Pack(ShapeCode.ShapeOf(p.BedShape), YawAlongWall(c)));
+                    }
+
                     break;
 
                 case Piece.Light:
@@ -288,8 +301,10 @@ public static class RoomFurnisher
                         var seat = FreeNeighbour(c, preferInside: true);
                         if (seat is { } s)
                         {
-                            // The backrest points away from the table: the chair's +Z faces the table's side.
-                            Put(s, p.ChairMaterial, ShapeCode.Pack(BlockShape.Chair, YawToward(c.X - s.X, c.Z - s.Z)));
+                            // The backrest (the chair's local +Z) points AWAY from the table: the step from the
+                            // table to the seat. (Before #1846 the yaw table was mirrored for ±X, so half the
+                            // chairs sat with their backs to the table.)
+                            Put(s, p.ChairMaterial, ShapeCode.Pack(BlockShape.Chair, ShapeCode.YawToward(s.X - c.X, s.Z - c.Z)));
                         }
                     }
 

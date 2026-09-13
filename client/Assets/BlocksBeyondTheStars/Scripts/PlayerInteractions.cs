@@ -57,6 +57,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Game.Network.SendLeaveStation();
                 }
+                else if (CanToggleStationZeroG && InputMap.Down(InputAction.ToggleStationZeroG))
+                {
+                    // #1842: zero-g construction mode on a player-built station — the server owns the flag and
+                    // answers with the player state; the HUD hint comes from that, not from here.
+                    Game.Network.SendSetStationZeroG(!Game.StationZeroG);
+                }
 
                 return;
             }
@@ -108,6 +114,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True while <see cref="InputAction.Disembark"/> would do something (docked, or aboard a station).</summary>
         public bool CanDisembark =>
             Game != null && (!string.IsNullOrEmpty(Game.StationName) || (Game.Dock != null && Game.Dock.Docked));
+
+        /// <summary>True while <see cref="InputAction.ToggleStationZeroG"/> would do something (#1842): boarded on a
+        /// PLAYER-built station — NPC / template stations keep their decks' gravity, and the server ignores the
+        /// intent there anyway. Gates the key and the context-actions entry.</summary>
+        public bool CanToggleStationZeroG =>
+            Game != null && !string.IsNullOrEmpty(Game.StationName)
+            && Game.CurrentStationId.StartsWith("pstation:", System.StringComparison.Ordinal);
 
         // ── uGUI build ────────────────────────────────────────────────────────────────────────
         // Restyled for #1058: the three windows (trade, incoming trade request, incoming dock request)

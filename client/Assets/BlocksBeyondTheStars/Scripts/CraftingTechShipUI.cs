@@ -310,6 +310,9 @@ namespace BlocksBeyondTheStars.Client
                     // Companions tab: roster length + present-count + the "new companion" badge flag.
                     + (Game.Companions?.Companions.Length ?? 0) * 907 + (Game.NewCompanionUnseen ? 1409 : 0)
                     + (Game.Companions?.Companions.Count(c => c.Present) ?? 0) * 67
+                    // Notes (#1844): count + the server-answer counter only — never the note text, or every
+                    // keystroke echoed by the server would rebuild the editor under the player's cursor.
+                    + (Game.Notes?.Length ?? 0) * 1511 + Game.NotesVersion * 1523
                     // The local custom pixel face + body paintings: applying one in the editor must rebuild the
                     // Character tab so the live preview re-applies it (SetFace/SetBodyPaint run on rebuild).
                     + (Game.FacePixels?.GetHashCode() ?? 0)
@@ -1003,7 +1006,13 @@ namespace BlocksBeyondTheStars.Client
                     break;
                 case Mode.Story:
                     list.Clear();
+                    if (_category != "log" && _category != "notes")
+                    {
+                        _category = "log"; // the tab opens with "all" by default — land on the log
+                    }
+
                     list.Add(("log", L("ui.story.cat_log"), "cat_mission")); // the Story Log (read-only)
+                    list.Add(("notes", L("ui.notes.category"), "cat_inventory")); // the player's own notes (#1844)
                     break;
                 case Mode.Companions:
                     list.Clear();
@@ -1051,7 +1060,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Missions: y = BuildMissionsList(); break;
                 case Mode.Character: y = _category == "people" ? BuildPeopleList() : BuildCharacterList(); break;
                 case Mode.Alliances: y = BuildAlliancesList(); break;
-                case Mode.Story: y = BuildStoryList(); break;
+                case Mode.Story: y = _category == "notes" ? BuildNotesList() : BuildStoryList(); break;
                 case Mode.Companions: y = BuildCompanionsList(); break;
                 case Mode.Photos: y = BuildPhotosList(); break;
                 case Mode.Achievements: y = BuildAchievementList(); break;
@@ -1296,6 +1305,9 @@ namespace BlocksBeyondTheStars.Client
             (12, "ui.shape.lowramp"), (13, "ui.shape.quartercube"),
             (14, "ui.shape.table"), (15, "ui.shape.chair"), (16, "ui.shape.fence"),
             (17, "ui.shape.sheet"), (18, "ui.shape.pot"),
+            // The bench sits at the top of the index range (#1846); the bed halves up there are stamped by the
+            // server on a placed bed and are deliberately NOT offered here.
+            ((int)BlocksBeyondTheStars.Shared.World.BlockShape.Bench, "ui.shape.bench"),
         };
 
         /// <summary>Lists the player's shapeable building materials for the always-available Shape action.</summary>
@@ -3196,6 +3208,197 @@ namespace BlocksBeyondTheStars.Client
             return y + 60f;
         }
 
+        // --- Story → Notes (#1844): titled free-text notes with a small editor + §-markup preview ---
+
+        /// <summary>Selection key of the not-yet-saved note the "+ New note" button opens.</summary>
+        private const string NewNoteKey = "note:new";
+        private const int NoteMaxCount = 20;
+        private const int NoteTitleMax = 40;
+        private const int NoteBodyMax = 2000;
+        private const float NoteBodyHeight = 420f;
+
+        /// <summary>Unsaved edits per note id (or <see cref="NewNoteKey"/>): a rebuild of the pane — a server
+        /// list arriving, a category click — recreates the input fields, and these are what they are refilled
+        /// from, so no typed text is ever lost. Dropped once the server confirms the save.</summary>
+        private readonly System.Collections.Generic.Dictionary<string, string> _noteDraftTitle = new();
+        private readonly System.Collections.Generic.Dictionary<string, string> _noteDraftBody = new();
+
+        /// <summary>True while the body pane shows the rendered markup instead of the text field.</summary>
+        private bool _notePreview;
+
+        /// <summary>The note a save is pending for (null = none) and the notes version at that moment: once the
+        /// server's answer bumps the version, the draft is dropped (the pane then shows the stored, possibly
+        /// masked, text) and a NEW note is selected. A refused save bumps nothing, so the draft stays.</summary>
+        private string _noteSaveKey;
+        private int _noteSaveVersion;
+
+        private NetNote[] NotesNow() => Game?.Notes ?? System.Array.Empty<NetNote>();
+
+        private float BuildNotesList()
+        {
+            var notes = NotesNow();
+            float y = 0f;
+
+            // A pending save the server has answered: forget the draft, land on the new note.
+            if (_noteSaveKey != null && Game != null && Game.NotesVersion != _noteSaveVersion)
+            {
+                _noteDraftTitle.Remove(_noteSaveKey);
+                _noteDraftBody.Remove(_noteSaveKey);
+                if (_noteSaveKey == NewNoteKey && notes.Length > 0)
+                {
+                    _selected = notes[0].Id; // the server orders newest first
+                }
+
+                _noteSaveKey = null;
+            }
+
+            bool full = notes.Length >= NoteMaxCount;
+            var add = UiKit.AddButton(_listContent, 0, y, 780, 52, L("ui.notes.new"), () =>
+            {
+                UiKit.ReleaseTextFieldFocus(_detail);
+                _notePreview = false;
+                _selected = NewNoteKey;
+                RebuildList();
+                RebuildDetail();
+            });
+            add.interactable = !full;
+            y += 58f;
+            if (full)
+            {
+                var fullHint = UiKit.AddText(_listContent, 8, y, 760, 28, L("ui.notes.full"), 15, UiKit.Warn, TextAnchor.MiddleLeft);
+                fullHint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 34f;
+            }
+
+            if (notes.Length == 0)
+            {
+                if (_selected != NewNoteKey)
+                {
+                    var empty = UiKit.AddText(_listContent, 8, y, 760, 80, L("ui.notes.empty"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    empty.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    y += 90f;
+                }
+
+                return y;
+            }
+
+            // Nothing (or a vanished note) selected? Land on the newest so the editor isn't empty on open.
+            if (_selected != NewNoteKey && (string.IsNullOrEmpty(_selected) || notes.All(n => n.Id != _selected)))
+            {
+                _selected = notes[0].Id;
+            }
+
+            foreach (var n in notes)
+            {
+                string id = n.Id;
+                var card = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+                {
+                    UiKit.ReleaseTextFieldFocus(_detail);
+                    _selected = id;
+                    RebuildList();
+                    RebuildDetail();
+                });
+                if (_selected == id)
+                {
+                    card.GetComponent<Image>().color = UiKit.Cyan;
+                }
+
+                bool untitled = string.IsNullOrEmpty(n.Title);
+                UiKit.AddText(card.transform, 16, 8, 748, 34, untitled ? L("ui.notes.title_ph") : n.Title, 22,
+                    untitled ? UiKit.CyanDim : UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(card.transform, 16, 44, 748, 28, NoteMarkup.FirstLine(n.Body), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 86f;
+            }
+
+            return y;
+        }
+
+        private float BuildNotesDetail()
+        {
+            var notes = NotesNow();
+            bool isNew = _selected == NewNoteKey;
+            var note = isNew ? null : notes.FirstOrDefault(n => n.Id == _selected);
+            if (!isNew && note == null)
+            {
+                var hint = UiKit.AddText(_detail, 8, 16, 620, 120, L("ui.notes.empty"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                return 140f;
+            }
+
+            string key = isNew ? NewNoteKey : note.Id;
+            string title = _noteDraftTitle.TryGetValue(key, out var dt) ? dt : (note?.Title ?? string.Empty);
+            string body = _noteDraftBody.TryGetValue(key, out var db) ? db : (note?.Body ?? string.Empty);
+
+            float y = 8f;
+            UiKit.AddInput(_detail, 8, y, 624, 44, title, v => _noteDraftTitle[key] = v, L("ui.notes.title_ph"), NoteTitleMax, 20);
+            y += 52f;
+
+            // Preview ⇄ Edit toggle + the one-line markup cheat sheet.
+            UiKit.AddButton(_detail, 8, y, 170, 38, L(_notePreview ? "ui.notes.edit" : "ui.notes.preview"), () =>
+            {
+                UiKit.ReleaseTextFieldFocus(_detail);
+                _notePreview = !_notePreview;
+                RebuildDetail();
+            });
+            var cheat = UiKit.AddText(_detail, 190, y, 442, 38, L("ui.notes.markup_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            cheat.horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += 46f;
+
+            if (_notePreview)
+            {
+                // Rendered markup as a column of wrapped rich-text blocks at ABSOLUTE rows (no LayoutGroup —
+                // a VerticalLayoutGroup overflows wrapped text here), chunked under the uGUI vertex limit.
+                var panel = UiKit.AddPanel(_detail, 8, y, 624, NoteBodyHeight, new Color(0.043f, 0.10f, 0.20f, 0.95f));
+                float ty = y + 8f;
+                string rendered = NoteMarkup.Render(body);
+                foreach (string chunk in UiTextChunks.Split(rendered.Length == 0 ? " " : rendered))
+                {
+                    var t = UiKit.AddText(_detail, 18, ty, 604, 100, chunk, 17, UiKit.TextCol, TextAnchor.UpperLeft);
+                    t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    t.verticalOverflow = VerticalWrapMode.Overflow;
+                    float th = t.preferredHeight;
+                    ((RectTransform)t.transform).sizeDelta = new Vector2(604f, th + 10f);
+                    ty += th;
+                }
+
+                float panelH = Mathf.Max(NoteBodyHeight, ty + 8f - y);
+                ((RectTransform)panel.transform).sizeDelta = new Vector2(624f, panelH);
+                y += panelH + 8f;
+            }
+            else
+            {
+                UiKit.AddInput(_detail, 8, y, 624, NoteBodyHeight, body, v => _noteDraftBody[key] = v, L("ui.notes.body_ph"), NoteBodyMax, 17, multiline: true);
+                y += NoteBodyHeight + 8f;
+            }
+
+            UiKit.AddButton(_detail, 8, y, 200, 46, L("ui.notes.save"), () =>
+            {
+                string t = _noteDraftTitle.TryGetValue(key, out var a) ? a : (note?.Title ?? string.Empty);
+                string b = _noteDraftBody.TryGetValue(key, out var bb) ? bb : (note?.Body ?? string.Empty);
+                UiKit.ReleaseTextFieldFocus(_detail);
+                _noteSaveKey = key;
+                _noteSaveVersion = Game?.NotesVersion ?? 0;
+                Game?.Network?.SendNoteSet(isNew ? string.Empty : key, t, b);
+                if (_feedback != null) _feedback.text = L("ui.notes.saved"); // the server's list answer rebuilds the pane
+            });
+
+            if (!isNew)
+            {
+                var del = UiKit.AddButton(_detail, 432, y, 200, 46, L("ui.notes.delete"), () =>
+                {
+                    UiKit.ReleaseTextFieldFocus(_detail);
+                    _noteDraftTitle.Remove(key);
+                    _noteDraftBody.Remove(key);
+                    _noteSaveKey = null;
+                    _selected = string.Empty; // the list answer picks the newest remaining note
+                    Game?.Network?.SendNoteRemove(key);
+                });
+                del.GetComponent<Image>().color = new Color(0.5f, 0.22f, 0.22f);
+            }
+
+            return y + 60f;
+        }
+
         // --- Story Log tab (read-only: progress meter + VEGA beats + recovered net fragments + memories) ---
 
         /// <summary>
@@ -3320,6 +3523,11 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(_listContent, 20, y, RowW - 28f, 26, line, 18, UiKit.TextCol, TextAnchor.MiddleLeft);
                 y += 28f;
             }
+
+            // The discoveries count is only a number here — the list itself, with WHERE each was found (#1843),
+            // is the Codex "Discoveries" chapter. One button deep-links straight into it.
+            UiKit.AddButton(_listContent, 20, y + 4f, 400, 40, L("ui.wiki.discoveries.open"), () => Menu?.OpenWiki("discoveries"));
+            y += 50f;
 
             // Journey: the raw counters, two per row. Only counters the server has actually reported show up,
             // so a fresh save reads short rather than as a wall of zeros.
@@ -3679,6 +3887,14 @@ namespace BlocksBeyondTheStars.Client
             if (_mode == Mode.Photos)
             {
                 SetContentHeight(_detail, BuildPhotosDetail());
+                return;
+            }
+
+            // Story → Notes (#1844): the detail pane is the note editor (title + body / preview + save/delete),
+            // shown with a hint when there is no note yet.
+            if (_mode == Mode.Story && _category == "notes")
+            {
+                SetContentHeight(_detail, BuildNotesDetail());
                 return;
             }
 

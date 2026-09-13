@@ -34,14 +34,24 @@ public sealed partial class GameServer
     /// <summary>Boarders who have already been told about the float this boarding (station id per player).</summary>
     private readonly Dictionary<string, string> _stationFloatHinted = new();
 
-    /// <summary>Whether a boarded player stands outside their player station's gravity volume (#1485). Always
-    /// false on NPC stations and before the interior is stamped.</summary>
+    /// <summary>Seconds after zero-g construction mode (#1842) is switched off during which a reported landing
+    /// is not a fall: the player was hovering when the gravity came back.</summary>
+    private const double StationZeroGFallGraceSeconds = 3.0;
+
+    /// <summary>Whether a boarded player stands outside their player station's gravity volume (#1485) — or has
+    /// chosen zero-g construction mode for the whole station (#1842). Always false on NPC stations and before
+    /// the interior is stamped.</summary>
     private bool OutsideStationGravity(PlayerSession session)
     {
         var p = session.State;
         if (!TryGetBoardedPlayerStation(p.PlayerId, out var station))
         {
             return false;
+        }
+
+        if (session.StationZeroG)
+        {
+            return true; // the float is chosen, so the "drifted outside" hint would be wrong here
         }
 
         int margin = StationGravityMargin + (p.AboveAtmosphere ? 0 : StationGravityHysteresis);
@@ -93,7 +103,73 @@ public sealed partial class GameServer
         || pos.Y < station.BoundsMin.Y - margin || pos.Y > station.BoundsMax.Y + 1 + margin
         || pos.Z < station.BoundsMin.Z - margin || pos.Z > station.BoundsMax.Z + 1 + margin;
 
+    /// <summary>Zero-g construction mode (#1842): a boarder of a player-built station switches the float on or off
+    /// for themselves. Only honoured while boarded on a stamped player station — on an NPC station, on a planet or
+    /// aboard the ship the intent is dropped without a word. The atmosphere flag is re-evaluated at once, so the
+    /// suit lifts off (or the deck catches them) on the very next client frame instead of the next tick.</summary>
+    private void HandleSetStationZeroG(PlayerSession session, SetStationZeroGIntent intent)
+    {
+        if (!TryGetBoardedPlayerStation(session.State.PlayerId, out _))
+        {
+            return;
+        }
+
+        if (session.StationZeroG == intent.Enabled)
+        {
+            return; // nothing to flip — no repeated toast for a doubled key press
+        }
+
+        session.StationZeroG = intent.Enabled;
+        if (!intent.Enabled)
+        {
+            session.StationZeroGOffAt = _uptime;
+        }
+
+        bool floatedBefore = session.State.AboveAtmosphere;
+        UpdateAboveAtmosphere(session); // sends the state itself when the float flips
+        if (session.State.AboveAtmosphere == floatedBefore)
+        {
+            SendPlayerState(session); // the mode flag changed even though the float did not (e.g. switched on while standing)
+        }
+
+        Send(session, new ServerMessage { Text = intent.Enabled ? "@srv.station.zero_g_on" : "@srv.station.zero_g_off" });
+    }
+
+    /// <summary>Drops zero-g construction mode (#1842) — on leaving the station, on any world change, on a
+    /// respawn away from the station and on disconnect. The mode is session-only by decision, so nothing
+    /// persists and a fresh boarding always starts walking.</summary>
+    private static void ClearStationZeroG(PlayerSession session)
+    {
+        if (session.StationZeroG)
+        {
+            // The float was the mode's doing: drop it with the mode, so the state update the caller sends
+            // (leave / board / respawn) already says "walking" instead of a one-tick stale float.
+            session.State.AboveAtmosphere = false;
+        }
+
+        session.StationZeroG = false;
+        session.StationZeroGOffAt = double.NegativeInfinity;
+    }
+
+    /// <summary>Whether a reported landing falls into the grace window right after zero-g construction mode
+    /// was switched off (#1842) — the drop back to the deck is the mode's doing, not a fall the player took.</summary>
+    private bool InStationZeroGFallGrace(PlayerSession session)
+        => _uptime - session.StationZeroGOffAt < StationZeroGFallGraceSeconds;
+
     /// <summary>Test seam (#1485): whether the player currently floats outside their station's gravity volume.</summary>
     public bool FloatingOutsideStationForTest(string playerId)
         => FindSessionByPlayerId(playerId) is { } s && s.State.AboveAtmosphere && InStation(playerId);
+
+    /// <summary>Test seam (#1842): the client asked to switch zero-g construction mode on or off.</summary>
+    public void SetStationZeroGForTest(string playerId, bool enabled)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleSetStationZeroG(session, new SetStationZeroGIntent { Enabled = enabled });
+        }
+    }
+
+    /// <summary>Test seam (#1842): whether zero-g construction mode is on for the player's session.</summary>
+    public bool StationZeroGForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } s && s.StationZeroG;
 }

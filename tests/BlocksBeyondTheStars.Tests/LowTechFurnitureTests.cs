@@ -216,8 +216,8 @@ public sealed class LowTechFurnitureTests : IDisposable
     [Fact]
     public void FurnitureShapes_RoundTripThroughTheDescriptor()
     {
-        Assert.Equal(19, ShapeCode.Count);
-        foreach (var shape in new[] { BlockShape.Table, BlockShape.Chair, BlockShape.Fence, BlockShape.Sheet, BlockShape.Pot })
+        Assert.Equal(19, ShapeCode.Count); // frozen — custom forms are saved by index from here (#842, #1846)
+        foreach (var shape in new[] { BlockShape.Table, BlockShape.Chair, BlockShape.Fence, BlockShape.Sheet, BlockShape.Pot, BlockShape.Bench, BlockShape.BedHead, BlockShape.BedFoot })
         {
             int packed = ShapeCode.Pack(shape, 3, 4);
             Assert.Equal((int)shape, ShapeCode.ShapeOf(packed));
@@ -242,18 +242,21 @@ public sealed class LowTechFurnitureTests : IDisposable
 
             // An explicit rotate-key orientation turns the bed (#863) — but the up-face is pinned to +Y
             // even when the client asks for a tip: a bed on the wall would break sit/heal/home-spawn.
+            // Since #1846 the placed cell is the HEAD half; yaw 3 puts the foot at +X (ShapeCode.YawDirection).
             server.PlaceBlock(p.State.PlayerId, 1, 64, 0, "bed", upFace: 4, yaw: 3);
             int turned = server.World.GetShape(new Vector3i(1, 64, 0));
-            Assert.Equal((int)BlockShape.Slab, ShapeCode.ShapeOf(turned));
+            Assert.Equal((int)BlockShape.BedHead, ShapeCode.ShapeOf(turned));
             Assert.Equal(3, ShapeCode.OrientationOf(turned));
             Assert.Equal(ShapeCode.UpPlusY, ShapeCode.UpFaceOf(turned));
+            Assert.Equal((int)BlockShape.BedFoot, ShapeCode.ShapeOf(server.World.GetShape(new Vector3i(2, 64, 0))));
 
             // Without an override the quarter-turn still follows the player's facing (Auto).
             p.State.Yaw = 180f;
-            server.PlaceBlock(p.State.PlayerId, 2, 64, 0, "bed");
-            int facing = server.World.GetShape(new Vector3i(2, 64, 0));
+            server.PlaceBlock(p.State.PlayerId, 4, 64, 0, "bed");
+            int facing = server.World.GetShape(new Vector3i(4, 64, 0));
             Assert.Equal(2, ShapeCode.OrientationOf(facing));
             Assert.Equal(ShapeCode.UpPlusY, ShapeCode.UpFaceOf(facing));
+            Assert.Equal((int)BlockShape.BedFoot, ShapeCode.ShapeOf(server.World.GetShape(new Vector3i(4, 64, -1))));
         }
     }
 
