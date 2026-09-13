@@ -584,6 +584,7 @@ public sealed partial class GameServer
         LoadWeatherDeposits(); // #900: restore settled snow so a restart doesn't strand cells that can never melt
         var resident = world.World;
         resident.BlockSet += cell => MarkBaseWallsDirty(resident, cell); // #1367: a build inside a base's box refreshes its wall fill
+        resident.PlayerBlockSet += cell => GrowBaseWallReach(resident, cell); // #1862: what a player builds sizes the base's fill box
         var farWorld = world;
         resident.BlockSet += cell => MarkFarTileDirty(farWorld, cell); // #1821: a far view sees builds change
         LoadContainers(); // every world, void ones included: a station's placed crates persist like a planet's (#1562)

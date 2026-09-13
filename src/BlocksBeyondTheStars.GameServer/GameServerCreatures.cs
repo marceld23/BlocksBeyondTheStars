@@ -1168,8 +1168,47 @@ public sealed partial class GameServer
             return true;
         }
 
+        // #1862: a shut door is a wall. A doorway is air in the block grid — the door fills it as an entity — so
+        // the body sweep never saw one and animals strolled through shut gates into the yard the fill had just
+        // declared fenced in (the fill counts shut doors as walls, #1315). NPCs have had this since #1775. Wild
+        // fauna is stopped by every shut door; a companion only by a hand-operated one, since a proximity door
+        // opens for its owner and never for the pet, and an owner who shut the gate behind them can open it.
+        if (_doors.Count > 0 && ClosedDoorOnPath(cur, cand, handOperatedOnly: c.IsCompanion))
+        {
+            return true;
+        }
+
         var from = needsRise ? new Vector3f(cur.X, cand.Y, cur.Z) : cur;
         return CreaturePathBlocked(sp, from, cand, motion == MotionClass.Flier && c.Vert.Flight == FlightPhase.Flying);
+    }
+
+    /// <summary>Whether a creature's horizontal step crosses a shut door's cells (#1862): sampled every
+    /// <see cref="CreatureSweepStep"/> like the body sweep, at the step's height, so a fast hunter cannot hop the
+    /// one-cell doorway between two samples. See <see cref="ClosedDoorBlocks"/> for what a door covers.</summary>
+    private bool ClosedDoorOnPath(Vector3f from, Vector3f to, bool handOperatedOnly)
+    {
+        float dx = to.X - from.X, dz = to.Z - from.Z;
+        float dist = (float)System.Math.Sqrt(dx * dx + dz * dz);
+        int steps = System.Math.Max(1, (int)System.Math.Ceiling(dist / CreatureSweepStep));
+        for (int s = 1; s <= steps; s++)
+        {
+            float f = s / (float)steps;
+            if (ClosedDoorBlocks(new Vector3f(from.X + dx * f, to.Y, from.Z + dz * f), handOperatedOnly))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Test seam (#1862): every barrier of <see cref="StepBlocked"/> — hull, fence, terrain gate, shut
+    /// doors, body sweep — for a wild creature stepping to <paramref name="next"/> from where it stands.</summary>
+    public bool CreatureStepBlockedForTest(string creatureId, Vector3f next)
+    {
+        var c = _creatures.First(x => x.Id == creatureId);
+        var sp = _speciesById[c.SpeciesId];
+        return StepBlocked(c, sp, EffectiveMotion(c, sp), c.Position, next, needsRise: false, terrainGates: true);
     }
 
     /// <summary>The jump that clears a one-block ledge on this world (Q9: lighter worlds jump higher, exactly
@@ -1400,9 +1439,12 @@ public sealed partial class GameServer
     /// <paramref name="knownNextFeet"/> is the target column's probe when the caller already ran it (#1367).</summary>
     private bool StepBlockedByTerrain(CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f next, int? knownNextFeet = null)
     {
-        if (!CreatureMotion.IsGroundBound(motion) && motion != MotionClass.Swimmer)
+        // #1862: a LAND hoverer (a gas-sac grazer floating 0.8 above its feet) is held to the walker's rules —
+        // it drifted over two-block walls and across moats into a fortress. Air hoverers and fliers keep their freedom.
+        bool groundRules = CreatureMotion.ObeysGroundRules(sp, motion);
+        if (!groundRules && motion != MotionClass.Swimmer)
         {
-            return false; // fliers and hoverers keep their freedom
+            return false; // fliers and air hoverers keep their freedom
         }
 
         int cx = (int)System.Math.Floor(cur.X), cz = (int)System.Math.Floor(cur.Z);
@@ -1420,7 +1462,7 @@ public sealed partial class GameServer
         // walls invisible to fauna (NPCs have PathBlockedByWorld; creatures had nothing), so titans
         // pathed straight through masonry and bit the player from inside rooms. Titan-scale only, so
         // the extra block reads stay off the common path.
-        if (sp.Size >= LargeBodySize && CreatureMotion.IsGroundBound(motion)
+        if (sp.Size >= LargeBodySize && groundRules
             && !LargeBodyColumnOpen(sp, nx, nextFeet, nz))
         {
             return true;
@@ -1428,7 +1470,7 @@ public sealed partial class GameServer
 
         // #1367: only water was gated — a walker stepped down (≤ 3 blocks) onto the crust of a lava column
         // like onto any floor. The melt is a wall for everything that does not live in it.
-        if (CreatureMotion.IsGroundBound(motion) && sp.Habitat != CreatureHabitat.Lava && LavaUnderFeet(nx, nextFeet, nz))
+        if (groundRules && sp.Habitat != CreatureHabitat.Lava && LavaUnderFeet(nx, nextFeet, nz))
         {
             return true;
         }
@@ -1438,7 +1480,8 @@ public sealed partial class GameServer
         // (depth 0) and let a swimmer steer out of its lake instead of along the shore.
         int curDepth = WaterDepthAtFeet(cx, cz, refY);
         int nextDepth = WaterDepthAtFeet(nx, nz, nextFeet);
-        return CreatureBehaviour.TerrainStepBlocked(motion, CreatureMotion.IsGiant(sp), CreatureMotion.IsAmphibious(sp),
+        var gateClass = CreatureMotion.IsLandHoverer(sp, motion) ? MotionClass.Walker : motion; // #1862: a floating grazer is gated as a walker
+        return CreatureBehaviour.TerrainStepBlocked(gateClass, CreatureMotion.IsGiant(sp), CreatureMotion.IsAmphibious(sp),
             curFeet, nextFeet, curDepth, nextDepth);
     }
 
@@ -2093,6 +2136,10 @@ public sealed partial class GameServer
 
     /// <summary>Test-only: the cave-floor probe (#1719) at a column, −1 when it finds no open cave.</summary>
     public int CaveFloorForTest(int x, int z) => FindCaveFloorY(x, z, _generator.SurfaceHeight(_world.Planet, x, z));
+
+    /// <summary>Test seam (#1862): the generator's surface height for a column — no chunk is loaded or generated,
+    /// so a test can size a large build above the terrain without streaming a hundred chunk columns first.</summary>
+    public int SurfaceHeightForTest(int x, int z) => _generator.SurfaceHeight(_world.Planet, x, z);
 
     /// <summary>The spawner's full reject list for the first roster species at a spot (#1314 seam).</summary>
     public bool SpawnSpotClearForTest(Vector3f at)

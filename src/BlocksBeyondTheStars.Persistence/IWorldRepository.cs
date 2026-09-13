@@ -557,6 +557,13 @@ public interface IWorldRepository : IDisposable
     /// question needs its own bounded query.</summary>
     bool HasPlayerBlockEdits(string planet, Vector3i min, Vector3i max);
 
+    /// <summary>The axis-aligned bounds (inclusive) of every block edit inside the box that carries a player
+    /// <see cref="BlockEdit.Owner"/> — the footprint of what players built, dug or dyed there. False when there is
+    /// none. One aggregate query, so a base can size its enclosure fill by what its players actually built (#1862)
+    /// without streaming a single chunk. Coordinates are the store's canonical ones: a box that straddles the
+    /// longitude seam must be asked as two boxes.</summary>
+    bool TryGetPlayerBlockEditBounds(string planet, Vector3i min, Vector3i max, out Vector3i lo, out Vector3i hi);
+
     /// <summary>True if the location holds ANY persisted block edit, by any writer — worldgen stamps
     /// included. This is the ground truth for "was this world ever materialised before?" (#586): a world
     /// with zero edits has never had its stamp chain run, so the placement search may use the current

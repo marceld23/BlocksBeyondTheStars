@@ -739,6 +739,48 @@ public sealed class CreatureMotionArenaTests : IDisposable
         }
     }
 
+    /// <summary>#1862: a gas-sac LAND grazer is a hoverer, and hoverers were exempt from the terrain gate — so it
+    /// drifted over a two-block wall and across a moat into a walled base. It is gated as a walker now: one block
+    /// up, three down, no water deeper than a puddle. An AIR hoverer keeps its freedom — it is above the walls.</summary>
+    [Fact]
+    public void LandHoverer_IsWalledByATwoBlockLedge_AndAMoat_LikeAWalker_AnAirHovererIsNot()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var sp = Force(server, CreatureHabitat.Land, legs: 2, LocomotionStyle.Drifter, gasSac: true);
+            Assert.Equal(MotionClass.Hoverer, CreatureMotion.ClassOf(sp));
+
+            // A two-block ledge on a pad.
+            const int cx = 2000, cz = 2000;
+            int padY = MaxTopY(server, cx, cz, 10) + 8;
+            BuildPad(server, cx, cz, 8, padY);
+            BuildLedge(server, cx, cz, 8, padY, fromDx: 1, height: 2);
+            string atLedge = server.SpawnCreatureAtForTest(new Vector3f(cx - 0.5f, padY + 1, cz + 0.5f));
+            var ontoLedge = new Vector3f(cx + 1.5f, padY + 1, cz + 0.5f);
+            Assert.True(server.TerrainStepBlockedForTest(atLedge, ontoLedge), "a two-block ledge is a wall to a floating land grazer");
+
+            // A moat two deep, and a puddle one deep.
+            const int mx = 2200, mz = 2200;
+            int moatBankY = BuildFloodedMoat(server, mx, mz, 10, MaxTopY(server, mx, mz, 12) + 8, depth: 2);
+            string atMoat = server.SpawnCreatureAtForTest(new Vector3f(mx - 4.5f, moatBankY, mz + 0.5f));
+            var acrossMoat = new Vector3f(mx + 0.5f, moatBankY, mz + 0.5f);
+            Assert.True(server.TerrainStepBlockedForTest(atMoat, acrossMoat), "a moat two deep is a wall to a floating land grazer");
+
+            const int px = 2400, pz = 2400;
+            int puddleBankY = BuildFloodedMoat(server, px, pz, 10, MaxTopY(server, px, pz, 12) + 8, depth: 1);
+            string atPuddle = server.SpawnCreatureAtForTest(new Vector3f(px - 4.5f, puddleBankY, pz + 0.5f));
+            Assert.False(server.TerrainStepBlockedForTest(atPuddle, new Vector3f(px + 0.5f, puddleBankY, pz + 0.5f)),
+                "a one-deep puddle is waded, by a floating grazer as by a walker");
+
+            // The same bodies as an AIR hoverer: nothing on the ground gates them.
+            sp.Habitat = CreatureHabitat.Air;
+            Assert.Equal(MotionClass.Hoverer, CreatureMotion.ClassOf(sp));
+            Assert.False(server.TerrainStepBlockedForTest(atLedge, ontoLedge), "an air hoverer drifts over a ledge");
+            Assert.False(server.TerrainStepBlockedForTest(atMoat, acrossMoat), "an air hoverer drifts over a moat");
+        }
+    }
+
     /// <summary>A player found one of her flying animals asleep UNDER the surface of her moat: an air creature
     /// measured its altitude band from "the ground", and the ground under a pool is its bed.</summary>
     [Fact]

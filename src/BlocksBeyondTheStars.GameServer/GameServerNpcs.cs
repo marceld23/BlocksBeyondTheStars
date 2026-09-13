@@ -444,15 +444,17 @@ public sealed partial class GameServer
 
     /// <summary>A closed door entity is a wall to a walking NPC (#1775): a doorway is air in the block grid — the
     /// door fills it as an entity — so the crew used to stroll through a shut airlock into the vacuum outside.
-    /// Covers the door's gap (its width along the wall axis, one cell across it, three cells high).</summary>
-    private bool ClosedDoorBlocks(Vector3f pos)
+    /// Covers the door's gap (its width along the wall axis, one cell across it, three cells high). Creatures ask
+    /// the same question since #1862; a companion asks with <paramref name="handOperatedOnly"/>, so a slide or
+    /// energy door — which opens for its owner but never for the pet — can never strand it outside.</summary>
+    private bool ClosedDoorBlocks(Vector3f pos, bool handOperatedOnly = false)
     {
         int y = (int)System.Math.Floor(pos.Y);
         int circ = _world.Circumference;
         foreach (var d in _doors)
         {
             int floor = (int)System.Math.Floor(d.Pos.Y);
-            if (d.Open || y < floor || y > floor + 2)
+            if (d.Open || y < floor || y > floor + 2 || (handOperatedOnly && !IsHandOperated(d.Kind)))
             {
                 continue;
             }
