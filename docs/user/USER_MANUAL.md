@@ -1468,14 +1468,39 @@ residents' spots clear — procedural buildings are furnished the same way. How 
 world option *Settlement templates* (*Off* disables whole templates and modules alike); a world keeps the
 layout it was created with.
 
+**Station / Town editor — kit modules, ports and the seal.** Set **Use as** to *Kit module* to build a piece of a
+modular structure. Type the **Kit** it belongs to (or pick one with **Kits…**) and step the **Function**: a
+station module is a *Hub*, *Corridor*, *Crew cabins*, *Canteen*, *Bar*, *Market hall*, *Mission office*,
+*Medbay*, *Hydroponics*, *Storage*, *Hangar* or plain *Room*; a town module takes the plot / district roles
+above. Mark where another module may dock with the **port brushes** at the top of the palette — *Port: door*,
+*Port: wide* and *Port: ladder* (floor / ceiling, the composer drops a ladder into the shaft). Left-click paints
+the port onto an existing wall block, middle-click with a port brush clears it again (the block stays); the
+**Port door** stepper chooses what fills the opened joint (*Slide*, *Energy*, *Hinge* or *Open*). A port is a
+rectangle of wall blocks on one outer face with air behind it; two ports dock when their tag and rectangle match
+on opposite faces. Put a **Cabin** marker where each resident sleeps (one cabin per crew member) and **Lounge**
+markers on canteen / bar seats. **Check seal** flood-fills from outside: every cell where open space would reach
+the inside turns red — a station module with a leak or a broken port is never saved. **Assemble** runs the real
+composer with the kit named in the field and the current **Seed** and loads the result as a whole structure to
+walk through (your own templates are included), so you can see how the pieces fit before you start a new world.
+
+**Kits…** opens the kit panel: every shipped kit of the editor's kind plus your own. A kit has a key, name, kind
+(*station*, *settlement* or *city*), size tier, weight and planet types, how many modules it uses (min / max)
+and one row per module: minimum and maximum copies, *Required*, draw weight and whether the composer may rotate
+it. Station kits also name a start module and a maximum extent; settlement kits set the plot grid (columns,
+rows, plot stride, building size, storeys, *Modules only*); city kits set the district grid, district size,
+street width, height and the district map. **Save kit** writes it to the user-content folder (live in the next
+new world, drawn from the same weighted table as the complete templates) and an export bundle for
+`tools/merge_structure.py`. Saved worlds keep the exact composition they were created with — reloading never
+rebuilds a station, village or city differently.
+
 **Textures.** Placed blocks show their real block textures (dye and glow tint them like in-game); station tiles,
 ship elements and interaction markers are drawn as plain colour swatches so they stand out.
 
 | Editor | Designs | Export → merge tool |
 |---|---|---|
 | **Ship Editor** | Custom ship types (hull, viewports, lights, engine, hatch, station tiles) | `ship.json` + `layout.json` → `tools/merge_ship.py` |
-| **Station Editor** | Space stations (hull/glass/light + hangar/vendor/mission/heal/quarters/console markers) | `structure.json` + `layout.json` → `tools/merge_structure.py` |
-| **Town Editor** | Settlements/villages (walls, windows, ladders/stairs, lamps + vendor/mission/NPC markers) | `structure.json` + `layout.json` → `tools/merge_structure.py` |
+| **Station Editor** | Space stations or station kit modules (hull/glass/light + hangar/vendor/mission/heal/quarters/console/cabin/lounge markers, docking ports) and station kits | `structure.json` + `layout.json` (+ `kit.json`) → `tools/merge_structure.py` |
+| **Town Editor** | Settlements/villages or their modules (walls, windows, ladders/stairs, lamps + vendor/mission/NPC markers) and settlement / city kits | `structure.json` + `layout.json` (+ `kit.json`) → `tools/merge_structure.py` |
 | **Avatar Editor** | Player skin (per-part colours + gear preview) and up to eight saved **outfits** | `skin.json` → `tools/merge_avatar.py` (Apply also saves locally) |
 | **Item & Recipe Editor** | Items (stats, tool/weapon properties, worn + eaten effects) + recipes (station, inputs, market vendor theme) + optional blueprint gating | `content.json` → `tools/merge_recipe.py` |
 | **Material Editor** | Block materials: paint a 64×64 tile, set mining (hardness/tool/drops), palette section, dyeable/shapeable, look (gloss/metal/glow/colour), world spawn (frequency/depth/world-type) | `material.json` + `texture.bytes` → `tools/merge_material.py` |
