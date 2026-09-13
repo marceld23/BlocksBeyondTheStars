@@ -508,6 +508,186 @@ public sealed class BaseWalledYardTests : IDisposable
         }
     }
 
+    // ---------------- #1862: the fill box follows what the players built; a moat is a wall; a shut door stops a walker ----------------
+
+    /// <summary>The generator's surface high point over a footprint — no chunk is streamed for it.</summary>
+    private static int MaxSurface(SvGameServer server, int cx, int cz, int r)
+    {
+        int max = int.MinValue;
+        for (int dx = -r; dx <= r; dx++)
+            for (int dz = -r; dz <= r; dz++)
+            {
+                max = System.Math.Max(max, server.SurfaceHeightForTest(cx + dx, cz + dz));
+            }
+
+        return max;
+    }
+
+    [Fact]
+    public void AFortressWiderThanTheOldReachBox_IsFencedIn_WithTheCoreOffCentre()
+    {
+        // The report: land animals spawned and walked into a large walled base. The fill's box was a fixed ±48
+        // around the core, so a ring 120 blocks across with the core off-centre had the box edge INSIDE its own
+        // walls — the seeds already stood in the yard and nothing there ever read as fenced in. The box now
+        // follows the player-built cells (+ a margin), and the reach test uses the same box.
+        var server = Started(out var repo, "fortress");
+        using (repo)
+        {
+            const int cx = 400, cz = 400, half = 60, pad = 70; // a 121-wide ring on a pad that runs 10 past it
+            const int coreDx = 40, coreDz = 30;                // the core well off the ring's centre: the far walls are 100 / 90 out
+            int padY = MaxSurface(server, cx, cz, pad) + 32;   // above every tree
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var p = server.AddLocalPlayer("Builder");
+            p.State.AboardShip = false;
+            string owner = p.State.PlayerId;
+            repo.RunInTransaction(() =>
+            {
+                for (int dx = -pad; dx <= pad; dx++)
+                    for (int dz = -pad; dz <= pad; dz++)
+                    {
+                        server.World.SetBlock(new Vector3i(cx + dx, padY, cz + dz), stone);
+                    }
+
+                for (int dx = -half; dx <= half; dx++)
+                    for (int dz = -half; dz <= half; dz++)
+                    {
+                        if (System.Math.Abs(dx) == half || System.Math.Abs(dz) == half)
+                        {
+                            server.World.SetBlock(new Vector3i(cx + dx, padY + 1, cz + dz), stone, owner: owner); // the wall is the player's
+                            server.World.SetBlock(new Vector3i(cx + dx, padY + 2, cz + dz), stone, owner: owner);
+                        }
+                    }
+            });
+
+            int feet = padY + 1;
+            p.State.Position = new Vector3f(cx + coreDx - 1.5f, feet, cz + coreDz + 0.5f);
+            p.State.Inventory.Add("base_core", 2, 16);
+            server.PlaceBlock("Builder", cx + coreDx, feet, cz + coreDz, "base_core");
+            Assert.Single(server.BaseSnapshots);
+
+            Assert.Equal(half + coreDx + 6, server.WalledReachForTest(cx, feet, cz)); // the far wall is 100 from the core, plus the margin
+            var (reachable, failOpen) = server.WalledFillForTest(cx - 40, feet, cz - 40);
+            Assert.False(failOpen, $"a 213-wide box must not run out of budget on a flat pad ({reachable} cells)");
+            Assert.True(server.InWalledBaseAreaForTest(cx - 40, feet, cz - 40), "80 blocks from the core, inside the ring: fenced in");
+            Assert.True(server.InWalledBaseAreaForTest(cx - 55, feet, cz - 55), "the far corner of the yard, 95 out: fenced in too");
+            Assert.False(server.InWalledBaseAreaForTest(cx + 66, feet, cz), "on the pad outside the ring: open");
+            Assert.False(server.InWalledBaseAreaForTest(cx - 66, feet, cz - 66), "outside the far corner: open");
+
+            var sp = server.SpeciesRoster[0];
+            sp.Habitat = CreatureHabitat.Land;
+            sp.BodyPlan = CreatureBodyPlan.Standard;
+            sp.Size = 1f;
+            Assert.False(server.SpawnSpotClearForTest(new Vector3f(cx - 39.5f, feet, cz - 39.5f)), "a land spawn deep inside the fortress is rejected");
+            Assert.True(server.SpawnSpotClearForTest(new Vector3f(cx + 66.5f, feet, cz + 0.5f)), "outside the ring, still inside the box, spawns continue");
+
+            // The box follows what the player builds from now on: a block 150 out grows it, one past the cap is not
+            // part of the base, one at 190 caps it at 192.
+            server.World.SetBlock(new Vector3i(cx + coreDx + 150, padY + 1, cz + coreDz), stone, owner: owner);
+            Assert.Equal(156, server.WalledReachForTest(cx, feet, cz));
+            server.World.SetBlock(new Vector3i(cx + coreDx + 250, padY + 1, cz + coreDz), stone, owner: owner);
+            Assert.Equal(156, server.WalledReachForTest(cx, feet, cz));
+            server.World.SetBlock(new Vector3i(cx + coreDx + 190, padY + 1, cz + coreDz), stone, owner: owner);
+            Assert.Equal(192, server.WalledReachForTest(cx, feet, cz));
+            server.World.SetBlock(new Vector3i(cx + coreDx + 5, padY + 1, cz + coreDz), stone); // an unowned write (fluid, fire, regrowth) never counts
+            Assert.Equal(192, server.WalledReachForTest(cx, feet, cz));
+            Assert.True(server.InWalledBaseAreaForTest(cx - 40, feet, cz - 40), "the yard is still fenced in after the box grew");
+        }
+    }
+
+    [Fact]
+    public void AMoatTwoDeep_FencesTheYardIn_AOneDeepPondRingDoesNot()
+    {
+        // #1862: the fill crossed every pond on its surface, so a hand-dug moat fenced nothing — while a real walker
+        // cannot cross water deeper than one cell (TerrainStepBlocked). Fluid over fluid carries no feet now.
+        var server = Started(out var repo, "moat");
+        using (repo)
+        {
+            var (_, padY) = Yard(server, ring: false); // pad + core, no wall at all
+            int feet = padY + 1;
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var water = _content.GetBlock("water")!.NumericId;
+            for (int dx = -10; dx <= 10; dx++)
+                for (int dz = -10; dz <= 10; dz++)
+                {
+                    server.World.SetBlock(new Vector3i(Cx + dx, padY - 1, Cz + dz), stone); // two more floor layers, so a trench can be two deep
+                    server.World.SetBlock(new Vector3i(Cx + dx, padY - 2, Cz + dz), stone);
+                }
+
+            Assert.False(server.InWalledBaseAreaForTest(Cx + 2, feet, Cz), "no wall, no moat: open");
+
+            for (int dx = -Ring; dx <= Ring; dx++)
+                for (int dz = -Ring; dz <= Ring; dz++)
+                {
+                    if (System.Math.Abs(dx) == Ring || System.Math.Abs(dz) == Ring)
+                    {
+                        server.World.SetBlock(new Vector3i(Cx + dx, padY, Cz + dz), water);     // a ring trench, two deep, flooded
+                        server.World.SetBlock(new Vector3i(Cx + dx, padY - 1, Cz + dz), water);
+                    }
+                }
+
+            Settle(server);
+            Assert.True(server.InWalledBaseAreaForTest(Cx + 2, feet, Cz), "a moat two deep, no wall at all: the yard is fenced in");
+            Assert.False(server.InWalledBaseAreaForTest(Cx + 9, feet, Cz), "outside the moat is open");
+            var sp = server.SpeciesRoster[0];
+            sp.Habitat = CreatureHabitat.Land;
+            sp.BodyPlan = CreatureBodyPlan.Standard;
+            sp.Size = 1f;
+            Assert.False(server.SpawnSpotClearForTest(new Vector3f(Cx + 2.5f, feet, Cz + 0.5f)), "a land spawn inside the moat ring is rejected");
+
+            // Fill the trench's bottom row back in: a one-deep pond ring is a puddle the animals wade through.
+            for (int dx = -Ring; dx <= Ring; dx++)
+                for (int dz = -Ring; dz <= Ring; dz++)
+                {
+                    if (System.Math.Abs(dx) == Ring || System.Math.Abs(dz) == Ring)
+                    {
+                        server.World.SetBlock(new Vector3i(Cx + dx, padY - 1, Cz + dz), stone);
+                    }
+                }
+
+            Settle(server);
+            Assert.False(server.InWalledBaseAreaForTest(Cx + 2, feet, Cz), "a one-deep pond ring is no moat");
+        }
+    }
+
+    [Fact]
+    public void AWalker_IsStoppedByAShutWoodenDoor_AndPassesAnOpenOne()
+    {
+        // #1862: a doorway is air in the block grid — the door fills it as an entity — so the creature body sweep
+        // never saw a shut door and animals strolled through the very gate the fill counted as a wall.
+        var server = Started(out var repo, "doorstep");
+        using (repo)
+        {
+            var (p, padY) = Yard(server);
+            int feet = padY + 1;
+            server.RemoveBlockForTest(Cx + Ring, padY + 1, Cz);
+            server.RemoveBlockForTest(Cx + Ring, padY + 2, Cz);
+            p.State.Inventory.Add("door_wood", 2, 16);
+            p.State.Position = new Vector3f(Cx + Ring + 1.5f, feet, Cz + 0.5f);
+            server.PlaceBlock("Builder", Cx + Ring, padY + 1, Cz, "door_wood");
+            var door = server.DoorSnapshots.Single(d => d.Kind == "wood");
+            Assert.False(door.Open);
+
+            var sp = server.SpeciesRoster[0];
+            sp.Habitat = CreatureHabitat.Land;
+            sp.Legs = 4;
+            sp.LocoStyle = LocomotionStyle.Grazer;
+            sp.HasGasSac = false;
+            sp.HasWings = false;
+            sp.BodyPlan = CreatureBodyPlan.Standard;
+            sp.Size = 1f;
+            Assert.Equal(MotionClass.Walker, CreatureMotion.ClassOf(sp));
+            string id = server.SpawnCreatureAtForTest(new Vector3f(Cx + Ring - 1.5f, feet, Cz + 0.5f)); // in the yard, two cells from the gate
+            var intoTheGate = new Vector3f(Cx + Ring + 0.5f, feet, Cz + 0.5f);
+            Assert.True(server.CreatureStepBlockedForTest(id, intoTheGate), "a shut wooden door is a wall to a walker");
+            Assert.False(server.CreatureStepBlockedForTest(id, new Vector3f(Cx + Ring - 3.5f, feet, Cz + 0.5f)), "the yard itself is open ground");
+
+            p.State.Position = new Vector3f(Cx + Ring + 0.5f, feet, Cz + 0.5f);
+            server.InteractDoorForTest(p, door.Id);
+            Assert.True(server.DoorSnapshots.Single(d => d.Id == door.Id).Open);
+            Assert.False(server.CreatureStepBlockedForTest(id, intoTheGate), "an open door is a gap the walker passes");
+        }
+    }
+
     public void Dispose()
     {
         try

@@ -171,6 +171,19 @@ public static class CreatureMotion
     /// <summary>Whether the class lives on the ground under gravity (as opposed to flying, hovering or swimming).</summary>
     public static bool IsGroundBound(MotionClass cls) => cls is MotionClass.Walker or MotionClass.Crawler;
 
+    /// <summary>A gas-sac LAND species hovers (see <see cref="ClassOf"/>) but lives at ground level, 0.8 above its
+    /// feet cell: it is a grazer that floats, not a flier. #1862: it used to keep a flier's freedom from the terrain
+    /// gate and drifted over a two-block wall and across a moat into a fortress. Air-habitat hoverers (a medusa, a
+    /// sky ray) keep that freedom — they are above the walls.</summary>
+    public static bool IsLandHoverer(CreatureSpecies sp, MotionClass cls)
+        => cls == MotionClass.Hoverer && sp.Habitat != CreatureHabitat.Air;
+
+    /// <summary>Whether a creature in this class is held to the walker's terrain rules — a one-block step-up
+    /// limit, a drop tolerance, no swimming — and stopped by a shut door: everything ground-bound plus the land
+    /// hoverer (#1862).</summary>
+    public static bool ObeysGroundRules(CreatureSpecies sp, MotionClass cls)
+        => IsGroundBound(cls) || IsLandHoverer(sp, cls);
+
     /// <summary>Lower-case name for locale keys (<c>ui.scan.motion.*</c>) and the wire.</summary>
     public static string Key(MotionClass cls) => cls switch
     {

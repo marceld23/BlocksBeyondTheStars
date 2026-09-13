@@ -69,6 +69,11 @@ public sealed class ServerWorld
     /// that key on the block grid (the walled-base fill invalidates the levels whose box the cell lies in).</summary>
     public event System.Action<Vector3i>? BlockSet;
 
+    /// <summary>Raised after a <see cref="SetBlock"/> that carries a player <c>owner</c> (#1862) — a build, a dig, a
+    /// dye — for the listeners that care WHO changed a cell, not only that it changed: the walled-base fill grows
+    /// a base's box with what its players build, and must not grow it with fluid flow, fire or regrowth.</summary>
+    public event System.Action<Vector3i>? PlayerBlockSet;
+
     /// <summary>Whether a chunk is currently resident in the cache (canonicalized like the cache keys). For
     /// tests/diagnostics — e.g. asserting far-chunk eviction by <see cref="UnloadFarChunks"/>.</summary>
     public bool IsChunkLoaded(ChunkCoord coord) => _loaded.ContainsKey(WorldConstants.CanonicalChunk(coord, Circumference));
@@ -188,6 +193,11 @@ public sealed class ServerWorld
         chunk.SetShape(local.X, local.Y, local.Z, shape);
         _repo.SetBlock(LocationId, world, block.Value, tint, glow, shape, owner);
         BlockSet?.Invoke(world);
+        if (!string.IsNullOrEmpty(owner))
+        {
+            PlayerBlockSet?.Invoke(world);
+        }
+
         return previous;
     }
 

@@ -135,7 +135,9 @@ public static class CreatureBehaviour
     /// 2, giants 1). The target column's water must be wadeable (≤ 1 deep) unless the animal is amphibious.</item>
     /// <item><b>Swimmers</b>: a creature that is in water never steps into a dry column (an already-stranded
     /// individual keeps its legacy freedom so it can still wander at all); amphibians may leave.</item>
-    /// <item><b>Fliers and hoverers</b> are unaffected.</item>
+    /// <item><b>Fliers and hoverers</b> are unaffected — except a LAND hoverer (a gas-sac grazer), which the server
+    /// gates as a walker (#1862, <see cref="CreatureMotion.IsLandHoverer"/>): it floats 0.8 above the ground, so a
+    /// two-block wall and a moat must stop it like everything else that lives down there.</item>
     /// </list>
     /// Depths are in water cells (surface − bed); pass 0 for a dry column.
     /// </summary>

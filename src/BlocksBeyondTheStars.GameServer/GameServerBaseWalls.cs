@@ -16,10 +16,12 @@ namespace BlocksBeyondTheStars.GameServer;
 /// system (#794), and far outside the radius-8 build-protection cube — so neither existing predicate
 /// answered "is this spot fenced in?". This one does, with an <b>outside-in fill</b>:
 /// <list type="bullet">
-/// <item>Take the base's reach box (Chebyshev <see cref="SealedRoomMaxReach"/> = 48 → a 97×97 footprint),
-/// seed every boundary column at the query's feet level, and flood INWARD through cells a walking animal
-/// could pass. Everything inside the box the fill never reaches is <b>enclosed</b> — one fill answers every
-/// yard, courtyard and room at that level, however many there are.</item>
+/// <item>Take the base's fill box (Chebyshev <see cref="BaseWallReach"/> around the core — at least
+/// <see cref="SealedRoomMaxReach"/> = 48, a 97×97 footprint, and since #1862 as wide as what the base's players
+/// BUILT: a fortress 120 blocks across used to have the box edge inside its own walls, so every seed already stood
+/// in the yard and nothing there ever read as fenced in), seed every boundary column at the query's feet level,
+/// and flood INWARD through cells a walking animal could pass. Everything inside the box the fill never reaches
+/// is <b>enclosed</b> — one fill answers every yard, courtyard and room at that level, however many there are.</item>
 /// <item>The fill <b>walks</b> (#1347): it steps ±1 block vertically like a walker (<see cref="CreatureMotion.StepUpLimit"/>
 /// = 1) — up onto a supported cell, down through a free one — so a one-block terrain step, a garden edge or
 /// the slope of a hollow is passable and a 2+ block rise is a wall. The first version flooded a single
@@ -27,11 +29,16 @@ namespace BlocksBeyondTheStars.GameServer;
 /// "fenced in" and no land animal spawned in it. The query's own level additionally passes through any
 /// non-colliding cell (the original rule, kept): the boundary is 48 blocks out and rarely on the yard's
 /// level, so the fill needs to cross lower ground to get there at all.</item>
+/// <item><b>Deep fluid is a wall</b> (#1862): a column whose support is fluid over fluid — a moat two or more
+/// deep — is not walked; a one-deep pond is waded, on its surface, exactly as
+/// <see cref="CreatureBehaviour.TerrainStepBlocked"/> lets a walker wade one cell and refuses two. Before this
+/// the fill crossed every pond on its surface and a hand-dug moat fenced nothing.</item>
 /// <item>Cached per (base, feet level) like <c>_baseAir</c>: invalidated by a block set or a gate toggled inside
-/// the box (#1367, with <see cref="WalledRecomputeInterval"/> as the backstop), a bounded budget,
-/// <see cref="ServerWorld.GetBlockIfLoaded"/> so an idle base never drags chunk generation. <b>Fail-open</b>:
-/// an unloaded column reads as air, the fill leaks in, the spawn is allowed — the same direction the air
-/// system fails; a fill that runs out of budget answers "open" for everything at that level as well.</item>
+/// the box (#1367, with <see cref="WalledRecomputeInterval"/> as the backstop), a budget that scales with the
+/// box (<see cref="WalledFillBudgetFor"/>), <see cref="ServerWorld.GetBlockIfLoaded"/> so an idle base never
+/// drags chunk generation. <b>Fail-open</b>: an unloaded column reads as air, the fill leaks in, the spawn is
+/// allowed — the same direction the air system fails; a fill that runs out of budget answers "open" for
+/// everything at that level as well (logged once when a level flips to that state).</item>
 /// <item><b>Closed doors count as walls</b> (a deliberate divergence from the air model, where mechanical
 /// doors leak): a shut wooden gate keeps animals out; an open one is a gap. Proximity-operated doors (slide,
 /// energy) count as walls whatever their state (#1358): they open only for a player and close by themselves,
@@ -43,9 +50,21 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>Cells the outside-in fill may visit per level: the level's own 97×97 slice, the walkable
-    /// terrain within the band and a fair amount of cave on top of that.</summary>
-    private const int WalledFillBudget = 60000;
+    /// <summary>Cells the outside-in fill may visit per level, per column of its box (#1862: the budget scales
+    /// with the box so a 200×200 fortress does not fail open on sight): the level's own slice, the walkable terrain
+    /// within the band and a fair amount of cave on top of that. The minimum 97×97 box gets ~75k, the old flat 60k.</summary>
+    private const int WalledFillBudgetPerColumn = 8;
+
+    /// <summary>Hard cap on one fill's cell budget, whatever the box (a 385×385 box would otherwise ask for 1.2M).</summary>
+    private const int WalledFillBudgetCap = 600000;
+
+    /// <summary>Blocks the fill box extends past the outermost player-built cell (#1862), so the seeds stand on
+    /// open ground outside the outer wall, never on or inside it.</summary>
+    private const int WalledReachMargin = 6;
+
+    /// <summary>Largest Chebyshev half-extent a base's fill box may grow to (#1862): a 385×385 footprint. A build
+    /// farther out than this from the core is not part of the base's enclosure.</summary>
+    private const int WalledReachCap = 192;
 
     /// <summary>How far above/below the queried feet level the walking fill follows the terrain (#1347).</summary>
     private const int WalledFillBand = 12;
@@ -58,23 +77,180 @@ public sealed partial class GameServer
     /// set or a gate toggled inside the box marks the level dirty instead, so the interval only backs that up.</summary>
     private const double WalledRecomputeInterval = 8.0;
 
-    /// <summary>One base's reachable-from-outside set at one feet level (everything else in the box is enclosed).</summary>
+    /// <summary>One base's reachable-from-outside set at one feet level (everything else in the box is enclosed).
+    /// The set is a bitset over the box's band rows (#1862: a 385×385 box holds up to 600k reachable cells, and a
+    /// hilly base keeps two dozen levels — a hash set per level would be hundreds of MB).</summary>
     private sealed class WalledLevel
     {
         public string Body = string.Empty;
         public Vector3i Center;   // the base core — the fill's box is the reach cube around it
         public int FeetY;
-        public HashSet<Vector3i> Reachable = new();
+        public int Reach;         // the box's Chebyshev half-extent at the time of the fill
+        public int YMin;          // the band's lowest row (the bitset's row 0)
+        public int Rows;          // band rows held by the bitset
+        public System.Collections.BitArray? Reached; // box-relative ((y − YMin) · side + dx) · side + dz
+        public int ReachableCount;
+        public int Budget;        // cells the fill was allowed (the /basewalls report)
         public bool FailOpen; // the fill ran out of budget — nothing at this level reads as enclosed
         public bool Dirty = true; // a block changed / a gate toggled inside the box since the last fill
         public double ComputedAt = double.NegativeInfinity;
         public int Computes; // fills run for this level (test seam)
+
+        /// <summary>Whether the fill reached a canonical cell (false for anything outside the box or the band).</summary>
+        public bool Contains(Vector3i canonical, int circ)
+        {
+            if (Reached is null)
+            {
+                return false;
+            }
+
+            int side = 2 * Reach + 1;
+            int dx = WorldConstants.WrapDeltaX(canonical.X - Center.X, circ) + Reach;
+            int dz = WorldConstants.WrapDeltaZ(canonical.Z - Center.Z, circ) + Reach;
+            int dy = canonical.Y - YMin;
+            if (dx < 0 || dx >= side || dz < 0 || dz >= side || dy < 0 || dy >= Rows)
+            {
+                return false;
+            }
+
+            return Reached[(dy * side + dx) * side + dz];
+        }
     }
 
     private readonly Dictionary<(int BaseId, int FeetY), WalledLevel> _baseWalls = new();
 
+    /// <summary>Each base's fill-box half-extent (#1862), derived lazily from the player-built cells around its core
+    /// (see <see cref="BaseWallReach"/>) and grown live by <see cref="GrowBaseWallReach"/>.</summary>
+    private readonly Dictionary<int, int> _baseWallReach = new();
+
     /// <summary>Fills computed so far (test seam for the cache behaviour, #1367).</summary>
     public int WalledFillComputesForTest { get; private set; }
+
+    /// <summary>Cells the fill may visit for a box of <paramref name="side"/> columns per axis (#1862).</summary>
+    private static int WalledFillBudgetFor(int side)
+        => System.Math.Min(WalledFillBudgetCap, side * side * WalledFillBudgetPerColumn);
+
+    /// <summary>The largest half-extent a box may have on this world: the cap, or a quarter lap on a small body so
+    /// the box never wraps onto itself.</summary>
+    private static int WalledReachCapFor(ServerWorld world)
+        => System.Math.Min(WalledReachCap, System.Math.Max(SealedRoomMaxReach, world.Circumference / 4));
+
+    /// <summary>
+    /// The base's fill-box half-extent (#1862): the outermost player-built (or dug, or dyed) cell within
+    /// <see cref="WalledReachCap"/> of the core plus <see cref="WalledReachMargin"/>, never less than
+    /// <see cref="SealedRoomMaxReach"/>, never more than the cap. Asked of the block-edit store once per base and
+    /// cached; every player block set afterwards grows it live (<see cref="GrowBaseWallReach"/>). A base near the
+    /// longitude or latitude seam asks the store per canonical piece of its box, since the store holds canonical
+    /// columns. Anything a player built that far out — a wall, a gate, a moat's bed — is what the box must hold.
+    /// </summary>
+    private int BaseWallReach(ServerBase b)
+    {
+        if (_baseWallReach.TryGetValue(b.Id, out int reach))
+        {
+            return reach;
+        }
+
+        int circ = _world.Circumference;
+        int cap = WalledReachCapFor(_world);
+        int farthest = 0;
+        foreach (var (xLo, xHi) in CanonicalRanges(b.Cell.X - cap, b.Cell.X + cap, 0, circ))
+        {
+            foreach (var (zLo, zHi) in CanonicalRanges(b.Cell.Z - cap, b.Cell.Z + cap,
+                         -WorldConstants.LatitudePeriodFor(circ) / 2, WorldConstants.LatitudePeriodFor(circ)))
+            {
+                if (_repo.TryGetPlayerBlockEditBounds(b.Planet, new Vector3i(xLo, b.Cell.Y - cap, zLo),
+                        new Vector3i(xHi, b.Cell.Y + cap, zHi), out var lo, out var hi))
+                {
+                    // Each piece lies on one side of its seam, so the wrapped distance peaks at the piece's corners.
+                    farthest = System.Math.Max(farthest, System.Math.Max(WrapAbs(lo.X - b.Cell.X), WrapAbs(hi.X - b.Cell.X)));
+                    farthest = System.Math.Max(farthest, System.Math.Max(WrapAbsZ(lo.Z - b.Cell.Z), WrapAbsZ(hi.Z - b.Cell.Z)));
+                    farthest = System.Math.Max(farthest, System.Math.Max(System.Math.Abs(lo.Y - b.Cell.Y), System.Math.Abs(hi.Y - b.Cell.Y)));
+                }
+            }
+        }
+
+        reach = ReachFor(farthest, cap);
+        _baseWallReach[b.Id] = reach;
+        return reach;
+    }
+
+    /// <summary>The half-extent a build <paramref name="farthest"/> blocks from the core asks for.</summary>
+    private static int ReachFor(int farthest, int cap)
+        => System.Math.Min(cap, System.Math.Max(SealedRoomMaxReach, farthest + WalledReachMargin));
+
+    /// <summary>Splits the inclusive range [<paramref name="lo"/>, <paramref name="hi"/>] into its pieces inside the
+    /// canonical domain [<paramref name="domainLo"/>, domainLo + <paramref name="period"/>) — one piece, or two when
+    /// the range straddles the seam; the whole domain when the range covers a full lap.</summary>
+    private static IEnumerable<(int Lo, int Hi)> CanonicalRanges(int lo, int hi, int domainLo, int period)
+    {
+        if (hi - lo + 1 >= period)
+        {
+            yield return (domainLo, domainLo + period - 1);
+            yield break;
+        }
+
+        int start = domainLo + (((lo - domainLo) % period) + period) % period;
+        int end = start + (hi - lo);
+        int domainHi = domainLo + period - 1;
+        if (end <= domainHi)
+        {
+            yield return (start, end);
+        }
+        else
+        {
+            yield return (start, domainHi);
+            yield return (domainLo, end - period);
+        }
+    }
+
+    /// <summary>A player set a block on a resident world (#1862): every base on it whose reach is already known and
+    /// within the cap of the cell grows its box to hold the cell (plus the margin), and its cached levels are
+    /// refilled — the seeds must move out past the new wall. A base whose reach is not computed yet needs nothing:
+    /// its first <see cref="BaseWallReach"/> reads the edit from the store, which was written before this event.</summary>
+    private void GrowBaseWallReach(ServerWorld world, Vector3i cell)
+    {
+        if (_baseWallReach.Count == 0)
+        {
+            return;
+        }
+
+        int circ = world.Circumference;
+        int cap = WalledReachCapFor(world);
+        var canonical = WorldConstants.CanonicalBlock(cell, circ);
+        foreach (var b in _bases)
+        {
+            if (b.Planet != world.LocationId || !_baseWallReach.TryGetValue(b.Id, out int reach))
+            {
+                continue;
+            }
+
+            int d = System.Math.Max(System.Math.Abs(WorldConstants.WrapDeltaX(canonical.X - b.Cell.X, circ)),
+                System.Math.Max(System.Math.Abs(canonical.Y - b.Cell.Y), System.Math.Abs(WorldConstants.WrapDeltaZ(canonical.Z - b.Cell.Z, circ))));
+            int wanted = ReachFor(d, cap);
+            if (d > cap || wanted <= reach)
+            {
+                continue;
+            }
+
+            _baseWallReach[b.Id] = wanted;
+            foreach (var kv in _baseWalls)
+            {
+                if (kv.Key.BaseId == b.Id)
+                {
+                    kv.Value.Dirty = true;
+                }
+            }
+        }
+    }
+
+    /// <summary>Whether a canonical cell lies inside a base's fill box (the reach cube around its core).</summary>
+    private bool WithinBaseWallReach(ServerBase b, Vector3i canonical)
+    {
+        int reach = BaseWallReach(b);
+        return WrapAbs(canonical.X - b.Cell.X) <= reach
+            && System.Math.Abs(canonical.Y - b.Cell.Y) <= reach
+            && WrapAbsZ(canonical.Z - b.Cell.Z) <= reach;
+    }
 
     /// <summary>Marks every cached level whose fill box holds <paramref name="cell"/> for recomputation (#1367):
     /// called for every block set on a resident world and for every hand-operated gate toggled. A level's box is
@@ -95,10 +271,10 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (System.Math.Abs(WorldConstants.WrapDeltaX(canonical.X - level.Center.X, circ)) <= SealedRoomMaxReach
-                && System.Math.Abs(WorldConstants.WrapDeltaZ(canonical.Z - level.Center.Z, circ)) <= SealedRoomMaxReach
+            if (System.Math.Abs(WorldConstants.WrapDeltaX(canonical.X - level.Center.X, circ)) <= level.Reach
+                && System.Math.Abs(WorldConstants.WrapDeltaZ(canonical.Z - level.Center.Z, circ)) <= level.Reach
                 && System.Math.Abs(canonical.Y - level.FeetY) <= WalledFillBand + 1
-                && System.Math.Abs(canonical.Y - level.Center.Y) <= SealedRoomMaxReach + 1)
+                && System.Math.Abs(canonical.Y - level.Center.Y) <= level.Reach + 1)
             {
                 level.Dirty = true;
             }
@@ -120,19 +296,17 @@ public sealed partial class GameServer
     private bool InWalledBaseArea(Vector3i cell)
     {
         string body = _world.LocationId;
-        var canonical = WorldConstants.CanonicalBlock(cell, _world.Circumference);
+        int circ = _world.Circumference;
+        var canonical = WorldConstants.CanonicalBlock(cell, circ);
         foreach (var b in _bases)
         {
-            if (b.Planet != body
-                || WrapAbs(canonical.X - b.Cell.X) > SealedRoomMaxReach
-                || System.Math.Abs(canonical.Y - b.Cell.Y) > SealedRoomMaxReach
-                || WrapAbsZ(canonical.Z - b.Cell.Z) > SealedRoomMaxReach)
+            if (b.Planet != body || !WithinBaseWallReach(b, canonical))
             {
                 continue;
             }
 
             var level = RefreshBaseWalls(b, canonical.Y);
-            if (!level.FailOpen && !level.Reachable.Contains(canonical))
+            if (!level.FailOpen && !level.Contains(canonical, circ))
             {
                 return true;
             }
@@ -157,17 +331,25 @@ public sealed partial class GameServer
             _baseWalls[key] = level = new WalledLevel();
         }
 
-        if (level.Body != body || level.Dirty || level.Center != b.Cell || _uptime - level.ComputedAt >= WalledRecomputeInterval)
+        int reach = BaseWallReach(b);
+        if (level.Body != body || level.Dirty || level.Center != b.Cell || level.Reach != reach
+            || _uptime - level.ComputedAt >= WalledRecomputeInterval)
         {
+            bool wasFailOpen = level.FailOpen;
             level.Body = body;
             level.Center = b.Cell;
             level.FeetY = feetY;
+            level.Reach = reach;
             level.ComputedAt = _uptime;
-            level.Reachable = ComputeReachableFromOutside(b, feetY, out bool failOpen);
-            level.FailOpen = failOpen;
+            ComputeReachableFromOutside(b, feetY, reach, level);
             level.Dirty = false;
             level.Computes++;
             WalledFillComputesForTest++;
+            if (level.FailOpen && !wasFailOpen)
+            {
+                _log.Info($"Base walls: the fill for base #{b.Id} ({b.Name}) at feet level {feetY} ran out of budget " +
+                          $"({level.Budget} cells, reach {reach}) — nothing at that level reads as fenced in until it fits.");
+            }
         }
 
         return level;
@@ -180,9 +362,7 @@ public sealed partial class GameServer
         var canonical = WorldConstants.CanonicalBlock(new Vector3i(x, y, z), _world.Circumference);
         foreach (var b in _bases)
         {
-            if (b.Planet == _world.LocationId && WrapAbs(canonical.X - b.Cell.X) <= SealedRoomMaxReach
-                && System.Math.Abs(canonical.Y - b.Cell.Y) <= SealedRoomMaxReach
-                && WrapAbsZ(canonical.Z - b.Cell.Z) <= SealedRoomMaxReach)
+            if (b.Planet == _world.LocationId && WithinBaseWallReach(b, canonical))
             {
                 return _baseWalls.TryGetValue((b.Id, canonical.Y), out var level) ? level.Computes : 0;
             }
@@ -191,28 +371,45 @@ public sealed partial class GameServer
         return 0;
     }
 
-    // Scratch cell classes: bits 0–1 = free (unknown / free / solid), bits 2–3 = carries feet (unknown / yes / no).
+    /// <summary>Test seam (#1862): the fill-box half-extent of the first base whose box holds the cell; 0 when none does.</summary>
+    public int WalledReachForTest(int x, int y, int z)
+    {
+        var canonical = WorldConstants.CanonicalBlock(new Vector3i(x, y, z), _world.Circumference);
+        foreach (var b in _bases)
+        {
+            if (b.Planet == _world.LocationId && WithinBaseWallReach(b, canonical))
+            {
+                return BaseWallReach(b);
+            }
+        }
+
+        return 0;
+    }
+
+    // Scratch cell classes: bits 0–1 = free (unknown / free / solid), bits 2–3 = carries feet (unknown / yes / no),
+    // bits 4–5 = the cell is a fluid (unknown / yes / no) — read for the cell UNDER a candidate (#1862).
     private const byte WallFreeMask = 0x03, WallFree = 0x01, WallSolid = 0x02;
     private const byte WallSupportMask = 0x0C, WallSupports = 0x04, WallNoSupport = 0x08;
+    private const byte WallFluidMask = 0x30, WallFluid = 0x10, WallNotFluid = 0x20;
 
     /// <summary>
-    /// The walking flood from the reach box's boundary through cells an animal could pass (#1315, #1347):
+    /// The walking flood from the fill box's boundary through cells an animal could pass (#1315, #1347):
     /// a cell is <i>free</i> when it is neither a colliding block nor a fluid (walk-through props pass, as
     /// the creature body gate reads them) and not covered by a door that counts as wall; the fill may stand in
-    /// a free cell that is <i>supported</i> (a colliding block or a fluid under it — so a pond is crossed on
-    /// its surface rather than read as a moat, and never flooded through its volume; grass, props and tree
-    /// canopies carry no feet, which also keeps the fill out of every tree crown) or that lies on the queried
-    /// level itself (the original horizontal slice). From a
+    /// a free cell that is <i>supported</i> (a colliding block under it, or ONE cell of fluid over something
+    /// that is not fluid — a pond is waded on its surface, never flooded through its volume, while fluid over
+    /// fluid is a moat and carries no feet, #1862; grass, props and tree canopies carry no feet either, which
+    /// also keeps the fill out of every tree crown) or that lies on the queried level itself (the original
+    /// horizontal slice — a moat directly under that level is refused there too). From a
     /// cell it steps to the four neighbour columns at the same height, one up (onto a supported cell — a
     /// step, never a levitation) or one down (through a free cell above the landing). Seeds: every boundary
     /// column's free cells on the level, plus its supported free cells within <see cref="WalledFillBand"/>,
     /// so the fill can come down a slope from higher ground. The band also bounds the flood, so a deep cave
-    /// system under the base cannot eat the budget.
+    /// system under the base cannot eat the budget. Writes the level's bitset, count, budget and fail-open flag.
     /// </summary>
-    private HashSet<Vector3i> ComputeReachableFromOutside(ServerBase b, int feetY, out bool failOpen)
+    private void ComputeReachableFromOutside(ServerBase b, int feetY, int r, WalledLevel level)
     {
         int circ = _world.Circumference;
-        int r = SealedRoomMaxReach;
         int side = 2 * r + 1;
         int yMin = System.Math.Max(feetY - WalledFillBand, b.Cell.Y - r);
         int yMax = System.Math.Min(feetY + WalledFillBand, b.Cell.Y + r);
@@ -226,9 +423,14 @@ public sealed partial class GameServer
         var scratch = _wallScratch;
         System.Array.Clear(scratch, 0, cells);
         var wallDoors = DoorCellsWhere(d => !d.Open || !IsHandOperated(d.Kind)); // #1358: proximity doors are walls in any state
-        var reachable = new HashSet<Vector3i>();
+        var reached = new System.Collections.BitArray(side * side * (yMax - yMin + 1));
         var frontier = new Queue<Vector3i>();
-        failOpen = false;
+        int count = 0;
+        level.YMin = yMin;
+        level.Rows = yMax - yMin + 1;
+        level.Reached = reached;
+        level.Budget = WalledFillBudgetFor(side);
+        level.FailOpen = false;
 
         // dx/dz are box-relative (0..side-1); y is absolute and may run one row past the band on each side.
         Vector3i World(int dx, int y, int dz)
@@ -255,7 +457,27 @@ public sealed partial class GameServer
             return v == WallFree;
         }
 
-        // Whether the cell UNDER (dx, y, dz) carries feet: a colliding block or a fluid — not air, grass, a prop or a canopy.
+        // Whether the cell (dx, y, dz) is a fluid (any y: a cell below the scratch rows is read from the world directly).
+        bool Fluid(int dx, int y, int dz)
+        {
+            if (y < yMin - 1 || y > yMax + 1)
+            {
+                return IsFluid(_world.GetBlockIfLoaded(World(dx, y, dz)).Value);
+            }
+
+            int i = ((y - (yMin - 1)) * side + dx) * side + dz;
+            byte v = (byte)(scratch[i] & WallFluidMask);
+            if (v == 0)
+            {
+                v = IsFluid(_world.GetBlockIfLoaded(World(dx, y, dz)).Value) ? WallFluid : WallNotFluid;
+                scratch[i] |= v;
+            }
+
+            return v == WallFluid;
+        }
+
+        // Whether the cell UNDER (dx, y, dz) carries feet: a colliding block, or one cell of fluid over something that
+        // is not fluid (#1862: a pond is waded, a moat two or more deep is not) — not air, grass, a prop or a canopy.
         bool Supported(int dx, int y, int dz)
         {
             int by = y - 1;
@@ -268,7 +490,8 @@ public sealed partial class GameServer
             byte v = (byte)(scratch[i] & WallSupportMask);
             if (v == 0)
             {
-                bool supports = IsCollidingBlock(_world.GetBlockIfLoaded(World(dx, by, dz)), fluidsPass: false, foliagePasses: true);
+                bool supports = IsCollidingBlock(_world.GetBlockIfLoaded(World(dx, by, dz)), fluidsPass: false, foliagePasses: true)
+                    && !(Fluid(dx, by, dz) && Fluid(dx, by - 1, dz));
                 v = supports ? WallSupports : WallNoSupport;
                 scratch[i] |= v;
             }
@@ -276,14 +499,19 @@ public sealed partial class GameServer
             return v == WallSupports;
         }
 
-        // Where the fill may stand: a free cell in the band that is on the queried level or has something under it.
+        // Where the fill may stand: a free cell in the band that has something under it, or that is on the queried
+        // level and not over a moat (the level slice passes over air and a one-deep pond, never fluid over fluid).
         bool Standable(int dx, int y, int dz)
-            => y >= yMin && y <= yMax && Free(dx, y, dz) && (y == feetY || Supported(dx, y, dz));
+            => y >= yMin && y <= yMax && Free(dx, y, dz)
+               && (Supported(dx, y, dz) || (y == feetY && !Fluid(dx, y - 1, dz)));
 
         void Visit(int dx, int y, int dz)
         {
-            if (reachable.Add(World(dx, y, dz)))
+            int i = ((y - yMin) * side + dx) * side + dz;
+            if (!reached[i])
             {
+                reached[i] = true;
+                count++;
                 frontier.Enqueue(new Vector3i(dx, y, dz)); // box-relative on the queue
             }
         }
@@ -307,12 +535,12 @@ public sealed partial class GameServer
             Seed(side - 1, d);
         }
 
-        int budget = WalledFillBudget;
+        int budget = level.Budget;
         while (frontier.Count > 0)
         {
             if (budget-- <= 0)
             {
-                failOpen = true; // too much open ground to walk — nothing at this level may read as fenced in
+                level.FailOpen = true; // too much open ground to walk — nothing at this level may read as fenced in
                 break;
             }
 
@@ -342,7 +570,7 @@ public sealed partial class GameServer
             }
         }
 
-        return reachable;
+        level.ReachableCount = count;
     }
 
     /// <summary>Cells covered by the doors that satisfy <paramref name="pick"/> in the active world: the door's
@@ -377,13 +605,15 @@ public sealed partial class GameServer
         return cells;
     }
 
-    /// <summary>Drops a removed base's cached wall levels (called when its core is mined).</summary>
+    /// <summary>Drops a removed base's cached wall levels and its fill-box reach (called when its core is mined).</summary>
     private void ForgetBaseWalls(int baseId)
     {
         foreach (var key in _baseWalls.Keys.Where(k => k.BaseId == baseId).ToList())
         {
             _baseWalls.Remove(key);
         }
+
+        _baseWallReach.Remove(baseId);
     }
 
     /// <summary><c>/basewalls</c> (#1452): the admin's window into the enclosure fill. A yard that "should be
@@ -422,7 +652,7 @@ public sealed partial class GameServer
             }
 
             int d = System.Math.Max(WrapAbs(cell.X - b.Cell.X), System.Math.Max(System.Math.Abs(cell.Y - b.Cell.Y), WrapAbsZ(cell.Z - b.Cell.Z)));
-            if (d <= SealedRoomMaxReach && d < nearestDist)
+            if (d <= BaseWallReach(b) && d < nearestDist)
             {
                 nearest = b;
                 nearestDist = d;
@@ -438,17 +668,17 @@ public sealed partial class GameServer
         lines.Add(L("srv.basewalls.base")
             .Replace("{name}", string.IsNullOrWhiteSpace(nearest.Name) ? "#" + nearest.Id : nearest.Name)
             .Replace("{x}", nearest.Cell.X.ToString()).Replace("{y}", nearest.Cell.Y.ToString()).Replace("{z}", nearest.Cell.Z.ToString())
-            .Replace("{dist}", nearestDist.ToString()).Replace("{reach}", SealedRoomMaxReach.ToString()));
+            .Replace("{dist}", nearestDist.ToString()).Replace("{reach}", BaseWallReach(nearest).ToString()));
 
         var level = RefreshBaseWalls(nearest, cell.Y);
         lines.Add(L("srv.basewalls.level")
             .Replace("{y}", cell.Y.ToString())
-            .Replace("{cells}", level.Reachable.Count.ToString())
-            .Replace("{budget}", WalledFillBudget.ToString())
+            .Replace("{cells}", level.ReachableCount.ToString())
+            .Replace("{budget}", level.Budget.ToString())
             .Replace("{verdict}", L(level.FailOpen ? "srv.basewalls.fail_open" : "srv.basewalls.complete")));
 
         string state = InSealedBaseRoom(cell) ? L("srv.basewalls.here_sealed")
-            : !level.FailOpen && !level.Reachable.Contains(cell) ? L("srv.basewalls.here_enclosed")
+            : !level.FailOpen && !level.Contains(cell, _world.Circumference) ? L("srv.basewalls.here_enclosed")
             : L("srv.basewalls.here_open");
         lines.Add(L("srv.basewalls.here").Replace("{state}", state));
         lines.Add(L("srv.basewalls.rules"));
@@ -469,12 +699,10 @@ public sealed partial class GameServer
         var canonical = WorldConstants.CanonicalBlock(new Vector3i(x, y, z), _world.Circumference);
         foreach (var b in _bases)
         {
-            if (b.Planet == _world.LocationId && WrapAbs(canonical.X - b.Cell.X) <= SealedRoomMaxReach
-                && System.Math.Abs(canonical.Y - b.Cell.Y) <= SealedRoomMaxReach
-                && WrapAbsZ(canonical.Z - b.Cell.Z) <= SealedRoomMaxReach)
+            if (b.Planet == _world.LocationId && WithinBaseWallReach(b, canonical))
             {
                 var level = RefreshBaseWalls(b, canonical.Y);
-                return (level.Reachable.Count, level.FailOpen);
+                return (level.ReachableCount, level.FailOpen);
             }
         }
 

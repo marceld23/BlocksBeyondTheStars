@@ -645,6 +645,39 @@ public sealed class MemoryWorldRepository : IWorldRepository
         }
     }
 
+    public bool TryGetPlayerBlockEditBounds(string planet, Vector3i min, Vector3i max, out Vector3i lo, out Vector3i hi)
+    {
+        lock (_gate)
+        {
+            bool any = false;
+            lo = new Vector3i(int.MaxValue, int.MaxValue, int.MaxValue);
+            hi = new Vector3i(int.MinValue, int.MinValue, int.MinValue);
+            foreach (var kv in _blockEdits)
+            {
+                var k = kv.Key;
+                if (k.Planet != planet
+                    || k.X < min.X || k.X > max.X
+                    || k.Y < min.Y || k.Y > max.Y
+                    || k.Z < min.Z || k.Z > max.Z
+                    || string.IsNullOrEmpty(kv.Value.Owner))
+                {
+                    continue;
+                }
+
+                any = true;
+                lo = new Vector3i(Math.Min(lo.X, k.X), Math.Min(lo.Y, k.Y), Math.Min(lo.Z, k.Z));
+                hi = new Vector3i(Math.Max(hi.X, k.X), Math.Max(hi.Y, k.Y), Math.Max(hi.Z, k.Z));
+            }
+
+            if (!any)
+            {
+                lo = hi = default;
+            }
+
+            return any;
+        }
+    }
+
     public bool HasAnyBlockEdits(string planet)
     {
         lock (_gate)

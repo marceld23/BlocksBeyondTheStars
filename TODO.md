@@ -24,6 +24,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏰 Land creatures spawned and walked into a large walled base (#1862, 2026-09-13, branch walls-0913)
+
+Four verified causes behind one report, all server-side; no client or data change.
+
+- **The fill box follows what the players built** — `ComputeReachableFromOutside` flooded a fixed ±48 cube around the
+  core, so a fortress wider than 97 blocks had the seed edges INSIDE its own walls and nothing read as fenced in.
+  `BaseWallReach` asks the block-edit store once for the bounds of the player-owned edits within 192 of the core
+  (`IWorldRepository.TryGetPlayerBlockEditBounds`, per canonical piece across the seams), box = farthest cell + 6, at least
+  48, capped at 192 (a quarter lap on small bodies); `ServerWorld.PlayerBlockSet` (owner-carrying sets only) grows it live
+  and dirties the base's levels. `InWalledBaseArea`, `/basewalls` and the test seams use the same box; the budget scales
+  with it (8 cells per column, cap 600k — a 97 box gets 75k, was 60k), fail-open stays and logs once per level flip;
+  a level's reachable set is a bitset over the band rows instead of a hash set (a 385 box would cost hundreds of MB).
+- **Deep fluid is a wall to the fill** — `Supported()` treated any fluid as a floor, so a hand-dug moat was crossed on
+  its surface. Fluid over fluid (depth ≥ 2) carries no feet now, at the feet level too; a one-deep pond is waded, as
+  `TerrainStepBlocked` lets a walker wade one cell.
+- **Land hoverers obey the walker's terrain rules** — a gas-sac land grazer is a `Hoverer` and `StepBlockedByTerrain`
+  let every hoverer through. `CreatureMotion.IsLandHoverer`/`ObeysGroundRules`: one block up, three down, no water past a
+  puddle, no lava, the large-body column check; air hoverers and fliers keep their freedom. The #1854 lift onto a wall top
+  still works (stepping down two is within the drop tolerance).
+- **A shut door stops creatures** — the doorway is air, the door an entity, so the body sweep never saw one. `StepBlocked`
+  samples the step against `ClosedDoorBlocks` (the NPC rule from #1775) every quarter block: wild fauna is stopped by every
+  shut door, a companion only by a hand-operated one (a proximity door opens for the owner, never for the pet).
+
+Tests: a 121-wide ring with the core 40/30 off-centre keeps spawns out and the box grows/caps with owned builds only; a moat
+two deep fences the yard, a one-deep pond ring does not; a land gas-sac hoverer is stopped by a two-block ledge and a moat but
+wades a puddle, an air hoverer by neither; a walker's step into a shut wooden door is refused and allowed once opened.
+Seams: `WalledReachForTest`, `CreatureStepBlockedForTest`, `SurfaceHeightForTest`.
+
 ### 🛰️ Player reports 2026-09-13, morning — double doors, the diagonal waterfall glare, sinking gas-sac animals, scouts in the fortress, the station's borrowed sky, trees invisible from space, hotkeys typed into F1, the nameless net-fragment objective (#1852–#1860 + #1840 #1845 #1847, 2026-09-13, branch reports-0913)
 
 Lyxette, thirteen F1 reports from one morning on v2026.9.8 (her planet base on Seana and her station). Every report was read

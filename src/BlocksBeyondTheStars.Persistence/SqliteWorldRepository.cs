@@ -545,6 +545,34 @@ public sealed class SqliteWorldRepository : IWorldRepository
         }
     }
 
+    public bool TryGetPlayerBlockEditBounds(string planet, Vector3i min, Vector3i max, out Vector3i lo, out Vector3i hi)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT MIN(x), MAX(x), MIN(y), MAX(y), MIN(z), MAX(z) FROM block_edit " +
+                              "WHERE planet = $p AND owner_id <> 0 " +
+                              "AND x BETWEEN $minx AND $maxx AND y BETWEEN $miny AND $maxy AND z BETWEEN $minz AND $maxz;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$minx", min.X);
+            cmd.Parameters.AddWithValue("$maxx", max.X);
+            cmd.Parameters.AddWithValue("$miny", min.Y);
+            cmd.Parameters.AddWithValue("$maxy", max.Y);
+            cmd.Parameters.AddWithValue("$minz", min.Z);
+            cmd.Parameters.AddWithValue("$maxz", max.Z);
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read() || reader.IsDBNull(0))
+            {
+                lo = hi = default;
+                return false; // the aggregates come back NULL when no row matches
+            }
+
+            lo = new Vector3i(reader.GetInt32(0), reader.GetInt32(2), reader.GetInt32(4));
+            hi = new Vector3i(reader.GetInt32(1), reader.GetInt32(3), reader.GetInt32(5));
+            return true;
+        }
+    }
+
     public bool HasAnyBlockEdits(string planet)
     {
         lock (_gate)
