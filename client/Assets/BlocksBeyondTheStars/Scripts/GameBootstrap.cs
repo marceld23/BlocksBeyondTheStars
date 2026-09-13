@@ -1114,8 +1114,34 @@ namespace BlocksBeyondTheStars.Client
         /// the loading veil times out, with no hint anything went wrong (#409).</summary>
         public string ConnectFailedReason { get; private set; } = string.Empty;
 
-        /// <summary>Last server feedback line (craft result / rejection / message) for a HUD toast.</summary>
-        public string LastMessage { get; private set; } = string.Empty;
+        /// <summary>Last server feedback line (craft result / rejection / message) for a HUD toast. Every
+        /// assignment bumps <see cref="LastMessageSeq"/>, so the HUD can tell a RE-SENT identical line from the
+        /// one it already showed (#1860); <see cref="ExpireMessage"/> blanks it once the toast's lifetime is up.</summary>
+        public string LastMessage
+        {
+            get => _lastMessage;
+            private set
+            {
+                _lastMessage = value ?? string.Empty;
+                LastMessageSeq++;
+            }
+        }
+
+        private string _lastMessage = string.Empty;
+
+        /// <summary>Bumped on every <see cref="LastMessage"/> assignment (#1860) — the HUD toast keys on it.</summary>
+        public int LastMessageSeq { get; private set; }
+
+        /// <summary>The HUD toast for <paramref name="seq"/> ran its lifetime out (#1860): blank the message —
+        /// unless a newer one has already replaced it. Blanking bumps the sequence, so the next identical
+        /// server line shows again instead of comparing equal to a toast that already faded.</summary>
+        public void ExpireMessage(int seq)
+        {
+            if (seq == LastMessageSeq && _lastMessage.Length > 0)
+            {
+                LastMessage = string.Empty;
+            }
+        }
 
         /// <summary>The resolved station hull-open warning while it is the toast (#1836) — cleared once the station
         /// reports the pocket sealed again, so the banner does not outlive the leak.</summary>

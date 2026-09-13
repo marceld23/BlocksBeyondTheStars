@@ -63,6 +63,57 @@ public sealed partial class GameServer
     /// <summary>True while the player is walking inside a boarded station.</summary>
     public bool InStation(string playerId) => _boardedStation.ContainsKey(playerId);
 
+    /// <summary>The galaxy body a location id stands for (#1856). A boarded station's world is keyed
+    /// <c>station:&lt;id&gt;</c> — a value <c>Galaxy.FindBody</c> never matches, so every lookup that went straight
+    /// through it (the Visited stamp, the location names, the star colour, the star map's "you are here") came
+    /// back empty on stations. This strips the prefix and resolves the station BODY (<c>sys3-st</c> /
+    /// <c>pstation:&lt;owner&gt;:&lt;n&gt;</c>); plain body ids resolve as before. Null for ids the galaxy does
+    /// not carry (ship interiors, the synthesised <c>-st-local</c> fallback station).</summary>
+    private CelestialBody? ResolveLocationBody(string? locationId)
+    {
+        if (string.IsNullOrEmpty(locationId))
+        {
+            return null;
+        }
+
+        string bodyId = locationId.StartsWith(StationLocationIdPrefix, System.StringComparison.Ordinal)
+            ? locationId.Substring(StationLocationIdPrefix.Length)
+            : locationId;
+        return _galaxy?.FindBody(bodyId);
+    }
+
+    /// <summary>The body whose sky a location shares (#1856): for a player station the body it orbits (its host,
+    /// when the galaxy knows it), for anything else the location's own body. Null when unresolved.</summary>
+    private CelestialBody? ResolveLocationHostBody(string? locationId)
+    {
+        var body = ResolveLocationBody(locationId);
+        if (body is { Kind: CelestialKind.SpaceStation } && _stationHostBody.TryGetValue(body.Id, out var host)
+            && _galaxy?.FindBody(host) is { } hostBody)
+        {
+            return hostBody;
+        }
+
+        return body;
+    }
+
+    /// <summary>Stamps the body behind a location id Visited and persists the status — the star map's "charted"
+    /// state (#1856: stations and wrecks never got it, so they stayed "Uncharted" after docking). Accepts a body
+    /// id or a <c>station:</c> world id; no-op for unknown ids and for bodies already visited.</summary>
+    private void MarkBodyVisited(string? locationId)
+    {
+        if (ResolveLocationBody(locationId) is { } body && body.Status != GenerationStatus.Visited)
+        {
+            body.Status = GenerationStatus.Visited;
+            _repo.SetLocationStatus(body.Id, body.Status.ToString());
+        }
+    }
+
+    /// <summary>Test seam (#1856): the galaxy body id behind a location id (empty when unresolved).</summary>
+    public string ResolveLocationBodyIdForTest(string locationId) => ResolveLocationBody(locationId)?.Id ?? string.Empty;
+
+    /// <summary>Test seam (#1856): the friendly (system, body) names a location id resolves to.</summary>
+    public (string System, string Planet) LocationNamesForTest(string locationId) => LocationNamesFor(locationId);
+
     /// <summary>Name of the station the player is boarded on, or empty when not on one.</summary>
     private string CurrentStationName(string playerId)
         => _boardedStation.TryGetValue(playerId, out var id) && _stationsById.TryGetValue(id, out var st)
@@ -289,9 +340,11 @@ public sealed partial class GameServer
         session.SentChunks.Clear();
         session.AwaitingSpawnAdopt = true; // #1833: like every other server teleport — the client's stale stream must not drag them back (#865)
         MarkArrivedOnBody(session, station.Id); // boarding marks the station visited → a travel-screen target
+        MarkBodyVisited(station.Id); // #1856: …and charted for everyone — the galaxy status, not just this player's list
 
         Send(session, new SpaceClosed { Reason = "@srv.station.docked", ShipDisabled = false });
-        Send(session, new WorldReset { PlanetType = StationPlanetType, PlanetName = station.Name, SystemName = string.Empty, Hyperjump = false });
+        // #1856: the station's own system, so the client labels "System · Station" and keys the sun colour right.
+        Send(session, new WorldReset { PlanetType = StationPlanetType, PlanetName = station.Name, SystemName = LocationNamesFor(stationLoc).System, Hyperjump = false });
         SendPlayerState(session);
         SendEnvironment(session);
         SendInventory(session);

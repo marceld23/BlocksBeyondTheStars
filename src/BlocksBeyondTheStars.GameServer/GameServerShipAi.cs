@@ -81,20 +81,85 @@ public sealed partial class GameServer
     private bool CreativeGrantsActive
         => _config.CreativeUnlockAllBlueprints || Rules.GameMode == GameMode.Creative;
 
+    /// <summary>The objective chip as last sent, per connection (#1859): key, {0} argument, progress and target.
+    /// <see cref="RefreshVegaObjective"/> compares the live objective against this once a second and re-sends on
+    /// any change — before, the chip was only refreshed on landing / join / a story beat, so "a net fragment
+    /// lies on this world" survived the launch, the station and the pickup. A connection id may be reused
+    /// after a disconnect; the worst case is one redundant chip refresh, so no cleanup hook is needed.</summary>
+    private readonly Dictionary<int, (string Key, string Arg, int Progress, int Target)> _vegaObjectiveSent = new();
+
     private void SendVegaLine(PlayerSession session, string lineKey, byte kind, string arg = "")
-        => Send(session, new ShipAiLine
+    {
+        var line = new ShipAiLine
         {
             LineKey = lineKey,
             LineArg = arg,
             ObjectiveKey = VegaObjectiveKey(session.State),
+            ObjectiveArg = VegaObjectiveArg(session.State),
             ObjectiveProgress = VegaObjectiveProgress(session),
             ObjectiveTarget = VegaObjectiveTarget(session.State),
             Kind = kind,
-        });
+        };
+        RememberVegaObjective(session, line);
+        Send(session, line);
+    }
+
+    private void RememberVegaObjective(PlayerSession session, ShipAiLine line)
+        => _vegaObjectiveSent[session.ConnectionId] = (line.ObjectiveKey, line.ObjectiveArg, line.ObjectiveProgress, line.ObjectiveTarget);
 
     /// <summary>Objective-chip-only update (no new speech) — e.g. the mining counter ticking up.</summary>
     private void SendVegaObjective(PlayerSession session)
         => SendVegaLine(session, string.Empty, 0);
+
+    /// <summary>1 Hz per player (from <see cref="TickShipAi"/>): re-sends the chip whenever the live objective
+    /// differs from the one last sent (#1859) — so launching, boarding a station, quick-travelling and picking
+    /// up the fragment all move the chip on without a dedicated hook at each site. While the fragment objective
+    /// is up on the player's current world, the fragment signal is also put on the map unconditionally: the
+    /// chip says "follow VEGA's signal", so there has to be one — before, the marker only appeared once the
+    /// tip-gated <c>fragment_signal</c> hint happened to win a cadence slot.</summary>
+    private void RefreshVegaObjective(PlayerSession session)
+    {
+        var p = session.State;
+        var live = (Key: VegaObjectiveKey(p), Arg: VegaObjectiveArg(p), Progress: VegaObjectiveProgress(session), Target: VegaObjectiveTarget(p));
+        if (!_vegaObjectiveSent.TryGetValue(session.ConnectionId, out var sent) || sent != live)
+        {
+            SendVegaObjective(session);
+        }
+
+        if (live.Key is "story.obj.fragment_on" or "story.obj.fragment_here")
+        {
+            RevealFragmentSignals();
+        }
+    }
+
+    /// <summary>Marks every unread net fragment of the active world on the map (persisted reveal, broadcast to
+    /// the world's players), once per fragment. Same reveal key the <c>fragment_signal</c> tip uses, so the two
+    /// paths never double-mark; the pickup removes the fragment and the marker drops off on its own.</summary>
+    private void RevealFragmentSignals()
+    {
+        foreach (var f in _netFragments)
+        {
+            string revealKey = _worlds.Active.LocationId + "|frag:" + f.Key;
+            if (!_meta.RevealedPois.Contains(revealKey))
+            {
+                RevealPoi(revealKey);
+            }
+        }
+    }
+
+    /// <summary>The {0} argument of the objective chip (#1859): the body name for <c>story.obj.fragment_on</c>,
+    /// empty for every other objective.</summary>
+    private string VegaObjectiveArg(PlayerState p)
+        => VegaObjectiveKey(p) == "story.obj.fragment_on" ? FragmentWorldName() : string.Empty;
+
+    /// <summary>Display name of the active world when it is a galaxy body ("Kepler-3 b"); empty for a location
+    /// the galaxy does not know (<c>LocationNamesFor</c> then falls back to the planet TYPE id, which would read
+    /// as "a net fragment lies on rocky" — the unnamed <c>fragment_here</c> wording is the better chip there).</summary>
+    private string FragmentWorldName()
+    {
+        var (system, planet) = LocationNamesFor(_worlds.Active.LocationId);
+        return system.Length > 0 ? planet : string.Empty;
+    }
 
     /// <summary>#1832: once the Guardian system is revealed the finale IS the objective — the onboarding chip
     /// ("craft an item") must not sit over it while the player stands in the core chamber. The stages still
@@ -154,7 +219,10 @@ public sealed partial class GameServer
 
         if (p.CurrentLocationId == _worlds.Active.LocationId && _netFragments.Count > 0)
         {
-            return "story.obj.fragment_here"; // a net fragment is on THIS world — follow the signal
+            // A net fragment is on the player's world — follow the signal. Named after the body (#1859) so the
+            // chip still reads right from orbit or a station above it ("lies on Kepler-3 b", not "on this
+            // world"); the unnamed wording stays for a location the galaxy has no name for.
+            return FragmentWorldName().Length > 0 ? "story.obj.fragment_on" : "story.obj.fragment_here";
         }
 
         return _story.Fragments.Any(f => !_storyState.FoundFragmentKeys.Contains(f.Key))
@@ -165,6 +233,11 @@ public sealed partial class GameServer
     /// <summary>Test seam: the objective-chip key this player would be sent right now (#1110).</summary>
     public string? ObjectiveKeyForTest(string playerId)
         => FindSessionByPlayerId(playerId) is { } session ? VegaObjectiveKey(session.State) : null;
+
+    /// <summary>Test seam: the objective chip's {0} argument for this player right now (#1859) — the body name
+    /// while the fragment objective is up, empty otherwise.</summary>
+    public string? ObjectiveArgForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } session ? VegaObjectiveArg(session.State) : null;
 
     /// <summary>Join hook: boots VEGA for new players (prologue + intro + first objective), auto-grants the
     /// chain for veteran saves, and re-shows the current objective on a mid-onboarding rejoin. Always ends
@@ -413,6 +486,8 @@ public sealed partial class GameServer
 
             session.VegaAdvisorAccum = 0.0;
             var p = session.State;
+
+            RefreshVegaObjective(session); // #1859: the chip follows launches, stations, pickups and travel
 
             // Vitals coaching (o2 / energy / hunger / cold / heat) moved to the throttled context tips
             // (#1082): the first occurrence still behaves like the old once-hint, later ones repeat with
@@ -738,14 +813,19 @@ public sealed partial class GameServer
 
     /// <summary>Sends an LLM banter text directly (keeps the current objective chip fields).</summary>
     private void SendVegaText(PlayerSession session, string text)
-        => Send(session, new ShipAiLine
+    {
+        var line = new ShipAiLine
         {
             Text = ClampVegaText(text),
             ObjectiveKey = VegaObjectiveKey(session.State),
+            ObjectiveArg = VegaObjectiveArg(session.State),
             ObjectiveProgress = VegaObjectiveProgress(session),
             ObjectiveTarget = VegaObjectiveTarget(session.State),
             Kind = 1,
-        });
+        };
+        RememberVegaObjective(session, line);
+        Send(session, line);
+    }
 
     /// <summary>Drains banter lines finished off-thread. Called once per server tick.</summary>
     private void TickVegaBanter()

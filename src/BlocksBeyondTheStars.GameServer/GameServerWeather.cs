@@ -183,7 +183,7 @@ public sealed partial class GameServer
         _dayFraction = InitialDayFraction;
         _sinceEnvBroadcast = 0;
 
-        var (system, _) = ActiveLocationNames();
+        var (system, _) = ActiveLocationNames(); // #1856: a station world resolves to its system too — no more "" star
         _sunColor = StarColor(system);
         // One uniform flora base hue per WORLD (green / brown / pink / purple …). Seeded from
         // LocationId ^ Seed like sky/cloud/gravity (#478) — it was the last per-TYPE hue, contradicting

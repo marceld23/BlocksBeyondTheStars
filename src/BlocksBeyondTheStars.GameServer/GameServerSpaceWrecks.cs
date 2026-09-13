@@ -183,7 +183,13 @@ public sealed partial class GameServer
     /// refreshes their star map. No-op for anything that isn't a wreck body, or on a repeat.</summary>
     private void MarkSpaceWreckVisited(PlayerSession session, string bodyId)
     {
-        if (_galaxy?.FindBody(bodyId) is not { Kind: CelestialKind.Wreck } body || !session.State.LandedBodies.Add(body.Id))
+        if (_galaxy?.FindBody(bodyId) is not { Kind: CelestialKind.Wreck } body)
+        {
+            return;
+        }
+
+        MarkBodyVisited(body.Id); // #1856: the wreck is charted for everyone — it never went through LoadWorld's stamp
+        if (!session.State.LandedBodies.Add(body.Id))
         {
             return;
         }

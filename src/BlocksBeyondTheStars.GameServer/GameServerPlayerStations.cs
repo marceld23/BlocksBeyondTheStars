@@ -206,6 +206,9 @@ public sealed partial class GameServer
             SystemX = current?.SystemX ?? 0f,
             SystemY = current?.SystemY ?? 0f,
             SystemZ = current?.SystemZ ?? 0f,
+            // #1856: the host body, so the client's sky aboard the station is the host's sky without a coordinate
+            // scan. Only the Moon pass of the space view reads ParentId, so a station carrying one is inert there.
+            ParentId = current?.Id ?? string.Empty,
         });
     }
 
@@ -770,19 +773,64 @@ public sealed partial class GameServer
     /// matching — or gone — and leaves it alone) and the hull seen from a spacewalk shows the rebuilt wall. Doors
     /// built inside are door entities, not blocks, and persist with the world on their own. No-op outside
     /// player-station worlds. Called after the world write, for player edits only — station stamps, fluids and
-    /// fires never go through here.</summary>
+    /// fires never go through here — blocks the SERVER grows (a sapling's tree, regrown flora) take the batched
+    /// <see cref="MirrorStationCellDeferred"/> route instead (#1857).</summary>
     private void WriteBackStationCell(Vector3i world, BlockId block, int tint = 0, int glow = 0, int shape = 0)
+    {
+        if (MirrorStationCell(world, block, tint, glow, shape) is { } stationId)
+        {
+            PublishStationCells(stationId);
+        }
+    }
+
+    /// <summary>Player stations whose cell grid changed through <see cref="MirrorStationCellDeferred"/> and still
+    /// owe their pilots outside a design refresh + a persisted row (#1857).</summary>
+    private readonly HashSet<string> _stationCellsDirty = new();
+
+    /// <summary>A block the server grew inside a player station (#1857): the grid takes it like a player edit, but
+    /// the row write + the design broadcast wait for <see cref="FlushMirroredStationCells"/> — a tree is forty-odd
+    /// cells, and each one re-sending the whole design (and re-serialising every cell to the row) is the cost this
+    /// avoids. No-op outside player-station worlds.</summary>
+    private void MirrorStationCellDeferred(Vector3i world, BlockId block)
+    {
+        if (MirrorStationCell(world, block) is { } stationId)
+        {
+            _stationCellsDirty.Add(stationId);
+        }
+    }
+
+    /// <summary>Persists + re-broadcasts every station <see cref="MirrorStationCellDeferred"/> touched since the
+    /// last flush — once per station, however many cells changed (#1857).</summary>
+    private void FlushMirroredStationCells()
+    {
+        if (_stationCellsDirty.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var stationId in _stationCellsDirty)
+        {
+            PublishStationCells(stationId);
+        }
+
+        _stationCellsDirty.Clear();
+    }
+
+    /// <summary>The grid half of the write-back: mirrors one cell of the ACTIVE world into its player station's
+    /// cell grid and refreshes the bounds. Returns the station id when the grid changed, null when the world is
+    /// no materialised player station or the grid already said so.</summary>
+    private string? MirrorStationCell(Vector3i world, BlockId block, int tint = 0, int glow = 0, int shape = 0)
     {
         if (!IsPlayerStationWorld(_world.LocationId))
         {
-            return;
+            return null;
         }
 
         string stationId = _world.LocationId.Substring("station:".Length);
         if (!_stationsById.TryGetValue(stationId, out var station) || !station.Materialised
             || !_playerStationCells.TryGetValue(stationId, out var s))
         {
-            return;
+            return null;
         }
 
         var cell = WorldToStationCell(station, StationLocalWorld(station, world)); // #1773: the edit arrives canonical
@@ -790,19 +838,31 @@ public sealed partial class GameServer
         bool sameShape = (s.Shapes.TryGetValue(cell, out var sh) ? sh : 0) == shape;
         if (block.IsAir ? !s.Cells.ContainsKey(cell) : s.Get(cell).Value == block.Value && sameMods && sameShape)
         {
-            return; // nothing the grid doesn't already say
+            return null; // nothing the grid doesn't already say
         }
 
         s.Set(cell, block, tint, glow, shape); // #1493: dye + form ride along, so the hull seen from a spacewalk matches
         var (min, max) = CellBox(s);
         RefreshStationBounds(station, min, max);
+        return stationId;
+    }
+
+    /// <summary>The publish half of the write-back: persists the station's row and re-sends its design to the
+    /// pilots floating beside the hull right now, so they see the rebuilt wall (or the grown tree) too.</summary>
+    private void PublishStationCells(string stationId)
+    {
+        if (!_playerStationCells.TryGetValue(stationId, out var s))
+        {
+            return;
+        }
+
         if (_stationHostBody.TryGetValue(stationId, out var hostLoc))
         {
             PersistStation(hostLoc, s);
         }
 
-        // Pilots floating beside the hull right now see the rebuilt wall too. The instance is found by the structure
-        // it holds, not by key: a never-landed ship's instance is keyed by the planet-type placeholder (#1493).
+        // The instance is found by the structure it holds, not by key: a never-landed ship's instance is keyed by
+        // the planet-type placeholder (#1493).
         if (_spaceInstances.Values.FirstOrDefault(i => i.Structures.ContainsKey(s.Id)) is { } instance)
         {
             foreach (var pid in instance.Players)

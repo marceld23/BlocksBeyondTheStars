@@ -447,7 +447,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Builds the flying scan-drone (P4): a small dark hovering pod with a single glowing RED
         /// scanner eye and three sensor fins — the ground counterpart of the space UFO. Dummy limb pivots keep
-        /// the shared <see cref="Animate"/> null-safe (drones skip limb posing).</summary>
+        /// the shared <see cref="Animate"/> null-safe (drones skip limb posing). The pod is grey plating and
+        /// vanished against grey asteroid rock (#1840), so it also carries self-lit red accents (same unlit
+        /// <see cref="_eyeMat"/> — red is the Guardian colour, never blue): an equatorial threat strip that
+        /// reads from every side, caps on the three fin tips, an emitter under the belly and a wider eye.</summary>
         private Entry BuildDrone(string id)
         {
             EnsureMaterials();
@@ -468,10 +471,20 @@ namespace BlocksBeyondTheStars.Client
             en.Body = Pivot(root.transform, new Vector3(0f, 0.5f, 0f));
             Cube(en.Body, "Pod", new Vector3(0f, 0f, 0f), new Vector3(0.5f, 0.34f, 0.5f), _hideMat);
             Cube(en.Body, "Underside", new Vector3(0f, -0.18f, 0f), new Vector3(0.3f, 0.12f, 0.3f), _hideDarkMat);
-            Cube(en.Body, "Eye", new Vector3(0f, -0.02f, 0.26f), new Vector3(0.16f, 0.1f, 0.06f), _eyeMat); // red scanner
+            Cube(en.Body, "Eye", new Vector3(0f, -0.02f, 0.26f), new Vector3(0.24f, 0.1f, 0.06f), _eyeMat); // red scanner (wider since #1840)
             Cube(en.Body, "FinL", new Vector3(-0.34f, 0.04f, 0f), new Vector3(0.2f, 0.05f, 0.16f), _clawMat);
             Cube(en.Body, "FinR", new Vector3(0.34f, 0.04f, 0f), new Vector3(0.2f, 0.05f, 0.16f), _clawMat);
             Cube(en.Body, "FinB", new Vector3(0f, 0.04f, -0.34f), new Vector3(0.16f, 0.05f, 0.2f), _clawMat);
+
+            // #1840: self-lit red accents so the grey pod never disappears against grey asteroid rock. All on
+            // the body pivot, so they bob and yaw with it. The strip pokes 0.01 out of the pod on every side
+            // at mid-height (visible from any angle); the caps sit just past the fin tips; the emitter hangs
+            // below the underside block.
+            Cube(en.Body, "ThreatStrip", new Vector3(0f, 0f, 0f), new Vector3(0.52f, 0.03f, 0.52f), _eyeMat);
+            Cube(en.Body, "FinCapL", new Vector3(-0.45f, 0.04f, 0f), new Vector3(0.04f, 0.06f, 0.17f), _eyeMat);
+            Cube(en.Body, "FinCapR", new Vector3(0.45f, 0.04f, 0f), new Vector3(0.04f, 0.06f, 0.17f), _eyeMat);
+            Cube(en.Body, "FinCapB", new Vector3(0f, 0.04f, -0.45f), new Vector3(0.17f, 0.06f, 0.04f), _eyeMat);
+            Cube(en.Body, "Emitter", new Vector3(0f, -0.26f, 0f), new Vector3(0.12f, 0.12f, 0.12f), _eyeMat);
 
             en.Head = en.Body; // the eye sits on the body
             // Dummy limb pivots so the shared Animate() never null-refs (drones skip limb posing).

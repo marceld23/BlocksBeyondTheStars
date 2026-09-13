@@ -242,13 +242,26 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _open = true;
+
+            // Modal: free the cursor + pause player/flight control (mirrors GameMenu / BeamPadUi; SpaceView
+            // holds position while MenuOpen). Registered HERE, on the frame the hotkey fires, not at the end of
+            // it with the screenshot (#1858): the gap between _open and the owner flag was a frame in which
+            // every gameplay verb still read its key. The arbiter recomputes on close, so a flight sub-screen
+            // the dialog opened over (e.g. the landing-pad chooser) keeps its free cursor without us having to
+            // save/restore the prior state by hand (#413).
+            //
+            // The screenshot still shows the HUD: HudUi (and the flight overlay) only drop their canvases in
+            // THEIR Update, and this frame's HudUi.Update has already run — WorldRig adds HudUi to the rig
+            // before FeedbackUi, so it updates first — while the flight overlay's prompts are the only thing
+            // that can go missing from the shot when SpaceView.Update runs after us.
+            Game.SetMenuOwner(this, true);
             StartCoroutine(OpenRoutine());
         }
 
         private IEnumerator OpenRoutine()
         {
-            // Capture at end of frame, before the dialog is shown and before MenuOpen hides the HUD: the shot
-            // is the full frame WITH the HUD but WITHOUT this dialog (the requested look).
+            // Capture at end of frame, before the dialog is shown: the shot is the full frame WITH the HUD but
+            // WITHOUT this dialog (the requested look).
             yield return new WaitForEndOfFrame();
             if (!_open)
             {
@@ -263,12 +276,6 @@ namespace BlocksBeyondTheStars.Client
             EnsureDialog();
             ResetFields();
             _dialog.SetActive(true);
-
-            // Modal: free the cursor + pause player/flight control (mirrors GameMenu / BeamPadUi; SpaceView
-            // holds position while MenuOpen). The arbiter recomputes on close, so a flight sub-screen the
-            // dialog opened over (e.g. the landing-pad chooser) keeps its free cursor without us having to
-            // save/restore the prior state by hand (#413).
-            Game.SetMenuOwner(this, true);
 
             // Hold the world like the Esc menu does (#1330) — after the screenshot, so the shot shows live play.
             // The server decides what it means (#973): alone, the world stops right here; with others joined it

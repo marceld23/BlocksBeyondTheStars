@@ -72,6 +72,97 @@ public sealed class DoorTests : IDisposable
     private static bool IsOpen(SvGameServer server, int doorId)
         => server.DoorSnapshots.First(d => d.Id == doorId).Open;
 
+    /// <summary>A bare world without settlements, for player-built doors (fast — no seed search).</summary>
+    private SvGameServer StartBare(out SqliteWorldRepository repo)
+    {
+        repo = new SqliteWorldRepository(new SaveGamePaths(_root, "door_pair"));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig
+        {
+            WorldName = "door_pair",
+            Seed = 1,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+        };
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        return server;
+    }
+
+    /// <summary>A player-built one-block door as the server records it, for the pure pairing rule.</summary>
+    private static SvGameServer.ServerDoor Built(float x, float y, float z, bool axisX, string kind = "wood", bool playerBuilt = true)
+        => new() { Kind = kind, Pos = new Vector3f(x, y, z), AxisX = axisX, Width = 1f, PlayerBuilt = playerBuilt };
+
+    private static int DoorIdAtX(SvGameServer server, float x)
+        => server.DoorSnapshots.Single(d => System.Math.Abs(d.Pos.X - x) < 0.01f).Id;
+
+    // ---------------- #1852: double doors swing together ----------------
+
+    [Fact]
+    public void DoorPairing_PartnersSitOneBlockApartAlongTheWall_OnEitherAxis()
+    {
+        // An X wall: the leaves are neighbours along X, on the same wall line (Z).
+        var a = Built(1.5f, 200f, 0.5f, axisX: true);
+        Assert.True(SvGameServer.DoorPairing.IsPartner(a, Built(2.5f, 200f, 0.5f, axisX: true)));
+        Assert.True(SvGameServer.DoorPairing.IsPartner(a, Built(0.5f, 200f, 0.5f, axisX: true)));
+
+        // A Z wall: the leaves are neighbours along Z, on the same wall line (X).
+        var b = Built(0.5f, 200f, 1.5f, axisX: false);
+        Assert.True(SvGameServer.DoorPairing.IsPartner(b, Built(0.5f, 200f, 2.5f, axisX: false)));
+        Assert.True(SvGameServer.DoorPairing.IsPartner(b, Built(0.5f, 200f, 0.5f, axisX: false)));
+
+        // The rule is symmetric, and a metal hinge pair works like a wooden one.
+        var c = Built(1.5f, 200f, 0.5f, axisX: true, kind: "hinge");
+        var d = Built(2.5f, 200f, 0.5f, axisX: true, kind: "hinge");
+        Assert.True(SvGameServer.DoorPairing.IsPartner(c, d));
+        Assert.True(SvGameServer.DoorPairing.IsPartner(d, c));
+    }
+
+    [Fact]
+    public void DoorPairing_RejectsEverythingThatIsNotTheOtherLeaf()
+    {
+        var a = Built(1.5f, 200f, 0.5f, axisX: true);
+
+        Assert.False(SvGameServer.DoorPairing.IsPartner(a, a));                                   // itself
+        Assert.False(SvGameServer.DoorPairing.IsPartner(a, Built(3.5f, 200f, 0.5f, axisX: true))); // two blocks off
+        Assert.False(SvGameServer.DoorPairing.IsPartner(a, Built(2.5f, 200f, 0.5f, axisX: false))); // the other wall axis
+        Assert.False(SvGameServer.DoorPairing.IsPartner(a, Built(1.5f, 200f, 1.5f, axisX: true)));  // across the wall: two parallel walls
+        Assert.False(SvGameServer.DoorPairing.IsPartner(a, Built(2.5f, 203f, 0.5f, axisX: true)));  // another floor
+        Assert.False(SvGameServer.DoorPairing.IsPartner(a, Built(2.5f, 200f, 0.5f, axisX: true, kind: "hinge"))); // another kind
+        Assert.False(SvGameServer.DoorPairing.IsPartner(a, Built(2.5f, 200f, 0.5f, axisX: true, playerBuilt: false))); // a stamped door
+        Assert.False(SvGameServer.DoorPairing.IsPartner(                                              // slide doors are server-automatic
+            Built(1.5f, 200f, 0.5f, axisX: true, kind: "slide"), Built(2.5f, 200f, 0.5f, axisX: true, kind: "slide")));
+    }
+
+    [Fact]
+    public void DoubleDoor_OneInteractSwingsBothLeaves_ButNotADoorTwoBlocksOff()
+    {
+        var server = StartBare(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Builder");
+            p.State.Position = new Vector3f(0, 200, 0); // up in the air → the target cells are empty, no jambs → the wall follows the yaw (0 → X)
+            p.State.Inventory.Add("door_wood", 3, 99);
+
+            server.PlaceBlock("Builder", 1, 200, 0, "door_wood"); // the pair: two leaves side by side along X…
+            server.PlaceBlock("Builder", 2, 200, 0, "door_wood");
+            server.PlaceBlock("Builder", 4, 200, 0, "door_wood"); // …and a lone door with a gap between
+            Assert.Equal(3, server.DoorCount);
+
+            int left = DoorIdAtX(server, 1.5f), right = DoorIdAtX(server, 2.5f), lone = DoorIdAtX(server, 4.5f);
+
+            server.InteractDoorForTest(p, left);      // E on one leaf…
+            Assert.True(IsOpen(server, left));
+            Assert.True(IsOpen(server, right));       // …swings its partner too
+            Assert.False(IsOpen(server, lone));       // the door two blocks off stays shut
+
+            server.InteractDoorForTest(p, right);     // E on the other leaf shuts both
+            Assert.False(IsOpen(server, left));
+            Assert.False(IsOpen(server, right));
+        }
+    }
+
     [Fact]
     public void InhabitedSettlement_RegistersDoors_AtItsDoorways()
     {

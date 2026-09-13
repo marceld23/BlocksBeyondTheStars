@@ -36,6 +36,10 @@ namespace BlocksBeyondTheStars.Client
         private TextMeshProUGUI _log;
         private RectTransform _inputRow;
         private InputField _input;
+        private RectTransform _banner;
+        private CanvasGroup _bannerGroup;
+        private TextMeshProUGUI _bannerText;
+        private float _bannerAlpha;
         private bool _typing, _subscribed, _built, _hostAnnounced, _reportTipShown, _hiddenByKey, _capturing, _windowShown;
         private int _openFrame = -1;
         private float _nextRefresh = float.MaxValue;
@@ -51,6 +55,13 @@ namespace BlocksBeyondTheStars.Client
         private const float LaneTop = 280f, LaneBottom = 590f; // between the toast (268) and VEGA's chip (594)
         private const float InputRowY = 596f, InputRowH = 44f, LaneGap = 6f;
         private const float WindowPad = 10f; // holo window inset around the text block
+
+        // The "You are in chat" banner (#1845): centred under the crosshair column — HudUi's interact prompt
+        // sits at H/2+24 and the loot line at H/2+48 (both 22 high), so the banner starts below them.
+        private const float BannerW = 420f, BannerH = 52f;
+        private const float BannerY = UiKit.HudRefH / 2f + 84f;
+        private const float BannerFadeSeconds = 0.15f;
+        private const float BannerFontSize = 22f;
 
         // VEGA visibility as of the last refresh — the lane is re-resolved when either flips (Update).
         private bool _vegaSpeechSeen, _vegaChipSeen;
@@ -142,6 +153,24 @@ namespace BlocksBeyondTheStars.Client
             return new ChatWindow(bottom - h, h, textH, textBlock, capacity);
         }
 
+        /// <summary>
+        /// The banner's alpha for this frame (#1845): it eases toward 1 while the player is typing and back to 0
+        /// once the box closes, over <see cref="BannerFadeSeconds"/> of unscaled time (the world may be held),
+        /// and is cut to 0 outright under a menu — a dialog that opened over the chat must not carry the "you
+        /// are in chat" claim on top of itself. Pure for the EditMode test; the caller deactivates the panel at 0.
+        /// </summary>
+        public static float ResolveBannerAlpha(float current, bool typing, bool menuOpen, float unscaledDt)
+        {
+            if (menuOpen)
+            {
+                return 0f;
+            }
+
+            float target = typing ? 1f : 0f;
+            float step = unscaledDt <= 0f ? 0f : unscaledDt / BannerFadeSeconds;
+            return Mathf.MoveTowards(Mathf.Clamp01(current), target, step);
+        }
+
         /// <summary>A scrollback entry with the (unscaled) time it arrived, which is what the fade reads.</summary>
         private readonly struct ChatLine
         {
@@ -211,6 +240,8 @@ namespace BlocksBeyondTheStars.Client
                 _canvas.enabled = !hideForContext;
             }
 
+            UpdateBanner();
+
             // Lane arbitration (see ResolveLane): whenever VEGA's speech panel or objective chip appears or
             // goes, the scrollback re-lays out around it. Two bool reads per frame — no allocation.
             var vega = VegaPanel.Instance;
@@ -243,6 +274,39 @@ namespace BlocksBeyondTheStars.Client
                 _hiddenByKey = !_hiddenByKey;
                 Game.ShowMessage(L(_hiddenByKey ? "ui.chat.hidden" : "ui.chat.shown"));
                 RefreshLog();
+            }
+        }
+
+        /// <summary>
+        /// Fades the "You are in chat" banner (#1845) in while the keyboard box is open and out once it closes.
+        /// Players kept typing into the world because nothing said the chat had the keys — the placeholder in
+        /// the small box at the left edge was the only hint. The pad's on-screen keyboard is its own full-screen
+        /// take-over and needs no banner (and its Enter/Esc wording would be wrong there), so this reads
+        /// <see cref="_typing"/> — the InputField path — not <c>Game.ChatTyping</c>.
+        /// </summary>
+        private void UpdateBanner()
+        {
+            if (_banner == null || _bannerGroup == null)
+            {
+                return;
+            }
+
+            bool wasHidden = _bannerAlpha <= 0f;
+            _bannerAlpha = ResolveBannerAlpha(_bannerAlpha, _typing, Game.MenuOpen, Time.unscaledDeltaTime);
+            bool shown = _bannerAlpha > 0f;
+            if (shown && wasHidden && _bannerText != null)
+            {
+                _bannerText.text = L("ui.chat.typing_banner"); // re-read on every show: the language can change mid-session
+            }
+
+            if (_banner.gameObject.activeSelf != shown)
+            {
+                _banner.gameObject.SetActive(shown);
+            }
+
+            if (shown)
+            {
+                _bannerGroup.alpha = _bannerAlpha;
             }
         }
 
@@ -1094,6 +1158,21 @@ namespace BlocksBeyondTheStars.Client
             _input.onEndEdit.AddListener(OnEndEdit);
             _inputRow.gameObject.SetActive(false);
             _window.gameObject.SetActive(false); // no lines yet — no window (RefreshLog wakes it)
+
+            // "You are in chat" banner (#1845): the same holo chrome as the window, centred under the crosshair
+            // column, fading with the input box (UpdateBanner). Purely informational — it must never take a
+            // click or the pad focus away from the box or the world, hence no raycasts anywhere on it.
+            var bannerPanel = UiHolo.AddPanel(root, (UiKit.HudRefW - BannerW) / 2f, BannerY, BannerW, BannerH, new Color(0.05f, 0.10f, 0.16f, 0.82f), 12f, 1.5f, 1.2f);
+            bannerPanel.gameObject.name = "ChatTypingBanner";
+            bannerPanel.raycastTarget = false;
+            _banner = bannerPanel.rectTransform;
+            _bannerGroup = _banner.gameObject.AddComponent<CanvasGroup>();
+            _bannerGroup.alpha = 0f;
+            _bannerGroup.interactable = false;
+            _bannerGroup.blocksRaycasts = false;
+            _bannerText = UiText.Add(_banner, 0f, 0f, BannerW, BannerH, L("ui.chat.typing_banner"), BannerFontSize, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
+            _bannerText.raycastTarget = false;
+            _banner.gameObject.SetActive(false);
 
             _built = true;
         }

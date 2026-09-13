@@ -71,5 +71,32 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             var nd = Door(width: 0.5f);
             Assert.That(DoorView.SameDoor("energy", new Vector3(10f, 20f, 30f), 1f, true, nd), Is.True);
         }
+
+        // ---------------- #1852: no post on a jamb shared with a partner leaf ----------------
+
+        [Test]
+        public void ALoneDoorGetsBothJambPosts()
+        {
+            Assert.That(DoorView.WantsJambPost(DoorPairs.Sides.None, plusSide: false), Is.True);
+            Assert.That(DoorView.WantsJambPost(DoorPairs.Sides.None, plusSide: true), Is.True);
+        }
+
+        [Test]
+        public void TheSharedJambOfADoubleDoorGetsNoPost()
+        {
+            // The left leaf shares its +X jamb, the right leaf its −X jamb; each keeps the post on its outer side.
+            Assert.That(DoorView.WantsJambPost(DoorPairs.Sides.Plus, plusSide: true), Is.False);
+            Assert.That(DoorView.WantsJambPost(DoorPairs.Sides.Plus, plusSide: false), Is.True);
+            Assert.That(DoorView.WantsJambPost(DoorPairs.Sides.Minus, plusSide: false), Is.False);
+            Assert.That(DoorView.WantsJambPost(DoorPairs.Sides.Minus, plusSide: true), Is.True);
+        }
+
+        [Test]
+        public void TheMiddleLeafOfThreeGetsNoPostAtAll()
+        {
+            var both = DoorPairs.Sides.Minus | DoorPairs.Sides.Plus;
+            Assert.That(DoorView.WantsJambPost(both, plusSide: false), Is.False);
+            Assert.That(DoorView.WantsJambPost(both, plusSide: true), Is.False);
+        }
     }
 }

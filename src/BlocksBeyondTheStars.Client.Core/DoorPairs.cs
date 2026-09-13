@@ -38,6 +38,19 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Which local sides of a door carry a partner leaf (#1852). A jamb shared with a partner gets
+        /// no post — the renderer used to draw one post per door there, so a double door showed a dark bar
+        /// between its leaves.</summary>
+        [Flags]
+        public enum Sides
+        {
+            None = 0,
+            /// <summary>A partner one block away on the door's local −X side.</summary>
+            Minus = 1,
+            /// <summary>A partner one block away on the door's local +X side.</summary>
+            Plus = 2,
+        }
+
         /// <summary>Centre-to-centre distance of two adjacent one-block doorways along their wall, in blocks.</summary>
         private const float Neighbour = 1f;
 
@@ -54,11 +67,23 @@ namespace BlocksBeyondTheStars.Client
         /// <para>"Local X" is the door's own wall direction as the renderer frames it: world +X for an X wall,
         /// world −Z for a Z wall (the pivot is turned +90° about Y, which carries local +X onto world −Z).</para>
         /// </summary>
-        public static bool MirrorsLeaf(Door door, IReadOnlyList<Door> all)
+        public static bool MirrorsLeaf(Door door, IReadOnlyList<Door> all) => MirrorsLeaf(PartnerSides(door, all));
+
+        /// <summary>The swing rule on an already computed neighbourhood: only the leaf whose sole partner sits
+        /// on its local −X side hangs on the far jamb (see <see cref="MirrorsLeaf(Door, IReadOnlyList{Door})"/>).</summary>
+        public static bool MirrorsLeaf(Sides partners) => partners == Sides.Minus;
+
+        /// <summary>
+        /// The sides of <paramref name="door"/> on which a partner leaf sits exactly one block away along the
+        /// wall — the same neighbour search <see cref="MirrorsLeaf(Door, IReadOnlyList{Door})"/> rests on, so
+        /// the swing and the shared-jamb post (#1852) can never disagree. A slide door has no partners. Both
+        /// flags are set for the middle leaf of three in a row.
+        /// </summary>
+        public static Sides PartnerSides(Door door, IReadOnlyList<Door> all)
         {
             if (!door.Hinged)
             {
-                return false;
+                return Sides.None;
             }
 
             bool onMinus = false, onPlus = false;
@@ -92,7 +117,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            return onMinus && !onPlus;
+            return (onMinus ? Sides.Minus : Sides.None) | (onPlus ? Sides.Plus : Sides.None);
         }
     }
 }

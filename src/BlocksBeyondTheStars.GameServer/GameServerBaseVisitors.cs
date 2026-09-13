@@ -108,8 +108,11 @@ public sealed partial class GameServer
                 continue;
             }
 
-            SpawnScoutsAt(b, owner);
-            BroadcastPlanetEnemies();
+            if (SpawnScoutsAt(b, owner))
+            {
+                BroadcastPlanetEnemies();
+            }
+
             return; // one visit per tick
         }
     }
@@ -142,17 +145,26 @@ public sealed partial class GameServer
         return false;
     }
 
-    private void SpawnScoutsAt(ServerBase b, PlayerSession owner)
+    /// <summary>The spawn distances tried in turn (#1855): the classic 40, then further out. A fortress wider
+    /// than 40 blocks had scouts materialising INSIDE its walls — the bearing was blind and the distance fixed.</summary>
+    private static readonly float[] ScoutSpawnRadii = { ScoutSpawnDistance, 48f, 56f, 64f };
+
+    /// <summary>Bearings tried per radius (evenly spread from the random one).</summary>
+    private const int ScoutSpawnBearings = 8;
+
+    /// <summary>Places the pair, or gives up silently when no open column is found (#1855: nothing appears
+    /// inside a walled yard, a sealed hall, a moat or a lava trench — the visit is simply skipped and the
+    /// window re-arms as usual). Returns whether the scouts were placed.</summary>
+    private bool SpawnScoutsAt(ServerBase b, PlayerSession owner)
     {
-        double ang = _banditRng.NextDouble() * System.Math.PI * 2.0;
+        if (!TryFindScoutSpawnColumns(b, out var spots))
+        {
+            _log.Info($"Base scouts: no open ground around base #{b.Id} — the visit is skipped.");
+            return false;
+        }
+
         for (int i = 0; i < ScoutsPerVisit; i++)
         {
-            // Two scouts a few blocks apart on the same bearing, so they arrive as a pair and not a line.
-            double a = ang + (i == 0 ? -0.08 : 0.08);
-            int ex = (int)System.Math.Round(b.Cell.X + System.Math.Cos(a) * ScoutSpawnDistance);
-            int ez = (int)System.Math.Round(b.Cell.Z + System.Math.Sin(a) * ScoutSpawnDistance);
-            int ey = GroundFeetYAt(ex, ez, _generator.SurfaceHeight(_world.Planet, ex, ez) + 1);
-
             bool gunner = i == 1; // one of each, like a patrol would
             _bandits.Add(new CombatEntity
             {
@@ -162,7 +174,7 @@ public sealed partial class GameServer
                 Hostile = false, // looking, not fighting — hostility is earned exactly as for a robber
                 Hull = BanditHull,
                 HullMax = BanditHull,
-                Position = new Vector3f(ex, ey, ez),
+                Position = spots[i],
                 DamagePerSecond = gunner ? BanditGunDps : BanditMeleeDps,
                 BanditPhase = BanditPhase.Scouting,
                 BanditTargetId = owner.State.PlayerId,
@@ -180,6 +192,47 @@ public sealed partial class GameServer
         }
 
         _log.Info($"Base scouts: two bandits are looking at '{baseName}' (owner '{owner.State.Name}').");
+        return true;
+    }
+
+    /// <summary>The pair's feet positions (#1855): a random bearing, then <see cref="ScoutSpawnBearings"/>
+    /// bearings spread from it at each of <see cref="ScoutSpawnRadii"/>, the two columns a few blocks apart
+    /// on the same bearing so they arrive as a pair and not a line. Both columns must be open ground in the
+    /// sense the creature spawner uses — outside every walled yard and sealed room, feet on something that is
+    /// not water or lava (<see cref="BanditColumnRejected"/>). False when nothing around the base qualifies.</summary>
+    private bool TryFindScoutSpawnColumns(ServerBase b, out Vector3f[] spots)
+    {
+        spots = new Vector3f[ScoutsPerVisit];
+        double ang = _banditRng.NextDouble() * System.Math.PI * 2.0;
+        foreach (float radius in ScoutSpawnRadii)
+        {
+            for (int k = 0; k < ScoutSpawnBearings; k++)
+            {
+                double bearing = ang + k * (System.Math.PI * 2.0 / ScoutSpawnBearings);
+                bool ok = true;
+                for (int i = 0; i < ScoutsPerVisit && ok; i++)
+                {
+                    double a = bearing + (i == 0 ? -0.08 : 0.08);
+                    int ex = (int)System.Math.Round(b.Cell.X + System.Math.Cos(a) * radius);
+                    int ez = (int)System.Math.Round(b.Cell.Z + System.Math.Sin(a) * radius);
+                    // Real ground nearest the CORE's own level (a fortress on a raised plateau gets its
+                    // scouts on the plateau, not on the noise surface under it); the generator's surface
+                    // only when the column offers nothing within the wide window.
+                    int ey = TryGroundFeetYAt(ex, ez, b.Cell.Y, CreatureBodyMinHeight, CreatureWideGroundScan, out int feet)
+                        ? feet
+                        : GroundFeetYAt(ex, ez, _generator.SurfaceHeight(_world.Planet, ex, ez) + 1);
+                    ok = !BanditColumnRejected(ex, ey, ez);
+                    spots[i] = new Vector3f(ex, ey, ez);
+                }
+
+                if (ok)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>The scouting script inside <see cref="MoveBandit"/>: walk to the zone edge, stand, leave.
@@ -235,7 +288,11 @@ public sealed partial class GameServer
 
     /// <summary>The fence rule for scouts (#1224): a step that would land inside the zone is refused. Checked
     /// by <see cref="MoveBandit"/> AFTER the locomotion step — the pre-step clamp in <see cref="ScoutIntent"/>
-    /// covers a scout that somehow already stands inside, this covers the one that is about to.</summary>
+    /// covers a scout that somehow already stands inside, this covers the one that is about to. Since #1855
+    /// the player's ENCLOSURE is the fence as well: a step onto a cell the outside-in fill cannot reach
+    /// (<see cref="InWalledBaseArea"/>, shut doors count as walls) or into a sealed room is refused, so a scout
+    /// stays outside the walls of a fortress far wider than the radius-8 zone cube — it looks at the walls,
+    /// never over them.</summary>
     private bool ScoutStepBlocked(CombatEntity bandit, Vector3f candidate)
     {
         if (bandit.BanditPhase != BanditPhase.Scouting || bandit.ScoutBaseId <= 0)
@@ -243,15 +300,16 @@ public sealed partial class GameServer
             return false;
         }
 
+        var cell = candidate.ToBlock();
         foreach (var b in _bases)
         {
-            if (b.Id == bandit.ScoutBaseId)
+            if (b.Id == bandit.ScoutBaseId && WithinBaseZone(b.Cell, cell))
             {
-                return WithinBaseZone(b.Cell, candidate.ToBlock());
+                return true;
             }
         }
 
-        return false;
+        return InWalledBaseArea(cell) || InSealedBaseRoom(cell);
     }
 
     /// <summary>A point two blocks outside the zone cube, on the bearing from the core to <paramref name="from"/>.
@@ -303,8 +361,7 @@ public sealed partial class GameServer
                 return false;
             }
 
-            SpawnScoutsAt(b, owner);
-            return true;
+            return SpawnScoutsAt(b, owner);
         }
 
         return false;

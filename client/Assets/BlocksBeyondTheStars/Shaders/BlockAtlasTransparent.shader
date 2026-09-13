@@ -178,11 +178,13 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     {
                         // Waterfall flank: a bright sheet of streaks racing straight DOWN the face. Procedural on
                         // world height (atlas UVs can't scroll); sin(k*y + w*t) translates the pattern downward.
+                        // `across` only ever enters as a NESTED perturbation (a per-column phase offset): added
+                        // linearly to the phase it tilted the streaks ~41 degrees into a diagonal glare (#1853).
                         float across = i.wp.x + i.wp.z;
                         float ph = i.wp.y * 3.0 + t * 6.5;
                         float rip = 0.5 + 0.5 * sin(ph + sin(across * 2.3) * 1.5);
                         col += light * 0.12 * rip;
-                        float streak = smoothstep(0.84, 1.0, sin(ph * 1.27 + across * 3.3));
+                        float streak = smoothstep(0.84, 1.0, sin(ph * 1.27 + sin(across * 2.9) * 1.2));
                         col = lerp(col, light * float3(0.95, 0.98, 1.0), streak * 0.45);
                         alpha = saturate(alpha + streak * 0.30 + rip * 0.06);
                     }
@@ -498,11 +500,13 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     {
                         // Waterfall flank: bright streaks racing straight DOWN the face (procedural on world
                         // height — atlas UVs cannot scroll; sin(k*y + w*t) moves the pattern downward).
+                        // `across` only ever enters as a NESTED perturbation (a per-column phase offset): added
+                        // linearly to the phase it tilted the streaks ~41 degrees into a diagonal glare (#1853).
                         float across = i.wp.x + i.wp.z;
                         float ph = i.wp.y * 3.0 + t * 6.5;
                         float rip = 0.5 + 0.5 * sin(ph + sin(across * 2.3) * 1.5);
                         col += light * 0.12 * rip;
-                        float streak = smoothstep(0.84, 1.0, sin(ph * 1.27 + across * 3.3));
+                        float streak = smoothstep(0.84, 1.0, sin(ph * 1.27 + sin(across * 2.9) * 1.2));
                         col = lerp(col, light * fixed3(0.95, 0.98, 1.0), streak * 0.45);
                         alpha = saturate(alpha + streak * 0.30 + rip * 0.06);
                     }

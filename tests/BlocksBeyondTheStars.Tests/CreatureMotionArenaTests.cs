@@ -770,4 +770,121 @@ public sealed class CreatureMotionArenaTests : IDisposable
                 $"a hoverer over a hand-built pool must ride above the water (y={c.Position.Y}, surface={waterTop})");
         }
     }
+
+    // ---------------- #1854: a gas-sac LAND grazer sinks into floors and rock ----------------
+
+    /// <summary>A land species with a gas sac is a hoverer that rides 0.8 above its feet cell — and its
+    /// vertical-life wave can be a full block (the glider cadence). At the trough the target sat 0.2 INSIDE
+    /// the floor, floor() moved the reference cell into the block, and from there the rest probe walked the
+    /// animal down a cell at a time: the reported 6.6023 on a concrete floor with its top at 7. Placed 0.2
+    /// below a floor it comes up onto it, and the wave never dips it back in.</summary>
+    [Fact]
+    public void LandHoverer_PlacedJustBelowAFloor_RisesOntoIt_AndNeverDipsBackIn()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Watcher");
+            p.State.AboardShip = false;
+            Force(server, CreatureHabitat.Land, legs: 2, LocomotionStyle.Glider, gasSac: true); // Glider: the full-block wave
+
+            const int cx = 200, cz = 200;
+            int padY = MaxTopY(server, cx, cz, 8) + 8;
+            BuildPad(server, cx, cz, 6, padY);
+            p.State.Position = new Vector3f(cx + 20, padY + 1, cz);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 0.5f, padY + 0.8f, cz + 0.5f)); // feet cell = the floor block
+            server.PauseCreatureForTest(id, 60f);
+
+            for (int i = 0; i < 300; i++)
+            {
+                server.TickForTest(0.1);
+                var c = Assert.Single(server.Creatures, x => x.Id == id);
+                if (i >= 5)
+                {
+                    Assert.True(c.Position.Y >= padY + 1 - 1e-3f, $"its feet dipped into the floor: Y {c.Position.Y:F3} at tick {i}");
+                }
+            }
+        }
+    }
+
+    /// <summary>The other half of #1854, "a creature in a cave keeps sinking into the rock": under a low
+    /// ceiling the probe found no standable cell, the fallback answered the creature's own cell, and the wave
+    /// took it down a block per period (−7.2, −8.4, −9.1, −11.2 in the reports). A gas sac that is in the
+    /// rock above a cave comes back down INTO the cave — through the rock, onto the nearest real floor —
+    /// instead of sinking further or being evicted as boxed in, and it stays there.</summary>
+    [Fact]
+    public void LandHoverer_InTheRockOverACave_ComesBackIntoTheCave_NotDeeper()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Watcher");
+            p.State.AboardShip = false;
+            Force(server, CreatureHabitat.Land, legs: 2, LocomotionStyle.Drifter, gasSac: true);
+
+            const int cx = 240, cz = -240;
+            int padY = MaxTopY(server, cx, cz, 10) + 8;
+            BuildPad(server, cx, cz, 8, padY);
+            var stone = _content.GetBlock("stone")!.NumericId;
+            // A 15×15 block of rock sixteen layers tall on the pad, with a 5×5, 3-high cave hollowed out of its base.
+            for (int dx = -7; dx <= 7; dx++)
+            {
+                for (int dz = -7; dz <= 7; dz++)
+                {
+                    for (int dy = 1; dy <= 16; dy++)
+                    {
+                        bool cave = Math.Abs(dx) <= 2 && Math.Abs(dz) <= 2 && dy <= 3;
+                        if (!cave)
+                        {
+                            server.World.SetBlock(new Vector3i(cx + dx, padY + dy, cz + dz), stone);
+                        }
+                    }
+                }
+            }
+
+            int caveFloor = padY + 1; // the feet level inside the cave
+            p.State.Position = new Vector3f(cx + 20, padY + 1, cz);
+            // In the rock: five cells above the cave floor, eleven below the top of the block.
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 0.5f, caveFloor + 5.8f, cz + 0.5f));
+
+            for (int i = 0; i < 300; i++)
+            {
+                server.TickForTest(0.1);
+                var c = Assert.Single(server.Creatures, x => x.Id == id); // never evicted as "boxed in"
+                int fx = (int)Math.Floor(c.Position.X), fy = (int)Math.Floor(c.Position.Y), fz = (int)Math.Floor(c.Position.Z);
+                Assert.True(server.World.GetBlock(new Vector3i(fx, fy, fz)).IsAir && server.World.GetBlock(new Vector3i(fx, fy + 1, fz)).IsAir,
+                    $"its body is inside the rock at tick {i}: Y {c.Position.Y:F2}");
+                Assert.True(c.Position.Y >= caveFloor - 1e-3f && c.Position.Y < caveFloor + 3,
+                    $"it is not in the cave: Y {c.Position.Y:F2} at tick {i} (cave floor {caveFloor})");
+            }
+        }
+    }
+
+    /// <summary>The probe itself (#1854): for a reference cell INSIDE the rock the rest surface used to be
+    /// that very cell (the #1711 roof guard, meant for a creature under a ceiling, kept the depth). It now
+    /// answers the nearest real floor through the rock — here the cave floor six cells down, not the
+    /// surface fifteen cells up and not the cell itself.</summary>
+    [Fact]
+    public void RestSurface_ForAReferenceCellInsideTheRock_AnswersTheNearestRealFloor()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            const int x = 300, z = 300;
+            var stone = _content.GetBlock("stone")!.NumericId;
+            int top = SurfaceTopY(server, x, z);
+            int caveFloor = top - 20;
+            for (int y = caveFloor - 2; y <= top; y++)
+            {
+                server.World.SetBlock(new Vector3i(x, y, z), stone); // solid all the way up …
+            }
+
+            for (int y = caveFloor; y < caveFloor + 3; y++)
+            {
+                server.World.SetBlock(new Vector3i(x, y, z), BlockId.Air); // … with a 3-high cave in it
+            }
+
+            Assert.Equal(caveFloor, server.RestSurfaceYForTest(x, z, caveFloor + 6));
+        }
+    }
 }

@@ -395,6 +395,12 @@ namespace BlocksBeyondTheStars.Client
 
         private sealed class TractorBeam { public GameObject Go; public float Life; public float Max; }
 
+        /// <summary>Whether the flight controls (cruise, EVA, the V camera toggle) may read input this frame —
+        /// the one gate behind all three (<see cref="InputGate.FlightControlAllowed"/>, #1858): no menu-style
+        /// dialog, no destruction prompt, no chat box, no focused text field.</summary>
+        private bool FlightInputAllowed
+            => InputGate.FlightControlAllowed(Game.MenuOpen, Game.AwaitingRespawnConfirm, Game.ChatTyping, InputMap.TextEntryActive);
+
         private void Update()
         {
             if (Game == null || Camera == null)
@@ -497,7 +503,9 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (InputMap.Down(InputAction.ToggleThirdPerson))
+            // V: first/third person. Behind the same gate as the cruise/EVA controls (#1858) — this sat above
+            // every early-out, so a "v" typed into the chat box or the feedback dialog flipped the camera.
+            if (FlightInputAllowed && InputMap.Down(InputAction.ToggleThirdPerson))
             {
                 _viewMode = 1 - _viewMode;
             }
@@ -1092,9 +1100,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Hold position while a menu is open (e.g. the Tab star map, used to hyperspace-jump to another
-            // system), or while the ship-destruction "Weiter" prompt is up, so flight input doesn't fight
-            // the UI / swing the camera behind the modal.
-            if (Game.MenuOpen || Game.AwaitingRespawnConfirm)
+            // system), while the ship-destruction "Weiter" prompt is up, or while the player is typing (the
+            // chat box, any focused field — #1858: "E" typed into the chat used to dock the ship), so flight
+            // input doesn't fight the UI / swing the camera behind the modal.
+            if (!FlightInputAllowed)
             {
                 return;
             }
@@ -1883,7 +1892,8 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network?.SendShipMove(_evaPos, _evaYaw);
             }
 
-            if (Game.MenuOpen)
+            // Menu, destruction prompt, chat box or any focused text field: hold still (#1858).
+            if (!FlightInputAllowed)
             {
                 return;
             }
@@ -3548,7 +3558,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A real drone model: an angular grey circuit-plated body with a glowing red sensor eye and
-        /// side pods (Guardian plating, #1337).</summary>
+        /// side pods (Guardian plating, #1337), plus an unlit red equatorial threat strip so the grey core
+        /// still reads against grey asteroid rock from any side (#1840, parity with the planet-side drone).</summary>
         private GameObject BuildDroneModel(Transform parent)
         {
             var root = new GameObject("Drone");
@@ -3558,6 +3569,7 @@ namespace BlocksBeyondTheStars.Client
 
             Cube("Core", root.transform, Vector3.zero, new Vector3(1.3f, 0.9f, 1.3f), body);
             Cube("Eye", root.transform, new Vector3(0f, 0f, 0.8f), new Vector3(0.45f, 0.45f, 0.4f), Unlit(new Color(1f, 0.25f, 0.2f)));
+            Cube("ThreatStrip", root.transform, Vector3.zero, new Vector3(1.36f, 0.08f, 1.36f), Unlit(new Color(1f, 0.25f, 0.2f))); // #1840: pokes 0.03 out of the core on every side
             Cube("PodL", root.transform, new Vector3(-0.9f, 0f, -0.1f), new Vector3(0.4f, 0.4f, 1f), trim);
             Cube("PodR", root.transform, new Vector3(0.9f, 0f, -0.1f), new Vector3(0.4f, 0.4f, 1f), trim);
             Cube("Fin", root.transform, new Vector3(0f, 0.7f, -0.3f), new Vector3(0.2f, 0.7f, 0.8f), trim);
@@ -4628,6 +4640,15 @@ namespace BlocksBeyondTheStars.Client
                 _cargo.text = _cargoText;
                 _cargo.color = Color.Lerp(UiKit.TextCol, UiKit.Cyan, _cargoFlash);
                 _cargo.gameObject.SetActive(true);
+            }
+
+            // The controls line and the "Press E to board/land" prompt advertise keys that are dead while a
+            // menu-style dialog (feedback, chart, Tab menu) owns the screen (#1858) — drop them the way HudUi
+            // drops its whole canvas under MenuOpen. The pad chooser is a cursor-only owner and keeps its line.
+            if (Game.MenuOpen)
+            {
+                _hint.gameObject.SetActive(false);
+                _board.gameObject.SetActive(false);
             }
 
             UpdateInstruments();
