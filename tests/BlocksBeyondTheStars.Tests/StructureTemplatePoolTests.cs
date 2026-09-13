@@ -27,6 +27,7 @@ public sealed class StructureTemplatePoolTests : IDisposable
         "vendor", "mission_board", "hangar", "heal_tank", "quarters", "npc", "spawn", "loot",
         "door_slide", "door_hinge", "data_terminal", "bandit_stash", "relic_cache", "chest", "module",
         "greenhouse", "room", // room = furnish this floor procedurally (#1828)
+        "cabin", "lounge", "door_energy", // #1874: one resident sleeps here / the crew's evening seats / the airtight door
     };
 
     private readonly string _root;

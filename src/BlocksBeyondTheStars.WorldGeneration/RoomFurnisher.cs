@@ -27,6 +27,9 @@ public static class RoomFurnisher
         Village,
         Town,
         Alien,
+
+        /// <summary>A station deck (#1874): the town's steel pieces under ceiling lights.</summary>
+        Station,
     }
 
     /// <summary>What a room is for — drives which pieces it gets.</summary>
@@ -36,6 +39,24 @@ public static class RoomFurnisher
         Market,
         Board,
         Upper,
+
+        /// <summary>A station crew cabin (#1874): a bed, a locker, a lamp, a chair at a small table.</summary>
+        Cabin,
+
+        /// <summary>A cabin whose author already placed the bed — everything but the bed.</summary>
+        CabinNoBed,
+
+        /// <summary>A canteen or bar: tables with chairs, where the crew sits in the evening.</summary>
+        Lounge,
+
+        /// <summary>A store room: crates along the walls.</summary>
+        Storage,
+
+        /// <summary>A medbay: a bed, a terminal, a locker.</summary>
+        Medbay,
+
+        /// <summary>A hall or hub: a terminal, a plant, a table — no bed.</summary>
+        Hall,
     }
 
     /// <summary>Writes one cell: block id + packed shape (0 = cube) + tint + glow.</summary>
@@ -86,6 +107,7 @@ public static class RoomFurnisher
         switch (style)
         {
             case Style.Town:
+            case Style.Station:
                 p.TableMaterial = B("steel_floor", B("iron_wall"));
                 p.ChairMaterial = B("steel_floor", B("iron_wall"));
                 p.Storage = B("crate", B("wood_crate"));
@@ -133,6 +155,12 @@ public static class RoomFurnisher
     private static readonly Piece[] MarketPieces = { Piece.Counter, Piece.Storage, Piece.Light, Piece.Storage, Piece.Table };
     private static readonly Piece[] BoardPieces = { Piece.Table, Piece.Terminal, Piece.Light, Piece.Storage };
     private static readonly Piece[] UpperPieces = { Piece.Bed, Piece.Storage, Piece.Light, Piece.Plant };
+    private static readonly Piece[] CabinPieces = { Piece.Bed, Piece.Storage, Piece.Light, Piece.Table, Piece.Plant };
+    private static readonly Piece[] CabinNoBedPieces = { Piece.Storage, Piece.Light, Piece.Table, Piece.Plant };
+    private static readonly Piece[] LoungePieces = { Piece.Table, Piece.Table, Piece.Plant, Piece.Table, Piece.Storage, Piece.Light };
+    private static readonly Piece[] StoragePieces = { Piece.Storage, Piece.Storage, Piece.Storage, Piece.Storage, Piece.Light };
+    private static readonly Piece[] MedbayPieces = { Piece.Bed, Piece.Light, Piece.Terminal, Piece.Storage };
+    private static readonly Piece[] HallPieces = { Piece.Terminal, Piece.Plant, Piece.Light, Piece.Table };
 
     /// <summary>
     /// Furnishes one floor region. <paramref name="region"/> = the walkable floor cells (x, z) at height
@@ -201,6 +229,12 @@ public static class RoomFurnisher
             RoomRole.Market => MarketPieces,
             RoomRole.Board => BoardPieces,
             RoomRole.Upper => UpperPieces,
+            RoomRole.Cabin => CabinPieces,
+            RoomRole.CabinNoBed => CabinNoBedPieces,
+            RoomRole.Lounge => LoungePieces,
+            RoomRole.Storage => StoragePieces,
+            RoomRole.Medbay => MedbayPieces,
+            RoomRole.Hall => HallPieces,
             _ => HousePieces,
         };
 

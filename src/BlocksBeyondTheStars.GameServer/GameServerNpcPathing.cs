@@ -47,6 +47,10 @@ public sealed partial class GameServer
     /// <summary>Seconds a hinge/wooden door an NPC opened stays open before it swings shut behind them.</summary>
     private const double NpcDoorHoldSeconds = 2.5;
 
+    /// <summary>#1874: a kit station spans up to 128 blocks and two decks, and a crew member's cabin may sit far
+    /// from its post — the search reaches twice as far (and two decks) there than on a planet's surface.</summary>
+    private static readonly NpcGridPath.Limits StationPathLimits = new(96, 16, 8000);
+
     /// <summary>Search statistics for the tests.</summary>
     public int NpcPathSearchesForTest { get; private set; }
 
@@ -137,7 +141,8 @@ public sealed partial class GameServer
 
         bool Free(Vector3i c) => !IsCollidingBlock(_world.GetBlockIfLoaded(c), fluidsPass: false, foliagePasses: false);
 
-        var cells = NpcGridPath.Find(start, goalCell, Standable, Free, Door, NpcGridPath.Limits.Default, out _);
+        var limits = _world.Planet?.Void == true ? StationPathLimits : NpcGridPath.Limits.Default;
+        var cells = NpcGridPath.Find(start, goalCell, Standable, Free, Door, limits, out _);
         if (cells is null)
         {
             npc.Path = null;

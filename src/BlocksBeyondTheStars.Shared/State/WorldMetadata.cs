@@ -96,6 +96,14 @@ public sealed class WorldMetadata
     public System.Collections.Generic.Dictionary<string, string> StationTemplates { get; set; } = new();
 
     /// <summary>
+    /// Pinned kit stations (#1874): station id → the composition (kit, seed, every module with its origin and turns)
+    /// the interior was baked from, written at the first stamp. <see cref="StationTemplates"/> holds
+    /// <c>"kit:&lt;key&gt;"</c> for such a station; replays bake the pinned modules and never re-run the kit, so
+    /// editing a kit or a module list never changes a station somebody has boarded. Additive JSON field.
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, StationKitRecord> StationKits { get; set; } = new();
+
+    /// <summary>
     /// Growing galaxy (#1123): how many systems were appended BEYOND the description's
     /// <c>StarSystemCount</c> by frontier jumps. The galaxy is re-derived from the seed on every start,
     /// so persisting the COUNT is enough — system N is a pure function of (seed, N), and regenerating
@@ -193,6 +201,24 @@ public sealed class StructurePlacementRecord
     /// growing factory recipe set never re-rolls what an existing (possibly claimed) factory makes. Null on
     /// records from before roster pinning — the loader freezes the current roll into it once.</summary>
     public System.Collections.Generic.List<string>? Roster { get; set; }
+}
+
+/// <summary>A kit station's pinned composition (#1874) — see <see cref="WorldMetadata.StationKits"/>.</summary>
+public sealed class StationKitRecord
+{
+    public string Kit { get; set; } = string.Empty;
+    public long Seed { get; set; }
+    public System.Collections.Generic.List<StationKitModuleRecord> Modules { get; set; } = new();
+}
+
+/// <summary>One placed module of a kit station: key, origin inside the station, quarter turns.</summary>
+public sealed class StationKitModuleRecord
+{
+    public string Key { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public int Turns { get; set; }
 }
 
 /// <summary>One player station's SPS relay conversion (#1125): what has been poured into it so far, and
