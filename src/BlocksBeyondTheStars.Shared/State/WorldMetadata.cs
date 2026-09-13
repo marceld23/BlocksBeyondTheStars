@@ -187,6 +187,11 @@ public sealed class StructurePlacementRecord
     /// <summary>Settlement records (#1876): the structure kit this instance was composed from, "" for none.</summary>
     public string Kit { get; set; } = string.Empty;
 
+    /// <summary>Settlement records (#1876): the grid the kit gave this instance (a settlement's cols, rows, plot stride,
+    /// building envelope, storeys, modules-only; a city's grid, district size, street, height, role map), pinned so a
+    /// replay lays the same grid whatever the kit says later.</summary>
+    public string KitLayout { get; set; } = string.Empty;
+
     /// <summary>
     /// Settlement records (#1872): WHICH module went into each plot (settlements) or district (the city), in slot
     /// order — the module key, "" for a procedural building or an empty plot. The composers replay this list and

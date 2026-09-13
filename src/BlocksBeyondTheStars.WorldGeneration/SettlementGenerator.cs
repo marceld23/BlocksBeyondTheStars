@@ -225,7 +225,8 @@ public static class SettlementGenerator
     /// </summary>
     public static SettlementStructure Generate(string tier, bool ruined, long seed, string biomeSurfaceBlock, GameContent content,
         IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0,
-        IList<string>? composition = null, System.Action<string>? warn = null)
+        IList<string>? composition = null, System.Action<string>? warn = null,
+        SettlementLayoutSpec? layout = null, StructureKit? kit = null, IReadOnlyList<StructureTemplate>? kitModules = null)
     {
         bool town = IsTownStyle(tier);
         var (baseCols, baseRows, baseFloors) = Layout(tier);
@@ -240,10 +241,22 @@ public static class SettlementGenerator
         int tierHash = (int)WorldGenerator.StableHash(tier);
         var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ tierHash ^ (ruined ? 0x5111 : 0)));
 
-        // Per-instance size jitter so two same-tier settlements differ in scale.
+        // Per-instance size jitter so two same-tier settlements differ in scale. A kit settlement (#1876) takes its
+        // grid from the layout spec instead — the draws are still consumed, so the rest of the stream is the same.
         int cols = baseCols + rng.Next(0, 2);
         int rows = baseRows + rng.Next(0, 2);
         int floors = town ? baseFloors + rng.Next(0, 2) : 1; // towns 2..3 storeys; villages stay single-storey
+        int plot = Plot, building = Building;
+        bool modulesOnly = false;
+        if (layout is { } spec)
+        {
+            cols = System.Math.Max(1, spec.Cols);
+            rows = System.Math.Max(1, spec.Rows);
+            plot = System.Math.Clamp(spec.Plot, 6, 32);
+            building = System.Math.Clamp(spec.Building, 4, plot - 2);
+            floors = spec.Storeys > 0 ? System.Math.Clamp(spec.Storeys, 1, 6) : floors;
+            modulesOnly = spec.ModulesOnly;
+        }
 
         string inhabitant = ruined ? string.Empty : (rng.NextDouble() < 0.5 ? "human" : "alien");
         bool alien = inhabitant == "alien";
@@ -302,8 +315,8 @@ public static class SettlementGenerator
             ? fallbackCrop
             : cropSet[(int)((WorldGenerator.StableHash($"crop:{tier}:{seed}:{plot}") & 0x7fffffff) % cropSet.Count)];
 
-        int w = cols * Plot + 1;
-        int l = rows * Plot + 1;
+        int w = cols * plot + 1;
+        int l = rows * plot + 1;
         int h = floors * FloorH + 1 + RoofCap;
         var blocks = new ushort[w * h * l];
         var mods = new Dictionary<int, (int Tint, int Glow)>();
@@ -321,13 +334,25 @@ public static class SettlementGenerator
         // Street paths along the plot margins (a simple grid of lanes on the ground).
         if (path != 0)
         {
-            StampPaths(Set, w, l, cols, rows, path);
+            StampPaths(Set, w, l, cols, rows, path, plot);
         }
 
         // Which plots hold a greenhouse (#626). Never plot 0 or 1 — those carry the vendor and the mission
         // board, the two services a settlement must have. Bigger places feed more mouths, so a city runs two
         // or three glass houses while a hamlet only sometimes has room for one at all.
         var greenhousePlots = PickGreenhousePlots(tier, cols * rows, rng);
+
+        // #1876: a kit says which modules fill the plots — required entries first, then weighted draws. Decided
+        // once here (a hash lane of its own), replayed from the record afterwards.
+        string PlotRoleAt(int index) => greenhousePlots.Contains(index) ? StructureRoles.Greenhouse
+            : index == 0 ? StructureRoles.Market
+            : index == 1 ? StructureRoles.Board
+            : StructureRoles.House;
+        bool KitStyleOk(StructureTemplate m) => StructureRoles.IsTownStyleTier(m.Tier) == town;
+        var kitPool = kit != null ? kitModules : null;
+        string[]? assigned = kit != null && !replay
+            ? AssignKitModules(kit, kitPool, cols * rows, PlotRoleAt, m => KitStyleOk(m) && m.Width <= building && m.Height <= h - 1 && m.Length <= building, seed)
+            : null;
 
         // Plot roles: building 0 = market, building 1 = mission board, rest = dwellings.
         int buildings = 0;
@@ -344,6 +369,11 @@ public static class SettlementGenerator
                 // plot reads from must not shift), its result is simply ignored there.
                 bool greenhouse = greenhousePlots.Contains(plotIndex);
                 bool skip = !town && !greenhouse && plotIndex > 0 && rng.NextDouble() < 0.18 && plotIndex != 1;
+                if (assigned != null && assigned[plotIndex].Length > 0)
+                {
+                    skip = false; // a plot the kit filled is never an open square (the draw above is consumed as always)
+                }
+
                 if (skip)
                 {
                     if (record)
@@ -357,19 +387,19 @@ public static class SettlementGenerator
 
                 // Per-building variety: footprint, storeys, roof, door side, accent band. (The draws stay
                 // unconditional so the rng stream reads the same whether or not this plot is a greenhouse.)
-                int fp = Building - rng.Next(0, 3);                     // 4..6
+                int fp = building - rng.Next(0, 3);                     // 4..6
                 int storeys = town ? (plotIndex == 0 ? floors : 1 + rng.Next(0, floors)) : 1;
                 int doorSide = rng.Next(0, 4);
                 // Desert settlements favour flat (adobe) roofs; elsewhere alien + half of houses are pitched.
                 int roofStyle = (!desert && (alien || rng.NextDouble() < 0.5)) ? 1 : 0;
                 if (greenhouse)
                 {
-                    fp = Building; // a greenhouse always takes the full footprint — its beds need the width
+                    fp = building; // a greenhouse always takes the full footprint — its beds need the width
                 }
 
-                int off = (Building - fp) / 2;
-                int ox = cxp * Plot + 1 + off;
-                int oz = czp * Plot + 1 + off;
+                int off = (building - fp) / 2;
+                int ox = cxp * plot + 1 + off;
+                int oz = czp * plot + 1 + off;
 
                 // #1827: an authored module for this plot? Its role is the plot's role; it must fit the plot
                 // and match the settlement's style. Picked by hash, so the rng stream above and below is the
@@ -380,19 +410,28 @@ public static class SettlementGenerator
                     : StructureRoles.House;
                 long plotHash = (long)WorldGenerator.StableHash($"furnish:{tier}:{seed}:{plotIndex}");
                 bool StyleOk(StructureTemplate m) => StructureRoles.IsTownStyleTier(m.Tier) == town;
+                var pool = kit != null ? kitPool : modules;
                 var module = replay
-                    ? ModuleByKey(modules, plotIndex < composition!.Count ? composition[plotIndex] : string.Empty, plotRole, StyleOk, Building, h - 1, Building, warn)
-                    : PickModule(modules, moduleChance, $"module:{tier}:{seed}:{plotIndex}", plotRole, StyleOk, Building, h - 1, Building);
+                    ? ModuleByKey(pool, plotIndex < composition!.Count ? composition[plotIndex] : string.Empty, plotRole, StyleOk, building, h - 1, building, warn)
+                    : assigned != null
+                        ? ModuleByKey(pool, assigned[plotIndex], plotRole, StyleOk, building, h - 1, building, warn)
+                        : PickModule(modules, moduleChance, $"module:{tier}:{seed}:{plotIndex}", plotRole, StyleOk, building, h - 1, building);
                 if (record)
                 {
                     composition!.Add(module?.Key ?? string.Empty); // #1872: pinned for every later load
                 }
 
+                if (module == null && modulesOnly && !greenhouse && plotIndex > 1)
+                {
+                    plotIndex++;
+                    continue; // #1876: a modules-only kit leaves an unfilled dwelling plot as an open square
+                }
+
                 var moduleMarkers = new List<SettlementMarker>();
                 if (module != null)
                 {
-                    ox = cxp * Plot + 1 + (Building - module.Width) / 2;
-                    oz = czp * Plot + 1 + (Building - module.Length) / 2;
+                    ox = cxp * plot + 1 + (building - module.Width) / 2;
+                    oz = czp * plot + 1 + (building - module.Length) / 2;
                     fp = System.Math.Max(module.Width, module.Length);
                     StampModule(module, ox, 0, oz, content, Get, setCell, moduleMarkers, furniture, plotHash);
                     int side = DoorSideOf(moduleMarkers, ox, oz, module.Width, module.Length);
@@ -505,9 +544,9 @@ public static class SettlementGenerator
             ushort rubble = B("stone", wall);
 
             // Spare one plot from the heaviest collapse so a tall fragment / tower keeps standing.
-            int sparedCx = rng.Next(0, System.Math.Max(1, cols)) * Plot + 1 + Building / 2;
-            int sparedCz = rng.Next(0, System.Math.Max(1, rows)) * Plot + 1 + Building / 2;
-            const int sparedR = Building;
+            int sparedCx = rng.Next(0, System.Math.Max(1, cols)) * plot + 1 + building / 2;
+            int sparedCz = rng.Next(0, System.Math.Max(1, rows)) * plot + 1 + building / 2;
+            int sparedR = building;
 
             for (int x = 0; x < w; x++)
                 for (int y = 0; y < h; y++)
@@ -608,6 +647,139 @@ public static class SettlementGenerator
         }
 
         return fit[fit.Count - 1];
+    }
+
+    /// <summary>
+    /// Fills the slots of a kit composition (#1876): every required entry places its minimum copies first (kit order,
+    /// onto the first free slot whose role matches the module's function), then weighted draws from a hash lane of
+    /// the kit and seed fill more slots until every entry hit its maximum or no matching slot is free. A module that
+    /// does not fit the envelope or the style is skipped. Returns the module key per slot ("" = none).
+    /// </summary>
+    internal static string[] AssignKitModules(StructureKit kit, IReadOnlyList<StructureTemplate>? pool, int slots,
+        System.Func<int, string> roleOf, System.Func<StructureTemplate, bool> fits, long seed)
+    {
+        var assigned = new string[slots];
+        for (int i = 0; i < slots; i++)
+        {
+            assigned[i] = string.Empty;
+        }
+
+        if (pool == null || pool.Count == 0)
+        {
+            return assigned;
+        }
+
+        static string SlotRoleOf(StructureTemplate m) => m.FunctionOrRole switch
+        {
+            StructureRoles.Market => StructureRoles.Market,
+            StructureRoles.Board => StructureRoles.Board,
+            StructureRoles.Greenhouse => StructureRoles.Greenhouse,
+            var city when StructureRoles.IsCityRole(city) => city,
+            _ => StructureRoles.House,
+        };
+
+        var resolved = new List<(KitEntry Entry, StructureTemplate Module)>();
+        foreach (var e in kit.Entries)
+        {
+            StructureTemplate? m = null;
+            foreach (var t in pool)
+            {
+                if (t.Key == e.Module)
+                {
+                    m = t;
+                    break;
+                }
+            }
+
+            if (m != null && fits(m))
+            {
+                resolved.Add((e, m));
+            }
+        }
+
+        int FreeSlot(StructureTemplate m)
+        {
+            string role = SlotRoleOf(m);
+            for (int i = 0; i < slots; i++)
+            {
+                if (assigned[i].Length == 0 && roleOf(i) == role)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        var counts = new int[resolved.Count];
+        for (int r = 0; r < resolved.Count; r++)
+        {
+            var (e, m) = resolved[r];
+            while (counts[r] < e.MinOrRequired)
+            {
+                int slot = FreeSlot(m);
+                if (slot < 0)
+                {
+                    break;
+                }
+
+                assigned[slot] = m.Key;
+                counts[r]++;
+            }
+        }
+
+        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"kitslots:{kit.Key}:{seed}")));
+        var blocked = new bool[resolved.Count];
+        while (true)
+        {
+            int total = 0;
+            for (int r = 0; r < resolved.Count; r++)
+            {
+                if (!blocked[r] && counts[r] < System.Math.Max(resolved[r].Entry.Max, resolved[r].Entry.MinOrRequired))
+                {
+                    total += System.Math.Max(1, resolved[r].Entry.Weight);
+                }
+            }
+
+            if (total == 0)
+            {
+                break;
+            }
+
+            int roll = rng.Next(total);
+            int pick = -1;
+            for (int r = 0; r < resolved.Count; r++)
+            {
+                if (blocked[r] || counts[r] >= System.Math.Max(resolved[r].Entry.Max, resolved[r].Entry.MinOrRequired))
+                {
+                    continue;
+                }
+
+                roll -= System.Math.Max(1, resolved[r].Entry.Weight);
+                if (roll < 0)
+                {
+                    pick = r;
+                    break;
+                }
+            }
+
+            if (pick < 0)
+            {
+                break;
+            }
+
+            int free = FreeSlot(resolved[pick].Module);
+            if (free < 0)
+            {
+                blocked[pick] = true;
+                continue;
+            }
+
+            assigned[free] = resolved[pick].Module.Key;
+            counts[pick]++;
+        }
+
+        return assigned;
     }
 
     /// <summary>
@@ -1130,11 +1302,11 @@ public static class SettlementGenerator
     }
 
     /// <summary>Lays street paths along the plot margins (the grid lanes between buildings).</summary>
-    private static void StampPaths(System.Action<int, int, int, ushort> set, int w, int l, int cols, int rows, ushort path)
+    private static void StampPaths(System.Action<int, int, int, ushort> set, int w, int l, int cols, int rows, ushort path, int plot = Plot)
     {
         for (int cxp = 0; cxp <= cols; cxp++)
         {
-            int x = System.Math.Min(w - 1, cxp * Plot);
+            int x = System.Math.Min(w - 1, cxp * plot);
             for (int z = 0; z < l; z++)
             {
                 set(x, 0, z, path);
@@ -1143,7 +1315,7 @@ public static class SettlementGenerator
 
         for (int czp = 0; czp <= rows; czp++)
         {
-            int z = System.Math.Min(l - 1, czp * Plot);
+            int z = System.Math.Min(l - 1, czp * plot);
             for (int x = 0; x < w; x++)
             {
                 set(x, 0, z, path);
