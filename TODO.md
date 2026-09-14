@@ -24,6 +24,25 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌍 Translation gap closed — 140 keys × 12 languages (#1892, 2026-09-14, branch chore/translate-missing-locale-keys)
+
+The kit editor, player notes, NPC routines, base posts, zero-g station building, furniture shapes and a few HUD strings
+(#1861, #1863, #1870, #1879) shipped English + German only, so the other 12 languages sat at 96.8 %.
+
+- **Machine pass:** `tools/translate_locale.py` translated all 1 680 strings; placeholders were checked against `en.json`.
+- **Hand review:** 178 strings corrected where the machine read the game term wrong:
+  - the bench as a *workbench*
+  - the docking port as a *harbour*
+  - the kit key as a *keyboard key*
+  - the base guard as the *Guardian* boss
+  - a staffed post as a *notice board* (ja/ko)
+  - the Guardian-core hint with its meaning reversed (ja)
+  - the gardener's count read as an item name
+  - "Hanger" for hangar (nl), "hospital" for medbay (tr)
+  - Russian and Ukrainian grammar and register slips
+- **Consistency:** field-name references now match the translated labels.
+- `data/locale_coverage.json` is regenerated: every language at 100 %.
+
 ### 🛰️ The unreachable wreck — the radar's lost height, an ALT readout, VEGA's way to the derelict (#1880 #1881 #1882, 2026-09-14, branch fix/space-wreck-height-cues)
 
 Lyxette, v2026.9.8: "the wrecks still can't be reached — I fly at the orange marker, it sits in the middle of the display, and
