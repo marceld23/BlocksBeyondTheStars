@@ -29,7 +29,7 @@ namespace BlocksBeyondTheStars.Client
             "lamp_off", "lamp_missing", "torch_underground", "eat_now", "wrong_tool", "tier_gate", "scanner_idle", "speeder_far", "ship_far",
             "rare_ore_near", "needed_ore_near", "data_cache_near", "craftable_now", "blueprint_affordable",
             "settlement_near", "ruin_near", "factory_near", "treasure_near", "trader_near", "tameable_near", "player_near",
-            "asteroid_near", "asteroid_no_tool", "station_near", "jump_ready",
+            "asteroid_near", "asteroid_no_tool", "station_near", "wreck_signal", "wreck_signal_manual", "jump_ready",
         };
 
         /// <summary>Repeat / retire markers the server appends to a context-tip milestone (<c>vega:hint:lamp_off#2</c>,

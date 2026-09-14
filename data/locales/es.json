@@ -2933,6 +2933,8 @@
   "vega.hint.asteroid_near": "Asteroides en rango. Rómpelos con el láser de la nave — el rayo tractor atrae los fragmentos.",
   "vega.hint.asteroid_no_tool": "Asteroides — pero no hay nada a bordo que los pueda romper. Un láser de nave o un rompedor de asteroides serviría.",
   "vega.hint.station_near": "Una estación está cerca. Atraque para comerciar, reequipar la nave y aceptar misiones.",
+  "vega.hint.wreck_signal": "El naufragio {0} deriva en algún lugar de este sistema. La forma fácil: abre el mapa con {key:FlightMap}, haz clic en el naufragio y luego pulsa {key:FlightAutopilot} — te piloto hacia él.",
+  "vega.hint.wreck_signal_manual": "El naufragio {0} deriva en algún lugar de este sistema — el punto naranja en el radar. El radar es plano: ▲ significa que está encima, ▼ debajo. Inclina la nariz arriba o abajo hasta quedar a su nivel.",
   "vega.hint.jump_ready": "El generador de salto está en línea y conoces exactamente un sistema. Abre el mapa estelar — el resto te espera.",
   "vega.mem.1": "Un fragmento de memoria… leyendo. — No fui construido para un solo piloto. Fui el núcleo de navegación de una flota de sondeo. The Meridian. …Gracias por esto.",
   "vega.mem.2": "Otro fragmento. Cuarenta naves. Cartografiamos estos sistemas antes de que nadie tuviera nombres para ellos. La mitad de las rutas que vuelas son mías.",

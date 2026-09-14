@@ -222,6 +222,10 @@ public sealed partial class GameServer
             if (!session.State.Scanned.Contains(SpaceWreckScanPrefix + e.Id))
             {
                 ScanSpaceWreck(session, e);
+
+                // #1882: flown there once — the pilot knows how to reach a wreck; VEGA stops explaining it.
+                RetireVegaTip(session, "wreck_signal");
+                RetireVegaTip(session, "wreck_signal_manual");
             }
         }
     }

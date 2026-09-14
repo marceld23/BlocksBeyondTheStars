@@ -160,6 +160,47 @@ public sealed class SpaceWreckTests : IDisposable
     }
 
     [Fact]
+    public void VegaTip_ExplainsTheWayToAnUnvisitedWreck_ByCoreTier_AndRetiresOnArrival()
+    {
+        var server = NewServer("wreck_tip", 11, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Salvager");
+            var (wreck, _) = ParkNextToAWreck(server, pilot);
+            server.EnterSpace("Salvager");
+            var entity = server.SpaceEntitiesFor("Salvager").First(e => e.Id == wreck.Id);
+            var ship = pilot.Ships[pilot.ActiveShipId];
+            ship.Modules.Remove("ai_core_mk2");
+            ship.Modules.Remove("ai_core_mk3");
+
+            // #1882, the reported spot: hovering right under the wreck, 229 flight units down. Without an AI core Mk2
+            // there is no autopilot, so VEGA explains the radar's height cue.
+            server.ShipMove("Salvager", entity.Position.X, entity.Position.Y - 229f, entity.Position.Z);
+            var bare = server.VegaTipCandidatesForTest("Salvager").Candidates;
+            Assert.Contains("wreck_signal_manual", bare);
+            Assert.DoesNotContain("wreck_signal", bare);
+
+            // With a Mk2 core the chart click + autopilot is the way.
+            ship.Modules.Add("ai_core_mk2");
+            var cored = server.VegaTipCandidatesForTest("Salvager").Candidates;
+            Assert.Contains("wreck_signal", cored);
+            Assert.DoesNotContain("wreck_signal_manual", cored);
+
+            // Already arriving (inside twice the approach range): quiet.
+            server.ShipMove("Salvager", entity.Position.X, entity.Position.Y, entity.Position.Z - 60f);
+            Assert.DoesNotContain(server.VegaTipCandidatesForTest("Salvager").Candidates, c => c.StartsWith("wreck_signal", StringComparison.Ordinal));
+
+            // Flown there: the approach reading retires both lines for the save, and a visited wreck is no candidate.
+            server.ShipMove("Salvager", entity.Position.X, entity.Position.Y - 229f, entity.Position.Z);
+            server.ShipMove("Salvager", entity.Position.X, entity.Position.Y, entity.Position.Z - 30f);
+            server.ShipMove("Salvager", entity.Position.X, entity.Position.Y - 229f, entity.Position.Z);
+            Assert.DoesNotContain(server.VegaTipCandidatesForTest("Salvager").Candidates, c => c.StartsWith("wreck_signal", StringComparison.Ordinal));
+            Assert.Contains("vega:hint:wreck_signal#done", pilot.State.Milestones);
+            Assert.Contains("vega:hint:wreck_signal_manual#done", pilot.State.Milestones);
+        }
+    }
+
+    [Fact]
     public void MiningLaser_CarvesTheWreck_AndSalvageBanksWhenItIsGone()
     {
         var server = NewServer("wreck_salvage", 11, out var repo);

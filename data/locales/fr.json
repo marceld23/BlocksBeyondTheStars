@@ -2933,6 +2933,8 @@
   "vega.hint.asteroid_near": "Des astéroïdes à portée. Brise-les avec le laser du vaisseau — le tracteur attire les morceaux.",
   "vega.hint.asteroid_no_tool": "Des astéroïdes — mais rien à bord pour les briser. Il te faudrait un laser de vaisseau ou un casse-astéroïde.",
   "vega.hint.station_near": "Une station est proche. Amarre-toi pour commercer, refit ton vaisseau et prendre des missions.",
+  "vega.hint.wreck_signal": "L’épave {0} dérive quelque part dans ce système. Le plus simple : ouvre la carte avec {key:FlightMap}, clique l’épave, puis appuie sur {key:FlightAutopilot} — je nous y emmène en montée ou descente.",
+  "vega.hint.wreck_signal_manual": "L’épave {0} dérive quelque part dans ce système — le point orange sur le radar. Le radar est plat : ▲ signifie au-dessus, ▼ en dessous. Pique le nez vers le haut ou le bas jusqu’à être au même niveau.",
   "vega.hint.jump_ready": "Le générateur de saut est en ligne et tu connais exactement un système. Ouvre la carte des étoiles — les autres attendent.",
   "vega.mem.1": "Un fragment de mémoire… lecture. — Je n'ai pas été construit pour un seul pilote. J'étais le noyau de navigation d'une flotte d'exploration. Meridian. …Merci pour ça.",
   "vega.mem.2": "Un autre éclat. Quarante vaisseaux. Nous cartographiions ces systèmes avant que quiconque ne leur donne des noms. La moitié des routes que tu empruntes sont à moi.",

@@ -24,6 +24,27 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛰️ The unreachable wreck — the radar's lost height, an ALT readout, VEGA's way to the derelict (#1880 #1881 #1882, 2026-09-14, branch fix/space-wreck-height-cues)
+
+Lyxette, v2026.9.8: "the wrecks still can't be reached — I fly at the orange marker, it sits in the middle of the display, and
+I fly past it". The snapshot put the ship at y −217 and the wreck at y +12, **19 units apart horizontally and 229 vertically**:
+she hovered right under it. The wreck (#1664) was there all along; nothing on the HUD knew about height.
+
+- **#1880 The radar dropped height** — `SpaceRadar` projected targets onto the tilted chase camera, so 229 units overhead was
+  the centre of the disc, and the camera's ≈17° tilt drew anything above as *behind*. The disc now turns with the heading (the
+  view flattened onto the flight plane, `SpaceRadarMath.Project`) and measures from the pilot (`SpaceView.PilotPosition`: ship,
+  or suit on EVA), not from the camera 13 units back. Station and wreck blips carry a ▲/▼ mark past 10 units of height. The
+  readout names the wreck when it is nearer than any planet, and station, wreck and waypoint lines print the climb:
+  `Vruklouxy · 2 300 km · ▲ 2 290 km`.
+- **#1881 ALT readout** — the instruments show the pilot's height over the flight plane in instrument kilometres
+  (`ALT -2 170 km`) on a line above SPD/THR/HDG. The controls hint starts right after HDG, so it cannot share that line.
+- **#1882 VEGA explains the way** — a space context tip while an unvisited wreck drifts in the system (quiet within 90 units):
+  `wreck_signal` with an AI core Mk2+ (map click, then autopilot, which flies the pitch too), `wreck_signal_manual` without
+  (orange blip, ▲/▼). Opportunity priority, 900 s cooldown, 2 per save. Both retire for the save on the first arrival at a
+  wreck. 14 locales.
+- Tests: `SpaceRadarMathTests` (projection, pitch independence, fallback heading, height band, readouts, ALT), `VegaTextTests`
+  (journal order + retired tip), `SpaceWreckTests.VegaTip_…` (core-tier variant, quiet range, retirement on arrival).
+
 ### 🧩 Modular structure kits — stations from docking modules, settlement and city kits, the far-tile stall (#1878: #1871 #1872 #1873 #1874 #1875 #1876 #1877, 2026-09-13/14, branch feat/modular-kits)
 
 Marcel's model: a structure is either **complete** (today's templates) or a **module** of a **kit** — the module name every

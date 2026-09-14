@@ -11,7 +11,8 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// Space radar (M27 polish): a HUD minimap of nearby space entities while flying — colour-coded
     /// (white = neutral asteroids/NPCs, red = hostile drones/UFOs), placed by bearing relative to the
-    /// flight camera (forward = up). Shown only in space; reads the authoritative <c>SpaceState</c>.
+    /// pilot's heading (forward = up) on a top-down disc; height shows as ▲/▼ on stations and wrecks and in
+    /// the readouts (#1880). Shown only in space; reads the authoritative <c>SpaceState</c>.
     /// Modern uGUI build (round face + pooled blips on a DPI-scaled overlay canvas).
     /// </summary>
     public sealed class SpaceRadar : MonoBehaviour
@@ -32,11 +33,21 @@ namespace BlocksBeyondTheStars.Client
         // #1516: last-formatted readout state so the label strings are built on change, not every frame.
         // Tracked in rounded flight units; the labels print them as km (#1599, SpaceDistance).
         private int _wpLastMeters = -1;
+        private int _wpLastVert = int.MinValue;
         private string _readoutName;
         private int _readoutMeters = -1;
-        private int _readoutVert;
-        private int _readoutKind; // 0 = none, 1 = station, 2 = body
+        private int _readoutVert = int.MinValue; // rounded height of the readout's target over the pilot (#1880)
+        private int _readoutKind; // 0 = none, 1 = station, 2 = body, 3 = wreck
         private readonly List<Image> _blips = new List<Image>();
+
+        // #1880: the disc turns with the pilot's HEADING (the view flattened onto the flight plane). The last good
+        // heading is kept so looking straight up or down on an EVA doesn't spin the disc.
+        private float _headingX, _headingZ = 1f;
+
+        // #1880: the flat disc drops height, so a navigation point (station / wreck) above or below the pilot gets a
+        // small ▲/▼ beside its blip. Pooled parallel to _blips like the rim labels; the state is cached per slot.
+        private readonly List<TMPro.TMP_Text> _vertMarks = new List<TMPro.TMP_Text>();
+        private readonly List<int> _vertMarkState = new List<int>();
 
         // #1663: a name beside every RIM-PINNED blip (a body/wreck beyond radar range — the anonymous green
         // arrows that "only the nearest one" got a name for). Pooled parallel to _blips; the source string is
@@ -175,11 +186,16 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // The flight camera is parented to the (unrotated) space scene root, so its local
-            // position + world right/forward give a stable frame for the entity bearings.
-            var camPos = Camera.transform.localPosition;
-            var camR = Camera.transform.right;
+            // The flight camera is parented to the (unrotated) space scene root, so its world forward is also its
+            // scene-local forward. #1880: the disc is a top-down map turned with the HEADING — that forward
+            // flattened onto the flight plane. Projecting onto the tilted chase camera itself (≈17° nose-down)
+            // folded height into "ahead/behind": a wreck 229 units overhead sat dead centre and read as behind you.
             var camF = Camera.transform.forward;
+            SpaceRadarMath.Heading(camF.x, camF.z, _headingX, _headingZ, out _headingX, out _headingZ);
+
+            // Bearings and heights are measured from the pilot (the ship, or the suit on an EVA) — not from the
+            // chase camera 13 units behind and 4.5 above the hull.
+            var pilot = SpaceView != null ? SpaceView.PilotPosition : Camera.transform.localPosition;
 
             // Radar range comes from the ship's radar module(s) (radar_array widens it).
             float range = Game.ShipCombat != null && Game.ShipCombat.RadarRange > 1f ? Game.ShipCombat.RadarRange : DefaultRange;
@@ -188,6 +204,9 @@ namespace BlocksBeyondTheStars.Client
             string nearestStation = null;
             float nearestDist = float.MaxValue;
             float nearestUp = 0f; // station height relative to the ship — the radar's 2D disc drops it
+            string nearestWreck = null; // #1880: the derelict takes the readout when it is nearer than any planet
+            float nearestWreckDist = float.MaxValue;
+            float nearestWreckUp = 0f;
 
             int i = 0;
             foreach (var e in Game.Space.Entities)
@@ -195,8 +214,9 @@ namespace BlocksBeyondTheStars.Client
                 bool station = e.Kind == "SpaceStation";
                 bool wreck = e.Kind == "Wreck"; // #1664: the system's derelict — a fixed navigation point too
                 var world = new Vector3(e.X, e.Y, e.Z);
-                var dir = world - camPos;
-                var v = new Vector2(Vector3.Dot(dir, camR), Vector3.Dot(dir, camF)) * scale;
+                var dir = world - pilot;
+                var flat = SpaceRadarMath.Project(dir.x, dir.z, _headingX, _headingZ);
+                var v = new Vector2(flat.Right, flat.Ahead) * scale;
                 bool pinned = false;
                 if (v.magnitude > Radius)
                 {
@@ -215,7 +235,13 @@ namespace BlocksBeyondTheStars.Client
                 {
                     nearestDist = dir.magnitude;
                     nearestStation = e.Name;
-                    nearestUp = world.y - camPos.y;
+                    nearestUp = dir.y;
+                }
+                else if (wreck && dir.magnitude < nearestWreckDist)
+                {
+                    nearestWreckDist = dir.magnitude;
+                    nearestWreck = e.Name;
+                    nearestWreckUp = dir.y;
                 }
 
                 int slot = i;
@@ -229,6 +255,7 @@ namespace BlocksBeyondTheStars.Client
                     : new Color(0.9f, 0.95f, 1f);
                 blip.gameObject.SetActive(true);
                 SetRimLabel(slot, pinned ? e.Name : null, blip.color, v);
+                SetVertMark(slot, station || wreck ? SpaceRadarMath.VerticalState(dir.y) : 0, blip.color, v, pinned);
             }
 
             // Landable planets/moons: a green bearing marker each, clamped to the rim so a far body reads as
@@ -239,8 +266,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var body in SpaceView.Landables)
                 {
-                    var dir = body.Pos - camPos;
-                    var v = new Vector2(Vector3.Dot(dir, camR), Vector3.Dot(dir, camF)) * scale;
+                    var dir = body.Pos - pilot;
+                    var flat = SpaceRadarMath.Project(dir.x, dir.z, _headingX, _headingZ);
+                    var v = new Vector2(flat.Right, flat.Ahead) * scale;
                     bool offEdge = v.magnitude > Radius;
                     if (offEdge)
                     {
@@ -260,6 +288,7 @@ namespace BlocksBeyondTheStars.Client
                     blip.color = new Color(0.45f, 1f, 0.55f); // green = a planet/moon you can land on
                     blip.gameObject.SetActive(true);
                     SetRimLabel(slot, offEdge ? body.Name : null, blip.color, v); // #1663: which body is "that way"
+                    SetVertMark(slot, 0, blip.color, v, offEdge); // a planet is a big ball — no arrow on it
                 }
             }
 
@@ -274,6 +303,8 @@ namespace BlocksBeyondTheStars.Client
                 {
                     _rimLabels[i].gameObject.SetActive(false);
                 }
+
+                SetVertMark(i, 0, Color.clear, Vector2.zero, false);
             }
 
             // Nav waypoint (#597): amber blip (rim-pinned when out of radar range — it's a navigation
@@ -288,8 +319,9 @@ namespace BlocksBeyondTheStars.Client
             if (haveWp)
             {
                 SpaceView.TryResolveSpaceWaypoint(out wpPos, out _);
-                var wdir = wpPos - camPos;
-                var wv = new Vector2(Vector3.Dot(wdir, camR), Vector3.Dot(wdir, camF)) * scale;
+                var wdir = wpPos - pilot;
+                var wflat = SpaceRadarMath.Project(wdir.x, wdir.z, _headingX, _headingZ);
+                var wv = new Vector2(wflat.Right, wflat.Ahead) * scale;
                 if (wv.magnitude > Radius)
                 {
                     wv = wv.normalized * Radius;
@@ -298,49 +330,117 @@ namespace BlocksBeyondTheStars.Client
                 _wpBlip.rectTransform.anchoredPosition = wv;
                 _wpBlip.rectTransform.SetAsLastSibling(); // over the entity/body blips
                 int wpMeters = Mathf.RoundToInt(wdir.magnitude);
-                if (wpMeters != _wpLastMeters) // #1516: build the label only when the rounded distance moves
+                int wpVert = Mathf.RoundToInt(wdir.y);
+                // #1516: build the label only when the rounded distance (or, #1880, the rounded height) moves.
+                if (wpMeters != _wpLastMeters || wpVert != _wpLastVert)
                 {
                     _wpLastMeters = wpMeters;
-                    _wpLabel.text = $"⌖ {Km(wpMeters)}";
+                    _wpLastVert = wpVert;
+                    _wpLabel.text = "⌖ " + SpaceRadarMath.DistanceWithHeight(wpMeters, wpVert, KmFormat());
                 }
             }
 
-            // Readout under the radar: prefer a station name (dockable), else the nearest planet to head for.
-            // #1516: formatted only when the name, the rounded distance or the arrow changes (per frame before).
+            // Readout under the radar: prefer a station name (dockable), then the system's wreck when it is nearer
+            // than any planet (#1880 — it is the thing you are flying to, and the only place its height is spelled
+            // out), else the nearest planet to head for. The flat disc hides height, so station and wreck carry the
+            // climb as "· ▲ 2 290 km". #1516: formatted only when the name, the rounded distance or height changes.
             if (nearestStation != null)
             {
-                // The disc is flat — an arrow says "it's above/below you" so a station parked over the
-                // flight plane isn't searched for at eye level.
-                int vertState = nearestUp > 10f ? 1 : nearestUp < -10f ? -1 : 0;
-                int meters = Mathf.RoundToInt(nearestDist);
-                if (!ReferenceEquals(nearestStation, _readoutName) || meters != _readoutMeters || vertState != _readoutVert || _readoutKind != 1)
-                {
-                    _readoutName = nearestStation;
-                    _readoutMeters = meters;
-                    _readoutVert = vertState;
-                    _readoutKind = 1;
-                    string vert = vertState > 0 ? " ▲" : vertState < 0 ? " ▼" : string.Empty;
-                    _stationLabel.text = $"{nearestStation} · {Km(meters)}{vert}";
-                }
+                SetReadout(1, nearestStation, nearestDist, nearestUp, string.Empty);
+            }
+            else if (nearestWreck != null && nearestWreckDist < nearestBodyDist)
+            {
+                SetReadout(3, nearestWreck, nearestWreckDist, nearestWreckUp, string.Empty);
             }
             else if (nearestBody != null)
             {
-                int meters = Mathf.RoundToInt(nearestBodyDist);
-                if (!ReferenceEquals(nearestBody, _readoutName) || meters != _readoutMeters || _readoutKind != 2)
-                {
-                    _readoutName = nearestBody;
-                    _readoutMeters = meters;
-                    _readoutKind = 2;
-                    _stationLabel.text = $"➜ {nearestBody} · {Km(meters)}";
-                }
+                SetReadout(2, nearestBody, nearestBodyDist, 0f, "➜ ");
             }
 
-            _stationLabel.gameObject.SetActive(nearestStation != null || nearestBody != null);
+            _stationLabel.gameObject.SetActive(nearestStation != null || nearestWreck != null || nearestBody != null);
         }
 
-        /// <summary>A flight-scene distance as the instruments print it — km at 10 km per unit (#1599).</summary>
-        private string Km(float units)
-            => SpaceDistance.Label(units, Game != null && Game.Localizer != null ? Game.Localizer.Get("ui.space.km_fmt") : null);
+        /// <summary>Writes the readout line under the radar — "prefix name · distance[ · ▲ height]" — when any of its
+        /// displayed parts changed (#1516). A planet passes a zero height: a big ball needs no arrow.</summary>
+        private void SetReadout(int kind, string name, float distance, float up, string prefix)
+        {
+            int meters = Mathf.RoundToInt(distance);
+            int vert = Mathf.RoundToInt(up);
+            if (ReferenceEquals(name, _readoutName) && meters == _readoutMeters && vert == _readoutVert && kind == _readoutKind)
+            {
+                return;
+            }
+
+            _readoutName = name;
+            _readoutMeters = meters;
+            _readoutVert = vert;
+            _readoutKind = kind;
+            _stationLabel.text = $"{prefix}{name} · {SpaceRadarMath.DistanceWithHeight(meters, vert, KmFormat())}";
+        }
+
+        /// <summary>The localized flight-distance format (<c>ui.space.km_fmt</c>, km at 10 km per unit — #1599), or
+        /// null for the default.</summary>
+        private string KmFormat() => Game != null && Game.Localizer != null ? Game.Localizer.Get("ui.space.km_fmt") : null;
+
+        /// <summary>#1880: shows (or hides, <paramref name="state"/> 0) the ▲/▼ height mark of blip <paramref name="index"/>.
+        /// An in-range blip carries it just to its right; a rim-pinned one just OUTSIDE the ring, so it never collides
+        /// with the rim name label that hangs inward.</summary>
+        private void SetVertMark(int index, int state, Color color, Vector2 blipPos, bool pinned)
+        {
+            if (state == 0)
+            {
+                if (index < _vertMarks.Count && _vertMarks[index].gameObject.activeSelf)
+                {
+                    _vertMarks[index].gameObject.SetActive(false);
+                }
+
+                return;
+            }
+
+            while (index >= _vertMarks.Count)
+            {
+                _vertMarks.Add(MakeVertMark());
+                _vertMarkState.Add(0);
+            }
+
+            var mark = _vertMarks[index];
+            var outward = blipPos.sqrMagnitude > 0.001f ? blipPos.normalized : Vector2.up;
+            mark.rectTransform.anchoredPosition = pinned ? blipPos + outward * 10f : blipPos + new Vector2(9f, 0f);
+            if (_vertMarkState[index] != state)
+            {
+                _vertMarkState[index] = state;
+                mark.text = SpaceRadarMath.Glyph(state);
+            }
+
+            if (mark.color != color)
+            {
+                mark.color = color;
+            }
+
+            if (!mark.gameObject.activeSelf)
+            {
+                mark.gameObject.SetActive(true);
+            }
+        }
+
+        private TMPro.TMP_Text MakeVertMark()
+        {
+            var go = new GameObject("BlipHeight", typeof(RectTransform));
+            go.transform.SetParent(_center, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(12f, 12f);
+            var t = go.AddComponent<TMPro.TextMeshProUGUI>();
+            t.font = UiText.Font;
+            t.fontSize = 10;
+            t.alignment = TMPro.TextAlignmentOptions.Center;
+            t.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+            t.overflowMode = TMPro.TextOverflowModes.Overflow;
+            t.raycastTarget = false;
+            UiText.Style(t, UiText.Look.Outline);
+            t.gameObject.SetActive(false);
+            return t;
+        }
 
         private void OnDestroy()
         {

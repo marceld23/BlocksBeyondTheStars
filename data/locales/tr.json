@@ -2933,6 +2933,8 @@
   "vega.hint.asteroid_near": "Asteroitler menzilde. Geminin lazarıyla kır — çekim ışını parçaları içeri çeker.",
   "vega.hint.asteroid_no_tool": "Asteroitler var — ama kıracak bir şey gemide yok. Bir gemi lazeri veya asteroit kırıcı gerekir.",
   "vega.hint.station_near": "Bir istasyon yakın. Ticaret, gemi tadilatı ve görev almak için yanaş.",
+  "vega.hint.wreck_signal": "Enkaz {0} bu sistemde bir yerde sürükleniyor. Kolay yol: haritayı {key:FlightMap} ile aç, enkaza tıkla, sonra {key:FlightAutopilot} tuşuna bas — yukarıda ya da aşağıda olsa bile seni oraya uçururum.",
+  "vega.hint.wreck_signal_manual": "Enkaz {0} bu sistemde bir yerde sürükleniyor — radardaki turuncu nokta. Radar düzdür: ▲ senin üstünde, ▼ altında demek. Aynı yüksekliğe gelene kadar burnu yukarı ya da aşağı eğ.",
   "vega.hint.jump_ready": "Atlama jeneratörü çevrimiçi ve tam olarak bir sistemi biliyorsun. Yıldız haritasını aç — gerisi bekliyor.",
   "vega.mem.1": "Bir hafıza parçası… okuma. — Ben tek bir pilot için yapılmadım. Bir keşif filosunun navigasyon çekirdeğiydim. Meridian. …Bunun için teşekkürler.",
   "vega.mem.2": "Başka bir kırık. Kırk gemi. Bu sistemleri kimse isimlendirmeden önce haritalardık. Uçtuğun rotaların yarısı benim.",

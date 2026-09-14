@@ -2933,6 +2933,8 @@
   "vega.hint.asteroid_near": "Asteróides ao alcance. Quebre-os com o laser da nave — o feixe de tração puxa os pedaços.",
   "vega.hint.asteroid_no_tool": "Asteróides — mas nada a bordo que possa quebrá-los. Um laser de nave ou um quebra-asteroide serviriam.",
   "vega.hint.station_near": "Uma estação está perto. Atracar para negociar, refazer a nave e pegar missões.",
+  "vega.hint.wreck_signal": "O destroço {0} deriva em algum lugar neste sistema. O jeito fácil: abra o mapa com {key:FlightMap}, clique no destroço e então pressione {key:FlightAutopilot} — eu voo até ele por cima ou por baixo.",
+  "vega.hint.wreck_signal_manual": "O destroço {0} deriva em algum lugar neste sistema — o ponto laranja no radar. O radar é plano: ▲ significa que está acima, ▼ abaixo. Aponte o nariz para cima ou para baixo até ficar no mesmo nível.",
   "vega.hint.jump_ready": "O gerador de salto está online e você conhece exatamente um sistema. Abra o mapa estelar — o resto espera.",
   "vega.mem.1": "Um fragmento de memória… lendo. — Eu não fui construído para um só piloto. Eu era o núcleo de navegação de uma frota de levantamento. A Meridian. …Obrigado por isto.",
   "vega.mem.2": "Outro fragmento. Quarenta naves. Cartografávamos esses sistemas antes de alguém dar nomes. Metade das rotas que você voa são minhas.",

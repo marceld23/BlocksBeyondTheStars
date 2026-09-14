@@ -2933,6 +2933,8 @@
   "vega.hint.asteroid_near": "Asteoridi a portata. Scomponile con il laser della nave — il tractor beam raccoglie i pezzi.",
   "vega.hint.asteroid_no_tool": "Asteroidi — ma niente a bordo che possa romperli. Servirebbe un laser di nave o un rompiasteroidi.",
   "vega.hint.station_near": "Una stazione è vicina. Attracca per commerciare, aggiornare la nave e prendere missioni.",
+  "vega.hint.wreck_signal": "Il relitto {0} deriva da qualche parte in questo sistema. La via facile: apri la mappa con {key:FlightMap}, clicca il relitto, poi premi {key:FlightAutopilot} — ti ci porto su o giù.",
+  "vega.hint.wreck_signal_manual": "Il relitto {0} deriva da qualche parte in questo sistema — il punto arancione sul radar. Il radar è piatto: ▲ significa che è sopra, ▼ sotto. Inclina la prua su o giù finché non sei allineato.",
   "vega.hint.jump_ready": "Il generatore di salto è online e conosci esattamente un sistema. Apri la mappa stellare — gli altri ti aspettano.",
   "vega.mem.1": "Un frammento di memoria… leggendo. — Non sono stato costruito per un solo pilota. Ero il nucleo di navigazione di una flotta di rilevamento. La Meridian. …Grazie per questo.",
   "vega.mem.2": "Un altro frammento. Quaranta navi. Abbiamo mappato questi sistemi prima che esistessero i nomi. Metà delle rotte che segui sono mie.",

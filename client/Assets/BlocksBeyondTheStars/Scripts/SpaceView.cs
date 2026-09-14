@@ -4341,21 +4341,23 @@ namespace BlocksBeyondTheStars.Client
             _hullBar = MakeStatusBar(_shipStatus, 30f, "HULL", HullBarCol);
             _shieldBar = MakeStatusBar(_shipStatus, 56f, "SHD", ShieldBarCol);
 
-            // Flight instruments (bottom-left): smoothed speed, throttle, heading.
-            // Avionics-style abbreviations (SPD/THR/HDG) — identical in DE and EN cockpits.
+            // Flight instruments (bottom-left): smoothed speed, throttle, heading — and above them the altitude
+            // over the flight plane (#1881), on a line of its own because the controls hint starts right after HDG.
+            // Avionics-style abbreviations (SPD/THR/HDG/ALT) — identical in DE and EN cockpits.
             var instGo = new GameObject("Instruments", typeof(RectTransform));
             instGo.transform.SetParent(_ui.transform, false);
             var insRt = instGo.GetComponent<RectTransform>();
             insRt.anchorMin = insRt.anchorMax = new Vector2(0f, 0f);
             insRt.pivot = new Vector2(0f, 0f);
-            insRt.sizeDelta = new Vector2(620f, 26f);
+            insRt.sizeDelta = new Vector2(620f, 52f);
             insRt.anchoredPosition = new Vector2(20f, 20f);
             _instruments = instGo.AddComponent<Text>();
             _instruments.font = UiKit.Font;
             _instruments.fontSize = 19;
             _instruments.color = UiKit.Cyan;
-            _instruments.alignment = TextAnchor.MiddleLeft;
+            _instruments.alignment = TextAnchor.LowerLeft; // the SPD line stays where it always was
             _instruments.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _instruments.verticalOverflow = VerticalWrapMode.Overflow;
             _instruments.raycastTarget = false;
 
             // Aiming dot at screen centre — brightens cyan when the laser has a target locked.
@@ -4953,16 +4955,32 @@ namespace BlocksBeyondTheStars.Client
             int thr = Mathf.RoundToInt(Mathf.Clamp01(InputMap.MoveY()) * 100f);
             int hdg = Mathf.RoundToInt(Mathf.Repeat(_yaw, 360f));
             int spd10 = Mathf.RoundToInt(_instSpeed * 10f);
+            // #1881: height over the flight plane (y = 0 — where the system's planets, stations and wreck sit), in
+            // the same instrument kilometres as every flight distance. Free pitch put pilots hundreds of units under
+            // everything without a single number saying so.
+            float altY = _ship != null ? _ship.transform.localPosition.y : 0f;
+            int altKm = BlocksBeyondTheStars.Client.Core.SpaceRadarMath.SignedKm(altY);
             // Hull/shield are NOT repeated here — they're gauges in the ship-status block now (#915).
             // #1516: format only when a displayed digit changes (the readout shows one decimal of speed).
-            if (spd10 != _instLastSpd10 || thr != _instLastThr || hdg != _instLastHdg)
+            if (spd10 != _instLastSpd10 || thr != _instLastThr || hdg != _instLastHdg || altKm != _instLastAltKm)
             {
                 _instLastSpd10 = spd10;
                 _instLastThr = thr;
                 _instLastHdg = hdg;
-                _instruments.text = $"SPD {_instSpeed:0.0}   THR {thr}%   HDG {hdg:000}°";
+                _instLastAltKm = altKm;
+                string alt = BlocksBeyondTheStars.Client.Core.SpaceRadarMath.Altitude(altY, Loc("ui.space.km_fmt", null));
+                _instruments.text = $"ALT {alt}\nSPD {_instSpeed:0.0}   THR {thr}%   HDG {hdg:000}°";
             }
         }
+
+        /// <summary>Where the pilot IS in the flight scene: the suit on an EVA, else the ship (the camera before the
+        /// scene is built). The radar measures bearings and heights from here (#1880) — not from the chase camera
+        /// 13 units behind and 4.5 above the hull.</summary>
+        public Vector3 PilotPosition
+            => _eva ? _evaPos
+                : _ship != null ? _ship.transform.localPosition
+                : Camera != null ? Camera.transform.localPosition
+                : Vector3.zero;
 
         // #1516: last-formatted flight overlay state (hint, cargo line, instruments).
         private string _flightHint;
@@ -4972,7 +4990,7 @@ namespace BlocksBeyondTheStars.Client
         private string _cargoText;
         private int _cargoTextCount = -1;
         private string _cargoTextLabel;
-        private int _instLastSpd10 = -1, _instLastThr = -1, _instLastHdg = -1;
+        private int _instLastSpd10 = -1, _instLastThr = -1, _instLastHdg = -1, _instLastAltKm = int.MinValue;
 
         private bool _hullWarn, _shieldWarn;
         private float _hullBeepTimer;

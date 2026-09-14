@@ -2969,6 +2969,8 @@
   "vega.hint.asteroid_near": "Asteroiden in Reichweite. Zerleg sie mit dem Schiffslaser — der Traktorstrahl zieht die Brocken ein.",
   "vega.hint.asteroid_no_tool": "Asteroiden — aber nichts an Bord, das sie knacken könnte. Ein Schiffslaser oder ein Asteroidenbrecher schon.",
   "vega.hint.station_near": "Eine Station ist nah. Dock an, um zu handeln, das Schiff umzurüsten und Missionen anzunehmen.",
+  "vega.hint.wreck_signal": "Irgendwo in diesem System treibt das Wrack {0}. Am einfachsten kommst du so hin: Karte mit {key:FlightMap} öffnen, das Wrack anklicken, dann {key:FlightAutopilot} drücken — ich fliege auch hoch oder runter hin.",
+  "vega.hint.wreck_signal_manual": "Irgendwo in diesem System treibt das Wrack {0} — der orange Punkt auf dem Radar. Das Radar ist flach: ▲ heißt, es liegt über dir, ▼ unter dir. Kipp die Nase hoch oder runter, bis du auf seiner Höhe bist.",
   "vega.hint.jump_ready": "Der Sprunggenerator ist online, und du kennst genau ein System. Öffne die Sternkarte — der Rest wartet.",
   "vega.mem.1": "Ein Speicherfragment… lese. — Ich wurde nicht für einen einzelnen Piloten gebaut. Ich war der Navigationskern einer Vermessungsflotte. Der Meridian. …Danke dafür.",
   "vega.mem.2": "Noch ein Splitter. Vierzig Schiffe. Wir kartierten diese Systeme, bevor irgendwer Namen für sie hatte. Die halben Routen, die du fliegst, sind meine.",
