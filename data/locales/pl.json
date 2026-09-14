@@ -2933,6 +2933,8 @@
   "vega.hint.asteroid_near": "Asteroidy w zasięgu. Rozbij je laserem statku — wiązka traktorowa wciągnie kawałki.",
   "vega.hint.asteroid_no_tool": "Asteroidy — ale nic na pokładzie nie potrafi ich zniszczyć. Przyda się laser statku lub rozbijacz asteroid.",
   "vega.hint.station_near": "Stacja jest blisko. Zadokuj, by handlować, przerobić statek i wziąć misje.",
+  "vega.hint.wreck_signal": "Wrak {0} dryfuje gdzieś w tym układzie. Najłatwiej tak: otwórz mapę {key:FlightMap}, kliknij wrak, potem naciśnij {key:FlightAutopilot} — dolecę do niego, nawet jeśli jest wyżej lub niżej.",
+  "vega.hint.wreck_signal_manual": "Wrak {0} dryfuje gdzieś w tym układzie — pomarańczowa kropka na radarze. Radar jest płaski: ▲ oznacza nad tobą, ▼ pod tobą. Podnieś lub opuść nos, aż znajdziesz się na jego wysokości.",
   "vega.hint.jump_ready": "Generator skoku online i znasz dokładnie jeden układ. Otwórz mapę gwiazd — reszta czeka.",
   "vega.mem.1": "Fragment pamięci… odczyt. — Nie byłem zbudowany dla jednego pilota. Byłem rdzeniem nawigacyjnym floty badawczej. Meridian. …Dziękuję za to.",
   "vega.mem.2": "Kolejny odłamek. Czterdzieści statków. Mapowaliśmy te układy, zanim ktokolwiek nadał im nazwy. Połowa tras, którymi latasz, jest moja.",

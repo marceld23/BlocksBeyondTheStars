@@ -2933,6 +2933,8 @@
   "vega.hint.asteroid_near": "Asteroïden binnen bereik. Breek ze met de scheepslaser — de tractorbeam trekt de brokstukken naar binnen.",
   "vega.hint.asteroid_no_tool": "Asteroïden — maar niets aan boord dat ze kan breken. Een scheepslaser of een asteroïde-breker wel.",
   "vega.hint.station_near": "Een station is dichtbij. Dok om te handelen, je schip te refitten en missies op te halen.",
+  "vega.hint.wreck_signal": "Het wrak {0} drijft ergens in dit systeem. De makkelijke route: open de kaart met {key:FlightMap}, klik het wrak en druk {key:FlightAutopilot} — ik vlieg ons ernaartoe of eraf.",
+  "vega.hint.wreck_signal_manual": "Het wrak {0} drijft ergens in dit systeem — de oranje stip op de radar. De radar is plat: ▲ betekent boven je, ▼ onder. Kantel de neus omhoog of omlaag tot je er op hetzelfde niveau bent.",
   "vega.hint.jump_ready": "De spronggenerator staat online en je kent precies één systeem. Open de sterrenkaart — de rest wacht.",
   "vega.mem.1": "Een herinneringsfragment… lezing. — Ik was niet gebouwd voor één piloot. Ik was de navigatiekern van een verkenningsvloot. The Meridian. …Dank je hiervoor.",
   "vega.mem.2": "Nog een scherf. Veertig schepen. Wij hebben deze systemen in kaart gebracht voordat iemand er namen voor had. De helft van de routes die je vliegt is van mij.",

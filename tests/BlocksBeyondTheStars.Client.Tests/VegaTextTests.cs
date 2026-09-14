@@ -171,6 +171,17 @@ public sealed class VegaTextTests
     }
 
     [Fact]
+    public void JournalKeys_ListsTheWreckTips_WithTheSpaceTips_AndSkipsARetiredOne()
+    {
+        // #1882: reaching a wreck retires the tip outright (#done without a first occurrence) — nothing to list.
+        var keys = VegaText.JournalKeys(new[]
+        {
+            "vega:hint:jump_ready", "vega:hint:wreck_signal", "vega:hint:station_near", "vega:hint:wreck_signal_manual#done",
+        });
+        Assert.Equal(new[] { "vega.hint.station_near", "vega.hint.wreck_signal", "vega.hint.jump_ready" }, keys);
+    }
+
+    [Fact]
     public void SplitArgs_UnpacksSeveralArguments()
     {
         Assert.Empty(VegaText.SplitArgs(""));

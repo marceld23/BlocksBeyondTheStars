@@ -70,6 +70,10 @@ public sealed partial class GameServer
     private const double VegaTipShipFarDistance = 150.0;
     private const double VegaTipShipNearDistance = 30.0;
 
+    /// <summary>Within this many flight units of an unvisited wreck the "how to reach the wreck" tip stays quiet
+    /// (#1882) — twice the approach reading's range, i.e. the pilot is already arriving.</summary>
+    private const double VegaTipWreckQuietRange = SpaceWreckApproachRange * 2.0;
+
     /// <summary>The kind byte for a REPEATED context tip. The first occurrence of any tip goes out as a Kind-1
     /// advisor line (teaching moment, appended to the tips log); repeats use Kind 5 so the client can drop
     /// them when its speech queue is already busy. Both obey the VegaHints settings mute.</summary>
@@ -126,6 +130,10 @@ public sealed partial class GameServer
         new("asteroid_near",  VegaTipPriority.Opportunity, 5,  900, 3, true),
         new("asteroid_no_tool", VegaTipPriority.Opportunity, 5, 900, 2, true),
         new("station_near",   VegaTipPriority.Opportunity, 5,  900, 2, true),
+        // #1882: the system's derelict drifts on no planet, and pilots flew right under it — say how to get there:
+        // the chart click + autopilot with an AI core Mk2 or better, else the radar's ▲/▼ height cue.
+        new("wreck_signal",   VegaTipPriority.Opportunity, 5,  900, 2, true),
+        new("wreck_signal_manual", VegaTipPriority.Opportunity, 5, 900, 2, true),
         new("jump_ready",     VegaTipPriority.Opportunity, 0, 1800, 2, true),
     };
 
@@ -168,6 +176,16 @@ public sealed partial class GameServer
             return;
         }
 
+        if (session.State.Milestones.Add(VegaTipDoneKey(id)))
+        {
+            _repo.SavePlayer(session.State);
+        }
+    }
+
+    /// <summary>Retires a tip for the save outright, with no reaction window — for a goal the server witnesses
+    /// itself and that teaches the lesson on its own, like reaching a wreck (#1882).</summary>
+    private void RetireVegaTip(PlayerSession session, string id)
+    {
         if (session.State.Milestones.Add(VegaTipDoneKey(id)))
         {
             _repo.SavePlayer(session.State);
@@ -702,6 +720,7 @@ public sealed partial class GameServer
 
         var pos = instance.PlayerPoses.TryGetValue(p.PlayerId, out var pose) ? pose.Pos : instance.ShipPosition;
         bool asteroidNear = false, stationNear = false;
+        CombatEntity? wreck = null;
         foreach (var e in instance.Entities)
         {
             if (e.Kind == CombatEntityKind.Asteroid && !asteroidNear && DistSq(pos, e.Position) <= 80.0 * 80.0)
@@ -712,6 +731,18 @@ public sealed partial class GameServer
             {
                 stationNear = true;
             }
+            else if (e.Kind == CombatEntityKind.Wreck && wreck is null && !p.Scanned.Contains(SpaceWreckScanPrefix + e.Id)
+                     && DistSq(pos, e.Position) > VegaTipWreckQuietRange * VegaTipWreckQuietRange)
+            {
+                wreck = e; // not visited yet, and not already right in front of the nose
+            }
+        }
+
+        if (wreck is not null)
+        {
+            // #1882: the autopilot (AI core Mk2+) flies the pitch too once the wreck is the chart waypoint; without
+            // it the pilot has to read the radar's height cue.
+            add(VegaCoreTier(session) >= 2 ? "wreck_signal" : "wreck_signal_manual", wreck.Name, "wreck:" + wreck.Id);
         }
 
         if (asteroidNear)

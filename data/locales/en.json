@@ -2969,6 +2969,8 @@
   "vega.hint.asteroid_near": "Asteroids in range. Break them with the ship laser — the tractor beam pulls the chunks in.",
   "vega.hint.asteroid_no_tool": "Asteroids — but nothing aboard that can break them. A ship laser or an asteroid breaker would.",
   "vega.hint.station_near": "A station is close. Dock to trade, refit the ship and pick up missions.",
+  "vega.hint.wreck_signal": "The wreck {0} drifts somewhere in this system. The easy way there: open the map with {key:FlightMap}, click the wreck, then press {key:FlightAutopilot} — I fly us up or down to it as well.",
+  "vega.hint.wreck_signal_manual": "The wreck {0} drifts somewhere in this system — the orange dot on the radar. The radar is flat: ▲ means it is above you, ▼ below. Tip the nose up or down until you are level with it.",
   "vega.hint.jump_ready": "The jump generator is online and you know exactly one system. Open the star map — the rest are waiting.",
   "vega.mem.1": "A memory fragment… reading. — I was not built for one pilot. I was the navigation core of a survey fleet. The Meridian. …Thank you for this.",
   "vega.mem.2": "Another shard. Forty ships. We charted these systems before anyone had names for them. Half the routes you fly are mine.",
