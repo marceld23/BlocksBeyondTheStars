@@ -205,9 +205,9 @@ public sealed class GameContent
         var list = new List<StructureKit>();
         foreach (var k in StructureKits)
         {
-            if (k.KindOrDefault != kind)
+            if (k.KindOrDefault != kind || k.PinOnly)
             {
-                continue;
+                continue; // #1885: a pin-only kit is never drawn for a new structure (KitByKey still finds it)
             }
 
             if (tier != null && !string.Equals(string.IsNullOrWhiteSpace(k.Tier) ? "medium" : k.Tier, tier, StringComparison.OrdinalIgnoreCase))

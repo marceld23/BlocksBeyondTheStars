@@ -531,6 +531,7 @@
     "tier": "hamlet",
     "pack": "default",
     "weight": 2,
+    "pinOnly": true,
     "entries": [
       {
         "module": "timber_cottage",
@@ -548,6 +549,7 @@
     "tier": "village",
     "pack": "default",
     "weight": 2,
+    "pinOnly": true,
     "entries": [
       {
         "module": "timber_cottage",
@@ -565,6 +567,7 @@
     "tier": "town",
     "pack": "default",
     "weight": 2,
+    "pinOnly": true,
     "entries": [
       {
         "module": "iron_flat",
@@ -582,6 +585,7 @@
     "tier": "city",
     "pack": "default",
     "weight": 2,
+    "pinOnly": true,
     "entries": [
       {
         "module": "iron_flat",
@@ -599,9 +603,1081 @@
     "tier": "metropolis",
     "pack": "default",
     "weight": 1,
+    "pinOnly": true,
     "planetTypes": [
       "gds_desert"
     ],
     "entries": []
+  },
+  {
+    "key": "hamlet_modular_1",
+    "name": "Hamlet Modular 1",
+    "kind": "settlement",
+    "tier": "hamlet",
+    "pack": "default",
+    "weight": 2,
+    "plotStride": 10,
+    "building": 8,
+    "modulesOnly": true,
+    "colsMin": 1,
+    "colsMax": 2,
+    "rowsMin": 2,
+    "rowsMax": 3,
+    "storeys": 1,
+    "entries": [
+      {
+        "module": "village_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_1",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_1_alien",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      }
+    ]
+  },
+  {
+    "key": "hamlet_modular_2",
+    "name": "Hamlet Modular 2",
+    "kind": "settlement",
+    "tier": "hamlet",
+    "pack": "default",
+    "weight": 2,
+    "plotStride": 10,
+    "building": 8,
+    "modulesOnly": true,
+    "colsMin": 1,
+    "colsMax": 2,
+    "rowsMin": 2,
+    "rowsMax": 3,
+    "storeys": 1,
+    "entries": [
+      {
+        "module": "village_market_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_market_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_2",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_2_alien",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      }
+    ]
+  },
+  {
+    "key": "village_modular_1",
+    "name": "Village Modular 1",
+    "kind": "settlement",
+    "tier": "village",
+    "pack": "default",
+    "weight": 2,
+    "plotStride": 10,
+    "building": 8,
+    "modulesOnly": true,
+    "colsMin": 2,
+    "colsMax": 3,
+    "rowsMin": 2,
+    "rowsMax": 3,
+    "storeys": 1,
+    "entries": [
+      {
+        "module": "village_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_tavern_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_tavern_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_1",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_1_alien",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      }
+    ]
+  },
+  {
+    "key": "village_modular_2",
+    "name": "Village Modular 2",
+    "kind": "settlement",
+    "tier": "village",
+    "pack": "default",
+    "weight": 2,
+    "plotStride": 10,
+    "building": 8,
+    "modulesOnly": true,
+    "colsMin": 2,
+    "colsMax": 3,
+    "rowsMin": 2,
+    "rowsMax": 3,
+    "storeys": 1,
+    "entries": [
+      {
+        "module": "village_market_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_market_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_tavern_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_tavern_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_2",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_2_alien",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      }
+    ]
+  },
+  {
+    "key": "town_modular_1",
+    "name": "Town Modular 1",
+    "kind": "settlement",
+    "tier": "town",
+    "pack": "default",
+    "weight": 2,
+    "plotStride": 10,
+    "building": 8,
+    "modulesOnly": true,
+    "colsMin": 3,
+    "colsMax": 4,
+    "rowsMin": 3,
+    "rowsMax": 4,
+    "storeys": 2,
+    "entries": [
+      {
+        "module": "town_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_1",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_1_alien",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      }
+    ]
+  },
+  {
+    "key": "town_modular_2",
+    "name": "Town Modular 2",
+    "kind": "settlement",
+    "tier": "town",
+    "pack": "default",
+    "weight": 2,
+    "plotStride": 10,
+    "building": 8,
+    "modulesOnly": true,
+    "colsMin": 3,
+    "colsMax": 4,
+    "rowsMin": 3,
+    "rowsMax": 4,
+    "storeys": 2,
+    "entries": [
+      {
+        "module": "town_market_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_market_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_2",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_2_alien",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      }
+    ]
+  },
+  {
+    "key": "city_modular_1",
+    "name": "City Modular 1",
+    "kind": "settlement",
+    "tier": "city",
+    "pack": "default",
+    "weight": 2,
+    "plotStride": 10,
+    "building": 8,
+    "modulesOnly": true,
+    "colsMin": 4,
+    "colsMax": 5,
+    "rowsMin": 4,
+    "rowsMax": 5,
+    "storeys": 3,
+    "entries": [
+      {
+        "module": "town_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_1",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_1_alien",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "city_tall_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "city_tall_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      }
+    ]
+  },
+  {
+    "key": "city_modular_2",
+    "name": "City Modular 2",
+    "kind": "settlement",
+    "tier": "city",
+    "pack": "default",
+    "weight": 2,
+    "plotStride": 10,
+    "building": 8,
+    "modulesOnly": true,
+    "colsMin": 4,
+    "colsMax": 5,
+    "rowsMin": 4,
+    "rowsMax": 5,
+    "storeys": 3,
+    "entries": [
+      {
+        "module": "town_market_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_market_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_2",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_2_alien",
+        "min": 0,
+        "max": 3,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "city_tall_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "city_tall_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      }
+    ]
+  },
+  {
+    "key": "city_gds_modular_1",
+    "name": "G.D.S. City Modular 1",
+    "kind": "city",
+    "tier": "metropolis",
+    "pack": "default",
+    "weight": 2,
+    "planetTypes": [
+      "gds_desert"
+    ],
+    "grid": 7,
+    "districtSize": 32,
+    "street": 4,
+    "height": 20,
+    "entries": [
+      {
+        "module": "gds_housing_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "gds_housing_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_market_1",
+        "min": 0,
+        "max": 4,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_market_2",
+        "min": 0,
+        "max": 4,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_hall_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_hall_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_garden_1",
+        "min": 0,
+        "max": 8,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_garden_2",
+        "min": 0,
+        "max": 8,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_tower_1",
+        "min": 0,
+        "max": 4,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_tower_2",
+        "min": 0,
+        "max": 4,
+        "required": false,
+        "weight": 1
+      }
+    ]
   }
 ]

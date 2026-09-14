@@ -172,7 +172,7 @@ public sealed partial class GameServer
                 break;
             default:
                 npc.ActivityKey = JobActivityKey(npc.Job);
-                float leash = npc.Job is "vendor" or "quartermaster" or "craftsman" ? WorkLeash
+                float leash = npc.Job is "vendor" or "quartermaster" or "craftsman" or "innkeeper" ? WorkLeash
                     : npc.BaseId > 0 ? ResidentLeash : NpcWanderLeash;
                 GoTo(npc, npc.HasWork ? npc.Work : npc.Rest, NpcArrival.None, leash);
                 break;
@@ -202,6 +202,7 @@ public sealed partial class GameServer
         "vendor" => "npc.activity.trading",
         "quartermaster" => "npc.activity.working",
         "craftsman" => "npc.activity.working",
+        "innkeeper" => "npc.activity.working", // #1887: the tavern's keeper behind the counter
         "gardener" => "npc.activity.tending",
         "guard" => "npc.activity.patrolling",
         _ => string.Empty,

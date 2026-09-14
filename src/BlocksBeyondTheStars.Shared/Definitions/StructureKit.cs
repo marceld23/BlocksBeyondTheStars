@@ -53,6 +53,10 @@ public sealed class StructureKit
 
     public List<KitEntry> Entries { get; set; } = new();
 
+    /// <summary>True on a kit kept ONLY for the placements that already use it (#1885: the first default settlement
+    /// kits) — never drawn for a new structure; a pinned placement still finds it by key.</summary>
+    public bool PinOnly { get; set; }
+
     // --- settlement layout (0 = the tier's procedural default) ---
 
     public int ColsMin { get; set; }

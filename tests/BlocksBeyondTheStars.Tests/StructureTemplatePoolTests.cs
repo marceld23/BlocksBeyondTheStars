@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -28,6 +29,7 @@ public sealed class StructureTemplatePoolTests : IDisposable
         "door_slide", "door_hinge", "data_terminal", "bandit_stash", "relic_cache", "chest", "module",
         "greenhouse", "room", // room = furnish this floor procedurally (#1828)
         "cabin", "lounge", "door_energy", // #1874: one resident sleeps here / the crew's evening seats / the airtight door
+        "tavern", "workshop", "guard_post", // #1885: the innkeeper's and the craftsman's posts, the G.D.S. guardians
     };
 
     private readonly string _root;
@@ -77,7 +79,8 @@ public sealed class StructureTemplatePoolTests : IDisposable
                 }
                 else
                 {
-                    Assert.NotNull(_content.GetBlock(c.Id)); // a typo'd block key must fail loudly here
+                    // a typo'd block key must fail loudly here; a material token (#1885) resolves at stamp time
+                    Assert.True(MaterialTokens.IsToken(c.Id) || _content.GetBlock(c.Id) != null, $"{t.Key}: unknown block '{c.Id}'");
                 }
             }
         }
@@ -105,13 +108,14 @@ public sealed class StructureTemplatePoolTests : IDisposable
         {
             var picked = _content.PickSettlementTemplate("village", null, rng, "desert");
             Assert.NotNull(picked);
-            Assert.NotEqual("stilt_hamlet", picked!.Key); // wet-world template never lands in the dunes
+            Assert.False(picked!.Key.StartsWith("stilt_hamlet", StringComparison.Ordinal)); // wet-world template never lands in the dunes
         }
 
         bool seenOnJungle = false;
         for (int i = 0; i < 200 && !seenOnJungle; i++)
         {
-            seenOnJungle = _content.PickSettlementTemplate("village", null, rng, "jungle")?.Key == "stilt_hamlet";
+            // #1889: new worlds roll the furnished copy; the original stays for the worlds that pinned it
+            seenOnJungle = _content.PickSettlementTemplate("village", null, rng, "jungle")?.Key == "stilt_hamlet_home";
         }
 
         Assert.True(seenOnJungle, "the stilt hamlet should be pickable on its listed worlds");

@@ -49,11 +49,24 @@ public sealed class SettlementKitTests : IDisposable
         return t;
     }
 
-    private static List<StructureTemplate> Pool() => new()
+    // #1885: a kit only uses modules of the settlement's own inhabitants, so every test module comes as a human and an
+    // alien variant — the assertions read the function, not the variant.
+    private static List<StructureTemplate> Pool()
     {
-        Box("gold_house", StructureRoles.House, "village", 6, 7, 6, "gold_block", ("npc", 3, 1, 3), ("door_hinge", 2, 1, 0)),
-        Box("gold_market", StructureRoles.Market, "village", 6, 7, 6, "gold_block", ("vendor", 3, 1, 3), ("door_hinge", 2, 1, 0)),
-    };
+        var list = new List<StructureTemplate>();
+        foreach (var style in new[] { string.Empty, StructureTemplate.StyleAlien })
+        {
+            string suffix = style.Length == 0 ? string.Empty : "_alien";
+            var house = Box("gold_house" + suffix, StructureRoles.House, "village", 6, 7, 6, "gold_block", ("npc", 3, 1, 3), ("door_hinge", 2, 1, 0));
+            var market = Box("gold_market" + suffix, StructureRoles.Market, "village", 6, 7, 6, "gold_block", ("vendor", 3, 1, 3), ("door_hinge", 2, 1, 0));
+            house.Style = style;
+            market.Style = style;
+            list.Add(house);
+            list.Add(market);
+        }
+
+        return list;
+    }
 
     private static StructureKit Kit(int houseMin, int houseMax, bool modulesOnly, int plot = 0, int building = 0, int cols = 0, int rows = 0) => new()
     {
@@ -68,7 +81,11 @@ public sealed class SettlementKitTests : IDisposable
         RowsMin = rows,
         RowsMax = rows,
         ModulesOnly = modulesOnly,
-        Entries = { new KitEntry { Module = "gold_market", Required = true }, new KitEntry { Module = "gold_house", Min = houseMin, Max = houseMax } },
+        Entries =
+        {
+            new KitEntry { Module = "gold_market", Required = true }, new KitEntry { Module = "gold_market_alien", Required = true },
+            new KitEntry { Module = "gold_house", Min = houseMin, Max = houseMax }, new KitEntry { Module = "gold_house_alien", Min = houseMin, Max = houseMax },
+        },
     };
 
     private static string Signature(SettlementStructure s)
@@ -101,9 +118,9 @@ public sealed class SettlementKitTests : IDisposable
         var s = SettlementGenerator.Generate("village", false, 77, "grass", Base, null, 0, composition, null, layout, kit, pool);
         Assert.Equal((3 * 10 + 1, 2 * 10 + 1), (s.Width, s.Length));
         Assert.Equal(6, composition.Count);
-        Assert.Equal("gold_market", composition[0]); // the required market on plot 0
+        Assert.StartsWith("gold_market", composition[0], StringComparison.Ordinal); // the required market on plot 0
         Assert.Equal(string.Empty, composition[1]);   // no board module in the kit → the procedural office
-        Assert.InRange(composition.Count(k => k == "gold_house"), 2, 3);
+        Assert.InRange(composition.Count(k => k.StartsWith("gold_house", StringComparison.Ordinal)), 2, 3);
         Assert.Contains(s.Markers, m => m.Type == "vendor");
         Assert.Contains(s.Markers, m => m.Type == "mission_board");
 
@@ -128,7 +145,7 @@ public sealed class SettlementKitTests : IDisposable
         // market (module) + board (procedural, a service) + the greenhouses (services too) + one house module —
         // every other dwelling plot stays a square.
         Assert.Equal(3 + s.Markers.Count(m => m.Type == "greenhouse"), s.BuildingCount);
-        Assert.Equal(1, composition.Count(k => k == "gold_house"));
+        Assert.Equal(1, composition.Count(k => k.StartsWith("gold_house", StringComparison.Ordinal)));
     }
 
     [Fact]
