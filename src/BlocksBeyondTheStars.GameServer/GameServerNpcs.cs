@@ -709,13 +709,45 @@ public sealed partial class GameServer
     // NOT ride on it; they go out via SendNpcs (world entry) and explicitly when a relationship changes.
     private void BroadcastNpcs() => _worlds.Active.NpcListDirty = true; // #1530: flushed once per tick
 
-    private void SendNpcList() => BroadcastToWorld(new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
+    /// <summary>
+    /// #1884: the list goes to every player of the world, but each receives only the NPCs within their streaming radius
+    /// plus a two-chunk margin — the radius <see cref="MoveNpcs"/> simulates in. It used to carry every NPC of the
+    /// world five times a second (324 on the G.D.S. city alone), and the client built an avatar for each. An NPC that
+    /// leaves the radius drops out of the next list (the client removes what a list no longer names).
+    /// </summary>
+    private void SendNpcList()
+    {
+        foreach (var session in JoinedInActiveWorld())
+        {
+            Send(session, new NpcList { Npcs = NpcsInReachOf(session) });
+        }
+    }
 
     private void SendNpcs(PlayerSession session)
     {
-        Send(session, new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
+        Send(session, new NpcList { Npcs = NpcsInReachOf(session) });
         SendNpcStandings(session); // #1118: the receiver's relationship stages for these NPCs
     }
+
+    /// <summary>The NPCs a player's client is sent (#1884): those within the player's streaming radius + two chunks.</summary>
+    private NetNpc[] NpcsInReachOf(PlayerSession session)
+    {
+        double reach = (EffectiveViewRadius(session) + 1) * WorldConstants.ChunkSize + 2 * WorldConstants.ChunkSize;
+        double reachSq = reach * reach;
+        var list = new List<NetNpc>();
+        foreach (var npc in _npcs)
+        {
+            if (WrapDistSq(session.State.Position, npc.Pos) <= reachSq)
+            {
+                list.Add(ToNetNpc(npc));
+            }
+        }
+
+        return list.ToArray();
+    }
+
+    /// <summary>Test seam (#1884): the ids of the NPCs this player's client is sent.</summary>
+    public IReadOnlyList<int> NpcIdsSentToForTest(PlayerSession session) => NpcsInReachOf(session).Select(n => n.Id).ToList();
 
     private static NetNpc ToNetNpc(ServerNpc n) => new()
     {
