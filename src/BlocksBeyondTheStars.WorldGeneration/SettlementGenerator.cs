@@ -123,6 +123,18 @@ public static class SettlementGenerator
         return (Building, floors * FloorH + RoofCap, Building);
     }
 
+    /// <summary>The plot stride and building footprint of the shipped modular kits (#1886, Marcel 2026-09-14: 8 × 8 houses).</summary>
+    public const int ModularPlot = 10;
+    public const int ModularBuilding = 8;
+
+    /// <summary>The envelope a module of the shipped modular kits must fit (#1886): 8 × 8, one storey in hamlets and villages,
+    /// two in towns, three in cities (each storey four blocks, plus the roof).</summary>
+    public static (int W, int H, int L) ModularPlotEnvelope(string tier)
+    {
+        int storeys = tier switch { "town" => 2, "city" => 3, _ => 1 };
+        return (ModularBuilding, storeys * FloorH + RoofCap, ModularBuilding);
+    }
+
     /// <summary>The marker an author places on a floor cell to have that room furnished procedurally (#1828).</summary>
     public const string RoomMarker = "room";
 

@@ -699,6 +699,15 @@ separate unlock; admins can still disable it through server world rules.
   and **crew quarters with one cabin per crew member** (bed, locker, lamp, a chair). Big stations have two decks
   joined by a ladder shaft. The crew works its post by day, sits in the canteen in the evening and sleeps in its own
   cabin at night; you may walk into the cabins. A station you have boarded before keeps its layout for good.
+- **Villages, towns and cities are built from modules too.** A new settlement is put together from buildings made to
+  fit the planet — the walls are sand on a desert, ice on a frozen world, iron in a town — and half of all settlements
+  are alien, with crystal trim and other roofs. Every settlement has a market and a notice house, villages and larger
+  places a **tavern** where the people meet in the evening, towns and cities a **workshop**, and houses of two or three
+  kinds. Town houses have two storeys (city flats three) joined by stairs. **Everyone who lives there has a bed**: the
+  shopkeeper, the quartermaster, the innkeeper and the gardener sleep in a back room of their building. A settlement
+  houses as many people as it has beds — at most 6 in a hamlet, 10 in a village, 20 in a town, 32 in a city and 80 in
+  the G.D.S. city. Settlements that already stand in your world keep their buildings exactly as they are; their people
+  now follow the beds that are there.
 - **Gravity ends at the hull**: inside your station's box (plus a few blocks around it) you walk; step or fall
   past that and the suit **floats** — jump rises, crouch sinks, so you drift back to the deck or build the
   outer hull from outside. Drift very far away and you are set back on the pad. **U** always returns you to
@@ -1466,7 +1475,9 @@ Put a **Room** marker on the floor of any room you want furnished: the game floo
 a table and chair, crates, a plant and a light in the settlement's style, keeping the door lane and the
 residents' spots clear — procedural buildings are furnished the same way. How often modules appear follows the
 world option *Settlement templates* (*Off* disables whole templates and modules alike); a world keeps the
-layout it was created with.
+layout it was created with. The option is the **share of hand-built settlements** in a new world: *Very rare* 5 %,
+*Rare* 15 %, *Normal* 40 %, *Frequent* 75 % — every other settlement is put together from a kit (*Station templates*
+works the same way for stations).
 
 **Station / Town editor — kit modules, ports and the seal.** Set **Use as** to *Kit module* to build a piece of a
 modular structure. Type the **Kit** it belongs to (or pick one with **Kits…**) and step the **Function**: a
@@ -1483,7 +1494,19 @@ the inside turns red — a station module with a leak or a broken port is never 
 composer with the kit named in the field and the current **Seed** and loads the result as a whole structure to
 walk through (your own templates are included), so you can see how the pieces fit before you start a new world.
 
-**Kits…** opens the kit panel: every shipped kit of the editor's kind plus your own. A kit has a key, name, kind
+**Town editor — planet materials, style, taverns and workshops.** The *Planet materials* section of the palette holds
+*Wall*, *Accent*, *Roof*, *Floor* and *Path*: build with them and the game puts the planet's own material there when the
+module is stamped — a village wall becomes sand, ice or grass, a town wall iron; the accent is crystal for aliens. With
+*Use as* on *Kit module*, the **Built for** stepper marks a module for *Humans* or *Aliens*; a kit only puts the
+settlement's own kind into its plots. *Tavern* and *Workshop* are functions of their own (they take a house plot): put
+the **Innkeeper** or **Craftsman** marker into the room and it is furnished as a tavern (counter, tables and chairs — the
+residents' evening seats) or a workshop (workbench, forge, crates). Every building people live in needs a room with a
+**Room** marker and space for a bed. Kit modules of the shipped kits are 8 × 8 blocks; the size line shows the storey
+height they may use.
+
+**Kits…** (on the *Use as* row, in both modes) opens the kit panel: every shipped kit of the editor's kind plus your own.
+The **…** button beside a module row opens the module picker — every module of the kit's kind with its function, tier,
+size and style, filterable. A kit has a key, name, kind
 (*station*, *settlement* or *city*), size tier, weight and planet types, how many modules it uses (min / max)
 and one row per module: minimum and maximum copies, *Required*, draw weight and whether the composer may rotate
 it. Station kits also name a start module and a maximum extent; settlement kits set the plot grid (columns,

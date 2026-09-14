@@ -24,6 +24,42 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏘️ Settlements and cities from modules — furnished buildings, a bed for every resident (#1891: #1884 #1885 #1886 #1887 #1888 #1889 #1890, 2026-09-14, branch feat/settlement-modules)
+
+Marcel after #1879: villages and cities should be built from modules like the stations, with interiors and residents —
+"ich will alles umsetzen in einem rutsch". Every design choice was his (8 × 8 houses, walls following the planet, a bed
+for every resident with a cap, the NPC list only within sight, existing worlds keep their buildings, the template option
+as the share of complete templates, taverns and workshops, 2–3 variants with alien variants).
+
+- **#1884 NPC list within sight.** `SendNpcList` / `SendNpcs` send each player only the NPCs within their streaming radius
+  + two chunks (`NpcsInReachOf`); the G.D.S. city used to push all 324 to everyone five times a second.
+- **#1885 Contract.** Plot functions `tavern` / `workshop` (house slots), `StructureTemplate.Style` (human / `alien`,
+  kit assignment keeps the settlement's inhabitants), material tokens `@wall @accent @roof @floor @path`
+  (`ModuleMaterials.ForSettlement` / `ForCity` — the procedural buildings' own rules), `StructureKit.PinOnly`,
+  `RoomFurnisher` roles Tavern / Workshop; interior doorways keep rooms apart for the furnisher, stairwell edges stay
+  free.
+- **#1886 Content.** `tools/settlement_module_shapes.py` + `gen_settlement_modules.py`: 62 modules (village and town
+  sets — houses, market, notice house, greenhouse, tavern, workshop — each human + alien, a city tall house, ten G.D.S.
+  districts), storeys joined by staircases (NPCs walk steps), a room with a bed in every building people live in;
+  `*_modular_1/2` kits per size (plot 10, building 8, modules only, one service variant set each) and
+  `city_gds_modular_1`; the `*_default_1` kits pin-only. Revision-1 kit grids keep the plaza and the garden patches out
+  of the buildings (`SettlementLayoutSpec.Revision`; six-field grids unchanged).
+- **#1887 Residents per bed.** `GameServerSettlementResidents`: beds of the stamped layout = residents, capped hamlet 6 /
+  village 10 / town 20 / city 32 / G.D.S. 80; posts staffed in order (vendor, quartermaster, gardener, craftsman,
+  innkeeper) with the free bed nearest the post; tavern chairs as evening seats; vendor + quartermaster kept without a
+  bed; guardians extra. Existing worlds: blocks unchanged, the residents follow the beds.
+- **#1888 Template share.** `PickTemplateOrKit`: the option's probability picks a complete template, else a kit
+  (settlements on the `kitpick` lane, stations on the legacy coin); Off = procedural.
+- **#1889 Furnished copies.** `river_hamlet_home`, `stone_roundhouse_home`, `stilt_hamlet_home`, `walled_market_home`
+  with rooms and beds; the originals pin-only (existing worlds replay them unchanged).
+- **#1890 Editor.** *Kits…* on the *Use as* row in both editors, a module picker in the kit panel, the planet-material
+  palette, the *Built for* (human / alien) stepper, tavern / workshop / lounge / guardian markers, the 8 × 8 envelope
+  hint for kit modules; the merge tool carries `style`.
+- **Open: Marcel's playtest** (a fresh world's villages and towns from modules on different planets, taverns in the
+  evening, residents in their beds, a fresh G.D.S. city, the editor picker and planet materials).
+- Docs: [docs/developer/STATION_SETTLEMENT_EDITOR.md](docs/developer/STATION_SETTLEMENT_EDITOR.md) §3c,
+  [docs/developer/WORLD_GENERATION.md](docs/developer/WORLD_GENERATION.md) §18, [docs/developer/NPC_ROUTINES.md](docs/developer/NPC_ROUTINES.md) §10.
+
 ### 🌍 Translation gap closed — 140 keys × 12 languages (#1892, 2026-09-14, branch chore/translate-missing-locale-keys)
 
 The kit editor, player notes, NPC routines, base posts, zero-g station building, furniture shapes and a few HUD strings

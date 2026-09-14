@@ -334,6 +334,16 @@ per-instance stream is still drawn so `ruined` / `island` never shift). Shipped:
 (43 station modules, 5 station kits) and `tools/gen_settlement_modules.py` (the default settlement kits + the G.D.S.
 city kit).
 
+**Settlement modules (#1885–#1890).** Fields `style` (`""` | `alien`) and the plot functions `tavern` / `workshop`
+(house slots; markers `tavern` / `workshop` name the room's furniture and the keeper's post). Block cells may carry a
+material token (`@wall @accent @roof @floor @path`, `MaterialTokens`) instead of a block key — resolved at stamp time
+(`ModuleMaterials`). Shipped modules follow the conventions in `tools/settlement_module_shapes.py`: entrance on −Z,
+2-wide × 3-tall doorways with a door marker, storeys of four joined by a staircase along the west wall, a `room` marker in
+every room and a bed in every building people live in; interior doorways carry door markers (they separate rooms for the
+furnisher). The editor's town palette has the token section, the *Built for* stepper replaces the port-door stepper in
+the town editor, *Kits…* sits on the *Use as* row and the kit panel's module rows have a picker (`OpenPicker`, fed with
+the editor's module pool).
+
 **Editor (#1877)** (`StructureEditor.cs`, `KitEditorPanel.cs`): *Use as* toggles whole structure / kit module in both
 editors; module mode shows the kit field (+ **Kits…**), the function stepper (`StructureRoles.StationFunctions`, or the
 plot / district roles — a known role is mirrored into `role` so the legacy per-plot composer still finds the module),

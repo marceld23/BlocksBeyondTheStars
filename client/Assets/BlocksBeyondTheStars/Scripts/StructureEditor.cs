@@ -80,6 +80,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _moduleMode;             // #1877: "Use as" = module (of a kit) instead of a complete structure
         private string _kit = string.Empty;   // #1877: the kit (module name) this module belongs to
         private string _function = string.Empty; // #1877: the module's function within its kit
+        private string _style = string.Empty;    // #1890: "" = human, "alien" = the alien variant of a settlement module
         private int _portDoor;                // #1877: door option (StructurePorts.DoorOptions index) the port brush paints
         private readonly HashSet<Vector3i> _leaks = new(); // #1877: cells the seal check painted red
         private KitEditorPanel _kitPanel;
@@ -155,6 +156,13 @@ namespace BlocksBeyondTheStars.Client
             P("ladder"),
         };
 
+        /// <summary>A material-token entry (#1890): placed like a block, exported as its token (<c>@wall</c> …), drawn as a
+        /// plain swatch — the composer puts the planet's own material there.</summary>
+        private EditorPaletteKit.Entry T(string token, Color c) => new EditorPaletteKit.Entry
+        {
+            Id = token, Label = L("ui.token." + token.Substring(1)), Kind = "block", Group = "tokens", Color = c,
+        };
+
         /// <summary>A port brush entry (#1877): paints <c>tag[:door]</c> onto an existing wall block.</summary>
         private EditorPaletteKit.Entry P(string tag) => new EditorPaletteKit.Entry
         {
@@ -177,6 +185,15 @@ namespace BlocksBeyondTheStars.Client
             M("greenhouse", new Color(0.45f, 0.85f, 0.35f)),    // the generator's garden-house marker (#626, #1401)
             M("chest", new Color(0.75f, 0.55f, 0.25f)),         // loot chest (stilt_hamlet, #1398)
             M("data_terminal", new Color(0.35f, 0.9f, 0.9f)),   // lore terminal (walled_market, #1398)
+            M("tavern", new Color(0.85f, 0.55f, 0.25f)),        // #1890: the innkeeper's post — the room is a tavern
+            M("workshop", new Color(0.55f, 0.55f, 0.6f)),       // #1890: the craftsman's post — the room is a workshop
+            M("lounge", new Color(0.85f, 0.65f, 0.35f)),        // an evening seat
+            M("guard_post", new Color(0.55f, 0.2f, 0.6f)),      // a G.D.S. guardian
+            T(MaterialTokens.Wall, new Color(0.62f, 0.55f, 0.42f)), // #1890: material tokens — resolved per planet
+            T(MaterialTokens.Accent, new Color(0.55f, 0.85f, 0.95f)),
+            T(MaterialTokens.Roof, new Color(0.55f, 0.4f, 0.3f)),
+            T(MaterialTokens.Floor, new Color(0.5f, 0.5f, 0.48f)),
+            T(MaterialTokens.Path, new Color(0.7f, 0.65f, 0.5f)),
             P("door"),                                          // #1877: docking ports (ground kits may use them later)
             P("wide"),
             P("ladder"),
@@ -461,6 +478,7 @@ namespace BlocksBeyondTheStars.Client
             public string role = string.Empty;       // #1826: "" = whole structure, else a building-module role
             public string kit = string.Empty;        // #1877: the kit this module belongs to
             public string function = string.Empty;   // #1877: the module's function within its kit
+            public string style = string.Empty;      // #1890: "" = human, "alien" = the alien variant
         }
 
         // Data-shaped StructureTemplate (matches the server's StructureTemplate JSON) written straight to
@@ -473,6 +491,7 @@ namespace BlocksBeyondTheStars.Client
             public string role = string.Empty;
             public string kit = string.Empty;
             public string function = string.Empty;
+            public string style = string.Empty;
             public int width, height, length;
             public List<CellJson> cells = new();
         }
@@ -538,11 +557,12 @@ namespace BlocksBeyondTheStars.Client
             string role = EditorMode == Mode.Settlement ? _role ?? string.Empty : string.Empty;
             string kitKey = _moduleMode ? Slug(_kit) : string.Empty;
             string function = _moduleMode ? _function ?? string.Empty : string.Empty;
+            string style = _moduleMode && EditorMode == Mode.Settlement ? _style ?? string.Empty : string.Empty;
             string tier = StructureRoles.IsCityRole(role) ? StructureRoles.MetropolisTier : _tiers[_tier];
             var meta = new MetaJson
             {
                 key = key, name = _name, kind = modeName, tier = tier, pack = pack, weight = weight, layout = $"{key}.json",
-                planetTypes = planetTypes, role = role, kit = kitKey, function = function,
+                planetTypes = planetTypes, role = role, kit = kitKey, function = function, style = style,
             };
 
             try
@@ -558,7 +578,7 @@ namespace BlocksBeyondTheStars.Client
                 var tpl = new TemplateJson
                 {
                     key = key, name = _name, tier = tier, kind = modeName, pack = pack, weight = weight,
-                    planetTypes = planetTypes, role = role, kit = kitKey, function = function,
+                    planetTypes = planetTypes, role = role, kit = kitKey, function = function, style = style,
                     width = layout.width, height = layout.height, length = layout.length, cells = layout.cells,
                 };
                 string userDir = Path.Combine(AppPaths.Root, "usercontent", modeName + "_templates");
@@ -638,7 +658,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         Label = string.IsNullOrEmpty(t.name) ? t.key : t.name,
                         Detail = Detail(t.tier, t.width, t.length, t.height, t.cells.Count),
-                        Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false, role: t.role, kit: t.kit, function: t.function),
+                        Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false, role: t.role, kit: t.kit, function: t.function, style: t.style),
                     });
                 }
             }
@@ -729,13 +749,13 @@ namespace BlocksBeyondTheStars.Client
                 cells.Add(new CellJson { x = c.X, y = c.Y, z = c.Z, kind = c.Kind, id = c.Id, tint = c.Tint, glow = c.Glow, shape = c.Shape, port = c.Port ?? string.Empty });
             }
 
-            ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true, role: t.Role, kit: t.Kit, function: t.Function);
+            ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true, role: t.Role, kit: t.Kit, function: t.Function, style: t.Style);
         }
 
         /// <summary>Common load path for built-in and user templates: cells + form fields, then the status
         /// (skipped cells, copy hint) and a UI rebuild.</summary>
         private void ApplyTemplate(string key, string name, string tier, string pack, int weight, List<string> planetTypes, IEnumerable<CellJson> cells, bool copy, string role = "",
-            string kit = "", string function = "")
+            string kit = "", string function = "", string style = "")
         {
             var skippedIds = new List<string>();
             int skipped = ApplyCells(cells, skippedIds);
@@ -748,6 +768,7 @@ namespace BlocksBeyondTheStars.Client
             _role = StructureRoles.IsKnown(role) ? role ?? string.Empty : string.Empty; // #1826
             // #1877: a kit module (kit + function) or a legacy module (role) opens the module view.
             _kit = kit ?? string.Empty;
+            _style = style ?? string.Empty;
             _function = !string.IsNullOrEmpty(function) ? function : _role;
             _moduleMode = !string.IsNullOrEmpty(_kit) || !string.IsNullOrEmpty(_role) || !string.IsNullOrEmpty(function);
             if (_moduleMode && string.IsNullOrEmpty(_function))
@@ -797,7 +818,10 @@ namespace BlocksBeyondTheStars.Client
 
             if (!string.IsNullOrEmpty(_role))
             {
-                var (mw, mh, ml) = SettlementGenerator.PlotModuleEnvelope(tier);
+                // #1890: a kit module fits the shipped modular kits (8 × 8); a legacy plot module the old 6 × 6 plot.
+                var (mw, mh, ml) = _moduleMode && !string.IsNullOrEmpty(_kit)
+                    ? SettlementGenerator.ModularPlotEnvelope(tier)
+                    : SettlementGenerator.PlotModuleEnvelope(tier);
                 return string.Format(L("ui.struct.size_module"), mw, mh, ml);
             }
 
@@ -910,7 +934,8 @@ namespace BlocksBeyondTheStars.Client
                     copy: false,
                     role: meta?.role ?? string.Empty,
                     kit: meta?.kit ?? string.Empty,
-                    function: meta?.function ?? string.Empty);
+                    function: meta?.function ?? string.Empty,
+                    style: meta?.style ?? string.Empty);
             }
             catch (Exception e)
             {
@@ -969,7 +994,7 @@ namespace BlocksBeyondTheStars.Client
         private StructureTemplate BuildTemplate()
         {
             int maxX = 0, maxY = 0, maxZ = 0;
-            var t = new StructureTemplate { Key = Slug(_key), Name = _name, Tier = _tiers[_tier], Kind = ModeName, Kit = _moduleMode ? Slug(_kit) : string.Empty, Function = _moduleMode ? _function : string.Empty, Role = _role };
+            var t = new StructureTemplate { Key = Slug(_key), Name = _name, Tier = _tiers[_tier], Kind = ModeName, Kit = _moduleMode ? Slug(_kit) : string.Empty, Function = _moduleMode ? _function : string.Empty, Role = _role, Style = _moduleMode ? _style : string.Empty };
             foreach (var kv in _design)
             {
                 var d = kv.Value;
@@ -1025,7 +1050,8 @@ namespace BlocksBeyondTheStars.Client
         private void OpenKitPanel()
         {
             _kitPanel?.Close();
-            _kitPanel = KitEditorPanel.Show(Shell, _canvas.transform, ModeName, Slug(_kit), key => { _kit = key; RebuildUi(); }, () => _kitPanel = null);
+            _kitPanel = KitEditorPanel.Show(Shell, _canvas.transform, ModeName, Slug(_kit), key => { _kit = key; RebuildUi(); }, () => _kitPanel = null,
+                kind => ModulePool(kind).FindAll(t => t.IsModule));
         }
 
         /// <summary>The kit named in the kit field: a shipped one, or the user's own file.</summary>
@@ -1077,7 +1103,7 @@ namespace BlocksBeyondTheStars.Client
                             j.key = Path.GetFileNameWithoutExtension(file);
                         }
 
-                        var t = new StructureTemplate { Key = j.key, Name = j.name, Tier = j.tier, Kind = j.kind, Pack = j.pack, Weight = j.weight, Role = j.role ?? string.Empty, Kit = j.kit ?? string.Empty, Function = j.function ?? string.Empty, Width = j.width, Height = j.height, Length = j.length, PlanetTypes = j.planetTypes ?? new List<string>() };
+                        var t = new StructureTemplate { Key = j.key, Name = j.name, Tier = j.tier, Kind = j.kind, Pack = j.pack, Weight = j.weight, Role = j.role ?? string.Empty, Kit = j.kit ?? string.Empty, Function = j.function ?? string.Empty, Style = j.style ?? string.Empty, Width = j.width, Height = j.height, Length = j.length, PlanetTypes = j.planetTypes ?? new List<string>() };
                         foreach (var c in j.cells)
                         {
                             t.Cells.Add(new TemplateCell { X = c.x, Y = c.y, Z = c.z, Kind = c.kind, Id = c.id, Tint = c.tint, Glow = c.glow, Shape = c.shape, Port = c.port ?? string.Empty });
@@ -1308,9 +1334,11 @@ namespace BlocksBeyondTheStars.Client
 
             // Use as (#1826 / #1877): a complete structure, or a MODULE of a kit with a function — the composers dock
             // station modules port to port and stamp settlement / city modules into plots and districts.
-            UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.role"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _roleLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, L(_moduleMode ? "ui.use.module" : "ui.use.whole"), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () =>
+            // #1890: the kit panel is reachable from here in both modes — editing a kit needs no module on the table.
+            UiKit.AddText(meta, 16f, y, 120f, 30f, L("ui.struct.role"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _roleLabel = UiKit.AddText(meta, 136f, y, 118f, 30f, L(_moduleMode ? "ui.use.module" : "ui.use.whole"), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(meta, 290f, y, 74f, 30f, L("ui.struct.kits"), OpenKitPanel);
+            UiKit.AddButton(meta, 256f, y, 30f, 30f, "→", () =>
             {
                 _moduleMode = !_moduleMode;
                 if (_moduleMode && string.IsNullOrEmpty(_function))
@@ -1325,8 +1353,7 @@ namespace BlocksBeyondTheStars.Client
             if (_moduleMode)
             {
                 UiKit.AddText(meta, 16f, y, 56f, 30f, L("ui.struct.kit"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                UiKit.AddInput(meta, 74f, y, 196f, 30f, _kit, v => _kit = v ?? string.Empty);
-                UiKit.AddButton(meta, 276f, y, 88f, 30f, L("ui.struct.kits"), OpenKitPanel);
+                UiKit.AddInput(meta, 74f, y, 290f, 30f, _kit, v => _kit = v ?? string.Empty);
                 y += 36f;
                 UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.function"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
                 var functionLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, FunctionLabel(_function), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -1341,13 +1368,28 @@ namespace BlocksBeyondTheStars.Client
                     if (_sizeHintLabel != null) _sizeHintLabel.text = SizeHint(_tiers[_tier]);
                 });
                 y += 32f;
-                UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.port_door"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-                var doorLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, L("ui.door_opt." + StructurePorts.DoorOptions[_portDoor]), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-                UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () =>
+                if (EditorMode == Mode.Station)
                 {
-                    _portDoor = (_portDoor + 1) % StructurePorts.DoorOptions.Length;
-                    doorLabel.text = L("ui.door_opt." + StructurePorts.DoorOptions[_portDoor]);
-                });
+                    UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.port_door"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    var doorLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, L("ui.door_opt." + StructurePorts.DoorOptions[_portDoor]), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                    UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () =>
+                    {
+                        _portDoor = (_portDoor + 1) % StructurePorts.DoorOptions.Length;
+                        doorLabel.text = L("ui.door_opt." + StructurePorts.DoorOptions[_portDoor]);
+                    });
+                }
+                else
+                {
+                    // #1890: a settlement module is built for humans or for aliens; a kit uses the settlement's own.
+                    UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.style"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    var styleLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, L(_style == StructureTemplate.StyleAlien ? "ui.style.alien" : "ui.style.human"), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                    UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () =>
+                    {
+                        _style = _style == StructureTemplate.StyleAlien ? string.Empty : StructureTemplate.StyleAlien;
+                        styleLabel.text = L(_style == StructureTemplate.StyleAlien ? "ui.style.alien" : "ui.style.human");
+                    });
+                }
+
                 y += 32f;
                 UiKit.AddButton(meta, 16f, y, 168f, 30f, L("ui.struct.check_seal"), CheckSeal);
                 UiKit.AddButton(meta, 196f, y, 168f, 30f, L("ui.struct.assemble"), Assemble);

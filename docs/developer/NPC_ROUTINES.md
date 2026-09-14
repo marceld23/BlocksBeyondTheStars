@@ -114,6 +114,18 @@ staffed by residents in marker order; the rest stroll the arrival hall by day. E
 markers (`LoungeSeats`, round-robin). The routine (§6) then walks them post → lounge → bed. Path searches on void worlds
 use `StationPathLimits (96, 16, 8000)` so a cabin two decks away is reachable. Test: `StationKitServerTests`.
 
+## 10. Settlement residents per bed (`GameServerSettlementResidents.cs`, #1887)
+
+`SpawnSettlementNpcs` calls `SpawnSettlementResidents` per inhabited settlement. The bed heads of the stamped layout
+(`SettlementInstance.Layout`, local → world) are the residents, capped by `ResidentCap(tier)` (hamlet 6, village 10,
+town 20, city 32, metropolis 80). Posts come from markers in the order vendor → `mission_board` → `greenhouse` →
+`workshop` → `tavern`; resident *i* staffs post *i* (`Job` vendor / quartermaster / gardener / craftsman / innkeeper),
+spawns at it (`Work`) and takes the free bed nearest to it (`Bed`, `FurnitureScanned = true`). Residents without a post
+take the remaining beds in scan order and spawn at the `npc` spot nearest to their bed. Evening seats: chairs within 8 of
+a `tavern` marker (round-robin, from the layout), else the nearest chair within 6 of the bed. The vendor and quartermaster
+are staffed even without a bed (`count = max(min(beds, cap), services)`); `guard_post` markers still spawn guardians
+(robots, no routine). Tests: `SettlementResidentTests`, `SettlementNpcTests`.
+
 ## Tests
 
 `NpcGridPathTests`, `BaseResidentsTests`, `NpcRoutineTests`, `NpcJobsTests`, the station-night case in

@@ -109,7 +109,7 @@ def merged_entry(meta, layout, existing):
         else:
             entry.pop("role", None)  # saved as a whole structure again
     # #1877: a kit module names its kit and its function; a whole structure carries neither.
-    for field in ("kit", "function"):
+    for field in ("kit", "function", "style"):
         if field in meta:
             if meta[field]:
                 entry[field] = meta[field]

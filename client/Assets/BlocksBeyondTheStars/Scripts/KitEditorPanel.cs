@@ -85,18 +85,23 @@ namespace BlocksBeyondTheStars.Client
         private readonly string _editorKind;       // "station" | "settlement" (settlement mode also edits city kits)
         private readonly Action<string> _useKit;   // the editor adopts this kit key
         private readonly Action _onClosed;
+        private readonly Func<string, List<StructureTemplate>> _modules; // #1890: the module pool of a kind for the picker
         private readonly List<KitJson> _kits = new List<KitJson>();
+        private GameObject _picker;
+        private string _pickerFilter = string.Empty;
         private int _current = -1;
         private GameObject _overlay;
         private string _status = string.Empty;
 
-        private KitEditorPanel(AppShell shell, Transform canvas, string editorKind, Action<string> useKit, Action onClosed)
+        private KitEditorPanel(AppShell shell, Transform canvas, string editorKind, Action<string> useKit, Action onClosed,
+            Func<string, List<StructureTemplate>> modules)
         {
             _shell = shell;
             _canvas = canvas;
             _editorKind = editorKind;
             _useKit = useKit;
             _onClosed = onClosed;
+            _modules = modules;
         }
 
         public static string UserKitsRoot => Path.Combine(AppPaths.Root, "usercontent", "structure_kits");
@@ -164,9 +169,10 @@ namespace BlocksBeyondTheStars.Client
         private static bool KindMatches(string editorKind, string kitKind)
             => editorKind == StructureKit.KindStation ? kitKind == StructureKit.KindStation : kitKind != StructureKit.KindStation;
 
-        public static KitEditorPanel Show(AppShell shell, Transform canvas, string editorKind, string currentKey, Action<string> useKit, Action onClosed)
+        public static KitEditorPanel Show(AppShell shell, Transform canvas, string editorKind, string currentKey, Action<string> useKit, Action onClosed,
+            Func<string, List<StructureTemplate>> modules = null)
         {
-            var panel = new KitEditorPanel(shell, canvas, editorKind, useKit, onClosed);
+            var panel = new KitEditorPanel(shell, canvas, editorKind, useKit, onClosed, modules);
             panel._kits.AddRange(KnownKits(shell, editorKind));
             panel._current = panel._kits.FindIndex(k => k.key == currentKey);
             if (panel._current < 0 && panel._kits.Count > 0)
@@ -180,6 +186,7 @@ namespace BlocksBeyondTheStars.Client
 
         public void Close()
         {
+            ClosePicker();
             if (_overlay != null)
             {
                 UnityEngine.Object.Destroy(_overlay);
@@ -190,6 +197,63 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private string L(string key) => _shell?.L(key) ?? key;
+
+        /// <summary>The module picker (#1890): every module of the kit's kind (station modules for a station kit, settlement
+        /// modules for a village, district modules for a city), filterable by key, function, style or tier.</summary>
+        private void OpenPicker(string kitKind, Action<string> pick)
+        {
+            ClosePicker();
+            var all = _modules?.Invoke(kitKind == StructureKit.KindStation ? StructureKit.KindStation : StructureKit.KindSettlement) ?? new List<StructureTemplate>();
+            var pool = all.FindAll(t => kitKind == StructureKit.KindStation
+                || (kitKind == StructureKit.KindCity) == (t.Tier == StructureRoles.MetropolisTier));
+            pool.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+
+            const float PW = 720f, PH = 760f;
+            var (overlay, panel) = UiKit.AddModalOverlay(_canvas, 0f, 0f, PW, PH);
+            _picker = overlay;
+            UiKit.AddText(panel, 20f, 12f, 500f, 30f, L("ui.kit.pick_module"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddButton(panel, PW - 120f, 12f, 100f, 30f, L("ui.kit.close"), ClosePicker);
+            var list = UiKit.ScrollList(panel, 20f, 92f, PW - 40f, PH - 112f);
+            UiKit.AddText(panel, 20f, 52f, 80f, 30f, L("ui.kit.filter"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            // The field stays while typing; only the rows below are rebuilt (rebuilding the field would drop its focus).
+            UiKit.AddInput(panel, 100f, 52f, PW - 120f, 30f, _pickerFilter, v =>
+            {
+                _pickerFilter = v ?? string.Empty;
+                FillPicker(list, pool, pick, PW - 60f);
+            });
+            FillPicker(list, pool, pick, PW - 60f);
+        }
+
+        private void FillPicker(Transform list, List<StructureTemplate> pool, Action<string> pick, float width)
+        {
+            for (int i = list.childCount - 1; i >= 0; i--)
+            {
+                UnityEngine.Object.Destroy(list.GetChild(i).gameObject);
+            }
+
+            string f = _pickerFilter.Trim().ToLowerInvariant();
+            foreach (var t in pool)
+            {
+                string style = t.IsAlienStyle ? L("ui.style.alien") : string.Empty;
+                string label = $"{t.Key}  ·  {t.FunctionOrRole}  ·  {t.Tier}  ·  {t.Width}×{t.Height}×{t.Length}" + (style.Length > 0 ? "  ·  " + style : string.Empty);
+                if (f.Length > 0 && label.ToLowerInvariant().IndexOf(f, StringComparison.Ordinal) < 0)
+                {
+                    continue;
+                }
+
+                string key = t.Key;
+                UiKit.AddButton(list, 0f, 0f, width, 30f, label, () => { ClosePicker(); pick(key); });
+            }
+        }
+
+        private void ClosePicker()
+        {
+            if (_picker != null)
+            {
+                UnityEngine.Object.Destroy(_picker);
+                _picker = null;
+            }
+        }
 
         private KitJson Kit => _current >= 0 && _current < _kits.Count ? _kits[_current] : null;
 
@@ -308,7 +372,9 @@ namespace BlocksBeyondTheStars.Client
                 var le = row.gameObject.AddComponent<LayoutElement>();
                 le.preferredHeight = 34f;
                 le.minHeight = 34f;
-                UiKit.AddInput(row, 0f, 2f, 220f, 30f, e.module, v => e.module = Slug(v), string.Empty, 0, 14);
+                // #1890: the module is picked from the pool (the key stays typeable for a module that is not saved yet).
+                UiKit.AddInput(row, 0f, 2f, 180f, 30f, e.module, v => e.module = Slug(v), string.Empty, 0, 14);
+                UiKit.AddButton(row, 184f, 2f, 36f, 30f, "…", () => OpenPicker(k2.kind, key => { e.module = key; Rebuild(); }));
                 UiKit.AddInput(row, 230f, 2f, 50f, 30f, e.min.ToString(), v => { if (int.TryParse(v, out var n)) e.min = Mathf.Max(0, n); }, string.Empty, 0, 14);
                 UiKit.AddInput(row, 290f, 2f, 50f, 30f, e.max.ToString(), v => { if (int.TryParse(v, out var n)) e.max = Mathf.Max(0, n); }, string.Empty, 0, 14);
                 UiKit.AddButton(row, 350f, 2f, 90f, 30f, e.required ? "☑" : "☐", () => { e.required = !e.required; Rebuild(); });
