@@ -125,7 +125,7 @@ public sealed partial class GameServer
 
         bool Standable(Vector3i c)
         {
-            if (!StandableAt(c.X, c.Y, c.Z, 2))
+            if (!NpcStandableAt(c.X, c.Y, c.Z)) // #1895: never on a table, a crate or a fence; through a rug
             {
                 return false;
             }
@@ -139,7 +139,7 @@ public sealed partial class GameServer
             return crewStation == null || Door(c) || InSealedStationPocket(crewStation, c);
         }
 
-        bool Free(Vector3i c) => !IsCollidingBlock(_world.GetBlockIfLoaded(c), fluidsPass: false, foliagePasses: false);
+        bool Free(Vector3i c) => !NpcBodyBlocked(_world.GetBlockIfLoaded(c), c);
 
         var limits = _world.Planet?.Void == true ? StationPathLimits : NpcGridPath.Limits.Default;
         var cells = NpcGridPath.Find(start, goalCell, Standable, Free, Door, limits, out _);

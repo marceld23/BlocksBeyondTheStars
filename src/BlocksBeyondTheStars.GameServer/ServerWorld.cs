@@ -219,6 +219,20 @@ public sealed class ServerWorld
         return chunk.GetShape(local.X, local.Y, local.Z);
     }
 
+    /// <summary>Like <see cref="GetShape"/> but never loads or generates: a cell in an unloaded chunk reads as a plain
+    /// cube (0), matching <see cref="GetBlockIfLoaded"/> reading it as air. For the per-tick NPC movement (#1895).</summary>
+    public int GetShapeIfLoaded(Vector3i world)
+    {
+        world = WorldConstants.CanonicalBlock(world, Circumference);
+        if (!_loaded.TryGetValue(WorldConstants.WorldToChunk(world), out var chunk))
+        {
+            return 0;
+        }
+
+        var local = WorldConstants.WorldToLocal(world);
+        return chunk.GetShape(local.X, local.Y, local.Z);
+    }
+
     public BlockDefinition? Definition(BlockId id) => _content.BlockById(id);
 
     /// <summary>Drops cached chunks intersecting an axis-aligned box (inclusive) so they regenerate on next

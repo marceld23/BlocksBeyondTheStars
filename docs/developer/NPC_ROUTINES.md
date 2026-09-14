@@ -61,6 +61,18 @@ builder why a post is not staffed (`srv.base.post_*`).
   calls `OpenDoorForNpc`, which sets `ServerDoor.NpcHeldUntil` — the door closes once that passed and nobody stands
   in the gap. A player's toggle clears the hold.
 - `MarkNpcPathsDirty` drops routes next to a changed block.
+- **Furniture is no floor, a rug is no wall** (`NpcFooting.cs` in Shared, `GameServerNpcFooting.cs`, #1895). The walk
+  reads each colliding cell's form as well as its block. `NpcFootings.Of(key, descriptor)` returns one of four footings:
+  - `NoFloor` — the table, chair, bench, bed-half, fence and pot forms on any material, the furniture and device keys
+    in `NoFloorBlocks`, and a plate hung on a wall. A wall to the body, never under the feet.
+  - `FloorPlate` — a sheet or panel lying on the floor. Walked through; carries the feet in its own cell.
+  - `CeilingPlate` — a hung plate. Walked through.
+  - `Floor` — everything else, slabs, stairs, the hydroponics tray, cores and pipes included.
+
+  The route (`NpcStandableAt`, `Free`) and the stroll probe (`TryNpcGroundFeetYAt`) read without loading
+  (`ServerWorld.GetShapeIfLoaded`). The movement sweep (`BlockedByWorld`) and `StandableSpot` use `NpcBodyBlockedAt`.
+  Creatures, bandits and enemies keep `StandableAt`. `SeatApproach` tries the chair's sides after its front: the
+  furnisher turns every backrest away from the table, so the front is the table. Tests: `NpcFootingTests`.
 
 ## 6. The routine (`GameServerNpcRoutine.cs`)
 

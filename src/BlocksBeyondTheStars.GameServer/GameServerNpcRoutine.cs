@@ -292,14 +292,18 @@ public sealed partial class GameServer
         return BedSideSpot(bed, new HashSet<Vector3i>()) ?? npc.Rest;
     }
 
-    /// <summary>Where the NPC stands before sitting down: a free cell in front of the seat first.</summary>
+    /// <summary>Where the NPC stands before sitting down: a free cell in front of the seat first, then one beside it
+    /// (#1895: a chair pulled up to its table has the table in front — the furnisher turns every backrest away from
+    /// it), then any cell around it.</summary>
     private Vector3f SeatApproach(ServerNpc npc, Vector3i seat)
     {
         var (bx, bz) = ShapeCode.YawDirection(ShapeCode.OrientationOf(_world.GetShape(seat)));
-        var front = new Vector3i(seat.X - bx, seat.Y, seat.Z - bz);
-        if (StandableSpot(front.X, front.Y, front.Z) is { } spot)
+        foreach (var (dx, dz) in new[] { (-bx, -bz), (bz, -bx), (-bz, bx) })
         {
-            return spot;
+            if (StandableSpot(seat.X + dx, seat.Y, seat.Z + dz) is { } spot)
+            {
+                return spot;
+            }
         }
 
         return SpotBeside(seat, new HashSet<Vector3i>()) ?? npc.Rest;
