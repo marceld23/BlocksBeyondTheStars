@@ -1443,3 +1443,24 @@ plots and districts (settlements, cities); the contract, the composer and the pi
   and no composition freezes its current picks on the first load after #1872.
 - **Far tiles (#1871).** `LoadEditColumnTops` pins the SQLite join order (`CROSS JOIN`) and tile builds are paced by
   `ServeFarTiles` (4 ms per tick) — a built-up world no longer stalls the tick after a join.
+
+### 18.1 Settlements and cities from modules (#1884–#1891, 2026-09-14)
+
+- **Selection = the template share (#1888).** A fresh settlement tosses a coin at `SettlementTemplateUse.Probability()`
+  on its `kitpick` lane: heads → a complete template of the tier by weight, tails → a kit by weight
+  (`GameServer.PickTemplateOrKit`; a tier without kits takes a template, one without templates a kit). Stations use the
+  legacy coin `legacyHit` the same way. Pin-only templates and kits never enter the tables.
+- **Modular kits (#1886).** `hamlet/village/town/city_modular_1/2`: plot stride 10, building 8, storeys 1 / 1 / 2 / 3,
+  modules only; market and notice house required, tavern (village and up) and workshop (town and up) required, houses
+  weighted. `city_gds_modular_1` fills every non-plaza district of the G.D.S. map. The `*_default_1` kits of #1876 are
+  pin-only.
+- **Materials (#1885).** Block cells may name `@wall @accent @roof @floor @path`; `SettlementGenerator.Generate` resolves
+  them with `ModuleMaterials.ForSettlement(tier, surface, alien)` — the same object its procedural buildings read their
+  wall, accent and path from — `FromTemplate` with the placement's surface, `CityGenerator` with `ForCity`.
+- **Inhabitants.** Kit assignment only takes modules whose `Style` matches the settlement's inhabitant roll; replays
+  read the pinned composition and never re-check.
+- **Revision 1 grids.** `SettlementLayoutSpec` serializes a seventh field `Revision` for fresh kit layouts: the central
+  plaza only stamps when its 3 × 3 is clear of buildings and the doorside garden patches never land inside a building
+  (both draws are consumed either way). Six-field layouts (#1876 records) replay unchanged.
+- **Furnishing.** `FurnishAuthoredRooms` treats the gap of an interior doorway (a door marker with floor on both sides) as
+  wall for the flood and reserves floor cells at the edge of a stairwell. Entrances at a template's edge are unaffected.

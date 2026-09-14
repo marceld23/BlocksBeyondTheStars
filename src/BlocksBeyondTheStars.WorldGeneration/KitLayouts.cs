@@ -16,7 +16,13 @@ public readonly struct SettlementLayoutSpec
     public readonly int Cols, Rows, Plot, Building, Storeys;
     public readonly bool ModulesOnly;
 
-    public SettlementLayoutSpec(int cols, int rows, int plot, int building, int storeys, bool modulesOnly)
+    /// <summary>The composer revision the grid was laid with (#1886), pinned with it: 0 = #1876 (six fields), 1 = the
+    /// central plaza only where it does not cut into a building. Only a fresh layout takes the current revision.</summary>
+    public readonly int Revision;
+
+    public const int CurrentRevision = 1;
+
+    public SettlementLayoutSpec(int cols, int rows, int plot, int building, int storeys, bool modulesOnly, int revision = 0)
     {
         Cols = cols;
         Rows = rows;
@@ -24,6 +30,7 @@ public readonly struct SettlementLayoutSpec
         Building = building;
         Storeys = storeys;
         ModulesOnly = modulesOnly;
+        Revision = revision;
     }
 
     /// <summary>Draws the grid a kit allows: cols/rows inside the kit's ranges (the tier's procedural default when
@@ -39,10 +46,12 @@ public readonly struct SettlementLayoutSpec
         int rows = rng.Next(System.Math.Min(rowsMin, rowsMax), System.Math.Max(rowsMin, rowsMax) + 1);
         int plot = kit.PlotStride > 0 ? System.Math.Clamp(kit.PlotStride, 6, 32) : SettlementGenerator.Plot;
         int building = kit.Building > 0 ? System.Math.Clamp(kit.Building, 4, plot - 2) : System.Math.Min(6, plot - 2);
-        return new SettlementLayoutSpec(System.Math.Clamp(cols, 1, 12), System.Math.Clamp(rows, 1, 12), plot, building, kit.Storeys, kit.ModulesOnly);
+        return new SettlementLayoutSpec(System.Math.Clamp(cols, 1, 12), System.Math.Clamp(rows, 1, 12), plot, building, kit.Storeys, kit.ModulesOnly, CurrentRevision);
     }
 
-    public string Serialize() => string.Join(",", Cols, Rows, Plot, Building, Storeys, ModulesOnly ? 1 : 0);
+    public string Serialize() => Revision == 0
+        ? string.Join(",", Cols, Rows, Plot, Building, Storeys, ModulesOnly ? 1 : 0)
+        : string.Join(",", Cols, Rows, Plot, Building, Storeys, ModulesOnly ? 1 : 0, Revision);
 
     public static bool TryParse(string? text, out SettlementLayoutSpec spec)
     {
@@ -53,13 +62,13 @@ public readonly struct SettlementLayoutSpec
         }
 
         var parts = text!.Split(',');
-        if (parts.Length != 6)
+        if (parts.Length != 6 && parts.Length != 7)
         {
             return false;
         }
 
-        var n = new int[6];
-        for (int i = 0; i < 6; i++)
+        var n = new int[7];
+        for (int i = 0; i < parts.Length; i++)
         {
             if (!int.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out n[i]))
             {
@@ -67,7 +76,7 @@ public readonly struct SettlementLayoutSpec
             }
         }
 
-        spec = new SettlementLayoutSpec(n[0], n[1], n[2], n[3], n[4], n[5] != 0);
+        spec = new SettlementLayoutSpec(n[0], n[1], n[2], n[3], n[4], n[5] != 0, n[6]);
         return true;
     }
 }

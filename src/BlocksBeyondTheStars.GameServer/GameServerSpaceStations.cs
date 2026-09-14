@@ -561,38 +561,19 @@ public sealed partial class GameServer
         {
             if (useP > 0)
             {
+                // #1888: the option is the share of complete templates — the legacy roll above IS that coin (a
+                // Bernoulli draw at the option's probability), then a weighted pick among the templates or the kits.
                 var templates = _content.CompleteTemplatesFor(StructureKit.KindStation, station.SizeTier, packs, null);
                 var kits = _content.KitsFor(StructureKit.KindStation, station.SizeTier, packs, null);
-                int total = 0;
-                foreach (var t in templates) total += System.Math.Max(1, t.Weight);
-                foreach (var k in kits) total += System.Math.Max(1, k.Weight);
-                if (total > 0)
+                var (pickedTemplate, kit) = PickTemplateOrKit(templates, kits, legacyHit, roll);
+                template = pickedTemplate;
+                if (kit != null)
                 {
-                    int r = roll.Next(total);
-                    StructureKit? kit = null;
-                    foreach (var t in templates)
+                    kitStructure = StationKitComposer.Compose(kit, key => _content.TemplateByKey(StructureKit.KindStation, key), sSeed, _content, out composition, out var failure);
+                    if (kitStructure is null)
                     {
-                        r -= System.Math.Max(1, t.Weight);
-                        if (r < 0) { template = t; break; }
-                    }
-
-                    if (template is null)
-                    {
-                        foreach (var k in kits)
-                        {
-                            r -= System.Math.Max(1, k.Weight);
-                            if (r < 0) { kit = k; break; }
-                        }
-                    }
-
-                    if (kit != null)
-                    {
-                        kitStructure = StationKitComposer.Compose(kit, key => _content.TemplateByKey(StructureKit.KindStation, key), sSeed, _content, out composition, out var failure);
-                        if (kitStructure is null)
-                        {
-                            _log.Warn($"Station '{station.Name}': kit '{kit.Key}' could not be assembled ({failure}) — procedural interior instead.");
-                            composition = null;
-                        }
+                        _log.Warn($"Station '{station.Name}': kit '{kit.Key}' could not be assembled ({failure}) — procedural interior instead.");
+                        composition = null;
                     }
                 }
             }

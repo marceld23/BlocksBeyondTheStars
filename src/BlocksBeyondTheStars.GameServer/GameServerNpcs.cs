@@ -139,9 +139,9 @@ public sealed partial class GameServer
         => _npcs.Select(n => (n.Id, n.Role, n.IsRobot, n.SkinRgb, n.OutfitRgb, n.LegsRgb, n.Look)).ToList();
 
     /// <summary>
-    /// Populates an inhabited settlement with NPCs from its markers: a vendor at the market, a
-    /// quartermaster at the mission board, and a settler at each npc spawn marker. Deterministic from
-    /// the settlement's seeded RNG so the same world always has the same residents. No-op for ruins.
+    /// Populates every inhabited settlement (#1887): one resident per bed of its stamped layout, capped per size, the
+    /// posts (vendor, quartermaster, gardener, craftsman, innkeeper) staffed by them, the G.D.S. guardians extra — see
+    /// <see cref="SpawnSettlementResidents"/>. Deterministic from the world's seeded RNG. No-op for ruins.
     /// </summary>
     private void SpawnSettlementNpcs(System.Random rng)
     {
@@ -157,59 +157,8 @@ public sealed partial class GameServer
                 continue;
             }
 
-            // Each settlement has a deterministic trade profession (miners/traders/researchers/settlers) — it
-            // drives the residents' outfits + work gestures AND which goods the vendor posts, so different
-            // settlements offer different trades (the old per-NPC theme was the human/alien look).
-            string settlementTheme = SettlementTradeFor(settlement.Name);
-            int vendorIndex = 0;
-            BeginAuthoredCasting(settlement.Name); // #1150: at most one authored face per place
-
-            foreach (var (type, pos) in settlement.Markers)
-            {
-                string? role = type switch
-                {
-                    "vendor" => "vendor",
-                    "mission_board" => "quartermaster",
-                    "npc" => "settler",
-                    "guard_post" => "guardian", // #1793: the G.D.S. machines that watch the city
-                    _ => null,
-                };
-
-                if (role is null)
-                {
-                    continue; // loot markers etc. don't get an NPC
-                }
-
-                // Vendors each get their own profession (B55) so multiple vendors at one settlement sell different
-                // goods; settlers/the quartermaster keep the settlement's own theme (its identity).
-                string npcTheme = role == "vendor" ? VendorThemeFor(settlement.Name, vendorIndex++, settlementTheme) : settlementTheme;
-                bool robotic = npcTheme == "researchers" && rng.Next(100) < 60; // most research staff are service androids — but not all (#711)
-                if (role == "guardian")
-                {
-                    robotic = true; // every guardian is a machine (decided after the draw so the rng stream stays put)
-                }
-
-                // NPCs have no physics, so place their feet on top of the floor block. Markers sit centred
-                // in the air cell above the floor (+0.5 from the cell-centre conversion), so Floor() drops
-                // the feet onto the floor surface — same fix as station crews. The Max keeps an authored
-                // TEMPLATE marker's own storey (#480, was ST-8): an upper-floor vendor is not teleported to
-                // the ground floor, but no NPC hovers half a block over it either (#711).
-                var standing = new Vector3f(pos.X, (float)System.Math.Floor(System.Math.Max(settlement.Min.Y + 1f, pos.Y)), pos.Z);
-                var npc = MakeNpc(role, npcTheme, robotic, standing, rng);
-                npc.Settlement = settlement.Name;
-                if (role == "guardian")
-                {
-                    DressGuardian(npc);
-                }
-                if (role == "quartermaster")
-                {
-                    npc.Name = CoinGiverName(settlement.Name); // the mission-giver's name matches its missions (item 13)
-                }
-
-                ApplyAuthoredCharacter(npc, "settlement", settlement.Name); // #1128: a pack face may claim this slot
-                npc.RoutineEnabled = role != "guardian"; // #1867: villagers keep a daily routine; the G.D.S. machines never sleep
-                _npcs.Add(npc);
-            }
+            // #1887: the beds are the residents (capped per size), the posts are staffed by them, guardians stay extra.
+            SpawnSettlementResidents(settlement, rng);
         }
 
         if (_npcs.Count > 0)
@@ -709,13 +658,45 @@ public sealed partial class GameServer
     // NOT ride on it; they go out via SendNpcs (world entry) and explicitly when a relationship changes.
     private void BroadcastNpcs() => _worlds.Active.NpcListDirty = true; // #1530: flushed once per tick
 
-    private void SendNpcList() => BroadcastToWorld(new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
+    /// <summary>
+    /// #1884: the list goes to every player of the world, but each receives only the NPCs within their streaming radius
+    /// plus a two-chunk margin — the radius <see cref="MoveNpcs"/> simulates in. It used to carry every NPC of the
+    /// world five times a second (324 on the G.D.S. city alone), and the client built an avatar for each. An NPC that
+    /// leaves the radius drops out of the next list (the client removes what a list no longer names).
+    /// </summary>
+    private void SendNpcList()
+    {
+        foreach (var session in JoinedInActiveWorld())
+        {
+            Send(session, new NpcList { Npcs = NpcsInReachOf(session) });
+        }
+    }
 
     private void SendNpcs(PlayerSession session)
     {
-        Send(session, new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
+        Send(session, new NpcList { Npcs = NpcsInReachOf(session) });
         SendNpcStandings(session); // #1118: the receiver's relationship stages for these NPCs
     }
+
+    /// <summary>The NPCs a player's client is sent (#1884): those within the player's streaming radius + two chunks.</summary>
+    private NetNpc[] NpcsInReachOf(PlayerSession session)
+    {
+        double reach = (EffectiveViewRadius(session) + 1) * WorldConstants.ChunkSize + 2 * WorldConstants.ChunkSize;
+        double reachSq = reach * reach;
+        var list = new List<NetNpc>();
+        foreach (var npc in _npcs)
+        {
+            if (WrapDistSq(session.State.Position, npc.Pos) <= reachSq)
+            {
+                list.Add(ToNetNpc(npc));
+            }
+        }
+
+        return list.ToArray();
+    }
+
+    /// <summary>Test seam (#1884): the ids of the NPCs this player's client is sent.</summary>
+    public IReadOnlyList<int> NpcIdsSentToForTest(PlayerSession session) => NpcsInReachOf(session).Select(n => n.Id).ToList();
 
     private static NetNpc ToNetNpc(ServerNpc n) => new()
     {

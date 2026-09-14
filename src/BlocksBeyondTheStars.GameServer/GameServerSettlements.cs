@@ -336,30 +336,12 @@ public sealed partial class GameServer
             else if (fresh && useP > 0)
             {
                 // D1 (Marcel 2026-09-13): one joint random table of complete templates and kits, drawn by weight.
-                template = null;
+                // #1888 (Marcel 2026-09-14): the option is the SHARE of complete templates — a coin at its probability on
+                // the instance's own lane, then a weighted pick among the tier's templates or its kits.
                 var templates = _content.CompleteTemplatesFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key);
                 var kits = _content.KitsFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key);
-                int total = 0;
-                foreach (var t in templates) total += System.Math.Max(1, t.Weight);
-                foreach (var k in kits) total += System.Math.Max(1, k.Weight);
-                if (total > 0)
-                {
-                    int r = RngFor(instSeed, "kitpick").Next(total);
-                    foreach (var t in templates)
-                    {
-                        r -= System.Math.Max(1, t.Weight);
-                        if (r < 0) { template = t; break; }
-                    }
-
-                    if (template is null)
-                    {
-                        foreach (var k in kits)
-                        {
-                            r -= System.Math.Max(1, k.Weight);
-                            if (r < 0) { kit = k; break; }
-                        }
-                    }
-                }
+                var lane = RngFor(instSeed, "kitpick");
+                (template, kit) = PickTemplateOrKit(templates, kits, lane.NextDouble() < useP, lane);
 
                 if (kit != null)
                 {
@@ -379,7 +361,8 @@ public sealed partial class GameServer
             {
                 tier = template.Tier;
                 ruined = false;
-                structure = SettlementGenerator.FromTemplate(template, _content);
+                // #1885: a template's material tokens take this planet's surface (complete templates are human settlements).
+                structure = SettlementGenerator.FromTemplate(template, _content, ModuleMaterials.ForSettlement(template.Tier, surface, alien: false, _content));
                 composition = null; // a whole template holds no plots
             }
             else
@@ -1520,6 +1503,47 @@ public sealed partial class GameServer
 
     /// <summary>Picks a settlement size tier weighted by hospitability: liveable worlds skew toward towns/cities,
     /// harsh worlds toward hamlets/villages.</summary>
+    /// <summary>
+    /// #1888: a fresh structure's pick — a complete template when <paramref name="wantTemplate"/> (the option's share) and
+    /// the tier has one, else a kit; a tier without kits always takes a template, one without templates a kit. Weighted
+    /// within the chosen table, in pool order. (null, null) when both tables are empty.
+    /// </summary>
+    internal static (StructureTemplate? Template, StructureKit? Kit) PickTemplateOrKit(IReadOnlyList<StructureTemplate> templates,
+        IReadOnlyList<StructureKit> kits, bool wantTemplate, System.Random rng)
+    {
+        if (templates.Count > 0 && (wantTemplate || kits.Count == 0))
+        {
+            int total = 0;
+            foreach (var t in templates) total += System.Math.Max(1, t.Weight);
+            int r = rng.Next(total);
+            foreach (var t in templates)
+            {
+                r -= System.Math.Max(1, t.Weight);
+                if (r < 0) return (t, null);
+            }
+        }
+        else if (kits.Count > 0)
+        {
+            int total = 0;
+            foreach (var k in kits) total += System.Math.Max(1, k.Weight);
+            int r = rng.Next(total);
+            foreach (var k in kits)
+            {
+                r -= System.Math.Max(1, k.Weight);
+                if (r < 0) return (null, k);
+            }
+        }
+
+        return (null, null);
+    }
+
+    /// <summary>Test seam (#1888): the pick for a table and a coin.</summary>
+    public static (string Template, string Kit) PickTemplateOrKitForTest(IReadOnlyList<StructureTemplate> templates, IReadOnlyList<StructureKit> kits, bool wantTemplate, System.Random rng)
+    {
+        var (t, k) = PickTemplateOrKit(templates, kits, wantTemplate, rng);
+        return (t?.Key ?? string.Empty, k?.Key ?? string.Empty);
+    }
+
     private static string RollTier(System.Random rng, double h)
     {
         double city = 0.10 + h * 0.20;     // 0.10 .. 0.30

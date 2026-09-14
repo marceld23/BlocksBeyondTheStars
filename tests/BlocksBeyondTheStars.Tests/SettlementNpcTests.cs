@@ -77,11 +77,14 @@ public sealed class SettlementNpcTests : IDisposable
             foreach (var npc in npcs)
             {
                 // Every NPC has a known role and stands exactly on a matching settlement marker.
-                string markerType = npc.Role switch
+                // #1887: a settler lives in a bed and starts at its post (greenhouse, workshop, tavern) or at the
+                // settlers' spot nearest to home.
+                string[] markerTypes = npc.Role switch
                 {
-                    "vendor" => "vendor",
-                    "quartermaster" => "mission_board",
-                    "settler" => "npc",
+                    "vendor" => new[] { "vendor" },
+                    "quartermaster" => new[] { "mission_board" },
+                    "settler" => new[] { "npc", "greenhouse", "workshop", "tavern", "vendor", "mission_board" },
+                    "guardian" => new[] { "guard_post" },
                     _ => throw new Xunit.Sdk.XunitException($"Unexpected NPC role '{npc.Role}'."),
                 };
 
@@ -90,7 +93,7 @@ public sealed class SettlementNpcTests : IDisposable
                 // floored Y — an NPC hovering half a block over the floor is the #711 regression.
                 Assert.Contains(
                     server.SettlementMarkers,
-                    m => m.Type == markerType
+                    m => markerTypes.Contains(m.Type)
                          && System.Math.Abs(m.Pos.X - npc.Home.X) < 0.001f
                          && System.Math.Abs(m.Pos.Z - npc.Home.Z) < 0.001f
                          && System.Math.Abs(System.Math.Floor(m.Pos.Y) - npc.Home.Y) < 0.001f);

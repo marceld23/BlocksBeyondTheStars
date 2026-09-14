@@ -194,6 +194,7 @@ public static class CityGenerator
         // floor lamps.
         var furniture = RoomFurnisher.PaletteFor(RoomFurnisher.Style.Town, content);
         furniture.CeilingLit = true;
+        var materials = ModuleMaterials.ForCity(content); // #1885: the district modules' material tokens
 
         ushort Get(int x, int y, int z) => x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= l ? (ushort)0 : blocks[(x * h + y) * l + z];
 
@@ -276,7 +277,7 @@ public static class CityGenerator
         string[]? assigned = kit != null && !replay
             ? SettlementGenerator.AssignKitModules(kit, kitModules, grid * grid,
                 d => CityRoleName(RoleAtFor(d / grid, d % grid, grid, spec.RoleMap)),
-                m => m.Tier == StructureRoles.MetropolisTier && m.Width <= size && m.Height <= h - 1 && m.Length <= size,
+                m => m.Tier == StructureRoles.MetropolisTier && !m.IsAlienStyle && m.Width <= size && m.Height <= h - 1 && m.Length <= size,
                 seed)
             : null;
 
@@ -343,7 +344,7 @@ public static class CityGenerator
                 {
                     var moduleMarkers = new List<SettlementMarker>();
                     SettlementGenerator.StampModule(authored, mx + (size - authored.Width) / 2, 0, mz + (size - authored.Length) / 2,
-                        content, Get, SetCell, moduleMarkers, furniture, WorldGenerator.StableHash($"furnish:city:{seed}:{gx}:{gz}"));
+                        content, Get, SetCell, moduleMarkers, furniture, WorldGenerator.StableHash($"furnish:city:{seed}:{gx}:{gz}"), materials);
                     foreach (var m in moduleMarkers)
                     {
                         markers.Add(m);

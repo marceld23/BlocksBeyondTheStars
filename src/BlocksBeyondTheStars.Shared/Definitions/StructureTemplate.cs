@@ -52,6 +52,15 @@ public sealed class StructureTemplate
     /// for a whole structure.</summary>
     public bool IsModule => !string.IsNullOrWhiteSpace(Role) || !string.IsNullOrWhiteSpace(Kit);
 
+    /// <summary>Who a settlement module is built for (#1885): empty = human, <see cref="StyleAlien"/> = the alien
+    /// variant (crystal, other roofs). A kit only puts modules of the settlement's own inhabitants into its plots.</summary>
+    public string Style { get; set; } = string.Empty;
+
+    public const string StyleAlien = "alien";
+
+    /// <summary>Whether this module is an alien variant (<see cref="Style"/>).</summary>
+    public bool IsAlienStyle => string.Equals(Style, StyleAlien, System.StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Relative selection weight within its tier sub-pool (higher = more likely). Clamped to ≥1
     /// at selection time so a 0/negative value never makes a template unpickable by accident.</summary>
     public int Weight { get; set; } = 1;
@@ -95,11 +104,18 @@ public static class StructureRoles
     /// <summary>The tier value of a city-composer module: the district envelope, not a settlement size.</summary>
     public const string MetropolisTier = "metropolis";
 
-    public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse };
+    /// <summary>The village / town meeting place (#1885): tables and a counter, the residents' evening seats. It takes a
+    /// dwelling plot.</summary>
+    public const string Tavern = "tavern";
+
+    /// <summary>A craftsman's workshop (#1885): workbench, forge, crates. It takes a dwelling plot.</summary>
+    public const string Workshop = "workshop";
+
+    public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse, Tavern, Workshop };
     public static readonly string[] CityRoles = { CityHousing, CityMarket, CityHall, CityGarden, CityTower };
 
     /// <summary>Every role, in the order the editor's stepper walks them (whole first).</summary>
-    public static readonly string[] All = { string.Empty, House, Market, Board, Greenhouse, CityHousing, CityMarket, CityHall, CityGarden, CityTower };
+    public static readonly string[] All = { string.Empty, House, Market, Board, Greenhouse, Tavern, Workshop, CityHousing, CityMarket, CityHall, CityGarden, CityTower };
 
     public static bool IsCityRole(string? role) => role != null && System.Array.IndexOf(CityRoles, role) >= 0;
 
@@ -146,6 +162,25 @@ public static class StructureRoles
     /// unknown word counts as a dwelling / a plain room, so an author's "tavern" is never rejected.</summary>
     public static bool IsKnownFunction(string? kind, string? function)
         => !string.IsNullOrEmpty(function);
+}
+
+/// <summary>
+/// Material TOKENS (#1885, Marcel 2026-09-14: "walls follow the biome"): a block cell of a settlement module may name a
+/// token instead of a block key, and the composer puts the settlement's own material there — the rules the procedural
+/// buildings use: a village-style wall is the planet's surface block, a town-style wall iron; accents are crystal for
+/// aliens, glass for towns, carbon for villages. Complete templates and city districts resolve them the same way.
+/// </summary>
+public static class MaterialTokens
+{
+    public const string Wall = "@wall";
+    public const string Accent = "@accent";
+    public const string Roof = "@roof";
+    public const string Floor = "@floor";
+    public const string Path = "@path";
+
+    public static readonly string[] All = { Wall, Accent, Roof, Floor, Path };
+
+    public static bool IsToken(string? id) => id != null && id.Length > 1 && id[0] == '@' && System.Array.IndexOf(All, id) >= 0;
 }
 
 /// <summary>One cell of a <see cref="StructureTemplate"/>: a block or an interaction marker.</summary>

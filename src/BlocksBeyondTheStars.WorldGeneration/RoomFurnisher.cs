@@ -57,6 +57,12 @@ public static class RoomFurnisher
 
         /// <summary>A hall or hub: a terminal, a plant, a table — no bed.</summary>
         Hall,
+
+        /// <summary>A settlement tavern (#1885): a counter, tables with chairs, a barrel crate, lights — no bed.</summary>
+        Tavern,
+
+        /// <summary>A settlement workshop (#1885): a workbench, a forge, crates, a light.</summary>
+        Workshop,
     }
 
     /// <summary>Writes one cell: block id + packed shape (0 = cube) + tint + glow.</summary>
@@ -79,6 +85,8 @@ public static class RoomFurnisher
         public ushort Terminal;
         public ushort TerminalAlt;
         public double TerminalAltChance;
+        public ushort Workbench;
+        public ushort Forge;
 
         /// <summary>True when the building lights its rooms itself (a lamp in the deck, #1808) — no floor light then.</summary>
         public bool CeilingLit;
@@ -102,6 +110,8 @@ public static class RoomFurnisher
             BedShape = ShapeCode.Pack(PropShapes.BedSingleCell, 0), // the one-cell fallback; a room with space gets the two-cell bed (#1846)
             Plant = B("flower_pot"),
             PlantShape = ShapeCode.Pack(PropShapes.DefaultPlaceShape("flower_pot"), 0),
+            Workbench = B("workbench"),
+            Forge = B("forge"),
         };
 
         switch (style)
@@ -149,6 +159,8 @@ public static class RoomFurnisher
         Plant,
         Counter,
         Terminal,
+        Workbench,
+        Forge,
     }
 
     private static readonly Piece[] HousePieces = { Piece.Bed, Piece.Light, Piece.Table, Piece.Storage, Piece.Plant };
@@ -161,6 +173,8 @@ public static class RoomFurnisher
     private static readonly Piece[] StoragePieces = { Piece.Storage, Piece.Storage, Piece.Storage, Piece.Storage, Piece.Light };
     private static readonly Piece[] MedbayPieces = { Piece.Bed, Piece.Light, Piece.Terminal, Piece.Storage };
     private static readonly Piece[] HallPieces = { Piece.Terminal, Piece.Plant, Piece.Light, Piece.Table };
+    private static readonly Piece[] TavernPieces = { Piece.Counter, Piece.Table, Piece.Table, Piece.Storage, Piece.Light, Piece.Table, Piece.Plant };
+    private static readonly Piece[] WorkshopPieces = { Piece.Workbench, Piece.Forge, Piece.Storage, Piece.Light, Piece.Storage, Piece.Table };
 
     /// <summary>
     /// Furnishes one floor region. <paramref name="region"/> = the walkable floor cells (x, z) at height
@@ -235,6 +249,8 @@ public static class RoomFurnisher
             RoomRole.Storage => StoragePieces,
             RoomRole.Medbay => MedbayPieces,
             RoomRole.Hall => HallPieces,
+            RoomRole.Tavern => TavernPieces,
+            RoomRole.Workshop => WorkshopPieces,
             _ => HousePieces,
         };
 
@@ -374,6 +390,16 @@ public static class RoomFurnisher
                         Put(n2, p.Counter, ShapeCode.Pack(BlockShape.Slab, 0));
                     }
 
+                    break;
+
+                case Piece.Workbench:
+                    if (p.Workbench == 0) continue;
+                    Put(c, p.Workbench, 0);
+                    break;
+
+                case Piece.Forge:
+                    if (p.Forge == 0) continue;
+                    Put(c, p.Forge, 0);
                     break;
 
                 case Piece.Terminal:

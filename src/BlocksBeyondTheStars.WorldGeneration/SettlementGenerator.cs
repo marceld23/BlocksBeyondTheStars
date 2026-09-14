@@ -123,8 +123,27 @@ public static class SettlementGenerator
         return (Building, floors * FloorH + RoofCap, Building);
     }
 
+    /// <summary>The plot stride and building footprint of the shipped modular kits (#1886, Marcel 2026-09-14: 8 × 8 houses).</summary>
+    public const int ModularPlot = 10;
+    public const int ModularBuilding = 8;
+
+    /// <summary>The envelope a module of the shipped modular kits must fit (#1886): 8 × 8, one storey in hamlets and villages,
+    /// two in towns, three in cities (each storey four blocks, plus the roof).</summary>
+    public static (int W, int H, int L) ModularPlotEnvelope(string tier)
+    {
+        int storeys = tier switch { "town" => 2, "city" => 3, _ => 1 };
+        return (ModularBuilding, storeys * FloorH + RoofCap, ModularBuilding);
+    }
+
     /// <summary>The marker an author places on a floor cell to have that room furnished procedurally (#1828).</summary>
     public const string RoomMarker = "room";
+
+    /// <summary>The innkeeper's post in a tavern (#1885); the room it stands in is furnished as a tavern and its chairs
+    /// are the residents' evening seats.</summary>
+    public const string TavernMarker = "tavern";
+
+    /// <summary>The craftsman's post in a workshop (#1885); the room is furnished as a workshop.</summary>
+    public const string WorkshopMarker = "workshop";
 
     /// <summary>The most floor cells a <see cref="RoomMarker"/> flood-fills — a marker on open ground stops here.</summary>
     private const int RoomCap = 256;
@@ -149,7 +168,7 @@ public static class SettlementGenerator
     /// <summary>Builds a settlement structure from a hand-designed template (the editor export) — blocks
     /// become voxels, markers become vendor/mission_board/npc points. Templates are intact (not ruined).
     /// Rooms the author marked with a <see cref="RoomMarker"/> are furnished (#1828).</summary>
-    public static SettlementStructure FromTemplate(StructureTemplate t, GameContent content)
+    public static SettlementStructure FromTemplate(StructureTemplate t, GameContent content, ModuleMaterials? materials = null)
     {
         int w = System.Math.Max(1, t.Width), h = System.Math.Max(1, t.Height), l = System.Math.Max(1, t.Length);
         var blocks = new ushort[w * h * l];
@@ -172,7 +191,9 @@ public static class SettlementGenerator
             }
             else
             {
-                ushort id = content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
+                ushort id = MaterialTokens.IsToken(cell.Id)
+                    ? (materials ?? ModuleMaterials.ForSettlement(t.Tier, "stone", alien: false, content)).Resolve(cell.Id) // #1885
+                    : content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
                 if (id != 0)
                 {
                     int idx = (cell.X * h + cell.Y) * l + cell.Z;
@@ -265,7 +286,8 @@ public static class SettlementGenerator
         // The accent + lamp + garden materials theme the settlement (alien worlds look different).
         ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
         bool desert = biomeSurfaceBlock == "sand";
-        ushort wall = town ? B("iron_wall") : B(biomeSurfaceBlock, B("stone"));
+        var materials = ModuleMaterials.ForSettlement(tier, biomeSurfaceBlock, alien, content); // #1885: the modules' tokens too
+        ushort wall = materials.Wall;
         ushort glass = B("glass");
         ushort ladder = B("ladder");
         // Gardens use the biome's own flora species (alien settlements keep their crystal growths).
@@ -280,12 +302,8 @@ public static class SettlementGenerator
         };
         ushort flora = alien ? B("flora_crystal", B("flora_plant")) : B(biomeFloraKey, B("flora_plant"));
         // Paths take on the ground material of the biome (sandy tracks, icy lanes, …).
-        ushort path = town
-            ? B("carbon", B("stone"))
-            : desert ? B("sand", B("stone"))
-            : biomeSurfaceBlock == "ice" ? B("ice", B("stone"))
-            : B("stone", wall);
-        ushort accent = alien ? B("crystal", B("carbon")) : (town ? B("glass") : B("carbon", B("stone")));
+        ushort path = materials.Path;
+        ushort accent = materials.Accent;
         ushort lamp = B("data_cache", glass);
         ushort fence = alien ? B("crystal", wall) : wall;
 
@@ -324,6 +342,7 @@ public static class SettlementGenerator
         var setCell = SinkFor(blocks, w, h, l, mods, shapes);
         void Set(int x, int y, int z, ushort b) => setCell(x, y, z, b, 0, 0, 0);
         ushort Get(int x, int y, int z) => blocks[(x * h + y) * l + z];
+        ushort SafeGet(int x, int y, int z) => x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= l ? (ushort)1 : blocks[(x * h + y) * l + z];
 
         // Interiors (#1828): the style's furniture palette; every procedural room is furnished from a hash of
         // its plot so the main stream never shifts.
@@ -348,7 +367,9 @@ public static class SettlementGenerator
             : index == 0 ? StructureRoles.Market
             : index == 1 ? StructureRoles.Board
             : StructureRoles.House;
-        bool KitStyleOk(StructureTemplate m) => StructureRoles.IsTownStyleTier(m.Tier) == town;
+        // #1885: a kit only puts modules of the settlement's own style AND inhabitants into its plots (a replay reads the
+        // record and never re-checks the inhabitants — a pinned module stays where it stands).
+        bool KitStyleOk(StructureTemplate m) => StructureRoles.IsTownStyleTier(m.Tier) == town && m.IsAlienStyle == alien;
         var kitPool = kitModules; // a kit's modules come from every pack; null = the legacy pool below
         string[]? assigned = kit != null && !replay
             ? AssignKitModules(kit, kitPool, cols * rows, PlotRoleAt, m => KitStyleOk(m) && m.Width <= building && m.Height <= h - 1 && m.Length <= building, seed)
@@ -436,7 +457,7 @@ public static class SettlementGenerator
                     ox = cxp * plot + 1 + (building - module.Width) / 2;
                     oz = czp * plot + 1 + (building - module.Length) / 2;
                     fp = System.Math.Max(module.Width, module.Length);
-                    StampModule(module, ox, 0, oz, content, Get, setCell, moduleMarkers, furniture, plotHash);
+                    StampModule(module, ox, 0, oz, content, Get, setCell, moduleMarkers, furniture, plotHash, materials);
                     int side = DoorSideOf(moduleMarkers, ox, oz, module.Width, module.Length);
                     if (side >= 0) doorSide = side;
                 }
@@ -456,7 +477,7 @@ public static class SettlementGenerator
                 buildings++;
 
                 // A lamp post + a small garden beside the door, so streets feel inhabited.
-                DecorateAround(Set, ox, oz, fp, doorSide, lamp, flora, alien, rng);
+                DecorateAround(Set, ox, oz, fp, doorSide, lamp, flora, alien, rng, layout is { Revision: >= 1 } ? SafeGet : null);
 
                 // Interaction / spawn marker at the building's interior floor centre.
                 var centre = new Vector3i(ox + fp / 2, 1, oz + fp / 2);
@@ -525,7 +546,10 @@ public static class SettlementGenerator
         // nothing but eroded houses.
         if (!ruined)
         {
-            StampCentralFeature(Set, w, l, accent, path, flora, lamp, B("water", 0), rng);
+            // #1886: on a revision-1 kit grid the plaza only goes where it cuts into no building (a 10-block stride puts
+            // the middle inside a house); the draw inside is consumed either way, so the stream after it never moves.
+            bool plazaFree = layout is not { Revision: >= 1 } || CentreIsOpen(Get, w, l, h);
+            StampCentralFeature(plazaFree ? Set : (_, _, _, _) => { }, w, l, accent, path, flora, lamp, B("water", 0), rng);
         }
         else
         {
@@ -828,7 +852,7 @@ public static class SettlementGenerator
     /// rooms it marks (#1828). <paramref name="get"/> reads the destination (for the room flood fill).</summary>
     internal static void StampModule(StructureTemplate module, int ox, int oy, int oz, GameContent content,
         System.Func<int, int, int, ushort> get, RoomFurnisher.CellSink setCell, List<SettlementMarker> markersOut,
-        RoomFurnisher.Palette furniture, long furnishSeed)
+        RoomFurnisher.Palette furniture, long furnishSeed, ModuleMaterials? materials = null)
     {
         int w = module.Width, h = module.Height, l = module.Length;
         var local = new List<SettlementMarker>();
@@ -845,7 +869,9 @@ public static class SettlementGenerator
             }
             else
             {
-                ushort id = content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
+                ushort id = MaterialTokens.IsToken(cell.Id)
+                    ? (materials ?? ModuleMaterials.ForSettlement(module.Tier, "stone", module.IsAlienStyle, content)).Resolve(cell.Id) // #1885
+                    : content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
                 if (id != 0)
                 {
                     setCell(ox + cell.X, oy + cell.Y, oz + cell.Z, id, cell.Shape, cell.Tint, cell.Glow);
@@ -906,6 +932,11 @@ public static class SettlementGenerator
     internal static void FurnishAuthoredRooms(System.Func<int, int, int, ushort> get, int w, int h, int l,
         IReadOnlyList<SettlementMarker> markers, RoomFurnisher.Palette furniture, long seed, RoomFurnisher.CellSink setCell)
     {
+        // #1886: an INTERIOR doorway — a door marker with floor on both sides inside the template — keeps two rooms apart:
+        // the flood reads its gap as the wall the closed door will be. (An entrance at the template's edge has no floor
+        // beyond it, so every room shipped before stays exactly as it was furnished.)
+        var gaps = InteriorDoorGaps(get, w, h, l, markers);
+        System.Func<int, int, int, ushort> flood = gaps.Count == 0 ? get : (x, y, z) => gaps.Contains((x, y, z)) ? (ushort)1 : get(x, y, z);
         int n = 0;
         foreach (var room in markers)
         {
@@ -915,7 +946,7 @@ public static class SettlementGenerator
             }
 
             n++;
-            var region = RoomFurnisher.FloodRoom(get, w, h, l, room.LocalPos.X, room.LocalPos.Y, room.LocalPos.Z, RoomCap, out int clearance);
+            var region = RoomFurnisher.FloodRoom(flood, w, h, l, room.LocalPos.X, room.LocalPos.Y, room.LocalPos.Z, RoomCap, out int clearance);
             if (region.Count == 0)
             {
                 continue;
@@ -923,6 +954,23 @@ public static class SettlementGenerator
 
             var cells = new HashSet<(int X, int Z)>(region);
             var reserved = new HashSet<(int X, int Z)>();
+
+            // #1886: the edge of a stairwell stays free — a floor cell beside open air with no floor under it is where a
+            // flight arrives (the landing) or a body would step into the hole.
+            int fy = room.LocalPos.Y;
+            foreach (var c in region)
+            {
+                foreach (var d in new[] { (0, 1), (1, 0), (0, -1), (-1, 0) })
+                {
+                    int nx = c.X + d.Item1, nz = c.Z + d.Item2;
+                    if (nx >= 0 && nz >= 0 && nx < w && nz < l && fy > 0 && get(nx, fy, nz) == 0 && get(nx, fy - 1, nz) == 0)
+                    {
+                        reserved.Add(c);
+                        break;
+                    }
+                }
+            }
+
             var role = RoomFurnisher.RoomRole.House;
             foreach (var m in markers)
             {
@@ -953,11 +1001,52 @@ public static class SettlementGenerator
                 reserved.Add(at);
                 if (m.Type == "vendor") role = RoomFurnisher.RoomRole.Market;
                 else if (m.Type == "mission_board" && role != RoomFurnisher.RoomRole.Market) role = RoomFurnisher.RoomRole.Board;
+                else if (m.Type == TavernMarker && role == RoomFurnisher.RoomRole.House) role = RoomFurnisher.RoomRole.Tavern; // #1885
+                else if (m.Type == WorkshopMarker && role == RoomFurnisher.RoomRole.House) role = RoomFurnisher.RoomRole.Workshop;
             }
 
             var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (n * 7919)));
             RoomFurnisher.Furnish(setCell, region, room.LocalPos.Y, clearance, furniture, role, reserved, rng);
         }
+    }
+
+    /// <summary>
+    /// The gap cells of every interior doorway (#1886): a door marker whose cell has floor on both sides across the wall,
+    /// extended along the wall while the doorway stays open (at most two cells each way). Level of the marker only.
+    /// </summary>
+    internal static HashSet<(int X, int Y, int Z)> InteriorDoorGaps(System.Func<int, int, int, ushort> get, int w, int h, int l,
+        IReadOnlyList<SettlementMarker> markers)
+    {
+        var gaps = new HashSet<(int X, int Y, int Z)>();
+        foreach (var m in markers)
+        {
+            if (!m.Type.StartsWith("door_", System.StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            int x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z;
+            bool Floor(int cx, int cz) => cx >= 0 && cz >= 0 && cx < w && cz < l && y > 0 && y < h && get(cx, y, cz) == 0 && get(cx, y - 1, cz) != 0;
+            bool Air(int cx, int cz) => cx >= 0 && cz >= 0 && cx < w && cz < l && get(cx, y, cz) == 0;
+            bool acrossZ = Floor(x, z - 1) && Floor(x, z + 1);
+            bool acrossX = Floor(x - 1, z) && Floor(x + 1, z);
+            if (acrossZ == acrossX || !Air(x, z))
+            {
+                continue; // an entrance at the edge, or no wall to speak of
+            }
+
+            int ax = acrossZ ? 1 : 0, az = acrossZ ? 0 : 1; // the wall runs along X when the passage crosses Z
+            gaps.Add((x, y, z));
+            foreach (int sign in new[] { 1, -1 })
+            {
+                for (int k = 1; k <= 2 && Air(x + sign * k * ax, z + sign * k * az); k++)
+                {
+                    gaps.Add((x + sign * k * ax, y, z + sign * k * az));
+                }
+            }
+        }
+
+        return gaps;
     }
 
     /// <summary>Wall height of a greenhouse (the y of its ceiling row): a village garden house is low enough
@@ -1330,7 +1419,7 @@ public static class SettlementGenerator
 
     /// <summary>A lamp post and a little garden patch next to a building's door.</summary>
     internal static void DecorateAround(System.Action<int, int, int, ushort> set, int ox, int oz, int fp, int doorSide,
-        ushort lamp, ushort flora, bool alien, System.Random rng)
+        ushort lamp, ushort flora, bool alien, System.Random rng, System.Func<int, int, int, ushort>? outsideOnly = null)
     {
         int mid = fp / 2;
         int px, pz;
@@ -1356,12 +1445,38 @@ public static class SettlementGenerator
             {
                 int gx = ox - 1 + rng.Next(0, fp + 2);
                 int gz = oz - 1 + rng.Next(0, fp + 2);
+                // #1886: on a revision-1 kit grid a patch never lands inside the building (it used to overwrite a wall,
+                // a bed or a counter) nor on anything standing — the draws above are the same either way.
+                bool inside = gx >= ox && gx < ox + fp && gz >= oz && gz < oz + fp;
+                if (outsideOnly != null && (inside || outsideOnly(gx, 1, gz) != 0))
+                {
+                    continue;
+                }
+
                 set(gx, 1, gz, flora);
             }
         }
     }
 
     /// <summary>A focal point on the settlement's central lane: a well, a plaza or a monument.</summary>
+    /// <summary>Whether the 3 × 3 plaza around the middle has nothing standing on it (#1886).</summary>
+    private static bool CentreIsOpen(System.Func<int, int, int, ushort> get, int w, int l, int h)
+    {
+        int cx = w / 2, cz = l / 2;
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dz = -1; dz <= 1; dz++)
+                for (int y = 1; y < System.Math.Min(h, 4); y++)
+                {
+                    int x = cx + dx, z = cz + dz;
+                    if (x < 0 || z < 0 || x >= w || z >= l || get(x, y, z) != 0)
+                    {
+                        return false;
+                    }
+                }
+
+        return true;
+    }
+
     private static void StampCentralFeature(System.Action<int, int, int, ushort> set,
         int w, int l, ushort accent, ushort path, ushort flora, ushort lamp, ushort water, System.Random rng)
     {
