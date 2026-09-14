@@ -353,10 +353,11 @@ public sealed partial class GameServer
             // server-side, someone walled the cell in, or only a far-off cell) fall back to the home marker's
             // floor Y — never the noise surface, which inside a stamped settlement can be metres off. Up is
             // one block at most (#1775): the upward probe used to lift a stroller onto any wall whose top sat two
-            // above its feet — a station's one-block parapet — from where the next step dropped it outside.
+            // above its feet — a station's one-block parapet — from where the next step dropped it outside. The top of
+            // furniture is no floor (#1895): the probe does not find it, so the table stays a wall at the feet.
             int gx = (int)System.Math.Floor(res.Position.X), gz = (int)System.Math.Floor(res.Position.Z);
             int refY = (int)System.Math.Floor(npc.Pos.Y);
-            float nextY = TryGroundFeetYAt(gx, gz, refY, out int feet) && feet - refY <= NpcStepUp && refY - feet <= 2
+            float nextY = TryNpcGroundFeetYAt(gx, gz, refY, out int feet) && feet - refY <= NpcStepUp && refY - feet <= 2
                 ? feet : following ? npc.Pos.Y : npc.Home.Y;
             var raw = new Vector3f(res.Position.X, nextY, res.Position.Z);
 
@@ -585,14 +586,14 @@ public sealed partial class GameServer
     /// <summary>True if an NPC's body (feet + head) would sit inside a colliding block at this position — a wall,
     /// so it can't stroll there. A doorway opening stays air, so NPCs pass through doorways but not walls.
     /// Fluids block too (<c>fluidsPass: false</c>): settlement NPCs have no swim logic, so a pond must stay a
-    /// wall to them even though a player swims straight in.</summary>
+    /// wall to them even though a player swims straight in. A rug or a floor panel is walked through (#1895).</summary>
     private bool BlockedByWorld(Vector3f pos)
     {
         int x = (int)System.Math.Floor(pos.X);
         int y = (int)System.Math.Floor(pos.Y);
         int z = (int)System.Math.Floor(pos.Z);
-        return IsCollidingCell(x, y, z)       // feet
-            || IsCollidingCell(x, y + 1, z);  // head
+        return NpcBodyBlockedAt(x, y, z)       // feet
+            || NpcBodyBlockedAt(x, y + 1, z);  // head
     }
 
     /// <summary>Whether a cell is a movement-blocking solid block. Keyed on the block's <c>Solid</c> flag, not
@@ -611,22 +612,19 @@ public sealed partial class GameServer
         return def == null || def.Solid; // unknown id → treat as solid (safe default)
     }
 
-    /// <summary>Whether a cell actually <b>collides</b> with a walking body. <see cref="IsSolidCell"/> keys on
-    /// the <c>Solid</c> flag alone, which defaults to <c>true</c> — so every cross-billboard prop (small flora,
-    /// the torch/lantern, the walk-through ladder) counts as solid there even though the mesher gives it no
-    /// collider and the player strolls straight through it. Movement must use this predicate instead, or a
-    /// meadow would be an impassable wall for anything that isn't a player. Sight (<see cref="HasLineOfSight"/>)
-    /// keeps the plain solid test.</summary>
-    private bool IsCollidingCell(int x, int y, int z)
-        => IsCollidingBlock(_world.GetBlock(new Vector3i(x, y, z)), fluidsPass: false, foliagePasses: false);
-
-    /// <summary>The no-load sibling of <see cref="IsCollidingCell"/> used by the creature gates: an unloaded chunk
+    /// <summary>The no-load cell form of <see cref="IsCollidingBlock"/> used by the creature gates: an unloaded chunk
     /// reads as air (permissive, matching <c>StandableAt</c>), so a per-tick movement check never generates chunks
     /// as a side effect. Fluids never block an animal — swimmers live in them — and flying species additionally
     /// pass through tree canopies (their hover altitude sits right inside the crown on forest worlds).</summary>
     private bool IsCollidingCellIfLoaded(int x, int y, int z, bool foliagePasses)
         => IsCollidingBlock(_world.GetBlockIfLoaded(new Vector3i(x, y, z)), fluidsPass: true, foliagePasses);
 
+    /// <summary>Whether a block actually <b>collides</b> with a walking body. <see cref="IsSolidCell"/> keys on
+    /// the <c>Solid</c> flag alone, which defaults to <c>true</c> — so every cross-billboard prop (small flora,
+    /// the torch/lantern, the walk-through ladder) counts as solid there even though the mesher gives it no
+    /// collider and the player strolls straight through it. Movement must use this predicate instead, or a
+    /// meadow would be an impassable wall for anything that isn't a player. Sight (<see cref="HasLineOfSight"/>)
+    /// keeps the plain solid test. The block id alone: an NPC also asks the cell's form (<see cref="NpcBodyBlocked"/>).</summary>
     private bool IsCollidingBlock(BlockId id, bool fluidsPass, bool foliagePasses)
     {
         // Fluids are decided EXPLICITLY, not via the Solid flag: water is Solid=false in the content DB

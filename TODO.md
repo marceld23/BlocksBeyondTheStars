@@ -24,6 +24,29 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🪑 NPCs keep off the furniture — and walk on rugs, not above them (#1895, 2026-09-14, branch fix/npc-furniture-floor)
+
+Marcel: NPCs stepped onto tables and chairs and stood on them like on a block. The server's NPC walk read the block id
+only, so every form was a cube. A table was a one-block step, and the route even preferred it (2.6 over it, 4.0 around
+it). A rug was a block the NPC crossed one block above the floor. Marcel's decisions: furniture forms, furniture and
+device blocks and fences are never a floor; creatures, bandits and enemies stay as they are; the rug fix too.
+
+- **Rules** (`NpcFootings`, Shared): `NoFloor` covers the table, chair, bench, bed halves, fence and pot forms on any
+  material, the furniture/device keys (`NoFloorBlocks`: bed, campfire, crates, station container, flower pot,
+  workbench, forge, matter forge, detoxifier, algae/heal tank, data cache, factory terminal, gaming set, vendor post,
+  mission board, radio beacon, sentry post) and plates hung on a wall. `FloorPlate` covers a sheet or panel lying on the
+  floor: walked through, and it carries the feet in its cell. `CeilingPlate` covers a hung plate: walked through.
+  Slabs, stairs, ramps, the hydroponics tray, cores and pipes stay floors.
+- **Server** (`GameServerNpcFooting`): the route (`NpcStandableAt`, `Free`) and the stroll probe
+  (`TryNpcGroundFeetYAt`) use no-load reads (`ServerWorld.GetShapeIfLoaded`). The movement sweep (`BlockedByWorld`) and
+  every spot helper (`StandableSpot`: bed side, seat approach, work, home, patrol, garden, station crew, speeder deploy)
+  use `NpcBodyBlockedAt`. `SeatApproach` tries the chair's sides after its front, because the furnisher puts the table
+  there. The shared `StandableAt` is untouched.
+- Tests: `NpcFootingTests` (rules, predicates on a pad, a walker around a furniture row, a stroller boxed in by
+  furniture, a walker over a rug, a boxed chair).
+- **Open: Marcel's playtest** (a furnished village house and tavern in the evening, a base with crates and a rug).
+- Docs: [docs/developer/NPC_ROUTINES.md](docs/developer/NPC_ROUTINES.md) §5.
+
 ### 🏘️ Settlements and cities from modules — furnished buildings, a bed for every resident (#1891: #1884 #1885 #1886 #1887 #1888 #1889 #1890, 2026-09-14, branch feat/settlement-modules)
 
 Marcel after #1879: villages and cities should be built from modules like the stations, with interiors and residents —
