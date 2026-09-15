@@ -340,9 +340,11 @@ def hydro(tier):
     m.shell()
     m.lights()
     m.door_port("x-")
-    cx = w // 2
+    cx, cz = w // 2, l // 2
     for z in range(2, l - 2):
         for x in (2, w - 3):
+            if x == 2 and z in (cz - 1, cz):
+                continue  # the lane in from the -X door stays a deck walkway (#1901: two rows free behind every door)
             m.block(x, 0, z, TRAY)  # the deck plate becomes the growing bed (two cells in from the hull)
             if (x + z) % 5:
                 m.block(x, 1, z, CROP)

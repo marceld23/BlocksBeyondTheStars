@@ -275,9 +275,10 @@ def village_module(function, variant, alien):
             for x in range(1, 7):
                 m.block(x, 4, 1, "glass")  # a skylight over the beds
                 m.block(x, 4, 2, "glass")
-            # beds left and right of the doorway lane (x 2..3) in the two front rows; the row before the shed door
-            # (z = 3) and the lane stay free
-            greenhouse_beds(m, "flora_cropberry", xs=(1, 4, 5, 6), zs=(1, 2))
+            # beds left and right of the doorway lane (x 2..3) in the two front rows; the two rows before the shed door
+            # (x 5..6, z 2..3 — #1901: two rows free on each side of every door) and the lane stay free
+            greenhouse_beds(m, "flora_cropberry", xs=(1, 4, 5, 6), zs=(1,))
+            greenhouse_beds(m, "flora_cropberry", xs=(1, 4), zs=(2,))
             interior_wall_z(m, 0, 4, 1, 6, 5, "door_hinge")
             m.marker(2, 1, 6, "room")
             m.marker(1, 1, 3, "greenhouse")

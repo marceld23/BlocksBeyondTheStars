@@ -49,7 +49,8 @@ public sealed class StationComposition
 /// <para>Baking: every joint's two port walls become air (a two-deep doorway) with a door marker per the port's
 /// door option; a vertical joint becomes a shaft with a ladder column; ports that happen to coincide after
 /// placement are joined too; unmatched ports stay walls. Rooms under <c>room</c> markers are furnished by the
-/// module's function; a canteen's or bar's rooms also get a <c>lounge</c> marker (the crew's evening seats).
+/// module's function; a canteen's or bar's rooms also get a <c>lounge</c> marker (the crew's evening seats). Every
+/// door keeps its lane clear and ends the room it opens (<see cref="RoomFurnisher.DoorLaneAt"/>, #1901).
 /// Every joint is found from geometry alone, so <see cref="Replay"/> of a pinned composition bakes byte for byte
 /// what <see cref="Compose"/> built.</para>
 /// </summary>
@@ -590,10 +591,33 @@ public static class StationKitComposer
             markers.Add(new StationMarker("spawn", new Vector3i(so.X + startModule.Template.Width / 2, so.Y + 1, so.Z + startModule.Template.Length / 2)));
         }
 
-        // The essentials every station has (like FromTemplate): a vendor and a mission board, in the start module.
+        // Door lanes (#1901): every door — a joint's and a module's own (a cabin's) — keeps the lane through it clear, and
+        // a room ends at its doorway. Measured once on the bare modules, before anything is furnished.
+        var lanes = new List<RoomFurnisher.DoorLane>();
+        var doorGaps = new HashSet<Vector3i>();
+        var laneCells = new HashSet<Vector3i>();
+        foreach (var m in markers)
+        {
+            if (RoomFurnisher.IsDoorMarker(m.Type) && RoomFurnisher.DoorLaneAt(Get, w, h, l, m.LocalPos.X, m.LocalPos.Y, m.LocalPos.Z) is { } lane)
+            {
+                lanes.Add(lane);
+                foreach (var (x, z) in lane.Gap)
+                {
+                    doorGaps.Add(new Vector3i(x, lane.FootY, z));
+                }
+
+                foreach (var (x, z) in lane.Keep)
+                {
+                    laneCells.Add(new Vector3i(x, lane.FootY, z));
+                }
+            }
+        }
+
+        // The essentials every station has (like FromTemplate): a vendor and a mission board, in the start module — never
+        // in a doorway.
         foreach (var essential in new[] { "vendor", "mission_board" })
         {
-            if (!markers.Exists(m => m.Type == essential) && FreeFloorCell(startModule, shift, Get, markerCells) is { } spot)
+            if (!markers.Exists(m => m.Type == essential) && FreeFloorCell(startModule, shift, Get, markerCells, laneCells) is { } spot)
             {
                 markers.Add(new StationMarker(essential, spot));
                 markerCells.Add(spot);
@@ -607,7 +631,7 @@ public static class StationKitComposer
         var reservedLanes = new HashSet<(int X, int Z)>();
         foreach (var c in opened)
         {
-            reservedLanes.Add((c.X, c.Z));
+            reservedLanes.Add((c.X, c.Z)); // around every opened cell — the ladder shafts of vertical joints too
             reservedLanes.Add((c.X + 1, c.Z));
             reservedLanes.Add((c.X - 1, c.Z));
             reservedLanes.Add((c.X, c.Z + 1));
@@ -628,9 +652,15 @@ public static class StationKitComposer
 
                 n++;
                 var pos = new Vector3i(o.X + c.X, o.Y + c.Y, o.Z + c.Z);
-                // The flood fill must not walk through an opened joint into the next module — every room is
-                // furnished on its own (a hub's hall and a cabin are not one region).
-                ushort GetSealed(int x, int y, int z) => opened.Contains(new Vector3i(x, y, z)) ? (ushort)1 : Get(x, y, z);
+                // The flood fill must not walk through an opened joint into the next module, nor through a doorway into
+                // the next room (#1901) — every room is furnished on its own (a hub's hall and a cabin, or two cabins off
+                // one corridor, are not one region).
+                ushort GetSealed(int x, int y, int z)
+                {
+                    var cell = new Vector3i(x, y, z);
+                    return opened.Contains(cell) || doorGaps.Contains(cell) ? (ushort)1 : Get(x, y, z);
+                }
+
                 var region = RoomFurnisher.FloodRoom(GetSealed, w, h, l, pos.X, pos.Y, pos.Z, RoomCap, out int clearance);
                 if (region.Count == 0)
                 {
@@ -638,6 +668,14 @@ public static class StationKitComposer
                 }
 
                 var reserved = new HashSet<(int X, int Z)>(reservedLanes);
+                foreach (var lane in lanes)
+                {
+                    if (lane.FootY == pos.Y)
+                    {
+                        reserved.UnionWith(lane.Keep);
+                    }
+                }
+
                 foreach (var m in markerCells)
                 {
                     if (m.Y == pos.Y)
@@ -673,8 +711,9 @@ public static class StationKitComposer
             blocks, markers, modules, mods, shapes);
     }
 
-    /// <summary>The first free floor cell of a module (air over a block, no marker there), scanning its interior.</summary>
-    private static Vector3i? FreeFloorCell(Placed p, Vector3i shift, Func<int, int, int, ushort> get, HashSet<Vector3i> markerCells)
+    /// <summary>The first free floor cell of a module (air over a block, no marker there, not in a door lane), scanning its
+    /// interior.</summary>
+    private static Vector3i? FreeFloorCell(Placed p, Vector3i shift, Func<int, int, int, ushort> get, HashSet<Vector3i> markerCells, HashSet<Vector3i> laneCells)
     {
         var o = p.Origin + shift;
         for (int y = 1; y < p.Template.Height - 1; y++)
@@ -682,7 +721,7 @@ public static class StationKitComposer
                 for (int z = 1; z < p.Template.Length - 1; z++)
                 {
                     var c = new Vector3i(o.X + x, o.Y + y, o.Z + z);
-                    if (get(c.X, c.Y, c.Z) == 0 && get(c.X, c.Y - 1, c.Z) != 0 && get(c.X, c.Y + 1, c.Z) == 0 && !markerCells.Contains(c))
+                    if (get(c.X, c.Y, c.Z) == 0 && get(c.X, c.Y - 1, c.Z) != 0 && get(c.X, c.Y + 1, c.Z) == 0 && !markerCells.Contains(c) && !laneCells.Contains(c))
                     {
                         return c;
                     }

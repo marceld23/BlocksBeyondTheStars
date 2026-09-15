@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.WorldGeneration;
@@ -477,5 +478,326 @@ public static class RoomFurnisher
         }
 
         return region;
+    }
+
+    // ------------------------------------------------------------------ door lanes (#1901)
+
+    /// <summary>How many rows on each side of a doorway stay walkable (like the ship doorway rule, #211).</summary>
+    public const int LaneDepth = 2;
+
+    /// <summary>How far along its wall a door gap is scanned from the marker — the server's door probe reach.</summary>
+    private const int GapReach = 3;
+
+    /// <summary>
+    /// The walk-through lane of one door (#1901) — the single rule every composer shares (kit stations, settlements,
+    /// cities, the editor's preview and its export check), so neither furniture nor an authored block ever stands in
+    /// a doorway. Coordinates are those of the grid the lane was measured on; (x, z) cells lie at <see cref="FootY"/>.
+    /// </summary>
+    public sealed class DoorLane
+    {
+        internal DoorLane(int footY, bool wallAlongX, int gapMin, int gapMax, int doorwayMin, int doorwayMax,
+            List<(int X, int Z)> gap, List<(int X, int Z)> clear, List<(int X, int Z)> keep)
+        {
+            FootY = footY;
+            WallAlongX = wallAlongX;
+            GapMin = gapMin;
+            GapMax = gapMax;
+            DoorwayMin = doorwayMin;
+            DoorwayMax = doorwayMax;
+            Gap = gap;
+            Clear = clear;
+            Keep = keep;
+        }
+
+        /// <summary>The height a body stands at in the doorway: the air cell over the doorway's floor.</summary>
+        public int FootY { get; }
+
+        /// <summary>True when the door's wall runs along X (the passage crosses Z), false when it runs along Z.</summary>
+        public bool WallAlongX { get; }
+
+        /// <summary>The first and last along-wall coordinate of the gap (x for a wall along X, z otherwise).</summary>
+        public int GapMin { get; }
+
+        /// <inheritdoc cref="GapMin"/>
+        public int GapMax { get; }
+
+        /// <summary>The first and last across coordinate of the doorway itself — a joint between two station modules
+        /// is two deep (both port walls are open).</summary>
+        public int DoorwayMin { get; }
+
+        /// <inheritdoc cref="DoorwayMin"/>
+        public int DoorwayMax { get; }
+
+        /// <summary>The doorway cells: where a room ends, so a flood fill reads them as the closed door. Empty when the
+        /// gap has no jamb at one end (a door marker on open floor splits nothing).</summary>
+        public IReadOnlyList<(int X, int Z)> Gap { get; }
+
+        /// <summary>The cells that must stay walkable at foot and head height: the doorway plus up to
+        /// <see cref="LaneDepth"/> rows on each side, across the full gap width. A side ends early at the grid's edge
+        /// (an entrance) or at a wall (a room one row deep).</summary>
+        public IReadOnlyList<(int X, int Z)> Clear { get; }
+
+        /// <summary><see cref="Clear"/> plus the first row's two corners one step past the ends of the gap, so a body
+        /// can turn into the doorway — no furniture goes on any of these.</summary>
+        public IReadOnlyList<(int X, int Z)> Keep { get; }
+    }
+
+    /// <summary>True for a door marker type (<c>door_slide</c>, <c>door_hinge</c>, <c>door_energy</c> …).</summary>
+    public static bool IsDoorMarker(string type) => type.StartsWith("door_", System.StringComparison.Ordinal);
+
+    /// <summary>
+    /// Measures the lane of the door marker at (<paramref name="x"/>, <paramref name="y"/>, <paramref name="z"/>) on a
+    /// grid <paramref name="w"/> × <paramref name="h"/> × <paramref name="l"/> (<paramref name="get"/> is only asked
+    /// inside it; 0 = air). The marker may stand up to two cells above the doorway's floor. The wall axis and the gap
+    /// are probed the way the server hangs the door (the jamb beside the marker, the air run along the wall); the
+    /// doorway extends across while its jambs continue (a two-deep joint). Null when the marker cell is solid or
+    /// outside the grid.
+    /// </summary>
+    public static DoorLane? DoorLaneAt(System.Func<int, int, int, ushort> get, int w, int h, int l, int x, int y, int z)
+    {
+        bool InXZ(int cx, int cz) => cx >= 0 && cz >= 0 && cx < w && cz < l;
+        bool Solid(int cx, int cy, int cz) => InXZ(cx, cz) && cy >= 0 && cy < h && get(cx, cy, cz) != 0;
+        if (y < 0 || y >= h || !InXZ(x, z) || Solid(x, y, z))
+        {
+            return null;
+        }
+
+        // The foot level: an author may set the marker a cell or two above the doorway's floor.
+        int foot = y;
+        if (!Solid(x, y - 1, z))
+        {
+            for (int k = 1; k <= 2 && y - k >= 1 && !Solid(x, y - k, z); k++)
+            {
+                if (Solid(x, y - k - 1, z))
+                {
+                    foot = y - k;
+                    break;
+                }
+            }
+        }
+
+        // The server's door probe (GameServer.MakeDoor): a jamb beside the marker along X means the wall runs along X.
+        bool alongX = Solid(x - 1, foot, z) || Solid(x + 1, foot, z);
+        int a0 = alongX ? x : z, b0 = alongX ? z : x;
+        (int X, int Z) Cell(int a, int b) => alongX ? (a, b) : (b, a);
+        bool In(int a, int b)
+        {
+            var c = Cell(a, b);
+            return InXZ(c.X, c.Z);
+        }
+
+        bool S(int a, int b, int cy)
+        {
+            var c = Cell(a, b);
+            return Solid(c.X, cy, c.Z);
+        }
+
+        int lo = 0, hi = 0;
+        for (int s = 1; s <= GapReach && In(a0 - s, b0) && !S(a0 - s, b0, foot); s++)
+        {
+            lo = -s;
+        }
+
+        for (int s = 1; s <= GapReach && In(a0 + s, b0) && !S(a0 + s, b0, foot); s++)
+        {
+            hi = s;
+        }
+
+        int gMin = a0 + lo, gMax = a0 + hi;
+        bool bounded = S(gMin - 1, b0, foot) && S(gMax + 1, b0, foot);
+
+        bool DoorwayRow(int b)
+        {
+            for (int a = gMin; a <= gMax; a++)
+            {
+                if (!In(a, b) || S(a, b, foot))
+                {
+                    return false;
+                }
+            }
+
+            return S(gMin - 1, b, foot) && S(gMax + 1, b, foot);
+        }
+
+        int dMin = b0, dMax = b0;
+        if (bounded)
+        {
+            for (int k = 1; k <= LaneDepth && DoorwayRow(b0 - k); k++)
+            {
+                dMin = b0 - k;
+            }
+
+            for (int k = 1; k <= LaneDepth && DoorwayRow(b0 + k); k++)
+            {
+                dMax = b0 + k;
+            }
+        }
+
+        var gap = new List<(int X, int Z)>();
+        var clear = new List<(int X, int Z)>();
+        var corners = new List<(int X, int Z)>();
+        for (int b = dMin; b <= dMax; b++)
+            for (int a = gMin; a <= gMax; a++)
+            {
+                if (In(a, b))
+                {
+                    clear.Add(Cell(a, b));
+                    if (bounded)
+                    {
+                        gap.Add(Cell(a, b));
+                    }
+                }
+            }
+
+        foreach (int side in new[] { -1, 1 })
+        {
+            int start = side < 0 ? dMin : dMax;
+            for (int k = 1; k <= LaneDepth; k++)
+            {
+                int b = start + side * k;
+                bool any = false, wall = true;
+                for (int a = gMin; a <= gMax; a++)
+                {
+                    if (!In(a, b))
+                    {
+                        continue;
+                    }
+
+                    any = true;
+                    wall &= S(a, b, foot) && S(a, b, foot + 1) && (foot + 2 >= h || S(a, b, foot + 2));
+                }
+
+                if (!any || wall)
+                {
+                    break; // the grid's edge (an entrance leads outside) or the far wall of a shallow room
+                }
+
+                for (int a = gMin; a <= gMax; a++)
+                {
+                    if (In(a, b))
+                    {
+                        clear.Add(Cell(a, b));
+                    }
+                }
+
+                if (k == 1)
+                {
+                    foreach (int a in new[] { gMin - 1, gMax + 1 })
+                    {
+                        if (In(a, b))
+                        {
+                            corners.Add(Cell(a, b));
+                        }
+                    }
+                }
+            }
+        }
+
+        var keep = new List<(int X, int Z)>(clear);
+        keep.AddRange(corners);
+        return new DoorLane(foot, alongX, gMin, gMax, dMin, dMax, gap, clear, keep);
+    }
+
+    /// <summary>The lanes of every door marker in <paramref name="doors"/> (those that measure at all).</summary>
+    public static List<DoorLane> DoorLanes(System.Func<int, int, int, ushort> get, int w, int h, int l, IEnumerable<Vector3i> doors)
+    {
+        var lanes = new List<DoorLane>();
+        foreach (var d in doors)
+        {
+            if (DoorLaneAt(get, w, h, l, d.X, d.Y, d.Z) is { } lane)
+            {
+                lanes.Add(lane);
+            }
+        }
+
+        return lanes;
+    }
+
+    /// <summary>A form a body walks onto at foot height: a flight of stairs, a ramp, or a plate lying on the floor.</summary>
+    public static bool WalkableAtFoot(int descriptor) => ShapeCode.ShapeOf(descriptor) switch
+    {
+        (int)BlockShape.Stairs or (int)BlockShape.Ramp or (int)BlockShape.LowRamp => true,
+        (int)BlockShape.Sheet or (int)BlockShape.Panel => true,
+        _ => false,
+    };
+
+    /// <summary>
+    /// The cells that block a door lane (#1901): any block in a <see cref="DoorLane.Clear"/> cell at foot or head
+    /// height — at foot height a stair, a ramp or a floor plate still lets a body through. Empty when every lane of
+    /// <paramref name="doors"/> is walkable. <paramref name="shapeAt"/> gives the packed shape descriptor of a cell.
+    /// </summary>
+    public static List<Vector3i> BlockedDoorLanes(System.Func<int, int, int, ushort> get, System.Func<int, int, int, int> shapeAt,
+        int w, int h, int l, IEnumerable<Vector3i> doors)
+    {
+        var blocked = new List<Vector3i>();
+        var seen = new HashSet<Vector3i>();
+        foreach (var lane in DoorLanes(get, w, h, l, doors))
+        {
+            foreach (var (x, z) in lane.Clear)
+            {
+                for (int dy = 0; dy <= 1; dy++)
+                {
+                    int y = lane.FootY + dy;
+                    if (y >= h || get(x, y, z) == 0 || (dy == 0 && WalkableAtFoot(shapeAt(x, y, z))))
+                    {
+                        continue;
+                    }
+
+                    var cell = new Vector3i(x, y, z);
+                    if (seen.Add(cell))
+                    {
+                        blocked.Add(cell);
+                    }
+                }
+            }
+        }
+
+        return blocked;
+    }
+
+    /// <summary>The blocked door-lane cells of an authored template (its own blocks and door markers): what the
+    /// editor refuses to export and what every shipped template is tested against (#1901).</summary>
+    public static List<Vector3i> BlockedDoorLanes(StructureTemplate t)
+    {
+        var blocks = new Dictionary<Vector3i, TemplateCell>();
+        var doors = new List<Vector3i>();
+        foreach (var c in t.Cells)
+        {
+            var p = new Vector3i(c.X, c.Y, c.Z);
+            if (c.Kind == "block")
+            {
+                blocks[p] = c;
+            }
+            else if (c.Kind == "marker" && IsDoorMarker(c.Id))
+            {
+                doors.Add(p);
+            }
+        }
+
+        ushort Get(int x, int y, int z) => blocks.ContainsKey(new Vector3i(x, y, z)) ? (ushort)1 : (ushort)0;
+        int ShapeAt(int x, int y, int z) => blocks.TryGetValue(new Vector3i(x, y, z), out var c) ? c.Shape : 0;
+        return BlockedDoorLanes(Get, ShapeAt, t.Width, t.Height, t.Length, doors);
+    }
+
+    /// <summary>
+    /// True when <paramref name="block"/> in the form <paramref name="descriptor"/> is a piece this palette's furnisher
+    /// places: a table, chair, bench or counter of its materials, a store, a plant, a terminal, a workbench or a forge.
+    /// Never a bed or a light, and never a plain cube of a furniture material (that is a wall or a deck). The existing-
+    /// world cleanup (#1901) only ever removes such pieces.
+    /// </summary>
+    public static bool IsFurnishingPiece(Palette p, ushort block, int descriptor)
+    {
+        if (block == 0 || block == p.Bed || block == p.Light)
+        {
+            return false;
+        }
+
+        if (block == p.TableMaterial || block == p.ChairMaterial || block == p.Counter)
+        {
+            return ShapeCode.ShapeOf(descriptor) is (int)BlockShape.Table or (int)BlockShape.Chair or (int)BlockShape.Bench or (int)BlockShape.Slab;
+        }
+
+        return block == p.Storage || block == p.Plant || block == p.PlantAlt || block == p.Terminal || block == p.TerminalAlt
+            || block == p.Workbench || block == p.Forge;
     }
 }

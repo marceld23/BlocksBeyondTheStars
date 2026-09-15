@@ -35307,7 +35307,7 @@
         "y": 0,
         "z": 2,
         "kind": "block",
-        "id": "dirt"
+        "id": "@floor"
       },
       {
         "x": 5,
@@ -35355,13 +35355,6 @@
         "x": 5,
         "y": 1,
         "z": 1,
-        "kind": "block",
-        "id": "flora_cropberry"
-      },
-      {
-        "x": 5,
-        "y": 1,
-        "z": 2,
         "kind": "block",
         "id": "flora_cropberry"
       },
@@ -35538,7 +35531,7 @@
         "y": 0,
         "z": 2,
         "kind": "block",
-        "id": "dirt"
+        "id": "@floor"
       },
       {
         "x": 6,
@@ -35586,13 +35579,6 @@
         "x": 6,
         "y": 1,
         "z": 1,
-        "kind": "block",
-        "id": "flora_cropberry"
-      },
-      {
-        "x": 6,
-        "y": 1,
-        "z": 2,
         "kind": "block",
         "id": "flora_cropberry"
       },
@@ -95686,7 +95672,7 @@
         "y": 0,
         "z": 2,
         "kind": "block",
-        "id": "dirt"
+        "id": "@floor"
       },
       {
         "x": 5,
@@ -95734,13 +95720,6 @@
         "x": 5,
         "y": 1,
         "z": 1,
-        "kind": "block",
-        "id": "flora_cropberry"
-      },
-      {
-        "x": 5,
-        "y": 1,
-        "z": 2,
         "kind": "block",
         "id": "flora_cropberry"
       },
@@ -95868,7 +95847,7 @@
         "y": 0,
         "z": 2,
         "kind": "block",
-        "id": "dirt"
+        "id": "@floor"
       },
       {
         "x": 6,
@@ -95916,13 +95895,6 @@
         "x": 6,
         "y": 1,
         "z": 1,
-        "kind": "block",
-        "id": "flora_cropberry"
-      },
-      {
-        "x": 6,
-        "y": 1,
-        "z": 2,
         "kind": "block",
         "id": "flora_cropberry"
       },
