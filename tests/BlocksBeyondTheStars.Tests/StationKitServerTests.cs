@@ -12,6 +12,7 @@ using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
@@ -218,6 +219,99 @@ public sealed class StationKitServerTests : IDisposable
             Assert.Equal(blocks, BlocksOf(server2));
             Assert.Equal(crew, server2.NpcSnapshots.Count);
             server2.Stop();
+        }
+    }
+
+    /// <summary>The door lanes of the boarded station, measured on the world (the build box of <see cref="BlocksOf"/>), with
+    /// the usable (x, z) cells — air over a deck — mapped back to world cells at the lane's foot height.</summary>
+    private static List<(List<Vector3i> Clear, List<Vector3i> Corners)> WorldLanes(SvGameServer server)
+    {
+        const int BoxY = 56, W = 80, H = 34, L = 80;
+        ushort Get(int x, int y, int z) => server.World.GetBlock(new Vector3i(x, y + BoxY, z)).Value;
+        bool Usable(Vector3i c) => server.World.GetBlock(c).IsAir && !server.World.GetBlock(new Vector3i(c.X, c.Y - 1, c.Z)).IsAir;
+        var result = new List<(List<Vector3i>, List<Vector3i>)>();
+        foreach (var (type, pos) in server.SpaceStationMarkers)
+        {
+            var cell = Feet(pos);
+            if (!RoomFurnisher.IsDoorMarker(type) || RoomFurnisher.DoorLaneAt(Get, W, H, L, cell.X, cell.Y - BoxY, cell.Z) is not { } lane)
+            {
+                continue;
+            }
+
+            var clear = lane.Clear.Where(c => !lane.Gap.Contains(c)).Select(c => new Vector3i(c.X, lane.FootY + BoxY, c.Z)).Where(Usable).ToList();
+            var corners = lane.Keep.Where(c => !lane.Clear.Contains(c)).Select(c => new Vector3i(c.X, lane.FootY + BoxY, c.Z)).Where(Usable).ToList();
+            result.Add((clear, corners));
+        }
+
+        return result;
+    }
+
+    [Fact]
+    public void AStationFromBeforeTheDoorLanes_LosesItsStaleFurnitureOnce_WhileBedsAndPlayerBuildsStay()
+    {
+        // #1901: a station stamps only its non-air cells, so a chair an older composer put in a doorway stayed in the world
+        // forever. A station pinned before the fix (kit record revision 0) sheds such pieces on its next stamp — once.
+        var content = KitContent(cabinsMin: 2, extraStorage: false);
+        ushort steel = content.GetBlock("steel_floor")!.NumericId.Value;
+        var crate = content.GetBlock("crate")!.NumericId;
+        var bed = content.GetBlock("bed")!.NumericId;
+        string stationId;
+        Vector3i chairCell, cornerCell, playerCell, bedCell;
+
+        var server = Started(content, out var repo, world: "kitlanes");
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            stationId = BoardFirstStation(server, "Pilot");
+            Assert.Equal(StationKitRecord.CurrentRevision, repo.LoadMetadata()!.StationKits[stationId].Revision); // a fresh station needs no cleanup
+
+            // The freshly baked station's lanes are walkable; the old composer's leftovers are faked into them.
+            var lanes = WorldLanes(server);
+            Assert.NotEmpty(lanes);
+            var cells = lanes.SelectMany(l => l.Clear).Distinct().ToList();
+            var corners = lanes.SelectMany(l => l.Corners).Where(c => !cells.Contains(c)).Distinct().ToList();
+            Assert.True(cells.Count >= 3 && corners.Count >= 1, $"lane cells {cells.Count}, corners {corners.Count}");
+            (chairCell, playerCell, bedCell, cornerCell) = (cells[0], cells[1], cells[2], corners[0]);
+
+            server.World.SetBlock(chairCell, new BlockId(steel), shape: ShapeCode.Pack(BlockShape.Chair, 1)); // worldgen: no owner
+            server.World.SetBlock(cornerCell, crate);
+            server.World.SetBlock(bedCell, bed, shape: ShapeCode.Pack(BlockShape.BedHead, 0));
+            server.World.SetBlock(playerCell, crate, owner: "Pilot"); // the pilot's own crate
+            server.LeaveStation("Pilot");
+            server.Stop();
+
+            var meta = repo.LoadMetadata()!;
+            meta.StationKits[stationId].Revision = 0; // as saved before #1901
+            repo.SaveMetadata(meta);
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var server2 = Started(content, out var repo2, world: "kitlanes");
+        using (repo2)
+        {
+            server2.AddLocalPlayer("Pilot");
+            Assert.Equal(stationId, BoardFirstStation(server2, "Pilot"));
+            Assert.True(server2.World.GetBlock(chairCell).IsAir, "the stale chair leaves the doorway");
+            Assert.True(server2.World.GetBlock(cornerCell).IsAir, "a stale crate where the bake now leaves air goes too");
+            Assert.Equal(bed, server2.World.GetBlock(bedCell)); // beds are never touched
+            Assert.Equal(crate, server2.World.GetBlock(playerCell)); // nor anything a player placed
+            Assert.Equal(StationKitRecord.CurrentRevision, repo2.LoadMetadata()!.StationKits[stationId].Revision);
+
+            server2.World.SetBlock(chairCell, new BlockId(steel), shape: ShapeCode.Pack(BlockShape.Chair, 1));
+            server2.LeaveStation("Pilot");
+            server2.Stop();
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var server3 = Started(content, out var repo3, world: "kitlanes");
+        using (repo3)
+        {
+            server3.AddLocalPlayer("Pilot");
+            Assert.Equal(stationId, BoardFirstStation(server3, "Pilot"));
+            Assert.False(server3.World.GetBlock(chairCell).IsAir, "the cleanup runs once — whatever stands there later stays");
+            server3.Stop();
         }
     }
 

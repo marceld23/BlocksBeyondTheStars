@@ -3789,7 +3789,7 @@ namespace BlocksBeyondTheStars.Client
                         _remotePlayers[rp.PlayerId] = av;
                     }
 
-                    av.Name = rp.Name ?? string.Empty; // shown as a floating nameplate (item 385); NPC traders arrive with an empty name and get no plate
+                    av.Name = rp.Name ?? string.Empty; // shown as a floating nameplate (item 385); NPC trader poses carry their pilot's name, so they get one too
                     if (fresh)
                     {
                         av.LastSeen = now;
@@ -4726,8 +4726,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Draws a floating name label over each other pilot's ship/suit — the flight-view counterpart to
         /// the ground nameplates (<see cref="RemotePlayers"/>). Names fade with distance (roughly radar range) so
-        /// nearby mates stay identifiable without cluttering the far field. Empty names — the synthetic NPC-trader
-        /// poses that ride the same remote-ship path — are skipped by <see cref="ScreenLabelLayer"/>.</summary>
+        /// nearby mates stay identifiable without cluttering the far field. The synthetic NPC-trader poses that ride the
+        /// same remote-ship path carry their pilot's name (the server's <c>AppendTraderPoses</c>), so traders are
+        /// labelled too; only a pose with an empty name is skipped.</summary>
         private void DrawRemoteNameplates()
         {
             if (Camera == null || _remotePlayers.Count == 0)

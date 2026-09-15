@@ -211,9 +211,21 @@ public sealed class StructurePlacementRecord
 /// <summary>A kit station's pinned composition (#1874) — see <see cref="WorldMetadata.StationKits"/>.</summary>
 public sealed class StationKitRecord
 {
+    /// <summary>The furnishing revision a fresh composition is baked with: 1 = door lanes stay clear and a room ends at
+    /// its doorway (#1901).</summary>
+    public const int CurrentRevision = 1;
+
     public string Kit { get; set; } = string.Empty;
     public long Seed { get; set; }
     public System.Collections.Generic.List<StationKitModuleRecord> Modules { get; set; } = new();
+
+    /// <summary>
+    /// The furnishing revision the station's stamped blocks were last brought up to (0 = absent in saves from before
+    /// #1901). A station stamps only its NON-air cells over the persisted world each session, so furniture an older
+    /// composer put where the current one leaves air — a chair in a cabin doorway — would stay forever; the stamp removes
+    /// such pieces once and raises this to <see cref="CurrentRevision"/>. Additive JSON field.
+    /// </summary>
+    public int Revision { get; set; }
 }
 
 /// <summary>One placed module of a kit station: key, origin inside the station, quarter turns.</summary>

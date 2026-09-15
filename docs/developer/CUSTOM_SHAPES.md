@@ -73,6 +73,42 @@ Micro faces carry **real per-vertex UVs** (the slice of the tile the box covers)
 renders as dozens of shrunken copies of the whole texture, and a degenerate UV comes out white on the
 mipmapped atlas.
 
+### Built-in forms: cut material and texture slots (#1900)
+
+Since #1900 the **built-in** forms get the same treatment. `Face.Finish` projects every face's corners along its
+dominant axis in the form's own frame — top/bottom by X,Z, faces toward ±X by Z,height, faces toward ±Z by
+X,height — before yaw and tilt, so the mapping rotates with the form. A slab side shows the lower half of the tile, a
+table leg a thin slice: material tiles look carved on every form. Before, each face got the whole tile, which is
+how the two-cell bed ended up with two complete drawn beds on its mattress and a small bed on every board.
+
+Some tiles are **pictures** of an object (the bed seen from above, the flower pot). A block declares that in
+`data/blocks.json` with `"tileKind": "picture"` (default `"material"`) and dresses its form with **face slots**:
+
+```json
+"faces": [
+  { "rect": [0.25, 0.844, 0.734, 0.766] },
+  { "part": "bed_head", "side": "top", "rect": [0.156, 0.109, 0.844, 0.484] },
+  { "part": "bed_foot", "side": "top", "rect": [0.156, 0.484, 0.844, 0.859] }
+]
+```
+
+- `part`: a `ShapePart` name — `body`, `bed_head`, `bed_foot`, `pillow`, `headboard`, `footboard`, `rim` — or `*`
+  (default). The geometry tags each box (`Box(..., ShapePart)`); anything built face by face is `body`.
+- `side`: `top`, `bottom`, `side` or `*` (default), in the form's own frame (a ladder plate's big face stays `top`).
+- `tile`: another block key whose tile the face shows (default: the block's own tile).
+- `rect`: `[x0, y0, x1, y1]` in fractions of the tile **image** (0,0 = top-left pixel as the PNG is drawn). The face is
+  stretched onto it: `(x0, y0)` lands on the face's start corner, `(x1, y1)` on its end corner, where "start" is the
+  lowest corner along the face's two projection axes above. For a side face `y0` is the row at its bottom edge and
+  `y1` the row at its top edge; swap a pair to mirror. Without `rect` the face shows the slice of the tile it covers.
+- The most specific match wins: part+side, part+`*`, `*`+side, `*`+`*` (`BlockFaceTextures.Resolve`).
+
+The client resolves the slots once per content snapshot (`ShapeFaceTextures`) and the mesher reads a flat table.
+`BlockFaceTextureTests` validates every shipped slot and fails when a block the server stamps with a form
+(`PropShapes.DefaultPlaceShape`) declares no `tileKind`, or a `picture` block no slots — so a new prop cannot come
+back with a picture on every face. Dedicated seamless tiles (a blanket, a board) can later replace a region by
+editing only the data; inventory icons keep using the whole picture tile. The structure editor's voxel view uses
+the proportional UVs but not the slots.
+
 ## Sharing (#846)
 
 Three routes, all riding on things that already existed:

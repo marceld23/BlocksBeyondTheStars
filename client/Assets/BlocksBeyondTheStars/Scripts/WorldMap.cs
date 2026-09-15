@@ -381,7 +381,11 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var p in Game.PlanetPois)
                 {
                     var (glyph, col, icon) = PoiLook(p.Type);
-                    Marker(p.X, p.Z, 36f, col, glyph, icon);
+                    if (p.Type != TraderShipPoi)
+                    {
+                        Marker(p.X, p.Z, 36f, col, glyph, icon); // a landed trader's marker is drawn after the pads (#1904)
+                    }
+
                     float d = GroundDistance(p.X, p.Z);
                     poiLines.Append($"\n{glyph} {p.Name}  —  {Mathf.RoundToInt(d)} m");
                 }
@@ -477,6 +481,22 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // A landed trader ship (#1904): live while it is parked here, at its pilot. Drawn after the pads so its
+            // own (red, occupied) pad marker a few blocks away never covers it, and named like a beacon — the ship
+            // icon alone would read as your own ship in another colour.
+            if (Game.PlanetPois != null)
+            {
+                foreach (var p in Game.PlanetPois)
+                {
+                    if (p.Type == TraderShipPoi)
+                    {
+                        var (tglyph, tcol, ticon) = PoiLook(p.Type);
+                        Marker(p.X, p.Z, 36f, tcol, tglyph, ticon);
+                        MarkerLabel(p.X, p.Z, p.Name, tcol);
+                    }
+                }
+            }
+
             // Ship station tiles (workshop / lab / medbay / …) as small dots.
             if (Game.Stations != null)
             {
@@ -528,12 +548,20 @@ namespace BlocksBeyondTheStars.Client
             "alien_shrine" => ("✶", new Color(0.55f, 1f, 0.6f), null), // #1129 one-of-a-kind site; glyph fallback
             "observatory" => ("◉", new Color(0.7f, 0.85f, 1f), null), // #1129 one-of-a-kind site; glyph fallback
             "guardian_core" => ("◎", GuardianCoreCol, null), // the finale's one aperture (#1792) — no icon art yet; glyph
+            TraderShipPoi => ("⚖", TraderShipCol, "map_ship"), // a landed trader ship's pilot (#1904) — the ship icon in trade gold
             _ => ("◆", new Color(0.8f, 0.8f, 0.9f), "map_station"),
         };
 
         /// <summary>The Guardian core marker's colour (#1792) — shared with the HUD compass line so the two read as one
         /// thing. Hot rose: nothing else on the map or the dial uses it.</summary>
         public static readonly Color GuardianCoreCol = new Color(1f, 0.32f, 0.5f);
+
+        /// <summary>POI type of a landed trader ship (#1904) — the server's live marker at the pilot, gone on lift-off.</summary>
+        public const string TraderShipPoi = "trader_ship";
+
+        /// <summary>The landed trader ship's marker colour (#1904) — a saturated trade gold, shared with its HUD
+        /// compass blip. Paired with the ship icon, which only your own ship otherwise wears (in cyan).</summary>
+        public static readonly Color TraderShipCol = new Color(1f, 0.78f, 0.1f);
 
         /// <summary>A map marker: a generated HUD ICON when one exists (uGUI icon pass), else the unicode
         /// glyph as fallback — both tinted with the marker colour, drawn on a dark backing disc so the

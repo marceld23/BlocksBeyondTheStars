@@ -3293,16 +3293,17 @@ namespace BlocksBeyondTheStars.Client
             _wasGrounded = grounded;
         }
 
-        /// <summary>True when the player's upper body sits in a water block — the cue to switch to swimming
-        /// (sampled at chest height, so wading through shallow water still walks; only deep water swims).</summary>
-        private bool IsSubmerged() => BlockKeyAt(transform.position + Vector3.up * 1.1f) == "water";
+        /// <summary>True when the player's upper body sits in water — the cue to switch to swimming (sampled at chest
+        /// height, so wading through shallow water still walks; only deep water swims). A submerged kelp stalk, ladder
+        /// or form counts as water (#1902), so a diver swims through a kelp forest instead of dropping to the seabed.</summary>
+        private bool IsSubmerged() => Game != null && Game.IsWaterAt(transform.position + Vector3.up * 1.1f);
 
         /// <summary>True when the player's feet touch water on landing — sampled low so even a single block of
         /// water counts. Used to cushion the fall (no splash damage) the way any depth of water does in Minecraft;
         /// <see cref="IsSubmerged"/> alone (chest height) missed shallow pools (Severin playtest).</summary>
         private bool FeetInWater() =>
-            BlockKeyAt(transform.position + Vector3.up * 0.1f) == "water"
-            || BlockKeyAt(transform.position + Vector3.up * 0.6f) == "water";
+            Game != null
+            && (Game.IsWaterAt(transform.position + Vector3.up * 0.1f) || Game.IsWaterAt(transform.position + Vector3.up * 0.6f));
 
         /// <summary>True when a low (≤1 block) solid bank sits directly ahead of the swimmer — a wall at knee
         /// height with clear space just above it — the cue to mantle out of the water onto land (#131).</summary>

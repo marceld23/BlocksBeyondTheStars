@@ -24,6 +24,57 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
+
+Five reports from Justus ("Flash der Miner-BBTS", v2026.9.9, fresh singleplayer world) plus Marcel's question how the
+flying traders behave. Marcel's decisions 2026-09-15: generic texture solution without new art, clear the door lanes
+(existing worlds too), water drawn around plants, no minimum foam, traders stay longer / wait for nearby players / show
+on the planet map.
+
+- **#1900 Picture tiles on built-in forms.** Built-in shape faces had no texture coordinates, so every face showed the
+  whole tile: two drawn beds on a two-cell mattress, mini beds on pillow and boards, pots on pots. Every built-in form
+  face now gets form-local proportional UVs (`Face.Finish`: the "cut material" micro boxes already had), a `ShapePart`
+  and a `FaceSide`. `data/blocks.json` gains `tileKind` (`material`/`picture`) and `faces` slots (part, side, tile,
+  image region the face is stretched onto; `BlockFaceTextures`, client table `ShapeFaceTextures`). Bed, flower pot,
+  campfire, rug and ladder are dressed from their existing drawings — the two mattress tops continue ONE bed; stairs
+  are `material`. `BlockFaceTextureTests` fails when a stamped prop declares no `tileKind` or a picture prop no slots.
+  Editor voxel view gets real UVs (it read unset ones → one texel). Docs:
+  [docs/developer/CUSTOM_SHAPES.md](docs/developer/CUSTOM_SHAPES.md).
+- **#1902 Air pockets under water.** A cell holds one block id, so a plant, ladder or form in water deleted its water:
+  the server's oxygen check (head cell == water) let divers breathe inside kelp stalks, the mesher drew a dry hole. One
+  shared rule (`WetCell`, Shared): water, or a non-full block with water above or on ≥2 sides. Used by `HeadUnderwater`,
+  the client wash, audio muffle (no longer matching `water_spout`) and swimming (`WaterProbe`, Client.Core); the mesher
+  draws the water volume inside wet plant/prop cells and shows water faces toward dry bank plants. Tests: `WetCellTests`,
+  `OxygenTests` (kelp, ladder, post form), `WaterProbeTests`.
+- **#1901 A chair in the cabin door.** `StationKitComposer.Bake` reserved lanes only at module joints and did not seal the
+  room flood at door markers: the table's chair landed right behind a cabin door, and all four cabins plus the corridor
+  were furnished as ONE region (doubled algae tanks). One shared rule `RoomFurnisher.DoorLaneAt` (door gap = the flood
+  wall; Clear = gap + two rows each side; `BlockedDoorLanes`) for kit stations, settlements, cities and the editor
+  preview; the structure editor's seal check/export paints blocked lanes red (`ui.ed.door_lanes_blocked`, 14 locales).
+  Templates: station hydro modules and `village_greenhouse_1` lost the trays/crops in front of a door (generators +
+  regenerated data). The lamp post stands beside the module's real door; perimeter fence, garden flora and lamp posts
+  are cleared from lanes. **Existing worlds:** `StationKitRecord.Revision` — a replayed kit station at revision 0
+  removes stale generated furniture where the current bake leaves air, once (never beds, lights, walls, doors,
+  ladders, player-attributed cells or crates holding a container). Tests: `DoorLaneTests` (14), the migration in
+  `StationKitServerTests`. Docs: [docs/developer/STATION_SETTLEMENT_EDITOR.md](docs/developer/STATION_SETTLEMENT_EDITOR.md).
+  ⚠ Open (decision): existing kit SETTLEMENTS re-stamp upstairs rooms with interior doors with new furniture positions
+  and are not cleaned — a v2026.9.9 world may show a second set there (town house/market variant 1, G.D.S. hall
+  bedrooms, city tall house).
+- **#1904 Trader ships.** A landed trader stays 600–900 s (was 180–360), a docked one 420–720 s (was 150–300). When its
+  time is up a landed trader waits while any player is within 32 blocks of its pilot or hull and leaves 30 s after the
+  last one walked off (`LastPlayerNearAt`); bodies nobody is on (also unloaded ones) are still swept. While landed the
+  planet POI list carries a live `trader_ship` marker at the pilot ("Trader ship {name}", `poi.trader_ship`, 14
+  locales): gold ship icon + label on the planet map, gold blip on the HUD compass. Landing and lift-off re-broadcast
+  pads and POIs to everyone on the body (the stale pad list). Tests: `LandedTraderStayTests` (8), `SpaceTraderTests`.
+  Docs: [docs/developer/NPC_TRADER_SHIPS.md](docs/developer/NPC_TRADER_SHIPS.md), manual trader section.
+- **#1903 Shore foam at the old coastline.** Foam reads cells up to 13 blocks away, but a block change re-meshed only its
+  chunk and face neighbours. Water edits now park every meshed chunk within `WaterSurface.MeshReach` for one coalesced
+  refresh after 0.5 s (`GameBootstrap.MarkWaterReachDirty`). Tests: `WaterSurfaceTests`.
+- Mesher goldens re-pinned (`ChunkMesherGoldenEditModeTests`); local Unity build Success, EditMode 162/162.
+- **Open: Marcel's playtest** — a station cabin bed + pot, stairs/campfire/rug/ladder, a kelp forest dive (oxygen drops,
+  swimming, no holes around plants), flood a coast (old foam line gone), cabin doors free in a fresh AND in Justus'
+  world `z`, a landed trader on the planet map/compass that waits while you stand next to it.
+
 ### 🌀 Loading screen: spinner and text centred on any screen shape (#1898, 2026-09-15, branch fix/loading-overlay-centred)
 
 Marcel: in the WebGL build the world-loading spinner sat right of the destination name and "Loading world…"; the desktop

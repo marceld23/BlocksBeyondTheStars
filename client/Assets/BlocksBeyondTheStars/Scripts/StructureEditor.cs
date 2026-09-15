@@ -1010,7 +1010,8 @@ namespace BlocksBeyondTheStars.Client
             return t;
         }
 
-        /// <summary>Save gate (#1877): port errors and — for station modules — leaks block the export.</summary>
+        /// <summary>Save gate (#1877): port errors, — for station modules — leaks, and (#1901) a block standing in a door's
+        /// lane block the export.</summary>
         private bool ValidateForExport()
         {
             var t = BuildTemplate();
@@ -1032,19 +1033,30 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            var blockedLanes = RoomFurnisher.BlockedDoorLanes(t);
+            if (blockedLanes.Count > 0)
+            {
+                PaintLeaks(blockedLanes);
+                SetStatus(string.Format(L("ui.ed.door_lanes_blocked"), blockedLanes.Count));
+                return false;
+            }
+
             return true;
         }
 
-        /// <summary>The "Check seal" button: paints the leaks red or reports the module airtight.</summary>
+        /// <summary>The "Check seal" button: paints the leaks — or else the blocks in a door lane (#1901) — red, or reports the
+        /// module airtight.</summary>
         private void CheckSeal()
         {
             var t = BuildTemplate();
             var errors = StructurePorts.Validate(t);
             var leaks = StructureSeal.FindLeaks(t);
-            PaintLeaks(leaks);
+            var blockedLanes = leaks.Count > 0 ? new List<Vector3i>() : RoomFurnisher.BlockedDoorLanes(t);
+            PaintLeaks(leaks.Count > 0 ? leaks : blockedLanes);
             SetStatus(errors.Count > 0
                 ? string.Format(L("ui.ed.port_errors"), errors.Count, errors[0])
-                : leaks.Count > 0 ? string.Format(L("ui.ed.seal_leaks"), leaks.Count) : L("ui.ed.seal_ok"));
+                : leaks.Count > 0 ? string.Format(L("ui.ed.seal_leaks"), leaks.Count)
+                : blockedLanes.Count > 0 ? string.Format(L("ui.ed.door_lanes_blocked"), blockedLanes.Count) : L("ui.ed.seal_ok"));
         }
 
         private void OpenKitPanel()

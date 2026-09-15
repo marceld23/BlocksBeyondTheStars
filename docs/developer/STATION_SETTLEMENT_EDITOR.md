@@ -325,6 +325,22 @@ markers in canteens and bars. The composition (module, origin, turns) is pinned 
 of complete templates (non-pinOnly) and kits of the tier, drawn by weight; `StationTemplateUse = Off` keeps the
 procedural generator.
 
+**Door lanes (#1901)** — one rule for every composer (`RoomFurnisher.DoorLaneAt`): a door marker (set at the doorway's
+floor or up to two cells above it) is probed like the server hangs the door — the jamb beside it gives the wall axis, the
+air run along the wall (≤ 3 each way) the gap, and the doorway extends across while its jambs continue (a kit joint is two
+deep). `Gap` = the doorway cells (a flood fill reads them as the closed door, so the cabins off one corridor are separate
+rooms); `Clear` = the doorway plus two rows on each side across the full gap width, a side ending at the grid edge or at a
+three-high wall; `Keep` = `Clear` plus the first row's two corners. No furniture goes on `Keep` (`StationKitComposer.Bake`,
+`FurnishAuthoredRooms` for settlements, cities and the editor preview; the station's fallback vendor / mission board
+markers skip it too), and `Clear` must be air at foot and head height — at foot height a stair, ramp or floor plate still
+passes (`RoomFurnisher.BlockedDoorLanes`: tested for every shipped template, every station kit, the modular settlement
+kits and the G.D.S. city). A settlement's perimeter fence, garden flora and lamp posts step out of the lanes afterwards
+(`ClearDecorationFromDoorLanes`), and a module's lamp post stands one step past its real door gap (`LampBesideDoor`). The
+legacy procedural houses (template use Off) keep their own one-row door reservation. Existing kit stations: the stamp only
+writes non-air cells, so `StationKitRecord.Revision` (0 in older saves) makes the next stamp remove — once — every station
+furnishing piece (`RoomFurnisher.IsFurnishingPiece`: never a bed, light, wall, door or ladder) standing where the current
+bake leaves air, skipping cells a player edited last and crates that hold a container.
+
 **Settlement and city kits**: `SettlementLayoutSpec.FromKit` / `CityLayoutSpec.FromKit` shape the grid (pinned in
 `StructurePlacementRecord.KitLayout`), `SettlementGenerator.AssignKitModules` fills the plots / districts — required
 entries first onto the first free slot of the matching role, then weighted draws until `max` — and the per-slot picks are
@@ -350,7 +366,8 @@ plot / district roles — a known role is mirrored into `role` so the legacy per
 the port-door stepper (`StructurePorts.DoorOptions`), **Check seal** and **Assemble**. Port brushes are palette entries of
 kind `port` (`door`, `wide`, `ladder`): left-click writes `tag[:door]` into `CellData.Port` of the hit block,
 middle-click clears it; ports render cyan-tinted. Export builds a `StructureTemplate` from the room and refuses port
-errors (`StructurePorts.Validate`) and — station modules only — leaks (`StructureSeal.FindLeaks`, painted red); cells
+errors (`StructurePorts.Validate`), — station modules only — leaks (`StructureSeal.FindLeaks`, painted red) and, in both
+editors, a block in a door lane (`RoomFurnisher.BlockedDoorLanes`, painted red; **Check seal** reports it too); cells
 carry `port`, meta and template JSON carry `kit` / `function`. The kit panel lists shipped kits of the editor's kinds
 (`station`, or `settlement` + `city`) overlaid by `usercontent/structure_kits/*.json`, edits every `StructureKit` field
 and the entries table, and saves the user file plus `<kind>_exports/<key>/kit.json`. **Assemble** composes the named

@@ -30,11 +30,12 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         private const ulong FnvPrime = 1099511628211UL;
 
         // Pinned 2026-09-04 from the pre-#1528 mesher (Windows, Unity 6000.4.9f1). 0 = not pinned yet: the test
-        // then fails with the value to paste here.
+        // then fails with the value to paste here. Re-pinned 2026-09-15 on purpose: built-in forms carry
+        // proportional UVs and texture slots (#1900), and plants/props standing in water draw their cell's water (#1902).
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0xf9a25fe3c1b17825UL,
-            ["surface (5,2,7)"] = 0xeeb72bd29d8aa44fUL,
+            ["deep (5,1,7)"] = 0xb7a4cd5b32c41ab5UL,
+            ["surface (5,2,7)"] = 0xa494772baa945175UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

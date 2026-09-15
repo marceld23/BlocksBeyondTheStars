@@ -376,10 +376,16 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            var p = Game.PlayerPosition;
-            string k = Game.Content.BlockById(Game.World.GetBlock(
-                Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y + 1.5f), Mathf.FloorToInt(p.z)))?.Key ?? string.Empty;
-            return k.Contains("water") || k.Contains("lava");
+            // #1902: water by the shared wet-cell rule (a submerged kelp stalk muffles too); the old
+            // Contains("water") also matched the water_spout block standing on dry land.
+            var head = Game.PlayerPosition + Vector3.up * 1.5f;
+            if (Game.IsWaterAt(head))
+            {
+                return true;
+            }
+
+            return Game.Content.BlockById(Game.World.GetBlock(
+                Mathf.FloorToInt(head.x), Mathf.FloorToInt(head.y), Mathf.FloorToInt(head.z)))?.Key == "lava";
         }
 
         private void UpdateFluidAmbience()

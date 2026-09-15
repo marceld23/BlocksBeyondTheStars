@@ -452,14 +452,19 @@ public static class SettlementGenerator
                 }
 
                 var moduleMarkers = new List<SettlementMarker>();
+                (int X, int Z)? lampAt = null;
                 if (module != null)
                 {
                     ox = cxp * plot + 1 + (building - module.Width) / 2;
                     oz = czp * plot + 1 + (building - module.Length) / 2;
                     fp = System.Math.Max(module.Width, module.Length);
                     StampModule(module, ox, 0, oz, content, Get, setCell, moduleMarkers, furniture, plotHash, materials);
-                    int side = DoorSideOf(moduleMarkers, ox, oz, module.Width, module.Length);
-                    if (side >= 0) doorSide = side;
+                    int side = DoorSideOf(moduleMarkers, ox, oz, module.Width, module.Length, out var entrance);
+                    if (side >= 0)
+                    {
+                        doorSide = side;
+                        lampAt = LampBesideDoor(Get, w, h, l, side, entrance); // #1901: beside the module's real door, not in its lane
+                    }
                 }
                 else if (greenhouse)
                 {
@@ -477,7 +482,7 @@ public static class SettlementGenerator
                 buildings++;
 
                 // A lamp post + a small garden beside the door, so streets feel inhabited.
-                DecorateAround(Set, ox, oz, fp, doorSide, lamp, flora, alien, rng, layout is { Revision: >= 1 } ? SafeGet : null);
+                DecorateAround(Set, ox, oz, fp, doorSide, lamp, flora, alien, rng, layout is { Revision: >= 1 } ? SafeGet : null, lampAt);
 
                 // Interaction / spawn marker at the building's interior floor centre.
                 var centre = new Vector3i(ox + fp / 2, 1, oz + fp / 2);
@@ -560,6 +565,13 @@ public static class SettlementGenerator
         if (!ruined && rng.NextDouble() < (town ? 0.35 : 0.5))
         {
             StampPerimeter(Set, w, l, fence, rng);
+        }
+
+        if (!ruined)
+        {
+            // #1901: the fence ran straight past the doors of the houses on the edge, a garden patch or the next plot's
+            // lamp post could stand in a doorway — the decoration steps out of every door lane (after every draw).
+            ClearDecorationFromDoorLanes(Get, Set, w, h, l, markers, fence, flora, lamp);
         }
 
         // Ruins: a decay pass turns the settlement into a proper ruin. Collapse rises with height — ground
@@ -888,24 +900,50 @@ public static class SettlementGenerator
         }
     }
 
-    /// <summary>Which wall of a module box its first door marker sits on (0 −Z, 1 +Z, 2 −X, 3 +X), or −1
-    /// when it has none — the lamp post and garden go beside the door.</summary>
-    internal static int DoorSideOf(IReadOnlyList<SettlementMarker> markers, int ox, int oz, int w, int l)
+    /// <summary>Which wall of a module box its first door marker sits on (0 −Z, 1 +Z, 2 −X, 3 +X), or −1 when it has
+    /// none — the lamp post and garden go beside the door; <paramref name="door"/> is that marker's cell (default when
+    /// there is none).</summary>
+    internal static int DoorSideOf(IReadOnlyList<SettlementMarker> markers, int ox, int oz, int w, int l, out Vector3i door)
     {
         foreach (var m in markers)
         {
-            if (!m.Type.StartsWith("door_", System.StringComparison.Ordinal))
+            if (!RoomFurnisher.IsDoorMarker(m.Type))
             {
                 continue;
             }
 
+            door = m.LocalPos;
             if (m.LocalPos.Z == oz) return 0;
             if (m.LocalPos.Z == oz + l - 1) return 1;
             if (m.LocalPos.X == ox) return 2;
             if (m.LocalPos.X == ox + w - 1) return 3;
         }
 
+        door = default;
         return -1;
+    }
+
+    /// <summary>
+    /// Where the lamp post of a module's entrance stands (#1901): one cell out from the door's wall, one step past the
+    /// end of its gap along the wall — beside the door lane, never in it. For a procedural house (a gap at
+    /// <c>mid − 1 .. mid</c>) that is exactly its fixed <c>mid + 1</c> spot. Null when the door does not measure as a
+    /// doorway on that wall (the caller keeps the fixed spot).
+    /// </summary>
+    internal static (int X, int Z)? LampBesideDoor(System.Func<int, int, int, ushort> get, int w, int h, int l, int side, Vector3i door)
+    {
+        if (RoomFurnisher.DoorLaneAt(get, w, h, l, door.X, door.Y, door.Z) is not { } lane || lane.WallAlongX != (side <= 1))
+        {
+            return null;
+        }
+
+        int along = lane.GapMax + 1;
+        return side switch
+        {
+            0 => (along, door.Z - 1),
+            1 => (along, door.Z + 1),
+            2 => (door.X - 1, along),
+            _ => (door.X + 1, along),
+        };
     }
 
     /// <summary>The first air cell with something solid under it, scanning up the column (x, z) from y = 1;
@@ -925,17 +963,35 @@ public static class SettlementGenerator
 
     /// <summary>
     /// Furnishes every room an author marked (#1828): each <see cref="RoomMarker"/> flood-fills the floor it
-    /// stands on (<see cref="RoomFurnisher.FloodRoom"/>), every other marker cell in that room and the cells
-    /// around each door marker stay free, and the room's role follows the marker found inside it — a vendor
-    /// makes a market, a mission board an office, anything else a home. Coordinates are those of the markers.
+    /// stands on (<see cref="RoomFurnisher.FloodRoom"/>), every other marker cell in that room and every door lane on its
+    /// floor stay free (<see cref="RoomFurnisher.DoorLaneAt"/>, #1901), and the room's role follows the marker found
+    /// inside it — a vendor makes a market, a mission board an office, anything else a home. Coordinates are those of
+    /// the markers.
     /// </summary>
     internal static void FurnishAuthoredRooms(System.Func<int, int, int, ushort> get, int w, int h, int l,
         IReadOnlyList<SettlementMarker> markers, RoomFurnisher.Palette furniture, long seed, RoomFurnisher.CellSink setCell)
     {
-        // #1886: an INTERIOR doorway — a door marker with floor on both sides inside the template — keeps two rooms apart:
-        // the flood reads its gap as the wall the closed door will be. (An entrance at the template's edge has no floor
-        // beyond it, so every room shipped before stays exactly as it was furnished.)
-        var gaps = InteriorDoorGaps(get, w, h, l, markers);
+        // #1886 / #1901: a doorway keeps two rooms apart — the flood reads its gap as the wall the closed door will be —
+        // and its lane (two rows each side, measured on the authored blocks before anything is furnished) stays clear.
+        var doors = new List<Vector3i>();
+        foreach (var m in markers)
+        {
+            if (RoomFurnisher.IsDoorMarker(m.Type))
+            {
+                doors.Add(m.LocalPos);
+            }
+        }
+
+        var lanes = RoomFurnisher.DoorLanes(get, w, h, l, doors);
+        var gaps = new HashSet<(int X, int Y, int Z)>();
+        foreach (var lane in lanes)
+        {
+            foreach (var (x, z) in lane.Gap)
+            {
+                gaps.Add((x, lane.FootY, z));
+            }
+        }
+
         System.Func<int, int, int, ushort> flood = gaps.Count == 0 ? get : (x, y, z) => gaps.Contains((x, y, z)) ? (ushort)1 : get(x, y, z);
         int n = 0;
         foreach (var room in markers)
@@ -971,28 +1027,24 @@ public static class SettlementGenerator
                 }
             }
 
+            // Every door lane on this floor — the level the door stands at, whatever height its marker was set at.
+            foreach (var lane in lanes)
+            {
+                if (lane.FootY == room.LocalPos.Y)
+                {
+                    reserved.UnionWith(lane.Keep);
+                }
+            }
+
             var role = RoomFurnisher.RoomRole.House;
             foreach (var m in markers)
             {
-                if (m.Type == RoomMarker || m.LocalPos.Y != room.LocalPos.Y)
+                if (m.Type == RoomMarker || RoomFurnisher.IsDoorMarker(m.Type) || m.LocalPos.Y != room.LocalPos.Y)
                 {
                     continue;
                 }
 
                 var at = (m.LocalPos.X, m.LocalPos.Z);
-                if (m.Type.StartsWith("door_", System.StringComparison.Ordinal))
-                {
-                    // The doorway is air over floor, so the flood fill reaches it: the gap itself, the second
-                    // door column and the lane through it stay free.
-                    reserved.Add(at);
-                    foreach (var d in new[] { (0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (-1, 1), (1, -1), (-1, -1) })
-                    {
-                        reserved.Add((at.Item1 + d.Item1, at.Item2 + d.Item2));
-                    }
-
-                    continue;
-                }
-
                 if (!cells.Contains(at))
                 {
                     continue;
@@ -1008,45 +1060,6 @@ public static class SettlementGenerator
             var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (n * 7919)));
             RoomFurnisher.Furnish(setCell, region, room.LocalPos.Y, clearance, furniture, role, reserved, rng);
         }
-    }
-
-    /// <summary>
-    /// The gap cells of every interior doorway (#1886): a door marker whose cell has floor on both sides across the wall,
-    /// extended along the wall while the doorway stays open (at most two cells each way). Level of the marker only.
-    /// </summary>
-    internal static HashSet<(int X, int Y, int Z)> InteriorDoorGaps(System.Func<int, int, int, ushort> get, int w, int h, int l,
-        IReadOnlyList<SettlementMarker> markers)
-    {
-        var gaps = new HashSet<(int X, int Y, int Z)>();
-        foreach (var m in markers)
-        {
-            if (!m.Type.StartsWith("door_", System.StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            int x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z;
-            bool Floor(int cx, int cz) => cx >= 0 && cz >= 0 && cx < w && cz < l && y > 0 && y < h && get(cx, y, cz) == 0 && get(cx, y - 1, cz) != 0;
-            bool Air(int cx, int cz) => cx >= 0 && cz >= 0 && cx < w && cz < l && get(cx, y, cz) == 0;
-            bool acrossZ = Floor(x, z - 1) && Floor(x, z + 1);
-            bool acrossX = Floor(x - 1, z) && Floor(x + 1, z);
-            if (acrossZ == acrossX || !Air(x, z))
-            {
-                continue; // an entrance at the edge, or no wall to speak of
-            }
-
-            int ax = acrossZ ? 1 : 0, az = acrossZ ? 0 : 1; // the wall runs along X when the passage crosses Z
-            gaps.Add((x, y, z));
-            foreach (int sign in new[] { 1, -1 })
-            {
-                for (int k = 1; k <= 2 && Air(x + sign * k * ax, z + sign * k * az); k++)
-                {
-                    gaps.Add((x + sign * k * ax, y, z + sign * k * az));
-                }
-            }
-        }
-
-        return gaps;
     }
 
     /// <summary>Wall height of a greenhouse (the y of its ceiling row): a village garden house is low enough
@@ -1417,9 +1430,58 @@ public static class SettlementGenerator
         }
     }
 
-    /// <summary>A lamp post and a little garden patch next to a building's door.</summary>
+    /// <summary>
+    /// #1901: the decoration laid around the buildings never stands in a door lane (<see cref="RoomFurnisher.DoorLaneAt"/>):
+    /// out of every lane's cells go the perimeter <paramref name="fence"/> (on the grid's edge only), garden
+    /// <paramref name="flora"/> and a two-high <paramref name="lamp"/> post (a single lamp block may be a room's terminal).
+    /// Nothing else is touched, and the draws that placed them are already made, so every later draw stays where it was.
+    /// </summary>
+    internal static void ClearDecorationFromDoorLanes(System.Func<int, int, int, ushort> get, System.Action<int, int, int, ushort> set,
+        int w, int h, int l, IReadOnlyList<SettlementMarker> markers, ushort fence, ushort flora, ushort lamp)
+    {
+        var doors = new List<Vector3i>();
+        foreach (var m in markers)
+        {
+            if (RoomFurnisher.IsDoorMarker(m.Type))
+            {
+                doors.Add(m.LocalPos);
+            }
+        }
+
+        foreach (var lane in RoomFurnisher.DoorLanes(get, w, h, l, doors))
+        {
+            int foot = lane.FootY, head = foot + 1;
+            foreach (var (x, z) in lane.Clear)
+            {
+                ushort low = get(x, foot, z);
+                ushort high = head < h ? get(x, head, z) : (ushort)0;
+                bool edge = x == 0 || z == 0 || x == w - 1 || z == l - 1;
+                if (lamp != 0 && low == lamp && high == lamp)
+                {
+                    set(x, foot, z, 0);
+                    set(x, head, z, 0);
+                    continue;
+                }
+
+                if (low != 0 && ((edge && low == fence) || low == flora))
+                {
+                    set(x, foot, z, 0);
+                }
+
+                if (high != 0 && high == flora)
+                {
+                    set(x, head, z, 0);
+                }
+            }
+        }
+    }
+
+    /// <summary>A lamp post and a little garden patch next to a building's door. <paramref name="lampAt"/> places the
+    /// post beside a module's real door (<see cref="LampBesideDoor"/>); without it the post takes the procedural house's
+    /// spot beside its door gap.</summary>
     internal static void DecorateAround(System.Action<int, int, int, ushort> set, int ox, int oz, int fp, int doorSide,
-        ushort lamp, ushort flora, bool alien, System.Random rng, System.Func<int, int, int, ushort>? outsideOnly = null)
+        ushort lamp, ushort flora, bool alien, System.Random rng, System.Func<int, int, int, ushort>? outsideOnly = null,
+        (int X, int Z)? lampAt = null)
     {
         int mid = fp / 2;
         int px, pz;
@@ -1429,6 +1491,12 @@ public static class SettlementGenerator
             case 1: px = ox + mid + 1; pz = oz + fp; break;
             case 2: px = ox - 1; pz = oz + mid + 1; break;
             default: px = ox + fp; pz = oz + mid + 1; break;
+        }
+
+        if (lampAt is { } at)
+        {
+            px = at.X;
+            pz = at.Z;
         }
 
         if (lamp != 0 && rng.NextDouble() < 0.7)

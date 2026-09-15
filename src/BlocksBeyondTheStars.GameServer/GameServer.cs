@@ -1891,7 +1891,8 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>True when the player's head is inside a water block — diving spends the suit's oxygen tank.</summary>
+    /// <summary>True when the player's head is under water — diving spends the suit's oxygen tank. A plant, ladder or
+    /// building form the water surrounds counts as water too (#1902: a kelp stalk used to be a breathable air shaft).</summary>
     private bool HeadUnderwater(Shared.State.PlayerState p)
     {
         if (_waterId == 0)
@@ -1899,9 +1900,20 @@ public sealed partial class GameServer
             return false;
         }
 
-        var head = new BlocksBeyondTheStars.Shared.Geometry.Vector3i(
+        _wetBlockAt ??= (x, y, z) => _world.GetBlock(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(x, y, z)).Value;
+        _wetNonFull ??= IsNonFullCell;
+        return WetCell.IsWet(_wetBlockAt, _waterId, _wetNonFull,
             (int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y + 1.5f), (int)System.Math.Floor(p.Position.Z));
-        return _world.GetBlock(head).Value == _waterId;
+    }
+
+    private System.Func<int, int, int, ushort>? _wetBlockAt;
+    private System.Func<int, int, int, bool>? _wetNonFull;
+
+    /// <summary>#1902: a block that fills only part of its cell — a plant, a slim prop or any non-cube building form.</summary>
+    private bool IsNonFullCell(int x, int y, int z)
+    {
+        var pos = new BlocksBeyondTheStars.Shared.Geometry.Vector3i(x, y, z);
+        return WetCell.IsNonFullKey(_content.BlockById(_world.GetBlock(pos))?.Key) || !ShapeCode.IsCube(_world.GetShape(pos));
     }
 
     /// <summary>Hunger level at or below which the suit auto-consumes a stored emergency ration.</summary>

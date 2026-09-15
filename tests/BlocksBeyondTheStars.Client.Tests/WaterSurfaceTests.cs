@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 
+using System.Collections.Generic;
+using System.Linq;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -112,6 +115,51 @@ public sealed class WaterSurfaceTests
         Assert.Equal(1f, g.Classify(0, 20).Foam, 3);
         Assert.Equal(0f, g.Classify(4, 20).Foam, 3);
         Assert.True(g.Classify(1, 20).Foam > g.Classify(2, 20).Foam);
+    }
+
+    [Fact]
+    public void FloodingPastTheBank_MovesTheFoamBandToTheNewShore()
+    {
+        // #1903: a player opens the bank and the water spreads six blocks inland — the foam must leave the old
+        // waterline and sit on the new one (the mesher only has to re-read the cells, see WaterReach tests below).
+        var g = Grid.Body(0, 0, 40, 40);
+        for (int z = 0; z <= 40; z++)
+        {
+            for (int x = -6; x <= -1; x++)
+            {
+                g.Set(x, 0, z, Water);
+            }
+
+            g.Set(-7, 0, z, Stone);
+        }
+
+        Assert.Equal(0f, g.Classify(0, 20).Foam, 3);
+        Assert.Equal(1f, g.Classify(-6, 20).Foam, 3);
+    }
+
+    [Fact]
+    public void WaterReach_CoversExactlyTheChunksWhoseSurfaceReadsTheCell()
+    {
+        // #1903: re-meshing only the edited chunk and its face neighbours left stale foam in chunks a few blocks
+        // away. Brute force: every surface cell within MeshReach on the edit's level or the one below must land in
+        // one of the returned chunks, and no chunk may be returned that holds none of them.
+        const int circumference = 12000;
+        foreach (var (wx, wy, wz) in new[] { (35, 40, 40), (8, 8, 8), (16, 16, 16), (15, 0, -1), (-20, 33, 100) })
+        {
+            var got = new HashSet<ChunkCoord>();
+            WaterSurface.ChunksInWaterReach(wx, wy, wz, circumference, got);
+
+            var expected = new HashSet<ChunkCoord>();
+            for (int y = wy - 1; y <= wy; y++)
+                for (int x = wx - WaterSurface.MeshReach; x <= wx + WaterSurface.MeshReach; x++)
+                    for (int z = wz - WaterSurface.MeshReach; z <= wz + WaterSurface.MeshReach; z++)
+                    {
+                        var c = new ChunkCoord(WorldConstants.WorldToChunk(x), WorldConstants.WorldToChunk(y), WorldConstants.WorldToChunk(z));
+                        expected.Add(WorldConstants.CanonicalChunk(c, circumference));
+                    }
+
+            Assert.Equal(expected.OrderBy(c => (c.X, c.Y, c.Z)), got.OrderBy(c => (c.X, c.Y, c.Z)));
+        }
     }
 
     [Fact]

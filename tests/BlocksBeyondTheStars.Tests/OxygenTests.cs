@@ -98,6 +98,58 @@ public sealed class OxygenTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("flora_kelp", 0)]
+    [InlineData("ladder", 0)]
+    [InlineData("stone", (int)BlocksBeyondTheStars.Shared.World.BlockShape.Post)]
+    public void AHeadInsideAPlantPropOrFormUnderWater_StillDrainsOxygen(string blockKey, int shape)
+    {
+        // #1902: a kelp stalk, a ladder or a building form in the pool deleted the water in its cell, and a head in
+        // that cell counted as dry — on a breathable world the tank even refilled under water.
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "oxyshaft"));
+        using (repo)
+        {
+            var st = new LoopbackServerTransport(new LoopbackLink());
+            var config = new ServerConfig
+            {
+                WorldName = "oxyshaft",
+                Seed = 7,
+                StartPlanet = "jungle",
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = true,
+                PlaceSettlements = false,
+                PlaceWrecks = false,
+            };
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+
+            var p = server.AddLocalPlayer("Diver");
+            server.TickForTest(0.1);
+
+            var water = _content.GetBlock("water")!.NumericId;
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var shaft = _content.GetBlock(blockKey)!.NumericId;
+            int cx = 240, cz = 240, floorY = 100;
+            for (int x = cx - 3; x <= cx + 3; x++)
+                for (int z = cz - 3; z <= cz + 3; z++)
+                {
+                    server.World.SetBlock(new Vector3i(x, floorY, z), stone);
+                    for (int y = floorY + 1; y <= floorY + 8; y++) server.World.SetBlock(new Vector3i(x, y, z), water);
+                }
+
+            // The whole column the diver's head can drift through is the stalk / ladder / form.
+            for (int y = floorY + 1; y <= floorY + 7; y++)
+            {
+                server.World.SetBlock(new Vector3i(cx, y, cz), shaft, shape: shape);
+            }
+
+            var dive = new Vector3f(cx + 0.5f, floorY + 3f, cz + 0.5f);
+            float before = p.State.Oxygen = 80f;
+            for (int i = 0; i < 6; i++) { p.State.Position = dive; server.TickForTest(0.5); }
+            Assert.True(p.State.Oxygen < before, $"A head inside a submerged {blockKey} must drain oxygen (was {p.State.Oxygen}).");
+        }
+    }
+
     [Fact]
     public void AboardShip_RefillsOxygen_OutsideDrainsIt()
     {

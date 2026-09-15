@@ -67,6 +67,18 @@ public sealed class BlockDefinition
     public int? Color { get; set; }
 
     /// <summary>
+    /// What the block's tile shows (#1900): <c>"material"</c> (a surface — stone, planks, steel; the default) or
+    /// <c>"picture"</c> (a drawing of the whole object — the bed seen from above, a flower pot). A picture only fits
+    /// the face it was drawn for, so a picture block that renders as a non-cube form declares <see cref="Faces"/>.
+    /// Every block the server stamps with a form must say which one it is (a content test holds that).
+    /// </summary>
+    public string? TileKind { get; set; }
+
+    /// <summary>Texture slots per part and side of the block's built-in form (#1900), see
+    /// <see cref="BlockFaceTexture"/>. Null = every face shows the slice of the block's own tile it covers.</summary>
+    public List<BlockFaceTexture>? Faces { get; set; }
+
+    /// <summary>
     /// Whether this block may be re-coloured by the player (the always-available "Dye"/"Glow" crafting
     /// actions). Only plain building/terrain materials are tintable; machines, doors, glass, flora and
     /// light blocks are excluded because they carry their own optics/tint logic. Set in <c>data/blocks.json</c>.

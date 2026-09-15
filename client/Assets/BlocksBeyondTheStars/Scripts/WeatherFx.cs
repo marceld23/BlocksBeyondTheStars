@@ -361,19 +361,9 @@ namespace BlocksBeyondTheStars.Client
             return _dropTex;
         }
 
-        /// <summary>True when the first-person eye (≈ the head, ~1.5 above the player root) is inside water.</summary>
-        private bool EyeUnderwater()
-        {
-            if (Game?.World == null || Game.Content == null)
-            {
-                return false;
-            }
-
-            var p = Game.PlayerPosition;
-            var def = Game.Content.BlockById(Game.World.GetBlock(
-                Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y + 1.5f), Mathf.FloorToInt(p.z)));
-            return def?.Key == "water";
-        }
+        /// <summary>True when the first-person eye (≈ the head, ~1.5 above the player root) is under water — including
+        /// inside a submerged plant, ladder or form, like the server's oxygen drain (#1902).</summary>
+        private bool EyeUnderwater() => Game != null && Game.IsWaterAt(Game.PlayerPosition + Vector3.up * 1.5f);
 
         /// <summary>The screen overlay, drawn by <see cref="ImguiOverlay"/> on Repaint only: everything below is
         /// GUI.DrawTexture (up to ~300 streaks + drops in rain), which has no effect in any other event (#1516).</summary>
