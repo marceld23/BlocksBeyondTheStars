@@ -108,6 +108,26 @@ namespace BlocksBeyondTheStars.Client
         public ClientWorld World { get; private set; }
         public BlockTextureAtlas Atlas { get; private set; }
 
+        private WaterProbe _waterProbe;
+
+        /// <summary>True when the cell holding <paramref name="point"/> is under water — plain water, or a plant, ladder
+        /// or building form the water surrounds (#1902). The underwater wash, the audio muffle and swimming all ask
+        /// this, with the same rule as the server's oxygen drain.</summary>
+        public bool IsWaterAt(Vector3 point)
+        {
+            if (World == null || Content == null)
+            {
+                return false;
+            }
+
+            if (_waterProbe == null || !_waterProbe.IsFor(World, Content))
+            {
+                _waterProbe = new WaterProbe(World, Content);
+            }
+
+            return _waterProbe.IsWet(Mathf.FloorToInt(point.x), Mathf.FloorToInt(point.y), Mathf.FloorToInt(point.z));
+        }
+
         /// <summary>Runtime atlas of player-painted block designs (#819) — fed from the server's design
         /// registry (join list + live additions/wipes); the mesher samples it via a thread-safe snapshot.</summary>
         public PaintDesignAtlas PaintAtlas { get; private set; }

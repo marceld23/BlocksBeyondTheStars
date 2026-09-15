@@ -416,6 +416,39 @@ namespace BlocksBeyondTheStars.Client
             }
 
             System.Func<int, int, int, bool> passableFn = PassableInWater;
+
+            // #1902: a cell holds one block id, so a plant or slim prop standing in water deleted the water of its cell
+            // and the surface showed a dry hole around every reed and kelp stalk. A plant/prop the water surrounds
+            // (WetCell — the same rule as the server's oxygen drain) now gets the water volume of its cell drawn, and
+            // real water keeps its faces hidden toward it. Building forms are left out: a water box would flicker
+            // against their faces (they still count as wet for breathing).
+            var wetWaterDef = content.GetBlock("water");
+            BlockId wetWaterId = wetWaterDef != null ? wetWaterDef.NumericId : BlockId.Air;
+            System.Func<int, int, int, ushort> blockValueFn = (bx, by, bz) => worldBlock(bx, by, bz).Value;
+            bool WetProp(int px, int py, int pz)
+            {
+                return !wetWaterId.IsAir
+                    && (traits.FlagsOf(worldBlock(px, py, pz)) & (TraitFloraPrefix | TraitSlimProp)) != 0
+                    && WetCell.WaterSurrounds(blockValueFn, wetWaterId.Value, px, py, pz);
+            }
+
+            // The water carries on into this cell, so a face toward it stays hidden: water, or a wet plant/prop.
+            bool WaterContinues(int px, int py, int pz)
+                => (!wetWaterId.IsAir && worldBlock(px, py, pz).Value == wetWaterId.Value) || WetProp(px, py, pz);
+
+            // Water shows a face toward this cell: loaded air, or a plant/prop the water does NOT surround (the bank).
+            bool OpenForWater(int px, int py, int pz) => OpenForWaterBlock(worldBlock(px, py, pz), px, py, pz);
+
+            bool OpenForWaterBlock(BlockId b, int px, int py, int pz)
+            {
+                if (b.IsAir)
+                {
+                    return Loaded(px, py, pz);
+                }
+
+                return (traits.FlagsOf(b) & (TraitFloraPrefix | TraitSlimProp)) != 0 && !WetProp(px, py, pz);
+            }
+
             WaterSurfaceData WaterCellData(BlockId waterId, int cwx, int cwy, int cwz)
             {
                 var key = (cwx, cwy, cwz);
@@ -553,6 +586,56 @@ namespace BlocksBeyondTheStars.Client
                 return res;
             }
 
+            // #1902: the water volume of a wet plant/prop cell — the faces a water block in that cell would draw (toward
+            // open air and dry bank plants, the inset surface on top, no flanks under water), in the transparent submesh
+            // with the water tile and the water-surface corner weights. The plant itself is meshed afterwards as usual.
+            void EmitWetCellWater(int lx, int ly, int lz, int cwx, int cwy, int cwz)
+            {
+                var cell = new Vector3(lx, ly, lz);
+                Rect waterUv = atlas.TileUv(wetWaterId.Value);
+                var waterMat = traits.MaterialOf(wetWaterId);
+                float waterEmission = traits.EmissionOf(wetWaterId);
+                bool surface = OpenForWater(cwx, cwy + 1, cwz);
+                bool submerged = WaterContinues(cwx, cwy + 1, cwz);
+                for (int f = 0; f < Faces.Length; f++)
+                {
+                    var dir = Faces[f];
+                    int nx = cwx + dir.X, ny = cwy + dir.Y, nz = cwz + dir.Z;
+                    bool draw = OpenForWater(nx, ny, nz) || (worldShape != null && !ShapeCode.IsCube(worldShape(nx, ny, nz)));
+                    if (!draw || (dir.Y == 0 && submerged))
+                    {
+                        continue;
+                    }
+
+                    var col = new Color(waterMat.x, waterMat.y, FaceShade(f), waterEmission);
+                    AddFace(verts, trisT, colors, uvs, tangents, cell, f, col, col, col, col, waterUv, 0,
+                        surface && dir.Y >= 0 ? WaterSurfaceQuad(cell, f) : null);
+                    if (surface && dir.Y == 1)
+                    {
+                        AddCornerLight(skyUv, blockLight, cwx, ny, cwz, 0, 0, 0f);
+                        AddCornerLight(skyUv, blockLight, cwx, ny, cwz, 0, 1, 0f);
+                        AddCornerLight(skyUv, blockLight, cwx, ny, cwz, 1, 1, 0f);
+                        AddCornerLight(skyUv, blockLight, cwx, ny, cwz, 1, 0, 0f);
+                        leafUv.Add(WaterCorner(wetWaterId, cwx, cwy, cwz));
+                        leafUv.Add(WaterCorner(wetWaterId, cwx, cwy, cwz + 1));
+                        leafUv.Add(WaterCorner(wetWaterId, cwx + 1, cwy, cwz + 1));
+                        leafUv.Add(WaterCorner(wetWaterId, cwx + 1, cwy, cwz));
+                    }
+                    else
+                    {
+                        float sky = Skylight(nx, ny, nz);
+                        Vector3 faceBl = BlockLightAt(nx, ny, nz);
+                        skyUv.Add(new Vector2(sky, 0f)); skyUv.Add(new Vector2(sky, 0f));
+                        skyUv.Add(new Vector2(sky, 0f)); skyUv.Add(new Vector2(sky, 0f));
+                        blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl);
+                        leafUv.Add(Vector4.zero); leafUv.Add(Vector4.zero); leafUv.Add(Vector4.zero); leafUv.Add(Vector4.zero);
+                    }
+
+                    Vector3 faceBlDir = BlockLightDirAt(nx, ny, nz);
+                    blockLightDir.Add(faceBlDir); blockLightDir.Add(faceBlDir); blockLightDir.Add(faceBlDir); blockLightDir.Add(faceBlDir);
+                }
+            }
+
             for (int x = 0; x < n; x++)
             for (int y = 0; y < n; y++)
             for (int z = 0; z < n; z++)
@@ -680,7 +763,8 @@ namespace BlocksBeyondTheStars.Client
                 // coastal foam, brook ripples along X or Z, calm basin for the rest — packed per corner into
                 // the top face's TEXCOORD2 for the transparent shader. Other faces/blocks keep the flora-tint layout.
                 bool isWater = (tf & TraitWater) != 0;
-                bool isWaterSurface = isWater && worldBlock(wx, wy + 1, wz).IsAir && Loaded(wx, wy + 1, wz);
+                // #1902: a dry plant poking out of the water above also leaves the surface open.
+                bool isWaterSurface = isWater && OpenForWater(wx, wy + 1, wz);
                 // Falling-water column (a waterfall): fed from above + open on its sides. Its vertical flanks
                 // would normally be culled (see the submerged-fluid test below) so the cascade reads flat; keep
                 // them and tag them mode 4 so the transparent shader streaks them downward.
@@ -694,6 +778,12 @@ namespace BlocksBeyondTheStars.Client
                 // Falling-lava column (a lavafall, L3): like falling water, but mode 6 → the opaque shader streaks
                 // a hot glow straight DOWN the vertical flanks. WaterfallDetect is fluid-agnostic (takes the id).
                 bool isFallingLava = isLava && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz, loadedFn);
+
+                // #1902: a plant or slim prop the water surrounds stands IN the water — draw its cell's water volume.
+                if (atlas != null && (tf & (TraitFloraPrefix | TraitSlimProp)) != 0 && WetProp(wx, wy, wz))
+                {
+                    EmitWetCellWater(x, y, z, wx, wy, wz);
+                }
 
                 // Graphics quick-win: small leafy plants render as classic CROSS BILLBOARDS (two crossed
                 // cutout quads, both windings) instead of decal-textured cubes — they read as real plants.
@@ -925,7 +1015,8 @@ namespace BlocksBeyondTheStars.Client
                     // chunk we simply don't have would draw a water/glass pane into the void at the streamed
                     // region's edge. Opaque blocks deliberately keep theirs — culling those would turn the edge
                     // of the loaded world see-through instead of closing it off with an ordinary wall.
-                    bool drawFace = transparent ? (nb.IsAir && Loaded(nx, ny, nz))
+                    // #1902: water also faces a dry bank plant, and never a wet one (its cell draws the water itself).
+                    bool drawFace = transparent ? (isWater ? OpenForWaterBlock(nb, nx, ny, nz) : nb.IsAir && Loaded(nx, ny, nz))
                         : foliage ? (nb.IsAir || traits.Has(nb, TraitTransparent))
                         : traits.ExposesOpaqueFace(nb);
 
@@ -941,7 +1032,9 @@ namespace BlocksBeyondTheStars.Client
                     // SIDE faces: they'd paint the surface-looking water tile onto an underwater edge — e.g. the
                     // step between deep (swimmable) and shallow water — which looks wrong seen from below (B43).
                     // Only the true top layer (air above) keeps its faces, so the real water surface still shows.
-                    if (drawFace && dir.Y == 0 && (tf & TraitFluid) != 0 && worldBlock(wx, wy + 1, wz).Value == id.Value && !isFallingWater && !isFallingLava)
+                    if (drawFace && dir.Y == 0 && (tf & TraitFluid) != 0
+                        && (isWater ? WaterContinues(wx, wy + 1, wz) : worldBlock(wx, wy + 1, wz).Value == id.Value)
+                        && !isFallingWater && !isFallingLava)
                     {
                         drawFace = false;
                     }
