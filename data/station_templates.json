@@ -31858,14 +31858,14 @@
         "y": 0,
         "z": 3,
         "kind": "block",
-        "id": "hydro_tray"
+        "id": "steel_floor"
       },
       {
         "x": 2,
         "y": 0,
         "z": 4,
         "kind": "block",
-        "id": "hydro_tray"
+        "id": "steel_floor"
       },
       {
         "x": 2,
@@ -31906,13 +31906,6 @@
         "x": 2,
         "y": 1,
         "z": 2,
-        "kind": "block",
-        "id": "flora_bush"
-      },
-      {
-        "x": 2,
-        "y": 1,
-        "z": 4,
         "kind": "block",
         "id": "flora_bush"
       },
@@ -60360,14 +60353,14 @@
         "y": 0,
         "z": 3,
         "kind": "block",
-        "id": "hydro_tray"
+        "id": "steel_floor"
       },
       {
         "x": 2,
         "y": 0,
         "z": 4,
         "kind": "block",
-        "id": "hydro_tray"
+        "id": "steel_floor"
       },
       {
         "x": 2,
@@ -60408,13 +60401,6 @@
         "x": 2,
         "y": 1,
         "z": 2,
-        "kind": "block",
-        "id": "flora_bush"
-      },
-      {
-        "x": 2,
-        "y": 1,
-        "z": 4,
         "kind": "block",
         "id": "flora_bush"
       },
@@ -97874,14 +97860,14 @@
         "y": 0,
         "z": 4,
         "kind": "block",
-        "id": "hydro_tray"
+        "id": "steel_floor"
       },
       {
         "x": 2,
         "y": 0,
         "z": 5,
         "kind": "block",
-        "id": "hydro_tray"
+        "id": "steel_floor"
       },
       {
         "x": 2,
@@ -97929,20 +97915,6 @@
         "x": 2,
         "y": 1,
         "z": 2,
-        "kind": "block",
-        "id": "flora_bush"
-      },
-      {
-        "x": 2,
-        "y": 1,
-        "z": 4,
-        "kind": "block",
-        "id": "flora_bush"
-      },
-      {
-        "x": 2,
-        "y": 1,
-        "z": 5,
         "kind": "block",
         "id": "flora_bush"
       },
@@ -152138,14 +152110,14 @@
         "y": 0,
         "z": 5,
         "kind": "block",
-        "id": "hydro_tray"
+        "id": "steel_floor"
       },
       {
         "x": 2,
         "y": 0,
         "z": 6,
         "kind": "block",
-        "id": "hydro_tray"
+        "id": "steel_floor"
       },
       {
         "x": 2,
@@ -152207,20 +152179,6 @@
         "x": 2,
         "y": 1,
         "z": 4,
-        "kind": "block",
-        "id": "flora_bush"
-      },
-      {
-        "x": 2,
-        "y": 1,
-        "z": 5,
-        "kind": "block",
-        "id": "flora_bush"
-      },
-      {
-        "x": 2,
-        "y": 1,
-        "z": 6,
         "kind": "block",
         "id": "flora_bush"
       },
@@ -211358,14 +211316,14 @@
         "y": 0,
         "z": 5,
         "kind": "block",
-        "id": "hydro_tray"
+        "id": "steel_floor"
       },
       {
         "x": 2,
         "y": 0,
         "z": 6,
         "kind": "block",
-        "id": "hydro_tray"
+        "id": "steel_floor"
       },
       {
         "x": 2,
@@ -211427,20 +211385,6 @@
         "x": 2,
         "y": 1,
         "z": 4,
-        "kind": "block",
-        "id": "flora_bush"
-      },
-      {
-        "x": 2,
-        "y": 1,
-        "z": 5,
-        "kind": "block",
-        "id": "flora_bush"
-      },
-      {
-        "x": 2,
-        "y": 1,
-        "z": 6,
         "kind": "block",
         "id": "flora_bush"
       },

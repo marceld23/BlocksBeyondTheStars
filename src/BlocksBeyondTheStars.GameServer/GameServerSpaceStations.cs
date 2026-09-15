@@ -5,6 +5,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -640,6 +641,17 @@ public sealed partial class GameServer
                     }
         });
 
+        // #1901: the stamp above skips air, so furniture an older kit composer put where the current bake leaves air — a
+        // chair in a cabin doorway — would stay in the persisted world forever. A replayed kit station clears it ONCE.
+        if (pinnedKit && kitStructure != null && _meta.StationKits.TryGetValue(station.Id, out var kitRecord)
+            && kitRecord.Revision < StationKitRecord.CurrentRevision)
+        {
+            int cleared = ClearStaleKitFurniture(station, structure);
+            kitRecord.Revision = StationKitRecord.CurrentRevision;
+            _repo.SaveMetadata(_meta);
+            _log.Info($"Station '{station.Name}': furnishing brought up to revision {StationKitRecord.CurrentRevision} ({cleared} stale piece(s) removed).");
+        }
+
         station.Markers.Clear();
         foreach (var m in structure.Markers)
         {
@@ -689,6 +701,54 @@ public sealed partial class GameServer
         // them per visit rather than here in the one-time structure stamp.
         station.Stamped = true;
         _log.Info($"Station '{station.Name}' stamped at ({station.Origin.X}, {station.Origin.Y}, {station.Origin.Z}) with {station.Markers.Count} markers.");
+    }
+
+    /// <summary>
+    /// The one-time cleanup of a kit station stamped by an older composer (#1901): every cell where the current bake leaves
+    /// air over its deck but the world still holds a piece the station furnisher places (a table, chair, bench or counter,
+    /// a crate, a plant, a terminal) is emptied. Never a bed, a light, a wall, a door, a ladder or anything a player built
+    /// or placed there (the cell's last editor is a player), and never a crate that holds a container. Returns the number
+    /// of cells cleared.
+    /// </summary>
+    private int ClearStaleKitFurniture(BoardableStation station, StationStructure structure)
+    {
+        var palette = RoomFurnisher.PaletteFor(RoomFurnisher.Style.Station, _content);
+        int cleared = 0;
+        _repo.RunInTransaction(() =>
+        {
+            for (int x = 0; x < structure.Width; x++)
+                for (int y = 1; y < structure.Height; y++)
+                    for (int z = 0; z < structure.Length; z++)
+                    {
+                        if (structure.Get(x, y, z) != 0 || structure.Get(x, y - 1, z) == 0)
+                        {
+                            continue; // the bake builds here, or there is no deck a piece could have stood on
+                        }
+
+                        var cell = new Vector3i(station.Origin.X + x, station.Origin.Y + y, station.Origin.Z + z);
+                        var id = _world.GetBlock(cell);
+                        if (id.IsAir || !RoomFurnisher.IsFurnishingPiece(palette, id.Value, _world.GetShape(cell)))
+                        {
+                            continue;
+                        }
+
+                        if (_containers.Any(c => c.Position.Equals(cell)))
+                        {
+                            continue; // a crate somebody keeps things in
+                        }
+
+                        var editor = _repo.GetBlockAttribution(_world.LocationId, WorldConstants.CanonicalBlock(cell, _world.Circumference));
+                        if (editor is { } e && !string.IsNullOrEmpty(e.Owner))
+                        {
+                            continue; // a player built or re-placed this piece
+                        }
+
+                        _world.SetBlock(cell, BlockId.Air);
+                        cleared++;
+                    }
+        });
+
+        return cleared;
     }
 
     /// <summary>

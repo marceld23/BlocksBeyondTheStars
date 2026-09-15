@@ -4261,6 +4261,7 @@
   "ui.ed.seal_ok": "Airtight — no leaks found.",
   "ui.ed.seal_leaks": "{0} leak cells (marked red): open space reaches the inside. Close the gaps, then save.",
   "ui.ed.port_errors": "{0} port problem(s), e.g.: {1}",
+  "ui.ed.door_lanes_blocked": "{0} block(s) stand in a doorway (marked red): keep the door gap and two rows on each side of it free, then save.",
   "ui.ed.assembled": "Assembled kit {0} (seed {2}): {1} cells.",
   "ui.ed.assemble_failed": "Could not assemble: {0}",
   "ui.ed.need_kit": "Name a kit first (the Kit field or Kits…).",

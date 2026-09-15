@@ -4261,6 +4261,7 @@
   "ui.ed.seal_ok": "Dicht — kein Leck gefunden.",
   "ui.ed.seal_leaks": "{0} Leck-Zellen (rot markiert): der Weltraum erreicht das Innere. Schließe die Lücken, dann speichern.",
   "ui.ed.port_errors": "{0} Problem(e) an Andockstellen, z. B.: {1}",
+  "ui.ed.door_lanes_blocked": "{0} Block/Blöcke stehen in einem Durchgang (rot markiert): halte die Türöffnung und je zwei Reihen davor und dahinter frei, dann speichern.",
   "ui.ed.assembled": "Baukasten {0} zusammengesetzt (Seed {2}): {1} Zellen.",
   "ui.ed.assemble_failed": "Zusammensetzen fehlgeschlagen: {0}",
   "ui.ed.need_kit": "Gib zuerst einen Baukasten an (Feld „Kasten“ oder „Baukästen…“).",
