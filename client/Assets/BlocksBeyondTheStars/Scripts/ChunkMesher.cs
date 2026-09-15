@@ -882,7 +882,8 @@ namespace BlocksBeyondTheStars.Client
                     AddShapedBlock(verts, tris, dumpTris, dumpVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         ladUp >= 2 ? (int)BlockShape.Panel : (int)BlockShape.Post,
                         0, ladUp >= 2 ? ladUp : ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
-                        matR, matG, emission, Color.black, 0f, ladSky, ladBl, ladBlDir);
+                        matR, matG, emission, Color.black, 0f, ladSky, ladBl, ladBlDir,
+                        slots: ShapeFaceTextures.SlotsFor(content, id), slotAtlas: atlas);
                     continue;
                 }
 
@@ -944,7 +945,8 @@ namespace BlocksBeyondTheStars.Client
                     AddShapedBlock(verts, designId != 0 ? trisP : tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), ShapeCode.UpFaceOf(shapeDesc), new Vector3(x, y, z),
                         designId != 0 ? designRect : uv,
-                        matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir);
+                        matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir,
+                        slots: designId != 0 ? null : ShapeFaceTextures.SlotsFor(content, id), slotAtlas: atlas); // a painted design IS the surface
 
                     // Flower pot (#809): a small cross-billboard flower sits on the shaped planter, tinted
                     // like wild flora on this world (per-world species hue). Purely visual — no collider.
@@ -1492,7 +1494,8 @@ namespace BlocksBeyondTheStars.Client
         private static void AddShapedBlock(List<Vector3> verts, List<int> tris, List<int> colliderTris, List<Vector3> colliderVerts,
             List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
             List<Vector3> blockLightDir, int shapeIndex, int orientation, int upFace, Vector3 cell, Rect uv, float matR, float matG,
-            float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir, float sizeXZ = 1f, float sizeY = 1f)
+            float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir, float sizeXZ = 1f, float sizeY = 1f,
+            FaceSlot[] slots = null, BlockTextureAtlas slotAtlas = null)
         {
             var faces = BlockShapeGeometry.Build(shapeIndex, orientation, upFace);
             if (faces == null)
@@ -1528,26 +1531,16 @@ namespace BlocksBeyondTheStars.Client
                 int n = face.IsQuad ? 4 : 3;
                 verts.Add(a); verts.Add(b); verts.Add(c);
                 colliderVerts.Add(a); colliderVerts.Add(b); colliderVerts.Add(c);
+
+                // #1900: every face carries the slice of the tile it covers (form-local, so it rotates with the form);
+                // a block with texture slots dresses a part's faces with another tile or a stretched region instead.
+                ShapeFaceTextures.FaceUvs(face, uv, slots, slotAtlas, out var uvA, out var uvB, out var uvC, out var uvD);
+                uvs.Add(uvA); uvs.Add(uvB); uvs.Add(uvC);
                 if (face.IsQuad)
                 {
                     verts.Add(d);
                     colliderVerts.Add(d);
-                    if (face.HasUv)
-                    {
-                        // Player-designed forms carry their own tile FRACTIONS (a micro box shows the slice of
-                        // the material it covers); map them into this block's atlas rect.
-                        uvs.Add(InTile(uv, face.UvA)); uvs.Add(InTile(uv, face.UvB));
-                        uvs.Add(InTile(uv, face.UvC)); uvs.Add(InTile(uv, face.UvD));
-                    }
-                    else
-                    {
-                        uvs.Add(new Vector2(uv.xMin, uv.yMin)); uvs.Add(new Vector2(uv.xMin, uv.yMax));
-                        uvs.Add(new Vector2(uv.xMax, uv.yMax)); uvs.Add(new Vector2(uv.xMax, uv.yMin));
-                    }
-                }
-                else
-                {
-                    uvs.Add(new Vector2(uv.xMin, uv.yMin)); uvs.Add(new Vector2(uv.xMax, uv.yMin)); uvs.Add(new Vector2(uv.xMax, uv.yMax));
+                    uvs.Add(uvD);
                 }
 
                 for (int i = 0; i < n; i++)
@@ -1569,10 +1562,6 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
         }
-
-        /// <summary>Maps a 0..1 tile fraction into a block's atlas rect (player-designed form UVs).</summary>
-        private static Vector2 InTile(Rect uv, Vector2 fraction)
-            => new Vector2(uv.xMin + fraction.x * uv.width, uv.yMin + fraction.y * uv.height);
 
         /// <summary>Deterministic "does this hull face carry a greeble panel" test (~1/3 of faces), stable per
         /// world cell + face so a ship looks the same on every client and across rebuilds.</summary>
