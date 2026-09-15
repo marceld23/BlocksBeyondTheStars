@@ -429,6 +429,8 @@ separate unlock; admins can still disable it through server world rules.
 - Water is not solid: you sink in with gentle buoyancy and **dive**; hold **Space** to swim up and
   surface. Water **breaks falls**. Deep, swimmable water (lakes, ponds, seas) is common on wet worlds;
   oxygen keeps draining while submerged on non-breathable worlds.
+- Plants, ladders and shaped blocks standing in water are **under water too**: you swim through a kelp forest
+  and your suit air drains inside it — a kelp stalk or a ladder is no hidden air pocket.
 - **You can fight in the water.** Water dims the view rather than ending it: a few blocks of it are
   see-through, so you can hit something swimming beside you or just under the surface, while a whole lake
   still hides what is on the far side of it — nothing notices you across open water, and you cannot snipe

@@ -24,6 +24,35 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
+
+Five reports from Justus ("Flash der Miner-BBTS", v2026.9.9, fresh singleplayer world) plus Marcel's question how the
+flying traders behave. Marcel's decisions 2026-09-15: generic texture solution without new art, clear the door lanes
+(existing worlds too), water drawn around plants, no minimum foam, traders stay longer / wait for nearby players / show
+on the planet map.
+
+- **#1900 Picture tiles on built-in forms.** Built-in shape faces had no texture coordinates, so every face showed the
+  whole tile: two drawn beds on a two-cell mattress, mini beds on pillow and boards, pots on pots. Every built-in form
+  face now gets form-local proportional UVs (`Face.Finish`: the "cut material" micro boxes already had), a `ShapePart`
+  and a `FaceSide`. `data/blocks.json` gains `tileKind` (`material`/`picture`) and `faces` slots (part, side, tile,
+  image region the face is stretched onto; `BlockFaceTextures`, client table `ShapeFaceTextures`). Bed, flower pot,
+  campfire, rug and ladder are dressed from their existing drawings — the two mattress tops continue ONE bed; stairs
+  are `material`. `BlockFaceTextureTests` fails when a stamped prop declares no `tileKind` or a picture prop no slots.
+  Editor voxel view gets real UVs (it read unset ones → one texel). Docs:
+  [docs/developer/CUSTOM_SHAPES.md](docs/developer/CUSTOM_SHAPES.md).
+- **#1902 Air pockets under water.** A cell holds one block id, so a plant, ladder or form in water deleted its water:
+  the server's oxygen check (head cell == water) let divers breathe inside kelp stalks, the mesher drew a dry hole. One
+  shared rule (`WetCell`, Shared): water, or a non-full block with water above or on ≥2 sides. Used by `HeadUnderwater`,
+  the client wash, audio muffle (no longer matching `water_spout`) and swimming (`WaterProbe`, Client.Core); the mesher
+  draws the water volume inside wet plant/prop cells and shows water faces toward dry bank plants. Tests: `WetCellTests`,
+  `OxygenTests` (kelp, ladder, post form), `WaterProbeTests`.
+- **#1903 Shore foam at the old coastline.** Foam reads cells up to 13 blocks away, but a block change re-meshed only its
+  chunk and face neighbours. Water edits now park every meshed chunk within `WaterSurface.MeshReach` for one coalesced
+  refresh after 0.5 s (`GameBootstrap.MarkWaterReachDirty`). Tests: `WaterSurfaceTests`.
+- Mesher goldens re-pinned (`ChunkMesherGoldenEditModeTests`); local Unity build Success, EditMode 162/162.
+- **Open: Marcel's playtest** — a station cabin bed + pot, stairs/campfire/rug/ladder, a kelp forest dive (oxygen drops,
+  swimming, no holes around plants), flood a coast (old foam line gone).
+
 ### 🌀 Loading screen: spinner and text centred on any screen shape (#1898, 2026-09-15, branch fix/loading-overlay-centred)
 
 Marcel: in the WebGL build the world-loading spinner sat right of the destination name and "Loading world…"; the desktop
