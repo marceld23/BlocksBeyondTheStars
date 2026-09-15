@@ -91,6 +91,7 @@ namespace BlocksBeyondTheStars.Client
         private TMP_Text _compassFragDist; // nearest net-fragment signal (#1859) — shares the core line's row
         private RectTransform _compassFrag;
         private int _lastCompassFragDist = int.MinValue;
+        private RectTransform _compassTrader; // a landed trader ship on this world (#1904) — blip only, no caption row left
         private TMP_Text _observer; // SPECTATOR badge while fleet-admin observer mode is active (issue #487)
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
         private TMP_Text _playtimeText;
@@ -642,6 +643,9 @@ namespace BlocksBeyondTheStars.Client
             // caption row (the core wins when both exist): a fourth row would sit on the time-of-day panel below.
             _compassFragDist = UiText.Add(comp.transform, 0, 136, 120, 18, string.Empty, 14, FragmentSignalCol, TextAnchor.MiddleCenter, FontStyle.Bold);
             _compassFrag = Blip(comp.transform, FragmentSignalCol, 10f);
+            // A landed trader ship (#1904): its map marker's ship icon in trade gold. Created before the own-ship blip
+            // so that one stays on top where the two meet.
+            _compassTrader = Blip(comp.transform, WorldMap.TraderShipCol, 14f, "map_ship");
             _compassShip = Blip(comp.transform, new Color(0.3f, 0.8f, 1f), 8f);
             // The waypoint blip is the map_waypoint ICON, not another plain square — at 7 px amber it was
             // nearly indistinguishable from the 6 px amber beacon blips (#592).
@@ -1983,6 +1987,11 @@ namespace BlocksBeyondTheStars.Client
                     : string.Empty;
             }
 
+            // Landed trader ship (#1904): the server lists it among the planet POIs while it is parked here, so a
+            // player whose pad is hundreds of blocks away can walk over before it lifts off.
+            bool haveTrader = TryGetLandedTrader(out var traderPos);
+            PlaceBlip(_compassTrader, haveTrader, traderPos, radius);
+
             // Player-placed beacons (item 37): amber blips, pooled since their count varies.
             var beacons = Game.Beacons;
             int bn = beacons?.Length ?? 0;
@@ -2052,6 +2061,27 @@ namespace BlocksBeyondTheStars.Client
                 for (int i = 0; i < pois.Length; i++)
                 {
                     if (pois[i].Type == "guardian_core")
+                    {
+                        pos = new Vector3(pois[i].X, Game.PlayerPosition.y, pois[i].Z);
+                        return true;
+                    }
+                }
+            }
+
+            pos = Vector3.zero;
+            return false;
+        }
+
+        /// <summary>The landed trader ship's pilot on this world (#1904), from the planet's POI list — at most one trader
+        /// lands per body. At the player's own height, like the Guardian core.</summary>
+        private bool TryGetLandedTrader(out Vector3 pos)
+        {
+            var pois = Game.PlanetPois;
+            if (pois != null)
+            {
+                for (int i = 0; i < pois.Length; i++)
+                {
+                    if (pois[i].Type == WorldMap.TraderShipPoi)
                     {
                         pos = new Vector3(pois[i].X, Game.PlayerPosition.y, pois[i].Z);
                         return true;

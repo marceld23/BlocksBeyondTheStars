@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "조각 {0} m",
   "poi.alien_shrine": "노래하는 신전",
   "poi.observatory": "봉인된 관측소",
+  "poi.trader_ship": "교역선 {0}",
   "srv.encounter.pod": "희미한 구조 신호 — 생존 포드가 근처 어딘가에 표류 중이야. 가까이 다가가 태워줘.",
   "srv.encounter.anomaly": "센서 접촉: 이 계에 정체불명의 이상 현상이 반짝여. 스캔하면 뭔가 배울 수 있을 거야.",
   "srv.encounter.rescued": "넌 {name}을(를) 포드에서 구했어. 그들은 절대 잊지 않을 거야.",

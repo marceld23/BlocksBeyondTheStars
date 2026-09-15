@@ -163,6 +163,11 @@ public sealed class SpaceTraderTests : IDisposable
             Assert.True(server.MaterializeLandedTraderForTest());
             Assert.Contains(server.PlacedHullOwnersForTest(), o => o.StartsWith("npc:", StringComparison.Ordinal));
 
+            // #1904: a player near the trader holds it on the ground — and a shipless test player spawns on the very
+            // pad it took. Send him far off into the open air first.
+            var at = server.LandedTraderPilotPosForTest(body)!.Value;
+            pilot.State.Position = new BlocksBeyondTheStars.Shared.Geometry.Vector3f(at.X + 300f, at.Y + 80f, at.Z);
+
             Assert.True(server.ExpireLandedTraderForTest(body));
             server.Tick(0.1); // the body's own tick lifts it off
 

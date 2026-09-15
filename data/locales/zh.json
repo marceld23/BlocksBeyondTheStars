@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "碎片 {0} 米",
   "poi.alien_shrine": "歌唱神殿",
   "poi.observatory": "密封天文台",
+  "poi.trader_ship": "贸易船 {0}",
   "srv.encounter.pod": "微弱的求救信号——一艘救生舱在附近漂流。飞近把他们带上船。",
   "srv.encounter.anomaly": "传感器接触：有未确认的异常在此星系闪烁。扫描也许能教给我们些什么。",
   "srv.encounter.rescued": "你把 {name} 从舱中救了出来。他们不会忘记这件事。",

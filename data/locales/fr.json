@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "Fragment {0} m",
   "poi.alien_shrine": "Sanctuaire chantant",
   "poi.observatory": "Observatoire scellé",
+  "poi.trader_ship": "Vaisseau marchand {0}",
   "srv.encounter.pod": "Signal de détresse faible — une capsule de survie dérive quelque part à proximité. Approche pour les embarquer.",
   "srv.encounter.anomaly": "Contact capteur : une anomalie non identifiée scintille dans ce système. Un scan pourrait nous en apprendre plus.",
   "srv.encounter.rescued": "Tu as sorti {name} de la capsule. Ils ne l'oublieront pas.",

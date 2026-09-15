@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "Fragment {0} m",
   "poi.alien_shrine": "Zingend Heiligdom",
   "poi.observatory": "Afgesloten Observatorium",
+  "poi.trader_ship": "Handelsschip {0}",
   "srv.encounter.pod": "Vage noodsignalen — een leefcabine drijft ergens in de buurt. Vlieg dichtbij om hen aan boord te nemen.",
   "srv.encounter.anomaly": "Sensorcontact: een ongeïdentificeerde anomalie glinstert in dit systeem. Een scan kan ons iets leren.",
   "srv.encounter.rescued": "Je hebt {name} uit de cabine gehaald. Ze zullen het niet vergeten.",

@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "Fragment {0} m",
   "poi.alien_shrine": "Śpiewające Sanktuarium",
   "poi.observatory": "Zapitane Obserwatorium",
+  "poi.trader_ship": "Statek handlowy {0}",
   "srv.encounter.pod": "Słaby sygnał ratunkowy — gdzieś w pobliżu dryfuje kapsuła ratunkowa. Zbliż się, by zabrać ich na pokład.",
   "srv.encounter.anomaly": "Kontakt sensorów: w tym układzie miga niezidentyfikowana anomalia. Skan może nam coś wyjaśnić.",
   "srv.encounter.rescued": "Wyciągnąłeś {name} z kapsuły. Nie zapomną tego.",
