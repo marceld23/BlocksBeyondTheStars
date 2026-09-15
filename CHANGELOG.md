@@ -11,6 +11,134 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.9] — 2026-09-15
+
+The neighbours release. Until now a settler stood next to your base core and that was all, a villager strolled
+around houses with nothing inside, and a space station was one big hall. Now the people of your worlds **live
+there**: every bed brings a resident, they **work by day, sit together in the evening and sleep in their own bed
+at night**, walk real routes and open doors on the way, and they take on **jobs that bring you something** — a
+gardener who harvests into your crates, a craftsman at the forge, a guard on the night shift. **Stations are docked
+together from modules**, from small to colossal, with a cabin for every crew member and a canteen to meet in, and
+**villages, towns and cities are built from furnished modules** in the material of their planet, with a bed for
+everyone who lives there. Next to that: **notes** under the Story tab, a **bench and a proper two-block bed**,
+**zero-g building** around your own station, a Codex that remembers **where you found** something, and the
+**wreck you could not reach** finally shows up at the right height. Most of this began with **Lyxette's** reports
+and questions — a morning of thirteen, her fortress and her wreck — and with ideas from **Justus**. Thank you
+both 🙏
+
+ℹ️ **Compatibility:** the network protocol stays at version 6, saves migrate unchanged. A village, city or station
+that already stands in your world keeps its buildings — the new modular ones appear wherever one is built for the
+first time. Residents, daily routines and jobs work in the worlds you already have.
+
+### 🏡 Your base comes alive (#1851 #1865 #1866 #1867 #1868 #1869 #1895)
+
+Lyxette asked where her settler should walk, whether a bigger base would draw more people, and what settlers
+should actually *do*. This is the answer.
+
+- **Every bed brings a resident.** Once your base has earned its first settler (three machines, as before), each
+  bed inside the base adds one more, up to five. A resident claims a bed and a seat and moves out when the bed
+  goes. *Inside* means the core zone, a walled yard, a sealed room or a closed hut with walls, a roof and a door.
+- **A daily routine.** By day at work, in the evening on a chair or bench, at night lying in their own bed with a
+  little "z z z" above them. Villagers and station crew do the same with the beds and seats in their houses and
+  cabins. Talk to a sleeper and you get a sleepy answer.
+- **They find their way.** Residents walk real routes around walls, up and down steps and through doors: sliding
+  doors open for them, and a wooden door they swing open closes behind them. They walk around tables and chairs
+  instead of climbing onto them, and across a rug instead of a block above it.
+- **Jobs that bring something**, depending on what you built:
+  - a **trading post** or **mission board** inside the base gets staffed — trade and base missions right at home
+    (a post nobody can staff tells you why);
+  - a **gardener** harvests ripe crops into a crate in the base and tends saplings so they grow faster;
+  - a **craftsman** at a workbench makes plant fibre, and with a forge smelts iron ore from a crate into ingots;
+  - a **guard** walks the inside of your wall on the night shift, radios you when scouts are watching, and sends
+    scouts and robbers on their way. Guards never fight.
+- **The sun is local.** Animals on the far side of a planet no longer sleep under a noon sun — creatures, residents
+  and VEGA's night hints follow the time where they are. Aboard a station the lights dim at station night; the
+  strip lights stay bright.
+- A **"Talk to …"** prompt appears next to a person, and the name plate says what they are doing.
+
+### 🛰️ Stations docked from modules (#1872 #1873 #1874 #1875 #1878)
+
+After Marcel's playtest the stations were simply too small, unfurnished and without rooms for their crew.
+
+- **Stations are assembled from modules** that dock at their ports — corridors, halls, hangars, cabins, a canteen,
+  a bar, a market, a medbay and more: 43 modules in five kits from small to colossal, turned and fitted so no two
+  stations need to look alike. Every joint gets a door, every vertical shaft a ladder.
+- **A cabin for every crew member.** The crew works at its post by day, meets in the canteen or the bar in the
+  evening and sleeps in its own cabin at night. Every room is furnished for what it is.
+- **Everything looks the same after a reload** — a world remembers which modules its stations, villages and cities
+  were built from.
+
+### 🏘️ Villages, towns and cities from furnished modules (#1876 #1884 #1885 #1886 #1887 #1888 #1889 #1891)
+
+- **New settlements are built from modules:** houses, a market, a notice house, a greenhouse, a **tavern** from
+  villages up and a **workshop** from towns up — each for human and for alien settlements — plus a three-storey city
+  flat and ten districts for the G.D.S. city. Houses with several storeys have real **staircases**, and every
+  building people live in has a room with a bed.
+- **Built from the planet.** Walls take the ground they stand on — sand, ice, grass — towns build in iron, and alien
+  settlements get crystal trim.
+- **A bed for every resident.** The beds of a settlement are its people: up to 6 in a hamlet, 10 in a village, 20 in
+  a town, 32 in a city and 80 in the G.D.S. city. The shopkeeper, innkeeper, gardener and craftsman sleep nearest to
+  their post, and in the evening the tavern fills up.
+- **Crowded places stay light:** you only receive the people near you, not every resident of a city at once.
+- The **Town templates** and **Station templates** world options now set how many places are complete hand-built
+  templates (5 to 75 %); the rest are built from modules, and Off keeps the classic generator. Four of the classic
+  templates now come with furnished rooms and beds.
+
+### ✏️ Editor: build your own kits (#1877 #1890)
+
+- In the Station and Town editors a template is either a **whole structure** or a **kit module**. The **Kits…** panel
+  lists the shipped kits and your own, with their entries and a module picker, and saves a kit to your content.
+- **Port brushes** paint doors, wide openings and ladders onto a wall, **Check seal** paints every leak red, and
+  **Assemble** builds a preview of a kit from a seed.
+- A **Planet materials** section in the palette (wall, accent, roof, floor and path follow the planet), a **Built for**
+  switch (human / alien), and tavern, workshop, lounge and guardian markers.
+
+### 📝 Notes, furniture, zero-g and the Codex (#1842 #1843 #1844 #1846 #1847)
+
+- **Notes** under the Story tab — Justus's idea: up to 20 notes with a title, kept on the server like your map
+  markers. §-codes colour a word or make it bold, and Preview shows how it will look.
+- **A bench and a two-block bed** — Lyxette's wish. The bench is a seat that joins its neighbours; the bed now takes
+  two cells, head and foot, and mines as one. Old one-block beds stay as they are. (Tables and chairs were already
+  there, under the **Shape** action.)
+- **Zero-g building** — Lyxette's wish: aboard your own station, **O** lets you float as long as you like to build on
+  the outside. It is just for you and switches off when you leave, and there is no fall damage in the first seconds
+  after gravity comes back.
+- **The Codex remembers where you found something** — Justus's idea: a new discovery shows the planet and solar
+  system of its first scan.
+- **Grass you can make:** dirt and plant fibre by hand, and grass drops grass now — for Lyxette's station arboretum.
+
+### 🐛 From Lyxette's reports (#1852 #1853 #1854 #1855 #1856 #1857 #1858 #1859 #1860 #1862 #1880 #1881 #1882)
+
+Thirteen reports in one morning, then her fortress and her wreck — thank you, Lyxette 🙏
+
+- **A large walled base is fenced in again.** Beyond a wall ring of about a hundred blocks animals spawned inside
+  once more, and the green elephants were back. The fenced area now grows with what you build, a moat at least two
+  blocks deep counts as a wall, floating land animals obey walls, and shut doors stop creatures (#1862).
+- **Bandit scouts no longer appear inside your fortress** and no longer climb its walls (#1855).
+- **Gas-sac animals no longer sink into the ground** again and again (#1854).
+- **Double doors open together** with one press, without the extra post in the middle (#1852).
+- **Waterfalls lost their diagonal glare stripes** (#1853).
+- **Your station has the right sky:** the planet it orbits instead of a decorative moon, the right star colour, the
+  system counts as visited and place names show up (#1856).
+- **Trees grown on a station are visible from outside** (#1857).
+- **Typing into the F1 report or any text field no longer triggers game keys** — no more moving, docking or
+  switching views while you write (#1858).
+- **The net-fragment objective names its planet,** the compass shows the distance, and the counter always fits
+  (#1859).
+- **Messages at the top go away after a few seconds** instead of staying up (#1860).
+- **The wreck you could not reach.** It floated far above the ship while the radar drew it right in the middle. The
+  radar now keeps height with ▲/▼ marks, a new **ALT** line shows your height, and VEGA explains the way: open the
+  map, click the wreck, let the autopilot fly (#1880 #1881 #1882).
+
+### 🎛️ Smaller things (#1840 #1845 #1871 #1892)
+
+- **Doors and hatches react on the first click** after joining a large built-up world — the far view kept the server
+  busy for about a minute on the G.D.S. city (#1871).
+- A **"You are in chat"** banner below the crosshair while you type — Justus's idea (#1845).
+- **Scan-drones stand out on asteroids** with red lit accents — Justus's report (#1840).
+- **Every language is complete again:** 140 lines from the newest features existed only in English and German; they
+  are now in all 14 languages, checked by hand (#1892).
+
 ## [2026.9.8] — 2026-09-13
 
 The horizon release. Until now a planet ended where the loaded chunks ended: a wall of fog a few hundred
@@ -5279,7 +5407,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.7...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.9...HEAD
+[2026.9.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.8...v2026.9.9
 [2026.9.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.7...v2026.9.8
 [2026.9.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.6...v2026.9.7
 [2026.9.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.5...v2026.9.6
