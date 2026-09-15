@@ -4245,6 +4245,7 @@
   "ui.ed.seal_ok": "Szczelne — nie wykryto nieszczelności.",
   "ui.ed.seal_leaks": "{0} komór nieszczelnych (oznaczone na czerwono): otwarta przestrzeń sięga do środka. Zamknij szczeliny, potem zapisz.",
   "ui.ed.port_errors": "{0} problem(ów) z dokowaniem, np.: {1}",
+  "ui.ed.door_lanes_blocked": "{0} blok(ów) stoi w przejściu drzwi (oznaczone na czerwono): zostaw wolny otwór drzwi i po dwa rzędy z każdej strony, potem zapisz.",
   "ui.ed.assembled": "Złożono zestaw {0} (ziarno {2}): {1} komórek.",
   "ui.ed.assemble_failed": "Nie można złożyć: {0}",
   "ui.ed.need_kit": "Najpierw nazwij zestaw (pole Zestaw lub Zestawy…).",

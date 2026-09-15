@@ -4245,6 +4245,7 @@
   "ui.ed.seal_ok": "Luchtdicht — geen lekken gevonden.",
   "ui.ed.seal_leaks": "{0} lekcellen (rood gemarkeerd): open ruimte bereikt de binnenkant. Sluit de openingen, en sla op.",
   "ui.ed.port_errors": "{0} koppelprobleem/-problemen, bijv.: {1}",
+  "ui.ed.door_lanes_blocked": "{0} blok(ken) staan in een deuropening (rood gemarkeerd): houd de deuropening en twee rijen aan elke kant vrij, en sla dan op.",
   "ui.ed.assembled": "Samengestelde kit {0} (seed {2}): {1} cellen.",
   "ui.ed.assemble_failed": "Kon niet monteren: {0}",
   "ui.ed.need_kit": "Geef eerst een kitnaam op (het Kit-veld of Kits…).",

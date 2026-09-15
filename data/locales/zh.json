@@ -4245,6 +4245,7 @@
   "ui.ed.seal_ok": "气密——未发现泄漏。",
   "ui.ed.seal_leaks": "{0} 个泄漏格（标红）：外部空间已与内部连接。关闭缝隙，然后保存。",
   "ui.ed.port_errors": "{0} 个对接口问题，例如：{1}",
+  "ui.ed.door_lanes_blocked": "{0} 个方块挡在门口（标红）：让门洞及其两侧各两排保持空出，然后保存。",
   "ui.ed.assembled": "已组装套件 {0}（种子 {2}）：{1} 格。",
   "ui.ed.assemble_failed": "组装失败：{0}",
   "ui.ed.need_kit": "请先命名套件（在 套件 字段或 套件… 中）。",

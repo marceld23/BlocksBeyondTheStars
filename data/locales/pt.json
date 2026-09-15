@@ -4245,6 +4245,7 @@
   "ui.ed.seal_ok": "Estanque — nenhum vazamento encontrado.",
   "ui.ed.seal_leaks": "{0} célula(s) com vazamento (marcadas em vermelho): espaço aberto alcança o interior. Feche as brechas e salve.",
   "ui.ed.port_errors": "{0} problema(s) de acoplamento, ex.: {1}",
+  "ui.ed.door_lanes_blocked": "{0} bloco(s) numa passagem de porta (marcados em vermelho): deixe livres o vão da porta e duas fileiras de cada lado, depois salve.",
   "ui.ed.assembled": "Kit montado {0} (seed {2}): {1} células.",
   "ui.ed.assemble_failed": "Não foi possível montar: {0}",
   "ui.ed.need_kit": "Nomeie um kit primeiro (o campo Kit ou Kits…).",
