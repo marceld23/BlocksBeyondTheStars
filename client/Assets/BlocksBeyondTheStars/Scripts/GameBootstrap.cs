@@ -1570,6 +1570,13 @@ namespace BlocksBeyondTheStars.Client
         private const float DeferredDirtySettleSeconds = 0.15f;
         private const float DeferredDirtyMaxSeconds = 1.0f;
 
+        // #1903: chunks whose water surface (shore foam, open-water waves) was changed by a water edit a few blocks
+        // AWAY from them. They only need a cosmetic refresh, so a spreading flood — the fluid simulation writes a
+        // cell per tick — parks them here and rebuilds each once after WaterReachSettleSeconds instead of every tick.
+        private readonly Dictionary<ChunkCoord, float> _waterReachDirty = new Dictionary<ChunkCoord, float>();
+        private readonly HashSet<ChunkCoord> _waterReachScratch = new HashSet<ChunkCoord>();
+        private const float WaterReachSettleSeconds = 0.5f;
+
         // When the last chunk arrived from the server. The loading veil uses "no new chunk for a moment" (plus a
         // drained mesh queue) as the "initial view is fully streamed + meshed" signal so it doesn't lift mid-fill
         // (#390). During streaming the ≥1-chunk-per-tick guarantee keeps this fresh; the gap only opens once the
@@ -1580,7 +1587,7 @@ namespace BlocksBeyondTheStars.Client
         public float TimeSinceLastChunk => Time.time - _lastChunkArrivalTime;
 
         /// <summary>Chunks still queued to be (re)meshed — the client-side mesh backlog.</summary>
-        public int PendingMeshCount => _dirty.Count + _deferredDirty.Count;
+        public int PendingMeshCount => _dirty.Count + _deferredDirty.Count + _waterReachDirty.Count;
 
         // Performance (P1): cap how many chunk meshes are (re)built per frame so a burst of chunks arriving
         // while moving fast spreads over several frames instead of stalling one. Nearest chunks build first;
@@ -2688,6 +2695,7 @@ namespace BlocksBeyondTheStars.Client
             // so a burst of chunks arriving while moving fast spreads over several frames instead of stalling one.
             // Nearest chunks build first; chunks past the budget stay queued for the next frames.
             PromoteDeferredDirty(); // #1529
+            PromoteWaterReachDirty(); // #1903
             if (_dirty.Count > 0)
             {
                 _dirtyScratch.Clear();
@@ -2871,6 +2879,7 @@ namespace BlocksBeyondTheStars.Client
                 _chunkObjects.Remove(coord);
                 _dirty.Remove(coord);
                 _deferredDirty.Remove(coord);
+                _waterReachDirty.Remove(coord);
                 _colliderGen.Remove(coord);
                 _colliderAppliedGen.Remove(coord);
                 _meshGen.Remove(coord);
@@ -2990,6 +2999,48 @@ namespace BlocksBeyondTheStars.Client
             {
                 _deferredDirty.Remove(_deferredScratch[i]);
                 _dirty.Add(_deferredScratch[i]);
+            }
+        }
+
+        /// <summary>#1903: releases the water-reach refreshes parked by <see cref="MarkWaterReachDirty"/> once they have
+        /// waited <see cref="WaterReachSettleSeconds"/> (measured from the FIRST park, so a long flood still refreshes).</summary>
+        private void PromoteWaterReachDirty()
+        {
+            if (_waterReachDirty.Count == 0)
+            {
+                return;
+            }
+
+            float now = Time.time;
+            _deferredScratch.Clear();
+            foreach (var kv in _waterReachDirty)
+            {
+                if (now - kv.Value >= WaterReachSettleSeconds)
+                {
+                    _deferredScratch.Add(kv.Key);
+                }
+            }
+
+            for (int i = 0; i < _deferredScratch.Count; i++)
+            {
+                _waterReachDirty.Remove(_deferredScratch[i]);
+                _dirty.Add(_deferredScratch[i]);
+            }
+        }
+
+        /// <summary>#1903: a cell turned into or out of water. Every other already-meshed chunk whose shore foam / wave
+        /// weights read that cell is parked for a refresh (the edited chunk and its face neighbours rebuild at once).</summary>
+        private void MarkWaterReachDirty(int wx, int wy, int wz)
+        {
+            _waterReachScratch.Clear();
+            WaterSurface.ChunksInWaterReach(wx, wy, wz, Circumference, _waterReachScratch);
+            float now = Time.time;
+            foreach (var c in _waterReachScratch)
+            {
+                if (!_dirty.Contains(c) && _meshGen.ContainsKey(c) && !_waterReachDirty.ContainsKey(c))
+                {
+                    _waterReachDirty[c] = now;
+                }
             }
         }
 
@@ -3127,6 +3178,7 @@ namespace BlocksBeyondTheStars.Client
             _chunkObjects.Clear();
             _dirty.Clear();
             _deferredDirty.Clear();
+            _waterReachDirty.Clear();
             // Mesh/bake bookkeeping for the old world is now stale; WorldEpoch (bumped below) fences any
             // in-flight off-thread builds + bakes so they're dropped in DrainBuiltChunks/DrainBakedColliders
             // instead of landing on the new world's chunks.
@@ -3261,6 +3313,14 @@ namespace BlocksBeyondTheStars.Client
                 {
                     _dirty.Add(nc);
                 }
+            }
+
+            // #1903: a water surface reads its shore up to WaterSurface.MeshReach blocks away, so a flood spreading
+            // inland also changes the foam of water in chunks that are not face neighbours of the edited cell.
+            ushort water = Content?.GetBlock("water")?.NumericId.Value ?? 0;
+            if (water != 0 && (oldId.Value == water || m.Block == water))
+            {
+                MarkWaterReachDirty(m.X, m.Y, m.Z);
             }
         }
 

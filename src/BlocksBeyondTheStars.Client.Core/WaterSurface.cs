@@ -3,7 +3,9 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 
 using System;
+using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -61,6 +63,35 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Longest span at or below which nothing of the open look remains; a ramp lies between.</summary>
         public const int OpenFadeSpan = ScanCap;
+
+        /// <summary>How far (blocks, horizontally) a cell turning into or out of water can change OTHER cells'
+        /// surface data: the shore scan (<see cref="ScanCap"/>) plus the mesher's one-cell corner average (#1903).</summary>
+        public const int MeshReach = ScanCap + 1;
+
+        /// <summary>
+        /// Every chunk whose water surface can look different after the cell (wx,wy,wz) turned into or out of water
+        /// (#1903): the cells within <see cref="MeshReach"/> blocks horizontally on the edit's level (their shore runs
+        /// pass through it) and the level below (its corners test the cell above for air). Re-meshing only the edited
+        /// chunk and its direct face neighbours left the old foam band and wave flattening standing along a former
+        /// coastline once a flood spread inland. Coordinates come back canonical for a world of
+        /// <paramref name="circumference"/>; duplicates (tiny worlds wrap onto themselves) are the caller's to fold.
+        /// </summary>
+        public static void ChunksInWaterReach(int wx, int wy, int wz, int circumference, ICollection<ChunkCoord> into)
+        {
+            int x0 = WorldConstants.WorldToChunk(wx - MeshReach), x1 = WorldConstants.WorldToChunk(wx + MeshReach);
+            int z0 = WorldConstants.WorldToChunk(wz - MeshReach), z1 = WorldConstants.WorldToChunk(wz + MeshReach);
+            int y0 = WorldConstants.WorldToChunk(wy - 1), y1 = WorldConstants.WorldToChunk(wy);
+            for (int cy = y0; cy <= y1; cy++)
+            {
+                for (int cx = x0; cx <= x1; cx++)
+                {
+                    for (int cz = z0; cz <= z1; cz++)
+                    {
+                        into.Add(WorldConstants.CanonicalChunk(new ChunkCoord(cx, cy, cz), circumference));
+                    }
+                }
+            }
+        }
 
         /// <param name="loaded">Optional "is this cell's chunk actually streamed in?" test — a cell we don't hold
         /// must not end a shore run, or the streamed region's edge grows a phantom coastline (foam + brook
