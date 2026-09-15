@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "Fragment {0} m",
   "poi.alien_shrine": "Singing Shrine",
   "poi.observatory": "Sealed Observatory",
+  "poi.trader_ship": "Trader ship {0}",
   "srv.encounter.pod": "Faint distress signal — a life pod is drifting somewhere nearby. Fly close to take them aboard.",
   "srv.encounter.anomaly": "Sensor contact: an unidentified anomaly shimmers in this system. A scan might teach us something.",
   "srv.encounter.rescued": "You pulled {name} out of the pod. They won't forget it.",

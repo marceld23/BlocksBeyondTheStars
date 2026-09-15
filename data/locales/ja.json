@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "破片 {0} m",
   "poi.alien_shrine": "歌う祠",
   "poi.observatory": "封印観測所",
+  "poi.trader_ship": "交易船 {0}",
   "srv.encounter.pod": "かすかな遭難信号 — 救命ポッドが近くを漂っている。近づいて乗せてあげて。",
   "srv.encounter.anomaly": "センサー接触：この系で正体不明の異常が揺らめいている。スキャンで何か分かるかも。",
   "srv.encounter.rescued": "君は {name} をポッドから救い出した。彼らは忘れないよ。",

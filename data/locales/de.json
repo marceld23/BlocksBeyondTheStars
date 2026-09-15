@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "Fragment {0} m",
   "poi.alien_shrine": "Singender Schrein",
   "poi.observatory": "Versiegelte Sternwarte",
+  "poi.trader_ship": "Händlerschiff {0}",
   "srv.encounter.pod": "Schwaches Notsignal — irgendwo in der Nähe treibt eine Rettungskapsel. Flieg nah heran, um sie an Bord zu holen.",
   "srv.encounter.anomaly": "Sensorkontakt: In diesem System schimmert eine unbekannte Anomalie. Ein Scan könnte uns etwas lehren.",
   "srv.encounter.rescued": "Du hast {name} aus der Kapsel geholt. Das wird dir nicht vergessen.",

@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "Frammento {0} m",
   "poi.alien_shrine": "Santuario Cantante",
   "poi.observatory": "Osservatorio Sigillato",
+  "poi.trader_ship": "Nave mercantile {0}",
   "srv.encounter.pod": "Debole segnale di soccorso — una capsula di salvataggio sta alla deriva da qualche parte nelle vicinanze. Avvicinati per imbarcarli.",
   "srv.encounter.anomaly": "Contatto sensoriale: un'anomalia non identificata luccica in questo sistema. Una scansione potrebbe insegnarci qualcosa.",
   "srv.encounter.rescued": "Hai tirato fuori {name} dalla capsula. Non lo dimenticheranno.",

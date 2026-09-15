@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "Fragmento {0} m",
   "poi.alien_shrine": "Santuario Cantante",
   "poi.observatory": "Observatorio Sellado",
+  "poi.trader_ship": "Nave comerciante {0}",
   "srv.encounter.pod": "Débil señal de socorro: una cápsula vital deriva por aquí. Acércate para embarcarlos.",
   "srv.encounter.anomaly": "Contacto en sensores: una anomalía no identificada brilla en este sistema. Un escaneo podría enseñarnos algo.",
   "srv.encounter.rescued": "Rescataste a {name} de la cápsula. No lo olvidarán.",

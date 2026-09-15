@@ -322,8 +322,9 @@ separate unlock; admins can still disable it through server world rules.
   moves around the dial marks north (the map is north-up, so the two agree). A blue **arrow on the rim** points
   the way to your ship and stays readable however far off it is; the blue square inside the dial is the ship
   itself and the amber pin the waypoint, and the captions under the dial ("Ship 114 m", "Waypoint 138 m") give
-  each distance. Beacons and saved markers show as smaller blips. Turn until the arrow points to the top of the
-  dial and walk; VEGA reminds you of this once you are a long way from the hull.
+  each distance. Beacons and saved markers show as smaller blips, a landed trader ship as a gold ship icon. Turn
+  until the arrow points to the top of the dial and walk; VEGA reminds you of this once you are a long way from
+  the hull.
 - **VEGA panel** — the ship AI speaks through a typewriter speech panel with a persistent **objective
   chip** (live progress, e.g. "mine 1/3") during onboarding. Advance lines with **N** — a line stays on
   screen until you do (no auto-dismiss), and further lines wait in the queue. Advisor hints can
@@ -675,10 +676,17 @@ separate unlock; admins can still disable it through server world rules.
 - Space and busy systems feel alive with **civilian trader traffic**: merchant ships **warp in** at the system
   edge, **cruise** to a station to **dock**, or head into the inner system and **land on a planet/moon** if a
   pad is free, then later depart. They are **peaceful scenery** — a trader can't be locked, shot or damaged.
-- A trader that **docks at a station** becomes a **visiting merchant**: board that station and you'll find its
-  pilot as an extra **vendor** beside the trade post — barter with them like any other vendor (press **E**).
+- A trader that **docks at a station** becomes a **visiting merchant** for **7–12 minutes**: board that station
+  and you'll find its pilot as an extra **vendor** beside the trade post — barter with them like any other
+  vendor (press **E**).
 - A trader that **lands on a world** parks its ship on a pad with the **pilot standing in front** as a merchant
-  you can trade with. One landed trader per body at a time; they re-appear when you return to that world.
+  you can trade with — it barters from the same **traders** list as a traders-themed vendor (see *Vendors /
+  market* below). It stays **10–15 minutes**, and it **never lifts off while a player is near it**
+  (within about 32 blocks of the pilot or ship) or trading: it leaves only after nobody has been close for
+  about half a minute. One landed trader per body at a time; they re-appear when you return to that world.
+- While a trader is landed, the **planet map (M)** shows a **gold ship marker** with its name at the pilot (and
+  lists it with its distance), your **compass** shows a matching gold blip, and its pad shows as taken — so a
+  trader that set down far from your pad is easy to find. The marker disappears when it lifts off.
 
 ### Stations: boarding & docking
 - **Space stations**: approach in space and press **E** to board. A station is its **own place in orbit** —

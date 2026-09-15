@@ -1089,6 +1089,7 @@
   "ui.hud.compass_fragment": "Parça {0} m",
   "poi.alien_shrine": "Şarkı Tapınağı",
   "poi.observatory": "Mühürlü Gözlemevi",
+  "poi.trader_ship": "Ticaret gemisi {0}",
   "srv.encounter.pod": "Zayıf bir yardım sinyali — bir yaşam kapsülü yakında sürükleniyor. Onları almak için yakından geç.",
   "srv.encounter.anomaly": "Sensör teması: bu sistemde tanımlanamayan bir anomali titriyor. Bir tarama bize bir şey öğretebilir.",
   "srv.encounter.rescued": "Onları kapsülden çıkardın: {name}. Bunu unutmayacaklar.",
