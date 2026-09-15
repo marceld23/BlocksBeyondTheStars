@@ -279,15 +279,18 @@ namespace BlocksBeyondTheStars.Client
 
             _backdrop = FullScreen(root, "Veil", new Color(0.02f, 0.03f, 0.06f, 0f));
 
-            // Centred column in the 1920×1080 reference space (top-left coords, y down).
-            _title = UiKit.AddText(root, 360f, 420f, 1200f, 70f, string.Empty, 46,
-                new Color(0.86f, 0.95f, 1f, 0f), TextAnchor.MiddleCenter, FontStyle.Bold);
-            _subtitle = UiKit.AddText(root, 360f, 496f, 1200f, 40f, string.Empty, 24,
-                new Color(0f, 0f, 0f, 0f), TextAnchor.MiddleCenter);
-            _footer = UiKit.AddText(root, 360f, 666f, 1200f, 40f, string.Empty, 22,
-                new Color(0f, 0f, 0f, 0f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            // A column hung off the screen centre (y = reference units above it). Not UiKit.Place's top-left
+            // coordinates: the Expand scaler gives a non-16:9 screen its extra width on the right (and extra
+            // height at the bottom), so a top-left "centre" of x 960 drifted left of the real one — in a 2:1
+            // browser window the text sat ~120 units left of the spinner.
+            _title = Centred(UiKit.AddText(root, 0f, 0f, 1200f, 70f, string.Empty, 46,
+                new Color(0.86f, 0.95f, 1f, 0f), TextAnchor.MiddleCenter, FontStyle.Bold), 85f);
+            _subtitle = Centred(UiKit.AddText(root, 0f, 0f, 1200f, 40f, string.Empty, 24,
+                new Color(0f, 0f, 0f, 0f), TextAnchor.MiddleCenter), 24f);
+            _footer = Centred(UiKit.AddText(root, 0f, 0f, 1200f, 40f, string.Empty, 22,
+                new Color(0f, 0f, 0f, 0f), TextAnchor.MiddleCenter, FontStyle.Bold), -146f);
 
-            // Spinner: a ring of dots centred at (960, 600), highlight chasing around it.
+            // Spinner: a ring of dots just below the screen centre, highlight chasing around it.
             var ringGo = new GameObject("Spinner", typeof(RectTransform));
             ringGo.transform.SetParent(root, false);
             var ringRt = ringGo.GetComponent<RectTransform>();
@@ -312,6 +315,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _canvas.enabled = false;
+        }
+
+        /// <summary>Re-anchors a label to the screen centre, <paramref name="y"/> reference units above it
+        /// (negative = below), keeping the size <see cref="UiKit.AddText"/> gave it.</summary>
+        private static Text Centred(Text text, float y)
+        {
+            var rt = text.rectTransform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(0f, y);
+            return text;
         }
 
         private static Image FullScreen(Transform parent, string name, Color color)

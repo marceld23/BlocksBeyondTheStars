@@ -24,6 +24,15 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌀 Loading screen: spinner and text centred on any screen shape (#1898, 2026-09-15, branch fix/loading-overlay-centred)
+
+Marcel: in the WebGL build the world-loading spinner sat right of the destination name and "Loading world…"; the desktop
+build looked right. `WorldLoadingOverlay` placed the three labels top-left anchored in the 1920×1080 reference space
+(`UiKit.Place`) but the spinner centre anchored, and the `Expand` canvas scaler gives a non-16:9 screen its extra width
+on the right. In a ~2:1 browser viewport the text sat ~120 units left of the spinner (a windowed or ultrawide desktop
+client too; on 4:3 the text would have sat too high). The labels now hang off the screen centre as well (title +85,
+subtitle +24, spinner −28, footer −146 — the same layout as before at 16:9). ⚠ Open: Marcel's check in the browser.
+
 ### 🪑 NPCs keep off the furniture — and walk on rugs, not above them (#1895, 2026-09-14, branch fix/npc-furniture-floor)
 
 Marcel: NPCs stepped onto tables and chairs and stood on them like on a block. The server's NPC walk read the block id
