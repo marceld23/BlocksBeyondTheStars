@@ -172,12 +172,18 @@ def default_kits():
 
 # ------------------------------------------------------------------ #1886 modular sets
 
-VILLAGE_FUNCTIONS = (("house", 3), ("market", 2), ("board", 2), ("greenhouse", 2), ("tavern", 2), ("workshop", 2))
-TOWN_FUNCTIONS = (("house", 2), ("market", 2), ("board", 2), ("greenhouse", 2), ("tavern", 2), ("workshop", 2))
+# The profession buildings (2026-09): one variant each, appended so the pool keeps its order.
+PROFESSION_FUNCTIONS = (("clinic", 1), ("shop", 1), ("armory", 1), ("library", 1), ("stable", 1), ("quarry", 1),
+                        ("studio", 1), ("newsroom", 1))
+VILLAGE_FUNCTIONS = (("house", 3), ("market", 2), ("board", 2), ("greenhouse", 2), ("tavern", 2), ("workshop", 2)) \
+    + PROFESSION_FUNCTIONS
+TOWN_FUNCTIONS = (("house", 2), ("market", 2), ("board", 2), ("greenhouse", 2), ("tavern", 2), ("workshop", 2)) \
+    + PROFESSION_FUNCTIONS
 DISTRICTS = (("city_housing", shapes.gds_housing), ("city_market", shapes.gds_market), ("city_hall", shapes.gds_hall),
              ("city_garden", shapes.gds_garden), ("city_tower", shapes.gds_tower))
 NICE = {"house": "House", "market": "Market", "board": "Notice House", "greenhouse": "Greenhouse", "tavern": "Tavern",
-        "workshop": "Workshop", "city_housing": "Housing", "city_market": "Market", "city_hall": "Hall",
+        "workshop": "Workshop", "clinic": "Clinic", "shop": "Shop", "armory": "Armory", "library": "Library",
+        "stable": "Stable", "quarry": "Quarry", "studio": "Studio", "newsroom": "Newsroom", "city_housing": "Housing", "city_market": "Market", "city_hall": "Hall",
         "city_garden": "Garden", "city_tower": "Tower"}
 
 
@@ -258,6 +264,10 @@ def modular_kits():
                 entries += style_pair(f"{style}_house_{n}", max_=30, weight=3 if n == 1 else 2)
             if tier == "city":
                 entries += style_pair("city_tall_house_1", max_=30, weight=3)
+            # The profession buildings (2026-09): optional, at most one each — appended after the classic entries, so a
+            # settlement's pinned composition replays unchanged and only fresh settlements may draw them.
+            for function, _ in PROFESSION_FUNCTIONS:
+                entries += style_pair(f"{style}_{function}_1", max_=1)
             kits.append({
                 "key": f"{tier}_modular_{v}",
                 "name": f"{tier.capitalize()} Modular {v}",

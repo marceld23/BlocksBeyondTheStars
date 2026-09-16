@@ -4535,7 +4535,7 @@ public sealed partial class GameServer
         {
             RemoveBeamAt(pos); // mining a beam block forgets its name/owner + map marker (teleporter pad)
         }
-        else if (def.Key is "station_vendor" or "mission_board")
+        else if (def.Key is "station_vendor" or "mission_board" || NpcProfessions.ByPostBlock(def.Key) != null)
         {
             OnBasePostChanged(null, pos, placed: false); // #1865: the post's keeper goes back to being a settler
         }
@@ -5136,7 +5136,7 @@ public sealed partial class GameServer
         {
             WarnIfSentryOutsideBase(session, pos); // #1699: a post outside a base zone never fires — say so
         }
-        else if (blockDef.Key is "station_vendor" or "mission_board")
+        else if (blockDef.Key is "station_vendor" or "mission_board" || NpcProfessions.ByPostBlock(blockDef.Key) != null)
         {
             OnBasePostChanged(session, pos, placed: true); // #1865: a post at home is staffed by a resident
         }

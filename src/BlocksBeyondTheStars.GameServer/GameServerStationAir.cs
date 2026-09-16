@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
@@ -335,7 +336,7 @@ public sealed partial class GameServer
     /// player-built station only while the air cell above the post sits in a sealed pocket.</summary>
     private bool StationMarkerStaffable(BoardableStation station, string type, Vector3f pos)
     {
-        if (!IsPlayerStationId(station.Id) || type is not ("vendor" or "mission_board"))
+        if (!IsPlayerStationId(station.Id) || !NpcProfessions.IsStaffedPostMarker(type))
         {
             return true;
         }
@@ -351,7 +352,7 @@ public sealed partial class GameServer
         for (int i = 0; i < station.Markers.Count && i < 31; i++)
         {
             var (type, pos) = station.Markers[i];
-            if (type is "vendor" or "mission_board" && StationMarkerStaffable(station, type, pos))
+            if (NpcProfessions.IsStaffedPostMarker(type) && StationMarkerStaffable(station, type, pos))
             {
                 sig |= 1 << i;
             }
@@ -365,7 +366,7 @@ public sealed partial class GameServer
     {
         foreach (var (type, pos) in station.Markers)
         {
-            if (type is "vendor" or "mission_board" && !StationMarkerStaffable(station, type, pos))
+            if (NpcProfessions.IsStaffedPostMarker(type) && !StationMarkerStaffable(station, type, pos))
             {
                 return true;
             }

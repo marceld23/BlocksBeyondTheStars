@@ -23,11 +23,11 @@ public sealed class SettlementModuleContentTests
 {
     private static readonly GameContent Content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
 
-    private static readonly string[] KnownMarkers =
+    private static readonly string[] KnownMarkers = new[]
     {
         "vendor", "mission_board", "npc", "loot", "door_slide", "door_hinge", "door_energy", "room", "greenhouse", "chest",
         "data_terminal", "guard_post", "tavern", "workshop", "lounge",
-    };
+    }.Concat(NpcProfessions.All.Select(p => p.Marker)).ToArray(); // 2026-09: the profession posts
 
     private static IEnumerable<StructureTemplate> ModularModules()
         => Content.SettlementTemplates.Where(t => t.Kit is "settlement_modular" or "city_gds_modular");
@@ -47,7 +47,7 @@ public sealed class SettlementModuleContentTests
         StructureRoles.Tavern => SettlementGenerator.TavernMarker,
         StructureRoles.Workshop => SettlementGenerator.WorkshopMarker,
         StructureRoles.Greenhouse => "greenhouse",
-        _ => null,
+        _ => NpcProfessions.ByFunction(function)?.Marker, // 2026-09: a profession building carries its post
     };
 
     private static ModuleMaterials MaterialsFor(StructureTemplate t, string surface = "grass")
@@ -116,6 +116,15 @@ public sealed class SettlementModuleContentTests
                 var set = modules.Where(m => m.Tier == style && m.Function == function).ToList();
                 Assert.True(set.Count(m => !m.IsAlienStyle) >= 2, $"{style} {function}: human variants");
                 Assert.Equal(set.Count(m => !m.IsAlienStyle), set.Count(m => m.IsAlienStyle));
+            }
+
+            // 2026-09: one building per profession, human and alien, carrying exactly that profession's post.
+            foreach (var profession in NpcProfessions.All)
+            {
+                var set = modules.Where(m => m.Tier == style && m.Function == profession.Function).ToList();
+                Assert.Equal(1, set.Count(m => !m.IsAlienStyle));
+                Assert.Equal(1, set.Count(m => m.IsAlienStyle));
+                Assert.All(set, m => Assert.Single(m.Cells, c => c.Kind == "marker" && c.Id == profession.Marker));
             }
         }
 

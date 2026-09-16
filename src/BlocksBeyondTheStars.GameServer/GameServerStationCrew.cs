@@ -33,19 +33,20 @@ public sealed partial class GameServer
         BeginAuthoredCasting(station.Id); // #1150: at most one authored face per place
 
         var cabins = station.Markers.Where(m => m.Type == "cabin").ToList();
-        var posts = new List<(string Role, Vector3f Pos)>();
+        var posts = new List<(string Role, Vector3f Pos, NpcProfession? Profession)>();
         foreach (var (type, pos) in station.Markers)
         {
+            var profession = NpcProfessions.ByMarker(type); // an author's profession post (2026-09)
             string? role = type switch
             {
                 "vendor" => "vendor",
                 "mission_board" => "quartermaster",
                 "greenhouse" or "hangar" or "heal_tank" or "lounge" => "settler",
-                _ => null,
+                _ => profession?.Role,
             };
             if (role != null)
             {
-                posts.Add((role, pos));
+                posts.Add((role, pos, profession));
             }
         }
 
@@ -56,7 +57,9 @@ public sealed partial class GameServer
             var (_, cabinPos) = cabins[i];
             bool hasPost = i < posts.Count;
             string role = hasPost ? posts[i].Role : "settler";
-            string theme = role == "vendor" ? VendorThemeFor(station.Id, vendorIndex++, "traders") : "traders";
+            var profession = hasPost ? posts[i].Profession : null;
+            string theme = profession is { Trades: true } ? profession.Theme
+                : role == "vendor" ? VendorThemeFor(station.Id, vendorIndex++, "traders") : "traders";
             bool robotic = theme == "researchers" || (role == "settler" && rng.NextDouble() < 0.3);
 
             // The cabin spot is where the resident rests at night (#1775: a standable cell that holds air); the crew
@@ -75,7 +78,11 @@ public sealed partial class GameServer
                 npc.Name = CoinGiverName(station.Id); // the mission-giver's name matches its missions (item 13)
             }
 
-            if (hasPost)
+            if (profession != null)
+            {
+                ApplyProfession(npc, profession);
+            }
+            else if (hasPost)
             {
                 npc.Job = role is "vendor" or "quartermaster" ? role : string.Empty; // the post leash + nameplate
                 ApplyAuthoredCharacter(npc, "station", station.Id); // #1128: a pack face may claim this slot

@@ -1677,7 +1677,7 @@ public sealed partial class GameServer
 
     /// <summary>True if the player is standing next to a settlement vendor (enables market barter there).</summary>
     public bool NearSettlementVendor(Shared.State.PlayerState player)
-        => NearMarker(player, "vendor", SettlementVendorReach);
+        => NearTradeMarker(player, SettlementVendorReach);
 
     /// <summary>True if the player is standing next to a settlement's mission board.</summary>
     public bool NearSettlementMissionBoard(Shared.State.PlayerState player)
@@ -1697,6 +1697,20 @@ public sealed partial class GameServer
 
         int z = (int)System.Math.Floor(player.Position.Z);
         return z >= s.Min.Z - margin && z <= s.Max.Z + margin;
+    }
+
+    /// <summary>True if any trading post — the classic vendor or a trading profession's post (2026-09) — is in reach.</summary>
+    private bool NearTradeMarker(Shared.State.PlayerState player, float reach)
+    {
+        foreach (var (markerType, pos) in _settlementMarkers)
+        {
+            if (NpcProfessions.IsTradeMarker(markerType) && WrapDistSq(player.Position, pos) <= reach * reach)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool NearMarker(Shared.State.PlayerState player, string type, float reach)

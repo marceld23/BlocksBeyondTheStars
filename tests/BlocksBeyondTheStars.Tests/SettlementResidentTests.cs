@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -49,17 +50,19 @@ public sealed class SettlementResidentTests : IDisposable
             var server = Start(seed, "jungle", out var repo);
             using (repo)
             {
-                foreach (var (name, tier, beds, residents) in server.SettlementResidentsForTest)
+                foreach (var (name, tier, beds, all) in server.SettlementResidentsForTest)
                 {
+                    // 2026-09: a profession post brings one extra resident on top of the bed-bound people below.
+                    var residents = all.Where(r => NpcProfessions.ByJob(r.Job) == null).ToList();
                     int cap = SvGameServer.ResidentCapForTest(tier);
                     int services = residents.Count(r => r.Job is "vendor" or "quartermaster");
                     Assert.Equal(Math.Max(Math.Min(beds, cap), services), residents.Count);
                     Assert.True(residents.Count <= Math.Max(cap, services), $"{name}: {residents.Count} residents over the cap {cap}");
 
                     // Everyone who has a bed has their own one; as many residents sleep in a bed as there are beds (≤ cap).
-                    var assigned = residents.Where(r => r.Bed.HasValue).Select(r => r.Bed!.Value).ToList();
+                    var assigned = all.Where(r => r.Bed.HasValue).Select(r => r.Bed!.Value).ToList();
                     Assert.Equal(assigned.Count, assigned.Distinct().Count());
-                    Assert.Equal(Math.Min(beds, residents.Count), assigned.Count);
+                    Assert.Equal(Math.Min(beds, residents.Count), residents.Count(r => r.Bed.HasValue));
 
                     checkedSettlements++;
                 }
@@ -88,8 +91,9 @@ public sealed class SettlementResidentTests : IDisposable
             var server = Start(seed, "jungle", out var repo);
             using (repo)
             {
-                foreach (var (name, tier, beds, residents) in server.SettlementResidentsForTest)
+                foreach (var (name, tier, beds, all) in server.SettlementResidentsForTest)
                 {
+                    var residents = all.Where(r => NpcProfessions.ByJob(r.Job) == null).ToList(); // professions are extra (2026-09)
                     if (!residents.Any(r => r.Job == "innkeeper"))
                     {
                         continue;

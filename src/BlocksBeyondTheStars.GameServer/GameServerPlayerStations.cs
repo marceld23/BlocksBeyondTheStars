@@ -914,6 +914,10 @@ public sealed partial class GameServer
             {
                 RegisterStationContainer(station, w);
             }
+            else if (_content.BlockById(kv.Value) is { } def && NpcProfessions.ByPostBlock(def.Key) is { } profession)
+            {
+                station.Markers.Add((profession.Marker, center)); // a profession post (2026-09): staffed like the trading post
+            }
         }
 
         // Seed the mission board's first window so it offers jobs even before any player opens the list; the

@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 
@@ -172,7 +173,7 @@ public sealed partial class GameServer
                 break;
             default:
                 npc.ActivityKey = JobActivityKey(npc.Job);
-                float leash = npc.Job is "vendor" or "quartermaster" or "craftsman" or "innkeeper" ? WorkLeash
+                float leash = npc.Job is "vendor" or "quartermaster" or "craftsman" or "innkeeper" || IsStandingProfession(npc.Job) ? WorkLeash
                     : npc.BaseId > 0 ? ResidentLeash : NpcWanderLeash;
                 GoTo(npc, npc.HasWork ? npc.Work : npc.Rest, NpcArrival.None, leash);
                 break;
@@ -205,7 +206,7 @@ public sealed partial class GameServer
         "innkeeper" => "npc.activity.working", // #1887: the tavern's keeper behind the counter
         "gardener" => "npc.activity.tending",
         "guard" => "npc.activity.patrolling",
-        _ => string.Empty,
+        _ => NpcProfessions.ByJob(job)?.ActivityKey ?? string.Empty,
     };
 
     /// <summary>Gets up from a chair or out of bed: back onto the spot it came from.</summary>

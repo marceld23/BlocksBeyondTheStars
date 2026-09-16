@@ -81,9 +81,9 @@ public sealed class SettlementNpcTests : IDisposable
                 // settlers' spot nearest to home.
                 string[] markerTypes = npc.Role switch
                 {
-                    "vendor" => new[] { "vendor" },
+                    "vendor" => new[] { "vendor", "doctor", "grocer", "arms_dealer", "sage", "tamer", "blockfarmer" }, // 2026-09: trading professions
                     "quartermaster" => new[] { "mission_board" },
-                    "settler" => new[] { "npc", "greenhouse", "workshop", "tavern", "vendor", "mission_board" },
+                    "settler" => new[] { "npc", "greenhouse", "workshop", "tavern", "vendor", "mission_board", "streamer", "reporter" },
                     "guardian" => new[] { "guard_post" },
                     _ => throw new Xunit.Sdk.XunitException($"Unexpected NPC role '{npc.Role}'."),
                 };

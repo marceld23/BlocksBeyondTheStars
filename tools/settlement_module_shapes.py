@@ -19,6 +19,12 @@ Conventions the composers and the server rely on:
   room picks the furniture), interior doorways carry a door marker, which keeps two rooms apart for the furnisher.
 """
 
+# The post marker a building function carries in its main room. The professions (2026-09, NpcProfessions in Shared) each
+# get a building of their own; the four classic entries are unchanged, so every existing module keeps its cells.
+POSTS = {"market": "vendor", "board": "mission_board", "tavern": "tavern", "workshop": "workshop",
+         "clinic": "doctor", "shop": "grocer", "armory": "arms_dealer", "library": "sage", "stable": "tamer",
+         "quarry": "blockfarmer", "studio": "streamer", "newsroom": "reporter"}
+
 # Packed shapes: ShapeCode.Pack(shape, yaw) = shape << 2 | yaw; yaw 0 = +Z, 1 = -X, 2 = -Z, 3 = +X.
 STAIRS = 6 << 2
 TABLE = 14 << 2
@@ -257,8 +263,8 @@ def village_module(function, variant, alien):
             rooms_front_back(m, 0, "door_hinge", "npc", (4, 2))
         else:
             rooms_side(m, 0, "door_hinge", "npc", (2, 3))
-    elif function in ("market", "board", "tavern", "workshop"):
-        post = {"market": "vendor", "board": "mission_board", "tavern": "tavern", "workshop": "workshop"}[function]
+    elif function in POSTS:
+        post = POSTS[function]
         if variant == 0:
             rooms_front_back(m, 0, "door_hinge", post, (5, 2))
         else:
@@ -313,8 +319,8 @@ def town_module(function, variant, alien, storeys=2):
             m.marker(4, 5, 5, "room")
         if storeys >= 3:
             m.marker(3, 9, 5, "room")
-    elif function in ("market", "board", "tavern", "workshop"):
-        post = {"market": "vendor", "board": "mission_board", "tavern": "tavern", "workshop": "workshop"}[function]
+    elif function in POSTS:
+        post = POSTS[function]
         m.marker(4, 1, 5, "room")
         m.marker(5, 1, 3 if variant == 0 else 5, post)
         if variant == 0:

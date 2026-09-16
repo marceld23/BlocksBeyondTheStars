@@ -111,11 +111,26 @@ public static class StructureRoles
     /// <summary>A craftsman's workshop (#1885): workbench, forge, crates. It takes a dwelling plot.</summary>
     public const string Workshop = "workshop";
 
-    public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse, Tavern, Workshop };
+    // --- the profession buildings (2026-09, NpcProfessions): each houses one profession post; it takes a dwelling plot ---
+
+    public const string Clinic = "clinic";
+    public const string Shop = "shop";
+    public const string Armory = "armory";
+    public const string Library = "library";
+    public const string Stable = "stable";
+    public const string Quarry = "quarry";
+    public const string Studio = "studio";
+    public const string Newsroom = "newsroom";
+
+    public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom };
     public static readonly string[] CityRoles = { CityHousing, CityMarket, CityHall, CityGarden, CityTower };
 
     /// <summary>Every role, in the order the editor's stepper walks them (whole first).</summary>
-    public static readonly string[] All = { string.Empty, House, Market, Board, Greenhouse, Tavern, Workshop, CityHousing, CityMarket, CityHall, CityGarden, CityTower };
+    public static readonly string[] All =
+    {
+        string.Empty, House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom,
+        CityHousing, CityMarket, CityHall, CityGarden, CityTower,
+    };
 
     public static bool IsCityRole(string? role) => role != null && System.Array.IndexOf(CityRoles, role) >= 0;
 

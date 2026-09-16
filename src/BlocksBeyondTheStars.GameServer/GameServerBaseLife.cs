@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
@@ -194,6 +195,15 @@ public sealed partial class GameServer
             jobs.Add("quartermaster");
         }
 
+        // The professions (2026-09): a post the player built is a job they asked for — right after the two classic posts.
+        foreach (var profession in NpcProfessions.All)
+        {
+            if (idx.ProfessionPosts.TryGetValue(profession.Job, out var professionPosts) && professionPosts.Count > 0)
+            {
+                jobs.Add(profession.Job);
+            }
+        }
+
         if (patrol != null || idx.SentryPosts.Count > 0)
         {
             jobs.Add("guard");
@@ -294,7 +304,8 @@ public sealed partial class GameServer
         }
 
         npc.Job = job;
-        string role = job is "vendor" or "quartermaster" ? job : "settler";
+        var profession = NpcProfessions.ByJob(job);
+        string role = job is "vendor" or "quartermaster" ? job : profession?.Role ?? "settler";
         npc.NameKey = job switch
         {
             "vendor" => "npc.role.vendor",
@@ -302,15 +313,15 @@ public sealed partial class GameServer
             "guard" => "npc.role.guard",
             "gardener" => "npc.role.gardener",
             "craftsman" => "npc.role.craftsman",
-            _ => "npc.theme.settlers",
+            _ => profession?.NameKey ?? "npc.theme.settlers",
         };
-        npc.Theme = job == "vendor" ? SettlementTradeFor(boardKey) : "settlers";
+        npc.Theme = job == "vendor" ? SettlementTradeFor(boardKey) : profession is { Trades: true } ? profession.Theme : "settlers";
         npc.Held = job switch
         {
             "gardener" => "npc_hoe",
             "craftsman" => "npc_hammer",
             "guard" => "blade",
-            _ => string.Empty,
+            _ => profession?.Held ?? string.Empty,
         };
         npc.SiteCursor = 0;
         npc.SiteUntil = 0;
@@ -343,6 +354,7 @@ public sealed partial class GameServer
             "craftsman" when idx.Workbenches.Count > 0 => idx.Workbenches[0],
             "craftsman" when idx.Forges.Count > 0 => idx.Forges[0],
             "gardener" => GardenSites(idx).Select(s => (Vector3i?)s).FirstOrDefault(),
+            _ when idx.ProfessionPosts.TryGetValue(npc.Job, out var professionPosts) && professionPosts.Count > 0 => professionPosts[0],
             _ => null,
         };
 

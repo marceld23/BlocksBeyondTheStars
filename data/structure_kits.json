@@ -722,6 +722,118 @@
         "max": 30,
         "required": false,
         "weight": 2
+      },
+      {
+        "module": "village_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
       }
     ]
   },
@@ -838,6 +950,118 @@
         "max": 30,
         "required": false,
         "weight": 2
+      },
+      {
+        "module": "village_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
       }
     ]
   },
@@ -968,6 +1192,118 @@
         "max": 30,
         "required": false,
         "weight": 2
+      },
+      {
+        "module": "village_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
       }
     ]
   },
@@ -1098,6 +1434,118 @@
         "max": 30,
         "required": false,
         "weight": 2
+      },
+      {
+        "module": "village_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
       }
     ]
   },
@@ -1214,6 +1662,118 @@
         "max": 30,
         "required": false,
         "weight": 2
+      },
+      {
+        "module": "town_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
       }
     ]
   },
@@ -1330,6 +1890,118 @@
         "max": 30,
         "required": false,
         "weight": 2
+      },
+      {
+        "module": "town_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
       }
     ]
   },
@@ -1460,6 +2132,118 @@
         "max": 30,
         "required": false,
         "weight": 3
+      },
+      {
+        "module": "town_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
       }
     ]
   },
@@ -1590,6 +2374,118 @@
         "max": 30,
         "required": false,
         "weight": 3
+      },
+      {
+        "module": "town_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
       }
     ]
   },

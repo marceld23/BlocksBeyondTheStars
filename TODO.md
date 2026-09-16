@@ -68,6 +68,24 @@ can be staffed at your own station/base like the existing posts; textures are ge
   aboard (`RestoreLandingPad` + `LeaveMoltenPad`); the chooser/map show them orange-red "lava!" (`NetLandingPad.Lava`),
   VEGA line `vega.hint.lava_pad`. `CurrentTerrainGeneration` 7 → 8 (shared with Titas/Valuma below). Tests: three in
   `LandingPadTests`. Docs: WORLD_GENERATION.md §19, USER_MANUAL (landing pads).
+- **NPC professions, part 1 — the table, their buildings in new settlements, editor markers, base/station staffing.**
+  Justus' eight job ideas become professions (`NpcProfessions`, Shared): **doctor, grocer (shopkeeper), arms dealer, sage,
+  animal tamer, blockfarmer** trade (Role `vendor` with their own job + market theme `medics/grocer/arms/sage/tamer/blocks`,
+  so the market and the trade-or-talk question work unchanged), **streamer** and **reporter** are settlers. Each has a post
+  marker (= its job key), a post block for bases/stations, a settlement building function (`clinic, shop, armory, library,
+  stable, quarry, studio, newsroom` → `StructureRoles.PlotRoles`) and a furnished room (medbay, market, workshop, hall,
+  storage, lounge, board). **Settlements:** 32 new modules (village + town, human + alien; generator
+  `tools/gen_settlement_modules.py` / `settlement_module_shapes.py` — every existing module byte-identical, pool order kept)
+  as optional max-1 entries in every modular kit, so only freshly placed settlements draw them (compositions are pinned per
+  record). `SpawnProfessionResidents` staffs each post AFTER the bed-bound residents with its own seeded generator — a
+  settlement without profession posts spawns exactly the people it always did. **Editor:** the eight markers in the station
+  and settlement palettes (`ui.marker.*`), the eight functions in the "use as" stepper (`ui.role.*`). **Stations:** generated
+  (authored templates) and kit crews staff profession markers (no `vendorIndex` step, so classic vendor themes never shift);
+  a player station registers profession post blocks as markers and staffs them like the trading post (air check).
+  **Bases:** `BaseIndex.ProfessionPosts` → jobs right after vendor/quartermaster, base markers per profession. **Trade
+  gates** (settlement / station / base) accept every trading profession's post. Locales en+de: `npc.role.*`,
+  `npc.activity.*`, `npc.greet.*`, `ui.marker.*`, `ui.role.*`. Tests: `NpcProfessionTests` (table, kits, fresh settlement
+  staffing) + marker whitelists / resident counts in the settlement tests.
 
 ### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
 

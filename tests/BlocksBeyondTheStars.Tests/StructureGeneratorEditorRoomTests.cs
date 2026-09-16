@@ -21,11 +21,13 @@ public sealed class StructureGeneratorEditorRoomTests
     {
         "hangar", "vendor", "mission_board", "heal_tank", "quarters", "console", "npc", "greenhouse", "spawn",
         "door_slide", "door_hinge", "door_energy",
+        "doctor", "grocer", "arms_dealer", "sage", "tamer", "blockfarmer", "streamer", "reporter", // 2026-09
     };
 
     private static readonly HashSet<string> SettlementPalette = new(StringComparer.Ordinal)
     {
         "vendor", "mission_board", "npc", "door_slide", "door_hinge", "door_energy", "loot", "greenhouse", "chest", "data_terminal",
+        "doctor", "grocer", "arms_dealer", "sage", "tamer", "blockfarmer", "streamer", "reporter", // 2026-09
     };
 
     private static readonly GameContent Content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
