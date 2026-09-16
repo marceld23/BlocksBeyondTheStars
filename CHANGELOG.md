@@ -11,6 +11,115 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.10] — 2026-09-16
+
+The shapeshifter release. Almost everything in it began with **Justus**: in two days he sent more than twenty
+reports — a crash, a ship that landed in a lava lake, a chat that swallowed `/help`, a station that was gone after a
+restart — and a pile of ideas. Now the people of your worlds **have professions**: a doctor, a shopkeeper, an arms
+dealer, a sage, an animal tamer, a blockfarmer, a streamer who wants a photo with you and a reporter who interviews
+you. There are **two new planets**: **Titas**, a frozen world that exists only once per galaxy, and **Valuma**, calm
+grass plains where one of the animals is not an animal — and you can even tame it. **Space stations look like
+themselves** from the cockpit, block for block, and your ship docks in their hangar. Sandbox worlds get an **"All
+items" page**, the world mode can be switched **with a chat command**, and every drill, pistol, blade and scanner
+**looks different in your hand**. Thank you, Justus 🙏
+
+ℹ️ **Compatibility:** the network protocol stays at version 6, saves migrate unchanged. Titas, Valuma and the lava
+islands appear in **new worlds**; worlds you already have keep their landscape. New profession buildings appear in
+newly generated villages and stations — the profession posts for your own base and station work everywhere. Existing
+worlds get a station in their start system if it had none, and a station you already visited keeps its inside and
+only gains its outside detail.
+
+### 🧑‍⚕️ Eight new professions (#1910 #1911)
+
+Justus sent eight ideas for people to meet in your worlds — here they all are.
+
+- **Doctor:** medpacks, field medkits and an expensive detoxifier; a bed and a stretcher every other day.
+- **Shopkeeper:** food — as long as you stand inside the shop.
+- **Arms dealer:** cables, plates, energy cells and finished laser pistols or plasma blasters for diamonds and gold.
+- **Sage:** data fragments and AI memory fragments, at a very high price.
+- **Animal tamer:** baits and the creature translator, with a tame animal of the planet at their side.
+- **Blockfarmer:** quarries outside the settlement by day and sells stone, sand, dirt and basalt.
+- **Streamer:** a huge fan who comes by once a day and asks for a **photo together** — say "never" and they stop.
+- **Reporter:** **interviews you** about what you have been up to, and anyone can ask "What's in the news?".
+- **Where you meet them:** new villages and towns get a clinic, shop, armory, library, stable, quarry, studio or
+  newsroom; new stations get the ones that make sense in space; the G.D.S. city has a services quarter. Research
+  **Profession posts** and build them into your own base or station — a resident takes the job.
+- **Talking to a vendor works again:** **E** now asks *Trade or talk?* instead of always opening the market, and a
+  vendor's special goods only trade while that vendor stands next to you.
+
+### ❄️ Titas — a frozen planet, once per galaxy (#1912)
+
+Justus's planet, in two long reports.
+
+- **Ten blocks of snow** over yellow sulfur stone, **toxic yellow water** under a sheet of ice, leafless dead forests,
+  and **hot zones** with lava ponds in the middle of the cold.
+- Your suit is not enough there: an **exposure meter** shows your cold (or heat) protection. Your ship, a station, a
+  base, a campfire or digging deep fill it up again; VEGA warns you before it runs out.
+- Abandoned **SPS research stations** hold salvage and log entries — without air, at −90 °C, and watched by the
+  machines — Titas has far more of them than any other planet.
+
+### 🌾 Valuma and the Sreekmakra (#1913 #1926)
+
+- **Valuma** is a rare world of wide, flat grass plains where the animals never bite. But one of them is a
+  **Sreekmakra**: it wears the shape of a local animal and changes it when nobody is looking. Hunt the animal it
+  copies, or hit it, and it comes for you; beat it and it shows its true form. Stay too long and VEGA starts to feel
+  watched…
+- **Tame it** — Justus's follow-up idea: while it wears a disguise, tame it directly or tame any animal of the kind it
+  copies, and it comes to you as a companion in its true form. Your scanner now reads its real name under the
+  disguise. New achievement: *Shapeshifter's Friend*.
+
+### 🛰️ Stations you can recognise (#1917 #1918 #1919 #1920 #1921 #1924 #1925)
+
+- **What you see from the cockpit is the station you walk through** — its real hull at full size, with its module
+  halls, windows and the glowing force-field mouth of its hangar. A colossal station is more than a hundred blocks
+  across.
+- **Solar wings, antenna masts and domes** on the outside, set per kit in the Station editor.
+- **Docking at the hangar:** press **E** anywhere near the hull and the ship flies round and noses into the hangar;
+  the autopilot takes you there too. The hull is solid — you can fly between its modules.
+- **Your start system always has a station** — more than a third of new worlds started without one, and
+  VEGA's docking lesson led nowhere. Justus found it (#1924).
+- **Quit on a station, come back on the station** — instead of on the planet below. Also Justus (#1925).
+
+### 🧰 Sandbox, world mode and chat (#1922 #1923 #1927 #1930)
+
+- **Sandbox: All items** — a searchable page in the inventory with every item of the game: take one or a full stack,
+  nothing has to be crafted (#1930).
+- **`/gamemode explorer|creative|sandbox`** switches a running world's mode for everyone — world admins only, with
+  cheats off too (#1927).
+- **The chat scrolls back:** mouse wheel or PageUp/PageDown, so a long `/help` is no longer cut off, and the answer to
+  a command stays visible even while VEGA is talking. Refused admin commands say why again (#1922).
+- **`/tp city`** takes you to a city or town, and the German words `stadt`, `dorf` and `siedlung` work too (#1923).
+
+### 🔨 Looks right, feels right (#1900 #1901 #1902 #1903 #1904 #1931)
+
+From Justus's first reports of the week, plus a wish of Marcel's for the traders.
+
+- **Every tool looks like itself in your hand** — each drill, pistol and blaster, the machete, vibro knife, plasma
+  sword and the advanced scanner (#1931).
+- **One bed is one bed:** beds, flower pots, campfires, rugs and ladders show their picture once instead of a copy on
+  every side (#1900).
+- **No more chairs in the doorway** of station cabins and village houses — door lanes stay clear (#1901).
+- **No air pockets under water:** plants, ladders and shaped blocks in water are under water too — you swim through a
+  kelp forest and your air runs down (#1902).
+- **Shore foam follows the flood** instead of staying at the old coastline (#1903).
+- **Trader ships stay longer,** wait while you are near and show up as a gold marker on the planet map and compass
+  (#1904).
+
+### 🐛 Fixes and safety (#1898 #1906 #1907 #1908 #1909 #1914 #1915 #1928)
+
+The lava landing, the crash and the cut-off report were Justus's finds, too.
+
+- **Never in the lava:** a landing pad over lava now stands on a basalt island. In older worlds a lava pad is marked
+  orange-red, only used when every other pad is taken, and a ship saved on one is moved (#1908).
+- **The rare crash when a text field got focus is fixed** — the chat box was the one field without protection (#1906).
+- **Long F1 reports are no longer cut:** 4800 characters with a live counter — the old limit silently cut ideas off
+  in mid-sentence (#1907).
+- **No rude place names:** generated names are filtered, and names you give things refuse sexual terms (#1914).
+- **Hand weapons are part of every world** — a world option for them existed on paper but never did anything; it is
+  gone, and the parents' page says what a world *can* switch off: robots, bandits and other enemies (#1909).
+- **The loading screen's text stays centred** in the browser and on any screen shape (#1898).
+- **Every new text in all 14 languages** (#1915 #1928).
+
 ## [2026.9.9] — 2026-09-15
 
 The neighbours release. Until now a settler stood next to your base core and that was all, a villager strolled
@@ -5407,7 +5516,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.9...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.10...HEAD
+[2026.9.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.9...v2026.9.10
 [2026.9.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.8...v2026.9.9
 [2026.9.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.7...v2026.9.8
 [2026.9.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.6...v2026.9.7
