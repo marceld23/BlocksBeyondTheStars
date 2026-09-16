@@ -180,6 +180,110 @@ public sealed class SreekmakraTests : IDisposable
         Assert.True(server.SreekmakraBackAtForTest() > DateTimeOffset.UtcNow.ToUnixTimeSeconds());
     }
 
+    /// <summary>Runs the translator ritual on the nearest wild creature with the right answer every step.</summary>
+    private static void Tame(SvGameServer server, string playerId, Func<bool> done)
+    {
+        var p = server.Sessions[1].State;
+        foreach (var bait in new[] { "forage_bait", "meat_bait", "nectar_lure" })
+        {
+            p.Inventory.Add(bait, 20, 99);
+        }
+
+        for (int i = 0; i < 24 && !done(); i++)
+        {
+            server.TameDecodeForTest(playerId);
+            string need = server.TameCurrentNeedForTest(playerId);
+            if (need.Length == 0)
+            {
+                return;
+            }
+
+            server.TameRespondForTest(playerId, need);
+        }
+    }
+
+    [Fact]
+    public void TamingItsDisguise_BondsTheShapeshifter_InItsTrueForm()
+    {
+        // #1926: "It also works if you tame it directly."
+        var server = WithSreekmakra("tame-direct");
+        var p = server.Sessions[1].State;
+        var s = server.SreekmakraForTest()!.Value;
+        p.Position = server.Creatures.First(c => c.Id == s.Id).Position;
+
+        Tame(server, p.PlayerId, () => p.TamedCreatures.Count > 0);
+
+        var pet = Assert.Single(p.TamedCreatures);
+        Assert.Equal(TrueForm, pet.SpeciesId);
+        Assert.Null(server.SreekmakraForTest()); // it left the herd
+        Assert.Contains(server.Creatures, c => c.SpeciesId == TrueForm && c.OwnerId == p.PlayerId);
+        Assert.Contains("creature:" + TrueForm, p.Scanned);
+        Assert.Equal(1, p.AchievementCounters.GetValueOrDefault("tame:sreekmakra"));
+        Assert.True(server.SreekmakraBackAtForTest() > DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 60);
+    }
+
+    [Fact]
+    public void TamingAnAnimalOfItsShape_BringsTheShapeshifterAlong_BesideThePlayer()
+    {
+        // #1926: "If you tame an animal of the kind the Sreekmakra has turned into, you get the animal AND the Sreekmakra."
+        var server = WithSreekmakra("tame-shape");
+        var p = server.Sessions[1].State;
+        var s = server.SreekmakraForTest()!.Value;
+        var sreek = server.Creatures.First(c => c.Id == s.Id);
+        string animal = server.SpawnCreatureAtForTest(new Vector3f(sreek.Position.X + 50f, sreek.Position.Y, sreek.Position.Z), s.SpeciesId);
+        p.Position = server.Creatures.First(c => c.Id == animal).Position;
+
+        Tame(server, p.PlayerId, () => p.TamedCreatures.Count > 0);
+
+        Assert.Equal(2, p.TamedCreatures.Count);
+        Assert.Contains(p.TamedCreatures, t => t.SpeciesId == s.SpeciesId);
+        Assert.Contains(p.TamedCreatures, t => t.SpeciesId == TrueForm);
+        Assert.Null(server.SreekmakraForTest());
+        var follower = server.Creatures.Single(c => c.SpeciesId == TrueForm && c.OwnerId == p.PlayerId);
+        float dx = follower.Position.X - p.Position.X, dz = follower.Position.Z - p.Position.Z;
+        Assert.True(dx * dx + dz * dz < 10f * 10f, "it appears beside the player, not back where it grazed");
+    }
+
+    [Fact]
+    public void ItsTrueForm_CannotBeTamed()
+    {
+        // #1926: "You can only tame it while it wears a shape."
+        var server = WithSreekmakra("tame-revealed");
+        var p = server.Sessions[1].State;
+        string id = server.SreekmakraForTest()!.Value.Id;
+        Hit(server, p.PlayerId, id, () => server.SreekmakraForTest() is { Revealed: true });
+        Assert.True(server.SreekmakraForTest()!.Value.Revealed);
+        p.Position = server.Creatures.First(c => c.Id == id).Position;
+
+        Tame(server, p.PlayerId, () => p.TamedCreatures.Count > 0);
+
+        Assert.Empty(p.TamedCreatures);
+        Assert.NotNull(server.SreekmakraForTest());
+    }
+
+    [Fact]
+    public void TheScanner_ReadsTheTrueName_OfExactlyTheAimedDisguise()
+    {
+        // #1926: "If you scan it while it is disguised, the scanner shows its true name, Sreekmakra, not the animal."
+        var server = WithSreekmakra("scan-name");
+        var p = server.Sessions[1].State;
+        var s = server.SreekmakraForTest()!.Value;
+        var sreek = server.Creatures.First(c => c.Id == s.Id);
+        p.Position = new Vector3f(sreek.Position.X + 3f, sreek.Position.Y, sreek.Position.Z);
+
+        var disguise = server.ScanSubject(p.PlayerId, "creature", s.SpeciesId, s.Id);
+        Assert.Equal("ui.scan.threat.anomaly", disguise.ThreatKey);
+        Assert.Equal(TrueForm, disguise.SubjectKey);
+        Assert.StartsWith("Sreekmakra", disguise.Subject);
+        Assert.Contains("creature:" + TrueForm, p.Scanned);
+
+        // A real animal of the same kind standing even closer is just that animal.
+        string animal = server.SpawnCreatureAtForTest(new Vector3f(p.Position.X + 1f, p.Position.Y, p.Position.Z), s.SpeciesId);
+        var plain = server.ScanSubject(p.PlayerId, "creature", s.SpeciesId, animal);
+        Assert.NotEqual("ui.scan.threat.anomaly", plain.ThreatKey);
+        Assert.Equal(s.SpeciesId, plain.SubjectKey);
+    }
+
     [Fact]
     public void ALongStay_BringsTheWatchedLine_ThenTheFog_AndLeavingResetsIt()
     {

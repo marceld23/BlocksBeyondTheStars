@@ -494,6 +494,18 @@ public sealed partial class GameServer
         // 2026-09: a type with a fixed name (Titas) names its body — after the pins, so the name follows the final type.
         UniverseGenerator.ApplyFixedNames(_galaxy, _content);
 
+        // #1924: the start system always has a real station (after the names, so it is called after the final start
+        // name). A pre-variance save already has a fallback station in every system; an older save starting in sys0 keeps
+        // its synthesized one (it may have been boarded) — everywhere else nothing guaranteed a station before.
+        if (_meta.Description.SpaceStations != Frequency.Off && _meta.Description.SystemVariance
+            && _galaxy.FindBody(_meta.ActiveLocationId) is { } startBody
+            && (startBody.SystemId != "sys0" || _meta.Description.TerrainGeneration >= WorldDescription.StartStationGeneration)
+            && _galaxy.Systems.FirstOrDefault(s => s.Id == startBody.SystemId) is { } homeSystem
+            && UniverseGenerator.EnsureStartSystemStation(homeSystem, startBody) is { } homeStation)
+        {
+            _log.Info($"Start system '{homeSystem.Name}' rolled no station — added '{homeStation.Name}' ({homeStation.Id}).");
+        }
+
         // Finale (P6): the galaxy is regenerated from seed each start, so re-append the Guardian system for an
         // already-revealed save (after start-body selection, so it never affects the spawn world). A fresh
         // reveal adds it live via RevealGuardianSystemIfReady.
@@ -3164,7 +3176,9 @@ public sealed partial class GameServer
         {
             ClearDocking(session.State.PlayerId);
             LeaveSpace(session.State.PlayerId);
-            LeaveStation(session.State.PlayerId);
+            // #1925: NOT LeaveStation — that undocks to the planet (which then got saved) and relaunches the leaver
+            // into a space instance LeaveSpace had just cleared. The save keeps them aboard; the rejoin re-boards.
+            ForgetStationBoarding(session);
             CancelTradesFor(session.State.PlayerId);
             SetCurrent(session);
             SaveFleet(session); // the whole fleet + the fleet index on the state, before it is written below
@@ -3537,6 +3551,7 @@ public sealed partial class GameServer
             case MarkerActionIntent markerAction: HandleMarkerAction(session, markerAction); break;
             case NoteActionIntent noteAction: HandleNoteAction(session, noteAction); break; // player notes (#1844)
             case InterviewAnswerIntent interview: HandleInterviewAnswer(session, interview); break; // reporter news (2026-09)
+            case CreativeTakeItemIntent take: HandleCreativeTakeItem(session, take); break; // the Sandbox catalog (#1930)
             case StorySelectIntent storySelect: HandleStorySelect(session, storySelect); break;
             case NetFragmentFoundIntent netFrag: HandleNetFragmentFound(session, netFrag); break;
             case CoreHackIntent coreHack: HandleCoreHack(session, coreHack); break;
@@ -3546,8 +3561,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>The body to place a (re)joining player on: the one they were last on (persisted per-player)
-    /// if it is a real landable body, otherwise the home/default body — for a first join, or a transient
-    /// save location like a station / in space.</summary>
+    /// if it is a real landable body; for a player saved aboard a station the planet that station undocks to
+    /// (#1925 — the station itself is re-boarded once the join is through, <see cref="RestoreStationOnJoin"/>);
+    /// otherwise the home/default body — for a first join, or a transient save location like space.</summary>
     private (string Body, string Type) RestoreJoinBody(Shared.State.PlayerState state)
     {
         if (_galaxy?.FindBody(state.CurrentLocationId) is { } b
@@ -3555,6 +3571,11 @@ public sealed partial class GameServer
             && !string.IsNullOrEmpty(b.PlanetType))
         {
             return (b.Id, b.PlanetType);
+        }
+
+        if (SavedStationBody(state.CurrentLocationId) is { } station)
+        {
+            return StationReturnLocation(station.Id, station);
         }
 
         return (_meta.ActiveLocationId, _meta.DefaultPlanetType);
@@ -3732,6 +3753,8 @@ public sealed partial class GameServer
 
         // Return the player to the body they were last on (persisted per-player), not always the home world.
         // Ensure that body's world is resident + the active cursor before placing them + sending world data.
+        string savedLocation = state.CurrentLocationId; // #1925: a station is re-boarded after the join burst
+        var savedPosition = state.Position;
         var (joinBody, joinBodyType) = RestoreJoinBody(state);
         LoadWorld(joinBodyType, joinBody);
 
@@ -3830,6 +3853,7 @@ public sealed partial class GameServer
         SendPaintDesigns(session);      // paint-design registry — before any chunk with painted blocks can arrive
         SendCustomShapes(session);      // …and the form registry, for the same reason (#843)
         ShipAiOnJoin(session); // boot VEGA: onboarding intro / veteran skip / resume objective
+        RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: quit on a station → back on it
 
         // Hosted worlds: one-time welcome (community rules + beta notice) on the player's FIRST join of
         // this world — the acceptance screen lives on the portal; this is the friendly in-game reminder.
@@ -4061,6 +4085,8 @@ public sealed partial class GameServer
         int connectionId = _nextLocalConnectionId--;
 
         // Return the player to the body they were last on (persisted); home/default for a fresh player.
+        string savedLocation = state.CurrentLocationId;
+        var savedPosition = state.Position;
         var (joinBody, joinBodyType) = RestoreJoinBody(state);
         LoadWorld(joinBodyType, joinBody);
 
@@ -4081,6 +4107,7 @@ public sealed partial class GameServer
         ApplyCreativeGrants(session); // singleplayer "Creative" world: unlock-all / all-ships / starter kit
         GrantStarterTeleporter(session); // StarterTeleporter world rule (#1056): hand out the device on join
         OnMarkerOwnerJoined(session); // the loaded state is the truth for this player's shared markers (#1293)
+        RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: saved aboard a station → back on it
         return session;
     }
 
@@ -5891,6 +5918,11 @@ public sealed partial class GameServer
             // AdminCheats off, and exactly there a parent needs to hand the kid Creative. The role is the gate.
             case "set_mode":
                 AdminSetPlayerMode(session, cmd.TargetPlayer, cmd.StringArg);
+                return;
+
+            // The whole world's mode (#1927) — the same kind of world management as set_mode above.
+            case "set_world_mode":
+                AdminSetWorldMode(session, cmd.StringArg);
                 return;
 
             // Observer mode + its jump command are fleet-admin only: they reach into worlds other people own,

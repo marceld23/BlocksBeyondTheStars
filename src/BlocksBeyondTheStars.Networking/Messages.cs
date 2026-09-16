@@ -542,6 +542,10 @@ public sealed class ScanIntent
 {
     public string SubjectType { get; set; } = string.Empty; // "creature" | "block"
     public string SubjectKey { get; set; } = string.Empty;
+
+    /// <summary>The aimed creature's entity id for a creature scan (#1926, empty from older clients): lets the server read
+    /// the one individual under the crosshair — the Sreekmakra's disguise — instead of guessing from the species.</summary>
+    public string EntityId { get; set; } = string.Empty;
 }
 
 /// <summary>Client scans a space entity (asteroid) with the ship scanner to reveal its resources.</summary>

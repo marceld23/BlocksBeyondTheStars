@@ -264,7 +264,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 r.Held = m.Held;
                 var (kind, tint, blockKey) = HeldItem.For(Game?.Content, m.Held);
-                r.Avatar.SetHeldItem(kind, tint, blockKey);
+                r.Avatar.SetHeldItem(kind, tint, blockKey, m.Held);
             }
         }
 

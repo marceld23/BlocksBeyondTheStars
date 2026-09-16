@@ -6,6 +6,7 @@ using System.Linq;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -18,7 +19,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// an animal of the species it currently mimics — or hitting it — turns it on that player, with the shape's speed and
 /// bite ×1.5, until it dies or the player leaves. At zero health its disguise breaks: the true form fights on (or, with
 /// planet enemies off, flees and vanishes). Defeating the true form drops its loot, opens its Codex entry and an
-/// achievement; the next one comes a few in-game days later. The hand scanner reads the disguised one as an anomaly.
+/// achievement; the next one comes a few in-game days later. The hand scanner reads the disguised one as an anomaly —
+/// under its true name (#1926). Tamed while it wears a shape — directly, or by taming any animal of the shape it wears —
+/// it drops the disguise and stays with that player as a companion in its true form (#1926).
 /// Valuma's mood: after 20 minutes on the planet VEGA feels watched, after 35 the fog closes in and the music darkens.
 /// </summary>
 public sealed partial class GameServer
@@ -331,8 +334,6 @@ public sealed partial class GameServer
         state.Clear();
 
         // Everyone close enough to see it fall learns what it was: the Codex entry of its true form.
-        string ledgerKey = "creature:" + SreekmakraSpeciesId;
-        string name = string.IsNullOrEmpty(trueForm.Name) ? SreekmakraSpeciesId : trueForm.Name;
         foreach (var s in JoinedInActiveWorld())
         {
             if (s != killer && WrapDistSq(s.State.Position, dead.Position) > 64f * 64f)
@@ -340,20 +341,8 @@ public sealed partial class GameServer
                 continue;
             }
 
-            var p = s.State;
             SendVegaLine(s, "vega.sys.sreekmakra_defeated", 3);
-            if (p.Scanned.Add(ledgerKey))
-            {
-                p.ScannedNames[ledgerKey] = name;
-                var site = SiteFor(s);
-                if (site is not null)
-                {
-                    p.ScannedWhere[ledgerKey] = site;
-                }
-
-                Send(s, DiscoveryDelta(ledgerKey, name, site));
-                _repo.SavePlayer(p);
-            }
+            DiscoverSreekmakra(s);
         }
 
         if (killer is not null)
@@ -363,6 +352,119 @@ public sealed partial class GameServer
 
         _log.Info($"The Sreekmakra on '{world}' was defeated{(killer is null ? string.Empty : " by " + killer.State.Name)}.");
     }
+
+    /// <summary>The Codex entry of the true form for one player (first time only) — a defeat, a tame or a scan of the disguise.</summary>
+    private void DiscoverSreekmakra(PlayerSession session)
+    {
+        if (!_speciesById.TryGetValue(SreekmakraSpeciesId, out var trueForm))
+        {
+            return;
+        }
+
+        string ledgerKey = "creature:" + SreekmakraSpeciesId;
+        string name = string.IsNullOrEmpty(trueForm.Name) ? SreekmakraSpeciesId : trueForm.Name;
+        var p = session.State;
+        if (!p.Scanned.Add(ledgerKey))
+        {
+            return;
+        }
+
+        p.ScannedNames[ledgerKey] = name;
+        var site = SiteFor(session);
+        if (site is not null)
+        {
+            p.ScannedWhere[ledgerKey] = site;
+        }
+
+        Send(session, DiscoveryDelta(ledgerKey, name, site));
+        _repo.SavePlayer(p);
+    }
+
+    // ---------------- Taming (#1926) ----------------
+
+    /// <summary>Whether this creature is the world's shapeshifter in a shape it can be tamed in: disguised, not fleeing.</summary>
+    private bool SreekmakraTameable(CombatEntity creature)
+        => IsSreekmakra(creature) && !Sreek.Revealed && Sreek.FleeUntil <= 0;
+
+    private bool OwnsASreekmakra(PlayerSession session)
+        => session.State.TamedCreatures.Any(t => t.SpeciesId == SreekmakraSpeciesId);
+
+    /// <summary>#1926, "you get the animal AND the Sreekmakra as a pet": after a successful tame of an ordinary animal, the
+    /// world's disguised shapeshifter — if that animal's kind is the shape it wears — drops its disguise and comes to the
+    /// player as a second companion in its true form. A player who already has one, or no free companion slot here,
+    /// leaves it in the herd (VEGA says why when the slots are the reason).</summary>
+    private void SreekmakraFollowsATame(PlayerSession session, string tamedSpeciesId)
+    {
+        if (Sreek.CreatureId.Length == 0 || _creatures.FirstOrDefault(c => c.Id == Sreek.CreatureId) is not { } sreek
+            || !SreekmakraTameable(sreek) || sreek.SpeciesId != tamedSpeciesId || OwnsASreekmakra(session))
+        {
+            return;
+        }
+
+        if (session.State.TamedCreatures.Count(t => t.HomeBodyId == _world.LocationId) >= MaxCompanionsPerWorld)
+        {
+            SendVegaLine(session, "vega.sys.sreekmakra_no_room", 3);
+            return;
+        }
+
+        var tc = BondSreekmakra(session, sreek, beside: session.State.Position);
+        if (tc is not null)
+        {
+            SendVegaLine(session, "vega.sys.sreekmakra_joined", 3);
+        }
+    }
+
+    /// <summary>The shapeshifter becomes the player's companion in its true form: it leaves the wild (the next one comes
+    /// after the same wait as after a defeat), opens its Codex entry and counts the "shapeshifter friend" achievement.
+    /// <paramref name="beside"/> is where it appears — its own spot for a direct tame, beside the player when it follows
+    /// a tamed animal ("it teleports to you").</summary>
+    private TamedCreature? BondSreekmakra(PlayerSession session, CombatEntity sreek, Vector3f beside)
+    {
+        if (!_speciesById.TryGetValue(SreekmakraSpeciesId, out var trueForm))
+        {
+            return null;
+        }
+
+        var p = session.State;
+        string world = _world.LocationId;
+        var tc = new TamedCreature
+        {
+            Id = NextEntityId(),
+            HomeBodyId = world,
+            Name = DefaultCompanionName(trueForm, p),
+            SpeciesId = SreekmakraSpeciesId,
+            Species = CloneSpecies(trueForm),
+            SizeScale = 1f,
+            Bond = 60,
+            TamedAtUtc = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        };
+        p.TamedCreatures.Add(tc);
+
+        _creatures.Remove(sreek);
+        foreach (var attempt in _tameAttempts.Where(a => a.Value.CreatureId == sreek.Id).Select(a => a.Key).ToList())
+        {
+            _tameAttempts.Remove(attempt); // anyone else mid-ritual on it loses the thread
+        }
+
+        Sreek.Clear();
+        _meta.SreekmakraBackAt[world] = NowUnixSeconds + (long)(SreekmakraReturnDays * DayLengthSecondsForSreek());
+        _repo.SaveMetadata(_meta);
+
+        SpawnCompanionEntity(p.PlayerId, tc, beside);
+        DiscoverSreekmakra(session);
+        Advance(session, "tame:sreekmakra");
+        _repo.SavePlayer(p);
+        BroadcastCreatures();
+        SendCompanions(session);
+        _log.Info($"The Sreekmakra on '{world}' was tamed by {p.Name}.");
+        return tc;
+    }
+
+    /// <summary>Whether a scan aimed at <paramref name="entityId"/> hit the disguised shapeshifter (the exact form of
+    /// <see cref="SreekmakraAnomalyFor"/>, #1926 — clients that send the aimed creature's id).</summary>
+    private bool SreekmakraDisguisedAs(string entityId, string speciesId)
+        => Sreek.CreatureId.Length > 0 && entityId == Sreek.CreatureId && !Sreek.Revealed
+           && _creatures.FirstOrDefault(c => c.Id == entityId) is { } sreek && sreek.SpeciesId == speciesId;
 
     /// <summary>The hand scanner on the disguised shapeshifter: the nearest animal of the scanned species within reach is it.</summary>
     private bool SreekmakraAnomalyFor(PlayerSession session, string speciesId)

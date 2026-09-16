@@ -226,6 +226,67 @@ public sealed class SpaceStationBoardingTests : IDisposable
     }
 
     [Fact]
+    public void QuittingAboardAStation_AndComingStraightBack_RejoinsOnTheStation()
+    {
+        // #1925: "When I quit on a space station and go straight back in, I'm on the planet where I last landed."
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            BoardFirstStation(server, "Pilot");
+            string stationLoc = pilot.CurrentLocationId;
+            var spot = pilot.State.Position;
+            Assert.StartsWith("station:", stationLoc);
+
+            server.DisconnectLocalPlayerForTest("Pilot");
+            Assert.False(server.InSpace("Pilot")); // the leaver is no longer relaunched into a space instance
+
+            var back = server.AddLocalPlayer("Pilot");
+
+            Assert.True(server.InStation("Pilot"));
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Equal(stationLoc, back.CurrentLocationId);
+            Assert.False(back.State.AboardShip);
+            Assert.True(System.MathF.Abs(back.State.Position.X - spot.X) < 0.01f
+                && System.MathF.Abs(back.State.Position.Y - spot.Y) < 0.01f
+                && System.MathF.Abs(back.State.Position.Z - spot.Z) < 0.01f,
+                $"rejoined at {back.State.Position}, saved at {spot}");
+            Assert.Contains(server.SpaceStationMarkers, m => m.Type == "vendor"); // the interior is stamped again
+
+            // …and undocking still returns to space flight around a real body.
+            server.LeaveStation("Pilot");
+            Assert.True(server.InSpace("Pilot"));
+            Assert.False(back.CurrentLocationId.StartsWith("station:", System.StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void AServerRestartWhileAboardAStation_KeepsThePlayerOnIt()
+    {
+        string stationLoc;
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            BoardFirstStation(server, "Pilot");
+            stationLoc = pilot.CurrentLocationId;
+            server.Stop(); // the singleplayer quit: the local server saves everyone still aboard
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var again = Started(out var repo2);
+        using (repo2)
+        {
+            var back = again.AddLocalPlayer("Pilot");
+
+            Assert.True(again.InStation("Pilot"));
+            Assert.Equal(stationLoc, back.CurrentLocationId);
+            Assert.False(back.State.AboardShip);
+        }
+    }
+
+    [Fact]
     public void StationCrew_StandsOnTheDeck_NotFloating()
     {
         var server = Started(out var repo);

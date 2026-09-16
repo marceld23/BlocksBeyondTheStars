@@ -392,6 +392,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Answers a reporter's interview (2026-09 professions) — the server screens and stores it as local news.</summary>
         public void SendInterviewAnswer(int npcId, string text) => Send(new InterviewAnswerIntent { NpcId = npcId, Text = text ?? string.Empty });
 
+        /// <summary>Takes an item from the Sandbox "All items" catalog (#1930; the server checks the mode).</summary>
+        public void SendCreativeTakeItem(string itemKey, int count) => Send(new CreativeTakeItemIntent { ItemKey = itemKey ?? string.Empty, Count = count });
+
         /// <summary>Skips the VEGA onboarding (grants the whole stage chain server-side) — or restarts it
         /// from the intro when <paramref name="restart"/> is set (the way back after a skip).</summary>
         public void SendSkipOnboarding(bool restart = false) => Send(new SkipOnboardingIntent { Restart = restart });
@@ -635,7 +638,8 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendDisassemble(string itemKey) => Send(new DisassembleIntent { ItemKey = itemKey });
 
-        public void SendScan(string subjectType, string subjectKey) => Send(new ScanIntent { SubjectType = subjectType, SubjectKey = subjectKey });
+        public void SendScan(string subjectType, string subjectKey, string? entityId = null)
+            => Send(new ScanIntent { SubjectType = subjectType, SubjectKey = subjectKey, EntityId = entityId ?? string.Empty });
 
         public void SendScanEntity(string entityId) => Send(new ScanEntityIntent { EntityId = entityId });
 

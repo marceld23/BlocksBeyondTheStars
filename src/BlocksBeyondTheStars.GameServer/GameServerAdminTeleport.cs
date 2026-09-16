@@ -41,7 +41,7 @@ public sealed partial class GameServer
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
     {
-        "ship", "pad", "village", "ruin", "vault", "wreck", "factory", "camp", "monument", "treasure",
+        "ship", "pad", "city", "village", "ruin", "vault", "wreck", "factory", "camp", "monument", "treasure",
         "base", "beacon", "beam", "station",
     };
 
@@ -51,7 +51,10 @@ public sealed partial class GameServer
     {
         "ships" => "ship",
         "pads" or "landing" or "landingpad" => "pad",
-        "settlement" or "settlements" or "villages" or "town" or "towns" => "village",
+        // #1923: "why can't I teleport to a city with /tp city?!" — cities, towns and the G.D.S. metropolis are their own
+        // kind now, and the German words a kid types for both kinds resolve too.
+        "cities" or "town" or "towns" or "stadt" or "städte" or "staedte" => "city",
+        "settlement" or "settlements" or "villages" or "dorf" or "dörfer" or "doerfer" or "siedlung" or "siedlungen" => "village",
         "ruins" or "settlement_ruin" => "ruin",
         "vaults" or "vault_ruin" => "vault",
         "wrecks" => "wreck",
@@ -88,13 +91,18 @@ public sealed partial class GameServer
                 new Vector3f(pad.CenterX + 0.5f, PadSurfaceY(pad.CenterX, pad.CenterZ) + 2f, pad.CenterZ + 0.5f)));
         }
 
-        // Settlements split into two numbering series, because "village" and "ruin" are different places to
-        // an admin even though the generator treats them as one list with a flag.
-        int villages = 0, ruins = 0;
+        // Settlements split into three numbering series, because a city, a village and a ruin are different places
+        // to an admin even though the generator treats them as one list with a tier and a flag (#1923).
+        int cities = 0, villages = 0, ruins = 0;
         foreach (var s in _settlements)
         {
-            string kind = s.Ruined ? "ruin" : "village";
-            int number = s.Ruined ? ++ruins : ++villages;
+            string kind = SettlementTeleportKind(s.Ruined, s.Tier);
+            int number = kind switch
+            {
+                "ruin" => ++ruins,
+                "city" => ++cities,
+                _ => ++villages,
+            };
             list.Add(new TeleportTarget(kind, number, Named(kind, number, s.Name),
                 InteriorSpot(s.Markers, s.Min, s.Max)));
         }
@@ -156,6 +164,13 @@ public sealed partial class GameServer
 
         return list;
     }
+
+    /// <summary>The <c>/tp</c> kind of a settlement (#1923): a ruin whatever it was, a city for the city, town and
+    /// metropolis tiers — what a player calls a "Stadt" — and a village for hamlets and villages.</summary>
+    private static string SettlementTeleportKind(bool ruined, string? tier)
+        => ruined ? "ruin"
+            : tier is "city" or "town" or WorldGeneration.CityGenerator.Tier ? "city"
+            : "village";
 
     /// <summary>"village2" on its own, or "village2 'Kelmar'" when the thing has a name worth showing.</summary>
     private static string Named(string kind, int number, string name)
@@ -222,7 +237,8 @@ public sealed partial class GameServer
         int available = targets.Count(t => t.Kind == kind);
         if (available == 0)
         {
-            Reject(session, "admin", "@srv.tp.none_of_kind:" + kind);
+            // A body without a city says where the settlements are instead (#1923).
+            Reject(session, "admin", kind == "city" ? "@srv.tp.no_city" : "@srv.tp.none_of_kind:" + kind);
             return;
         }
 
@@ -358,6 +374,12 @@ public sealed partial class GameServer
 
     /// <summary>Test seam for <see cref="LandingSpotNear"/>.</summary>
     public Vector3f LandingSpotNearForTest(Vector3f target, float targetYaw = 0f) => LandingSpotNear(target, targetYaw);
+
+    /// <summary>Test seam: the kind and number <c>/tp</c> reads from a typed target word.</summary>
+    public static (string Kind, int Number) ParseTeleportTargetForTest(string argument) => ParseTeleportTarget(argument);
+
+    /// <summary>Test seam: the <c>/tp</c> kind a settlement of this tier is listed under.</summary>
+    public static string SettlementTeleportKindForTest(bool ruined, string tier) => SettlementTeleportKind(ruined, tier);
 
     /// <summary>Test seam: the resolvable targets on the player's current body, as <c>/tp</c> would list them.</summary>
     public IReadOnlyList<(string Kind, int Number, string Label, Vector3f Position)> TeleportTargetsForTest(string playerId)

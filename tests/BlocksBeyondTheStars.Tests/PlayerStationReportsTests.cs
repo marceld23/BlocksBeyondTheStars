@@ -639,6 +639,7 @@ public sealed class PlayerStationReportsTests : IDisposable
         using (repo2)
         {
             var pilot = s2.AddLocalPlayer("Owner");
+            Assert.True(s2.InStation("Owner"), "#1925: a player saved aboard their own station rejoins on it");
             pilot.State.AboardShip = true; // the save left him boarded on the station; launch from the ship again
             s2.EnterSpace("Owner");
             Assert.True(s2.SpaceEntitiesFor("Owner").Any(e => e.Id == id),

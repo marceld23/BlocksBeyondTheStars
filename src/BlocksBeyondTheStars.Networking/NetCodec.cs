@@ -337,6 +337,7 @@ public static class NetCodec
         Register(241, typeof(NoteActionIntent));         // Client -> Server (player notes: set/remove, #1844)
         Register(242, typeof(NoteList));                 // Server -> Client (the player's own notes, #1844)
         Register(243, typeof(InterviewAnswerIntent));    // Client -> Server (a reporter interview answer, 2026-09)
+        Register(244, typeof(CreativeTakeItemIntent));   // Client -> Server (take an item from the Sandbox catalog, #1930)
 
         // Always-available "Shape" crafting: re-form a held building material into another geometric shape
         // (sphere/dome/pyramid/ramp/…). Output is the same item with the shape encoded in its key.

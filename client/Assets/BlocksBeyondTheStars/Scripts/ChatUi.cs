@@ -43,6 +43,8 @@ namespace BlocksBeyondTheStars.Client
         private bool _typing, _subscribed, _built, _hostAnnounced, _reportTipShown, _hiddenByKey, _capturing, _windowShown;
         private int _openFrame = -1;
         private float _nextRefresh = float.MaxValue;
+        private int _scroll;                 // #1922: lines hidden below the shown block while the box is open (ChatScrollback)
+        private float _commandLaneUntil;     // #1922: a typed command's answer keeps the whole lane this long
         private const int MaxLog = 40;
         private const int VisibleLines = 12; // the full lane fits 12 rows at 18 px; a /tp list is usually 8-15 lines
         private const float FadeSeconds = 12f;   // how long a line stays up in the Auto mode
@@ -252,6 +254,19 @@ namespace BlocksBeyondTheStars.Client
                 RefreshLog();
             }
 
+            // #1922: scroll-back while the box is open — the wheel and PageUp/PageDown page through the recent lines,
+            // so a long answer (/help admin, a /tp list) is readable to its first line.
+            if (_typing)
+            {
+                int scrolled = ChatScrollback.Step(_scroll, _lines.Count, Input.mouseScrollDelta.y,
+                    Input.GetKeyDown(KeyCode.PageUp), Input.GetKeyDown(KeyCode.PageDown));
+                if (scrolled != _scroll)
+                {
+                    _scroll = scrolled;
+                    RefreshLog();
+                }
+            }
+
             // Fade tick: the scrollback ages out on its own, so re-render when the next line is due to go
             // (RefreshLog parks _nextRefresh at float.MaxValue whenever nothing is pending).
             if (Time.unscaledTime >= _nextRefresh)
@@ -320,6 +335,7 @@ namespace BlocksBeyondTheStars.Client
                 _lines.RemoveAt(0);
             }
 
+            _scroll = _typing ? ChatScrollback.OnLineAdded(_scroll, _lines.Count) : 0;
             RefreshLog();
         }
 
@@ -374,6 +390,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _typing = true;
+            _scroll = 0;
             _openFrame = Time.frameCount;
             Game.ChatTyping = true;
             _inputRow.gameObject.SetActive(true);
@@ -442,12 +459,20 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>An admin-command rejection is the answer to something the player TYPED, so it must be
         /// readable where they typed it — the toast alone flashes past (#642: "/tp did nothing"). Other
-        /// rejection kinds (mine/place/craft) are gameplay feedback and stay toast-only.</summary>
+        /// rejection kinds (mine/place/craft) are gameplay feedback and stay toast-only. The "@srv.*" tokens most
+        /// rejections are since #822 are resolved into the player's language first — skipping them silently
+        /// undid #642 ("/tp city" answered nothing, #1922).</summary>
         private void OnActionRejected(BlocksBeyondTheStars.Networking.Messages.ActionRejected m)
         {
-            if (m.Action == "admin" && !string.IsNullOrEmpty(m.Reason) && m.Reason[0] != '@')
+            if (m.Action != "admin" || string.IsNullOrEmpty(m.Reason))
             {
-                LocalLine(m.Reason);
+                return;
+            }
+
+            string text = m.Reason[0] == '@' ? Game.ServerTokenText(m.Reason) : m.Reason;
+            if (!string.IsNullOrEmpty(text) && text[0] != '@')
+            {
+                LocalLine(text);
             }
         }
 
@@ -466,6 +491,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _typing = false;
+            _scroll = 0;
             Game.ChatTyping = false;
             _input.text = string.Empty;
             _inputRow.gameObject.SetActive(false);
@@ -490,6 +516,10 @@ namespace BlocksBeyondTheStars.Client
         private void Submit(string text)
         {
             string t = (text ?? string.Empty).Trim();
+            if (t.StartsWith("/", System.StringComparison.Ordinal))
+            {
+                _commandLaneUntil = Time.unscaledTime + FadeSeconds; // its answer gets the whole lane (#1922)
+            }
 
             // Ordinary prose is capped at the server's 200-char chat limit anyway — trim it here so what
             // the player sends is what arrives. Share codes pass through untrimmed: the server answers
@@ -767,10 +797,24 @@ namespace BlocksBeyondTheStars.Client
                 // Per-player mode override (#1121): "/mode <player…> <survival|creative|world>". The LAST
                 // token is the mode, everything between is the player name — names contain spaces (#980).
                 case "/mode":
+                    if (p.Length == 2)
+                    {
+                        // "/mode sandbox" — one word is the whole world's mode (#1927); the server answers a word it
+                        // does not know with both usages.
+                        net.SendAdminCommand("set_world_mode", stringArg: p[1]);
+                        return true;
+                    }
+
                     if (p.Length < 3) { LocalLine(L("ui.cmd.usage_mode")); return true; }
                     net.SendAdminCommand("set_mode",
                         stringArg: p[p.Length - 1],
                         targetPlayer: t.Substring(p[0].Length, t.Length - p[0].Length - p[p.Length - 1].Length).Trim());
+                    return true;
+
+                // The whole world's mode (#1927): "/gamemode explorer|creative|sandbox", alone it names the current one.
+                case "/gamemode":
+                case "/modus":
+                    net.SendAdminCommand("set_world_mode", stringArg: p.Length >= 2 ? p[1] : null);
                     return true;
 
                 // ---- Fleet-admin observer + inspection (issues #487/#488) ----
@@ -922,6 +966,7 @@ namespace BlocksBeyondTheStars.Client
         {
             LocalLine(L("ui.admin.help_cheats"));
             LocalLine(L("ui.admin.help_mode"));
+            LocalLine(L("ui.admin.help_gamemode"));
             LocalLine(L("ui.admin.help_teleport"));
             LocalLine(L("ui.admin.help_inspect"));
             LocalLine(L("ui.admin.help_fleet"));
@@ -963,7 +1008,19 @@ namespace BlocksBeyondTheStars.Client
             bool keepAll = _typing || mode == ChatVisibility.Always;
             bool showLines = keepAll || mode != ChatVisibility.Off;
             float now = Time.unscaledTime;
-            int from = showLines ? Mathf.Max(0, _lines.Count - VisibleLines) : _lines.Count;
+
+            // #1922: while typing, and for the fade time after a typed command, the chat keeps its WHOLE lane even over
+            // VEGA's speech panel (the chat canvas draws above it). Yielding left ~90 px there — /help lost its first
+            // line and /help admin half its entries. Idle chat still yields, as #1798 wants.
+            bool commandLane = !_typing && now < _commandLaneUntil;
+            bool speechLane = _vegaSpeechSeen && !_typing && !commandLane;
+            if (commandLane && _vegaSpeechSeen)
+            {
+                _nextRefresh = _commandLaneUntil; // give the lane back to VEGA once the answer has been up its time
+            }
+
+            int end = _typing ? ChatScrollback.End(_scroll, _lines.Count) : _lines.Count;
+            int from = showLines ? Mathf.Max(0, end - VisibleLines) : _lines.Count;
             if (showLines && !keepAll)
             {
                 // Auto: drop what has aged out. The oldest row still up is the next to go, so that is the
@@ -975,7 +1032,7 @@ namespace BlocksBeyondTheStars.Client
 
                 if (from < _lines.Count)
                 {
-                    _nextRefresh = _lines[from].Time + FadeSeconds;
+                    _nextRefresh = Mathf.Min(_nextRefresh, _lines[from].Time + FadeSeconds);
                 }
             }
 
@@ -983,7 +1040,7 @@ namespace BlocksBeyondTheStars.Client
             // (TMP lays the block out against the window's inner width without rendering it). At most a
             // dozen measurements per refresh, and refreshes are rare (a new line, a fade tick, a VEGA flip).
             // A window that is hidden right now is woken for the measurement — TMP needs a live rect.
-            string block = from < _lines.Count ? Join(from) : string.Empty;
+            string block = from < end ? Compose(from, end, trimmed: false) : string.Empty;
             float textH = 0f;
             if (block.Length > 0)
             {
@@ -992,17 +1049,17 @@ namespace BlocksBeyondTheStars.Client
                     _window.gameObject.SetActive(true);
                 }
 
-                float capacity = ResolveWindow(_typing, _vegaSpeechSeen, _vegaChipSeen, float.MaxValue).Capacity;
+                float capacity = ResolveWindow(_typing, speechLane, _vegaChipSeen, float.MaxValue).Capacity;
                 textH = Measure(block);
-                while (from < _lines.Count - 1 && textH > capacity)
+                while (from < end - 1 && textH > capacity)
                 {
                     from++;
-                    block = Join(from);
+                    block = Compose(from, end, trimmed: true);
                     textH = Measure(block);
                 }
             }
 
-            var win = ResolveWindow(_typing, _vegaSpeechSeen, _vegaChipSeen, textH);
+            var win = ResolveWindow(_typing, speechLane, _vegaChipSeen, textH);
             bool visible = win.H > 0f;
             if (visible)
             {
@@ -1072,17 +1129,31 @@ namespace BlocksBeyondTheStars.Client
             });
         }
 
-        /// <summary>The scrollback from index <paramref name="from"/> to the newest line, one per row.</summary>
-        private string Join(int from)
+        /// <summary>The scrollback from index <paramref name="from"/> up to (excluding) <paramref name="end"/>, one per row,
+        /// with a dim hint row where lines are out of view (#1922): while typing "older lines — wheel / PageUp" above and
+        /// "newer lines" below; otherwise, when lines were dropped to fit, "press Enter to read everything".</summary>
+        private string Compose(int from, int end, bool trimmed)
         {
             var sb = new System.Text.StringBuilder();
-            for (int i = from; i < _lines.Count; i++)
+            if (_typing ? from > 0 : trimmed)
+            {
+                sb.AppendLine(HintRow(_typing ? "ui.chat.scroll_older" : "ui.chat.scroll_open"));
+            }
+
+            for (int i = from; i < end; i++)
             {
                 sb.AppendLine(_lines[i].Text);
             }
 
+            if (_typing && end < _lines.Count)
+            {
+                sb.AppendLine(HintRow("ui.chat.scroll_newer"));
+            }
+
             return sb.ToString();
         }
+
+        private string HintRow(string key) => $"<color=#80E5D2><size=85%>{ChatMarkup.RichSafe(L(key))}</size></color>";
 
         private void OnDestroy()
         {

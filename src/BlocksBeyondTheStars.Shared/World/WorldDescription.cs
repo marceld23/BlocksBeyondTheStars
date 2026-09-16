@@ -222,6 +222,11 @@ public sealed class WorldDescription
     /// sheets, hot zones, dead forests, calm terrain, the structure whitelist. Every other type leaves them at their no-op.</summary>
     public const int ExtremePlanetsGeneration = 8;
 
+    /// <summary>The generation from which a start system in <c>sys0</c> gets a REAL station when it rolled none (#1924) —
+    /// older saves keep the synthesized <c>sys0-st-local</c> fallback they may already have boarded. A start system
+    /// anywhere else gets the real station on every save: nothing guaranteed one there before.</summary>
+    public const int StartStationGeneration = 8;
+
     /// <summary>Growing galaxy (#1123): when true, hyperjumping into one of the current OUTERMOST systems
     /// appends a brand-new system beyond it (deterministic — system N is a pure function of seed + N — and
     /// persisted via <c>WorldMetadata.GalaxyGrownSystems</c>), up to a soft cap. Defaults to false so every

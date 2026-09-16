@@ -30,8 +30,9 @@ public sealed partial class GameServer
     /// an ordinary material scan.</summary>
     private static readonly string[] RuneBlocks = { "rune_stone" };
 
-    /// <summary>Handheld scan of a creature species ("creature") or a block/flora/material ("block").</summary>
-    public ScanResult ScanSubject(string playerId, string subjectType, string subjectKey)
+    /// <summary>Handheld scan of a creature species ("creature") or a block/flora/material ("block").
+    /// <paramref name="entityId"/> is the aimed creature when the client sends it (#1926).</summary>
+    public ScanResult ScanSubject(string playerId, string subjectType, string subjectKey, string? entityId = null)
     {
         var session = FindSessionByPlayerId(playerId);
         if (session is null)
@@ -66,11 +67,19 @@ public sealed partial class GameServer
             readout.LegacyThreat = sp.Hostile ? "Hostile" : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "Provokable" : "Safe";
             value = sp.Hostile ? KnowledgeCreatureHostile : KnowledgeCreature;
             readout.Display = string.IsNullOrEmpty(sp.Name) ? subjectKey : sp.Name; // the coined species name on the readout
-            if (SreekmakraAnomalyFor(session, subjectKey))
+            bool disguise = string.IsNullOrEmpty(entityId)
+                ? SreekmakraAnomalyFor(session, subjectKey)          // an older client: the nearest of that kind is it
+                : SreekmakraDisguisedAs(entityId, subjectKey);       // #1926: exactly the creature under the crosshair
+            if (disguise && _speciesById.TryGetValue(SreekmakraSpeciesId, out var trueForm))
             {
-                // 2026-09 (Valuma): the disguise fools the eye, not the scanner.
+                // 2026-09 (Valuma): the disguise fools the eye, not the scanner — which reads its true name (#1926) and
+                // counts it as the discovery of the shapeshifter, not of the animal it imitates.
                 readout.ThreatKey = "ui.scan.threat.anomaly";
                 readout.TraitKeys = new[] { "ui.scan.disguise" }.Concat(readout.TraitKeys).ToArray();
+                readout.Display = string.IsNullOrEmpty(trueForm.Name) ? SreekmakraSpeciesId : trueForm.Name;
+                readout.SubjectKey = SreekmakraSpeciesId;
+                ledgerKey = "creature:" + SreekmakraSpeciesId;
+                value = KnowledgeCreatureHostile;
             }
         }
         else if (subjectType == "block" && System.Array.IndexOf(RuneBlocks, subjectKey) >= 0
@@ -430,7 +439,7 @@ public sealed partial class GameServer
     }
 
     private void HandleScan(PlayerSession session, ScanIntent intent)
-        => ScanSubject(session.State.PlayerId, intent.SubjectType, intent.SubjectKey);
+        => ScanSubject(session.State.PlayerId, intent.SubjectType, intent.SubjectKey, intent.EntityId);
 
     private void HandleScanEntity(PlayerSession session, ScanEntityIntent intent)
         => ScanSpaceEntity(session.State.PlayerId, intent.EntityId);

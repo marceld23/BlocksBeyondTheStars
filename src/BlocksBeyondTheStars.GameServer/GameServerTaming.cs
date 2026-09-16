@@ -105,11 +105,17 @@ public sealed partial class GameServer
             return;
         }
 
-        if (IsSreekmakra(creature))
+        if (IsSreekmakra(creature) && (!SreekmakraTameable(creature) || OwnsASreekmakra(session)))
         {
-            // 2026-09 (Valuma): the shapeshifter is no animal — it slips out of every hand.
+            // 2026-09 (Valuma): in its true shape the shapeshifter slips out of every hand (#1926: only a disguise can be
+            // tamed), and it bonds with nobody who already has one.
             _tameAttempts.Remove(p.PlayerId);
-            Send(session, new TameResult { CreatureId = intent.CreatureId, Success = false, MessageKey = "creature.tame.msg.sreekmakra" });
+            Send(session, new TameResult
+            {
+                CreatureId = intent.CreatureId,
+                Success = false,
+                MessageKey = OwnsASreekmakra(session) ? "creature.tame.msg.sreekmakra_have" : "creature.tame.msg.sreekmakra",
+            });
             return;
         }
 
@@ -197,6 +203,31 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsSreekmakra(creature))
+        {
+            // #1926: taming the disguise tames the shapeshifter itself — it drops the shape and stays in its true form.
+            _tameAttempts.Remove(p.PlayerId);
+            var bonded = BondSreekmakra(session, creature, beside: creature.Position);
+            OnAchievementTame(session);
+            RecordStoryMilestone("tame:first");
+            SendPlayerState(session);
+            Send(session, new TameResult
+            {
+                CreatureId = creature.Id,
+                Success = bonded is not null,
+                CompanionId = bonded?.Id ?? string.Empty,
+                CompanionName = bonded?.Name ?? string.Empty,
+                MessageKey = "creature.tame.msg.success",
+                KnowledgeTotal = p.KnowledgePoints,
+            });
+            if (bonded is not null)
+            {
+                SendVegaLine(session, "vega.sys.sreekmakra_tamed", 3);
+            }
+
+            return;
+        }
+
         var tc = new TamedCreature
         {
             Id = NextEntityId(),
@@ -237,6 +268,7 @@ public sealed partial class GameServer
             KnowledgeTotal = p.KnowledgePoints,
         });
         SendCompanions(session);
+        SreekmakraFollowsATame(session, creature.SpeciesId); // #1926: the shapeshifter wearing this kind comes along
     }
 
     private void SendTameStep(PlayerSession session, CombatEntity creature, CreatureSpecies sp, TameAttempt attempt, string messageKey)

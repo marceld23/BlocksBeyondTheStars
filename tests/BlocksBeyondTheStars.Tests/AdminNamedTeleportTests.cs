@@ -235,6 +235,52 @@ public sealed class AdminNamedTeleportTests : IDisposable
         Assert.Equal(parked, guest.State.Position);
     }
 
+    /// <summary>#1923: "/tp city" — cities, towns and the metropolis are their own kind, and the German words resolve.</summary>
+    [Theory]
+    [InlineData("city", "city", 1)]
+    [InlineData("city2", "city", 2)]
+    [InlineData("stadt 3", "city", 3)]
+    [InlineData("Städte", "city", 1)]
+    [InlineData("towns", "city", 1)]
+    [InlineData("dorf2", "village", 2)]
+    [InlineData("siedlung", "village", 1)]
+    [InlineData("settlements", "village", 1)]
+    public void CityAndGermanWords_ResolveToTheirKind(string typed, string kind, int number)
+    {
+        Assert.Equal((kind, number), SvGameServer.ParseTeleportTargetForTest(typed));
+    }
+
+    [Theory]
+    [InlineData(false, "city", "city")]
+    [InlineData(false, "town", "city")]
+    [InlineData(false, "metropolis", "city")]
+    [InlineData(false, "village", "village")]
+    [InlineData(false, "hamlet", "village")]
+    [InlineData(true, "city", "ruin")]
+    public void SettlementTiers_AreListedAsCityVillageOrRuin(bool ruined, string tier, string kind)
+    {
+        Assert.Equal(kind, SvGameServer.SettlementTeleportKindForTest(ruined, tier));
+    }
+
+    [Fact]
+    public void TpCity_OnABodyWithoutACity_DoesNotMove()
+    {
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "nocity"));
+        using var _ = repo;
+        var config = Config(3, "nocity", cheats: true);
+        config.PlaceSettlements = false;
+        var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo);
+        server.Start();
+        var admin = server.AddLocalPlayer("Creator", "en");
+        Assert.DoesNotContain(server.TeleportTargetsForTest(admin.State.PlayerId), t => t.Kind == "city");
+        var parked = new Vector3f(9, 500, 10);
+        admin.State.Position = parked;
+
+        Tp(server, admin, "city");
+
+        Assert.Equal(parked, admin.State.Position);
+    }
+
     /// <summary>Numbering is per kind and 1-based with no gaps — that is the whole addressing scheme, so it
     /// is worth pinning rather than trusting the enumeration order that produced it.</summary>
     [Fact]
