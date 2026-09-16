@@ -57,6 +57,17 @@ can be staffed at your own station/base like the existing posts; textures are ge
   from 3.6–4.5 m away. E now asks *Trade or talk?* (`VendorChoicePrompt`, E/Enter = trade, the old one-key habit stays;
   market blocks still open at once). Server: `VendorThemeAt` took the nearest vendor NPC anywhere on the world once any
   stall marker was in reach; it now requires that vendor within 6 blocks (`VendorThemeReach`). USER_MANUAL updated.
+- **Landed in the lava (terrain generation 8).** Justus' ship stood in a lava lake on the ashen world Naispae V: a
+  radius-8 shaft with lava walls, the floor flooded as soon as something woke the melt. The #1619 islet only rose out of
+  WATER (`SeaIsWater`), and the dry test knew lava seas and craters but not lava rivers, caldera/shield lakes or gen-3
+  flows. A probe over twelve `ashen_ocean` seeds found 1–10 of 12–16 pads per world in lava. **New worlds (generation 8,
+  `LavaPadsGeneration`):** a 13-sample dry test over every water and lava body; a pad still over lava gets a **basalt
+  islet** (`LandingPadFlatten.Molten`: plateau + slope of basalt, lava cells filled, no flora), never a shaft.
+  **Older saves** keep their pads: lava pads are flagged `Molten` — ranked last, refused as an explicit choice while
+  another pad is free (`srv.land.pad_lava`), and a ship saved on one is parked on a free pad on load, the player waking
+  aboard (`RestoreLandingPad` + `LeaveMoltenPad`); the chooser/map show them orange-red "lava!" (`NetLandingPad.Lava`),
+  VEGA line `vega.hint.lava_pad`. `CurrentTerrainGeneration` 7 → 8 (shared with Titas/Valuma below). Tests: three in
+  `LandingPadTests`. Docs: WORLD_GENERATION.md §19, USER_MANUAL (landing pads).
 
 ### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
 

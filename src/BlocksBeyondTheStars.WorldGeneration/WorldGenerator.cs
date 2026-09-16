@@ -279,7 +279,9 @@ public sealed partial class WorldGenerator
         int cs = WorldConstants.ChunkSize;
         var (_, seaFluid) = ResolveSeaFluid(planet);
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        var lavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
         var beachId = BeachBlockFor(planet);
+        var basaltId = _content.GetBlock("basalt")?.NumericId ?? beachId;
         for (int lx = 0; lx < cs; lx++)
             for (int lz = 0; lz < cs; lz++)
             {
@@ -301,6 +303,13 @@ public sealed partial class WorldGenerator
                 // A classic islet (#1665) is beach block through and through, like the worlds it was made for.
                 var surfaceId = slope || pad.ClassicShape ? beachId : biomes[biomeIndex].Surface;
                 var subSurfaceId = islet ? beachId : biomes[biomeIndex].Sub;
+                if (pad.Molten)
+                {
+                    // A lava islet (generation 8) is basalt through and through: a granular beach would sink into
+                    // the melt the moment a neighbour wakes it.
+                    surfaceId = basaltId;
+                    subSurfaceId = basaltId;
+                }
 
                 for (int ly = 0; ly < cs; ly++)
                 {
@@ -319,7 +328,8 @@ public sealed partial class WorldGenerator
                     else if (islet)
                     {
                         var cell = chunk.Get(lx, ly, lz);
-                        if (cell.IsAir || cell.Value == seaFluid.Value || cell.Value == waterId.Value)
+                        if (cell.IsAir || cell.Value == seaFluid.Value || cell.Value == waterId.Value
+                            || (pad.Molten && !lavaId.IsAir && cell.Value == lavaId.Value))
                         {
                             chunk.Set(lx, ly, lz, subSurfaceId); // the mound stands on the seabed, not on water
                         }
@@ -331,7 +341,7 @@ public sealed partial class WorldGenerator
                 }
 
                 // A few tufts of the biome's flora on the islet plateau, off the reserved pad (#1620).
-                if (islet && !slope && !planet.Void && !pad.ClassicShape)
+                if (islet && !slope && !planet.Void && !pad.ClassicShape && !pad.Molten)
                 {
                     int fy = padY + 1 - origin.Y;
                     int pdx = WorldConstants.WrapDeltaX(worldX - pad.CenterX, _circumference);

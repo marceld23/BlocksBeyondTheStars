@@ -1539,7 +1539,11 @@ namespace BlocksBeyondTheStars.Client
                 if (free)
                 {
                     var btn = UiKit.AddButton(panel.transform, mx, my, marker, marker, label, () => LandOnPad(padIndex));
-                    if (p.Wet && btn != null && btn.TryGetComponent<Image>(out var wetImg))
+                    if (p.Lava && btn != null && btn.TryGetComponent<Image>(out var lavaImg))
+                    {
+                        lavaImg.color = new Color(0.78f, 0.30f, 0.08f, 0.98f); // a pad standing in lava (old saves) is orange-red
+                    }
+                    else if (p.Wet && btn != null && btn.TryGetComponent<Image>(out var wetImg))
                     {
                         wetImg.color = new Color(0.18f, 0.40f, 0.72f, 0.98f); // a seabed pad is blue on the map (#1622)
                     }
@@ -1554,7 +1558,14 @@ namespace BlocksBeyondTheStars.Client
                         captionY += 16;
                     }
 
-                    if (p.Wet)
+                    if (p.Lava)
+                    {
+                        // A pad in lava (a save from before terrain generation 8): the server only hands it out when
+                        // nothing else is free — say so before the player tries.
+                        UiKit.AddText(panel.transform, mx - 50, captionY, marker + 100, 18, Loc("ui.space.pad_lava", "lava!"),
+                            12, new Color(1f, 0.55f, 0.35f), TextAnchor.UpperCenter);
+                    }
+                    else if (p.Wet)
                     {
                         // A seabed pad (#1454): still selectable — the shaft is dry — but say so, and how deep
                         // (#1622), before the player commits.

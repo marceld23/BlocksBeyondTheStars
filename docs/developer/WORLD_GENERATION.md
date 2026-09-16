@@ -1464,3 +1464,32 @@ plots and districts (settlements, cities); the contract, the composer and the pi
   (both draws are consumed either way). Six-field layouts (#1876 records) replay unchanged.
 - **Furnishing.** `FurnishAuthoredRooms` treats the gap of an interior doorway (a door marker with floor on both sides) as
   wall for the flood and reserves floor cells at the edge of a stairwell. Entrances at a template's edge are unaffected.
+
+## 19. Generation 8 — lava pads (2026-09)
+
+`WorldDescription.CurrentTerrainGeneration` is **8**. Worlds of an older generation keep their terrain and their landing
+pads bit for bit; generation 8 changes where and how pads meet lava and adds the Titas and Valuma planet types (sections
+below).
+
+**Lava pads (`LavaPadsGeneration = 8`, "landed in the lava", 2026-09-15).** Before, the pad dry test sampled five points
+(centre + four rim points) against `IsSurfaceWater || IsSurfaceLava`, and `IsSurfaceLava` only knew volcano craters and a
+lava *sea*; lava rivers, caldera / shield lakes and gen-3 flows counted as dry. A wet lava pad never got an islet
+(`SeaIsWater`), so `FlattenLandingPads` sheared a radius-8 air cylinder into the melt — dormant generated lava stands as
+walls until the first mined block wakes it. A probe over twelve `ashen_ocean` seeds found 1–10 of 12–16 pads per world in
+lava.
+
+- **Dry test (`LandingFootprintWetGen8`).** Thirteen samples (centre, 4 rim, 4 diagonal rim, 4 half-way) against water
+  (`IsSurfaceWater`, `SurfaceGen1WaterDepth`) and every lava body (`TryGetLavaSurface`).
+- **Decision (`DecidePad`).** A pad still over lava after the nudge (`FootprintLava`: any sample, highest melt top)
+  becomes a **lava islet** at `max(lavaTop + IsletRise, ground median)`, whatever the depth — never a shaft.
+- **Shape (`LandingPadFlatten.Molten`).** The plateau/slope islet of #1620, but basalt through and through (a granular
+  beach sinks into woken lava), filling lava cells as well as sea/water, and without flora tufts. The far-terrain pad
+  packing carries `2` in the islet slot for a lava islet (older peers read it as an islet).
+- **Older saves.** Pads are re-derived, never persisted, so their positions stay. A pad over lava is flagged
+  `LandingPad.Molten` (all generations): `PadRank` 3 (after seabed), an explicit `TryClaimPad` is refused with
+  `srv.land.pad_lava` while a non-lava pad is free, `RestoreLandingPad` releases it on load when a better pad is free —
+  `PlaceLandedShip` then parks the ship there and `LeaveMoltenPad` moves a player saved aboard or over the old footprint to
+  the new heal tank. `NetLandingPad.Lava` (appended) paints the chooser marker orange-red with a "lava!" caption; VEGA
+  has a `lava_pad` hint for the case where every other pad was taken.
+- Tests: `LandingPadTests.LavaWorld_NewWorlds_RaiseABasaltIsletOverLava_NeverAShaftInIt`,
+  `LavaWorld_AnOldSave_KeepsItsPads_ButRefusesAndLeavesTheLavaOnes`, `PadPreference_ALavaPadRanksBelowEveryOtherKind`.

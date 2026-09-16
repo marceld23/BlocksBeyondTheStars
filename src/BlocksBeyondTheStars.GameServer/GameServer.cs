@@ -997,12 +997,14 @@ public sealed partial class GameServer
         MarkArrivedOnBody(session, session.CurrentLocationId); // the home body is a quick-travel target from the start
         RestoreFleet(session);
         MigrateBaseSettlerMemory(session); // pre-#1262 saves: settler keyed by base NAME → duplicates per rename
+        int restoredPad = session.AssignedPadIndex;
         RestoreLandingPad(session);
         RecomputeShipCombatStats();
         if (_config.PlaceStarterShip)
         {
             PlaceLandedShip(); // park this player's ship object on their world
             session.State.RespawnPoint = _healTank;
+            LeaveMoltenPad(session, restoredPad);
         }
 
         PersistFleet(session);
@@ -1081,6 +1083,45 @@ public sealed partial class GameServer
         if (idx >= _landingPads.Count || PadOccupiedByOther(session.CurrentLocationId, idx, session.State.PlayerId))
         {
             session.AssignedPadIndex = -1;
+            return;
+        }
+
+        // A save whose ship stands in a lava shaft (terrain generation 7 and older keep their pads): release the pad
+        // when a better one is free, so PlaceLandedShip parks the ship there ("landed in the lava", 2026-09-15).
+        if (_landingPads[idx].Molten)
+        {
+            int better = PreferredFreePadIndex(session.CurrentLocationId, _landingPads, session.State.PlayerId);
+            if (better >= 0 && !_landingPads[better].Molten)
+            {
+                session.AssignedPadIndex = -1;
+            }
+        }
+    }
+
+    /// <summary>After a ship moved off a lava pad on load: a player saved aboard, or standing over that pad's footprint,
+    /// wakes aboard the re-parked ship instead of between walls of lava.</summary>
+    private void LeaveMoltenPad(PlayerSession session, int previousPad)
+    {
+        if (previousPad < 0 || previousPad >= _landingPads.Count || session.AssignedPadIndex == previousPad || !_shipPlaced)
+        {
+            return;
+        }
+
+        var old = _landingPads[previousPad];
+        if (!old.Molten || InSpace(session.State.PlayerId))
+        {
+            return;
+        }
+
+        var pos = session.State.Position;
+        int margin = old.Radius + 4;
+        bool overOldPad = System.Math.Abs(WorldConstants.WrapDeltaX((int)System.Math.Floor(pos.X) - old.CenterX, _world.Circumference)) <= margin
+            && System.Math.Abs((int)System.Math.Floor(pos.Z) - old.CenterZ) <= margin;
+        if (overOldPad || session.State.AboardShip)
+        {
+            session.State.Position = _healTank;
+            session.State.AboardShip = true;
+            _log.Info($"'{session.State.Name}': ship moved off lava pad {previousPad + 1} to pad {session.AssignedPadIndex + 1}.");
         }
     }
 

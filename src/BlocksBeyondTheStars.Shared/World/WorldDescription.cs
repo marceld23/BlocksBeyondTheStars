@@ -179,8 +179,9 @@ public sealed class WorldDescription
     public int TerrainGeneration { get; set; }
 
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
-    /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees).</summary>
-    public const int CurrentTerrainGeneration = 7;
+    /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
+    /// planet types).</summary>
+    public const int CurrentTerrainGeneration = 8;
 
     /// <summary>The generation of the city worlds (#1793): the G.D.S. lava desert with its one walled city. A
     /// data-only planet type gated on this generation, so no older galaxy ever rolls it; the composer itself
@@ -209,6 +210,13 @@ public sealed class WorldDescription
     /// ocean search budget, islets under every deep all-water pad, the plateau islet shape. Older saves keep the
     /// longitude-only march, the rolled ocean-world islet and the plain sand mound they were created with.</summary>
     public const int OceanPadsGeneration = 2;
+
+    /// <summary>The generation from which landing pads treat LAVA like deep water (2026-09, "landed in the lava"): the
+    /// dry-footprint test reads every lava and water body the generator makes (lava rivers, caldera and shield lakes,
+    /// gen-3 flows, gen-1 lakes — not just the seas and craters), and a pad that still stands in lava after the
+    /// nudge gets a basalt islet over the melt instead of a shaft cut into it. Older saves keep the pads they were
+    /// created with; their lava pads are only flagged (<c>Molten</c>) so a ship is parked elsewhere.</summary>
+    public const int LavaPadsGeneration = 8;
 
     /// <summary>Growing galaxy (#1123): when true, hyperjumping into one of the current OUTERMOST systems
     /// appends a brand-new system beyond it (deterministic — system N is a pure function of seed + N — and

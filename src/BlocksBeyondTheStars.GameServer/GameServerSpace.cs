@@ -51,6 +51,15 @@ public sealed partial class GameServer
         /// ocean-world islet two blocks over the sea with the plain sand-mound shape. Saves created before the
         /// ocean-pad wave keep these, so their pads — and the ships and bases beside them — never move.</summary>
         public bool Classic;
+
+        /// <summary>The footprint stands in lava and no islet covers it (terrain generation 7 and older, whose pads
+        /// never move): the worldgen shear left a shaft with lava walls — "landed in the lava" (2026-09-15). Ranked
+        /// last, refused as an explicit choice while another pad is free, and a ship parked on it moves on load.</summary>
+        public bool Molten;
+
+        /// <summary>A generation-8 islet raised over lava (built from basalt, see
+        /// <see cref="BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten.Molten"/>).</summary>
+        public bool LavaIslet;
     }
 
     /// <summary>How far above the sea an islet pad's surface sits (a dry beach, not a tidal flat).</summary>
@@ -64,6 +73,10 @@ public sealed partial class GameServer
     /// <summary>Whether the active save plans its pads by the ocean-pad rules (#1618–#1622) — only worlds created
     /// with terrain generation 2 or later (#1665). The generator carries the save's generation from start-up.</summary>
     private bool OceanPadRules => _generator.TerrainGeneration >= WorldDescription.OceanPadsGeneration;
+
+    /// <summary>Whether the active save plans its pads by the lava-pad rules (terrain generation 8): the full
+    /// dry-footprint test and basalt islets over lava. Older saves keep their pads and only flag lava ones.</summary>
+    private bool LavaPadRules => _generator.TerrainGeneration >= WorldDescription.LavaPadsGeneration;
 
     /// <summary>Roughly three of five all-water pads on a classic ocean-class world get an islet; the rest keep
     /// the seabed shaft (#1453, frozen for pre-generation-2 saves by #1665).</summary>
@@ -155,7 +168,8 @@ public sealed partial class GameServer
         {
             flats.Add(pad.Classic
                 ? new BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten(pad.CenterX, pad.CenterZ, pad.CenterY, pad.Radius, pad.Islet, pad.Radius, ClassicIsletRadius, classicShape: true)
-                : new BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten(pad.CenterX, pad.CenterZ, pad.CenterY, pad.Radius, pad.Islet, IsletPlateauRadius, IsletRadius));
+                : new BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten(pad.CenterX, pad.CenterZ, pad.CenterY, pad.Radius, pad.Islet, IsletPlateauRadius, IsletRadius,
+                    molten: pad.LavaIslet));
         }
     }
 
@@ -230,7 +244,9 @@ public sealed partial class GameServer
                     // are. Pads are not persisted — the rule that re-derives them is the only thing holding
                     // them in place.
                     int classicX = ClassicNudgePadToDryAndFlat(planet, baseX, baseZ);
-                    pads.Add(DecideClassicPad(planet, locationId, i, classicX, baseZ, oceanClass));
+                    var classic = DecideClassicPad(planet, locationId, i, classicX, baseZ, oceanClass);
+                    classic.Molten = !classic.Islet && FootprintLava(planet, classic.CenterX, classic.CenterZ, out _);
+                    pads.Add(classic);
                     continue;
                 }
 
@@ -238,7 +254,9 @@ public sealed partial class GameServer
                 // + reasonably flat column, so a ship never lands in water (B36) or perches on a terrain
                 // spike (dramatic-terrain worlds). Ocean-class worlds search further: land is scarce there.
                 var (cx, cz) = NudgePadToDryAndFlat(planet, baseX, baseZ, latBand, oceanClass ? PadSearchBudgetOcean : PadSearchBudget);
-                pads.Add(DecidePad(planet, i, cx, cz));
+                var decided = DecidePad(planet, i, cx, cz);
+                decided.Molten = !decided.Islet && FootprintLava(planet, cx, cz, out _);
+                pads.Add(decided);
             }
 
             return pads;
@@ -256,8 +274,25 @@ public sealed partial class GameServer
     /// The generator must be configured for the pad's body.</summary>
     private LandingPad DecidePad(PlanetType planet, int index, int cx, int cz)
     {
-        bool wet = LandingFootprintWet(planet, cx, cz);
         int groundY = PadGroundY(planet, cx, cz);
+        if (LavaPadRules && FootprintLava(planet, cx, cz, out int lavaTop))
+        {
+            // Generation 8: lava anywhere under the footprint — sea, crater, river, caldera or shield lake — gets a
+            // basalt islet over the melt, whatever its depth. A shaft cut into lava stands as molten walls until the
+            // first mined block wakes them. The plateau never sits below the natural ground median, so a pad on a
+            // shore does not carve the bank away.
+            return new LandingPad
+            {
+                Index = index,
+                CenterX = cx,
+                CenterZ = cz,
+                CenterY = System.Math.Max(lavaTop + IsletRise, groundY),
+                Islet = true,
+                LavaIslet = true,
+            };
+        }
+
+        bool wet = LandingFootprintWet(planet, cx, cz);
         int seaLevel = _generator.SeaLevel(planet);
         int seaDepth = wet && seaLevel != int.MinValue ? seaLevel - groundY : 0;
         bool islet = wet && seaDepth > ShallowSeabedDepth && _generator.SeaIsWater(planet);
@@ -594,9 +629,63 @@ public sealed partial class GameServer
     /// circumference) — so a ship never touches down in a sea or pond, on any body (B36/B54).</summary>
     private bool LandingFootprintWet(PlanetType planet, int cx, int cz)
     {
+        if (LavaPadRules)
+        {
+            return LandingFootprintWetGen8(planet, cx, cz);
+        }
+
         int r = LandingPadRadius;
         bool Wet(int x, int z) => _generator.IsSurfaceWater(planet, x, z) || _generator.IsSurfaceLava(planet, x, z);
         return Wet(cx, cz) || Wet(cx - r, cz) || Wet(cx + r, cz) || Wet(cx, cz - r) || Wet(cx, cz + r);
+    }
+
+    /// <summary>The footprint samples of the generation-8 pad tests: the centre, the four rim points, four diagonal rim
+    /// points and four points halfway out — a lava river or a small caldera lake passes between the old five.</summary>
+    private static readonly (int Dx, int Dz)[] PadFootprintSamples =
+    {
+        (0, 0),
+        (LandingPadRadius, 0), (-LandingPadRadius, 0), (0, LandingPadRadius), (0, -LandingPadRadius),
+        (6, 6), (-6, 6), (6, -6), (-6, -6),
+        (4, 0), (-4, 0), (0, 4), (0, -4),
+    };
+
+    /// <summary>Generation-8 dry test (2026-09): wet if ANY footprint sample stands in a body of water or lava the
+    /// generator makes — the seas and craters of the old test plus rivers, generation-1 lakes and every lava lake or
+    /// flow (<see cref="WorldGenerator.TryGetLavaSurface"/>). Short-circuits on the first wet sample.</summary>
+    private bool LandingFootprintWetGen8(PlanetType planet, int cx, int cz)
+    {
+        int circ = _generator.Circumference;
+        foreach (var (dx, dz) in PadFootprintSamples)
+        {
+            int x = WorldConstants.WrapX(cx + dx, circ);
+            int z = cz + dz;
+            if (_generator.IsSurfaceWater(planet, x, z)
+                || _generator.SurfaceGen1WaterDepth(planet, x, z) > 0
+                || _generator.TryGetLavaSurface(planet, x, z, out _, out _))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>True if lava stands anywhere under a pad footprint (every lava body the generator makes), with the
+    /// highest melt surface found. Used on every generation: generation 8 raises a basalt islet to it, older saves
+    /// only flag the pad <see cref="LandingPad.Molten"/>. The generator must be configured for the pad's body.</summary>
+    private bool FootprintLava(PlanetType planet, int cx, int cz, out int lavaTop)
+    {
+        lavaTop = int.MinValue;
+        int circ = _generator.Circumference;
+        foreach (var (dx, dz) in PadFootprintSamples)
+        {
+            if (_generator.TryGetLavaSurface(planet, WorldConstants.WrapX(cx + dx, circ), cz + dz, out int top, out _))
+            {
+                lavaTop = System.Math.Max(lavaTop, top);
+            }
+        }
+
+        return lavaTop != int.MinValue;
     }
 
     // --- live occupancy (derived from sessions, never persisted) ---
@@ -674,8 +763,8 @@ public sealed partial class GameServer
     public int AssignedPadForTest(string playerId)
         => FindSessionByPlayerId(playerId)?.AssignedPadIndex ?? -1;
 
-    /// <summary>0 = natural dry ground, 1 = generated islet, 2 = seabed shaft.</summary>
-    private static int PadRank(LandingPad pad) => pad.Wet ? 2 : pad.Islet ? 1 : 0;
+    /// <summary>0 = natural dry ground, 1 = generated islet, 2 = seabed shaft, 3 = a shaft in lava (old saves).</summary>
+    private static int PadRank(LandingPad pad) => pad.Molten ? 3 : pad.Wet ? 2 : pad.Islet ? 1 : 0;
 
     /// <summary>
     /// Every pad index of the active world in the order a player would like it (#1678): free before reserved,
@@ -791,6 +880,18 @@ public sealed partial class GameServer
             {
                 reason = "@srv.land.pad_taken";
                 return -1;
+            }
+
+            // A pad standing in lava (old saves) is only taken when nothing better is free.
+            var known = PadsForBody(locationId);
+            if (known.Count == total && known[requestedIndex].Molten)
+            {
+                int better = PreferredFreePadIndex(locationId, known, session.State.PlayerId);
+                if (better >= 0 && !known[better].Molten)
+                {
+                    reason = "@srv.land.pad_lava";
+                    return -1;
+                }
             }
 
             return requestedIndex;
@@ -951,6 +1052,7 @@ public sealed partial class GameServer
             pads[i].Z = p.CenterZ;
             pads[i].Wet = p.Wet;
             pads[i].Depth = p.Depth;
+            pads[i].Lava = p.Molten;
         }
 
         // This is the active body, so its day fraction is live (drives the world-map terminator client-side).
@@ -1046,6 +1148,7 @@ public sealed partial class GameServer
             pads[i].Z = p.CenterZ;
             pads[i].Wet = p.Wet; // seabed pad (#1454) — the chooser says so before the player commits
             pads[i].Depth = p.Depth; // …and how deep (#1622)
+            pads[i].Lava = p.Molten; // a pad standing in lava (old saves) — red, and only taken when nothing else is free
         }
 
         Send(session, new LandingPadList { BodyId = requestedId, Pads = pads, TimeOfDay = BodyArrivalTimeOfDay(body.Id) });
@@ -1139,6 +1242,41 @@ public sealed partial class GameServer
 
         var pad = _landingPads[index];
         return (pad.CenterX, pad.CenterY, pad.CenterZ, pad.Wet, pad.Islet, pad.Depth);
+    }
+
+    /// <summary>Test hook: a pad's lava flags — standing in lava (<see cref="LandingPad.Molten"/>) and a generation-8
+    /// basalt islet (<see cref="LandingPad.LavaIslet"/>).</summary>
+    public (bool Molten, bool LavaIslet) LandingPadLavaForTest(int index)
+    {
+        if (_landingPads.Count == 0)
+        {
+            BuildLandingPads();
+        }
+
+        var pad = _landingPads[index];
+        return (pad.Molten, pad.LavaIslet);
+    }
+
+    /// <summary>Test hook: the player pad preference over synthetic pads including lava pads — molten ranks last.</summary>
+    public static int PreferredPadIndexWithLavaForTest(IReadOnlyList<(bool Wet, bool Islet, bool Molten)> pads, IReadOnlyCollection<int> occupied)
+    {
+        int best = -1, bestRank = int.MaxValue;
+        for (int i = 0; i < pads.Count; i++)
+        {
+            if (occupied.Contains(i))
+            {
+                continue;
+            }
+
+            int rank = PadRank(new LandingPad { Index = i, Wet = pads[i].Wet, Islet = pads[i].Islet, Molten = pads[i].Molten });
+            if (rank < bestRank)
+            {
+                bestRank = rank;
+                best = i;
+            }
+        }
+
+        return best;
     }
 
     /// <summary>Test hook: true if the active world's pad at this index sits on dry land (B36).</summary>

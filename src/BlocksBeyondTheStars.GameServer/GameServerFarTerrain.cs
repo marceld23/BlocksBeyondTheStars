@@ -307,7 +307,7 @@ public sealed partial class GameServer
             packed[o + 1] = pad.CenterZ;
             packed[o + 2] = pad.SurfaceY;
             packed[o + 3] = pad.Radius;
-            packed[o + 4] = pad.Islet ? 1 : 0;
+            packed[o + 4] = pad.Islet ? (pad.Molten ? 2 : 1) : 0; // 2 = a basalt lava islet (generation 8)
             packed[o + 5] = pad.PlateauRadius;
             packed[o + 6] = pad.IsletRadius;
             packed[o + 7] = pad.ClassicShape ? 1 : 0;

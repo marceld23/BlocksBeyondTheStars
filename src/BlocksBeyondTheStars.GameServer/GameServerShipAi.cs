@@ -458,7 +458,12 @@ public sealed partial class GameServer
 
         // Parked on the sea floor (#1455): the shaft is dry, the walls are not to be mined, and the way off
         // the planet is E at the cockpit — the one landing a first-time player cannot read on their own.
-        if (PlayerPad(session).Wet)
+        if (PlayerPad(session).Molten)
+        {
+            // Only when every other pad was taken (old saves keep their lava pads): the walls are lava.
+            ShipAiHintOnce(session, "lava_pad");
+        }
+        else if (PlayerPad(session).Wet)
         {
             ShipAiHintOnce(session, "seabed");
         }
