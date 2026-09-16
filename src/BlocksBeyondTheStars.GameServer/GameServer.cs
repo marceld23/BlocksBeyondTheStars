@@ -6675,7 +6675,6 @@ public sealed partial class GameServer
         {
             GameMode = r.ModeFor(over).ToString(),
             Pvp = r.Pvp.ToString(),
-            WeaponMode = r.WeaponMode.ToString(),
             AggressiveAliens = r.AggressiveAliens.ToString(),
             EnvironmentalHazards = r.EnvironmentalHazards.ToString(),
             DeathPenalty = r.DeathPenalty.ToString(),

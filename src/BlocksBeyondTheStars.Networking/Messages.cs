@@ -1168,7 +1168,6 @@ public sealed class ServerRules
 {
     public string GameMode { get; set; } = string.Empty;
     public string Pvp { get; set; } = string.Empty;
-    public string WeaponMode { get; set; } = string.Empty;
     public string AggressiveAliens { get; set; } = string.Empty;
     public string EnvironmentalHazards { get; set; } = string.Empty;
     public string DeathPenalty { get; set; } = string.Empty;

@@ -30,7 +30,18 @@ public sealed class GameModeTests : IDisposable
         Assert.Equal(GameMode.Creative, rules.GameMode);
         Assert.False(rules.OxygenEnabled);
         Assert.False(rules.CraftingCostsMaterials);
-        Assert.Equal(WeaponMode.None, rules.WeaponMode);
+    }
+
+    [Fact]
+    public void SavedRules_FromBeforeTheWeaponModeRemoval_StillLoad()
+    {
+        // Hand weapons are part of every world; the never-enforced per-world WeaponMode switch was removed
+        // (2026-09). A save that still carries the old field in its baked RulesOverride must load with its other
+        // rules intact — System.Text.Json skips the unknown member.
+        const string json = "{\"WorldName\":\"old\",\"RulesOverride\":{\"GameMode\":1,\"WeaponMode\":1,\"Pvp\":0}}";
+        var meta = System.Text.Json.JsonSerializer.Deserialize<BlocksBeyondTheStars.Shared.State.WorldMetadata>(json)!;
+        Assert.NotNull(meta.RulesOverride);
+        Assert.Equal(GameMode.Creative, meta.RulesOverride!.GameMode);
     }
 
     [Fact]

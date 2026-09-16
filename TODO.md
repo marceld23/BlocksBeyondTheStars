@@ -44,6 +44,14 @@ can be staffed at your own station/base like the existing posts; textures are ge
   "used / 4800" count sits next to the label (warning colour from 90 %), and a text that filled the field asks once
   ("reached the maximum length — click Send again"). The server's /bump description cap went from 2000 to 5100.
   Test: `BumpTests.BumpReport_FullLengthFeedbackText_ReachesTheInboxTwinUncut`.
+- **The per-world weapon switch is gone (side finding).** `GameRules.WeaponMode` (None/ToolsOnly/NonLethal/Lasers/All) was
+  never read by any code — every world always had all hand weapons — and was not in the world options; only the unused
+  server presets set it, and the parents page + age-rating checklist claimed "combat is opt-in per world". Marcel's
+  decision: whether a world has weapons is not configurable. Removed the enum, the property, the preset lines and the
+  `ServerRules.WeaponMode` wire field (contractless map → older clients simply see it missing); a save whose baked
+  `RulesOverride` still carries the field loads unchanged (`GameModeTests.SavedRules_FromBeforeTheWeaponModeRemoval_StillLoad`).
+  Docs corrected: `docs/user/PARENTS.md` + `.de.md` (what a family world does switch: robots, bandits, space enemies, UFOs,
+  wildlife), `docs/developer/AGE_RATING_CHECKLIST.md`.
 
 ### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
 

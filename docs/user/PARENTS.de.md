@@ -25,8 +25,9 @@ spielt zusammen.
 - **Milder Sci-Fi-Kampf, kein Blut.** Spieler können aggressive Tiere, Roboter und comichafte „Banditen"
   mit Werkzeugen und Sci-Fi-Waffen abwehren. Es gibt kein Blut, keine drastischen Darstellungen, keine
   Sterbeanimationen von Menschen — besiegte Kreaturen und Roboter zerfallen schlicht oder fliehen;
-  Banditen werden **verjagt, nie getötet**. Neue Welten starten standardmäßig im Waffenmodus **„nur
-  Werkzeuge"** — Kampf ist pro Welt Opt-in.
+  Banditen werden **verjagt, nie getötet**. Handwaffen gibt es in jeder Welt; pro
+  Welt lässt sich aber einstellen, wie viel Feindliches es gibt — Planeten-Roboter, Banditen, Weltraumgegner und
+  UFOs sind in den Welt-Optionen jeweils einzeln **abschaltbar**, Tiere lassen sich bis auf null herunterregeln.
 - **Spielertod ist sanft.** Geht Luft oder Gesundheit aus, wacht man im Med-Bay des eigenen Schiffs
   wieder auf. Andere Spieler bekommen die Gegenstände nicht.
 - **Kein Horror.** Höchstens dunkle Höhlen und eine unheimliche Ruine — der Ton des Spiels ist neugierig,
@@ -67,7 +68,7 @@ Was Spieler dort schützt — eingebaut, nicht versprochen:
 **Die sicherste Variante für jüngere Kinder** ist die eigene private Welt: auf dem eigenen Rechner
 hosten (LAN) — das Spiel bringt alles mit. Siehe [SELF_HOSTING](../developer/SELF_HOSTING.md), oder
 einfach Einzelspieler spielen. Eine private Familienwelt hat genau die Spieler, die Sie eingeladen
-haben, und Sie halten jeden Schalter (Waffenmodus, Sprache, Chatfilter, Besucher).
+haben, und Sie halten jeden Schalter (Roboter, Banditen und andere Gegner, Sprache, Chatfilter, Besucher).
 
 ## Daten
 

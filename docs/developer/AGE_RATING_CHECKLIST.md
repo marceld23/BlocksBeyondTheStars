@@ -21,8 +21,9 @@ Quest, Epic; Steam runs its own content survey) — can be filed in an afternoon
 - Combat targets: wildlife creatures, robots/drones, cartoon "bandits" (humanoid). Bandits flee below a
   health floor — they are chased away, never killed (`GameServerBandits`); creatures break apart, no
   corpses persist, no blood or gore anywhere, no violence against realistic humans.
-- Player combat: `GameRules.WeaponMode` **default ToolsOnly** (weapons opt-in per world);
-  `ShipWeapons` default **Off**. Allies can never harm each other even with PvP-style rules on.
+- Player combat: hand weapons exist in every world (the never-enforced per-world `WeaponMode` switch was removed
+  2026-09 — whether a world has weapons is not configurable); planet robots (`PlanetEnemies`), bandits,
+  space NPCs and UFOs are each switchable Off in the world options (wildlife abundance down to Off); `ShipWeapons` default **Off**. Allies can never harm each other even with PvP-style rules on.
 - Player death: respawn in the med-bay; no loot stealing by other players.
 
 **Fear / horror** — dark caves, one spooky ruin archetype, hostile robot "Guardian" boss. Tone stays
