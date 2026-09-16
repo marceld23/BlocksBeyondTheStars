@@ -325,7 +325,10 @@ public sealed partial class GameServer
         {
             var target = stations[_traderRng.Next(stations.Count)];
             trader.DestStationId = target.Id;
-            trader.Target = target.Position;
+            // #1917: a generated station's real hull is in the way of its middle — the freighter heads for the hangar mouth.
+            trader.Target = _stationsById.TryGetValue(target.Id, out var st) && st.Hull != null
+                ? StationDockPoint(target.Id, standOff: 2f)
+                : target.Position;
         }
         else
         {

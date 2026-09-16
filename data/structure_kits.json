@@ -9,6 +9,9 @@
     "modulesMin": 5,
     "modulesMax": 10,
     "start": "st_small_hub",
+    "solarWings": 2,
+    "antennas": 2,
+    "domes": 1,
     "entries": [
       {
         "module": "st_small_hub",
@@ -121,6 +124,9 @@
     "modulesMin": 8,
     "modulesMax": 14,
     "start": "st_medium_hub",
+    "solarWings": 3,
+    "antennas": 3,
+    "domes": 1,
     "entries": [
       {
         "module": "st_medium_hub",
@@ -282,6 +288,9 @@
     "modulesMin": 11,
     "modulesMax": 19,
     "start": "st_large_hub",
+    "solarWings": 4,
+    "antennas": 4,
+    "domes": 2,
     "entries": [
       {
         "module": "st_large_hub",
@@ -443,6 +452,9 @@
     "modulesMin": 15,
     "modulesMax": 25,
     "start": "st_huge_hub",
+    "solarWings": 6,
+    "antennas": 5,
+    "domes": 2,
     "entries": [
       {
         "module": "st_huge_hub",
@@ -597,6 +609,9 @@
     "modulesMin": 20,
     "modulesMax": 34,
     "start": "st_colossal_hub",
+    "solarWings": 8,
+    "antennas": 6,
+    "domes": 3,
     "entries": [
       {
         "module": "st_colossal_hub",

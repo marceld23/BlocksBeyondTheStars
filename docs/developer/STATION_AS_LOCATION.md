@@ -41,6 +41,36 @@ path and is cleanly isolated from any planet.
   a boardable `CelestialBody`, and persists it as a `space_structure`. Stations are peaceful — void
   worlds hard-skip enemy/creature/flora ticks.
 
+## In flight: the real hull (#1917)
+
+Until 2026-09 every generated station flew as one hard-coded placeholder (`SpaceView.BuildStationModel`, scaled by
+tier) while its interior was a different voxel build. Now a station looks the same from the cockpit as on foot:
+
+- **Layout at first sight.** `AddStationContacts` calls `EnsureStationHull` for every generated station of the orbit.
+  `EnsureStationStructure` (split out of `StampStation`) decides the layout — pinned kit replay, fresh template/kit
+  pick, legacy roll or `StationGenerator` — and pins it. "Fresh" asks `_repo.HasAnyBlockEdits("station:<id>")` instead of
+  the loaded world's `VirginAtLoad`, so the result is the same whether the station is first seen in flight or first
+  boarded from the travel screen. `StampStation` only stamps the built structure.
+- **The flown hull.** `StationHull.VisibleCells` keeps every block next to outside space plus what shows through
+  see-through or shaped cells up to `WindowDepth = 12` steps inside; the cells (with tints and shapes) become a
+  `SpaceStructure` of kind `station`, owner empty (EVA edits are refused), stored in `instance.Structures` and sent with
+  the other voxel bodies as `SpaceShipDesign`. The client already drew player stations this way and skips the
+  placeholder for any station with a design.
+- **Dock point.** `StationHull.FindDock` finds the force-field cell nearest to the `hangar` marker with outside space in
+  front and air behind; its patch's centre and outward direction ride on `SpaceShipDesign.HasDock/DockX..DockOutZ`.
+  Fallbacks: the outer wall straight out from the marker, else the middle of the -Z face.
+- **Layout in the orbit.** `LayoutHullCentres` puts the hulls 1:1 in the classic three lanes ahead of the launch point,
+  each `StationHullGap = 30` behind the previous one, its lowest block at `StationHullFloorY = 44` or higher (clear of
+  the largest planet sphere).
+- **Boarding range** is measured to the hull box (`StationFlightDistance`, player builds included); NPC traders head for
+  the dock point (`StationDockPoint`).
+- **Client** (`SpaceView`): station hulls unload only 900 units from their box, the flight clamp grows to include every
+  hull, the ship collides with hull cells (`ResolveStationHullMove`, radius 2.5), the dock prompt measures to the hull,
+  `PlanDockApproach` flies to the point in front of the mouth (over or under the hull box when it is in the way) and
+  into the mouth, fading only at the end; the autopilot and chart targets use that approach point.
+- Tests: `StationHullTests` (exterior detail, replay, shell, dock), `StationHullServerTests` (pin at first sight, flown
+  hull, board range, EVA refusal, the exterior upgrade of an old kit station, orbit layout).
+
 ## Key files & classes
 
 - `GameServerSpaceStations.cs` — `BoardStation`, `LeaveStation`, `StampStation`, `StampPlayerStation`,

@@ -192,6 +192,40 @@ on the planet map.
   swimming, no holes around plants), flood a coast (old foam line gone), cabin doors free in a fresh AND in Justus'
   world `z`, a landed trader on the planet map/compass that waits while you stand next to it.
 
+### 🛰️ Stations look like themselves — real voxel hulls in flight, solar wings / antennae / domes per kit, docking at the hangar (#1921: #1917 #1918 #1919 #1920, 2026-09-16, branch feat/station-hulls)
+
+Marcel's question: do stations look like their models? No — every generated station flew as the same hard-coded placeholder
+(`SpaceView.BuildStationModel`, a hub with cross arms, pods, blue wings, a beacon, spinning, scaled by tier) while its
+interior was a kit composition, template or `StationGenerator` build of a different shape and size, and the ship docked at
+the model's centre. Player stations and The Long Quiet already flew as their own cells. Decisions: real hull 1:1, layout
+fixed at first sight, exterior detail (solar wings, antennae, domes) set per kit in the editor, dock at the hangar.
+
+- **#1917 Server.** `EnsureStationStructure` (split out of `StampStation`) picks + pins a station's layout when it is first
+  added to a space instance; "fresh" now asks `HasAnyBlockEdits("station:<id>")`, so flight and travel-screen boarding agree.
+  `StationHull.VisibleCells` (outside + 12 cells through windows / the mouth / shaped cells) becomes a `station`
+  `SpaceStructure` in the instance, sent as `SpaceShipDesign` with the hangar mouth (`StationHull.FindDock`: the force-field
+  patch nearest the `hangar` marker; `HasDock`/`DockX..DockOutZ`, contractless-additive — no protocol bump).
+  `LayoutHullCentres` spaces the hulls by size (30 apart, lowest block ≥ 44 over the plane). Boarding range is measured to
+  the hull box (player builds too); traders fly to the mouth. Shipped kit stations measure up to 128 × 19 × 110 blocks and
+  ~15 k visible cells.
+- **#1918 Kits.** `StructureKit.SolarWings/Antennas/Domes` (shipped: small 2/2/1 … colossal 8/6/3), pinned per station in
+  `StationKitRecord.Exterior`. `StationKitExterior` adds a 3-block margin (modules composed inside `maxExtent − 6`): wings on
+  solid wall rows (glass tinted `0x2A4B9C`, carbon frame), domes on free roofs (start module = hull cupola), antenna masts on
+  free roof corners; never in a module box or in front of a force-field mouth. A kit station pinned before gets its kit's
+  counts once; its modules bake 3 further in, `StationStructure.ModuleShift` moves the stamp origin back, nothing moves in
+  the world.
+- **#1919 Client.** Station hulls mesh with tints + shapes (one per frame), unload only 900 from their box, the flight clamp
+  grows to take them in; the ship collides with hull cells (axis-separated, radius 2.5); dock prompt, autopilot and chart
+  targets use the hull / the point in front of the mouth; `PlanDockApproach` flies there (over / under the hull box when
+  it is in the way) and into the mouth, fading only at the end.
+- **#1920 Editor.** Kit panel fields *Solar wings / Antennas / Domes*; **Assemble** keeps tints + shapes. Labels in all 14
+  locales.
+- Tests: `StationHullTests` (8), `StationHullServerTests` (5). Docs: `STATION_AS_LOCATION.md` (in flight),
+  `STATION_SETTLEMENT_EDITOR.md` (exterior detail), manual (stations, E, kit panel).
+- **Open: Marcel's playtest** — fly to a station in a fresh world (hull, wings/domes/antennae, collision, prompt at the
+  hull, dock animation into the hangar, autopilot `P`), an existing save's kit station (layout unchanged inside, detail
+  added outside), the kit panel fields + Assemble.
+
 ### 🌀 Loading screen: spinner and text centred on any screen shape (#1898, 2026-09-15, branch fix/loading-overlay-centred)
 
 Marcel: in the WebGL build the world-loading spinner sat right of the destination name and "Loading world…"; the desktop

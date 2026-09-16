@@ -1179,6 +1179,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 int w, h, l;
                 Func<int, int, int, ushort> get;
+                Func<int, int, int, (int Tint, int Glow)> modifier = null; // #1920: a station's blue solar wings keep their tint
+                Func<int, int, int, int> shapeAt = null;
                 IReadOnlyList<StationMarker> stationMarkers = null;
                 IReadOnlyList<SettlementMarker> settlementMarkers = null;
                 if (kit.KindOrDefault == StructureKit.KindStation)
@@ -1192,6 +1194,8 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     w = s.Width; h = s.Height; l = s.Length; get = s.Get; stationMarkers = s.Markers;
+                    modifier = s.GetModifier;
+                    shapeAt = s.GetShape;
                 }
                 else if (kit.KindOrDefault == StructureKit.KindCity)
                 {
@@ -1239,7 +1243,8 @@ namespace BlocksBeyondTheStars.Client
                                 continue;
                             }
 
-                            cells.Add(new CellJson { x = x, y = y, z = z, kind = "block", id = def.Key });
+                            var (tint, glow) = modifier != null ? modifier(x, y, z) : (0, 0);
+                            cells.Add(new CellJson { x = x, y = y, z = z, kind = "block", id = def.Key, tint = tint, glow = glow, shape = shapeAt?.Invoke(x, y, z) ?? 0 });
                         }
             }
             catch (Exception e)

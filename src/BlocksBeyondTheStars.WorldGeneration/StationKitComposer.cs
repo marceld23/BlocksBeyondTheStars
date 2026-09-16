@@ -36,6 +36,12 @@ public sealed class StationComposition
     public string KitKey = string.Empty;
     public long Seed;
     public readonly List<PlacedKitModule> Modules = new();
+
+    /// <summary>Exterior detail counts (#1918), copied from the kit at compose time and pinned with the composition.</summary>
+    public int SolarWings, Antennas, Domes;
+
+    /// <summary>True when the station carries any exterior detail — its bake then reserves the exterior margin.</summary>
+    public bool HasExterior => SolarWings > 0 || Antennas > 0 || Domes > 0;
 }
 
 /// <summary>
@@ -116,7 +122,14 @@ public static class StationKitComposer
     public static StationStructure? Compose(StructureKit kit, Func<string, StructureTemplate?> moduleByKey, long seed, GameContent content,
         out StationComposition composition, out string? failure)
     {
-        composition = new StationComposition { KitKey = kit.Key, Seed = seed };
+        composition = new StationComposition
+        {
+            KitKey = kit.Key,
+            Seed = seed,
+            SolarWings = Math.Max(0, kit.SolarWings),
+            Antennas = Math.Max(0, kit.Antennas),
+            Domes = Math.Max(0, kit.Domes),
+        };
         failure = null;
         if (kit.Entries.Count == 0)
         {
@@ -127,6 +140,10 @@ public static class StationKitComposer
         var cache = new ModuleCache(moduleByKey);
         var (min, max) = kit.EffectiveBounds();
         int maxExtent = kit.MaxExtent > 0 ? kit.MaxExtent : DefaultMaxExtent;
+        if (composition.HasExterior)
+        {
+            maxExtent -= 2 * StationKitExterior.MarginXZ; // #1918: the whole station, exterior detail included, stays within the extent
+        }
         string startKey = kit.Start.Length > 0 ? kit.Start : FirstRequiredKey(kit);
         var start = cache.Get(startKey, 0);
         if (start is null)
@@ -257,8 +274,20 @@ public static class StationKitComposer
             return null;
         }
 
-        var again = new StationComposition { KitKey = composition.KitKey, Seed = composition.Seed };
-        return Bake(composition.KitKey, tier, composition.Seed, placed, content, again);
+        var again = new StationComposition
+        {
+            KitKey = composition.KitKey,
+            Seed = composition.Seed,
+            SolarWings = Math.Max(0, composition.SolarWings),
+            Antennas = Math.Max(0, composition.Antennas),
+            Domes = Math.Max(0, composition.Domes),
+        };
+        var baked = Bake(composition.KitKey, tier, composition.Seed, placed, content, again);
+        // A composition pinned before its exterior margin existed (#1918) bakes its modules further in; the caller moves the
+        // stamp origin back by this much, so every module keeps its place in the world.
+        var first = composition.Modules[0];
+        baked.ModuleShift = new Vector3i(again.Modules[0].X - first.X, again.Modules[0].Y - first.Y, again.Modules[0].Z - first.Z);
+        return baked;
     }
 
     private static string FirstRequiredKey(StructureKit kit)
@@ -501,8 +530,11 @@ public static class StationKitComposer
             maxX = Math.Max(maxX, pMax.X); maxY = Math.Max(maxY, pMax.Y); maxZ = Math.Max(maxZ, pMax.Z);
         }
 
-        int w = maxX - minX + 1, h = maxY - minY + 1, l = maxZ - minZ + 1;
-        var shift = new Vector3i(-minX, -minY, -minZ);
+        // #1918: exterior detail needs room around the modules (solar wings on the sides, domes and antennae on the roofs).
+        int side = composition.HasExterior ? StationKitExterior.MarginXZ : 0;
+        int top = composition.HasExterior ? StationKitExterior.MarginTop : 0;
+        int w = maxX - minX + 1 + 2 * side, h = maxY - minY + 1 + top, l = maxZ - minZ + 1 + 2 * side;
+        var shift = new Vector3i(-minX + side, -minY, -minZ + side);
         var blocks = new ushort[w * h * l];
         var mods = new Dictionary<int, (int Tint, int Glow)>();
         var shapes = new Dictionary<int, int>();
@@ -730,6 +762,18 @@ public static class StationKitComposer
                 string furnishAs = c.Id == "cabin" ? StructureRoles.Cabins : p.Function;
                 RoomFurnisher.Furnish(SetCell, region, pos.Y, clearance, palette, RoleFor(furnishAs, hasBed), reserved, rng);
             }
+        }
+
+        if (composition.HasExterior)
+        {
+            var boxes = new List<(Vector3i Min, Vector3i Max)>(placed.Count);
+            foreach (var p in placed)
+            {
+                boxes.Add((p.Origin + shift, p.Max + shift));
+            }
+
+            StationKitExterior.Apply(Get, SetCell, w, h, l, boxes, composition.SolarWings, composition.Antennas, composition.Domes,
+                content, new Random(unchecked((int)WorldGenerator.StableHash($"kitexterior:{kitKey}:{seed}"))));
         }
 
         return new StationStructure(w, h, l, tier, startModule.Template.Width, startModule.Template.Height, startModule.Template.Length,

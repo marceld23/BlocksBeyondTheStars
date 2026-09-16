@@ -251,7 +251,7 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **V** | Toggle cockpit / third-person camera |
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens a confirmation (**Enter** = yes, **Esc** = no) |
-| **E** | Board a nearby space station (within range; a short dock-approach plays before you board) |
+| **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) |
 | **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
 | **M** | **System chart**: a top-down map of the current system. Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart** |
 | **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
@@ -713,6 +713,12 @@ separate unlock; admins can still disable it through server world rules.
   you arrive inside it, floating in space (black sky, no planet/weather, life support), and can walk the
   interior (vendors, mission board, heal tank, quarters) and talk to its crew NPCs. Press **U** to leave and
   travel back down to your ship on the planet.
+- **What you see from the cockpit is the station you walk.** Every station floats in space as its real hull, block
+  for block and at full size — the module halls, the windows, the glowing **force-field mouth of its hangar**, solar
+  wings, antenna masts and domes. Big stations are big: a colossal one is over a hundred blocks across. The hull is
+  solid (you slide along it and can fly between its modules), the dock prompt appears near any side of it, and on
+  **E** the ship flies round to the hangar and noses in. The autopilot and a chart target fly you to the space in front
+  of the hangar. A station's layout is fixed the first time you see it.
 - **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
   around it, and it commissions into a boardable station on the star map.
 - **Air only fills sealed rooms** in a station you built: walls, glass and doors are airtight, a hole in the
@@ -1557,7 +1563,8 @@ The **…** button beside a module row opens the module picker — every module 
 size and style, filterable. A kit has a key, name, kind
 (*station*, *settlement* or *city*), size tier, weight and planet types, how many modules it uses (min / max)
 and one row per module: minimum and maximum copies, *Required*, draw weight and whether the composer may rotate
-it. Station kits also name a start module and a maximum extent; settlement kits set the plot grid (columns,
+it. Station kits also name a start module and a maximum extent, and how many **Solar wings**, **Antennas** and
+**Domes** the station gets on the outside (0 = none; **Assemble** shows them, blue solar cells included); settlement kits set the plot grid (columns,
 rows, plot stride, building size, storeys, *Modules only*); city kits set the district grid, district size,
 street width, height and the district map. **Save kit** writes it to the user-content folder (live in the next
 new world, drawn from the same weighted table as the complete templates) and an export bundle for

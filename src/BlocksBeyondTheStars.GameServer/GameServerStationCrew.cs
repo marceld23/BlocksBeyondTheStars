@@ -164,7 +164,13 @@ public sealed partial class GameServer
 
     private static StationKitRecord ToRecord(StationComposition composition)
     {
-        var rec = new StationKitRecord { Kit = composition.KitKey, Seed = composition.Seed, Revision = StationKitRecord.CurrentRevision };
+        var rec = new StationKitRecord
+        {
+            Kit = composition.KitKey,
+            Seed = composition.Seed,
+            Revision = StationKitRecord.CurrentRevision,
+            Exterior = new StationKitExteriorRecord { SolarWings = composition.SolarWings, Antennas = composition.Antennas, Domes = composition.Domes },
+        };
         foreach (var m in composition.Modules)
         {
             rec.Modules.Add(new StationKitModuleRecord { Key = m.Key, X = m.X, Y = m.Y, Z = m.Z, Turns = m.Turns });
@@ -175,7 +181,14 @@ public sealed partial class GameServer
 
     private static StationComposition FromRecord(StationKitRecord rec)
     {
-        var composition = new StationComposition { KitKey = rec.Kit, Seed = rec.Seed };
+        var composition = new StationComposition
+        {
+            KitKey = rec.Kit,
+            Seed = rec.Seed,
+            SolarWings = rec.Exterior?.SolarWings ?? 0,
+            Antennas = rec.Exterior?.Antennas ?? 0,
+            Domes = rec.Exterior?.Domes ?? 0,
+        };
         foreach (var m in rec.Modules)
         {
             composition.Modules.Add(new PlacedKitModule(m.Key, m.X, m.Y, m.Z, m.Turns));

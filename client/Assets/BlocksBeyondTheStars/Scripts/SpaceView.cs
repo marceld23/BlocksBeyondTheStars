@@ -192,6 +192,13 @@ namespace BlocksBeyondTheStars.Client
         private const float SeqDuration = 1.6f;
         private const float LandDuration = 2.2f;  // landing flies the ship away toward the planet — a touch longer so the shrink reads
         private const float BoardDuration = 1.2f; // dock-approach animation before boarding a station
+        private const float DockApproachStandOff = 14f;  // #1917: the approach lines up this far in front of the hangar mouth
+        private const float DockApproachArrive = 12f;    // #1917: autopilot / chart arrival radius around that point
+        private const float DockMouthStandOff = 2.5f;    // #1917: the dock animation ends this far in front of the mouth's field
+        private const float DockFlySpeed = 32f;          // #1917: dock-approach speed (flight units per second)
+        private const float DockApproachMaxSeconds = 7f; // #1917: the longest dock approach, however far round the hull
+        private readonly List<Vector3> _boardPath = new List<Vector3>(); // #1917: planned dock approach (empty = classic fly-in)
+        private float _boardDuration = BoardDuration;    // #1917: how long this dock approach takes
         private const float MoveSpeed = 14f;
         private const float LookSpeed = 2.2f;
         private const float Bounds = 130f;
@@ -228,6 +235,13 @@ namespace BlocksBeyondTheStars.Client
         private const float EvaReach = 6f;   // how far the suit can build/mine
         private const float SuitRadius = 0.45f; // suit collision radius vs the voxel hull
         private const float FarStructUnload = 95f; // S5: drop a voxel body's mesh beyond this (data kept)
+        private const float FarStationUnload = 900f; // #1917: a station hull stays drawn this far from its box — a landmark
+        private const float StationReachMargin = 80f; // #1917: flight room kept beyond the farthest station hull
+        private const float ShipHullRadius = 2.5f;    // #1917: the flight ship's collision radius against station hulls
+        private float _stationReach;                  // #1917: how far out the farthest station hull (plus room) reaches
+
+        /// <summary>The flight clamp: the system's reach, grown to take in every station hull (#1917).</summary>
+        private float FlightClamp => Mathf.Max(_bounds, _stationReach);
         private const float FlightShipScale = 0.5f; // voxel ship is shown half-size while piloting (1:1 on EVA)
 
         // item 20 S3: voxel ore asteroids — static structures at world positions, separate from the own ship.
@@ -238,6 +252,18 @@ namespace BlocksBeyondTheStars.Client
             public Vector3 Pos;     // root-local position of the structure
             public GameObject Root; // null until (re)built
             public bool MeshDirty;
+
+            public string Kind;     // "asteroid" | "station" | "wreck"
+            public Dictionary<Vector3i, (int Tint, int Glow)> Mods; // authored dye/glow (a station's blue solar cells)
+            public Dictionary<Vector3i, int> Shapes;                // authored shapes (slabs, furniture seen through a window)
+            public Vector3 Half;    // half the cells' box, centred on Pos
+
+            // #1917: a generated station's hangar mouth — root-local centre + the direction pointing out of it.
+            public bool HasDock;
+            public Vector3 Dock;
+            public Vector3 DockOut;
+
+            public bool IsStation => Kind == "station";
         }
 
         private readonly Dictionary<string, VoxStruct> _structs = new Dictionary<string, VoxStruct>();
@@ -1055,8 +1081,17 @@ namespace BlocksBeyondTheStars.Client
                     if (sq < bestSq)
                     {
                         bestSq = sq;
-                        target = sp;
-                        arriveSq = BoardRange * BoardRange * 0.64f; // well inside dock range before handing over
+                        // #1917: a station with a known hangar is flown to the point in front of its mouth.
+                        if (StationApproachPoint(e.Id, DockApproachStandOff) is { } approach)
+                        {
+                            target = approach;
+                            arriveSq = DockApproachArrive * DockApproachArrive;
+                        }
+                        else
+                        {
+                            target = sp;
+                            arriveSq = BoardRange * BoardRange * 0.64f; // well inside dock range before handing over
+                        }
                     }
                 }
             }
@@ -1244,9 +1279,9 @@ namespace BlocksBeyondTheStars.Client
             _ship.transform.localRotation = rot;
             var move = rot * (Vector3.forward * fwd + Vector3.right * strafe) * (MoveSpeed * _shipSpeedMul * Time.deltaTime);
             var pos = _ship.transform.localPosition + move;
-            if (pos.magnitude > _bounds)
+            if (pos.magnitude > FlightClamp)
             {
-                pos = pos.normalized * _bounds;
+                pos = pos.normalized * FlightClamp;
             }
 
             // Keep-out: never let the ship penetrate a body — push it back out to the sphere surface, so it
@@ -1262,14 +1297,16 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Stations are solid too — slide around them instead of flying through (the board range is far
-            // larger than this shell, so you can still fly up and dock with E).
+            // Stations are solid too. A station whose voxel hull is here (#1917) blocks block by block — the ship
+            // slides along the hull and can fly between its modules right up to the hangar mouth; one still drawn
+            // as the placeholder model keeps its sphere shell (the board range is far larger than either).
+            pos = ResolveStationHullMove(_ship.transform.localPosition, pos);
             var keepSpace = Game.Space;
             if (keepSpace != null)
             {
                 foreach (var e in keepSpace.Entities)
                 {
-                    if (e.Kind != "SpaceStation")
+                    if (e.Kind != "SpaceStation" || _structs.ContainsKey(e.Id))
                     {
                         continue;
                     }
@@ -1304,13 +1341,14 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Boarding: find the nearest station in range; E boards it (the server validates the range).
+            // Boarding: find the nearest station in range — measured to its hull (#1917); E boards it (the server
+            // validates the range the same way).
             _nearStationId = null;
             _nearStationSq = float.MaxValue;
             var space = Game.Space;
             if (space != null)
             {
-                float best = BoardRange * BoardRange;
+                float best = BoardRange;
                 foreach (var e in space.Entities)
                 {
                     if (e.Kind != "SpaceStation")
@@ -1318,14 +1356,14 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    float sq = (new Vector3(e.X, e.Y, e.Z) - _ship.transform.localPosition).sqrMagnitude;
-                    if (sq < best)
+                    float dist = StationDistance(e, _ship.transform.localPosition);
+                    if (dist < best)
                     {
-                        best = sq;
+                        best = dist;
                         _nearStationId = e.Id;
                         _nearStationName = e.Name;
                         _boardTargetPos = new Vector3(e.X, e.Y, e.Z);
-                        _nearStationSq = sq;
+                        _nearStationSq = dist * dist;
                     }
                 }
             }
@@ -1339,12 +1377,13 @@ namespace BlocksBeyondTheStars.Client
                 bool stationCloser = _nearStationId != null && (_landTargetId == null || _nearStationSq <= _landTargetSq);
                 if (stationCloser)
                 {
-                    _phase = Phase.Boarding; // short dock-approach animation; board intent sent on completion
+                    _phase = Phase.Boarding; // dock-approach animation (into the hangar, #1917); board intent sent on completion
                     _seq = 0f;
                     _boardSent = false;
                     _boardWait = 0f;
                     _boardTargetId = _nearStationId;
                     _boardStartPos = _ship.transform.localPosition;
+                    PlanDockApproach();
                 }
                 else if (_landTargetId != null)
                 {
@@ -1875,9 +1914,9 @@ namespace BlocksBeyondTheStars.Client
             // was tuned for the small cube model and left you spawning inside the big voxel hull → "no ship").
             float backZ = _shipCells != null && _shipCells.Count > 0 ? _shipCentre.z + 6f : 3.4f;
             _evaPos = _ship.transform.localPosition + rot * new Vector3(0f, -1f, -backZ);
-            if (_evaPos.magnitude > _bounds)
+            if (_evaPos.magnitude > FlightClamp)
             {
-                _evaPos = _evaPos.normalized * _bounds;
+                _evaPos = _evaPos.normalized * FlightClamp;
             }
 
             _eva = true;
@@ -1940,9 +1979,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Stay inside the flight bounds and don't drift into a body — slide along its keep-out shell.
-            if (_evaPos.magnitude > _bounds)
+            if (_evaPos.magnitude > FlightClamp)
             {
-                _evaPos = _evaPos.normalized * _bounds;
+                _evaPos = _evaPos.normalized * FlightClamp;
             }
 
             foreach (var ob in _keepOut)
@@ -1976,7 +2015,7 @@ namespace BlocksBeyondTheStars.Client
             var space = Game.Space;
             if (space != null)
             {
-                float best = BoardRange * BoardRange;
+                float best = BoardRange;
                 foreach (var e in space.Entities)
                 {
                     if (e.Kind != "SpaceStation")
@@ -1984,14 +2023,14 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    float sq = (new Vector3(e.X, e.Y, e.Z) - _evaPos).sqrMagnitude;
-                    if (sq < best)
+                    float dist = StationDistance(e, _evaPos); // #1917: to the hull, like the server
+                    if (dist < best)
                     {
-                        best = sq;
+                        best = dist;
                         _nearStationId = e.Id;
                         _nearStationName = e.Name;
                         _boardTargetPos = new Vector3(e.X, e.Y, e.Z);
-                        _nearStationSq = sq;
+                        _nearStationSq = dist * dist;
                     }
                 }
             }
@@ -2328,10 +2367,83 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(existing.Root); // a fresh design replaces the old mesh
             }
 
-            _structs[m.Id] = new VoxStruct
+            var vs = new VoxStruct
             {
-                Cells = cells, Centre = centre, Pos = new Vector3(m.PosX, m.PosY, m.PosZ), Root = null, MeshDirty = true,
+                Cells = cells, Centre = centre, Pos = new Vector3(m.PosX, m.PosY, m.PosZ), Root = null, MeshDirty = true, Kind = m.Kind,
             };
+
+            // Authored dye/glow + shapes ride along, so a station's blue solar wings and its shaped cells mesh as designed.
+            bool hasTint = m.Tint != null && m.Tint.Length == m.Block.Length;
+            bool hasGlow = m.Glow != null && m.Glow.Length == m.Block.Length;
+            bool hasShape = m.Shape != null && m.Shape.Length == m.Block.Length;
+            if (hasTint || hasGlow || hasShape)
+            {
+                vs.Mods = new Dictionary<Vector3i, (int, int)>();
+                vs.Shapes = new Dictionary<Vector3i, int>();
+                for (int i = 0; i < m.Block.Length; i++)
+                {
+                    var key = new Vector3i(m.X[i], m.Y[i], m.Z[i]);
+                    int tint = hasTint ? m.Tint[i] : 0, glow = hasGlow ? m.Glow[i] : 0;
+                    if (tint != 0 || glow != 0) vs.Mods[key] = (tint, glow);
+                    if (hasShape && m.Shape[i] != 0) vs.Shapes[key] = m.Shape[i];
+                }
+            }
+
+            if (cells.Count > 0)
+            {
+                int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
+                foreach (var c in cells.Keys)
+                {
+                    if (c.X < minX) minX = c.X; if (c.Y < minY) minY = c.Y; if (c.Z < minZ) minZ = c.Z;
+                    if (c.X > maxX) maxX = c.X; if (c.Y > maxY) maxY = c.Y; if (c.Z > maxZ) maxZ = c.Z;
+                }
+
+                vs.Half = new Vector3((maxX - minX + 1) * 0.5f, (maxY - minY + 1) * 0.5f, (maxZ - minZ + 1) * 0.5f);
+            }
+
+            if (m.HasDock)
+            {
+                vs.HasDock = true;
+                vs.Dock = vs.Pos + new Vector3(m.DockX, m.DockY, m.DockZ) - centre;
+                vs.DockOut = new Vector3(m.DockOutX, 0f, m.DockOutZ);
+            }
+
+            _structs[m.Id] = vs;
+        }
+
+        /// <summary>#1917: a station's distance from a root-local point — to its hull's box when the flight view holds its
+        /// voxel hull (a generated station or a player's build), else to its centre. The server measures boarding the same way.</summary>
+        private float StationDistance(BlocksBeyondTheStars.Networking.Messages.NetCombatEntity e, Vector3 point)
+        {
+            var centre = new Vector3(e.X, e.Y, e.Z);
+            if (_structs.TryGetValue(e.Id, out var vs) && vs.IsStation && vs.Cells != null && vs.Cells.Count > 0)
+            {
+                Vector3 d = point - vs.Pos;
+                var outside = new Vector3(
+                    Mathf.Max(0f, Mathf.Abs(d.x) - vs.Half.x),
+                    Mathf.Max(0f, Mathf.Abs(d.y) - vs.Half.y),
+                    Mathf.Max(0f, Mathf.Abs(d.z) - vs.Half.z));
+                return outside.magnitude;
+            }
+
+            return (centre - point).magnitude;
+        }
+
+        /// <summary>#1917: where a ship lines up in front of a station's hangar mouth — far enough out to clear the hull box —
+        /// or null when the station has no known mouth.</summary>
+        private Vector3? StationApproachPoint(string stationId, float extra)
+        {
+            if (!_structs.TryGetValue(stationId, out var vs) || !vs.HasDock)
+            {
+                return null;
+            }
+
+            // The mouth may sit deep in the hull's box: go out past the box face on the mouth's side, then some.
+            Vector3 fromCentre = vs.Dock - vs.Pos;
+            float recess = vs.DockOut.x != 0f
+                ? vs.Half.x - Mathf.Abs(fromCentre.x)
+                : vs.Half.z - Mathf.Abs(fromCentre.z);
+            return vs.Dock + vs.DockOut * (Mathf.Max(0f, recess) + extra);
         }
 
         /// <summary>A space entity was destroyed — if it was a voxel asteroid body, drop its mesh (item 20 S3).</summary>
@@ -2370,9 +2482,24 @@ namespace BlocksBeyondTheStars.Client
             // structures don't all carry live meshes. The reference is the suit on an EVA, else the ship.
             Vector3 viewer = _eva ? _evaPos : (_ship != null ? _ship.transform.localPosition : Vector3.zero);
             float farSq = FarStructUnload * FarStructUnload;
+            float stationReach = 0f;
             foreach (var vs in _structs.Values)
             {
-                bool near = (vs.Pos - viewer).sqrMagnitude <= farSq;
+                bool near;
+                if (vs.IsStation)
+                {
+                    // #1917: a station hull is a landmark — kept across the whole flight zone, measured to its box, and
+                    // the flight clamp grows so every hull (and the space around it) stays reachable.
+                    Vector3 d = viewer - vs.Pos;
+                    var outside = new Vector3(Mathf.Max(0f, Mathf.Abs(d.x) - vs.Half.x), Mathf.Max(0f, Mathf.Abs(d.y) - vs.Half.y), Mathf.Max(0f, Mathf.Abs(d.z) - vs.Half.z));
+                    near = outside.sqrMagnitude <= FarStationUnload * FarStationUnload;
+                    stationReach = Mathf.Max(stationReach, vs.Pos.magnitude + vs.Half.magnitude + StationReachMargin);
+                }
+                else
+                {
+                    near = (vs.Pos - viewer).sqrMagnitude <= farSq;
+                }
+
                 if (near && vs.Root == null)
                 {
                     vs.MeshDirty = true; // came back into range → rebuild below
@@ -2384,6 +2511,9 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            _stationReach = stationReach;
+
+            bool stationBuilt = false;
             foreach (var vs in _structs.Values)
             {
                 if (!vs.MeshDirty)
@@ -2391,15 +2521,21 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                if (vs.IsStation && stationBuilt)
+                {
+                    continue; // a station hull is thousands of cells — mesh one per frame so entering space doesn't stall
+                }
+
                 if (vs.Root == null)
                 {
-                    vs.Root = new GameObject("Asteroid");
+                    vs.Root = new GameObject(vs.IsStation ? "StationHull" : "Asteroid");
                     vs.Root.transform.SetParent(_root.transform, false);
                     vs.Root.transform.localPosition = vs.Pos;
                 }
 
-                BuildVoxChunks(vs.Root.transform, vs.Cells, vs.Centre);
+                BuildVoxChunks(vs.Root.transform, vs.Cells, vs.Centre, null, vs.Mods, vs.Shapes);
                 vs.MeshDirty = false;
+                stationBuilt |= vs.IsStation;
             }
         }
 
@@ -2434,6 +2570,8 @@ namespace BlocksBeyondTheStars.Client
             // (undocking returns you to the float). The server clears InEva as it docks you.
             _eva = false;
             _phase = Phase.Boarding;
+            _boardPath.Clear();
+            _boardDuration = BoardDuration;
             _seq = BoardDuration;     // skip the fly-in: you're already at the hull on foot
             _boardSent = false;
             _boardWait = 0f;
@@ -2441,14 +2579,182 @@ namespace BlocksBeyondTheStars.Client
             _boardStartPos = _ship.transform.localPosition;
         }
 
-        /// <summary>Flies the ship in to dock with the station + fades out, then sends the board intent.
-        /// A safety timeout reverts to cruise if the server never confirms (so it can't hang on black).</summary>
+        /// <summary>
+        /// #1917: plans the dock approach into a station's hangar — out to the point in front of the mouth, then in. When
+        /// the hull's box stands between the ship and that point, the path climbs over it (or dives under it, when the ship
+        /// is below the station). A station without a known mouth keeps the classic short fly-in (an empty path).
+        /// </summary>
+        private void PlanDockApproach()
+        {
+            _boardPath.Clear();
+            _boardDuration = BoardDuration;
+            if (_ship == null || _boardTargetId == null || !_structs.TryGetValue(_boardTargetId, out var vs) || !vs.HasDock
+                || StationApproachPoint(_boardTargetId, DockApproachStandOff) is not { } approach)
+            {
+                return;
+            }
+
+            Vector3 start = _ship.transform.localPosition;
+            Vector3 mouth = vs.Dock + vs.DockOut * DockMouthStandOff;
+            var box = vs.Half + Vector3.one * 4f;
+            _boardPath.Add(start);
+            if (SegmentHitsBox(start, approach, vs.Pos, box))
+            {
+                bool inFootprint = Mathf.Abs(start.x - vs.Pos.x) <= box.x && Mathf.Abs(start.z - vs.Pos.z) <= box.z;
+                bool under = inFootprint && start.y < vs.Pos.y;
+                float pass = under ? vs.Pos.y - box.y - 8f : vs.Pos.y + box.y + 8f;
+                _boardPath.Add(new Vector3(start.x, under ? Mathf.Min(start.y, pass) : Mathf.Max(start.y, pass), start.z));
+                _boardPath.Add(new Vector3(approach.x, pass, approach.z));
+            }
+
+            _boardPath.Add(approach);
+            _boardPath.Add(mouth);
+
+            float length = 0f;
+            for (int i = 1; i < _boardPath.Count; i++)
+            {
+                length += Vector3.Distance(_boardPath[i - 1], _boardPath[i]);
+            }
+
+            _boardDuration = Mathf.Clamp(length / DockFlySpeed, BoardDuration, DockApproachMaxSeconds);
+        }
+
+        /// <summary>True when the segment a→b passes through the box of half size <paramref name="half"/> around <paramref name="centre"/>.</summary>
+        private static bool SegmentHitsBox(Vector3 a, Vector3 b, Vector3 centre, Vector3 half)
+        {
+            Vector3 min = centre - half, max = centre + half, d = b - a;
+            float t0 = 0f, t1 = 1f;
+            for (int axis = 0; axis < 3; axis++)
+            {
+                if (Mathf.Abs(d[axis]) < 1e-5f)
+                {
+                    if (a[axis] < min[axis] || a[axis] > max[axis])
+                    {
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                float inv = 1f / d[axis];
+                float near = (min[axis] - a[axis]) * inv, far = (max[axis] - a[axis]) * inv;
+                if (near > far)
+                {
+                    (near, far) = (far, near);
+                }
+
+                t0 = Mathf.Max(t0, near);
+                t1 = Mathf.Min(t1, far);
+                if (t0 > t1)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>The point <paramref name="distance"/> along the planned dock path, and the direction of travel there.</summary>
+        private Vector3 AlongBoardPath(float distance, out Vector3 heading)
+        {
+            heading = Vector3.forward;
+            for (int i = 1; i < _boardPath.Count; i++)
+            {
+                Vector3 a = _boardPath[i - 1], b = _boardPath[i];
+                float seg = Vector3.Distance(a, b);
+                if (seg > 0.0001f)
+                {
+                    heading = (b - a) / seg;
+                }
+
+                if (distance <= seg || i == _boardPath.Count - 1)
+                {
+                    return seg > 0.0001f ? Vector3.Lerp(a, b, Mathf.Clamp01(distance / seg)) : b;
+                }
+
+                distance -= seg;
+            }
+
+            return _boardPath.Count > 0 ? _boardPath[_boardPath.Count - 1] : Vector3.zero;
+        }
+
+        /// <summary>#1917: moves the ship from <paramref name="from"/> toward <paramref name="to"/> but not into a station
+        /// hull: each axis is tried on its own, so the ship slides along the hull instead of stopping dead. A ship already
+        /// overlapping a hull (one that just arrived around it) is let through, so it can always fly out.</summary>
+        private Vector3 ResolveStationHullMove(Vector3 from, Vector3 to)
+        {
+            if (_structs.Count == 0 || ShipBlockedByStation(from))
+            {
+                return to;
+            }
+
+            Vector3 p = from;
+            if (!ShipBlockedByStation(new Vector3(to.x, p.y, p.z))) { p.x = to.x; }
+            if (!ShipBlockedByStation(new Vector3(p.x, to.y, p.z))) { p.y = to.y; }
+            if (!ShipBlockedByStation(new Vector3(p.x, p.y, to.z))) { p.z = to.z; }
+            return p;
+        }
+
+        /// <summary>True if a ship-sized sphere at this root-local point overlaps a block of a station hull.</summary>
+        private bool ShipBlockedByStation(Vector3 rootPos)
+        {
+            foreach (var vs in _structs.Values)
+            {
+                if (!vs.IsStation || vs.Root == null || vs.Cells == null || vs.Cells.Count == 0)
+                {
+                    continue;
+                }
+
+                Vector3 d = rootPos - vs.Pos;
+                float reach = ShipHullRadius + 1f;
+                if (Mathf.Abs(d.x) > vs.Half.x + reach || Mathf.Abs(d.y) > vs.Half.y + reach || Mathf.Abs(d.z) > vs.Half.z + reach)
+                {
+                    continue;
+                }
+
+                Vector3 p = ToDesign(vs.Root.transform, vs.Centre, rootPos);
+                int x0 = Mathf.FloorToInt(p.x - ShipHullRadius), x1 = Mathf.FloorToInt(p.x + ShipHullRadius);
+                int y0 = Mathf.FloorToInt(p.y - ShipHullRadius), y1 = Mathf.FloorToInt(p.y + ShipHullRadius);
+                int z0 = Mathf.FloorToInt(p.z - ShipHullRadius), z1 = Mathf.FloorToInt(p.z + ShipHullRadius);
+                for (int x = x0; x <= x1; x++)
+                for (int y = y0; y <= y1; y++)
+                for (int z = z0; z <= z1; z++)
+                {
+                    if (vs.Cells.ContainsKey(new Vector3i(x, y, z)))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Flies the ship in to dock with the station + fades out, then sends the board intent. With a known
+        /// hangar mouth (#1917) the ship follows the planned approach and noses into the hangar. A safety timeout reverts
+        /// to cruise if the server never confirms (so it can't hang on black).</summary>
         private void UpdateBoarding()
         {
             _seq += Time.deltaTime;
-            float t = Mathf.Clamp01(_seq / BoardDuration);
+            float t = Mathf.Clamp01(_seq / _boardDuration);
             float ease = 1f - (1f - t) * (1f - t);
-            if (_ship != null)
+            if (_ship != null && _boardPath.Count >= 2)
+            {
+                float total = 0f;
+                for (int i = 1; i < _boardPath.Count; i++)
+                {
+                    total += Vector3.Distance(_boardPath[i - 1], _boardPath[i]);
+                }
+
+                float smooth = t * t * (3f - 2f * t);
+                _ship.transform.localPosition = AlongBoardPath(smooth * total, out var heading);
+                if (heading.sqrMagnitude > 0.001f)
+                {
+                    var look = Quaternion.LookRotation(heading, Vector3.up);
+                    _ship.transform.localRotation = Quaternion.Slerp(_ship.transform.localRotation, look, Time.deltaTime * 5f);
+                }
+            }
+            else if (_ship != null)
             {
                 var dock = Vector3.Lerp(_boardTargetPos, _boardStartPos, 0.14f); // stop just short of the hull
                 _ship.transform.localPosition = Vector3.Lerp(_boardStartPos, dock, ease);
@@ -2460,7 +2766,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (_seq >= BoardDuration && !_boardSent)
+            if (_seq >= _boardDuration && !_boardSent)
             {
                 _boardSent = true;
                 Game.BeginWorldTransition(); // veil now (the approach has played) so the station doesn't flash (B34)
@@ -4166,7 +4472,7 @@ namespace BlocksBeyondTheStars.Client
         public bool HasStar => _hasStar;
 
         /// <summary>The flight-volume clamp radius; the system chart keeps free waypoints inside it.</summary>
-        public float FlightBounds => _bounds;
+        public float FlightBounds => FlightClamp;
 
         /// <summary>Waypoint id for the launch body (#597) — its <see cref="Landables"/> entry carries an
         /// empty id (it doubles as "no travel target"), so the chart pins it under this sentinel instead.</summary>
@@ -4211,8 +4517,17 @@ namespace BlocksBeyondTheStars.Client
                     {
                         if (e.Kind == "SpaceStation" && e.Id == id)
                         {
-                            target = new Vector3(e.X, e.Y, e.Z);
-                            arriveSq = BoardRange * BoardRange * 0.64f;
+                            if (StationApproachPoint(e.Id, DockApproachStandOff) is { } approach)
+                            {
+                                target = approach; // #1917: in front of the hangar mouth
+                                arriveSq = DockApproachArrive * DockApproachArrive;
+                            }
+                            else
+                            {
+                                target = new Vector3(e.X, e.Y, e.Z);
+                                arriveSq = BoardRange * BoardRange * 0.64f;
+                            }
+
                             return true;
                         }
 
@@ -4500,13 +4815,18 @@ namespace BlocksBeyondTheStars.Client
 
             if (_phase != Phase.Cruise)
             {
-                float dur = _phase == Phase.Boarding ? BoardDuration : (_phase == Phase.Landing ? LandDuration : SeqDuration);
+                float dur = _phase == Phase.Boarding ? _boardDuration : (_phase == Phase.Landing ? LandDuration : SeqDuration);
                 float t = Mathf.Clamp01(_seq / dur);
                 float alpha;
                 if (_phase == Phase.Landing)
                 {
                     // Hold the view clear while the ship streaks away, then fade to black over the last stretch.
                     alpha = Mathf.Clamp01((t - 0.55f) / 0.45f);
+                }
+                else if (_phase == Phase.Boarding && _boardPath.Count >= 2)
+                {
+                    // #1917: watch the ship fly round to the hangar; fade only as it noses into the mouth.
+                    alpha = Mathf.Clamp01((t - 0.75f) / 0.25f);
                 }
                 else
                 {

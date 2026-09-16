@@ -251,6 +251,21 @@ public sealed class StationKitRecord
     /// such pieces once and raises this to <see cref="CurrentRevision"/>. Additive JSON field.
     /// </summary>
     public int Revision { get; set; }
+
+    /// <summary>
+    /// The exterior detail this station carries (#1918), pinned at its first compose — or, for a station composed before
+    /// the feature, at its first replay after it, from its kit as it was then — so editing the kit later never changes a
+    /// station that already exists. Null in saves from before #1918. Additive JSON field.
+    /// </summary>
+    public StationKitExteriorRecord? Exterior { get; set; }
+}
+
+/// <summary>A kit station's pinned exterior detail counts (#1918).</summary>
+public sealed class StationKitExteriorRecord
+{
+    public int SolarWings { get; set; }
+    public int Antennas { get; set; }
+    public int Domes { get; set; }
 }
 
 /// <summary>One placed module of a kit station: key, origin inside the station, quarter turns.</summary>

@@ -72,6 +72,15 @@ public sealed class SpaceStructure
     /// <summary>The medbay heal-tank cell (respawn point), if the design carries one.</summary>
     public Vector3i? MedbayCell { get; set; }
 
+    /// <summary>#1917: a generated station's hangar mouth — its centre in cell units (cell (x,y,z) spans x..x+1) and
+    /// the horizontal direction pointing out of it. Only set on a station hull.</summary>
+    public bool HasDock { get; set; }
+    public float DockX { get; set; }
+    public float DockY { get; set; }
+    public float DockZ { get; set; }
+    public int DockOutX { get; set; }
+    public int DockOutZ { get; set; }
+
     public void Set(Vector3i pos, BlockId block)
     {
         if (block.IsAir)
@@ -1024,6 +1033,12 @@ public sealed partial class GameServer
             Tint = tints,
             Glow = glows,
             Shape = shapes,
+            HasDock = s.HasDock,
+            DockX = s.DockX,
+            DockY = s.DockY,
+            DockZ = s.DockZ,
+            DockOutX = s.DockOutX,
+            DockOutZ = s.DockOutZ,
         });
     }
 

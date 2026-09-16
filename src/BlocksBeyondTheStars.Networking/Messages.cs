@@ -1622,6 +1622,16 @@ public sealed class SpaceShipDesign
     public int[] Tint { get; set; } = System.Array.Empty<int>();
     public int[] Glow { get; set; } = System.Array.Empty<int>();
     public int[] Shape { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>#1917: a generated station hull's hangar mouth — its centre in design cell units (the same space as
+    /// <see cref="X"/>/<see cref="Y"/>/<see cref="Z"/>; cell (x,y,z) spans x..x+1) and the horizontal direction pointing
+    /// out of it. The flight view docks there. Contractless-additive: older payloads leave <see cref="HasDock"/> false.</summary>
+    public bool HasDock { get; set; }
+    public float DockX { get; set; }
+    public float DockY { get; set; }
+    public float DockZ { get; set; }
+    public int DockOutX { get; set; }
+    public int DockOutZ { get; set; }
 }
 
 /// <summary>Server → client: a player's ship parked on the current world as a placed voxel OBJECT

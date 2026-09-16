@@ -51,6 +51,17 @@ public sealed class StructureKit
     /// <summary>Stations: the largest bounding box (blocks per side) a composition may grow to; 0 = 128.</summary>
     public int MaxExtent { get; set; }
 
+    // --- station exterior detail (#1918; 0 = none) ---
+
+    /// <summary>Stations: how many solar wings the composer mounts on free side walls of the modules.</summary>
+    public int SolarWings { get; set; }
+
+    /// <summary>Stations: how many antenna masts the composer puts on free module roofs.</summary>
+    public int Antennas { get; set; }
+
+    /// <summary>Stations: how many domes the composer puts on free module roofs (the start module first).</summary>
+    public int Domes { get; set; }
+
     public List<KitEntry> Entries { get; set; } = new();
 
     /// <summary>True on a kit kept ONLY for the placements that already use it (#1885: the first default settlement

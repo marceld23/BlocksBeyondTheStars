@@ -39,10 +39,29 @@ public sealed partial class GameServer
         public string Id { get; init; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string SizeTier { get; init; } = "medium";
-        public Vector3f SpacePosition { get; init; }
-        public Vector3i Origin { get; init; }
+
+        /// <summary>Where the station floats in its space instance (the centre of its hull box). A generated station is
+        /// laid out by its real hull size (#1917, <see cref="LayoutStationHulls"/>).</summary>
+        public Vector3f SpacePosition { get; set; }
+
+        /// <summary>Where the structure's cell (0,0,0) is stamped in the void world. A kit station replayed with an
+        /// exterior margin it was not composed with sits that much further out (#1918), so its modules stay put.</summary>
+        public Vector3i Origin { get; set; }
+
         public bool Stamped { get; set; }
         public StationStructure? Structure { get; set; }
+
+        /// <summary>#1917: the generated station's hull as flown — its visible cells 1:1, sent to pilots like a player
+        /// station's build. Null for player stations (their own cell grid is the hull) and before the first sight.</summary>
+        public SpaceStructure? Hull { get; set; }
+
+        /// <summary>#1917: half the hull box (flight units = blocks), centred on <see cref="SpacePosition"/>.</summary>
+        public Vector3f HullHalf { get; set; }
+
+        /// <summary>#1917: the hangar mouth centre relative to <see cref="SpacePosition"/>, and its outward direction.</summary>
+        public Vector3f DockOffset { get; set; }
+        public int DockOutX { get; set; }
+        public int DockOutZ { get; set; } = -1;
         public List<(string Type, Vector3f Pos)> Markers { get; } = new();
         public Vector3f Spawn { get; set; }
 
@@ -135,7 +154,20 @@ public sealed partial class GameServer
     private void AddStationContacts(SpaceInstance instance)
     {
         string anchorId = StationHostKey(instance.Id);
-        foreach (var station in StationContactsForCurrentSystem(anchorId))
+        var stations = StationContactsForCurrentSystem(anchorId).ToList();
+
+        // #1917: a generated station is seen as it really is — its layout is decided (and pinned) the moment it first
+        // shows up in flight, and its visible hull flies 1:1 like a player station's build.
+        foreach (var station in stations)
+        {
+            if (!_playerStationCells.ContainsKey(station.Id))
+            {
+                EnsureStationHull(station);
+            }
+        }
+
+        LayoutStationHulls(stations);
+        foreach (var station in stations)
         {
             instance.Entities.Add(new CombatEntity
             {
@@ -146,9 +178,189 @@ public sealed partial class GameServer
                 Hull = 1f,
                 HullMax = 1f,
                 Position = station.SpacePosition,
-                Scale = StationModelScale(station.SizeTier), // a colossal station LOOKS colossal from the cockpit
+                Scale = StationModelScale(station.SizeTier), // the placeholder model's size, for a client without the hull
             });
+
+            if (station.Hull is { } hull)
+            {
+                instance.Structures[hull.Id] = hull; // sent to every pilot with the other voxel bodies on entry
+            }
         }
+    }
+
+    /// <summary>The lowest hull block of a generated station floats at least this high over the flight plane, clear of
+    /// every planet sphere down there (a lone giant reaches a radius of about 41).</summary>
+    private const float StationHullFloorY = 44f;
+
+    /// <summary>Clear space between the hulls of two generated stations of one orbit.</summary>
+    private const float StationHullGap = 30f;
+
+    /// <summary>
+    /// Lays the generated stations of an orbit out by their real hull size (#1917): the classic three lanes ahead of the
+    /// launch point, each station behind the previous one with <see cref="StationHullGap"/> of clear space, its lowest
+    /// block at <see cref="StationHullFloorY"/> or higher. Player stations keep the position they were built at.
+    /// </summary>
+    private void LayoutStationHulls(List<BoardableStation> stations)
+    {
+        var flown = stations.Where(s => s.Hull != null).ToList();
+        var centres = LayoutHullCentres(flown.Select(s => s.HullHalf).ToList());
+        for (int i = 0; i < flown.Count; i++)
+        {
+            flown[i].SpacePosition = centres[i];
+            flown[i].Hull!.Position = centres[i];
+        }
+    }
+
+    /// <summary>The centres of an orbit's station hulls, in order, from their half sizes (#1917) — see
+    /// <see cref="LayoutStationHulls"/>.</summary>
+    internal static Vector3f[] LayoutHullCentres(IReadOnlyList<Vector3f> halves)
+    {
+        var centres = new Vector3f[halves.Count];
+        float lastFar = float.NaN;
+        for (int i = 0; i < halves.Count; i++)
+        {
+            var half = halves[i];
+            float x = (i % 3 - 1) * 70f;
+            float y = System.MathF.Max(40f, StationHullFloorY + half.Y);
+            float z = System.MathF.Max(90f + i * 45f, 50f + half.Z);
+            if (!float.IsNaN(lastFar))
+            {
+                z = System.MathF.Max(z, lastFar + StationHullGap + half.Z);
+            }
+
+            centres[i] = new Vector3f(x, y, z);
+            lastFar = z + half.Z;
+        }
+
+        return centres;
+    }
+
+    /// <summary>Test seam (#1917): a generated station's flown hull — cell count, centre, half size and the dock point
+    /// in front of its hangar mouth with the mouth's outward direction — or null before it was first seen.</summary>
+    public (int Cells, Vector3f Centre, Vector3f Half, Vector3f Dock, int OutX, int OutZ)? StationHullForTest(string stationId)
+        => _stationsById.TryGetValue(stationId, out var st) && st.Hull is { } hull
+            ? (hull.Cells.Count, st.SpacePosition, st.HullHalf, StationDockPoint(stationId, standOff: 0f), st.DockOutX, st.DockOutZ)
+            : null;
+
+    /// <summary>Test seam (#1917): where a station's structure cell (0,0,0) is stamped in its void world.</summary>
+    public Vector3i StationStampOriginForTest(string stationId)
+        => _stationsById.TryGetValue(stationId, out var st) ? st.Origin : default;
+
+    /// <summary>Builds a generated station's structure (pinned at first sight) and its flown hull, once per server run.</summary>
+    private void EnsureStationHull(BoardableStation station)
+    {
+        if (station.Hull != null)
+        {
+            return;
+        }
+
+        var structure = EnsureStationStructure(station);
+        var cells = StationHull.VisibleCells(structure, _content);
+        if (cells.Count == 0)
+        {
+            return;
+        }
+
+        var hull = new SpaceStructure
+        {
+            Id = station.Id,
+            Kind = "station",
+            OwnerId = string.Empty, // a game station: nobody's — EVA building and mining on it are refused
+            Name = station.Name,
+            Boardable = true,
+        };
+
+        int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
+        foreach (var c in cells)
+        {
+            hull.Cells[c] = new BlockId(structure.Get(c.X, c.Y, c.Z));
+            var (tint, glow) = structure.GetModifier(c.X, c.Y, c.Z);
+            if (tint != 0 || glow != 0)
+            {
+                hull.Mods[c] = (tint, glow);
+            }
+
+            int shape = structure.GetShape(c.X, c.Y, c.Z);
+            if (shape != 0)
+            {
+                hull.Shapes[c] = shape;
+            }
+
+            minX = System.Math.Min(minX, c.X); minY = System.Math.Min(minY, c.Y); minZ = System.Math.Min(minZ, c.Z);
+            maxX = System.Math.Max(maxX, c.X); maxY = System.Math.Max(maxY, c.Y); maxZ = System.Math.Max(maxZ, c.Z);
+        }
+
+        hull.Width = maxX - minX + 1;
+        hull.Height = maxY - minY + 1;
+        hull.Length = maxZ - minZ + 1;
+
+        // The client centres a design on its cells' box — so does everything measured here.
+        float cx = (minX + maxX + 1) / 2f, cy = (minY + maxY + 1) / 2f, cz = (minZ + maxZ + 1) / 2f;
+        var dock = StationHull.FindDock(structure, _content);
+        hull.HasDock = true;
+        hull.DockX = dock.X;
+        hull.DockY = dock.Y;
+        hull.DockZ = dock.Z;
+        hull.DockOutX = dock.OutX;
+        hull.DockOutZ = dock.OutZ;
+
+        station.Hull = hull;
+        station.HullHalf = new Vector3f(hull.Width / 2f, hull.Height / 2f, hull.Length / 2f);
+        station.DockOffset = new Vector3f(dock.X - cx, dock.Y - cy, dock.Z - cz);
+        station.DockOutX = dock.OutX;
+        station.DockOutZ = dock.OutZ;
+        hull.Position = station.SpacePosition;
+    }
+
+    /// <summary>A pilot's distance to a station in flight (#1917): to the box of its hull — a generated station's flown
+    /// hull or a player station's build, centred where the client draws it — else to its centre.</summary>
+    private float StationFlightDistance(BoardableStation station, Vector3f pilot)
+    {
+        Vector3f half;
+        if (station.Hull != null)
+        {
+            half = station.HullHalf;
+        }
+        else if (_playerStationCells.TryGetValue(station.Id, out var build) && build.Cells.Count > 0)
+        {
+            int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
+            foreach (var c in build.Cells.Keys)
+            {
+                minX = System.Math.Min(minX, c.X); minY = System.Math.Min(minY, c.Y); minZ = System.Math.Min(minZ, c.Z);
+                maxX = System.Math.Max(maxX, c.X); maxY = System.Math.Max(maxY, c.Y); maxZ = System.Math.Max(maxZ, c.Z);
+            }
+
+            half = new Vector3f((maxX - minX + 1) / 2f, (maxY - minY + 1) / 2f, (maxZ - minZ + 1) / 2f);
+        }
+        else
+        {
+            return (float)System.Math.Sqrt(station.SpacePosition.DistanceSquared(pilot));
+        }
+
+        float dx = System.MathF.Max(0f, System.MathF.Abs(pilot.X - station.SpacePosition.X) - half.X);
+        float dy = System.MathF.Max(0f, System.MathF.Abs(pilot.Y - station.SpacePosition.Y) - half.Y);
+        float dz = System.MathF.Max(0f, System.MathF.Abs(pilot.Z - station.SpacePosition.Z) - half.Z);
+        return System.MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    /// <summary>#1917: where a ship docks with a station in flight — just outside its hangar mouth — or the station's
+    /// centre when it has no flown hull.</summary>
+    private Vector3f StationDockPoint(string stationId, float standOff)
+    {
+        if (!_stationsById.TryGetValue(stationId, out var station))
+        {
+            return Vector3f.Zero;
+        }
+
+        if (station.Hull == null)
+        {
+            return station.SpacePosition;
+        }
+
+        return new Vector3f(
+            station.SpacePosition.X + station.DockOffset.X + station.DockOutX * standOff,
+            station.SpacePosition.Y + station.DockOffset.Y,
+            station.SpacePosition.Z + station.DockOffset.Z + station.DockOutZ * standOff);
     }
 
     /// <summary>The stations that belong in a space instance. <paramref name="anchorBodyId"/> is the body whose
@@ -275,7 +487,8 @@ public sealed partial class GameServer
             return;
         }
 
-        if (contact.Position.DistanceSquared(PilotPositionIn(instance, playerId)) > StationBoardRange * StationBoardRange)
+        // #1917: measured to the station's hull box — a colossal hull can be docked from any side, not just near its middle.
+        if (StationFlightDistance(station, PilotPositionIn(instance, playerId)) > StationBoardRange)
         {
             Reject(session, "station", "@srv.station.closer"); // #994: measured from THIS pilot's ship
             return;
@@ -510,11 +723,19 @@ public sealed partial class GameServer
         Send(session, new ServerMessage { Text = fromEva ? "@srv.station.back_outside" : "@srv.station.undocked" });
     }
 
-    private void StampStation(BoardableStation station)
+    /// <summary>The void-world cell a station's structure cell (0,0,0) is stamped at (before any exterior shift).</summary>
+    private static readonly Vector3i StationStampOrigin = new(8, 64, 8);
+
+    /// <summary>
+    /// Decides a generated station's layout, pins it and bakes its structure — once per server run. Runs the first time the
+    /// station shows up in flight (#1917) or, at the latest, when it is boarded; the result is the same either way, because
+    /// "fresh" asks the repository whether the station's void world holds anything instead of the loaded world.
+    /// </summary>
+    private StationStructure EnsureStationStructure(BoardableStation station)
     {
-        if (station.Stamped)
+        if (station.Structure is { } built)
         {
-            return;
+            return built;
         }
 
         long sSeed = _meta.Seed ^ WorldGenerator.StableHash("station:" + station.Id);
@@ -538,13 +759,26 @@ public sealed partial class GameServer
         StationComposition? composition = null;
         bool pinned = _meta.StationTemplates.TryGetValue(station.Id, out var pinnedKey);
         bool pinnedKit = pinned && pinnedKey!.StartsWith("kit:", System.StringComparison.Ordinal);
-        bool fresh = !pinned && _worlds.Active.VirginAtLoad;
+        bool fresh = !pinned && !_repo.HasAnyBlockEdits(StationLocationIdPrefix + station.Id);
         double useP = _meta.Description.StationTemplateUse.Probability();
         bool legacyHit = roll.NextDouble() < useP; // consumed for every station: the legacy stream contract (#1115)
         if (pinnedKit)
         {
             if (_meta.StationKits.TryGetValue(station.Id, out var rec))
             {
+                if (rec.Exterior is null)
+                {
+                    // #1918: a kit station composed before exterior detail existed gets its kit's detail now, pinned once.
+                    var kitNow = _content.KitByKey(rec.Kit);
+                    rec.Exterior = new StationKitExteriorRecord
+                    {
+                        SolarWings = kitNow?.SolarWings ?? 0,
+                        Antennas = kitNow?.Antennas ?? 0,
+                        Domes = kitNow?.Domes ?? 0,
+                    };
+                    _repo.SaveMetadata(_meta);
+                }
+
                 composition = FromRecord(rec);
                 kitStructure = StationKitComposer.Replay(composition, key => _content.TemplateByKey(StructureKit.KindStation, key), _content, station.SizeTier, out var failure);
                 if (kitStructure is null)
@@ -611,6 +845,18 @@ public sealed partial class GameServer
 
         station.Structure = structure;
         station.Kit = kitStructure != null ? composition : null;
+        station.Origin = StationStampOrigin - structure.ModuleShift; // #1918: an old kit station's modules stay put
+        return structure;
+    }
+
+    private void StampStation(BoardableStation station)
+    {
+        if (station.Stamped)
+        {
+            return;
+        }
+
+        var structure = EnsureStationStructure(station);
 
         // Stamp the whole station in one transaction (hundreds of voxels, otherwise one WAL commit each).
         ushort GetStructureCell(Vector3i p) =>
@@ -643,7 +889,7 @@ public sealed partial class GameServer
 
         // #1901: the stamp above skips air, so furniture an older kit composer put where the current bake leaves air — a
         // chair in a cabin doorway — would stay in the persisted world forever. A replayed kit station clears it ONCE.
-        if (pinnedKit && kitStructure != null && _meta.StationKits.TryGetValue(station.Id, out var kitRecord)
+        if (station.Kit != null && _meta.StationKits.TryGetValue(station.Id, out var kitRecord)
             && kitRecord.Revision < StationKitRecord.CurrentRevision)
         {
             int cleared = ClearStaleKitFurniture(station, structure);
