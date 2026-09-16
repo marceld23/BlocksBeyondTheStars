@@ -449,6 +449,7 @@ public sealed partial class GameServer
             "ice" or "tundra" => "ice",
             "volcanic" or "ashen" => "volcanic",
             "gds_desert" => "gds", // #1793: the lava desert with the one guarded city
+            "titas" => "titas", // 2026-09: Justus' frozen planet
             _ => string.Empty,
         };
         if (id.Length > 0)

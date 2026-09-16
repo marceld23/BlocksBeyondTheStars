@@ -360,6 +360,13 @@ separate unlock; admins can still disable it through server world rules.
   the sun-side/shadow hull temperature (about +120 °C to −150 °C). The world option **Environmental
   hazards** (world creation, or live in the in-game Settings tab as world admin) scales this from Off to
   Hard; Creative/Sandbox worlds are always exempt.
+- **Titas** (a very rare frozen planet — only one per galaxy): the suit's climate control is not enough there. An
+  **exposure meter** replaces the energy drain — the HUD shows your **cold protection** (or **heat protection** in the
+  volcanic hot zones). Outside it runs out in about **40 minutes** (hot zones **30**), half as fast under a roof; liners
+  (×1.25 / ×1.5 / ×2) and the hazard setting (Light ×1.5, Hard ×0.75) stretch or shorten it. Your ship, a station, a base,
+  a campfire or digging deep refill it. At zero the cold (or heat) hurts more and more — VEGA warns at 50, 75 and 90 %.
+  The **yellow water is toxic**: a few seconds are fine, then it burns (standing on the ice is safe). The old **SPS
+  research stations** hold salvage and a log terminal — but no air and −90 °C inside, and the machines guard them.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between

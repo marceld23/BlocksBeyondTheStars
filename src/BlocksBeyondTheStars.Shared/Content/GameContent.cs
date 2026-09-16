@@ -1159,6 +1159,27 @@ public sealed class GameContent
                 problems.Add($"Planet '{planet.Key}' has a negative ruins/factories bias.");
             }
 
+            // Generation 8 (2026-09, Titas + Valuma).
+            if (planet.EnemyDensity < 0 || planet.SnowCoverDepth < 0 || planet.SnowCoverDepth > 32 || planet.IceSheetDepth < 0 || planet.IceSheetDepth > 16
+                || planet.HotZoneShare < 0 || planet.HotZoneShare > 0.5 || planet.WaterDamagePerSecond < 0
+                || planet.ExposureMinutesCold < 0 || planet.ExposureMinutesHot < 0 || planet.MaxAquaticSpecies < -1)
+            {
+                problems.Add($"Planet '{planet.Key}' has a generation-8 field out of range.");
+            }
+
+            if (planet.HotZoneShare > 0 && (!planet.Biomes.Any(b => b.HotZone) || !planet.Biomes.Any(b => !b.HotZone)))
+            {
+                problems.Add($"Planet '{planet.Key}' has a hot-zone share but not both a hot and a cool biome.");
+            }
+
+            foreach (var kind in planet.AllowedStructures)
+            {
+                if (kind is not ("sps_labs" or "net_fragments"))
+                {
+                    problems.Add($"Planet '{planet.Key}' allows unknown structure kind '{kind}'.");
+                }
+            }
+
             // #1763: every authored key must exist, and an "authored" roster must name at least one.
             foreach (var key in planet.AuthoredCreatures)
             {

@@ -36,6 +36,12 @@ public sealed partial class WorldGenerator
         public double BaseTemperature;        // planet base + per-world variation (°C) — worldgen-static part
         public double LapsePerBlock;          // °C lost per block above the reference altitude (#476)
         public int TempRefY;                  // reference altitude: sea level, else BaseHeight
+
+        // Generation 8 (2026-09, Titas) — at their no-op on every other world.
+        public int HotBiome = -1;             // resolved index of the hot-zone biome (-1 = no hot zones)
+        public int[] CoolBiomes = System.Array.Empty<int>(); // the resolved indices the classic mix spreads over
+        public double HotThreshold = double.MaxValue; // hot-zone field quantile: columns at/above it are hot
+        public int FixedIceSheet;             // a type's fixed ice sheet over water (0 = the classic freeze)
     }
 
     // STATIC cache: the calibration is a pure function of (world seed, planet, circumference, cratered,
@@ -170,7 +176,66 @@ public sealed partial class WorldGenerator
         c.BaseTemperature = planet.BaseTemperature + (R01(0x7E3BL) - 0.5) * 12.0; // per-world ±6 °C
         c.LapsePerBlock = 0.5 + 0.3 * R01(0x1A65EL); // 0.5..0.8 °C per block — snow caps land on the
                                                      // upper third of a temperate world's peaks (measured)
+
+        // 7) Generation 8 (2026-09, Titas): hot zones — a region field whose top HotZoneShare quantile is the hot biome
+        //    (basalt, lava ponds, no snow or ice), measured on the same torus grid so the share is exact per world.
+        if (_terrainGeneration >= WorldDescription.ExtremePlanetsGeneration)
+        {
+            if (planet.HotZoneShare > 0.0)
+            {
+                var resolved = ResolveBiomes(planet);
+                int hot = -1;
+                var cool = new System.Collections.Generic.List<int>(resolved.Count);
+                for (int i = 0; i < resolved.Count; i++)
+                {
+                    if (!resolved[i].Hot)
+                    {
+                        cool.Add(i);
+                    }
+                    else if (hot < 0)
+                    {
+                        hot = i;
+                    }
+                }
+
+                if (hot >= 0 && cool.Count > 0)
+                {
+                    var field = new System.Collections.Generic.List<double>(hs.Count);
+                    for (int z = -period / 2; z < period / 2; z += stepZ)
+                        for (int x = 0; x < _circumference; x += stepX)
+                            field.Add(HotZoneField(seed, x, z));
+                    field.Sort();
+                    c.HotThreshold = field[(int)((1.0 - planet.HotZoneShare) * (field.Count - 1))];
+                    c.HotBiome = hot;
+                    c.CoolBiomes = cool.ToArray();
+                }
+            }
+
+            c.FixedIceSheet = System.Math.Max(0, planet.IceSheetDepth);
+        }
+
         return c;
+    }
+
+    /// <summary>The hot-zone region field (generation 8): broad blobs a few hundred blocks across.</summary>
+    private double HotZoneField(long seed, int worldX, int worldZ)
+        => Noise.FbmTorus(seed ^ 0x40720E, worldX, worldZ, _circumference,
+            WorldConstants.LatitudePeriodFor(_circumference), 150.0, octaves: 3);
+
+    /// <summary>True when (x,z) lies in a hot zone of this calibration's world (never on a world without them).</summary>
+    private bool HotZoneAt(WorldCalibration calib, long seed, int worldX, int worldZ)
+        => calib.HotBiome >= 0 && HotZoneField(seed, worldX, worldZ) >= calib.HotThreshold;
+
+    /// <summary>True when the column lies in one of the type's hot zones (2026-09, Titas: +100 °C, basalt, lava ponds).
+    /// False on every world without hot zones. The server reads it for the hot-zone temperature and exposure.</summary>
+    public bool IsHotZoneAt(PlanetType planet, int worldX, int worldZ)
+    {
+        if (planet.HotZoneShare <= 0.0)
+        {
+            return false; // cheap gate — no calibration lookup on the ordinary types
+        }
+
+        return HotZoneAt(CalibFor(planet), PlanetSeed(planet), worldX, worldZ);
     }
 
     /// <summary>The sea level that floods ≈<paramref name="frac"/> of the sampled columns. Integer terrain
@@ -309,6 +374,12 @@ public sealed partial class WorldGenerator
     /// instead of cutting a temperature contour.</summary>
     private int IceSheetThickness(WorldCalibration calib, long seed, int worldX, int worldZ, int waterTop, int depth)
     {
+        if (calib.FixedIceSheet > 0)
+        {
+            // Generation 8 (Titas): a fixed sheet over liquid water everywhere — none in a hot zone.
+            return HotZoneAt(calib, seed, worldX, worldZ) ? 0 : System.Math.Min(calib.FixedIceSheet, depth);
+        }
+
         double surfT = TempAt(calib, waterTop)
             + (FbmT(seed + 0x1CE0, worldX, worldZ, 24.0, octaves: 2) - 0.5) * 3.0;
         if (surfT >= SnowLineC)

@@ -233,6 +233,7 @@ public sealed partial class WorldGenerator
             SandstoneId = sandstoneId,
             AshId = ashId,
             SeabedId = seabedId,
+            SnowCover = _terrainGeneration >= WorldDescription.ExtremePlanetsGeneration && !snowId.IsAir ? planet.SnowCoverDepth : 0,
         };
 
         // #1527: per-chunk ore invariants + one lazily built noise lattice per (column, field): slot 0 caves,
@@ -267,6 +268,7 @@ public sealed partial class WorldGenerator
                 int tunnelCount = tunnelSpans.Length;
                 BlockId? craterMetal = col.CraterMetal;
                 int effSurfaceDepth = col.EffSurfaceDepth;
+                int coverDepth = col.CoverDepth;
                 bool geodeHere = col.GeodeHere;
                 int geoLo = col.GeoLo, geoHi = col.GeoHi, geoInLo = col.GeoInLo, geoInHi = col.GeoInHi;
                 int strataShift = col.StrataShift;
@@ -559,7 +561,7 @@ public sealed partial class WorldGenerator
                     }
                     else if (depth < effSurfaceDepth)
                     {
-                        block = depth == 0 ? surfaceId : subSurfaceId;
+                        block = depth < coverDepth ? surfaceId : subSurfaceId; // coverDepth 1 = the classic top cell
                     }
                     else if (paintFillToY != int.MinValue && worldY >= paintFillToY)
                     {
@@ -753,6 +755,9 @@ public sealed partial class WorldGenerator
         /// <summary>School club wave 3 (#1759): the lowest cell of the column's sky-island bands (the underside a
         /// hanging plant roots in), or MinValue when no island stands over this column.</summary>
         public int IslandBottom = int.MinValue;
+
+        /// <summary>Generation 8 (Titas): how many top cells take the surface block (a snow blanket); 1 = classic.</summary>
+        public int CoverDepth = 1;
     }
 
     /// <summary>The per-chunk constants the column phase reads (resolved once per Generate call).</summary>
@@ -772,6 +777,7 @@ public sealed partial class WorldGenerator
         public BlockId GrassId, DirtId, MudId, SandId, StoneId, GraniteId, MossStoneId, ScreeId, SandstoneId, AshId; // #1647
         public double PondThreshold;
         public BlockId SeabedId; // #1757: the floor of every submerged sea column beyond the beach apron (Air = classic)
+        public int SnowCover; // generation 8 (Titas): a fixed snow blanket this deep on dry land (0 = the classic snow pass)
     }
 
     private ColumnProfile ColumnProfileFor(ColumnContext c, int worldX, int worldZ,
@@ -837,6 +843,9 @@ public sealed partial class WorldGenerator
 
         int surfaceY = SurfaceHeight(planet, worldX, worldZ);
 
+        // Generation 8 (Titas): a hot-zone column — its ponds hold lava, it never snows or freezes. False elsewhere.
+        bool hotHere = calib.HotBiome >= 0 && HotZoneAt(calib, seed, worldX, worldZ);
+
         // An upland pond carves a shallow bowl here (seabed below the terrain) and fills it with water up to
         // the original surface (a pond flush with the surrounding ground), so the column reads as a swimmable
         // pool. Normal columns leave seabed=surface and fill the sea up to the global level, unchanged.
@@ -853,7 +862,7 @@ public sealed partial class WorldGenerator
             {
                 seabedY = surfaceY - pondDepth;
                 waterTop = surfaceY;
-                columnFluid = seaWaterId;
+                columnFluid = hotHere && !craterLavaId.IsAir ? craterLavaId : seaWaterId;
                 pondHere = true;
             }
         }
@@ -1013,9 +1022,26 @@ public sealed partial class WorldGenerator
             }
         }
 
+        // Generation 8 (Titas): a fixed snow blanket over the sub-surface rock on dry land instead of the altitude rule — no
+        // ice ground. The beds under water show the rock; beaches and hot zones stay bare.
+        int coverDepth = 1;
+        if (c.SnowCover > 0)
+        {
+            if (!hotHere && !beachHere && surfaceY > waterTop)
+            {
+                surfaceId = snowId;
+                subSurfaceId = biome.Sub; // under the blanket lies the type's rock, never a scree or soil paint
+                coverDepth = c.SnowCover;
+            }
+            else if (!hotHere && !beachHere)
+            {
+                surfaceId = subSurfaceId;
+            }
+        }
+
         // Altitude climate (#476): above the snow line the ground gets a snow cover, further up solid
         // ice. Dithered (±1.5 °C noise) so the line wanders naturally instead of cutting a contour.
-        if (snowPossible && surfaceY > waterTop)
+        else if (snowPossible && surfaceY > waterTop)
         {
             double surfT = TempAt(calib, surfaceY)
                 + (FbmT(seed + 0x51F0, worldX, worldZ, 24.0, octaves: 2) - 0.5) * 3.0;
@@ -1203,7 +1229,7 @@ public sealed partial class WorldGenerator
 
         // Non-uniform topsoil: this column's surface/sub-surface layer thickness (varies per column, not a
         // flat band) so the stone/ore boundary undulates and reaches close to the surface in the thin spots.
-        int effSurfaceDepth = VariedSurfaceDepth(planet, seed, worldX, worldZ);
+        int effSurfaceDepth = VariedSurfaceDepth(planet, seed, worldX, worldZ) + coverDepth - 1; // the blanket sits on top
 
         return new ColumnProfile
         {
@@ -1226,6 +1252,7 @@ public sealed partial class WorldGenerator
             Tunnels = tunnelCount > 0 ? tunnelSpans.Slice(0, tunnelCount).ToArray() : System.Array.Empty<(int Lo, int Hi)>(),
             CraterMetal = craterMetal,
             EffSurfaceDepth = effSurfaceDepth,
+            CoverDepth = coverDepth,
             GeodeHere = geodeHere,
             GeoLo = geoLo,
             GeoHi = geoHi,

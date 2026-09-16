@@ -103,6 +103,15 @@ can be staffed at your own station/base like the existing posts; textures are ge
   (`HeldItem.ForNpc`), profession greetings by nameplate key. Balance tests adjusted: a bought weapon is the deliberate
   shortcut past the upgrade chain (crafting-only rule), the posts blueprint costs 45. Tests: `NpcProfessionTests` (+9).
   Docs: NPC_ROUTINES.md §11, USER_MANUAL (professions), STATION_SETTLEMENT_EDITOR.md, NOTICES.md.
+- **Titas (generation 8).** Justus' frozen planet, at most once per galaxy and always called "Titas": ten blocks of snow
+  over the new `sulfur_stone`, toxic yellow water under five blocks of ice, volcanic hot zones (15 %, basalt, lava ponds,
+  +100 °C), leafless dead forests, at most one water species, no settlements/ruins/camps/wrecks/unique sites — only
+  3–6 abandoned **SPS research stations** (rusted modules, ship pad + "H" pad, salvage, a log terminal with three lore
+  texts; no air and −90 °C inside) and net fragments, and the planet machines ×2.5, gathering at the labs. Survival: an
+  **exposure meter** (40 min cold, 30 min heat, roof half speed, liners/tier factors, ship/station/base/campfire refill,
+  rising damage at full, VEGA at 50/75/90 %, HUD row) and **toxic water** (2 HP/s after 3 s). All new `PlanetType` fields
+  are no-ops on every other type and read on generation-8 worlds only (goldens unchanged, new `titas-gen8`). Tests:
+  `TitasWorldTests` (7), `TitasSurvivalTests` (5). Docs: WORLD_GENERATION.md §20, USER_MANUAL (survival).
 
 ### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
 

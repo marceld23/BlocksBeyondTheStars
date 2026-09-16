@@ -846,6 +846,34 @@
     ]
   },
   {
+    "key": "titas", "minTerrainGeneration": 8, "exotic": true, "floraTheme": "ashen", "baseTemperature": -100, "nameKey": "planet.titas.name", "atmosphereHeight": 230, "cloudColor": 14606326, "cloudDensity": 0.5,
+    "terrainTags": [],
+    "baseHeight": 64, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "hills",
+    "terrainStyles": ["hills", "downs"],
+    "surfaceBlock": "snow", "subSurfaceBlock": "sulfur_stone", "deepBlock": "stone", "surfaceDepth": 6,
+    "caveThreshold": 0.76, "dataCacheRarity": 0.001,
+    "weather": "dynamic", "stormChance": 0.5, "dayLengthSeconds": 660, "worldRadius": 860, "floraDensity": 0.0, "treeDensity": 0.03, "creatureAbundance": "few", "atmosphere": "breathable", "spawnWeight": 1, "waterAbundance": 0.45,
+    "waterTint": "#d8c83a", "beachBlock": "sulfur_stone",
+    "ruinsBias": 0.0, "factoriesBias": 0.0,
+    "weatherVolatility": 0.9, "seasonAmplitude": 0.2,
+    "weatherEvents": { "blizzard": 3.0, "gale": 1.4, "fog": 0.6 },
+    "oncePerGalaxy": true, "fixedName": "Titas",
+    "restrictStructures": true, "allowedStructures": ["sps_labs", "net_fragments"],
+    "enemyDensity": 2.5, "snowCoverDepth": 10, "iceSheetDepth": 5, "hotZoneShare": 0.15, "deadForests": true,
+    "waterDamagePerSecond": 2, "maxAquaticSpecies": 1, "exposureMinutesCold": 40, "exposureMinutesHot": 30,
+    "biomes": [
+      { "surfaceBlock": "snow", "subSurfaceBlock": "sulfur_stone" },
+      { "surfaceBlock": "basalt", "subSurfaceBlock": "basalt", "treeDensityMul": 0.0, "hotZone": true, "temperature": 100 }
+    ],
+    "ores": [
+      { "block": "sulfur_ore", "rarity": 0.06, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "iron_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 6, "maxDepth": 2048 },
+      { "block": "silicate", "rarity": 0.05, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "cobalt_ore", "rarity": 0.02, "minDepth": 20, "maxDepth": 2048 }
+    ]
+  },
+  {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,

@@ -77,6 +77,12 @@ public sealed partial class GameServer
     private int PlanetEnemyCap(int targets)
     {
         int cap = ActivityCount(Rules.PlanetEnemies) * targets;
+        // 2026-09 (generation 8): a type's machine density — Titas' "very many guardians" ×2.5.
+        if (_world.Planet is { EnemyDensity: not 1.0 } planet && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration)
+        {
+            cap = (int)System.Math.Round(cap * planet.EnemyDensity);
+        }
+
         return RemnantEra ? System.Math.Max(1, cap / 2) : cap;
     }
 
@@ -567,6 +573,15 @@ public sealed partial class GameServer
                 ez = (int)System.Math.Round(cz + System.Math.Sin(wang) * wr);
                 atWreck = true;
             }
+        }
+
+        // 2026-09 (Titas): near an abandoned SPS lab the machines gather at the lab — they still guard it.
+        if (!atWreck && NearestSpsLab(player.Position, SpsLabGuardRange) is { } lab)
+        {
+            double lang = n * 2.39996323;
+            float lr = 20f + (n % 4) * 4f; // 20..32 blocks around the compound's centre — just outside its modules
+            ex = (int)System.Math.Round(lab.X + System.Math.Cos(lang) * lr);
+            ez = (int)System.Math.Round(lab.Z + System.Math.Sin(lang) * lr);
         }
 
         // Stand on the ground, not in it — real blocks when the column is loaded, noise surface otherwise.

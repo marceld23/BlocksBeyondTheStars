@@ -218,6 +218,10 @@ public sealed class WorldDescription
     /// created with; their lava pads are only flagged (<c>Molten</c>) so a ship is parked elsewhere.</summary>
     public const int LavaPadsGeneration = 8;
 
+    /// <summary>Generation 8 also reads the extreme-planet fields of a type (2026-09, Titas + Valuma): snow cover, fixed ice
+    /// sheets, hot zones, dead forests, calm terrain, the structure whitelist. Every other type leaves them at their no-op.</summary>
+    public const int ExtremePlanetsGeneration = 8;
+
     /// <summary>Growing galaxy (#1123): when true, hyperjumping into one of the current OUTERMOST systems
     /// appends a brand-new system beyond it (deterministic — system N is a pure function of seed + N — and
     /// persisted via <c>WorldMetadata.GalaxyGrownSystems</c>), up to a soft cap. Defaults to false so every

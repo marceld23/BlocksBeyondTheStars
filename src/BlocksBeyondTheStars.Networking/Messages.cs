@@ -1082,6 +1082,15 @@ public sealed class PlayerStateUpdate
     /// tells the HUD WHY suit energy (or, once empty, health) is falling.</summary>
     public bool SuitClimateActive { get; set; }
 
+    /// <summary>The exposure meter 0..1 (2026-09, Titas) — the HUD shows the cold/heat protection left.</summary>
+    public float Exposure { get; set; }
+
+    /// <summary>True while the exposure meter is running (on foot outside on a timed-exposure type).</summary>
+    public bool ExposureActive { get; set; }
+
+    /// <summary>True when the heat of a hot zone, not the cold, fills the meter.</summary>
+    public bool ExposureHot { get; set; }
+
     /// <summary>Which life support keeps this player breathing (#794): 0 none (own tank / the world's own
     /// air), 1 ship cabin, 2 station, 3 base (zone cube or sealed room). Lets the HUD name the source —
     /// the client cannot mirror the sealed-room fill locally. New field on an existing contractless

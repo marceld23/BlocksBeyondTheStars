@@ -214,5 +214,6 @@
   { "key": "quarry_post", "nameKey": "block.quarry_post.name", "category": "machine", "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.4, "color": 10128248, "drops": [ { "item": "quarry_post", "count": 1 } ] },
   { "key": "streamer_post", "nameKey": "block.streamer_post.name", "category": "machine", "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.4, "color": 14183112, "drops": [ { "item": "streamer_post", "count": 1 } ] },
   { "key": "press_desk", "nameKey": "block.press_desk.name", "category": "machine", "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.4, "color": 4880584, "drops": [ { "item": "press_desk", "count": 1 } ] },
+  { "key": "sulfur_stone", "nameKey": "block.sulfur_stone.name", "category": "terrain", "hardness": 5.0, "requiredTool": "drill", "minToolTier": 1, "color": 13218378, "drops": [ { "item": "stone", "count": 1 } ], "randomDrops": [ { "item": "sulfur_ore", "count": 1, "weight": 1 }, { "item": "", "count": 0, "weight": 4 } ] },
   { "key": "stretcher", "nameKey": "block.stretcher.name", "category": "machine", "hardness": 1.0, "requiredTool": "none", "minToolTier": 0, "flammable": true, "color": 15395562, "tileKind": "material", "drops": [ { "item": "stretcher", "count": 1 } ] }
 ]

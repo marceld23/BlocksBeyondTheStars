@@ -421,6 +421,23 @@ public sealed partial class GameServer
         double dayNight = System.Math.Cos((timeOfDay - 0.5) * 2.0 * System.Math.PI) * swing;
         double t = baseT + weatherDelta + dayNight;
 
+        // Generation 8 (Titas): a hot zone reads its biome's own temperature (+100 °C), with a little of the day swing.
+        if (hasPos && planet is { HotZoneShare: > 0.0 }
+            && _generator.IsHotZoneAt(planet, (int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Z)))
+        {
+            double hot = 100.0;
+            foreach (var biome in planet.Biomes)
+            {
+                if (biome.HotZone && biome.Temperature is { } biomeT)
+                {
+                    hot = biomeT;
+                    break;
+                }
+            }
+
+            t = hot + dayNight * 0.25;
+        }
+
         // Underground the day/night swing and the weather stop reaching you: blend toward the constant
         // ground temperature over the first blocks of depth (#667). Local heat/cold sources (lava, fire,
         // ice) then override this via the hazard probe, not here.

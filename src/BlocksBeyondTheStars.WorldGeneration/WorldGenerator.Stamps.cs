@@ -231,6 +231,13 @@ public sealed partial class WorldGenerator
             {
                 rowMaterial[k] = MaterialOf(kind.Material);
             }
+
+            // Generation 8 (Titas, Valuma): a type with a structure whitelist keeps no made-by-someone props.
+            if (planet.RestrictStructures && _terrainGeneration >= WorldDescription.ExtremePlanetsGeneration
+                && kind.Name is "monolith" or "stone-circle" or "wall-fragment" or "buried-pillar")
+            {
+                rowMaterial[k] = BlockId.Air;
+            }
         }
 
         // Margin 8 so the widest feature (a rib cage, 7 across — #1648; before that a stone circle, radius ~4)
@@ -551,6 +558,8 @@ public sealed partial class WorldGenerator
         var stemId = _content.GetBlock("mushroom_stem")?.NumericId ?? logId;
         var capId = _content.GetBlock("mushroom_cap")?.NumericId ?? leafId;
         var crystalTreeId = _content.GetBlock("crystal")?.NumericId ?? leafId;
+        // Generation 8 (Titas): leafless dead forests — on snow and bare rock, past the tree line, never in a hot zone.
+        bool deadForests = planet.DeadForests && _terrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
 
         // #1527: the density roll is tested against a conservative UPPER BOUND of every biome's multiplier first,
         // so the ~99 % of margin columns the exact test rejects never pay SurfaceHeight / BiomeIndex. The exact
@@ -599,13 +608,20 @@ public sealed partial class WorldGenerator
                     continue;
                 }
 
-                if (TempAt(calib, sy) < TreeLineC)
+                if (!deadForests && TempAt(calib, sy) < TreeLineC)
                 {
                     continue; // above the tree line (#476): woods stop before the snow does
                 }
 
+                if (deadForests && biome.Hot)
+                {
+                    continue; // nothing grows in a hot zone
+                }
+
                 // Pick a grove kind from the biome theme's tree palette (one kind per low-frequency patch).
-                var kind = PickTreeKind(biome.Theme.PaletteFor(wonderTrees.Generation), seed, wx, wz, planet.TerrainScale);
+                var kind = deadForests
+                    ? TreeKind.Dead
+                    : PickTreeKind(biome.Theme.PaletteFor(wonderTrees.Generation), seed, wx, wz, planet.TerrainScale);
                 if (kind == TreeKind.None)
                 {
                     continue; // this theme grows no trees here (e.g. fungal → giant mushrooms instead)
@@ -636,7 +652,11 @@ public sealed partial class WorldGenerator
                 // surface (StampTrees can't see Generate's override, so it must ask the shared helper).
                 // Only palms / dead snags belong in the sand — themes that grow either get palm-fringed
                 // shores, themes with neither leave the beach bare.
-                if (DryBeachAt(planet, calib, seed, riverField, waterId, wx, wz, sy))
+                if (deadForests)
+                {
+                    kind = TreeKind.Dead; // dead snags stand on any dry ground of the type (its snow, its rock, its beach)
+                }
+                else if (DryBeachAt(planet, calib, seed, riverField, waterId, wx, wz, sy))
                 {
                     if (System.Array.IndexOf(biome.Theme.Trees, TreeKind.Palm) >= 0)
                     {

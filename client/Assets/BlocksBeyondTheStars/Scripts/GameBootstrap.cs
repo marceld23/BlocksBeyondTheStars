@@ -145,6 +145,11 @@ namespace BlocksBeyondTheStars.Client
         /// the HUD colors the energy bar and names the drain; server-authoritative.</summary>
         public bool SuitClimateActive { get; private set; }
 
+        /// <summary>The exposure meter 0..1 (2026-09, Titas) and whether it is running / counting heat — server-authoritative.</summary>
+        public float Exposure { get; private set; }
+        public bool ExposureActive { get; private set; }
+        public bool ExposureHot { get; private set; }
+
         /// <summary>Which life support keeps us breathing (#794): 0 none (own tank / the world's air),
         /// 1 ship cabin, 2 station, 3 base (zone cube or sealed room). Server-authoritative — the client
         /// cannot mirror the sealed-room fill locally; 0 on servers older than this field.</summary>
@@ -3357,6 +3362,9 @@ namespace BlocksBeyondTheStars.Client
             SuitEnergy = m.SuitEnergy;
             Hunger = m.Hunger;
             SuitClimateActive = m.SuitClimateActive;
+            Exposure = m.Exposure;
+            ExposureActive = m.ExposureActive;
+            ExposureHot = m.ExposureHot;
             LifeSupportSource = m.LifeSupportSource;
             if (m.LifeSupportSource == 2 && _stationAirWarning.Length > 0 && LastMessage == _stationAirWarning)
             {

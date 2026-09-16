@@ -446,6 +446,34 @@ public sealed class PlayerSession
     /// overheat hint pick) WHICH extreme is stressing the suit.</summary>
     public float EffectiveTemperatureC { get; set; } = 15f;
 
+    // --- Exposure meter (2026-09, Titas): scanned at ~1 Hz with the temperature, applied every tick ---
+
+    /// <summary>True while the meter runs (on foot outside on a timed-exposure type) — sent to the HUD.</summary>
+    public bool ExposureActive { get; set; }
+
+    /// <summary>The last scan found the player in a hot zone (the heat timer applies).</summary>
+    public bool ExposureHot { get; set; }
+
+    /// <summary>The last scan found a roof overhead (the meter fills at half speed).</summary>
+    public bool ExposureRoofed { get; set; }
+
+    /// <summary>The last scan found warmth: base air, a campfire, the ground far below the surface.</summary>
+    public bool ExposureSheltered { get; set; }
+
+    /// <summary>Highest VEGA warning already given this episode (0 none, 1 = 50 %, 2 = 75 %, 3 = 90 %).</summary>
+    public int ExposureWarned { get; set; }
+
+    /// <summary>Seconds the meter has stood at full — the damage rises with it.</summary>
+    public double ExposureFullSeconds { get; set; }
+
+    /// <summary>Seconds in a toxic type's water (the damage starts after a grace).</summary>
+    public double ToxicWaterSeconds { get; set; }
+
+    /// <summary>The death line of the environment hazard that hurt the player this tick (null = the generic one).</summary>
+    public string? HazardDeathReason { get; set; }
+
+    public float LastSentExposure;
+
     // --- Periodic vitals sync (HUD bars froze between event-driven sends before) ---
     public double VitalsSyncTimer { get; set; }
     // Automatic landed-ship transit (#1614): server fallback if the client never signals launch completion.

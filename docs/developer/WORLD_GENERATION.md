@@ -1493,3 +1493,59 @@ lava.
   has a `lava_pad` hint for the case where every other pad was taken.
 - Tests: `LandingPadTests.LavaWorld_NewWorlds_RaiseABasaltIsletOverLava_NeverAShaftInIt`,
   `LavaWorld_AnOldSave_KeepsItsPads_ButRefusesAndLeavesTheLavaOnes`, `PadPreference_ALavaPadRanksBelowEveryOtherKind`.
+
+## 20. Generation 8 — Titas (2026-09, Justus' player report)
+
+A frozen planet that exists **at most once per galaxy**: ten blocks of snow over yellow sulfur stone, toxic yellow water
+under five blocks of ice, volcanic hot zones, leafless dead forests, abandoned SPS research stations and very many planet
+machines. The type (`titas`, `minTerrainGeneration` 8, exotic, spawn weight 1) is data; every behaviour sits behind a
+`PlanetType` field that defaults to its classic no-op and is read on generation-8 worlds only
+(`WorldDescription.ExtremePlanetsGeneration`), so every other type stays bit-identical (the goldens did not move).
+
+- **Once per galaxy + fixed name.** `PlanetType.OncePerGalaxy`: `UniverseGenerator.ApplyGenerationTypes` keeps the first
+  roll of such a type on a planet of the ORIGINAL systems (the retype pass already skips the start system); any other roll
+  — a second body, a moon, a system a growing galaxy appended — re-picks from the table without once-types, with the same
+  hash, so the draw stays deterministic. `PlanetType.FixedName`: `UniverseGenerator.ApplyFixedNames` (server, after the
+  per-save type pins) renames the body "Titas" with `RenameWithMoons`. `planet.titas.name` is "Titas" in all 14 locales.
+- **Snow blanket (`SnowCoverDepth` 10).** `ComputeColumn` replaces the altitude snow/ice pass: a dry column that is not a
+  beach and not hot takes the surface block (snow) for `ColumnProfile.CoverDepth` cells, then the biome's sub-surface
+  (sulfur stone — a generation-1 scree/soil paint under the blanket is reset to it); `EffSurfaceDepth` grows by the
+  blanket. The y-loop writes `depth < coverDepth ? surface : sub` (`coverDepth` 1 = the classic top cell). Submerged
+  beds show the rock. No ice ground.
+- **Fixed ice sheet (`IceSheetDepth` 5).** `WorldCalibration.FixedIceSheet`; `IceSheetThickness` returns
+  `min(5, depth)` (0 in a hot zone) — the one function the column fill and every water query share, so
+  `SurfaceIceThickness`, `TryGetWaterSurface` (liquid top = sea − 5) and `IsSurfaceWater` (a ≥ 3 sheet is land) agree.
+- **Hot zones (`HotZoneShare` 0.15, `Biome.HotZone`, `Biome.Temperature` 100).** Calibration step 7 samples a broad region
+  field (`HotZoneField`, FBM scale 150) on the height grid and keeps the `1 − share` quantile as `HotThreshold`; the
+  resolved hot biome index and the cool indices are stored. `BiomeIndex` returns the hot biome where the field is at or
+  above the threshold and spreads the classic altitude mix over the cool biomes elsewhere (`ClassicBiomeIndex`). A hot
+  column never snows or freezes; its upland ponds hold **lava** (`ComputeColumn`, and the fluid queries:
+  `TryGetRawWaterColumn`/`IsSurfaceWater` skip them, `TryGetLavaSurface` reports them). `IsHotZoneAt` is public — the
+  server's temperature reads +100 °C there.
+- **Dead forests (`DeadForests`).** `StampTrees` forces `TreeKind.Dead`, ignores the tree line and the ground rule (snow,
+  rock and beach carry snags) and skips hot zones. The `ashen` theme keeps the density low.
+- **Water life (`MaxAquaticSpecies` 1).** `CreatureGenerator.CapAquaticSpecies` re-draws every water/amphibian species
+  past the cap as a land species from a salted seed.
+- **Structure whitelist (`RestrictStructures`, `AllowedStructures` = `sps_labs`, `net_fragments`).** Worldgen props that
+  someone built (monolith, stone circle, wall fragment, buried pillar) are off; the server stamps no settlement, ruin,
+  bandit camp, monument, factory, wreck, vault, data cube, chest or unique site (`UniqueSiteBodyId` skips restricted
+  types), only net fragments and the SPS labs.
+- **SPS research stations (`SpsLabGenerator`, `GameServerSpsLabs`).** 3–6 per world, placed like bandit camps (placement
+  records `spslab`, voxels once, instances re-derived): a 33×33 compound — the lab (consoles, a `factory_terminal` with a
+  `data_terminal` marker → the lore site `sps_lab`, 3 texts), a store room, sometimes a generator shed; rusted walls with
+  holes, a concrete ship pad with red corner lamps and a helicopter pad with its "H". `sps_cache` loot: circuit boards,
+  energy cells, cables, rusted panels, data fragments, rarely an access code. Inside a roofed module (`InSpsLab`): no air
+  and −90 °C. A machine spawning for a player within 96 blocks of a lab appears 20–32 blocks around it.
+- **Machines (`EnemyDensity` 2.5).** `PlanetEnemyCap` × 2.5 (Normal: 5 per player).
+- **Survival (server).** `ExposureMinutesCold` 40 / `ExposureMinutesHot` 30 replace the suit-energy drain with an
+  exposure meter (`PlayerState.Exposure`, `PlayerStateUpdate.Exposure/ExposureActive/ExposureHot`, HUD row "Cold / Heat
+  protection"): fills outside (half speed under a roof or in a lab), drains in base air, near a campfire or deep
+  underground (60 s from full), resets aboard ship or station. Liners ×1.25/×1.5/×2, hazard tier Light ×1.5 / Hard ×0.75,
+  Off exempt. At full: rising damage (0.5 HP/s + 0.1 per second, ≤ 3) and no regeneration; death lines
+  `srv.death.froze` / `srv.death.burned`. VEGA warns at 50/75/90 % (`vega.sys.exposure_*`). **Toxic water**
+  (`WaterDamagePerSecond` 2): feet or head in water for more than 3 s hurts and stops regeneration
+  (`srv.death.toxic_water`, `vega.hint.toxic_water`); the ice on top is safe.
+- New block `sulfur_stone` (drops stone + a 1-in-5 sulfur ore, texture via the OpenAI script).
+- Tests: `TitasWorldTests` (data, once per galaxy + name, snow blanket, ice sheet, hot zones + lava ponds, dead trees +
+  water-life cap, generation gate), `TitasSurvivalTests` (meter pace, liners/tier, full-meter damage, toxic water, labs +
+  machine cap), golden `titas-gen8`.

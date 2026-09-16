@@ -102,6 +102,7 @@ public sealed class WorldGenerationGoldenTests
         new("scrapyard-gen5", 20260903, "scrapyard", 0, false, null, 5),
         new("gamer_hills-gen5", 20260903, "gamer_hills", 0, false, null, 5),
         new("meadowlands-gen5", 20260903, "meadowlands", 0, false, null, 5),
+        new("titas-gen8", 20260916, "titas", 0, false, null, 8), // 2026-09: snow blanket, fixed ice sheet, hot zones, dead forests
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -169,6 +170,8 @@ public sealed class WorldGenerationGoldenTests
             ["scrapyard-gen5"] = 0x7710a0c97aa3539aUL,
             ["gamer_hills-gen5"] = 0xff174bd31c1655e3UL, // re-pinned 2026-09-11: less nature, more gaming gear (#1762)
             ["meadowlands-gen5"] = 0x6a1d26df3784c73cUL,
+            // Pinned 2026-09-16 (Titas, generation 8; Windows 11, .NET 10).
+            ["titas-gen8"] = 0xb916e711d799bed4UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.
