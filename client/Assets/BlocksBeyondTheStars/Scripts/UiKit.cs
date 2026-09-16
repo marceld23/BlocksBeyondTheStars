@@ -1308,28 +1308,65 @@ namespace BlocksBeyondTheStars.Client
     /// "selected" object until the next world click). <c>canvas.enabled = false</c>: the GameObject stays active,
     /// nothing deactivates the field, the caret blink keeps queueing rebuilds, and the next one dereferences
     /// <c>Text.canvas</c>, which is null once no enabled Canvas sits above the field — the
-    /// <c>NullReferenceException</c> in <c>InputField.GenerateCaret</c> behind four crash reports (#1683, #1791,
-    /// #1804; the per-dialog fixes before this one only covered the first path). Unity sends
-    /// <c>OnCanvasHierarchyChanged</c> to every child when a parent Canvas is toggled, so the release runs before that
-    /// rebuild. Attached by <see cref="UiKit.AddInput"/> to every field it builds.
+    /// <c>NullReferenceException</c> in <c>InputField.GenerateCaret</c> behind five crash reports (#1683, #1791,
+    /// #1804, and again in 2026.9.9).
+    /// <para>The 2026.9.7 guard asked <c>textComponent.canvas == null</c> from <c>OnCanvasHierarchyChanged</c>. That
+    /// property is a cache the Text only clears in its OWN <c>OnCanvasHierarchyChanged</c>, and this guard sits on the
+    /// field's GameObject, above the Text — so it could still read the stale, disabled canvas and let the field stay
+    /// focused. It also never saw a field that focused itself one frame later (<c>ActivateInputField</c> only raises a
+    /// flag that <c>InputField.LateUpdate</c> acts on) or a field focused under an already hidden canvas, which gets no
+    /// message at all. The guard therefore walks the parents itself (<see cref="HasLiveCanvas"/>, never the cache) and
+    /// re-checks every frame in a <c>LateUpdate</c> ordered after uGUI's, i.e. after a pending activation landed and
+    /// before the canvas rebuild that would draw the caret.</para>
+    /// Attached by <see cref="UiKit.AddInput"/> to every field it builds, and by the chat box to its own field.
     /// </summary>
+    [DefaultExecutionOrder(32000)]
     public sealed class InputFocusGuard : MonoBehaviour
     {
+        private static readonly List<Canvas> CanvasBuffer = new List<Canvas>();
+
         private InputField _field;
 
         public void Init(InputField field) => _field = field;
 
         private void OnDisable() => Release();
 
-        private void OnCanvasHierarchyChanged()
+        private void OnCanvasHierarchyChanged() => ReleaseIfCanvasless();
+
+        private void LateUpdate() => ReleaseIfCanvasless();
+
+        private void ReleaseIfCanvasless()
         {
-            // Exactly the property GenerateCaret dereferences. It re-caches through parent canvases, so a nested
-            // canvas toggled under a still-enabled root leaves the field alone; only a field with NO live canvas
-            // above it is released.
-            if (_field != null && _field.isFocused && _field.textComponent != null && _field.textComponent.canvas == null)
+            if (_field != null && _field.isFocused && !HasLiveCanvas(_field))
             {
                 Release();
             }
+        }
+
+        /// <summary>True when an enabled, active Canvas sits above the field's text — the same walk
+        /// <c>Graphic.CacheCanvas</c> does, done fresh instead of trusting the Text's cached result. A nested canvas
+        /// toggled under a still-enabled root therefore leaves the field alone.</summary>
+        public static bool HasLiveCanvas(InputField field)
+        {
+            if (field == null)
+            {
+                return false;
+            }
+
+            var from = field.textComponent != null ? field.textComponent.transform : field.transform;
+            from.GetComponentsInParent(false, CanvasBuffer);
+            bool live = false;
+            foreach (var canvas in CanvasBuffer)
+            {
+                if (canvas != null && canvas.isActiveAndEnabled)
+                {
+                    live = true;
+                    break;
+                }
+            }
+
+            CanvasBuffer.Clear();
+            return live;
         }
 
         /// <summary>Deactivates the field if it is focused and drops the EventSystem selection if it points here.</summary>

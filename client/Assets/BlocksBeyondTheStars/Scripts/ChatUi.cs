@@ -328,7 +328,10 @@ namespace BlocksBeyondTheStars.Client
         /// browser) it skips the dead InputField and goes straight through the browser prompt.</summary>
         public void OpenInput()
         {
-            if (_typing || Game == null || Game.MenuOpen)
+            // Not while a /bump screenshot holds the canvas off for its end-of-frame capture: the focus guard would
+            // release the field under the hidden canvas within the opening frame, whose OnEndEdit is ignored, and
+            // the box would be stuck "typing" without focus. The capture is over by the next frame.
+            if (_typing || _capturing || Game == null || Game.MenuOpen)
             {
                 return;
             }
@@ -375,6 +378,16 @@ namespace BlocksBeyondTheStars.Client
             Game.ChatTyping = true;
             _inputRow.gameObject.SetActive(true);
             _input.text = string.Empty;
+
+            // Show the chat canvas BEFORE the field wakes and focuses: in the flight view Update keeps it disabled
+            // while nobody types, and it only re-enables it on the NEXT frame. The field would focus under a
+            // disabled canvas this frame — its Text caches "no canvas" and the caret rebuild at the end of the frame
+            // throws in InputField.GenerateCaret (the 2026.9.9 crash report). The /bump capture owns the canvas while
+            // it runs.
+            if (_canvas != null && !_capturing)
+            {
+                _canvas.enabled = true;
+            }
 
             // Wake and place the window BEFORE focusing the field (#1806): the input row lives inside the
             // holo window since #1801, and the window is inactive whenever it has nothing to show (empty
@@ -1156,6 +1169,9 @@ namespace BlocksBeyondTheStars.Client
             _input.characterLimit = 4096;
             _input.lineType = InputField.LineType.SingleLine;
             _input.onEndEdit.AddListener(OnEndEdit);
+            // The chat field is built by hand (not UiKit.AddInput), so it takes the focus guard itself: the chat canvas
+            // is the one that hides in the flight view.
+            inputGo.AddComponent<InputFocusGuard>().Init(_input);
             _inputRow.gameObject.SetActive(false);
             _window.gameObject.SetActive(false); // no lines yet — no window (RefreshLog wakes it)
 

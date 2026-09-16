@@ -24,6 +24,21 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌋 Player reports 2026-09-15, late — landed in lava, the caret crash again, cut feedback text; Titas, Valuma and eight NPC professions (2026-09-16, local branch local/justus-0915-late, issues + PR follow later)
+
+Twelve reports + one crash from Justus ("Flash der Miner-BBTS", v2026.9.9) and the side findings of their analysis.
+Marcel's decisions 2026-09-16: all recommendations taken; the per-world weapon switch is removed (weapons are not
+configurable); the new professions also appear in newly generated settlements, are placeable in the structure editor and
+can be staffed at your own station/base like the existing posts; textures are generated with the OpenAI scripts.
+
+- **Caret crash (client, 2026.9.9).** `InputField.GenerateCaret` threw again although #1805 guarded every field: the guard read
+  the Text's cached `Graphic.canvas` from the field's own `OnCanvasHierarchyChanged` (it sits above the Text, so the cache
+  could still hold the disabled canvas), missed a focus requested in the same frame the canvas went off (uGUI focuses in its
+  `LateUpdate`) and a field focused under an already hidden canvas. `InputFocusGuard` now walks the parent canvases itself
+  (`HasLiveCanvas`) in `OnCanvasHierarchyChanged` AND a `LateUpdate` ordered after uGUI's. The chat box — the one runtime
+  field built without `UiKit.AddInput` — gets the guard and turns its canvas on BEFORE focusing (in the flight view it stayed
+  off until the next frame: the likeliest path of the report). PlayMode: `InputFocusGuardPlayModeTests` (4).
+
 ### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
 
 Five reports from Justus ("Flash der Miner-BBTS", v2026.9.9, fresh singleplayer world) plus Marcel's question how the
