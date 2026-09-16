@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🌋 Player reports 2026-09-15, late — landed in lava, the caret crash again, cut feedback text; Titas, Valuma and eight NPC professions (2026-09-16, local branch local/justus-0915-late, issues + PR follow later)
+### 🌋 Player reports 2026-09-15, late — landed in lava, the caret crash again, cut feedback text; Titas, Valuma and eight NPC professions (#1906 #1907 #1908 #1909 #1910 #1911 #1912 #1913 #1914 #1915, 2026-09-16, branch fix/justus-reports-0915-late)
 
 Twelve reports + one crash from Justus ("Flash der Miner-BBTS", v2026.9.9) and the side findings of their analysis.
 Marcel's decisions 2026-09-16: all recommendations taken; the per-world weapon switch is removed (weapons are not
