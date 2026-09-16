@@ -230,7 +230,7 @@ public sealed class DropLootTests : IDisposable
             FillEverySlot(p.State.Inventory);
 
             server.Tick(6.0); // seed fauna
-            var creature = server.Creatures.OrderBy(c => c.HullMax).First();
+            var creature = server.Creatures.Where(c => !c.IsCompanion).OrderBy(c => c.HullMax).First(); // not a tamer's pet (2026-09)
             p.State.Position = creature.Position;
             for (int i = 0; i < 40 && server.Creatures.Any(c => c.Id == creature.Id); i++)
             {

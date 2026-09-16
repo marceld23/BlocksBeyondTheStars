@@ -118,7 +118,8 @@ public sealed class StationPackTests : IDisposable
         {
             Assert.Equal(ItemCategory.Consumable, meal.Category);
             Assert.True(meal.ConsumeHunger > 0 && meal.ConsumeHealth > 0);
-            var recipe = _content.Recipes.Values.Single(r => r.Outputs.Any(o => o.Item == meal.Key));
+            // The cooking recipe (a grocer may also SELL a meal — 2026-09 professions — which is not how it is made).
+            var recipe = _content.Recipes.Values.Single(r => r.Station != CraftingStation.Market && r.Outputs.Any(o => o.Item == meal.Key));
             Assert.Equal(CraftingStation.Campfire, recipe.Station);
             Assert.Equal("field_kitchen", recipe.RequiredBlueprint);
         }

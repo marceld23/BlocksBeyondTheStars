@@ -397,14 +397,14 @@ public sealed partial class GameServer
             }
         }
 
-        if (_world.Planet?.Void == true)
+        if (_world.Planet?.Void == true || Rules.CreatureAbundance == BlocksBeyondTheStars.Shared.Configuration.AlienActivity.Off)
         {
             if (changed)
             {
                 BroadcastCreatures();
             }
 
-            return; // a station has no animals
+            return; // a station has no animals, and neither has a world whose wildlife is switched off
         }
 
         var candidates = _speciesRoster
