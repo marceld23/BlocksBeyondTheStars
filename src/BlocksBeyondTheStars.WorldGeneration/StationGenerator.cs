@@ -63,6 +63,13 @@ public sealed class StationStructure
     public IReadOnlyList<StationMarker> Markers { get; }
     public IReadOnlyList<StationModule> Modules { get; }
 
+    /// <summary>
+    /// How far a kit replay moved the pinned modules inside this structure (#1918): (0,0,0) normally; the exterior margin
+    /// when a composition pinned before the margin existed is replayed with exterior detail. The server stamps such a
+    /// station that much further out, so its modules, markers and doors stay exactly where they always were.
+    /// </summary>
+    public Vector3i ModuleShift { get; internal set; }
+
     internal StationStructure(int w, int h, int l, string tier, int roomW, int roomH, int roomL,
         ushort[] blocks, IReadOnlyList<StationMarker> markers, IReadOnlyList<StationModule> modules,
         Dictionary<int, (int Tint, int Glow)>? mods = null, Dictionary<int, int>? shapes = null)

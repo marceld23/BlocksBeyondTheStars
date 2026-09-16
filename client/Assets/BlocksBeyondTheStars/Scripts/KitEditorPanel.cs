@@ -17,6 +17,7 @@ namespace BlocksBeyondTheStars.Client
     {
         public string key = string.Empty, name = string.Empty, kind = "station", tier = "medium", pack = "default", start = string.Empty;
         public int weight = 1, modulesMin, modulesMax, maxExtent;
+        public int solarWings, antennas, domes; // #1920: station exterior detail (0 = none)
         public List<string> planetTypes = new List<string>();
         public List<KitEntryJson> entries = new List<KitEntryJson>();
         public int colsMin, colsMax, rowsMin, rowsMax, plotStride, building, storeys;
@@ -30,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 key = k.Key, name = k.Name, kind = k.KindOrDefault, tier = k.Tier, pack = k.PackOrDefault, start = k.Start,
                 weight = k.Weight, modulesMin = k.ModulesMin, modulesMax = k.ModulesMax, maxExtent = k.MaxExtent,
+                solarWings = k.SolarWings, antennas = k.Antennas, domes = k.Domes,
                 planetTypes = new List<string>(k.PlanetTypes),
                 colsMin = k.ColsMin, colsMax = k.ColsMax, rowsMin = k.RowsMin, rowsMax = k.RowsMax, plotStride = k.PlotStride,
                 building = k.Building, storeys = k.Storeys, modulesOnly = k.ModulesOnly,
@@ -49,6 +51,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Key = key, Name = name, Kind = kind, Tier = tier, Pack = pack, Start = start ?? string.Empty,
                 Weight = weight, ModulesMin = modulesMin, ModulesMax = modulesMax, MaxExtent = maxExtent,
+                SolarWings = solarWings, Antennas = antennas, Domes = domes,
                 PlanetTypes = new List<string>(planetTypes ?? new List<string>()),
                 ColsMin = colsMin, ColsMax = colsMax, RowsMin = rowsMin, RowsMax = rowsMax, PlotStride = plotStride,
                 Building = building, Storeys = storeys, ModulesOnly = modulesOnly,
@@ -327,6 +330,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 Field(panel, x0, y, L("ui.kit.start"), k2.start, v => k2.start = Slug(v));
                 IntField(panel, x0 + 380f, y, L("ui.kit.max_extent"), k2.maxExtent, v => k2.maxExtent = Mathf.Max(0, v));
+                y += 40f;
+                // #1920: the station's exterior detail — how many the composer mounts (0 = none); the test assembly shows it.
+                IntField(panel, x0, y, L("ui.kit.solar_wings"), k2.solarWings, v => k2.solarWings = Mathf.Max(0, v));
+                IntField(panel, x0 + 190f, y, L("ui.kit.antennas"), k2.antennas, v => k2.antennas = Mathf.Max(0, v));
+                IntField(panel, x0 + 380f, y, L("ui.kit.domes"), k2.domes, v => k2.domes = Mathf.Max(0, v));
                 y += 40f;
             }
             else if (k2.kind == StructureKit.KindCity)

@@ -306,7 +306,8 @@ A template is either **complete** (rolled as one piece, as before) or a **module
 
 **Kits** live in `data/structure_kits.json` and `usercontent/structure_kits/<key>.json` (`StructureKit`): `key`, `name`,
 `kind` (`station` | `settlement` | `city`), `tier`, `pack`, `weight`, `planetTypes`, `modulesMin/Max`, `start`
-(stations), `maxExtent`, `entries[] = { module, min, max, required, weight, rotate }`, and the grid: settlements
+(stations), `maxExtent`, `solarWings` / `antennas` / `domes` (stations, #1918; 0 = none),
+`entries[] = { module, min, max, required, weight, rotate }`, and the grid: settlements
 `colsMin/Max`, `rowsMin/Max`, `plotStride`, `building`, `storeys`, `modulesOnly`; cities `grid`, `districtSize`,
 `street`, `height`, `roleMap` (one string per row, letters `P O M H G T R`). `GameContent.SetStructureKits` validates
 (unknown module keys are dropped with a warning; a station kit needs an entry) and `KitsFor(kind, tier, packs, planet)`
@@ -329,6 +330,20 @@ markers in canteens and bars. The composition (module, origin, turns) is pinned 
 `StationTemplates[id] = "kit:<key>"`; `Replay` bakes it without the kit. Selection for a FRESH station: one joint table
 of complete templates (non-pinOnly) and kits of the tier, drawn by weight; `StationTemplateUse = Off` keeps the
 procedural generator.
+
+**Exterior detail (#1918)** (`StationKitExterior`): a kit's `solarWings`, `antennas` and `domes` are copied into the
+composition and pinned in `StationKitRecord.Exterior`. A composition with detail bakes with a free margin of
+`MarginXZ = 3` blocks around the modules and `MarginTop = 3` above them (the composer places the modules inside
+`maxExtent − 6`, so the whole station stays within the extent). After furnishing, candidates are drawn from an rng seeded
+by `kitexterior:<kit>:<seed>`: **solar wings** — a flat 3-deep wing (carbon strut row, glass cells tinted
+`SolarTint`, a carbon frame every third cell) on a module's side wall, at the highest row that is solid all along (no
+window, no doorway) with free space in front; **domes** — three stepped rings on a free roof (5 × 5 at least), the start
+module first as a solid hull cupola, the others glass; **antennas** — a two-carbon-plus-light mast on a free roof corner
+(roofs with a dome excluded). Nothing is placed inside a module's box or in the corridor in front of a force-field wall
+(the hangar mouth) out to the structure's edge. The pieces depend only on the pinned composition, so `Replay` bakes the
+same station. A kit station pinned before #1918 (`Exterior` null) gets its kit's current counts on its first replay; its
+modules then bake `MarginXZ` further in, `StationStructure.ModuleShift` reports that shift, and the server stamps the
+structure that much further out (`BoardableStation.Origin`), so every module, marker, door and crate keeps its world cell.
 
 **Door lanes (#1901)** — one rule for every composer (`RoomFurnisher.DoorLaneAt`): a door marker (set at the doorway's
 floor or up to two cells above it) is probed like the server hangs the door — the jamb beside it gives the wall axis, the
@@ -375,7 +390,8 @@ errors (`StructurePorts.Validate`), — station modules only — leaks (`Structu
 editors, a block in a door lane (`RoomFurnisher.BlockedDoorLanes`, painted red; **Check seal** reports it too); cells
 carry `port`, meta and template JSON carry `kit` / `function`. The kit panel lists shipped kits of the editor's kinds
 (`station`, or `settlement` + `city`) overlaid by `usercontent/structure_kits/*.json`, edits every `StructureKit` field
-and the entries table, and saves the user file plus `<kind>_exports/<key>/kit.json`. **Assemble** composes the named
+(station kits: *Solar wings*, *Antennas*, *Domes* — #1920) and the entries table, and saves the user file plus
+`<kind>_exports/<key>/kit.json`. **Assemble** (keeping a station's tints and shapes, so the solar cells show blue) composes the named
 kit with the current seed (`StationKitComposer.Compose`, `SettlementGenerator.Generate` with `SettlementLayoutSpec.FromKit`,
 `CityGenerator.Generate` with `CityLayoutSpec.FromKit`) over the shipped pool plus the user's template files and loads
 the result as a whole structure. `tools/merge_structure.py` merges `kit.json` into `data/structure_kits.json` (defaults
