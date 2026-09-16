@@ -52,6 +52,11 @@ can be staffed at your own station/base like the existing posts; textures are ge
   `RulesOverride` still carries the field loads unchanged (`GameModeTests.SavedRules_FromBeforeTheWeaponModeRemoval_StillLoad`).
   Docs corrected: `docs/user/PARENTS.md` + `.de.md` (what a family world does switch: robots, bandits, space enemies, UFOs,
   wildlife), `docs/developer/AGE_RATING_CHECKLIST.md`.
+- **Vendors: trade AND talk; the theme of the vendor you stand at (side findings).** E at a vendor NPC always opened the
+  market — a vendor is the "market" station — so vendor dialogues (the favour chain, recurring faces) were only reachable
+  from 3.6–4.5 m away. E now asks *Trade or talk?* (`VendorChoicePrompt`, E/Enter = trade, the old one-key habit stays;
+  market blocks still open at once). Server: `VendorThemeAt` took the nearest vendor NPC anywhere on the world once any
+  stall marker was in reach; it now requires that vendor within 6 blocks (`VendorThemeReach`). USER_MANUAL updated.
 
 ### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
 

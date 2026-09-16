@@ -1666,8 +1666,14 @@ public sealed partial class GameServer
     private string VendorThemeAt(Shared.State.PlayerState player)
         => (NearSettlementVendor(player) || NearSpaceStationVendor(player) || NearLandedTraderPilot(player) || NearBaseVendor(player))
            && NearestNpc(player, "vendor") is { } v
+           && WrapDistSq(player.Position, v.Pos) <= VendorThemeReach * VendorThemeReach
             ? v.Theme
             : string.Empty;
+
+    /// <summary>How far the vendor NPC itself may stand from the player for its theme to count: the 4-block stall
+    /// reach plus room for the NPC's post leash. Without it the nearest vendor ANYWHERE on the world decided the
+    /// theme — a player at one stall could trade another village's goods while its vendor slept at home.</summary>
+    private const float VendorThemeReach = 6f;
 
     /// <summary>True if the player is standing next to a settlement vendor (enables market barter there).</summary>
     public bool NearSettlementVendor(Shared.State.PlayerState player)

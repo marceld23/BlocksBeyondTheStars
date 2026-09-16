@@ -119,7 +119,7 @@ Last updated: 2026-08-26.
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
-| **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **trade with a vendor** (opens the Market); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
+| **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
@@ -997,7 +997,8 @@ separate unlock; admins can still disable it through server world rules.
   quartermaster: **Stranger → Acquaintance → Friend**. The stage shows on their **nameplate** when you walk
   up, and everyone you know is listed under **Tab → Character → People you know** (name, role, stage, where
   they live).
-- **Talk to people.** Walk up to any NPC and press **E** (away from station blocks, which keep their own E).
+- **Talk to people.** Walk up to any NPC and press **E** (away from station blocks, which keep their own E). At a
+  **vendor**, E asks *Trade or talk?* — **E** once more opens the Market, **Talk** the conversation.
   Settlers chat with anyone; vendors open up once they know you. Some conversations offer **choices**
   ([1]/[2]/[3] or click) — your pick is remembered and can deepen a friendship, hand you something, reveal a
   piece of the story, or make someone **call you on the radio later**. Talking itself counts toward your
@@ -1063,8 +1064,9 @@ separate unlock; admins can still disable it through server world rules.
   offer resets both confirmations, and your Confirm button turns green while you wait). **Esc** / pad **B**
   or **Cancel** aborts. If you know more than your partner you can also *teach knowledge* here (`−` / `+` /
   Max in the "You give" box).
-- **Vendors / market:** press **E** next to a settlement or space-station **vendor** to open the **Market**
-  (the gameplay menu's Crafting tab on the *Market* category). Barter recipes there trade your raw
+- **Vendors / market:** press **E** next to a settlement or space-station **vendor** and pick **Trade** (or press **E**
+  again) to open the **Market** (the gameplay menu's Crafting tab on the *Market* category). A vendor's themed goods
+  only trade while that vendor stands right beside you. Barter recipes there trade your raw
   resources for goods. The market is also available **aboard your ship** (Tab → Crafting → Market), via the
   ship's trade console — so you can trade without a vendor too. Vendors have **themes**: miners sell iron,
   copper and lead ore for silicate, traders buy crystal, gold and silver, researchers buy refined uranium and

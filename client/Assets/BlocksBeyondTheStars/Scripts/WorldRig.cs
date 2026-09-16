@@ -337,6 +337,10 @@ namespace BlocksBeyondTheStars.Client
             var launchPrompt = root.AddComponent<LaunchPrompt>();
             launchPrompt.Game = boot;
 
+            // "Trade or talk?" — E at a vendor NPC offers both instead of always opening the market.
+            var vendorChoice = root.AddComponent<VendorChoicePrompt>();
+            vendorChoice.Game = boot;
+
             // Maintenance announcements (#249): persistent restart-countdown banner + delayed-ack info modal.
             var maintenance = root.AddComponent<MaintenanceUi>();
             maintenance.Game = boot;
