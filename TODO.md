@@ -38,6 +38,12 @@ can be staffed at your own station/base like the existing posts; textures are ge
   (`HasLiveCanvas`) in `OnCanvasHierarchyChanged` AND a `LateUpdate` ordered after uGUI's. The chat box — the one runtime
   field built without `UiKit.AddInput` — gets the guard and turns its canvas on BEFORE focusing (in the flight view it stayed
   off until the next frame: the likeliest path of the report). PlayMode: `InputFocusGuardPlayModeTests` (4).
+- **F1 feedback text cut at 1500 characters.** A long idea text arrived ending mid-sentence: the dialog's field stopped
+  accepting keys and pasted text at 1500 without any hint. Description and reply answer now take **4800** characters
+  (below the inbox's 5000 even with the /bump twin's "[feedback] title — " prefix, so the two rows still pair), a live
+  "used / 4800" count sits next to the label (warning colour from 90 %), and a text that filled the field asks once
+  ("reached the maximum length — click Send again"). The server's /bump description cap went from 2000 to 5100.
+  Test: `BumpTests.BumpReport_FullLengthFeedbackText_ReachesTheInboxTwinUncut`.
 
 ### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
 

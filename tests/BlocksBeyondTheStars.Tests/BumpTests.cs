@@ -131,6 +131,26 @@ public sealed class BumpTests : IDisposable
     }
 
     [Fact]
+    public void BumpReport_FullLengthFeedbackText_ReachesTheInboxTwinUncut()
+    {
+        // The F1 dialog accepts 4800 characters and prefixes "[feedback] " + an 80-character title + " — ". The
+        // server used to cut the snapshot/forward at 2000, so a long idea arrived without its ending (2026-09-15).
+        var (server, client, _) = StartWorld();
+        var sink = new ForwardSink();
+        server.CrashUploader = sink;
+
+        string title = new string('t', 80);
+        string body = new string('b', 4799) + "Z";
+        string description = "[feedback] " + title + " — " + body;
+        client.Send(NetCodec.Encode(new BumpReport { Description = description, ClientVersion = "2026.9.10" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        Assert.True(sink.Sent.Wait(TimeSpan.FromSeconds(10)), "bump was not forwarded to the sink");
+        using var doc = System.Text.Json.JsonDocument.Parse(sink.LastJson!);
+        Assert.Equal(description, doc.RootElement.GetProperty("description").GetString());
+    }
+
+    [Fact]
     public void BumpCommand_WithoutImage_ForwardsNullScreenshot()
     {
         var (server, client, _) = StartWorld();
