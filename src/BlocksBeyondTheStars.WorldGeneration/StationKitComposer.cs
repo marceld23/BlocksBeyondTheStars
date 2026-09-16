@@ -341,6 +341,19 @@ public static class StationKitComposer
         return maxX - minX + 1 > maxExtent || maxY - minY + 1 > maxExtent || maxZ - minZ + 1 > maxExtent;
     }
 
+    private static bool HasCabin(StructureTemplate t)
+    {
+        foreach (var c in t.Cells)
+        {
+            if (c.Kind == "marker" && c.Id == "cabin")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool TryPlace(KitEntry entry, List<Placed> placed, Random rng, int maxExtent, ModuleCache cache)
     {
         var open = new List<(Placed P, int I)>();
@@ -364,6 +377,13 @@ public static class StationKitComposer
         var turnsList = entry.Rotate ? new List<int> { 0, 1, 2, 3 } : new List<int> { 0 };
         Shuffle(turnsList, rng);
 
+        // A module with crew cabins docks on the start module's deck only (2026-09): the crew walks, it cannot climb a
+        // ladder, so a cabin below or above would cut its resident off from the hall and the lounges. The shipped crew
+        // quarters are required and placed before any ladder junction, so they never met this rule; the profession rooms
+        // (their keeper's cabin behind the shop) do.
+        bool cabinModule = cache.Get(entry.Module, 0) is { } first && HasCabin(first.T);
+        int startDeck = placed[0].Origin.Y;
+
         foreach (var (a, ai) in open)
         {
             var pa = a.Ports[ai];
@@ -385,7 +405,7 @@ public static class StationKitComposer
                     }
 
                     var origin = MinCell(pa.Cells) + a.Origin + pa.Outward - MinCell(q.Cells);
-                    if (Overlaps(origin, t, placed) || ExceedsExtent(origin, t, placed, maxExtent))
+                    if ((cabinModule && origin.Y != startDeck) || Overlaps(origin, t, placed) || ExceedsExtent(origin, t, placed, maxExtent))
                     {
                         continue;
                     }
@@ -465,7 +485,10 @@ public static class StationKitComposer
         StructureRoles.Mission => RoomFurnisher.RoomRole.Board,
         StructureRoles.Market => RoomFurnisher.RoomRole.Market,
         StructureRoles.Room => hasBed ? RoomFurnisher.RoomRole.CabinNoBed : RoomFurnisher.RoomRole.House,
-        _ => RoomFurnisher.RoomRole.Hall,
+        // 2026-09: a profession room is furnished like its settlement building (a clinic like a medbay, a shop like a market).
+        _ => NpcProfessions.ByFunction(function) is { } p && Enum.TryParse<RoomFurnisher.RoomRole>(p.Room, out var room)
+            ? room
+            : RoomFurnisher.RoomRole.Hall,
     };
 
     private static StationStructure Bake(string kitKey, string tier, long seed, List<Placed> placed, GameContent content, StationComposition composition)
@@ -703,7 +726,9 @@ public static class StationKitComposer
                 }
 
                 var rng = new Random(unchecked((int)WorldGenerator.StableHash($"kitfurnish:{kitKey}:{seed}:{i}:{n}")));
-                RoomFurnisher.Furnish(SetCell, region, pos.Y, clearance, palette, RoleFor(p.Function, hasBed), reserved, rng);
+                // A cabin marker is a crew cabin whatever the module is (2026-09: the keeper's cabin behind a profession room).
+                string furnishAs = c.Id == "cabin" ? StructureRoles.Cabins : p.Function;
+                RoomFurnisher.Furnish(SetCell, region, pos.Y, clearance, palette, RoleFor(furnishAs, hasBed), reserved, rng);
             }
         }
 

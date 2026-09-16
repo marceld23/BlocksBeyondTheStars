@@ -230,6 +230,10 @@ def modular_modules():
             m = builder(v)
             out.append(module_entry(f"gds_{function[5:]}_{v + 1}", f"G.D.S. {NICE[function]} {v + 1}", "metropolis",
                                     function, "city_gds_modular", m))
+    # The services districts (2026-09, NPC professions): housing-role districts with three profession houses each.
+    for v in range(2):
+        out.append(module_entry(f"gds_services_{v + 1}", f"G.D.S. Services {v + 1}", "metropolis", "city_housing",
+                                "city_gds_modular", shapes.gds_services(v)))
     return out
 
 
@@ -299,6 +303,8 @@ def modular_kits():
             kit_entry("gds_hall_1"), kit_entry("gds_hall_2"),
             kit_entry("gds_garden_1", max_=8), kit_entry("gds_garden_2", max_=8),
             kit_entry("gds_tower_1", max_=4), kit_entry("gds_tower_2", max_=4),
+            # 2026-09: the services districts — at most one each, weighted so a fresh city all but always gets both
+            kit_entry("gds_services_1", weight=3), kit_entry("gds_services_2", weight=3),
         ],
     })
     return kits

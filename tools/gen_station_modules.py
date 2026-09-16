@@ -19,6 +19,9 @@ function allows (ladder ports on the floor and ceiling of the ladder junction). 
   hydro      greenhouse marker, tray rows with crops (1 port)
   storage    crates along the walls
   hangar     hangar marker, a force-field mouth on −Z, never rotated (1 port on +Z)
+  clinic / shop / armory / library / studio / newsroom  (2026-09, NPC professions) a shop room with the profession's
+             post block, its post marker (= the job) and a counter, and behind a partition the keeper's own cabin (bed,
+             `cabin` marker, slide door) — one more crew member for one more post, so the post is always staffed (1 port)
 
 The four original station templates (hub_outpost, pocket_waystation, observation_spire, twin_dock_bazaar)
 become `pinOnly` (they stay for the worlds that pinned them, are never rolled again) and return as ROOM
@@ -388,11 +391,56 @@ def hangar(tier):
     return m
 
 
+# The professions a station staffs (2026-09): function, job marker, post block, display name, a decor block beside the post.
+# The tamer (no animals aboard) and the blockfarmer (no quarry in space) stay planet-side.
+STATION_PROFESSIONS = (
+    ("clinic", "doctor", "clinic_post", "Clinic", "medbay_panel"),
+    ("shop", "grocer", "shop_counter", "Shop", CRATE),
+    ("armory", "arms_dealer", "arms_rack", "Armory", CRATE),
+    ("library", "sage", "sage_lectern", "Archive", "lab_panel"),
+    ("studio", "streamer", "streamer_post", "Studio", "strip_light_cyan"),
+    ("newsroom", "reporter", "press_desk", "Newsroom", SCREEN),
+)
+
+
+def profession_room(tier, function, job, post_block, name, decor):
+    """A profession's shop room: a door port on −X, the post block against the east wall with its counter, the post marker
+    in front of it; a partition near the +Z wall with a slide door, and behind it the keeper's cabin with a bed."""
+    w, h, l = SIZES[SIZE_OF_TIER[tier]]
+    m = Module(f"{prefix(tier)}_{function}", name, function, tier, w, h, l)
+    m.shell()
+    m.lights()
+    m.door_port("x-")
+    wall_z = l - 4  # the partition; the cabin is z wall_z+1 .. l-2
+    door_x = w - 3
+    for x in range(1, w - 1):
+        for y in range(1, h - 1):
+            m.block(x, y, wall_z, HULL)
+    m.clear(door_x, 1, wall_z)
+    m.clear(door_x, 2, wall_z)
+    m.marker(door_x, 1, wall_z, "door_slide")
+    # the shop: post block + decor on the east wall, a counter slab beside them, the keeper stands in front
+    m.block(w - 2, 1, 1, post_block)
+    m.block(w - 2, 1, 2, decor)
+    m.block(door_x, 1, 1, DECK, shape=SLAB)
+    m.marker(w - 4, 1, 2, job)
+    m.marker(2, 1, 1, "room")
+    # the keeper's cabin
+    m.block(1, 1, l - 2, BED, shape=BED_HEAD | 3)
+    m.block(2, 1, l - 2, BED, shape=BED_FOOT | 3)
+    m.block(w - 2, 1, l - 2, CRATE)
+    m.block(w // 2, h - 1, l - 2, LIGHT)
+    m.marker(4, 1, l - 3, "cabin")
+    return m
+
+
 def modules_for(tier):
     mods = [hub(tier), corridor(tier), junction(tier), cabins(tier, 2), cabins(tier, 1), canteen(tier), bar(tier),
             market(tier), mission(tier), medbay(tier), hydro(tier), storage(tier), hangar(tier)]
     if tier in ("large", "huge", "colossal"):
         mods.append(junction(tier, ladder=True))
+    for function, job, post_block, name, decor in STATION_PROFESSIONS:
+        mods.append(profession_room(tier, function, job, post_block, name, decor))
     return mods
 
 
@@ -403,7 +451,19 @@ def entry(module, required=False, minimum=0, maximum=1, weight=1, rotate=None):
     return e
 
 
+def profession_entries(tier):
+    """The profession rooms as optional single modules (2026-09) — appended after the classic entries, so a pinned station
+    replays unchanged; bigger stations draw them more often."""
+    weight = 1 if tier in ("small", "medium") else 2
+    return [entry(f"{prefix(tier)}_{function}", maximum=1, weight=weight) for function, *_ in STATION_PROFESSIONS]
+
+
+# How many more modules a station of a tier may take now that the professions compete for the optional slots.
+PROFESSION_EXTRA_MODULES = {"small": 2, "medium": 2, "large": 3, "huge": 3, "colossal": 4}
+
+
 def kit(tier, name, entries, modules_min, modules_max):
+    modules_max += PROFESSION_EXTRA_MODULES[tier]
     return {
         "key": KIT_KEYS[tier],
         "name": name,
@@ -582,6 +642,7 @@ def main():
         for r in rooms:
             if r["kit"] == k["key"]:
                 k["entries"].append(entry(r["key"], maximum=1))
+        k["entries"] += profession_entries(k["tier"])  # last, so every older entry keeps its place
         upsert(kit_pool, k)
         print(f"{k['key']}: {len(k['entries'])} entries, {k['modulesMin']}..{k['modulesMax']} modules")
     _dump(KITS, kit_pool)

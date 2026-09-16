@@ -501,6 +501,30 @@ def gds_garden(variant):
     return m
 
 
+def gds_services(variant):
+    """A services district of the G.D.S. city (2026-09, NPC professions): three profession houses along the north lane (the
+    town buildings in the city's colours), two flats for their neighbours and a small green in the south."""
+    m = district_base()
+    functions = ("clinic", "shop", "armory") if variant == 0 else ("library", "studio", "newsroom")
+    for n, function in enumerate(functions):
+        house = town_module(function, n % 2, alien=False)
+        for c in house.cells.values():
+            if c["kind"] == "block" and c["id"] == "@wall" and c.get("shape", 0) == 0 and c["y"] > 0:
+                c["tint"] = RED if n % 2 == 0 else PURPLE
+        m.paste(house, 2 + n * 10, 0, 2)
+    for n, x in enumerate((2, 22)):
+        m.paste(gds_flat(2, n, PURPLE if n == 0 else RED), x, 0, 22)
+    for x in range(12, 20):
+        for z in range(22, 30):
+            m.block(x, 0, z, "grass")
+    for y in range(1, 4):
+        m.block(15, y, 26, "wood_log")
+    m.fill(14, 4, 25, 16, 5, 27, "tree_leaves")
+    for x, z in ((1, 12), (30, 12), (1, 19), (30, 19)):
+        lamp_post(m, x, z)
+    return m
+
+
 def gds_tower(variant):
     m = district_base()
     fp = 8

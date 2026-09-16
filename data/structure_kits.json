@@ -7,7 +7,7 @@
     "pack": "default",
     "weight": 2,
     "modulesMin": 5,
-    "modulesMax": 8,
+    "modulesMax": 10,
     "start": "st_small_hub",
     "entries": [
       {
@@ -66,6 +66,48 @@
         "max": 1,
         "required": false,
         "weight": 1
+      },
+      {
+        "module": "st_small_clinic",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_small_shop",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_small_armory",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_small_library",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_small_studio",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_small_newsroom",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
       }
     ]
   },
@@ -77,7 +119,7 @@
     "pack": "default",
     "weight": 2,
     "modulesMin": 8,
-    "modulesMax": 12,
+    "modulesMax": 14,
     "start": "st_medium_hub",
     "entries": [
       {
@@ -185,6 +227,48 @@
         "max": 1,
         "required": false,
         "weight": 1
+      },
+      {
+        "module": "st_medium_clinic",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_shop",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_armory",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_library",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_studio",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "st_medium_newsroom",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
       }
     ]
   },
@@ -196,7 +280,7 @@
     "pack": "default",
     "weight": 2,
     "modulesMin": 11,
-    "modulesMax": 16,
+    "modulesMax": 19,
     "start": "st_large_hub",
     "entries": [
       {
@@ -304,6 +388,48 @@
         "max": 1,
         "required": false,
         "weight": 1
+      },
+      {
+        "module": "st_large_clinic",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_large_shop",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_large_armory",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_large_library",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_large_studio",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_large_newsroom",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
       }
     ]
   },
@@ -315,7 +441,7 @@
     "pack": "default",
     "weight": 2,
     "modulesMin": 15,
-    "modulesMax": 22,
+    "modulesMax": 25,
     "start": "st_huge_hub",
     "entries": [
       {
@@ -416,6 +542,48 @@
         "max": 2,
         "required": true,
         "weight": 2
+      },
+      {
+        "module": "st_huge_clinic",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_huge_shop",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_huge_armory",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_huge_library",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_huge_studio",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_huge_newsroom",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
       }
     ]
   },
@@ -427,7 +595,7 @@
     "pack": "default",
     "weight": 2,
     "modulesMin": 20,
-    "modulesMax": 30,
+    "modulesMax": 34,
     "start": "st_colossal_hub",
     "entries": [
       {
@@ -520,6 +688,48 @@
         "min": 2,
         "max": 3,
         "required": true,
+        "weight": 2
+      },
+      {
+        "module": "st_colossal_clinic",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_colossal_shop",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_colossal_armory",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_colossal_library",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_colossal_studio",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "st_colossal_newsroom",
+        "min": 0,
+        "max": 1,
+        "required": false,
         "weight": 2
       }
     ]
@@ -2573,6 +2783,20 @@
         "max": 4,
         "required": false,
         "weight": 1
+      },
+      {
+        "module": "gds_services_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "gds_services_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 3
       }
     ]
   }

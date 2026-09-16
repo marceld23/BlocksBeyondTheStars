@@ -147,7 +147,9 @@ public sealed class SettlementResidentTests : IDisposable
             var (_, tier, beds, residents) = Assert.Single(server.SettlementResidentsForTest);
             Assert.Equal("metropolis", tier);
             Assert.True(beds > 80, $"the G.D.S. city has {beds} beds");
-            Assert.Equal(80, residents.Count);
+            // The cap counts the bed-bound residents; the keepers of the services districts (2026-09) come on top.
+            Assert.Equal(80, residents.Count(r => NpcProfessions.ByJob(r.Job) is null));
+            Assert.Equal(6, residents.Count(r => NpcProfessions.ByJob(r.Job) is not null));
             Assert.Contains(server.NpcLooksForTest, n => n.Role == "guardian");
             Assert.True(server.NpcCount < 200, $"{server.NpcCount} NPCs on the city world (was 324 before #1887)");
         }

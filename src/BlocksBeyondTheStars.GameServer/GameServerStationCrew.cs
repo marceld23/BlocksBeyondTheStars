@@ -50,6 +50,18 @@ public sealed partial class GameServer
             }
         }
 
+        // 2026-09: on a station with profession rooms the vendors and the quartermaster are staffed first, then the
+        // professions, then the settler posts (hangar, medbay, greenhouse, lounges) — each profession room brings its keeper's
+        // cabin, but its post might otherwise fall behind a settler post past the last cabin. A station without profession
+        // posts (every station of an older world) keeps its exact order.
+        if (posts.Any(post => post.Profession != null))
+        {
+            posts = posts.Where(post => post.Profession == null && post.Role is "vendor" or "quartermaster")
+                .Concat(posts.Where(post => post.Profession != null))
+                .Concat(posts.Where(post => post.Profession == null && post.Role is not ("vendor" or "quartermaster")))
+                .ToList();
+        }
+
         var seats = LoungeSeats(station);
         int vendorIndex = 0, seatCursor = 0, added = 0;
         for (int i = 0; i < cabins.Count; i++)

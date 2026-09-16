@@ -158,7 +158,8 @@ public static class StructureRoles
 
     /// <summary>What a station kit module can be — the vocabulary the composer's furnishing and crew posts read.
     /// <see cref="Market"/> is shared with the settlement plot roles (a market is a market).</summary>
-    public static readonly string[] StationFunctions = { Hub, Corridor, Cabins, Canteen, Bar, Market, Mission, Medbay, Hydro, Storage, Hangar, Room };
+    public static readonly string[] StationFunctions = { Hub, Corridor, Cabins, Canteen, Bar, Market, Mission, Medbay, Hydro, Storage, Hangar, Room,
+        Clinic, Shop, Armory, Library, Studio, Newsroom }; // 2026-09: the profession rooms a station staffs (no tamer, no quarry)
 
     /// <summary>Functions a canteen or bar module's rooms count as a lounge: where the crew sits in the evening.</summary>
     public static bool IsLoungeFunction(string? function) => function == Canteen || function == Bar;

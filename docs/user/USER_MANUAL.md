@@ -1012,7 +1012,9 @@ separate unlock; admins can still disable it through server world rules.
 
 ### NPC professions: doctor, shopkeeper, arms dealer, sage, tamer, blockfarmer, streamer, reporter
 - **Where you meet them.** Newly generated villages and towns may have a **clinic, shop, armory, library, stable, quarry,
-  studio or newsroom** — each with its keeper. You can also get them at home: research **Profession posts** (Station tree)
+  studio or newsroom** — each with its keeper. Newly generated **space stations** may have a clinic, shop, armory, archive,
+  studio or newsroom (no tamer, no blockfarmer in space), and the city of **Ember Reach** has a services quarter with the
+  same six. You can also get them at home: research **Profession posts** (Station tree)
   and build a **clinic post, shop counter, arms rack, sage's lectern, tamer's post, quarry post, streamer set or press desk**
   inside your base or on your own station — a resident takes the job (like the trading post).
 - **Doctor:** medpacks, field medkits and — expensive — a detoxifier; a bed and a stretcher only **every other day**.

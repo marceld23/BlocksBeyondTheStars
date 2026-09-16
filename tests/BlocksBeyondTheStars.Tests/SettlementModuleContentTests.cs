@@ -130,7 +130,8 @@ public sealed class SettlementModuleContentTests
 
         foreach (var role in StructureRoles.CityRoles)
         {
-            Assert.Equal(2, modules.Count(m => m.Function == role));
+            // Housing carries the two services districts as well (2026-09, the professions in the G.D.S. city).
+            Assert.Equal(role == StructureRoles.CityHousing ? 4 : 2, modules.Count(m => m.Function == role));
         }
     }
 

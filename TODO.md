@@ -103,6 +103,13 @@ can be staffed at your own station/base like the existing posts; textures are ge
   (`HeldItem.ForNpc`), profession greetings by nameplate key. Balance tests adjusted: a bought weapon is the deliberate
   shortcut past the upgrade chain (crafting-only rule), the posts blueprint costs 45. Tests: `NpcProfessionTests` (+9).
   Docs: NPC_ROUTINES.md §11, USER_MANUAL (professions), STATION_SETTLEMENT_EDITOR.md, NOTICES.md.
+- **NPC professions, part 3 — generated stations and the G.D.S. city (Marcel, 2026-09-16).** Station kits offer six
+  profession rooms (doctor, grocer, arms dealer, sage, streamer, reporter — no tamer or blockfarmer in space) per tier,
+  each with its keeper's cabin behind a partition; modules with a cabin dock on the hall deck only (the crew cannot climb);
+  profession posts are staffed before settler posts; profession rooms are furnished like their buildings. The G.D.S. city
+  gets two services districts with the same six. Every existing module and kit entry is unchanged (new entries appended),
+  pinned stations and cities replay as before. Editor: six station functions (`ui.function.*`, all languages). Tests:
+  `NpcProfessionTests` (+3), module count in `SettlementModuleContentTests`.
 - **Titas (generation 8).** Justus' frozen planet, at most once per galaxy and always called "Titas": ten blocks of snow
   over the new `sulfur_stone`, toxic yellow water under five blocks of ice, volcanic hot zones (15 %, basalt, lava ponds,
   +100 °C), leafless dead forests, at most one water species, no settlements/ruins/camps/wrecks/unique sites — only

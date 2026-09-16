@@ -319,6 +319,122 @@ public sealed class NpcProfessionTests : IDisposable
         Assert.False(w.Server.InSameClosedRoomForTest(outside, inside));
     }
 
+    // ---------------- stations and the G.D.S. city (2026-09) ----------------
+
+    private static readonly string[] StationJobs = { "doctor", "grocer", "arms_dealer", "sage", "streamer", "reporter" };
+
+    [Fact]
+    public void ShippedStationKits_DrawTheProfessionRooms_OnTheHallDeck_EachWithItsKeepersCabin()
+    {
+        foreach (var kit in Content.StructureKits.Where(k => k.Kind == StructureKit.KindStation))
+        {
+            int rooms = 0;
+            for (long seed = 1; seed <= 24; seed++)
+            {
+                var s = StationKitComposer.Compose(kit, key => Content.TemplateByKey(StructureKit.KindStation, key), seed, Content, out var composition, out var failure);
+                Assert.True(s != null, $"{kit.Key} seed {seed}: {failure}");
+                int startDeck = composition!.Modules[0].Y;
+                foreach (var m in composition.Modules)
+                {
+                    var t = Content.TemplateByKey(StructureKit.KindStation, m.Key)!;
+                    if (NpcProfessions.ByFunction(t.FunctionOrRole) is not { } p)
+                    {
+                        continue;
+                    }
+
+                    rooms++;
+                    Assert.Contains(p.Job, StationJobs); // never the tamer or the blockfarmer in space
+                    Assert.Equal(startDeck, m.Y);          // the crew cannot climb: the keeper lives on the hall deck
+                    Assert.Single(t.Cells, c => c.Kind == "marker" && c.Id == p.Marker);
+                    Assert.Single(t.Cells, c => c.Kind == "marker" && c.Id == "cabin");
+                }
+            }
+
+            Assert.True(rooms > 0, $"{kit.Key}: no profession room in 24 stations");
+        }
+    }
+
+    [Fact]
+    public void AFreshStation_StaffsItsProfessionRooms_BeforeTheSettlerPosts()
+    {
+        // Every station kit made to require the clinic and the newsroom — the server staffs both.
+        var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        var kits = content.StructureKits.Select(k =>
+        {
+            var copy = System.Text.Json.JsonSerializer.Deserialize<StructureKit>(System.Text.Json.JsonSerializer.Serialize(k), ContentLoader.JsonOptions)!;
+            if (copy.Kind == StructureKit.KindStation)
+            {
+                foreach (var e in copy.Entries.Where(e => e.Module.EndsWith("_clinic", StringComparison.Ordinal) || e.Module.EndsWith("_newsroom", StringComparison.Ordinal)))
+                {
+                    e.Required = true;
+                    e.Min = 1;
+                }
+            }
+
+            return copy;
+        }).ToList();
+        content.SetStructureKits(kits);
+
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "prof_station"));
+        using (repo)
+        {
+            var config = new ServerConfig
+            {
+                WorldName = "prof_station",
+                Seed = 42,
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = false,
+                PlaceSettlements = false,
+                PlaceWrecks = false,
+                World = new BlocksBeyondTheStars.Shared.World.WorldDescription { SpaceStations = BlocksBeyondTheStars.Shared.World.Frequency.Frequent },
+            };
+            config.Rules.FreeSpaceFlight = true;
+            var server = new SvGameServer(config, content, new LoopbackServerTransport(new LoopbackLink()), repo);
+            server.Start();
+            string playerId = server.AddLocalPlayer("Crew").State.PlayerId;
+            server.EnterSpace(playerId);
+            var station = server.SpaceEntitiesFor(playerId).First(e => e.Kind == BlocksBeyondTheStars.GameServer.CombatEntityKind.SpaceStation);
+            server.ShipMove(playerId, station.Position.X, station.Position.Y, station.Position.Z - 8f);
+            server.BoardStation(playerId, station.Id);
+
+            Assert.StartsWith("station_", server.StationKitForTest(station.Id));
+            var jobs = server.NpcJobsForTest;
+            var doctor = Assert.Single(jobs, n => n.Job == "doctor");
+            Assert.Equal("medics", doctor.Theme);
+            Assert.Single(jobs, n => n.Job == "reporter");
+            Assert.Contains(jobs, n => n.Job == "quartermaster"); // the services still come first
+            Assert.Contains(server.SpaceStationMarkers, m => m.Type == "doctor");
+            Assert.Contains(server.SpaceStationMarkers, m => m.Type == "reporter");
+        }
+    }
+
+    [Fact]
+    public void TheGdsCity_GetsItsTwoServicesDistricts_AndTheirSixProfessions()
+    {
+        var kit = Assert.Single(Content.KitsFor(StructureKit.KindCity, null, null, "gds_desert"));
+        var pool = Content.SettlementTemplates.Where(t => t.IsModule).ToList();
+        var spec = CityLayoutSpec.FromKit(kit);
+        foreach (var services in new[] { "gds_services_1", "gds_services_2" })
+        {
+            var t = pool.Single(m => m.Key == services);
+            Assert.Equal(StructureRoles.CityHousing, t.FunctionOrRole);
+        }
+
+        for (long seed = 1; seed <= 6; seed++)
+        {
+            var composition = new System.Collections.Generic.List<string>();
+            var city = CityGenerator.Generate(seed, Content, Array.Empty<CityGenerator.OpenZone>(), null, 0, composition, null, spec, kit, pool);
+            Assert.Contains("gds_services_1", composition);
+            Assert.Contains("gds_services_2", composition);
+            foreach (var job in StationJobs)
+            {
+                Assert.Single(city.Markers, m => m.Type == job);
+            }
+
+            Assert.DoesNotContain(city.Markers, m => m.Type is "tamer" or "blockfarmer"); // no animals and no quarry in the walled city
+        }
+    }
+
     public void Dispose()
     {
         try
