@@ -139,6 +139,10 @@ public sealed class PlayerState
     /// Runtime-only HUD signal (mirrored in the player-state update); not persisted.</summary>
     public bool SuitClimateActive { get; set; }
 
+    /// <summary>The exposure meter 0..1 (2026-09, Titas): on a type with timed cold/heat, time spent outside fills it;
+    /// ship, station, base air and warmth drain it again; at 1 the cold or heat starts to hurt. 0 on every other world.</summary>
+    public float Exposure { get; set; }
+
     /// <summary>Which life support keeps this player breathing right now (#794): 0 none (own suit tank /
     /// the world's own air), 1 ship cabin, 2 station, 3 base (zone cube or sealed room). Runtime-only HUD
     /// signal (mirrored in the player-state update, computed by the oxygen tick); not persisted.</summary>

@@ -135,6 +135,7 @@ public static class PropShapes
         "flower_pot" => (int)BlockShape.Pot,
         "ladder" => (int)BlockShape.Panel,     // thin plate hugging a wall (#803 meshed this, #909 stores it)
         "stairs" => (int)BlockShape.Stairs,    // the crafted staircase used to place as a full cube (#909)
+        "stretcher" => (int)BlockShape.Table,  // the doctor's stretcher (2026-09): a flat top on legs
         _ => 0,
     };
 

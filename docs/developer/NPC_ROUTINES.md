@@ -138,7 +138,54 @@ a `tavern` marker (round-robin, from the layout), else the nearest chair within 
 are staffed even without a bed (`count = max(min(beds, cap), services)`); `guard_post` markers still spawn guardians
 (robots, no routine). Tests: `SettlementResidentTests`, `SettlementNpcTests`.
 
+## 11. Professions (`NpcProfessions` in Shared, `GameServerProfessions.cs`, 2026-09)
+
+Eight professions from Justus' ideas, one table (`NpcProfessions.All`, append-only — its order is the staffing order):
+**doctor** (theme `medics`), **grocer** (`grocer`, shop-only), **arms_dealer** (`arms`), **sage** (`sage`), **tamer**
+(`tamer`, keeps a pet), **blockfarmer** (`blocks`, works outside) trade — Role `vendor` with their own `Job` + `Theme`,
+so `NearVendor`, the trade-or-talk prompt, `VendorThemeAt` and the memory keys work unchanged; **streamer** and
+**reporter** are settlers. Each row names the post marker (= job), the post block, the settlement building function and
+the furnished room (`RoomFurnisher.RoomRole` name).
+
+- **Where they come from.** Settlements: profession buildings (`clinic, shop, armory, library, stable, quarry, studio,
+  newsroom`, optional in every modular kit) carry the marker; `SpawnProfessionResidents` adds one resident per marker AFTER
+  the bed-bound residents, each with its own seeded generator (`profession:<settlement>:<index>`), so settlements without
+  these markers spawn exactly as before. Author templates / station templates: the marker in the editor palette; kit crew
+  and generated station crew staff it (`ApplyProfession`, no `vendorIndex` step). Bases: `BaseIndex.ProfessionPosts` from
+  the post blocks → jobs right after vendor/quartermaster; `RefreshBaseMarkers` adds one marker per staffed post. Player
+  stations: `RegisterPlayerStationPlaceables` turns post blocks into markers (staffed in sealed rooms, §9 air rule).
+- **Generated stations (2026-09, Marcel).** Every station kit offers six optional profession rooms (`st_<tier>_clinic`,
+  `_shop`, `_armory`, `_library`, `_studio`, `_newsroom` — `tools/gen_station_modules.py`; no tamer, no blockfarmer in
+  space): the shop room with the post block, the post marker and a counter, and behind a partition the keeper's own cabin.
+  The extra cabin keeps posts ≤ cabins; `SpawnKitStationCrew` staffs profession posts before the settler posts (stable
+  order, so a station without them keeps its crew). `StationKitComposer.TryPlace` docks a module with a `cabin` marker on
+  the hall deck only (the crew cannot climb ladders). A profession room is furnished like its settlement building
+  (`RoleFor` via `NpcProfessions.ByFunction`), the cabin behind it as a cabin. Pinned stations replay their composition.
+- **The G.D.S. city (Glutweite).** Two housing-role districts `gds_services_1` (clinic, shop, armory) and `gds_services_2`
+  (library, studio, newsroom) — town profession houses in the city's colours plus two flats — optional once each, weight
+  3, so a fresh city practically always has all six; residents come from the shared settlement path. A pinned city keeps
+  its districts.
+- **Trade gates.** `NpcProfessions.IsTradeMarker` (settlement `NearTradeMarker`, `NearSpaceStationVendor`,
+  `NearBaseVendor`). The grocer's offers need `InSameClosedRoom(player, keeper)` (`srv.craft.shop_only`); a recipe with
+  `marketRotation` N is in stock on every N-th in-game day (`RecipeDefinition.OfferedOnDay(floor(SystemTimeDays))`, the
+  client filters the same way, `srv.craft.not_today`).
+- **Dialogues.** `DialogDefinition.Job`: a job dialogue matches only that job; a profession NPC never takes a plain role
+  dialogue. Consequences `photo` (the streamer poses — `npc.activity.posing` — and `NpcDialogState.Action = "photo"` makes
+  the client take a HUD-free photo), `photo_never` (milestone `streamer:never`), `interview` (`Action = "interview"`, the
+  client's `InterviewUi`; `session.PendingInterviewNpcId`), `news` (the closing line lists the place's latest articles).
+- **Interviews.** `InterviewAnswerIntent` (tag 243) is accepted once, right after that reporter asked; free text ≤ 300,
+  screened like chat (blocked → not stored, masked → stored masked); Safe chat mode takes only the four preset keys
+  (`@news.preset.*`, localized per reader). Stored in `WorldMetadata.News[place]` (`s:<settlement>`, `b:<baseId>`,
+  `w:<world>`), the latest 10.
+- **Tick** (`TickProfessions`, per world, 1 Hz): a streamer greets each player within 8 blocks once per in-game day per place
+  (`npc.streamer.ask`); a tamer on a planet keeps one pet — a passive/skittish land species of the roster, owned
+  `npc:<id>` (exempt from `ReconcileCompanions`, follows its NPC in `MoveCompanion`, cannot be attacked), removed with its
+  tamer. The blockfarmer's `Work` lies `QuarryDistance` (10) blocks beyond the settlement edge / base wall reach.
+- **Client.** `HeldItem.ForNpc` re-tints existing models (`npc_medkit`, `npc_basket`, `npc_book`, `npc_leash`,
+  `npc_pickaxe`, `npc_camera`, `npc_microphone`); `NpcView.FallbackGreeting` uses `npc.greet.<job>` from the NameKey.
+
 ## Tests
 
-`NpcGridPathTests`, `BaseResidentsTests`, `NpcRoutineTests`, `NpcJobsTests`, the station-night case in
+`NpcProfessionTests` (table, kits, settlement staffing, content, clinic/streamer/reporter/tamer at a base, Safe-mode
+interview, shop room), `NpcGridPathTests`, `BaseResidentsTests`, `NpcRoutineTests`, `NpcJobsTests`, the station-night case in
 `PlayerStationReportsTests`, the village-bed case in `SettlementNpcTests` (Slow). The shared arena is `NpcLifeWorld`.

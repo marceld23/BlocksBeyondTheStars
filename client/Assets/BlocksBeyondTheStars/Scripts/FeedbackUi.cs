@@ -73,6 +73,14 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _dialog;
         private InputField _titleInput, _descInput, _emailInput;
         private Text _status;
+        private Text _descCounter;
+        private bool _limitWarned; // the "text reached the limit" hint was shown; the next Send goes through
+
+        /// <summary>Description and answer length cap. Stays below the inbox's 5000-character description limit even
+        /// with the /bump twin's "[feedback] " + 80-character title + " — " prefix, so the two rows of one report
+        /// still contain each other and pair up in the inbox. Before 2026-09 it was 1500 and cut long idea texts
+        /// silently mid-sentence.</summary>
+        public const int DescLimit = 4800;
         private Button _sendBtn, _cancelBtn;
 
         private bool _open;
@@ -331,7 +339,29 @@ namespace BlocksBeyondTheStars.Client
             if (_descInput != null) _descInput.text = string.Empty;
             if (_emailInput != null) _emailInput.text = string.Empty;
             if (_status != null) { _status.text = string.Empty; _status.color = UiKit.CyanDim; }
+            _limitWarned = false;
+            UpdateDescCounter(string.Empty);
             SetSendInteractable(true);
+        }
+
+        /// <summary>Live "used / limit" count next to the description label, in warning colour from 90 % on — uGUI
+        /// simply stops accepting keys (and pasted text) at the limit, which a player could not see before.</summary>
+        private void UpdateDescCounter(string text)
+        {
+            int used = text != null ? text.Length : 0;
+            if (used < DescLimit)
+            {
+                _limitWarned = false;
+            }
+
+            if (_descCounter == null)
+            {
+                return;
+            }
+
+            _descCounter.text = used.ToString(System.Globalization.CultureInfo.InvariantCulture) + " / "
+                + DescLimit.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _descCounter.color = used >= DescLimit * 9 / 10 ? UiKit.Warn : UiKit.CyanDim;
         }
 
         private void SetSendInteractable(bool on)
@@ -364,7 +394,9 @@ namespace BlocksBeyondTheStars.Client
             _titleInput = UiKit.AddInput(panel, m, 96, innerW, 40, string.Empty, null, L("ui.feedback.title_placeholder"), 80);
 
             UiKit.AddText(panel, m, 146, innerW, 20, L("ui.feedback.desc_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _descInput = UiKit.AddInput(panel, m, 168, innerW, 150, string.Empty, null, L("ui.feedback.desc_placeholder"), 1500);
+            _descCounter = UiKit.AddText(panel, m, 146, innerW, 20, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleRight);
+            _descInput = UiKit.AddInput(panel, m, 168, innerW, 150, string.Empty, UpdateDescCounter, L("ui.feedback.desc_placeholder"), DescLimit);
+            UpdateDescCounter(string.Empty);
             _descInput.lineType = InputField.LineType.MultiLineNewline;
             if (_descInput.textComponent != null) _descInput.textComponent.alignment = TextAnchor.UpperLeft;
 
@@ -392,10 +424,20 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            string desc = _descInput != null ? (_descInput.text ?? string.Empty).Trim() : string.Empty;
+            string raw = _descInput != null ? _descInput.text ?? string.Empty : string.Empty;
+            string desc = raw.Trim();
             if (desc.Length < 3)
             {
                 if (_status != null) { _status.text = L("ui.feedback.need_text"); _status.color = UiKit.Warn; }
+                return;
+            }
+
+            // A text that filled the field to the brim was most likely cut (a long paste stops silently at the
+            // limit): say so once, the next click sends as it is.
+            if (raw.Length >= DescLimit && !_limitWarned)
+            {
+                _limitWarned = true;
+                if (_status != null) { _status.text = L("ui.feedback.limit_reached"); _status.color = UiKit.Warn; }
                 return;
             }
 
@@ -845,7 +887,7 @@ namespace BlocksBeyondTheStars.Client
             BuildReplyBodyScroll(panel, m, 100f, innerW, ReplyBodyH);
 
             _answerLabel = UiKit.AddText(panel, m, 404, innerW, 20, L("ui.feedback.reply.answer_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _answerInput = UiKit.AddInput(panel, m, 426, innerW, 110, string.Empty, null, L("ui.feedback.reply.answer_placeholder"), 1500);
+            _answerInput = UiKit.AddInput(panel, m, 426, innerW, 110, string.Empty, null, L("ui.feedback.reply.answer_placeholder"), DescLimit);
             _answerInput.lineType = InputField.LineType.MultiLineNewline;
             if (_answerInput.textComponent != null) _answerInput.textComponent.alignment = TextAnchor.UpperLeft;
 

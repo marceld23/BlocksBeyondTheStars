@@ -55,4 +55,46 @@ public sealed class NameGeneratorTests
             Assert.True(int.TryParse(name[(dash + 1)..], out _), $"a robot designation ends in a number: {name}");
         }
     }
+
+    [Fact]
+    public void Clean_ReplacesOnlyTheOffendingWord_TheSameWayEveryTime()
+    {
+        // 2026-09: a hub station was called "Port Sex" — "s" + "e" + "x" is an ordinary syllable of the mill.
+        string port = NameGenerator.Clean("Port Sex");
+        Assert.StartsWith("Port ", port);
+        Assert.True(NameGenerator.IsFullyClean(port), port);
+        Assert.Equal(port, NameGenerator.Clean("Port Sex"));
+
+        Assert.Equal("Port Halvek", NameGenerator.Clean("Port Halvek")); // a clean name never changes
+        Assert.Equal("Skarnweed", NameGenerator.Clean("Skarnweed"));
+
+        string flora = NameGenerator.Clean("Sexweed");
+        Assert.EndsWith("weed", flora); // the botanical suffix stays
+        Assert.True(NameGenerator.IsFullyClean(flora), flora);
+
+        string region = NameGenerator.Clean("Sex's Reach");
+        Assert.EndsWith("'s Reach", region);
+        Assert.True(char.IsUpper(region[0]));
+        Assert.True(NameGenerator.IsFullyClean(region), region);
+    }
+
+    [Fact]
+    public void CoinedNames_NeverCarryABlockedTerm()
+    {
+        for (int seed = 0; seed < 6000; seed++)
+        {
+            var rng = new DeterministicRandom(seed);
+            foreach (var name in new[]
+                     {
+                         NameGenerator.Port(rng), NameGenerator.Star(rng), NameGenerator.Moon(rng), NameGenerator.Asteroid(rng),
+                         NameGenerator.Ship(rng), NameGenerator.Region(rng), NameGenerator.PlanetProper(rng, "ice"),
+                         NameGenerator.PlanetProper(rng, null), NameGenerator.TwinPair(rng).A,
+                         NameGenerator.Person(new Random(seed)), NameGenerator.Creature(new Random(seed)),
+                         NameGenerator.Flora(new Random(seed)), NameGenerator.Tree(new Random(seed)), NameGenerator.Robot(new Random(seed)),
+                     })
+            {
+                Assert.True(NameGenerator.IsFullyClean(name), $"seed {seed}: '{name}'");
+            }
+        }
+    }
 }

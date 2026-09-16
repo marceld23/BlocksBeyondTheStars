@@ -292,6 +292,7 @@ public sealed class NetCodecTests
         [239] = typeof(FarTerrainWorldInfo),
         [241] = typeof(NoteActionIntent),
         [242] = typeof(NoteList),
+        [243] = typeof(InterviewAnswerIntent),
         [240] = typeof(SetStationZeroGIntent),
 
     };

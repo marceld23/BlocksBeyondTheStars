@@ -79,6 +79,31 @@ namespace BlocksBeyondTheStars.Client
         {
             _state = m;
             ClientAudio.Instance?.Cue("ui_open", 0.6f);
+
+            // 2026-09 professions: the streamer's photo and the reporter's interview follow the closing line.
+            if (m.Action == "photo")
+            {
+                StartCoroutine(PhotoAfterLine());
+            }
+            else if (m.Action == "interview")
+            {
+                StartCoroutine(InterviewAfterLine(m.NpcId));
+            }
+        }
+
+        private System.Collections.IEnumerator PhotoAfterLine()
+        {
+            yield return new WaitForSecondsRealtime(1.2f); // "say cheese" — then the panel goes and the camera clicks
+            Close();
+            yield return null;
+            FindAnyObjectByType<PlayerController>()?.TakePhoto();
+        }
+
+        private System.Collections.IEnumerator InterviewAfterLine(int npcId)
+        {
+            yield return new WaitForSecondsRealtime(0.8f);
+            Close();
+            InterviewUi.Instance?.Open(npcId);
         }
 
         private void Choose(int index)

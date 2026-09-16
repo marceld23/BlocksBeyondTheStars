@@ -294,6 +294,7 @@ namespace BlocksBeyondTheStars.Client
         /// when the spawn chunk truly never streams; the server's void rescue then takes over as before.</summary>
         private const float AwaitFloorMaxSeconds = 30f;
         private bool _wasGrounded = true;
+        private bool _marketFromVendor; // NearbyStation "market" came from a vendor NPC in reach, not a market block
         private bool _jetpackActive; // last reported jetpack thrust state (server drains energy on this)
         private float _stepTimer;
         private int _lastWorldEpoch;
@@ -1565,6 +1566,10 @@ namespace BlocksBeyondTheStars.Client
 
         private CameraTool _cameraTool;
 
+        /// <summary>Takes a HUD-free photo now (the streamer's "photo together", 2026-09) — the same capture the camera item
+        /// does on right-click. Returns whether a capture started.</summary>
+        public bool TakePhoto() => EnsureCameraTool().TryCapture();
+
         /// <summary>Lazily builds the client-side camera tool (HUD-free photo capture), wired to the view camera.</summary>
         private CameraTool EnsureCameraTool()
         {
@@ -1684,9 +1689,11 @@ namespace BlocksBeyondTheStars.Client
                 Game.NearbyStation = Game.NearestStationType(transform.position, 3f);
             }
 
+            _marketFromVendor = false;
             if (string.IsNullOrEmpty(Game.NearbyStation) && Game.NearVendor)
             {
-                Game.NearbyStation = "market"; // a settlement/station vendor → "trade" prompt + E opens the market
+                Game.NearbyStation = "market"; // a settlement/station vendor → "trade" prompt + E asks trade or talk
+                _marketFromVendor = true;
             }
 
             // #1073: a placed crafting-station block you're LOOKING at (workbench, forge, …) tells you what it
@@ -1711,9 +1718,9 @@ namespace BlocksBeyondTheStars.Client
             // Your own base core in the crosshair → the HUD shows the rename key + the core's air readout (#1267).
             Game.AimedOwnBase = AimedOwnedBase();
 
-            if (!InputMap.Down(InputAction.Interact) || LaunchPrompt.IsOpen)
+            if (!InputMap.Down(InputAction.Interact) || LaunchPrompt.IsOpen || VendorChoicePrompt.IsOpen)
             {
-                return; // the launch question owns E while it is up (#1455)
+                return; // the launch / trade-or-talk question owns E while it is up (#1455)
             }
 
             // A radio beacon you own that you're aiming at → rename it (item 37).
@@ -1900,7 +1907,14 @@ namespace BlocksBeyondTheStars.Client
 
                     break;
                 case "workshop": Menu?.OpenCrafting(); break;
-                case "market": Menu?.OpenMarket(); Game.Network?.SendNpcGreet("vendor"); break; // item 15: vendor greeting
+                case "market":
+                    if (!_marketFromVendor || !OfferVendorChoice())
+                    {
+                        Menu?.OpenMarket();
+                        Game.Network?.SendNpcGreet("vendor"); // item 15: vendor greeting
+                    }
+
+                    break;
                 case "cargo": Menu?.OpenInventory(); break;
                 case "console": Menu?.OpenShip(); Game.Network?.SendUseStation("console"); break; // ship status/repairs (#463)
                 default:
@@ -1908,6 +1922,53 @@ namespace BlocksBeyondTheStars.Client
                     Game.Network?.SendUseStation(Game.NearbyStation);
                     break; // medbay, quarters
             }
+        }
+
+        /// <summary>E at a vendor NPC: ask "trade or talk?" — a vendor is a market station, so E used to open the market
+        /// every time and its dialogues were unreachable. False when no prompt could be shown (the caller then opens the
+        /// market as before).</summary>
+        private bool OfferVendorChoice()
+        {
+            var prompt = VendorChoicePrompt.Instance;
+            if (prompt == null)
+            {
+                return false;
+            }
+
+            var npcs = Game.Npcs;
+            BlocksBeyondTheStars.Networking.Messages.NetNpc vendor = null;
+            float bestSq = 3.6f * 3.6f; // the same reach as Game.NearVendor
+            var here = Game.PlayerPosition;
+            foreach (var n in npcs)
+            {
+                if (n.Role != "vendor")
+                {
+                    continue;
+                }
+
+                float sq = (Game.ScenePos(n.X, n.Y, n.Z) - here).sqrMagnitude;
+                if (sq <= bestSq)
+                {
+                    bestSq = sq;
+                    vendor = n;
+                }
+            }
+
+            if (vendor == null)
+            {
+                return false;
+            }
+
+            int id = vendor.Id;
+            string role = Game.Localizer != null && !string.IsNullOrEmpty(vendor.NameKey) ? Game.Localizer.Get(vendor.NameKey) : string.Empty;
+            string label = string.IsNullOrEmpty(vendor.Name) ? role : string.IsNullOrEmpty(role) ? vendor.Name : $"{vendor.Name} · {role}";
+            return prompt.TryOffer(label,
+                () =>
+                {
+                    Menu?.OpenMarket();
+                    Game.Network?.SendNpcGreet("vendor");
+                },
+                () => Game.Network?.SendTalkToNpc(id));
         }
 
         /// <summary>True if the player is looking at a radio beacon block they own — returns its id + current label

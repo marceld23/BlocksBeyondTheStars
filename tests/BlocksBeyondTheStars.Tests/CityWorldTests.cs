@@ -71,7 +71,7 @@ public sealed class CityWorldTests : IDisposable
         Assert.NotNull(p);
         Assert.True(p!.Selectable && p.Exotic);
         Assert.Equal(WorldDescription.CityWorldsGeneration, p.MinTerrainGeneration);
-        Assert.Equal(WorldDescription.CurrentTerrainGeneration, WorldDescription.CityWorldsGeneration);
+        Assert.True(WorldDescription.CurrentTerrainGeneration >= WorldDescription.CityWorldsGeneration);
         Assert.Equal("gds", p.CityWorld);
         Assert.Equal("breathable", p.Atmosphere);
         Assert.Equal(0.0, p.FloraDensity);

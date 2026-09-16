@@ -1666,12 +1666,18 @@ public sealed partial class GameServer
     private string VendorThemeAt(Shared.State.PlayerState player)
         => (NearSettlementVendor(player) || NearSpaceStationVendor(player) || NearLandedTraderPilot(player) || NearBaseVendor(player))
            && NearestNpc(player, "vendor") is { } v
+           && WrapDistSq(player.Position, v.Pos) <= VendorThemeReach * VendorThemeReach
             ? v.Theme
             : string.Empty;
 
+    /// <summary>How far the vendor NPC itself may stand from the player for its theme to count: the 4-block stall
+    /// reach plus room for the NPC's post leash. Without it the nearest vendor ANYWHERE on the world decided the
+    /// theme — a player at one stall could trade another village's goods while its vendor slept at home.</summary>
+    private const float VendorThemeReach = 6f;
+
     /// <summary>True if the player is standing next to a settlement vendor (enables market barter there).</summary>
     public bool NearSettlementVendor(Shared.State.PlayerState player)
-        => NearMarker(player, "vendor", SettlementVendorReach);
+        => NearTradeMarker(player, SettlementVendorReach);
 
     /// <summary>True if the player is standing next to a settlement's mission board.</summary>
     public bool NearSettlementMissionBoard(Shared.State.PlayerState player)
@@ -1691,6 +1697,20 @@ public sealed partial class GameServer
 
         int z = (int)System.Math.Floor(player.Position.Z);
         return z >= s.Min.Z - margin && z <= s.Max.Z + margin;
+    }
+
+    /// <summary>True if any trading post — the classic vendor or a trading profession's post (2026-09) — is in reach.</summary>
+    private bool NearTradeMarker(Shared.State.PlayerState player, float reach)
+    {
+        foreach (var (markerType, pos) in _settlementMarkers)
+        {
+            if (NpcProfessions.IsTradeMarker(markerType) && WrapDistSq(player.Position, pos) <= reach * reach)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool NearMarker(Shared.State.PlayerState player, string type, float reach)

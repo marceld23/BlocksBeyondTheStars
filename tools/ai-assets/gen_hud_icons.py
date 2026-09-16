@@ -124,6 +124,21 @@ def shield():
     save(img, "vital_shield")
 
 
+def exposure():
+    img, d = canvas()
+    # thermometer (2026-09, the exposure meter on Titas): a tube with a bulb and three scale ticks
+    cx = W * 0.44
+    tube_w = W * 0.13
+    d.rounded_rectangle((cx - tube_w, W * 0.08, cx + tube_w, W * 0.66), radius=tube_w, outline=(255, 255, 255, 255), width=STROKE)
+    r = W * 0.19
+    by = W * 0.74
+    d.ellipse((cx - r, by - r, cx + r, by + r), fill=(255, 255, 255, 255))
+    d.rectangle((cx - tube_w * 0.35, W * 0.36, cx + tube_w * 0.35, by), fill=(255, 255, 255, 255))
+    for y in (0.20, 0.34, 0.48):
+        line(d, [(W * 0.66, W * y), (W * 0.80, W * y)], width=int(STROKE * 0.8))
+    save(img, "vital_exposure")
+
+
 def compass_n():
     img, d = canvas()
     # small diamond needle for the compass N marker backing
@@ -141,5 +156,9 @@ def crosshair_dot():
 
 
 if __name__ == "__main__":
-    for fn in (health, oxygen, energy, hunger, hull, shield, compass_n, crosshair_dot):
-        fn()
+    import sys as _sys
+
+    only = set(_sys.argv[1:])  # e.g. `exposure` — regenerate just the named icons
+    for fn in (health, oxygen, energy, hunger, hull, shield, exposure, compass_n, crosshair_dot):
+        if not only or fn.__name__ in only:
+            fn()

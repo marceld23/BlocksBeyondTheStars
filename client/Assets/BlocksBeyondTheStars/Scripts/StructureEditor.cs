@@ -151,6 +151,14 @@ namespace BlocksBeyondTheStars.Client
             M("cabin", new Color(0.55f, 0.75f, 0.95f)),      // one resident sleeps here (#1874)
             M("lounge", new Color(0.85f, 0.65f, 0.35f)),     // a canteen / bar seat the crew gathers at (#1874)
             M("room", new Color(0.75f, 0.55f, 0.85f)),       // furnish this room procedurally (#1828)
+            M("doctor", ProfessionColors[0]),                // 2026-09: the profession posts (NpcProfessions)
+            M("grocer", ProfessionColors[1]),
+            M("arms_dealer", ProfessionColors[2]),
+            M("sage", ProfessionColors[3]),
+            M("tamer", ProfessionColors[4]),
+            M("blockfarmer", ProfessionColors[5]),
+            M("streamer", ProfessionColors[6]),
+            M("reporter", ProfessionColors[7]),
             P("door"),                                       // #1877: docking ports — painted onto wall blocks
             P("wide"),
             P("ladder"),
@@ -170,6 +178,13 @@ namespace BlocksBeyondTheStars.Client
         };
 
         private static readonly Color PortColor = new Color(0.2f, 0.9f, 1f);
+
+        /// <summary>Marker colours of the eight profession posts, in <c>NpcProfessions.All</c> order.</summary>
+        private static readonly Color[] ProfessionColors =
+        {
+            new Color(0.95f, 0.35f, 0.40f), new Color(0.95f, 0.60f, 0.30f), new Color(0.45f, 0.50f, 0.40f), new Color(0.55f, 0.35f, 0.85f),
+            new Color(0.55f, 0.75f, 0.30f), new Color(0.70f, 0.55f, 0.35f), new Color(0.95f, 0.40f, 0.85f), new Color(0.35f, 0.55f, 0.95f),
+        };
         private static readonly Color LeakColor = new Color(1f, 0.2f, 0.2f);
 
         private EditorPaletteKit.Entry[] SettlementMarkers() => new[]
@@ -189,6 +204,14 @@ namespace BlocksBeyondTheStars.Client
             M("workshop", new Color(0.55f, 0.55f, 0.6f)),       // #1890: the craftsman's post — the room is a workshop
             M("lounge", new Color(0.85f, 0.65f, 0.35f)),        // an evening seat
             M("guard_post", new Color(0.55f, 0.2f, 0.6f)),      // a G.D.S. guardian
+            M("doctor", ProfessionColors[0]),                   // 2026-09: the profession posts — the room is furnished to fit
+            M("grocer", ProfessionColors[1]),
+            M("arms_dealer", ProfessionColors[2]),
+            M("sage", ProfessionColors[3]),
+            M("tamer", ProfessionColors[4]),
+            M("blockfarmer", ProfessionColors[5]),
+            M("streamer", ProfessionColors[6]),
+            M("reporter", ProfessionColors[7]),
             T(MaterialTokens.Wall, new Color(0.62f, 0.55f, 0.42f)), // #1890: material tokens — resolved per planet
             T(MaterialTokens.Accent, new Color(0.55f, 0.85f, 0.95f)),
             T(MaterialTokens.Roof, new Color(0.55f, 0.4f, 0.3f)),

@@ -846,6 +846,60 @@
     ]
   },
   {
+    "key": "titas", "minTerrainGeneration": 8, "exotic": true, "floraTheme": "ashen", "baseTemperature": -100, "nameKey": "planet.titas.name", "atmosphereHeight": 230, "cloudColor": 14606326, "cloudDensity": 0.5,
+    "terrainTags": [],
+    "baseHeight": 64, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "hills",
+    "terrainStyles": ["hills", "downs"],
+    "surfaceBlock": "snow", "subSurfaceBlock": "sulfur_stone", "deepBlock": "stone", "surfaceDepth": 6,
+    "caveThreshold": 0.76, "dataCacheRarity": 0.001,
+    "weather": "dynamic", "stormChance": 0.5, "dayLengthSeconds": 660, "worldRadius": 860, "floraDensity": 0.0, "treeDensity": 0.03, "creatureAbundance": "few", "atmosphere": "breathable", "spawnWeight": 1, "waterAbundance": 0.45,
+    "waterTint": "#d8c83a", "beachBlock": "sulfur_stone",
+    "ruinsBias": 0.0, "factoriesBias": 0.0,
+    "weatherVolatility": 0.9, "seasonAmplitude": 0.2,
+    "weatherEvents": { "blizzard": 3.0, "gale": 1.4, "fog": 0.6 },
+    "oncePerGalaxy": true, "fixedName": "Titas",
+    "restrictStructures": true, "allowedStructures": ["sps_labs", "net_fragments"],
+    "enemyDensity": 2.5, "snowCoverDepth": 10, "iceSheetDepth": 5, "hotZoneShare": 0.15, "deadForests": true,
+    "waterDamagePerSecond": 2, "maxAquaticSpecies": 1, "exposureMinutesCold": 40, "exposureMinutesHot": 30,
+    "biomes": [
+      { "surfaceBlock": "snow", "subSurfaceBlock": "sulfur_stone" },
+      { "surfaceBlock": "basalt", "subSurfaceBlock": "basalt", "treeDensityMul": 0.0, "hotZone": true, "temperature": 100 }
+    ],
+    "ores": [
+      { "block": "sulfur_ore", "rarity": 0.06, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "iron_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 6, "maxDepth": 2048 },
+      { "block": "silicate", "rarity": 0.05, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "cobalt_ore", "rarity": 0.02, "minDepth": 20, "maxDepth": 2048 }
+    ]
+  },
+  {
+    "key": "valuma", "waterTint": "auto", "minTerrainGeneration": 8, "exotic": true, "floraTheme": "temperate", "baseTemperature": 17, "nameKey": "planet.valuma.name", "atmosphereHeight": 230, "cloudColor": 15592941, "cloudDensity": 0.35,
+    "terrainTags": [],
+    "baseHeight": 64, "amplitude": 6, "terrainScale": 72.0, "terrainStyle": "flats",
+    "terrainStyles": ["flats", "downs"],
+    "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.8, "dataCacheRarity": 0.0008,
+    "weather": "dynamic", "stormChance": 0.2, "dayLengthSeconds": 620, "worldRadius": 900, "floraDensity": 0.3, "treeDensity": 0.004, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 1, "waterAbundance": 0.3,
+    "ruinsBias": 0.0, "factoriesBias": 0.0,
+    "weatherVolatility": 0.6, "seasonAmplitude": 0.2,
+    "weatherEvents": { "drizzle": 1.0, "fog": 1.0, "gale": 0.5 },
+    "calmTerrain": true, "peacefulFauna": true,
+    "restrictStructures": true, "allowedStructures": ["net_fragments"],
+    "authoredCreatures": ["sreekmakra"],
+    "biomes": [
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraDensityMul": 1.2, "treeDensityMul": 0.3 },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraTheme": "savanna", "floraDensityMul": 0.9, "treeDensityMul": 0.2 }
+    ],
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.06, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.05, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "aluminium_ore", "rarity": 0.03, "minDepth": 6, "maxDepth": 2048 },
+      { "block": "lithium_ore", "rarity": 0.02, "minDepth": 12, "maxDepth": 2048 }
+    ]
+  },
+  {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,

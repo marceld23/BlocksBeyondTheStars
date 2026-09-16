@@ -774,6 +774,7 @@ public sealed partial class GameServer
         BeginAuthoredCasting(station.Id); // #1150: at most one authored face per place
         foreach (var (type, pos) in station.Markers)
         {
+            var profession = NpcProfessions.ByMarker(type);
             string? role = type switch
             {
                 "vendor" => "vendor",
@@ -781,7 +782,7 @@ public sealed partial class GameServer
                 "quarters" => "settler",
                 "hangar" => "settler", // a dockhand
                 "greenhouse" => "settler", // the hydroponics bay's gardener (#628)
-                _ => null,
+                _ => profession?.Role,
             };
 
             if (role is null)
@@ -799,7 +800,9 @@ public sealed partial class GameServer
 
             // Each station vendor gets its own profession (B55) so multiple traders on one station sell different
             // goods; other crew stay "traders"-themed. The first vendor keeps the station's "traders" identity.
-            string npcTheme = role == "vendor" ? VendorThemeFor(station.Id, vendorIndex++, "traders") : "traders";
+            // A profession keeps its own theme and never shifts the classic vendors' themes (no vendorIndex step).
+            string npcTheme = profession is { Trades: true } ? profession.Theme
+                : role == "vendor" ? VendorThemeFor(station.Id, vendorIndex++, "traders") : "traders";
             bool robotic = npcTheme == "researchers"; // research staff are service androids
 
             // Markers sit centred in the air cell above the floor (+0.5); drop the NPC's feet onto the
@@ -813,7 +816,17 @@ public sealed partial class GameServer
                 npc.Name = CoinGiverName(station.Id); // the mission-giver's name matches its missions (item 13)
             }
 
-            ApplyAuthoredCharacter(npc, "station", station.Id); // #1128: a pack face may claim this slot
+            if (profession != null)
+            {
+                ApplyProfession(npc, profession);
+                npc.Work = standing;
+                npc.HasWork = true;
+            }
+            else
+            {
+                ApplyAuthoredCharacter(npc, "station", station.Id); // #1128: a pack face may claim this slot
+            }
+
             npc.RoutineEnabled = true; // #1867: the crew keeps the station clock — a post by day, a bunk at night
             _npcs.Add(npc);
             added++;
@@ -826,7 +839,7 @@ public sealed partial class GameServer
         // board) — the filler crew then gathers around those, never around the bare spawn pad.
         bool playerStation = station.Id.StartsWith("pstation:", System.StringComparison.Ordinal);
         var spots = station.Markers
-            .Where(m => !playerStation || (m.Type is "vendor" or "mission_board" && StationMarkerStaffable(station, m.Type, m.Pos)))
+            .Where(m => !playerStation || (NpcProfessions.IsStaffedPostMarker(m.Type) && StationMarkerStaffable(station, m.Type, m.Pos)))
             .Select(m => m.Pos).ToList();
         for (int i = 0; i < extra && spots.Count > 0; i++)
         {
@@ -878,7 +891,15 @@ public sealed partial class GameServer
 
     /// <summary>True if the player is at a station vendor, enabling market barter there.</summary>
     public bool NearSpaceStationVendor(Shared.State.PlayerState player)
-        => NearStationMarker(player, "vendor", StationMarkerReach);
+    {
+        if (!_boardedStation.TryGetValue(player.PlayerId, out var stationId) || !_stationsById.TryGetValue(stationId, out var station))
+        {
+            return false;
+        }
+
+        // The classic trading post or a trading profession's post (2026-09).
+        return station.Markers.Any(m => NpcProfessions.IsTradeMarker(m.Type) && player.Position.DistanceSquared(m.Pos) <= StationMarkerReach * StationMarkerReach);
+    }
 
     /// <summary>True if the player is at a station mission board.</summary>
     public bool NearSpaceStationMissionBoard(Shared.State.PlayerState player)

@@ -389,6 +389,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Picks a reply in the active NPC dialogue (#1127). The server owns the walk.</summary>
         public void SendNpcDialogChoice(int choiceIndex) => Send(new NpcDialogChoiceIntent { ChoiceIndex = choiceIndex });
 
+        /// <summary>Answers a reporter's interview (2026-09 professions) — the server screens and stores it as local news.</summary>
+        public void SendInterviewAnswer(int npcId, string text) => Send(new InterviewAnswerIntent { NpcId = npcId, Text = text ?? string.Empty });
+
         /// <summary>Skips the VEGA onboarding (grants the whole stage chain server-side) — or restarts it
         /// from the intro when <paramref name="restart"/> is set (the way back after a skip).</summary>
         public void SendSkipOnboarding(bool restart = false) => Send(new SkipOnboardingIntent { Restart = restart });

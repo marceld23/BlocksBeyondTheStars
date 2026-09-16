@@ -114,6 +114,18 @@ public sealed class UniverseGenerator
             total += w;
         }
 
+        // Once-per-galaxy types (2026-09, Titas): the first roll in the ORIGINAL systems keeps it; any other roll of it — a
+        // second body, a moon, a system a growing galaxy appended later — re-picks from the table without those types,
+        // with the same hash, so the draw stays deterministic and the first N systems re-derive byte for byte.
+        var repeatable = _gen1Weights.FindAll(e => _content.GetPlanet(e.key)?.OncePerGalaxy != true);
+        int repeatableTotal = 0;
+        foreach (var (_, w) in repeatable)
+        {
+            repeatableTotal += w;
+        }
+
+        var seenOnce = new HashSet<string>(System.StringComparer.Ordinal);
+
         for (int si = 1; si < galaxy.Systems.Count; si++)
         {
             var system = galaxy.Systems[si];
@@ -132,14 +144,39 @@ public sealed class UniverseGenerator
                 }
 
                 int roll = (int)((h >> 8) % (ulong)total) + 1;
+                string? picked = null;
                 foreach (var (key, w) in _gen1Weights)
                 {
                     roll -= w;
                     if (roll <= 0)
                     {
-                        body.PlanetType = key;
+                        picked = key;
                         break;
                     }
+                }
+
+                if (picked != null && _content.GetPlanet(picked)?.OncePerGalaxy == true
+                    && (body.Kind != CelestialKind.Planet || si >= _desc.StarSystemCount || !seenOnce.Add(picked)))
+                {
+                    picked = null;
+                    if (repeatableTotal > 0)
+                    {
+                        int again = (int)((h >> 8) % (ulong)repeatableTotal) + 1;
+                        foreach (var (key, w) in repeatable)
+                        {
+                            again -= w;
+                            if (again <= 0)
+                            {
+                                picked = key;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (picked != null)
+                {
+                    body.PlanetType = picked;
                 }
             }
         }
@@ -897,6 +934,24 @@ public sealed class UniverseGenerator
             else if (b.Kind == CelestialKind.SpaceStation && b.Name == $"{old} Station")
             {
                 b.Name = $"{newName} Station";
+            }
+        }
+    }
+
+    /// <summary>Fixed names (2026-09, Titas): every body whose FINAL type carries <see cref="PlanetType.FixedName"/> is called
+    /// exactly that — lettered moons and an attributive station follow. The server calls it after the per-save type pins,
+    /// so a body only ever takes the name of the type it really is. Idempotent.</summary>
+    public static void ApplyFixedNames(Galaxy galaxy, GameContent content)
+    {
+        foreach (var system in galaxy.Systems)
+        {
+            foreach (var body in system.Bodies)
+            {
+                if (body.Kind == CelestialKind.Planet && content.GetPlanet(body.PlanetType ?? string.Empty) is { FixedName.Length: > 0 } p
+                    && body.Name != p.FixedName)
+                {
+                    RenameWithMoons(system, body, p.FixedName);
+                }
             }
         }
     }

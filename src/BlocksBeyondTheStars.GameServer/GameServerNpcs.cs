@@ -189,6 +189,12 @@ public sealed partial class GameServer
             "miners" => new uint[] { 0xD97B29, 0xA8ADB5, 0x8A6A45, 0xE0B23C, 0x6E7B8A, 0xB5651D },
             "traders" => new uint[] { 0x3D7EBF, 0x8A63BF, 0xD9AE33, 0x2FA48E, 0xC24B5A, 0x2E5E8C },
             "researchers" => new uint[] { 0xECECEC, 0x5FB6E0, 0xBFD7EA, 0x9AD9C0, 0xC9C2E8, 0xE8D9A0 },
+            "medics" => new uint[] { 0xF2F4F5, 0x9AD9C0, 0xE6F0F7, 0x7FC8A9 },
+            "grocer" => new uint[] { 0xC24B5A, 0xE0B23C, 0x5C9950, 0xF2E3C6 },
+            "arms" => new uint[] { 0x3E4A3D, 0x5C5346, 0x2F3640, 0x7A5C3A },
+            "sage" => new uint[] { 0x5E3391, 0x2E5E8C, 0x8A63BF, 0xB5A36B },
+            "tamer" => new uint[] { 0x8A6A45, 0x6E8F3A, 0xA37B4F, 0x5C7A4A },
+            "blocks" => new uint[] { 0xD97B29, 0x8A8F96, 0x6B5C4A, 0xE0B23C },
             _ => new uint[] { 0x5C9950, 0xA37B4F, 0x7C9950, 0xB3A05C, 0x6B8FA3, 0x9C6B3C }, // settlers (default)
         };
 

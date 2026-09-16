@@ -104,6 +104,19 @@ public sealed partial class GameServer
                 }
 
                 break;
+            case "sps_cache": // an abandoned SPS research station (2026-09, Titas): old tech, research data, rusted panels
+                AddRandom(new[] { "circuit_board", "energy_cell_1", "cable", "rusted_panel" }, 3, 1, 3);
+                if (rng.NextDouble() < 0.5)
+                {
+                    AddRandom(new[] { "data_fragment" }, 1, 1, 2);
+                }
+
+                if (rng.NextDouble() < 0.12 && _content.GetItem("access_code") is not null)
+                {
+                    items.Add(new ItemStack("access_code", 1)); // the Service's own codes
+                }
+
+                break;
             case "relic_cache": // buried at a rune monument — archaeology, not salvage
                 AddRandom(new[] { "data_fragment", "crystal", "silicate" }, 2, 1, 3);
                 if (rng.NextDouble() < 0.4)

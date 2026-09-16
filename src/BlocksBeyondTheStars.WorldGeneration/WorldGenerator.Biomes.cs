@@ -18,8 +18,9 @@ public sealed partial class WorldGenerator
     internal readonly struct BiomeResolved
     {
         public BiomeResolved(BlockId surface, BlockId sub, double floraMul, double treeMul, FloraThemes.Theme theme,
-            double reliefMul = 1.0)
+            double reliefMul = 1.0, bool hot = false)
         {
+            Hot = hot;
             Surface = surface;
             Sub = sub;
             FloraMul = floraMul;
@@ -36,6 +37,9 @@ public sealed partial class WorldGenerator
 
         /// <summary>Relief multiplier under this biome (#1645, generation 1 only; 1 = the planet's relief).</summary>
         public double ReliefMul { get; }
+
+        /// <summary>The hot-zone biome (generation 8, Titas) — placed by the hot-zone field, not the altitude mix.</summary>
+        public bool Hot { get; }
     }
 
     /// <summary>
@@ -84,7 +88,7 @@ public sealed partial class WorldGenerator
             var b = planet.Biomes[order[i]];
             var theme = string.IsNullOrWhiteSpace(b.FloraTheme) ? planetTheme : FloraThemes.Resolve(b.FloraTheme);
             list.Add(new BiomeResolved(ResolveBlock(b.SurfaceBlock), ResolveBlock(b.SubSurfaceBlock),
-                b.FloraDensityMul, b.TreeDensityMul, theme, b.ReliefMul));
+                b.FloraDensityMul, b.TreeDensityMul, theme, b.ReliefMul, b.HotZone));
         }
 
         return list;
@@ -155,6 +159,19 @@ public sealed partial class WorldGenerator
     /// normalised ALTITUDE (#476), so a planet's biome list reads bottom-to-top: entry 0 hugs the lowlands,
     /// the last entry caps the peaks. Regions stay large so per-biome weather covers a meaningful area.</summary>
     private int BiomeIndex(WorldCalibration calib, long seed, int worldX, int worldZ, int count, int surfaceY)
+    {
+        if (calib.HotBiome >= 0)
+        {
+            // Generation 8 (Titas): the hot-zone field claims its columns; the classic mix spreads over the other biomes.
+            return HotZoneAt(calib, seed, worldX, worldZ)
+                ? calib.HotBiome
+                : calib.CoolBiomes[ClassicBiomeIndex(calib, seed, worldX, worldZ, calib.CoolBiomes.Length, surfaceY)];
+        }
+
+        return ClassicBiomeIndex(calib, seed, worldX, worldZ, count, surfaceY);
+    }
+
+    private int ClassicBiomeIndex(WorldCalibration calib, long seed, int worldX, int worldZ, int count, int surfaceY)
     {
         double n = Noise.FbmTorus(seed ^ 0x0B10E, worldX, worldZ, _circumference,
             WorldConstants.LatitudePeriodFor(_circumference), 360.0, octaves: 3);

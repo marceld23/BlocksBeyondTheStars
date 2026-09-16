@@ -20,7 +20,7 @@ public sealed partial class WorldGenerator
     /// <summary>Solid ground with a real surface: the regimes never touch sky worlds, void interiors or
     /// cratered regolith (whose flat identity is the point).</summary>
     private bool RegimeGround(PlanetType planet)
-        => !planet.FloatingIslands && !planet.Void && !planet.Cratered && !_crateredWorld;
+        => !planet.FloatingIslands && !planet.Void && !planet.Cratered && !_crateredWorld && !CalmTerrain(planet);
 
     private bool HasTilt(PlanetType planet, long seed)
         => RegimeGround(planet) && (Noise.Hash(seed ^ 0x71170001, 3, 5, 7) & 0xFF) < 256 * TiltChance;

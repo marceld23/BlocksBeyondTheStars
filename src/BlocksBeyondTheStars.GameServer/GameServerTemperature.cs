@@ -87,8 +87,20 @@ public sealed partial class GameServer
             p.SuitClimateActive = false;
             session.TemperatureSeverity = 0f;
             session.TemperatureScanIn = 0; // rescan immediately after stepping back out
+            p.Exposure = 0f; // 2026-09: the ship and the station reset the exposure meter
+            session.ExposureActive = false;
+            session.ExposureFullSeconds = 0;
+            session.ExposureWarned = 0;
             return;
         }
+
+        if (ExposurePlanet() is { } exposurePlanet && !p.InEva && !p.AboveAtmosphere)
+        {
+            TickExposure(session, exposurePlanet, dt);
+            return;
+        }
+
+        session.ExposureActive = false;
 
         session.TemperatureScanIn -= dt;
         if (session.TemperatureScanIn <= 0)
@@ -135,6 +147,11 @@ public sealed partial class GameServer
 
         var (weather, _) = BiomeWeatherAt(p.Position);
         float t = CurrentTemperature(weather, _dayFraction, p.Position);
+        if (InSpsLab(p.Position))
+        {
+            t = SpsLabInsideC; // 2026-09: the abandoned SPS modules are colder than the snow outside them feels
+        }
+
         t = ApplyLocalSources(p.Position, t);
         if (InCityShelter(p.Position))
         {
@@ -150,6 +167,115 @@ public sealed partial class GameServer
         }
 
         return severity;
+    }
+
+    // --- Exposure meter (2026-09, Titas: "outside, the cold kills you after 40 minutes, the heat after 30") ---
+
+    /// <summary>A heated place drains a full meter in this many seconds.</summary>
+    private const double ExposureRecoverSeconds = 60.0;
+
+    /// <summary>Seconds of the rising damage ramp at a full meter: 0.5 HP/s, +0.1 per second, capped like the classic drain.</summary>
+    private const float ExposureDamageStart = 0.5f, ExposureDamageRise = 0.1f;
+
+    /// <summary>The active world's type when it times cold and heat instead of draining the suit (generation 8), else null.</summary>
+    private Shared.Definitions.PlanetType? ExposurePlanet()
+    {
+        var planet = _world.Planet;
+        return planet is { Void: false } && planet.ExposureMinutesCold > 0
+            && _generator.TerrainGeneration >= Shared.World.WorldDescription.ExtremePlanetsGeneration
+            ? planet
+            : null;
+    }
+
+    /// <summary>How much longer the carried thermal liner makes the timer last: I ×1.25, II ×1.5, III ×2.</summary>
+    private float ExposureGearFactor(Shared.State.PlayerState p)
+    {
+        float insulation = ThermalInsulation(p);
+        return insulation >= 0.84f ? 2f : insulation >= 0.64f ? 1.5f : insulation >= 0.39f ? 1.25f : 1f;
+    }
+
+    /// <summary>How much longer the environment tier makes the timer last: Light ×1.5, Hard ×0.75.</summary>
+    private float ExposureDifficultyFactor()
+    {
+        float severity = Rules.HazardSeverityFactor;
+        return severity < 1f ? 1.5f : severity > 1f ? 0.75f : 1f;
+    }
+
+    /// <summary>The seconds a bare meter takes to fill here (before the roof halving) — exposed for tests.</summary>
+    public double ExposureSecondsForTest(string playerId, bool hot)
+    {
+        var planet = ExposurePlanet();
+        var session = FindSessionByPlayerId(playerId);
+        if (planet is null || session is null)
+        {
+            return 0;
+        }
+
+        return ExposureSeconds(session.State, planet, hot);
+    }
+
+    private double ExposureSeconds(Shared.State.PlayerState p, Shared.Definitions.PlanetType planet, bool hot)
+    {
+        double minutes = hot && planet.ExposureMinutesHot > 0 ? planet.ExposureMinutesHot : planet.ExposureMinutesCold;
+        return minutes * 60.0 * ExposureGearFactor(p) * ExposureDifficultyFactor();
+    }
+
+    /// <summary>The meter on a timed-exposure type: fills outside (half speed under a roof), drains in warmth, hurts at full
+    /// with a rising damage, and VEGA warns at 50, 75 and 90 %.</summary>
+    private void TickExposure(PlayerSession session, Shared.Definitions.PlanetType planet, double dt)
+    {
+        var p = session.State;
+        p.SuitClimateActive = false; // the suit battery is not the buffer here — the meter is
+        session.ExposureActive = true;
+        session.TemperatureScanIn -= dt;
+        if (session.TemperatureScanIn <= 0)
+        {
+            session.TemperatureScanIn = TemperatureScanInterval;
+            session.TemperatureSeverity = ComputeTemperatureSeverity(session); // keeps the HUD/VEGA reading current
+            var cell = new Vector3i((int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y), (int)System.Math.Floor(p.Position.Z));
+            session.ExposureHot = _generator.IsHotZoneAt(planet, cell.X, cell.Z) && session.EffectiveTemperatureC > ComfortHighC;
+            session.ExposureRoofed = RoofedAt(p.Position);
+            session.ExposureSheltered = InAnyBaseZone(cell) || InSealedBaseRoom(cell) || session.TemperatureSeverity <= 0f;
+            if (InSpsLab(p.Position))
+            {
+                ShipAiHintOnce(session, "sps_lab"); // the first step into an old SPS module
+            }
+        }
+
+        if (session.ExposureSheltered)
+        {
+            p.Exposure = System.Math.Max(0f, p.Exposure - (float)(dt / ExposureRecoverSeconds));
+        }
+        else
+        {
+            double seconds = System.Math.Max(1.0, ExposureSeconds(p, planet, session.ExposureHot));
+            double rate = (session.ExposureRoofed ? 0.5 : 1.0) / seconds;
+            p.Exposure = System.Math.Min(1f, p.Exposure + (float)(dt * rate));
+        }
+
+        if (p.Exposure >= 1f)
+        {
+            session.ExposureFullSeconds += dt;
+            float dps = System.Math.Min(MaxTemperatureDamagePerSecond, ExposureDamageStart + ExposureDamageRise * (float)session.ExposureFullSeconds);
+            p.Health = System.Math.Max(0f, p.Health - (float)(dt * dps));
+            session.HazardDeathReason = session.ExposureHot ? "@srv.death.burned" : "@srv.death.froze";
+        }
+        else
+        {
+            session.ExposureFullSeconds = 0;
+        }
+
+        int level = p.Exposure >= 0.9f ? 3 : p.Exposure >= 0.75f ? 2 : p.Exposure >= 0.5f ? 1 : 0;
+        if (level > session.ExposureWarned)
+        {
+            session.ExposureWarned = level;
+            string kind = session.ExposureHot ? "hot" : "cold";
+            SendVegaLine(session, $"vega.sys.exposure_{kind}_{(level == 1 ? 50 : level == 2 ? 75 : 90)}", 3);
+        }
+        else if (p.Exposure < 0.4f)
+        {
+            session.ExposureWarned = 0;
+        }
     }
 
     /// <summary>Test/util: expose the local-source override (mirrors <see cref="NearHealTankForTest"/>).</summary>

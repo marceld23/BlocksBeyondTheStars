@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -58,6 +59,9 @@ public sealed partial class GameServer
         public readonly List<Vector3i> Trays = new();       // hydro tray cells (a crop grows on top)
         public readonly List<Vector3i> Saplings = new();    // planted sapling cells
         public readonly List<Vector3i> SentryPosts = new(); // sentry_post cells
+
+        /// <summary>Profession post cells by job (2026-09), in index order.</summary>
+        public readonly Dictionary<string, List<Vector3i>> ProfessionPosts = new(System.StringComparer.Ordinal);
         public readonly HashSet<string> MissionIds = new(); // the base board's coined missions (#1865)
         public bool BoardStocked;
         public bool Dirty = true;
@@ -70,6 +74,7 @@ public sealed partial class GameServer
     private ushort _ixBed, _ixVendor, _ixBoard, _ixWorkbench, _ixForge, _ixTray, _ixSapling, _ixSentry;
     private readonly HashSet<ushort> _ixCrops = new();
     private readonly HashSet<ushort> _ixContainers = new();
+    private readonly Dictionary<ushort, string> _ixProfessionPosts = new(); // post block id → profession job
     private ushort[]? _ixBlocks;
     private static readonly int[] SeatShapeIndices = { (int)BlockShape.Chair, (int)BlockShape.Bench };
 
@@ -107,7 +112,17 @@ public sealed partial class GameServer
             }
         }
 
+        foreach (var profession in NpcProfessions.All)
+        {
+            ushort id = Id(profession.PostBlock);
+            if (id != 0)
+            {
+                _ixProfessionPosts[id] = profession.Job;
+            }
+        }
+
         var all = new HashSet<ushort> { _ixBed, _ixVendor, _ixBoard, _ixWorkbench, _ixForge, _ixTray, _ixSapling, _ixSentry };
+        all.UnionWith(_ixProfessionPosts.Keys);
         all.UnionWith(_ixCrops);
         all.UnionWith(_ixContainers);
         all.Remove(0);
@@ -143,6 +158,7 @@ public sealed partial class GameServer
         idx.Trays.Clear();
         idx.Saplings.Clear();
         idx.SentryPosts.Clear();
+        idx.ProfessionPosts.Clear();
 
         int circ = _world.Circumference;
         int reach = System.Math.Min(BaseWallReach(b), BaseIndexHalfXZ);
@@ -172,6 +188,11 @@ public sealed partial class GameServer
         // Deterministic order: residents take beds and seats in this order, the gardener walks its sites in it.
         System.Comparison<Vector3i> order = (p, q) => p.Y != q.Y ? p.Y.CompareTo(q.Y) : p.Z != q.Z ? p.Z.CompareTo(q.Z) : p.X.CompareTo(q.X);
         foreach (var list in new[] { idx.BedHeads, idx.Seats, idx.VendorPosts, idx.Boards, idx.Containers, idx.Workbenches, idx.Forges, idx.Crops, idx.Trays, idx.Saplings, idx.SentryPosts })
+        {
+            list.Sort(order);
+        }
+
+        foreach (var list in idx.ProfessionPosts.Values)
         {
             list.Sort(order);
         }
@@ -234,6 +255,15 @@ public sealed partial class GameServer
         else if (block == _ixSentry)
         {
             idx.SentryPosts.Add(cell);
+        }
+        else if (_ixProfessionPosts.TryGetValue(block, out var professionJob))
+        {
+            if (!idx.ProfessionPosts.TryGetValue(professionJob, out var posts))
+            {
+                idx.ProfessionPosts[professionJob] = posts = new List<Vector3i>();
+            }
+
+            posts.Add(cell);
         }
 
         if (FurnitureShapes.IsSeat(form) && block != _ixBed)

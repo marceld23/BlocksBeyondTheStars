@@ -145,6 +145,11 @@ public static class SettlementGenerator
     /// <summary>The craftsman's post in a workshop (#1885); the room is furnished as a workshop.</summary>
     public const string WorkshopMarker = "workshop";
 
+    /// <summary>How the room around a profession post is furnished (2026-09, <see cref="NpcProfessions"/>): the doctor's a
+    /// medbay, the grocer's a market, the reporter's an office. Null for every other marker.</summary>
+    internal static RoomFurnisher.RoomRole? ProfessionRoom(string markerType)
+        => NpcProfessions.ByMarker(markerType) is { } p && System.Enum.TryParse<RoomFurnisher.RoomRole>(p.Room, out var r) ? r : null;
+
     /// <summary>The most floor cells a <see cref="RoomMarker"/> flood-fills — a marker on open ground stops here.</summary>
     private const int RoomCap = 256;
 
@@ -1055,6 +1060,7 @@ public static class SettlementGenerator
                 else if (m.Type == "mission_board" && role != RoomFurnisher.RoomRole.Market) role = RoomFurnisher.RoomRole.Board;
                 else if (m.Type == TavernMarker && role == RoomFurnisher.RoomRole.House) role = RoomFurnisher.RoomRole.Tavern; // #1885
                 else if (m.Type == WorkshopMarker && role == RoomFurnisher.RoomRole.House) role = RoomFurnisher.RoomRole.Workshop;
+                else if (role == RoomFurnisher.RoomRole.House && ProfessionRoom(m.Type) is { } professionRoom) role = professionRoom; // 2026-09
             }
 
             var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (n * 7919)));

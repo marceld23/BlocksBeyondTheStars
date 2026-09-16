@@ -131,6 +131,11 @@ public sealed partial class GameServer
             _npcs.Add(npc);
         }
 
+        // The professions (2026-09): one extra resident per profession post, after everyone above and with a generator of
+        // their own — a settlement without these posts (every settlement of an older world) spawns exactly the people it
+        // always did.
+        SpawnProfessionResidents(settlement, freeBeds, seats, ref seatCursor);
+
         // The G.D.S. guardians (#1793): machines at their posts, never asleep, no bed.
         foreach (var (type, pos) in settlement.Markers)
         {

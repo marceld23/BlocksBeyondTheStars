@@ -491,6 +491,9 @@ public sealed partial class GameServer
             _repo.SaveMetadata(_meta);
         }
 
+        // 2026-09: a type with a fixed name (Titas) names its body — after the pins, so the name follows the final type.
+        UniverseGenerator.ApplyFixedNames(_galaxy, _content);
+
         // Finale (P6): the galaxy is regenerated from seed each start, so re-append the Guardian system for an
         // already-revealed save (after start-body selection, so it never affects the spawn world). A fresh
         // reveal adds it live via RevealGuardianSystemIfReady.
@@ -613,51 +616,66 @@ public sealed partial class GameServer
             }
             else
             {
-                if (_config.PlaceSettlements)
+                // 2026-09 (generation 8): a type with a structure whitelist (Titas, Valuma) stamps only what it names.
+                bool restricted = planet.RestrictStructures && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
+                bool Allowed(string kind) => !restricted || planet.AllowedStructures.Contains(kind);
+
+                if (_config.PlaceSettlements && !restricted)
                 {
                     StampSettlement();
                 }
 
-                if (_config.PlaceRuins)
+                if (_config.PlaceRuins && !restricted)
                 {
                     StampRuins(); // standalone fallen-city ruins (unprotected) — after settlements so they avoid them
                 }
 
-                StampBanditCamps(); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
+                if (!restricted)
+                {
+                    StampBanditCamps(); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
+                }
 
-                if (_config.PlaceMonuments)
+                StampSpsLabs(); // 2026-09: abandoned SPS research stations — only on a type that allows them (Titas)
+
+                if (_config.PlaceMonuments && !restricted)
                 {
                     StampMonuments(); // eroded rune relics (unprotected) — the only surface feature airless bodies get
                 }
 
-                if (_config.PlaceFactories)
+                if (_config.PlaceFactories && !restricted)
                 {
                     StampFactories(); // rare industrial factories (protected until claimed) — avoid settlements
                 }
 
-                if (_config.PlaceWrecks)
+                if (_config.PlaceWrecks && !restricted)
                 {
                     StampWreck();
                 }
 
-                if (_config.PlaceVaults)
+                if (_config.PlaceVaults && !restricted)
                 {
                     StampVaults(); // buried vault ruins ("Welten reicher" W-R3) — 0-2 per world, loot via containers
                 }
 
-                if (_config.PlaceDataCubes)
+                if (_config.PlaceDataCubes && !restricted)
                 {
                     StampDataCubes(); // minigame download cubes — 0-N per world (many bodies get none)
                 }
 
-                StampNetFragments(); // story net fragments scattered on the surface (P2; self-skips when story off / Void)
+                if (Allowed("net_fragments"))
+                {
+                    StampNetFragments(); // story net fragments scattered on the surface (P2; self-skips when story off / Void)
+                }
 
-                if (_config.PlaceChests)
+                if (_config.PlaceChests && !restricted)
                 {
                     StampChests(); // rare standalone treasure caches (0-N per body)
                 }
 
-                StampUniqueSites(); // #1129: this body may carry one of the galaxy's one-of-a-kind places
+                if (!restricted)
+                {
+                    StampUniqueSites(); // #1129: this body may carry one of the galaxy's one-of-a-kind places
+                }
             }
         }
 
@@ -997,12 +1015,14 @@ public sealed partial class GameServer
         MarkArrivedOnBody(session, session.CurrentLocationId); // the home body is a quick-travel target from the start
         RestoreFleet(session);
         MigrateBaseSettlerMemory(session); // pre-#1262 saves: settler keyed by base NAME → duplicates per rename
+        int restoredPad = session.AssignedPadIndex;
         RestoreLandingPad(session);
         RecomputeShipCombatStats();
         if (_config.PlaceStarterShip)
         {
             PlaceLandedShip(); // park this player's ship object on their world
             session.State.RespawnPoint = _healTank;
+            LeaveMoltenPad(session, restoredPad);
         }
 
         PersistFleet(session);
@@ -1081,6 +1101,45 @@ public sealed partial class GameServer
         if (idx >= _landingPads.Count || PadOccupiedByOther(session.CurrentLocationId, idx, session.State.PlayerId))
         {
             session.AssignedPadIndex = -1;
+            return;
+        }
+
+        // A save whose ship stands in a lava shaft (terrain generation 7 and older keep their pads): release the pad
+        // when a better one is free, so PlaceLandedShip parks the ship there ("landed in the lava", 2026-09-15).
+        if (_landingPads[idx].Molten)
+        {
+            int better = PreferredFreePadIndex(session.CurrentLocationId, _landingPads, session.State.PlayerId);
+            if (better >= 0 && !_landingPads[better].Molten)
+            {
+                session.AssignedPadIndex = -1;
+            }
+        }
+    }
+
+    /// <summary>After a ship moved off a lava pad on load: a player saved aboard, or standing over that pad's footprint,
+    /// wakes aboard the re-parked ship instead of between walls of lava.</summary>
+    private void LeaveMoltenPad(PlayerSession session, int previousPad)
+    {
+        if (previousPad < 0 || previousPad >= _landingPads.Count || session.AssignedPadIndex == previousPad || !_shipPlaced)
+        {
+            return;
+        }
+
+        var old = _landingPads[previousPad];
+        if (!old.Molten || InSpace(session.State.PlayerId))
+        {
+            return;
+        }
+
+        var pos = session.State.Position;
+        int margin = old.Radius + 4;
+        bool overOldPad = System.Math.Abs(WorldConstants.WrapDeltaX((int)System.Math.Floor(pos.X) - old.CenterX, _world.Circumference)) <= margin
+            && System.Math.Abs((int)System.Math.Floor(pos.Z) - old.CenterZ) <= margin;
+        if (overOldPad || session.State.AboardShip)
+        {
+            session.State.Position = _healTank;
+            session.State.AboardShip = true;
+            _log.Info($"'{session.State.Name}': ship moved off lava pad {previousPad + 1} to pad {session.AssignedPadIndex + 1}.");
         }
     }
 
@@ -1527,9 +1586,11 @@ public sealed partial class GameServer
             Guard("TickWeather", deltaSeconds, TickWeather);
             Guard("TickFlora", deltaSeconds, TickFlora);
             Guard("TickCreatures", deltaSeconds, TickCreatures);
+            Guard("TickSreekmakra", deltaSeconds, TickSreekmakra); // 2026-09: Valuma's shapeshifter and mood (1 Hz)
             Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
             Guard("TickNpcPaths", deltaSeconds, TickNpcPaths); // #1866: at most one NPC path search per tick
             Guard("TickNpcs", deltaSeconds, TickNpcs);
+            Guard("TickProfessions", deltaSeconds, TickProfessions); // the streamer asks for photos, the tamer's pet follows (2026-09)
             Guard("TickStationStaffing", deltaSeconds, TickStationStaffing); // #1487: crew only staffs posts in sealed rooms
             Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
             Guard("TickDoors", deltaSeconds, TickDoors);
@@ -1753,14 +1814,14 @@ public sealed partial class GameServer
             // Above the atmosphere (built a tower up into space) the air runs out too, even on a breathable
             // world — the suit tank drains until the player descends back below the line. Life support wins
             // over the altitude line as well, so a base founded on a peak above it still breathes.
-            if (!submerged && (lifeSupport || (!p.AboveAtmosphere && !p.InEva && AtmosphereBreathable)))
+            if (!submerged && (lifeSupport || (!p.AboveAtmosphere && !p.InEva && AtmosphereBreathable && !InSpsLab(p.Position)))) // 2026-09: a lab module holds no air
             {
                 // Aboard the ship (life support), boarded on a station (its life support), oxygen disabled
                 // by rules, or a breathable atmosphere: regenerate, no drain (up to the tank capacity).
                 // Health regen never revives a dead player (0 HP) — that would outrun the death check
                 // below and quietly skip the respawn on breathable worlds.
                 p.Oxygen = System.Math.Min(maxOxygen, p.Oxygen + (float)(dt * 25));
-                if (p.Health > 0f)
+                if (p.Health > 0f && session.ToxicWaterSeconds <= ToxicWaterGraceSeconds && p.Exposure < 1f) // 2026-09: toxic water and a full exposure meter stop the regen
                 {
                     p.Health = System.Math.Min(100f, p.Health + (float)(dt * 2));
                 }
@@ -1790,6 +1851,8 @@ public sealed partial class GameServer
                 }
             }
 
+            session.HazardDeathReason = null; // set below by a hazard with its own death line (2026-09)
+
             // Lava burns (reduced by armor).
             if (InLava(p.Position))
             {
@@ -1801,6 +1864,9 @@ public sealed partial class GameServer
             {
                 p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dt * 10)));
             }
+
+            // Toxic water (2026-09, Titas): after a short grace the water itself burns — standing on its ice is safe.
+            TickToxicWater(session, dt);
 
             // Extreme heat / cold / vacuum stress the suit (#666): climate control drains suit energy
             // first (insulation gear slows it), an empty suit means slow exposure damage.
@@ -1828,7 +1894,7 @@ public sealed partial class GameServer
 
             if (p.Health <= 0f)
             {
-                RespawnPlayer(session, "@srv.death.critical");
+                RespawnPlayer(session, session.HazardDeathReason ?? "@srv.death.critical");
                 continue;
             }
 
@@ -1842,9 +1908,11 @@ public sealed partial class GameServer
                 bool changed = System.Math.Abs(p.Health - session.LastSentHealth) > 0.4f
                     || System.Math.Abs(p.Oxygen - session.LastSentOxygen) > 0.4f
                     || System.Math.Abs(p.SuitEnergy - session.LastSentEnergy) > 0.4f
-                    || System.Math.Abs(p.Hunger - session.LastSentHunger) > 0.4f;
+                    || System.Math.Abs(p.Hunger - session.LastSentHunger) > 0.4f
+                    || System.Math.Abs(p.Exposure - session.LastSentExposure) > 0.004f;
                 if (changed)
                 {
+                    session.LastSentExposure = p.Exposure;
                     session.LastSentHealth = p.Health;
                     session.LastSentOxygen = p.Oxygen;
                     session.LastSentEnergy = p.SuitEnergy;
@@ -1915,6 +1983,45 @@ public sealed partial class GameServer
         var pos = new BlocksBeyondTheStars.Shared.Geometry.Vector3i(x, y, z);
         return WetCell.IsNonFullKey(_content.BlockById(_world.GetBlock(pos))?.Key) || !ShapeCode.IsCube(_world.GetShape(pos));
     }
+
+    /// <summary>Seconds in a toxic type's water before it starts to hurt (2026-09, Titas).</summary>
+    private const double ToxicWaterGraceSeconds = 3.0;
+
+    /// <summary>The water of a type with <see cref="Shared.Definitions.PlanetType.WaterDamagePerSecond"/> hurts anyone in it
+    /// (feet or head in a water cell) after <see cref="ToxicWaterGraceSeconds"/>; a speeder or the ice on top keeps you dry.</summary>
+    private void TickToxicWater(PlayerSession session, double dt)
+    {
+        var p = session.State;
+        double dps = _world.Planet?.WaterDamagePerSecond ?? 0.0;
+        bool wet = dps > 0.0 && _waterId != 0 && !p.InEva && p.InSpeeder.Length == 0 && !p.AboardShip
+            && _generator.TerrainGeneration >= Shared.World.WorldDescription.ExtremePlanetsGeneration
+            && (FeetInWater(p) || HeadUnderwater(p));
+        if (!wet)
+        {
+            session.ToxicWaterSeconds = 0;
+            return;
+        }
+
+        session.ToxicWaterSeconds += dt;
+        ShipAiHintOnce(session, "toxic_water");
+        if (session.ToxicWaterSeconds > ToxicWaterGraceSeconds)
+        {
+            p.Health = System.Math.Max(0f, p.Health - (float)(dt * dps));
+            session.HazardDeathReason = "@srv.death.toxic_water";
+        }
+    }
+
+    /// <summary>True when the player's feet stand in a water cell (2026-09: the toxic-water check — wading counts).</summary>
+    private bool FeetInWater(Shared.State.PlayerState p)
+    {
+        _wetBlockAt ??= (x, y, z) => _world.GetBlock(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(x, y, z)).Value;
+        _wetNonFull ??= IsNonFullCell;
+        return WetCell.IsWet(_wetBlockAt, _waterId, _wetNonFull,
+            (int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y + 0.2f), (int)System.Math.Floor(p.Position.Z));
+    }
+
+    /// <summary>Test seam (2026-09): the toxic-water clock.</summary>
+    public double ToxicWaterSecondsForTest(string playerId) => FindSessionByPlayerId(playerId)?.ToxicWaterSeconds ?? 0;
 
     /// <summary>Hunger level at or below which the suit auto-consumes a stored emergency ration.</summary>
     private const float EmergencyRationThreshold = 15f;
@@ -3429,6 +3536,7 @@ public sealed partial class GameServer
             case CrewActionIntent crewAction: HandleCrewAction(session, crewAction); break;
             case MarkerActionIntent markerAction: HandleMarkerAction(session, markerAction); break;
             case NoteActionIntent noteAction: HandleNoteAction(session, noteAction); break; // player notes (#1844)
+            case InterviewAnswerIntent interview: HandleInterviewAnswer(session, interview); break; // reporter news (2026-09)
             case StorySelectIntent storySelect: HandleStorySelect(session, storySelect); break;
             case NetFragmentFoundIntent netFrag: HandleNetFragmentFound(session, netFrag); break;
             case CoreHackIntent coreHack: HandleCoreHack(session, coreHack); break;
@@ -4494,7 +4602,7 @@ public sealed partial class GameServer
         {
             RemoveBeamAt(pos); // mining a beam block forgets its name/owner + map marker (teleporter pad)
         }
-        else if (def.Key is "station_vendor" or "mission_board")
+        else if (def.Key is "station_vendor" or "mission_board" || NpcProfessions.ByPostBlock(def.Key) != null)
         {
             OnBasePostChanged(null, pos, placed: false); // #1865: the post's keeper goes back to being a settler
         }
@@ -5095,7 +5203,7 @@ public sealed partial class GameServer
         {
             WarnIfSentryOutsideBase(session, pos); // #1699: a post outside a base zone never fires — say so
         }
-        else if (blockDef.Key is "station_vendor" or "mission_board")
+        else if (blockDef.Key is "station_vendor" or "mission_board" || NpcProfessions.ByPostBlock(blockDef.Key) != null)
         {
             OnBasePostChanged(session, pos, placed: true); // #1865: a post at home is staffed by a resident
         }
@@ -5194,6 +5302,21 @@ public sealed partial class GameServer
                 CraftFail(session, recipe.Key, "@srv.craft.wrong_vendor");
                 return;
             }
+
+            // The grocer (2026-09) only sells inside the shop: the customer must stand in the keeper's closed room.
+            if (TradingVendorAt(session.State) is { } keeper && NpcProfessions.ByJob(keeper.Job) is { ShopOnly: true }
+                && !InSameClosedRoom(session.State.Position, keeper.Pos))
+            {
+                CraftFail(session, recipe.Key, "@srv.craft.shop_only");
+                return;
+            }
+        }
+
+        // "Sometimes a bed and a stretcher" (2026-09): a rotating offer is only in stock on its days.
+        if (recipe.Station == CraftingStation.Market && !recipe.OfferedOnDay(MarketDay))
+        {
+            CraftFail(session, recipe.Key, "@srv.craft.not_today");
+            return;
         }
 
         var pool = new MaterialPool(_content, session.State, _ship);
@@ -6498,6 +6621,10 @@ public sealed partial class GameServer
             InEva = p.InEva,
             AboveAtmosphere = p.AboveAtmosphere,
             SuitClimateActive = p.SuitClimateActive,
+            Exposure = p.Exposure,
+            ExposureActive = session.ExposureActive,
+            ExposureHot = session.ExposureHot,
+            Uneasy = session.MoodUneasy,
             LifeSupportSource = p.LifeSupportSource,
             StationName = CurrentStationName(p.PlayerId),
             AiCoreTier = VegaCoreTier(session),
@@ -6675,7 +6802,6 @@ public sealed partial class GameServer
         {
             GameMode = r.ModeFor(over).ToString(),
             Pvp = r.Pvp.ToString(),
-            WeaponMode = r.WeaponMode.ToString(),
             AggressiveAliens = r.AggressiveAliens.ToString(),
             EnvironmentalHazards = r.EnvironmentalHazards.ToString(),
             DeathPenalty = r.DeathPenalty.ToString(),

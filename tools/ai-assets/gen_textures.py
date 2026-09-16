@@ -199,6 +199,18 @@ TEXTURES = [
     ("station_vendor", "a sci-fi trading post kiosk counter, a dark metal booth with a warm amber-lit display shelf of goods and a small price screen, front view"),
     ("mission_board", "a sci-fi mission notice board, a dark metal panel covered in small glowing blue holographic job postings and status lights, front view"),
     ("station_container", "a sci-fi station storage container, an orange ribbed metal cargo locker with a hinged front hatch and a small status light, front view"),
+    # 2026-09 NPC professions: the post blocks a player builds at home / on a station, plus the doctor's stretcher.
+    ("clinic_post", "a sci-fi clinic reception counter, a white and mint-green medical cabinet with a glowing green cross sign, small medicine drawers and a vital-signs screen, front view"),
+    ("shop_counter", "a cosy shop counter, a wooden sales counter with baskets of fresh fruit, bread and jars on shelves behind it and a small hanging chalkboard, front view"),
+    ("arms_rack", "a sci-fi weapon rack, a dark gunmetal wall rack holding futuristic blaster pistols and energy cells on hooks behind a steel grille, small red status lights, front view"),
+    ("sage_lectern", "an ancient sage's lectern, a carved dark purple wooden reading stand with an open glowing book of data runes, crystal lamps and scrolls, front view"),
+    ("tamer_post", "an animal tamer's post, a wooden stable gate with leather leashes, a coiled whip, bags of animal feed and a small paw print sign, front view"),
+    ("quarry_post", "a quarry workers' post, a rough stone and timber board with a hanging pickaxe, stacked stone blocks and a dusty wooden crate of ore, front view"),
+    ("streamer_post", "a colourful streamer set, a gaming desk with a glowing pink and purple ring light, a camera on a tripod, a microphone arm and a screen with a live chat, front view"),
+    ("press_desk", "a newsroom press desk, a blue metal desk with a typewriter-like terminal, stacks of printed newspapers, a desk microphone and a glowing blue screen with headline bars, front view"),
+    ("stretcher", "white medical stretcher canvas fabric filling the whole tile edge to edge with no background, a faint green cross in the middle and grey stitched seams, top-down"),
+    # 2026-09 Titas: the yellow sulfur stone under the snow.
+    ("sulfur_stone", "bright yellow sulfur stone rock, crystalline sulfur crust with pale yellow and ochre patches and small dark pores"),
     # Factory look (#1050): the machine housing, its pipe stack and the production terminal had no tile.
     ("machine_block", "a heavy sci-fi industrial machine housing, dark grey armoured metal casing with rivets, bolted seams, ventilation slits and a small amber indicator light, front view"),
     ("factory_pipe", "an industrial factory pipe duct, a thick riveted olive-grey metal pipe with flanged joints and a pressure valve, front view"),

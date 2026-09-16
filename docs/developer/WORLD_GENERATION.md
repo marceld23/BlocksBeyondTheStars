@@ -1464,3 +1464,122 @@ plots and districts (settlements, cities); the contract, the composer and the pi
   (both draws are consumed either way). Six-field layouts (#1876 records) replay unchanged.
 - **Furnishing.** `FurnishAuthoredRooms` treats the gap of an interior doorway (a door marker with floor on both sides) as
   wall for the flood and reserves floor cells at the edge of a stairwell. Entrances at a template's edge are unaffected.
+
+## 19. Generation 8 — lava pads (2026-09)
+
+`WorldDescription.CurrentTerrainGeneration` is **8**. Worlds of an older generation keep their terrain and their landing
+pads bit for bit; generation 8 changes where and how pads meet lava and adds the Titas and Valuma planet types (sections
+below).
+
+**Lava pads (`LavaPadsGeneration = 8`, "landed in the lava", 2026-09-15).** Before, the pad dry test sampled five points
+(centre + four rim points) against `IsSurfaceWater || IsSurfaceLava`, and `IsSurfaceLava` only knew volcano craters and a
+lava *sea*; lava rivers, caldera / shield lakes and gen-3 flows counted as dry. A wet lava pad never got an islet
+(`SeaIsWater`), so `FlattenLandingPads` sheared a radius-8 air cylinder into the melt — dormant generated lava stands as
+walls until the first mined block wakes it. A probe over twelve `ashen_ocean` seeds found 1–10 of 12–16 pads per world in
+lava.
+
+- **Dry test (`LandingFootprintWetGen8`).** Thirteen samples (centre, 4 rim, 4 diagonal rim, 4 half-way) against water
+  (`IsSurfaceWater`, `SurfaceGen1WaterDepth`) and every lava body (`TryGetLavaSurface`).
+- **Decision (`DecidePad`).** A pad still over lava after the nudge (`FootprintLava`: any sample, highest melt top)
+  becomes a **lava islet** at `max(lavaTop + IsletRise, ground median)`, whatever the depth — never a shaft.
+- **Shape (`LandingPadFlatten.Molten`).** The plateau/slope islet of #1620, but basalt through and through (a granular
+  beach sinks into woken lava), filling lava cells as well as sea/water, and without flora tufts. The far-terrain pad
+  packing carries `2` in the islet slot for a lava islet (older peers read it as an islet).
+- **Older saves.** Pads are re-derived, never persisted, so their positions stay. A pad over lava is flagged
+  `LandingPad.Molten` (all generations): `PadRank` 3 (after seabed), an explicit `TryClaimPad` is refused with
+  `srv.land.pad_lava` while a non-lava pad is free, `RestoreLandingPad` releases it on load when a better pad is free —
+  `PlaceLandedShip` then parks the ship there and `LeaveMoltenPad` moves a player saved aboard or over the old footprint to
+  the new heal tank. `NetLandingPad.Lava` (appended) paints the chooser marker orange-red with a "lava!" caption; VEGA
+  has a `lava_pad` hint for the case where every other pad was taken.
+- Tests: `LandingPadTests.LavaWorld_NewWorlds_RaiseABasaltIsletOverLava_NeverAShaftInIt`,
+  `LavaWorld_AnOldSave_KeepsItsPads_ButRefusesAndLeavesTheLavaOnes`, `PadPreference_ALavaPadRanksBelowEveryOtherKind`.
+
+## 20. Generation 8 — Titas (2026-09, Justus' player report)
+
+A frozen planet that exists **at most once per galaxy**: ten blocks of snow over yellow sulfur stone, toxic yellow water
+under five blocks of ice, volcanic hot zones, leafless dead forests, abandoned SPS research stations and very many planet
+machines. The type (`titas`, `minTerrainGeneration` 8, exotic, spawn weight 1) is data; every behaviour sits behind a
+`PlanetType` field that defaults to its classic no-op and is read on generation-8 worlds only
+(`WorldDescription.ExtremePlanetsGeneration`), so every other type stays bit-identical (the goldens did not move).
+
+- **Once per galaxy + fixed name.** `PlanetType.OncePerGalaxy`: `UniverseGenerator.ApplyGenerationTypes` keeps the first
+  roll of such a type on a planet of the ORIGINAL systems (the retype pass already skips the start system); any other roll
+  — a second body, a moon, a system a growing galaxy appended — re-picks from the table without once-types, with the same
+  hash, so the draw stays deterministic. `PlanetType.FixedName`: `UniverseGenerator.ApplyFixedNames` (server, after the
+  per-save type pins) renames the body "Titas" with `RenameWithMoons`. `planet.titas.name` is "Titas" in all 14 locales.
+- **Snow blanket (`SnowCoverDepth` 10).** `ComputeColumn` replaces the altitude snow/ice pass: a dry column that is not a
+  beach and not hot takes the surface block (snow) for `ColumnProfile.CoverDepth` cells, then the biome's sub-surface
+  (sulfur stone — a generation-1 scree/soil paint under the blanket is reset to it); `EffSurfaceDepth` grows by the
+  blanket. The y-loop writes `depth < coverDepth ? surface : sub` (`coverDepth` 1 = the classic top cell). Submerged
+  beds show the rock. No ice ground.
+- **Fixed ice sheet (`IceSheetDepth` 5).** `WorldCalibration.FixedIceSheet`; `IceSheetThickness` returns
+  `min(5, depth)` (0 in a hot zone) — the one function the column fill and every water query share, so
+  `SurfaceIceThickness`, `TryGetWaterSurface` (liquid top = sea − 5) and `IsSurfaceWater` (a ≥ 3 sheet is land) agree.
+- **Hot zones (`HotZoneShare` 0.15, `Biome.HotZone`, `Biome.Temperature` 100).** Calibration step 7 samples a broad region
+  field (`HotZoneField`, FBM scale 150) on the height grid and keeps the `1 − share` quantile as `HotThreshold`; the
+  resolved hot biome index and the cool indices are stored. `BiomeIndex` returns the hot biome where the field is at or
+  above the threshold and spreads the classic altitude mix over the cool biomes elsewhere (`ClassicBiomeIndex`). A hot
+  column never snows or freezes; its upland ponds hold **lava** (`ComputeColumn`, and the fluid queries:
+  `TryGetRawWaterColumn`/`IsSurfaceWater` skip them, `TryGetLavaSurface` reports them). `IsHotZoneAt` is public — the
+  server's temperature reads +100 °C there.
+- **Dead forests (`DeadForests`).** `StampTrees` forces `TreeKind.Dead`, ignores the tree line and the ground rule (snow,
+  rock and beach carry snags) and skips hot zones. The `ashen` theme keeps the density low.
+- **Water life (`MaxAquaticSpecies` 1).** `CreatureGenerator.CapAquaticSpecies` re-draws every water/amphibian species
+  past the cap as a land species from a salted seed.
+- **Structure whitelist (`RestrictStructures`, `AllowedStructures` = `sps_labs`, `net_fragments`).** Worldgen props that
+  someone built (monolith, stone circle, wall fragment, buried pillar) are off; the server stamps no settlement, ruin,
+  bandit camp, monument, factory, wreck, vault, data cube, chest or unique site (`UniqueSiteBodyId` skips restricted
+  types), only net fragments and the SPS labs.
+- **SPS research stations (`SpsLabGenerator`, `GameServerSpsLabs`).** 3–6 per world, placed like bandit camps (placement
+  records `spslab`, voxels once, instances re-derived): a 33×33 compound — the lab (consoles, a `factory_terminal` with a
+  `data_terminal` marker → the lore site `sps_lab`, 3 texts), a store room, sometimes a generator shed; rusted walls with
+  holes, a concrete ship pad with red corner lamps and a helicopter pad with its "H". `sps_cache` loot: circuit boards,
+  energy cells, cables, rusted panels, data fragments, rarely an access code. Inside a roofed module (`InSpsLab`): no air
+  and −90 °C. A machine spawning for a player within 96 blocks of a lab appears 20–32 blocks around it.
+- **Machines (`EnemyDensity` 2.5).** `PlanetEnemyCap` × 2.5 (Normal: 5 per player).
+- **Survival (server).** `ExposureMinutesCold` 40 / `ExposureMinutesHot` 30 replace the suit-energy drain with an
+  exposure meter (`PlayerState.Exposure`, `PlayerStateUpdate.Exposure/ExposureActive/ExposureHot`, HUD row "Cold / Heat
+  protection"): fills outside (half speed under a roof or in a lab), drains in base air, near a campfire or deep
+  underground (60 s from full), resets aboard ship or station. Liners ×1.25/×1.5/×2, hazard tier Light ×1.5 / Hard ×0.75,
+  Off exempt. At full: rising damage (0.5 HP/s + 0.1 per second, ≤ 3) and no regeneration; death lines
+  `srv.death.froze` / `srv.death.burned`. VEGA warns at 50/75/90 % (`vega.sys.exposure_*`). **Toxic water**
+  (`WaterDamagePerSecond` 2): feet or head in water for more than 3 s hurts and stops regeneration
+  (`srv.death.toxic_water`, `vega.hint.toxic_water`); the ice on top is safe.
+- New block `sulfur_stone` (drops stone + a 1-in-5 sulfur ore, texture via the OpenAI script).
+- Tests: `TitasWorldTests` (data, once per galaxy + name, snow blanket, ice sheet, hot zones + lava ponds, dead trees +
+  water-life cap, generation gate), `TitasSurvivalTests` (meter pace, liners/tier, full-meter damage, toxic water, labs +
+  machine cap), golden `titas-gen8`.
+
+## 21. Generation 8 — Valuma and the Sreekmakra (2026-09, Justus' player report)
+
+A rare (spawn weight 1, not unique), peaceful-looking world of wide flat grass plains with one shapeshifter hidden among
+its animals. Justus' text was cut at 1500 characters; this is the known part (the rest is to be asked).
+
+- **Terrain (`CalmTerrain`).** `WorldGenerator.CalmTerrain(planet)` (generation 8 only) switches off volcanoes
+  (`HasVolcanoes`), massifs and rifts (`HasMassifs`), the escarpment (`HasEscarpment`) and every regime
+  (`RegimeGround` → no tilt, steps or equator ridge). The row itself is `flats`/`downs`, amplitude 6, scale 72, very few
+  trees (0.004), flowers and grass.
+- **Fauna (`PeacefulFauna`).** `CreatureGenerator.MakePeaceful` turns every ROLLED species passive or skittish with no
+  bite (roster `many`); authored species are appended after it, so the Sreekmakra keeps its own temper.
+- **Structures.** `RestrictStructures` with only `net_fragments`: no settlements, ruins, camps, wrecks, vaults, cubes,
+  chests, unique sites, and no built worldgen props (see §20).
+- **The Sreekmakra (`data/creatures.json` `sreekmakra`, `GameServerSreekmakra`).** One per world of a type that lists it
+  (`SreekmakraState` on the loaded world): it never spawns through `TrySpawnCreatureNear`; `TickSreekmakra` (1 Hz) places
+  it 40–60 blocks from a player on foot, disguised as a rolled land species (no titans), with 3× that animal's health and
+  its own drop (crystal ×4). Every 150–240 s while nobody is within 24 blocks it takes another shape (`TakeShape` resets
+  health, temper and locomotion). A player killing an animal of the shape it wears, or hitting it, becomes its target
+  (`OnCreatureKilled` — called from the player, sentry and fire kill paths — and `OnSreekmakraHit`): it hunts in that
+  shape (`MoveCreatures` aggressor, the shape's speed ×1.5, bite = the shape's or 4.5, ×1.5) until the player leaves or
+  it dies. At zero health the disguise breaks (`RevealSreekmakra`: true form, 90 HP, bite 7 ×1.5); defeating the true
+  form writes the Codex entry `creature:au_sreekmakra` for everyone within 64 blocks, counts `defeat:sreekmakra`
+  (achievement `sreekmakra`) and sets `WorldMetadata.SreekmakraBackAt` three in-game days ahead. With planet enemies off
+  it only reveals itself, flees for 25 s and vanishes for a day. It cannot be tamed; hostile-scan missions ignore it.
+  **Scanner:** a scan of its current species while it is the nearest such animal within 24 blocks reads
+  `ui.scan.threat.anomaly` (+ trait `ui.scan.disguise`). **Client:** `CreatureView` rebuilds body and voice when a
+  creature's `SpeciesId` changes, with a puff.
+- **Mood.** `TickValumaMood`: time on the world (aboard the landed ship too, reset on any other location) — at 20 minutes
+  `vega.sys.valuma_watching`, at 35 the player's environment is forced to fog (`SendEnvironment`) and
+  `PlayerStateUpdate.Uneasy` darkens and ducks the music (`ClientMusic.DuckFor`).
+- Tests: `ValumaWorldTests` (data, calm gates over 24 seeds + the generation gate, peaceful roster), `SreekmakraTests`
+  (disguise + one individual + shape change, grudge + anomaly, reveal + defeat + Codex + achievement + return time,
+  peaceful flight, mood), golden `valuma-gen8`.

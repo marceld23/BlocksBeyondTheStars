@@ -39,6 +39,11 @@ public sealed class NetLandingPad
     /// chooser prints it so a wade and a shaft read differently. Appended contractless field: an older peer
     /// reads 0.</summary>
     public int Depth { get; set; }
+
+    /// <summary>The pad lies in lava (a save from before terrain generation 8, whose pads never move): the chooser
+    /// shows it red and the server only parks a ship there when no other pad is free. Appended contractless field:
+    /// an older peer reads false.</summary>
+    public bool Lava { get; set; }
 }
 
 /// <summary>A body's fixed landing pads + occupancy (server → client): drives the land chooser in the flight

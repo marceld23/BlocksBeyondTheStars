@@ -327,6 +327,13 @@ public sealed class PlayerSession
     /// favour is not asked again until the next visit, so "not today" lets the ordinary smalltalk through.</summary>
     public HashSet<string> DeclinedMissionDialogs { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>The reporter who just asked this player for an interview (2026-09), 0 = none — an answer is accepted only
+    /// for them, once.</summary>
+    public int PendingInterviewNpcId { get; set; }
+
+    /// <summary>The in-game days on which a streamer already asked this player for a photo, per streamer place (2026-09).</summary>
+    public HashSet<string> StreamerAskedToday { get; } = new(StringComparer.Ordinal);
+
     /// <summary>Uptime before which the player's companions do not growl at them again (#1210).</summary>
     public double NextCompanionAlertAt { get; set; }
 
@@ -438,6 +445,40 @@ public sealed class PlayerSession
     /// <summary>Cached effective temperature (°C) from the last scan — tells VEGA (and the freeze-vs-
     /// overheat hint pick) WHICH extreme is stressing the suit.</summary>
     public float EffectiveTemperatureC { get; set; } = 15f;
+
+    // --- Exposure meter (2026-09, Titas): scanned at ~1 Hz with the temperature, applied every tick ---
+
+    /// <summary>True while the meter runs (on foot outside on a timed-exposure type) — sent to the HUD.</summary>
+    public bool ExposureActive { get; set; }
+
+    /// <summary>The last scan found the player in a hot zone (the heat timer applies).</summary>
+    public bool ExposureHot { get; set; }
+
+    /// <summary>The last scan found a roof overhead (the meter fills at half speed).</summary>
+    public bool ExposureRoofed { get; set; }
+
+    /// <summary>The last scan found warmth: base air, a campfire, the ground far below the surface.</summary>
+    public bool ExposureSheltered { get; set; }
+
+    /// <summary>Highest VEGA warning already given this episode (0 none, 1 = 50 %, 2 = 75 %, 3 = 90 %).</summary>
+    public int ExposureWarned { get; set; }
+
+    /// <summary>Seconds the meter has stood at full — the damage rises with it.</summary>
+    public double ExposureFullSeconds { get; set; }
+
+    /// <summary>Seconds in a toxic type's water (the damage starts after a grace).</summary>
+    public double ToxicWaterSeconds { get; set; }
+
+    /// <summary>The death line of the environment hazard that hurt the player this tick (null = the generic one).</summary>
+    public string? HazardDeathReason { get; set; }
+
+    public float LastSentExposure;
+
+    // --- Valuma's mood (2026-09): time on the world, the watched line, the fog ---
+    public string MoodLocationId { get; set; } = string.Empty;
+    public double MoodSeconds { get; set; }
+    public bool MoodWatchedTold { get; set; }
+    public bool MoodUneasy { get; set; }
 
     // --- Periodic vitals sync (HUD bars froze between event-driven sends before) ---
     public double VitalsSyncTimer { get; set; }

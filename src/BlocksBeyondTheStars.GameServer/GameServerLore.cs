@@ -83,7 +83,7 @@ public sealed partial class GameServer
 
         // The one-of-a-kind sites (#1129) OWN their lore voice — checked before the generic terminal
         // sniff so the observatory's survey terminal speaks as the observatory, not as "a terminal".
-        foreach (var kind in new[] { "alien_shrine", "observatory", "derelict" })
+        foreach (var kind in new[] { "alien_shrine", "observatory", "derelict", "sps_lab" })
         {
             if (rest.StartsWith(kind + "_", System.StringComparison.Ordinal))
             {

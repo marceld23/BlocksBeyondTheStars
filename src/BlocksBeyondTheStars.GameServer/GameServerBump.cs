@@ -113,7 +113,9 @@ public sealed partial class GameServer
             return string.Empty;
         }
 
-        const int MaxDescriptionLength = 2000;
+        // Above the F1 dialog's 4800-character description plus its "[feedback] " + title + " — " prefix, so a
+        // full-length player report reaches the snapshot and the inbox twin uncut (the inbox itself caps at 5000).
+        const int MaxDescriptionLength = 5100;
         string trimmed = description.Length > MaxDescriptionLength ? description.Substring(0, MaxDescriptionLength) : description;
         var sb = new System.Text.StringBuilder(trimmed.Length);
         foreach (char c in trimmed)

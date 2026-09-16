@@ -23,6 +23,30 @@ public sealed class RecipeDefinition
     /// different goods. Ignored for non-market recipes.</summary>
     public string MarketTheme { get; set; } = string.Empty;
 
+    /// <summary>For market recipes: offered only on every N-th in-game day (2026-09, the doctor's "sometimes a bed and a
+    /// stretcher"); 0 or 1 = every day. Which days is a pure function of the recipe key and the day index, so the
+    /// client's list and the server's check agree.</summary>
+    public int MarketRotation { get; set; }
+
+    /// <summary>Whether this recipe is on offer on in-game day <paramref name="day"/> (see <see cref="MarketRotation"/>).</summary>
+    public bool OfferedOnDay(long day)
+    {
+        if (MarketRotation <= 1)
+        {
+            return true;
+        }
+
+        // FNV-1a over the key: stable across runtimes (string.GetHashCode is randomized per process).
+        uint hash = 2166136261;
+        foreach (char c in Key)
+        {
+            hash = unchecked((hash ^ c) * 16777619);
+        }
+
+        long slot = (day + hash) % MarketRotation;
+        return (slot < 0 ? slot + MarketRotation : slot) == 0;
+    }
+
     public List<ItemAmount> Inputs { get; set; } = new();
     public List<ItemAmount> Outputs { get; set; } = new();
 }

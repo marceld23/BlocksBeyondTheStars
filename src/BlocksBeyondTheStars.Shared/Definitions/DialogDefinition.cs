@@ -20,6 +20,11 @@ public sealed class DialogDefinition
     /// Ignored when <see cref="Character"/> is set — an authored character owns their dialogue outright.</summary>
     public string Role { get; set; } = string.Empty;
 
+    /// <summary>NPC job this dialogue belongs to (2026-09 professions, e.g. "doctor", "streamer"), or "" for a role dialogue.
+    /// A job dialogue matches only NPCs of that job; a profession NPC never takes a plain role dialogue (the doctor does
+    /// not hand out the vendor's favour chain).</summary>
+    public string Job { get; set; } = string.Empty;
+
     /// <summary>Authored story-pack character id (#1128) this dialogue belongs to, or "" for a role dialogue.</summary>
     public string Character { get; set; } = string.Empty;
 

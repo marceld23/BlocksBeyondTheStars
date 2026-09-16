@@ -49,7 +49,8 @@ public sealed partial class GameServer
                 && int.TryParse(s.Id.Substring(3), out int idx) && idx < fixedCount)
             .SelectMany(s => s.Bodies)
             .Where(b => (b.Kind == CelestialKind.Planet || b.Kind == CelestialKind.Moon)
-                && !string.IsNullOrEmpty(b.PlanetType) && b.Id != excludeBodyId)
+                && !string.IsNullOrEmpty(b.PlanetType) && b.Id != excludeBodyId
+                && _content.GetPlanet(b.PlanetType)?.RestrictStructures != true) // 2026-09: Titas and Valuma keep only their own
             .OrderBy(b => b.Id, StringComparer.Ordinal)
             .ToList();
         if (bodies.Count == 0)

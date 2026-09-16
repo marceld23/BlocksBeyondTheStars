@@ -119,7 +119,7 @@ Last updated: 2026-08-26.
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
-| **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **trade with a vendor** (opens the Market); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
+| **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
@@ -360,6 +360,20 @@ separate unlock; admins can still disable it through server world rules.
   the sun-side/shadow hull temperature (about +120 °C to −150 °C). The world option **Environmental
   hazards** (world creation, or live in the in-game Settings tab as world admin) scales this from Off to
   Hard; Creative/Sandbox worlds are always exempt.
+- **Titas** (a very rare frozen planet — only one per galaxy): the suit's climate control is not enough there. An
+  **exposure meter** replaces the energy drain — the HUD shows your **cold protection** (or **heat protection** in the
+  volcanic hot zones). Outside it runs out in about **40 minutes** (hot zones **30**), half as fast under a roof; liners
+  (×1.25 / ×1.5 / ×2) and the hazard setting (Light ×1.5, Hard ×0.75) stretch or shorten it. Your ship, a station, a base,
+  a campfire or digging deep refill it. At zero the cold (or heat) hurts more and more — VEGA warns at 50, 75 and 90 %.
+  The **yellow water is toxic**: a few seconds are fine, then it burns (standing on the ice is safe). The old **SPS
+  research stations** hold salvage and a log terminal — but no air and −90 °C inside, and the machines guard them.
+- **Valuma** (a rare planet of wide, flat grass plains): the animals there never bite — but one of them is not an
+  animal. A **Sreekmakra** wears the shape of a local animal and changes it now and then when nobody is looking. Kill an
+  animal of the kind it is copying, or hit it, and it comes for you (faster and harder-biting than the animal it looks
+  like) until it falls or you leave the planet. Beaten down, it drops its disguise and fights on in its true form;
+  defeating that unlocks its Codex entry and the achievement *Unmasked*. Your hand scanner shows an **anomaly** when
+  you scan the disguised one. With enemies switched off it only shows itself and flees. Stay long and VEGA starts to
+  feel watched; later the fog closes in.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between
@@ -462,8 +476,12 @@ separate unlock; admins can still disable it through server world rules.
 - **Landing pads are on dry land whenever the world offers any** — the pad search looks in every direction,
   and on ocean worlds further. A pad that still sits in open sea rises on a small island (beach, grass, a few
   plants); only in shallow water does the ship park in a dry shaft on the seabed. The approach map draws such
-  pads **blue** and says how deep the water is ("underwater Â· seabed Â· 6 m"); your first landing and any
+  pads **blue** and says how deep the water is ("underwater · seabed · 6 m"); your first landing and any
   landing you do not pick by hand prefer dry ground.
+- **Never in the lava.** On worlds with lava seas, rivers or lakes a pad over lava stands on a **basalt island**. Worlds
+  created before that change keep their pads: a pad there that lies in lava is drawn **orange-red** ("lava!"), you can
+  only land on it when every other pad is taken, and a ship that was parked on one is moved to a free pad the next time
+  the world loads — you wake up aboard.
 - **Your ship is a real parked object** on its landing pad (pads are naturally flat). You can
   **furnish the interior**: place blocks in free cabin space (and mine those again) — they stay with
   the ship across launches, landings and the walk-in interior. The hull cannot be damaged and ship
@@ -992,12 +1010,31 @@ separate unlock; admins can still disable it through server world rules.
   posts a two-part **big order** — a doubled delivery with the pay to match, then a large build or survey.
   Later parts can't be taken early (the server checks), and they stay where you started them.
 
+### NPC professions: doctor, shopkeeper, arms dealer, sage, tamer, blockfarmer, streamer, reporter
+- **Where you meet them.** Newly generated villages and towns may have a **clinic, shop, armory, library, stable, quarry,
+  studio or newsroom** — each with its keeper. Newly generated **space stations** may have a clinic, shop, armory, archive,
+  studio or newsroom (no tamer, no blockfarmer in space), and the city of **Ember Reach** has a services quarter with the
+  same six. You can also get them at home: research **Profession posts** (Station tree)
+  and build a **clinic post, shop counter, arms rack, sage's lectern, tamer's post, quarry post, streamer set or press desk**
+  inside your base or on your own station — a resident takes the job (like the trading post).
+- **Doctor:** medpacks, field medkits and — expensive — a detoxifier; a bed and a stretcher only **every other day**.
+- **Shopkeeper:** food — but only while you stand **inside the shop** with them.
+- **Arms dealer:** cables, plates, energy cells, and finished laser pistols or plasma blasters for diamonds and gold.
+- **Sage:** data fragments and AI memory fragments at a very high price.
+- **Animal tamer:** baits and the creature translator; a tame animal of the planet walks at their side.
+- **Blockfarmer:** quarries outside the settlement by day and sells stone, sand, dirt and basalt.
+- **Streamer:** a huge fan — walks by once a day asking for a **photo together**; say yes and a photo is taken, say
+  "never" and they stop asking.
+- **Reporter:** gives you an **interview** — write what you have been up to (at most 300 characters; in Safe chat mode
+  you pick a ready answer). Everyone can read the place's latest stories by asking the reporter "What's in the news?".
+
 ### People you know & NPC radio calls
 - **NPCs remember you.** Trading at a stall or taking a board job raises your standing with that vendor or
   quartermaster: **Stranger → Acquaintance → Friend**. The stage shows on their **nameplate** when you walk
   up, and everyone you know is listed under **Tab → Character → People you know** (name, role, stage, where
   they live).
-- **Talk to people.** Walk up to any NPC and press **E** (away from station blocks, which keep their own E).
+- **Talk to people.** Walk up to any NPC and press **E** (away from station blocks, which keep their own E). At a
+  **vendor**, E asks *Trade or talk?* — **E** once more opens the Market, **Talk** the conversation.
   Settlers chat with anyone; vendors open up once they know you. Some conversations offer **choices**
   ([1]/[2]/[3] or click) — your pick is remembered and can deepen a friendship, hand you something, reveal a
   piece of the story, or make someone **call you on the radio later**. Talking itself counts toward your
@@ -1063,8 +1100,9 @@ separate unlock; admins can still disable it through server world rules.
   offer resets both confirmations, and your Confirm button turns green while you wait). **Esc** / pad **B**
   or **Cancel** aborts. If you know more than your partner you can also *teach knowledge* here (`−` / `+` /
   Max in the "You give" box).
-- **Vendors / market:** press **E** next to a settlement or space-station **vendor** to open the **Market**
-  (the gameplay menu's Crafting tab on the *Market* category). Barter recipes there trade your raw
+- **Vendors / market:** press **E** next to a settlement or space-station **vendor** and pick **Trade** (or press **E**
+  again) to open the **Market** (the gameplay menu's Crafting tab on the *Market* category). A vendor's themed goods
+  only trade while that vendor stands right beside you. Barter recipes there trade your raw
   resources for goods. The market is also available **aboard your ship** (Tab → Crafting → Market), via the
   ship's trade console — so you can trade without a vendor too. Vendors have **themes**: miners sell iron,
   copper and lead ore for silicate, traders buy crystal, gold and silver, researchers buy refined uranium and

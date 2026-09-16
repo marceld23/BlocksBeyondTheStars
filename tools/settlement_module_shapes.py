@@ -19,6 +19,12 @@ Conventions the composers and the server rely on:
   room picks the furniture), interior doorways carry a door marker, which keeps two rooms apart for the furnisher.
 """
 
+# The post marker a building function carries in its main room. The professions (2026-09, NpcProfessions in Shared) each
+# get a building of their own; the four classic entries are unchanged, so every existing module keeps its cells.
+POSTS = {"market": "vendor", "board": "mission_board", "tavern": "tavern", "workshop": "workshop",
+         "clinic": "doctor", "shop": "grocer", "armory": "arms_dealer", "library": "sage", "stable": "tamer",
+         "quarry": "blockfarmer", "studio": "streamer", "newsroom": "reporter"}
+
 # Packed shapes: ShapeCode.Pack(shape, yaw) = shape << 2 | yaw; yaw 0 = +Z, 1 = -X, 2 = -Z, 3 = +X.
 STAIRS = 6 << 2
 TABLE = 14 << 2
@@ -257,8 +263,8 @@ def village_module(function, variant, alien):
             rooms_front_back(m, 0, "door_hinge", "npc", (4, 2))
         else:
             rooms_side(m, 0, "door_hinge", "npc", (2, 3))
-    elif function in ("market", "board", "tavern", "workshop"):
-        post = {"market": "vendor", "board": "mission_board", "tavern": "tavern", "workshop": "workshop"}[function]
+    elif function in POSTS:
+        post = POSTS[function]
         if variant == 0:
             rooms_front_back(m, 0, "door_hinge", post, (5, 2))
         else:
@@ -313,8 +319,8 @@ def town_module(function, variant, alien, storeys=2):
             m.marker(4, 5, 5, "room")
         if storeys >= 3:
             m.marker(3, 9, 5, "room")
-    elif function in ("market", "board", "tavern", "workshop"):
-        post = {"market": "vendor", "board": "mission_board", "tavern": "tavern", "workshop": "workshop"}[function]
+    elif function in POSTS:
+        post = POSTS[function]
         m.marker(4, 1, 5, "room")
         m.marker(5, 1, 3 if variant == 0 else 5, post)
         if variant == 0:
@@ -492,6 +498,30 @@ def gds_garden(variant):
     cottage = gds_flat(2, variant, PURPLE)
     m.paste(cottage, 22 if variant == 0 else 2, 0, 2 if variant == 0 else 1)
     m.marker(10 if variant == 0 else 22, 1, 16, "greenhouse")
+    return m
+
+
+def gds_services(variant):
+    """A services district of the G.D.S. city (2026-09, NPC professions): three profession houses along the north lane (the
+    town buildings in the city's colours), two flats for their neighbours and a small green in the south."""
+    m = district_base()
+    functions = ("clinic", "shop", "armory") if variant == 0 else ("library", "studio", "newsroom")
+    for n, function in enumerate(functions):
+        house = town_module(function, n % 2, alien=False)
+        for c in house.cells.values():
+            if c["kind"] == "block" and c["id"] == "@wall" and c.get("shape", 0) == 0 and c["y"] > 0:
+                c["tint"] = RED if n % 2 == 0 else PURPLE
+        m.paste(house, 2 + n * 10, 0, 2)
+    for n, x in enumerate((2, 22)):
+        m.paste(gds_flat(2, n, PURPLE if n == 0 else RED), x, 0, 22)
+    for x in range(12, 20):
+        for z in range(22, 30):
+            m.block(x, 0, z, "grass")
+    for y in range(1, 4):
+        m.block(15, y, 26, "wood_log")
+    m.fill(14, 4, 25, 16, 5, 27, "tree_leaves")
+    for x, z in ((1, 12), (30, 12), (1, 19), (30, 19)):
+        lamp_post(m, x, z)
     return m
 
 

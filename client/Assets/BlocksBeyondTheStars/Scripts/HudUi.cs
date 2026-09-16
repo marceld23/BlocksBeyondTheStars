@@ -65,6 +65,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Energy-bar tint while the suit's climate control is actively draining it (#666) —
         /// a hot orange-red, so "why is my energy falling?" answers itself at a glance.</summary>
         private static readonly Color EnergyStressed = new Color(1f, 0.45f, 0.2f);
+        private static readonly Color ExposureColdC = new Color(0.55f, 0.85f, 1f);  // 2026-09 exposure meter (Titas)
+        private static readonly Color ExposureHotC = new Color(1f, 0.5f, 0.25f);
         private static readonly Color HullC = new Color(0.6f, 0.66f, 0.74f);
         private static readonly Color ShieldC = new Color(0.4f, 0.7f, 1f);
 
@@ -199,6 +201,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Edge detector for the base life-support field (#782): true while the last HUD refresh saw
         /// the player inside some founded base's zone, so the "Life support: …" toast fires once on entry.</summary>
         private bool _wasInBaseZone;
+        private int _exposureRow = -1; // the panel row the exposure bar sits in (4 below the suit, 6 below the ship rows)
 
         /// <summary>Set while a HUD exists so world-side FX (MiningFx) can hand off pickup fly-ins.</summary>
         public static HudUi Instance { get; private set; }
@@ -387,6 +390,12 @@ namespace BlocksBeyondTheStars.Client
             }
             if (Game.Oxygen <= 0.5f) { return "ui.hud.dmg_suffocate"; }
             if (Game.Hunger <= 0.5f) { return "ui.hud.dmg_starve"; }
+            // The exposure meter is full (2026-09, Titas): the cold or the heat itself is doing the damage.
+            if (Game.ExposureActive && Game.Exposure >= 0.999f)
+            {
+                return Game.ExposureHot ? "ui.hud.dmg_exposure_hot" : "ui.hud.dmg_exposure_cold";
+            }
+
             // Exposure damage (#666): the suit is out of energy and climate control lost the fight —
             // the environment temperature says which extreme is doing the damage.
             if (Game.SuitClimateActive && Game.SuitEnergy <= 0.5f)
@@ -552,11 +561,11 @@ namespace BlocksBeyondTheStars.Client
             _locTitle = UiText.Add(_locationPanel.transform, 10, 3, 260, 18, string.Empty, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             _locPlace = UiText.Add(_locationPanel.transform, 10, 22, 260, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
 
-            // Vitals panel (6 rows; ship rows toggled).
+            // Vitals panel (6 rows; ship rows toggled) + the exposure row of the timed-exposure worlds (2026-09).
             _vitalsPanel = Panel(root, 10, VitalsPanelY, 226, 196).gameObject;
-            _vitals = new VitalRow[6];
-            string[] order = { "health", "oxygen", "energy", "hunger", "hull", "shield" };
-            for (int i = 0; i < 6; i++)
+            _vitals = new VitalRow[7];
+            string[] order = { "health", "oxygen", "energy", "hunger", "hull", "shield", "exposure" };
+            for (int i = 0; i < 7; i++)
             {
                 _vitals[i] = MakeVital(_vitalsPanel.transform, 10, 8 + i * 24, order[i]);
             }
@@ -938,7 +947,27 @@ namespace BlocksBeyondTheStars.Client
                 SetVital(5, null, 0, 0, ShieldC, false);
             }
 
-            float vitalsHeight = ship ? 196f : 116f;
+            // Exposure meter (2026-09, Titas): the cold or heat protection left, under the last visible row.
+            bool exposure = Game.ExposureActive || Game.Exposure > 0.001f;
+            if (exposure)
+            {
+                int row = ship ? 6 : 4;
+                if (_exposureRow != row)
+                {
+                    _exposureRow = row;
+                    UiKit.Place(_vitals[6].Go, 10, 8 + row * 24, 200, 16);
+                }
+
+                float left = 1f - Mathf.Clamp01(Game.Exposure);
+                SetVital(6, loc.Get(Game.ExposureHot ? "ui.hud.exposure_hot" : "ui.hud.exposure_cold"), left * 100f, left,
+                    Game.ExposureHot ? ExposureHotC : ExposureColdC, true);
+            }
+            else
+            {
+                SetVital(6, null, 0, 0, ExposureColdC, false);
+            }
+
+            float vitalsHeight = (ship ? 196f : 116f) + (exposure ? 24f : 0f);
             _vitalsPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(226, vitalsHeight);
             VitalsBottomY = VitalsPanelY + vitalsHeight;
 

@@ -414,7 +414,7 @@ public sealed partial class WorldGenerator
         var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
         bool water = (seaFluid == waterId && !waterId.IsAir && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel)
-            || SurfacePondDepth(planet, worldX, worldZ) > 0   // inside an upland pond
+            || (SurfacePondDepth(planet, worldX, worldZ) > 0 && !IsHotZoneAt(planet, worldX, worldZ)) // an upland pond (a hot one is lava)
             || SurfaceRiverDepth(planet, worldX, worldZ) > 0; // …or a river channel
         if (!water)
         {
@@ -526,6 +526,11 @@ public sealed partial class WorldGenerator
         int pond = SurfacePondDepth(planet, worldX, worldZ);
         if (pond > 0)
         {
+            if (IsHotZoneAt(planet, worldX, worldZ))
+            {
+                return false; // generation 8 (Titas): a hot zone's pond holds lava
+            }
+
             waterTopY = surfaceY;
             seabedY = surfaceY - pond;
             return true;
@@ -576,6 +581,14 @@ public sealed partial class WorldGenerator
 
         if (surfaceY > seaLevel)
         {
+            // Generation 8 (Titas): a hot zone's upland pond is molten (pond-first precedence, like the water queries).
+            if (IsHotZoneAt(planet, worldX, worldZ) && SurfacePondDepth(planet, worldX, worldZ) is > 0 and int hotPond)
+            {
+                lavaTopY = surfaceY;
+                bedY = surfaceY - hotPond;
+                return true;
+            }
+
             var field = RiverFieldFor(planet);
             if (field.FillFluid == lavaId && field.TryGet(worldX, worldZ, out var col) && !col.Underground)
             {

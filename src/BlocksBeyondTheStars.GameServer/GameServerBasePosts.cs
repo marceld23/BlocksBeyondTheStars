@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
@@ -52,6 +53,17 @@ public sealed partial class GameServer
             }
         }
 
+        foreach (var profession in NpcProfessions.All)
+        {
+            if (residents.Any(n => n.Job == profession.Job) && idx.ProfessionPosts.TryGetValue(profession.Job, out var professionPosts))
+            {
+                foreach (var post in professionPosts)
+                {
+                    _baseMarkers.Add((b.Id, profession.Marker, new Vector3f(post.X + 0.5f, post.Y + 0.5f, post.Z + 0.5f)));
+                }
+            }
+        }
+
         if (residents.FirstOrDefault(n => n.Job == "quartermaster") is { } qm)
         {
             foreach (var board in idx.Boards)
@@ -86,7 +98,19 @@ public sealed partial class GameServer
     }
 
     /// <summary>True if the player stands at a staffed trading post of a planet base (#1865) — barter works there.</summary>
-    public bool NearBaseVendor(PlayerState player) => NearBaseMarker(player, "vendor", BasePostReach, out _);
+    public bool NearBaseVendor(PlayerState player)
+    {
+        foreach (var (_, markerType, pos) in _baseMarkers)
+        {
+            // The classic trading post or a trading profession's post (2026-09).
+            if (NpcProfessions.IsTradeMarker(markerType) && WrapDistSq(player.Position, pos) <= BasePostReach * BasePostReach)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>True if the player stands at a staffed mission board of a planet base (#1865).</summary>
     public bool NearBaseMissionBoard(PlayerState player) => NearBaseMarker(player, "mission_board", BasePostReach, out _);

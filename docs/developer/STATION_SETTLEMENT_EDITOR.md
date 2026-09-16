@@ -135,6 +135,11 @@ Footprint depends on the random walk (e.g. small ≈ 13–19 wide; huge sprawls 
   variety in the game's structures today.
 - But **every module is the same hollow 7×6×7 shell** with one glass viewport band; the module *type*
   (hub/hangar/market/medbay/quarters/corridor) only changes the **marker**, never the interior or shape.
+- **Profession markers (2026-09):** both palettes offer `doctor`, `grocer`, `arms_dealer`, `sage`, `tamer`, `blockfarmer`,
+  `streamer` and `reporter` (`NpcProfessions`); a settlement template's room around one is furnished to fit, and the
+  "use as" stepper offers the matching building functions (`clinic` … `newsroom`). The station editor's function list has
+  `clinic, shop, armory, library, studio, newsroom` too (`StructureRoles.StationFunctions`, labels `ui.function.*`); a
+  station module with a `cabin` marker docks on the hall deck only. See NPC_ROUTINES.md §11.
   Interiors are **empty** (no counters, tanks, bunks, consoles, props). The exterior has no antennae,
   solar panels, docking arms, or tubes — just stacked boxes.
 

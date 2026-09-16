@@ -25,6 +25,13 @@ public sealed class Biome
     /// 0.35 lies flat next to stone country at 1.5 on the same world. Applies to the style/archetype relief,
     /// never to the baseline (continents, escarpments) or landmarks. 1.0 = the planet's relief.</summary>
     public double ReliefMul { get; set; } = 1.0;
+
+    /// <summary>A hot zone (2026-09, Titas): this biome is the volcanic region of its world — basalt and ash, lava in its
+    /// ponds, never snow or ice — laid out by <see cref="PlanetType.HotZoneShare"/> instead of the altitude mix.</summary>
+    public bool HotZone { get; set; }
+
+    /// <summary>The air temperature of this biome in °C (a hot zone's +100), or null to use the planet's.</summary>
+    public double? Temperature { get; set; }
 }
 
 /// <summary>An ore vein generation rule for a planet type.</summary>
@@ -311,4 +318,56 @@ public sealed class PlanetType
     /// <summary>The <see cref="NpcOutfits"/> parsed once at content load; empty when none are authored.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public uint[] NpcOutfitRgb { get; set; } = System.Array.Empty<uint>();
+
+    // --- Generation 8 (2026-09): Titas and Valuma, Justus' planets. Every field defaults to its classic no-op and is
+    // read on generation-8 worlds only, so every older type stays bit-identical. ---
+
+    /// <summary>At most one body of this type in a galaxy (Titas): the first one rolled in the original systems keeps it,
+    /// every other roll becomes another generation type.</summary>
+    public bool OncePerGalaxy { get; set; }
+
+    /// <summary>A fixed body name (Titas): every body of this type is called exactly this, in every language.</summary>
+    public string FixedName { get; set; } = string.Empty;
+
+    /// <summary>When true only the structures named in <see cref="AllowedStructures"/> stamp on this type (and no
+    /// world-generation ruin props): Titas keeps its SPS research stations, Valuma nothing at all.</summary>
+    public bool RestrictStructures { get; set; }
+
+    /// <summary>The structure kinds a <see cref="RestrictStructures"/> type still stamps: "sps_labs", "net_fragments".</summary>
+    public List<string> AllowedStructures { get; set; } = new();
+
+    /// <summary>Multiplies the planet machines' cap ("Wächter", Titas 2.5); 1 = classic.</summary>
+    public double EnemyDensity { get; set; } = 1.0;
+
+    /// <summary>A fixed snow blanket this many blocks deep over the sub-surface block (Titas 10); 0 = the classic altitude
+    /// snow/ice rule.</summary>
+    public int SnowCoverDepth { get; set; }
+
+    /// <summary>A fixed ice sheet this many blocks thick over liquid water (Titas 5); 0 = the classic freezing rule.</summary>
+    public int IceSheetDepth { get; set; }
+
+    /// <summary>Share of the surface that is hot zone (Titas 0.15) — needs one <see cref="Biome.HotZone"/> biome; 0 = none.</summary>
+    public double HotZoneShare { get; set; }
+
+    /// <summary>Only leafless dead trees grow, on snow and bare ground too, and past the tree line (Titas).</summary>
+    public bool DeadForests { get; set; }
+
+    /// <summary>Damage per second to anyone in this type's water after a 3 s grace (Titas' toxic water 2); 0 = harmless.</summary>
+    public double WaterDamagePerSecond { get; set; }
+
+    /// <summary>The most water or amphibian species the roster may hold (Titas 1); -1 = no cap.</summary>
+    public int MaxAquaticSpecies { get; set; } = -1;
+
+    /// <summary>Minutes outside until the cold kills (Titas 40): an exposure meter replaces the classic temperature drain on
+    /// this type; 0 = the classic model.</summary>
+    public double ExposureMinutesCold { get; set; }
+
+    /// <summary>Minutes in a hot zone until the heat kills (Titas 30).</summary>
+    public double ExposureMinutesHot { get; set; }
+
+    /// <summary>Calm terrain (Valuma): no massifs, volcanoes, escarpments or tilted/stepped regimes — wide plains.</summary>
+    public bool CalmTerrain { get; set; }
+
+    /// <summary>Peaceful fauna (Valuma): every procedural species is passive or skittish and bites for nothing.</summary>
+    public bool PeacefulFauna { get; set; }
 }

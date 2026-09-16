@@ -100,6 +100,14 @@ internal sealed class FarTerrainTileState
     public BlocksBeyondTheStars.Networking.Messages.FarTerrainTile? Message;
 }
 
+/// <summary>An abandoned SPS research station on the active world (2026-09, Titas) — re-derived every load.</summary>
+internal sealed class SpsLabInstance
+{
+    public Vector3i Min { get; set; }
+    public Vector3i Max { get; set; }
+    public Vector3f Center { get; set; }
+}
+
 internal sealed class LoadedWorld
 {
     public required ServerWorld World { get; init; }
@@ -111,6 +119,8 @@ internal sealed class LoadedWorld
     public List<CombatEntity> PlanetEnemies { get; } = new();
     public List<CombatEntity> Bandits { get; } = new();               // lone robbers + camp guards on this world
     public List<BanditCampInstance> BanditCamps { get; } = new();     // 0..N stamped bandit camps
+    public List<SpsLabInstance> SpsLabs { get; } = new();
+    public SreekmakraState Sreekmakra { get; } = new();                // the one shapeshifter of a Valuma world (2026-09)             // 0..N abandoned SPS research stations (2026-09, Titas)
     public List<MonumentInstance> Monuments { get; } = new();         // 0..N stamped rune monuments
     public List<GameServer.ServerNpc> Npcs { get; } = new();
     public List<GameServer.ServerDoor> Doors { get; } = new();

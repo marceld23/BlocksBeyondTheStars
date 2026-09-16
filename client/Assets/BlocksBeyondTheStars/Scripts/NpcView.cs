@@ -42,6 +42,7 @@ namespace BlocksBeyondTheStars.Client
             public byte Pose;              // 0 stand, 1 sit, 2 lie asleep
             public string Held = string.Empty;
             public string ActivityKey = string.Empty;
+            public string NameKey = string.Empty; // 2026-09: a profession's nameplate key also picks its greeting
             public string CachedActivityKey;
             public string CachedActivityText;
             public GameObject Zzz;         // the soft "z z z" over a sleeper
@@ -178,19 +179,35 @@ namespace BlocksBeyondTheStars.Client
                 return; // greeting for an NPC we aren't rendering (left the area) — ignore
             }
 
-            string text = string.IsNullOrWhiteSpace(m.Text) ? FallbackGreeting(m.Role) : m.Text.Trim();
+            string text = string.IsNullOrWhiteSpace(m.Text) ? FallbackGreeting(m.Role, n.NameKey) : m.Text.Trim();
             n.Greeting = text;
             n.GreetingUntil = WorldNow + GreetingSeconds;
         }
 
         /// <summary>The localized static greeting shown when no AI line is available, keyed by NPC role.</summary>
-        private string FallbackGreeting(string role)
+        private string FallbackGreeting(string role, string nameKey)
         {
             var loc = Game?.Localizer;
+            if (loc == null)
+            {
+                return string.Empty;
+            }
+
+            // A profession (2026-09) greets in its own words: npc.role.doctor → npc.greet.doctor, when that line exists.
+            if (!string.IsNullOrEmpty(nameKey) && nameKey.StartsWith("npc.role.", System.StringComparison.Ordinal))
+            {
+                string own = "npc.greet." + nameKey.Substring("npc.role.".Length);
+                string line = loc.Get(own);
+                if (!string.IsNullOrEmpty(line) && line != own)
+                {
+                    return line;
+                }
+            }
+
             string key = role == "quartermaster" ? "npc.greet.quartermaster"
                 : role == "guardian" ? "npc.greet.guardian" // #1793
                 : "npc.greet.vendor";
-            return loc != null ? loc.Get(key) : string.Empty;
+            return loc.Get(key);
         }
 
         private void OnWorldReset(WorldReset m)
@@ -297,6 +314,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 n.ActivityKey = nd.ActivityKey ?? string.Empty;
+                n.NameKey = nd.NameKey ?? string.Empty;
             }
 
             if (_npcs.Count > seen.Count)
@@ -337,6 +355,9 @@ namespace BlocksBeyondTheStars.Client
                 case "npc_hammer": return (1.2f, 2.4f);
                 case "npc_hoe": return (2.0f, 3.5f);
                 case "blade": return (30f, 60f);
+                case "npc_pickaxe": return (1.0f, 2.0f);     // 2026-09: the blockfarmer quarries
+                case "npc_camera": return (3.0f, 5.5f);      // the streamer films
+                case "npc_microphone": return (4.0f, 7.0f);  // the reporter takes notes
             }
 
             if (theme.Contains("miner"))

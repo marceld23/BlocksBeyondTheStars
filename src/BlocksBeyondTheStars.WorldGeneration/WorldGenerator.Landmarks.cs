@@ -24,9 +24,14 @@ public sealed partial class WorldGenerator
     /// world floor ends in the molten band — that is every non-cratered body (the cratered airless moons
     /// and asteroids bottom out in basalt and are geologically dead). Void worlds (ship interiors, station
     /// decks) and skylands stay out. Until #1631 only watery, breathable worlds qualified (#477).</summary>
+    /// <summary>Generation 8 (2026-09, Valuma): a calm type grows no volcanoes, massifs, rifts, escarpments or tilted,
+    /// stepped and ridged regimes — wide open plains. False on every other type and world.</summary>
+    private bool CalmTerrain(PlanetType planet)
+        => planet.CalmTerrain && _terrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
+
     private bool HasVolcanoes(PlanetType planet)
     {
-        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands || CalmTerrain(planet))
         {
             return false;
         }
@@ -375,7 +380,7 @@ public sealed partial class WorldGenerator
     /// floaty, void interiors have no terrain.</summary>
     private bool HasMassifs(PlanetType planet)
     {
-        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands || CalmTerrain(planet))
         {
             return false;
         }
@@ -549,7 +554,7 @@ public sealed partial class WorldGenerator
     private const double EscarpmentChance = 14 / 256.0; // ~5.5 % of eligible worlds
 
     private bool HasEscarpment(PlanetType planet, long seed)
-        => !planet.FloatingIslands && !planet.Void
+        => !planet.FloatingIslands && !planet.Void && !CalmTerrain(planet)
            && (Noise.Hash(seed ^ 0x0E5CA29F, 9, 2, 5) & 0xFF) < 256 * EscarpmentChance;
 
     /// <summary>The escarpment's height contribution (#702): +step/2 on the upper storey, −step/2 on the

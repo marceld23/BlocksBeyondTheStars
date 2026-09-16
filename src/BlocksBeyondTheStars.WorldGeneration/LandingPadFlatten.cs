@@ -27,12 +27,17 @@ public readonly struct LandingPadFlatten
     /// under them when a neighbouring chunk generates later.</summary>
     public readonly bool ClassicShape;
 
+    /// <summary>A lava islet (terrain generation 8): the islet stands in lava, so it is built from basalt through and
+    /// through — ash and sand are granular and would sink into woken lava — and grows no flora.</summary>
+    public readonly bool Molten;
+
     public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius)
         : this(centerX, centerZ, surfaceY, radius, islet: false, plateauRadius: radius, isletRadius: radius)
     {
     }
 
-    public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius, bool islet, int plateauRadius, int isletRadius, bool classicShape = false)
+    public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius, bool islet, int plateauRadius, int isletRadius, bool classicShape = false,
+        bool molten = false)
     {
         CenterX = centerX;
         CenterZ = centerZ;
@@ -42,13 +47,14 @@ public readonly struct LandingPadFlatten
         PlateauRadius = islet ? System.Math.Max(radius, plateauRadius) : radius;
         IsletRadius = islet ? System.Math.Max(PlateauRadius, isletRadius) : radius;
         ClassicShape = islet && classicShape;
+        Molten = islet && !classicShape && molten;
     }
 
     /// <summary>Field-wise equality (the generator's mode checks and the chunk-generation pool compare pad lists).</summary>
     public bool SameAs(LandingPadFlatten other)
         => CenterX == other.CenterX && CenterZ == other.CenterZ && SurfaceY == other.SurfaceY && Radius == other.Radius
             && Islet == other.Islet && PlateauRadius == other.PlateauRadius && IsletRadius == other.IsletRadius
-            && ClassicShape == other.ClassicShape;
+            && ClassicShape == other.ClassicShape && Molten == other.Molten;
 
     /// <summary>Whether two pad lists hold the same pads in the same order (null = empty).</summary>
     public static bool SameList(IReadOnlyList<LandingPadFlatten>? a, IReadOnlyList<LandingPadFlatten>? b)

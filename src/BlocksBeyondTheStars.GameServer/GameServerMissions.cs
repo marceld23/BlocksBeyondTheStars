@@ -649,7 +649,7 @@ public sealed partial class GameServer
     /// species roster must hold a hostile species AND the rules must actually put hostiles out there — with
     /// <c>PlanetEnemies Off</c> or outside Survival the hostile wildlife stands down, so a "hostile watch"
     /// order would be a promise the world cannot keep.</summary>
-    private bool HostileScanFeasible => PlanetEnemiesActive && _speciesRoster.Any(sp => sp.Hostile);
+    private bool HostileScanFeasible => PlanetEnemiesActive && _speciesRoster.Any(sp => sp.Hostile && sp.Id != SreekmakraSpeciesId); // the shapeshifter hides
 
     /// <summary>Whether a scan template can be completed on this world at all (#1205) — a template that could
     /// never finish would be a broken promise on the board.</summary>

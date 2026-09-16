@@ -24,6 +24,123 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌋 Player reports 2026-09-15, late — landed in lava, the caret crash again, cut feedback text; Titas, Valuma and eight NPC professions (#1906 #1907 #1908 #1909 #1910 #1911 #1912 #1913 #1914 #1915, 2026-09-16, branch fix/justus-reports-0915-late)
+
+Twelve reports + one crash from Justus ("Flash der Miner-BBTS", v2026.9.9) and the side findings of their analysis.
+Marcel's decisions 2026-09-16: all recommendations taken; the per-world weapon switch is removed (weapons are not
+configurable); the new professions also appear in newly generated settlements, are placeable in the structure editor and
+can be staffed at your own station/base like the existing posts; textures are generated with the OpenAI scripts.
+
+- **Caret crash (client, 2026.9.9).** `InputField.GenerateCaret` threw again although #1805 guarded every field: the guard read
+  the Text's cached `Graphic.canvas` from the field's own `OnCanvasHierarchyChanged` (it sits above the Text, so the cache
+  could still hold the disabled canvas), missed a focus requested in the same frame the canvas went off (uGUI focuses in its
+  `LateUpdate`) and a field focused under an already hidden canvas. `InputFocusGuard` now walks the parent canvases itself
+  (`HasLiveCanvas`) in `OnCanvasHierarchyChanged` AND a `LateUpdate` ordered after uGUI's. The chat box — the one runtime
+  field built without `UiKit.AddInput` — gets the guard and turns its canvas on BEFORE focusing (in the flight view it stayed
+  off until the next frame: the likeliest path of the report). PlayMode: `InputFocusGuardPlayModeTests` (4).
+- **F1 feedback text cut at 1500 characters.** A long idea text arrived ending mid-sentence: the dialog's field stopped
+  accepting keys and pasted text at 1500 without any hint. Description and reply answer now take **4800** characters
+  (below the inbox's 5000 even with the /bump twin's "[feedback] title — " prefix, so the two rows still pair), a live
+  "used / 4800" count sits next to the label (warning colour from 90 %), and a text that filled the field asks once
+  ("reached the maximum length — click Send again"). The server's /bump description cap went from 2000 to 5100.
+  Test: `BumpTests.BumpReport_FullLengthFeedbackText_ReachesTheInboxTwinUncut`.
+- **The per-world weapon switch is gone (side finding).** `GameRules.WeaponMode` (None/ToolsOnly/NonLethal/Lasers/All) was
+  never read by any code — every world always had all hand weapons — and was not in the world options; only the unused
+  server presets set it, and the parents page + age-rating checklist claimed "combat is opt-in per world". Marcel's
+  decision: whether a world has weapons is not configurable. Removed the enum, the property, the preset lines and the
+  `ServerRules.WeaponMode` wire field (contractless map → older clients simply see it missing); a save whose baked
+  `RulesOverride` still carries the field loads unchanged (`GameModeTests.SavedRules_FromBeforeTheWeaponModeRemoval_StillLoad`).
+  Docs corrected: `docs/user/PARENTS.md` + `.de.md` (what a family world does switch: robots, bandits, space enemies, UFOs,
+  wildlife), `docs/developer/AGE_RATING_CHECKLIST.md`.
+- **Vendors: trade AND talk; the theme of the vendor you stand at (side findings).** E at a vendor NPC always opened the
+  market — a vendor is the "market" station — so vendor dialogues (the favour chain, recurring faces) were only reachable
+  from 3.6–4.5 m away. E now asks *Trade or talk?* (`VendorChoicePrompt`, E/Enter = trade, the old one-key habit stays;
+  market blocks still open at once). Server: `VendorThemeAt` took the nearest vendor NPC anywhere on the world once any
+  stall marker was in reach; it now requires that vendor within 6 blocks (`VendorThemeReach`). USER_MANUAL updated.
+- **Landed in the lava (terrain generation 8).** Justus' ship stood in a lava lake on the ashen world Naispae V: a
+  radius-8 shaft with lava walls, the floor flooded as soon as something woke the melt. The #1619 islet only rose out of
+  WATER (`SeaIsWater`), and the dry test knew lava seas and craters but not lava rivers, caldera/shield lakes or gen-3
+  flows. A probe over twelve `ashen_ocean` seeds found 1–10 of 12–16 pads per world in lava. **New worlds (generation 8,
+  `LavaPadsGeneration`):** a 13-sample dry test over every water and lava body; a pad still over lava gets a **basalt
+  islet** (`LandingPadFlatten.Molten`: plateau + slope of basalt, lava cells filled, no flora), never a shaft.
+  **Older saves** keep their pads: lava pads are flagged `Molten` — ranked last, refused as an explicit choice while
+  another pad is free (`srv.land.pad_lava`), and a ship saved on one is parked on a free pad on load, the player waking
+  aboard (`RestoreLandingPad` + `LeaveMoltenPad`); the chooser/map show them orange-red "lava!" (`NetLandingPad.Lava`),
+  VEGA line `vega.hint.lava_pad`. `CurrentTerrainGeneration` 7 → 8 (shared with Titas/Valuma below). Tests: three in
+  `LandingPadTests`. Docs: WORLD_GENERATION.md §19, USER_MANUAL (landing pads).
+- **NPC professions, part 1 — the table, their buildings in new settlements, editor markers, base/station staffing.**
+  Justus' eight job ideas become professions (`NpcProfessions`, Shared): **doctor, grocer (shopkeeper), arms dealer, sage,
+  animal tamer, blockfarmer** trade (Role `vendor` with their own job + market theme `medics/grocer/arms/sage/tamer/blocks`,
+  so the market and the trade-or-talk question work unchanged), **streamer** and **reporter** are settlers. Each has a post
+  marker (= its job key), a post block for bases/stations, a settlement building function (`clinic, shop, armory, library,
+  stable, quarry, studio, newsroom` → `StructureRoles.PlotRoles`) and a furnished room (medbay, market, workshop, hall,
+  storage, lounge, board). **Settlements:** 32 new modules (village + town, human + alien; generator
+  `tools/gen_settlement_modules.py` / `settlement_module_shapes.py` — every existing module byte-identical, pool order kept)
+  as optional max-1 entries in every modular kit, so only freshly placed settlements draw them (compositions are pinned per
+  record). `SpawnProfessionResidents` staffs each post AFTER the bed-bound residents with its own seeded generator — a
+  settlement without profession posts spawns exactly the people it always did. **Editor:** the eight markers in the station
+  and settlement palettes (`ui.marker.*`), the eight functions in the "use as" stepper (`ui.role.*`). **Stations:** generated
+  (authored templates) and kit crews staff profession markers (no `vendorIndex` step, so classic vendor themes never shift);
+  a player station registers profession post blocks as markers and staffs them like the trading post (air check).
+  **Bases:** `BaseIndex.ProfessionPosts` → jobs right after vendor/quartermaster, base markers per profession. **Trade
+  gates** (settlement / station / base) accept every trading profession's post. Locales en+de: `npc.role.*`,
+  `npc.activity.*`, `npc.greet.*`, `ui.marker.*`, `ui.role.*`. Tests: `NpcProfessionTests` (table, kits, fresh settlement
+  staffing) + marker whitelists / resident counts in the settlement tests.
+- **NPC professions, part 2 — posts to build, their goods, their talk, the streamer's photo, the reporter's news, the
+  tamer's pet.** **Post blocks** (`clinic_post`, `shop_counter`, `arms_rack`, `sage_lectern`, `tamer_post`,
+  `quarry_post`, `streamer_post`, `press_desk`, appended to blocks.json so block ids stay) behind one blueprint
+  `station_profession_posts` (Station tree after the trading post), plus a `stretcher` furniture block (Table shape);
+  textures generated with the OpenAI scripts (+ Titas' `sulfur_stone`). **Offers:** 26 market recipes on the six new
+  themes ("expensive" = diamonds/gold); `RecipeDefinition.MarketRotation` (+ `OfferedOnDay`) puts the doctor's bed and
+  stretcher in stock every other in-game day (server check `srv.craft.not_today`, client filter); the grocer sells only
+  inside the shop (`InSameClosedRoom`, `srv.craft.shop_only`). **Dialogues:** `DialogDefinition.Job`, one dialogue per
+  profession; a profession never takes a role dialogue. **Streamer:** asks each passer-by once per in-game day
+  (`npc.streamer.ask`); "yes" poses and `NpcDialogState.Action = "photo"` takes a HUD-free photo, "never" stops the asking.
+  **Reporter:** "interview me" → `InterviewUi` (≤ 300 chars, screened like chat; Safe chat mode = four ready answers) →
+  `InterviewAnswerIntent` (tag 243) → `WorldMetadata.News` per place (latest 10); "what's in the news?" reads them back.
+  **Tamer:** a tame land animal of the planet follows them (`npc:<id>` owner, not attackable, gone with the tamer, none on
+  stations). **Blockfarmer:** works 10 blocks beyond the settlement edge / base walls. Client: held items
+  (`HeldItem.ForNpc`), profession greetings by nameplate key. Balance tests adjusted: a bought weapon is the deliberate
+  shortcut past the upgrade chain (crafting-only rule), the posts blueprint costs 45. Tests: `NpcProfessionTests` (+9).
+  Docs: NPC_ROUTINES.md §11, USER_MANUAL (professions), STATION_SETTLEMENT_EDITOR.md, NOTICES.md.
+- **NPC professions, part 3 — generated stations and the G.D.S. city (Marcel, 2026-09-16).** Station kits offer six
+  profession rooms (doctor, grocer, arms dealer, sage, streamer, reporter — no tamer or blockfarmer in space) per tier,
+  each with its keeper's cabin behind a partition; modules with a cabin dock on the hall deck only (the crew cannot climb);
+  profession posts are staffed before settler posts; profession rooms are furnished like their buildings. The G.D.S. city
+  gets two services districts with the same six. Every existing module and kit entry is unchanged (new entries appended),
+  pinned stations and cities replay as before. Editor: six station functions (`ui.function.*`, all languages). Tests:
+  `NpcProfessionTests` (+3), module count in `SettlementModuleContentTests`.
+- **Titas (generation 8).** Justus' frozen planet, at most once per galaxy and always called "Titas": ten blocks of snow
+  over the new `sulfur_stone`, toxic yellow water under five blocks of ice, volcanic hot zones (15 %, basalt, lava ponds,
+  +100 °C), leafless dead forests, at most one water species, no settlements/ruins/camps/wrecks/unique sites — only
+  3–6 abandoned **SPS research stations** (rusted modules, ship pad + "H" pad, salvage, a log terminal with three lore
+  texts; no air and −90 °C inside) and net fragments, and the planet machines ×2.5, gathering at the labs. Survival: an
+  **exposure meter** (40 min cold, 30 min heat, roof half speed, liners/tier factors, ship/station/base/campfire refill,
+  rising damage at full, VEGA at 50/75/90 %, HUD row) and **toxic water** (2 HP/s after 3 s). All new `PlanetType` fields
+  are no-ops on every other type and read on generation-8 worlds only (goldens unchanged, new `titas-gen8`). Tests:
+  `TitasWorldTests` (7), `TitasSurvivalTests` (5). Docs: WORLD_GENERATION.md §20, USER_MANUAL (survival).
+- **"Port Sex" — no more rude coined names, and no rude station names typed by players (Marcel, 2026-09-16).** A hub
+  station was called "Port Sex": `NameGenerator.Port` is "Port " + a coined word, and "s" + "e" + "x" is an ordinary
+  onset/vowel/coda syllable; the generator's block list knew "rape"/"porn"/… but not "sex". Every coined name (stars,
+  regions, planets, twins, moons, asteroids, ports, wrecks, NPC persons/robots, creatures, flora, trees) now leaves
+  through `NameGenerator.Clean`: a letter run with a blocked substring (the old list + sexual/insulting additions) is
+  replaced by a clean word from a LOCAL generator seeded by that run — the naming stream is not touched, so every other
+  name stays identical and an existing save simply shows a new name for the offending body on its next start (galaxy
+  names are regenerated from the seed). Player-given names (stations, bases, beacons, companions): the chat screen masks
+  the sexual terms (names refuse masked words), and `ScreenPlayerName` also refuses a few unambiguous sexual stems inside
+  compounds ("Sexstation"). Tests: `NameGeneratorTests` (+2), `NameAndAiScreeningTests` (+1).
+- **Valuma and the Sreekmakra (generation 8).** Justus' rare plains planet (his text was cut at 1500 characters — ask him
+  for the rest): flat grass plains without volcanoes, massifs, rifts, escarpments or tilted/stepped regimes
+  (`CalmTerrain`), hardly a tree, a peaceful roster (`PeacefulFauna`), no structures but net fragments. **Sreekmakra**
+  (authored creature): one per world, disguised as a land animal with 3× its health, changes shape unobserved every
+  150–240 s; killing an animal of its current shape or hitting it makes it hunt that player (the shape's speed and bite
+  ×1.5) until they leave or it falls; at zero the disguise breaks and the true form fights on; its defeat gives the
+  Codex entry, the achievement *Unmasked* and keeps the next one away three in-game days; with planet enemies off it
+  reveals itself and flees; untameable; the hand scanner reads an anomaly. Client rebuilds a creature's body and voice
+  on a species change. **Mood:** VEGA feels watched after 20 minutes on the planet, after 35 fog and darker music
+  (`PlayerStateUpdate.Uneasy`), reset on leaving. HUD: exposure row icon `vital_exposure` (gen_hud_icons.py). Tests:
+  `ValumaWorldTests` (3), `SreekmakraTests` (5), golden `valuma-gen8`. Docs: WORLD_GENERATION.md §21, USER_MANUAL.
+
 ### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
 
 Five reports from Justus ("Flash der Miner-BBTS", v2026.9.9, fresh singleplayer world) plus Marcel's question how the

@@ -47,6 +47,16 @@ public static class CreatureGenerator
             // the legacy indices keep their exact pre-bump rolls and existing worlds keep their known fauna.
             EnsureHabitatDiversity(list, LegacyAbundanceCount(planet.CreatureAbundance), planetSeed,
                 allowWater, allowLava, allowCave, biomeCount, terrainGeneration);
+
+            // Generation 8 (2026-09): the extreme types' roster rules — Titas caps its water life, Valuma is peaceful.
+            if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ExtremePlanetsGeneration)
+            {
+                CapAquaticSpecies(list, planet.MaxAquaticSpecies, planetSeed, allowWater, allowLava, allowCave, biomeCount, terrainGeneration);
+                if (planet.PeacefulFauna)
+                {
+                    MakePeaceful(list);
+                }
+            }
         }
 
         // Airless bodies (asteroids / airless moons+planets) stay lifeless whatever the data says; otherwise the
@@ -212,6 +222,54 @@ public static class CreatureGenerator
             long s = unchecked(planetSeed ^ ((long)pick * golden) ^ WorldGenerator.StableHash("niche:" + niche));
             var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
             list[pick] = MakeSpecies(pick, rng, allowWater, allowLava, allowCave, biomeCount, niche, speciesSeed: s, terrainGeneration);
+        }
+    }
+
+    /// <summary>Generation 8 (Titas): keeps the first <paramref name="cap"/> water/amphibian species and re-draws every later
+    /// one as a land species from a salted seed (-1 = no cap).</summary>
+    private static void CapAquaticSpecies(List<CreatureSpecies> list, int cap, long planetSeed,
+        bool allowWater, bool allowLava, bool allowCave, int biomeCount, int terrainGeneration)
+    {
+        if (cap < 0)
+        {
+            return;
+        }
+
+        const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
+        int kept = 0;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i].Habitat is not (CreatureHabitat.Water or CreatureHabitat.Amphibian))
+            {
+                continue;
+            }
+
+            if (kept < cap)
+            {
+                kept++;
+                continue;
+            }
+
+            long s = unchecked(planetSeed ^ ((long)i * golden) ^ WorldGenerator.StableHash("cap:land"));
+            var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+            list[i] = MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount, CreatureHabitat.Land, speciesSeed: s, terrainGeneration);
+        }
+    }
+
+    /// <summary>Generation 8 (Valuma): every rolled species is passive or skittish and bites for nothing.</summary>
+    private static void MakePeaceful(List<CreatureSpecies> list)
+    {
+        for (int i = 0; i < list.Count; i++)
+        {
+            var sp = list[i];
+            if (sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish)
+            {
+                sp.AttackDamage = 0f;
+                continue;
+            }
+
+            sp.Temperament = i % 2 == 0 ? CreatureTemperament.Passive : CreatureTemperament.Skittish;
+            sp.AttackDamage = 0f;
         }
     }
 

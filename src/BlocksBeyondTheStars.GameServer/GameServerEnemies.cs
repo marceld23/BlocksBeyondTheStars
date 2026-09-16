@@ -77,6 +77,12 @@ public sealed partial class GameServer
     private int PlanetEnemyCap(int targets)
     {
         int cap = ActivityCount(Rules.PlanetEnemies) * targets;
+        // 2026-09 (generation 8): a type's machine density — Titas' "very many guardians" ×2.5.
+        if (_world.Planet is { EnemyDensity: not 1.0 } planet && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration)
+        {
+            cap = (int)System.Math.Round(cap * planet.EnemyDensity);
+        }
+
         return RemnantEra ? System.Math.Max(1, cap / 2) : cap;
     }
 
@@ -569,6 +575,15 @@ public sealed partial class GameServer
             }
         }
 
+        // 2026-09 (Titas): near an abandoned SPS lab the machines gather at the lab — they still guard it.
+        if (!atWreck && NearestSpsLab(player.Position, SpsLabGuardRange) is { } lab)
+        {
+            double lang = n * 2.39996323;
+            float lr = 20f + (n % 4) * 4f; // 20..32 blocks around the compound's centre — just outside its modules
+            ex = (int)System.Math.Round(lab.X + System.Math.Cos(lang) * lr);
+            ez = (int)System.Math.Round(lab.Z + System.Math.Sin(lang) * lr);
+        }
+
         // Stand on the ground, not in it — real blocks when the column is loaded, noise surface otherwise.
         int ey = GroundFeetYAt(ex, ez, _generator.SurfaceHeight(_world.Planet, ex, ez) + 1);
         if (asDrone)
@@ -616,6 +631,12 @@ public sealed partial class GameServer
 
         if (_creatures.FirstOrDefault(e => e.Id == entityId) is { } creature)
         {
+            if (creature.OwnerId.StartsWith(NpcPetOwnerPrefix, System.StringComparison.Ordinal))
+            {
+                Reject(session, "attack", "@srv.attack.no_target"); // the tamer's pet (2026-09) is not fair game
+                return;
+            }
+
             AttackCombatEntity(session, creature, _creatures, isCreature: true, dir);
             return;
         }
@@ -693,6 +714,12 @@ public sealed partial class GameServer
             : 15f + tool.Tier * 10f;
         target.Hull -= damage;
 
+        // 2026-09 (Valuma): a hit turns the shapeshifter on its attacker; at zero its disguise breaks instead of it dying.
+        if (isCreature && IsSreekmakra(target) && OnSreekmakraHit(session, target))
+        {
+            return;
+        }
+
         if (isCreature)
         {
             // Any hit — surviving or fatal — startles the victim's nearby kin (#653): non-retaliating
@@ -728,6 +755,7 @@ public sealed partial class GameServer
         OnAchievementDefeat(session);
         if (isCreature)
         {
+            OnCreatureKilled(target, session); // 2026-09: the shapeshifter's death, or one of its shape's kind
             BroadcastCreatures();
         }
         else

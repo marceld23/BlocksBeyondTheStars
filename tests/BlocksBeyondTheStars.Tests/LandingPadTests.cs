@@ -332,6 +332,126 @@ public sealed class LandingPadTests : IDisposable
         Assert.Equal(0, ok);
     }
 
+    // ---- lava pads ("landed in the lava", 2026-09-15) ---------------------------------------------------------
+
+    private (SvGameServer Server, SqliteWorldRepository Repo) NewLavaServer(string tag, int seed, int generation, bool ship = false)
+    {
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, tag));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig
+        {
+            WorldName = tag,
+            Seed = seed,
+            StartPlanet = "ashen_ocean",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = ship,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
+        };
+        config.World.TerrainGeneration = generation;
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        return (server, repo);
+    }
+
+    [Fact]
+    public void LavaWorld_NewWorlds_RaiseABasaltIsletOverLava_NeverAShaftInIt()
+    {
+        // Generation 8: the dry test reads every lava body, and a pad still standing in lava after the nudge stands on
+        // a basalt islet three blocks over the melt — never the shaft with molten walls Justus landed in.
+        var (server, repo) = NewLavaServer("lava8", LavaIsletSeed, BlocksBeyondTheStars.Shared.World.WorldDescription.CurrentTerrainGeneration);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            var basalt = _content.GetBlock("basalt")!.NumericId;
+            int lavaIslets = 0;
+            for (int i = 0; i < server.LandingPadCenters.Count; i++)
+            {
+                var (molten, lavaIslet) = server.LandingPadLavaForTest(i);
+                Assert.False(molten, $"pad {i + 1}: a generation-8 pad never stands in lava");
+                if (!lavaIslet)
+                {
+                    continue;
+                }
+
+                lavaIslets++;
+                var pad = server.LandingPadInfoForTest(i);
+                Assert.True(pad.Islet);
+                Assert.False(pad.Wet);
+                Assert.Equal(basalt, server.World.GetBlock(new Vector3i(pad.X, pad.Y, pad.Z)));
+                Assert.Equal(basalt, server.World.GetBlock(new Vector3i(pad.X, pad.Y - 3, pad.Z)));
+                Assert.True(server.World.GetBlock(new Vector3i(pad.X, pad.Y + 1, pad.Z)).IsAir);
+                // The plateau reaches beyond the reserved pad, basalt too (radius 12 ± 3 wobble → 9 is always plateau).
+                Assert.Equal(basalt, server.World.GetBlock(new Vector3i(pad.X + 9, pad.Y, pad.Z)));
+            }
+
+            Assert.True(lavaIslets > 0, $"seed {LavaIsletSeed} is expected to need at least one lava islet");
+        }
+    }
+
+    [Fact]
+    public void LavaWorld_AnOldSave_KeepsItsPads_ButRefusesAndLeavesTheLavaOnes()
+    {
+        // A generation-7 save keeps the pads it was created with (they are re-derived, never persisted): its lava pads
+        // are only flagged. A player never gets one while a better pad is free, an explicit choice is refused, and a
+        // ship saved on one is parked on a dry pad the next time the world loads — the player wakes aboard.
+        var (probe, probeRepo) = NewLavaServer("lava7", MoltenPadSeed, 7, ship: true);
+        int molten = -1;
+        using (probeRepo)
+        {
+            var kid = probe.AddLocalPlayer("Kid");
+            for (int i = 0; i < probe.LandingPadCenters.Count && molten < 0; i++)
+            {
+                if (probe.LandingPadLavaForTest(i).Molten)
+                {
+                    molten = i;
+                }
+            }
+
+            Assert.True(molten >= 0, $"seed {MoltenPadSeed} is expected to plan a pad in lava under the generation-7 rules");
+            Assert.False(probe.LandingPadLavaForTest(probe.AssignedPadForTest("Kid")).Molten, "a new player never spawns on a lava pad");
+
+            var (chosen, reason) = probe.TryClaimPadForTest(kid, molten);
+            Assert.Equal(-1, chosen);
+            Assert.Equal("@srv.land.pad_lava", reason);
+
+            // Save the player the way the report shows him: his ship's pad is the lava one, he stands in the shaft.
+            var (mx, my, mz) = probe.LandingPadForTest(molten);
+            kid.AssignedPadIndex = molten;
+            kid.State.AboardShip = false;
+            kid.State.Position = new Vector3f(mx + 0.5f, my + 2f, mz + 0.5f);
+            probe.Stop();
+        }
+
+        var (server, repo) = NewLavaServer("lava7", MoltenPadSeed, 7, ship: true);
+        using (repo)
+        {
+            var kid = server.AddLocalPlayer("Kid");
+            int pad = server.AssignedPadForTest("Kid");
+            Assert.NotEqual(molten, pad);
+            Assert.False(server.LandingPadLavaForTest(pad).Molten);
+            Assert.True(kid.State.AboardShip, "the player wakes aboard the re-parked ship");
+            var (px, _, pz) = server.LandingPadForTest(pad);
+            Assert.True(Math.Abs(kid.State.Position.X - px) < 12 && Math.Abs(kid.State.Position.Z - pz) < 12,
+                $"the player is at the new pad ({px},{pz}), not in the old shaft (at {kid.State.Position})");
+        }
+    }
+
+    [Fact]
+    public void PadPreference_ALavaPadRanksBelowEveryOtherKind()
+    {
+        // 0 = lava, 1 = seabed, 2 = islet, 3 = dry.
+        var pads = new List<(bool Wet, bool Islet, bool Molten)> { (false, false, true), (true, false, false), (false, true, false), (false, false, false) };
+        Assert.Equal(3, SvGameServer.PreferredPadIndexWithLavaForTest(pads, Array.Empty<int>()));
+        Assert.Equal(1, SvGameServer.PreferredPadIndexWithLavaForTest(pads, new[] { 2, 3 }));
+        Assert.Equal(0, SvGameServer.PreferredPadIndexWithLavaForTest(pads, new[] { 1, 2, 3 }));
+    }
+
+    /// <summary>Seeds found by probing (see the two lava tests): an ashen-ocean start world whose generation-8 pads need a
+    /// lava islet, and one whose generation-7 pads include a pad standing in lava.</summary>
+    private const int LavaIsletSeed = 1;
+    private const int MoltenPadSeed = 1;
+
     public void Dispose()
     {
         try

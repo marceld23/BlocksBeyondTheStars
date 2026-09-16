@@ -103,7 +103,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
             {
                 pads.Add(new LandingPadFlatten(packed[o], packed[o + 1], packed[o + 2], packed[o + 3],
                     islet: packed[o + 4] != 0, plateauRadius: packed[o + 5], isletRadius: packed[o + 6],
-                    classicShape: packed[o + 7] != 0));
+                    classicShape: packed[o + 7] != 0, molten: packed[o + 4] == 2));
             }
 
             return pads;
