@@ -24,6 +24,54 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛰️ Player reports 2026-09-16 — /help cut by the chat, /tp city, no station at the start, the station forgotten on quit; taming the Sreekmakra, switching the world mode, the Sandbox catalog, a look for every tool (#1922 #1923 #1924 #1925 #1926 #1927 #1928 #1930 #1931, 2026-09-16, branch fix/justus-reports-0916)
+
+Five reports from Justus ("Flash der Miner-BBTS" and "Screelit", v2026.9.9) plus his answer to the Valuma question.
+Marcel's decisions 2026-09-16: all recommendations taken.
+
+- **/help cut by the chat window; `/tp` errors never in the chat (#1922).** The help texts were unchanged, but since the chat
+  yields to VEGA's speech panel (9.7) and became a 360 px holo box (#1801) `ChatUi.RefreshLog` dropped the oldest lines to fit
+  — with VEGA speaking ~90 px, so `/help` lost its first line and `/help admin` its teleport line. While the chat box is open,
+  and for the fade time after a typed command, the chat now keeps its whole lane (it draws above VEGA); the mouse wheel and
+  PageUp/PageDown scroll back through the recent lines (`ChatScrollback`, Client.Core), with dim hint rows where lines are out
+  of view. Admin rejections that are `@srv.*` tokens (every `/tp` rejection since #822) are resolved and written to the chat —
+  the #642 promise had silently stopped working. Tests: `ChatScrollbackTests` (4), `ChatHelpTextTests` keys.
+- **`/tp city` (#1923).** Settlements of the city, town and metropolis tiers are their own `/tp` kind `city` (numbered like
+  every kind); `cities/town/stadt/städte` → city, `dorf/dörfer/siedlung/siedlungen` → village. A body without a city answers
+  "no city on this planet — try /tp village". Tests: `AdminNamedTeleportTests` (3 new, fast).
+- **No space station in the start system (#1924).** Both home guarantees (the synthesized fallback station, no Desolate/Pirate
+  start) were hard-coded to `sys0`, but the start planet is the first planet of the start type anywhere — 37.5 % of new worlds
+  had no station reachable from the start orbit and VEGA's "dock at the station — see it on the radar?" led nowhere.
+  `UniverseGenerator.EnsureStartSystemStation` adds a real `<sys>-st` over the start planet when the system rolled none
+  (angle hashed from the system id — no generator draw moves); every save gets it except an older save starting in sys0, which
+  keeps its synthesized station (`WorldDescription.StartStationGeneration` = 8). VEGA's dock lesson points to the star map in a
+  system without a station (`vega.s.dock.start_far`). Tests: `StartSystemStationTests` (3).
+- **Quit on a station → back on the planet (#1925).** `RestoreJoinBody` discarded a saved `station:<id>` on purpose, and
+  `OnClientDisconnected` ran `LeaveStation` before saving (the planet got saved — and the leaver was relaunched into a space
+  instance `LeaveSpace` had just cleared). The disconnect now only forgets the boarding (`ForgetStationBoarding`); a join onto a
+  saved station parks the ship at the planet the station undocks to and re-boards the station after the join burst
+  (`RestoreStationOnJoin`, the docking transition) at the saved spot when it is still standing room. NPC and player stations.
+  Tests: `SpaceStationBoardingTests` (+2: disconnect/rejoin, server restart).
+- **Taming the Sreekmakra; the scanner reads its name (#1926, Justus' Valuma follow-up).** The disguised shapeshifter can be tamed
+  with the translator (also while it hunts you); taming ANY animal of the shape it wears brings it along as a second companion
+  beside the player. It stays in its true form, opens its Codex entry and counts the new achievement *Shapeshifter's Friend*;
+  the next wild one comes after three in-game days; one per player; revealed or fleeing it refuses. `ScanIntent.EntityId`
+  (additive) lets the scanner read exactly the aimed creature: the disguise shows "Sreekmakra" with the anomaly readout and
+  counts as its discovery (older clients keep the nearest-of-its-kind guess). Tests: `SreekmakraTests` (+4).
+- **World mode by chat command (#1927, report "Der Modus").** `/gamemode explorer|creative|sandbox` (also `/mode <mode>`,
+  `/modus`, the German words) sets on a running world what the new-world screen bakes in — Explorer = Survival; Creative =
+  Survival + flight + all blueprints, ships and the kit; Sandbox = the Creative game mode + all of that — saved with the world
+  and sent to everyone online at once; back to Explorer keeps what was granted. World admin role, not the cheats option.
+  Tests: `AdminWorldModeTests` (4).
+- **Sandbox "All items" catalog (#1930, report "Biiiiiitte").** In the Creative game mode the Tab menu's inventory gets an
+  **All items** page (search box, every item with its icon); "Take 1" / "Take a stack" hands it out via the new
+  `CreativeTakeItemIntent` (tag 244) — refused outside that mode. Tests: `CreativeCatalogTests` (3).
+- **Every tool looks like itself in the hand (#1931, report "Das Item Hand Design").** `HeldItemShapes` (Client.Core) gives each
+  drill (basic, titanium, diamond, mining beam), gun (scrap, gauss, laser, plasma blaster), blade (machete, vibro knife, plasma
+  sword) and scanner (hand, advanced) its own cube parts; the base items keep their kind's old model, NPC tools are unchanged.
+  First-person hand, own avatar and other players. Tests: `HeldItemShapesTests` (9).
+- **i18n (#1928).** The new and changed texts in the twelve community languages (machine pass + hand review), coverage 100 %.
+
 ### 🌋 Player reports 2026-09-15, late — landed in lava, the caret crash again, cut feedback text; Titas, Valuma and eight NPC professions (#1906 #1907 #1908 #1909 #1910 #1911 #1912 #1913 #1914 #1915, 2026-09-16, branch fix/justus-reports-0915-late)
 
 Twelve reports + one crash from Justus ("Flash der Miner-BBTS", v2026.9.9) and the side findings of their analysis.

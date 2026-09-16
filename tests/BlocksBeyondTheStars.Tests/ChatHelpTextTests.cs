@@ -35,6 +35,11 @@ public sealed class ChatHelpTextTests
         "ui.cmd.usage_announce",
         "ui.cmd.usage_restart",
         "ui.cmd.usage_kick",
+        "ui.admin.help_mode",
+        "ui.admin.help_gamemode",
+        "ui.chat.scroll_older",
+        "ui.chat.scroll_newer",
+        "ui.chat.scroll_open",
     };
 
     [Theory]
@@ -64,9 +69,9 @@ public sealed class ChatHelpTextTests
         }
     }
 
-    /// <summary>The chat log shows the last ten entries in a ~620x250 box, so one line has to stay
-    /// readable on its own. The old single "ui.admin.help" was 509 characters and wrapped over the whole
-    /// scrollback; the grouped lines replacing it stay well under that.</summary>
+    /// <summary>The chat log is a 360 px holo window (#1801) that fits its newest lines and pages back while the box is
+    /// open (#1922), so one line has to stay readable on its own. The old single "ui.admin.help" was 509 characters and
+    /// wrapped over the whole scrollback; the grouped lines replacing it stay well under that.</summary>
     [Theory]
     [InlineData("en")]
     [InlineData("de")]

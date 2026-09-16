@@ -519,8 +519,9 @@ public sealed partial class GameServer
     /// <summary>The world-transition half of boarding (shared by in-space docking and the travel-screen "board a
     /// visited station" path): switches the player into the station's own free-floating void world, stamps its
     /// interior, spawns the crew, marks it visited and tells the client to reload. The caller has already arranged
-    /// the return location (<see cref="_boardedReturn"/>) and torn down any prior presence (space instance / station).</summary>
-    private void EnterBoardedStation(PlayerSession session, BoardableStation station)
+    /// the return location (<see cref="_boardedReturn"/>) and torn down any prior presence (space instance / station).
+    /// <paramref name="at"/> wakes the player at that spot instead of the arrivals point (a rejoin, #1925).</summary>
+    private void EnterBoardedStation(PlayerSession session, BoardableStation station, Vector3f? at = null)
     {
         string playerId = session.State.PlayerId;
 
@@ -553,7 +554,7 @@ public sealed partial class GameServer
         }
 
         session.CurrentLocationId = stationLoc;
-        session.State.Position = station.Spawn;
+        session.State.Position = at ?? station.Spawn;
         session.State.AboardShip = false;
         session.State.InEva = false; // docking ends any spacewalk — the station has life support
         session.SentChunks.Clear();
@@ -573,9 +574,9 @@ public sealed partial class GameServer
         {
             StationId = station.Id,
             Name = station.Name,
-            X = station.Spawn.X,
-            Y = station.Spawn.Y,
-            Z = station.Spawn.Z,
+            X = session.State.Position.X,
+            Y = session.State.Position.Y,
+            Z = session.State.Position.Z,
         });
         SendStarMap(session); // refresh markers/owner/visited now that this station counts as visited
         SyncAppearance(session); // faces + body paintings both ways on the station world (#982)
@@ -650,6 +651,92 @@ public sealed partial class GameServer
         var sys = _galaxy?.Systems.FirstOrDefault(s => s.Id == stationBody.SystemId);
         var land = sys?.Bodies.FirstOrDefault(b => !string.IsNullOrEmpty(b.PlanetType));
         return land is not null ? (land.Id, land.PlanetType!) : (_meta.ActiveLocationId, _meta.DefaultPlanetType);
+    }
+
+    /// <summary>The station a saved location (<c>station:&lt;id&gt;</c>) names, if it is still a station of this galaxy
+    /// (NPC stations and player-built ones alike) — null for every other location (#1925).</summary>
+    private CelestialBody? SavedStationBody(string? locationId)
+        => !string.IsNullOrEmpty(locationId) && locationId.StartsWith(StationLocationIdPrefix, System.StringComparison.Ordinal)
+           && _galaxy?.FindBody(locationId.Substring(StationLocationIdPrefix.Length)) is { Kind: CelestialKind.SpaceStation } body
+            ? body
+            : null;
+
+    /// <summary>#1925 ("I quit on a space station and came back on the planet"): a player whose save stands aboard a
+    /// station is boarded again once the join is through — through the same transition docking uses, at the saved spot
+    /// when it is still standing room, else at the arrivals point. The join itself placed them (and their ship) on the
+    /// planet the station undocks to (<see cref="RestoreJoinBody"/>), so a station that is gone or no longer open to
+    /// them simply leaves them there, like before.</summary>
+    private void RestoreStationOnJoin(PlayerSession session, string savedLocation, Vector3f savedPosition)
+    {
+        if (SavedStationBody(savedLocation) is not { } body || !CanBoardStation(session, body.Id))
+        {
+            return;
+        }
+
+        string playerId = session.State.PlayerId;
+        if (!_stationsById.TryGetValue(body.Id, out var station))
+        {
+            station = GetOrCreateStation(body.Id, body.Name, 0);
+        }
+
+        LeaveSpace(playerId);
+        _boardedStation.Remove(playerId);
+        _dockedFromEva.Remove(playerId);
+        _boardedReturn[playerId] = StationReturnLocation(body.Id, body);
+        EnterBoardedStation(session, station);
+        if (StandingRoomAt(savedPosition))
+        {
+            // The spot rides the RespawnNotice channel (Died=false), like every server-side relocation — a plain
+            // PlayerStateUpdate position is ignored by the client (#414 N17).
+            session.State.Position = savedPosition;
+            Send(session, new RespawnNotice
+            {
+                X = savedPosition.X,
+                Y = savedPosition.Y,
+                Z = savedPosition.Z,
+                Reason = "@srv.station.rejoined:" + station.Name,
+            });
+            SendPlayerState(session);
+        }
+
+        _log.Info($"Player '{session.State.Name}' rejoined aboard station '{station.Name}'.");
+    }
+
+    /// <summary>Feet and head in air above a solid block within reach below, on the active world (#1925).</summary>
+    private bool StandingRoomAt(Vector3f pos)
+    {
+        var feet = pos.ToBlock();
+        if (!WithinBuildHeight(feet.Y) || !WithinBuildHeight(feet.Y + 1)
+            || !_world.GetBlock(feet).IsAir || !_world.GetBlock(new Vector3i(feet.X, feet.Y + 1, feet.Z)).IsAir)
+        {
+            return false;
+        }
+
+        for (int dy = 1; dy <= 3; dy++)
+        {
+            var below = new Vector3i(feet.X, feet.Y - dy, feet.Z);
+            if (WithinBuildHeight(below.Y) && !_world.GetBlock(below).IsAir)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The disconnect half of #1925: forgets the boarding without <see cref="LeaveStation"/>'s undock — the
+    /// player's save keeps the station location and spot, and the leaver is not relaunched into a space instance.</summary>
+    private void ForgetStationBoarding(PlayerSession session)
+    {
+        string playerId = session.State.PlayerId;
+        if (!_boardedStation.Remove(playerId))
+        {
+            return;
+        }
+
+        ClearStationZeroG(session);
+        _boardedReturn.Remove(playerId);
+        _dockedFromEva.Remove(playerId);
     }
 
     /// <summary>Leaves a boarded station and undocks straight back into <b>space flight</b> around the

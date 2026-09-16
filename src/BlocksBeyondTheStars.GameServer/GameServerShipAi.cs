@@ -335,7 +335,11 @@ public sealed partial class GameServer
         int next = VegaStageIndex(p);
         if (next < VegaStages.Length)
         {
-            SendVegaLine(session, $"vega.s.{VegaStages[next].Id}.start", 0);
+            // #1924: "see the station on the radar?" in a system without one sent players looking for nothing — there
+            // VEGA points to the star map and a jump instead.
+            string nextId = VegaStages[next].Id;
+            bool noStationHere = nextId == "dock" && !StationContactsForCurrentSystem(session.CurrentLocationId).Any();
+            SendVegaLine(session, noStationHere ? "vega.s.dock.start_far" : $"vega.s.{nextId}.start", 0);
         }
         else
         {

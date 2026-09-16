@@ -956,6 +956,43 @@ public sealed class UniverseGenerator
         }
     }
 
+    /// <summary>#1924 ("none of my worlds had a space station"): the start system always has a REAL station — on the map,
+    /// on the radar, a mission and trade stop for VEGA's "dock at a station" lesson. The per-system roll leaves ~60 % of
+    /// systems without one, and the old home guarantees only covered <c>sys0</c>, while the start planet is the first
+    /// planet of the start type anywhere. A system that rolled a station is left alone; otherwise one hangs over the
+    /// start planet, named after it, at an angle hashed from the system id alone — so every restart re-derives the same
+    /// station and no other generator draw moves. Returns the added station, or null.</summary>
+    public static CelestialBody? EnsureStartSystemStation(StarSystem system, CelestialBody start)
+    {
+        if (start.Kind != CelestialKind.Planet || start.SystemId != system.Id
+            || system.Bodies.Any(b => b.Kind == CelestialKind.SpaceStation))
+        {
+            return null;
+        }
+
+        int h = 23;
+        foreach (char c in system.Id)
+        {
+            h = h * 31 + c;
+        }
+
+        float ang = (float)(new DeterministicRandom(h * 2654435761L + 1924).NextDouble() * Tau);
+        float sx = start.SystemX + StationOrbit * System.MathF.Cos(ang);
+        float sz = start.SystemZ + StationOrbit * System.MathF.Sin(ang);
+        (sx, sz) = SeparateFromBodies(system, sx, sz);
+        var station = new CelestialBody
+        {
+            Id = $"{system.Id}-st", // the id a rolled first station would have had
+            Name = $"{start.Name} Station",
+            Kind = CelestialKind.SpaceStation,
+            SystemId = system.Id,
+            SystemX = sx,
+            SystemZ = sz,
+        };
+        system.Bodies.Add(station);
+        return station;
+    }
+
     /// <summary>Start-planet proper name (#678): the world you spawn on is a landmark — it deserves a
     /// real name, not "Tharion II". Called by the server right after it picks (and possibly retypes)
     /// the start body, mirroring <see cref="EnsureStartPlanetRings"/>. Deterministic from the body id

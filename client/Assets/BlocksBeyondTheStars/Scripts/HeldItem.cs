@@ -117,8 +117,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Builds the held-item geometry under a new holder parented to <paramref name="parent"/>.
         /// For blocks, <paramref name="blockKey"/> lets the cube carry its REAL atlas tile (textured hand
-        /// block instead of a flat colour); without a resolver/tile it falls back to the tint.</summary>
-        public static GameObject Build(Transform parent, Kind kind, Color tint, string blockKey = null)
+        /// block instead of a flat colour); without a resolver/tile it falls back to the tint.
+        /// <paramref name="itemKey"/> picks the item's own look for drills, guns, blades and scanners (#1931).</summary>
+        public static GameObject Build(Transform parent, Kind kind, Color tint, string blockKey = null, string itemKey = null)
         {
             if (kind == Kind.None)
             {
@@ -127,6 +128,19 @@ namespace BlocksBeyondTheStars.Client
 
             var holder = new GameObject("Held");
             holder.transform.SetParent(parent, false);
+
+            // #1931: every drill, gun, blade and scanner has its own parts (the base item keeps the model its kind had).
+            var shaped = HeldItemShapes.Parts(kind.ToString(), itemKey, new HeldItemShapes.Rgb(tint.r, tint.g, tint.b));
+            if (shaped != null)
+            {
+                foreach (var part in shaped)
+                {
+                    Cube(holder.transform, new Vector3(part.Position.X, part.Position.Y, part.Position.Z),
+                        new Vector3(part.Size.X, part.Size.Y, part.Size.Z), new Color(part.Color.R, part.Color.G, part.Color.B));
+                }
+
+                return holder;
+            }
 
             var dark = new Color(0.20f, 0.22f, 0.26f);
             var metal = new Color(0.55f, 0.58f, 0.64f);
@@ -146,29 +160,6 @@ namespace BlocksBeyondTheStars.Client
                         m.mainTextureOffset = new Vector2(tile.Uv.x, tile.Uv.y);
                     }
 
-                    break;
-
-                case Kind.Drill:
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.04f), new Vector3(0.16f, 0.16f, 0.26f), metal);
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.24f), new Vector3(0.09f, 0.09f, 0.18f), tint);       // bit
-                    Cube(holder.transform, new Vector3(0f, -0.12f, -0.04f), new Vector3(0.07f, 0.16f, 0.08f), dark);  // grip
-                    break;
-
-                case Kind.Gun:
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.10f), new Vector3(0.09f, 0.10f, 0.34f), dark);       // barrel
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.30f), new Vector3(0.05f, 0.05f, 0.08f), tint);      // muzzle glow
-                    Cube(holder.transform, new Vector3(0f, -0.13f, -0.06f), new Vector3(0.08f, 0.18f, 0.10f), dark); // grip
-                    break;
-
-                case Kind.Blade:
-                    Cube(holder.transform, new Vector3(0f, -0.04f, 0.0f), new Vector3(0.06f, 0.06f, 0.16f), dark);    // handle
-                    Cube(holder.transform, new Vector3(0f, 0.02f, 0.26f), new Vector3(0.03f, 0.18f, 0.34f), tint);   // blade
-                    break;
-
-                case Kind.Scanner:
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.06f), new Vector3(0.16f, 0.12f, 0.18f), metal);     // body
-                    Cube(holder.transform, new Vector3(0f, 0.10f, 0.12f), new Vector3(0.03f, 0.10f, 0.03f), dark);   // antenna
-                    Cube(holder.transform, new Vector3(0f, 0.16f, 0.12f), new Vector3(0.06f, 0.06f, 0.06f), tint);   // glowing tip
                     break;
 
                 case Kind.Gadget:

@@ -293,6 +293,7 @@ public sealed class NetCodecTests
         [241] = typeof(NoteActionIntent),
         [242] = typeof(NoteList),
         [243] = typeof(InterviewAnswerIntent),
+        [244] = typeof(CreativeTakeItemIntent),
         [240] = typeof(SetStationZeroGIntent),
 
     };

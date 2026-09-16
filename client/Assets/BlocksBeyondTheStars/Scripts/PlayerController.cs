@@ -400,8 +400,8 @@ namespace BlocksBeyondTheStars.Client
             _heldKey = key;
             _optic?.SetHeldItem(key); // swapping away from the binoculars can never strand a zoomed view
             var (kind, tint, blockKey) = HeldItem.For(Game?.Content, key);
-            Avatar?.SetHeldItem(kind, tint, blockKey);
-            _viewmodel?.SetHeldItem(kind, tint, blockKey);
+            Avatar?.SetHeldItem(kind, tint, blockKey, key);
+            _viewmodel?.SetHeldItem(kind, tint, blockKey, key);
         }
 
         private void Update()
@@ -1462,6 +1462,7 @@ namespace BlocksBeyondTheStars.Client
             kind = null;
             key = null;
             at = default;
+            _scanEntityId = null;
             if (Game == null || Camera == null)
             {
                 return false;
@@ -1492,6 +1493,7 @@ namespace BlocksBeyondTheStars.Client
                     best = d;
                     kind = "creature";
                     key = c.SpeciesId;
+                    _scanEntityId = c.Id; // #1926: the server reads THIS individual (the Sreekmakra's disguise)
                     at = basePos + Vector3.up * (0.5f * size);
                 }
             }
@@ -1528,6 +1530,8 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
+        private string _scanEntityId; // the creature TryFindScanTarget last picked (#1926)
+
         /// <summary>Scans the aimed-at creature (threat assessment) or, failing that, the block in view.</summary>
         private void ScanTarget()
         {
@@ -1538,7 +1542,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (TryFindScanTarget(out string kind, out string key, out var at))
             {
-                Game.Network.SendScan(kind, key);
+                Game.Network.SendScan(kind, key, kind == "creature" ? _scanEntityId : null);
                 Weapons?.Pulse(at, new Color(0.4f, 0.85f, 1f));
                 return;
             }

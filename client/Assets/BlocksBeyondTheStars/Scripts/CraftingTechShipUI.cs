@@ -749,7 +749,15 @@ namespace BlocksBeyondTheStars.Client
                     t.GetComponent<Image>().color = UiKit.Cyan;
                 }
             }
+            else if (_mode == Mode.Inventory && CatalogAvailable())
+            {
+                AddSearchBox(p, 392, 168, 470, 44); // filters the Sandbox "All items" page (#1930)
+            }
         }
+
+        /// <summary>#1930: the "All items" page exists while the player plays the Creative game mode (Sandbox, or their own
+        /// Creative override) — the rules the server sends are already the player's effective ones.</summary>
+        private bool CatalogAvailable() => Game?.Rules != null && Game.Rules.GameMode == "Creative";
 
         private void OnTab(int tab) => Menu?.SwitchFromUi(tab); // GameMenu owns the active tab
 
@@ -940,6 +948,11 @@ namespace BlocksBeyondTheStars.Client
                     list.Add(("personal", L("ui.inventory.backpack"), "cat_inventory"));
                     list.Add(("suit", L("ui.inventory.suit"), "cat_suit")); // the backpack filtered to suit gear + its effects (#1270/#1271)
                     list.Add(("cargo", L("ui.cargo.title"), "cat_cargo"));
+                    if (CatalogAvailable())
+                    {
+                        list.Add(("catalog", L("ui.inventory.catalog"), "cat_all")); // Sandbox: every item, nothing to craft (#1930)
+                    }
+
                     break;
                 case Mode.Missions:
                     list.Clear();
@@ -1801,6 +1814,16 @@ namespace BlocksBeyondTheStars.Client
 
         private float BuildInventoryList()
         {
+            if (_category == "catalog")
+            {
+                if (CatalogAvailable())
+                {
+                    return BuildCatalogList();
+                }
+
+                _category = "personal"; // the world left Sandbox while the page was open
+            }
+
             var items = _category == "cargo" ? Game.Cargo : Game.Personal;
             if (_category == "suit" && items != null)
             {
@@ -1862,6 +1885,67 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return y;
+        }
+
+        /// <summary>#1930 ("please unlock everything in Sandbox — you shouldn't have to craft anything any more"): every item of
+        /// the game, tools first and raw materials last, filtered by the search box. Picking one opens the take buttons.</summary>
+        private float BuildCatalogList()
+        {
+            float y = 0f;
+            var hint = UiKit.AddText(_listContent, 8, y, 752, 52, L("ui.inventory.catalog_hint"), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
+            hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += 60f;
+            var entries = Game.Content.Items.Values
+                .Select(d => (Def: d, Name: ItemName(d.Key)))
+                .Where(e => MatchesSearch(e.Name))
+                .OrderBy(e => CatalogRank(e.Def.Category))
+                .ThenBy(e => e.Name, System.StringComparer.CurrentCultureIgnoreCase);
+            foreach (var (def, name) in entries)
+            {
+                string key = def.Key;
+                AddCard(y, name, IconFor(key), L("ui.inventory.catalog_take"), UiKit.CyanDim, "cat:" + key,
+                    () => { _selected = "cat:" + key; RebuildDetail(); }, contentKey: key);
+                y += 88f;
+            }
+
+            return y;
+        }
+
+        private static int CatalogRank(BlocksBeyondTheStars.Shared.Definitions.ItemCategory category) => category switch
+        {
+            BlocksBeyondTheStars.Shared.Definitions.ItemCategory.Tool => 0,
+            BlocksBeyondTheStars.Shared.Definitions.ItemCategory.Consumable => 1,
+            BlocksBeyondTheStars.Shared.Definitions.ItemCategory.Block => 2,
+            BlocksBeyondTheStars.Shared.Definitions.ItemCategory.Component => 3,
+            _ => 4,
+        };
+
+        /// <summary>The take buttons of a catalog item (#1930): one, or a full stack. The server hands it out.</summary>
+        private float DetailCatalog()
+        {
+            string item = _selected.Substring(4);
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 40, ItemName(item), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 48f;
+            string desc = Desc($"item.{item}.desc");
+            if (!string.IsNullOrEmpty(desc))
+            {
+                var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 84f;
+            }
+
+            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.craft.source")}: {Owned(item)}", 20, UiKit.Cyan, TextAnchor.UpperLeft);
+            y += 40f;
+            int stack = Mathf.Max(1, Game.Content.MaxStackOf(item));
+            UiKit.AddButton(_detail, 8, y, 300, 50, L("ui.inventory.catalog_take_one"), () => Game.Network?.SendCreativeTakeItem(item, 1));
+            if (stack > 1)
+            {
+                UiKit.AddButton(_detail, 320, y, 300, 50, L("ui.inventory.catalog_take_stack").Replace("{count}", stack.ToString()),
+                    () => Game.Network?.SendCreativeTakeItem(item, stack));
+            }
+
+            return y + 58f;
         }
 
         /// <summary>The suit's current passive effects — armour, maximum oxygen, insulation — computed with the
@@ -3911,7 +3995,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Crafting: y = DetailCrafting(); break;
                 case Mode.Tech: y = DetailTech(); break;
                 case Mode.Ship: y = DetailShip(); break;
-                case Mode.Inventory: y = DetailInventory(); break;
+                case Mode.Inventory: y = _selected.StartsWith("cat:", System.StringComparison.Ordinal) ? DetailCatalog() : DetailInventory(); break;
                 case Mode.Missions: y = DetailMissions(); break;
             }
 
