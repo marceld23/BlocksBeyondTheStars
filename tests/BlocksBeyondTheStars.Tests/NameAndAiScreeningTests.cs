@@ -285,6 +285,28 @@ public sealed class NameAndAiScreeningTests : IDisposable
     }
 
     [Fact]
+    public void StationName_WithASexualTerm_IsRefused_AlsoInsideACompound()
+    {
+        // 2026-09: a generated station was called "Port Sex" — a player must not be able to type it either.
+        var transport = new RecordingTransport();
+        var server = NewServer("station_sexual", transport, c => c.Rules.FreeSpaceFlight = true);
+        var owner = server.AddLocalPlayer("Owner");
+        string id = CommissionStation(server, owner);
+        server.SetStationNameForTest(owner, id, "Fort Alpha");
+
+        foreach (var name in new[] { "Port Sex", "SEXY station", "Sexstation", "p.o.r.n hub" })
+        {
+            transport.Sent.Clear();
+            server.SetStationNameForTest(owner, id, name);
+            Assert.Equal("Fort Alpha", server.Galaxy.FindBody(id)!.Name);
+            Assert.Equal(1, NoticesTo(transport, owner, "@srv.name.blocked"));
+        }
+
+        server.SetStationNameForTest(owner, id, "Sechs Sterne"); // German "six" stays a word like any other
+        Assert.Equal("Sechs Sterne", server.Galaxy.FindBody(id)!.Name);
+    }
+
+    [Fact]
     public void BeamPadLabel_IsScreened_OnPlacement_AndOnRename()
     {
         // Same rule as the beacon: the pad is already in the world when its label is screened, so a refused

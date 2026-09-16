@@ -112,6 +112,16 @@ can be staffed at your own station/base like the existing posts; textures are ge
   rising damage at full, VEGA at 50/75/90 %, HUD row) and **toxic water** (2 HP/s after 3 s). All new `PlanetType` fields
   are no-ops on every other type and read on generation-8 worlds only (goldens unchanged, new `titas-gen8`). Tests:
   `TitasWorldTests` (7), `TitasSurvivalTests` (5). Docs: WORLD_GENERATION.md §20, USER_MANUAL (survival).
+- **"Port Sex" — no more rude coined names, and no rude station names typed by players (Marcel, 2026-09-16).** A hub
+  station was called "Port Sex": `NameGenerator.Port` is "Port " + a coined word, and "s" + "e" + "x" is an ordinary
+  onset/vowel/coda syllable; the generator's block list knew "rape"/"porn"/… but not "sex". Every coined name (stars,
+  regions, planets, twins, moons, asteroids, ports, wrecks, NPC persons/robots, creatures, flora, trees) now leaves
+  through `NameGenerator.Clean`: a letter run with a blocked substring (the old list + sexual/insulting additions) is
+  replaced by a clean word from a LOCAL generator seeded by that run — the naming stream is not touched, so every other
+  name stays identical and an existing save simply shows a new name for the offending body on its next start (galaxy
+  names are regenerated from the seed). Player-given names (stations, bases, beacons, companions): the chat screen masks
+  the sexual terms (names refuse masked words), and `ScreenPlayerName` also refuses a few unambiguous sexual stems inside
+  compounds ("Sexstation"). Tests: `NameGeneratorTests` (+2), `NameAndAiScreeningTests` (+1).
 - **Valuma and the Sreekmakra (generation 8).** Justus' rare plains planet (his text was cut at 1500 characters — ask him
   for the rest): flat grass plains without volcanoes, massifs, rifts, escarpments or tilted/stepped regimes
   (`CalmTerrain`), hardly a tree, a peaceful roster (`PeacefulFauna`), no structures but net fragments. **Sreekmakra**

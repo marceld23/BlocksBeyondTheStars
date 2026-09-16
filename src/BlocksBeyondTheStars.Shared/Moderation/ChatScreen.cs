@@ -97,6 +97,8 @@ public sealed class ChatScreen
         "bastard", "cunt", "pussy", "whore", "slut", "dumbass", "wtf", "stfu",
         "arschloch", "arsch", "wichser", "wixer", "scheisse", "scheiss", "fick", "ficken", "fickt", "gefickt",
         "schlampe", "hure", "huren", "penner", "missgeburt", "verpiss", "verpisst", "spast", "spasti",
+        // 2026-09 (a station called "Port Sex"): sexual terms have no place in a kids' game's chat or names either.
+        "sex", "sexy", "porn", "porno", "penis", "vagina", "dildo", "blowjob", "tits", "titten", "boobs", "pimmel", "nudes",
     };
 
     /// <summary>Ambiguous extremist codes — relayed, operator notified. Token-only; deliberately tiny, because a

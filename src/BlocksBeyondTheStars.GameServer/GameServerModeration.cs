@@ -191,6 +191,24 @@ public sealed partial class GameServer
     /// name is persistent and shown to everyone who walks past it, so "Basis f***" is a worse answer than
     /// "pick another name" — and Mask is also the verdict that carries personal data, which must not be
     /// stored at all.</summary>
+    /// <summary>Unambiguous sexual stems a player-given name may not contain even inside a compound (2026-09). Kept to stems
+    /// practically never occur innocently in a station or base name (an "Essex" base is the accepted cost).</summary>
+    private static readonly string[] PlaceNameBlockedStems = { "sex", "porn", "penis", "vagina", "dildo", "blowjob", "titten", "pimmel" };
+
+    private static bool PlaceNameClean(string name)
+    {
+        string folded = new string(name.Where(char.IsLetter).ToArray()).ToLowerInvariant();
+        foreach (var stem in PlaceNameBlockedStems)
+        {
+            if (folded.Contains(stem, System.StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private string? ScreenPlayerName(PlayerSession session, string clean, string surface, string reason = "@srv.name.blocked")
     {
         var mode = EffectiveChatMode;
@@ -200,6 +218,13 @@ public sealed partial class GameServer
         }
 
         var result = ChatContentScreen.Screen(clean, mode);
+        if (result.Verdict == ChatVerdict.Ok && !PlaceNameClean(clean))
+        {
+            // 2026-09: a name also may not HIDE a sexual term inside a compound ("Sexstation", "PornPort") — chat screens
+            // whole words, so names get the substring check the name generator uses on its own coined words.
+            result = new ChatScreenResult(ChatVerdict.Block, clean, "compound", result.Watch, pii: false);
+        }
+
         string who = session.State.Name ?? "?";
         if (result.Watch)
         {
