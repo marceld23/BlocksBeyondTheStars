@@ -1549,3 +1549,37 @@ machines. The type (`titas`, `minTerrainGeneration` 8, exotic, spawn weight 1) i
 - Tests: `TitasWorldTests` (data, once per galaxy + name, snow blanket, ice sheet, hot zones + lava ponds, dead trees +
   water-life cap, generation gate), `TitasSurvivalTests` (meter pace, liners/tier, full-meter damage, toxic water, labs +
   machine cap), golden `titas-gen8`.
+
+## 21. Generation 8 — Valuma and the Sreekmakra (2026-09, Justus' player report)
+
+A rare (spawn weight 1, not unique), peaceful-looking world of wide flat grass plains with one shapeshifter hidden among
+its animals. Justus' text was cut at 1500 characters; this is the known part (the rest is to be asked).
+
+- **Terrain (`CalmTerrain`).** `WorldGenerator.CalmTerrain(planet)` (generation 8 only) switches off volcanoes
+  (`HasVolcanoes`), massifs and rifts (`HasMassifs`), the escarpment (`HasEscarpment`) and every regime
+  (`RegimeGround` → no tilt, steps or equator ridge). The row itself is `flats`/`downs`, amplitude 6, scale 72, very few
+  trees (0.004), flowers and grass.
+- **Fauna (`PeacefulFauna`).** `CreatureGenerator.MakePeaceful` turns every ROLLED species passive or skittish with no
+  bite (roster `many`); authored species are appended after it, so the Sreekmakra keeps its own temper.
+- **Structures.** `RestrictStructures` with only `net_fragments`: no settlements, ruins, camps, wrecks, vaults, cubes,
+  chests, unique sites, and no built worldgen props (see §20).
+- **The Sreekmakra (`data/creatures.json` `sreekmakra`, `GameServerSreekmakra`).** One per world of a type that lists it
+  (`SreekmakraState` on the loaded world): it never spawns through `TrySpawnCreatureNear`; `TickSreekmakra` (1 Hz) places
+  it 40–60 blocks from a player on foot, disguised as a rolled land species (no titans), with 3× that animal's health and
+  its own drop (crystal ×4). Every 150–240 s while nobody is within 24 blocks it takes another shape (`TakeShape` resets
+  health, temper and locomotion). A player killing an animal of the shape it wears, or hitting it, becomes its target
+  (`OnCreatureKilled` — called from the player, sentry and fire kill paths — and `OnSreekmakraHit`): it hunts in that
+  shape (`MoveCreatures` aggressor, the shape's speed ×1.5, bite = the shape's or 4.5, ×1.5) until the player leaves or
+  it dies. At zero health the disguise breaks (`RevealSreekmakra`: true form, 90 HP, bite 7 ×1.5); defeating the true
+  form writes the Codex entry `creature:au_sreekmakra` for everyone within 64 blocks, counts `defeat:sreekmakra`
+  (achievement `sreekmakra`) and sets `WorldMetadata.SreekmakraBackAt` three in-game days ahead. With planet enemies off
+  it only reveals itself, flees for 25 s and vanishes for a day. It cannot be tamed; hostile-scan missions ignore it.
+  **Scanner:** a scan of its current species while it is the nearest such animal within 24 blocks reads
+  `ui.scan.threat.anomaly` (+ trait `ui.scan.disguise`). **Client:** `CreatureView` rebuilds body and voice when a
+  creature's `SpeciesId` changes, with a puff.
+- **Mood.** `TickValumaMood`: time on the world (aboard the landed ship too, reset on any other location) — at 20 minutes
+  `vega.sys.valuma_watching`, at 35 the player's environment is forced to fog (`SendEnvironment`) and
+  `PlayerStateUpdate.Uneasy` darkens and ducks the music (`ClientMusic.DuckFor`).
+- Tests: `ValumaWorldTests` (data, calm gates over 24 seeds + the generation gate, peaceful roster), `SreekmakraTests`
+  (disguise + one individual + shape change, grudge + anomaly, reveal + defeat + Codex + achievement + return time,
+  peaceful flight, mood), golden `valuma-gen8`.

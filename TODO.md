@@ -112,6 +112,17 @@ can be staffed at your own station/base like the existing posts; textures are ge
   rising damage at full, VEGA at 50/75/90 %, HUD row) and **toxic water** (2 HP/s after 3 s). All new `PlanetType` fields
   are no-ops on every other type and read on generation-8 worlds only (goldens unchanged, new `titas-gen8`). Tests:
   `TitasWorldTests` (7), `TitasSurvivalTests` (5). Docs: WORLD_GENERATION.md §20, USER_MANUAL (survival).
+- **Valuma and the Sreekmakra (generation 8).** Justus' rare plains planet (his text was cut at 1500 characters — ask him
+  for the rest): flat grass plains without volcanoes, massifs, rifts, escarpments or tilted/stepped regimes
+  (`CalmTerrain`), hardly a tree, a peaceful roster (`PeacefulFauna`), no structures but net fragments. **Sreekmakra**
+  (authored creature): one per world, disguised as a land animal with 3× its health, changes shape unobserved every
+  150–240 s; killing an animal of its current shape or hitting it makes it hunt that player (the shape's speed and bite
+  ×1.5) until they leave or it falls; at zero the disguise breaks and the true form fights on; its defeat gives the
+  Codex entry, the achievement *Unmasked* and keeps the next one away three in-game days; with planet enemies off it
+  reveals itself and flees; untameable; the hand scanner reads an anomaly. Client rebuilds a creature's body and voice
+  on a species change. **Mood:** VEGA feels watched after 20 minutes on the planet, after 35 fog and darker music
+  (`PlayerStateUpdate.Uneasy`), reset on leaving. HUD: exposure row icon `vital_exposure` (gen_hud_icons.py). Tests:
+  `ValumaWorldTests` (3), `SreekmakraTests` (5), golden `valuma-gen8`. Docs: WORLD_GENERATION.md §21, USER_MANUAL.
 
 ### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
 

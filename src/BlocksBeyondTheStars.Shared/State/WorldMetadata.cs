@@ -159,6 +159,10 @@ public sealed class WorldMetadata
     /// <summary>The local news a reporter keeps per place (2026-09): place key → the latest articles, newest last, at most
     /// <see cref="NewsArticle.MaxPerPlace"/>. Written from player interviews, screened like chat.</summary>
     public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<NewsArticle>> News { get; set; } = new();
+
+    /// <summary>When the next Sreekmakra may appear per world (2026-09, Valuma): location id → unix seconds. Set when one is
+    /// defeated (a few in-game days) or fled (a day).</summary>
+    public System.Collections.Generic.Dictionary<string, long> SreekmakraBackAt { get; set; } = new();
 }
 
 /// <summary>One interview a player gave a reporter (2026-09).</summary>

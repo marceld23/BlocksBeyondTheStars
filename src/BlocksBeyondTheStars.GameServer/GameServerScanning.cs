@@ -66,6 +66,12 @@ public sealed partial class GameServer
             readout.LegacyThreat = sp.Hostile ? "Hostile" : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "Provokable" : "Safe";
             value = sp.Hostile ? KnowledgeCreatureHostile : KnowledgeCreature;
             readout.Display = string.IsNullOrEmpty(sp.Name) ? subjectKey : sp.Name; // the coined species name on the readout
+            if (SreekmakraAnomalyFor(session, subjectKey))
+            {
+                // 2026-09 (Valuma): the disguise fools the eye, not the scanner.
+                readout.ThreatKey = "ui.scan.threat.anomaly";
+                readout.TraitKeys = new[] { "ui.scan.disguise" }.Concat(readout.TraitKeys).ToArray();
+            }
         }
         else if (subjectType == "block" && System.Array.IndexOf(RuneBlocks, subjectKey) >= 0
                  && MonumentForScan(session) is { } monument)

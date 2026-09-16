@@ -1586,6 +1586,7 @@ public sealed partial class GameServer
             Guard("TickWeather", deltaSeconds, TickWeather);
             Guard("TickFlora", deltaSeconds, TickFlora);
             Guard("TickCreatures", deltaSeconds, TickCreatures);
+            Guard("TickSreekmakra", deltaSeconds, TickSreekmakra); // 2026-09: Valuma's shapeshifter and mood (1 Hz)
             Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
             Guard("TickNpcPaths", deltaSeconds, TickNpcPaths); // #1866: at most one NPC path search per tick
             Guard("TickNpcs", deltaSeconds, TickNpcs);
@@ -6623,6 +6624,7 @@ public sealed partial class GameServer
             Exposure = p.Exposure,
             ExposureActive = session.ExposureActive,
             ExposureHot = session.ExposureHot,
+            Uneasy = session.MoodUneasy,
             LifeSupportSource = p.LifeSupportSource,
             StationName = CurrentStationName(p.PlayerId),
             AiCoreTier = VegaCoreTier(session),

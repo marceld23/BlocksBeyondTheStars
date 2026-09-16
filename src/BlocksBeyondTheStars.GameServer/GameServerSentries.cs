@@ -307,6 +307,7 @@ public sealed partial class GameServer
         SpillToGround(target.Position.ToBlock(), target.Loot, creatureLoot: isCreature);
         if (isCreature)
         {
+            OnCreatureKilled(target, null); // 2026-09: a sentry may bring down the shapeshifter too
             BroadcastCreatures();
             _log.Info($"Sentry at {sentryCell.X},{sentryCell.Y},{sentryCell.Z} brought down '{target.Name}' ({target.Id}).");
             return;

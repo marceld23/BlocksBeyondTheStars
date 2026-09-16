@@ -12,5 +12,13 @@
     "legs": 2, "hasWings": false, "hasTail": false, "bodySegments": 1, "colorRgb": 6270794, "bellyRgb": 15761536, "eyes": 2, "horns": 0, "hasCrest": false, "glows": false,
     "socialGroupSize": 1,
     "dropItem": "berries", "dropCount": 2, "dropKind": "Food",
-    "biomeSurfaces": [], "biomeExclusive": false, "hide": "petal", "angeredByMining": true, "giftsWhenCalm": true }
+    "biomeSurfaces": [], "biomeExclusive": false, "hide": "petal", "angeredByMining": true, "giftsWhenCalm": true },
+  { "key": "sreekmakra", "namePrefix": "Sreekmakra",
+    "habitat": "Land", "activity": "Cathemeral", "temperament": "Aggressive", "locoStyle": "Strider", "bodyPlan": "Standard",
+    "size": 1.8, "speed": 3.4, "maxHealth": 90, "attackDamage": 7,
+    "legs": 6, "hasWings": false, "hasTail": true, "bodySegments": 3, "colorRgb": 3150150, "bellyRgb": 9055202, "eyes": 4, "horns": 2, "hasCrest": true, "glows": true,
+    "heads": 2,
+    "socialGroupSize": 1,
+    "dropItem": "crystal", "dropCount": 4, "dropKind": "Material",
+    "biomeSurfaces": [], "biomeExclusive": false }
 ]

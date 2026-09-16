@@ -425,6 +425,11 @@ public sealed partial class GameServer
             for (int n = 0; n < _speciesRoster.Length; n++)
             {
                 var sp = _speciesRoster[(_creatureSpawnRotor + n) % _speciesRoster.Length];
+                if (sp.Id == SreekmakraSpeciesId)
+                {
+                    continue; // 2026-09: the shapeshifter never spawns as an animal — TickSreekmakra places the one
+                }
+
                 if (pass == 0 && sp.BiomeAffinity >= 0 && sp.BiomeAffinity != biome)
                 {
                     continue; // not native to this biome (relaxed on the second pass)
@@ -874,7 +879,8 @@ public sealed partial class GameServer
             // Give-up leash: an aggressor that has been chasing within aggro range too long backs off for a
             // while — it wanders away and won't chase/attack — so creatures never hound the player forever.
             // Big species notice you from further away (#638): the range grows with size past 2.
-            bool aggressor = temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
+            bool hunting = SreekmakraHunting(creature); // 2026-09: the shapeshifter hunts in any shape
+            bool aggressor = hunting || temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
             float aggro = CreatureAggroRange + System.Math.Max(0f, sp.Size - 2f);
             if (creature.GiveUpTimer > 0)
             {
@@ -899,6 +905,12 @@ public sealed partial class GameServer
             }
 
             var profile = ProfileFor(creature.SpeciesId);
+            if (hunting)
+            {
+                profile.CruiseSpeed *= SreekmakraSpeedFactor; // the shape's own speed ×1.5 (2026-09)
+                profile.BurstSpeed *= SreekmakraSpeedFactor;
+                profile.Accel *= SreekmakraSpeedFactor;
+            }
 
             // A creature in its off-phase is asleep — but a player coming within wake distance stirs it (being
             // hit does too, via ProvokeCreature). Once roused it stays alert for a while, then settles back.

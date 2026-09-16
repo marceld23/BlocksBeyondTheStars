@@ -150,6 +150,9 @@ namespace BlocksBeyondTheStars.Client
         public bool ExposureActive { get; private set; }
         public bool ExposureHot { get; private set; }
 
+        /// <summary>Valuma's mood (2026-09): the music darkens after a long stay — server-authoritative.</summary>
+        public bool Uneasy { get; private set; }
+
         /// <summary>Which life support keeps us breathing (#794): 0 none (own tank / the world's air),
         /// 1 ship cabin, 2 station, 3 base (zone cube or sealed room). Server-authoritative — the client
         /// cannot mirror the sealed-room fill locally; 0 on servers older than this field.</summary>
@@ -3365,6 +3368,7 @@ namespace BlocksBeyondTheStars.Client
             Exposure = m.Exposure;
             ExposureActive = m.ExposureActive;
             ExposureHot = m.ExposureHot;
+            Uneasy = m.Uneasy;
             LifeSupportSource = m.LifeSupportSource;
             if (m.LifeSupportSource == 2 && _stationAirWarning.Length > 0 && LastMessage == _stationAirWarning)
             {

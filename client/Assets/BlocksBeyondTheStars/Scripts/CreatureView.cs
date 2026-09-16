@@ -44,6 +44,7 @@ namespace BlocksBeyondTheStars.Client
             public float AnswerAt; // pending call-answer time (#876) — 0 while none is scheduled
             public float NextAttack; // throttles the attack call while hostile + close
             public bool PrevHostile; // to detect the turn-hostile transition (alert)
+            public string PrevSpecies; // to detect a shapeshifter taking another shape (2026-09, Valuma)
             public bool PrevAlerting; // to detect a companion's growl flip (#1210) — one growl per alert, not per frame
             public float PrevHull;   // to detect a hull drop (hurt)
             public Vector3 Settled;  // smoothed position (the lunge is added on top for display)
@@ -160,6 +161,7 @@ namespace BlocksBeyondTheStars.Client
                         PrevFaceDir = Vector3.forward,
                         LastTargetChange = now,
                         PrevHostile = c.Hostile,
+                        PrevSpecies = c.SpeciesId,
                         PrevAlerting = c.Alerting,
                         PrevHull = c.Hull,
                         Animator = root.GetComponent<CreatureAnimator>(),
@@ -374,7 +376,21 @@ namespace BlocksBeyondTheStars.Client
                 // #1760: the flowerling's face follows its mood — the grin is built for a calm body and the toothed
                 // maw for a hostile one, so a hostility flip rebuilds the body (the Floral plan only; every other
                 // species keeps its one build and its red tint arrives with the next full refresh as before).
-                if (c.Hostile != entry.PrevHostile && c.BodyPlan == "Floral")
+                if (c.SpeciesId != entry.PrevSpecies)
+                {
+                    // 2026-09 (Valuma): the shapeshifter took another shape (or dropped its disguise) — a new body and voice.
+                    RebuildBody(entry, c);
+                    entry.Voice = CreatureVoiceBank.For(c);
+                    entry.Bank = Bank(c);
+                    entry.Echo = string.Equals(c.Habitat, "Cave", System.StringComparison.OrdinalIgnoreCase);
+                    CreatureVoiceBank.Prewarm(entry.Voice, entry.Bank, entry.Echo);
+                    float shapePitch = Mathf.Clamp(1.5f - 0.35f * c.Size, 0.7f, 1.6f) * (0.82f + entry.Voice.PitchStep / 37f * 0.45f);
+                    entry.Pitch = Mathf.Clamp(shapePitch, 0.6f, 1.85f);
+                    entry.Root.name = "Creature_" + c.SpeciesId;
+                    entry.PrevSpecies = c.SpeciesId;
+                    SpawnAttackFx(entry.Settled + Vector3.up * (0.6f * Mathf.Clamp(c.Size, 0.4f, 8f)));
+                }
+                else if (c.Hostile != entry.PrevHostile && c.BodyPlan == "Floral")
                 {
                     RebuildBody(entry, c);
                 }

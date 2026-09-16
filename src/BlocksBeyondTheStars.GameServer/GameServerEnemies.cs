@@ -714,6 +714,12 @@ public sealed partial class GameServer
             : 15f + tool.Tier * 10f;
         target.Hull -= damage;
 
+        // 2026-09 (Valuma): a hit turns the shapeshifter on its attacker; at zero its disguise breaks instead of it dying.
+        if (isCreature && IsSreekmakra(target) && OnSreekmakraHit(session, target))
+        {
+            return;
+        }
+
         if (isCreature)
         {
             // Any hit — surviving or fatal — startles the victim's nearby kin (#653): non-retaliating
@@ -749,6 +755,7 @@ public sealed partial class GameServer
         OnAchievementDefeat(session);
         if (isCreature)
         {
+            OnCreatureKilled(target, session); // 2026-09: the shapeshifter's death, or one of its shape's kind
             BroadcastCreatures();
         }
         else

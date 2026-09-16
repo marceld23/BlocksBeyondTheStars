@@ -504,6 +504,12 @@ namespace BlocksBeyondTheStars.Client
                 duck = Mathf.Min(duck, 0.6f);
             }
 
+            if (game.Uneasy)
+            {
+                _tension = true; // 2026-09 (Valuma): something is watching — the music stays dark and low
+                duck = Mathf.Min(duck, 0.7f);
+            }
+
             return duck;
         }
 

@@ -121,6 +121,11 @@ public sealed partial class GameServer
             list.Remove(e);
             _enemyWander.Remove(e.Id);
             SpillToGround(e.Position.ToBlock(), e.Loot, creatureLoot: creatures);
+            if (creatures)
+            {
+                OnCreatureKilled(e, null); // 2026-09: the shapeshifter can burn
+            }
+
             if (!creatures)
             {
                 if (e.IsBandit)

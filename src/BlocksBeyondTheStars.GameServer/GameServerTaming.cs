@@ -105,6 +105,14 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsSreekmakra(creature))
+        {
+            // 2026-09 (Valuma): the shapeshifter is no animal — it slips out of every hand.
+            _tameAttempts.Remove(p.PlayerId);
+            Send(session, new TameResult { CreatureId = intent.CreatureId, Success = false, MessageKey = "creature.tame.msg.sreekmakra" });
+            return;
+        }
+
         string need = NeedForStep(sp, creature.Id, attempt.Step);
         if (intent.Response == need)
         {

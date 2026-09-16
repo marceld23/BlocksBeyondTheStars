@@ -46,5 +46,6 @@
 
   { "key": "helping_hand",   "counter": "mission:completed", "target": 5,  "category": "story",   "rewards": [ { "item": "energy_cell_1", "count": 2 } ] },
   { "key": "quartermasters_friend", "counter": "mission:completed", "target": 25, "category": "story", "rewards": [ { "item": "circuit_board", "count": 4 } ] },
+  { "key": "sreekmakra",     "counter": "defeat:sreekmakra", "target": 1, "category": "survival", "rewards": [ { "item": "crystal", "count": 4 } ] },
   { "key": "guardian_defeated", "counter": "story:finale", "target": 1,   "category": "story",    "rewards": [ { "item": "power_cell", "count": 4 } ] }
 ]

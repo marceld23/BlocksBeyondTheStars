@@ -565,6 +565,14 @@ public sealed partial class GameServer
             env.Temperature = VacuumTemperature(_dayFraction);
             env.Precipitation = "none";
         }
+        else if (session.MoodUneasy && session.MoodLocationId == _world.LocationId)
+        {
+            // 2026-09 (Valuma): after a long stay the fog closes in around this player, whatever the sky does.
+            env.Weather = "fog";
+            env.WeatherFamily = "obscuring";
+            env.Intensity = System.Math.Max(env.Intensity, 0.85f);
+            env.IntensityRate = 0f;
+        }
 
         Send(session, env);
     }

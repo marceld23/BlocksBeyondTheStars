@@ -474,6 +474,12 @@ public sealed class PlayerSession
 
     public float LastSentExposure;
 
+    // --- Valuma's mood (2026-09): time on the world, the watched line, the fog ---
+    public string MoodLocationId { get; set; } = string.Empty;
+    public double MoodSeconds { get; set; }
+    public bool MoodWatchedTold { get; set; }
+    public bool MoodUneasy { get; set; }
+
     // --- Periodic vitals sync (HUD bars froze between event-driven sends before) ---
     public double VitalsSyncTimer { get; set; }
     // Automatic landed-ship transit (#1614): server fallback if the client never signals launch completion.

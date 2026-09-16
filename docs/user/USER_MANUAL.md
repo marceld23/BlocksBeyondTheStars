@@ -367,6 +367,13 @@ separate unlock; admins can still disable it through server world rules.
   a campfire or digging deep refill it. At zero the cold (or heat) hurts more and more — VEGA warns at 50, 75 and 90 %.
   The **yellow water is toxic**: a few seconds are fine, then it burns (standing on the ice is safe). The old **SPS
   research stations** hold salvage and a log terminal — but no air and −90 °C inside, and the machines guard them.
+- **Valuma** (a rare planet of wide, flat grass plains): the animals there never bite — but one of them is not an
+  animal. A **Sreekmakra** wears the shape of a local animal and changes it now and then when nobody is looking. Kill an
+  animal of the kind it is copying, or hit it, and it comes for you (faster and harder-biting than the animal it looks
+  like) until it falls or you leave the planet. Beaten down, it drops its disguise and fights on in its true form;
+  defeating that unlocks its Codex entry and the achievement *Unmasked*. Your hand scanner shows an **anomaly** when
+  you scan the disguised one. With enemies switched off it only shows itself and flees. Stay long and VEGA starts to
+  feel watched; later the fog closes in.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between

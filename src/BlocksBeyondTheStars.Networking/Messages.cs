@@ -1091,6 +1091,9 @@ public sealed class PlayerStateUpdate
     /// <summary>True when the heat of a hot zone, not the cold, fills the meter.</summary>
     public bool ExposureHot { get; set; }
 
+    /// <summary>Valuma's mood (2026-09): the player has stayed long enough that the music darkens.</summary>
+    public bool Uneasy { get; set; }
+
     /// <summary>Which life support keeps this player breathing (#794): 0 none (own tank / the world's own
     /// air), 1 ship cabin, 2 station, 3 base (zone cube or sealed room). Lets the HUD name the source —
     /// the client cannot mirror the sealed-room fill locally. New field on an existing contractless
