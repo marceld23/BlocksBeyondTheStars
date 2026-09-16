@@ -372,8 +372,11 @@ separate unlock; admins can still disable it through server world rules.
   animal of the kind it is copying, or hit it, and it comes for you (faster and harder-biting than the animal it looks
   like) until it falls or you leave the planet. Beaten down, it drops its disguise and fights on in its true form;
   defeating that unlocks its Codex entry and the achievement *Unmasked*. Your hand scanner shows an **anomaly** when
-  you scan the disguised one. With enemies switched off it only shows itself and flees. Stay long and VEGA starts to
-  feel watched; later the fog closes in.
+  you scan the disguised one — under its true name, *Sreekmakra*. With enemies switched off it only shows itself and
+  flees. **You can also tame it** while it wears a shape: use the creature translator on it, or tame any animal of the
+  kind it is copying — then it drops its disguise and comes to you as a companion in its true form (one per player;
+  achievement *Shapeshifter's Friend*). In its true form it cannot be tamed. Stay long and VEGA starts to feel watched;
+  later the fog closes in.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between
@@ -510,6 +513,11 @@ separate unlock; admins can still disable it through server world rules.
   while you're aboard (in flight or standing in the landed cabin); on foot the cargo tab says so.
 - **Auto-stow (optional):** turn on *Settings → Comfort → "Auto-stow into cargo on boarding"* to have loose
   materials moved into the hold automatically each time you board. Off by default.
+- **Sandbox: All items.** In a Sandbox world (or while an admin gave you the Creative mode) the Inventory has an
+  **All items** page: every item of the game, searchable — pick one and **Take 1** or take a full stack. Nothing has
+  to be crafted.
+- **Every tool looks like itself in your hand:** the titanium and diamond drills, the mining beam, each pistol and
+  blaster, the machete, vibro knife and plasma sword and the advanced scanner all have their own model.
 - **Throwing things away:** select an item in the **Inventory** or **Cargo Hold** tab and press **"Throw
   away"** — it asks once ("Really throw away?"), and the second click destroys *every* stack of that item.
   This cannot be undone and gives nothing back. Your starting equipment (drill, scanner, suit lamp, machete,
@@ -712,13 +720,16 @@ separate unlock; admins can still disable it through server world rules.
 - **Space stations**: approach in space and press **E** to board. A station is its **own place in orbit** —
   you arrive inside it, floating in space (black sky, no planet/weather, life support), and can walk the
   interior (vendors, mission board, heal tank, quarters) and talk to its crew NPCs. Press **U** to leave and
-  travel back down to your ship on the planet.
+  travel back down to your ship on the planet. **Quit the game aboard a station and you come back aboard** — at
+  the spot where you stood; your ship waits at the planet the station orbits.
 - **What you see from the cockpit is the station you walk.** Every station floats in space as its real hull, block
   for block and at full size — the module halls, the windows, the glowing **force-field mouth of its hangar**, solar
   wings, antenna masts and domes. Big stations are big: a colossal one is over a hundred blocks across. The hull is
   solid (you slide along it and can fly between its modules), the dock prompt appears near any side of it, and on
   **E** the ship flies round to the hangar and noses in. The autopilot and a chart target fly you to the space in front
   of the hangar. A station's layout is fixed the first time you see it.
+- **Your start system always has a station** (new and existing worlds): if the system rolled none, one hangs
+  over your start planet. Other systems may have none — VEGA then points you to the star map.
 - **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
   around it, and it commissions into a boardable station on the star map.
 - **Air only fills sealed rooms** in a station you built: walls, glass and doors are airtight, a hole in the
@@ -1612,7 +1623,9 @@ reminds you.
 - Press **Enter**, type, **Enter** to send (scrollback in the chat panel). Normal chat requires a **comm
   radio** in your inventory; messages are rate-limited and length-capped.
 - The scrollback **fades out on its own** a few seconds after the last line (opening the chat box always
-  brings the recent lines back). Prefer it always visible — or never? **Settings → Comfort → Chat
+  brings the recent lines back). **Long answers scroll:** while the chat box is open, the **mouse wheel** or
+  **PageUp/PageDown** pages back through the recent lines — a dim ▲/▼ row says when more is out of view. The
+  answer to a command you typed keeps the whole chat column for a moment, even while VEGA is talking. Prefer it always visible — or never? **Settings → Comfort → Chat
   display** offers *Fade out / Always on / Off*, and **J** hides/shows it on the spot for the session.
 - **Kept friendly by default.** The server screens every line before it is relayed: swear words are
   replaced by `***` (you are told once per session), slurs and hate terms are not sent at all (you are
@@ -1739,7 +1752,8 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 |---|---|
 | `ship` | Your own parked ship (the medbay heal tank — same spot the suit teleporter recalls to) |
 | `pad` | A landing pad |
-| `village` / `ruin` | An inhabited settlement / a ruined one (`settlement` also works) |
+| `city` | A city or town — the G.D.S. metropolis too (`stadt` also works) |
+| `village` / `ruin` | An inhabited village or hamlet / a ruined settlement (`settlement`, `dorf`, `siedlung` also work) |
 | `vault` | A buried vault's surface pillar ring |
 | `wreck` | The crashed ship — even before an NPC has pointed you at it |
 | `factory` | A factory's production terminal |
@@ -1773,6 +1787,7 @@ and that option is off by default on hosted worlds.
 | `/kick Player` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |
 | `/paintwipe Player` (or `#designId`) | Removes that player's painted block designs **everywhere at once** (or a single design by id, taken from the report log). Wiped designs stay wiped across restarts |
 | `/mode Player survival\|creative\|world` | Per-player game mode — see *Per-player mode* below |
+| `/gamemode explorer\|creative\|sandbox` | The whole world's mode — see *World mode* below. Alone it names the current mode |
 
 #### `/silence` — a pause instead of a kick
 
@@ -1800,6 +1815,15 @@ and the setting **persists** — it survives rejoins and restarts until an admin
 tools in this section it is moderation, not a cheat: it works even when admin cheats are off. The world's
 own difficulty sliders (oxygen/hunger rates, hazards) still apply to a survival-playing player, and world
 options like PvP or structure damage are never per-player.
+
+#### World mode — Explorer, Creative or Sandbox on a running world
+
+The three modes of the new-world screen can be switched later: **`/gamemode sandbox`** (also `/mode sandbox`,
+`/modus`, and the German words `entdecker`, `kreativ`, `sandkasten`). **Explorer** is the normal survival game;
+**Creative** keeps survival but everybody flies and gets every blueprint, every ship and the creative kit;
+**Sandbox** adds free crafting, no oxygen or hunger and no planet enemies — and the inventory's **All items** page.
+The change is saved with the world and reaches everyone online at once. Going back to Explorer takes nothing away:
+unlocked blueprints, ships and kit items stay. World admins only; it works with cheats off.
 
 #### Blocking players from your own hosted world
 

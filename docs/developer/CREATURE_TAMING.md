@@ -108,6 +108,16 @@ scouting hint every 5 min through `TryEmitHint` — which for a companion can on
 no NPC relationship memory, so the chest/legend branches never fire; bounded on purpose). `NetCompanion.CanFeed`
 drives the Companions-tab button. Tests: `CompanionBondTests`.
 
+## The Sreekmakra (#1926, 2026-09)
+
+Valuma's shapeshifter is tamed through the ordinary ritual while it wears a shape (`SreekmakraTameable`: not revealed, not
+fleeing), with the needs of that shape; `CompleteTame` hands it to `BondSreekmakra`, which stores a companion of the TRUE form
+(`au_sreekmakra`), clears the world's shapeshifter state, sets `WorldMetadata.SreekmakraBackAt` (three in-game days), opens the
+Codex entry and advances `tame:sreekmakra`. Taming an ordinary animal of the species it currently wears calls
+`SreekmakraFollowsATame`: the shapeshifter leaves the herd and appears beside the player as a second companion (skipped when the
+player already owns one; VEGA explains when the six slots are full). A revealed or fleeing one refuses
+(`creature.tame.msg.sreekmakra`), as does a second one (`creature.tame.msg.sreekmakra_have`).
+
 ## Known remaining gaps / deferred (P4)
 
 - Needs a Unity client build.
