@@ -187,6 +187,7 @@ namespace BlocksBeyondTheStars.Client
             // A vendor only posts goods for its settlement's trade (mining/trading/research/settler); themeless
             // recipes barter everywhere. Aboard the ship console (no vendor) only the themeless deals show.
             string vendorTheme = NearestVendorTheme();
+            long day = Game.Environment != null ? (long)System.Math.Floor(Game.Environment.SystemTimeDays) : 0;
 
             int row = 0;
             foreach (var r in Game.Content.Recipes.Values)
@@ -201,6 +202,11 @@ namespace BlocksBeyondTheStars.Client
                     && !string.Equals(r.MarketTheme, vendorTheme, System.StringComparison.OrdinalIgnoreCase))
                 {
                     continue; // this trade belongs to a different kind of settlement
+                }
+
+                if (!r.OfferedOnDay(day))
+                {
+                    continue; // a rotating offer (the doctor's bed and stretcher) that is not in stock today
                 }
 
                 AddRow(row++, r);

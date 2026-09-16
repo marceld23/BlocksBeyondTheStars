@@ -223,7 +223,9 @@ public sealed class CraftingConsistencyTests
 
         foreach (var (upgrade, predecessor) in chains)
         {
-            var recipes = _c.Recipes.Values.Where(r => r.Outputs.Any(o => o.Item == upgrade)).ToList();
+            // Crafting recipes only: an arms dealer may SELL a finished weapon (2026-09 professions) — buying it is the
+            // deliberate shortcut past the upgrade chain, paid in diamonds and gold.
+            var recipes = _c.Recipes.Values.Where(r => r.Station != BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Market && r.Outputs.Any(o => o.Item == upgrade)).ToList();
             Assert.True(recipes.Count > 0, $"{upgrade} has no recipe");
             foreach (var r in recipes)
             {

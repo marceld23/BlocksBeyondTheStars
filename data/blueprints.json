@@ -370,6 +370,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "circuit_board", "count": 1 }, { "item": "glass", "count": 3 } ]
   },
   {
+    "key": "station_profession_posts", "nameKey": "blueprint.station_profession_posts.name", "descriptionKey": "blueprint.station_profession_posts.desc",
+    "category": "Station", "prerequisites": [ "station_vendor" ], "knowledgeCost": 45,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "circuit_board", "count": 2 }, { "item": "metal_panel", "count": 6 } ]
+  },
+  {
     "key": "station_container", "nameKey": "blueprint.station_container.name", "descriptionKey": "blueprint.station_container.desc",
     "category": "Station", "prerequisites": [], "knowledgeCost": 11,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 6 } ]

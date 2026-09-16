@@ -363,6 +363,11 @@ public sealed partial class GameServer
             return patrol[0];
         }
 
+        if (NpcProfessions.ByJob(npc.Job) is { WorksOutside: true } && OutsideBaseWorkSpot(npc) is { } quarry)
+        {
+            return quarry; // the blockfarmer (2026-09) quarries beyond the walls
+        }
+
         return anchor is { } a ? SpotBeside(a, taken) : null;
     }
 

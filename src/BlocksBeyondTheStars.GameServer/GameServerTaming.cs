@@ -458,9 +458,9 @@ public sealed partial class GameServer
         for (int i = _creatures.Count - 1; i >= 0; i--)
         {
             var c = _creatures[i];
-            if (c.IsCompanion && !valid.Contains(c.CompanionId))
+            if (c.IsCompanion && !valid.Contains(c.CompanionId) && !c.OwnerId.StartsWith(NpcPetOwnerPrefix, System.StringComparison.Ordinal))
             {
-                _creatures.RemoveAt(i);
+                _creatures.RemoveAt(i); // an NPC's pet (the tamer's, 2026-09) is kept by the professions tick instead
             }
         }
 
@@ -575,6 +575,24 @@ public sealed partial class GameServer
     {
         if (!_speciesById.TryGetValue(c.SpeciesId, out var sp))
         {
+            return;
+        }
+
+        if (NpcPetOwner(c) is { } tamer)
+        {
+            // The tamer's pet (2026-09) trots after its NPC like a player's companion after its owner.
+            if (WrapDistSq(c.Position, tamer.Pos) > CompanionLeashRange * CompanionLeashRange)
+            {
+                c.Position = CompanionSpotNear(sp, c.Id, tamer.Pos);
+                return;
+            }
+
+            var petProfile = ProfileFor(c.SpeciesId);
+            var petStep = LocomotionController.FollowStep(
+                c.Loco, petProfile, c.Position, tamer.Pos, CompanionFollowDistance, moveDt, Hash(c.Id, "wander"));
+            c.Loco = petStep.State;
+            ApplyCreatureStep(c, sp, EffectiveMotion(c, sp), petStep.Position, petStep.VertWave, petProfile, moveDt,
+                petStep.State.Mode == MoveMode.Seek ? MoveMode.Seek : MoveMode.Roam, petStep.Moving, terrainGates: false);
             return;
         }
 

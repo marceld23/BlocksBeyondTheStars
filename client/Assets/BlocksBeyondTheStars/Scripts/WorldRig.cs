@@ -341,6 +341,10 @@ namespace BlocksBeyondTheStars.Client
             var vendorChoice = root.AddComponent<VendorChoicePrompt>();
             vendorChoice.Game = boot;
 
+            // The reporter's interview box (2026-09 NPC professions).
+            var interview = root.AddComponent<InterviewUi>();
+            interview.Game = boot;
+
             // Maintenance announcements (#249): persistent restart-countdown banner + delayed-ack info modal.
             var maintenance = root.AddComponent<MaintenanceUi>();
             maintenance.Game = boot;

@@ -1571,6 +1571,7 @@ public sealed partial class GameServer
             Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
             Guard("TickNpcPaths", deltaSeconds, TickNpcPaths); // #1866: at most one NPC path search per tick
             Guard("TickNpcs", deltaSeconds, TickNpcs);
+            Guard("TickProfessions", deltaSeconds, TickProfessions); // the streamer asks for photos, the tamer's pet follows (2026-09)
             Guard("TickStationStaffing", deltaSeconds, TickStationStaffing); // #1487: crew only staffs posts in sealed rooms
             Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
             Guard("TickDoors", deltaSeconds, TickDoors);
@@ -3470,6 +3471,7 @@ public sealed partial class GameServer
             case CrewActionIntent crewAction: HandleCrewAction(session, crewAction); break;
             case MarkerActionIntent markerAction: HandleMarkerAction(session, markerAction); break;
             case NoteActionIntent noteAction: HandleNoteAction(session, noteAction); break; // player notes (#1844)
+            case InterviewAnswerIntent interview: HandleInterviewAnswer(session, interview); break; // reporter news (2026-09)
             case StorySelectIntent storySelect: HandleStorySelect(session, storySelect); break;
             case NetFragmentFoundIntent netFrag: HandleNetFragmentFound(session, netFrag); break;
             case CoreHackIntent coreHack: HandleCoreHack(session, coreHack); break;
@@ -5235,6 +5237,21 @@ public sealed partial class GameServer
                 CraftFail(session, recipe.Key, "@srv.craft.wrong_vendor");
                 return;
             }
+
+            // The grocer (2026-09) only sells inside the shop: the customer must stand in the keeper's closed room.
+            if (TradingVendorAt(session.State) is { } keeper && NpcProfessions.ByJob(keeper.Job) is { ShopOnly: true }
+                && !InSameClosedRoom(session.State.Position, keeper.Pos))
+            {
+                CraftFail(session, recipe.Key, "@srv.craft.shop_only");
+                return;
+            }
+        }
+
+        // "Sometimes a bed and a stretcher" (2026-09): a rotating offer is only in stock on its days.
+        if (recipe.Station == CraftingStation.Market && !recipe.OfferedOnDay(MarketDay))
+        {
+            CraftFail(session, recipe.Key, "@srv.craft.not_today");
+            return;
         }
 
         var pool = new MaterialPool(_content, session.State, _ship);

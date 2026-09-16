@@ -327,6 +327,13 @@ public sealed class PlayerSession
     /// favour is not asked again until the next visit, so "not today" lets the ordinary smalltalk through.</summary>
     public HashSet<string> DeclinedMissionDialogs { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>The reporter who just asked this player for an interview (2026-09), 0 = none — an answer is accepted only
+    /// for them, once.</summary>
+    public int PendingInterviewNpcId { get; set; }
+
+    /// <summary>The in-game days on which a streamer already asked this player for a photo, per streamer place (2026-09).</summary>
+    public HashSet<string> StreamerAskedToday { get; } = new(StringComparer.Ordinal);
+
     /// <summary>Uptime before which the player's companions do not growl at them again (#1210).</summary>
     public double NextCompanionAlertAt { get; set; }
 

@@ -24,6 +24,14 @@ namespace BlocksBeyondTheStars.Client
             "npc_hoe" => (Kind.Hoe, new Color(0.62f, 0.64f, 0.68f)),
             "npc_hammer" => (Kind.Hammer, new Color(0.50f, 0.52f, 0.56f)),
             "blade" => (Kind.Blade, new Color(0.80f, 0.84f, 0.90f)),
+            // 2026-09 professions: re-tinted existing models (no new meshes).
+            "npc_medkit" => (Kind.Gadget, new Color(0.35f, 1f, 0.55f)),     // the doctor's green first-aid emitter
+            "npc_basket" => (Kind.Tool, new Color(0.72f, 0.52f, 0.28f)),    // the grocer's wicker basket
+            "npc_book" => (Kind.Tool, new Color(0.45f, 0.30f, 0.62f)),      // the sage's tome
+            "npc_leash" => (Kind.Tool, new Color(0.50f, 0.34f, 0.20f)),     // the tamer's leather leash
+            "npc_pickaxe" => (Kind.Hammer, new Color(0.55f, 0.57f, 0.60f)), // the blockfarmer's pick
+            "npc_camera" => (Kind.Gadget, new Color(0.95f, 0.45f, 0.85f)),  // the streamer's camera
+            "npc_microphone" => (Kind.Scanner, new Color(0.45f, 0.65f, 1f)), // the reporter's microphone
             _ => (Kind.None, Color.white),
         };
 

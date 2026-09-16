@@ -86,6 +86,23 @@ can be staffed at your own station/base like the existing posts; textures are ge
   gates** (settlement / station / base) accept every trading profession's post. Locales en+de: `npc.role.*`,
   `npc.activity.*`, `npc.greet.*`, `ui.marker.*`, `ui.role.*`. Tests: `NpcProfessionTests` (table, kits, fresh settlement
   staffing) + marker whitelists / resident counts in the settlement tests.
+- **NPC professions, part 2 — posts to build, their goods, their talk, the streamer's photo, the reporter's news, the
+  tamer's pet.** **Post blocks** (`clinic_post`, `shop_counter`, `arms_rack`, `sage_lectern`, `tamer_post`,
+  `quarry_post`, `streamer_post`, `press_desk`, appended to blocks.json so block ids stay) behind one blueprint
+  `station_profession_posts` (Station tree after the trading post), plus a `stretcher` furniture block (Table shape);
+  textures generated with the OpenAI scripts (+ Titas' `sulfur_stone`). **Offers:** 26 market recipes on the six new
+  themes ("expensive" = diamonds/gold); `RecipeDefinition.MarketRotation` (+ `OfferedOnDay`) puts the doctor's bed and
+  stretcher in stock every other in-game day (server check `srv.craft.not_today`, client filter); the grocer sells only
+  inside the shop (`InSameClosedRoom`, `srv.craft.shop_only`). **Dialogues:** `DialogDefinition.Job`, one dialogue per
+  profession; a profession never takes a role dialogue. **Streamer:** asks each passer-by once per in-game day
+  (`npc.streamer.ask`); "yes" poses and `NpcDialogState.Action = "photo"` takes a HUD-free photo, "never" stops the asking.
+  **Reporter:** "interview me" → `InterviewUi` (≤ 300 chars, screened like chat; Safe chat mode = four ready answers) →
+  `InterviewAnswerIntent` (tag 243) → `WorldMetadata.News` per place (latest 10); "what's in the news?" reads them back.
+  **Tamer:** a tame land animal of the planet follows them (`npc:<id>` owner, not attackable, gone with the tamer, none on
+  stations). **Blockfarmer:** works 10 blocks beyond the settlement edge / base walls. Client: held items
+  (`HeldItem.ForNpc`), profession greetings by nameplate key. Balance tests adjusted: a bought weapon is the deliberate
+  shortcut past the upgrade chain (crafting-only rule), the posts blueprint costs 45. Tests: `NpcProfessionTests` (+9).
+  Docs: NPC_ROUTINES.md §11, USER_MANUAL (professions), STATION_SETTLEMENT_EDITOR.md, NOTICES.md.
 
 ### 🛏️ Player reports 2026-09-15, evening — several beds on one bed, a chair in the cabin door, breathing in kelp, foam at the old coast; trader ships on the map (#1900 #1901 #1902 #1903 #1904, 2026-09-15, branch fix/justus-reports-0915)
 

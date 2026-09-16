@@ -30,6 +30,19 @@ public sealed class NpcDialogState
 
     /// <summary>True when this is the dialogue's last line — the panel closes after showing it.</summary>
     public bool End { get; set; }
+
+    /// <summary>What the client does after showing this line (2026-09 professions): "photo" = take a photo with the
+    /// streamer, "interview" = open the interview box for the reporter; "" = nothing. Additive contractless field.</summary>
+    public string Action { get; set; } = string.Empty;
+}
+
+/// <summary>Client → server (2026-09): the player's answer to a reporter's interview. Only accepted right after that
+/// reporter asked (the server remembers the pending interview); screened like chat, stored as the place's news.</summary>
+public sealed class InterviewAnswerIntent
+{
+    public int NpcId { get; set; }
+
+    public string Text { get; set; } = string.Empty;
 }
 
 /// <summary>Client → server (#1127): the player picks a reply in the active dialogue. The server owns the

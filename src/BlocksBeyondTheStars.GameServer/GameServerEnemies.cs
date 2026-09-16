@@ -616,6 +616,12 @@ public sealed partial class GameServer
 
         if (_creatures.FirstOrDefault(e => e.Id == entityId) is { } creature)
         {
+            if (creature.OwnerId.StartsWith(NpcPetOwnerPrefix, System.StringComparison.Ordinal))
+            {
+                Reject(session, "attack", "@srv.attack.no_target"); // the tamer's pet (2026-09) is not fair game
+                return;
+            }
+
             AttackCombatEntity(session, creature, _creatures, isCreature: true, dir);
             return;
         }

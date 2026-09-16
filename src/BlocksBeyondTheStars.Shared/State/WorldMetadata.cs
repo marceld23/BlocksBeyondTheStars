@@ -155,6 +155,27 @@ public sealed class WorldMetadata
     /// Null on saves from before world options existed (the launch config's rules apply then).
     /// </summary>
     public BlocksBeyondTheStars.Shared.Configuration.GameRules? RulesOverride { get; set; }
+
+    /// <summary>The local news a reporter keeps per place (2026-09): place key → the latest articles, newest last, at most
+    /// <see cref="NewsArticle.MaxPerPlace"/>. Written from player interviews, screened like chat.</summary>
+    public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<NewsArticle>> News { get; set; } = new();
+}
+
+/// <summary>One interview a player gave a reporter (2026-09).</summary>
+public sealed class NewsArticle
+{
+    /// <summary>The most articles a place keeps; older ones drop off.</summary>
+    public const int MaxPerPlace = 10;
+
+    /// <summary>The longest answer a player may give.</summary>
+    public const int MaxTextLength = 300;
+
+    public string PlayerName { get; set; } = string.Empty;
+
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>The in-game day index it was written on.</summary>
+    public long Day { get; set; }
 }
 
 /// <summary>Where one rolled structure instance landed (#586), pinned at first stamp so the placement search

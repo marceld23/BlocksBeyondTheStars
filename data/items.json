@@ -260,5 +260,14 @@
   { "key": "gaming_mouse",    "nameKey": "item.gaming_mouse.name",    "category": "block", "maxStack": 64, "placesBlock": "gaming_mouse",    "descriptionKey": "item.gaming_mouse.desc" },
   { "key": "paul_stem",   "nameKey": "item.paul_stem.name",   "category": "block", "maxStack": 64, "placesBlock": "paul_stem",   "descriptionKey": "item.paul_stem.desc" },
   { "key": "paul_leaf",   "nameKey": "item.paul_leaf.name",   "category": "block", "maxStack": 64, "placesBlock": "paul_leaf",   "descriptionKey": "item.paul_leaf.desc" },
-  { "key": "paul_petals", "nameKey": "item.paul_petals.name", "category": "block", "maxStack": 64, "placesBlock": "paul_petals", "descriptionKey": "item.paul_petals.desc" }
+  { "key": "paul_petals", "nameKey": "item.paul_petals.name", "category": "block", "maxStack": 64, "placesBlock": "paul_petals", "descriptionKey": "item.paul_petals.desc" },
+  { "key": "clinic_post", "craftTab": "machines", "nameKey": "item.clinic_post.name", "category": "block", "maxStack": 16, "placesBlock": "clinic_post", "descriptionKey": "item.clinic_post.desc" },
+  { "key": "shop_counter", "craftTab": "machines", "nameKey": "item.shop_counter.name", "category": "block", "maxStack": 16, "placesBlock": "shop_counter", "descriptionKey": "item.shop_counter.desc" },
+  { "key": "arms_rack", "craftTab": "machines", "nameKey": "item.arms_rack.name", "category": "block", "maxStack": 16, "placesBlock": "arms_rack", "descriptionKey": "item.arms_rack.desc" },
+  { "key": "sage_lectern", "craftTab": "machines", "nameKey": "item.sage_lectern.name", "category": "block", "maxStack": 16, "placesBlock": "sage_lectern", "descriptionKey": "item.sage_lectern.desc" },
+  { "key": "tamer_post", "craftTab": "machines", "nameKey": "item.tamer_post.name", "category": "block", "maxStack": 16, "placesBlock": "tamer_post", "descriptionKey": "item.tamer_post.desc" },
+  { "key": "quarry_post", "craftTab": "machines", "nameKey": "item.quarry_post.name", "category": "block", "maxStack": 16, "placesBlock": "quarry_post", "descriptionKey": "item.quarry_post.desc" },
+  { "key": "streamer_post", "craftTab": "machines", "nameKey": "item.streamer_post.name", "category": "block", "maxStack": 16, "placesBlock": "streamer_post", "descriptionKey": "item.streamer_post.desc" },
+  { "key": "press_desk", "craftTab": "machines", "nameKey": "item.press_desk.name", "category": "block", "maxStack": 16, "placesBlock": "press_desk", "descriptionKey": "item.press_desk.desc" },
+  { "key": "stretcher", "nameKey": "item.stretcher.name", "category": "block", "maxStack": 16, "placesBlock": "stretcher", "descriptionKey": "item.stretcher.desc" }
 ]

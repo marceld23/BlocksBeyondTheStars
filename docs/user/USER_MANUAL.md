@@ -996,6 +996,22 @@ separate unlock; admins can still disable it through server world rules.
   posts a two-part **big order** — a doubled delivery with the pay to match, then a large build or survey.
   Later parts can't be taken early (the server checks), and they stay where you started them.
 
+### NPC professions: doctor, shopkeeper, arms dealer, sage, tamer, blockfarmer, streamer, reporter
+- **Where you meet them.** Newly generated villages and towns may have a **clinic, shop, armory, library, stable, quarry,
+  studio or newsroom** — each with its keeper. You can also get them at home: research **Profession posts** (Station tree)
+  and build a **clinic post, shop counter, arms rack, sage's lectern, tamer's post, quarry post, streamer set or press desk**
+  inside your base or on your own station — a resident takes the job (like the trading post).
+- **Doctor:** medpacks, field medkits and — expensive — a detoxifier; a bed and a stretcher only **every other day**.
+- **Shopkeeper:** food — but only while you stand **inside the shop** with them.
+- **Arms dealer:** cables, plates, energy cells, and finished laser pistols or plasma blasters for diamonds and gold.
+- **Sage:** data fragments and AI memory fragments at a very high price.
+- **Animal tamer:** baits and the creature translator; a tame animal of the planet walks at their side.
+- **Blockfarmer:** quarries outside the settlement by day and sells stone, sand, dirt and basalt.
+- **Streamer:** a huge fan — walks by once a day asking for a **photo together**; say yes and a photo is taken, say
+  "never" and they stop asking.
+- **Reporter:** gives you an **interview** — write what you have been up to (at most 300 characters; in Safe chat mode
+  you pick a ready answer). Everyone can read the place's latest stories by asking the reporter "What's in the news?".
+
 ### People you know & NPC radio calls
 - **NPCs remember you.** Trading at a stall or taking a board job raises your standing with that vendor or
   quartermaster: **Stranger → Acquaintance → Friend**. The stage shows on their **nameplate** when you walk

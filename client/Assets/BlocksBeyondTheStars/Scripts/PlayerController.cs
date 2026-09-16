@@ -1566,6 +1566,10 @@ namespace BlocksBeyondTheStars.Client
 
         private CameraTool _cameraTool;
 
+        /// <summary>Takes a HUD-free photo now (the streamer's "photo together", 2026-09) — the same capture the camera item
+        /// does on right-click. Returns whether a capture started.</summary>
+        public bool TakePhoto() => EnsureCameraTool().TryCapture();
+
         /// <summary>Lazily builds the client-side camera tool (HUD-free photo capture), wired to the view camera.</summary>
         private CameraTool EnsureCameraTool()
         {
