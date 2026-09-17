@@ -235,6 +235,7 @@
   { "key": "hydro_tray", "craftTab": "machines",      "nameKey": "item.hydro_tray.name",      "category": "block", "maxStack": 1024, "placesBlock": "hydro_tray", "descriptionKey": "item.hydro_tray.desc" },
 
   { "key": "bed",         "nameKey": "item.bed.name",         "category": "block", "maxStack": 16,   "placesBlock": "bed",         "descriptionKey": "item.bed.desc" },
+  { "key": "crew_bunk",   "nameKey": "item.crew_bunk.name",   "category": "block", "maxStack": 16,   "placesBlock": "crew_bunk",   "descriptionKey": "item.crew_bunk.desc" },
   { "key": "campfire",    "nameKey": "item.campfire.name",    "category": "block", "maxStack": 16,   "placesBlock": "campfire",    "descriptionKey": "item.campfire.desc" },
   { "key": "wood_crate",  "nameKey": "item.wood_crate.name",  "category": "block", "maxStack": 64,   "placesBlock": "wood_crate",  "descriptionKey": "item.wood_crate.desc" },
   { "key": "lantern",     "nameKey": "item.lantern.name",     "category": "block", "maxStack": 64,   "placesBlock": "lantern",     "descriptionKey": "item.lantern.desc" },

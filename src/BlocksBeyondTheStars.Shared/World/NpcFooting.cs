@@ -42,17 +42,31 @@ public enum NpcFooting : byte
 /// </summary>
 public static class NpcFootings
 {
-    /// <summary>Block keys that are never a floor to an NPC, whatever form they were placed in.</summary>
-    public static readonly IReadOnlyCollection<string> NoFloorBlocks = new HashSet<string>(StringComparer.Ordinal)
+    /// <summary>Block keys that are never a floor to an NPC, whatever form they were placed in. The profession
+    /// posts come from the profession table itself, so a post added later cannot be forgotten here (#1940: the
+    /// eight posts of 2026-09 were missing, and an NPC could climb onto its own counter).</summary>
+    public static readonly IReadOnlyCollection<string> NoFloorBlocks = BuildNoFloorBlocks();
+
+    private static HashSet<string> BuildNoFloorBlocks()
     {
-        // furniture and stores
-        "bed", "campfire", "crate", "wood_crate", "station_container", "flower_pot",
-        // workshop devices
-        "workbench", "forge", "matter_forge", "detoxifier", "algae_tank", "heal_tank",
-        // terminals and posts
-        "data_cache", "factory_terminal", "gaming_pc", "gaming_monitor", "gaming_keyboard", "gaming_mouse",
-        "station_vendor", "mission_board", "radio_beacon", "sentry_post",
-    };
+        var keys = new HashSet<string>(StringComparer.Ordinal)
+        {
+            // furniture and stores
+            "bed", "crew_bunk", "campfire", "crate", "wood_crate", "station_container", "flower_pot",
+            // workshop devices
+            "workbench", "forge", "matter_forge", "detoxifier", "algae_tank", "heal_tank",
+            // terminals and posts
+            "data_cache", "factory_terminal", "gaming_pc", "gaming_monitor", "gaming_keyboard", "gaming_mouse",
+            "station_vendor", "mission_board", "radio_beacon", "sentry_post",
+        };
+
+        foreach (var profession in Definitions.NpcProfessions.All)
+        {
+            keys.Add(profession.PostBlock);
+        }
+
+        return keys;
+    }
 
     /// <summary>How an NPC treats a colliding cell holding <paramref name="blockKey"/> in the form
     /// <paramref name="descriptor"/> (a packed <see cref="ShapeCode"/> descriptor; 0 = a plain cube).</summary>

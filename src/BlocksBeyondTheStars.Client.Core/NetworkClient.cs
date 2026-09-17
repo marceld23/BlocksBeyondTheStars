@@ -685,8 +685,19 @@ namespace BlocksBeyondTheStars.Client
         public void SendShipMove(Vector3f pos, float yaw = 0f) => Send(new ShipMoveIntent { X = pos.X, Y = pos.Y, Z = pos.Z, Yaw = yaw });
 
         /// <summary>EVA build/mine on a voxel structure (item 20 S2). Design-local cell coords.</summary>
-        public void SendStructureEdit(string structureId, int x, int y, int z, bool mine, string itemKey = "")
-            => Send(new StructureEditIntent { StructureId = structureId, X = x, Y = y, Z = z, Mine = mine, ItemKey = itemKey });
+        public void SendStructureEdit(string structureId, int x, int y, int z, bool mine, string itemKey = "",
+            int upFace = -1, int yaw = -1)
+            => Send(new StructureEditIntent
+            {
+                StructureId = structureId,
+                X = x,
+                Y = y,
+                Z = z,
+                Mine = mine,
+                ItemKey = itemKey,
+                UpFace = upFace,
+                Yaw = yaw,
+            });
 
         /// <summary>Deploy a station core in front of the suit to start a player-built station (item 20 S4).</summary>
         public void SendDeployStationCore() => Send(new DeployStationCoreIntent());

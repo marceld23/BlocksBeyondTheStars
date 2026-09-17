@@ -534,8 +534,10 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Records a single player edit (mine or place, incl. air) on an in-space voxel structure —
     /// the own-ship hull during an EVA. Only deltas against the deterministic baseline are stored, keyed by
-    /// the structure id (e.g. "ship:&lt;playerId&gt;"), mirroring the per-cell planet block-edit model.</summary>
-    void SetStructureBlock(string structureId, Vector3i position, ushort block);
+    /// the structure id (e.g. "ship:&lt;playerId&gt;"), mirroring the per-cell planet block-edit model. The packed
+    /// shape+orientation rides along (#1943) so furniture built into a ship keeps its form across a rebuild —
+    /// 0 is the plain cube every edit stored before.</summary>
+    void SetStructureBlock(string structureId, Vector3i position, ushort block, int shape = 0);
 
     /// <summary>Loads all stored edits for an in-space voxel structure (re-applied on top of the rebuilt
     /// baseline when the structure is reconstructed on space entry / server restart).</summary>

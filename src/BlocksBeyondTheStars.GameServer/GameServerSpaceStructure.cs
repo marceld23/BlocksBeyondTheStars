@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -254,6 +255,7 @@ public sealed partial class GameServer
                     }
                 }
 
+            StampQuartersBeds(s);
             FinishShipStructure(s, persistEdits);
             return s;
         }
@@ -321,10 +323,10 @@ public sealed partial class GameServer
         // Interior station markers on the floor (same placement as the old stamped box ship: corners + walls,
         // kept inside the shell). NOTE: the box ship's heal-tank/respawn stays at the CABIN CENTRE (MedbayCell
         // unset → the placement falls back to the centre), matching the old stamp's spawn point.
-        void BoxStation(string type, int x, int z)
+        void BoxStation(string type, int x, int z, string? blockKey = null)
         {
             var cell = new Vector3i(x, 1, z);
-            s.Set(cell, _content.GetBlock(StationBlockKey(type))?.NumericId ?? wall);
+            s.Set(cell, _content.GetBlock(blockKey ?? StationBlockKey(type))?.NumericId ?? wall);
             s.StationCells.Add((type, cell));
         }
 
@@ -336,7 +338,10 @@ public sealed partial class GameServer
         BoxStation("cockpit", halfX, halfZ * 2 - 1);
         BoxStation("workshop", halfX * 2 - 1, halfZ);
         BoxStation("cargo", 1, halfZ);
-        BoxStation("quarters", halfX * 2 - 1, rearRow);
+        // The box cabin's quarters corner is hemmed in by the hull, the console and the workshop, so there is no
+        // cell for the two-cell bed's foot half (#1941). It gets the one-cell wall bunk instead (#1942) — which
+        // is what a cramped starter cabin should have had all along, rather than a bed tile on a cube.
+        BoxStation("quarters", halfX * 2 - 1, rearRow, CrewBunkBlock);
         // No "lab" marker any more (#1074): research happens at the cockpit; the lab was an invisible
         // iron_wall cell that no authored layout or editor palette ever had.
         BoxStation("console", halfX * 2 - 1, halfZ * 2 - 1);
@@ -373,6 +378,103 @@ public sealed partial class GameServer
 
         FinishShipStructure(s, persistEdits);
         return s;
+    }
+
+    /// <summary>
+    /// Turns each quarters marker into the real TWO-CELL bed (#1941). Station cells stamp as plain cubes, so the
+    /// cabin's bed was the bed tile painted on all six faces ever since the two-cell bed arrived (#1846) — a
+    /// player report called it "the old bed block". The marker cell becomes the head half and keeps its station
+    /// anchor; the foot half goes on a free floor cell beside it that is not a station, not the medbay walkway a
+    /// respawning player lands on, and not inside a doorway corridor. A cabin with no such cell (the starter
+    /// box's quarters corner) keeps its single cell.
+    /// </summary>
+    private void StampQuartersBeds(SpaceStructure s)
+    {
+        var bed = _content.GetBlock(StationBlockKey("quarters"))?.NumericId ?? BlockId.Air;
+        if (bed.IsAir)
+        {
+            return;
+        }
+
+        var stations = s.StationCells.Select(c => c.Cell).ToHashSet();
+        var corridors = DoorwayCorridorCells(s);
+        var healFeet = HealTankFeetCell(s);
+
+        foreach (var (type, head) in s.StationCells)
+        {
+            if (type != "quarters" || s.Get(head) != bed)
+            {
+                continue;
+            }
+
+            Vector3i? best = null;
+            int bestWalls = -1;
+            foreach (var (dx, dz) in BedFootSteps)
+            {
+                var foot = new Vector3i(head.X + dx, head.Y, head.Z + dz);
+                if (!s.Get(foot).IsAir ||                                      // the cell must be free …
+                    s.Get(new Vector3i(foot.X, foot.Y - 1, foot.Z)).IsAir ||   // … with a floor under it
+                    stations.Contains(foot) || corridors.Contains(foot) ||
+                    (healFeet.HasValue && healFeet.Value.Equals(foot)))
+                {
+                    continue;
+                }
+
+                // Prefer a spot along a wall or in a corner, so the bed never grows into the middle of the cabin.
+                int walls = BedFootSteps.Count(step =>
+                    !s.Get(new Vector3i(foot.X + step.X, foot.Y, foot.Z + step.Z)).IsAir);
+                if (walls > bestWalls)
+                {
+                    bestWalls = walls;
+                    best = foot;
+                }
+            }
+
+            if (best is not { } footCell)
+            {
+                continue; // no room for the foot half — the cabin keeps its one-cell bed
+            }
+
+            int yaw = ShapeCode.YawToward(footCell.X - head.X, footCell.Z - head.Z);
+            s.Set(head, bed, 0, 0, ShapeCode.Pack(BlockShape.BedHead, yaw));
+            s.Set(footCell, bed, 0, 0, ShapeCode.Pack(BlockShape.BedFoot, yaw));
+        }
+    }
+
+    private static readonly (int X, int Z)[] BedFootSteps = { (1, 0), (-1, 0), (0, 1), (0, -1) };
+
+    /// <summary>The cells at door height that must stay walkable: a doorway's air gap plus the approach rows on
+    /// each side, mirroring the clearance rule the ship-layout tests enforce (#211). Only the door's own level is
+    /// collected — that is where furniture would stand.</summary>
+    private static HashSet<Vector3i> DoorwayCorridorCells(SpaceStructure s)
+    {
+        var cells = new HashSet<Vector3i>();
+        foreach (var door in s.DoorCells)
+        {
+            bool xJamb = !s.Get(new Vector3i(door.X - 1, door.Y, door.Z)).IsAir
+                         || !s.Get(new Vector3i(door.X + 1, door.Y, door.Z)).IsAir;
+            bool zJamb = !s.Get(new Vector3i(door.X, door.Y, door.Z - 1)).IsAir
+                         || !s.Get(new Vector3i(door.X, door.Y, door.Z + 1)).IsAir;
+            bool axisX = door.Z == 0 || (xJamb && !zJamb) || (!(zJamb && !xJamb) && xJamb);
+            int[] walk = door.Z == 0 ? new[] { -1, 0, 1, 2 } : new[] { -2, -1, 0, 1, 2 };
+
+            bool SolidAtGap(int g) => !s.Get(axisX ? new Vector3i(g, door.Y, door.Z) : new Vector3i(door.X, door.Y, g)).IsAir;
+
+            int centre = axisX ? door.X : door.Z;
+            int lo = centre, hi = centre;
+            for (int step = 1; step <= 3 && !SolidAtGap(centre - step); step++) { lo = centre - step; }
+            for (int step = 1; step <= 3 && !SolidAtGap(centre + step); step++) { hi = centre + step; }
+
+            for (int g = lo; g <= hi; g++)
+            {
+                foreach (int dw in walk)
+                {
+                    cells.Add(axisX ? new Vector3i(g, door.Y, door.Z + dw) : new Vector3i(door.X + dw, door.Y, g));
+                }
+            }
+        }
+
+        return cells;
     }
 
     /// <summary>Common ship-structure finish: paints the per-room floor accents, hangs the per-room ceiling
@@ -474,7 +576,9 @@ public sealed partial class GameServer
     {
         foreach (var edit in _repo.LoadStructureEdits(StructureEditStoreId(s)))
         {
-            s.Set(edit.WorldPosition, new BlockId(edit.Block));
+            // With the form (#1943) — and always AS STORED, so an edit on a cell the builder shaped (the foot
+            // half of the cabin bed, #1941) replaces that form instead of inheriting it.
+            s.Set(edit.WorldPosition, new BlockId(edit.Block), 0, 0, edit.Shape);
         }
     }
 
@@ -816,8 +920,18 @@ public sealed partial class GameServer
                 return;
             }
 
-            s.Set(pos, BlockId.Air);
-            _repo.SetStructureBlock(StructureEditStoreId(s), pos, BlockId.AirValue);
+            // Both halves of a two-cell bed go at once (#1846/#1943), so no orphan half is left aboard.
+            int minedShape = s.Shapes.TryGetValue(pos, out int sh) ? sh : 0;
+            if (FurnitureShapes.TryBedPartnerOffset(minedShape, out int pdx, out int pdz))
+            {
+                var partner = new Vector3i(pos.X + pdx, pos.Y, pos.Z + pdz);
+                if (s.Get(partner) == existing && !s.Baseline.Contains(partner))
+                {
+                    SetStructureCell(s, partner, BlockId.Air, 0);
+                }
+            }
+
+            SetStructureCell(s, pos, BlockId.Air, 0);
 
             if (_content.BlockById(existing) is { } def && def.Drops.Count > 0)
             {
@@ -826,14 +940,6 @@ public sealed partial class GameServer
                 SendInventory(session);
             }
 
-            BroadcastToWorld(new StructureBlockChanged
-            {
-                StructureId = s.Id,
-                X = pos.X,
-                Y = pos.Y,
-                Z = pos.Z,
-                Block = BlockId.AirValue,
-            });
             return;
         }
 
@@ -910,16 +1016,101 @@ public sealed partial class GameServer
             return;
         }
 
-        s.Set(pos, blockDef.NumericId);
-        _repo.SetStructureBlock(StructureEditStoreId(s), pos, blockDef.NumericId.Value);
+        // Furniture keeps its FORM aboard as well (#1943): a bed built into a cabin used to become a cube with
+        // the bed picture on all six faces, because a ship edit stored the block id alone.
+        int shape = StampStructurePropShape(s, intent, blockDef.Key, pos, p.Yaw);
+        Vector3i? bedFoot = null;
+        if (blockDef.Key == BedBlock && FurnitureShapes.TryBedPartnerOffset(shape, out int fdx, out int fdz))
+        {
+            var foot = new Vector3i(pos.X + fdx, pos.Y, pos.Z + fdz);
+            if (foot.X < 0 || foot.X >= s.Width || foot.Z < 0 || foot.Z >= s.Length || !s.Get(foot).IsAir)
+            {
+                shape = PropShapes.BedSingleCell; // no room for the foot half in this cabin — keep the short bed
+            }
+            else
+            {
+                bedFoot = foot;
+            }
+        }
+
+        SetStructureCell(s, pos, blockDef.NumericId, shape);
+        if (bedFoot is { } bedFootCell)
+        {
+            SetStructureCell(s, bedFootCell, blockDef.NumericId, FurnitureShapes.BedPartnerDescriptor(shape));
+        }
+    }
+
+    /// <summary>Writes one cell of a ship/station structure as a player edit: the live grid, the durable delta
+    /// and the broadcast to everyone in the world, all with the same block + form (#1943).</summary>
+    private void SetStructureCell(SpaceStructure s, Vector3i pos, BlockId block, int shape)
+    {
+        s.Set(pos, block, 0, 0, shape);
+        _repo.SetStructureBlock(StructureEditStoreId(s), pos, block.Value, shape);
         BroadcastToWorld(new StructureBlockChanged
         {
             StructureId = s.Id,
             X = pos.X,
             Y = pos.Y,
             Z = pos.Z,
-            Block = blockDef.NumericId.Value,
+            Block = block.Value,
+            Shape = shape,
         });
+    }
+
+    /// <summary>The packed form a prop takes when it is built INTO a ship (#1943) — the structure-grid twin of
+    /// the world's <c>StampPropShape</c>, reading its walls instead of the planet's. Ladders hug a hull wall,
+    /// the staircase may tip onto one, other furniture only turns; an old client that sends no orientation
+    /// (both fields 0) is treated as "decide here", exactly like the world path's −1.</summary>
+    private static int StampStructurePropShape(SpaceStructure s, StructureEditIntent intent, string blockKey, Vector3i pos, float playerYaw)
+    {
+        var cycle = PropShapes.OrientationOf(blockKey);
+        if (cycle == PropOrientation.None)
+        {
+            return 0;
+        }
+
+        bool chosenYaw = intent.Yaw >= 0 && intent.Yaw <= 3;
+        int facing = chosenYaw ? intent.Yaw : ((int)System.MathF.Round(playerYaw / 90f)) & 3;
+        bool Solid(int dx, int dy, int dz) => !s.Get(new Vector3i(pos.X + dx, pos.Y + dy, pos.Z + dz)).IsAir;
+
+        if (cycle == PropOrientation.LadderMount)
+        {
+            int mount = ShapeCode.IsValidUpFace(intent.UpFace) && intent.UpFace != 0
+                ? intent.UpFace
+                : PropShapes.DeriveLadderMount(face => face switch
+                {
+                    2 => Solid(1, 0, 0),
+                    3 => Solid(-1, 0, 0),
+                    4 => Solid(0, 0, 1),
+                    5 => Solid(0, 0, -1),
+                    _ => false,
+                }, ShapeCode.IsValidUpFace(intent.UpFace) ? intent.UpFace : -1);
+            var (ladderShape, ladderUp) = PropShapes.LadderForm(mount);
+            return ShapeCode.Pack(ladderShape, 0, ladderUp);
+        }
+
+        if (cycle == PropOrientation.Full)
+        {
+            int upFace = ShapeCode.IsValidUpFace(intent.UpFace) && intent.UpFace != 0
+                ? intent.UpFace
+                : Solid(0, -1, 0) ? ShapeCode.UpPlusY
+                : Solid(1, 0, 0) ? 3
+                : Solid(-1, 0, 0) ? 2
+                : Solid(0, 0, 1) ? 5
+                : Solid(0, 0, -1) ? 4
+                : Solid(0, 1, 0) ? 1
+                : ShapeCode.UpPlusY;
+            return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, upFace);
+        }
+
+        // Furniture turns but never tips. A bed placed without an explicit turn puts its foot in the cell the
+        // player faces — the same mirror the world path applies (#1846).
+        if (blockKey == BedBlock && !chosenYaw)
+        {
+            facing = ShapeCode.YawFacingForward(facing);
+        }
+
+        return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, ShapeCode.UpPlusY);
     }
 
     /// <summary>Test hook: run an EVA structure edit (item 20 S2).</summary>

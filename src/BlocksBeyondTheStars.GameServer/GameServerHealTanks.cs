@@ -28,6 +28,11 @@ public sealed partial class GameServer
     internal const string HealTankBlock = "heal_tank";
     internal const string BedBlock = "bed";
 
+    /// <summary>#1942: the ship's wall bunk. A one-cell sleeping pod that counts as a bed wherever a player
+    /// rests — the same weak heal, the same E-for-home-spawn — so the starter cabin, whose quarters corner has
+    /// no room for the two-cell bed, still reads and works as a place to sleep.</summary>
+    internal const string CrewBunkBlock = "crew_bunk";
+
     /// <summary>Radius (blocks, per axis — a box, matching the crafting-station scans) around a placed
     /// heal tank within which players regenerate. Vertical reach is smaller: one room, not a tower.</summary>
     private const int HealTankRadius = 6;
@@ -47,12 +52,14 @@ public sealed partial class GameServer
 
     private ushort _healTankBlockId;
     private ushort _bedBlockId;
+    private ushort _crewBunkBlockId;
 
-    /// <summary>Resolves the heal-tank + bed block ids once per content load (0 = block missing).</summary>
+    /// <summary>Resolves the heal-tank + bed + bunk block ids once per content load (0 = block missing).</summary>
     private void InitHealTanks()
     {
         _healTankBlockId = _content.GetBlock(HealTankBlock)?.NumericId.Value ?? 0;
         _bedBlockId = _content.GetBlock(BedBlock)?.NumericId.Value ?? 0;
+        _crewBunkBlockId = _content.GetBlock(CrewBunkBlock)?.NumericId.Value ?? 0;
     }
 
     /// <summary>Per-world regen field: heal + feed + suit recharge for every on-foot player near a placed
@@ -77,8 +84,8 @@ public sealed partial class GameServer
             {
                 session.HealTankScanIn = HealTankScanInterval;
                 session.NearHealTank = NearHealTankBlock(p);
-                session.NearBed = !session.NearHealTank && _bedBlockId != 0
-                    && AnchorNear(p.Position, loadedOnly: true, _bedBlockId);
+                session.NearBed = !session.NearHealTank && (_bedBlockId != 0 || _crewBunkBlockId != 0)
+                    && AnchorNear(p.Position, loadedOnly: true, _bedBlockId, _crewBunkBlockId);
             }
 
             if (p.GodMode || p.Health <= 0f)
@@ -131,7 +138,8 @@ public sealed partial class GameServer
         ushort cellBlock = _world.GetBlock(cell).Value;
         bool isAnchor = (cellBlock != 0)
             && ((cellBlock == _healTankBlockId && _healTankBlockId != 0)
-                || (cellBlock == _bedBlockId && _bedBlockId != 0));
+                || (cellBlock == _bedBlockId && _bedBlockId != 0)
+                || (cellBlock == _crewBunkBlockId && _crewBunkBlockId != 0));
         if (!isAnchor
             || InSpace(p.PlayerId)
             || WrapDistSq(p.Position, cell) > HealTankInteractReach * HealTankInteractReach)
@@ -372,13 +380,14 @@ public sealed partial class GameServer
     /// <summary>True if a home-spawn ANCHOR — a heal tank or a bed (#804) — stands near <paramref name="pos"/>.
     /// The respawn flow validates against this: a razed home (tank mined AND bed gone) falls back to the ship.</summary>
     private bool HomeAnchorNear(Vector3f pos, bool loadedOnly)
-        => AnchorNear(pos, loadedOnly, _healTankBlockId, _bedBlockId);
+        => AnchorNear(pos, loadedOnly, _healTankBlockId, _bedBlockId, _crewBunkBlockId);
 
-    /// <summary>Shared box scan for the regen/home checks: true when a block matching <paramref name="a"/>
-    /// (or optional <paramref name="b"/>) stands within the field box around <paramref name="pos"/>.</summary>
-    private bool AnchorNear(Vector3f pos, bool loadedOnly, ushort a, ushort b = 0)
+    /// <summary>Shared box scan for the regen/home checks: true when a block matching <paramref name="a"/> (or
+    /// the optional <paramref name="b"/>/<paramref name="c"/>) stands within the field box around
+    /// <paramref name="pos"/>.</summary>
+    private bool AnchorNear(Vector3f pos, bool loadedOnly, ushort a, ushort b = 0, ushort c = 0)
     {
-        if (a == 0 && b == 0)
+        if (a == 0 && b == 0 && c == 0)
         {
             return false;
         }
@@ -394,7 +403,7 @@ public sealed partial class GameServer
                 {
                     var cell = new Vector3i(px + dx, py + dy, pz + dz);
                     ushort v = (loadedOnly ? _world.GetBlockIfLoaded(cell) : _world.GetBlock(cell)).Value;
-                    if (v != 0 && ((a != 0 && v == a) || (b != 0 && v == b)))
+                    if (v != 0 && ((a != 0 && v == a) || (b != 0 && v == b) || (c != 0 && v == c)))
                     {
                         return true;
                     }

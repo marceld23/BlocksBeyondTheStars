@@ -757,7 +757,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#1930: the "All items" page exists while the player plays the Creative game mode (Sandbox, or their own
         /// Creative override) — the rules the server sends are already the player's effective ones.</summary>
-        private bool CatalogAvailable() => Game?.Rules != null && Game.Rules.GameMode == "Creative";
+        private bool CatalogAvailable() => FreeCrafting();
+
+        /// <summary>#1936: true while this player crafts for FREE — the Creative game mode (world Sandbox, or their own
+        /// Creative override). The server then produces any recipe without materials, blueprint, station or market, so
+        /// the menu must not keep the button grey: the world-create hint promises "crafting costs no materials".</summary>
+        private bool FreeCrafting() => Game?.Rules != null && Game.Rules.GameMode == "Creative";
 
         private void OnTab(int tab) => Menu?.SwitchFromUi(tab); // GameMenu owns the active tab
 
@@ -1672,7 +1677,7 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     bool fitted = ModuleFitted(m);
-                    bool can = HasAll(m.BuildCost) && BlueprintOk(m.RequiredBlueprint);
+                    bool can = FreeCrafting() || (HasAll(m.BuildCost) && BlueprintOk(m.RequiredBlueprint));
                     if (_craftableOnly && !can && !fitted)
                     {
                         continue;
@@ -1695,7 +1700,7 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    bool can = HasAll(s.CraftCost) && BlueprintOk(s.RequiredBlueprint);
+                    bool can = FreeCrafting() || (HasAll(s.CraftCost) && BlueprintOk(s.RequiredBlueprint));
                     if (_craftableOnly && !can)
                     {
                         continue;
@@ -4073,6 +4078,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             y += 10f;
+            if (FreeCrafting())
+            {
+                UiKit.AddText(_detail, 8, y, 620, 26, L("ui.craft.free"), 18, UiKit.Ok, TextAnchor.UpperLeft);
+                y += 30f;
+            }
+
             bool can = CanCraft(r, out string reason);
             if (!can)
             {
@@ -4108,6 +4119,11 @@ namespace BlocksBeyondTheStars.Client
         private int MaxCraftable(RecipeDefinition r)
         {
             int cap = BlocksBeyondTheStars.Shared.Definitions.ItemDefinition.DefaultMaxStack;
+            if (FreeCrafting())
+            {
+                return cap; // nothing is consumed — a full stack per order, the same ceiling the server clamps to
+            }
+
             int m = cap;
             foreach (var inp in r.Inputs)
             {
@@ -4299,7 +4315,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 y = CostBlock(m.BuildCost, m.RequiredBlueprint, y);
-                bool ready = HasAll(m.BuildCost) && BlueprintOk(m.RequiredBlueprint);
+                bool ready = FreeCrafting() || (HasAll(m.BuildCost) && BlueprintOk(m.RequiredBlueprint));
                 // Modules are built aboard, at the workshop module (#1074) — say so instead of a failing toast.
                 bool can = ready && ShipBuildOkNow();
                 if (ready && !ShipBuildOkNow())
@@ -4326,7 +4342,7 @@ namespace BlocksBeyondTheStars.Client
                 y += 48f;
                 y = ShipStats(def, y);
                 y = CostBlock(def.CraftCost, def.RequiredBlueprint, y);
-                bool can = HasAll(def.CraftCost) && BlueprintOk(def.RequiredBlueprint);
+                bool can = FreeCrafting() || (HasAll(def.CraftCost) && BlueprintOk(def.RequiredBlueprint));
                 var btn = UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.action.craft"), () => { Game.Network.SendCraftShip(def.Key); });
                 SetInteractable(btn, can);
                 y += 70f;
@@ -5077,6 +5093,20 @@ namespace BlocksBeyondTheStars.Client
 
         private bool CanCraft(RecipeDefinition r, out string reason)
         {
+            if (FreeCrafting())
+            {
+                // Everything the server skips in this mode is skipped here too — only the room for the result is
+                // real (the server refuses a craft that does not fit, so the button would lie).
+                if (!ResultFits(r))
+                {
+                    reason = L("ui.craft.inventory_full");
+                    return false;
+                }
+
+                reason = string.Empty;
+                return true;
+            }
+
             if (!BlueprintOk(r.RequiredBlueprint))
             {
                 reason = L("ui.craft.need_blueprint");
@@ -5227,6 +5257,11 @@ namespace BlocksBeyondTheStars.Client
         /// around; the station only keeps gating the status colour and the craft button.</summary>
         private int ReachTier(string requiredBlueprint, List<BlocksBeyondTheStars.Shared.Definitions.ItemAmount> cost)
         {
+            if (FreeCrafting())
+            {
+                return 0; // everything is craftable now
+            }
+
             if (!BlueprintOk(requiredBlueprint))
             {
                 return 2;

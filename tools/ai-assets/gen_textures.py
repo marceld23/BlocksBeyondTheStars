@@ -203,11 +203,16 @@ TEXTURES = [
     ("clinic_post", "a sci-fi clinic reception counter, a white and mint-green medical cabinet with a glowing green cross sign, small medicine drawers and a vital-signs screen, front view"),
     ("shop_counter", "a cosy shop counter, a wooden sales counter with baskets of fresh fruit, bread and jars on shelves behind it and a small hanging chalkboard, front view"),
     ("arms_rack", "a sci-fi weapon rack, a dark gunmetal wall rack holding futuristic blaster pistols and energy cells on hooks behind a steel grille, small red status lights, front view"),
-    ("sage_lectern", "an ancient sage's lectern, a carved dark purple wooden reading stand with an open glowing book of data runes, crystal lamps and scrolls, front view"),
+    # #1938: the sage's post reads as a COMPUTER now. A lectern drawn on a background looked like a picture
+    # glued onto a cube from every side ("einfach nur eine Textur auf Blöcken"); a terminal cabinet is a box.
+    ("sage_lectern", "a sage's data terminal, a dark violet armoured console cabinet filling the whole tile edge to edge with no background, a glowing amber screen of scrolling data runes in the middle, engraved circuit lines, small crystal indicator lights, front view"),
     ("tamer_post", "an animal tamer's post, a wooden stable gate with leather leashes, a coiled whip, bags of animal feed and a small paw print sign, front view"),
-    ("quarry_post", "a quarry workers' post, a rough stone and timber board with a hanging pickaxe, stacked stone blocks and a dusty wooden crate of ore, front view"),
-    ("streamer_post", "a colourful streamer set, a gaming desk with a glowing pink and purple ring light, a camera on a tripod, a microphone arm and a screen with a live chat, front view"),
-    ("press_desk", "a newsroom press desk, a blue metal desk with a typewriter-like terminal, stacks of printed newspapers, a desk microphone and a glowing blue screen with headline bars, front view"),
+    # #1939: these three were scenes with floors and furniture legs — redrawn as the block itself.
+    ("quarry_post", "a quarry supply cabinet, a rough timber crate with iron corner bands filling the whole tile edge to edge with no background and no floor, a hanging pickaxe and chisel on its front, stone dust and small ore chunks, front view"),
+    ("streamer_post", "a streaming console cabinet, a dark purple metal housing filling the whole tile edge to edge with no background and no legs, a glowing magenta ring light, a small camera lens and a screen with live chat lines, front view"),
+    ("press_desk", "a newsroom press terminal cabinet, a blue-grey metal housing filling the whole tile edge to edge with no background and no legs, a glowing blue screen with headline bars, a paper tray with a printed sheet and a small desk microphone, front view"),
+    # #1942: the starter cabin's wall bunk — the one-cell sleeping place a cramped ship has room for.
+    ("crew_bunk", "a spaceship wall sleeping bunk, a white metal capsule frame filling the whole tile edge to edge with no background, a padded grey-blue mattress with a folded blanket and a small pillow inside it, a soft cyan reading light strip along the top edge, front view"),
     ("stretcher", "white medical stretcher canvas fabric filling the whole tile edge to edge with no background, a faint green cross in the middle and grey stitched seams, top-down"),
     # 2026-09 Titas: the yellow sulfur stone under the snow.
     ("sulfur_stone", "bright yellow sulfur stone rock, crystalline sulfur crust with pale yellow and ochre patches and small dark pores"),

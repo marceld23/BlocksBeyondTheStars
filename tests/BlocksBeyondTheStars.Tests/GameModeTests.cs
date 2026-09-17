@@ -80,6 +80,38 @@ public sealed class GameModeTests : IDisposable
     }
 
     [Fact]
+    public void CreativeMode_RefusesACraftThatDoesNotFit_InsteadOfLosingIt()
+    {
+        // #1937: the free path added the output and reported success without asking whether it fits, so a
+        // craft into a full backpack (no ship hold aboard) silently destroyed what it had just made.
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "crfull"));
+        var link = new LoopbackLink();
+        using var st = new LoopbackServerTransport(link);
+        using var client = new LoopbackClientTransport(link);
+
+        var config = new ServerConfig { WorldName = "crfull", Seed = 1, AutoSaveIntervalMinutes = 9999 };
+        config.Rules.GameMode = GameMode.Creative;
+
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        client.Connect("loopback", 0);
+        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Builder" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        var player = server.Sessions[1].State;
+        player.AboardShip = false; // no cargo hold to spill into — the backpack is the whole inventory
+        for (int slot = 0; slot < player.Inventory.SlotCount; slot++)
+        {
+            player.Inventory.SetSlot(slot, new BlocksBeyondTheStars.Shared.State.ItemStack("stone", 999));
+        }
+
+        client.Send(NetCodec.Encode(new CraftIntent { RecipeKey = "iron_ingot", Count = 1 }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        Assert.Equal(0, player.Inventory.CountOf("iron_ingot"));
+    }
+
+    [Fact]
     public void SandboxMode_PersistsAcrossRestart_WithoutTheFlag()
     {
         // #662: the launcher passes --game-mode Creative only at world creation. A relaunch of the same

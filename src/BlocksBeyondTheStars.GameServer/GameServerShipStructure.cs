@@ -129,13 +129,9 @@ public sealed partial class GameServer
     {
         if (s.MedbayCell is { } mb)
         {
-            foreach (var d in HealTankSides)
+            if (HealTankFeetCell(s) is { } feet)
             {
-                var feet = new Vector3i(mb.X + d.X, mb.Y, mb.Z + d.Z);
-                if (StandingRoom(s, feet) && !s.Get(new Vector3i(feet.X, feet.Y - 1, feet.Z)).IsAir)
-                {
-                    return new Vector3f(origin.X + feet.X + 0.5f, origin.Y + feet.Y, origin.Z + feet.Z + 0.5f);
-                }
+                return new Vector3f(origin.X + feet.X + 0.5f, origin.Y + feet.Y, origin.Z + feet.Z + 0.5f);
             }
 
             var top = new Vector3i(mb.X, mb.Y + 1, mb.Z);
@@ -146,6 +142,28 @@ public sealed partial class GameServer
         }
 
         return new Vector3f(origin.X + s.Width / 2 + 0.5f, origin.Y + 1f, origin.Z + s.Length / 2 + 0.5f);
+    }
+
+    /// <summary>The walkway cell beside the medbay a respawning player is put on, or null when the design has
+    /// no medbay or no free side. Split out of <see cref="ResolveHealTank"/> so the ship builder can keep that
+    /// cell free of furniture (#1941: the bed's foot half must not land on the respawn spot).</summary>
+    internal static Vector3i? HealTankFeetCell(SpaceStructure s)
+    {
+        if (s.MedbayCell is not { } mb)
+        {
+            return null;
+        }
+
+        foreach (var d in HealTankSides)
+        {
+            var feet = new Vector3i(mb.X + d.X, mb.Y, mb.Z + d.Z);
+            if (StandingRoom(s, feet) && !s.Get(new Vector3i(feet.X, feet.Y - 1, feet.Z)).IsAir)
+            {
+                return feet;
+            }
+        }
+
+        return null;
     }
 
     private static readonly Vector3i[] HealTankSides =

@@ -53,6 +53,9 @@ public sealed class StructureEditRow
     public int Y { get; set; }
     public int Z { get; set; }
     public ushort Block { get; set; }
+
+    /// <summary>Packed shape + orientation of the edited cell (#1943); 0 = the plain cube older saves stored.</summary>
+    public int Shape { get; set; }
 }
 
 /// <summary>
@@ -128,7 +131,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<(string Crew, string Player), StoredCrewMember> _crewMembers = new();
     private readonly Dictionary<string, string> _storyStates = new();   // storyId → JSON
     private readonly Dictionary<string, string> _spaceStructures = new(); // id → JSON
-    private readonly Dictionary<(string StructureId, int X, int Y, int Z), ushort> _structureEdits = new();
+    private readonly Dictionary<(string StructureId, int X, int Y, int Z), (ushort Block, int Shape)> _structureEdits = new();
     private readonly Dictionary<string, string> _locationStatuses = new();
     private readonly Dictionary<string, string> _missions = new();      // id → JSON
 
@@ -271,7 +274,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
                 X = kv.Key.X,
                 Y = kv.Key.Y,
                 Z = kv.Key.Z,
-                Block = kv.Value,
+                Block = kv.Value.Block,
+                Shape = kv.Value.Shape,
             });
         }
 
@@ -406,7 +410,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
 
         foreach (var row in snapshot.StructureEdits)
         {
-            _structureEdits[(row.StructureId, row.X, row.Y, row.Z)] = row.Block;
+            _structureEdits[(row.StructureId, row.X, row.Y, row.Z)] = (row.Block, row.Shape);
         }
 
         foreach (var kv in snapshot.LocationStatuses)
@@ -465,9 +469,10 @@ public sealed class MemoryWorldRepository : IWorldRepository
 
         foreach (var key in _structureEdits.Keys.ToList())
         {
-            if (remap.TryGetValue(_structureEdits[key], out ushort nb) && nb != _structureEdits[key])
+            var cell = _structureEdits[key];
+            if (remap.TryGetValue(cell.Block, out ushort nb) && nb != cell.Block)
             {
-                _structureEdits[key] = nb;
+                _structureEdits[key] = (nb, cell.Shape);
             }
         }
 
@@ -1326,12 +1331,12 @@ public sealed class MemoryWorldRepository : IWorldRepository
         }
     }
 
-    public void SetStructureBlock(string structureId, Vector3i position, ushort block)
+    public void SetStructureBlock(string structureId, Vector3i position, ushort block, int shape = 0)
     {
         lock (_gate)
         {
             _dirty = true;
-            _structureEdits[(structureId, position.X, position.Y, position.Z)] = block;
+            _structureEdits[(structureId, position.X, position.Y, position.Z)] = (block, shape);
         }
     }
 
@@ -1341,7 +1346,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             return _structureEdits
                 .Where(kv => kv.Key.StructureId == structureId)
-                .Select(kv => new BlockEdit(new Vector3i(kv.Key.X, kv.Key.Y, kv.Key.Z), kv.Value))
+                .Select(kv => new BlockEdit(new Vector3i(kv.Key.X, kv.Key.Y, kv.Key.Z), kv.Value.Block, shape: kv.Value.Shape))
                 .ToList();
         }
     }

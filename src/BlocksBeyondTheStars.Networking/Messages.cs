@@ -1695,6 +1695,13 @@ public sealed class StructureEditIntent
 
     /// <summary>The hotbar item whose block to place (ignored when mining).</summary>
     public string ItemKey { get; set; } = string.Empty;
+
+    /// <summary>#1943: the orientation the placement ghost showed, exactly like <see cref="PlaceBlockIntent"/> —
+    /// up-face 0..5 and yaw 0..3, −1 = "let the server decide". Added to an existing contractless MessagePack
+    /// message: an older client leaves both at 0, so the server treats an unset pair as "decide" (see
+    /// <c>StampStructurePropShape</c>). Without it every prop built into a ship stamped as a plain cube.</summary>
+    public int UpFace { get; set; } = -1;
+    public int Yaw { get; set; } = -1;
 }
 
 /// <summary>Client → server: deploy a station core in front of the suit to start a player-built station (item
