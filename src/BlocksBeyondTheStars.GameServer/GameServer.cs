@@ -2281,9 +2281,14 @@ public sealed partial class GameServer
             session.PendingRespawnSameWorld, choice.UseCustomSpawn);
     }
 
-    /// <summary>Death recovery with a world transition: lands the player at their ship's heal-tank on the
-    /// ship's planet, leaving any space instance first so the client drops out of the flight view.</summary>
-    private void RecoverToShip(PlayerSession session, string reason, bool salvaged)
+    /// <summary>Recovery with a world transition: lands the player at their ship's heal-tank on the ship's
+    /// planet, leaving any space instance first so the client drops out of the flight view. Used by the death
+    /// flow and — with <paramref name="died"/> false — by the loss of the ship under a living pilot (#1945),
+    /// which is a world change just the same: without it the client keeps the world it was last told about
+    /// (the ship interior, say), drops every chunk of the world it now stands on and hangs in the air.
+    /// <paramref name="parkShip"/> places the hull even in a world that does not place ships at all: a wreck has to
+    /// stand on the pad to be repairable, which is what the ship-loss path always did.</summary>
+    private void RecoverToShip(PlayerSession session, string reason, bool salvaged, bool died = true, bool parkShip = false)
     {
         var p = session.State;
         // Pin the ship cursor BEFORE the first _ship read: this runs from death paths where the cursor may
@@ -2305,10 +2310,11 @@ public sealed partial class GameServer
         string homeType = !string.IsNullOrEmpty(homeBody?.PlanetType) ? homeBody.PlanetType : _meta.DefaultPlanetType;
 
         LeaveSpace(p.PlayerId); // exit any flight view (sends SpaceClosed if in one)
+        _inShipInterior.Remove(p.PlayerId); // a walkabout inside the hull ends here too
 
         LoadWorld(homeType, homeLoc);
         SetCurrent(session);
-        if (_config.PlaceStarterShip)
+        if (_config.PlaceStarterShip || parkShip)
         {
             PlaceLandedShip();
         }
@@ -2331,7 +2337,7 @@ public sealed partial class GameServer
             Z = p.Position.Z,
             Reason = reason,
             SalvageCapsuleDropped = salvaged,
-            Died = true,
+            Died = died,
         });
         SendPlayerState(session);
         SendEnvironment(session);

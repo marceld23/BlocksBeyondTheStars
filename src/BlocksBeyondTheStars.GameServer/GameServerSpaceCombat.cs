@@ -2068,36 +2068,21 @@ public sealed partial class GameServer
             p.Health = 100f;
             p.Oxygen = 100f;
 
-            if (!keepShip && playerId == shipOwnerId)
-            {
-                // Park the wreck on the owner's home pad so it occupies a landing spot AND is repairable there
-                // (the repair flow needs a placed own-ship structure). The medbay survives the carving, so the
-                // heal-tank respawn still works.
-                SetCurrent(session);
-                if (SetActiveWorld(session.CurrentLocationId))
-                {
-                    PlaceLandedShip();
-                }
+            string reason = keepShip ? "@srv.space.ship_disabled" : "@srv.space.ship_destroyed";
+            Send(session, new SpaceClosed { Reason = reason, ShipDisabled = true });
 
-                p.AboardShip = true;
-                p.Position = _healTank;
-                p.RespawnPoint = _healTank;
-            }
-            else
-            {
-                p.Position = p.RespawnPoint;
-                p.AboardShip = true;
-            }
+            // Put the pilot back on their ship's world for real (#1945). Two lines used to do it — position and
+            // the aboard flag — which is no world change at all: the client stayed on the world it had last been
+            // told about (the ship interior after a walkabout), dropped the arriving chunks of the planet it now
+            // stood on and hovered there with no ground and no ship, since the keep branch never re-parked one.
+            // This is the same transition a death does, minus the death: park the ship, land on its heal tank,
+            // send the WorldReset + RespawnNotice and everything the client drops with them.
+            // The wreck has to stand on its owner's pad: the repair flow needs a placed own-ship structure, and
+            // the medbay survives the carving, so the heal-tank landing still works.
+            RecoverToShip(session, reason, salvaged: false, died: false,
+                parkShip: !keepShip && playerId == shipOwnerId);
 
-            Send(session, new SpaceClosed
-            {
-                Reason = keepShip
-                    ? "@srv.space.ship_disabled"
-                    : "@srv.space.ship_destroyed",
-                ShipDisabled = true,
-            });
             SendShipCombatStatus(session);
-            SendPlayerState(session);
             if (!keepShip && playerId == shipOwnerId)
             {
                 SendShipRepairStatus(session); // show the repair job immediately
