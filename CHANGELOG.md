@@ -11,6 +11,61 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.11] — 2026-09-17
+
+The quarters release. **Justus** played the shapeshifter update for an evening and sent four more reports, and all four
+of them are in here. In a **Sandbox** world you can now craft **anything, without materials** — the world dialog had
+promised that for a long time, the menu just never allowed it. The **sage's lectern became a computer terminal**, and
+three other profession posts stopped looking like pictures of furniture. Your ship's cabin has a **real bed** you can
+lie down in instead of a cube with a bed painted on it — and the small starter ship gets a **crew bunk** of its own.
+Furniture you build **into** a ship keeps its shape now. And if your ship is shot out from under you, you **land on
+solid ground** instead of hanging in the air. Thank you, Justus 🙏
+
+ℹ️ **Compatibility:** the network protocol stays at version 6, saves migrate unchanged. Ship cabins get their new bed
+the next time the ship is placed, so worlds you already have pick it up by themselves. Profession posts you have
+already built keep standing and simply look different. The crew bunk is a new item with a recipe at the workshop.
+
+### 🧰 Sandbox: craft anything, no materials (#1936 #1937)
+
+- **The Craft button works in Sandbox.** The server has handed out free crafting for a long time, but the menu still
+  checked your backpack first and greyed everything out with *"Materials missing"*. Now a Sandbox world crafts without
+  blueprints, without materials, without a workbench or a factory standing next to you — and it hands you a **full
+  stack** at once. The only thing that can still say no is a full backpack.
+- **And a full backpack really says no** instead of quietly throwing the result away (#1937).
+
+### 🖥️ The sage's terminal, and three posts that stopped being pictures (#1938 #1939 #1940)
+
+- **The sage's lectern is a computer terminal now** — Justus asked what that block was supposed to be, and Marcel
+  agreed it looked like nothing in particular. New look, new name (*Sage's terminal*) in all 14 languages. Posts you
+  have already built keep standing.
+- **The reporter's desk, the streamer's post and the quarry post** were little scenes with legs and a floor drawn on
+  them, repeated on all six sides. They are cabinets and crates now.
+- **Nobody stands on top of a profession post** any more — the residents used them as a step (#1940).
+
+### 🛏️ A bed in the ship, and furniture that keeps its shape (#1941 #1942 #1943)
+
+- **The bed in the ship cabin is a real bed** — two cells, head and foot, just like the bed you build in a house. It
+  picks a free spot next to the marker, never in a doorway and never on the square where you appear after a respawn.
+- **The starter ship gets a crew bunk (#1942).** The small box ship has no room for a two-cell bed, so it gets a bunk
+  of its own: one cell, your home spawn with **E**, and a place to rest anywhere a full bed does not fit. You can
+  craft it at the workshop.
+- **Furniture you build into your ship keeps its form (#1943).** A bed, a campfire, a rug or a staircase built aboard
+  used to turn into a plain cube the moment it was placed. Now it looks the way the placement ghost showed it — and
+  mining one half of a bed takes the other half with it.
+
+### 🚀 Losing your ship takes you home (#1945)
+
+- **Shot down, and standing on the ground again.** If your ship was destroyed while you were walking around inside it,
+  you were dropped onto the planet without the planet ever loading: no ground, no way back into the cockpit, hanging in
+  mid-air under the wrong sky. Losing a ship is now a proper world change — you land on the ship's body, the wreck is
+  parked where you can repair it, and you get the usual notice telling you what happened. (Justus hit this one live;
+  reloading the world rescued him at the time.)
+
+### 💬 Small fixes (#1934)
+
+- **The chat banner fits its text.** While the chat box is open, the line *"You are in chat — Enter sends · Esc
+  leaves"* ran out past both edges of its frame. It sizes itself to the sentence now, in every language.
+
 ## [2026.9.10] — 2026-09-16
 
 The shapeshifter release. Almost everything in it began with **Justus**: in two days he sent more than twenty
@@ -5516,7 +5571,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.10...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.11...HEAD
+[2026.9.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.10...v2026.9.11
 [2026.9.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.9...v2026.9.10
 [2026.9.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.8...v2026.9.9
 [2026.9.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.7...v2026.9.8
