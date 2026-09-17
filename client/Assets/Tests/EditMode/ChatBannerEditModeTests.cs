@@ -67,5 +67,22 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.That(ChatUi.ResolveBannerAlpha(5f, typing: true, menuOpen: false, unscaledDt: 0f), Is.EqualTo(1f).Within(Eps));
             Assert.That(ChatUi.ResolveBannerAlpha(-5f, typing: false, menuOpen: false, unscaledDt: 0f), Is.EqualTo(0f).Within(Eps));
         }
+
+        [Test]
+        public void Width_WrapsTheMeasuredText_WithPaddingOnBothSides()
+        {
+            // "Du bist im Chat — Enter senden · Esc verlassen" measures ~505 at 22 pt bold, wider than the old fixed 420 box.
+            float w = ChatUi.ResolveBannerWidth(505f);
+            Assert.That(w, Is.EqualTo(505f + 2f * ChatUi.BannerPadX).Within(Eps));
+            Assert.That(ChatUi.ResolveBannerWidth(504.2f), Is.EqualTo(505f + 2f * ChatUi.BannerPadX).Within(Eps), "rounded up, never cut");
+        }
+
+        [Test]
+        public void Width_IsClampedToTheMinAndMax()
+        {
+            Assert.That(ChatUi.ResolveBannerWidth(40f), Is.EqualTo(ChatUi.BannerMinW), "a short line keeps a proper banner, not a chip");
+            Assert.That(ChatUi.ResolveBannerWidth(-3f), Is.EqualTo(ChatUi.BannerMinW));
+            Assert.That(ChatUi.ResolveBannerWidth(5000f), Is.EqualTo(ChatUi.BannerMaxW), "past the cap the label's auto-size shrinks the font instead");
+        }
     }
 }

@@ -60,7 +60,11 @@ namespace BlocksBeyondTheStars.Client
 
         // The "You are in chat" banner (#1845): centred under the crosshair column — HudUi's interact prompt
         // sits at H/2+24 and the loot line at H/2+48 (both 22 high), so the banner starts below them.
-        private const float BannerW = 420f, BannerH = 52f;
+        // The width follows the text (ResolveBannerWidth): a fixed 420 was narrower than the German and English
+        // lines themselves, which ran out past both edges of the box.
+        private const float BannerH = 52f;
+        public const float BannerMinW = 320f, BannerMaxW = 960f, BannerPadX = 28f;
+        private const float BannerMinFontSize = 14f;
         private const float BannerY = UiKit.HudRefH / 2f + 84f;
         private const float BannerFadeSeconds = 0.15f;
         private const float BannerFontSize = 22f;
@@ -171,6 +175,18 @@ namespace BlocksBeyondTheStars.Client
             float target = typing ? 1f : 0f;
             float step = unscaledDt <= 0f ? 0f : unscaledDt / BannerFadeSeconds;
             return Mathf.MoveTowards(Mathf.Clamp01(current), target, step);
+        }
+
+        /// <summary>
+        /// The banner's width for a line measured at <paramref name="textWidth"/> (TMP's unwrapped preferred
+        /// width): the text plus <see cref="BannerPadX"/> on each side, never narrower than
+        /// <see cref="BannerMinW"/> and never wider than <see cref="BannerMaxW"/>. Past the cap the label's
+        /// auto-size shrinks the font instead. Pure for the EditMode test.
+        /// </summary>
+        public static float ResolveBannerWidth(float textWidth)
+        {
+            float w = Mathf.Ceil(Mathf.Max(0f, textWidth)) + 2f * BannerPadX;
+            return Mathf.Clamp(w, BannerMinW, BannerMaxW);
         }
 
         /// <summary>A scrollback entry with the (unscaled) time it arrived, which is what the fade reads.</summary>
@@ -309,7 +325,8 @@ namespace BlocksBeyondTheStars.Client
             bool wasHidden = _bannerAlpha <= 0f;
             _bannerAlpha = ResolveBannerAlpha(_bannerAlpha, _typing, Game.MenuOpen, Time.unscaledDeltaTime);
             bool shown = _bannerAlpha > 0f;
-            if (shown && wasHidden && _bannerText != null)
+            bool refit = shown && wasHidden && _bannerText != null;
+            if (refit)
             {
                 _bannerText.text = L("ui.chat.typing_banner"); // re-read on every show: the language can change mid-session
             }
@@ -319,10 +336,23 @@ namespace BlocksBeyondTheStars.Client
                 _banner.gameObject.SetActive(shown);
             }
 
+            if (refit)
+            {
+                FitBanner(); // after activation, so TMP measures a live label
+            }
+
             if (shown)
             {
                 _bannerGroup.alpha = _bannerAlpha;
             }
+        }
+
+        /// <summary>Sizes the banner to its current text and re-centres it on the crosshair column.</summary>
+        private void FitBanner()
+        {
+            float w = ResolveBannerWidth(_bannerText.GetPreferredValues(_bannerText.text).x);
+            UiKit.Place(_banner.gameObject, (UiKit.HudRefW - w) / 2f, BannerY, w, BannerH);
+            UiKit.Place(_bannerText.gameObject, 0f, 0f, w, BannerH);
         }
 
         /// <summary>Appends a rendered line to the scrollback, stamped with the moment it arrived (the fade
@@ -1249,7 +1279,7 @@ namespace BlocksBeyondTheStars.Client
             // "You are in chat" banner (#1845): the same holo chrome as the window, centred under the crosshair
             // column, fading with the input box (UpdateBanner). Purely informational — it must never take a
             // click or the pad focus away from the box or the world, hence no raycasts anywhere on it.
-            var bannerPanel = UiHolo.AddPanel(root, (UiKit.HudRefW - BannerW) / 2f, BannerY, BannerW, BannerH, new Color(0.05f, 0.10f, 0.16f, 0.82f), 12f, 1.5f, 1.2f);
+            var bannerPanel = UiHolo.AddPanel(root, (UiKit.HudRefW - BannerMinW) / 2f, BannerY, BannerMinW, BannerH,new Color(0.05f, 0.10f, 0.16f, 0.82f), 12f, 1.5f, 1.2f);
             bannerPanel.gameObject.name = "ChatTypingBanner";
             bannerPanel.raycastTarget = false;
             _banner = bannerPanel.rectTransform;
@@ -1257,8 +1287,12 @@ namespace BlocksBeyondTheStars.Client
             _bannerGroup.alpha = 0f;
             _bannerGroup.interactable = false;
             _bannerGroup.blocksRaycasts = false;
-            _bannerText = UiText.Add(_banner, 0f, 0f, BannerW, BannerH, L("ui.chat.typing_banner"), BannerFontSize, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
+            _bannerText = UiText.Add(_banner, 0f, 0f, BannerMinW, BannerH, L("ui.chat.typing_banner"), BannerFontSize, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
             _bannerText.raycastTarget = false;
+            // Only a line wider than BannerMaxW ever shrinks: TMP measures the preferred width at fontSizeMax.
+            _bannerText.enableAutoSizing = true;
+            _bannerText.fontSizeMin = BannerMinFontSize;
+            _bannerText.fontSizeMax = BannerFontSize;
             _banner.gameObject.SetActive(false);
 
             _built = true;
