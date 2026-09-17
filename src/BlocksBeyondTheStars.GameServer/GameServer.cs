@@ -5279,9 +5279,19 @@ public sealed partial class GameServer
         if (!Rules.CraftingCostsMaterialsFor(session.State.ModeOverride))
         {
             var freePool = new MaterialPool(_content, session.State, _ship);
-            foreach (var output in recipe.Outputs)
+            var freeOutputs = recipe.Outputs.Select(o => new ItemAmount(o.Item, o.Count * count)).ToList();
+
+            // Room for the result FIRST, exactly like the paid path below: a free craft that does not fit used
+            // to report success and drop the surplus on the floor of a full inventory (#1937).
+            if (!freePool.CanFit(freeOutputs))
             {
-                freePool.Add(output.Item, output.Count * count);
+                CraftFail(session, recipe.Key, "@inventory_full");
+                return;
+            }
+
+            foreach (var output in freeOutputs)
+            {
+                freePool.Add(output.Item, output.Count);
             }
 
             Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });

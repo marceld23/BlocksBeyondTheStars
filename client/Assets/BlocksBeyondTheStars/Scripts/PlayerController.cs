@@ -1710,7 +1710,7 @@ namespace BlocksBeyondTheStars.Client
                 // bed + heal_tank (#1456): both take E for the home spawn (HandleSetSpawnPoint below), but without
                 // a prompt the bed was indistinguishable from a decorative slab ("man kann es nicht benutzen").
                 if (aimedKey is "workbench" or "forge" or "detoxifier" or "matter_forge" or "algae_tank" or "campfire"
-                    or "bed" or "heal_tank")
+                    or "bed" or "crew_bunk" or "heal_tank")
                 {
                     Game.AimedStationBlock = aimedKey;
                 }
@@ -1778,7 +1778,7 @@ namespace BlocksBeyondTheStars.Client
             // A heal tank — or its low-tech precursor, the bed (#804) — you're aiming at → make it your
             // home spawn point (base/station, issue #461).
             if (AimBlock(out var tankHit, out _)
-                && Game.Content?.BlockById(Game.World.GetBlock(tankHit.x, tankHit.y, tankHit.z))?.Key is "heal_tank" or "bed")
+                && Game.Content?.BlockById(Game.World.GetBlock(tankHit.x, tankHit.y, tankHit.z))?.Key is "heal_tank" or "bed" or "crew_bunk")
             {
                 Game.Network?.SendSetSpawnPoint(tankHit.x, tankHit.y, tankHit.z);
                 ClientAudio.Instance?.Cue("heal");
@@ -3847,7 +3847,12 @@ namespace BlocksBeyondTheStars.Client
                     var boundsShip = Game.LandedShipBoundsAt(placeCell.x, placeCell.y, placeCell.z, out var lp);
                     if (boundsShip != null && boundsShip == aimedShip)
                     {
-                        Game.Network.SendStructureEdit(boundsShip.StructureId, lp.X, lp.Y, lp.Z, mine: false, item);
+                        // Furnishing a cabin sends the same orientation a world place would (#1943), so a bed
+                        // built aboard lies the way its ghost showed instead of stamping as a cube.
+                        bool shipOriented = PendingPlacement(item, hitCell, placeCell, out _, out int shipUp, out int shipYaw);
+                        Game.Network.SendStructureEdit(boundsShip.StructureId, lp.X, lp.Y, lp.Z, mine: false, item,
+                            upFace: shipOriented ? shipUp : _placeUpFace,
+                            yaw: shipOriented ? shipYaw : _placeYaw);
                         TriggerSwing();
                         return;
                     }
@@ -3858,7 +3863,10 @@ namespace BlocksBeyondTheStars.Client
                     if (aimedShip != null && aimedShip.StructureId.StartsWith("shipyard:", System.StringComparison.Ordinal))
                     {
                         var gl = ShipLocal(aimedShip, placeCell);
-                        Game.Network.SendStructureEdit(aimedShip.StructureId, gl.x, gl.y, gl.z, mine: false, item);
+                        bool siteOriented = PendingPlacement(item, hitCell, placeCell, out _, out int siteUp, out int siteYaw);
+                        Game.Network.SendStructureEdit(aimedShip.StructureId, gl.x, gl.y, gl.z, mine: false, item,
+                            upFace: siteOriented ? siteUp : _placeUpFace,
+                            yaw: siteOriented ? siteYaw : _placeYaw);
                         TriggerSwing();
                         return;
                     }

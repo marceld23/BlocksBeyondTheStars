@@ -348,6 +348,7 @@
   { "key": "titanium_block_unpack",  "station": "workshop", "inputs": [ { "item": "titanium_block", "count": 1 } ],  "outputs": [ { "item": "titanium_plate", "count": 9 } ] },
 
   { "key": "bed",         "station": "hand",     "inputs": [ { "item": "wood_log", "count": 6 }, { "item": "plant_fiber", "count": 8 } ], "outputs": [ { "item": "bed", "count": 1 } ] },
+  { "key": "crew_bunk",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "plant_fiber", "count": 6 } ], "outputs": [ { "item": "crew_bunk", "count": 1 } ] },
   { "key": "campfire",    "station": "hand",     "inputs": [ { "item": "wood_log", "count": 4 }, { "item": "stone", "count": 2 } ],       "outputs": [ { "item": "campfire", "count": 1 } ] },
   { "key": "wood_crate",  "station": "hand",     "inputs": [ { "item": "wood_log", "count": 6 } ],                                          "outputs": [ { "item": "wood_crate", "count": 1 } ] },
   { "key": "lantern",     "station": "hand",     "inputs": [ { "item": "wood_log", "count": 2 }, { "item": "glass", "count": 1 } ],       "outputs": [ { "item": "lantern", "count": 2 } ] },

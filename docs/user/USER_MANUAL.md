@@ -384,7 +384,11 @@ separate unlock; admins can still disable it through server world rules.
 - **Bed** (hand-crafted from logs + plant fibre, no research needed): the low-tech forerunner of the heal
   tank. Press **E** on a placed bed to make it your **home spawn** (same death choice as the tank), and
   resting near it slowly mends your health — but a bed never feeds you and never recharges the suit;
-  those stay the heal tank's job.
+  those stay the heal tank's job. A bed is **two cells long**: the foot half lands on the cell you are facing.
+- **Crew bunk** (crafted at the workshop from metal panels + plant fibre): a **one-cell** wall bunk for places
+  where a bed does not fit — a narrow cabin, a corridor niche. It counts as a bed: **E** makes it your home
+  spawn and resting nearby mends your health. Your **starter ship's cabin** has one; roomier ships (hammerhead,
+  corvette, courier, hauler, thunderbolt, deathblock) carry a real two-cell bed instead.
 - **Campfire** (hand-crafted from logs + stone): a contained flame that never spreads. It lights the camp,
   counters the cold while you stand near it, and is a **cooking station** — with creature meat in your
   pockets, craft **cooked meat** at the fire (far more filling than raw, and it heals). The flame also does
@@ -516,6 +520,9 @@ separate unlock; admins can still disable it through server world rules.
 - **Sandbox: All items.** In a Sandbox world (or while an admin gave you the Creative mode) the Inventory has an
   **All items** page: every item of the game, searchable — pick one and **Take 1** or take a full stack. Nothing has
   to be crafted.
+- **Sandbox: crafting is free.** In the same mode every recipe can simply be crafted — no materials, no blueprint,
+  no workbench in reach, a full stack per order — and the craft panel says so instead of "Materials missing". The
+  only refusal left is a full inventory.
 - **Every tool looks like itself in your hand:** the titanium and diamond drills, the mining beam, each pistol and
   blaster, the machete, vibro knife and plasma sword and the advanced scanner all have their own model.
 - **Throwing things away:** select an item in the **Inventory** or **Cargo Hold** tab and press **"Throw
@@ -1032,7 +1039,7 @@ separate unlock; admins can still disable it through server world rules.
   studio or newsroom** — each with its keeper. Newly generated **space stations** may have a clinic, shop, armory, archive,
   studio or newsroom (no tamer, no blockfarmer in space), and the city of **Ember Reach** has a services quarter with the
   same six. You can also get them at home: research **Profession posts** (Station tree)
-  and build a **clinic post, shop counter, arms rack, sage's lectern, tamer's post, quarry post, streamer set or press desk**
+  and build a **clinic post, shop counter, arms rack, sage's terminal, tamer's post, quarry post, streamer set or press desk**
   inside your base or on your own station — a resident takes the job (like the trading post).
 - **Doctor:** medpacks, field medkits and — expensive — a detoxifier; a bed and a stretcher only **every other day**.
 - **Shopkeeper:** food — but only while you stand **inside the shop** with them.

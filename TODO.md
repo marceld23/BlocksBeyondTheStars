@@ -24,6 +24,46 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛋️ Player reports 2026-09-17 — Sandbox crafting blocked by the menu, the sage's post becomes a computer, the ship cabin gets a real bed (#1936 #1937 #1938 #1939 #1940 #1941 #1942 #1943, 2026-09-17, branch fix/justus-reports-0917)
+
+Four reports from Justus ("Screelit", v2026.9.10). His crash report needed no fix — the ship was shot down and a
+reload put it right — so it is closed as answered; everything else is below, side findings included.
+
+- **Sandbox still asked for materials (#1936).** The server has crafted for free in the Creative game mode since #662
+  (`HandleCraft` skips blueprint, station, market and materials), but the crafting menu never looked at the mode:
+  `CanCraft` failed on `HasAll(inputs)` and greyed the button with "Materials missing" — the creative starter kit
+  only hid it for simple recipes. `FreeCrafting()` (the mode test the All-items catalog already used) now skips the
+  blueprint, input, market, factory and station checks, offers a full stack per order, sorts everything as craftable
+  and says "Sandbox: crafting is free" instead of a ✗ list; new ships and modules in the ship tab follow. The one
+  refusal left is a full inventory. Tests: `GameModeTests` (+1 server; the client branch rides on the Unity build).
+- **A free craft could destroy its own output (#1937, side finding).** The free path added the result without the fit
+  check the paid path runs, so a craft into a full backpack reported success and dropped the surplus. It refuses with
+  "inventory full" now, like every other path. Test: `GameModeTests.CreativeMode_RefusesACraftThatDoesNotFit`.
+- **The sage's post is a computer now (#1938, report "Weisen Pult?").** `sage_lectern` was a lectern drawn on a dark
+  background, painted on all six faces of a cube ("just a texture on blocks"). Marcel's call: make it a terminal — a
+  computer IS a box, and the sage sells data fragments from an archive. New edge-to-edge terminal tile, new name
+  ("Sage's terminal" / "Terminal des Weisen") in all 14 locales, dialog line and blueprint text with it. The block
+  KEY stays `sage_lectern`: a key that no longer exists decodes to air, which would delete every post ever built.
+- **Three more posts were scene pictures (#1939, side finding).** `press_desk`, `streamer_post` and `quarry_post`
+  showed furniture with legs on a floor; redrawn as the block itself (cabinet, console, crate), filling the tile.
+- **NPCs could climb their own post (#1940, side finding).** The eight profession posts were missing from
+  `NpcFootings.NoFloorBlocks`; the list is derived from the profession table now, so a future post cannot be
+  forgotten. Tests: `NpcFootingTests` (+2).
+- **The ship cabin's bed is a real bed (#1941, report "Das Bett im Schiff").** Ship station cells were written without
+  a form, so the quarters bed was a cube with the bed picture on every face — the two-cell bed (#1846) had never
+  reached ship building. The builder now stamps head + foot: the foot half takes a free floor cell beside the marker
+  that is no station, not the medbay walkway a respawning player lands on and outside every doorway corridor,
+  preferring a wall or corner; a cabin without such a cell keeps one cell. Existing saves pick it up (the structure
+  is rebuilt from its layout on every placement). Tests: `ShipCabinBedTests` (7).
+- **The starter ship gets a crew bunk (#1942, Justus' own idea).** The 5×7 box cabin has no room for a second bed
+  cell, so its quarters stamp the new one-cell `crew_bunk` ("Schlafkoje") — craftable at the workshop, a bed for the
+  home spawn and the slow rest heal wherever a bed does not fit. Tests: `ShipCabinBedTests` (2).
+- **Furniture built into a ship keeps its form (#1943, side finding).** A ship edit stored the block id alone, so a
+  bed, campfire, rug or staircase built aboard turned into a cube. `StructureEditIntent` carries the orientation the
+  placement ghost showed (additive), the server stamps the prop form (bed: head + foot), `structure_edit` has a
+  `shape` column (older saves default to the cube they stored) and mining one bed half takes the other.
+- **i18n.** The new and changed texts in all 14 locales (hand-written, no machine pass).
+
 ### 🛰️ Player reports 2026-09-16 — /help cut by the chat, /tp city, no station at the start, the station forgotten on quit; taming the Sreekmakra, switching the world mode, the Sandbox catalog, a look for every tool (#1922 #1923 #1924 #1925 #1926 #1927 #1928 #1930 #1931, 2026-09-16, branch fix/justus-reports-0916)
 
 Five reports from Justus ("Flash der Miner-BBTS" and "Screelit", v2026.9.9) plus his answer to the Valuma question.

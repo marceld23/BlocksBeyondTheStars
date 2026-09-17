@@ -143,9 +143,11 @@ public static class PropShapes
     /// always drawn a free-standing ladder this way; since #909 the choice can also be stored.</summary>
     public const int LadderFreeStanding = (int)BlockShape.Post;
 
-    /// <summary>The one-cell bed every bed was before #1846: the form ship layouts, station templates and old
-    /// saves still carry, and the one a cramped procedural room falls back to. Still a bed for the home spawn
-    /// and the heal check (those go by block id), still stripped from the mined drop.</summary>
+    /// <summary>The one-cell bed every bed was before #1846: the form old saves still carry, and the one a
+    /// cramped procedural room falls back to. Station templates and settlement modules carry authored head/foot
+    /// pairs instead, and a ship cabin with no free cell beside its quarters keeps the marker's single cell
+    /// (#1941). Still a bed for the home spawn and the heal check (those go by block id), still stripped from
+    /// the mined drop.</summary>
     public const int BedSingleCell = (int)BlockShape.Slab;
 
     /// <summary>How far this prop's placement orientation may be steered.</summary>

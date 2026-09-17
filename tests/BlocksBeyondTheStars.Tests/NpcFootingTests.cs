@@ -50,6 +50,21 @@ public sealed class NpcFootingTests
     }
 
     [Fact]
+    public void EveryProfessionPost_IsNoFloor()
+    {
+        // #1940: the eight posts of 2026-09 were missing from the list, so an NPC could path onto the counter
+        // it was standing at. The list is derived from the profession table now — this guards that wiring.
+        foreach (var profession in BlocksBeyondTheStars.Shared.Definitions.NpcProfessions.All)
+        {
+            Assert.Equal(NpcFooting.NoFloor, NpcFootings.Of(profession.PostBlock, 0));
+        }
+    }
+
+    [Fact]
+    public void TheCrewBunk_IsNoFloor()
+        => Assert.Equal(NpcFooting.NoFloor, NpcFootings.Of("crew_bunk", 0));
+
+    [Fact]
     public void TheLegacyOneCellBed_IsNoFloor()
         => Assert.Equal(NpcFooting.NoFloor, NpcFootings.Of("bed", ShapeCode.Pack(PropShapes.BedSingleCell, 1)));
 

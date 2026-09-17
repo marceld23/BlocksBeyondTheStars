@@ -144,6 +144,9 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             // Migrate older saves to carry the per-voxel shape descriptor (non-cube building forms). Same pattern:
             // harmlessly ignored on a fresh DB where the CREATE already added the column.
             TryExecute("ALTER TABLE block_edit ADD COLUMN IF NOT EXISTS shape INTEGER NOT NULL DEFAULT 0;");
+
+            // #1943: furniture built into a ship keeps its form — older saves default to the cube they stored.
+            TryExecute("ALTER TABLE structure_edit ADD COLUMN IF NOT EXISTS shape INTEGER NOT NULL DEFAULT 0;");
             // Block attribution (issue #490) — mirrors the SQLite side: interned owner + edit time, 0 = unknown for
             // every row written before this shipped (no back-fill is possible).
             TryExecute("ALTER TABLE block_edit ADD COLUMN IF NOT EXISTS owner_id INTEGER NOT NULL DEFAULT 0;");
@@ -1116,18 +1119,19 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
 
     // --- In-space voxel structure edits (own-ship hull deltas, item 20) ---
 
-    public void SetStructureBlock(string structureId, Vector3i position, ushort block)
+    public void SetStructureBlock(string structureId, Vector3i position, ushort block, int shape = 0)
     {
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO structure_edit (structure, x, y, z, block) VALUES (@s, @x, @y, @z, @b) " +
-                              "ON CONFLICT(structure, x, y, z) DO UPDATE SET block = excluded.block;";
+            cmd.CommandText = "INSERT INTO structure_edit (structure, x, y, z, block, shape) VALUES (@s, @x, @y, @z, @b, @sh) " +
+                              "ON CONFLICT(structure, x, y, z) DO UPDATE SET block = excluded.block, shape = excluded.shape;";
             cmd.Parameters.AddWithValue("@s", structureId);
             cmd.Parameters.AddWithValue("@x", position.X);
             cmd.Parameters.AddWithValue("@y", position.Y);
             cmd.Parameters.AddWithValue("@z", position.Z);
             cmd.Parameters.AddWithValue("@b", (int)block);
+            cmd.Parameters.AddWithValue("@sh", shape);
             cmd.ExecuteNonQuery();
         }
     }
@@ -1138,13 +1142,13 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT x, y, z, block FROM structure_edit WHERE structure = @s;";
+            cmd.CommandText = "SELECT x, y, z, block, shape FROM structure_edit WHERE structure = @s;";
             cmd.Parameters.AddWithValue("@s", structureId);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
                 var pos = new Vector3i(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2));
-                result.Add(new BlockEdit(pos, (ushort)reader.GetInt32(3)));
+                result.Add(new BlockEdit(pos, (ushort)reader.GetInt32(3), shape: reader.GetInt32(4)));
             }
         }
 
