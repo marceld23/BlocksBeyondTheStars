@@ -24,6 +24,27 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚀 A lost ship is a world change (#1945, 2026-09-17, branch fix/ship-loss-recovery-1945)
+
+Follow-up to the fourth report of 2026-09-17 ("I crashed and I am hanging in the air on the planet"). The ship had been
+shot down after a walkabout inside the hull; reloading the world fixed that session, but the cause sat in the code.
+
+- **`DisableShip` recovered its pilots with two field writes** (`p.Position = p.RespawnPoint; p.AboardShip = true`) plus
+  `SpaceClosed`. That is no world change: stepping into the ship interior sends a `WorldReset` and taking the helm again
+  deliberately does not, so the client stayed on the interior world, dropped every arriving chunk of the planet it now
+  stood on (`AcceptWorldStream`) and never got ground; a position in a plain state update is ignored (#414 N17), so only
+  the entombment rescue moved the player — into mid-air. The keep-ship branch never re-parked the hull either, so
+  `UpdateAboard` returned early, `aboardShip` stayed true and the helm prompt did nothing: no way out.
+- **Every pilot is now recovered the way a death is** — `RecoverToShip(…, died: false)`: leave the flight view, forget the
+  walkabout, load the ship's body, park the ship, land on its heal tank, arm the spawn adopt, then `WorldReset`,
+  `RespawnNotice` and every per-world list the client drops with them. Both rule outcomes (keep the ship / leave a wreck)
+  and non-owner pilots included; no death flash, because nobody died.
+- **A ship no longer remembers the interior as its parking spot.** Switching ships while inside wrote `shipint:<id>` into
+  the hull's location, which would send a later recovery into a world with no ground; the body the interior was entered
+  from is stored instead.
+- Tests: `ShipLossRecoveryTests` (2: destroyed after a walkabout → world reset + notice, back on the ship's body, not in
+  the interior; a plain shoot-down parks the hull again).
+
 ### 🛋️ Player reports 2026-09-17 — Sandbox crafting blocked by the menu, the sage's post becomes a computer, the ship cabin gets a real bed (#1936 #1937 #1938 #1939 #1940 #1941 #1942 #1943, 2026-09-17, branch fix/justus-reports-0917)
 
 Four reports from Justus ("Screelit", v2026.9.10). His crash report needed no fix — the ship was shot down and a

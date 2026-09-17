@@ -203,6 +203,14 @@ public sealed partial class GameServer
             string anchor = flightId.StartsWith("space:", StringComparison.Ordinal) ? flightId.Substring("space:".Length) : flightId;
             ship.CurrentLocationId = _galaxy?.FindBody(anchor) is not null ? anchor : _current.CurrentLocationId;
         }
+        else if (_inShipInterior.TryGetValue(_current.State.PlayerId, out var walkabout)
+                 && !string.IsNullOrEmpty(walkabout.ReturnLoc))
+        {
+            // Inside the hull the player's "location" is the interior void world (#1945): remembering THAT as
+            // the ship's home would send a later recovery into a world with no ground. The body the interior
+            // was entered from is the ship's real parking spot.
+            ship.CurrentLocationId = walkabout.ReturnLoc;
+        }
         else if (!string.IsNullOrEmpty(_current.CurrentLocationId))
         {
             ship.CurrentLocationId = _current.CurrentLocationId; // landed / on foot: this body
