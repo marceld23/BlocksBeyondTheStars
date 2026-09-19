@@ -185,6 +185,12 @@ namespace BlocksBeyondTheStars.Client
             InputMap.Use(Settings); // route remappable controls through the loaded bindings (Stream C)
             Settings.Apply();
 
+            // The player's local texture pack (#1952) — read once, before the first atlas is built, so the menu
+            // backdrop already shows it. A missing folder is the normal case and costs nothing.
+            GameTextures.UseLocalPack = Settings.UseTexturePack;
+            GameTextures.ShowWorldTextures = Settings.ShowWorldTextures;
+            TexturePackFolder.Reload();
+
             // Browser build (#1423): a phone/tablet-class device is touch-first before any touch happens —
             // pre-latch so the very first canvas gets touch-sized hit behavior — and the shell frame-time
             // calibrator steps the auto-managed preset up/down by what THIS device actually measures.

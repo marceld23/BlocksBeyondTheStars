@@ -1046,8 +1046,9 @@ namespace BlocksBeyondTheStars.Client
 
         private static Texture2D LoadTex(string key)
         {
-            var asset = Resources.Load<TextAsset>("textures/" + key);
-            if (asset == null || asset.bytes.Length != 64 * 64 * 4)
+            // The winning layer of the texture source (#1952): world texture, local pack, or the bundled tile.
+            byte[] raw = GameTextures.TileBytes(key);
+            if (raw == null || raw.Length != 64 * 64 * 4)
             {
                 return null;
             }
@@ -1056,7 +1057,7 @@ namespace BlocksBeyondTheStars.Client
             // and LitColor computes _Color * tex — so every avatar surface rendered at ~40 % of its tint's
             // perceptual brightness and whole outfits sank to near-black. Scaling the mean to ~200/255 keeps
             // the pixel detail (weave, panels) but stops the texture eating the colour.
-            var data = (byte[])asset.bytes.Clone();
+            var data = (byte[])raw.Clone();
             long sum = 0;
             for (int i = 0; i < data.Length; i += 4)
             {

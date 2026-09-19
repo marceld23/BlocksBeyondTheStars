@@ -540,6 +540,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Let VEGA remind you to take a break after a long unbroken session, repeating each interval.</summary>
         public bool PlaytimeReminder = true;
 
+        // Textures (#1952). The local pack is the player's own "use for me" folder; world textures are what an
+        // admin published for everyone in a save. Both default on; the second switch is the safety valve against
+        // a world texture someone should not have published.
+        /// <summary>Apply the local texture pack (<c>texture_overrides/</c>).</summary>
+        public bool UseTexturePack = true;
+
+        /// <summary>Show the textures an admin published for the current world.</summary>
+        public bool ShowWorldTextures = true;
+
         /// <summary>Minutes of continuous session play between break reminders (also the first reminder's delay).</summary>
         public int ReminderMinutes = 60;
 

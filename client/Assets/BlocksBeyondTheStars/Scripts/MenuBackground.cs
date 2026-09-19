@@ -239,7 +239,7 @@ namespace BlocksBeyondTheStars.Client
 
             _atlas = BlockTextureAtlas.Acquire(content); // shared with the bootstrap/intro/editors (#1523)
             _chunkMat = new Material(atlasShader) { mainTexture = _atlas.Texture };
-            _chunkMat.SetTexture("_NormalTex", _atlas.NormalTexture);
+            _atlas.BindNormals(_chunkMat); // stays bound across an atlas repaint (#1952)
 
             var transparentShader = Shader.Find("BlocksBeyondTheStars/BlockAtlasTransparent");
             if (transparentShader != null)
@@ -702,8 +702,9 @@ namespace BlocksBeyondTheStars.Client
         /// via LoadRawTextureData from the core module — no ImageConversion dependency).</summary>
         private static Texture2D LoadTex(string key)
         {
-            var asset = Resources.Load<TextAsset>("textures/" + key);
-            if (asset == null || asset.bytes.Length != 64 * 64 * 4)
+            // The winning layer of the texture source (#1952): world texture, local pack, or the bundled tile.
+            byte[] raw = GameTextures.TileBytes(key);
+            if (raw == null || raw.Length != 64 * 64 * 4)
             {
                 return null;
             }
@@ -713,7 +714,7 @@ namespace BlocksBeyondTheStars.Client
                 wrapMode = TextureWrapMode.Repeat,
                 filterMode = FilterMode.Point,
             };
-            tex.LoadRawTextureData(asset.bytes);
+            tex.LoadRawTextureData(raw);
             tex.Apply();
             return tex;
         }

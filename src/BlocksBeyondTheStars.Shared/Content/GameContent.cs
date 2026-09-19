@@ -948,10 +948,13 @@ public sealed class GameContent
     }
 
     /// <summary>
-    /// Mirrors client BlockTextureAtlas.Cols*Rows (32x32 tile atlas capacity since the school club wave 3, #1765;
-    /// 16x16 = 256 before).
+    /// The number of block slots in the client's texture atlas — numeric block ids must stay BELOW it. The atlas
+    /// has 32×32 = 1024 slots, but only the first band belongs to blocks (#1952): the client's <c>AtlasBands</c>
+    /// deals the rest to official extra tiles (400..511), animation strips of the local pack and of world
+    /// textures (512..989) and the derived variant / end-grain tiles (990..1023). Mirrors
+    /// <c>AtlasBands.BlockEnd</c>.
     /// </summary>
-    public const int AtlasTileCapacity = 1024;
+    public const int AtlasTileCapacity = 400;
 
     /// <summary>
     /// Cross-validates all references between definitions. Throws

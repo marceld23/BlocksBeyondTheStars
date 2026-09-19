@@ -137,6 +137,16 @@ namespace BlocksBeyondTheStars.Client
             _plannedRange = -1;
         }
 
+        /// <summary>The block atlas repainted tiles (#1952): the far patches bake each block's average colour into
+        /// their vertices, so forget the colours and rebuild the patches for the same world.</summary>
+        public void InvalidateBlockColors()
+        {
+            _blockColors.Clear();
+            _epoch++;
+            ClearPatches();
+            _plannedRange = -1;
+        }
+
         /// <summary>The settings changed the range live (pause menu).</summary>
         public void SetRange(int blocks)
         {

@@ -1981,7 +1981,8 @@ namespace BlocksBeyondTheStars.Client
             if (atlasShader != null)
             {
                 ChunkMaterial = new Material(atlasShader) { mainTexture = Atlas.Texture };
-                ChunkMaterial.SetTexture("_NormalTex", Atlas.NormalTexture); // per-pixel normal mapping
+                Atlas.BindNormals(ChunkMaterial); // per-pixel normal mapping; stays bound across a repaint (#1952)
+                Atlas.Changed += OnAtlasRepainted;
 
                 // Alpha-blended material for the see-through submesh (glass viewports + energy fields).
                 var transparentShader = Shader.Find("BlocksBeyondTheStars/BlockAtlasTransparent");
@@ -3865,6 +3866,18 @@ namespace BlocksBeyondTheStars.Client
         /// world created (sky/starfield meshes+materials, chunk render meshes, icon sprites) becomes
         /// unreferenced with the world root and is swept by AppShell.ReturnToMenu's
         /// <c>Resources.UnloadUnusedAssets</c> pass.</summary>
+        /// <summary>The block atlas repainted tiles in place (a texture layer changed, #1952). Chunk meshes keep
+        /// their UVs, so they stay; everything that BAKED a tile's colour or pixels has to go.</summary>
+        private void OnAtlasRepainted()
+        {
+            IconResolver.ClearCache();
+            ShapeIconFactory.ClearCache();
+            if (FarView != null)
+            {
+                FarView.InvalidateBlockColors();
+            }
+        }
+
         private void OnDestroy()
         {
             Network?.Dispose();
@@ -3896,6 +3909,11 @@ namespace BlocksBeyondTheStars.Client
             if (ChunkMaterialPaint != null)
             {
                 Destroy(ChunkMaterialPaint);
+            }
+
+            if (Atlas != null)
+            {
+                Atlas.Changed -= OnAtlasRepainted;
             }
 
             Atlas?.Release(); // shared per process (#1523) — the last owner decides, not this world

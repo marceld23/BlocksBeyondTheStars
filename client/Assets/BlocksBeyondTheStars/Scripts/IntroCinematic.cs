@@ -343,7 +343,7 @@ namespace BlocksBeyondTheStars.Client
 
             _atlas = BlockTextureAtlas.Acquire(content); // shared per process (#1523)
             _chunkMat = new Material(atlasShader) { mainTexture = _atlas.Texture };
-            _chunkMat.SetTexture("_NormalTex", _atlas.NormalTexture);
+            _atlas.BindNormals(_chunkMat); // stays bound across an atlas repaint (#1952)
             var transparentShader = Shader.Find("BlocksBeyondTheStars/BlockAtlasTransparent");
             if (transparentShader != null)
             {

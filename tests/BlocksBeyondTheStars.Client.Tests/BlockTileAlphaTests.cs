@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Textures;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -29,16 +30,14 @@ public sealed class BlockTileAlphaTests
     private const int RawSize = Tile * Tile * 4;
 
     /// <summary>Alpha byte for the shaders' "fully opaque" threshold (0.95 × 255 ≈ 242).</summary>
-    private const byte OpaqueFloor = 242;
+    private const byte OpaqueFloor = TextureTiles.OpaqueFloor;
 
-    /// <summary>Tiles whose alpha channel is a deliberate cutout mask, baked after bundling.</summary>
+    /// <summary>Tiles whose alpha channel is a deliberate cutout mask (foliage, fire, the torch and lantern
+    /// billboards) or that are not block tiles at all (creature, micro-fauna and avatar maps). The rule itself
+    /// lives in <see cref="TextureTiles.AlphaModeOf"/> (#1952) — the same one the client's loaders, the texture
+    /// editor and the server's world-texture validation use, so this test cannot drift from them.</summary>
     private static bool IsIntentionalCutout(string key)
-        => key.StartsWith("flora_", StringComparison.Ordinal)          // bake_leaf_alpha.py
-        || key is "tree_leaves" or "pine_needles" or "palm_frond" or "giant_leaves" // bake_leaf_alpha.py (#1783 giant crown)
-        || key is "fire"                                               // bundle_fire.py — the flame silhouette
-        || key.StartsWith("creature_", StringComparison.Ordinal)       // billboards, not block tiles
-        || key.StartsWith("microfauna_", StringComparison.Ordinal)
-        || key.StartsWith("avatar_", StringComparison.Ordinal);
+        => TextureTiles.AlphaModeOf(key) != TextureAlphaMode.Opaque;
 
     private static string TextureDir()
     {
