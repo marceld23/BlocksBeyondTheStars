@@ -34,10 +34,9 @@ REPO = Path(__file__).resolve().parents[1]
 DATA = REPO / "data"
 RES_TEX = REPO / "client" / "Assets" / "Resources" / "textures"
 TILE = 64
-# BlockTextureAtlas is a 16x16 grid of tiles. Slot 0 is air and the top slots hold the procedural
-# variant tiles (2 per key in BlockTextureAtlas.VariantKeys), so not every slot is free for a block.
-ATLAS_CAPACITY = 16 * 16
-ATLAS_VARIANT_SLOTS = 16
+# The block atlas has 32x32 = 1024 slots, but only the first band belongs to blocks: numeric block ids must stay
+# below 400 (GameContent.AtlasTileCapacity / the client's AtlasBands.BlockEnd). Slot 0 is air.
+BLOCK_SLOTS = 399
 
 
 def _planet_matches(planet, world_type):
@@ -106,15 +105,24 @@ def main():
     }
     if m.get("tintable"):
         block["tintable"] = True
+    existing = next((b for b in load_entries(DATA / "blocks.json") if b.get("key") == key), None)
+    if existing is not None:
+        # The editor cannot LOAD a block, so its form holds defaults, not this block's values. Re-merging an
+        # existing key keeps what the form does not know (drops, flags, face slots, category) and only takes the
+        # look the material editor is for (#1953) — it used to overwrite the whole definition.
+        look = {k: block[k] for k in ("gloss", "metal", "emission", "color")}
+        block = dict(existing)
+        block.update(look)
+        if m.get("tintable"):
+            block["tintable"] = True
+        print(f"  block '{key}' exists: kept its definition, updated the look only")
     is_new = upsert_entry(DATA / "blocks.json", key, block)
     count = len(load_entries(DATA / "blocks.json"))
-    usable = ATLAS_CAPACITY - ATLAS_VARIANT_SLOTS
-    if is_new and count > usable:
-        print(f"  ! WARNING: {count} blocks exceed the {usable} usable slots of the "
-              f"{ATLAS_CAPACITY}-tile atlas; some textures will collide. Enlarge BlockTextureAtlas "
-              f"(Cols/Rows) before shipping.")
+    if is_new and count > BLOCK_SLOTS:
+        print(f"  ! WARNING: {count} blocks exceed the {BLOCK_SLOTS} block slots of the texture atlas; "
+              f"content validation will refuse to load. See AtlasBands in the client before adding more.")
     elif is_new:
-        print(f"  atlas: {count}/{usable} slots used")
+        print(f"  atlas: {count}/{BLOCK_SLOTS} block slots used")
 
     # ---- item (so the block drops something + can be re-placed) ----
     item = {
@@ -125,10 +133,15 @@ def main():
         "maxStack": 1024,
         "placesBlock": key,
     }
-    upsert_entry(DATA / "items.json", key, item)
+    if is_new or not any(i.get("key") == key for i in load_entries(DATA / "items.json")):
+        upsert_entry(DATA / "items.json", key, item)
 
     # ---- texture ----
     _write_texture(bundle, key, m.get("sourceImage"))
+
+    if not is_new:
+        print(f"updated the look + texture of existing block '{key}'; world placement and locales left alone.")
+        return
 
     # ---- world placement (ore vein on every matching planet) ----
     world_type = m.get("worldType", "any")

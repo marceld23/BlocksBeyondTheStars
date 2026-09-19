@@ -6,7 +6,11 @@ on transparent gaps (the black background → fully transparent) — it renders 
 submesh. Ash is a solid charred tile. Writes the raw 64x64 RGBA .bytes the client atlas loads."""
 from pathlib import Path
 
+import sys
+
 from PIL import Image
+
+import texture_provenance
 
 TILE = 64
 REPO = Path(__file__).resolve().parents[2]
@@ -19,6 +23,11 @@ def lum(r: int, g: int, b: int) -> float:
 
 
 def main() -> None:
+    force = "--force" in sys.argv[1:]
+    provenance = texture_provenance.load()
+    if not texture_provenance.guard("fire", force, provenance) or not texture_provenance.guard("ash", force, provenance):
+        return  # a hand-painted fire / ash tile exists only as its .bytes (#1953)
+
     # Fire: alpha from luminance — dark background goes transparent, bright flames stay opaque (a soft ramp
     # in between for feathered flame edges). RGB kept (the flame colours), so the alpha-blended tile reads as
     # glowing tongues of flame over the world rather than a solid orange cube.

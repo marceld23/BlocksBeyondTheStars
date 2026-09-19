@@ -10,7 +10,12 @@ vertically so it matches Unity's bottom-up texture layout (same orientation Load
 
 Usage (from tools/ai-assets):
     uv run python bundle_textures.py          # convert the bundled Resources/.bytes in place
-    uv run python bundle_textures.py --from-out  # (re)bundle from out/textures/*.png
+    uv run python bundle_textures.py --from-out --only stone moss_stone   # (re)bundle NAMED tiles from out/textures/*.png
+
+--from-out (and the avatar/creature/microfauna modes) never run over "everything in out/": out/ is git-ignored, so
+it holds whatever this one machine generated at some point — re-bundling all of it would put stale images back
+over tiles that were since repainted by hand in the game's texture editor (#1953). Name the keys with --only;
+hand-painted tiles (texture_provenance.json) are skipped unless --force.
 """
 from __future__ import annotations
 
@@ -19,6 +24,8 @@ from io import BytesIO
 from pathlib import Path
 
 from PIL import Image
+
+import texture_provenance
 
 TILE = 64
 REPO = Path(__file__).resolve().parents[2]
@@ -46,7 +53,20 @@ def main() -> None:
     ap.add_argument("--avatar", action="store_true", help="bundle out/avatar/*.png as Resources/textures/avatar_<key>.bytes")
     ap.add_argument("--creatures", action="store_true", help="bundle out/creatures/*.png as Resources/textures/creature_<key>.bytes")
     ap.add_argument("--microfauna", action="store_true", help="bundle out/microfauna/*.png as Resources/textures/microfauna_<key>.bytes")
+    ap.add_argument("--only", nargs="+", metavar="KEY", help="the tiles to bundle (file names in out/ without .png); "
+                    "required for every out/ mode")
+    ap.add_argument("--force", action="store_true", help="also overwrite hand-painted tiles (texture_provenance.json)")
     args = ap.parse_args()
+
+    from_out = args.from_out or args.avatar or args.creatures or args.microfauna
+    if from_out and not args.only:
+        ap.error("bundling from out/ needs --only KEY [KEY ...]: out/ is git-ignored and may hold stale images "
+                 "of tiles that were repainted by hand since; re-bundling all of it would revert them (#1953)")
+
+    provenance = texture_provenance.load()
+
+    def wanted(png: Path, prefix: str = "") -> bool:
+        return png.stem in args.only and texture_provenance.guard(prefix + png.stem, args.force, provenance)
 
     RES.mkdir(parents=True, exist_ok=True)
     count = 0
@@ -59,11 +79,15 @@ def main() -> None:
         else:
             sub, prefix = "out/microfauna", "microfauna_"
         for png in sorted(Path(sub).glob("*.png")):
+            if not wanted(png, prefix):
+                continue
             (RES / f"{prefix}{png.stem}.bytes").write_bytes(to_raw(Image.open(png)))
             count += 1
             print(f"{prefix}{png.stem}: out/png -> raw {TILE*TILE*4} bytes")
     elif args.from_out:
         for png in sorted(OUT.glob("*.png")):
+            if not wanted(png):
+                continue
             (RES / f"{png.stem}.bytes").write_bytes(to_raw(Image.open(png), opaque=True))
             count += 1
             print(f"{png.stem}: out/png -> raw {TILE*TILE*4} bytes")

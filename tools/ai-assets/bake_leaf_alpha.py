@@ -25,6 +25,8 @@ from pathlib import Path
 
 from PIL import Image
 
+import texture_provenance
+
 TILE = 64
 REPO = Path(__file__).resolve().parents[2]
 RES = REPO / "client" / "Assets" / "Resources" / "textures"
@@ -105,11 +107,16 @@ def main() -> None:
     ap.add_argument("--hole", type=float, default=0.34, help="target transparent fraction per tile (0..1)")
     ap.add_argument("--grid", type=int, default=16, help="coarse mask resolution (NxN); lower = chunkier holes")
     ap.add_argument("--key", action="append", help="only bake this key (repeatable); default = all foliage")
+    ap.add_argument("--force", action="store_true", help="also re-punch hand-painted tiles (texture_provenance.json)")
     args = ap.parse_args()
 
+    # A tile somebody painted by hand carries its OWN alpha — punching the darkness mask over it would eat the
+    # painting (#1953). Those are skipped unless --force.
+    provenance = texture_provenance.load()
     keys = args.key if args.key else FOLIAGE
     for k in keys:
-        print(bake(k, args.hole, args.grid))
+        if texture_provenance.guard(k, args.force, provenance):
+            print(bake(k, args.hole, args.grid))
 
 
 if __name__ == "__main__":
