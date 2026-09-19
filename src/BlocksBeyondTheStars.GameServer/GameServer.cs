@@ -327,6 +327,7 @@ public sealed partial class GameServer
         LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
         LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
         LoadCustomShapes();   // …and the player-designed form registry (shaped blocks/items reference it by index)
+        LoadWorldTextures();  // …and the textures its admins published for everyone (#1958)
         LoadAllAlliances();   // restore the player alliance graph server-wide (shared station/base access)
         LoadAllCrews();       // restore the crews (#1216) — membership implies alliance while it lasts
         LoadStoryState();     // restore the per-save story progress + active story pack (server-wide, P0)
@@ -1616,6 +1617,7 @@ public sealed partial class GameServer
             Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);
             Guard("TickShipAi", deltaSeconds, TickShipAi); // VEGA advisor hints + memory-fragment redemption
             Guard("StreamChunks", StreamChunks);
+            Guard("StreamWorldTextures", StreamWorldTextures); // #1958: one page of the texture list per client per tick
             Guard("ServeFarTiles", ServeFarTiles); // #1871: far-terrain tile builds under a per-tick budget
             Guard("FlushEntityLists", FlushEntityLists); // #1530: one list per type + one player state per session per tick
             if (sweepDue)
@@ -3487,6 +3489,8 @@ public sealed partial class GameServer
             case PaintBlockIntent paint: HandlePaintBlock(session, paint); break;
             case PaintCraftIntent paintCraft: HandlePaintCraft(session, paintCraft); break;
             case CustomShapeCraftIntent form: HandleCustomShapeCraft(session, form); break;
+            case PublishWorldTextureIntent publishTexture: HandlePublishWorldTexture(session, publishTexture); break;
+            case RemoveWorldTextureIntent removeTexture: HandleRemoveWorldTexture(session, removeTexture); break;
             case CraftShipIntent craftShip: HandleCraftShip(session, craftShip); break;
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
@@ -3858,6 +3862,7 @@ public sealed partial class GameServer
         SyncAppearance(session);        // custom faces + body paintings, BOTH ways (#982)
         SendPaintDesigns(session);      // paint-design registry — before any chunk with painted blocks can arrive
         SendCustomShapes(session);      // …and the form registry, for the same reason (#843)
+        QueueWorldTextures(session);    // #1958: the world's textures follow in pages, one per tick
         ShipAiOnJoin(session); // boot VEGA: onboarding intro / veteran skip / resume objective
         RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: quit on a station → back on it
 
@@ -5926,6 +5931,10 @@ public sealed partial class GameServer
                 AdminPaintWipe(session, cmd.StringArg);
                 return;
 
+            case "texturewipe": // #1958: world texture moderation — the role is the gate, like the two above
+                AdminWorldTextureWipe(session, cmd.StringArg);
+                return;
+
             case "where":
                 AdminWhere(session, cmd.StringArg ?? cmd.TargetPlayer);
                 return;
@@ -6474,6 +6483,21 @@ public sealed partial class GameServer
             return;
         }
 
+        // World textures (#1958): "/reporttexture <key>" — any player may flag one.
+        if (text.StartsWith("/reporttexture", System.StringComparison.OrdinalIgnoreCase)
+            && (text.Length == 14 || text[14] == ' '))
+        {
+            int reportNow = System.Environment.TickCount;
+            if (reportNow - session.LastChatTick < 700)
+            {
+                return; // rate limit
+            }
+
+            session.LastChatTick = reportNow;
+            HandleWorldTextureReport(session, text.Length > 14 ? text.Substring(15) : string.Empty);
+            return;
+        }
+
         // The same for player-designed forms (#843) — geometry can be just as rude as a painting.
         if (text.Equals("/reportshape", System.StringComparison.OrdinalIgnoreCase))
         {
@@ -6865,6 +6889,7 @@ public sealed partial class GameServer
             InstantTravel = r.InstantTravel,
             AutoAim = r.AutoAim,
             StarterTeleporter = r.StarterTeleporter,
+            WorldTextures = r.WorldTextures ? "Admins" : "Off",
             FrontierDanger = r.FrontierDanger,
             BaseVisitors = r.BaseVisitors,
             VoiceChatEnabled = _config.VoiceChatEnabled,
@@ -6936,6 +6961,12 @@ public sealed partial class GameServer
             Rules.FrontierDanger = intent.FrontierDanger.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
 
+        bool worldTexturesBefore = Rules.WorldTextures;
+        if (!string.IsNullOrEmpty(intent.WorldTextures))
+        {
+            Rules.WorldTextures = intent.WorldTextures.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
+
         if (!string.IsNullOrEmpty(intent.BaseVisitors))
         {
             Rules.BaseVisitors = intent.BaseVisitors.Equals("On", System.StringComparison.OrdinalIgnoreCase);
@@ -6951,6 +6982,11 @@ public sealed partial class GameServer
                 SendRules(s);
                 if (GrantStarterTeleporter(s)) { SendInventory(s); } // #1056: flipping the rule on hands the device to everyone online now
             }
+        }
+
+        if (worldTexturesBefore != Rules.WorldTextures)
+        {
+            ResendWorldTexturesToAll(); // #1958: switched off → every client drops them; on → they come back
         }
 
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +

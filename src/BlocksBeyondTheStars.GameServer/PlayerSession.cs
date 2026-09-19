@@ -115,6 +115,13 @@ public sealed class PlayerSession
     public double NextPaintAt { get; set; }
     public double NextCustomShapeAt { get; set; }
 
+    /// <summary>Earliest uptime the next world texture is accepted (#1958) — the same 2 s pacing: a disk write
+    /// and a broadcast to every client.</summary>
+    public double NextWorldTextureAt { get; set; }
+
+    /// <summary>The pages of the world texture list still to send to this client (#1958) — one per tick.</summary>
+    public System.Collections.Generic.Queue<BlocksBeyondTheStars.Networking.Messages.WorldTextureList> WorldTexturePages { get; } = new();
+
     /// <summary>Earliest uptime the next blueprint paste is accepted (#1117) — a paste is up to 4096
     /// placements in one intent, so it gets a real cooldown.</summary>
     public double NextBlueprintPasteAt { get; set; }

@@ -133,7 +133,10 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                 created_unix BIGINT NOT NULL, kind TEXT NOT NULL DEFAULT 'paint');
             CREATE TABLE IF NOT EXISTS custom_shape (
                 id INTEGER PRIMARY KEY, owner TEXT NOT NULL, owner_name TEXT NOT NULL,
-                name TEXT NOT NULL, voxels TEXT NOT NULL);");
+                name TEXT NOT NULL, voxels TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS world_texture (
+                key TEXT PRIMARY KEY, frames INTEGER NOT NULL, fps INTEGER NOT NULL, data TEXT NOT NULL,
+                owner TEXT NOT NULL, owner_name TEXT NOT NULL, created_unix BIGINT NOT NULL);");
             // (Landing pads are deterministic + live-occupancy now — no per-player landing_zone table; item 38.)
 
             // Migrate older saves to carry per-voxel colour modifiers (dyed blocks / coloured lights). The
@@ -1426,6 +1429,65 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             using var cmd = Connection.CreateCommand();
             cmd.CommandText = "DELETE FROM custom_shape WHERE id = @i;";
             cmd.Parameters.AddWithValue("@i", id);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    // --- World textures (#1958) ---
+
+    public void SaveWorldTexture(StoredWorldTexture texture)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO world_texture (key, frames, fps, data, owner, owner_name, created_unix) " +
+                              "VALUES (@k, @f, @s, @d, @o, @n, @c) " +
+                              "ON CONFLICT(key) DO UPDATE SET frames=excluded.frames, fps=excluded.fps, data=excluded.data, " +
+                              "owner=excluded.owner, owner_name=excluded.owner_name, created_unix=excluded.created_unix;";
+            cmd.Parameters.AddWithValue("@k", texture.Key);
+            cmd.Parameters.AddWithValue("@f", texture.Frames);
+            cmd.Parameters.AddWithValue("@s", texture.Fps);
+            cmd.Parameters.AddWithValue("@d", texture.Data);
+            cmd.Parameters.AddWithValue("@o", texture.OwnerId);
+            cmd.Parameters.AddWithValue("@n", texture.OwnerName);
+            cmd.Parameters.AddWithValue("@c", texture.CreatedUnix);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredWorldTexture> ListWorldTextures()
+    {
+        var result = new List<StoredWorldTexture>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT key, frames, fps, data, owner, owner_name, created_unix FROM world_texture ORDER BY key;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredWorldTexture
+                {
+                    Key = reader.GetString(0),
+                    Frames = reader.GetInt32(1),
+                    Fps = reader.GetInt32(2),
+                    Data = reader.GetString(3),
+                    OwnerId = reader.GetString(4),
+                    OwnerName = reader.GetString(5),
+                    CreatedUnix = reader.GetInt64(6),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteWorldTexture(string key)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM world_texture WHERE key = @k;";
+            cmd.Parameters.AddWithValue("@k", key);
             cmd.ExecuteNonQuery();
         }
     }

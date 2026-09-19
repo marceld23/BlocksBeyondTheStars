@@ -9,10 +9,8 @@ namespace BlocksBeyondTheStars.Networking.Messages;
 /// </summary>
 public sealed class NetWorldTexture
 {
-    /// <summary>Registry id inside the save (never reused; a wiped texture keeps its id as a tombstone).</summary>
-    public int Id { get; set; }
-
-    /// <summary>The texture key it overrides: a block key or another key the client's texture source knows.</summary>
+    /// <summary>The texture key it overrides: a block key or another key the client's texture source knows. The
+    /// key is the identity — publishing again for the same key replaces the texture, so there is no id.</summary>
     public string Key { get; set; } = string.Empty;
 
     /// <summary>Number of 64×64 frames in <see cref="Data"/> (1 = a still texture).</summary>
@@ -67,6 +65,10 @@ public sealed class WorldTextureList
 
     /// <summary>Zero-based page number, for diagnostics.</summary>
     public int Page { get; set; }
+
+    /// <summary>True on the FIRST page of a full list: the client forgets the world textures it has before it
+    /// applies this list (a join, or the world rule was switched).</summary>
+    public bool Reset { get; set; }
 
     /// <summary>True on the last page (also on the single empty page of a world without textures).</summary>
     public bool Final { get; set; }

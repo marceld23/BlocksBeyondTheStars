@@ -80,6 +80,9 @@ public sealed class MemoryWorldSnapshot
     public List<StoredBase> Bases { get; set; } = new();
     public List<StoredPaintDesign> PaintDesigns { get; set; } = new();
     public List<StoredCustomShape> CustomShapes { get; set; } = new();
+
+    /// <summary>World textures (#1958). Additive: a snapshot written before them reads back as an empty list.</summary>
+    public List<StoredWorldTexture> WorldTextures { get; set; } = new();
     public List<StoredPaintReport> PaintReports { get; set; } = new();
     public List<StoredAlliance> Alliances { get; set; } = new();
     public List<StoredCrew> Crews { get; set; } = new();
@@ -125,6 +128,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBase> _bases = new();
     private readonly Dictionary<int, StoredPaintDesign> _paintDesigns = new();
     private readonly Dictionary<int, StoredCustomShape> _customShapes = new();
+    private readonly Dictionary<string, StoredWorldTexture> _worldTextures = new(StringComparer.Ordinal);
     private readonly List<StoredPaintReport> _paintReports = new();
     private readonly Dictionary<(string A, string B), StoredAlliance> _alliances = new();
     private readonly Dictionary<string, StoredCrew> _crews = new();
@@ -215,6 +219,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
             Bases = _bases.Values.Select(CloneBase).ToList(),
             PaintDesigns = _paintDesigns.Values.Select(ClonePaintDesign).ToList(),
             CustomShapes = _customShapes.Values.Select(CloneCustomShape).ToList(),
+            WorldTextures = _worldTextures.Values.Select(CloneWorldTexture).ToList(),
             PaintReports = _paintReports.Select(ClonePaintReport).ToList(),
             Alliances = _alliances.Values.Select(a => new StoredAlliance { PlayerA = a.PlayerA, PlayerB = a.PlayerB, FormedUtc = a.FormedUtc }).ToList(),
             Crews = _crews.Values.Select(CloneCrew).ToList(),
@@ -297,6 +302,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
         _beams.Clear();
         _bases.Clear();
         _paintDesigns.Clear();
+        _customShapes.Clear(); // was missing: an import over a used repository kept the old forms
+        _worldTextures.Clear();
         _paintReports.Clear();
         _alliances.Clear();
         _crews.Clear();
@@ -371,6 +378,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var shape in snapshot.CustomShapes)
         {
             _customShapes[shape.Id] = CloneCustomShape(shape);
+        }
+
+        foreach (var texture in snapshot.WorldTextures ?? new List<StoredWorldTexture>())
+        {
+            _worldTextures[texture.Key] = CloneWorldTexture(texture);
         }
 
         foreach (var report in snapshot.PaintReports)
@@ -984,6 +996,18 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private static StoredCustomShape CloneCustomShape(StoredCustomShape s)
         => new() { Id = s.Id, OwnerId = s.OwnerId, OwnerName = s.OwnerName, Name = s.Name, Voxels = s.Voxels };
 
+    private static StoredWorldTexture CloneWorldTexture(StoredWorldTexture t)
+        => new()
+        {
+            Key = t.Key,
+            Frames = t.Frames,
+            Fps = t.Fps,
+            Data = t.Data,
+            OwnerId = t.OwnerId,
+            OwnerName = t.OwnerName,
+            CreatedUnix = t.CreatedUnix,
+        };
+
     private static StoredPaintReport ClonePaintReport(StoredPaintReport r)
         => new()
         {
@@ -1107,6 +1131,32 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             _dirty = true;
             _customShapes.Remove(id);
+        }
+    }
+
+    public void SaveWorldTexture(StoredWorldTexture texture)
+    {
+        lock (_gate)
+        {
+            _dirty = true;
+            _worldTextures[texture.Key] = CloneWorldTexture(texture);
+        }
+    }
+
+    public IReadOnlyList<StoredWorldTexture> ListWorldTextures()
+    {
+        lock (_gate)
+        {
+            return _worldTextures.Values.OrderBy(t => t.Key, StringComparer.Ordinal).Select(CloneWorldTexture).ToList();
+        }
+    }
+
+    public void DeleteWorldTexture(string key)
+    {
+        lock (_gate)
+        {
+            _dirty = true;
+            _worldTextures.Remove(key);
         }
     }
 
