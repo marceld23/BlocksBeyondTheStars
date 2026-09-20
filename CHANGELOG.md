@@ -11,6 +11,97 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.12] — 2026-09-20
+
+The paintbox release. This one hands you the brush. Three new editors in the main menu let you **paint every
+texture in the game**, **build forms that fill several blocks** and **give your tools a look of your own** — and
+whatever you make is yours straight away, on any installation, without waiting for an update (#1950). If you run a
+world, you can **publish your textures to everyone playing in it**. And if you paint something you are proud of,
+you can **send it in** — it may end up in the game for everybody. In the world itself nothing changes: the
+shaping tool, its little editor and dyeing work exactly as before.
+
+ℹ️ **Compatibility:** the network protocol stays at version 6 and saves migrate unchanged. An older client on a
+newer server simply sees no world textures and no tool looks — nothing breaks. Everything you paint lives in your
+own game folder, so an update never paints over it. The game can play animated tiles now, but the build still
+ships none — that is a painting job, not a programming one.
+
+### 🎨 The Texture Editor: repaint anything (#1952 #1955 #1956 #1957 #1962)
+
+- **Paint any texture in the game.** Every block, the furniture, plants, animals, the ground, avatars — and the
+  little icons your items have in the backpack. The editor lists what your game actually has; nothing has to be
+  downloaded and no developer files are needed. Pencil, fill, lines, mirror, frames, undo.
+- **See it before you keep it.** The preview puts your texture on a turning cube, on the real shape of the thing
+  (both halves of a bed, for instance) or on crossed plant cards.
+- **"Use it for me"** makes the texture yours on the spot — the world repaints itself while you watch, no reload.
+  One switch in the options turns your whole pack off again.
+- **Pass it on:** a share code for a single texture, or an export folder for the whole thing.
+- **Doors, factory machines and the station terminal can be painted too (#1956).** They were coloured shapes that
+  no texture could reach; now every part of them has a name the editor can open.
+- **Textures can move (#1957).** Up to eight frames at four speeds — water, fire, a blinking lamp. The game plays
+  them in the world, on every face that shows the block's own picture.
+- ⚠ **A block texture can never be see-through.** That rule holds in the editor, on the server and again when a
+  texture arrives from somebody else — nobody paints themselves an X-ray view of the ground.
+
+### 🧱 The Form Editor, and forms that fill several blocks (#1960 #1961 #1969)
+
+- **A real editor for your own forms**, in the menu: a big canvas per layer, undo, mirror, copy-the-layer-below,
+  fill, and a library that finally shows every form you own, with duplicate and delete. It writes the same library
+  the shaping tool in the world reads — forms you already made are all there.
+- **Forms can now fill several blocks** — up to 3×3×3, eight cells. A table, an archway, a statue: build it as one
+  piece, place it as one piece. It turns with you but never tips over, it costs one block of material per cell and
+  gives all of them back, and if anything takes a single cell away — mining beam, fire, water, sand, a bomb — the
+  whole form goes at once instead of leaving a stump. (On ships and stations a form is still a plain cube.)
+- **Pick the preview material from a list (#1969).** A search field and a scrolling list with a picture in front of
+  every name, sorted by the name you actually read, instead of clicking ◀ ▶ through thirty-one materials. The
+  editor opens on stone and remembers the material you used last time.
+
+### 🛠️ My Tools: your drill, your look (#1962 #1963)
+
+- **Give your tools a look of your own** — drill, pistol, blade, scanner and the rest. A small three-dimensional
+  canvas, fifteen colours, and any colour can glow.
+- **The look belongs to you, not to the tool.** Everyone in the world sees it in your hand; if you hand the tool
+  to someone else, they see their own look for it. Reach, damage and speed never change. Up to sixteen tools.
+- **Every tool's shape is data now (#1962)**, so a tool can get a new model without a new build — and the same
+  editor paints item icons.
+
+### 🌍 World textures: paint for the whole server (#1958 #1959)
+
+- **An admin can publish a texture into a world.** Everyone playing there gets it immediately and sees it again on
+  every visit — a themed server can finally look like its theme.
+- **In that world, the world wins** over your own pack. And **every player can switch world textures off** if they
+  do not like what they see.
+- **New world option — *World textures: Admins / Off*.** Off takes them away from everyone at once; nothing is
+  lost, the world keeps them.
+- **`/reporttexture <name>`** lets any player flag a texture they find unpleasant, and
+  **`/texturewipe <name | player | all>`** lets an admin remove one texture, everything one player published, or
+  the lot.
+
+### 📮 Send your texture in (#1964 #1965 #1966)
+
+- **"Submit to the developers"** sends a texture you painted to us, with three tick-boxes you confirm first: that
+  you painted it yourself, that we may put it in the game, and that we may credit you. It travels with a
+  **nickname you choose** — no name, no e-mail address, no location, nothing about your computer. What we do not
+  use is deleted after twelve months.
+- **If your texture goes into the game, you are credited** under exactly that nickname.
+- **Bug reports say which textures you replaced (#1964)** — their names only, never the pictures — so a report
+  about a strangely-looking block makes sense to us. The F1 hint no longer promises to save your position.
+
+### 🧰 Underneath (#1951 #1953 #1954 #1967)
+
+- **Room for new kinds of messages again (#1951)** — the space was genuinely full. Old clients ignore the new ones
+  instead of stumbling over them, which is why this release needs no protocol bump.
+- **The gamepad works in all three editors (#1954):** Start switches to the canvas, the stick walks a cursor,
+  A/X/Y draw, the d-pad steps through layers and frames, RB undoes.
+- **Our own texture tools can no longer paint over hand-made work (#1953)** — every tile records who made it.
+- **All of it is translated into fourteen languages (#1967)**, and the user manual, the parents' guide and the
+  privacy page have been brought up to date with it.
+
+### 💬 Fixes (#1970)
+
+- **An unlucky chat message can no longer take the word filter down with it.** The filter gives each of its
+  patterns a time budget and skips one that runs long — except the skip could never fire, so the error escaped
+  into the chat instead. It is caught where it happens now. (Old bug, found by the test machine.)
+
 ## [2026.9.11] — 2026-09-17
 
 The quarters release. **Justus** played the shapeshifter update for an evening and sent four more reports, and all four
@@ -5571,7 +5662,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.11...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.12...HEAD
+[2026.9.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.11...v2026.9.12
 [2026.9.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.10...v2026.9.11
 [2026.9.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.9...v2026.9.10
 [2026.9.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.8...v2026.9.9
