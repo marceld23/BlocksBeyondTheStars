@@ -641,6 +641,14 @@ namespace BlocksBeyondTheStars.Client
                 Content = loaded;
                 ContentDataDir = dataDir;
                 ContentLoadError = "";
+                foreach (var block in Content.Blocks.Values)
+                {
+                    if (block.Anim != null)
+                    {
+                        GameTextures.SetOfficialFps(block.Key, block.Anim.Fps); // the speed of its bundled frames (#1957)
+                    }
+                }
+
                 Debug.Log($"Content loaded from '{dataDir}' ({Content.Blocks.Count} blocks, {Content.Items.Count} items, {Content.Recipes.Count} recipes, {Content.Planets.Count} planet types).");
             }
 

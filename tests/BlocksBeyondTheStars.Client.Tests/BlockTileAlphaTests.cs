@@ -46,6 +46,8 @@ public sealed class BlockTileAlphaTests
         return path;
     }
 
+    private const string AnimSuffix = "__anim";
+
     [Fact]
     public void BlockTiles_ShipFullyOpaque_ExceptTheDeliberatelyBakedCutouts()
     {
@@ -55,14 +57,26 @@ public sealed class BlockTileAlphaTests
 
         foreach (string file in files)
         {
-            string key = Path.GetFileNameWithoutExtension(file);
+            string name = Path.GetFileNameWithoutExtension(file);
+            // "<key>__anim.bytes" holds frames 2..n of an animated tile (#1957) — the same rule as its first frame.
+            bool extraFrames = name.EndsWith(AnimSuffix, System.StringComparison.Ordinal);
+            string key = extraFrames ? name.Substring(0, name.Length - AnimSuffix.Length) : name;
             if (IsIntentionalCutout(key))
             {
                 continue;
             }
 
             byte[] raw = File.ReadAllBytes(file);
-            Assert.True(raw.Length == RawSize, $"{key}.bytes is {raw.Length} bytes, expected {RawSize} (64×64 RGBA32).");
+            if (extraFrames)
+            {
+                Assert.True(raw.Length > 0 && raw.Length % RawSize == 0 && raw.Length / RawSize <= TextureTiles.MaxFrames - 1,
+                    $"{name}.bytes is {raw.Length} bytes — expected 1 to {TextureTiles.MaxFrames - 1} frames of {RawSize} bytes.");
+                Assert.True(File.Exists(Path.Combine(TextureDir(), key + ".bytes")), $"{name}.bytes has no first frame {key}.bytes.");
+            }
+            else
+            {
+                Assert.True(raw.Length == RawSize, $"{key}.bytes is {raw.Length} bytes, expected {RawSize} (64×64 RGBA32).");
+            }
 
             int transparent = 0;
             for (int i = 3; i < raw.Length; i += 4)

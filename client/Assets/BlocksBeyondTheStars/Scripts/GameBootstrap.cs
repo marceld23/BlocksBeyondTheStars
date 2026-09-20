@@ -1983,6 +1983,7 @@ namespace BlocksBeyondTheStars.Client
                 ChunkMaterial = new Material(atlasShader) { mainTexture = Atlas.Texture };
                 Atlas.BindNormals(ChunkMaterial); // per-pixel normal mapping; stays bound across a repaint (#1952)
                 Atlas.Changed += OnAtlasRepainted;
+                _animationVersionSeen = Atlas.AnimationVersion; // what is meshed from now on already knows this layout (#1957)
 
                 // Alpha-blended material for the see-through submesh (glass viewports + energy fields).
                 var transparentShader = Shader.Find("BlocksBeyondTheStars/BlockAtlasTransparent");
@@ -3875,6 +3876,8 @@ namespace BlocksBeyondTheStars.Client
         /// <c>Resources.UnloadUnusedAssets</c> pass.</summary>
         /// <summary>The block atlas repainted tiles in place (a texture layer changed, #1952). Chunk meshes keep
         /// their UVs, so they stay; everything that BAKED a tile's colour or pixels has to go.</summary>
+        private int _animationVersionSeen;
+
         private void OnAtlasRepainted()
         {
             IconResolver.ClearCache();
@@ -3882,6 +3885,18 @@ namespace BlocksBeyondTheStars.Client
             if (FarView != null)
             {
                 FarView.InvalidateBlockColors();
+            }
+
+            // A repaint changes pixels in place and needs no re-mesh — unless a tile became animated, stopped being
+            // animated or changed its frame count (#1957): the faces carry "frames, speed, strip start", so every
+            // loaded chunk is rebuilt once. Rare: a world texture with frames arrives, or the player switches packs.
+            if (Atlas != null && Atlas.AnimationVersion != _animationVersionSeen)
+            {
+                _animationVersionSeen = Atlas.AnimationVersion;
+                foreach (var c in _chunkObjects.Keys)
+                {
+                    _dirty.Add(c);
+                }
             }
         }
 

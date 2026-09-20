@@ -60,6 +60,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float4 positionOS : POSITION;
                 float3 normal : NORMAL;
                 float2 uv : TEXCOORD0;
+                float2 sky : TEXCOORD1; // y carries the animation code of the tile (#1957); the rest is the opaque shader's
                 // Water top faces: x=mode (1 lake, 2 open, 3 river), y=foam (corner-smoothed),
                 // z=wave amplitude factor (corner-smoothed), w=flow axis (0=X, 1=Z).
                 float4 water : TEXCOORD2;
@@ -76,6 +77,26 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float fog : TEXCOORD4;
                 float4 water : TEXCOORD5;
             };
+
+            // #1957 animated tiles. TEXCOORD1.y = tint mode (low 4 bits) + 16*frames + 256*speedIndex + 1024*stripStart
+            // (BlockTextureAtlas.AnimationCode) — every term is exact in a float. The mesh UV stays on the block's
+            // OWN atlas cell; an animated face is moved onto the strip cell of the current frame here, in the vertex
+            // stage, so it costs the fragment stage nothing. 32 = atlas cells per side (AtlasBands.Cols/Rows).
+            float2 BbtsAnimatedUv(float2 uv, float code, out float mode)
+            {
+                mode = fmod(code, 16.0);
+                float frames = fmod(floor(code / 16.0), 16.0);
+                if (frames < 1.5)
+                {
+                    return uv;
+                }
+
+                float speedIndex = fmod(floor(code / 256.0), 4.0);
+                float fps = speedIndex < 0.5 ? 2.0 : speedIndex < 1.5 ? 4.0 : speedIndex < 2.5 ? 8.0 : 12.0;
+                float slot = floor(code / 1024.0) + fmod(floor(_Time.y * fps), frames);
+                float2 cell = floor(uv * 32.0);
+                return (float2(fmod(slot, 32.0), floor(slot / 32.0)) + (uv * 32.0 - cell)) / 32.0;
+            }
 
             Varyings vert(Attributes v)
             {
@@ -105,7 +126,8 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 }
 
                 o.positionCS = TransformWorldToHClip(wp);
-                o.uv = v.uv;
+                float unusedMode;
+                o.uv = BbtsAnimatedUv(v.uv, v.sky.y, unusedMode);
                 o.wn = TransformObjectToWorldNormal(v.normal);
                 o.wp = wp;
                 o.mat = v.color;
@@ -398,6 +420,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float4 vertex : POSITION;
                 float3 normal : NORMAL;
                 float2 uv : TEXCOORD0;
+                float2 sky : TEXCOORD1; // y carries the animation code of the tile (#1957); the rest is the opaque shader's
                 // Water top faces: x=mode (1 lake, 2 open, 3 river), y=foam (corner-smoothed),
                 // z=wave amplitude factor (corner-smoothed), w=flow axis (0=X, 1=Z).
                 float4 water : TEXCOORD2;
@@ -414,6 +437,26 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 fixed4 mat : COLOR;
                 UNITY_FOG_COORDS(2)
             };
+
+            // #1957 animated tiles. TEXCOORD1.y = tint mode (low 4 bits) + 16*frames + 256*speedIndex + 1024*stripStart
+            // (BlockTextureAtlas.AnimationCode) — every term is exact in a float. The mesh UV stays on the block's
+            // OWN atlas cell; an animated face is moved onto the strip cell of the current frame here, in the vertex
+            // stage, so it costs the fragment stage nothing. 32 = atlas cells per side (AtlasBands.Cols/Rows).
+            float2 BbtsAnimatedUv(float2 uv, float code, out float mode)
+            {
+                mode = fmod(code, 16.0);
+                float frames = fmod(floor(code / 16.0), 16.0);
+                if (frames < 1.5)
+                {
+                    return uv;
+                }
+
+                float speedIndex = fmod(floor(code / 256.0), 4.0);
+                float fps = speedIndex < 0.5 ? 2.0 : speedIndex < 1.5 ? 4.0 : speedIndex < 2.5 ? 8.0 : 12.0;
+                float slot = floor(code / 1024.0) + fmod(floor(_Time.y * fps), frames);
+                float2 cell = floor(uv * 32.0);
+                return (float2(fmod(slot, 32.0), floor(slot / 32.0)) + (uv * 32.0 - cell)) / 32.0;
+            }
 
             v2f vert(appdata v)
             {
@@ -440,7 +483,8 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 }
 
                 o.pos = UnityWorldToClipPos(wp);
-                o.uv = v.uv;
+                float unusedMode;
+                o.uv = BbtsAnimatedUv(v.uv, v.sky.y, unusedMode);
                 o.wn = UnityObjectToWorldNormal(v.normal);
                 o.wp = wp;
                 o.water = v.water;

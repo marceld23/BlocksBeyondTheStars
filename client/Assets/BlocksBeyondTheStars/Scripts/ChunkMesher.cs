@@ -655,6 +655,11 @@ namespace BlocksBeyondTheStars.Client
                 // per-face shade; without one, fall back to the flat palette × shade.
                 Color baseColor = atlas == null ? BlockColor(content, id) : Color.white;
                 Rect uv = atlas != null ? atlas.TileUv(id.Value) : new Rect(0f, 0f, 1f, 1f);
+                // Animated tile (#1957): "frames, speed, strip start", added to the tint mode of every face that
+                // shows the block's OWN tile — the shader moves the UV onto the current frame of the strip. 0 for
+                // a still tile. Faces that show another tile (a log's cap, a furniture part's slot, a painted
+                // design, a variant) must not carry it.
+                float animCode = atlas != null ? atlas.AnimationCode(id.Value) : 0f;
                 // Per-block reflection params (gloss, metal) for the lit atlas shader.
                 var mat = traits.MaterialOf(id);
                 float matR = mat.x, matG = mat.y;
@@ -736,7 +741,7 @@ namespace BlocksBeyondTheStars.Client
                 // identical on all clients) picks one of the block's variant tiles and a 90° rotation
                 // for the top/bottom faces — breaking the visible texture tiling on open ground.
                 int uvRot = 0;
-                if (atlas != null && atlas.TryGetVariants(id.Value, out var variantSlots))
+                if (animCode == 0f && atlas != null && atlas.TryGetVariants(id.Value, out var variantSlots))
                 {
                     int hash = unchecked(wx * 73856093 ^ wy * 19349663 ^ wz * 83492791);
                     int pick = (int)((uint)hash % (uint)(variantSlots.Length + 1));
@@ -850,7 +855,7 @@ namespace BlocksBeyondTheStars.Client
                         new Vector3(x, y, z), plantCol, uv, plantSky, isTorchProp && dyed ? dye : speciesTint,
                         plantBl, plantBlDir, plantLean,
                         plantJitter, plantSpin, plantH, plantW,
-                        isTorchProp ? (dyed ? 3f : 7f) : 1f, // 7 = flame flicker (no tint); 3 = dye; 1 = flora
+                        (isTorchProp ? (dyed ? 3f : 7f) : 1f) + animCode, // 7 = flame flicker (no tint); 3 = dye; 1 = flora
                         hangingPlant);
                     continue;
                 }
@@ -911,7 +916,7 @@ namespace BlocksBeyondTheStars.Client
                     float flSizeXZ = Mathf.Clamp(flBase * (1f - flSquash * 0.6f), 0.4f, 1f);
                     AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         traits.SolidFloraShapeOf(id), 0, ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
-                        matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir, flSizeXZ, flSizeY);
+                        matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir, flSizeXZ, flSizeY, animCode: animCode);
                     continue;
                 }
 
@@ -947,7 +952,8 @@ namespace BlocksBeyondTheStars.Client
                         designId != 0 ? designRect : uv,
                         matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir,
                         slots: designId != 0 ? null : ShapeFaceTextures.SlotsFor(content, id), slotAtlas: atlas, // a painted design IS the surface
-                        formCell: ShapeCode.CellOf(shapeDesc)); // #1961: which block of a form over several blocks this is
+                        formCell: ShapeCode.CellOf(shapeDesc), // #1961: which block of a form over several blocks this is
+                        animCode: designId != 0 ? 0f : animCode, ownTile: uv);
 
                     // Flower pot (#809): a small cross-billboard flower sits on the shaped planter, tinted
                     // like wild flora on this world (per-world species hue). Purely visual — no collider.
@@ -1100,6 +1106,11 @@ namespace BlocksBeyondTheStars.Client
                     // mode 5 = animated molten lava surface; mode 6 = falling-lava flank (vertical hot streak).
                     // Painted faces force mode 0 — a dye tint (mode 3) would luminance-recolour the design.
                     float faceMode = designId != 0 ? 0f : isLavaSurface ? 5f : (isFallingLava && dir.Y == 0) ? 6f : floraFlag;
+                    if (designId == 0 && !(hasCap && dir.Y != 0))
+                    {
+                        faceMode += animCode; // #1957 — only a face that shows the block's own tile
+                    }
+
                     Vector3 faceBl = BlockLightAt(nx, ny, nz);
 
                     // #1701: a FLUID's top face lights per CORNER, not per face. Every other block gets its
@@ -1496,7 +1507,7 @@ namespace BlocksBeyondTheStars.Client
             List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
             List<Vector3> blockLightDir, int shapeIndex, int orientation, int upFace, Vector3 cell, Rect uv, float matR, float matG,
             float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir, float sizeXZ = 1f, float sizeY = 1f,
-            FaceSlot[] slots = null, BlockTextureAtlas slotAtlas = null, int formCell = 0)
+            FaceSlot[] slots = null, BlockTextureAtlas slotAtlas = null, int formCell = 0, float animCode = 0f, Rect ownTile = default)
         {
             var faces = BlockShapeGeometry.Build(shapeIndex, orientation, upFace, formCell);
             if (faces == null)
@@ -1537,6 +1548,16 @@ namespace BlocksBeyondTheStars.Client
                 // a block with texture slots dresses a part's faces with another tile or a stretched region instead.
                 ShapeFaceTextures.FaceUvs(face, uv, slots, slotAtlas, out var uvA, out var uvB, out var uvC, out var uvD);
                 uvs.Add(uvA); uvs.Add(uvB); uvs.Add(uvC);
+                // #1957: a furniture part may be dressed with ANOTHER block's tile (a slot) — such a face must not
+                // be moved onto this block's frame strip. Without slots every face shows the own tile.
+                float faceMode = tintMode;
+                if (animCode != 0f && (slots == null || ownTile.width <= 0f
+                    || (uvA.x >= ownTile.xMin - 0.0005f && uvA.x <= ownTile.xMax + 0.0005f
+                        && uvA.y >= ownTile.yMin - 0.0005f && uvA.y <= ownTile.yMax + 0.0005f)))
+                {
+                    faceMode += animCode;
+                }
+
                 if (face.IsQuad)
                 {
                     verts.Add(d);
@@ -1548,7 +1569,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     colors.Add(col);
                     tangents.Add(tan);
-                    skyUv.Add(new Vector2(sky, tintMode));
+                    skyUv.Add(new Vector2(sky, faceMode));
                     leafUv.Add(leaf);
                     blockLight.Add(bl);
                     blockLightDir.Add(blDir);
