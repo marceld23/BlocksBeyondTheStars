@@ -211,6 +211,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (_submit != null && _submit.IsOpen)
+            {
+                return; // the submit dialog is modal: no strokes, no shortcuts underneath
+            }
+
             _preview.Tick(Time.unscaledDeltaTime, InputMap.ActiveDevice == InputDeviceKind.Gamepad ? InputMap.PadLookX() * 0.6f : 0f);
             TickPlayback();
             HandleKeys();
@@ -360,6 +365,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private bool _lastButtonWasSecondary;
+        private TextureSubmitDialog _submit;
 
         /// <summary>What erasing writes: see-through where the tile may have holes, the secondary colour where it may
         /// not (a block tile is opaque by rule).</summary>
@@ -680,6 +686,24 @@ namespace BlocksBeyondTheStars.Client
             public int frames;
             public int fps;
             public string author;
+        }
+
+        private void OpenSubmit()
+        {
+            if (_entry == null)
+            {
+                return;
+            }
+
+            if (_submit == null)
+            {
+                _submit = gameObject.AddComponent<TextureSubmitDialog>();
+                _submit.Localize = L;
+                _submit.Settings = Shell != null ? Shell.Settings : null;
+                _submit.OnOutcome = SetStatus;
+            }
+
+            _submit.Open(_entry.Key, _entry.Label, _model.CopyFrames(), _model.Fps);
         }
 
         private void ExportForGame()
@@ -1306,6 +1330,8 @@ namespace BlocksBeyondTheStars.Client
             _status = UiKit.AddText(panel, 16f, by, 600f, 56f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
             _status.horizontalOverflow = HorizontalWrapMode.Wrap;
             UiKit.AddButton(panel, 628f, 1010f - 52f, 160f, 40f, L("ui.menu.back"), Close);
+            // Offer the texture for the game itself (#1965) — its own dialog with the three consents.
+            UiKit.AddButton(panel, 398f, 1010f - 52f, 222f, 40f, L("ui.tex.submit.open"), OpenSubmit, "btn_feedback");
         }
 
         private static RectTransform AddRaw(Transform parent, float x, float y, float w, float h, Texture tex)

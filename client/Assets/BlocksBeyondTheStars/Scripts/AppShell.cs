@@ -1883,9 +1883,9 @@ namespace BlocksBeyondTheStars.Client
                 {
                     CloseMaterialEditor();
                 }
-                else if (Phase == ShellPhase.TextureEditor)
+                else if (Phase == ShellPhase.TextureEditor && !TextureSubmitDialog.OwnsCancel)
                 {
-                    CloseTextureEditor();
+                    CloseTextureEditor(); // the submit dialog (#1965) takes its own cancel first
                 }
             }
         }

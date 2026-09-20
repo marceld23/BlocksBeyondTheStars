@@ -64,6 +64,13 @@ namespace BlocksBeyondTheStars.Client
 
         private static bool _useLocalPack = true;
         private static bool _showWorld = true;
+        private static volatile BlocksBeyondTheStars.Client.Feedback.TexturePackReportInfo _reportInfo
+            = BlocksBeyondTheStars.Client.Feedback.TexturePackReportInfo.None;
+
+        /// <summary>What a report says about the replaced textures (#1964). An immutable snapshot, rebuilt on every
+        /// layer change — the crash reporter reads it from the log callback's thread, where the layers themselves
+        /// must not be touched.</summary>
+        public static BlocksBeyondTheStars.Client.Feedback.TexturePackReportInfo ReportInfo => _reportInfo;
 
         /// <summary>Raised after a layer changed, with the affected keys (empty = "anything may have changed").
         /// The block atlas repaints those tiles; model builders rebuild their materials.</summary>
@@ -299,6 +306,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static void Raise(IReadOnlyCollection<string> keys)
         {
+            _reportInfo = BlocksBeyondTheStars.Client.Feedback.TexturePackReportInfo.Create(_useLocalPack, Local.Keys, _showWorld, World.Keys);
             var handlers = Changed;
             if (handlers == null)
             {

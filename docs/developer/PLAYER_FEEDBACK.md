@@ -106,6 +106,36 @@ local-only). This also means SP server **crash reports** now upload automaticall
 world instances get the key from the WorldHost (`BBS_WH_CRASH_REPORT_KEY`, #363). **Self-hosted
 dedicated servers** — off by default (no phone-home), opt-in via the config/env above.
 
+## Textures in reports (#1964) and texture submissions (#1965)
+
+**Every F1 report and every client crash report** carries a `reportJson.texturePack` node:
+`{ replaced, localEnabled, localCount, localKeys[≤24], worldShown, worldCount, worldKeys[≤24] }`. Players can
+repaint the game for themselves (texture pack) and admins for a whole world (world textures), so "the grass
+looks wrong" is no longer a statement about the game's own grass. Keys only, never pixels.
+`GameTextures.ReportInfo` is an immutable snapshot rebuilt on every layer change — the crash reporter reads it
+on the log callback's thread, where the live layers must not be touched.
+
+**"Submit to the developers"** in the texture editor offers a painted texture for the game itself. It rides
+this channel — same endpoint, spam key, spool, reply thread — but is its own dialog
+(`TextureSubmitDialog`), because it asks for something else: three explicit consents (painted it myself /
+the developers may use, change and distribute it / 16 or older, or the parents agreed). The submit button
+stays off until all three are ticked; consent is never remembered between textures.
+
+- The body is built by `TextureSubmission.Build` (Client.Core, unit-tested): `reportJson.reportType =
+  "texture-submission"`, `reportJson.texture { key, kind, name, nickname, frames, fps, consent{…, textVersion} }`
+  and root-level `attachments` (PNG strip + raw tile). The inbox files it under category `texture` — see
+  *Texture submissions* in [REPORT_HOST.md](REPORT_HOST.md).
+- **Data minimisation is part of the contract with the player**, who is often a child: the dialog says "no
+  e-mail, no location", so the builder sends neither, nor machine facts, nor a screenshot, nor the install
+  token (`playerId` stays empty — the one-way reply key is the anonymous id), and `playerName` is the
+  NICKNAME typed for this purpose (or empty for "no name"), not the in-game name.
+- The consent wording lives in `ui.tex.submit.check_1..3`. Changing what one of the sentences MEANS requires
+  bumping `TextureSubmission.ConsentTextVersion`, which is stored with every submission.
+- It works in the main menu, without a world: a body that could not be delivered goes to the shared
+  `FeedbackSpool`, which the next world session flushes; an accepted one is recorded in `SentReportsLog`, so
+  the reply poll runs and the answer ("ships in version …") reaches the player in the game.
+- A build without the inbox key (local, fork) cannot submit and says so; "Export" still works.
+
 ## Code map
 
 | Concern | File |
@@ -121,6 +151,9 @@ dedicated servers** — off by default (no phone-home), opt-in via the config/en
 | Tests (local `HttpListener` endpoint) | `tests/BlocksBeyondTheStars.Client.Tests/FeedbackUploaderTests.cs` |
 | Tests (spool life cycle) | `tests/BlocksBeyondTheStars.Client.Tests/FeedbackSpoolTests.cs` |
 | UI + capture + dual send | `client/Assets/BlocksBeyondTheStars/Scripts/FeedbackUi.cs` |
+| Texture submission: body / dialog | `src/BlocksBeyondTheStars.Client.Core/Feedback/TextureSubmission.cs` / `client/Assets/BlocksBeyondTheStars/Scripts/TextureSubmitDialog.cs` |
+| Texture-pack note in reports | `src/BlocksBeyondTheStars.Client.Core/Feedback/TexturePackReportInfo.cs` (snapshot kept by `GameTextures.ReportInfo`) |
+| Tests (submission body, consent gate, texture-pack note) | `tests/BlocksBeyondTheStars.Client.Tests/TextureSubmissionTests.cs` |
 | Wired into the world | `client/Assets/BlocksBeyondTheStars/Scripts/WorldRig.cs` |
 | API key (build secret) | `client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.cs` |
 | Icon | `client/Assets/Resources/icons/btn_feedback.png` |
