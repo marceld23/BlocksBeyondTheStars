@@ -38,6 +38,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Mirrored;          // hinge: the leaf hangs on the RIGHT jamb — the right half of a double door (#1729)
             public DoorPairs.Sides Partners; // hinge: the local sides sharing a jamb with a partner leaf — no post there (#1852)
             public bool Open;
+            public bool Posed;             // its panels stand where Anim says — a resting door is not re-posed every frame
             public float Anim;             // 0 closed → 1 open, eased toward Open
             public Transform Field;        // energy door: the translucent blue field shown in the open doorway
             public Material FieldMat;      // its material (alpha fades in with Anim) — item 35
@@ -62,8 +63,15 @@ namespace BlocksBeyondTheStars.Client
                 d.Go.transform.position = Game != null ? Game.ScenePos(d.World.x, d.World.y, d.World.z) : d.World;
 
                 float target = d.Open ? 1f : 0f;
+                float before = d.Anim;
                 d.Anim = Mathf.MoveTowards(d.Anim, target, Time.deltaTime * AnimSpeed);
-                Animate(d);
+                // Only a MOVING door is posed (#1956): a city has hundreds of doors and nearly all of them rest.
+                // The one exception is an open energy door, whose field shimmers every frame.
+                if (!d.Posed || d.Anim != before || (d.FieldMat != null && d.Anim > 0f))
+                {
+                    Animate(d);
+                    d.Posed = true;
+                }
 
                 // The collider blocks passage until the door is mostly open (so you can't slip through a crack).
                 if (d.Collider != null)
