@@ -529,6 +529,8 @@ public static class NetCodec
         Register(257, typeof(RemoveWorldTextureIntent));     // Client -> Server
         Register(258, typeof(WorldTextureData));             // Server -> Client (one published / replaced / wiped)
         Register(259, typeof(WorldTextureList));             // Server -> Client (paged, on join)
+        Register(260, typeof(SetToolLookIntent));            // Client -> Server (#1963)
+        Register(261, typeof(PlayerToolLook));               // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

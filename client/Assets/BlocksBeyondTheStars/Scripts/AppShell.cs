@@ -11,7 +11,7 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro, TextureEditor, FormEditor }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro, TextureEditor, FormEditor, ToolLookEditor }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -1477,6 +1477,30 @@ namespace BlocksBeyondTheStars.Client
             Phase = ShellPhase.Editors;
         }
 
+        /// <summary>Opens "My tools" (#1963): the player's own looks for drills, guns, blades and scanners.</summary>
+        public void OpenToolLookEditor()
+        {
+            DestroyMenuBackground();
+            _editorRoot = new GameObject("ToolLookEditor");
+            _editorRoot.AddComponent<ToolLookEditor>().Shell = this;
+            Phase = ShellPhase.ToolLookEditor;
+        }
+
+        /// <summary>Closes "My tools" and returns to the editors submenu.</summary>
+        public void CloseToolLookEditor()
+        {
+            if (_editorRoot != null)
+            {
+                Destroy(_editorRoot);
+                _editorRoot = null;
+            }
+
+            EnsureMenuBackground();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Phase = ShellPhase.Editors;
+        }
+
         /// <summary>Closes the texture editor and returns to the editors submenu.</summary>
         public void CloseTextureEditor()
         {
@@ -1914,6 +1938,10 @@ namespace BlocksBeyondTheStars.Client
                 else if (Phase == ShellPhase.FormEditor && !PadCanvasFocus.OwnsCancel)
                 {
                     CloseFormEditor();
+                }
+                else if (Phase == ShellPhase.ToolLookEditor && !PadCanvasFocus.OwnsCancel)
+                {
+                    CloseToolLookEditor();
                 }
             }
         }

@@ -675,8 +675,46 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Sends the next queued appearance payload if the rate-limit window is open. Called from the
         /// menu's Update, so a queue left behind by a closed editor still drains.</summary>
+        private readonly Queue<(string Item, string Model)> _pendingToolLooks = new Queue<(string, string)>();
+        private bool _toolLooksQueued;
+
+        /// <summary>Tool looks (#1963) are edited in the main menu and announced once per world entry. They share the
+        /// server's appearance throttle, so they ride this queue — after the face and the paintings, and only from
+        /// a few seconds after the join, whose own face/painting sends may already have used the first window.</summary>
+        private void QueueToolLooksOnce()
+        {
+            if (_toolLooksQueued || Game == null || string.IsNullOrEmpty(Game.LocalPlayerId) || Settings?.ToolLooks == null)
+            {
+                return;
+            }
+
+            _toolLooksQueued = true;
+            foreach (var look in Settings.ToolLooks)
+            {
+                if (look != null && !string.IsNullOrEmpty(look.item) && !string.IsNullOrEmpty(look.model))
+                {
+                    _pendingToolLooks.Enqueue((look.item, look.model));
+                }
+            }
+
+            if (_pendingToolLooks.Count > 0)
+            {
+                _nextAppearanceSend = System.Math.Max(_nextAppearanceSend, Time.unscaledTimeAsDouble + 2.5);
+            }
+        }
+
         private void PumpAppearanceQueue()
         {
+            QueueToolLooksOnce();
+            if (_pendingAppearance.Count == 0 && _pendingToolLooks.Count > 0 && Game?.Network != null
+                && Time.unscaledTimeAsDouble >= _nextAppearanceSend)
+            {
+                var (item, model) = _pendingToolLooks.Dequeue();
+                _nextAppearanceSend = Time.unscaledTimeAsDouble + AppearanceSendInterval;
+                Game.Network.SendToolLook(item, model);
+                return;
+            }
+
             if (_pendingAppearance.Count == 0 || Game?.Network == null || Time.unscaledTimeAsDouble < _nextAppearanceSend)
             {
                 return;

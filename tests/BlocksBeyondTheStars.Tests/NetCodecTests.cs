@@ -301,6 +301,8 @@ public sealed class NetCodecTests
         [257] = typeof(RemoveWorldTextureIntent),
         [258] = typeof(WorldTextureData),
         [259] = typeof(WorldTextureList),
+        [260] = typeof(SetToolLookIntent),
+        [261] = typeof(PlayerToolLook),
 
     };
 

@@ -3887,6 +3887,29 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly WorldTextureInbox _worldTextureInbox = new WorldTextureInbox();
 
+        private readonly Dictionary<string, List<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart>> _localToolLooks
+            = new Dictionary<string, List<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart>>(System.StringComparer.Ordinal);
+
+        /// <summary>The local player's own look for the tool behind <paramref name="itemKey"/> (#1963), or null for
+        /// the standard model. Looks are edited in the main menu only, so the merged parts are cached per session.</summary>
+        public IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> LocalToolLook(string itemKey)
+        {
+            if (string.IsNullOrEmpty(itemKey) || Settings == null)
+            {
+                return null;
+            }
+
+            string baseKey = BlocksBeyondTheStars.Shared.State.ItemKey.Base(itemKey);
+            if (!_localToolLooks.TryGetValue(baseKey, out var parts))
+            {
+                string model = Settings.GetToolLook(baseKey);
+                parts = string.IsNullOrEmpty(model) ? null : BlocksBeyondTheStars.Shared.State.ToolLook.ToParts(model);
+                _localToolLooks[baseKey] = parts != null && parts.Count > 0 ? parts : null;
+            }
+
+            return _localToolLooks[baseKey];
+        }
+
         private static void ApplyWorldTextures(WorldTextureBatch batch)
         {
             if (batch == null)

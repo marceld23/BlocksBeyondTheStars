@@ -102,6 +102,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<PlayerLeft>? PlayerLeftReceived;
         public event Action<PlayerFace>? PlayerFaceReceived; // another player's custom pixel face
         public event Action<PlayerBodyPaint>? PlayerBodyPaintReceived; // another player's body painting (#874)
+        public event Action<PlayerToolLook>? PlayerToolLookReceived;   // another player's look for a tool (#1963)
 
         // Player-painted block designs (#817): the save-global registry (join list + live additions/wipes).
         public event Action<PaintDesignData>? PaintDesignReceived;
@@ -811,6 +812,11 @@ namespace BlocksBeyondTheStars.Client
         public void SendBodyPaint(int part, string pixels)
             => Send(new SetBodyPaintIntent { Part = part, Pixels = pixels ?? string.Empty });
 
+        /// <summary>Sets (or, with an empty model, clears) the player's own look for a tool (#1963). Shares the
+        /// server's 2 s appearance throttle with the face and the body paintings — pace the sends.</summary>
+        public void SendToolLook(string itemKey, string model)
+            => Send(new SetToolLookIntent { ItemKey = itemKey ?? string.Empty, Model = model ?? string.Empty });
+
         /// <summary>Paints a 32×32 design onto a placed world block (empty pixels clears the paint). The
         /// server dedups the bitmap into the save-global design registry and answers via the ordinary
         /// <see cref="BlockChanged"/> path (+ a <see cref="PaintDesignData"/> when the design is new).</summary>
@@ -1024,6 +1030,7 @@ namespace BlocksBeyondTheStars.Client
                 case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
                 case PlayerFace m: PlayerFaceReceived?.Invoke(m); break;
                 case PlayerBodyPaint m: PlayerBodyPaintReceived?.Invoke(m); break;
+                case PlayerToolLook m: PlayerToolLookReceived?.Invoke(m); break;
                 case PaintDesignData m: PaintDesignReceived?.Invoke(m); break;
                 case PaintDesignList m: PaintDesignListReceived?.Invoke(m); break;
                 case CustomShapeData m: CustomShapeReceived?.Invoke(m); break;

@@ -172,6 +172,82 @@ public sealed partial class GameServer
     private static PlayerBodyPaint BodyPaintOf(PlayerSession s, int part)
         => new() { PlayerId = s.State.PlayerId, Part = part, Pixels = s.State.GetBodyPaint(part) ?? string.Empty };
 
+    // Player tool looks (#1963): the body paint's sibling for what is held. The look is bound to the PLAYER and a
+    // base item key — not to the item instance: ~20 server rules compare exact item keys, so a look riding on the
+    // key would break them, and a look must not be handed over with a traded tool. Same shared 2 s appearance
+    // throttle, same "validate, store, relay" path. Purely cosmetic — nothing on the server reads the model.
+    private void HandleSetToolLook(PlayerSession session, SetToolLookIntent intent)
+    {
+        string itemKey = intent.ItemKey ?? string.Empty;
+        string model = intent.Model ?? string.Empty;
+        var item = _content.GetItem(itemKey);
+        if (item?.Tool is null || itemKey != ItemKey.Base(itemKey))
+        {
+            return; // not a tool of this game (or a composed key) — never stored, never relayed
+        }
+
+        if (model.Length != 0 && !ToolLook.IsValid(model))
+        {
+            return; // malformed — drop it
+        }
+
+        var looks = session.State.ToolLooks;
+        looks.TryGetValue(itemKey, out string? current);
+        if (model == (current ?? string.Empty))
+        {
+            return; // unchanged (the redundant on-join send) — no save, no broadcast
+        }
+
+        if (model.Length != 0 && current is null && looks.Count >= ToolLook.MaxLooksPerPlayer)
+        {
+            Send(session, new ServerMessage { Text = "@srv.toollook.limit" });
+            return;
+        }
+
+        if (_uptime < session.NextFaceChangeAt)
+        {
+            return; // shared appearance anti-spam (see HandleSetFace)
+        }
+
+        session.NextFaceChangeAt = _uptime + 2.0;
+        if (model.Length == 0)
+        {
+            looks.Remove(itemKey);
+        }
+        else
+        {
+            looks[itemKey] = model;
+        }
+
+        _repo.SavePlayer(session.State);
+        BroadcastToolLook(session, itemKey);
+    }
+
+    private void BroadcastToolLook(PlayerSession subject, string itemKey)
+    {
+        if (subject.Spectating)
+        {
+            return; // observers are invisible (issue #487)
+        }
+
+        var msg = ToolLookOf(subject, itemKey);
+        foreach (var viewer in _sessions.Values)
+        {
+            if (viewer.Joined && viewer.ConnectionId != subject.ConnectionId
+                && viewer.CurrentLocationId == subject.CurrentLocationId)
+            {
+                Send(viewer, msg);
+            }
+        }
+    }
+
+    private static PlayerToolLook ToolLookOf(PlayerSession s, string itemKey)
+        => new() { PlayerId = s.State.PlayerId, ItemKey = itemKey, Model = s.State.ToolLooks.TryGetValue(itemKey, out var m) ? m : string.Empty };
+
+    /// <summary>Test seam: runs the tool-look handler without a socket.</summary>
+    public void SetToolLookForTest(PlayerSession session, string itemKey, string model)
+        => HandleSetToolLook(session, new SetToolLookIntent { ItemKey = itemKey, Model = model });
+
     /// <summary>Test seam: runs the body-paint handler without a socket.</summary>
     public void SetBodyPaintForTest(PlayerSession session, int part, string pixels)
         => HandleSetBodyPaint(session, new SetBodyPaintIntent { Part = part, Pixels = pixels });
@@ -225,6 +301,11 @@ public sealed partial class GameServer
                 BroadcastBodyPaint(session, part);
             }
         }
+
+        foreach (string itemKey in session.State.ToolLooks.Keys.ToList())
+        {
+            BroadcastToolLook(session, itemKey); // #1963
+        }
     }
 
     /// <summary>Sends the new player the custom faces AND body paintings of everyone already online on
@@ -247,6 +328,11 @@ public sealed partial class GameServer
                     {
                         Send(newcomer, BodyPaintOf(other, part));
                     }
+                }
+
+                foreach (string itemKey in other.State.ToolLooks.Keys)
+                {
+                    Send(newcomer, ToolLookOf(other, itemKey)); // #1963
                 }
             }
         }

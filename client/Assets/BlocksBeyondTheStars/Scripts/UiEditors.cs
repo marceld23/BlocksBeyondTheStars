@@ -25,7 +25,7 @@ namespace BlocksBeyondTheStars.Client
             const float bx = 360f, bw = 520f, bh = 54f, gap = 60f;
 
             // Group 1 — in-game creator tools (their output flows into your own game/worlds).
-            float y = 232f;
+            float y = 212f; // nine tools since "My tools" (#1963)
             UiKit.AddText(root, bx, y, bw, 24f, shell.L("ui.editors.group.creator"), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 30f;
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.ship_editor"), shell.OpenShipEditor, "btn_singleplayer"); y += gap;
@@ -34,7 +34,8 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.settlement_editor"), shell.OpenSettlementEditor, "btn_singleplayer"); y += gap;
             // The texture editor works without a rebuild ("use for me"), so it belongs with the creator tools.
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.texture_editor"), shell.OpenTextureEditor, "btn_singleplayer"); y += gap;
-            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.form_editor"), shell.OpenFormEditor, "btn_singleplayer"); y += gap + 10f;
+            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.form_editor"), shell.OpenFormEditor, "btn_singleplayer"); y += gap;
+            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.tool_looks"), shell.OpenToolLookEditor, "btn_singleplayer"); y += gap + 10f;
 
             // Group 2 — developer content tools (need a merge + rebuild; not applied to your current game).
             UiKit.AddText(root, bx, y, bw, 24f, shell.L("ui.editors.group.dev"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);

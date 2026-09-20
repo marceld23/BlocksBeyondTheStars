@@ -441,7 +441,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Shows the held tool/weapon/block in the right hand (call only when it changes).</summary>
-        public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null, string itemKey = null)
+        public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null, string itemKey = null,
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null)
         {
             if (_handR == null)
             {
@@ -459,7 +460,7 @@ namespace BlocksBeyondTheStars.Client
                 return; // Hand (#1033) is first-person only — the avatar already has its own hand mesh.
             }
 
-            _held = HeldItem.Build(_handR, kind, tint, blockKey, itemKey);
+            _held = HeldItem.Build(_handR, kind, tint, blockKey, itemKey, look); // look: this player's own look for the tool (#1963)
             if (_held != null)
             {
                 _held.transform.localPosition = new Vector3(0f, -0.1f, 0.06f); // in the palm, pointing forward

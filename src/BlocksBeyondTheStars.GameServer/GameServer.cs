@@ -3487,6 +3487,7 @@ public sealed partial class GameServer
             case SetAppearanceIntent appearance: HandleSetAppearance(session, appearance); break;
             case SetFaceIntent face: HandleSetFace(session, face); break;
             case SetBodyPaintIntent bodyPaint: HandleSetBodyPaint(session, bodyPaint); break;
+            case SetToolLookIntent toolLook: HandleSetToolLook(session, toolLook); break;
             case PaintBlockIntent paint: HandlePaintBlock(session, paint); break;
             case PaintCraftIntent paintCraft: HandlePaintCraft(session, paintCraft); break;
             case CustomShapeCraftIntent form: HandleCustomShapeCraft(session, form); break;

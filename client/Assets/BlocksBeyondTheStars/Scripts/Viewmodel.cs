@@ -71,7 +71,8 @@ namespace BlocksBeyondTheStars.Client
         private Vector3 Compensated(Vector3 local) => new Vector3(local.x * _fovScale, local.y * _fovScale, local.z);
 
         /// <summary>Sets the held item (rebuilds only when it changes — call from the controller).</summary>
-        public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null, string itemKey = null)
+        public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null, string itemKey = null,
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null)
         {
             EnsureHolder();
             _kind = kind;
@@ -81,7 +82,7 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_holder.GetChild(i).gameObject);
             }
 
-            var mesh = HeldItem.Build(_holder, kind, tint, blockKey, itemKey);
+            var mesh = HeldItem.Build(_holder, kind, tint, blockKey, itemKey, look);
             if (mesh != null)
             {
                 mesh.transform.localScale = Vector3.one * ItemScale;

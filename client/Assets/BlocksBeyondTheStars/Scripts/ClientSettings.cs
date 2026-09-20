@@ -480,6 +480,46 @@ namespace BlocksBeyondTheStars.Client
         /// older settings files, which therefore load with an empty list.</summary>
         public List<AvatarOutfit> Outfits = new List<AvatarOutfit>();
 
+        /// <summary>The player's own looks for tools (#1963): base item key → look payload. A list, because
+        /// JsonUtility stores no dictionaries. Sent to the server on join; the server keeps at most
+        /// <c>ToolLook.MaxLooksPerPlayer</c>.</summary>
+        public List<ToolLookSetting> ToolLooks = new List<ToolLookSetting>();
+
+        public string GetToolLook(string itemKey)
+        {
+            if (ToolLooks != null)
+            {
+                foreach (var look in ToolLooks)
+                {
+                    if (look != null && look.item == itemKey)
+                    {
+                        return look.model ?? string.Empty;
+                    }
+                }
+            }
+
+            return string.Empty;
+        }
+
+        /// <summary>Sets or (empty model) removes the look for a tool. False when the limit is reached.</summary>
+        public bool SetToolLook(string itemKey, string model)
+        {
+            ToolLooks ??= new List<ToolLookSetting>();
+            ToolLooks.RemoveAll(l => l == null || l.item == itemKey);
+            if (string.IsNullOrEmpty(model))
+            {
+                return true;
+            }
+
+            if (ToolLooks.Count >= BlocksBeyondTheStars.Shared.State.ToolLook.MaxLooksPerPlayer)
+            {
+                return false;
+            }
+
+            ToolLooks.Add(new ToolLookSetting { item = itemKey, model = model });
+            return true;
+        }
+
         /// <summary>The currently applied look as an outfit named <paramref name="name"/> (a detached copy).</summary>
         public AvatarOutfit CaptureOutfit(string name) => new AvatarOutfit
         {
@@ -1281,5 +1321,12 @@ namespace BlocksBeyondTheStars.Client
                 e == t || string.Equals(e, t, System.StringComparison.OrdinalIgnoreCase));
             return removed > 0;
         }
+    }
+    /// <summary>One entry of <see cref="ClientSettings.ToolLooks"/>.</summary>
+    [System.Serializable]
+    public sealed class ToolLookSetting
+    {
+        public string item;
+        public string model;
     }
 }

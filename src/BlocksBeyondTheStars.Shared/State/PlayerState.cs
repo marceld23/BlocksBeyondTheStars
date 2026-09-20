@@ -280,6 +280,11 @@ public sealed class PlayerState
     public string LegPixels { get; set; } = string.Empty;
     public string HelmetPixels { get; set; } = string.Empty;
 
+    /// <summary>The player's own looks for tools (#1963): base item key → <see cref="ToolLook"/> payload. Like the
+    /// face and the body paint it belongs to the player (not to the item), is server-validated, persisted and
+    /// relayed via <c>PlayerToolLook</c>. At most <see cref="ToolLook.MaxLooksPerPlayer"/>.</summary>
+    public Dictionary<string, string> ToolLooks { get; set; } = new(System.StringComparer.Ordinal);
+
     /// <summary>The body-paint painting for a <see cref="BodyPaint"/> part index (empty for unknown parts).</summary>
     public string GetBodyPaint(int part) => part switch
     {

@@ -33,6 +33,26 @@ public static class ShareCode
     /// <summary>Kind marker for a texture from the texture editor (#1955).</summary>
     public const string KindTexture = "T";
 
+    /// <summary>Kind marker for a player's tool look (#1963).</summary>
+    public const string KindToolLook = "L";
+
+    /// <summary>Encodes a tool look; the name slot carries the tool it was made for (a hint, any tool can wear it).</summary>
+    public static string EncodeToolLook(string model, string itemKey)
+        => State.ToolLook.IsValid(model) ? Encode(KindToolLook, model, itemKey) : string.Empty;
+
+    /// <summary>Decodes a tool look with the validation the server applies before it stores one.</summary>
+    public static bool TryDecodeToolLook(string? code, out string model, out string itemKey)
+    {
+        if (!TryDecode(code, KindToolLook, out model, out itemKey) || !State.ToolLook.IsValid(model))
+        {
+            model = string.Empty;
+            itemKey = string.Empty;
+            return false;
+        }
+
+        return true;
+    }
+
     /// <summary>Builds a share code. Returns an empty string for an empty payload.</summary>
     public static string Encode(string kind, string payload, string name)
     {
