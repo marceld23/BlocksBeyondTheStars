@@ -4656,5 +4656,8 @@
   "ui.worldopt.world_textures": "World textures",
   "ui.worldopt.world_textures_admins": "Admins",
   "ui.cmd.usage_texturewipe": "Usage: /texturewipe <texture key | player | all> — takes published world textures back.",
-  "ui.tex.saved_local_world_wins": "Saved for you. This world shows its own texture here – you will see yours in other worlds, or when you switch off “Show this world's textures”."
+  "ui.tex.saved_local_world_wins": "Saved for you. This world shows its own texture here – you will see yours in other worlds, or when you switch off “Show this world's textures”.",
+  "srv.place.form_room": "There is not enough room for this form here — every block it spans must be free.",
+  "srv.shape.needs_blocks": "This form spans several blocks — it needs one block of material for each of them.",
+  "srv.shape.multi_to_multi": "Turn this form back into plain blocks first, then make the new form from them."
 }

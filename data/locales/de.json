@@ -4656,5 +4656,8 @@
   "ui.worldopt.world_textures": "Welt-Texturen",
   "ui.worldopt.world_textures_admins": "Admins",
   "ui.cmd.usage_texturewipe": "Benutzung: /texturewipe <Textur-Schlüssel | Spieler | all> — nimmt veröffentlichte Welt-Texturen zurück.",
-  "ui.tex.saved_local_world_wins": "Für dich gespeichert. Diese Welt zeigt hier ihre eigene Textur – deine siehst du in anderen Welten oder wenn du „Texturen dieser Welt anzeigen“ ausschaltest."
+  "ui.tex.saved_local_world_wins": "Für dich gespeichert. Diese Welt zeigt hier ihre eigene Textur – deine siehst du in anderen Welten oder wenn du „Texturen dieser Welt anzeigen“ ausschaltest.",
+  "srv.place.form_room": "Hier ist nicht genug Platz für diese Form – jeder Block, den sie belegt, muss frei sein.",
+  "srv.shape.needs_blocks": "Diese Form geht über mehrere Blöcke – sie braucht für jeden davon einen Block Material.",
+  "srv.shape.multi_to_multi": "Mach aus dieser Form zuerst wieder einfache Blöcke und forme daraus dann die neue Form."
 }

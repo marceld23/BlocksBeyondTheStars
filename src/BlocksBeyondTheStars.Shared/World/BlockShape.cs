@@ -411,4 +411,22 @@ public static class ShapeCode
 
     /// <summary>The descriptor with any paint design stripped (what a mined block's drop keeps).</summary>
     public static int WithoutDesign(int descriptor) => WithDesign(descriptor, 0);
+
+    // --- Cell of a form that spans several blocks (bits 27..30, #1961) ---
+    // Again added on top: the bits were always written as 0, so every block placed before reads "cell 0" —
+    // the anchor, which for a one-block form is the whole form. Bit 31 (the sign) stays clear. Every reader
+    // above masks its own field, so persistence, chunk messages and BlockChanged carry the cell unchanged.
+
+    /// <summary>Largest cell index the field holds.</summary>
+    public const int MaxCellIndex = 0xF;
+
+    /// <summary>Which cell of its form a placed block is (0 = the anchor; always 0 for a one-block form).</summary>
+    public static int CellOf(int descriptor) => (descriptor >> 27) & 0xF;
+
+    /// <summary>Returns the descriptor with its cell index replaced.</summary>
+    public static int WithCell(int descriptor, int cell) => (descriptor & ~(0xF << 27)) | ((cell & 0xF) << 27);
+
+    /// <summary>The descriptor of the form itself — no cell, no paint: what an ITEM carries and what two blocks
+    /// of the same form have in common.</summary>
+    public static int WithoutCell(int descriptor) => WithCell(descriptor, 0);
 }
