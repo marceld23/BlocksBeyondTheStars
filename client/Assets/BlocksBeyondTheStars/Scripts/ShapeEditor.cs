@@ -572,6 +572,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 File.WriteAllText(file, JsonUtility.ToJson(new Entry { name = clean, voxels = voxels }));
+                WebGlStorage.Sync(); // in the browser a write lives in memory until synced (#1179) — no-op elsewhere
             }
             catch (Exception ex)
             {
@@ -623,6 +624,7 @@ namespace BlocksBeyondTheStars.Client
                 if (File.Exists(file))
                 {
                     File.Delete(file);
+                    WebGlStorage.Sync();
                 }
             }
             catch (Exception ex)

@@ -124,6 +124,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
+            WebGlStorage.Sync(); // in the browser a write lives in memory until synced (#1179) — no-op elsewhere
             GameTextures.SetLocal(key, new TextureFrames(clean, fps, TextureLayer.Local));
             return true;
         }
@@ -150,6 +151,7 @@ namespace BlocksBeyondTheStars.Client
                 Debug.LogWarning("[TexturePack] could not remove " + key + ": " + ex.Message);
             }
 
+            WebGlStorage.Sync();
             GameTextures.RemoveLocal(key);
         }
 
@@ -217,6 +219,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
+            WebGlStorage.Sync();
             ClearIconCache();
             IconResolver.ClearCache();
             UiKit.ClearIconCache();
@@ -238,6 +241,7 @@ namespace BlocksBeyondTheStars.Client
                 Debug.LogWarning("[TexturePack] could not remove icon " + name + ": " + ex.Message);
             }
 
+            WebGlStorage.Sync();
             ClearIconCache();
             IconResolver.ClearCache();
             UiKit.ClearIconCache();
