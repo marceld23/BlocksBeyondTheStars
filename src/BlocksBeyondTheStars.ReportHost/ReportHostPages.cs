@@ -40,7 +40,7 @@ public static class ReportHostPages
         }
 
         sb.Append("</select> <select name='category'><option value=''>all categories</option>");
-        foreach (var c in new[] { "feedback", "crash" })
+        foreach (var c in new[] { "feedback", "crash", ReportIngest.TextureCategory })
         {
             sb.Append($"<option value='{c}'{(c == category ? " selected" : "")}>{c}</option>");
         }
@@ -326,8 +326,9 @@ public static class ReportHostPages
     /// <paramref name="replies"/> are ITS replies. Null or <paramref name="r"/> itself = the row owns its thread.</param>
     /// <param name="pair">The rows the status buttons and delete act on (<see cref="PairOf"/>, #1380) — the
     /// page says so when there is more than one. Null = <paramref name="r"/> alone.</param>
-    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null, AdminCsrf? csrf = null, BugReportRecord? threadOwner = null, IReadOnlyList<BugReportRecord>? pair = null)
+    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null, AdminCsrf? csrf = null, BugReportRecord? threadOwner = null, IReadOnlyList<BugReportRecord>? pair = null, IReadOnlyList<AttachmentRecord>? attachments = null)
     {
+        attachments ??= Array.Empty<AttachmentRecord>();
         replies ??= Array.Empty<ReplyRecord>();
         threadOwner ??= r;
         var partners = pair?.Where(p => p.Id != r.Id).ToList() ?? new List<BugReportRecord>();
@@ -360,6 +361,21 @@ public static class ReportHostPages
         }
 
         sb.Append("</table></div>");
+
+        if (attachments.Count > 0)
+        {
+            // A texture submission (#1966): the picture blown up with hard pixels, and every file as a download.
+            sb.Append("<div class='card'><h2>Submitted texture</h2>");
+            foreach (var a in attachments.Where(a => a.Mime == "image/png"))
+            {
+                sb.Append($"<p><img src='/admin/report/{r.Id}/attachment/{a.Index}/view' alt='texture' style='image-rendering:pixelated;height:256px;border:1px solid #456'></p>");
+            }
+
+            sb.Append("<p>");
+            sb.Append(string.Join(" · ", attachments.Select(a =>
+                $"<a href='/admin/report/{r.Id}/attachment/{a.Index}'>{E(a.FileName)}</a> <span class='sub'>({a.Bytes} B)</span>")));
+            sb.Append("</p><p class='hint'>Adopt it with <code>tools/pull_texture_submissions.py</code> + <code>tools/merge_texture.py</code>; set “fixed in version” so the player hears from which release on it ships — a submission without it is deleted after the retention period.</p></div>");
+        }
 
         if (r.ScreenshotFile.Length > 0)
         {

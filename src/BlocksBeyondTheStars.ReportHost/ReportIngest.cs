@@ -41,9 +41,15 @@ public sealed class ParsedReport
 
     public byte[]? ScreenshotBytes;
 
+    /// <summary>The files of a texture submission (#1966), already decoded and capped. Empty for every other kind.</summary>
+    public List<ParsedAttachment> Attachments = new();
+
     /// <summary>File extension for the stored screenshot ("jpg" or "png"), derived from mimeType.</summary>
     public string ScreenshotExtension = "jpg";
 }
+
+/// <summary>One decoded attachment of a texture submission: a safe file name, a whitelisted type, the bytes.</summary>
+public sealed record ParsedAttachment(string FileName, string Mime, byte[] Bytes);
 
 /// <summary>
 /// Parses and validates an incoming bug-report POST body. The wire contract is EXACTLY what the game
@@ -57,6 +63,12 @@ public static class ReportIngest
 {
     /// <summary>Parses <paramref name="body"/>; returns null and an <paramref name="error"/> code
     /// (<c>invalid_json</c>, <c>empty_description</c>) when the payload is unusable.</summary>
+    /// <summary><c>reportJson.reportType</c> of a texture a player painted and submitted from the game (#1966).</summary>
+    public const string TextureSubmissionType = "texture-submission";
+
+    /// <summary>The category of such a submission — a third bucket next to "feedback" and "crash".</summary>
+    public const string TextureCategory = "texture";
+
     public static ParsedReport? Parse(string body, ReportHostConfig config, out string error)
     {
         error = string.Empty;
@@ -103,13 +115,19 @@ public static class ReportIngest
 
             // Triage fields live inside reportJson (see CrashReportWriter): source="server"/"client" and a
             // crash kind. Plain F1 feedback has neither → category "feedback".
+            string reportType = string.Empty;
             if (root.TryGetProperty("reportJson", out var rj) && rj.ValueKind == JsonValueKind.Object)
             {
                 report.Source = Str(rj, "source", 40);
                 report.Kind = Str(rj, "kind", 60);
+                reportType = Str(rj, "reportType", 40);
             }
 
-            report.Category = report.Kind.Length > 0 ? "crash" : "feedback";
+            // A crash kind still wins (that is what the crash pipeline sends); a texture submission gets its own
+            // bucket so it neither drowns in the feedback list nor — as any "kind" used to — lands among the crashes.
+            report.Category = report.Kind.Length > 0 ? "crash"
+                : reportType == TextureSubmissionType ? TextureCategory
+                : "feedback";
 
             // Reply-thread credential (#1327): only a syntactically valid key is kept — anything else is
             // treated as "not sent" so the store derives one from the player id instead.
@@ -120,6 +138,11 @@ public static class ReportIngest
             }
 
             ExtractScreenshot(root, config, report);
+            if (report.Category == TextureCategory)
+            {
+                ExtractAttachments(root, config, report);
+            }
+
             report.ReportJson = WithoutScreenshot(root);
             return report;
         }
@@ -153,6 +176,56 @@ public static class ReportIngest
         report.ScreenshotExtension = Str(shot, "mimeType", 60).ToLowerInvariant() == "image/png" ? "png" : "jpg";
     }
 
+    /// <summary>Decodes the attachments of a texture submission. Like the screenshot, anything off drops that file
+    /// and keeps the report: over the count or size cap, bad base64, a type that is not on the short whitelist. The
+    /// stored name is rebuilt from a fixed pattern — never taken from the client, so no path can be smuggled in.</summary>
+    private static void ExtractAttachments(JsonElement root, ReportHostConfig config, ParsedReport report)
+    {
+        if (!root.TryGetProperty("attachments", out var list) || list.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var item in list.EnumerateArray())
+        {
+            if (report.Attachments.Count >= config.MaxAttachments || item.ValueKind != JsonValueKind.Object)
+            {
+                break;
+            }
+
+            string mime = Str(item, "mimeType", 60).ToLowerInvariant();
+            string extension = mime switch
+            {
+                "image/png" => "png",
+                "application/octet-stream" => "bytes",
+                "application/json" => "json",
+                _ => string.Empty,
+            };
+            string base64 = Str(item, "base64", int.MaxValue);
+            if (extension.Length == 0 || base64.Length == 0 || base64.Length > (config.MaxAttachmentBytes / 3 * 4) + 4)
+            {
+                continue;
+            }
+
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromBase64String(base64);
+            }
+            catch (FormatException)
+            {
+                continue;
+            }
+
+            if (bytes.Length == 0 || bytes.Length > config.MaxAttachmentBytes)
+            {
+                continue;
+            }
+
+            report.Attachments.Add(new ParsedAttachment($"texture{report.Attachments.Count}.{extension}", mime, bytes));
+        }
+    }
+
     /// <summary>Re-serializes the payload without the screenshot node (compact, no indentation).</summary>
     private static string WithoutScreenshot(JsonElement root)
     {
@@ -162,9 +235,9 @@ public static class ReportIngest
             writer.WriteStartObject();
             foreach (var property in root.EnumerateObject())
             {
-                if (!property.NameEquals("screenshot"))
+                if (!property.NameEquals("screenshot") && !property.NameEquals("attachments"))
                 {
-                    property.WriteTo(writer);
+                    property.WriteTo(writer); // the binary nodes never reach the database as base64
                 }
             }
 

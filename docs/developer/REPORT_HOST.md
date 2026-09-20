@@ -24,6 +24,7 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 | `GET /api/reports?since=&status=&category=&source=&limit=&cursor=` | header `x-report-read-key` | Delta-sync list: `{ items, nextCursor, hasMore }`, ascending `createdAt` |
 | `GET /api/reports/{id}` | read key | One report (full, incl. parsed `reportJson`) |
 | `GET /api/reports/{id}/screenshot` | read key | The screenshot image |
+| `GET /api/reports/{id}/attachment/{index}` | read key | One file of a texture submission, as a named download (see *Texture submissions*) |
 | `PATCH /api/reports/{id}` `{"status":"new\|triaged\|waiting_for_player\|player_replied\|done"}` | admin Basic Auth, JSON content type | Triage from scripts/CI — covers the whole report pair (#1380); the answer lists the rows changed as `reportIds` |
 | `DELETE /api/reports/{id}` | admin Basic Auth | Permanent delete of the report and its paired half (incl. screenshots + reply threads) |
 | `POST /api/reports/{id}/replies` `{"text","question":bool,"fixedInVersion"?}` | admin Basic Auth, JSON content type | Developer answer / follow-up question (#1327) — scriptable twin of the detail-page form |
@@ -32,11 +33,13 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 | `POST /api/replies` `{"key","reportId","text"}` | header `x-bugreport-key` | The player's in-game answer to a question (max 3 per report) |
 | `GET /admin`, `/admin/report/{id}` | admin Basic Auth | Server-rendered admin UI: list, filters, detail, screenshot, status buttons, reply thread + form, delete |
 | `POST /admin/report/{id}/reply`, `/status`, `/delete` | admin Basic Auth + `csrf` form field | The detail page's forms (see *Admin CSRF guard* below) |
+| `GET /admin/report/{id}/attachment/{index}`, `…/{index}/view` | admin Basic Auth | The same file for the operator; `/view` serves a PNG inline for the detail page's preview |
 | `GET /admin/export?status=&category=` | admin Basic Auth | One-click JSON file download of everything matching the filters (the UI's "Download JSON" button) |
 | `GET /healthz` | none | Liveness |
 
 List items are camelCase (`id`, `title`, `description`, `email`, `gameVersion`, …, `status`,
-`createdAt` ISO-8601 UTC, `screenshotUrl` or null, `reportJson` as a parsed object). `since` and the
+`createdAt` ISO-8601 UTC, `screenshotUrl` or null, `attachments` — `[{ index, fileName, mimeType, bytes, url }]`,
+empty for everything but a texture submission —, `reportJson` as a parsed object). `since` and the
 keyset `cursor` (`<createdUnix>:<id>`, returned as `nextCursor`) are both exclusive, so a puller that
 stores the last `createdAt`/cursor never re-fetches or skips rows.
 
@@ -54,7 +57,7 @@ $page.items | ForEach-Object { "{0}  {1}  {2}" -f $_.createdAt, $_.category, $_.
 | Variable | Default | Meaning |
 |---|---|---|
 | `BBS_REPORTS_BIND` / `BBS_REPORTS_PORT` | `127.0.0.1` / `31418` | Bind address/port (the Docker image defaults bind to `0.0.0.0`) |
-| `BBS_REPORTS_DATA_DIR` | `reporthost` (`/data` in Docker) | Holds `reports.db` + `screenshots/` |
+| `BBS_REPORTS_DATA_DIR` | `reporthost` (`/data` in Docker) | Holds `reports.db` + `screenshots/` + `attachments/` |
 | `BBS_REPORTS_WRITE_KEY` | *(empty = ingest rejects everything)* | The `x-bugreport-key` clients must present — a spam gate, not a secret (it ships in the client) |
 | `BBS_REPORTS_READ_KEY` | *(empty = read API off)* | Independently rotatable key for pull scripts / CI |
 | `BBS_REPORTS_ADMIN_USER` / `BBS_REPORTS_ADMIN_PASSWORD` | *(empty = admin UI off)* | Basic-Auth credentials for `/admin` and the mutating API |
@@ -62,6 +65,8 @@ $page.items | ForEach-Object { "{0}  {1}  {2}" -f $_.createdAt, $_.category, $_.
 | `BBS_REPORTS_INGEST_PER_MINUTE` | `10` | Per-IP fixed-window rate limit for `POST /api/bugreport` only (`0` = off) |
 | `BBS_REPORTS_REPLY_PER_MINUTE` | `30` | Per-**reply-key** fixed-window rate limit for the player reply routes `/api/replies*` (`0` = off) — separate from ingest on purpose (#1352): every install polls for answers, so a LAN class behind one NAT must never spend the report budget on polls |
 | `BBS_REPORTS_RETENTION_DAYS` | `0` (keep forever) | Prune reports + screenshots after N days — reports can carry an e-mail, so this is also a privacy lever |
+| `BBS_REPORTS_TEXTURE_RETENTION_DAYS` | `365` | Delete texture submissions that were **not adopted** after N days (`0` = keep) — the promise the submit dialog and the privacy page make |
+| `BBS_REPORTS_MAX_ATTACHMENT_BYTES` | `400000` | Size cap per attachment of a texture submission (at most 4 files) |
 | `BBS_REPORTS_TRUST_PROXY` | `false` | Rate-limit on the first `X-Forwarded-For` entry — only behind a trusted proxy |
 
 Everything fails closed: with no keys configured the service stores nothing, serves nothing and admin
@@ -70,8 +75,41 @@ while the report is kept (mirroring the client), screenshots are stored as files
 database), `429` on rate limit, `413` past the body cap.
 
 Incoming reports are bucketed at ingest: `category` = `crash` when the payload's `reportJson.kind` is
-set (as `CrashReportWriter` does), otherwise `feedback`; `source`/`kind` are lifted out of
+set (as `CrashReportWriter` does), `texture` when `reportJson.reportType` is `texture-submission`,
+otherwise `feedback`; `source`/`kind` are lifted out of
 `reportJson` for filtering.
+
+## Texture submissions (#1966)
+
+The texture editor's **Submit to the developers** button sends an ordinary report whose `reportJson` carries
+
+```json
+{ "reportType": "texture-submission",
+  "texture": { "key": "campfire", "kind": "tile", "frames": 1, "fps": 0, "nickname": "Screelit",
+               "consent": { "self": true, "grant": true, "age": true, "textVersion": 1 } } }
+```
+
+and, at the payload root next to `screenshot`, `attachments: [{ fileName, mimeType, base64 }]` — the picture
+as a PNG and the texture in the game's raw tile format.
+
+- **Category `texture`** — its own filter in the admin list, so submissions neither drown in the feedback nor
+  count as crashes.
+- **Attachments are files**, like screenshots: `attachments/<reportId>_<index>.<ext>`, a row each in
+  `report_attachment`. Only `image/png`, `application/octet-stream` and `application/json` are stored; the
+  file name is rebuilt by the server (`texture<index>.<ext>`) and never taken from the client. A file over the
+  cap, of another type or with broken base64 is dropped and the report kept. Only a texture submission may carry
+  attachments at all. The base64 never reaches the database.
+- **Consent travels with the row.** The three checkboxes of the submit dialog (painted it myself / the developers
+  may use, change and distribute it in every version and on every platform / 16 or older, or the parents
+  agreed) and the version of the text the player saw stay in `reportJson`. `tools/pull_texture_submissions.py`
+  refuses to unpack a submission without all three.
+- **Retention.** A submission that was not adopted is deleted after `BBS_REPORTS_TEXTURE_RETENTION_DAYS`
+  (default 365) — row, reply thread and files. *Adopted* means the operator set **fixed in version** (the
+  release that ships the texture); that also tells the player in the game. Deleting a report by hand removes
+  its files as well.
+- **Adopting one:** `python tools/pull_texture_submissions.py --fetch` unpacks each submission into the
+  bundle layout "Export for the game" writes; `python tools/merge_texture.py <bundle>` copies it into the
+  game. Credit the painter in `NOTICES.md` under the **nickname** they gave, never a real name.
 
 ## Reply threads — answering players in-game (#1327)
 
@@ -241,7 +279,8 @@ names.
 | SQLite + screenshot store | `src/BlocksBeyondTheStars.ReportHost/ReportStore.cs` |
 | Admin pages (server-rendered) | `src/BlocksBeyondTheStars.ReportHost/ReportHostPages.cs` |
 | Rate limiter / Basic Auth / admin CSRF token | `IngestRateLimiter.cs` / `BasicAuth.cs` / `AdminCsrf.cs` |
-| Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` (store, parsing, pages) · `ReportHostHttpTests.cs` (the real app over HTTP on a loopback port: reply routes, limiter split) · `ReportHostReplyLifecycleTests.cs` (`gone` marker; admin CSRF + JSON gate on a second host with the admin UI on) |
+| Texture submissions: pull + adopt | `tools/pull_texture_submissions.py` → `tools/merge_texture.py` |
+| Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` (store, parsing, pages) · `ReportHostTextureSubmissionTests.cs` (category, attachments, retention, download routes) · `ReportHostHttpTests.cs` (the real app over HTTP on a loopback port: reply routes, limiter split) · `ReportHostReplyLifecycleTests.cs` (`gone` marker; admin CSRF + JSON gate on a second host with the admin UI on) |
 | Image / compose | `Dockerfile.reports` / `docker-compose.reports.yml` |
 
 The admin pages HTML-encode every stored string — report content is hostile input rendered in the
