@@ -83,18 +83,23 @@ namespace BlocksBeyondTheStars.Client
         /// projection, point-scaled up to the tile resolution.</summary>
         private static Texture2D BuildFromVoxels(Texture2D atlasTex, ushort tileId, string voxels)
         {
-            var mask = CustomShape.Silhouette(voxels, out int grid);
-            if (grid == 0)
+            // The WHOLE form (#1961): a wardrobe two blocks high reads as a tall shape in the slot, centred and
+            // scaled to fit, instead of as its bottom block.
+            var mask = CustomShape.SilhouetteOfForm(voxels, out int columns, out int rows);
+            if (columns == 0 || rows == 0)
             {
                 return null;
             }
 
+            int side = Mathf.Max(columns, rows);
+            float padX = (side - columns) * 0.5f, padY = (side - rows) * 0.5f;
+
             // The voxel grid has y UP; the icon mask is sampled with v up as well, so rows map straight across.
             return BuildMasked(atlasTex, tileId, (u, v) =>
             {
-                int gx = Mathf.Clamp((int)(u * grid), 0, grid - 1);
-                int gy = Mathf.Clamp((int)(v * grid), 0, grid - 1);
-                return mask[gy * grid + gx];
+                int gx = Mathf.FloorToInt((u * side) - padX);
+                int gy = Mathf.FloorToInt((v * side) - padY);
+                return gx >= 0 && gy >= 0 && gx < columns && gy < rows && mask[(gy * columns) + gx];
             });
         }
 

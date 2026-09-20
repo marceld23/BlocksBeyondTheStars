@@ -21,22 +21,27 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddLogo(root, 360f, 80f, 800f, 96f, shell.L("ui.editors.title"), 60);
             UiKit.AddText(root, 364f, 184f, 900f, 26f, shell.L("ui.editors.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
-            const float bx = 360f, bw = 520f, bh = 58f, gap = 66f;
+            // Seven tools since the texture editor (#1955) — a slightly tighter rhythm keeps Back on the screen.
+            const float bx = 360f, bw = 520f, bh = 54f, gap = 60f;
 
             // Group 1 — in-game creator tools (their output flows into your own game/worlds).
-            float y = 244f;
+            float y = 212f; // nine tools since "My tools" (#1963)
             UiKit.AddText(root, bx, y, bw, 24f, shell.L("ui.editors.group.creator"), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 30f;
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.ship_editor"), shell.OpenShipEditor, "btn_singleplayer"); y += gap;
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.avatar_editor"), shell.OpenAvatarEditor, "btn_singleplayer"); y += gap;
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.station_editor"), shell.OpenStationEditor, "btn_singleplayer"); y += gap;
-            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.settlement_editor"), shell.OpenSettlementEditor, "btn_singleplayer"); y += gap + 14f;
+            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.settlement_editor"), shell.OpenSettlementEditor, "btn_singleplayer"); y += gap;
+            // The texture editor works without a rebuild ("use for me"), so it belongs with the creator tools.
+            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.texture_editor"), shell.OpenTextureEditor, "btn_singleplayer"); y += gap;
+            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.form_editor"), shell.OpenFormEditor, "btn_singleplayer"); y += gap;
+            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.tool_looks"), shell.OpenToolLookEditor, "btn_singleplayer"); y += gap + 10f;
 
             // Group 2 — developer content tools (need a merge + rebuild; not applied to your current game).
             UiKit.AddText(root, bx, y, bw, 24f, shell.L("ui.editors.group.dev"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 30f;
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.content_editor"), shell.OpenContentEditor, "btn_settings"); y += gap;
-            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.material_editor"), shell.OpenMaterialEditor, "btn_settings"); y += gap + 14f;
+            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.material_editor"), shell.OpenMaterialEditor, "btn_settings"); y += gap + 10f;
 
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.back"), () => shell.GoTo(ShellPhase.MainMenu), "btn_exit");
 

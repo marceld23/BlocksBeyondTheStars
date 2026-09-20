@@ -327,6 +327,7 @@ public sealed partial class GameServer
         LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
         LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
         LoadCustomShapes();   // …and the player-designed form registry (shaped blocks/items reference it by index)
+        LoadWorldTextures();  // …and the textures its admins published for everyone (#1958)
         LoadAllAlliances();   // restore the player alliance graph server-wide (shared station/base access)
         LoadAllCrews();       // restore the crews (#1216) — membership implies alliance while it lasts
         LoadStoryState();     // restore the per-save story progress + active story pack (server-wide, P0)
@@ -605,6 +606,7 @@ public sealed partial class GameServer
         resident.BlockSet += cell => MarkNpcPathsDirty(npcWorld, cell); // #1866: a wall built across a walking NPC's route
         var farWorld = world;
         resident.BlockSet += cell => MarkFarTileDirty(farWorld, cell); // #1821: a far view sees builds change
+        resident.ShapedBlockReplaced += (cell, was, wasShape) => OnShapedBlockReplaced(resident, cell, was, wasShape); // #1961: a form over several blocks falls as one piece
         LoadContainers(); // every world, void ones included: a station's placed crates persist like a planet's (#1562)
 
         // A void world (an orbital station) has no terrain, so it gets none of the OTHER planet-surface
@@ -1616,6 +1618,7 @@ public sealed partial class GameServer
             Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);
             Guard("TickShipAi", deltaSeconds, TickShipAi); // VEGA advisor hints + memory-fragment redemption
             Guard("StreamChunks", StreamChunks);
+            Guard("StreamWorldTextures", StreamWorldTextures); // #1958: one page of the texture list per client per tick
             Guard("ServeFarTiles", ServeFarTiles); // #1871: far-terrain tile builds under a per-tick budget
             Guard("FlushEntityLists", FlushEntityLists); // #1530: one list per type + one player state per session per tick
             if (sweepDue)
@@ -3484,9 +3487,12 @@ public sealed partial class GameServer
             case SetAppearanceIntent appearance: HandleSetAppearance(session, appearance); break;
             case SetFaceIntent face: HandleSetFace(session, face); break;
             case SetBodyPaintIntent bodyPaint: HandleSetBodyPaint(session, bodyPaint); break;
+            case SetToolLookIntent toolLook: HandleSetToolLook(session, toolLook); break;
             case PaintBlockIntent paint: HandlePaintBlock(session, paint); break;
             case PaintCraftIntent paintCraft: HandlePaintCraft(session, paintCraft); break;
             case CustomShapeCraftIntent form: HandleCustomShapeCraft(session, form); break;
+            case PublishWorldTextureIntent publishTexture: HandlePublishWorldTexture(session, publishTexture); break;
+            case RemoveWorldTextureIntent removeTexture: HandleRemoveWorldTexture(session, removeTexture); break;
             case CraftShipIntent craftShip: HandleCraftShip(session, craftShip); break;
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
@@ -3858,6 +3864,7 @@ public sealed partial class GameServer
         SyncAppearance(session);        // custom faces + body paintings, BOTH ways (#982)
         SendPaintDesigns(session);      // paint-design registry — before any chunk with painted blocks can arrive
         SendCustomShapes(session);      // …and the form registry, for the same reason (#843)
+        QueueWorldTextures(session);    // #1958: the world's textures follow in pages, one per tick
         ShipAiOnJoin(session); // boot VEGA: onboarding intro / veteran skip / resume objective
         RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: quit on a station → back on it
 
@@ -4233,6 +4240,16 @@ public sealed partial class GameServer
         {
             Serve(session);
             HandleShapeCraft(session, new ShapeCraftIntent { SourceItemKey = sourceItemKey, Shape = shape, Count = count });
+        }
+    }
+
+    /// <summary>Runs the player-designed form craft for a player (test/util entrypoint, like <see cref="ShapeCraft"/>).</summary>
+    public void CustomShapeCraft(string playerId, string sourceItemKey, string voxels, string name = "", int count = 1)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            Serve(session);
+            HandleCustomShapeCraft(session, new CustomShapeCraftIntent { SourceItemKey = sourceItemKey, Voxels = voxels, Name = name, Count = count });
         }
     }
 
@@ -4837,30 +4854,7 @@ public sealed partial class GameServer
         }
 
         foot = WorldConstants.CanonicalBlock(new Vector3i(head.X + dx, head.Y, head.Z + dz), _world.Circumference);
-        var existing = _world.GetBlock(foot);
-        if (!existing.IsAir && !IsFluid(existing.Value))
-        {
-            return false;
-        }
-
-        var feet = session.State.Position;
-        int fx = (int)System.Math.Floor(feet.X), fy = (int)System.Math.Floor(feet.Y), fz = (int)System.Math.Floor(feet.Z);
-        if (foot.X == fx && foot.Z == fz && foot.Y == fy + 1)
-        {
-            return false;
-        }
-
-        if (!WithinReach(session.State, foot)
-            || (!session.State.IsAdmin && IsOnLandingPad(foot))
-            || IsStationBlock(foot)
-            || IsFactoryProtected(foot, session.State.PlayerId, session.State.IsAdmin)
-            || IsBaseProtected(foot, session.State.PlayerId, session.State.IsAdmin))
-        {
-            return false;
-        }
-
-        var footF = new Vector3f(foot.X, foot.Y, foot.Z);
-        return !ShipInteriorContains(footF) && !ConstructionContains(footF);
+        return IsFreePartnerCell(session, foot); // the same checks a multi-cell form's sibling cells get (#1961)
     }
 
     /// <summary>
@@ -5109,6 +5103,26 @@ public sealed partial class GameServer
             bedFoot = foot;
         }
 
+        // A player form over several blocks (#1961): like the bed, every further cell must be free and allowed
+        // BEFORE the item is consumed — a wardrobe under a low ceiling is refused with a reason, not cut in half.
+        // Such a form turns but never tips, so its descriptor is settled here already (yaw from the rotate key
+        // or the player's facing, up-face +Y).
+        List<(Vector3i Pos, int Cell)>? formSiblings = null;
+        int multiCellDescriptor = 0;
+        if (blockDef.Shapeable && ShapeCode.IsCustomShape(ItemKey.Shape(place.ItemKey))
+            && MaterialUnitsOfShape(ItemKey.Shape(place.ItemKey)) > 1)
+        {
+            int formYaw = place.Yaw >= 0 && place.Yaw <= 3
+                ? place.Yaw
+                : ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
+            multiCellDescriptor = ShapeCode.Pack(ItemKey.Shape(place.ItemKey), formYaw, ShapeCode.UpPlusY);
+            if (!TryMultiCellSiblings(session, pos, multiCellDescriptor, out formSiblings))
+            {
+                Reject(session, "place", "@srv.place.form_room");
+                return;
+            }
+        }
+
         // Creative mode and admin instant-build place without consuming materials.
         bool free = !Rules.CraftingCostsMaterialsFor(session.State.ModeOverride) || session.State.InstantBuild;
         var pool = new MaterialPool(_content, session.State, _ship);
@@ -5162,7 +5176,9 @@ public sealed partial class GameServer
                 // shape auto-orients so its base rests on the surface it was built against (floor → +Y, i.e.
                 // unchanged; walls/ceiling tilt it). up-face × yaw give the full 24 orientations.
                 int upFace = ShapeCode.IsValidUpFace(place.UpFace) ? place.UpFace : DeriveShapeUpFace(pos);
-                placeShape = ShapeCode.Pack(shapeIndex, facing, upFace);
+                placeShape = multiCellDescriptor != 0
+                    ? multiCellDescriptor // the footprint was checked for exactly this yaw, upright
+                    : ShapeCode.Pack(shapeIndex, facing, upFace);
             }
         }
 
@@ -5193,6 +5209,11 @@ public sealed partial class GameServer
 
         _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape, session.State.PlayerId);
         WriteBackStationCell(pos, blockDef.NumericId, placeTint, placeGlow, placeShape); // #1481: an interior edit is part of the station's build from now on
+        if (formSiblings is { Count: > 0 })
+        {
+            StampMultiCellSiblings(session, blockDef.NumericId, placeTint, placeGlow, placeShape, formSiblings); // #1961
+        }
+
         if (bedFoot is { } footCell)
         {
             // The foot half (#1846): the same block with the partner form and the head's yaw, written, mirrored
@@ -5585,6 +5606,18 @@ public sealed partial class GameServer
         string output = ItemKey.Compose(baseKey, ItemKey.Tint(sourceItemKey), ItemKey.Glow(sourceItemKey),
             shape, ItemKey.Design(sourceItemKey));
 
+        // A form over several blocks (#1961) is made from as many blocks as it has cells — and gives them back.
+        // `count` is how many SOURCE items the player offers: 10 planks make five two-cell wardrobes; one
+        // wardrobe turned back into cubes makes two planks. Going from one big form straight to another would
+        // leave remainders nobody asked for, so that takes the detour over plain blocks.
+        int unitsIn = MaterialUnitsOfShape(ItemKey.Shape(sourceItemKey));
+        int unitsOut = MaterialUnitsOfShape(shape);
+        if ((unitsIn > 1 || unitsOut > 1) && baseKey != "shape_stencil") // a stencil carries the design, not the material
+        {
+            ApplyMultiCellExchange(session, sourceItemKey, output, count, unitsIn, unitsOut, shape, tag, slot);
+            return;
+        }
+
         // Creative mode: no material cost — just produce the shaped material.
         if (!Rules.CraftingCostsMaterialsFor(session.State.ModeOverride))
         {
@@ -5621,6 +5654,74 @@ public sealed partial class GameServer
         WarnIfPoolOverflowed(session, pool); // #600: same partial-stack trap as dyeing
         ShipAiOnCraft(session);
         if (shape != 0) RevealShapeAnomalyMemory(session); // forming a non-cube → VEGA's "why we built blocky" memory
+    }
+
+    /// <summary>The N:1 / 1:N branch of <see cref="ApplyShapeExchange"/> for forms over several blocks (#1961).
+    /// Same guards as the 1:1 path: nothing is consumed unless the result fits.</summary>
+    private void ApplyMultiCellExchange(PlayerSession session, string sourceItemKey, string output, int offered,
+        int unitsIn, int unitsOut, int shape, string tag, int slot)
+    {
+        if (unitsIn > 1 && unitsOut > 1)
+        {
+            CraftFail(session, tag, "@srv.shape.multi_to_multi");
+            return;
+        }
+
+        int consumed, produced;
+        if (unitsOut > 1)
+        {
+            // "Make one" from the crafting menu arrives as an offer of ONE item — for a form over N blocks that
+            // means N of them. A whole stack offered from the hotbar becomes as many forms as it holds.
+            offered = System.Math.Max(offered, unitsOut);
+            produced = offered / unitsOut;
+            consumed = produced * unitsOut;
+        }
+        else
+        {
+            consumed = offered;
+            produced = offered * unitsIn;
+        }
+
+        var pool = new MaterialPool(_content, session.State, _ship);
+        var outputs = new[] { new ItemAmount(output, produced) };
+        if (!Rules.CraftingCostsMaterialsFor(session.State.ModeOverride))
+        {
+            // Creative / Sandbox: free, but the result still has to fit (#1937).
+            if (!pool.CanFit(outputs))
+            {
+                CraftFail(session, tag, "@inventory_full");
+                return;
+            }
+
+            AddCraftOutput(session, pool, output, produced, slot);
+        }
+        else
+        {
+            var inputs = new List<ItemAmount> { new ItemAmount(sourceItemKey, consumed) };
+            if (!pool.Has(inputs))
+            {
+                CraftFail(session, tag, unitsOut > 1 ? "@srv.shape.needs_blocks" : "@srv.craft.missing_material");
+                return;
+            }
+
+            if (!pool.CanFitAfterRemoving(inputs, outputs))
+            {
+                CraftFail(session, tag, "@inventory_full");
+                return;
+            }
+
+            pool.Remove(inputs);
+            AddCraftOutput(session, pool, output, produced, slot);
+            ShipAiOnCraft(session);
+        }
+
+        Send(session, new CraftResult { Success = true, RecipeKey = tag });
+        SendInventory(session);
+        WarnIfPoolOverflowed(session, pool);
+        if (shape != 0)
+        {
+            RevealShapeAnomalyMemory(session);
+        }
     }
 
     /// <summary>Fraction of a crafted item's recipe inputs recovered when it is disassembled.</summary>
@@ -5924,6 +6025,10 @@ public sealed partial class GameServer
 
             case "paintwipe":
                 AdminPaintWipe(session, cmd.StringArg);
+                return;
+
+            case "texturewipe": // #1958: world texture moderation — the role is the gate, like the two above
+                AdminWorldTextureWipe(session, cmd.StringArg);
                 return;
 
             case "where":
@@ -6474,6 +6579,21 @@ public sealed partial class GameServer
             return;
         }
 
+        // World textures (#1958): "/reporttexture <key>" — any player may flag one.
+        if (text.StartsWith("/reporttexture", System.StringComparison.OrdinalIgnoreCase)
+            && (text.Length == 14 || text[14] == ' '))
+        {
+            int reportNow = System.Environment.TickCount;
+            if (reportNow - session.LastChatTick < 700)
+            {
+                return; // rate limit
+            }
+
+            session.LastChatTick = reportNow;
+            HandleWorldTextureReport(session, text.Length > 14 ? text.Substring(15) : string.Empty);
+            return;
+        }
+
         // The same for player-designed forms (#843) — geometry can be just as rude as a painting.
         if (text.Equals("/reportshape", System.StringComparison.OrdinalIgnoreCase))
         {
@@ -6865,6 +6985,7 @@ public sealed partial class GameServer
             InstantTravel = r.InstantTravel,
             AutoAim = r.AutoAim,
             StarterTeleporter = r.StarterTeleporter,
+            WorldTextures = r.WorldTextures ? "Admins" : "Off",
             FrontierDanger = r.FrontierDanger,
             BaseVisitors = r.BaseVisitors,
             VoiceChatEnabled = _config.VoiceChatEnabled,
@@ -6936,6 +7057,12 @@ public sealed partial class GameServer
             Rules.FrontierDanger = intent.FrontierDanger.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
 
+        bool worldTexturesBefore = Rules.WorldTextures;
+        if (!string.IsNullOrEmpty(intent.WorldTextures))
+        {
+            Rules.WorldTextures = intent.WorldTextures.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
+
         if (!string.IsNullOrEmpty(intent.BaseVisitors))
         {
             Rules.BaseVisitors = intent.BaseVisitors.Equals("On", System.StringComparison.OrdinalIgnoreCase);
@@ -6951,6 +7078,11 @@ public sealed partial class GameServer
                 SendRules(s);
                 if (GrantStarterTeleporter(s)) { SendInventory(s); } // #1056: flipping the rule on hands the device to everyone online now
             }
+        }
+
+        if (worldTexturesBefore != Rules.WorldTextures)
+        {
+            ResendWorldTexturesToAll(); // #1958: switched off → every client drops them; on → they come back
         }
 
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +

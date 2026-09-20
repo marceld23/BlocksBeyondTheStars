@@ -130,11 +130,8 @@ namespace BlocksBeyondTheStars.Client
         // Gamepad (#1198): the paint canvas has no pointer, so the pad drives a CELL cursor over it.
         // false = the tool panel owns the sticks (UiNav), true = the canvas does. Panel first, so a pad
         // player picks a colour before drawing.
-        private bool _padCanvas;
-        private int _padCellX, _padCellY;   // cursor position in VISIBLE-canvas cell coords
-        private RectTransform _padCursor;   // outline drawn over that cell
-        private float _padStepAt;           // repeat gate, 0 = stick at rest
-        private const float PadStepFirst = 0.30f, PadStepRepeat = 0.06f;
+        // The mode swap, the cursor walk and the cursor outline live in the shared PadCanvasFocus (#1954).
+        private PadCanvasFocus _padFocus;
         private int _regionCols, _regionRows;
         private int _activeRegion;
         private Text _activeRegionLabel;
@@ -285,18 +282,12 @@ namespace BlocksBeyondTheStars.Client
             // cursor (#1198). Everything after the split — eyedropper, fill, stroke — is shared, so a tool
             // added here keeps working on both.
             bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
-            UpdatePadFocus(pad);
+            // Before the idle bail-out below, or the cursor could only move while painting.
+            bool padCanvas = UpdatePadFocus(pad);
             if (pad && InputMap.PadDown(PadButton.Rb))
             {
                 Undo(); // RB is free while this editor is up: the tab screen behind stands its shoulders down
             }
-            bool padCanvas = pad && _padCanvas;
-            if (padCanvas)
-            {
-                StepPadCursor(); // before the idle bail-out below, or the cursor could only move while painting
-            }
-
-            RefreshPadCursor(padCanvas);
 
             bool left, right, leftDown, rightDown, middleDown, altHeld, fillAll;
             int gx, gy;
@@ -316,7 +307,7 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                CellToGrid(_padCellX, _padCellY, out gx, out gy);
+                CellToGrid(_padFocus.CellX, _padFocus.CellY, out gx, out gy);
             }
             else
             {
@@ -421,40 +412,22 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Start swaps the pad between the tool panel and the paint canvas; B leaves the canvas.
-        /// One stick cannot walk a toolbar and steer a brush at once, so exactly one of the two owns it.</summary>
-        private void UpdatePadFocus(bool pad)
+        /// One stick cannot walk a toolbar and steer a brush at once, so exactly one of the two owns it. The
+        /// rules and the cursor are the shared <see cref="PadCanvasFocus"/> (#1954); this editor only picks the
+        /// hint wording. Returns true while the pad owns the canvas.</summary>
+        private bool UpdatePadFocus(bool pad)
         {
-            if (_ui == null)
+            if (_ui == null || _canvasRt == null)
             {
-                return;
+                return false;
             }
 
-            if (!pad)
-            {
-                UiNav.SetSuspended(_ui.gameObject, false); // mouse in hand — the tools are always live
-                SetHint(HintKeyNow());                     // …and the hint goes back to the mouse wording
-                return;
-            }
-
-            bool was = _padCanvas;
-            if (InputMap.Down(InputAction.UiMenu))
-            {
-                _padCanvas = !_padCanvas;
-            }
-            else if (_padCanvas && InputMap.Down(InputAction.UiCancel))
-            {
-                _padCanvas = false;
-            }
-
-            if (_padCanvas && !was)
-            {
-                _padCellX = CellsX / 2; // enter at the middle of the canvas, not in a corner
-                _padCellY = CellsY / 2;
-                _padStepAt = 0f;
-            }
-
-            UiNav.SetSuspended(_ui.gameObject, _padCanvas);
-            SetHint(_padCanvas ? "ui.face.hint_pad" : "ui.face.hint_pad_panel");
+            _padFocus ??= new PadCanvasFocus(_ui.gameObject, _canvasRt);
+            _padFocus.EnsureCanvas(_canvasRt); // the subject area may have been rebuilt since the last frame
+            _padFocus.SetCells(CellsX, CellsY);
+            bool canvas = _padFocus.Tick(pad);
+            SetHint(!pad ? HintKeyNow() : (canvas ? "ui.face.hint_pad" : "ui.face.hint_pad_panel"));
+            return canvas;
         }
 
         /// <summary>Swaps the hint line under the tools, which tells the player which controls are live right
@@ -473,69 +446,6 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Walks the cell cursor with the left stick, edge- then repeat-gated so a held stick steps at
-        /// a readable rate instead of crossing 32 cells in a frame — the same feel as the d-pad hotbar cycle.</summary>
-        private void StepPadCursor()
-        {
-            float sx = InputMap.PadStickX(), sy = InputMap.PadStickY();
-            bool pushed = Mathf.Abs(sx) >= 0.5f || Mathf.Abs(sy) >= 0.5f;
-            if (!pushed)
-            {
-                _padStepAt = 0f; // released → the next push steps immediately
-                return;
-            }
-
-            if (_padStepAt > 0f && Time.unscaledTime < _padStepAt)
-            {
-                return;
-            }
-
-            _padStepAt = Time.unscaledTime + (_padStepAt <= 0f ? PadStepFirst : PadStepRepeat);
-            if (Mathf.Abs(sx) >= 0.5f)
-            {
-                _padCellX = Mathf.Clamp(_padCellX + (sx > 0f ? 1 : -1), 0, CellsX - 1);
-            }
-
-            if (Mathf.Abs(sy) >= 0.5f)
-            {
-                _padCellY = Mathf.Clamp(_padCellY + (sy > 0f ? -1 : 1), 0, CellsY - 1); // grid row 0 is the TOP
-            }
-        }
-
-        /// <summary>Draws the cursor outline over the cell the pad is on (and hides it for the mouse, whose
-        /// pointer already shows where paint would land).</summary>
-        private void RefreshPadCursor(bool show)
-        {
-            if (!show)
-            {
-                if (_padCursor != null && _padCursor.gameObject.activeSelf)
-                {
-                    _padCursor.gameObject.SetActive(false);
-                }
-
-                return;
-            }
-
-            if (_padCursor == null)
-            {
-                var go = new GameObject("PadCursor", typeof(RectTransform));
-                go.transform.SetParent(_canvasRt, false);
-                var img = go.AddComponent<Image>();
-                img.sprite = UiKit.ButtonSprite; // sliced outline — reads over any pixel colour underneath
-                img.type = Image.Type.Sliced;
-                img.color = new Color(0.45f, 0.92f, 1f, 0.75f);
-                img.raycastTarget = false;
-                _padCursor = (RectTransform)go.transform;
-            }
-
-            if (!_padCursor.gameObject.activeSelf)
-            {
-                _padCursor.gameObject.SetActive(true);
-            }
-
-            float cw = _canvasRt.rect.width / CellsX, ch = _canvasRt.rect.height / CellsY;
-            UiKit.Place(_padCursor.gameObject, _padCellX * cw, _padCellY * ch, cw, ch);
-        }
 
         /// <summary>Sets one pixel (grid + display texture) and applies it. Grid row 0 is the TOP; the texture's
         /// row 0 is the BOTTOM, so the display flips vertically.</summary>
@@ -1058,7 +968,7 @@ namespace BlocksBeyondTheStars.Client
 
             _regionFrames = null;
             _activeRegionLabel = null;
-            _padCursor = null; // lived under the old canvas rect, which this rebuild destroys
+            // The pad cursor lived under the old canvas rect; PadCanvasFocus.EnsureCanvas re-homes it next frame (#1954).
 
             // Paint surface (point-filtered → crisp big pixels), always the full 512×512 — in region mode
             // it crops the shared texture to the active 32×32 face via uvRect, so every face paints at the

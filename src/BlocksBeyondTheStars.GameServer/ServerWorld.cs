@@ -74,6 +74,13 @@ public sealed class ServerWorld
     /// a base's box with what its players build, and must not grow it with fluid flow, fire or regrowth.</summary>
     public event System.Action<Vector3i>? PlayerBlockSet;
 
+    /// <summary>Raised after a <see cref="SetBlock"/> that took a SHAPED block away (#1961): the cell held a
+    /// non-cube form and now holds another block or another form. Carries what was there — the one thing
+    /// <see cref="BlockSet"/> cannot tell. A form that spans several blocks listens here to fall as one piece,
+    /// whoever removed the cell: the mining beam, fire, a fluid, falling sand, a bomb, a stamped structure.
+    /// Repainting or re-dyeing a cell (same block, same form) does not raise it.</summary>
+    public event System.Action<Vector3i, BlockId, int>? ShapedBlockReplaced;
+
     /// <summary>Whether a chunk is currently resident in the cache (canonicalized like the cache keys). For
     /// tests/diagnostics — e.g. asserting far-chunk eviction by <see cref="UnloadFarChunks"/>.</summary>
     public bool IsChunkLoaded(ChunkCoord coord) => _loaded.ContainsKey(WorldConstants.CanonicalChunk(coord, Circumference));
@@ -188,6 +195,7 @@ public sealed class ServerWorld
         var chunk = GetOrLoadChunk(WorldConstants.WorldToChunk(world));
         var local = WorldConstants.WorldToLocal(world);
         var previous = chunk.Get(local.X, local.Y, local.Z);
+        int previousShape = ShapedBlockReplaced is null ? 0 : chunk.GetShape(local.X, local.Y, local.Z);
         chunk.Set(local.X, local.Y, local.Z, block); // clears any old modifier/shape when set to air
         chunk.SetModifier(local.X, local.Y, local.Z, tint, glow);
         chunk.SetShape(local.X, local.Y, local.Z, shape);
@@ -196,6 +204,12 @@ public sealed class ServerWorld
         if (!string.IsNullOrEmpty(owner))
         {
             PlayerBlockSet?.Invoke(world);
+        }
+
+        if (previousShape != 0
+            && (previous.Value != block.Value || ShapeCode.WithoutDesign(previousShape) != ShapeCode.WithoutDesign(shape)))
+        {
+            ShapedBlockReplaced?.Invoke(world, previous, previousShape);
         }
 
         return previous;

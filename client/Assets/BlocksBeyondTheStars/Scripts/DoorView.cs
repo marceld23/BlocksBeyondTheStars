@@ -38,6 +38,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Mirrored;          // hinge: the leaf hangs on the RIGHT jamb — the right half of a double door (#1729)
             public DoorPairs.Sides Partners; // hinge: the local sides sharing a jamb with a partner leaf — no post there (#1852)
             public bool Open;
+            public bool Posed;             // its panels stand where Anim says — a resting door is not re-posed every frame
             public float Anim;             // 0 closed → 1 open, eased toward Open
             public Transform Field;        // energy door: the translucent blue field shown in the open doorway
             public Material FieldMat;      // its material (alpha fades in with Anim) — item 35
@@ -62,8 +63,15 @@ namespace BlocksBeyondTheStars.Client
                 d.Go.transform.position = Game != null ? Game.ScenePos(d.World.x, d.World.y, d.World.z) : d.World;
 
                 float target = d.Open ? 1f : 0f;
+                float before = d.Anim;
                 d.Anim = Mathf.MoveTowards(d.Anim, target, Time.deltaTime * AnimSpeed);
-                Animate(d);
+                // Only a MOVING door is posed (#1956): a city has hundreds of doors and nearly all of them rest.
+                // The one exception is an open energy door, whose field shimmers every frame.
+                if (!d.Posed || d.Anim != before || (d.FieldMat != null && d.Anim > 0f))
+                {
+                    Animate(d);
+                    d.Posed = true;
+                }
 
                 // The collider blocks passage until the door is mostly open (so you can't slip through a crack).
                 if (d.Collider != null)
@@ -252,10 +260,10 @@ namespace BlocksBeyondTheStars.Client
             bool hinge = IsHinged(kind);
             bool wood = kind == "wood";
             // The wooden door reads as lighter, warmer planks so it is telling apart from the metal hinge door.
-            Color panelCol = wood ? new Color(0.58f, 0.40f, 0.22f)
-                : hinge ? new Color(0.45f, 0.30f, 0.16f) : new Color(0.62f, 0.69f, 0.78f);
-            Color trimCol = wood ? new Color(0.38f, 0.25f, 0.13f)
-                : hinge ? new Color(0.30f, 0.19f, 0.10f) : new Color(0.30f, 0.85f, 0.95f);
+            // Leaf and trim are texturable parts (#1956): without a texture under their key they keep the colour
+            // they always had; with one (the player's pack, or the world's) every door of the kind shows it.
+            var panelCol = wood ? PropTextures.DoorWoodPanel : hinge ? PropTextures.DoorHingePanel : PropTextures.DoorSlidePanel;
+            var trimCol = wood ? PropTextures.DoorWoodTrim : hinge ? PropTextures.DoorHingeTrim : PropTextures.DoorSlideTrim;
 
             Transform a, b = null;
             if (hinge)
@@ -350,7 +358,7 @@ namespace BlocksBeyondTheStars.Client
             return mat;
         }
 
-        private Transform MakePanel(Transform parent, Color body, Color trim, float panelWidth)
+        private Transform MakePanel(Transform parent, PropTextures.Part body, PropTextures.Part trim, float panelWidth)
         {
             var holder = new GameObject("Panel").transform;
             holder.SetParent(parent, false);
@@ -361,7 +369,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A single panel cube with a thin emissive trim strip (the sci-fi glow / wood edge).</summary>
-        private GameObject Panel(Color body, Color trim)
+        private GameObject Panel(PropTextures.Part body, PropTextures.Part trim)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             StripCollider(go);
@@ -375,7 +383,7 @@ namespace BlocksBeyondTheStars.Client
             return go;
         }
 
-        private void Post(Transform parent, Color trim, float x)
+        private void Post(Transform parent, PropTextures.Part trim, float x)
         {
             var post = GameObject.CreatePrimitive(PrimitiveType.Cube);
             StripCollider(post);
@@ -385,24 +393,15 @@ namespace BlocksBeyondTheStars.Client
             post.transform.localScale = new Vector3(0.14f, Height + 0.1f, Thickness * 2.2f);
         }
 
-        private static Shader _doorShader;
-
-        private static void Paint(GameObject go, Color c)
+        private static void Paint(GameObject go, PropTextures.Part part)
         {
             var r = go.GetComponent<Renderer>();
-            if (r == null)
+            if (r != null)
             {
-                return;
+                // ONE shared material per part key (a project shader, so nothing renders magenta in a player
+                // build). It used to be a new material per cube per door, never destroyed with the door.
+                r.sharedMaterial = PropTextures.MaterialFor(part);
             }
-
-            // Use a project shader (always in the build); the primitives' default Standard material gets
-            // stripped from player builds and renders bright pink/magenta.
-            if (_doorShader == null)
-            {
-                _doorShader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            }
-
-            r.sharedMaterial = new Material(_doorShader) { color = ShaderColor.Srgb(c) };
         }
 
         private static void StripCollider(GameObject go)

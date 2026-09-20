@@ -49,7 +49,7 @@ public sealed class NetCodecTests
                 nonTopLevelRegistrations.Select(
                     entry => $"{entry.Key} -> {entry.Value.FullName}")));
     }
-    private static readonly Dictionary<byte, Type> ProtocolGoldenList = new()
+    private static readonly Dictionary<ushort, Type> ProtocolGoldenList = new()
     {
         [1] = typeof(JoinRequest),
         [2] = typeof(MoveIntent),
@@ -296,7 +296,113 @@ public sealed class NetCodecTests
         [244] = typeof(CreativeTakeItemIntent),
         [240] = typeof(SetStationZeroGIntent),
 
+        // Extended ids (#1951)
+        [256] = typeof(PublishWorldTextureIntent),
+        [257] = typeof(RemoveWorldTextureIntent),
+        [258] = typeof(WorldTextureData),
+        [259] = typeof(WorldTextureList),
+        [260] = typeof(SetToolLookIntent),
+        [261] = typeof(PlayerToolLook),
+
     };
+
+    // ---- Extended tags (#1951) ----
+
+    [Fact]
+    public void ExtendedId_TravelsAsMarkerPlusTwoBytes_OnTheNativePath()
+    {
+        var payload = WithMessagePack(() => NetCodec.Encode(new RemoveWorldTextureIntent { Key = "stone" }));
+
+        Assert.Equal(NetCodec.ExtendedTag, payload[0]);
+        Assert.Equal(257, payload[1] | (payload[2] << 8));
+        var back = Assert.IsType<RemoveWorldTextureIntent>(NetCodec.Decode(payload));
+        Assert.Equal("stone", back.Key);
+    }
+
+    [Fact]
+    public void OneByteTags_KeepTheirFrame()
+    {
+        var payload = WithMessagePack(() => NetCodec.Encode(new SelectHotbarIntent()));
+
+        Assert.Equal(7, payload[0]);
+        Assert.IsType<SelectHotbarIntent>(NetCodec.Decode(payload));
+    }
+
+    [Fact]
+    public void ExtendedId_RoundTripsThroughTheJsonEnvelope()
+    {
+        var json = NetCodec.EncodeJson(new RemoveWorldTextureIntent { Key = "stone" });
+
+        Assert.Equal(255, json[0]);
+        Assert.StartsWith("{\"tag\":257,", System.Text.Encoding.UTF8.GetString(json, 1, json.Length - 1));
+        var back = Assert.IsType<RemoveWorldTextureIntent>(NetCodec.Decode(json));
+        Assert.Equal("stone", back.Key);
+    }
+
+    [Fact]
+    public void IsMessageType_ReadsExtendedIds_OnBothPaths()
+    {
+        var native = WithMessagePack(() => NetCodec.Encode(new WorldTextureList { Final = true }));
+        var json = NetCodec.EncodeJson(new WorldTextureList { Final = true });
+
+        Assert.True(NetCodec.IsMessageType<WorldTextureList>(native));
+        Assert.True(NetCodec.IsMessageType<WorldTextureList>(json));
+        Assert.False(NetCodec.IsMessageType<WorldTextureData>(native));
+        Assert.False(NetCodec.IsMessageType<WorldTextureData>(json));
+        Assert.False(NetCodec.IsMessageType<ChunkDataMessage>(native));
+    }
+
+    [Fact]
+    public void UnknownOrMalformedExtendedFrames_AreDropped()
+    {
+        // An id nobody registered — what an OLDER peer's id looks like to us, and ours to it.
+        Assert.Null(NetCodec.Decode(new byte[] { NetCodec.ExtendedTag, 0xFF, 0xFF, 0x80 }));
+        // Truncated head.
+        Assert.Null(NetCodec.Decode(new byte[] { NetCodec.ExtendedTag }));
+        Assert.Null(NetCodec.Decode(new byte[] { NetCodec.ExtendedTag, 0x01 }));
+        // An "extended" id inside the one-byte range is malformed, even though tag 7 exists.
+        Assert.Null(NetCodec.Decode(new byte[] { NetCodec.ExtendedTag, 0x07, 0x00, 0x80 }));
+        // JSON: beyond 16 bits, and the two framing bytes used as ids.
+        Assert.Null(NetCodec.Decode(JsonFrame("{\"tag\":70000,\"body\":{}}")));
+        Assert.Null(NetCodec.Decode(JsonFrame("{\"tag\":254,\"body\":{}}")));
+        Assert.Null(NetCodec.Decode(JsonFrame("{\"tag\":255,\"body\":{}}")));
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, true)]
+    [InlineData(253, true)]
+    [InlineData(254, false)] // the extended marker
+    [InlineData(255, false)] // the JSON envelope marker
+    [InlineData(256, true)]
+    [InlineData(65535, true)]
+    [InlineData(65536, false)]
+    public void OnlyRealIdsAreRegistrable(int id, bool expected)
+        => Assert.Equal(expected, NetCodec.IsRegistrableTag(id));
+
+    private static byte[] JsonFrame(string json)
+    {
+        var body = System.Text.Encoding.UTF8.GetBytes(json);
+        var payload = new byte[body.Length + 1];
+        payload[0] = 255;
+        System.Buffer.BlockCopy(body, 0, payload, 1, body.Length);
+        return payload;
+    }
+
+    /// <summary>Runs <paramref name="encode"/> on the native path even when another test left the JSON fallback on.</summary>
+    private static byte[] WithMessagePack(System.Func<byte[]> encode)
+    {
+        bool before = NetCodec.UseJsonEncoding;
+        NetCodec.UseJsonEncoding = false;
+        try
+        {
+            return encode();
+        }
+        finally
+        {
+            NetCodec.UseJsonEncoding = before;
+        }
+    }
 
     [Fact]
     public void RegisteredMessageTags_MatchProtocolGoldenList()
@@ -557,7 +663,8 @@ public sealed class NetCodecTests
             JsonPayload("{\"body\":{}}"),
             JsonPayload("{\"tag\":1}"),
             JsonPayload("{\"tag\":\"not-a-number\",\"body\":{}}"),
-            JsonPayload("{\"tag\":256,\"body\":{}}"),
+            JsonPayload("{\"tag\":65536,\"body\":{}}"), // beyond the 16-bit extended range (#1951)
+            JsonPayload("{\"tag\":60000,\"body\":{}}"), // a valid extended id nobody registered
             JsonPayload("{\"tag\":254,\"body\":{}}"),
             JsonPayload("{\"tag\":1,\"body\":{"),
         };

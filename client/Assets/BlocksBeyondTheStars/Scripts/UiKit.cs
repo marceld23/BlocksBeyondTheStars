@@ -611,11 +611,15 @@ namespace BlocksBeyondTheStars.Client
                 return sprite;
             }
 
-            var tex = Resources.Load<Texture2D>("icons/" + name);
+            var tex = TexturePackFolder.IconOverride(name) ?? Resources.Load<Texture2D>("icons/" + name);
             sprite = tex != null ? Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f) : null;
             _icons[name] = sprite;
             return sprite;
         }
+
+        /// <summary>Forgets the cached icon sprites — the local texture pack changed an icon (#1952). Screens built
+        /// afterwards pick up the new art; the old sprites are swept with the next unused-assets pass.</summary>
+        public static void ClearIconCache() => _icons.Clear();
 
         /// <summary>Places an icon (if it exists) at a square rect; no-op when the icon is missing.</summary>
         public static Image AddIcon(Transform parent, float x, float y, float size, string name)

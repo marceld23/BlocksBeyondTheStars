@@ -257,7 +257,7 @@ namespace BlocksBeyondTheStars.Client
             // the world, but an open screen freezes player control, so they are free here (the same way B
             // is both crouch and cancel). Not while the on-screen keyboard has the pad, and not while the
             // appearance editor sits on top of the Character tab — LB is its fill modifier.
-            if (!UiKit.TextFieldFocused() && Menu?.AppearanceEditorOpen != true)
+            if (!UiKit.TextFieldFocused() && Menu?.AppearanceEditorOpen != true && Menu?.TextureEditorOpen != true)
             {
                 if (InputMap.PadDown(PadButton.Rb))
                 {
@@ -2332,6 +2332,43 @@ namespace BlocksBeyondTheStars.Client
                 visorOn ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
 
+            // Textures (#1959): the editor, and the two per-player switches. "Show this world's textures" is the
+            // safety valve — whatever an admin published, a player (or a parent) can turn it off for themselves.
+            UiKit.AddText(_listContent, 16, y, 760, 30, L("ui.settings.textures_title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 40f;
+            var texEditorBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () => Menu?.OpenTextureEditor());
+            UiKit.AddText(texEditorBtn.transform, 16, 0, 520, 78, L("ui.menu.texture_editor"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(texEditorBtn.transform, 600, 0, 170, 78, L("ui.face.open"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
+            y += 96f;
+
+            void TextureToggle(string label, bool on, System.Action<bool> apply)
+            {
+                var btn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+                {
+                    if (Menu?.Settings != null)
+                    {
+                        apply(!on);
+                        Menu.Settings.Save();
+                        RebuildList();
+                    }
+                });
+                UiKit.AddText(btn.transform, 16, 0, 520, 78, label, 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(btn.transform, 560, 0, 200, 78, on ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                    on ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 96f;
+            }
+
+            TextureToggle(string.Format(L("ui.settings.use_texture_pack"), GameTextures.LocalCount), Menu?.Settings?.UseTexturePack ?? true, v =>
+            {
+                Menu.Settings.UseTexturePack = v;
+                GameTextures.UseLocalPack = v;
+            });
+            TextureToggle(string.Format(L("ui.settings.show_world_textures"), GameTextures.WorldCount), Menu?.Settings?.ShowWorldTextures ?? true, v =>
+            {
+                Menu.Settings.ShowWorldTextures = v;
+                GameTextures.ShowWorldTextures = v;
+            });
+
             // World rules (world options, live edit): creatures + the three enemy activities. The server
             // enforces the admin gate (non-admins get a reject toast); the rows re-render when the
             // re-broadcast ServerRules lands.
@@ -2422,6 +2459,23 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(starterTpBtn.transform, 560, 0, 200, 78, starterTp ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
                 starterTp ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
+
+            // World textures (#1959): may the admins of this world publish textures for everyone? Off also takes
+            // the published ones away from every client (they stay stored and return when it is switched on).
+            // An older server sends no value — then there is nothing to switch.
+            if (!string.IsNullOrEmpty(rules?.WorldTextures))
+            {
+                bool worldTex = string.Equals(rules.WorldTextures, "Admins", System.StringComparison.Ordinal);
+                var worldTexBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+                {
+                    Game?.Network?.SendSetWorldRules(worldTextures: worldTex ? "Off" : "On");
+                    Invoke(nameof(RebuildList), 0.35f);
+                });
+                UiKit.AddText(worldTexBtn.transform, 16, 0, 520, 78, L("ui.worldopt.world_textures"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(worldTexBtn.transform, 560, 0, 200, 78, worldTex ? L("ui.worldopt.world_textures_admins") : L("ui.toggle.off"), 22,
+                    worldTex ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 96f;
+            }
 
             // Frontier danger (#1122, opt-in): tougher machines out in the frontier tier. Only offered
             // when planet enemies exist at all — on peaceful/family worlds (PlanetEnemies Off) the row is

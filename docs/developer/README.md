@@ -61,6 +61,9 @@ refreshed 2026-08-08.
 - [SPACE_COMBAT_CONCEPT.md](SPACE_COMBAT_CONCEPT.md) — space-combat MVP concept + what has since landed.
 - [CRAFTING_TECH_SHIP_UI.md](CRAFTING_TECH_SHIP_UI.md) — the crafting / tech / ship management screen.
 - [SHIP_REPAIR.md](SHIP_REPAIR.md) — own-ship repair (hull + EVA-carved cells).
+- [CREATOR_SUITE.md](CREATOR_SUITE.md) — what players make themselves: the texture editor and the three-layer
+  texture source, world textures, animated tiles, the main-menu form editor and forms over several blocks,
+  tool models as data and player tool looks, texture submissions (#1950).
 - [CUSTOM_SHAPES.md](CUSTOM_SHAPES.md) — player-designed block forms: the micro-voxel format, the per-save
   form registry, the box budget, and how forms are shared.
 - [CREATURE_RIG.md](CREATURE_RIG.md) — how a blocky animal is built and animated: the gait, jointed

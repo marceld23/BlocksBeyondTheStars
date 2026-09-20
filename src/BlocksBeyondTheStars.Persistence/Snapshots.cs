@@ -87,6 +87,9 @@ public sealed class PlayerSnapshot
     public string LegPixels { get; set; } = string.Empty;
     public string HelmetPixels { get; set; } = string.Empty;
 
+    /// <summary>Player tool looks (#1963): base item key → look payload. Absent in older saves.</summary>
+    public Dictionary<string, string>? ToolLooks { get; set; }
+
     /// <summary>Celestial bodies this player has physically landed on (gates travel-screen quick-travel). Persisted
     /// so the "only travel where you've been" rule survives a reload.</summary>
     public List<string> LandedBodies { get; set; } = new();
@@ -251,6 +254,7 @@ public static class StateMapper
         ArmPixels = p.ArmPixels,
         LegPixels = p.LegPixels,
         HelmetPixels = p.HelmetPixels,
+        ToolLooks = p.ToolLooks.Count > 0 ? new Dictionary<string, string>(p.ToolLooks) : null,
     };
 
     /// <summary>Copies the explored-map bitmaps so a snapshot doesn't alias the live arrays, dropping
@@ -480,6 +484,7 @@ public static class StateMapper
         ArmPixels = s.ArmPixels ?? string.Empty,
         LegPixels = s.LegPixels ?? string.Empty,
         HelmetPixels = s.HelmetPixels ?? string.Empty,
+        ToolLooks = s.ToolLooks != null ? new Dictionary<string, string>(s.ToolLooks, System.StringComparer.Ordinal) : new Dictionary<string, string>(System.StringComparer.Ordinal),
     };
 
     public static ShipSnapshot ToSnapshot(ShipState ship) => new()

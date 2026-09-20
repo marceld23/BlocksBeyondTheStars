@@ -24,6 +24,37 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎨 Creator suite — paint any texture, design forms over several blocks, give your tools a look, send a texture in (#1950: #1951–#1967, 2026-09-20, branch feat/creator-suite)
+
+Three menu editors whose results are the player's at once, on any install — none of them needs the original source
+assets. In the world nothing changed: shaping tool, its small editor and dyeing work as before. Details:
+[docs/developer/CREATOR_SUITE.md](docs/developer/CREATOR_SUITE.md).
+
+- **Texture Editor** (menu + in a world): every tile of the game, the picture tiles of furniture with their face
+  areas, plants, hides, the door/machine parts and — icon mode — the item icons. "Use for me" (a PNG pack folder),
+  export, share codes, hold-to-compare, up to eight animation frames, gamepad.
+- **Three texture layers** — official < the player's pack < the world. **World textures**: admins publish for
+  everyone (*World textures: Admins / Off*), the world wins, every player can switch them off for themselves;
+  paged join list, `/reporttexture`, `/texturewipe`. **Animated tiles play in the world** (vertex-stage UV shift
+  onto a frame strip). **Doors, factory machines, the station terminal** take textures (one shared material per part).
+- **Form Editor** (menu): large layer canvas, undo, material + dye preview, a library with delete/duplicate — and
+  **forms over several blocks** (≤ 3×3×3, ≤ 8 cells, one registry slot, cell index in descriptor bits 27–30): every
+  cell is checked before the item is consumed, the form turns but never tips, falls as one piece whatever removes a
+  cell, and is made from N blocks for N cells.
+- **Tools:** the eleven hand-built tool models moved into `data/items.json` (`heldModel`); **My Tools** gives
+  the player's own drill / pistol / blade / scanner a look (fixed 15-colour palette with glow, bound to the player
+  like body paint, ≤ 16, relayed to everyone).
+- **Submit to the developers:** three explicit consents, a nickname instead of a name, no e-mail / location /
+  machine facts; the inbox files it under category `texture` with the files attached and deletes what was not
+  adopted after twelve months; `tools/pull_texture_submissions.py` → `tools/merge_texture.py`. F1 and crash
+  reports name the replaced texture keys. Privacy page (14 languages) and the parents' guide say so.
+- **Plumbing:** extended message tags (tag 254 + two-byte id — the one-byte space was full; no protocol bump),
+  provenance manifest so generator scripts never paint over hand-made tiles, one alpha rule shared by loader,
+  editor, server and test.
+- **Open:** playtest of all of it (especially gamepad in the three editors, animated world textures on WebGL,
+  a multi-block form next to fire/fluids); a WebGL build was not run locally; the build ships no animated tiles
+  yet; the 64×64 icon canvas; CHANGELOG + what's-new follow with the release.
+
 ### 🚀 A lost ship is a world change (#1945, 2026-09-17, branch fix/ship-loss-recovery-1945)
 
 Follow-up to the fourth report of 2026-09-17 ("I crashed and I am hanging in the air on the planet"). The ship had been

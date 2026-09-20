@@ -400,8 +400,9 @@ namespace BlocksBeyondTheStars.Client
             _heldKey = key;
             _optic?.SetHeldItem(key); // swapping away from the binoculars can never strand a zoomed view
             var (kind, tint, blockKey) = HeldItem.For(Game?.Content, key);
-            Avatar?.SetHeldItem(kind, tint, blockKey, key);
-            _viewmodel?.SetHeldItem(kind, tint, blockKey, key);
+            var look = Game?.LocalToolLook(key); // the player's own look for this tool (#1963), null = standard
+            Avatar?.SetHeldItem(kind, tint, blockKey, key, look);
+            _viewmodel?.SetHeldItem(kind, tint, blockKey, key, look);
         }
 
         private void Update()

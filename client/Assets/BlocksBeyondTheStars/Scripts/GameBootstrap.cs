@@ -1981,7 +1981,9 @@ namespace BlocksBeyondTheStars.Client
             if (atlasShader != null)
             {
                 ChunkMaterial = new Material(atlasShader) { mainTexture = Atlas.Texture };
-                ChunkMaterial.SetTexture("_NormalTex", Atlas.NormalTexture); // per-pixel normal mapping
+                Atlas.BindNormals(ChunkMaterial); // per-pixel normal mapping; stays bound across a repaint (#1952)
+                Atlas.Changed += OnAtlasRepainted;
+                _animationVersionSeen = Atlas.AnimationVersion; // what is meshed from now on already knows this layout (#1957)
 
                 // Alpha-blended material for the see-through submesh (glass viewports + energy fields).
                 var transparentShader = Shader.Find("BlocksBeyondTheStars/BlockAtlasTransparent");
@@ -2008,6 +2010,9 @@ namespace BlocksBeyondTheStars.Client
                 Atlas != null && Content?.GetBlock(key) is { } b && b.NumericId.Value != 0
                     ? (Atlas.Texture, Atlas.TileUv(b.NumericId.Value))
                     : null;
+
+            // A tool's own look comes from the item data (#1962).
+            HeldItem.ModelResolver = key => Content?.GetItem(key)?.HeldModel;
 
             // The empty-slot hand (#1033) wears a glove in the player's suit arm colour — and the player's
             // own arm painting from the appearance editor, so first person matches third person (#1427).
@@ -2098,6 +2103,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 CustomShapes?.RegisterAll(m.Ids, m.Voxels, m.Names, m.Owners);
             };
+            // World textures (#1959): pages after the join become ONE batch (one atlas repaint), a publish or wipe
+            // while playing a batch of one. The atlas repaints in place, so no chunk has to re-mesh for it.
+            Network.WorldTextureListReceived += m => ApplyWorldTextures(_worldTextureInbox.Accept(m));
+            Network.WorldTextureReceived += m => ApplyWorldTextures(_worldTextureInbox.Accept(m));
             Network.CustomShapeReceived += m =>
             {
                 if (CustomShapes == null)
@@ -3865,13 +3874,97 @@ namespace BlocksBeyondTheStars.Client
         /// world created (sky/starfield meshes+materials, chunk render meshes, icon sprites) becomes
         /// unreferenced with the world root and is swept by AppShell.ReturnToMenu's
         /// <c>Resources.UnloadUnusedAssets</c> pass.</summary>
+        /// <summary>The block atlas repainted tiles in place (a texture layer changed, #1952). Chunk meshes keep
+        /// their UVs, so they stay; everything that BAKED a tile's colour or pixels has to go.</summary>
+        private int _animationVersionSeen;
+
+        private void OnAtlasRepainted()
+        {
+            IconResolver.ClearCache();
+            ShapeIconFactory.ClearCache();
+            if (FarView != null)
+            {
+                FarView.InvalidateBlockColors();
+            }
+
+            // A repaint changes pixels in place and needs no re-mesh — unless a tile became animated, stopped being
+            // animated or changed its frame count (#1957): the faces carry "frames, speed, strip start", so every
+            // loaded chunk is rebuilt once. Rare: a world texture with frames arrives, or the player switches packs.
+            if (Atlas != null && Atlas.AnimationVersion != _animationVersionSeen)
+            {
+                _animationVersionSeen = Atlas.AnimationVersion;
+                foreach (var c in _chunkObjects.Keys)
+                {
+                    _dirty.Add(c);
+                }
+            }
+        }
+
+        private readonly WorldTextureInbox _worldTextureInbox = new WorldTextureInbox();
+
+        private readonly Dictionary<string, List<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart>> _localToolLooks
+            = new Dictionary<string, List<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart>>(System.StringComparer.Ordinal);
+
+        /// <summary>The local player's own look for the tool behind <paramref name="itemKey"/> (#1963), or null for
+        /// the standard model. Looks are edited in the main menu only, so the merged parts are cached per session.</summary>
+        public IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> LocalToolLook(string itemKey)
+        {
+            if (string.IsNullOrEmpty(itemKey) || Settings == null)
+            {
+                return null;
+            }
+
+            string baseKey = BlocksBeyondTheStars.Shared.State.ItemKey.Base(itemKey);
+            if (!_localToolLooks.TryGetValue(baseKey, out var parts))
+            {
+                string model = Settings.GetToolLook(baseKey);
+                parts = string.IsNullOrEmpty(model) ? null : BlocksBeyondTheStars.Shared.State.ToolLook.ToParts(model);
+                _localToolLooks[baseKey] = parts != null && parts.Count > 0 ? parts : null;
+            }
+
+            return _localToolLooks[baseKey];
+        }
+
+        private static void ApplyWorldTextures(WorldTextureBatch batch)
+        {
+            if (batch == null)
+            {
+                return;
+            }
+
+            var changes = new Dictionary<string, TextureFrames>(batch.Changes.Count, System.StringComparer.Ordinal);
+            foreach (var kv in batch.Changes)
+            {
+                changes[kv.Key] = kv.Value == null
+                    ? null
+                    : new TextureFrames(kv.Value.Frames, kv.Value.Fps, TextureLayer.World) { Owner = kv.Value.Owner };
+            }
+
+            GameTextures.ApplyWorldBatch(changes, batch.Complete);
+        }
+
+        /// <summary>True when this player may publish world textures: the server offers them, the world rule is on
+        /// and the player is a world admin (the server fills the mode roster for admins only, #1121). The server
+        /// checks again — this only decides whether the buttons are offered.</summary>
+        public bool CanPublishWorldTextures
+            => Rules != null && string.Equals(Rules.WorldTextures, "Admins", System.StringComparison.Ordinal)
+               && Rules.PlayerModeNames != null && Rules.PlayerModeNames.Length > 0;
+
         private void OnDestroy()
         {
             Network?.Dispose();
 
+            // The atlas and the texture source are shared with the menu and its editors — a world's textures
+            // must not outlive the world (#1959).
+            _worldTextureInbox.Reset();
+            GameTextures.ClearWorldLayer();
+
             IconResolver.ClearCache();
             ShapeIconFactory.ClearCache();
             HeldItem.BlockTileResolver = null;
+            HeldItem.ModelResolver = null;
+            HeldItem.ReleasePartMaterials();
+            PropTextures.Release(); // the doors and machines that used them are going away with the world
             HeldItem.HandTintResolver = null;  // both closures capture Settings (and this object graph) — #1464
             HeldItem.HandPaintResolver = null;
             HeldItem.ReleaseHandAtlas();
@@ -3896,6 +3989,11 @@ namespace BlocksBeyondTheStars.Client
             if (ChunkMaterialPaint != null)
             {
                 Destroy(ChunkMaterialPaint);
+            }
+
+            if (Atlas != null)
+            {
+                Atlas.Changed -= OnAtlasRepainted;
             }
 
             Atlas?.Release(); // shared per process (#1523) — the last owner decides, not this world

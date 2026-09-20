@@ -44,6 +44,7 @@ public static class ReportHostApp
             => ReportHostPages.ThreadOwner(r, store.Around(r.CreatedUnix, ReportHostPages.DuplicateWindowSeconds));
 
         int prunedAtStart = store.Prune(config.RetentionDays, NowUnix());
+        prunedAtStart += store.PruneTextureSubmissions(config.TextureRetentionDays, NowUnix());
         // Reports stored before the reply channel (#1327) get their reply key derived from the player id they
         // already carry, so their reporters can be answered too. Idempotent — a no-op after the first start.
         int backfilled = store.BackfillReplyKeys();
@@ -191,6 +192,14 @@ public static class ReportHostApp
                 status = r.Status,
                 createdAt = DateTimeOffset.FromUnixTimeSeconds(r.CreatedUnix).UtcDateTime.ToString("o"),
                 screenshotUrl = r.ScreenshotFile.Length > 0 ? $"/api/reports/{r.Id}/screenshot" : null,
+                attachments = store.Attachments(r.Id).Select(a => new
+                {
+                    index = a.Index,
+                    fileName = a.FileName,
+                    mimeType = a.Mime,
+                    bytes = a.Bytes,
+                    url = $"/api/reports/{r.Id}/attachment/{a.Index}",
+                }).ToArray(),
                 reportJson,
                 fixedInVersion = r.FixedInVersion,
                 replies = replies?.Select(x => ReplyJson(x)).ToArray(),
@@ -312,6 +321,7 @@ public static class ReportHostApp
 
             string id = store.Add(parsed, NowUnix());
             store.Prune(config.RetentionDays, NowUnix());
+            store.PruneTextureSubmissions(config.TextureRetentionDays, NowUnix());
             log.LogInformation("Report {Id} stored ({Category}{Kind}, v{Version}, screenshot: {Shot}).",
                 id, parsed.Category, parsed.Kind.Length > 0 ? "/" + parsed.Kind : "", parsed.GameVersion,
                 parsed.ScreenshotBytes != null);
@@ -674,7 +684,7 @@ public static class ReportHostApp
                 .SelectMany(pid => store.ListReplies(pid))
                 .OrderBy(x => x.CreatedUnix).ThenBy(x => x.Id)
                 .ToList();
-            return Results.Content(ReportHostPages.Detail(record, replies, csrf, owner, pair), "text/html; charset=utf-8");
+            return Results.Content(ReportHostPages.Detail(record, replies, csrf, owner, pair, store.Attachments(record.Id)), "text/html; charset=utf-8");
         });
 
         // The reply form on the detail page: an answer, or a follow-up question (flips the status to
@@ -719,6 +729,42 @@ public static class ReportHostApp
             }
 
             return Results.Redirect($"/admin/report/{id}");
+        });
+
+        // Attachments of a texture submission (#1966) — served as DOWNLOADS with their name, for the pull tool
+        // (read key) and for the operator (admin).
+        IResult ServeAttachment(string id, int index)
+        {
+            var attachment = store.Attachments(id).FirstOrDefault(a => a.Index == index);
+            if (attachment == null || store.AttachmentPath(attachment) is not { } path)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.File(path, attachment.Mime, fileDownloadName: attachment.FileName);
+        }
+
+        app.MapGet("/api/reports/{id}/attachment/{index:int}", (HttpContext ctx, string id, int index)
+            => GuardReadKey(ctx) is { } denied ? denied : ServeAttachment(id, index));
+
+        app.MapGet("/admin/report/{id}/attachment/{index:int}", (HttpContext ctx, string id, int index)
+            => GuardAdmin(ctx) is { } denied ? denied : ServeAttachment(id, index));
+
+        // The picture of a texture submission, INLINE for the admin page's preview.
+        app.MapGet("/admin/report/{id}/attachment/{index:int}/view", (HttpContext ctx, string id, int index) =>
+        {
+            if (GuardAdmin(ctx) is { } denied)
+            {
+                return denied;
+            }
+
+            var attachment = store.Attachments(id).FirstOrDefault(a => a.Index == index);
+            if (attachment == null || attachment.Mime != "image/png" || store.AttachmentPath(attachment) is not { } path)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.File(path, "image/png");
         });
 
         app.MapGet("/admin/report/{id}/screenshot", (HttpContext ctx, string id) =>

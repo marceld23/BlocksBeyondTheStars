@@ -324,14 +324,15 @@ namespace BlocksBeyondTheStars.Client
 
         private static bool TryBlitAsset(string key, Texture2D dst, int ox, int oy)
         {
-            var asset = Resources.Load<TextAsset>("textures/microfauna_" + key);
-            if (asset == null || asset.bytes.Length != Tile * Tile * 4)
+            // The winning layer of the texture source (#1952): world texture, local pack, or the bundled sprite.
+            byte[] raw = GameTextures.TileBytes("microfauna_" + key);
+            if (raw == null || raw.Length != Tile * Tile * 4)
             {
                 return false;
             }
 
             var src = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false);
-            src.LoadRawTextureData(asset.bytes);
+            src.LoadRawTextureData(raw);
             src.Apply();
             dst.SetPixels(ox, oy, Tile, Tile, src.GetPixels());
             Object.Destroy(src);

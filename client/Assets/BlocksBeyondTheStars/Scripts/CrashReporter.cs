@@ -201,6 +201,7 @@ namespace BlocksBeyondTheStars.Client
                 };
                 _device?.WriteTo(reportJson);      // os / cpu / ramMb / gpu / gpuDriver / vramMb (#1564)
                 SessionMarker.WriteTo(reportJson); // lastSessionUnclean / lastSessionEndedAt (#1564)
+                GameTextures.ReportInfo.WriteTo(reportJson); // replaced texture keys (#1964) — an immutable snapshot, thread-safe
 
                 var report = new FeedbackReport
                 {

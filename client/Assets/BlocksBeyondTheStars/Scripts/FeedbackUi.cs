@@ -188,12 +188,16 @@ namespace BlocksBeyondTheStars.Client
         /// the glitch.fun arcade hashes the Glitch install id instead, because the browser-local token there
         /// resets with every deployment (#1177) while the install id follows the player across deployments
         /// and browsers. Whoever learns the key can read replies — never claim a name.</summary>
-        private string ComputeReplyKey()
+        private string ComputeReplyKey() => ReplyKeyFor(Settings);
+
+        /// <summary>The same credential for senders outside a world — the texture editor's submit dialog (#1965)
+        /// runs in the main menu, and the answer must arrive in the thread this component polls later.</summary>
+        public static string ReplyKeyFor(ClientSettings settings)
         {
             string secret = GlitchIntegration.ArcadeInstallId; // empty everywhere except the arcade
-            if (string.IsNullOrEmpty(secret) && Settings != null)
+            if (string.IsNullOrEmpty(secret) && settings != null)
             {
-                secret = Settings.PlayerToken;
+                secret = settings.PlayerToken;
             }
 
             return FeedbackReplyKey.Derive(secret);
@@ -558,6 +562,9 @@ namespace BlocksBeyondTheStars.Client
             // screen / driver-reset report can be judged without asking the player (#1564). Main thread here.
             DeviceInfo.Get().WriteTo(reportJson);
             SessionMarker.WriteTo(reportJson);
+            // Which textures were NOT the game's own (#1964): "the grass looks wrong" means something else when
+            // the player — or the world's admin — repainted the grass. Keys only, never pixels.
+            GameTextures.ReportInfo.WriteTo(reportJson);
 
             var report = new FeedbackReport
             {

@@ -11,7 +11,7 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro, TextureEditor, FormEditor, ToolLookEditor }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -184,6 +184,12 @@ namespace BlocksBeyondTheStars.Client
             crashGo.AddComponent<CrashReporter>().Settings = Settings;
             InputMap.Use(Settings); // route remappable controls through the loaded bindings (Stream C)
             Settings.Apply();
+
+            // The player's local texture pack (#1952) — read once, before the first atlas is built, so the menu
+            // backdrop already shows it. A missing folder is the normal case and costs nothing.
+            GameTextures.UseLocalPack = Settings.UseTexturePack;
+            GameTextures.ShowWorldTextures = Settings.ShowWorldTextures;
+            TexturePackFolder.Reload();
 
             // Browser build (#1423): a phone/tablet-class device is touch-first before any touch happens —
             // pre-latch so the very first canvas gets touch-sized hit behavior — and the shell frame-time
@@ -635,6 +641,14 @@ namespace BlocksBeyondTheStars.Client
                 Content = loaded;
                 ContentDataDir = dataDir;
                 ContentLoadError = "";
+                foreach (var block in Content.Blocks.Values)
+                {
+                    if (block.Anim != null)
+                    {
+                        GameTextures.SetOfficialFps(block.Key, block.Anim.Fps); // the speed of its bundled frames (#1957)
+                    }
+                }
+
                 Debug.Log($"Content loaded from '{dataDir}' ({Content.Blocks.Count} blocks, {Content.Items.Count} items, {Content.Recipes.Count} recipes, {Content.Planets.Count} planet types).");
             }
 
@@ -1438,6 +1452,78 @@ namespace BlocksBeyondTheStars.Client
             Phase = ShellPhase.MaterialEditor;
         }
 
+        /// <summary>Opens the texture editor (#1955): paint any texture of the game, use it for yourself or export it.</summary>
+        public void OpenTextureEditor()
+        {
+            DestroyMenuBackground();
+            _editorRoot = new GameObject("TextureEditor");
+            _editorRoot.AddComponent<TextureEditor>().Shell = this;
+            Phase = ShellPhase.TextureEditor;
+        }
+
+        /// <summary>Opens the form editor (#1960): design the forms the form tool places — also over several blocks.</summary>
+        public void OpenFormEditor()
+        {
+            DestroyMenuBackground();
+            _editorRoot = new GameObject("FormEditor");
+            _editorRoot.AddComponent<FormEditor>().Shell = this;
+            Phase = ShellPhase.FormEditor;
+        }
+
+        /// <summary>Closes the form editor and returns to the editors submenu.</summary>
+        public void CloseFormEditor()
+        {
+            if (_editorRoot != null)
+            {
+                Destroy(_editorRoot);
+                _editorRoot = null;
+            }
+
+            EnsureMenuBackground();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Phase = ShellPhase.Editors;
+        }
+
+        /// <summary>Opens "My tools" (#1963): the player's own looks for drills, guns, blades and scanners.</summary>
+        public void OpenToolLookEditor()
+        {
+            DestroyMenuBackground();
+            _editorRoot = new GameObject("ToolLookEditor");
+            _editorRoot.AddComponent<ToolLookEditor>().Shell = this;
+            Phase = ShellPhase.ToolLookEditor;
+        }
+
+        /// <summary>Closes "My tools" and returns to the editors submenu.</summary>
+        public void CloseToolLookEditor()
+        {
+            if (_editorRoot != null)
+            {
+                Destroy(_editorRoot);
+                _editorRoot = null;
+            }
+
+            EnsureMenuBackground();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Phase = ShellPhase.Editors;
+        }
+
+        /// <summary>Closes the texture editor and returns to the editors submenu.</summary>
+        public void CloseTextureEditor()
+        {
+            if (_editorRoot != null)
+            {
+                Destroy(_editorRoot);
+                _editorRoot = null;
+            }
+
+            EnsureMenuBackground();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Phase = ShellPhase.Editors;
+        }
+
         /// <summary>Closes the material designer and returns to the editors submenu.</summary>
         public void CloseMaterialEditor()
         {
@@ -1852,6 +1938,18 @@ namespace BlocksBeyondTheStars.Client
                 else if (Phase == ShellPhase.MaterialEditor)
                 {
                     CloseMaterialEditor();
+                }
+                else if (Phase == ShellPhase.TextureEditor && !TextureSubmitDialog.OwnsCancel && !PadCanvasFocus.OwnsCancel)
+                {
+                    CloseTextureEditor(); // the submit dialog (#1965) and the pad's canvas mode take their own cancel first
+                }
+                else if (Phase == ShellPhase.FormEditor && !PadCanvasFocus.OwnsCancel)
+                {
+                    CloseFormEditor();
+                }
+                else if (Phase == ShellPhase.ToolLookEditor && !PadCanvasFocus.OwnsCancel)
+                {
+                    CloseToolLookEditor();
                 }
             }
         }

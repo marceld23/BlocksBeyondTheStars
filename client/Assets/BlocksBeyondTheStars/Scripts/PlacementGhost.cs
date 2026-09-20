@@ -92,6 +92,16 @@ namespace BlocksBeyondTheStars.Client
 
         private void BuildMesh(int shapeIndex, int yaw, int upFace)
         {
+            // A player form over several blocks (#1961) turns but never tips — the server pins it upright, so the
+            // ghost must not promise a tilt. Its further blocks are drawn below, like the bed's foot half.
+            string formVoxels = null;
+            if (ShapeCode.IsCustomShape(shapeIndex) && BlockShapeGeometry.TryGetCustomVoxels(shapeIndex, out string registered)
+                && CustomShape.IsMulti(registered))
+            {
+                formVoxels = registered;
+                upFace = ShapeCode.UpPlusY;
+            }
+
             var faces = BlockShapeGeometry.Build(shapeIndex, yaw, upFace);
             var verts = new List<Vector3>();
             var tris = new List<int>();
@@ -113,6 +123,28 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var f in faces)
                 {
                     Add(f);
+                }
+
+                if (formVoxels != null)
+                {
+                    // Every block the form will take — the server refuses the place when one of them is not
+                    // free, so a ghost block inside a wall is the warning itself.
+                    int cells = CustomShape.CellCount(formVoxels);
+                    for (int cell = 1; cell < cells; cell++)
+                    {
+                        var part = BlockShapeGeometry.Build(shapeIndex, yaw, upFace, cell);
+                        if (part == null)
+                        {
+                            continue;
+                        }
+
+                        var (ox, oy, oz) = CustomShape.CellOffset(formVoxels, cell, yaw);
+                        var offset = new Vector3(ox, oy, oz);
+                        foreach (var f in part)
+                        {
+                            Add(f.Map(p => p + offset));
+                        }
+                    }
                 }
 
                 // A bed is two cells (#1846): preview the foot half on the cell the head's yaw points to, so

@@ -240,9 +240,11 @@ namespace BlocksBeyondTheStars.Client
             var root = new GameObject($"Machine {nm.Archetype}").transform;
             root.SetParent(parent, true);
 
-            var metal = new Material(_litShader) { color = ShaderColor.Srgb(new Color(0.34f, 0.36f, 0.40f)) };
-            var dark = new Material(_litShader) { color = ShaderColor.Srgb(new Color(0.16f, 0.17f, 0.20f)) };
-            var accent = new Material(_litShader) { color = ShaderColor.Srgb(new Color(0.72f, 0.42f, 0.14f)) };
+            // Texturable parts (#1956), one shared material each — it used to be new materials per machine.
+            var metal = PropTextures.MaterialFor(PropTextures.FactoryMetal);
+            var dark = PropTextures.MaterialFor(PropTextures.FactoryDark);
+            var accent = PropTextures.MaterialFor(PropTextures.FactoryAccent);
+            // Not shared and not texturable: the status light pulses this material's colour every frame, per machine.
             var hot = new Material(_litShader) { color = ShaderColor.Srgb(new Color(1f, 0.6f, 0.15f)) };
 
             // Two mounting rails on the housing front that every archetype bolts onto.

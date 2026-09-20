@@ -65,6 +65,22 @@ public sealed class StoredCustomShape
     public string Voxels { get; set; } = string.Empty;
 }
 
+/// <summary>A world texture (#1958): a 64×64 tile — or up to eight frames of one — that an admin published for
+/// everyone in the save. Keyed by the texture it overrides (publishing again replaces it), so there is no id and
+/// no tombstone: nothing references a world texture, the key IS the reference.</summary>
+public sealed class StoredWorldTexture
+{
+    public string Key { get; set; } = string.Empty;
+    public int Frames { get; set; } = 1;
+    public int Fps { get; set; }
+
+    /// <summary>Base64 of the deflated raw RGBA32 frames (<c>WorldTextureCodec</c>).</summary>
+    public string Data { get; set; } = string.Empty;
+    public string OwnerId { get; set; } = string.Empty;
+    public string OwnerName { get; set; } = string.Empty;
+    public long CreatedUnix { get; set; }
+}
+
 /// <summary>A player report against a painted block or a player-designed form (moderation v1): who reported
 /// what where, kept for operator review. Deliberately append-only; wiping the design does not delete its
 /// reports. <see cref="Kind"/> tells the two apart ("paint" — the original rows — or "shape").</summary>
@@ -465,6 +481,15 @@ public interface IWorldRepository : IDisposable
     /// <summary>Removes a player-designed form (moderation wipe — the id is freed and every referencing
     /// block falls back to a plain cube).</summary>
     void DeleteCustomShape(int id);
+
+    /// <summary>Stores (inserts or replaces) the world texture for its key (#1958).</summary>
+    void SaveWorldTexture(StoredWorldTexture texture);
+
+    /// <summary>Lists every world texture of the save (restored once at server start).</summary>
+    IReadOnlyList<StoredWorldTexture> ListWorldTextures();
+
+    /// <summary>Removes the world texture for a key — the official texture shows again.</summary>
+    void DeleteWorldTexture(string key);
 
     /// <summary>Appends a paint report row (moderation v1) for operator review.</summary>
     void SavePaintReport(StoredPaintReport report);

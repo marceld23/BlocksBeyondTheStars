@@ -71,6 +71,17 @@ namespace BlocksBeyondTheStars.Client
                     && !Game.MenuInputHandledThisFrame)
                 {
                     Game.MarkMenuInputHandled();
+                    if (TextureSubmitDialog.OwnsCancel)
+                    {
+                        return; // the submit dialog (#1965) takes this press
+                    }
+
+                    if (_textureEditor != null)
+                    {
+                        CloseTextureEditor(); // back to the settings list, not out of the menu (#1959)
+                        return;
+                    }
+
                     SetOpen(false);
                     return;
                 }
@@ -204,6 +215,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.MenuTabKey = null; // the music director's "crafting/tech tab open" signal (#1174)
                 _browser = BrowserScreen.None;
                 CloseFaceEditor(); // the modal face editor is owned by the menu — don't let it linger after close
+                CloseTextureEditor();
                 _ui?.OnMenuClosed(); // #1072: a located station gets a through-wall marker once the menu is gone
                 _ui?.Hide();
                 _wikiUi?.Hide();
@@ -215,6 +227,7 @@ namespace BlocksBeyondTheStars.Client
         private void SwitchTo(Tab tab)
         {
             CloseFaceEditor(); // navigating to any tab dismisses the (Character-tab) face editor overlay
+            CloseTextureEditor();
             _tab = tab;
             Game.MenuTabKey = tab.ToString().ToLowerInvariant(); // music director: crafting / tech beds (#1174)
             if (tab == Tab.Map)
@@ -531,6 +544,58 @@ namespace BlocksBeyondTheStars.Client
             return L("ui.avatar.outfit_deleted").Replace("{name}", name);
         }
 
+        // ── texture editor in a world (#1959) ────────────────────────────────────────────────────
+
+        private TextureEditor _textureEditor;
+
+        /// <summary>True while the texture editor overlays the menu — the tab screen's shortcuts stand down.</summary>
+        public bool TextureEditorOpen => _textureEditor != null;
+
+        /// <summary>Opens the texture editor over the menu. Everything the main-menu editor can do works here too
+        /// (paint, use for me, export, submit); a world admin additionally gets "publish for everyone".</summary>
+        public void OpenTextureEditor()
+        {
+            if (_textureEditor != null || Game == null)
+            {
+                return;
+            }
+
+            var go = new GameObject("TextureEditor");
+            go.transform.SetParent(transform, false);
+            _textureEditor = go.AddComponent<TextureEditor>();
+            _textureEditor.Shell = FindAnyObjectByType<AppShell>(); // settings + the palette list's icons
+            _textureEditor.WorldHost = new WorldTextureHost(Game);
+            _textureEditor.OnClose = CloseTextureEditor;
+        }
+
+        private void CloseTextureEditor()
+        {
+            if (_textureEditor != null)
+            {
+                Destroy(_textureEditor.gameObject);
+                _textureEditor = null;
+            }
+        }
+
+        /// <summary>What the running world adds to the editor: its content and the publish route.</summary>
+        private sealed class WorldTextureHost : ITextureEditorWorldHost
+        {
+            private readonly GameBootstrap _game;
+
+            public WorldTextureHost(GameBootstrap game)
+            {
+                _game = game;
+            }
+
+            public BlocksBeyondTheStars.Shared.Content.GameContent Content => _game.Content;
+
+            public bool CanPublish => _game.CanPublishWorldTextures;
+
+            public void Publish(string key, byte[][] frames, int fps) => _game.Network?.SendPublishWorldTexture(key, frames, fps);
+
+            public void Unpublish(string key) => _game.Network?.SendRemoveWorldTexture(key);
+        }
+
         /// <summary>Kept for the older entry points (and any host that only wants the face): the appearance
         /// screen opens on its face tab.</summary>
         public void OpenFaceEditor() => OpenAppearanceEditor();
@@ -610,8 +675,46 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Sends the next queued appearance payload if the rate-limit window is open. Called from the
         /// menu's Update, so a queue left behind by a closed editor still drains.</summary>
+        private readonly Queue<(string Item, string Model)> _pendingToolLooks = new Queue<(string, string)>();
+        private bool _toolLooksQueued;
+
+        /// <summary>Tool looks (#1963) are edited in the main menu and announced once per world entry. They share the
+        /// server's appearance throttle, so they ride this queue — after the face and the paintings, and only from
+        /// a few seconds after the join, whose own face/painting sends may already have used the first window.</summary>
+        private void QueueToolLooksOnce()
+        {
+            if (_toolLooksQueued || Game == null || string.IsNullOrEmpty(Game.LocalPlayerId) || Settings?.ToolLooks == null)
+            {
+                return;
+            }
+
+            _toolLooksQueued = true;
+            foreach (var look in Settings.ToolLooks)
+            {
+                if (look != null && !string.IsNullOrEmpty(look.item) && !string.IsNullOrEmpty(look.model))
+                {
+                    _pendingToolLooks.Enqueue((look.item, look.model));
+                }
+            }
+
+            if (_pendingToolLooks.Count > 0)
+            {
+                _nextAppearanceSend = System.Math.Max(_nextAppearanceSend, Time.unscaledTimeAsDouble + 2.5);
+            }
+        }
+
         private void PumpAppearanceQueue()
         {
+            QueueToolLooksOnce();
+            if (_pendingAppearance.Count == 0 && _pendingToolLooks.Count > 0 && Game?.Network != null
+                && Time.unscaledTimeAsDouble >= _nextAppearanceSend)
+            {
+                var (item, model) = _pendingToolLooks.Dequeue();
+                _nextAppearanceSend = Time.unscaledTimeAsDouble + AppearanceSendInterval;
+                Game.Network.SendToolLook(item, model);
+                return;
+            }
+
             if (_pendingAppearance.Count == 0 || Game?.Network == null || Time.unscaledTimeAsDouble < _nextAppearanceSend)
             {
                 return;

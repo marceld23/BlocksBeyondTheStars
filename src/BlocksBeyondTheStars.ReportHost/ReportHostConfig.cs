@@ -59,6 +59,17 @@ public sealed class ReportHostConfig
     /// budget on polls — and a leaked key still cannot hammer the inbox.</summary>
     public int ReplyPerMinute { get; set; } = 30;
 
+    /// <summary>Files a texture submission may carry (#1966): the picture as a PNG and the texture in the game's own
+    /// format. Other report kinds carry none — their one image stays the screenshot.</summary>
+    public int MaxAttachments { get; set; } = 4;
+
+    /// <summary>Size cap per attachment. Eight raw 64×64 frames are 131 KB; a PNG strip is far smaller.</summary>
+    public int MaxAttachmentBytes { get; set; } = 400_000;
+
+    /// <summary>Days to keep a texture submission that was NOT adopted (no "fixed in version" set); 0 keeps them
+    /// forever. The privacy page promises twelve months at the latest, so that is the default.</summary>
+    public int TextureRetentionDays { get; set; } = 365;
+
     /// <summary>Days to keep reports; 0 (default) keeps them forever. Pruning also removes the screenshot
     /// file (reports carry an optional e-mail, so retention is a privacy lever, not just disk hygiene).</summary>
     public int RetentionDays { get; set; }
@@ -95,6 +106,8 @@ public sealed class ReportHostConfig
         if (Env("BBS_REPORTS_INGEST_PER_MINUTE") is { } rlStr && int.TryParse(rlStr, out var rl)) { c.IngestPerMinute = rl; }
         if (Env("BBS_REPORTS_REPLY_PER_MINUTE") is { } rpStr && int.TryParse(rpStr, out var rp)) { c.ReplyPerMinute = rp; }
         if (Env("BBS_REPORTS_RETENTION_DAYS") is { } rdStr && int.TryParse(rdStr, out var rd)) { c.RetentionDays = rd; }
+        if (Env("BBS_REPORTS_TEXTURE_RETENTION_DAYS") is { } trStr && int.TryParse(trStr, out var tr)) { c.TextureRetentionDays = tr; }
+        if (Env("BBS_REPORTS_MAX_ATTACHMENT_BYTES") is { } abStr && int.TryParse(abStr, out var ab)) { c.MaxAttachmentBytes = ab; }
         if (Env("BBS_REPORTS_TRUST_PROXY") is { } tpStr && bool.TryParse(tpStr, out var tp)) { c.TrustProxy = tp; }
         if (Env("BBS_REPORTS_NOTIFY_URL") is { } notifyUrl) { c.NotifyUrl = notifyUrl; }
 

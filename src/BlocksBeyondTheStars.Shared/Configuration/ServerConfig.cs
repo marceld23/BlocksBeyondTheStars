@@ -614,6 +614,10 @@ public sealed class ServerConfig
                     // #693: manual aiming — weapons only hit what is under the crosshair when off.
                     if (bool.TryParse(value, out var aa)) { Rules.AutoAim = aa; applied.Add("auto-aim"); }
                     break;
+                case "world-textures":
+                    // #1958: allow the world's admins to publish textures for everyone in the save.
+                    if (bool.TryParse(value, out var wtx)) { Rules.WorldTextures = wtx; applied.Add("world-textures"); }
+                    break;
                 case "starter-teleporter":
                     // #1056: hand every joining player a suit teleporter (multiplayer crews beam to allies / ship).
                     if (bool.TryParse(value, out var stp)) { Rules.StarterTeleporter = stp; applied.Add("starter-teleporter"); }

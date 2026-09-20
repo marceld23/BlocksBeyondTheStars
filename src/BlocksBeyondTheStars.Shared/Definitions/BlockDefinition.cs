@@ -78,6 +78,11 @@ public sealed class BlockDefinition
     /// <see cref="BlockFaceTexture"/>. Null = every face shows the slice of the block's own tile it covers.</summary>
     public List<BlockFaceTexture>? Faces { get; set; }
 
+    /// <summary>Animation of the block's OFFICIAL texture (#1957): the speed of the frames bundled as
+    /// <c>Resources/textures/&lt;key&gt;__anim.bytes</c> (frames 2..n; frame 1 is the ordinary tile). Null = a still
+    /// tile. <c>tools/merge_texture.py</c> writes it when it adopts an animated texture.</summary>
+    public BlockAnimation? Anim { get; set; }
+
     /// <summary>
     /// Whether this block may be re-coloured by the player (the always-available "Dye"/"Glow" crafting
     /// actions). Only plain building/terrain materials are tintable; machines, doors, glass, flora and
@@ -135,4 +140,11 @@ public sealed class BlockDefinition
 
     /// <summary>Dense numeric id assigned at load time; what chunks actually store.</summary>
     public BlockId NumericId { get; internal set; }
+}
+
+/// <summary>How a block's official texture animates (#1957).</summary>
+public sealed class BlockAnimation
+{
+    /// <summary>Frames per second — one of <c>TextureTiles.AllowedFps</c> (2, 4, 8, 12).</summary>
+    public int Fps { get; set; }
 }

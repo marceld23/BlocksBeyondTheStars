@@ -72,6 +72,17 @@ namespace BlocksBeyondTheStars.Client
 
         private void LoadFrom(string voxels, string name)
         {
+            if (CustomShape.IsMulti(voxels))
+            {
+                if (_cells == null)
+                {
+                    LoadFrom(null, string.Empty); // opened ON such a form: start from an empty grid, never from garbage
+                }
+
+                Game?.ShowMessage(L("ui.shape.custom.multi_in_menu"));
+                return;
+            }
+
             int grid = CustomShape.GridOf(voxels);
             _grid = grid == 0 ? CustomShape.GridLarge : grid;
             _cells = new char[_grid * _grid * _grid];
@@ -460,7 +471,9 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < entries.Count && i < maxShown; i++)
             {
                 var entry = entries[i];
-                UiKit.AddButton(_libList, 0f, y, 226f, 42f, entry.Name, () => LoadFrom(entry.Voxels, entry.Name));
+                int blocks = CustomShape.CellCount(entry.Voxels);
+                string label = blocks > 1 ? entry.Name + " ×" + blocks : entry.Name; // a form over several blocks (#1961)
+                UiKit.AddButton(_libList, 0f, y, 226f, 42f, label, () => LoadFrom(entry.Voxels, entry.Name));
                 y += 50f;
             }
         }
@@ -559,6 +572,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 File.WriteAllText(file, JsonUtility.ToJson(new Entry { name = clean, voxels = voxels }));
+                WebGlStorage.Sync(); // in the browser a write lives in memory until synced (#1179) — no-op elsewhere
             }
             catch (Exception ex)
             {
@@ -610,6 +624,7 @@ namespace BlocksBeyondTheStars.Client
                 if (File.Exists(file))
                 {
                     File.Delete(file);
+                    WebGlStorage.Sync();
                 }
             }
             catch (Exception ex)

@@ -1458,6 +1458,13 @@ separate unlock; admins can still disable it through server world rules.
   them normally. If a form is ever wiped by an operator, blocks still holding it fall back to plain cubes.
 - **Reporting:** `/reportshape` flags the nearest self-made form for the server operator, the same way
   `/reportpaint` flags a painted block.
+- **Forms over several blocks** — a wardrobe two blocks high, a table two blocks long — are designed in the
+  **Form Editor of the main menu** (§6), not with the small editor here (it tells you so when you open one). In
+  the world they behave like this: the form is **one item**, made from **one block of material per block it
+  spans** and giving them back when you turn it into cubes again; the placement ghost shows **every block** it
+  will take and the game refuses the place when one of them is not free; it can be **turned but not tipped
+  over**; and it comes down **in one piece**, whichever of its blocks is removed and whatever removes it. Not
+  aboard ships and stations, where a self-made form becomes a plain cube as before.
 
 ### Appearance: colours, your pixel face and body paint
 - **Tab → Settings → Appearance** opens one screen for how your figure looks. Along the top are tabs for
@@ -1514,6 +1521,45 @@ build (or the floor centre when nothing is placed yet), **Left-click** place, **
 **Esc** to exit. A translucent ghost cube shows where a click lands (green = free, red = occupied / out of
 bounds); the floor grid marks every cell with a brighter line every 8 cells. The palette on the left has a
 search box (typing there never moves the camera) and a scrollbar.
+
+**The three editors that need no developer** — what you make in them is yours at once, on any install:
+
+- **Texture Editor.** Every texture of the game on a 64×64 pixel canvas: block tiles, the picture tiles of
+  furniture (bed, campfire — with the areas each face uses drawn in), plants, torches, creature hides, avatar
+  fabrics, the leaves and frames of **doors**, the parts of **factory machines** and, in **icon mode**, the item
+  icons. A block texture with several frames **plays in the world** — a campfire can really flicker. Brush, eraser, fill, pipette, line, rectangle, brush size,
+  mirror symmetry, flip / shift / brightness, undo and redo, up to eight **animation frames**, a 3-D preview on
+  the real shape and a 3×3 view that shows how a tile repeats. **Use for me** puts the texture into *your*
+  texture pack (a folder next to your settings; PNG files you can also edit in any paint program — *Open
+  folder* / *Reload folder*); **Remove mine** brings the shipped one back; **hold "Before"** to compare;
+  **Copy / Paste code** shares a texture as text. A block tile can never get a hole — the editor fills it, so
+  nobody can paint themselves an X-ray view. The editor also opens **inside a world** (Settings tab →
+  *Textures*), where a **world admin** additionally gets **Publish for everyone** / **Take back**.
+  - **World textures:** what an admin publishes is shown to everyone in that world and **wins over your own
+    pack** there. Two switches in the Settings tab are yours alone: *Use my textures* and *Show this world's
+    textures* — the second one is the way out if you do not like what a world shows. The world option *World
+    textures: Admins / Off* decides whether admins may publish at all. `/reporttexture <key>` flags a world
+    texture for the operator; admins remove them with `/texturewipe <key | player | all>`.
+  - **Submit to the developers:** offers your texture for the game itself. You give it a name and a
+    **nickname** (please not your real name — or choose *No name*), may add a note, and tick three boxes: you
+    painted it yourself, the developers may use, change and distribute it with the game, and you are at least 16
+    or your parents agreed. Sent are the texture, those texts, the game version and an anonymous id for the
+    answer — **no e-mail, no location**. The developers look at every submission by hand and answer you **in the
+    game**; a submission that is not adopted is deleted after twelve months at the latest.
+- **Form Editor.** Design the forms your shaping tool places — with a large layer canvas, undo, mirror, shift,
+  a turntable preview in **any material and dye**, and a library that lists every form (duplicate, rename by
+  saving under a new name, delete). The *Size in blocks* steppers make a form span **several blocks** (up to
+  3 × 3 × 3, at most eight); the canvas then shows the whole form from above with neighbouring blocks shaded
+  differently, and the budget line counts the most detailed block. It writes the same *My forms* library the
+  shaping tool reads, so everything appears in the world as before.
+- **My Tools.** Give your drill, pistol, blade or scanner **a look of your own**: a small coloured voxel model
+  from fifteen colours, each of which can glow. The look belongs to **you**, not to the tool — everyone sees
+  it in your hand from the next time you enter a world, it changes nothing about what the tool does, and a
+  tool you hand over shows the new owner's look. Up to sixteen tools; *Back to the standard look* undoes it.
+
+All three work with a **gamepad**: the stick moves a cell cursor, **(A)** paints or adds, **(X)** erases,
+**(Y)** picks a colour, the **d-pad up / down** walks layers or frames, **RB** undoes, **Start** switches
+between the canvas and the buttons, **(B)** steps back.
 
 **LOAD — start from an existing design.** The LOAD button in the Ship, Station and Town editors opens a
 sectioned list: **Built-in ships** (every shipped ship type that has a layout — scout, corvette, courier,

@@ -129,7 +129,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var root = new GameObject("TerminalDecor");
             Cube(root.transform, new Vector3(0f, 0.14f, 0f), new Vector3(0.55f, 0.28f, 0.35f),
-                Unlit(new Color(0.15f, 0.16f, 0.19f)));
+                PropTextures.MaterialFor(PropTextures.DecorHousing)); // texturable (#1956); the screen pulses its colour and stays as it is
             var screen = Cube(root.transform, new Vector3(0f, 0.45f, 0f), new Vector3(0.5f, 0.30f, 0.05f),
                 Unlit(screenColor));
             screen.transform.localRotation = Quaternion.Euler(-12f, 0f, 0f);

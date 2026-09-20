@@ -441,7 +441,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Shows the held tool/weapon/block in the right hand (call only when it changes).</summary>
-        public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null, string itemKey = null)
+        public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null, string itemKey = null,
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null)
         {
             if (_handR == null)
             {
@@ -459,7 +460,7 @@ namespace BlocksBeyondTheStars.Client
                 return; // Hand (#1033) is first-person only — the avatar already has its own hand mesh.
             }
 
-            _held = HeldItem.Build(_handR, kind, tint, blockKey, itemKey);
+            _held = HeldItem.Build(_handR, kind, tint, blockKey, itemKey, look); // look: this player's own look for the tool (#1963)
             if (_held != null)
             {
                 _held.transform.localPosition = new Vector3(0f, -0.1f, 0.06f); // in the palm, pointing forward
@@ -1046,8 +1047,9 @@ namespace BlocksBeyondTheStars.Client
 
         private static Texture2D LoadTex(string key)
         {
-            var asset = Resources.Load<TextAsset>("textures/" + key);
-            if (asset == null || asset.bytes.Length != 64 * 64 * 4)
+            // The winning layer of the texture source (#1952): world texture, local pack, or the bundled tile.
+            byte[] raw = GameTextures.TileBytes(key);
+            if (raw == null || raw.Length != 64 * 64 * 4)
             {
                 return null;
             }
@@ -1056,7 +1058,7 @@ namespace BlocksBeyondTheStars.Client
             // and LitColor computes _Color * tex — so every avatar surface rendered at ~40 % of its tint's
             // perceptual brightness and whole outfits sank to near-black. Scaling the mean to ~200/255 keeps
             // the pixel detail (weave, panels) but stops the texture eating the colour.
-            var data = (byte[])asset.bytes.Clone();
+            var data = (byte[])raw.Clone();
             long sum = 0;
             for (int i = 0; i < data.Length; i += 4)
             {

@@ -1214,6 +1214,11 @@ public sealed class ServerRules
     /// teleporter (multiplayer convenience); default false.</summary>
     public bool StarterTeleporter { get; set; }
 
+    /// <summary>World textures (#1958): "Admins" when the world's admins may publish textures for everyone,
+    /// "Off" when the world has them switched off. EMPTY from a server that predates the feature — the client
+    /// then hides everything about world textures.</summary>
+    public string WorldTextures { get; set; } = string.Empty;
+
     /// <summary>Frontier-danger world option (#1122): when true, machines in the outermost frontier tier
     /// spawn as the tougher variant. Opt-in risk dial; the frontier's richness is unconditional.</summary>
     public bool FrontierDanger { get; set; }
@@ -1270,6 +1275,9 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>Starter-teleporter toggle (#1056): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string StarterTeleporter { get; set; } = string.Empty;
+
+    /// <summary>World-textures toggle (#1958): "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string WorldTextures { get; set; } = string.Empty;
 
     /// <summary>Frontier-danger toggle (#1122): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string FrontierDanger { get; set; } = string.Empty;

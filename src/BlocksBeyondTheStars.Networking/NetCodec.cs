@@ -15,10 +15,24 @@ namespace BlocksBeyondTheStars.Networking;
 /// Serializes/deserializes protocol messages to/from byte payloads. Each payload is a
 /// one-byte message-type tag followed by a MessagePack (contractless) body, so message
 /// classes need no serialization attributes and the format stays compact.
+/// <para>
+/// Extended tags (#1951): one byte holds 254 message types and the game grew to 243 of them. Tag
+/// <see cref="ExtendedTag"/> therefore means "a 2-byte id follows" (little-endian, <see cref="FirstExtendedId"/>
+/// and up); the JSON envelope simply carries the larger number. A peer that does not know the scheme sees an
+/// unknown tag and drops the message — exactly what happens for any message it does not know — so this needs no
+/// protocol version change. Frequent messages keep their one-byte tags; new, rarer ones take extended ids.
+/// </para>
 /// </summary>
 public static class NetCodec
 {
     private const byte JsonEnvelopeTag = 255;
+
+    /// <summary>The one-byte tag that announces a 2-byte extended id (#1951). Never a message of its own.</summary>
+    public const byte ExtendedTag = 254;
+
+    /// <summary>The first extended message id. 254 and 255 are framing bytes, so the extended range starts above
+    /// them and an id can never be mistaken for a one-byte tag.</summary>
+    public const int FirstExtendedId = 256;
     public const int MaxJsonPayloadBytes = 1024 * 1024;
 
     /// <summary>Hard cap on a single decoded packet (native MessagePack path). The WebSocket path is already
@@ -83,12 +97,12 @@ public static class NetCodec
     internal static Func<Type, object, byte[]>? MessagePackSerializeOverride { get; set; }
 
     // Stable tag <-> type registry. Append new messages with new ids; never reuse ids.
-    private static readonly Dictionary<byte, Type> TagToType = new();
-    private static readonly Dictionary<Type, byte> TypeToTag = new();
+    private static readonly Dictionary<ushort, Type> TagToType = new();
+    private static readonly Dictionary<Type, ushort> TypeToTag = new();
 
-    internal static IReadOnlyDictionary<byte, Type> RegisteredMessages => TagToType;
+    internal static IReadOnlyDictionary<ushort, Type> RegisteredMessages => TagToType;
 
-    internal static IReadOnlyDictionary<Type, byte> RegisteredMessageTags => TypeToTag;
+    internal static IReadOnlyDictionary<Type, ushort> RegisteredMessageTags => TypeToTag;
 
     static NetCodec()
     {
@@ -508,10 +522,29 @@ public static class NetCodec
 
         // Zero-g construction mode on a player-built station (#1842): per-player, session-only toggle.
         Register(240, typeof(SetStationZeroGIntent));        // Client -> Server
+
+        // ---- Extended ids (#1951): the one-byte range is nearly full, new messages go here. ----
+        // World textures (#1958): an admin's textures for everyone in the save.
+        Register(256, typeof(PublishWorldTextureIntent));    // Client -> Server
+        Register(257, typeof(RemoveWorldTextureIntent));     // Client -> Server
+        Register(258, typeof(WorldTextureData));             // Server -> Client (one published / replaced / wiped)
+        Register(259, typeof(WorldTextureList));             // Server -> Client (paged, on join)
+        Register(260, typeof(SetToolLookIntent));            // Client -> Server (#1963)
+        Register(261, typeof(PlayerToolLook));               // Server -> Client
     }
 
-    private static void Register(byte tag, Type type)
+    /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,
+    /// or an extended id.</summary>
+    internal static bool IsRegistrableTag(int tag)
+        => (tag >= 1 && tag < ExtendedTag) || (tag >= FirstExtendedId && tag <= ushort.MaxValue);
+
+    private static void Register(int id, Type type)
     {
+        if (!IsRegistrableTag(id))
+            throw new InvalidOperationException(
+                $"NetCodec tag {id} is not registrable: use 1..{ExtendedTag - 1} or {FirstExtendedId}..{ushort.MaxValue}");
+
+        ushort tag = (ushort)id;
         if (TagToType.TryGetValue(tag, out var existingType))
             throw new InvalidOperationException(
                 $"NetCodec tag {tag} is already registered to {existingType.FullName}");
@@ -566,6 +599,11 @@ public static class NetCodec
             return false;
         }
 
+        if (payload[0] == ExtendedTag)
+        {
+            return payload.Length >= 3 && (payload[1] | (payload[2] << 8)) == want;
+        }
+
         if (payload[0] != JsonEnvelopeTag)
         {
             return payload[0] == want;
@@ -588,7 +626,7 @@ public static class NetCodec
         }
 
         int value = 0;
-        for (int i = 1 + prefix.Length; i < payload.Length && i < 1 + prefix.Length + 3; i++)
+        for (int i = 1 + prefix.Length; i < payload.Length && i < 1 + prefix.Length + MaxJsonTagDigits; i++)
         {
             byte c = payload[i];
             if (c < (byte)'0' || c > (byte)'9')
@@ -600,6 +638,25 @@ public static class NetCodec
         }
 
         return value == want;
+    }
+
+    /// <summary>The longest decimal form of a tag in the JSON envelope ("65535").</summary>
+    private const int MaxJsonTagDigits = 5;
+
+    /// <summary>Writes the frame head for <paramref name="tag"/> — one byte, or the extended marker plus a
+    /// little-endian 2-byte id — and returns its length.</summary>
+    private static int WriteTagHead(Span<byte> head, ushort tag)
+    {
+        if (tag < ExtendedTag)
+        {
+            head[0] = (byte)tag;
+            return 1;
+        }
+
+        head[0] = ExtendedTag;
+        head[1] = (byte)(tag & 0xFF);
+        head[2] = (byte)(tag >> 8);
+        return 3;
     }
 
     private static byte[] EncodeMessagePack(object message)
@@ -625,9 +682,11 @@ public static class NetCodec
                 return EncodeJson(message);
             }
 
-            var prefixed = new byte[body.Length + 1];
-            prefixed[0] = tag;
-            Buffer.BlockCopy(body, 0, prefixed, 1, body.Length);
+            Span<byte> head = stackalloc byte[3];
+            int headLength = WriteTagHead(head, tag);
+            var prefixed = new byte[body.Length + headLength];
+            head.Slice(0, headLength).CopyTo(prefixed);
+            Buffer.BlockCopy(body, 0, prefixed, headLength, body.Length);
             return prefixed;
         }
 
@@ -636,8 +695,7 @@ public static class NetCodec
         // allocations and a full copy per message, sixteen chunk payloads per tick per player.
         var writer = _encodeScratch ??= new ArrayBufferWriter<byte>(16 * 1024);
         writer.Clear();
-        writer.GetSpan(1)[0] = tag;
-        writer.Advance(1);
+        writer.Advance(WriteTagHead(writer.GetSpan(3), tag));
         try
         {
             MessagePackSerializer.Serialize(type, writer, message, Options);
@@ -676,6 +734,16 @@ public static class NetCodec
     // compute an entry twice; both results are identical.
     private static readonly byte[]?[] JsonEnvelopeHeads = new byte[byte.MaxValue + 1][];
 
+    // Extended ids are sparse (256..65535), so they get a small map instead of a 64K-entry array.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<ushort, byte[]> JsonEnvelopeHeadsExtended = new();
+
+    private static byte[] JsonEnvelopeHead(ushort tag)
+        => tag <= byte.MaxValue
+            ? JsonEnvelopeHeads[tag] ??= BuildJsonEnvelopeHead(tag)
+            : JsonEnvelopeHeadsExtended.GetOrAdd(tag, BuildJsonEnvelopeHead);
+
+    private static byte[] BuildJsonEnvelopeHead(ushort tag) => Encoding.UTF8.GetBytes("{\"tag\":" + tag + ",\"body\":");
+
     /// <summary>Encodes a tagged JSON payload for browser WebSocket clients. Serializes straight to
     /// UTF-8 and composes the envelope in the output buffer — the string-based path (body string →
     /// envelope concat → GetBytes) made four full copies per message, two of them UTF-16. Chunk
@@ -691,7 +759,7 @@ public static class NetCodec
         }
 
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(message, type, JsonOptions);
-        byte[] head = JsonEnvelopeHeads[tag] ??= Encoding.UTF8.GetBytes("{\"tag\":" + tag + ",\"body\":");
+        byte[] head = JsonEnvelopeHead(tag);
         var payload = new byte[1 + head.Length + body.Length + 1];
         payload[0] = JsonEnvelopeTag;
         Buffer.BlockCopy(head, 0, payload, 1, head.Length);
@@ -728,14 +796,38 @@ public static class NetCodec
             return DecodeJson(payload);
         }
 
-        if (payload.Length == 0 || payload.Length > MaxPacketBytes || !TagToType.TryGetValue(payload[0], out var type))
+        if (payload.Length == 0 || payload.Length > MaxPacketBytes)
+        {
+            return null;
+        }
+
+        // One-byte tag, or the extended marker followed by a little-endian 2-byte id (#1951). An extended id
+        // below FirstExtendedId is malformed: those numbers travel as one byte.
+        ushort tag = payload[0];
+        int bodyOffset = 1;
+        if (tag == ExtendedTag)
+        {
+            if (payload.Length < 3)
+            {
+                return null;
+            }
+
+            tag = (ushort)(payload[1] | (payload[2] << 8));
+            bodyOffset = 3;
+            if (tag < FirstExtendedId)
+            {
+                return null;
+            }
+        }
+
+        if (!TagToType.TryGetValue(tag, out var type))
         {
             return null;
         }
 
         try
         {
-            var body = new ReadOnlyMemory<byte>(payload, 1, payload.Length - 1);
+            var body = new ReadOnlyMemory<byte>(payload, bodyOffset, payload.Length - bodyOffset);
             return MessagePackSerializer.Deserialize(type, body, Options);
         }
         catch (Exception)
@@ -762,13 +854,12 @@ public static class NetCodec
             var root = doc.RootElement;
             if (!root.TryGetProperty("tag", out var tagElement)
                 || !tagElement.TryGetInt32(out int tag)
-                || tag < 0
-                || tag > byte.MaxValue)
+                || !IsRegistrableTag(tag))
             {
                 return null;
             }
 
-            if (!TagToType.TryGetValue((byte)tag, out var type)
+            if (!TagToType.TryGetValue((ushort)tag, out var type)
                 || !root.TryGetProperty("body", out var bodyElement))
             {
                 return null;

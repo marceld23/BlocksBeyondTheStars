@@ -90,6 +90,9 @@ public static class BugReportStatus
     }
 }
 
+/// <summary>One stored attachment of a texture submission (#1966).</summary>
+public sealed record AttachmentRecord(string ReportId, int Index, string FileName, string Mime, string StoredFile, int Bytes);
+
 /// <summary>
 /// The inbox storage: reports in one SQLite file, screenshots as plain files next to it. Every mutation
 /// is serialized on one connection behind a lock, mirroring the WorldHost registry pattern — the write
@@ -105,6 +108,7 @@ public sealed class ReportStore : IDisposable
     private readonly Lock _gate = new();
     private readonly SqliteConnection _db;
     private readonly string _screenshotsDir;
+    private readonly string _attachmentsDir;
 
     public ReportStore(ReportHostConfig config, string? databasePath = null)
     {
@@ -117,6 +121,8 @@ public sealed class ReportStore : IDisposable
 
         _screenshotsDir = Path.Combine(dir ?? ".", "screenshots");
         Directory.CreateDirectory(_screenshotsDir);
+        _attachmentsDir = Path.Combine(dir ?? ".", "attachments");
+        Directory.CreateDirectory(_attachmentsDir);
 
         _db = new SqliteConnection($"Data Source={path}");
         _db.Open();
@@ -154,6 +160,14 @@ public sealed class ReportStore : IDisposable
                 created_unix INTEGER NOT NULL,
                 seen_unix INTEGER NOT NULL DEFAULT 0);
             CREATE INDEX IF NOT EXISTS idx_report_reply_report ON report_reply(report_id, id);
+            CREATE TABLE IF NOT EXISTS report_attachment(
+                report_id TEXT NOT NULL,
+                idx INTEGER NOT NULL,
+                file_name TEXT NOT NULL,
+                mime TEXT NOT NULL,
+                stored_file TEXT NOT NULL,
+                bytes INTEGER NOT NULL,
+                PRIMARY KEY(report_id, idx));
             """);
 
         // Databases created before the reply channel (#1327) lack the two columns — add them in place.
@@ -211,9 +225,131 @@ public sealed class ReportStore : IDisposable
             cmd.Parameters.AddWithValue("$created", nowUnix);
             cmd.Parameters.AddWithValue("$rkey", replyKey);
             cmd.ExecuteNonQuery();
+
+            for (int i = 0; i < report.Attachments.Count; i++)
+            {
+                var a = report.Attachments[i];
+                string stored = $"{id}_{i}{Path.GetExtension(a.FileName)}";
+                File.WriteAllBytes(Path.Combine(_attachmentsDir, stored), a.Bytes);
+                using var add = _db.CreateCommand();
+                add.CommandText = "INSERT INTO report_attachment(report_id, idx, file_name, mime, stored_file, bytes) VALUES ($r, $i, $n, $m, $s, $b);";
+                add.Parameters.AddWithValue("$r", id);
+                add.Parameters.AddWithValue("$i", i);
+                add.Parameters.AddWithValue("$n", a.FileName);
+                add.Parameters.AddWithValue("$m", a.Mime);
+                add.Parameters.AddWithValue("$s", stored);
+                add.Parameters.AddWithValue("$b", a.Bytes.Length);
+                add.ExecuteNonQuery();
+            }
         }
 
         return id;
+    }
+
+    // ---------------- Attachments (texture submissions, #1966) ----------------
+
+    /// <summary>The attachments of a report, in the order they were sent.</summary>
+    public IReadOnlyList<AttachmentRecord> Attachments(string reportId)
+    {
+        var result = new List<AttachmentRecord>();
+        lock (_gate)
+        {
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = "SELECT idx, file_name, mime, stored_file, bytes FROM report_attachment WHERE report_id = $r ORDER BY idx;";
+            cmd.Parameters.AddWithValue("$r", reportId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new AttachmentRecord(reportId, reader.GetInt32(0), reader.GetString(1), reader.GetString(2),
+                    reader.GetString(3), reader.GetInt32(4)));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Absolute path of one attachment, or null when it does not exist (any more).</summary>
+    public string? AttachmentPath(AttachmentRecord attachment)
+    {
+        string path = Path.Combine(_attachmentsDir, attachment.StoredFile);
+        return File.Exists(path) ? path : null;
+    }
+
+    /// <summary>Removes the attachment rows and files of the given reports. Caller holds no lock.</summary>
+    private void DeleteAttachments(IReadOnlyCollection<string> reportIds)
+    {
+        if (reportIds.Count == 0)
+        {
+            return;
+        }
+
+        var files = new List<string>();
+        lock (_gate)
+        {
+            foreach (string id in reportIds)
+            {
+                using (var select = _db.CreateCommand())
+                {
+                    select.CommandText = "SELECT stored_file FROM report_attachment WHERE report_id = $r;";
+                    select.Parameters.AddWithValue("$r", id);
+                    using var reader = select.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        files.Add(reader.GetString(0));
+                    }
+                }
+
+                using var delete = _db.CreateCommand();
+                delete.CommandText = "DELETE FROM report_attachment WHERE report_id = $r;";
+                delete.Parameters.AddWithValue("$r", id);
+                delete.ExecuteNonQuery();
+            }
+        }
+
+        foreach (string file in files)
+        {
+            try
+            {
+                File.Delete(Path.Combine(_attachmentsDir, file));
+            }
+            catch (IOException)
+            {
+                // best-effort, like the screenshot files
+            }
+        }
+    }
+
+    /// <summary>Removes texture submissions older than <paramref name="retentionDays"/> that were NOT adopted — a
+    /// submission counts as adopted once the operator set "fixed in version" (the release that ships it). 0 keeps
+    /// them forever. Returns how many were removed.</summary>
+    public int PruneTextureSubmissions(int retentionDays, long nowUnix)
+    {
+        if (retentionDays <= 0)
+        {
+            return 0;
+        }
+
+        long cutoff = nowUnix - (retentionDays * 86400L);
+        var ids = new List<string>();
+        lock (_gate)
+        {
+            using var select = _db.CreateCommand();
+            select.CommandText = "SELECT id FROM bugreport WHERE category = $c AND created_unix < $cutoff AND fixed_in_version = '';";
+            select.Parameters.AddWithValue("$c", ReportIngest.TextureCategory);
+            select.Parameters.AddWithValue("$cutoff", cutoff);
+            using var reader = select.ExecuteReader();
+            while (reader.Read())
+            {
+                ids.Add(reader.GetString(0));
+            }
+        }
+
+        foreach (string id in ids)
+        {
+            Delete(id);
+        }
+
+        return ids.Count;
     }
 
     /// <summary><c>reportJson.source</c> of a game server's forward (<c>/bump</c>, paint/shape reports, crashes).
@@ -719,7 +855,7 @@ public sealed class ReportStore : IDisposable
 
     // ---------------- Delete / retention ----------------
 
-    /// <summary>Deletes a report, its reply thread AND its screenshot file (reports may carry an e-mail —
+    /// <summary>Deletes a report, its reply thread AND its screenshot and attachment files (reports may carry an e-mail —
     /// deletion must not leave partial personal data behind).</summary>
     public bool Delete(string id)
     {
@@ -745,11 +881,12 @@ public sealed class ReportStore : IDisposable
         }
 
         DeleteScreenshotFile(record.ScreenshotFile);
+        DeleteAttachments(new[] { id });
         return true;
     }
 
     /// <summary>Removes reports older than <paramref name="retentionDays"/> (0 = keep forever) including
-    /// their reply threads and screenshot files; returns how many were pruned. Called at startup and after
+    /// their reply threads, screenshot and attachment files; returns how many were pruned. Called at startup and after
     /// each ingest.</summary>
     public int Prune(int retentionDays, long nowUnix)
     {
@@ -760,9 +897,21 @@ public sealed class ReportStore : IDisposable
 
         long cutoff = nowUnix - retentionDays * 86400L;
         List<string> screenshots;
+        var prunedIds = new List<string>();
         int pruned;
         lock (_gate)
         {
+            using (var ids = _db.CreateCommand())
+            {
+                ids.CommandText = "SELECT id FROM bugreport WHERE created_unix < $cutoff;";
+                ids.Parameters.AddWithValue("$cutoff", cutoff);
+                using var idReader = ids.ExecuteReader();
+                while (idReader.Read())
+                {
+                    prunedIds.Add(idReader.GetString(0));
+                }
+            }
+
             using (var select = _db.CreateCommand())
             {
                 select.CommandText = "SELECT screenshot_file FROM bugreport WHERE created_unix < $cutoff AND screenshot_file != '';";
@@ -793,6 +942,7 @@ public sealed class ReportStore : IDisposable
             DeleteScreenshotFile(file);
         }
 
+        DeleteAttachments(prunedIds);
         return pruned;
     }
 

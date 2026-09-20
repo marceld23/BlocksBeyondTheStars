@@ -61,10 +61,23 @@ namespace BlocksBeyondTheStars.Client.Feedback
         /// <summary>The attached screenshot, or null when none was captured / it was too large.</summary>
         public FeedbackScreenshot? Screenshot { get; set; }
 
+        /// <summary>Files that travel with the report — only a texture submission (#1965) has any: the picture as a
+        /// PNG and the raw tile. Null (= not serialized) for every other report.</summary>
+        public List<FeedbackAttachment>? Attachments { get; set; }
+
         /// <summary>The file name to suggest for the screenshot upload — not serialized into the payload root
         /// (it travels inside <see cref="Screenshot"/>).</summary>
         [JsonIgnore]
         public string ScreenshotFileName { get; set; } = "feedback.jpg";
+    }
+
+    /// <summary>One attached file: base64 bytes plus a file name and mime type. The inbox stores only a short
+    /// whitelist of types and picks the stored name itself.</summary>
+    public sealed class FeedbackAttachment
+    {
+        public string FileName { get; set; } = string.Empty;
+        public string MimeType { get; set; } = string.Empty;
+        public string Base64 { get; set; } = string.Empty;
     }
 
     /// <summary>The screenshot attachment: base64-encoded JPG bytes plus its file name and mime type.</summary>

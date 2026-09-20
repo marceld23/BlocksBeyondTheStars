@@ -77,7 +77,9 @@ namespace BlocksBeyondTheStars.Client
                 return cached;
             }
 
-            var tex = Resources.Load<Texture2D>("icons/item_" + key);
+            // The player's local texture pack may replace an icon (#1952); it must win on BOTH entry points
+            // (this one feeds the hotbar, Resolve feeds the menus) or the two would show different art.
+            var tex = TexturePackFolder.IconOverride("item_" + key) ?? Resources.Load<Texture2D>("icons/item_" + key);
             _itemTex[key] = tex;
             return tex;
         }
