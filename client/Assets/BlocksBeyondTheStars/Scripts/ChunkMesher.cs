@@ -946,7 +946,8 @@ namespace BlocksBeyondTheStars.Client
                         ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), ShapeCode.UpFaceOf(shapeDesc), new Vector3(x, y, z),
                         designId != 0 ? designRect : uv,
                         matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir,
-                        slots: designId != 0 ? null : ShapeFaceTextures.SlotsFor(content, id), slotAtlas: atlas); // a painted design IS the surface
+                        slots: designId != 0 ? null : ShapeFaceTextures.SlotsFor(content, id), slotAtlas: atlas, // a painted design IS the surface
+                        formCell: ShapeCode.CellOf(shapeDesc)); // #1961: which block of a form over several blocks this is
 
                     // Flower pot (#809): a small cross-billboard flower sits on the shaped planter, tinted
                     // like wild flora on this world (per-world species hue). Purely visual — no collider.
@@ -1495,9 +1496,9 @@ namespace BlocksBeyondTheStars.Client
             List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
             List<Vector3> blockLightDir, int shapeIndex, int orientation, int upFace, Vector3 cell, Rect uv, float matR, float matG,
             float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir, float sizeXZ = 1f, float sizeY = 1f,
-            FaceSlot[] slots = null, BlockTextureAtlas slotAtlas = null)
+            FaceSlot[] slots = null, BlockTextureAtlas slotAtlas = null, int formCell = 0)
         {
-            var faces = BlockShapeGeometry.Build(shapeIndex, orientation, upFace);
+            var faces = BlockShapeGeometry.Build(shapeIndex, orientation, upFace, formCell);
             if (faces == null)
             {
                 return;

@@ -33,7 +33,8 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.station_editor"), shell.OpenStationEditor, "btn_singleplayer"); y += gap;
             UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.settlement_editor"), shell.OpenSettlementEditor, "btn_singleplayer"); y += gap;
             // The texture editor works without a rebuild ("use for me"), so it belongs with the creator tools.
-            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.texture_editor"), shell.OpenTextureEditor, "btn_singleplayer"); y += gap + 10f;
+            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.texture_editor"), shell.OpenTextureEditor, "btn_singleplayer"); y += gap;
+            UiKit.AddButton(root, bx, y, bw, bh, shell.L("ui.menu.form_editor"), shell.OpenFormEditor, "btn_singleplayer"); y += gap + 10f;
 
             // Group 2 — developer content tools (need a merge + rebuild; not applied to your current game).
             UiKit.AddText(root, bx, y, bw, 24f, shell.L("ui.editors.group.dev"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);

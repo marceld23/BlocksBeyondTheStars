@@ -59,12 +59,18 @@ namespace BlocksBeyondTheStars.Client
 
             var verts = new List<Vector3>();
             var tris = new List<int>();
-            foreach (var box in CustomShape.Merge(voxels))
+            int cells = CustomShape.CellCount(voxels); // 1 for a one-block form; every block of a larger one (#1961)
+            for (int cell = 0; cell < cells; cell++)
             {
-                float g = box.Grid;
-                AddBox(verts, tris,
-                    new Vector3(box.X0 / g, box.Y0 / g, box.Z0 / g),
-                    new Vector3(box.X1 / g, box.Y1 / g, box.Z1 / g));
+                var (ox, oy, oz) = CustomShape.CellOffset(voxels, cell, 0);
+                var offset = new Vector3(ox, oy, oz);
+                foreach (var box in CustomShape.Merge(CustomShape.CellVoxels(voxels, cell)))
+                {
+                    float g = box.Grid;
+                    AddBox(verts, tris,
+                        offset + new Vector3(box.X0 / g, box.Y0 / g, box.Z0 / g),
+                        offset + new Vector3(box.X1 / g, box.Y1 / g, box.Z1 / g));
+                }
             }
 
             if (verts.Count == 0)

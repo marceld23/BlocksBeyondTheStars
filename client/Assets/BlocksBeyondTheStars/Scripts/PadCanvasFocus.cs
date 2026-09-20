@@ -34,6 +34,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True while the pad owns the canvas (the cell cursor is live, the tool panel is parked).</summary>
         public bool CanvasMode { get; private set; }
 
+        private static int _canvasModeFrame = -10;
+
+        /// <summary>True while a canvas owns the cancel button: B (and Esc) LEAVES canvas mode, so the same press
+        /// must not also close the editor around it — whichever Update runs first. Covers the frame the canvas
+        /// was last active in and the one after.</summary>
+        public static bool OwnsCancel => Time.frameCount - _canvasModeFrame <= 1;
+
         /// <summary>True on the frame the pad entered the canvas — editors recentre their view on it.</summary>
         public bool JustEntered { get; private set; }
 
@@ -89,6 +96,11 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         public bool Tick(bool pad)
         {
+            if (CanvasMode)
+            {
+                _canvasModeFrame = Time.frameCount;
+            }
+
             JustEntered = false;
             LayerStep = 0;
             if (_uiRoot == null)

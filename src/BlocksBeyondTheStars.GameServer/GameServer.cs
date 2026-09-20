@@ -5669,13 +5669,11 @@ public sealed partial class GameServer
         int consumed, produced;
         if (unitsOut > 1)
         {
+            // "Make one" from the crafting menu arrives as an offer of ONE item — for a form over N blocks that
+            // means N of them. A whole stack offered from the hotbar becomes as many forms as it holds.
+            offered = System.Math.Max(offered, unitsOut);
             produced = offered / unitsOut;
             consumed = produced * unitsOut;
-            if (produced == 0)
-            {
-                CraftFail(session, tag, "@srv.shape.needs_blocks");
-                return;
-            }
         }
         else
         {
@@ -5701,7 +5699,7 @@ public sealed partial class GameServer
             var inputs = new List<ItemAmount> { new ItemAmount(sourceItemKey, consumed) };
             if (!pool.Has(inputs))
             {
-                CraftFail(session, tag, "@srv.craft.missing_material");
+                CraftFail(session, tag, unitsOut > 1 ? "@srv.shape.needs_blocks" : "@srv.craft.missing_material");
                 return;
             }
 

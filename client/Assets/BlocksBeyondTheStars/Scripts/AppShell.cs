@@ -11,7 +11,7 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro, TextureEditor }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro, TextureEditor, FormEditor }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -1453,6 +1453,30 @@ namespace BlocksBeyondTheStars.Client
             Phase = ShellPhase.TextureEditor;
         }
 
+        /// <summary>Opens the form editor (#1960): design the forms the form tool places — also over several blocks.</summary>
+        public void OpenFormEditor()
+        {
+            DestroyMenuBackground();
+            _editorRoot = new GameObject("FormEditor");
+            _editorRoot.AddComponent<FormEditor>().Shell = this;
+            Phase = ShellPhase.FormEditor;
+        }
+
+        /// <summary>Closes the form editor and returns to the editors submenu.</summary>
+        public void CloseFormEditor()
+        {
+            if (_editorRoot != null)
+            {
+                Destroy(_editorRoot);
+                _editorRoot = null;
+            }
+
+            EnsureMenuBackground();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Phase = ShellPhase.Editors;
+        }
+
         /// <summary>Closes the texture editor and returns to the editors submenu.</summary>
         public void CloseTextureEditor()
         {
@@ -1883,9 +1907,13 @@ namespace BlocksBeyondTheStars.Client
                 {
                     CloseMaterialEditor();
                 }
-                else if (Phase == ShellPhase.TextureEditor && !TextureSubmitDialog.OwnsCancel)
+                else if (Phase == ShellPhase.TextureEditor && !TextureSubmitDialog.OwnsCancel && !PadCanvasFocus.OwnsCancel)
                 {
-                    CloseTextureEditor(); // the submit dialog (#1965) takes its own cancel first
+                    CloseTextureEditor(); // the submit dialog (#1965) and the pad's canvas mode take their own cancel first
+                }
+                else if (Phase == ShellPhase.FormEditor && !PadCanvasFocus.OwnsCancel)
+                {
+                    CloseFormEditor();
                 }
             }
         }

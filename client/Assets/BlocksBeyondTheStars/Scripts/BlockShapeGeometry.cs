@@ -92,24 +92,25 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Builds the polygons for a shape index (see <see cref="BlockShape"/>), oriented by a yaw
         /// (0..3 quarter-turns about the vertical centre) THEN tilted so the shape's local +Y points to
         /// <paramref name="upFace"/> (0 = +Y = the original behaviour → yaw-only, unchanged). yaw × up-face give
-        /// the full 24 cube orientations. Returns null for cube/unknown.</summary>
-        public static List<Face> Build(int shapeIndex, int orientation, int upFace = 0)
+        /// the full 24 cube orientations. Returns null for cube/unknown. <paramref name="cell"/> picks the cell of
+        /// a player form that spans several blocks (#1961, <see cref="ShapeCode.CellOf"/>); 0 for everything else.</summary>
+        public static List<Face> Build(int shapeIndex, int orientation, int upFace = 0, int cell = 0)
         {
             // Built once per (form, yaw, up-face) and then shared: the mesher asks for this on every shaped
             // cell of every remesh, and a player-designed form can be dozens of boxes. Callers must treat the
             // returned list as read-only (nothing has ever mutated it).
-            int cacheKey = (shapeIndex << 5) | ((upFace & 7) << 2) | (orientation & 3);
+            int cacheKey = ((cell & 0xF) << 11) | (shapeIndex << 5) | ((upFace & 7) << 2) | (orientation & 3);
             if (_faceCache.TryGetValue(cacheKey, out var cached))
             {
                 return cached;
             }
 
-            var built = BuildUncached(shapeIndex, orientation, upFace);
+            var built = BuildUncached(shapeIndex, orientation, upFace, cell);
             _faceCache[cacheKey] = built;
             return built;
         }
 
-        private static List<Face> BuildUncached(int shapeIndex, int orientation, int upFace)
+        private static List<Face> BuildUncached(int shapeIndex, int orientation, int upFace, int cell)
         {
             var faces = new List<Face>();
             if (ShapeCode.IsCustomShape(shapeIndex))
@@ -122,7 +123,16 @@ namespace BlocksBeyondTheStars.Client
                     return null;
                 }
 
-                foreach (var box in CustomShape.Merge(voxels))
+                // A form over several blocks draws ONE of its cells here; a one-block form is its own cell 0. A
+                // cell index the form does not have (a block left over from a wiped-and-reused slot) has no
+                // geometry either → plain cube.
+                string cellVoxels = CustomShape.CellVoxels(voxels, cell);
+                if (cellVoxels.Length == 0)
+                {
+                    return null;
+                }
+
+                foreach (var box in CustomShape.Merge(cellVoxels))
                 {
                     MicroBox(faces, box);
                 }
@@ -201,6 +211,11 @@ namespace BlocksBeyondTheStars.Client
             _customVoxels = snapshot ?? new Dictionary<int, string>();
             _faceCache.Clear();
         }
+
+        /// <summary>The registered bitmap of a player form, from the published snapshot — for callers that need
+        /// more than one cell's faces (the placement ghost draws every block of a form over several blocks).</summary>
+        public static bool TryGetCustomVoxels(int shapeIndex, out string voxels)
+            => _customVoxels.TryGetValue(shapeIndex, out voxels);
 
         /// <summary>Drops every cached face list (session teardown — the next world may register different
         /// forms under the same indices).</summary>

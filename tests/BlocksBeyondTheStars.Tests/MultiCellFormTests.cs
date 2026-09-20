@@ -216,6 +216,21 @@ public sealed class MultiCellFormTests : IDisposable
     }
 
     [Fact]
+    public void MakeOne_FromTheCraftingMenu_TakesAsManyBlocksAsTheFormSpans()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = Builder(server, mud: 8);
+
+            server.CustomShapeCraft(p.State.PlayerId, "mud", Form(2, 2, 1), "Schrank", count: 1);
+
+            Assert.Equal(1, p.State.Inventory.CountOf(FormItem(p)));
+            Assert.Equal(4, p.State.Inventory.CountOf("mud"));
+        }
+    }
+
+    [Fact]
     public void OneBlock_IsNotEnoughForATwoCellForm()
     {
         var server = Started(out var repo);
