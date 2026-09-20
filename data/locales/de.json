@@ -4683,7 +4683,7 @@
   "ui.form.height": "Höhe",
   "ui.form.length": "Länge",
   "ui.form.footprint_limit": "Eine Form kann höchstens {0} Blöcke pro Seite und insgesamt {1} Blöcke groß sein.",
-  "ui.form.footprint_note": "Eine Form über mehrere Blöcke ist EIN Gegenstand. Sie wird aus einem Block Material pro belegtem Block gemacht, lässt sich drehen, aber nicht kippen, und fällt als Ganzes.",
+  "ui.form.footprint_note": "Eine Form über mehrere Blöcke ist EIN Gegenstand. Sie wird aus einem Block Material pro belegtem Block gemacht, lässt sich drehen, aber nicht kippen, und wenn einer ihrer Blöcke entfernt wird, verschwindet die ganze Form.",
   "ui.form.budget_per_block": "Detailreichster Block: {0} von {1} Teilen",
   "ui.form.problem_empty": "Noch ist nichts gezeichnet.",
   "ui.form.problem_solid": "Alles ist gefüllt – das ist nur ein Würfel. Lass etwas frei.",

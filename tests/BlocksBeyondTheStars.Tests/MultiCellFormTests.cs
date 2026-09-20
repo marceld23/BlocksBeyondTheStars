@@ -84,7 +84,7 @@ public sealed class MultiCellFormTests : IDisposable
     }
 
     private static string FormItem(BlocksBeyondTheStars.GameServer.PlayerSession p)
-        => p.State.Inventory.Slots.First(s => s is { IsEmpty: false } && ItemKey.Base(s.Item) == "mud" && ItemKey.Shape(s.Item) != 0).Item;
+        => p.State.Inventory.Slots.First(s => s is { IsEmpty: false } && ItemKey.Base(s.Item) == "mud" && ItemKey.Shape(s.Item) != 0)!.Item;
 
     private static int CellAt(SvGameServer server, int x, int y, int z) => ShapeCode.CellOf(server.World.GetShape(new Vector3i(x, y, z)));
 

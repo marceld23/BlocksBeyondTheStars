@@ -4683,7 +4683,7 @@
   "ui.form.height": "Height",
   "ui.form.length": "Length",
   "ui.form.footprint_limit": "A form can be at most {0} blocks on a side and {1} blocks in total.",
-  "ui.form.footprint_note": "A form over several blocks is ONE item. It is made from one block of material per block it spans, can be turned but not tipped over, and comes down in one piece.",
+  "ui.form.footprint_note": "A form over several blocks is ONE item. It is made from one block of material per block it spans, can be turned but not tipped over, and when one of its blocks is removed the whole form is removed.",
   "ui.form.budget_per_block": "Most detailed block: {0} of {1} parts",
   "ui.form.problem_empty": "Nothing is drawn yet.",
   "ui.form.problem_solid": "Everything is filled — that is just a cube. Leave something out.",
