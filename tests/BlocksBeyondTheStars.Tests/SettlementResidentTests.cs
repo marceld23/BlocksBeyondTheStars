@@ -115,7 +115,13 @@ public sealed class SettlementResidentTests : IDisposable
     public void ABedlessSettlement_KeepsItsVendorAndQuartermaster()
     {
         // Settlement templates off = the procedural generator, whose two-building hamlets have no bed at all.
-        for (long seed = 1; seed <= 80; seed++)
+        // Every seed tried is a server start = a world bake (~16 s on the build machine). Seed 8 is the first
+        // that has such a hamlet, and walking up to it cost eight starts — 125 s and 129 s on two pull requests
+        // in a row, over the 120 s budget with every test green. So the known seed goes first; the search stays
+        // behind it, and a new worldgen generation only makes this test slower again, never wrong.
+        const long KnownBedlessSeed = 8;
+        var seeds = new[] { KnownBedlessSeed }.Concat(Enumerable.Range(1, 80).Select(s => (long)s).Where(s => s != KnownBedlessSeed));
+        foreach (long seed in seeds)
         {
             var server = Start(seed, "jungle", out var repo, Frequency.Off);
             using (repo)

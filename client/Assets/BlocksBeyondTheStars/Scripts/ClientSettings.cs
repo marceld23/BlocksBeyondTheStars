@@ -485,6 +485,10 @@ namespace BlocksBeyondTheStars.Client
         /// <c>ToolLook.MaxLooksPerPlayer</c>.</summary>
         public List<ToolLookSetting> ToolLooks = new List<ToolLookSetting>();
 
+        /// <summary>The preview material the form editor was last left on (#1969), a block key; empty = plain
+        /// stone. Only a convenience of that screen — a form never stores a material.</summary>
+        public string FormEditorMaterial = "";
+
         public string GetToolLook(string itemKey)
         {
             if (ToolLooks != null)

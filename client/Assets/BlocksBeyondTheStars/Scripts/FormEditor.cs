@@ -56,6 +56,13 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<BlockDefinition> _materials = new List<BlockDefinition>();
         private int _materialIndex;
         private int _dyeIndex; // 0 = undyed
+
+        // The material list (#1969): the same searchable palette list the texture editor browses with.
+        private const string DefaultMaterial = "stone";
+        private BlockTextureAtlas _atlas;
+        private readonly List<EditorPaletteKit.Entry> _materialRows = new List<EditorPaletteKit.Entry>();
+        private PaletteListUi _materialList;
+        private string _materialAtOpen = string.Empty;
         private bool _previewDirty = true;
 
         private static readonly Color[] Dyes =
@@ -81,8 +88,25 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                _materials.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
-                _materialIndex = Mathf.Max(0, _materials.FindIndex(b => b.Key == "planks"));
+                // By section, then by the name the player READS — the key order looked random in every
+                // language but English.
+                _materials.Sort((a, b) =>
+                {
+                    int rank = EditorPaletteKit.CategoryRank(MaterialGroup(a)).CompareTo(EditorPaletteKit.CategoryRank(MaterialGroup(b)));
+                    if (rank != 0)
+                    {
+                        return rank;
+                    }
+
+                    int group = string.CompareOrdinal(MaterialGroup(a), MaterialGroup(b));
+                    return group != 0 ? group : string.Compare(MaterialLabel(a), MaterialLabel(b), StringComparison.CurrentCultureIgnoreCase);
+                });
+
+                // The material of the last visit, else plain stone.
+                _materialAtOpen = Shell?.Settings != null ? Shell.Settings.FormEditorMaterial ?? string.Empty : string.Empty;
+                int start = _materials.FindIndex(b => b.Key == _materialAtOpen);
+                _materialIndex = Mathf.Max(0, start >= 0 ? start : _materials.FindIndex(b => b.Key == DefaultMaterial));
+                _atlas = BlockTextureAtlas.Acquire(_content);
             }
 
             BuildUi();
@@ -113,6 +137,20 @@ namespace BlocksBeyondTheStars.Client
             Destroy(_previewTile);
             Destroy(_previewMesh);
             Destroy(_previewMaterial);
+            foreach (var row in _materialRows)
+            {
+                Destroy(row.Icon); // cut out of the shared atlas for this list only
+            }
+
+            _atlas?.Release();
+
+            // Remember the material for the next visit — once, on the way out, not on every click.
+            string chosen = _materials.Count > 0 ? _materials[Mathf.Clamp(_materialIndex, 0, _materials.Count - 1)].Key : string.Empty;
+            if (Shell?.Settings != null && chosen.Length > 0 && chosen != _materialAtOpen)
+            {
+                Shell.Settings.FormEditorMaterial = chosen;
+                Shell.Settings.Save();
+            }
         }
 
         // ---------------------------------------------------------------- per frame
@@ -574,7 +612,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var block = _materials[Mathf.Clamp(_materialIndex, 0, _materials.Count - 1)];
                 _previewTile = GameTextures.LoadTileTexture(block.Key);
-                label = Shell != null && !string.IsNullOrEmpty(block.NameKey) ? Shell.L(block.NameKey) : block.Key;
+                label = MaterialLabel(block);
             }
 
             _previewMaterial.mainTexture = _previewTile;
@@ -735,8 +773,11 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(panel, 184f, 42f, 162f, 40f, L("ui.form.duplicate"), Duplicate);
             UiKit.AddButton(panel, 14f, 88f, 162f, 40f, L("ui.shape.custom.export"), CopyCode);
             UiKit.AddButton(panel, 184f, 88f, 162f, 40f, L("ui.shape.custom.import"), PasteCode);
-            _libraryContent = UiKit.ScrollList(panel, 14f, 138f, 332f, 858f, 4f);
+            // The column is shared (#1969): the forms above, the preview material below — each scrolls alone.
+            _libraryContent = UiKit.ScrollList(panel, 14f, 138f, 332f, 362f, 4f);
             RebuildLibrary();
+            UiKit.AddImage(panel, 14f, 510f, 332f, 2f, UiKit.SolidSprite, new Color(1f, 1f, 1f, 0.12f));
+            BuildMaterialList(panel, 522f, 474f);
         }
 
         /// <summary>EVERY saved form (the in-world editor shows the first fourteen), each with its size and a
@@ -822,13 +863,13 @@ namespace BlocksBeyondTheStars.Client
             _previewView = view.AddComponent<RawImage>();
 
             // Material + dye: what the form will look like — it takes the material it is made of in the world.
+            // The material is picked in the list on the left (#1969); here stands only its name, which stays
+            // readable while a search hides its row.
             float x = 492f, y = 40f;
             UiKit.AddText(panel, x, y, 288f, 22f, L("ui.form.material"), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 26f;
-            UiKit.AddButton(panel, x, y, 50f, 40f, "◀", () => StepMaterial(-1));
-            _materialLabel = UiKit.AddText(panel, x + 56f, y, 176f, 40f, string.Empty, 15, UiKit.TextCol, TextAnchor.MiddleCenter);
-            UiKit.AddButton(panel, x + 238f, y, 50f, 40f, "▶", () => StepMaterial(1));
-            y += 52f;
+            _materialLabel = UiKit.AddText(panel, x, y, 288f, 28f, string.Empty, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            y += 40f;
             UiKit.AddText(panel, x, y, 288f, 22f, L("ui.form.dye"), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 26f;
             for (int i = 0; i < Dyes.Length; i++)
@@ -876,15 +917,48 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(panel, 358f, y, 80f, 40f, "+", () => StepFootprint(dw, dh, dl));
         }
 
-        private void StepMaterial(int delta)
+        private string MaterialLabel(BlockDefinition block) =>
+            Shell != null && !string.IsNullOrEmpty(block.NameKey) ? Shell.L(block.NameKey) : block.Key;
+
+        private static string MaterialGroup(BlockDefinition block) =>
+            string.IsNullOrEmpty(block.Category) ? "building" : block.Category;
+
+        /// <summary>The lower half of the left column (#1969): every material a form can be made of, with its
+        /// real tile in front of the name, under section headers, filtered by the search field — the list the
+        /// texture editor browses with. It only dresses the PREVIEW: in the world a form takes the material it
+        /// is made from.</summary>
+        private void BuildMaterialList(Transform panel, float top, float height)
         {
-            if (_materials.Count == 0)
+            UiKit.AddText(panel, 14f, top, 330f, 24f, L("ui.form.material"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddInput(panel, 14f, top + 30f, 332f, 34f, string.Empty, v => _materialList?.Rebuild(v), L("ui.tex.search"), 40, 15);
+            var content = UiKit.ScrollList(panel, 14f, top + 72f, 332f, height - 72f);
+
+            _materialRows.Clear();
+            foreach (var block in _materials)
             {
-                return;
+                _materialRows.Add(new EditorPaletteKit.Entry
+                {
+                    Id = block.Key,
+                    Label = MaterialLabel(block),
+                    Kind = "block",
+                    Group = MaterialGroup(block),
+                    Color = new Color(0.4f, 0.5f, 0.6f),
+                    Icon = EditorPaletteKit.TileSprite(_atlas, block.NumericId.Value),
+                });
             }
 
-            _materialIndex = (_materialIndex + delta + _materials.Count) % _materials.Count;
-            ApplyMaterial();
+            _materialList = new PaletteListUi(Shell != null ? Shell : FindAnyObjectByType<AppShell>(), content, _materialRows, _materialIndex);
+            _materialList.OnSelected = index =>
+            {
+                // Rebuild reports the standing selection on every keystroke of the search; only a real change
+                // loads a tile.
+                if (index >= 0 && index < _materials.Count && index != _materialIndex)
+                {
+                    _materialIndex = index;
+                    ApplyMaterial();
+                }
+            };
+            _materialList.Rebuild(string.Empty);
         }
     }
 }

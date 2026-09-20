@@ -73,7 +73,8 @@ namespace BlocksBeyondTheStars.Client
             return list;
         }
 
-        private static int CategoryRank(string group)
+        /// <summary>Where a block category's section stands in a palette list; unknown categories come last.</summary>
+        internal static int CategoryRank(string group)
         {
             int i = Array.IndexOf(CategoryOrder, group);
             return i >= 0 ? i : CategoryOrder.Length;
