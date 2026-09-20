@@ -73,6 +73,16 @@ exactly the players you invited, and you hold every switch (robots, bandits and 
   worlds; bug reports (F1/F2) contain the text the player types plus technical logs and are read by the
   maintainers.
 - There is **no analytics/tracking SDK, no ad network** in the game.
+- **Sending in a texture.** Children can send 64×64-pixel textures they painted in the game to the
+  developers. No real name, no e-mail and no location is asked for — the dialog asks for a *nickname* and says
+  not to use the real name; the child confirms that they painted the picture themselves, that the developers
+  may use it in the game, and that they are at least 16 **or that their parents agreed**. We look at every
+  submission by hand before anything goes into the game; one we do not adopt is deleted after twelve months at
+  the latest. If you do not want a submission to be used, write to us — we delete it, and a texture that has
+  already shipped is removed with the next version.
+- **Textures other players made.** On a multiplayer world its administrators can replace textures for
+  everyone there. *Settings → Show this world's textures → Off* switches that off for your child's game, on
+  every world.
 - The optional AI backend (for dynamic NPC dialogue) processes the in-game conversation text to generate
   replies; it is off unless the host sets it up, and it has a non-AI fallback.
 

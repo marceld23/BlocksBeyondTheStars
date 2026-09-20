@@ -78,6 +78,17 @@ haben, und Sie halten jeden Schalter (Roboter, Banditen und andere Gegner, Sprac
   Welten; Fehlerberichte (F1/F2) enthalten den getippten Text plus technische Logs und werden von den
   Entwicklern gelesen.
 - Es gibt **kein Analyse-/Tracking-SDK und kein Werbenetzwerk** im Spiel.
+- **Texturen einreichen.** Kinder können im Spiel selbst gemalte 64×64-Texturen an die Entwickler schicken.
+  Dabei wird kein echter Name, keine E-Mail und kein Standort abgefragt – der Dialog fragt nach einem
+  *Spitznamen* und bittet ausdrücklich, nicht den echten Namen zu nehmen; das Kind bestätigt, dass es das Bild
+  selbst gemalt hat, dass die Entwickler es im Spiel verwenden dürfen und dass es mindestens 16 ist **oder die
+  Eltern einverstanden sind**. Jede Einreichung wird von uns von Hand geprüft, bevor irgendetwas ins Spiel
+  kommt; was wir nicht übernehmen, löschen wir spätestens nach zwölf Monaten. Wenn Sie nicht möchten, dass
+  eine Einreichung verwendet wird, schreiben Sie uns – wir löschen sie, und eine bereits veröffentlichte
+  Textur entfernen wir mit der nächsten Version.
+- **Texturen anderer Spieler.** In einer Mehrspieler-Welt können deren Administratoren Texturen für alle
+  dort ersetzen. *Einstellungen → Texturen dieser Welt anzeigen → Aus* schaltet das für das Spiel Ihres
+  Kindes ab, in jeder Welt.
 - Das optionale KI-Backend (für dynamische NPC-Dialoge) verarbeitet den Gesprächstext im Spiel, um
   Antworten zu erzeugen; es ist aus, solange der Host es nicht einrichtet, und hat einen Nicht-KI-Ersatz.
 

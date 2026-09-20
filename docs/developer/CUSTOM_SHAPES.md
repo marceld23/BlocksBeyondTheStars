@@ -131,6 +131,15 @@ export/import pair in this change.
 share the `paint_report` table with a `kind` column (`"paint"` — what every pre-existing row is — or
 `"shape"`). A wipe blanks every instance of that form world-wide at once, which is the registry's advantage.
 
+## Forms over several blocks (#1961)
+
+A third payload next to the two legacy lengths — `"m1:WHL:"` + one 8³ bitmap per cell, footprint ≤ 3×3×3, ≤ 8
+cells, one registry slot per form, the cell of a placed block in descriptor bits 27–30. Format, server rules
+(footprint check before the item is consumed, falling as one piece via `ServerWorld.ShapedBlockReplaced`, N
+blocks of material for N cells) and the client side are described in
+[CREATOR_SUITE.md](CREATOR_SUITE.md) §5. The small in-world editor stays a ONE-block editor; such forms are
+designed in the main-menu Form Editor.
+
 ## Known limits (state these in the manual, not just here)
 
 - Behaviour keyed on specific built-in forms — sitting, beds, campfires — does not extend to custom forms.

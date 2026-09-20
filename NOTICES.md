@@ -7,6 +7,15 @@ asset here **with its licence** before bundling it.
 
 ## Bundled assets (textures, models, audio, fonts)
 
+**Textures painted by players.** A texture that reaches the game through the in-game *Submit to the
+developers* button (or as an export bundle in a pull request) is credited here under the **nickname** its
+painter gave — never a real name, and "anonymous" when they chose *No name*. The submitter confirmed that
+they painted it themselves and that it may be used, changed and distributed with the game in all versions and
+on all platforms; `tools/ai-assets/texture_provenance.json` records the same nickname per texture key, which
+also keeps the generator scripts from painting over it.
+
+*(none yet)*
+
 **Sound effects:** `client/Assets/Resources/audio/*.mp3` (221 files, incl. the splash intro, the
 `terrain_scan` prospecting pulse (Feature 40), the boat's outboard loop `boat_engine_loop` + `boat_splash`
 (#1215, `gen_sound.py`), the

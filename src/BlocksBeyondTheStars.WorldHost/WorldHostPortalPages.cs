@@ -810,6 +810,7 @@ loadNotices();
  <h2>{summary.T("privacy.summary.title")}</h2>
  <p>{summary.T("privacy.summary.text")}</p>
  <p>{summary.T("privacy.summary.reports")}</p>
+ <p>{summary.T("privacy.summary.textures")}</p>
 </div>";
 
         string germanBody = $@"
@@ -841,6 +842,13 @@ loadNotices();
    Antworten und Rückfragen werden dir im Spiel angezeigt; eine Antwort, die du dort eintippst, wird bei
    deiner Meldung gespeichert. Diese Meldungen hängen an deiner Spielinstallation, nicht an einem
    Portal-Konto.</li>
+  <li><b>Textur-Einreichungen:</b> Wenn du im Spiel eine selbst gemalte Textur einreichst, speichern wir im
+   selben Meldungs-Postfach die Textur, ihren Namen, den von dir gewählten Spitznamen (oder keinen), deine
+   Notiz, die Spielversion und den anonymen Antwort-Schlüssel — keine E-Mail, kein echter Name, kein Standort.
+   Mitgespeichert wird, dass du die drei Bestätigungen gegeben hast (selbst gemalt, Nutzung erlaubt,
+   mindestens 16 oder Eltern einverstanden). Wir prüfen jede Einreichung von Hand. Übernommene Texturen
+   werden Teil des Spiels und mit ihm veröffentlicht; hast du einen Spitznamen angegeben, nennen wir ihn in
+   den Credits.</li>
   <li><b>Sitzung:</b> ein zufälliges Sitzungs-Token im localStorage deines Browsers (kein Cookie,
    kein seitenübergreifendes Tracking). Wählst du eine Sprache, merkt sich ein einzelnes Cookie
    (<code>bbs_lang</code>) nur diese Einstellung.</li>
@@ -874,6 +882,9 @@ loadNotices();
    Button <b>„Konto löschen“</b> auf der Welten-Seite; damit werden Konto, Sitzungen, deine Meldungen und
    alle deine Welten samt Spielständen endgültig entfernt.</li>
   <li>Lange inaktive Welten werden nach etwa {config.ArchiveAfterMonths} Monaten archiviert (nicht gelöscht).</li>
+  <li><b>Textur-Einreichungen</b>, die wir nicht ins Spiel übernehmen, löschen wir spätestens nach 12 Monaten
+   automatisch (samt Bild und Gesprächsverlauf). Übernommene Texturen sind Teil des Spiels; auf Wunsch
+   entfernen wir sie mit der nächsten Version.</li>
   <li>Fehlermeldungen aus dem Spiel bleiben samt Gesprächsverlauf im Meldungs-Postfach, bis wir sie löschen —
    eine automatische Löschfrist gibt es derzeit nicht, und das Löschen des Portal-Kontos betrifft sie nicht.
    Möchtest du sie löschen lassen, schreib an die oben genannte E-Mail-Adresse und nenne den Titel der
