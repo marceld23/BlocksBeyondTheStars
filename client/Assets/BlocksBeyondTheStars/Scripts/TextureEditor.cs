@@ -96,7 +96,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Start()
         {
-            _content = Shell != null ? Shell.Content : WorldHost?.Content;
+            _content = WorldHost?.Content ?? (Shell != null ? Shell.Content : null); // in a world: ITS content (packs)
             _atlas = _content != null ? BlockTextureAtlas.Acquire(_content) : null;
             _entries = TextureCatalog.Build(_content, key => L(key));
 
@@ -529,7 +529,8 @@ namespace BlocksBeyondTheStars.Client
                     : GameTextures.Official(_entry.Key) != null ? "ui.tex.layer_official"
                     : "ui.tex.layer_code";
                 string alpha = _model.AlphaMode == TextureAlphaMode.Opaque ? "ui.tex.alpha_opaque" : "ui.tex.alpha_cutout";
-                _layerLabel.text = L(layer) + "  ·  " + L(alpha);
+                string owner = GameTextures.WorldOwner(_entry.Key);
+                _layerLabel.text = L(layer) + (owner.Length > 0 ? " (" + owner + ")" : string.Empty) + "  ·  " + L(alpha);
             }
 
             bool canPublish = WorldHost != null && WorldHost.CanPublish;
@@ -655,7 +656,10 @@ namespace BlocksBeyondTheStars.Client
             if (TexturePackFolder.Save(_entry.Key, _model.CopyFrames(), _model.Fps))
             {
                 _model.MarkSaved();
-                SetStatus(L("ui.tex.saved_local"), UiKit.Ok);
+                // The world wins over the local pack (decision 2026-09-20) — say so, or "it did not work" is what
+                // the player concludes when nothing changes around them.
+                bool hidden = GameTextures.HasWorld(_entry.Key) && GameTextures.ShowWorldTextures;
+                SetStatus(L(hidden ? "ui.tex.saved_local_world_wins" : "ui.tex.saved_local"), hidden ? UiKit.Warn : UiKit.Ok);
             }
             else
             {

@@ -2099,6 +2099,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 CustomShapes?.RegisterAll(m.Ids, m.Voxels, m.Names, m.Owners);
             };
+            // World textures (#1959): pages after the join become ONE batch (one atlas repaint), a publish or wipe
+            // while playing a batch of one. The atlas repaints in place, so no chunk has to re-mesh for it.
+            Network.WorldTextureListReceived += m => ApplyWorldTextures(_worldTextureInbox.Accept(m));
+            Network.WorldTextureReceived += m => ApplyWorldTextures(_worldTextureInbox.Accept(m));
             Network.CustomShapeReceived += m =>
             {
                 if (CustomShapes == null)
@@ -3878,9 +3882,41 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        private readonly WorldTextureInbox _worldTextureInbox = new WorldTextureInbox();
+
+        private static void ApplyWorldTextures(WorldTextureBatch batch)
+        {
+            if (batch == null)
+            {
+                return;
+            }
+
+            var changes = new Dictionary<string, TextureFrames>(batch.Changes.Count, System.StringComparer.Ordinal);
+            foreach (var kv in batch.Changes)
+            {
+                changes[kv.Key] = kv.Value == null
+                    ? null
+                    : new TextureFrames(kv.Value.Frames, kv.Value.Fps, TextureLayer.World) { Owner = kv.Value.Owner };
+            }
+
+            GameTextures.ApplyWorldBatch(changes, batch.Complete);
+        }
+
+        /// <summary>True when this player may publish world textures: the server offers them, the world rule is on
+        /// and the player is a world admin (the server fills the mode roster for admins only, #1121). The server
+        /// checks again — this only decides whether the buttons are offered.</summary>
+        public bool CanPublishWorldTextures
+            => Rules != null && string.Equals(Rules.WorldTextures, "Admins", System.StringComparison.Ordinal)
+               && Rules.PlayerModeNames != null && Rules.PlayerModeNames.Length > 0;
+
         private void OnDestroy()
         {
             Network?.Dispose();
+
+            // The atlas and the texture source are shared with the menu and its editors — a world's textures
+            // must not outlive the world (#1959).
+            _worldTextureInbox.Reset();
+            GameTextures.ClearWorldLayer();
 
             IconResolver.ClearCache();
             ShapeIconFactory.ClearCache();

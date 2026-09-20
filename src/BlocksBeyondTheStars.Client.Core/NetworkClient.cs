@@ -110,6 +110,10 @@ namespace BlocksBeyondTheStars.Client
         // Player-designed block forms (#843): the same pair for the form registry.
         public event Action<CustomShapeData>? CustomShapeReceived;
         public event Action<CustomShapeList>? CustomShapeListReceived;
+
+        // World textures (#1959): the list arrives in pages after the join, single changes while playing.
+        public event Action<WorldTextureData>? WorldTextureReceived;
+        public event Action<WorldTextureList>? WorldTextureListReceived;
         public event Action<OwnedShips>? OwnedShipsReceived;
         public event Action<WorldEnvironment>? WorldEnvironmentReceived;
         public event Action<WorldReset>? WorldResetReceived;
@@ -402,9 +406,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",
             string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "", string hazards = "",
-            string autoAim = "", string starterTeleporter = "", string frontierDanger = "", string baseVisitors = "")
+            string autoAim = "", string starterTeleporter = "", string frontierDanger = "", string baseVisitors = "",
+            string worldTextures = "")
             => Send(new SetWorldRulesIntent
             {
+                WorldTextures = worldTextures,
                 CreatureAbundance = creatures,
                 PlanetEnemies = planetEnemies,
                 SpaceNpcEnemies = spaceNpcs,
@@ -419,6 +425,30 @@ namespace BlocksBeyondTheStars.Client
                 FrontierDanger = frontierDanger,
                 BaseVisitors = baseVisitors,
             });
+
+        /// <summary>World admin: publishes a texture for everyone in this world (#1959). The server validates key,
+        /// animation, pixels and the alpha rule again, and answers non-admins with a reject toast. False when the
+        /// frames are not something the game could show (nothing is sent then).</summary>
+        public bool SendPublishWorldTexture(string key, IReadOnlyList<byte[]> frames, int fps)
+        {
+            if (!BlocksBeyondTheStars.Shared.Textures.TextureTiles.IsValidKey(key) || frames == null
+                || !BlocksBeyondTheStars.Shared.Textures.TextureTiles.IsValidAnimation(frames.Count, fps))
+            {
+                return false;
+            }
+
+            string data = BlocksBeyondTheStars.Shared.Textures.WorldTextureCodec.Encode(frames);
+            if (data.Length == 0)
+            {
+                return false;
+            }
+
+            Send(new PublishWorldTextureIntent { Key = key, Frames = frames.Count, Fps = frames.Count > 1 ? fps : 0, Data = data });
+            return true;
+        }
+
+        /// <summary>World admin: takes a world texture back — everyone sees the official one again.</summary>
+        public void SendRemoveWorldTexture(string key) => Send(new RemoveWorldTextureIntent { Key = key ?? string.Empty });
 
         /// <summary>Hyperjump into a (possibly unvisited) star system, arriving in flight mode there.</summary>
         public void SendHyperjumpSystem(string systemId) => Send(new HyperjumpSystemIntent { SystemId = systemId });
@@ -998,6 +1028,8 @@ namespace BlocksBeyondTheStars.Client
                 case PaintDesignList m: PaintDesignListReceived?.Invoke(m); break;
                 case CustomShapeData m: CustomShapeReceived?.Invoke(m); break;
                 case CustomShapeList m: CustomShapeListReceived?.Invoke(m); break;
+                case WorldTextureData m: WorldTextureReceived?.Invoke(m); break;
+                case WorldTextureList m: WorldTextureListReceived?.Invoke(m); break;
                 case OwnedShips m: OwnedShipsReceived?.Invoke(m); break;
                 case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
                 case WorldReset m:

@@ -983,6 +983,20 @@ namespace BlocksBeyondTheStars.Client
                         return true;
                     }
 
+                // ---- World textures (#1959): take a published texture back — one key, a player's, or all ----
+                // ("/reporttexture <key>" travels as chat, like /reportpaint: any player may flag one.)
+                case "/texturewipe":
+                    {
+                        if (p.Length < 2)
+                        {
+                            LocalLine(L("ui.cmd.usage_texturewipe"));
+                            return true;
+                        }
+
+                        net.SendAdminCommand("texturewipe", stringArg: AdminChatCommand.PlayerArgument(t));
+                        return true;
+                    }
+
                 default:
                     return false; // not an admin command (e.g. /bump) → send as normal chat
             }

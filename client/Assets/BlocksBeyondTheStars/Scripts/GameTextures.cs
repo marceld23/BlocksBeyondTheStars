@@ -40,6 +40,9 @@ namespace BlocksBeyondTheStars.Client
 
         public TextureLayer Layer { get; }
 
+        /// <summary>World layer only: the admin who published it (credit + moderation); empty elsewhere.</summary>
+        public string Owner { get; set; } = string.Empty;
+
         public bool Animated => Frames.Length > 1;
     }
 
@@ -236,14 +239,27 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Applies a batch of world textures at once (the join stream, or one publish / wipe): entries
         /// with null frames remove the key. One event for the whole batch, because the atlas rebuild it triggers
         /// is the expensive part.</summary>
-        public static void ApplyWorldBatch(IDictionary<string, TextureFrames> changes)
+        public static void ApplyWorldBatch(IDictionary<string, TextureFrames> changes, bool complete = false)
         {
-            if (changes == null || changes.Count == 0)
+            if (changes == null || (changes.Count == 0 && !complete))
             {
                 return;
             }
 
             var touched = new List<string>(changes.Count);
+            if (complete)
+            {
+                // The world's whole list (a join, or the world rule was switched): what it does not name is gone.
+                foreach (string key in new List<string>(World.Keys))
+                {
+                    if (!changes.ContainsKey(key))
+                    {
+                        World.Remove(key);
+                        touched.Add(key);
+                    }
+                }
+            }
+
             foreach (var kv in changes)
             {
                 if (kv.Value == null)
@@ -281,6 +297,10 @@ namespace BlocksBeyondTheStars.Client
         }
 
         public static bool HasWorld(string key) => World.ContainsKey(key);
+
+        /// <summary>Who published the world texture of <paramref name="key"/>; empty when there is none.</summary>
+        public static string WorldOwner(string key)
+            => key != null && World.TryGetValue(key, out var frames) ? frames.Owner : string.Empty;
 
         // ---------------------------------------------------------------- helpers
 

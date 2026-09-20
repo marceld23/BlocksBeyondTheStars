@@ -4649,5 +4649,12 @@
   "ui.tex.submit.sent": "Thank you! We will look at your texture and answer you here in the game.",
   "ui.tex.submit.queued": "No connection – we will send it the next time you start the game.",
   "ui.tex.submit.failed": "That did not work. Please try again later – or use “Export”.",
-  "ui.tex.submit.not_configured": "This build cannot submit textures. Use “Export” and send us the folder."
+  "ui.tex.submit.not_configured": "This build cannot submit textures. Use “Export” and send us the folder.",
+  "ui.settings.textures_title": "Textures",
+  "ui.settings.use_texture_pack": "Use my textures ({0})",
+  "ui.settings.show_world_textures": "Show this world's textures ({0})",
+  "ui.worldopt.world_textures": "World textures",
+  "ui.worldopt.world_textures_admins": "Admins",
+  "ui.cmd.usage_texturewipe": "Usage: /texturewipe <texture key | player | all> — takes published world textures back.",
+  "ui.tex.saved_local_world_wins": "Saved for you. This world shows its own texture here – you will see yours in other worlds, or when you switch off “Show this world's textures”."
 }
