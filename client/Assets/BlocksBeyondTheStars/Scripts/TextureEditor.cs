@@ -157,9 +157,16 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var mode = TextureTiles.AlphaModeOf(entry.Key);
-            var current = GameTextures.Resolve(entry.Key);
-            if (current != null)
+            var mode = entry.IsIcon ? TextureAlphaMode.Free : TextureTiles.AlphaModeOf(entry.Key);
+            var current = entry.IsIcon ? null : GameTextures.Resolve(entry.Key);
+            if (entry.IsIcon)
+            {
+                // The player's own icon if there is one, else the shipped one — read back through the GPU, because the
+                // build's icons are not CPU-readable and come in every size.
+                var source = TexturePackFolder.IconOverride(entry.IconName) ?? Resources.Load<Texture2D>("icons/" + entry.IconName);
+                _model.Load(new[] { ReadIcon(source) }, 0, mode);
+            }
+            else if (current != null)
             {
                 _model.Load(current.Frames, current.Fps, mode);
             }
@@ -183,12 +190,55 @@ namespace BlocksBeyondTheStars.Client
             SetStatus(string.Empty, UiKit.Ok);
         }
 
+        /// <summary>An icon as one 64×64 frame in the tile layout (RGBA32, rows bottom-up). Blitting into a small
+        /// render target and reading that back works for non-readable textures and scales in one go.</summary>
+        private static byte[] ReadIcon(Texture source)
+        {
+            var raw = new byte[TextureTiles.BytesPerFrame];
+            if (source == null)
+            {
+                return raw;
+            }
+
+            var rt = RenderTexture.GetTemporary(Tile, Tile, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+            var previous = RenderTexture.active;
+            var copy = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false);
+            try
+            {
+                var filter = source.filterMode;
+                source.filterMode = source.width > Tile ? FilterMode.Bilinear : FilterMode.Point;
+                Graphics.Blit(source, rt);
+                source.filterMode = filter;
+                RenderTexture.active = rt;
+                copy.ReadPixels(new Rect(0, 0, Tile, Tile), 0, 0);
+                copy.Apply();
+                var data = copy.GetRawTextureData<byte>();
+                if (data.Length == raw.Length)
+                {
+                    data.CopyTo(raw);
+                }
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                RenderTexture.ReleaseTemporary(rt);
+                Destroy(copy);
+            }
+
+            return raw;
+        }
+
         /// <summary>The texture as shipped — every frame, or the code-painted tile of a block that has no file.</summary>
         private TextureFrames OfficialFrames()
         {
             if (_entry == null)
             {
                 return null;
+            }
+
+            if (_entry.IsIcon)
+            {
+                return new TextureFrames(new[] { ReadIcon(Resources.Load<Texture2D>("icons/" + _entry.IconName)) }, 0, TextureLayer.Official);
             }
 
             var bundled = GameTextures.Official(_entry.Key);
@@ -524,7 +574,8 @@ namespace BlocksBeyondTheStars.Client
             _title.text = _entry.Label + "  ·  " + _entry.Key + (_model != null && _model.Dirty ? "  *" : string.Empty);
             if (_layerLabel != null)
             {
-                string layer = GameTextures.HasWorld(_entry.Key) ? "ui.tex.layer_world"
+                string layer = _entry.IsIcon ? (TexturePackFolder.IconOverride(_entry.IconName) != null ? "ui.tex.layer_local" : "ui.tex.layer_official")
+                    : GameTextures.HasWorld(_entry.Key) ? "ui.tex.layer_world"
                     : GameTextures.HasLocal(_entry.Key) ? "ui.tex.layer_local"
                     : GameTextures.Official(_entry.Key) != null ? "ui.tex.layer_official"
                     : "ui.tex.layer_code";
@@ -533,7 +584,7 @@ namespace BlocksBeyondTheStars.Client
                 _layerLabel.text = L(layer) + (owner.Length > 0 ? " (" + owner + ")" : string.Empty) + "  ·  " + L(alpha);
             }
 
-            bool canPublish = WorldHost != null && WorldHost.CanPublish;
+            bool canPublish = WorldHost != null && WorldHost.CanPublish && !_entry.IsIcon; // an icon is never a world texture
             if (_publishButton != null)
             {
                 _publishButton.gameObject.SetActive(canPublish);
@@ -653,6 +704,22 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (_entry.IsIcon)
+            {
+                var icon = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false);
+                Upload(icon, _model.Frames[0]);
+                bool ok = TexturePackFolder.SaveIcon(_entry.IconName, icon);
+                Destroy(icon);
+                if (ok)
+                {
+                    _model.MarkSaved();
+                }
+
+                SetStatus(L(ok ? "ui.tex.saved_local" : "ui.tex.save_failed"), ok ? UiKit.Ok : UiKit.Warn);
+                RefreshBadges();
+                return;
+            }
+
             if (TexturePackFolder.Save(_entry.Key, _model.CopyFrames(), _model.Fps))
             {
                 _model.MarkSaved();
@@ -671,6 +738,20 @@ namespace BlocksBeyondTheStars.Client
 
         private void RemoveMine()
         {
+            if (_entry != null && _entry.IsIcon)
+            {
+                if (TexturePackFolder.IconOverride(_entry.IconName) == null)
+                {
+                    SetStatus(L("ui.tex.none_local"), UiKit.Warn);
+                    return;
+                }
+
+                TexturePackFolder.RemoveIcon(_entry.IconName);
+                SetStatus(L("ui.tex.removed_local"), UiKit.Ok);
+                Open(_entry); // back to the shipped icon on the canvas
+                return;
+            }
+
             if (_entry == null || !GameTextures.HasLocal(_entry.Key))
             {
                 SetStatus(L("ui.tex.none_local"), UiKit.Warn);
@@ -707,7 +788,7 @@ namespace BlocksBeyondTheStars.Client
                 _submit.OnOutcome = SetStatus;
             }
 
-            _submit.Open(_entry.Key, _entry.Label, _model.CopyFrames(), _model.Fps);
+            _submit.Open(_entry.Key, _entry.Label, _model.CopyFrames(), _model.Fps, _entry.IsIcon);
         }
 
         private void ExportForGame()
@@ -724,6 +805,7 @@ namespace BlocksBeyondTheStars.Client
                 Directory.CreateDirectory(dir);
                 var meta = new ExportMeta
                 {
+                    kind = _entry.IsIcon ? "icon" : "tile",
                     key = _entry.Key,
                     frames = frames.Length,
                     fps = _model.Fps,
@@ -1170,7 +1252,7 @@ namespace BlocksBeyondTheStars.Client
                 btn.onClick.AddListener(() => SelectFrame(index));
             }
 
-            UiKit.AddButton(panel, 520f, y, 74f, 24f, L("ui.tex.frame_add"), () => { if (!_model.DuplicateFrame()) { SetStatus(L("ui.tex.frame_limit"), UiKit.Warn); } AfterChange(); });
+            UiKit.AddButton(panel, 520f, y, 74f, 24f, L("ui.tex.frame_add"), () => { if (_entry != null && _entry.IsIcon) { SetStatus(L("ui.tex.icon_one_frame"), UiKit.Warn); return; } if (!_model.DuplicateFrame()) { SetStatus(L("ui.tex.frame_limit"), UiKit.Warn); } AfterChange(); });
             UiKit.AddButton(panel, 598f, y, 72f, 24f, L("ui.tex.frame_del"), () => { _model.DeleteFrame(); AfterChange(); });
             UiKit.AddButton(panel, 520f, y + 28f, 36f, 24f, "◀", () => { _model.MoveFrame(-1); AfterChange(); });
             UiKit.AddButton(panel, 558f, y + 28f, 36f, 24f, "▶", () => { _model.MoveFrame(1); AfterChange(); });

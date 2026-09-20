@@ -2010,6 +2010,9 @@ namespace BlocksBeyondTheStars.Client
                     ? (Atlas.Texture, Atlas.TileUv(b.NumericId.Value))
                     : null;
 
+            // A tool's own look comes from the item data (#1962).
+            HeldItem.ModelResolver = key => Content?.GetItem(key)?.HeldModel;
+
             // The empty-slot hand (#1033) wears a glove in the player's suit arm colour — and the player's
             // own arm painting from the appearance editor, so first person matches third person (#1427).
             HeldItem.HandTintResolver = () => Settings?.ArmColor;
@@ -3921,6 +3924,8 @@ namespace BlocksBeyondTheStars.Client
             IconResolver.ClearCache();
             ShapeIconFactory.ClearCache();
             HeldItem.BlockTileResolver = null;
+            HeldItem.ModelResolver = null;
+            HeldItem.ReleasePartMaterials();
             HeldItem.HandTintResolver = null;  // both closures capture Settings (and this object graph) — #1464
             HeldItem.HandPaintResolver = null;
             HeldItem.ReleaseHandAtlas();

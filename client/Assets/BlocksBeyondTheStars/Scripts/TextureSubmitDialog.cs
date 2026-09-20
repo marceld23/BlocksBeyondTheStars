@@ -50,6 +50,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _noName;
 
         private string _key;
+        private bool _icon;
         private byte[][] _frames;
         private int _fps;
 
@@ -69,8 +70,9 @@ namespace BlocksBeyondTheStars.Client
 
         private string L(string key) => Localize != null ? Localize(key) : key;
 
-        public void Open(string key, string displayName, byte[][] frames, int fps)
+        public void Open(string key, string displayName, byte[][] frames, int fps, bool icon = false)
         {
+            _icon = icon;
             if (IsOpen || frames == null || frames.Length == 0)
             {
                 return;
@@ -280,6 +282,7 @@ namespace BlocksBeyondTheStars.Client
             var form = new TextureSubmissionForm
             {
                 Key = _key,
+                Kind = _icon ? TextureSubmission.KindIcon : TextureSubmission.KindTile,
                 Name = _nameInput != null ? _nameInput.text : string.Empty,
                 Nickname = _noName || _nickInput == null ? string.Empty : _nickInput.text,
                 Note = _noteInput != null ? _noteInput.text : string.Empty,

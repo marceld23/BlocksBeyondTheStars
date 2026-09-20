@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Textures;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 
@@ -31,6 +32,12 @@ namespace BlocksBeyondTheStars.Client
         public string Group;
         public BlockDefinition Block; // null for non-block textures
         public TexturePreviewKind Preview;
+
+        /// <summary>Icon mode (#1962): the entry is an ICON of the build (<c>Resources/icons/&lt;name&gt;.png</c>), not a
+        /// tile — free alpha, one frame, saved into the pack's icon folder. Null for tiles.</summary>
+        public string IconName;
+
+        public bool IsIcon => IconName != null;
     }
 
     /// <summary>
@@ -45,6 +52,7 @@ namespace BlocksBeyondTheStars.Client
         public const string GroupAvatar = "tex_avatar";
         public const string GroupMicrofauna = "tex_microfauna";
         public const string GroupOther = "tex_other";
+        public const string GroupIcons = "tex_icons";
 
         private static readonly string[] CategoryOrder = { "terrain", "ore", "building", "light", "door", "machine", "flora" };
 
@@ -93,6 +101,28 @@ namespace BlocksBeyondTheStars.Client
                         : key.StartsWith("microfauna_", StringComparison.Ordinal) ? GroupMicrofauna
                         : GroupOther,
                     Preview = TexturePreviewKind.Cube,
+                });
+            }
+
+            // Icon mode (#1962): the item icons of the build. They come in every size; the editor paints them on its
+            // one canvas size (64×64), which is what a hotbar slot shows anyway.
+            foreach (var icon in Resources.LoadAll<Texture2D>("icons"))
+            {
+                if (!icon.name.StartsWith("item_", StringComparison.Ordinal) || !TextureTiles.IsValidKey(icon.name))
+                {
+                    continue;
+                }
+
+                string itemKey = icon.name.Substring("item_".Length);
+                string nameKey = content?.GetItem(itemKey)?.NameKey;
+                string label = localize != null && !string.IsNullOrEmpty(nameKey) ? localize(nameKey) : null;
+                entries.Add(new TextureEntry
+                {
+                    Key = icon.name,
+                    IconName = icon.name,
+                    Label = string.IsNullOrEmpty(label) || label == nameKey ? itemKey.Replace('_', ' ') : label,
+                    Group = GroupIcons,
+                    Preview = TexturePreviewKind.Billboard,
                 });
             }
 

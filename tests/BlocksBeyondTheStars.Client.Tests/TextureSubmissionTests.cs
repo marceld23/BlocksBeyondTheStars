@@ -149,6 +149,24 @@ public sealed class TextureSubmissionTests
     }
 
     [Fact]
+    public void AnIcon_KeepsItsSilhouette_AndIsAlwaysOneFrame()
+    {
+        var form = Form("item_torch");
+        form.Kind = TextureSubmission.KindIcon;
+
+        var icon = Build(form, new[] { Frame(0) })!;
+
+        byte[] raw = Convert.FromBase64String(icon.Attachments!.Last().Base64);
+        Assert.Equal(TextureTiles.Size * TextureTiles.Size, TextureTiles.CountSeeThrough(raw)); // free alpha, although "item_torch" is no cutout key
+        using var doc = JsonDocument.Parse(FeedbackUploader.Serialize(icon, null));
+        Assert.Equal("icon", doc.RootElement.GetProperty("reportJson").GetProperty("texture").GetProperty("kind").GetString());
+
+        Assert.Null(Build(form, new[] { Frame(255), Frame(255) }, fps: 8)); // an icon does not animate
+        form.Kind = "model";
+        Assert.Null(Build(form));
+    }
+
+    [Fact]
     public void AnOrdinaryReport_CarriesNoAttachmentsNode()
     {
         string json = FeedbackUploader.Serialize(new FeedbackReport { Description = "The door eats my hat." }, null);

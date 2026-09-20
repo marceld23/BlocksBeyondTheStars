@@ -4689,5 +4689,7 @@
   "ui.form.problem_solid": "Alles ist gefüllt – das ist nur ein Würfel. Lass etwas frei.",
   "ui.form.problem_empty_cell": "Block {0} der Form ist leer. Jeder belegte Block muss etwas enthalten – oder mach die Form kleiner.",
   "ui.form.problem_detailed": "Block {0} ist zu detailreich (mehr als {1} Teile). Vereinfache ihn.",
-  "ui.shape.custom.multi_in_menu": "Diese Form geht über mehrere Blöcke. Bearbeite sie im Formen-Editor des Hauptmenüs (Editoren)."
+  "ui.shape.custom.multi_in_menu": "Diese Form geht über mehrere Blöcke. Bearbeite sie im Formen-Editor des Hauptmenüs (Editoren).",
+  "ui.cat.tex_icons": "Gegenstands-Symbole",
+  "ui.tex.icon_one_frame": "Ein Symbol hat ein Bild – es lässt sich nicht animieren."
 }

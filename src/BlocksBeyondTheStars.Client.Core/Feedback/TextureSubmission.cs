@@ -10,8 +10,12 @@ namespace BlocksBeyondTheStars.Client.Feedback
     /// <summary>What the player filled in and ticked in the "Submit a texture" dialog (#1965).</summary>
     public sealed class TextureSubmissionForm
     {
-        /// <summary>The texture's key (<c>campfire</c>, <c>flora_fern</c>, …).</summary>
+        /// <summary>The texture's key (<c>campfire</c>, <c>flora_fern</c>, …) — for an icon its name (<c>item_torch</c>).</summary>
         public string Key { get; set; } = string.Empty;
+
+        /// <summary><see cref="TextureSubmission.KindTile"/> or <see cref="TextureSubmission.KindIcon"/> — what the
+        /// maintainer's merge tool does with it.</summary>
+        public string Kind { get; set; } = TextureSubmission.KindTile;
 
         /// <summary>The name the player gave the texture (free text, shown to the developers).</summary>
         public string Name { get; set; } = string.Empty;
@@ -54,6 +58,12 @@ namespace BlocksBeyondTheStars.Client.Feedback
         /// the meaning of one of the three sentences changes, so it stays provable what was agreed to.</summary>
         public const int ConsentTextVersion = 1;
 
+        /// <summary>A texture tile of the game (the default).</summary>
+        public const string KindTile = "tile";
+
+        /// <summary>An item icon painted in the editor's icon mode (#1962): free alpha, always one frame.</summary>
+        public const string KindIcon = "icon";
+
         public const int MaxNameLength = 60;
         public const int MaxNicknameLength = 24;
         public const int MaxNoteLength = 500;
@@ -68,7 +78,9 @@ namespace BlocksBeyondTheStars.Client.Feedback
             string gameVersion, string replyKey, string sessionId, string platform, DateTime utcNow)
         {
             if (form == null || !form.ConsentComplete || !TextureTiles.IsValidKey(form.Key)
-                || frames == null || !TextureTiles.IsValidAnimation(frames.Count, fps))
+                || frames == null || !TextureTiles.IsValidAnimation(frames.Count, fps)
+                || (form.Kind != KindTile && form.Kind != KindIcon)
+                || (form.Kind == KindIcon && frames.Count != 1))
             {
                 return null;
             }
@@ -84,8 +96,12 @@ namespace BlocksBeyondTheStars.Client.Feedback
                 Buffer.BlockCopy(frames[i], 0, raw, i * TextureTiles.BytesPerFrame, TextureTiles.BytesPerFrame);
             }
 
-            // What leaves the machine obeys the same alpha rule as what the game shows.
-            TextureTiles.EnforceAlpha(raw, TextureTiles.AlphaModeOf(form.Key));
+            // What leaves the machine obeys the same alpha rule as what the game shows. An icon has free alpha — its
+            // silhouette IS the picture.
+            if (form.Kind == KindTile)
+            {
+                TextureTiles.EnforceAlpha(raw, TextureTiles.AlphaModeOf(form.Key));
+            }
 
             string name = Clean(form.Name, MaxNameLength);
             string nickname = Clean(form.Nickname, MaxNicknameLength);
@@ -119,7 +135,7 @@ namespace BlocksBeyondTheStars.Client.Feedback
                     ["texture"] = new Dictionary<string, object>
                     {
                         ["key"] = form.Key,
-                        ["kind"] = "tile",
+                        ["kind"] = form.Kind,
                         ["name"] = name,
                         ["nickname"] = nickname,
                         ["frames"] = frames.Count,

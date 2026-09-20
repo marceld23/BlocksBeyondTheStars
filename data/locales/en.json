@@ -4689,5 +4689,7 @@
   "ui.form.problem_solid": "Everything is filled — that is just a cube. Leave something out.",
   "ui.form.problem_empty_cell": "Block {0} of the form is empty. Every block the form spans must hold something — or make the form smaller.",
   "ui.form.problem_detailed": "Block {0} is too detailed (more than {1} parts). Simplify it.",
-  "ui.shape.custom.multi_in_menu": "This form spans several blocks. Edit it in the Form Editor of the main menu (Editors)."
+  "ui.shape.custom.multi_in_menu": "This form spans several blocks. Edit it in the Form Editor of the main menu (Editors).",
+  "ui.cat.tex_icons": "Item icons",
+  "ui.tex.icon_one_frame": "An icon has one picture — it cannot be animated."
 }

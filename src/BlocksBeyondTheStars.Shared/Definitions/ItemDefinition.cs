@@ -123,4 +123,64 @@ public sealed class ItemDefinition
 
     /// <summary>Scanner: multiplies knowledge gained from a first scan (1 = no bonus).</summary>
     public float ScanKnowledgeMultiplier { get; set; } = 1f;
+
+    /// <summary>What the item looks like in the hand (#1962): the boxes of its model. Null = the model every item
+    /// of its kind has (a basic drill, a plain gun …). Data, so a content pack can give a new tool its own look
+    /// and so a player's own tool looks (#1963) and the official ones are the same kind of thing.</summary>
+    public List<HeldModelPart>? HeldModel { get; set; }
+}
+
+/// <summary>One box of a held model, in the holder's frame (metres, the tool points along +Z).</summary>
+public sealed class HeldModelPart
+{
+    /// <summary>Most boxes a held model may have — official or player-made.</summary>
+    public const int MaxParts = 32;
+
+    /// <summary>Centre of the box: x, y, z.</summary>
+    public float[] P { get; set; } = System.Array.Empty<float>();
+
+    /// <summary>Size of the box: width, height, depth.</summary>
+    public float[] S { get; set; } = System.Array.Empty<float>();
+
+    /// <summary>Colour as <c>#rrggbb</c>, or <c>tint</c> for the colour of the item's kind.</summary>
+    public string C { get; set; } = "tint";
+
+    /// <summary>True when the box glows (an energy coil, a plasma blade).</summary>
+    public bool G { get; set; }
+
+    /// <summary>A part the game can draw: three finite numbers each, a sane size, a colour it can read.</summary>
+    public bool IsValid()
+    {
+        if (P is not { Length: 3 } || S is not { Length: 3 })
+        {
+            return false;
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (float.IsNaN(P[i]) || float.IsInfinity(P[i]) || System.Math.Abs(P[i]) > 2f
+                || float.IsNaN(S[i]) || S[i] <= 0f || S[i] > 2f)
+            {
+                return false;
+            }
+        }
+
+        return C == "tint" || TryParseColor(C, out _, out _, out _);
+    }
+
+    /// <summary>Reads <c>#rrggbb</c> into 0..1 channels.</summary>
+    public static bool TryParseColor(string? hex, out float r, out float g, out float b)
+    {
+        r = g = b = 0f;
+        if (hex is not { Length: 7 } || hex[0] != '#'
+            || !int.TryParse(hex.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out int rgb))
+        {
+            return false;
+        }
+
+        r = ((rgb >> 16) & 0xFF) / 255f;
+        g = ((rgb >> 8) & 0xFF) / 255f;
+        b = (rgb & 0xFF) / 255f;
+        return true;
+    }
 }

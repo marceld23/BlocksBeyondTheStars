@@ -40,6 +40,10 @@ namespace BlocksBeyondTheStars.Client
         /// (or a null result) falls back to the tinted cube.</summary>
         public static System.Func<string, (Texture2D Tex, Rect Uv)?> BlockTileResolver;
 
+        /// <summary>Resolves an item key to its held model from the item data (#1962,
+        /// <c>ItemDefinition.HeldModel</c>); null = the model of the item's kind. Wired by GameBootstrap.</summary>
+        public static System.Func<string, System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart>> ModelResolver;
+
         /// <summary>Resolves the local player's suit arm colour so the empty-slot hand matches the
         /// avatar's glove. Wired by GameBootstrap; null falls back to the default suit blue.</summary>
         public static System.Func<Color?> HandTintResolver;
@@ -118,8 +122,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Builds the held-item geometry under a new holder parented to <paramref name="parent"/>.
         /// For blocks, <paramref name="blockKey"/> lets the cube carry its REAL atlas tile (textured hand
         /// block instead of a flat colour); without a resolver/tile it falls back to the tint.
-        /// <paramref name="itemKey"/> picks the item's own look for drills, guns, blades and scanners (#1931).</summary>
-        public static GameObject Build(Transform parent, Kind kind, Color tint, string blockKey = null, string itemKey = null)
+        /// <paramref name="itemKey"/> picks the item's own look for drills, guns, blades and scanners (#1931) — from the
+        /// item data (#1962). <paramref name="look"/> is a PLAYER's own look for this tool (#1963) and wins over both.</summary>
+        public static GameObject Build(Transform parent, Kind kind, Color tint, string blockKey = null, string itemKey = null,
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null)
         {
             if (kind == Kind.None)
             {
@@ -130,13 +136,14 @@ namespace BlocksBeyondTheStars.Client
             holder.transform.SetParent(parent, false);
 
             // #1931: every drill, gun, blade and scanner has its own parts (the base item keeps the model its kind had).
-            var shaped = HeldItemShapes.Parts(kind.ToString(), itemKey, new HeldItemShapes.Rgb(tint.r, tint.g, tint.b));
+            var model = look != null && look.Count > 0 ? look : (itemKey != null ? ModelResolver?.Invoke(BlocksBeyondTheStars.Shared.State.ItemKey.Base(itemKey)) : null);
+            var shaped = HeldItemShapes.Parts(kind.ToString(), new HeldItemShapes.Rgb(tint.r, tint.g, tint.b), model);
             if (shaped != null)
             {
                 foreach (var part in shaped)
                 {
                     Cube(holder.transform, new Vector3(part.Position.X, part.Position.Y, part.Position.Z),
-                        new Vector3(part.Size.X, part.Size.Y, part.Size.Z), new Color(part.Color.R, part.Color.G, part.Color.B));
+                        new Vector3(part.Size.X, part.Size.Y, part.Size.Z), new Color(part.Color.R, part.Color.G, part.Color.B), part.Glow);
                 }
 
                 return holder;
@@ -275,6 +282,56 @@ namespace BlocksBeyondTheStars.Client
                     m.SetFloat("_Fill", 0.3f);
                 }
             }
+        }
+
+        // One material per (colour, glow) for ALL held parts (#1962). A held model is rebuilt whenever the hotbar
+        // slot changes, for every player in sight; a material per part per rebuild was never destroyed with its
+        // cube (sharedMaterial is not owned by the renderer) and piled up over a session.
+        private static readonly System.Collections.Generic.Dictionary<int, Material> PartMaterials = new System.Collections.Generic.Dictionary<int, Material>();
+
+        private static Material PartMaterial(Color color, bool glow)
+        {
+            var c32 = (Color32)color;
+            int key = (c32.r << 16) | (c32.g << 8) | c32.b | (glow ? 1 << 24 : 0);
+            if (PartMaterials.TryGetValue(key, out var cached) && cached != null)
+            {
+                return cached;
+            }
+
+            var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
+            var material = new Material(shader) { color = ShaderColor.Srgb(color) };
+            if (glow && material.HasProperty("_Floor"))
+            {
+                material.SetFloat("_Floor", 1f); // fully lit whatever the light: an energy coil glows in a cave
+            }
+
+            PartMaterials[key] = material;
+            return material;
+        }
+
+        /// <summary>Drops the shared part materials (session teardown).</summary>
+        public static void ReleasePartMaterials()
+        {
+            foreach (var material in PartMaterials.Values)
+            {
+                if (material != null)
+                {
+                    Object.Destroy(material);
+                }
+            }
+
+            PartMaterials.Clear();
+        }
+
+        private static GameObject Cube(Transform parent, Vector3 localPos, Vector3 scale, Color color, bool glow)
+        {
+            // The parts of a model never change their material afterwards (unlike the held block, whose cube gets the
+            // atlas tile), so they can share: swap the per-cube material for the cached one.
+            var go = Cube(parent, localPos, scale, color);
+            var renderer = go.GetComponent<Renderer>();
+            Object.Destroy(renderer.sharedMaterial);
+            renderer.sharedMaterial = PartMaterial(color, glow);
+            return go;
         }
 
         private static GameObject Cube(Transform parent, Vector3 localPos, Vector3 scale, Color color)
