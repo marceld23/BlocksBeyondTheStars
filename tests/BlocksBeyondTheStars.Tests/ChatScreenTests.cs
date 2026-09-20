@@ -242,4 +242,32 @@ public sealed class ChatScreenTests
         Assert.Equal(ChatVerdict.Ok, Screen.Screen(string.Empty, ChatMode.Safe).Verdict);
         Assert.Equal(ChatVerdict.Ok, Screen.Screen(null, ChatMode.Safe).Verdict);
     }
+
+    [Fact]
+    public void APatternThatRunsOutOfTime_IsSkipped_NotThrown()
+    {
+        // #1970: Regex.Matches is lazy — the engine runs while the collection is walked. A classic backtracking
+        // bomb with a one-millisecond budget times out for certain; the screen must swallow that, never throw.
+        var bomb = new System.Text.RegularExpressions.Regex(
+            @"^(\w+\s?)+$", System.Text.RegularExpressions.RegexOptions.ExplicitCapture, System.TimeSpan.FromMilliseconds(1));
+        string line = new string('a', 64) + "!";
+
+        // The premise first: walked bare, this pattern does throw — otherwise the test below proves nothing.
+        Assert.Throws<System.Text.RegularExpressions.RegexMatchTimeoutException>(() => bomb.Matches(line).Count);
+
+        var spans = ChatScreen.MatchSpans(bomb, line);
+
+        Assert.Empty(spans);
+    }
+
+    [Fact]
+    public void MatchSpans_ReportsEveryNonEmptyMatch()
+    {
+        var digits = new System.Text.RegularExpressions.Regex(
+            @"\d*", System.Text.RegularExpressions.RegexOptions.ExplicitCapture, System.TimeSpan.FromSeconds(5));
+
+        var spans = ChatScreen.MatchSpans(digits, "ab12cd345");
+
+        Assert.Equal(new[] { (2, 4), (6, 9) }, spans);
+    }
 }

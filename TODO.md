@@ -54,6 +54,12 @@ assets. In the world nothing changed: shaping tool, its small editor and dyeing 
 - **Open:** playtest of all of it (especially gamepad in the three editors, animated world textures on WebGL,
   a multi-block form next to fire/fluids); a WebGL build was not run locally; the build ships no animated tiles
   yet; the 64×64 icon canvas; CHANGELOG + what's-new follow with the release.
+- **Follow-up after the first playtest (#1969, 2026-09-20):** the Form Editor's preview material is no longer stepped
+  through with ◀ ▶ — the left column is split, *My forms* above, a **searchable material list with tile pictures**
+  below (`PaletteListUi`), sorted by the shown name; the editor opens on stone and remembers the last material.
+- **Chat filter (#1970, same PR):** a regex timeout in the personal-data patterns escaped `ChatScreen.Screen`
+  (`Regex.Matches` is lazy — the loop stood outside the `try`); it turned one full-tier `main` run red. The matches
+  are now walked inside the `try` (`ChatScreen.MatchSpans`).
 
 ### 🚀 A lost ship is a world change (#1945, 2026-09-17, branch fix/ship-loss-recovery-1945)
 

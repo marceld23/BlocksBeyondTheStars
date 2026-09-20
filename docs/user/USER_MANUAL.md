@@ -1548,7 +1548,9 @@ search box (typing there never moves the camera) and a scrollbar.
     game**; a submission that is not adopted is deleted after twelve months at the latest.
 - **Form Editor.** Design the forms your shaping tool places — with a large layer canvas, undo, mirror, shift,
   a turntable preview in **any material and dye**, and a library that lists every form (duplicate, rename by
-  saving under a new name, delete). The *Size in blocks* steppers make a form span **several blocks** (up to
+  saving under a new name, delete). The left column holds *My forms* above and the **material list** below —
+  every material with its picture, with a **search field** on top; the material only dresses the preview (in
+  the world a form takes the material you make it from), and the editor remembers it. The *Size in blocks* steppers make a form span **several blocks** (up to
   3 × 3 × 3, at most eight); the canvas then shows the whole form from above with neighbouring blocks shaded
   differently, and the budget line counts the most detailed block. It writes the same *My forms* library the
   shaping tool reads, so everything appears in the world as before.
