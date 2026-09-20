@@ -11,7 +11,7 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro, TextureEditor }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -1444,6 +1444,30 @@ namespace BlocksBeyondTheStars.Client
             Phase = ShellPhase.MaterialEditor;
         }
 
+        /// <summary>Opens the texture editor (#1955): paint any texture of the game, use it for yourself or export it.</summary>
+        public void OpenTextureEditor()
+        {
+            DestroyMenuBackground();
+            _editorRoot = new GameObject("TextureEditor");
+            _editorRoot.AddComponent<TextureEditor>().Shell = this;
+            Phase = ShellPhase.TextureEditor;
+        }
+
+        /// <summary>Closes the texture editor and returns to the editors submenu.</summary>
+        public void CloseTextureEditor()
+        {
+            if (_editorRoot != null)
+            {
+                Destroy(_editorRoot);
+                _editorRoot = null;
+            }
+
+            EnsureMenuBackground();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Phase = ShellPhase.Editors;
+        }
+
         /// <summary>Closes the material designer and returns to the editors submenu.</summary>
         public void CloseMaterialEditor()
         {
@@ -1858,6 +1882,10 @@ namespace BlocksBeyondTheStars.Client
                 else if (Phase == ShellPhase.MaterialEditor)
                 {
                     CloseMaterialEditor();
+                }
+                else if (Phase == ShellPhase.TextureEditor)
+                {
+                    CloseTextureEditor();
                 }
             }
         }

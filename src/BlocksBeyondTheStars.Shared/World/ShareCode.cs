@@ -30,6 +30,9 @@ public static class ShareCode
     /// <summary>Kind marker for a whole-build blueprint (#1117) — see <c>BlueprintCode</c>.</summary>
     public const string KindBuild = "B";
 
+    /// <summary>Kind marker for a texture from the texture editor (#1955).</summary>
+    public const string KindTexture = "T";
+
     /// <summary>Builds a share code. Returns an empty string for an empty payload.</summary>
     public static string Encode(string kind, string payload, string name)
     {
@@ -93,6 +96,48 @@ public static class ShareCode
         {
             voxels = string.Empty;
             name = string.Empty;
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>Encodes a texture: "frames fps" in the first payload line, the deflated pixels
+    /// (<see cref="Textures.WorldTextureCodec"/>) in the second; the name slot carries the texture key.</summary>
+    public static string EncodeTexture(string key, IReadOnlyList<byte[]> frames, int fps)
+    {
+        if (!Textures.TextureTiles.IsValidKey(key) || frames.Count < 1 || frames.Count > Textures.TextureTiles.MaxFrames)
+        {
+            return string.Empty;
+        }
+
+        return Encode(KindTexture, $"{frames.Count} {fps}\n{Textures.WorldTextureCodec.Encode(frames)}", key);
+    }
+
+    /// <summary>Decodes a texture share code with the same checks a world texture gets: a legal key, a legal
+    /// animation and pixels that inflate to exactly the announced size. The alpha rule is NOT applied here —
+    /// whoever takes the frames (the editor's canvas, the texture pack) enforces it for the key it uses.</summary>
+    public static bool TryDecodeTexture(string? code, out string key, out byte[][] frames, out int fps)
+    {
+        frames = Array.Empty<byte[]>();
+        fps = 0;
+        if (!TryDecode(code, KindTexture, out string payload, out key) || !Textures.TextureTiles.IsValidKey(key))
+        {
+            key = string.Empty;
+            return false;
+        }
+
+        int split = payload.IndexOf('\n');
+        string[] head = split > 0 ? payload.Substring(0, split).Split(' ') : Array.Empty<string>();
+        if (head.Length != 2
+            || !int.TryParse(head[0], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int count)
+            || !int.TryParse(head[1], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out fps)
+            || !Textures.TextureTiles.IsValidAnimation(count, fps)
+            || !Textures.WorldTextureCodec.TryDecode(payload.Substring(split + 1), count, out frames))
+        {
+            key = string.Empty;
+            frames = Array.Empty<byte[]>();
+            fps = 0;
             return false;
         }
 

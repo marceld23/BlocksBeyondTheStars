@@ -173,6 +173,53 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>The pixels in a block's slot right now (whatever layer won), as a raw RGBA32 frame with rows
+        /// bottom-up — the texture editor opens a block that has no bundled tile from here.</summary>
+        public byte[] ReadTile(ushort id) => ReadSlot(id % Cols * Tile, id / Cols * Tile);
+
+        /// <summary>The block's tile as SHIPPED, ignoring the local pack and world textures: the bundled tile, or —
+        /// for the blocks that have none — the tile painted in code. "Reset" and "before / after" in the texture
+        /// editor show this. The code-painted ones are drawn into slot 0 (air, never rendered) and read back, so
+        /// the live slot and the GPU copy stay untouched.</summary>
+        public byte[] OfficialTile(BlockDefinition def)
+        {
+            var bundled = GameTextures.Official(def.Key);
+            if (bundled != null)
+            {
+                return bundled.Frames[0];
+            }
+
+            _officialOnly = true;
+            try
+            {
+                PaintTile(0, def);
+            }
+            finally
+            {
+                _officialOnly = false;
+            }
+
+            return ReadSlot(0, 0);
+        }
+
+        private bool _officialOnly;
+
+        private byte[] ReadSlot(int ox, int oy)
+        {
+            var px = Texture.GetPixels(ox, oy, Tile, Tile); // one tile, not the 16 MB the whole atlas would be
+            var raw = new byte[Tile * Tile * 4];
+            for (int i = 0, o = 0; i < px.Length; i++)
+            {
+                Color32 c = px[i];
+                raw[o++] = c.r;
+                raw[o++] = c.g;
+                raw[o++] = c.b;
+                raw[o++] = c.a;
+            }
+
+            return raw;
+        }
+
         private static readonly int NormalTexId = Shader.PropertyToID("_NormalTex");
         private readonly System.Collections.Generic.List<Material> _normalUsers = new System.Collections.Generic.List<Material>();
 
@@ -693,7 +740,7 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private bool TryPaintFromAsset(string key, int ox, int oy)
         {
-            byte[] raw = GameTextures.TileBytes(key);
+            byte[] raw = _officialOnly ? GameTextures.Official(key)?.Frames[0] : GameTextures.TileBytes(key);
             if (raw == null || raw.Length != Tile * Tile * 4)
             {
                 return false;

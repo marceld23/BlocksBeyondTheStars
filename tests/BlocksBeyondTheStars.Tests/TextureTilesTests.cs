@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Textures;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
@@ -88,5 +89,45 @@ public sealed class TextureTilesTests
     {
         Assert.True(TextureTiles.IsValidKey(new string('a', TextureTiles.MaxKeyLength)));
         Assert.False(TextureTiles.IsValidKey(new string('a', TextureTiles.MaxKeyLength + 1)));
+    }
+
+    [Fact]
+    public void AShareCode_CarriesATextureWithItsKeyFramesAndSpeed()
+    {
+        var frames = new[] { new byte[TextureTiles.BytesPerFrame], new byte[TextureTiles.BytesPerFrame] };
+        frames[0][0] = 200;
+        frames[1][TextureTiles.BytesPerFrame - 1] = 77;
+
+        string code = ShareCode.EncodeTexture("campfire", frames, 8);
+
+        Assert.StartsWith("BBTS1-T-", code);
+        Assert.True(ShareCode.TryDecodeTexture("  " + code + "\n", out string key, out var back, out int fps));
+        Assert.Equal("campfire", key);
+        Assert.Equal(8, fps);
+        Assert.Equal(2, back.Length);
+        Assert.Equal(frames[0], back[0]);
+        Assert.Equal(frames[1], back[1]);
+    }
+
+    [Fact]
+    public void ATextureShareCode_ThatLiesAboutItself_DoesNotDecode()
+    {
+        var one = new[] { new byte[TextureTiles.BytesPerFrame] };
+        string pixels = WorldTextureCodec.Encode(one);
+
+        // an illegal key never encodes; then: a frame count the pixels do not back, a speed the game does not
+        // offer, no head line at all, and a code of another kind
+        Assert.Equal(string.Empty, ShareCode.EncodeTexture("../stone", one, 0));
+        string twoFrames = ShareCode.Encode(ShareCode.KindTexture, "2 8\n" + pixels, "stone");
+        string oddSpeed = ShareCode.Encode(ShareCode.KindTexture, "2 5\n" + pixels, "stone");
+        string headless = ShareCode.Encode(ShareCode.KindTexture, pixels, "stone");
+        string form = ShareCode.Encode(ShareCode.KindForm, "1 0\n" + pixels, "stone");
+
+        foreach (string bad in new[] { twoFrames, oddSpeed, headless, form, "BBTS1-T-@@@", string.Empty })
+        {
+            Assert.False(ShareCode.TryDecodeTexture(bad, out string key, out var frames, out _));
+            Assert.Equal(string.Empty, key);
+            Assert.Empty(frames);
+        }
     }
 }
