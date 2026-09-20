@@ -4714,5 +4714,16 @@
   "ui.toollook.rules": "A look is only how the tool LOOKS: reach, damage and speed stay the same. If you give the tool to someone else, they see their own look for it, not yours.",
   "ui.toollook.hint": "Left mouse: paint · right mouse: erase · W / S or Page Up / Down: layer · Ctrl+Z / Ctrl+Y: undo / redo · Esc: back",
   "ui.toollook.hint_pad": "Stick: move · A: paint · X: erase · Y: pick colour · D-pad up / down: layer · RB: undo · right stick: turn the preview · B: to the buttons",
-  "srv.toollook.limit": "You already have the maximum number of tool looks."
+  "srv.toollook.limit": "You already have the maximum number of tool looks.",
+  "ui.cat.tex_props": "Doors and machines",
+  "ui.tex.prop.door_slide_panel": "Sliding door — leaf",
+  "ui.tex.prop.door_slide_trim": "Sliding door — light strip and frame",
+  "ui.tex.prop.door_hinge_panel": "Hinged door — leaf",
+  "ui.tex.prop.door_hinge_trim": "Hinged door — strip and frame",
+  "ui.tex.prop.door_wood_panel": "Wooden door — leaf",
+  "ui.tex.prop.door_wood_trim": "Wooden door — strip and frame",
+  "ui.tex.prop.factory_metal": "Factory machine — metal",
+  "ui.tex.prop.factory_dark": "Factory machine — dark parts",
+  "ui.tex.prop.factory_accent": "Factory machine — accent",
+  "ui.tex.prop.decor_housing": "Station terminal — housing"
 }

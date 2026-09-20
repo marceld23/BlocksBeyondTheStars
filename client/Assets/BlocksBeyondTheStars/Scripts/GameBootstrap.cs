@@ -3964,6 +3964,7 @@ namespace BlocksBeyondTheStars.Client
             HeldItem.BlockTileResolver = null;
             HeldItem.ModelResolver = null;
             HeldItem.ReleasePartMaterials();
+            PropTextures.Release(); // the doors and machines that used them are going away with the world
             HeldItem.HandTintResolver = null;  // both closures capture Settings (and this object graph) — #1464
             HeldItem.HandPaintResolver = null;
             HeldItem.ReleaseHandAtlas();

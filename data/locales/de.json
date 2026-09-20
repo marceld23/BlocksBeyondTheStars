@@ -4714,5 +4714,16 @@
   "ui.toollook.rules": "Ein Aussehen ändert nur, wie das Werkzeug AUSSIEHT: Reichweite, Schaden und Tempo bleiben gleich. Gibst du das Werkzeug weiter, sieht der andere sein eigenes Aussehen dafür, nicht deins.",
   "ui.toollook.hint": "Linke Maustaste: malen · rechte: löschen · W / S oder Bild auf / ab: Schicht · Strg+Z / Strg+Y: rückgängig / wiederholen · Esc: zurück",
   "ui.toollook.hint_pad": "Stick: bewegen · A: malen · X: löschen · Y: Farbe aufnehmen · Steuerkreuz hoch / runter: Schicht · RB: rückgängig · rechter Stick: Vorschau drehen · B: zu den Knöpfen",
-  "srv.toollook.limit": "Du hast schon die maximale Zahl eigener Werkzeug-Aussehen."
+  "srv.toollook.limit": "Du hast schon die maximale Zahl eigener Werkzeug-Aussehen.",
+  "ui.cat.tex_props": "Türen und Maschinen",
+  "ui.tex.prop.door_slide_panel": "Schiebetür – Türblatt",
+  "ui.tex.prop.door_slide_trim": "Schiebetür – Leuchtstreifen und Rahmen",
+  "ui.tex.prop.door_hinge_panel": "Drehtür – Türblatt",
+  "ui.tex.prop.door_hinge_trim": "Drehtür – Leiste und Rahmen",
+  "ui.tex.prop.door_wood_panel": "Holztür – Türblatt",
+  "ui.tex.prop.door_wood_trim": "Holztür – Leiste und Rahmen",
+  "ui.tex.prop.factory_metal": "Fabrikmaschine – Metall",
+  "ui.tex.prop.factory_dark": "Fabrikmaschine – dunkle Teile",
+  "ui.tex.prop.factory_accent": "Fabrikmaschine – Akzent",
+  "ui.tex.prop.decor_housing": "Stations-Terminal – Gehäuse"
 }

@@ -53,6 +53,7 @@ namespace BlocksBeyondTheStars.Client
         public const string GroupMicrofauna = "tex_microfauna";
         public const string GroupOther = "tex_other";
         public const string GroupIcons = "tex_icons";
+        public const string GroupProps = "tex_props";
 
         private static readonly string[] CategoryOrder = { "terrain", "ore", "building", "light", "door", "machine", "flora" };
 
@@ -100,6 +101,20 @@ namespace BlocksBeyondTheStars.Client
                         : key.StartsWith("avatar_", StringComparison.Ordinal) ? GroupAvatar
                         : key.StartsWith("microfauna_", StringComparison.Ordinal) ? GroupMicrofauna
                         : GroupOther,
+                    Preview = TexturePreviewKind.Cube,
+                });
+            }
+
+            // Doors, machines and decor (#1956): parts the game builds from coloured primitives. The build ships no
+            // tile for them — the editor starts from the part's colour.
+            foreach (var part in PropTextures.All)
+            {
+                string label = localize != null ? localize(part.LabelKey) : part.Key;
+                entries.Add(new TextureEntry
+                {
+                    Key = part.Key,
+                    Label = string.IsNullOrEmpty(label) || label == part.LabelKey ? part.Key.Replace('_', ' ') : label,
+                    Group = GroupProps,
                     Preview = TexturePreviewKind.Cube,
                 });
             }

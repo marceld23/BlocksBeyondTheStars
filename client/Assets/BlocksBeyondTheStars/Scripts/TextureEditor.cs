@@ -175,6 +175,10 @@ namespace BlocksBeyondTheStars.Client
                 // A block the build ships no tile for: the atlas painted it in code — start from those pixels.
                 _model.Load(new[] { _atlas.ReadTile(entry.Block.NumericId.Value) }, 0, mode);
             }
+            else if (PropTextures.BaseColor(entry.Key) is { } propColor)
+            {
+                _model.Load(new[] { PropTextures.FlatTile(propColor) }, 0, mode); // a door or machine part: its colour as a tile
+            }
             else
             {
                 _model.Load(null, 0, mode);
@@ -245,6 +249,11 @@ namespace BlocksBeyondTheStars.Client
             if (bundled != null)
             {
                 return bundled;
+            }
+
+            if (PropTextures.BaseColor(_entry.Key) is { } propColor)
+            {
+                return new TextureFrames(new[] { PropTextures.FlatTile(propColor) }, 0, TextureLayer.Official);
             }
 
             return _entry.Block != null && _atlas != null
