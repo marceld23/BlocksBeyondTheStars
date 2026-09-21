@@ -2015,13 +2015,6 @@
       {
         "x": 5,
         "y": 3,
-        "z": 0,
-        "kind": "block",
-        "id": "wood_log"
-      },
-      {
-        "x": 5,
-        "y": 3,
         "z": 8,
         "kind": "block",
         "id": "wood_log"
@@ -2226,14 +2219,7 @@
         "x": 5,
         "y": 1,
         "z": 0,
-        "kind": "block",
-        "id": "door_slide"
-      },
-      {
-        "x": 5,
-        "y": 2,
-        "z": 0,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -3107,13 +3093,6 @@
       {
         "x": 4,
         "y": 3,
-        "z": 1,
-        "kind": "block",
-        "id": "stone"
-      },
-      {
-        "x": 4,
-        "y": 3,
         "z": 7,
         "kind": "block",
         "id": "stone"
@@ -3171,7 +3150,7 @@
         "x": 4,
         "y": 1,
         "z": 1,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -4641,7 +4620,7 @@
         "x": 3,
         "y": 3,
         "z": 6,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -5299,7 +5278,7 @@
         "x": 7,
         "y": 3,
         "z": 7,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -8028,13 +8007,6 @@
       {
         "x": 5,
         "y": 3,
-        "z": 3,
-        "kind": "block",
-        "id": "stone"
-      },
-      {
-        "x": 5,
-        "y": 3,
         "z": 4,
         "kind": "block",
         "id": "stone"
@@ -8050,7 +8022,7 @@
         "x": 5,
         "y": 1,
         "z": 3,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -8469,13 +8441,6 @@
       {
         "x": 9,
         "y": 3,
-        "z": 9,
-        "kind": "block",
-        "id": "stone"
-      },
-      {
-        "x": 9,
-        "y": 3,
         "z": 10,
         "kind": "block",
         "id": "stone"
@@ -8568,7 +8533,7 @@
         "x": 9,
         "y": 1,
         "z": 9,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -12776,7 +12741,7 @@
         "x": 5,
         "y": 1,
         "z": 0,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -12796,23 +12761,9 @@
       {
         "x": 5,
         "y": 2,
-        "z": 0,
-        "kind": "block",
-        "id": "door_slide"
-      },
-      {
-        "x": 5,
-        "y": 2,
         "z": 8,
         "kind": "block",
         "id": "glass"
-      },
-      {
-        "x": 5,
-        "y": 3,
-        "z": 0,
-        "kind": "block",
-        "id": "wood_log"
       },
       {
         "x": 5,
@@ -14550,7 +14501,7 @@
         "x": 4,
         "y": 1,
         "z": 1,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -14564,13 +14515,6 @@
         "x": 4,
         "y": 2,
         "z": 7,
-        "kind": "block",
-        "id": "stone"
-      },
-      {
-        "x": 4,
-        "y": 3,
-        "z": 1,
         "kind": "block",
         "id": "stone"
       },
@@ -15783,7 +15727,7 @@
         "x": 3,
         "y": 3,
         "z": 6,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -16455,7 +16399,7 @@
         "x": 7,
         "y": 3,
         "z": 7,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -18698,7 +18642,7 @@
         "x": 5,
         "y": 1,
         "z": 3,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -18775,13 +18719,6 @@
         "x": 5,
         "y": 3,
         "z": 2,
-        "kind": "block",
-        "id": "stone"
-      },
-      {
-        "x": 5,
-        "y": 3,
-        "z": 3,
         "kind": "block",
         "id": "stone"
       },
@@ -19314,7 +19251,7 @@
         "x": 9,
         "y": 1,
         "z": 9,
-        "kind": "block",
+        "kind": "marker",
         "id": "door_slide"
       },
       {
@@ -19419,13 +19356,6 @@
         "x": 9,
         "y": 3,
         "z": 8,
-        "kind": "block",
-        "id": "stone"
-      },
-      {
-        "x": 9,
-        "y": 3,
-        "z": 9,
         "kind": "block",
         "id": "stone"
       },
