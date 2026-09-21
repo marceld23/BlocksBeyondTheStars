@@ -11,6 +11,64 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.13] — 2026-09-21
+
+The doorway release. The ship, station and town editors finally **show you what you are about to build**. Until
+now every brush looked the same — one little green cube for a door, a bed, a campfire or a villager alike. Now the
+ghost is the real thing: **the door the game will hang there**, facing the right way and as wide as the gap, **both
+halves of a bed**, a campfire as a flat slab, a figure where a villager will stand. Out in the world, a door in your
+hand shows a **hologram** of where it goes before you place it. Four kinds of village had a **wall where their front
+door belonged** — they have real doors again. And the Japanese and Chinese descriptions of two oxygen tanks no longer
+show a garbled code, thanks to a sharp-eyed report by **Camembert1001** 🙏
+
+ℹ️ **Compatibility:** the network protocol stays at version 6 and saves migrate unchanged. Villages that already
+stand in your world keep the doorway they were built with; villages in a fresh world, or in a part of the map nobody
+has visited yet, get the working door. A template of your own with a door *block* in it is repaired into a real door
+the first time you open it in the editor.
+
+### 🚪 The editors show the real thing (#1975 #1976 #1977 #1978 #1980)
+
+- **Doors look like doors.** The ghost shows the door the game will hang: which way it faces, how wide it gets (one
+  to seven blocks — it fills the gap between two walls) and how tall it is. It turns **red, with a hint**, where a
+  door cannot work: no wall beside it, or no room above it.
+- **Beds come in two halves.** Placing a bed writes head and foot together, and removing one half takes the other
+  with it. Where the foot would not fit, the bed is refused — the same rule as in the game.
+- **Props get their proper form by themselves.** A campfire is a flat slab, a rug a thin sheet, a flower pot a pot,
+  a ladder leans against the wall you clicked, stairs are stairs. The editors used to save all of them as full cubes.
+- **Figures instead of cubes.** Villagers, traders and everyone else show as a standing figure; mission boards,
+  chests, terminals, floor plates, the ship's hatch frame and the decor of the cockpit and the other ship stations
+  show their outline — in the ghost and in the finished build. The port brush lights up the wall it paints.
+- **Placed doors are drawn in the build**, so you see the finished doorway while you are still working on the room.
+
+### 🧩 A form picker (#1979)
+
+- The −/+ stepper that only reached the first nine forms is gone. Both editors open a **picker with every form the
+  game knows** — table, chair, bench, fence, beam and the rest, with *Automatic* first — and it works with a gamepad.
+
+### ✋ In the world: see the door before it goes in (#1981)
+
+- **Holding a door shows a hologram** in the cell you aim at, already turned the way the door will stand — along
+  the wall beside it, or towards you if there is none. No more guessing which way it will face.
+
+### 🏘️ Villages have front doors again (#1982)
+
+- **The river hamlet, the stone roundhouse, the stilt hamlet and the walled market had a wall where their door
+  belonged.** The door had been saved as a door-coloured block instead of a real door, so it never opened. They are
+  real doors now, and the doorways are high enough to walk through.
+- **The editors' block list no longer offers door blocks**, because a door block is a wall — the door lives under
+  the markers. The **station editor** keeps them, labelled **hull airlock**: the airtight block a station's outer
+  hull really uses.
+- A new check keeps it that way: no door blocks in a village, every door with a wall beside it and room above it.
+
+### 🌐 Translations (#1973)
+
+- **Japanese and Chinese: two oxygen-tank descriptions showed a raw `{count?100:100}` code** instead of the number.
+  They show the number again. Reported by **Camembert1001**, who ran our Japanese texts through their own interface
+  checker — thank you! You are in the in-game credits now.
+- The translation checks now catch stray braces like these in every language, so this kind of mistake cannot slip
+  through again.
+- The new editor texts are in all fourteen languages, and the user manual explains how doors find their wall.
+
 ## [2026.9.12] — 2026-09-20
 
 The paintbox release. This one hands you the brush. Three new editors in the main menu let you **paint every
@@ -5662,7 +5720,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.12...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.13...HEAD
+[2026.9.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.12...v2026.9.13
 [2026.9.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.11...v2026.9.12
 [2026.9.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.10...v2026.9.11
 [2026.9.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.9...v2026.9.10
