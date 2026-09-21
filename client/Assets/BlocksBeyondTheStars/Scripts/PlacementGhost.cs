@@ -46,6 +46,38 @@ namespace BlocksBeyondTheStars.Client
             _go.SetActive(true);
         }
 
+        /// <summary>Shows a closed door of <paramref name="kind"/> (width 1) in a world cell, turned for the wall
+        /// axis (#1975): the door the server will hang when the held door block is placed here. The mesh comes from
+        /// the shared <see cref="DoorGeometry"/>, so the hologram cannot promise a door the world then hangs differently.</summary>
+        public void ShowDoor(Vector3Int cell, string kind, bool axisX)
+        {
+            if (_go == null)
+            {
+                Create();
+            }
+
+            // Door keys live below zero, apart from the (shape, yaw, up-face) keys of block ghosts.
+            int kindIndex = kind switch { DoorBlocks.Slide => 0, DoorBlocks.Wood => 1, DoorBlocks.Energy => 2, _ => 3 };
+            int key = -1 - (kindIndex * 2 + (axisX ? 1 : 0));
+            if (key != _builtKey)
+            {
+                _builtKey = key;
+                var verts = new List<Vector3>();
+                var cols = new List<Color>();
+                var tris = new List<int>();
+                DoorMesh.Append(verts, cols, tris, DoorGeometry.Closed(kind, 1f), axisX, Vector3.zero, _ => Color.white, withField: false);
+                _mesh.Clear();
+                _mesh.SetVertices(verts);
+                _mesh.SetTriangles(tris, 0);
+                _mesh.RecalculateNormals();
+                _mesh.RecalculateBounds();
+            }
+
+            // The door's origin is the doorway centre on the floor, not the cell's min corner.
+            _go.transform.position = new Vector3(cell.x + 0.5f, cell.y, cell.z + 0.5f);
+            _go.SetActive(true);
+        }
+
         public void Hide()
         {
             if (_go != null && _go.activeSelf)

@@ -4257,6 +4257,25 @@ namespace BlocksBeyondTheStars.Client
                 Game.HoldingRotatableBlock = rotatable;
             }
 
+            // A held door (#1975): nothing to rotate, but the server hangs a real door — show it in the target cell,
+            // turned by the wall beside it (the shared placed-door rule), so its facing is no surprise. A parked
+            // ship's cells get no ghost, like every other placement there.
+            if (!rotatable && HeldDoorKind(held) is { } doorKind)
+            {
+                if (AimTarget(out _, out var doorCell, out var doorShip) && doorShip == null)
+                {
+                    bool axisX = DoorProbe.AxisForPlacedDoor(IsSolidWorldCell, doorCell.x, doorCell.y, doorCell.z, transform.eulerAngles.y);
+                    _placementGhost ??= new PlacementGhost();
+                    _placementGhost.ShowDoor(doorCell, doorKind, axisX);
+                }
+                else
+                {
+                    _placementGhost?.Hide();
+                }
+
+                return;
+            }
+
             // Same fluid-aware target as the place click (#1353): a held slab/stair gets its ghost over water
             // and lava, where the click sets the block into the fluid cell.
             if (!rotatable || !AimTarget(out var hitCell, out var placeCell, out var aimedShip, PlaceFluidAim()) || aimedShip != null
@@ -4271,6 +4290,21 @@ namespace BlocksBeyondTheStars.Client
             _placementGhost ??= new PlacementGhost();
             _placementGhost.Show(placeCell, shape, yaw, upFace);
         }
+
+        /// <summary>The door kind the held item places, or null when it places no door (#1975).</summary>
+        private string HeldDoorKind(string held)
+        {
+            if (string.IsNullOrEmpty(held) || Game?.Content == null)
+            {
+                return null;
+            }
+
+            string placed = Game.Content.GetItem(held)?.PlacesBlock;
+            return DoorBlocks.IsDoorBlock(placed) ? DoorBlocks.KindForBlock(placed) : null;
+        }
+
+        /// <summary>The world grid as the door probe reads it: anything but air is a jamb.</summary>
+        private bool IsSolidWorldCell(int x, int y, int z) => !Game.World.GetBlock(x, y, z).IsAir;
 
         /// <summary>The up-face for an Auto placement: the shape's base rests on the surface it was built
         /// against — the floor first (→ +Y up, the common case of laying a slab on the ground), then the WALL
