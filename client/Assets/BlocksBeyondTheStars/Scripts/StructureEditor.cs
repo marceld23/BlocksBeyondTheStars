@@ -58,14 +58,13 @@ namespace BlocksBeyondTheStars.Client
 
         // Brush: the dye/glow colour + shape + orientation applied to newly placed BLOCK cells (markers
         // ignore them), mirroring the in-game dye + shape + place-orientation. 0 = none / plain cube.
-        private int _brushTint, _brushGlow, _brushShape, _brushOrient;
+        private int _brushTint, _brushGlow, _brushOrient;
+        private int _brushShape = EditorPlacementRules.AutoForm; // -1 = the block's own form (#1975); 0 = a cube on purpose
         private string _search = string.Empty;
 
-        /// <summary>The 9 in-game block shapes (index = BlockShape enum; localized via <c>ui.shape.*</c>).
-        /// Orientation is 0..3 quarter-turns.</summary>
-        private static readonly string[] ShapeSlugs = { "cube", "slab", "pyramid", "dome", "sphere", "ramp", "stairs", "cone", "cylinder" };
-
-        private string ShapeName(int i) => L("ui.shape." + ShapeSlugs[i]);
+        /// <summary>The form brush's name: "Automatic" (the block's own form, #1975) or the built-in form's name.</summary>
+        private string FormName(int shape)
+            => shape < 0 ? L("ui.ed.form_auto") : L(BuiltInForms.LocKeyOf(shape) ?? "ui.shape.cube");
 
         private string TierLabel(string slug) => L("ui.tier." + slug);
 
@@ -113,6 +112,8 @@ namespace BlocksBeyondTheStars.Client
             _view = new EditorVoxelChunkView(transform);
             _view.SetAtlas(_atlas?.Texture); // real block tiles on placed cells (#1400)
             _ghost = new EditorPlacementGhost(transform);
+            _overlay = new EditorPropOverlay(transform); // placed doors + marker silhouettes (#1975)
+            _ghostMeshes = new EditorGhostMeshes();
             BuildRoom();
             BuildUi();
         }
@@ -130,7 +131,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var list = new List<EditorPaletteKit.Entry>();
             list.AddRange(EditorMode == Mode.Station ? StationMarkers() : SettlementMarkers());
-            list.AddRange(EditorPaletteKit.BlockEntries(Shell, _atlas));
+            list.AddRange(EditorPaletteKit.BlockEntries(Shell, _atlas, hullAirlocks: EditorMode == Mode.Station)); // #1982
             return list.ToArray();
         }
 
@@ -299,13 +300,76 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private EditorPlacementGhost _ghost;
+        private EditorPropOverlay _overlay;
+        private EditorGhostMeshes _ghostMeshes;
+        private EditorFormPicker _formPicker;
+        private RawImage _formIcon;
+        private string _hintShown;
 
-        /// <summary>Shows where a click would land: green = free cell, red = occupied / out of bounds.</summary>
+        /// <summary>Shows where a click would land and WHAT it would leave there (#1975): the block's form (a bed as
+        /// head + foot), the door the server would hang (axis + width read from the design), or a marker's
+        /// silhouette — green when the placement is valid, red when the cell is occupied / out of bounds, or a door
+        /// has no wall beside it or no free cells above (the status line says which).</summary>
         private void UpdateGhost(bool hidden)
         {
-            Vector3i cell = default;
-            bool show = !hidden && TryGetTargetCell(out cell);
-            _ghost?.Update(show, cell, show && InBounds(cell) && !_design.ContainsKey(cell));
+            if (hidden || _palette == null || _selected < 0 || _selected >= _palette.Length || !TryGetTargetCell(out var cell, out int hitFace))
+            {
+                _ghost?.Update(false, default, false);
+                Hint(null);
+                return;
+            }
+
+            var pal = _palette[_selected];
+            if (pal.Kind == "port")
+            {
+                // The port brush paints the wall block under the cursor, not the cell beside it.
+                bool onWall = TryGetHitCell(out var wall) && _design.TryGetValue(wall, out var wd) && wd.Kind == "block";
+                _ghost?.Update(onWall, wall, onWall);
+                Hint(null);
+                return;
+            }
+
+            bool free = InBounds(cell) && !_design.ContainsKey(cell);
+            if (pal.Kind == "marker" && DoorBlocks.IsDoorMarker(pal.Id))
+            {
+                var fit = DoorProbe.Measure(IsSolidCell, cell.X, cell.Y, cell.Z);
+                string why = null;
+                bool valid = free && EditorPlacementRules.DoorValid(IsSolidCell, Occupied, InBounds, cell.X, cell.Y, cell.Z, out fit, out why);
+                _ghost?.UpdateMesh(true, new Vector3(fit.CentreX(cell.X), cell.Y, fit.CentreZ(cell.Z)), valid,
+                    _ghostMeshes.ForDoor(DoorBlocks.KindForMarker(pal.Id), fit.Width, fit.AxisX));
+                Hint(free ? why : null);
+                return;
+            }
+
+            if (pal.Kind == "marker")
+            {
+                // A silhouette where the game will put a person / a board / a chest …; a null mesh keeps the cube.
+                _ghost?.UpdateMesh(true, new Vector3(cell.X, cell.Y, cell.Z), free, _ghostMeshes.ForSilhouette(pal.Id, MarkerSilhouettes.KindMarker));
+                Hint(null);
+                return;
+            }
+
+            // A block: the form it will take (and, for a bed, its foot half); a plain cube keeps the cube ghost.
+            if (free)
+            {
+                if (!EditorPlacementRules.TryPlaceBlock(pal.Id, _brushShape, _brushOrient, cell.X, cell.Y, cell.Z, hitFace,
+                        Occupied, InBounds, IsSolidCell, out var writes, out string refusal))
+                {
+                    _ghost?.Update(true, cell, false);
+                    Hint(refusal);
+                    return;
+                }
+
+                if (writes.Count > 1 || writes[0].Shape != 0)
+                {
+                    _ghost?.UpdateMesh(true, new Vector3(cell.X, cell.Y, cell.Z), true, _ghostMeshes.ForWrites(writes, cell));
+                    Hint(null);
+                    return;
+                }
+            }
+
+            _ghost?.Update(true, cell, free);
+            Hint(null);
         }
 
         private void TryPlace()
@@ -317,11 +381,42 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (TryGetTargetCell(out var cell) && InBounds(cell) && !_design.ContainsKey(cell))
+            if (!TryGetTargetCell(out var cell, out int hitFace) || !InBounds(cell) || _design.ContainsKey(cell))
             {
-                ClearLeaks();
-                PlaceCell(cell, pal);
+                return;
             }
+
+            // A door marker with no wall beside it, or no room for the door above it, is never what was meant (#1975).
+            if (pal.Kind == "marker" && DoorBlocks.IsDoorMarker(pal.Id)
+                && !EditorPlacementRules.DoorValid(IsSolidCell, Occupied, InBounds, cell.X, cell.Y, cell.Z, out _, out string why))
+            {
+                SetStatus(L(why));
+                return;
+            }
+
+            if (pal.Kind == "block")
+            {
+                // The server's own placement rules (#1975): the block's default form unless the brush chose one, a
+                // bed as head + foot (refused where the foot would not fit), the ladder against its wall.
+                if (!EditorPlacementRules.TryPlaceBlock(pal.Id, _brushShape, _brushOrient, cell.X, cell.Y, cell.Z, hitFace,
+                        Occupied, InBounds, IsSolidCell, out var writes, out string refusal))
+                {
+                    SetStatus(L(refusal));
+                    return;
+                }
+
+                ClearLeaks();
+                foreach (var w in writes)
+                {
+                    PlaceCellData(new Vector3i(w.X, w.Y, w.Z), pal,
+                        new CellData { Id = pal.Id, Kind = pal.Kind, Tint = _brushTint, Glow = _brushGlow, Shape = w.Shape });
+                }
+
+                return;
+            }
+
+            ClearLeaks();
+            PlaceCell(cell, pal);
         }
 
         private void TryRemove()
@@ -340,8 +435,16 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _design.Remove(cell);
-            _view.Remove(cell);
+            RemoveCell(cell);
+            foreach (var (px, py, pz) in EditorPlacementRules.PartnerCells(d.Shape, cell.X, cell.Y, cell.Z))
+            {
+                // A bed goes as a pair (#1846): the other half of the same block leaves with this one.
+                var partner = new Vector3i(px, py, pz);
+                if (_design.TryGetValue(partner, out var pd) && pd.Id == d.Id)
+                {
+                    RemoveCell(partner);
+                }
+            }
         }
 
         /// <summary>Paints <c>tag[:door]</c> onto the wall block under the cursor (#1877). Markers never carry a port.</summary>
@@ -401,9 +504,14 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Resolves the empty cell just outside the hit face (or the floor column) for placement. The
         /// chunk mesh is authored in world coords, so the hit point + normal locate the cell directly.</summary>
-        private bool TryGetTargetCell(out Vector3i cell)
+        private bool TryGetTargetCell(out Vector3i cell) => TryGetTargetCell(out cell, out _);
+
+        /// <summary>… and the face of the target cell the click came through (the hit normal; -1 for none): what a
+        /// ladder hugs (#1975).</summary>
+        private bool TryGetTargetCell(out Vector3i cell, out int hitFace)
         {
             cell = default;
+            hitFace = -1;
             var ray = _cam.ScreenPointToRay(Input.mousePosition);
             if (!Physics.Raycast(ray, out var hit, RaycastDist))
             {
@@ -420,6 +528,7 @@ namespace BlocksBeyondTheStars.Client
                 cell = new Vector3i(Mathf.FloorToInt(outside.x), Mathf.FloorToInt(outside.y), Mathf.FloorToInt(outside.z));
             }
 
+            hitFace = ShapeCode.FaceFromDirection(Mathf.RoundToInt(hit.normal.x), Mathf.RoundToInt(hit.normal.y), Mathf.RoundToInt(hit.normal.z));
             return true;
         }
 
@@ -475,6 +584,8 @@ namespace BlocksBeyondTheStars.Client
                 baseCol = Color.Lerp(baseCol, PortColor, 0.6f); // #1877: a docking port reads as a cyan wall block
             }
 
+            bool door = pal.Kind == "marker" && DoorBlocks.IsDoorMarker(pal.Id);
+            var silhouette = pal.Kind == "marker" && !door ? MarkerSilhouettes.For(pal.Id, MarkerSilhouettes.KindMarker) : null;
             _design[cell] = data;
             _view.Set(cell, new EditorVoxelChunkView.Cell
             {
@@ -482,12 +593,91 @@ namespace BlocksBeyondTheStars.Client
                 Glow = data.Glow != 0 || port,
                 Shape = data.Shape,
                 Marker = pal.Kind == "marker",
+                Overlay = door || silhouette != null, // the overlay draws it (#1975): the real door / the silhouette
                 Textured = textured,
                 Uv = tile,
             });
+
+            if (door)
+            {
+                _overlay?.SetDoor(cell, DoorBlocks.KindForMarker(pal.Id), IsSolidCell);
+            }
+            else if (silhouette != null)
+            {
+                _overlay?.SetSilhouette(cell, pal.Id, MarkerSilhouettes.KindMarker, pal.Color);
+            }
+            else
+            {
+                _overlay?.Remove(cell);
+            }
+
+            _overlay?.OnDesignChanged(cell, IsSolidCell); // a block beside a door re-fits that door
         }
 
         private bool InBounds(Vector3i c) => c.X >= 0 && c.X < MaxW && c.Y >= 0 && c.Y < MaxH && c.Z >= 0 && c.Z < MaxL;
+
+        private bool InBounds(int x, int y, int z) => InBounds(new Vector3i(x, y, z));
+
+        private bool Occupied(int x, int y, int z) => _design.ContainsKey(new Vector3i(x, y, z));
+
+        /// <summary>A cell that blocks a door or carries a ladder: an authored BLOCK (markers are points, not voxels).</summary>
+        private bool IsSolidCell(int x, int y, int z) => _design.TryGetValue(new Vector3i(x, y, z), out var d) && d.Kind == "block";
+
+        private void RemoveCell(Vector3i cell)
+        {
+            _design.Remove(cell);
+            _view.Remove(cell);
+            _overlay?.Remove(cell);
+            _overlay?.OnDesignChanged(cell, IsSolidCell);
+        }
+
+        /// <summary>A placement hint in the status line while the ghost is red for a RULE (a door without a wall, a bed
+        /// without room) — set once per change, cleared when the ghost turns valid again.</summary>
+        private void Hint(string key)
+        {
+            if (key == _hintShown)
+            {
+                return;
+            }
+
+            _hintShown = key;
+            SetStatus(key != null ? L(key) : string.Empty);
+        }
+
+        /// <summary>The tile the form icons are drawn on: the selected block's, else stone.</summary>
+        private ushort BrushTile()
+        {
+            var pal = _palette != null && _selected >= 0 && _selected < _palette.Length ? _palette[_selected] : default;
+            var def = pal.Kind == "block" && Shell?.Content != null ? Shell.Content.GetBlock(pal.Id) : null;
+            def ??= Shell?.Content?.GetBlock("stone");
+            return def?.NumericId.Value ?? (ushort)0;
+        }
+
+        private RawImage FormIcon(Transform parent, float x, float y, float size)
+        {
+            var go = new GameObject("FormIcon", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            UiKit.Place(go, x, y, size, size);
+            var raw = go.AddComponent<RawImage>();
+            raw.raycastTarget = false;
+            EditorFormPicker.PaintIcon(raw, _atlas, BrushTile(), _brushShape);
+            return raw;
+        }
+
+        private void OpenFormPicker()
+        {
+            _formPicker?.Close();
+            _formPicker = EditorFormPicker.Show(Shell, _canvas.transform, _atlas, BrushTile(), _brushShape, shape =>
+            {
+                _brushShape = shape;
+                if (_shapeLabel != null)
+                {
+                    _shapeLabel.text = FormName(shape);
+                }
+
+                EditorFormPicker.PaintIcon(_formIcon, _atlas, BrushTile(), shape);
+            }, () => _formPicker = null);
+        }
 
         // ----------------------------- export -----------------------------
 
@@ -731,6 +921,7 @@ namespace BlocksBeyondTheStars.Client
         private int ApplyCells(IEnumerable<CellJson> cells, List<string> skippedIds)
         {
             _view.Clear();
+            _overlay?.Clear();
             _design.Clear();
             int skipped = 0;
             foreach (var c in cells)
@@ -748,10 +939,18 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                // A door authored as a BLOCK (older templates, #1982) heals into the door marker: the block palette no
+                // longer carries doors, so the id resolves to the marker and the cell follows it.
+                string kind = string.IsNullOrEmpty(c.kind) ? pal.Kind : c.kind;
+                if (pal.Kind == "marker" && DoorBlocks.IsDoorMarker(pal.Id))
+                {
+                    kind = "marker";
+                }
+
                 var data = new CellData
                 {
                     Id = c.id,
-                    Kind = string.IsNullOrEmpty(c.kind) ? pal.Kind : c.kind,
+                    Kind = kind,
                     Tint = c.tint, Glow = c.glow, Shape = c.shape, Port = c.port ?? string.Empty,
                 };
                 PlaceCellData(cell, pal, data);
@@ -1269,6 +1468,8 @@ namespace BlocksBeyondTheStars.Client
             _loadPicker = null;
             _kitPanel?.Close();
             _kitPanel = null;
+            _formPicker?.Close();
+            _formPicker = null;
             if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);
@@ -1317,6 +1518,10 @@ namespace BlocksBeyondTheStars.Client
             _kitPanel = null;
             _view?.Dispose();
             _ghost?.Dispose();
+            _overlay?.Dispose();
+            _ghostMeshes?.Dispose();
+            _formPicker?.Close();
+            _formPicker = null;
             _atlas?.Release(); // palette sprites reference this texture; the editor holds a reference (#423 lesson, shared since #1523)
             _atlas = null;
             if (_canvas != null)
@@ -1491,9 +1696,9 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(meta, 250f, y, 80f, 30f, L("ui.struct.brush_none"), () => { _brushGlow = 0; RebuildUi(); });
             y += 42f;
             UiKit.AddText(meta, 16f, y, 90f, 30f, L("ui.struct.shape"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _shapeLabel = UiKit.AddText(meta, 116f, y, 140f, 30f, ShapeName(_brushShape), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(meta, 262f, y, 30f, 30f, "−", () => { _brushShape = (_brushShape + ShapeSlugs.Length - 1) % ShapeSlugs.Length; _shapeLabel.text = ShapeName(_brushShape); });
-            UiKit.AddButton(meta, 300f, y, 30f, 30f, "+", () => { _brushShape = (_brushShape + 1) % ShapeSlugs.Length; _shapeLabel.text = ShapeName(_brushShape); });
+            _formIcon = FormIcon(meta, 108f, y + 1f, 28f);
+            _shapeLabel = UiKit.AddText(meta, 142f, y, 116f, 30f, FormName(_brushShape), 13, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddButton(meta, 262f, y, 102f, 30f, L("ui.ed.form_pick"), OpenFormPicker); // the in-game form grid (#1975)
             y += 38f;
             UiKit.AddText(meta, 16f, y, 90f, 30f, L("ui.struct.orient"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             _orientLabel = UiKit.AddText(meta, 116f, y, 140f, 30f, (_brushOrient * 90) + "°", 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);

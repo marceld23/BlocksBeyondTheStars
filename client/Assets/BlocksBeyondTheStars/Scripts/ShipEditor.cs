@@ -73,13 +73,13 @@ namespace BlocksBeyondTheStars.Client
 
         // Brush: dye/glow colour + shape + orientation applied to newly placed BLOCK cells (elements +
         // stations ignore them), mirroring the in-game dye + shape + place-orientation. 0 = none / cube.
-        private int _brushTint, _brushGlow, _brushShape, _brushOrient;
+        private int _brushTint, _brushGlow, _brushOrient;
+        private int _brushShape = EditorPlacementRules.AutoForm; // -1 = the block's own form (#1975); 0 = a cube on purpose
         private string _search = string.Empty;
 
-        /// <summary>The 9 in-game block shapes (index = BlockShape enum; localized via <c>ui.shape.*</c>).</summary>
-        private static readonly string[] ShapeSlugs = { "cube", "slab", "pyramid", "dome", "sphere", "ramp", "stairs", "cone", "cylinder" };
-
-        private string ShapeName(int i) => L("ui.shape." + ShapeSlugs[Mathf.Clamp(i, 0, ShapeSlugs.Length - 1)]);
+        /// <summary>The form brush's name: "Automatic" (the block's own form, #1975) or the built-in form's name.</summary>
+        private string FormName(int shape)
+            => shape < 0 ? L("ui.ed.form_auto") : L(BuiltInForms.LocKeyOf(shape) ?? "ui.shape.cube");
 
         // --- editable metadata ---
         private string _key = "my_ship";
@@ -129,6 +129,8 @@ namespace BlocksBeyondTheStars.Client
             _view = new EditorVoxelChunkView(transform);
             _view.SetAtlas(_atlas?.Texture); // real block tiles on placed cells (#1400)
             _ghost = new EditorPlacementGhost(transform);
+            _overlay = new EditorPropOverlay(transform); // placed doors, the hatch frame, station decor (#1975)
+            _ghostMeshes = new EditorGhostMeshes();
             BuildRoom();
             _frame = new EditorInteriorFrame(transform);
             RebuildFrame();
@@ -387,9 +389,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Resolves the cell a placement would land in: the floor column, or the empty cell just
         /// outside the hit face (the chunk mesh is authored in world coords, so the hit point + normal locate
         /// the cell directly — no per-cell GameObject to read a transform from).</summary>
-        private bool TryGetTargetCell(out Vector3i cell)
+        private bool TryGetTargetCell(out Vector3i cell) => TryGetTargetCell(out cell, out _);
+
+        /// <summary>… and the face of the target cell the click came through (the hit normal; -1 for none): what a
+        /// ladder hugs (#1975).</summary>
+        private bool TryGetTargetCell(out Vector3i cell, out int hitFace)
         {
             cell = default;
+            hitFace = -1;
             var ray = _cam.ScreenPointToRay(PickPoint());
             if (!Physics.Raycast(ray, out var hit, RaycastDist))
             {
@@ -406,6 +413,7 @@ namespace BlocksBeyondTheStars.Client
                 cell = new Vector3i(Mathf.FloorToInt(outside.x), Mathf.FloorToInt(outside.y), Mathf.FloorToInt(outside.z));
             }
 
+            hitFace = ShapeCode.FaceFromDirection(Mathf.RoundToInt(hit.normal.x), Mathf.RoundToInt(hit.normal.y), Mathf.RoundToInt(hit.normal.z));
             return true;
         }
 
@@ -426,35 +434,125 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private EditorPlacementGhost _ghost;
+        private EditorPropOverlay _overlay;
+        private EditorGhostMeshes _ghostMeshes;
+        private EditorFormPicker _formPicker;
+        private RawImage _formIcon;
+        private Text _formLabel;
+        private string _hintShown;
 
-        /// <summary>The placement ghost (shared <see cref="EditorPlacementGhost"/>): green when the
-        /// placement is valid, red when out of bounds or occupied.</summary>
+        /// <summary>Shows where a click would land and WHAT it would leave there (#1975): the block's form (a bed as
+        /// head + foot), the door the server would hang (axis + width read from the design), the hatch frame, a
+        /// station's block with its decor — green when the placement is valid, red when the cell is occupied / out
+        /// of bounds, or a door has no room above it (the status line says which).</summary>
         private void UpdateGhost(bool hidden)
         {
-            Vector3i cell = default;
-            bool show = !hidden && TryGetTargetCell(out cell);
-            _ghost?.Update(show, cell, show && InBounds(cell) && !_design.ContainsKey(cell));
+            if (hidden || _palette == null || _selected < 0 || _selected >= _palette.Length || !TryGetTargetCell(out var cell, out int hitFace))
+            {
+                _ghost?.Update(false, default, false);
+                Hint(null);
+                return;
+            }
+
+            var pal = _palette[_selected];
+            bool free = InBounds(cell) && !_design.ContainsKey(cell);
+            if (pal.Kind == "element" && DoorBlocks.IsDoorMarker(pal.Id))
+            {
+                var fit = DoorProbe.Measure(IsSolidCell, cell.X, cell.Y, cell.Z, DoorAxisFor(cell));
+                string why = null;
+                bool valid = free && DoorRoomAbove(cell, out why);
+                _ghost?.UpdateMesh(true, new Vector3(fit.CentreX(cell.X), cell.Y, fit.CentreZ(cell.Z)), valid,
+                    _ghostMeshes.ForDoor(DoorBlocks.KindForMarker(pal.Id), fit.Width, fit.AxisX));
+                Hint(free ? why : null);
+                return;
+            }
+
+            if (pal.Kind != "block")
+            {
+                // The hatch as a frame, a station as its block + decor; a null mesh keeps the cube.
+                _ghost?.UpdateMesh(true, new Vector3(cell.X, cell.Y, cell.Z), free, _ghostMeshes.ForSilhouette(pal.Id, pal.Kind));
+                Hint(null);
+                return;
+            }
+
+            // A block: the form it will take (and, for a bed, its foot half); a plain cube keeps the cube ghost.
+            if (free)
+            {
+                if (!EditorPlacementRules.TryPlaceBlock(pal.Id, _brushShape, _brushOrient, cell.X, cell.Y, cell.Z, hitFace,
+                        Occupied, InBounds, IsSolidCell, out var writes, out string refusal))
+                {
+                    _ghost?.Update(true, cell, false);
+                    Hint(refusal);
+                    return;
+                }
+
+                if (writes.Count > 1 || writes[0].Shape != 0)
+                {
+                    _ghost?.UpdateMesh(true, new Vector3(cell.X, cell.Y, cell.Z), true, _ghostMeshes.ForWrites(writes, cell));
+                    Hint(null);
+                    return;
+                }
+            }
+
+            _ghost?.Update(true, cell, free);
+            Hint(null);
         }
 
         private void TryPlace()
         {
-            if (!TryGetTargetCell(out var cell))
+            if (!TryGetTargetCell(out var cell, out int hitFace) || !InBounds(cell) || _design.ContainsKey(cell))
             {
                 return;
             }
 
-            if (InBounds(cell) && !_design.ContainsKey(cell))
+            var pal = _palette[_selected];
+            // A door with no room for its 2.8 blocks above is never what was meant (#1975). The jambs are not checked
+            // here: the server completes a ship's hull around the layout, so a door on the layout's edge is fine.
+            if (pal.Kind == "element" && DoorBlocks.IsDoorMarker(pal.Id) && !DoorRoomAbove(cell, out string why))
             {
-                PlaceCell(cell, _palette[_selected]);
+                _status = L(why);
+                return;
             }
+
+            if (pal.Kind == "block")
+            {
+                // The server's own placement rules (#1975): the block's default form unless the brush chose one, a
+                // bed as head + foot (refused where the foot would not fit), the ladder against its wall.
+                if (!EditorPlacementRules.TryPlaceBlock(pal.Id, _brushShape, _brushOrient, cell.X, cell.Y, cell.Z, hitFace,
+                        Occupied, InBounds, IsSolidCell, out var writes, out string refusal))
+                {
+                    _status = L(refusal);
+                    return;
+                }
+
+                foreach (var w in writes)
+                {
+                    PlaceCellData(new Vector3i(w.X, w.Y, w.Z), pal,
+                        new CellData { Id = pal.Id, Kind = pal.Kind, Tint = _brushTint, Glow = _brushGlow, Shape = w.Shape });
+                }
+
+                return;
+            }
+
+            PlaceCell(cell, pal);
         }
 
         private void TryRemove()
         {
-            if (TryGetHitCell(out var cell) && _design.ContainsKey(cell))
+            if (!TryGetHitCell(out var cell) || !_design.TryGetValue(cell, out var d))
             {
-                _design.Remove(cell);
-                _view.Remove(cell);
+                return;
+            }
+
+            RemoveCell(cell);
+            foreach (var (px, py, pz) in EditorPlacementRules.PartnerCells(d.Shape, cell.X, cell.Y, cell.Z))
+            {
+                // A bed goes as a pair (#1846): the other half of the same block leaves with this one.
+                var partner = new Vector3i(px, py, pz);
+                if (_design.TryGetValue(partner, out var pd) && pd.Id == d.Id)
+                {
+                    RemoveCell(partner);
+                }
             }
         }
 
@@ -482,6 +580,8 @@ namespace BlocksBeyondTheStars.Client
                 ? EditorVoxelPreview.RgbToColor(data.Tint)
                 : (data.Glow != 0 ? EditorVoxelPreview.RgbToColor(data.Glow) : (textured ? Color.white : pal.Color));
 
+            bool door = pal.Kind == "element" && DoorBlocks.IsDoorMarker(pal.Id);
+            var silhouette = !door && pal.Kind != "block" ? MarkerSilhouettes.For(pal.Id, pal.Kind) : null;
             _design[cell] = data;
             _view.Set(cell, new EditorVoxelChunkView.Cell
             {
@@ -489,12 +589,118 @@ namespace BlocksBeyondTheStars.Client
                 Glow = data.Glow != 0,
                 Shape = data.Shape,
                 Marker = false, // the ship editor has no markers (elements + stations are solid anchors)
+                Overlay = door || (silhouette != null && !silhouette.Value.KeepsCube), // the overlay draws it (#1975)
                 Textured = textured,
                 Uv = tile,
             });
+
+            if (door)
+            {
+                _overlay?.SetDoor(cell, DoorBlocks.KindForMarker(pal.Id), IsSolidCell, DoorAxisFor(cell));
+            }
+            else if (silhouette != null)
+            {
+                _overlay?.SetSilhouette(cell, pal.Id, pal.Kind, pal.Color);
+            }
+            else
+            {
+                _overlay?.Remove(cell);
+            }
+
+            _overlay?.OnDesignChanged(cell, IsSolidCell); // a block beside a door re-fits that door
         }
 
         private bool InBounds(Vector3i c) => c.X >= 0 && c.X < MaxW && c.Y >= 0 && c.Y < MaxH && c.Z >= 0 && c.Z < MaxL;
+
+        private bool InBounds(int x, int y, int z) => InBounds(new Vector3i(x, y, z));
+
+        private bool Occupied(int x, int y, int z) => _design.ContainsKey(new Vector3i(x, y, z));
+
+        /// <summary>A cell that blocks a door or carries a ladder: a block, a station tile, or an element that is a block
+        /// in the game (a light, the engine, glass) — not the hatch and not a door, which are openings.</summary>
+        private bool IsSolidCell(int x, int y, int z)
+            => _design.TryGetValue(new Vector3i(x, y, z), out var d)
+               && (d.Kind != "element" || (d.Id != "hatch" && !DoorBlocks.IsDoorMarker(d.Id)));
+
+        /// <summary>The wall axis the server pins for a door on the layout's rear wall (local Z = 0): the hatch is a
+        /// wide gap in a wall along X, where a ±1 probe is ambiguous. Every other door lets the probe decide.</summary>
+        private bool? DoorAxisFor(Vector3i cell) => cell.Z - Origin.Z == 0 ? true : (bool?)null;
+
+        /// <summary>A door is 2.8 tall: the two cells above its floor cell must be free and inside the room.</summary>
+        private bool DoorRoomAbove(Vector3i cell, out string refusalKey)
+        {
+            refusalKey = null;
+            for (int up = 1; up <= 2; up++)
+            {
+                if (!InBounds(cell.X, cell.Y + up, cell.Z) || Occupied(cell.X, cell.Y + up, cell.Z))
+                {
+                    refusalKey = EditorPlacementRules.DoorNeedsWall;
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void RemoveCell(Vector3i cell)
+        {
+            _design.Remove(cell);
+            _view.Remove(cell);
+            _overlay?.Remove(cell);
+            _overlay?.OnDesignChanged(cell, IsSolidCell);
+        }
+
+        /// <summary>A placement hint in the status line while the ghost is red for a RULE (a door without room above, a
+        /// bed without room) — set once per change, cleared when the ghost turns valid again.</summary>
+        private void Hint(string key)
+        {
+            if (key == _hintShown)
+            {
+                return;
+            }
+
+            _hintShown = key;
+            _status = key != null ? L(key) : string.Empty;
+        }
+
+        /// <summary>The tile the form icons are drawn on: the selected block's, else stone.</summary>
+        private ushort BrushTile()
+        {
+            var pal = _palette != null && _selected >= 0 && _selected < _palette.Length ? _palette[_selected] : default;
+            var def = pal.Kind == "block" && Shell?.Content != null ? Shell.Content.GetBlock(pal.Id) : null;
+            def ??= Shell?.Content?.GetBlock("stone");
+            return def?.NumericId.Value ?? (ushort)0;
+        }
+
+        /// <summary>The brush's form row: icon + name + "Change…", which opens the in-game form grid (#1975).</summary>
+        private void FormRow()
+        {
+            var row = Row(_form, 30f);
+            UiKit.AddText(row, 4f, 0f, 90f, 30f, L("ui.struct.shape"), 15, UiKit.TextCol);
+            var iconGo = new GameObject("FormIcon", typeof(RectTransform));
+            iconGo.transform.SetParent(row, false);
+            UiKit.Place(iconGo, 96f, 1f, 28f, 28f);
+            _formIcon = iconGo.AddComponent<RawImage>();
+            _formIcon.raycastTarget = false;
+            EditorFormPicker.PaintIcon(_formIcon, _atlas, BrushTile(), _brushShape);
+            _formLabel = UiKit.AddText(row, 130f, 0f, 120f, 30f, FormName(_brushShape), 13, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddButton(row, 254f, 1f, 102f, 28f, L("ui.ed.form_pick"), OpenFormPicker);
+        }
+
+        private void OpenFormPicker()
+        {
+            _formPicker?.Close();
+            _formPicker = EditorFormPicker.Show(Shell, _canvas.transform, _atlas, BrushTile(), _brushShape, shape =>
+            {
+                _brushShape = shape;
+                if (_formLabel != null)
+                {
+                    _formLabel.text = FormName(shape);
+                }
+
+                EditorFormPicker.PaintIcon(_formIcon, _atlas, BrushTile(), shape);
+            }, () => _formPicker = null);
+        }
 
         /// <summary>The atlas tile of a palette entry that is a real content block (stations never are;
         /// elements only when their id is a block key); <paramref name="textured"/> = false otherwise.</summary>
@@ -535,6 +741,10 @@ namespace BlocksBeyondTheStars.Client
         {
             _view?.Dispose();
             _ghost?.Dispose();
+            _overlay?.Dispose();
+            _ghostMeshes?.Dispose();
+            _formPicker?.Close();
+            _formPicker = null;
             _frame?.Dispose();
             _atlas?.Release(); // palette sprites reference this texture; the editor holds a reference (#423 lesson, shared since #1523)
             _atlas = null;
@@ -662,8 +872,7 @@ namespace BlocksBeyondTheStars.Client
             InputRow(HexOf(_brushTint), v => _brushTint = ParseHex(v));
             FormLabel(L("ui.ship.glow_hex"));
             InputRow(HexOf(_brushGlow), v => _brushGlow = ParseHex(v));
-            Stepper(L("ui.struct.shape"), () => _brushShape, v => _brushShape = Mathf.Clamp(Mathf.RoundToInt(v), 0, 8), 0f, 8f, 1f, "0",
-                v => ShapeName(Mathf.RoundToInt(v)));
+            FormRow(); // the in-game form grid instead of a −/+ stepper (#1975)
             Stepper(L("ui.struct.orient"), () => _brushOrient, v => _brushOrient = Mathf.RoundToInt(v) & 3, 0f, 3f, 1f, "0",
                 v => (Mathf.RoundToInt(v) * 90) + "°");
 
@@ -938,6 +1147,7 @@ namespace BlocksBeyondTheStars.Client
         private int ApplyCells(IEnumerable<ExportCellJson> cells, List<string> skippedIds)
         {
             _view.Clear();
+            _overlay?.Clear();
             _design.Clear();
             int skipped = 0;
             foreach (var c in cells)
@@ -1085,6 +1295,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Rebuilds the right-hand form (key/name + stats) so it reflects a freshly loaded design.</summary>
         private void RebuildForm()
         {
+            _formPicker?.Close();
+            _formPicker = null;
             if (_form == null)
             {
                 return;

@@ -156,13 +156,18 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The placement ghost of the build editors: a softly pulsing translucent cube at the cell a click
     /// would fill — green when the placement is valid, red when the cell is occupied or out of bounds.
-    /// The ship editor had one, the station/settlement editor did not (#1391).
+    /// The ship editor had one, the station/settlement editor did not (#1391). Since #1975 it also shows
+    /// a MESH instead of the cube (<see cref="UpdateMesh"/>): the door the server would hang, a block's
+    /// form, a bed as head + foot, a marker's silhouette.
     /// </summary>
     internal sealed class EditorPlacementGhost
     {
         private readonly GameObject _go;
         private readonly Renderer _renderer;
         private readonly Material _valid, _invalid;
+        private GameObject _meshGo;      // the mesh mode (#1975): a door, a form, a bed pair, a silhouette
+        private MeshFilter _meshFilter;
+        private Renderer _meshRenderer;
 
         public EditorPlacementGhost(Transform parent)
         {
@@ -188,6 +193,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (_meshGo != null && _meshGo.activeSelf)
+            {
+                _meshGo.SetActive(false); // cube mode
+            }
+
             if (_go.activeSelf != show)
             {
                 _go.SetActive(show);
@@ -203,11 +213,67 @@ namespace BlocksBeyondTheStars.Client
             _renderer.sharedMaterial = valid ? _valid : _invalid;
         }
 
+        /// <summary>Shows a MESH ghost (#1975) — the door the server would hang, a block's form, a bed pair, a
+        /// marker's silhouette — with its origin at <paramref name="origin"/> (world space); the cube hides. Meshes
+        /// belong to the caller (<see cref="EditorGhostMeshes"/> caches them); a null mesh falls back to the cube
+        /// at the origin's cell.</summary>
+        public void UpdateMesh(bool show, Vector3 origin, bool valid, Mesh mesh)
+        {
+            if (mesh == null)
+            {
+                Update(show, new Vector3i(Mathf.FloorToInt(origin.x), Mathf.FloorToInt(origin.y), Mathf.FloorToInt(origin.z)), valid);
+                return;
+            }
+
+            if (_go == null)
+            {
+                return;
+            }
+
+            if (_meshGo == null)
+            {
+                _meshGo = new GameObject("PlacementGhostMesh", typeof(MeshFilter), typeof(MeshRenderer));
+                _meshGo.transform.SetParent(_go.transform.parent, false); // no collider: must never block the picking ray
+                _meshFilter = _meshGo.GetComponent<MeshFilter>();
+                _meshRenderer = _meshGo.GetComponent<Renderer>();
+                _meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                _meshRenderer.receiveShadows = false;
+            }
+
+            if (_go.activeSelf)
+            {
+                _go.SetActive(false); // mesh mode
+            }
+
+            if (_meshGo.activeSelf != show)
+            {
+                _meshGo.SetActive(show);
+            }
+
+            if (!show)
+            {
+                return;
+            }
+
+            if (_meshFilter.sharedMesh != mesh)
+            {
+                _meshFilter.sharedMesh = mesh;
+            }
+
+            _meshGo.transform.position = origin;
+            _meshRenderer.sharedMaterial = valid ? _valid : _invalid;
+        }
+
         public void Dispose()
         {
             if (_go != null)
             {
                 Object.Destroy(_go);
+            }
+
+            if (_meshGo != null)
+            {
+                Object.Destroy(_meshGo);
             }
 
             Object.Destroy(_valid);
