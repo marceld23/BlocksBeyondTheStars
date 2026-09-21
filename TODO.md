@@ -24,6 +24,21 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔣 Raw `{count?100:100}` in the ja/zh oxygen-tank texts — and the checks that let it through (#1973, 2026-09-21, branch fix/1973-locale-stray-tokens)
+
+Reported by Camembert1001 (a Japanese UI preflight run over the public EN/JA catalogs). A machine pass (#1278) wrote
+`{count?100:100}` / `{count?200:200}` into `item.oxygen_tank_2/3.desc` in **ja and zh**; English has the plain number,
+and the game substitutes tokens by plain replacement, so players saw the raw token.
+
+- **Data:** the four values now carry the plain numbers. A scan of every locale file (game, VEGA story, web portal —
+  14 languages each) found no other brace outside a token and no `{key:…}` parity break.
+- **Why CI missed it:** `CommunityLocaleTests`, `tools/locale_report.py` and `tools/translate_locale.py` matched tokens
+  with `\{[A-Za-z0-9_]+\}`, so a mangled token compared as "no placeholders" on both sides. All three now share one
+  grammar — `{0}`, `{name}`, `{key:Action}` — and reject any brace left outside it
+  (`EveryLocaleFile_HasNoStrayBraces` over all three locale directories; `--check` class "brace outside a token";
+  the translate validator drops such values and its prompt forbids plural/conditional syntax).
+- **Credits:** Camembert1001 in the README contributors list and the in-game Credits (`ui.credits.body`, 14 languages).
+
 ### 🎨 Creator suite — paint any texture, design forms over several blocks, give your tools a look, send a texture in (#1950: #1951–#1967, 2026-09-20, branch feat/creator-suite)
 
 Three menu editors whose results are the player's at once, on any install — none of them needs the original source

@@ -7,7 +7,8 @@ adding keys underneath. This tool makes that drift visible instead of leaving it
   * per-language coverage, overall and per key group, against en.json (the source of truth)
   * which groups are finished, in progress, or untouched — so a contributor can pick the next batch
   * the exact keys that are MISSING from a group (--missing), ready to paste into a locale file
-  * defects CI also fails on: invented keys, changed {0}/{item} placeholder sets, blank values
+  * defects CI also fails on: invented keys, changed {0}/{item} placeholder sets, a brace outside a
+    token ("{count?100:100}" renders literally — the game has no plural/conditional syntax), blank values
   * soft nits CI tolerates: key order not mirroring en.json, values identical to English
 
 English is the fallback for every missing key (GameContent.CreateLocalizer), so a partial language is
@@ -43,7 +44,10 @@ SOURCE_LANG = "en"
 # Languages with their own strict completeness tests — reported, but never flagged as "incomplete".
 MANDATORY = ("en", "de")
 
-PLACEHOLDER = re.compile(r"\{[A-Za-z0-9_]+\}")
+PLACEHOLDER = re.compile(r"\{(?:key:)?[A-Za-z0-9_]+\}")  # {0}, {name} and the {key:Action} control tokens
+
+# The defect classes CommunityLocaleTests fails on; everything else in defects() is a soft nit.
+HARD = ("orphans", "blanks", "placeholders", "stray")
 
 
 def load(lang: str) -> dict[str, str]:
@@ -75,10 +79,17 @@ def groups(table: dict[str, str]) -> dict[str, list[str]]:
     return out
 
 
+def has_stray_brace(text: str) -> bool:
+    """True when a brace survives outside a token — it would be shown literally in game (#1973)."""
+    rest = PLACEHOLDER.sub("", text)
+    return "{" in rest or "}" in rest
+
+
 def defects(lang: str, table: dict[str, str], source: dict[str, str]) -> dict[str, list[str]]:
     """Hard defects (CI fails on these — see tests/CommunityLocaleTests.cs) and soft nits."""
     orphans = sorted(k for k in table if k not in source)
     blanks = sorted(k for k, v in table.items() if not v.strip())
+    stray = sorted(k for k, v in table.items() if has_stray_brace(v))
     placeholders = []
     identical = []
     for key, value in table.items():
@@ -96,6 +107,7 @@ def defects(lang: str, table: dict[str, str], source: dict[str, str]) -> dict[st
         "orphans": orphans,
         "blanks": blanks,
         "placeholders": sorted(placeholders),
+        "stray": stray,
         "identical": sorted(identical),
         "order": [] if shared == expected else ["key order does not mirror en.json"],
     }
@@ -118,7 +130,7 @@ def report_summary(source: dict[str, str], langs: list[str]) -> None:
         translated = sum(1 for k in table if k in source)
         pct = 100.0 * translated / len(source) if source else 0.0
         d = defects(lang, table, source)
-        hard = len(d["orphans"]) + len(d["blanks"]) + len(d["placeholders"])
+        hard = sum(len(d[k]) for k in HARD)
         note = "clean" if hard == 0 else f"{hard} HARD"
         if lang in MANDATORY and translated < len(source):
             note += f", {len(source) - translated} missing (must be complete!)"
@@ -156,13 +168,14 @@ def report_language(lang: str, source: dict[str, str]) -> None:
         ("invented keys (not in en.json)", d["orphans"], "HARD"),
         ("blank values", d["blanks"], "HARD"),
         ("placeholder set changed", d["placeholders"], "HARD"),
+        ("brace outside a token", d["stray"], "HARD"),
         ("identical to English", d["identical"], "soft"),
         ("key order", d["order"], "soft"),
     ):
         if keys:
             shown = ", ".join(keys[:8]) + (" …" if len(keys) > 8 else "")
             print(f"[{severity}] {label}: {len(keys)} — {shown}")
-    if not any(d[k] for k in ("orphans", "blanks", "placeholders")):
+    if not any(d[k] for k in HARD):
         print("no hard defects — this file would pass CI")
 
 
@@ -190,7 +203,7 @@ def report_markdown(source: dict[str, str], langs: list[str]) -> None:
         table = load(lang)
         translated = sum(1 for k in table if k in source)
         d = defects(lang, table, source)
-        hard = len(d["orphans"]) + len(d["blanks"]) + len(d["placeholders"])
+        hard = sum(len(d[k]) for k in HARD)
         pct = 100.0 * translated / len(source) if source else 0.0
         print(f"| `{lang}` | {translated} | {pct:.1f}% | {'none' if hard == 0 else f'**{hard}**'} |")
     print("\n<sub>English is the per-key fallback, so a partial language is a supported state. "
@@ -218,7 +231,7 @@ def check(source: dict[str, str], langs: list[str]) -> int:
         if lang == SOURCE_LANG:
             continue
         d = defects(lang, load(lang), source)
-        for label in ("orphans", "blanks", "placeholders"):
+        for label in HARD:
             if d[label]:
                 failed += len(d[label])
                 print(f"{lang}: {label}: {', '.join(d[label][:10])}", file=sys.stderr)

@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Localization;
@@ -18,18 +19,29 @@ namespace BlocksBeyondTheStars.Tests;
 /// <para>
 /// What DOES break the game is caught here instead: a key that exists in no other language (a typo nothing
 /// will ever read), a lost or invented <c>{0}</c>/<c>{item}</c> placeholder (a format hole in the middle of a
-/// sentence), an empty string rendering as blank UI, and a locale file no <see cref="GameLocale"/> member
-/// loads. Each failure message names the exact keys so a contributor can fix them without a local checkout.
+/// sentence), an empty string rendering as blank UI, a brace that belongs to no token (rendered literally),
+/// and a locale file no <see cref="GameLocale"/> member loads. Each failure message names the exact keys so a
+/// contributor can fix them without a local checkout.
 /// </para>
 /// </summary>
 public class CommunityLocaleTests
 {
-    /// <summary>Both placeholder styles the locale tables use: positional (<c>{0}</c>) and named
-    /// (<c>{item}</c>, <c>{player}</c>). Matched as whole tokens so a stray brace is reported, not ignored.</summary>
+    /// <summary>Every token the locale tables use: positional (<c>{0}</c>), named (<c>{item}</c>, <c>{player}</c>)
+    /// and the key-binding control token (<c>{key:ToggleLamp}</c>). The game substitutes these by plain string
+    /// replacement — there is no conditional or plural syntax, so anything else in braces is a defect.</summary>
     private static readonly Regex PlaceholderPattern = new(
-        @"\{[A-Za-z0-9_]+\}",
+        @"\{(?:key:)?[A-Za-z0-9_]+\}",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(2));
+
+    /// <summary>Every translated table the game and its web portal ship — the three places the machine pass
+    /// (<c>tools/translate_locale.py</c>) writes to.</summary>
+    private static readonly string[] LocaleDirs =
+    [
+        Path.Combine("data", "locales"),
+        Path.Combine("data", "stories", "vega_protocol", "locales"),
+        Path.Combine("src", "BlocksBeyondTheStars.WorldHost", "Locales"),
+    ];
 
     /// <summary>The languages this file governs: every <see cref="GameLocale"/> whose file exists on disk,
     /// minus the two that have their own stricter completeness tests.</summary>
@@ -115,6 +127,35 @@ public class CommunityLocaleTests
             blanks.Count == 0,
             $"{code}.json has {blanks.Count} empty value(s); an empty string shadows the English fallback and "
             + $"renders as blank UI — remove the key instead: {string.Join(", ", blanks.Take(20))}");
+    }
+
+    [Fact]
+    public void EveryLocaleFile_HasNoStrayBraces()
+    {
+        var stray = new List<string>();
+        foreach (string dir in LocaleDirs)
+        {
+            foreach (string path in Directory.GetFiles(Path.Combine(TestPaths.RepoRoot(), dir), "*.json"))
+            {
+                var table = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path)) ?? [];
+                foreach (var (key, value) in table)
+                {
+                    string rest = PlaceholderPattern.Replace(value, string.Empty);
+                    if (rest.Contains('{', StringComparison.Ordinal) || rest.Contains('}', StringComparison.Ordinal))
+                    {
+                        stray.Add($"{Path.GetRelativePath(TestPaths.RepoRoot(), path).Replace('\\', '/')}: {key} (\"{value}\")");
+                    }
+                }
+            }
+        }
+
+        // The placeholder-set check above only sees well-formed tokens, so a mangled one — a machine pass once
+        // wrote "{count?100:100}" where English has the plain number 100 (#1973) — compares as "no placeholders"
+        // on both sides and slips through, then renders literally in game. Any brace outside a token is caught here.
+        Assert.True(
+            stray.Count == 0,
+            $"{stray.Count} locale value(s) contain a brace that is not part of a {{0}}/{{name}}/{{key:Action}} token — "
+            + $"the game does no conditional or plural formatting, so it would show up literally: {string.Join("; ", stray.Take(20))}");
     }
 
     [Fact]
