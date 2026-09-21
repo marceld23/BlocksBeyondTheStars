@@ -141,7 +141,7 @@ public sealed partial class GameServer
                     }
 
                     var def = _content.GetBlock(cell.Key!);
-                    if (def is null || IsBlueprintSpecialBlock(def.Key) || IsDoorBlock(def.Key) || IsContainerBlock(def.Key)
+                    if (def is null || IsBlueprintSpecialBlock(def.Key) || DoorBlocks.IsDoorBlock(def.Key) || IsContainerBlock(def.Key)
                         || def.Key == ShipCoreBlock)
                     {
                         skippedSpecial++; // unknown in this save, or a block that founds an entity on placement

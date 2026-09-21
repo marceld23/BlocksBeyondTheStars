@@ -4979,7 +4979,7 @@ public sealed partial class GameServer
             // consumed: a door is an ENTITY living in an air cell (the fluid would just flow back around it,
             // leaving a door that holds nothing back), and a torch is an open flame — a submerged one would be
             // the same mysterious dud the airless-body check above exists to prevent.
-            if (IsDoorBlock(blockDef.Key))
+            if (DoorBlocks.IsDoorBlock(blockDef.Key))
             {
                 Reject(session, "place", "@srv.place.not_empty");
                 return;
@@ -5138,9 +5138,9 @@ public sealed partial class GameServer
         }
 
         // A door isn't a voxel block — it fills the (air) cell as a server door entity (Task 5 Stage 3c).
-        if (IsDoorBlock(blockDef.Key))
+        if (DoorBlocks.IsDoorBlock(blockDef.Key))
         {
-            PlaceDoor(session, pos, DoorKindForBlock(blockDef.Key));
+            PlaceDoor(session, pos, DoorBlocks.KindForBlock(blockDef.Key));
             SendInventory(session);
             return;
         }

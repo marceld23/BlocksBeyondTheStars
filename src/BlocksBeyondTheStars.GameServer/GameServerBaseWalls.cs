@@ -422,7 +422,7 @@ public sealed partial class GameServer
 
         var scratch = _wallScratch;
         System.Array.Clear(scratch, 0, cells);
-        var wallDoors = DoorCellsWhere(d => !d.Open || !IsHandOperated(d.Kind)); // #1358: proximity doors are walls in any state
+        var wallDoors = DoorCellsWhere(d => !d.Open || !DoorBlocks.IsHandOperated(d.Kind)); // #1358: proximity doors are walls in any state
         var reached = new System.Collections.BitArray(side * side * (yMax - yMin + 1));
         var frontier = new Queue<Vector3i>();
         int count = 0;

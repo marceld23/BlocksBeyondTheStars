@@ -325,7 +325,7 @@ public sealed partial class GameServer
     /// doors"); the door closes again behind them (<see cref="TickDoors"/>). Both leaves of a double door follow.</summary>
     private void OpenDoorForNpc(ServerDoor door)
     {
-        if (door.Open || !IsHandOperated(door.Kind))
+        if (door.Open || !DoorBlocks.IsHandOperated(door.Kind))
         {
             return;
         }

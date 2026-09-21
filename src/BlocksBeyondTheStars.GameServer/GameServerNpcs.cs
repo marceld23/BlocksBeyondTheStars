@@ -513,7 +513,7 @@ public sealed partial class GameServer
         foreach (var d in _doors)
         {
             int floor = (int)System.Math.Floor(d.Pos.Y);
-            if (d.Open || y < floor || y > floor + 2 || (handOperatedOnly && !IsHandOperated(d.Kind)))
+            if (d.Open || y < floor || y > floor + 2 || (handOperatedOnly && !DoorBlocks.IsHandOperated(d.Kind)))
             {
                 continue;
             }

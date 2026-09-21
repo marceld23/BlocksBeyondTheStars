@@ -11,6 +11,7 @@ using BlocksBeyondTheStars.Client.Portal;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -1315,18 +1316,8 @@ namespace BlocksBeyondTheStars.Client
 
         // The forms the always-available "Shape" action can craft (shape index → locale key). 0 = plain cube
         // (reverts a shaped material). Indices match BlocksBeyondTheStars.Shared.World.BlockShape.
-        private static readonly (int Shape, string Loc)[] ShapeOptions =
-        {
-            (0, "ui.shape.cube"), (1, "ui.shape.slab"), (2, "ui.shape.pyramid"), (3, "ui.shape.dome"),
-            (4, "ui.shape.sphere"), (5, "ui.shape.ramp"), (6, "ui.shape.stairs"), (7, "ui.shape.cone"),
-            (8, "ui.shape.cylinder"), (9, "ui.shape.panel"), (10, "ui.shape.post"), (11, "ui.shape.beam"),
-            (12, "ui.shape.lowramp"), (13, "ui.shape.quartercube"),
-            (14, "ui.shape.table"), (15, "ui.shape.chair"), (16, "ui.shape.fence"),
-            (17, "ui.shape.sheet"), (18, "ui.shape.pot"),
-            // The bench sits at the top of the index range (#1846); the bed halves up there are stamped by the
-            // server on a placed bed and are deliberately NOT offered here.
-            ((int)BlocksBeyondTheStars.Shared.World.BlockShape.Bench, "ui.shape.bench"),
-        };
+        // The pickable forms are the shared BuiltInForms.Options (#1975): one list for this tab, the hotbar's form
+        // menu and the build editors' form picker.
 
         /// <summary>Lists the player's shapeable building materials for the always-available Shape action.</summary>
         private float BuildShapeList()
@@ -1391,9 +1382,10 @@ namespace BlocksBeyondTheStars.Client
         {
             const int cols = 2;
             const float bw = 300f, bh = 50f, gap = 10f;
-            for (int i = 0; i < ShapeOptions.Length; i++)
+            for (int i = 0; i < BuiltInForms.Options.Count; i++)
             {
-                var (shape, loc) = ShapeOptions[i];
+                int shape = BuiltInForms.Options[i].Shape;
+                string loc = BuiltInForms.Options[i].LocKey;
                 float bx = 8 + (i % cols) * (bw + gap);
                 float by = y + (i / cols) * (bh + gap);
                 bool isCurrent = shape == current;
@@ -1406,7 +1398,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            int rows = (ShapeOptions.Length + cols - 1) / cols;
+            int rows = (BuiltInForms.Options.Count + cols - 1) / cols;
             y += rows * (bh + gap) + 16f;
             return AddCustomFormSection(y, src, current);
         }

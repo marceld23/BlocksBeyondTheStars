@@ -1012,7 +1012,7 @@ public sealed partial class GameServer
             var cells = ParseCustomCells(_ship.BuiltCells);
             cells[pos] = blockDef.NumericId;
             CommitCustomShipCells(session, _ship, rec, commissioned: true, cells, pos,
-                IsDoorBlock(blockDef.Key) ? BlockId.AirValue : blockDef.NumericId.Value);
+                DoorBlocks.IsDoorBlock(blockDef.Key) ? BlockId.AirValue : blockDef.NumericId.Value);
             return;
         }
 
