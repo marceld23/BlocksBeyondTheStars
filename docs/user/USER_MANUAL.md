@@ -802,7 +802,8 @@ separate unlock; admins can still disable it through server world rules.
   as long as they are **sealed** and **connected to the base**. Loose stuff (dirt, sand, snow, plants) and
   shaped blocks (ramps, spheres) leak. Doorways need the **Energy Door** (workshop, blueprint-gated): its blue
   field is an **air curtain** — you walk right through, the air stays in. Ordinary doors (wood, hinged,
-  sliding) do NOT hold air. Chain rooms door by door to grow a whole airtight outpost; if a wall is mined or
+  sliding) do NOT hold air. Holding any door shows a **hologram of it in the target cell**, turned by the wall
+  beside it, so you see which way it will face before you place it. Chain rooms door by door to grow a whole airtight outpost; if a wall is mined or
   burns away, everyone at the base gets a **"no longer airtight"** warning and the rooms fall back to suit
   oxygen until the hole is closed. **Check it:** aim at your own core — the prompt shows how many cells and
   sealed rooms currently have air and whether the spot you stand on does (*here: air*). VEGA explains the
@@ -1518,9 +1519,24 @@ matching Python merge tool (review the diff, translate locale placeholders, comm
 controls (Ship/Station/Town/Material 3D editors): **hold Right-mouse** to look, **WASD** to fly, **Q/E**
 (or Space/Ctrl) up/down, **Mouse wheel** zoom (dolly along your view), **Shift** faster, **F** frame the
 build (or the floor centre when nothing is placed yet), **Left-click** place, **Middle-click** remove,
-**Esc** to exit. A translucent ghost cube shows where a click lands (green = free, red = occupied / out of
-bounds); the floor grid marks every cell with a brighter line every 8 cells. The palette on the left has a
-search box (typing there never moves the camera) and a scrollbar.
+**Esc** to exit. A translucent ghost shows where a click lands **and what it leaves there**: the block in the
+form it will take (a bed as head + foot), the **door** the game will hang (turned by the wall beside the cell,
+as wide as the gap), or a marker's silhouette (a figure on an NPC post, a board, a chest, a terminal, a plate on
+the floor for an area marker, the ship hatch's frame, a ship station's decor). Green = fine; red = occupied,
+out of bounds, or a door with no wall beside it / no two free cells above it — the status line says why.
+Placed doors, silhouettes and decor are drawn in the build and re-fit when a neighbouring cell changes. The
+floor grid marks every cell with a brighter line every 8 cells. The palette on the left has a search box
+(typing there never moves the camera) and a scrollbar.
+
+**Form brush.** The block brush's *Form* row opens the same form grid as the in-game Shape action. *Automatic*
+(the default) gives a block its own form, exactly as the game stamps it when you place it in a world: a bed is
+placed as head **and** foot (removing one half removes both; refused where the foot would not fit), a campfire
+as a slab, a rug as a sheet, a flower pot as a pot, a ladder as a plate against the wall you clicked (a pole
+with no wall), stairs and the stretcher in their forms. *Cube* is an explicit choice. **Doors** are placed as
+door **markers** (Station / Town editor) or door **elements** (Ship editor): click the doorway's floor cell —
+the game finds the wall and the width. Door *blocks* are no longer in the block palette (they stamped as a
+solid wall); only the Station editor keeps them as **hull airlock** blocks, the airtight block in a station's
+outer hull.
 
 **The three editors that need no developer** — what you make in them is yours at once, on any install:
 

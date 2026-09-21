@@ -32,6 +32,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Marker;   // interaction marker — drawn as a small inset cube, never occludes
             public bool Textured; // sample the atlas tile at Uv (#1400); false = plain vertex colour
             public Rect Uv;       // the block's atlas tile (BlockTextureAtlas.TileUv)
+            public bool Overlay;  // drawn by EditorPropOverlay (#1975: a door, a silhouette) — counts as occupied, emits no faces
         }
 
         private const int ChunkSize = 16;
@@ -214,7 +215,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True if the cell at <paramref name="p"/> is a solid cube that should hide the face turned
         /// toward it. Shaped + marker cells never occlude (they don't fill the cell).</summary>
         private bool Occludes(Vector3i p)
-            => _all.TryGetValue(p, out var c) && c.Shape == 0 && !c.Marker;
+            => _all.TryGetValue(p, out var c) && c.Shape == 0 && !c.Marker && !c.Overlay;
 
         private void RebuildSlot(Slot slot)
         {
@@ -229,6 +230,11 @@ namespace BlocksBeyondTheStars.Client
                 var cell = kv.Key;
                 var data = kv.Value;
                 var origin = new Vector3(cell.X, cell.Y, cell.Z);
+
+                if (data.Overlay)
+                {
+                    continue; // the overlay draws it (the real door, the silhouette) — nothing of it in the chunk mesh
+                }
 
                 if (data.Marker)
                 {

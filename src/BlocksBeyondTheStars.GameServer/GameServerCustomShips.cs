@@ -95,7 +95,7 @@ public sealed partial class GameServer
 
     /// <summary>True when the block id is one of the door items (they become door CELLS, never solid cells).</summary>
     private bool IsDoorBlockId(BlockId block)
-        => _content.BlockById(block) is { } def && IsDoorBlock(def.Key);
+        => _content.BlockById(block) is { } def && DoorBlocks.IsDoorBlock(def.Key);
 
     private bool IsBlockId(BlockId block, string key)
         => _content.GetBlock(key) is { } def && def.NumericId.Value == block.Value;
@@ -159,12 +159,12 @@ public sealed partial class GameServer
 
         foreach (var (pos, block) in cells)
         {
-            if (_content.BlockById(block) is { } doorDef && IsDoorBlock(doorDef.Key))
+            if (_content.BlockById(block) is { } doorDef && DoorBlocks.IsDoorBlock(doorDef.Key))
             {
                 // A server-authoritative door fills the opening — and it keeps the KIND of the door block
                 // the player built in, so a wooden/hinge door still swings by hand with E (#1021).
                 s.DoorCells.Add(pos);
-                s.DoorKinds[pos] = DoorKindForBlock(doorDef.Key);
+                s.DoorKinds[pos] = DoorBlocks.KindForBlock(doorDef.Key);
                 continue;
             }
 
@@ -537,7 +537,7 @@ public sealed partial class GameServer
 
         cells[pos] = blockDef.NumericId;
         CommitCustomShipCells(session, uc.Ship, rec, commissioned: false, cells, pos,
-            IsDoorBlock(blockDef.Key) ? BlockId.AirValue : blockDef.NumericId.Value);
+            DoorBlocks.IsDoorBlock(blockDef.Key) ? BlockId.AirValue : blockDef.NumericId.Value);
     }
 
     /// <summary>Persists an edited custom-ship cell map (construction site OR the commissioned parked ship)

@@ -39,17 +39,8 @@ namespace BlocksBeyondTheStars.Client
             0xFFFFFF, 0xC8D0D8, 0x8A94A0, 0x4A5260, 0x2A3038, 0x12161A,
         };
 
-        // The same form list the crafting menu offers (shape index → locale key); 0 = back to a plain cube.
-        private static readonly (int Shape, string Loc)[] ShapeOptions =
-        {
-            (0, "ui.shape.cube"), (1, "ui.shape.slab"), (2, "ui.shape.pyramid"), (3, "ui.shape.dome"),
-            (4, "ui.shape.sphere"), (5, "ui.shape.ramp"), (6, "ui.shape.stairs"), (7, "ui.shape.cone"),
-            (8, "ui.shape.cylinder"), (9, "ui.shape.panel"), (10, "ui.shape.post"), (11, "ui.shape.beam"),
-            (12, "ui.shape.lowramp"), (13, "ui.shape.quartercube"),
-            (14, "ui.shape.table"), (15, "ui.shape.chair"), (16, "ui.shape.fence"),
-            (17, "ui.shape.sheet"), (18, "ui.shape.pot"),
-            ((int)BlockShape.Bench, "ui.shape.bench"), // #1846 — the bed halves up there are server-stamped, not offered
-        };
+        // The pickable forms are the shared BuiltInForms.Options (#1975) — the same list the crafting menu and
+        // the build editors offer; index 0 = back to a plain cube.
 
         private Canvas _canvas;
         private int _slot = -1;        // the hotbar slot the ring was opened on
@@ -526,9 +517,10 @@ namespace BlocksBeyondTheStars.Client
 
             const int cols = 7;
             const float cell = 116f, pitch = 132f, x0 = 32f, y0 = 96f;
-            for (int i = 0; i < ShapeOptions.Length; i++)
+            for (int i = 0; i < BuiltInForms.Options.Count; i++)
             {
-                var (shape, loc) = ShapeOptions[i];
+                int shape = BuiltInForms.Options[i].Shape;
+                string loc = BuiltInForms.Options[i].LocKey;
                 int target = shape;
                 float x = x0 + (i % cols) * pitch;
                 float y = y0 + (i / cols) * pitch;
@@ -551,7 +543,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            int rows = (ShapeOptions.Length + cols - 1) / cols;
+            int rows = (BuiltInForms.Options.Count + cols - 1) / cols;
             float yOwn = y0 + rows * pitch + 8f;
             UiKit.AddText(panel, 32f, yOwn, 640f, 28f, L("ui.shape.custom.section"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             yOwn += 34f;

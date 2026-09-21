@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -32,7 +33,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Every placeable block as a palette entry — localized label, category group, atlas
         /// tile icon + average colour — sorted by category, then by label in the active language.</summary>
-        internal static List<Entry> BlockEntries(AppShell shell, BlockTextureAtlas atlas)
+        internal static List<Entry> BlockEntries(AppShell shell, BlockTextureAtlas atlas, bool hullAirlocks = false)
         {
             var list = new List<Entry>();
             var content = shell != null ? shell.Content : null;
@@ -48,10 +49,19 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                // A door is a MARKER (structure editor) / an ELEMENT (ship editor): the game hangs a door entity
+                // there. The door BLOCK next to it stamps as a solid door-textured wall (#1982), so the palette drops
+                // it — except for a station's outer hull, where that airtight block IS the airlock (labelled so).
+                bool airlock = DoorBlocks.IsDoorBlock(def.Key);
+                if (airlock && !hullAirlocks)
+                {
+                    continue;
+                }
+
                 list.Add(new Entry
                 {
                     Id = def.Key,
-                    Label = shell.L(def.NameKey),
+                    Label = airlock ? string.Format(shell.L("ui.ed.airlock_block"), shell.L(def.NameKey)) : shell.L(def.NameKey),
                     Kind = "block",
                     Group = string.IsNullOrEmpty(def.Category) ? "building" : def.Category,
                     Color = TileAverage(atlas, def.NumericId.Value, def.Key),

@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using UnityEngine;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -21,8 +22,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Set so the player controller can find the hinge door it should toggle on E.</summary>
         public static DoorView Instance { get; private set; }
 
-        private const float Height = 2.8f;      // covers the 3-tall doorway, standing on the floor
-        private const float Thickness = 0.18f;
+        private const float Height = DoorGeometry.Height;       // the shared door geometry (#1975): 2.8, covers the 3-tall doorway
+        private const float Thickness = DoorGeometry.Thickness;
         private const float AnimSpeed = 6f;     // how fast a door visually slides/swings toward its state
 
         private sealed class Door
@@ -84,7 +85,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Door kinds that swing on a single leaf and are opened by hand with E. The wooden door is the
         /// cheap early-game variant of the hinge door, so it looks and behaves the same way — only the material
         /// (and the recipe: wood instead of metal panels + a gear) differs.</summary>
-        private static bool IsHinged(string kind) => kind == "hinge" || kind == "wood";
+        private static bool IsHinged(string kind) => DoorBlocks.IsHandOperated(kind); // the shared list (#1975)
 
         private void Animate(Door d)
         {
@@ -94,15 +95,13 @@ namespace BlocksBeyondTheStars.Client
                 // Swing the leaf around its jamb edge by up to ~96°. A mirrored leaf (the right-hand half of a
                 // double door, #1729) hangs on the opposite jamb and turns the other way round, so both halves
                 // open to the same side of the wall and meet in the middle when shut.
-                float sign = d.Mirrored ? 1f : -1f;
-                d.PanelA.localRotation = Quaternion.Euler(0f, sign * d.Anim * 96f, 0f);
+                d.PanelA.localRotation = Quaternion.Euler(0f, DoorGeometry.HingeSwingDegreesFor(d.Anim, d.Mirrored), 0f);
             }
             else
             {
                 // Retract the two panels sideways into the jambs.
-                float slide = (w * 0.5f) * d.Anim * 0.92f;
-                d.PanelA.localPosition = new Vector3(-w * 0.25f - slide, Height * 0.5f, 0f);
-                d.PanelB.localPosition = new Vector3(w * 0.25f + slide, Height * 0.5f, 0f);
+                d.PanelA.localPosition = new Vector3(DoorGeometry.SlidePanelX(w, plusSide: false, d.Anim), Height * 0.5f, 0f);
+                d.PanelB.localPosition = new Vector3(DoorGeometry.SlidePanelX(w, plusSide: true, d.Anim), Height * 0.5f, 0f);
             }
 
             // Energy field: fade it in as the door opens (invisible when closed) with a faint shimmer, so the
@@ -243,7 +242,7 @@ namespace BlocksBeyondTheStars.Client
         /// partner leaf gets none, since each door used to put its own post there and the two coincident
         /// posts read as a black bar splitting the double door.</summary>
         public static bool WantsJambPost(DoorPairs.Sides partners, bool plusSide)
-            => (partners & (plusSide ? DoorPairs.Sides.Plus : DoorPairs.Sides.Minus)) == DoorPairs.Sides.None;
+            => DoorGeometry.WantsJambPost(partners, plusSide);
 
         private Door Build(int id, string kind, Vector3 world, float width, bool axisX, bool open, bool mirrored,
             DoorPairs.Sides partners = DoorPairs.Sides.None)
@@ -256,7 +255,7 @@ namespace BlocksBeyondTheStars.Client
             pivot.SetParent(go.transform, false);
             pivot.localRotation = axisX ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
 
-            float w = Mathf.Max(1f, width);
+            float w = DoorGeometry.ClampWidth(width);
             bool hinge = IsHinged(kind);
             bool wood = kind == "wood";
             // The wooden door reads as lighter, warmer planks so it is telling apart from the metal hinge door.
@@ -265,59 +264,87 @@ namespace BlocksBeyondTheStars.Client
             var panelCol = wood ? PropTextures.DoorWoodPanel : hinge ? PropTextures.DoorHingePanel : PropTextures.DoorSlidePanel;
             var trimCol = wood ? PropTextures.DoorWoodTrim : hinge ? PropTextures.DoorHingeTrim : PropTextures.DoorSlideTrim;
 
-            Transform a, b = null;
-            if (hinge)
+            // The boxes are the shared DoorGeometry (#1975) — the same list the placement ghost and the build
+            // editors draw, so a previewed door and a hung door cannot drift apart. A leaf hangs in a holder at
+            // its jamb (the pivot Animate swings — the left jamb by default, the right one for the mirrored half
+            // of a double door); each slide panel sits in a holder Animate slides; a seam rides in its panel's
+            // holder; posts and the field stand still under the door pivot.
+            Transform a = null, b = null;
+            var holders = new Dictionary<DoorGeometry.Part, (Transform Holder, System.Numerics.Vector3 Origin)>();
+            Transform field = null;
+            Material fieldMat = null;
+            foreach (var box in DoorGeometry.Closed(kind, w, mirrored, partners))
             {
-                // One leaf, pivoting on a jamb. The pivot sits at the jamb and the leaf extends from it toward the
-                // opening's centre — the left jamb by default, the right one for the mirrored half of a double door.
-                float jamb = mirrored ? w * 0.5f : -w * 0.5f;
-                a = new GameObject("Leaf").transform;
-                a.SetParent(pivot, false);
-                a.localPosition = new Vector3(jamb, 0f, 0f);
-                var leaf = Panel(panelCol, trimCol);
-                leaf.transform.SetParent(a, false);
-                leaf.transform.localPosition = new Vector3(-jamb, Height * 0.5f, 0f);
-                leaf.transform.localScale = new Vector3(w * 0.96f, Height, Thickness);
-            }
-            else
-            {
-                a = MakePanel(pivot, panelCol, trimCol, w * 0.5f);
-                b = MakePanel(pivot, panelCol, trimCol, w * 0.5f);
-            }
+                switch (box.Part)
+                {
+                    case DoorGeometry.Part.Leaf:
+                    {
+                        var origin = new System.Numerics.Vector3(DoorGeometry.HingePivotX(w, mirrored), 0f, 0f);
+                        a = new GameObject("Leaf").transform;
+                        a.SetParent(pivot, false);
+                        a.localPosition = new Vector3(origin.X, origin.Y, origin.Z);
+                        holders[box.Part] = (a, origin);
+                        Cube(a, box.Centre - origin, box.Size, panelCol);
+                        break;
+                    }
 
-            // Frame trim: two jamb posts (sci-fi doors glow) so the opening reads as a real doorway — except on
-            // a jamb shared with a partner leaf, where the double door's two posts would meet in a black bar (#1852).
-            if (WantsJambPost(partners, plusSide: false))
-            {
-                Post(pivot, trimCol, -w * 0.5f);
-            }
+                    case DoorGeometry.Part.PanelMinus:
+                    case DoorGeometry.Part.PanelPlus:
+                    {
+                        // The holder is what Animate moves (it places it on the closed pose on the first frame);
+                        // the panel sits at the holder's origin.
+                        var holder = new GameObject("Panel").transform;
+                        holder.SetParent(pivot, false);
+                        holders[box.Part] = (holder, box.Centre);
+                        Cube(holder, System.Numerics.Vector3.Zero, box.Size, panelCol);
+                        if (box.Part == DoorGeometry.Part.PanelMinus)
+                        {
+                            a = holder;
+                        }
+                        else
+                        {
+                            b = holder;
+                        }
 
-            if (WantsJambPost(partners, plusSide: true))
-            {
-                Post(pivot, trimCol, w * 0.5f);
+                        break;
+                    }
+
+                    case DoorGeometry.Part.Seam:
+                    {
+                        var (holder, origin) = holders[box.Follows];
+                        Cube(holder, box.Centre - origin, box.Size, trimCol);
+                        break;
+                    }
+
+                    case DoorGeometry.Part.PostMinus:
+                    case DoorGeometry.Part.PostPlus:
+                        // Frame trim: a post on each jamb (sci-fi doors glow) so the opening reads as a real doorway —
+                        // the geometry already leaves out a jamb shared with a partner leaf (#1852).
+                        Cube(pivot, box.Centre, box.Size, trimCol);
+                        break;
+
+                    case DoorGeometry.Part.Field:
+                    {
+                        // Energy door (item 35): a translucent blue energy field filling the opening, shown only while
+                        // open (the panels still slide apart). The field is purely visual + passable — no collider — so
+                        // you walk through it; the door's own collider below handles blocking while closed.
+                        var fieldGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                        StripCollider(fieldGo);
+                        fieldGo.transform.SetParent(pivot, false);
+                        fieldGo.transform.localPosition = new Vector3(box.Centre.X, box.Centre.Y, box.Centre.Z);
+                        fieldGo.transform.localScale = new Vector3(box.Size.X, box.Size.Y, box.Size.Z);
+                        fieldMat = EnergyFieldMaterial();
+                        fieldGo.GetComponent<Renderer>().sharedMaterial = fieldMat;
+                        field = fieldGo.transform;
+                        break;
+                    }
+                }
             }
 
             // A solid collider that blocks the player while closed (the player uses a CharacterController).
             var col = go.AddComponent<BoxCollider>();
             col.center = new Vector3(0f, Height * 0.5f, 0f);
             col.size = axisX ? new Vector3(w, Height, Thickness * 2f) : new Vector3(Thickness * 2f, Height, w);
-
-            // Energy door (item 35): a translucent blue energy field filling the opening, shown only while open
-            // (the panels still slide apart). The field is purely visual + passable — no collider — so you walk
-            // through it; the door's own collider above handles blocking while closed.
-            Transform field = null;
-            Material fieldMat = null;
-            if (kind == "energy")
-            {
-                var fieldGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                StripCollider(fieldGo);
-                fieldGo.transform.SetParent(pivot, false);
-                fieldGo.transform.localPosition = new Vector3(0f, Height * 0.5f, 0f);
-                fieldGo.transform.localScale = new Vector3(w * 0.98f, Height, 0.05f);
-                fieldMat = EnergyFieldMaterial();
-                fieldGo.GetComponent<Renderer>().sharedMaterial = fieldMat;
-                field = fieldGo.transform;
-            }
 
             return new Door
             {
@@ -358,39 +385,16 @@ namespace BlocksBeyondTheStars.Client
             return mat;
         }
 
-        private Transform MakePanel(Transform parent, PropTextures.Part body, PropTextures.Part trim, float panelWidth)
-        {
-            var holder = new GameObject("Panel").transform;
-            holder.SetParent(parent, false);
-            var panel = Panel(body, trim);
-            panel.transform.SetParent(holder, false);
-            panel.transform.localScale = new Vector3(panelWidth * 0.98f, Height, Thickness);
-            return holder;
-        }
-
-        /// <summary>A single panel cube with a thin emissive trim strip (the sci-fi glow / wood edge).</summary>
-        private GameObject Panel(PropTextures.Part body, PropTextures.Part trim)
+        /// <summary>One cube of the door under <paramref name="parent"/>: a local centre and a full size straight from a
+        /// <see cref="DoorGeometry.Box"/>, painted with its part's ONE shared material.</summary>
+        private static void Cube(Transform parent, System.Numerics.Vector3 centre, System.Numerics.Vector3 size, PropTextures.Part part)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             StripCollider(go);
-            Paint(go, body);
-
-            var strip = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            StripCollider(strip);
-            Paint(strip, trim);
-            strip.transform.SetParent(go.transform, false);
-            strip.transform.localScale = new Vector3(0.12f, 0.9f, 1.05f); // a vertical light seam down the middle
-            return go;
-        }
-
-        private void Post(Transform parent, PropTextures.Part trim, float x)
-        {
-            var post = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            StripCollider(post);
-            Paint(post, trim);
-            post.transform.SetParent(parent, false);
-            post.transform.localPosition = new Vector3(x, Height * 0.5f, 0f);
-            post.transform.localScale = new Vector3(0.14f, Height + 0.1f, Thickness * 2.2f);
+            Paint(go, part);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(centre.X, centre.Y, centre.Z);
+            go.transform.localScale = new Vector3(size.X, size.Y, size.Z);
         }
 
         private static void Paint(GameObject go, PropTextures.Part part)

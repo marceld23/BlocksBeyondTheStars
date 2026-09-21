@@ -24,6 +24,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚪 Editors show the real door, bed and prop before placing — form picker, in-game door hologram, template doors fixed (#1975: #1976–#1982, 2026-09-21, branch feat/editor-door-ghost)
+
+The ship, station and town editors showed one cube for everything and exported beds and props as cubes; a door
+was a small cube although the game hangs a 1–7 wide, 2.8 tall door there. Now:
+
+- **One door rule for everyone.** The jamb probe (axis) and gap scan (width), the door kinds and the door's box
+  geometry are shared statics (`DoorProbe`, `DoorBlocks` in Shared; `DoorGeometry` in Client.Core); the server,
+  `DoorView`, the in-game placement ghost and both editors use them, so a preview can never promise a door the
+  world then hangs differently. The in-game form list is one shared `BuiltInForms` list.
+- **Editors.** The ghost shows the block's form (a bed as head + foot), the door the server would hang (red with a
+  status hint when no wall is beside it or the two cells above are taken), or a marker's silhouette (`MarkerSilhouettes`:
+  a figure on NPC posts, a board, a chest, a terminal, a floor plate, the ship hatch frame, ship-station decor).
+  Placed doors, silhouettes and decor are drawn by `EditorPropOverlay` and re-fit when a cell within reach changes.
+- **Editors.** A **form picker** (the in-game form grid, *Automatic* first) replaces the −/+ stepper.
+  `EditorPlacementRules` stamps the block's own form on placement like the server does in-game (bed pair, campfire
+  slab, rug sheet, pot, ladder against the clicked wall, stairs, stretcher); removing one bed half removes both.
+  Door blocks left the block palette (the marker / element is the door); the Station editor keeps them as labelled
+  **hull airlock** blocks.
+- **In-game.** A held door shows a closed door hologram in the target cell, turned by the wall beside it.
+- **Data.** Eight settlement templates (`river_hamlet`, `stone_roundhouse`, `stilt_hamlet`, `walled_market` and their
+  `_home` modules) carried the door as a block cell — a solid wall in every new world. `tools/fix_template_door_blocks.py`
+  turned them into markers with a walkable doorway; a content test keeps door blocks out of settlement templates and
+  allows them in station templates only on the outer hull (the airtight airlock block).
+
 ### 🔣 Raw `{count?100:100}` in the ja/zh oxygen-tank texts — and the checks that let it through (#1973, 2026-09-21, branch fix/1973-locale-stray-tokens)
 
 Reported by Camembert1001 (a Japanese UI preflight run over the public EN/JA catalogs). A machine pass (#1278) wrote
