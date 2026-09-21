@@ -40,7 +40,11 @@ only** — never keys.
 
 Hard rules (CI fails on violations; `locale_report.py --check` finds them first):
 
-- Placeholders like `{name}`, `{item}`, `{count}` must survive unchanged (position may move).
+- Placeholders like `{name}`, `{item}`, `{count}` and key-binding tokens like `{key:ToggleLamp}` must
+  survive unchanged (position may move).
+- No other braces. The game substitutes tokens by plain replacement — there is no plural or
+  conditional syntax, so something like `{count?100:100}` is shown to players literally. Where the
+  English has a plain number, write the plain number.
 - No blank values, no invented keys.
 - Keep formatting characters (`\n`, leading `[`, trailing `:`) intact.
 

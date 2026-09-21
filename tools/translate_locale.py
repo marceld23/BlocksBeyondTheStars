@@ -11,7 +11,8 @@ instead of starting from zero. See docs/developer/TRANSLATION_GUIDE.md.
 
 The tool is resumable and incremental: keys already present in the target file are skipped,
 output is written after every chunk, and a re-run only translates what is still missing.
-Placeholders like {name} are validated per key — a mismatch discards the chunk and retries
+Placeholders like {name} are validated per key (same set as English, no brace outside a token) —
+a mismatch discards the chunk and retries
 once, then leaves those keys untranslated (locale_report.py will list them).
 
 Chunks are translated concurrently (--workers, default 4) and each request asks the model for
@@ -43,7 +44,14 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLACEHOLDER = re.compile(r"\{[A-Za-z0-9_:]+\}")  # {name} and the {key:Action} control tokens (#1077)
+PLACEHOLDER = re.compile(r"\{(?:key:)?[A-Za-z0-9_]+\}")  # {name} and the {key:Action} control tokens (#1077)
+
+
+def has_stray_brace(text: str) -> bool:
+    """True when a brace survives outside a token. The game substitutes tokens by plain replacement — no
+    conditional or plural syntax — so a model's "{count?100:100}" would render literally (#1973)."""
+    rest = PLACEHOLDER.sub("", text)
+    return "{" in rest or "}" in rest
 
 LANGUAGES = {
     "de": "German",
@@ -69,6 +77,8 @@ Rules:
 translated values. No commentary, no markdown fence.
 - Keep every placeholder like {{name}}, {{item}}, {{count}} EXACTLY as-is (position may move). \
 Control tokens like {{key:ToggleLamp}} are placeholders too — copy them byte for byte, never translate the word inside.
+- Never ADD a placeholder or any brace syntax the English does not have — no plural or conditional forms like \
+{{count?a:b}}. Where the English has a plain number, write the plain number.
 - Keep formatting: leading/trailing punctuation, newlines (\\n), brackets, ALL-CAPS style where used.
 - Tone: friendly, concise, kid-appropriate. Use the informal address (German "du", French "tu", \
 Spanish "tú", Portuguese "você", Polish "ty", Turkish "sen", Dutch "je/jij", Russian "ты", \nUkrainian "ти"). Japanese: friendly polite です/ます; Korean: friendly 해요체; Chinese: plain friendly register.
@@ -128,7 +138,7 @@ def translate_chunk(api_key: str, model: str, language: str, chunk: dict[str, st
         value = result.get(key)
         if not isinstance(value, str) or not value.strip():
             continue
-        if set(PLACEHOLDER.findall(source)) != set(PLACEHOLDER.findall(value)):
+        if set(PLACEHOLDER.findall(source)) != set(PLACEHOLDER.findall(value)) or has_stray_brace(value):
             continue
         good[key] = value
     return good
