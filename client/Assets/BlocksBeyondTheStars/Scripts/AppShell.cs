@@ -132,6 +132,10 @@ namespace BlocksBeyondTheStars.Client
         /// so the progress bar — not the rig's nameless "Loading world…" curtain — covers the boot (#1800).
         /// False when no bundled server was launched (remote join, or the manual-server fallback).</summary>
         public bool LocalServerBooting => _hostLocal && (_serverPending || _serverLaunch != null) && !_localServer.Ready;
+
+        /// <summary>How far that boot has come, 0..1 — negative while the server has reported no pass yet
+        /// (#1988). The loading bar follows this instead of the clock, so it moves with the world build.</summary>
+        public float LocalServerBootProgress => _hostLocal ? _localServer.BootProgress : -1f;
         private GameObject _gameRoot;
 
         public bool ContentReady { get; private set; }

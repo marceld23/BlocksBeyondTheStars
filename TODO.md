@@ -24,6 +24,66 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ⏱️ Loading a world, crooked city doors and two misspelled names (#1985–#1991, 2026-09-23, branch fix/load-doors-credits)
+
+Marcel reported "loading a world takes an eternity", crooked sliding doors in his `Glutweite` city save, and two
+wrong names in the credits; a school-club player reported a white walk-through surface in the browser build.
+Measured first (installed 2026.9.13, four worlds): **20–23 s of server boot before the client can even join**,
+and it barely depended on the save — an empty flower world cost as much as a city world with 405 332 persisted
+block edits.
+
+- **✅ The boot reports itself (#1988).** Every pass now logs `[boot] 4/12 landing pads (4120 ms)`
+  (`BootProgress`, `GameServer.BootStage`) — there were **no log lines at all** between "content loaded" and
+  "started on port". The desktop launcher parses `k/n` off the server's stdout and the loading bar follows the
+  real passes instead of a clock (`LoadingHandoffPolicy.Progress` + `TryParseBootStage`, EditMode-tested). The
+  browser host gets the same lines through its `IGameLogger`, but its boot blocks the single thread, so there
+  they are a measurement tool, not yet a moving bar. Recipe in
+  [DEVELOPER.md](docs/developer/DEVELOPER.md#why-is-a-world-taking-so-long-to-load-boot-timings).
+- **✅ The NetCodec warm-up no longer blocks the boot (#1987).** Compiling 249 MessagePack formatters is 7–8 s
+  of Reflection.Emit that depends on nothing and is needed only when the port opens — the last step of
+  `Start()`. It now runs on a background thread beside the galaxy + world build and is joined before
+  `_transport.Start`. A platform without threads (the **in-browser** build runs this same server in-process)
+  falls back to inline, the pattern `ChunkGenerationPool.TryStart` established in #1817; there the warm-up is
+  cheap anyway because IL2CPP cannot build the dynamic formatters and the codec drops to JSON on first encode.
+- **✅ Landing pads are pinned in the save (#1989).** The single biggest pass: **7.9 s** on the dune world,
+  2.7 s on a meadow world, **every load**, because the ring search for dry, flat ground only ever cached its
+  answer in memory. `WorldMetadata.BodyLandingPads` writes it down (**7947 ms → 2 ms** on reload) — and pinning
+  also closes the old comment's worry that "the rule that re-derives them is the only thing holding them in
+  place". Details: [WORLD_GENERATION.md](docs/developer/WORLD_GENERATION.md) §22.
+- **✅ A stamp no longer rewrites rows that do not change (#1990).** `ServerWorld.SetBlock` compares first:
+  identical block + tint + glow + shape and no owner ⇒ no `block_edit` row. A settlement re-stamps its whole
+  structure on every start, so `Glutweite` had **405 332 persisted "player changes" after 69 s of play**. A
+  freshly created test world now carries **20 295 instead of 29 541 rows (−31 %)** with an identical world
+  (same wreck, same settlements, same seed), and its `structures` pass dropped 4.4 s → 3.4 s. A player's build
+  always writes, so ownership stays authoritative.
+- **✅ City doors hang in the wall they were cut into (#1986).** A door marker is one cell and the server
+  re-derived the wall from the neighbouring blocks; with jambs on both axes that probe fell back to "X".
+  Measured on the generated `gds` city: **21 of 259 doors (8 %) took the wrong axis and 20 of them ended up
+  4 blocks wide instead of 2** — the leaf standing across its doorway, stretched into the room ("the sliding
+  doors stand crooked"). The generator knows the side it cut, so `SettlementMarker.DoorAxis` (`DoorWall`) now
+  carries it, `CommitSettlements` records it per world cell and `RegisterDoors` hands it to the probe as the
+  forced axis. Templates and player-placed doors keep the probe. Two tests in `CityWorldTests` pin it (the
+  markers agree with the blocks; no stamped door is wider than its opening). #1983 did *not* cover this — that
+  was door *blocks* in templates.
+- **✅ No far-terrain patch in the near field (#1991).** A school-club player (browser build, Intel UHD 730)
+  reported "a white texture with noclip" at a landing pad. Far patches are flat, untextured and have **no
+  collider** by design; they are hidden by a mask that marks a column covered only when a drawn chunk holds the
+  surface *the sampler computes* — which does not know about levelled landing pads or stamped structures, so at
+  a pad the column stayed unmasked and the patch was drawn over ground the player stands on. Within
+  `NearCoverChunks` (6) of the player a drawn chunk is now proof enough; the horizon rule is unchanged.
+- **✅ Credits: Noa → Noah, Damian → Daimien (#1985).** Both in `ui.credits.body` and in
+  `planet.flower_fields.desc` ("dreamed up by … from the school club"), across all 14 locales including the
+  transliterations (ja ダイミアン, ru Даймиеном, uk Даймієн).
+
+Measured end to end on Marcel's `Glutweite` save (copy): boot **23 s → ~15 s**. On an ordinary world
+(`PadTest`, meadowlands, four settlements) a reload is **5.9–7.1 s** over three runs, and there the boot is
+now bounded by the **warm-up itself**: the world build finishes in ~4.3 s while the 249 formatters still need
+5.8–7.0 s, so the tail is spent waiting for the thread that used to run in front of everything. Two levers remain:
+the `structures` pass, which re-generates and re-stamps a settlement on every start (open in #1990), and the
+warm-up's own 7 s, which would want a narrower warm set or a cached one (noted on #1987).
+
+⚠ **Playtest open** for all of it, and the browser fix (#1991) needs a WebGL build to confirm.
+
 ### 🚪 Editors show the real door, bed and prop before placing — form picker, in-game door hologram, template doors fixed (#1975: #1976–#1982, 2026-09-21, branch feat/editor-door-ghost)
 
 The ship, station and town editors showed one cube for everything and exported beds and props as cubes; a door

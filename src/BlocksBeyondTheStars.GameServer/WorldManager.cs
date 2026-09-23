@@ -130,6 +130,10 @@ internal sealed class LoadedWorld
     public List<GameServer.ServerSpeeder> Speeders { get; } = new(); // deployed hover speeders (materialised per present owner)
     public List<GameServer.ServerNetFragment> NetFragments { get; } = new(); // story net fragments scattered on the surface (P2)
     public List<(string Type, Vector3f Pos)> SettlementMarkers { get; } = new(); // union of EVERY settlement's markers (doors + proximity)
+
+    /// <summary>#1986: the wall a stamped door was authored into, by its block cell — true = the wall runs
+    /// along X. A door whose generator recorded no side (a template's) is absent and gets the block probe.</summary>
+    public Dictionary<Vector3i, bool> SettlementDoorAxes { get; } = new();
     public List<(int BaseId, string Type, Vector3f Pos)> BaseMarkers { get; } = new(); // #1865: staffed trading posts + boards of planet bases
     public Queue<int> NpcPathQueue { get; } = new(); // #1866: NPC ids waiting for a path search (one per tick)
     public List<SettlementInstance> Settlements { get; } = new();                 // 0..N settlements on this world

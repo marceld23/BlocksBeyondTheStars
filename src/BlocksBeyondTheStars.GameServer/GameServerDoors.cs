@@ -110,21 +110,37 @@ public sealed partial class GameServer
     /// <summary>Number of doors registered in the active world.</summary>
     public int DoorCount => _doors.Count;
 
+    /// <summary>How each door ended up hanging — its wall axis and the gap width it fills (#1986). For tests +
+    /// inspection: a leaf turned across its doorway shows up here as the wrong axis, or as a width wider than
+    /// the opening the building was given.</summary>
+    public IReadOnlyList<(int Id, string Kind, Vector3f Pos, bool AxisX, float Width, bool PlayerBuilt)> DoorFits
+        => _doors.Select(d => (d.Id, d.Kind, d.Pos, d.AxisX, d.Width, d.PlayerBuilt)).ToList();
+
     /// <summary>(Re)builds the door registry for the active world from every structure stamped into it:
     /// settlement buildings (slide for towns/cities, hinge for villages) and designed ships (slide doors from
-    /// the ship editor). Slide vs hinge comes from the marker; the wall axis + gap width are inferred from the
-    /// blocks around the opening. Idempotent — safe to call after any settlement/ship stamp.</summary>
+    /// the ship editor). Slide vs hinge comes from the marker; the wall axis comes from the generator that cut
+    /// the doorway where it recorded one (#1986) and from the blocks around the opening otherwise, and the gap
+    /// width is always measured. Idempotent — safe to call after any settlement/ship stamp.</summary>
     private void RegisterDoors()
     {
         _doors.Clear();
         _nextDoorId = 1;
 
-        // Settlement doorways.
+        // Settlement doorways. #1986: a generated building records the wall it cut the doorway into, so the
+        // leaf hangs in that wall; only a door without a recorded side (a template's) is probed for one.
+        var authoredAxes = _worlds.Active.SettlementDoorAxes;
         foreach (var (type, pos) in _settlementMarkers)
         {
             if (type == "door_slide" || type == "door_hinge" || type == "door_energy")
             {
-                _doors.Add(MakeDoor(DoorBlocks.KindForMarker(type), pos));
+                bool? axis = null;
+                if (authoredAxes.Count > 0
+                    && authoredAxes.TryGetValue(WorldConstants.CanonicalBlock(pos.ToBlock(), _world.Circumference), out bool authored))
+                {
+                    axis = authored;
+                }
+
+                _doors.Add(MakeDoor(DoorBlocks.KindForMarker(type), pos, forceAxisX: axis));
             }
         }
 

@@ -543,6 +543,40 @@ goes through `AppPaths.Root`; the marker parsing lives Unity-free in `Client.Cor
 Add a `Debug.Log` before the guard that might fail (e.g. log the layer index or whether
 `Shader.Find` returned null) and rebuild.
 
+## Why is a world taking so long to load? (`[boot]` timings)
+
+Starting a world runs a fixed set of passes before the server opens its port — and the player waits for all
+of them, because the client cannot join earlier. Since #1988 each pass reports itself:
+
+```
+[boot] 1/12 persistence (361 ms)
+[boot] 2/12 galaxy (43 ms)
+[boot] 3/12 registries (40 ms)
+[boot] 4/12 weather (21 ms)
+[boot] 5/12 flora (8 ms)
+[boot] 6/12 containers (5 ms)
+[boot] 7/12 landing pads (7947 ms)
+[boot] 8/12 fluids (3 ms)
+…
+[boot] 11/12 structures (8355 ms)
+[boot] 12/12 ready (16897 ms total)
+```
+
+Read them in the server log (`<save>/logs/server.log`, or the client's `Player.log`, which relays the
+bundled server's stdout with a `[server]` prefix). The same lines drive the desktop loading bar: the
+launcher parses `k/n` off stdout (`LoadingHandoffPolicy.TryParseBootStage`) and
+`LoadingHandoffPolicy.Progress` moves the bar with the passes instead of the clock. Only the initial boot is
+instrumented — a travel-time world load runs the same passes unreported.
+
+To time a world without the client, run the server straight at a **copy** of the save
+(`--saves <dir> --world <name> --data <repo>/data --port 31599`) and pipe `stop` into its stdin.
+
+Two things to know when reading the numbers: the **NetCodec warm-up** (7–8 s of MessagePack codegen) runs on
+a background thread beside these passes since #1987, so its line reports a duration that overlaps them; and
+a body's **landing pads** are searched once and then pinned in the save (#1989, see
+[WORLD_GENERATION.md](WORLD_GENERATION.md) §22), so the first boot of a world pays for the search and every
+later one does not.
+
 ## Optional AI backend (development)
 
 The optional LLM text service is **not** part of the client build — it is a separate

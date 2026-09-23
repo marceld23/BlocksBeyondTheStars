@@ -484,6 +484,7 @@ public sealed partial class GameServer
         // Phase C — record instances, markers (world space), missions + ruin loot.
         _settlements.Clear();
         _settlementMarkers.Clear();
+        _worlds.Active.SettlementDoorAxes.Clear(); // #1986: rebuilt with the markers below
         foreach (var p in placed)
         {
             var inst = new SettlementInstance
@@ -504,6 +505,15 @@ public sealed partial class GameServer
                 var pos = new Vector3f(p.Origin.X + m.LocalPos.X + 0.5f, p.GroundY + m.LocalPos.Y + 0.5f, p.Origin.Z + m.LocalPos.Z + 0.5f);
                 inst.Markers.Add((m.Type, pos));
                 _settlementMarkers.Add((m.Type, pos));
+
+                // #1986: the generator knows which wall it cut this doorway into — remember it by cell so the
+                // door registry hangs the leaf in that wall instead of guessing from the blocks around it.
+                if (m.DoorAxis != DoorWall.Unknown)
+                {
+                    var cell = new Vector3i(p.Origin.X + m.LocalPos.X, p.GroundY + m.LocalPos.Y, p.Origin.Z + m.LocalPos.Z);
+                    _worlds.Active.SettlementDoorAxes[WorldConstants.CanonicalBlock(cell, _world.Circumference)]
+                        = m.DoorAxis == DoorWall.AlongX;
+                }
 
                 if (m.Type == "loot")
                 {

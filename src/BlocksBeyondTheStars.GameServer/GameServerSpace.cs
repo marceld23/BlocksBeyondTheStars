@@ -186,9 +186,85 @@ public sealed partial class GameServer
             return cached;
         }
 
+        // #1989: the save remembers what the search found last time — see WorldMetadata.BodyLandingPads.
+        if (TryReadPinnedPads(locationId) is { } pinned)
+        {
+            _padCache[locationId] = pinned;
+            return pinned;
+        }
+
         var computed = ComputeLandingPadsUncached(planet, kind, locationId, circ);
         _padCache[locationId] = computed;
+        PinPads(locationId, computed);
         return computed;
+    }
+
+    /// <summary>The pads this save pinned for a body (#1989), or null when it never computed them (every save
+    /// written before the pin, and every body visited for the first time). A malformed entry is ignored rather
+    /// than thrown on: the search below re-derives exactly what the entry was meant to hold.</summary>
+    private List<LandingPad>? TryReadPinnedPads(string locationId)
+    {
+        if (!_meta.BodyLandingPads.TryGetValue(locationId, out var text) || string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        var pads = new List<LandingPad>();
+        foreach (var entry in text.Split(';'))
+        {
+            var f = entry.Split(',');
+            if (f.Length != 7
+                || !int.TryParse(f[0], out int index) || !int.TryParse(f[1], out int x) || !int.TryParse(f[2], out int z)
+                || !int.TryParse(f[3], out int y) || !int.TryParse(f[4], out int radius) || !int.TryParse(f[5], out int depth)
+                || !int.TryParse(f[6], out int flags))
+            {
+                _log.Warn($"Pinned landing pads of '{locationId}' are malformed — searching for them again.");
+                return null;
+            }
+
+            pads.Add(new LandingPad
+            {
+                Index = index,
+                CenterX = x,
+                CenterZ = z,
+                CenterY = y,
+                Radius = radius,
+                Depth = depth,
+                Wet = (flags & 1) != 0,
+                Islet = (flags & 2) != 0,
+                Classic = (flags & 4) != 0,
+                Molten = (flags & 8) != 0,
+                LavaIslet = (flags & 16) != 0,
+            });
+        }
+
+        return pads.Count > 0 ? pads : null;
+    }
+
+    /// <summary>Writes a body's freshly searched pads into the save (#1989) so the next load reads them back.
+    /// The metadata is persisted by the callers that already save it (world load, travel).</summary>
+    private void PinPads(string locationId, List<LandingPad> pads)
+    {
+        if (pads.Count == 0)
+        {
+            return;
+        }
+
+        var text = new System.Text.StringBuilder();
+        foreach (var pad in pads)
+        {
+            if (text.Length > 0)
+            {
+                text.Append(';');
+            }
+
+            int flags = (pad.Wet ? 1 : 0) | (pad.Islet ? 2 : 0) | (pad.Classic ? 4 : 0)
+                        | (pad.Molten ? 8 : 0) | (pad.LavaIslet ? 16 : 0);
+            text.Append(pad.Index).Append(',').Append(pad.CenterX).Append(',').Append(pad.CenterZ).Append(',')
+                .Append(pad.CenterY).Append(',').Append(pad.Radius).Append(',').Append(pad.Depth).Append(',').Append(flags);
+        }
+
+        _meta.BodyLandingPads[locationId] = text.ToString();
     }
 
     private List<LandingPad> ComputeLandingPadsUncached(PlanetType planet, CelestialKind kind, string locationId, int circ)
@@ -508,15 +584,29 @@ public sealed partial class GameServer
     }
 
     /// <summary>Height spread over the landing footprint — small = flat enough to set a ship down on.</summary>
-    private int PadFootprintSpread(PlanetType planet, int cx, int cz)
+    /// <summary>The nine columns a pad's flatness is measured over — a static set, because the ring search
+    /// asks for tens of thousands of candidates and allocating this array per call was pure garbage (#1989).</summary>
+    private static readonly (int Dx, int Dz)[] PadSpreadSamples =
     {
-        const int r = 4;
+        (0, 0), (-4, -4), (4, -4), (-4, 4), (4, 4), (-4, 0), (4, 0), (0, -4), (0, 4),
+    };
+
+    private int PadFootprintSpread(PlanetType planet, int cx, int cz, int cutoff = int.MaxValue)
+    {
         int min = int.MaxValue, max = int.MinValue;
-        foreach (var (dx, dz) in new[] { (0, 0), (-r, -r), (r, -r), (-r, r), (r, r), (-r, 0), (r, 0), (0, -r), (0, r) })
+        foreach (var (dx, dz) in PadSpreadSamples)
         {
             int y = _generator.SurfaceHeight(planet, cx + dx, cz + dz);
             min = System.Math.Min(min, y);
             max = System.Math.Max(max, y);
+
+            // #1989: once this candidate is already rougher than the best one found, the remaining samples
+            // cannot change the outcome — every caller only ever asks "is this spread SMALLER". Stopping here
+            // returns a value that is still ≥ cutoff, so the decision is bit-for-bit the one it was before.
+            if (max - min >= cutoff)
+            {
+                return max - min;
+            }
         }
 
         return max - min;
@@ -549,7 +639,9 @@ public sealed partial class GameServer
             }
 
             anyDry = true;
-            int spread = PadFootprintSpread(planet, x, z);
+            // #1989: the flatness scan may stop as soon as this candidate is rougher than everything kept so far.
+            int cutoff = seekEarthy ? System.Math.Max(bestSpread, earthySpread) : bestSpread;
+            int spread = PadFootprintSpread(planet, x, z, cutoff);
             if (spread < bestSpread)
             {
                 bestSpread = spread;

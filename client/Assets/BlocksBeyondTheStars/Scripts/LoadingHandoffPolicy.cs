@@ -53,8 +53,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Bar fill 0..1: the plain time ramp when nothing holds the launch, the creeping hold band
         /// while the bundled server boots (monotonic in <paramref name="elapsed"/>, strictly below
-        /// <see cref="HoldCap"/>), and back to the ramp — i.e. 100 % — the moment the server reports ready.</summary>
-        public static float Progress(float elapsed, float minShow, bool localBooting)
+        /// <see cref="HoldCap"/>), and back to the ramp — i.e. 100 % — the moment the server reports ready.
+        /// <para>#1988: when the server reports its boot passes, <paramref name="bootProgress"/> (0..1, negative
+        /// while unknown) drives the hold band instead of the clock — the bar then moves with the work. It can
+        /// only ever move forward: a pass that finishes early does not pull the bar back to the time creep.</para></summary>
+        public static float Progress(float elapsed, float minShow, bool localBooting, float bootProgress = -1f)
         {
             float ramp = minShow <= 0f ? 1f : Clamp01(elapsed / minShow);
             if (!localBooting)
@@ -63,7 +66,51 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float creep = (HoldCap - HoldFloor) * (1f - (float)Math.Exp(-Math.Max(0f, elapsed) / HoldTauSeconds));
+            if (bootProgress >= 0f)
+            {
+                creep = Math.Max(creep, (HoldCap - HoldFloor) * Clamp01(bootProgress));
+            }
+
             return Math.Min(ramp, HoldFloor) + creep;
+        }
+
+        /// <summary>
+        /// Reads a server boot line — <c>[boot] 4/12 landing pads (4120 ms)</c> — into the pass number and the
+        /// planned count (#1988). Any other line, and any malformed one, answers false: an older bundled server
+        /// prints none of these and the bar falls back to its clock.
+        /// </summary>
+        public static bool TryParseBootStage(string line, out int stage, out int stages)
+        {
+            stage = 0;
+            stages = 0;
+            if (string.IsNullOrEmpty(line))
+            {
+                return false;
+            }
+
+            const string marker = "[boot] ";
+            int at = line.IndexOf(marker, StringComparison.Ordinal);
+            if (at < 0)
+            {
+                return false;
+            }
+
+            int i = at + marker.Length;
+            int slash = line.IndexOf('/', i);
+            if (slash < 0)
+            {
+                return false;
+            }
+
+            int end = slash + 1;
+            while (end < line.Length && char.IsDigit(line[end]))
+            {
+                end++;
+            }
+
+            return int.TryParse(line.Substring(i, slash - i), out stage)
+                   && int.TryParse(line.Substring(slash + 1, end - slash - 1), out stages)
+                   && stages > 0 && stage >= 0;
         }
 
         private static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);

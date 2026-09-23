@@ -195,11 +195,27 @@ public sealed class ServerWorld
         var chunk = GetOrLoadChunk(WorldConstants.WorldToChunk(world));
         var local = WorldConstants.WorldToLocal(world);
         var previous = chunk.Get(local.X, local.Y, local.Z);
-        int previousShape = ShapedBlockReplaced is null ? 0 : chunk.GetShape(local.X, local.Y, local.Z);
+        var previousModifier = chunk.GetModifier(local.X, local.Y, local.Z);
+        int previousShape = chunk.GetShape(local.X, local.Y, local.Z);
+
+        // #1990: a cell that already holds exactly this block needs no delta row. Settlements and stations
+        // re-stamp their whole structure on every server start — a 256×256 city wrote 405 332 identical rows
+        // per load — and the only thing that made the write necessary was that nobody compared first. A
+        // player's build (owner set) always writes, so ownership and its timestamp stay authoritative, and a
+        // cell that happens to match the terrain the seed generates needs no row either: the generator
+        // produces it again, byte for byte, on the next load.
+        bool unchanged = previous.Value == block.Value
+                         && previousModifier.Tint == tint
+                         && previousModifier.Glow == glow
+                         && previousShape == shape;
+
         chunk.Set(local.X, local.Y, local.Z, block); // clears any old modifier/shape when set to air
         chunk.SetModifier(local.X, local.Y, local.Z, tint, glow);
         chunk.SetShape(local.X, local.Y, local.Z, shape);
-        _repo.SetBlock(LocationId, world, block.Value, tint, glow, shape, owner);
+        if (!unchanged || !string.IsNullOrEmpty(owner))
+        {
+            _repo.SetBlock(LocationId, world, block.Value, tint, glow, shape, owner);
+        }
         BlockSet?.Invoke(world);
         if (!string.IsNullOrEmpty(owner))
         {
