@@ -20,7 +20,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Bar fill 0..1: the time ramp over MinShow, or the creeping hold band while the bundled
         /// server still generates its world (<see cref="LoadingHandoffPolicy.Progress"/>).</summary>
-        public float Progress => LoadingHandoffPolicy.Progress(_elapsed, MinShow, _shell.LocalServerBooting);
+        public float Progress => LoadingHandoffPolicy.Progress(_elapsed, MinShow, _shell.LocalServerBooting, _shell.LocalServerBootProgress);
 
         public LoadingScreen(AppShell shell) => _shell = shell;
 

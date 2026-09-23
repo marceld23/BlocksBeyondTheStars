@@ -408,7 +408,7 @@ public static class CityGenerator
                 2 => new Vector3i(ox, 1, oz + w0),
                 _ => new Vector3i(ox + fp - 1, 1, oz + w0),
             };
-            markers.Add(new SettlementMarker("door_slide", doorCell));
+            markers.Add(new SettlementMarker("door_slide", doorCell, SettlementGenerator.DoorWallFor(doorSide)));
         }
 
         void StampHousing(int mx, int mz)

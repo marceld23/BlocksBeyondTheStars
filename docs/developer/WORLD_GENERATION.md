@@ -1583,3 +1583,25 @@ its animals. Justus' text was cut at 1500 characters; this is the known part (th
 - Tests: `ValumaWorldTests` (data, calm gates over 24 seeds + the generation gate, peaceful roster), `SreekmakraTests`
   (disguise + one individual + shape change, grudge + anomaly, reveal + defeat + Codex + achievement + return time,
   peaceful flight, mood), golden `valuma-gen8`.
+
+## 22. Pinned landing pads (#1989, 2026-09-23)
+
+Finding a body's landing pads is a search, not a formula: `ComputeLandingPadsUncached` walks rings of
+candidate columns around each planned pad (up to `PadSearchBudget` / `PadSearchBudgetOcean` blocks out,
+step 3) and asks two questions per candidate — `LandingFootprintWet` (13 samples) and `PadFootprintSpread`
+(9 columns). A planet plans 8–16 pads, so a body costs tens of thousands of terrain-column queries. Measured
+on the boot timings (§ `[boot]` lines, #1988): **2.7 s on a meadow world, 7.9 s on a dune world**, paid on
+*every* load, because the result only ever lived in `_padCache` (memory, cleared with the galaxy).
+
+`WorldMetadata.BodyLandingPads` now writes the answer down: `bodyId → "index,x,z,y,radius,depth,flags;…"`,
+filled the first time a body's pads are computed and read back on every later load (2–3 ms). The pads of a
+body are deterministic, so the pinned values are exactly what the search would find again — but pinning is
+also the safer half of the change, the same argument `BodyPlanetTypes` (#468) makes for planet types: the
+old code carried the comment *"pads are not persisted — the rule that re-derives them is the only thing
+holding them in place"*, so any later change to the pad rules could have moved the ground out from under a
+parked ship or a base built beside the pad. A save written before this pins on its next load; a malformed
+entry is ignored and re-searched.
+
+Note when reading boot timings on a **city** world: the pad search also warms the generator's column caches,
+so removing it moves some cost into the `structures` pass that stamps the city. The gain is real but smaller
+there than on an ordinary world (`PadTest` meadowlands: ready 12.7 s → 6.7 s).

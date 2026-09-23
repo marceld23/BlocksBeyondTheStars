@@ -31,6 +31,12 @@ namespace BlocksBeyondTheStars.Client
         private const int MaskSize = 64;                 // chunk columns per side of the column mask
         private const float PlanMoveBlocks = 24f;        // re-plan the patch set after this much movement
         private const float MaskRefreshSeconds = 0.25f;
+
+        /// <summary>#1991: how many chunk columns around the player count as covered as soon as a real chunk is
+        /// drawn there, whatever height that chunk sits at. A far patch has no texture and no collider, so one
+        /// standing in the near field reads as a white surface you can walk through — which is exactly how a
+        /// player reported it from the browser build, at a landing pad.</summary>
+        private const int NearCoverChunks = 6;
         private const float TileRequestSeconds = 0.5f;
         private const int MaxPatches = 400;
 
@@ -373,10 +379,22 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                // The column counts as covered when this chunk holds its visible surface (terrain or sea top).
+                // The column counts as covered when this chunk holds its visible surface (terrain or sea top)…
                 var s = src.Sample(Mathf.FloorToInt(sceneX) + 8, Mathf.FloorToInt(sceneZ) + 8, detail: false);
                 int surface = s.Top - 1;
-                if (surface >= y && surface < y + WorldConstants.ChunkSize)
+                bool holdsSurface = surface >= y && surface < y + WorldConstants.ChunkSize;
+
+                // …or when it is one of the columns right around the player (#1991). That surface comes from the
+                // sampler, which knows the terrain the seed makes — not the levelled landing pad or the stamped
+                // settlement standing on it. Where the two disagree the column stayed unmasked and the far patch
+                // was drawn over ground the player is standing on. Near the player a drawn chunk is proof enough
+                // that the real world is there; far away the surface test keeps deep cave chunks from punching
+                // holes in the horizon.
+                // (The mask window is centred on the player, so "near" is a box around its centre — which also
+                // keeps the test honest across the longitude wrap.)
+                const int centre = MaskSize / 2;
+                bool nearPlayer = Mathf.Abs(cx - centre) <= NearCoverChunks && Mathf.Abs(cz - centre) <= NearCoverChunks;
+                if (holdsSurface || nearPlayer)
                 {
                     _maskBytes[cz * MaskSize + cx] = 255;
                 }

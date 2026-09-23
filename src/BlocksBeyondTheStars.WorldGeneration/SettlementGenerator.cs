@@ -14,11 +14,37 @@ public readonly struct SettlementMarker
     public readonly string Type;       // vendor / mission_board / npc / loot
     public readonly Vector3i LocalPos;
 
-    public SettlementMarker(string type, Vector3i localPos)
+    /// <summary>
+    /// For a door marker: the wall the generator cut the doorway into (#1986) — <see cref="DoorWall.AlongX"/>,
+    /// <see cref="DoorWall.AlongZ"/>, or <see cref="DoorWall.Unknown"/> for every other marker and for doors
+    /// authored in a template, which carry no side.
+    /// <para>The server used to re-derive this from the blocks around the cell, and with jambs on both axes
+    /// that probe had to guess: on a generated city 21 of 259 doors ended up across their doorway, stretched
+    /// to the length of the room behind them ("the sliding doors stand crooked"). The generator knows the
+    /// side it cut, so it says so.</para>
+    /// </summary>
+    public readonly DoorWall DoorAxis;
+
+    public SettlementMarker(string type, Vector3i localPos, DoorWall doorAxis = DoorWall.Unknown)
     {
         Type = type;
         LocalPos = localPos;
+        DoorAxis = doorAxis;
     }
+}
+
+/// <summary>The wall a doorway was cut into (#1986). <see cref="AlongX"/> means the wall runs along X and the
+/// passage through it along Z — the same convention as <c>DoorProbe.Fit.AxisX</c>.</summary>
+public enum DoorWall
+{
+    /// <summary>Not a door, or a door whose author left the side unsaid — the server probes the blocks.</summary>
+    Unknown = 0,
+
+    /// <summary>The wall runs along X.</summary>
+    AlongX = 1,
+
+    /// <summary>The wall runs along Z.</summary>
+    AlongZ = 2,
 }
 
 /// <summary>
@@ -541,7 +567,7 @@ public static class SettlementGenerator
                         2 => new Vector3i(ox, 1, oz + w0),
                         _ => new Vector3i(ox + fp - 1, 1, oz + w0),
                     };
-                    markers.Add(new SettlementMarker(town ? "door_slide" : "door_hinge", doorCell));
+                    markers.Add(new SettlementMarker(town ? "door_slide" : "door_hinge", doorCell, DoorWallFor(doorSide)));
                 }
                 else if (plotIndex == 0 || rng.NextDouble() < 0.6)
                 {
@@ -1485,6 +1511,11 @@ public static class SettlementGenerator
     /// <summary>A lamp post and a little garden patch next to a building's door. <paramref name="lampAt"/> places the
     /// post beside a module's real door (<see cref="LampBesideDoor"/>); without it the post takes the procedural house's
     /// spot beside its door gap.</summary>
+    /// <summary>The wall a <c>doorSide</c> cuts into (#1986): sides 0/1 are the −Z/+Z faces, whose wall runs
+    /// along X; sides 2/3 are the −X/+X faces, whose wall runs along Z. <see cref="StampBuilding"/> and
+    /// <see cref="StampGreenhouse"/> cut the opening by the same rule.</summary>
+    internal static DoorWall DoorWallFor(int doorSide) => doorSide is 0 or 1 ? DoorWall.AlongX : DoorWall.AlongZ;
+
     internal static void DecorateAround(System.Action<int, int, int, ushort> set, int ox, int oz, int fp, int doorSide,
         ushort lamp, ushort flora, bool alien, System.Random rng, System.Func<int, int, int, ushort>? outsideOnly = null,
         (int X, int Z)? lampAt = null)

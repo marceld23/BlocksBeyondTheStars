@@ -82,5 +82,38 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.That(Progress(20f, MinShow, true), Is.LessThan(HoldCap));
             Assert.That(Progress(20f, MinShow, false), Is.EqualTo(1f));
         }
+
+        // ---- #1988: the bar follows the server's reported boot passes ----
+
+        [Test]
+        public void ReportedBootPasses_MoveTheBarFasterThanTheClock_AndNeverPullItBack()
+        {
+            // Two seconds in, the clock alone has barely moved the bar; a server that is 3/4 done says so.
+            float clockOnly = Progress(2f, MinShow, true);
+            float reported = Progress(2f, MinShow, true, 0.75f);
+            Assert.That(reported, Is.GreaterThan(clockOnly));
+            Assert.That(reported, Is.LessThan(HoldCap));
+
+            // A pass that finishes early must not drag the bar backwards below where the clock already stood.
+            Assert.That(Progress(40f, MinShow, true, 0.1f), Is.EqualTo(Progress(40f, MinShow, true)).Within(1e-4f));
+
+            // An unknown boot progress (an older server prints no passes) keeps the plain creep.
+            Assert.That(Progress(8f, MinShow, true, -1f), Is.EqualTo(Progress(8f, MinShow, true)).Within(1e-6f));
+        }
+
+        [Test]
+        public void BootStageLine_IsReadBackAsPassAndPlannedCount()
+        {
+            Assert.That(TryParseBootStage("2026-09-23 19:52:40 [INFO] [boot] 7/12 landing pads (9113 ms)", out int stage, out int stages), Is.True);
+            Assert.That(stage, Is.EqualTo(7));
+            Assert.That(stages, Is.EqualTo(12));
+
+            Assert.That(TryParseBootStage("[boot] 12/12 ready (16897 ms total)", out stage, out stages), Is.True);
+            Assert.That(stage, Is.EqualTo(12));
+
+            Assert.That(TryParseBootStage("[INFO] Server 'x' started on port 31550", out _, out _), Is.False);
+            Assert.That(TryParseBootStage("[boot] nonsense", out _, out _), Is.False);
+            Assert.That(TryParseBootStage(null, out _, out _), Is.False);
+        }
     }
 }

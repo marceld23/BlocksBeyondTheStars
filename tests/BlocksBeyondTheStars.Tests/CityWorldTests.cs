@@ -150,6 +150,79 @@ public sealed class CityWorldTests : IDisposable
         Assert.Equal(CityGenerator.Red, a.GetModifier(mid + 20, 3, 1).Tint);
     }
 
+    /// <summary>
+    /// #1986: every generated doorway says which wall it was cut into, and that answer agrees with the blocks.
+    /// The wall axis used to be re-derived from the neighbours alone, and a door with something solid in front
+    /// of it — a street lamp, a fern, the next building — made that probe fall back to "X", turning 21 of the
+    /// city's 259 doors sideways in their doorway and stretching them across the room behind.
+    /// <para>The geometric truth here is the doorway itself: along the wall the opening is a short run bounded
+    /// by jambs, across it the passage is open (the room on one side, the street on the other).</para>
+    /// </summary>
+    [Fact]
+    public void EveryCityDoorMarker_NamesTheWallItWasCutInto_AndAgreesWithTheBlocks()
+    {
+        var city = CityGenerator.Generate(7, _content, StandardZones());
+        bool Solid(int x, int y, int z)
+            => x >= 0 && y >= 0 && z >= 0 && x < city.Width && y < city.Height && z < city.Length && city.Get(x, y, z) != 0;
+
+        int doors = 0;
+        foreach (var m in city.Markers)
+        {
+            if (!m.Type.StartsWith("door", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            doors++;
+            Assert.True(m.DoorAxis != DoorWall.Unknown, $"the generator knows the wall of the door at {m.LocalPos}");
+
+            // The air run through the marker, along each axis, bounded by the first solid cell within reach.
+            (int Run, bool Bounded) Run(bool axisX)
+            {
+                int lo = 0, hi = 0;
+                bool loSolid = false, hiSolid = false;
+                for (int s = 1; s <= 4 && !loSolid; s++)
+                {
+                    loSolid = Solid(axisX ? m.LocalPos.X - s : m.LocalPos.X, m.LocalPos.Y, axisX ? m.LocalPos.Z : m.LocalPos.Z - s);
+                    lo = loSolid ? lo : -s;
+                }
+
+                for (int s = 1; s <= 4 && !hiSolid; s++)
+                {
+                    hiSolid = Solid(axisX ? m.LocalPos.X + s : m.LocalPos.X, m.LocalPos.Y, axisX ? m.LocalPos.Z : m.LocalPos.Z + s);
+                    hi = hiSolid ? hi : s;
+                }
+
+                return (hi - lo + 1, loSolid && hiSolid);
+            }
+
+            var alongX = Run(axisX: true);
+            var alongZ = Run(axisX: false);
+            bool truthIsX = alongX.Bounded != alongZ.Bounded ? alongX.Bounded : alongX.Run <= alongZ.Run;
+            Assert.True((m.DoorAxis == DoorWall.AlongX) == truthIsX,
+                $"door at {m.LocalPos} says {m.DoorAxis} but the opening runs {(truthIsX ? "X" : "Z")} " +
+                $"(x-run {alongX.Run}/{alongX.Bounded}, z-run {alongZ.Run}/{alongZ.Bounded})");
+        }
+
+        Assert.True(doors >= 200, $"the city is full of doors, found {doors}");
+    }
+
+    /// <summary>#1986, the server half: no stamped door hangs across its doorway or grows wider than the
+    /// two-block opening the buildings are given.</summary>
+    [Fact]
+    public void StampedCityDoors_FitTheirOpening_AndNoneIsStretchedAcrossARoom()
+    {
+        var server = Start(Key, out var repo);
+        using (repo)
+        {
+            var stamped = server.DoorFits.Where(d => !d.PlayerBuilt).ToList();
+            Assert.True(stamped.Count >= 200, $"the city's doors are registered, found {stamped.Count}");
+            var stretched = stamped.Where(d => d.Width > 2f).ToList();
+            Assert.True(stretched.Count == 0,
+                $"{stretched.Count} of {stamped.Count} doors are wider than their opening, e.g. at {stretched.FirstOrDefault().Pos}");
+        }
+    }
+
     [Fact]
     public void CityComposer_PlacesEveryRole_AndTheMarkersTheServerNeeds()
     {

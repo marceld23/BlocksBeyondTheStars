@@ -82,6 +82,22 @@ public sealed class WorldMetadata
     public System.Collections.Generic.Dictionary<string, string> BodyPlanetTypes { get; set; } = new();
 
     /// <summary>
+    /// Pinned landing pads (#1989): bodyId → the pads of that body, one entry per pad as
+    /// <c>index,x,z,y,radius,depth,flags</c> (flags: 1 wet, 2 islet, 4 classic, 8 molten, 16 lava islet),
+    /// pads separated by <c>;</c>.
+    /// <para>Finding a body's pads means searching its terrain for dry, flat ground — thousands of column
+    /// queries, measured at 2.7 s on a meadow world and 7.9 s on a dune world, paid on EVERY load because
+    /// the pads were only ever held in memory. They are deterministic, so the search's answer is written
+    /// down the first time and read back afterwards.</para>
+    /// <para>Pinning is also the safer half: the old code comment put it plainly — "pads are not persisted,
+    /// the rule that re-derives them is the only thing holding them in place" — so any future change to the
+    /// pad rules could have moved the ground out from under a player's parked ship and their base. A body
+    /// absent from the map (every save written before this) searches once, exactly as before, and is frozen
+    /// from then on. Additive JSON field, no migration.</para>
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string> BodyLandingPads { get; set; } = new();
+
+    /// <summary>
     /// VEGA's relay-network insight stages already spoken ("relay" / "lane" / "growth", F-2 of #1125) —
     /// each epilogue insight plays exactly once per save. Additive JSON field, no migration.
     /// </summary>

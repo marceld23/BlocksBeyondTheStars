@@ -234,25 +234,16 @@ public sealed partial class GameServer
 
     public void Start()
     {
-        try
-        {
-            _repo.Initialize();
-        }
-        catch (InvalidDataException ex)
-        {
-            _log.Error($"Failed to initialize persistence: database is corrupted. " +
-                       $"The database was left untouched. Error: {ex.Message}");
-
-            throw;
-        }
-        // Record the current block-id palette and remap any save written under a different block set BEFORE
-        // world load. Block ids are assigned by key sort order, so adding a block shifts them; without this a
-        // content update would silently decode every stored edit to the wrong block.
-        _repo.EnsureBlockPalette(_content.BlockPalette());
+        // #1988: from here to "started on port" every pass reports itself, so a slow boot can be read off the
+        // log and the loading screen can show the real step instead of a timed animation.
+        _boot = new BootProgress(_log, BootProgress.PlanetStages);
+        BootStage("persistence", InitializePersistence);
 
         // #1510: build every message formatter now, not one by one during the first player's join burst.
-        int warmed = NetCodec.WarmUp();
-        _log.Info($"NetCodec warm-up: {warmed} message formatters compiled.");
+        // #1987: …but alongside the galaxy/world build instead of in front of it. Compiling the formatters is
+        // 7–8 s of pure Reflection.Emit that depends on nothing, and its result is needed only once
+        // _transport.Start opens the port — the last step of this method. Joined below.
+        var warmUp = StartFormatterWarmUp();
 
         var launchRules = _config.Rules.Clone();
         _meta = _repo.LoadMetadata() ?? CreateInitialMetadata();
@@ -320,20 +311,28 @@ public sealed partial class GameServer
         _generator.SetLavaCoreVolcanoes(_meta.Description.LavaCoreVolcanoes); // #1631: new worlds only, like continents
         _generator.SetTerrainGeneration(_meta.Description.TerrainGeneration); // #1644: the wave this save was created with
         _worlds = new WorldManager(_content, _generator, _repo);
-        BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
-        LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
-        RecomputeRelayLanes(); // #1125: jump lanes re-derive from the completed relays (never persisted)
-        RegisterUniqueDerelict(); // #1129: "The Long Quiet" — the galaxy's one boardable derelict (derived)
-        LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
-        LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
-        LoadCustomShapes();   // …and the player-designed form registry (shaped blocks/items reference it by index)
-        LoadWorldTextures();  // …and the textures its admins published for everyone (#1958)
-        LoadAllAlliances();   // restore the player alliance graph server-wide (shared station/base access)
-        LoadAllCrews();       // restore the crews (#1216) — membership implies alliance while it lasts
-        LoadStoryState();     // restore the per-save story progress + active story pack (server-wide, P0)
+        if (_content.GetPlanet(_meta.DefaultPlanetType) is { Void: true })
+        {
+            _boot?.Replan(BootProgress.VoidStages); // a station start runs fewer passes than a planet
+        }
 
-        // Ships are per-player now: each player loads/creates their own on join (no global ship at start).
-        BuildMissions();
+        BootStage("galaxy", BuildGalaxy); // resolves _meta.ActiveLocationId to a concrete celestial body id
+        BootStage("registries", () =>
+        {
+            LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
+            RecomputeRelayLanes(); // #1125: jump lanes re-derive from the completed relays (never persisted)
+            RegisterUniqueDerelict(); // #1129: "The Long Quiet" — the galaxy's one boardable derelict (derived)
+            LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
+            LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
+            LoadCustomShapes();   // …and the player-designed form registry (shaped blocks/items reference it by index)
+            LoadWorldTextures();  // …and the textures its admins published for everyone (#1958)
+            LoadAllAlliances();   // restore the player alliance graph server-wide (shared station/base access)
+            LoadAllCrews();       // restore the crews (#1216) — membership implies alliance while it lasts
+            LoadStoryState();     // restore the per-save story progress + active story pack (server-wide, P0)
+
+            // Ships are per-player now: each player loads/creates their own on join (no global ship at start).
+            BuildMissions();
+        });
 
         // Builds the active world for the start body plus all its per-world state (weather, fauna,
         // flora, fluids, landing zones, containers, stamped ship/settlement/wreck). Reused by travel.
@@ -342,12 +341,109 @@ public sealed partial class GameServer
         // Persist any newly generated structure-loot guard keys so caches don't respawn on reload.
         _repo.SaveMetadata(_meta);
 
+        FinishFormatterWarmUp(warmUp); // #1987: the formatters must be ready before the port opens
+        _boot?.Finish();
+        _boot = null; // only the initial boot is reported — a travel-time LoadWorld runs unreported
+
         _transport.ClientConnected += OnClientConnected;
         _transport.ClientDisconnected += OnClientDisconnected;
         _transport.PayloadReceived += OnPayload;
         _transport.Start(_config.GameplayPort);
 
         _log.Info($"Server '{_config.ServerName}' started on port {_config.GameplayPort}, world '{_meta.WorldName}' (seed {_meta.Seed}, planet {_meta.DefaultPlanetType}).");
+    }
+
+    /// <summary>#1988: the boot's pass reporter while <see cref="Start"/> runs; null at every other time, so a
+    /// travel-time world load runs unreported.</summary>
+    private BootProgress? _boot;
+
+    /// <summary>Runs a boot pass, reported with its duration while the server is starting (#1988).</summary>
+    private void BootStage(string name, Action step)
+    {
+        if (_boot is null)
+        {
+            step();
+            return;
+        }
+
+        _boot.Run(name, step);
+    }
+
+    /// <summary>Opens the save and brings its block-id palette up to date — the first boot pass.</summary>
+    private void InitializePersistence()
+    {
+        try
+        {
+            _repo.Initialize();
+        }
+        catch (InvalidDataException ex)
+        {
+            _log.Error($"Failed to initialize persistence: database is corrupted. " +
+                       $"The database was left untouched. Error: {ex.Message}");
+
+            throw;
+        }
+
+        // Record the current block-id palette and remap any save written under a different block set BEFORE
+        // world load. Block ids are assigned by key sort order, so adding a block shifts them; without this a
+        // content update would silently decode every stored edit to the wrong block.
+        _repo.EnsureBlockPalette(_content.BlockPalette());
+    }
+
+    /// <summary>The background message-formatter warm-up (#1987) and what it measured.</summary>
+    private sealed class FormatterWarmUp
+    {
+        public System.Threading.Thread? Thread;
+        public int Count;
+        public double ElapsedMs;
+
+        public void Run()
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            Count = NetCodec.WarmUp();
+            ElapsedMs = watch.Elapsed.TotalMilliseconds;
+        }
+    }
+
+    /// <summary>
+    /// Starts the formatter warm-up (#1510) on a background thread so its 7–8 s of Reflection.Emit overlap the
+    /// galaxy + world build instead of preceding it (#1987). Encoding from that thread while the boot's own
+    /// broadcasts encode on this one is safe: MessagePack serialization is thread-safe and NetCodec's encode
+    /// scratch buffer is <c>[ThreadStatic]</c>.
+    /// <para>A platform that cannot start a thread — the in-browser build runs this very server in-process —
+    /// warms up inline instead, exactly as before; the same fallback <see cref="ChunkGenerationPool.TryStart"/>
+    /// uses (#1817). There the warm-up is cheap anyway, because IL2CPP cannot build the dynamic formatters at
+    /// all and the codec falls back to JSON on the first encode.</para>
+    /// </summary>
+    private FormatterWarmUp StartFormatterWarmUp()
+    {
+        var warmUp = new FormatterWarmUp();
+        try
+        {
+            var thread = new System.Threading.Thread(warmUp.Run)
+            {
+                IsBackground = true,
+                Name = "netcodec-warmup",
+                Priority = System.Threading.ThreadPriority.BelowNormal, // the world build is what the player waits for
+            };
+            thread.Start();
+            warmUp.Thread = thread;
+        }
+        catch (Exception)
+        {
+            warmUp.Run(); // no threads on this platform — inline, like before
+        }
+
+        return warmUp;
+    }
+
+    /// <summary>Waits for the warm-up (if it ran on a thread) and logs its result — one log site for both paths,
+    /// so the line always says what was compiled and how long it took.</summary>
+    private void FinishFormatterWarmUp(FormatterWarmUp warmUp)
+    {
+        warmUp.Thread?.Join();
+        string how = warmUp.Thread is null ? "inline" : "in parallel with the world build";
+        _log.Info($"NetCodec warm-up: {warmUp.Count} message formatters compiled ({warmUp.ElapsedMs:F0} ms, {how}).");
     }
 
     private WorldMetadata CreateInitialMetadata()
@@ -581,7 +677,7 @@ public sealed partial class GameServer
         // Fresh world: GetOrCreate set it active. Build its per-world state + structures. The player's own
         // ship is stamped per-player on join/travel (not here), so each player gets their ship in their world.
         ResetWorldRuntimeState();
-        InitWeather();
+        BootStage("weather", InitWeather);
 
         // #586: decide the placement mode BEFORE anything writes blocks. No persisted edits at all ⇒ the
         // world was never materialised ⇒ the guaranteed (escalating) placement search may run; otherwise the
@@ -595,9 +691,12 @@ public sealed partial class GameServer
         // aboard. What keeps plants out of open space is the enclosure test in the regrow/plant paths, not
         // this registry. On a void world the species roster comes out empty, which is exactly right: crops
         // are cultivated, so they carry no world identity anyway.
-        InitFlora();
-        LoadFloraRegrow(); // restore persisted harvest regrowths so a restart doesn't strand bare cells
-        LoadWeatherDeposits(); // #900: restore settled snow so a restart doesn't strand cells that can never melt
+        BootStage("flora", () =>
+        {
+            InitFlora();
+            LoadFloraRegrow(); // restore persisted harvest regrowths so a restart doesn't strand bare cells
+            LoadWeatherDeposits(); // #900: restore settled snow so a restart doesn't strand cells that can never melt
+        });
         var resident = world.World;
         resident.BlockSet += cell => MarkBaseWallsDirty(resident, cell); // #1367: a build inside a base's box refreshes its wall fill
         resident.PlayerBlockSet += cell => GrowBaseWallReach(resident, cell); // #1862: what a player builds sizes the base's fill box
@@ -607,90 +706,99 @@ public sealed partial class GameServer
         var farWorld = world;
         resident.BlockSet += cell => MarkFarTileDirty(farWorld, cell); // #1821: a far view sees builds change
         resident.ShapedBlockReplaced += (cell, was, wasShape) => OnShapedBlockReplaced(resident, cell, was, wasShape); // #1961: a form over several blocks falls as one piece
-        LoadContainers(); // every world, void ones included: a station's placed crates persist like a planet's (#1562)
+        BootStage("containers", LoadContainers); // every world, void ones included: a station's placed crates persist like a planet's (#1562)
 
         // A void world (an orbital station) has no terrain, so it gets none of the OTHER planet-surface
         // content — no fauna/fluids, no settlements/wrecks/landing zones. Only its stamped structure lives
         // there (the caller stamps it). Weather is initialised above so the env reads its space-sky settings.
         if (!planet.Void)
         {
-            BuildLandingPads(); // FIRST: the pads must reach worldgen before any pad-area chunk generates
-            InitFluids();
-            LoadFluidState(); // #657: restore flowing cells so a restart doesn't promote them to sources
-            InitFire();
-            LoadFireState(); // #784: restore burn timers so a restart doesn't strand permanent, inert flames
-            InitCreatures();
-
-            if (locationId == GuardianCoreBodyId)
+            BootStage("landing pads", BuildLandingPads); // FIRST: the pads must reach worldgen before any pad-area chunk generates
+            BootStage("fluids", () =>
             {
-                // The finale body is special: ONLY the Guardian-core chamber + its aperture are placed here.
-                // No random settlements / wrecks / vaults / data cubes / net fragments — the procedural
-                // structure generator never touches the finale area (by design), so nothing collides with it.
-                StampGuardianCoreChamber();
-            }
-            else
+                InitFluids();
+                LoadFluidState(); // #657: restore flowing cells so a restart doesn't promote them to sources
+            });
+            BootStage("fire", () =>
             {
-                // 2026-09 (generation 8): a type with a structure whitelist (Titas, Valuma) stamps only what it names.
-                bool restricted = planet.RestrictStructures && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
-                bool Allowed(string kind) => !restricted || planet.AllowedStructures.Contains(kind);
+                InitFire();
+                LoadFireState(); // #784: restore burn timers so a restart doesn't strand permanent, inert flames
+            });
+            BootStage("creatures", InitCreatures);
 
-                if (_config.PlaceSettlements && !restricted)
+            BootStage("structures", () =>
+            {
+                if (locationId == GuardianCoreBodyId)
                 {
-                    StampSettlement();
+                    // The finale body is special: ONLY the Guardian-core chamber + its aperture are placed here.
+                    // No random settlements / wrecks / vaults / data cubes / net fragments — the procedural
+                    // structure generator never touches the finale area (by design), so nothing collides with it.
+                    StampGuardianCoreChamber();
                 }
-
-                if (_config.PlaceRuins && !restricted)
+                else
                 {
-                    StampRuins(); // standalone fallen-city ruins (unprotected) — after settlements so they avoid them
-                }
+                    // 2026-09 (generation 8): a type with a structure whitelist (Titas, Valuma) stamps only what it names.
+                    bool restricted = planet.RestrictStructures && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
+                    bool Allowed(string kind) => !restricted || planet.AllowedStructures.Contains(kind);
 
-                if (!restricted)
-                {
-                    StampBanditCamps(); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
-                }
+                    if (_config.PlaceSettlements && !restricted)
+                    {
+                        StampSettlement();
+                    }
 
-                StampSpsLabs(); // 2026-09: abandoned SPS research stations — only on a type that allows them (Titas)
+                    if (_config.PlaceRuins && !restricted)
+                    {
+                        StampRuins(); // standalone fallen-city ruins (unprotected) — after settlements so they avoid them
+                    }
 
-                if (_config.PlaceMonuments && !restricted)
-                {
-                    StampMonuments(); // eroded rune relics (unprotected) — the only surface feature airless bodies get
-                }
+                    if (!restricted)
+                    {
+                        StampBanditCamps(); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
+                    }
 
-                if (_config.PlaceFactories && !restricted)
-                {
-                    StampFactories(); // rare industrial factories (protected until claimed) — avoid settlements
-                }
+                    StampSpsLabs(); // 2026-09: abandoned SPS research stations — only on a type that allows them (Titas)
 
-                if (_config.PlaceWrecks && !restricted)
-                {
-                    StampWreck();
-                }
+                    if (_config.PlaceMonuments && !restricted)
+                    {
+                        StampMonuments(); // eroded rune relics (unprotected) — the only surface feature airless bodies get
+                    }
 
-                if (_config.PlaceVaults && !restricted)
-                {
-                    StampVaults(); // buried vault ruins ("Welten reicher" W-R3) — 0-2 per world, loot via containers
-                }
+                    if (_config.PlaceFactories && !restricted)
+                    {
+                        StampFactories(); // rare industrial factories (protected until claimed) — avoid settlements
+                    }
 
-                if (_config.PlaceDataCubes && !restricted)
-                {
-                    StampDataCubes(); // minigame download cubes — 0-N per world (many bodies get none)
-                }
+                    if (_config.PlaceWrecks && !restricted)
+                    {
+                        StampWreck();
+                    }
 
-                if (Allowed("net_fragments"))
-                {
-                    StampNetFragments(); // story net fragments scattered on the surface (P2; self-skips when story off / Void)
-                }
+                    if (_config.PlaceVaults && !restricted)
+                    {
+                        StampVaults(); // buried vault ruins ("Welten reicher" W-R3) — 0-2 per world, loot via containers
+                    }
 
-                if (_config.PlaceChests && !restricted)
-                {
-                    StampChests(); // rare standalone treasure caches (0-N per body)
-                }
+                    if (_config.PlaceDataCubes && !restricted)
+                    {
+                        StampDataCubes(); // minigame download cubes — 0-N per world (many bodies get none)
+                    }
 
-                if (!restricted)
-                {
-                    StampUniqueSites(); // #1129: this body may carry one of the galaxy's one-of-a-kind places
+                    if (Allowed("net_fragments"))
+                    {
+                        StampNetFragments(); // story net fragments scattered on the surface (P2; self-skips when story off / Void)
+                    }
+
+                    if (_config.PlaceChests && !restricted)
+                    {
+                        StampChests(); // rare standalone treasure caches (0-N per body)
+                    }
+
+                    if (!restricted)
+                    {
+                        StampUniqueSites(); // #1129: this body may carry one of the galaxy's one-of-a-kind places
+                    }
                 }
-            }
+            });
         }
 
         LoadPlayerDoors(); // persisted player-built doors load on every world (void or not, settlement or not)
