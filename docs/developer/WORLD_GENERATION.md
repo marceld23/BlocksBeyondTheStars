@@ -1629,3 +1629,33 @@ roster and the mission board are built from. That costs ~20 ms for a whole city;
 pass really spends its seconds on is hanging the doors and populating the place, both of which read world
 blocks and pull the footprint's chunks into memory. Measured on a real city save (`Glutweite`, interleaved
 runs of the same copy): ready **7.1 s / 12.9 s** before, **4.2 s / 5.2 s** after.
+
+## 24. A structure measures its own doors (#1994, 2026-09-24)
+
+The sentence above — "what the `settlements` boot pass really spends its seconds on is hanging the doors" —
+turned out to be one line of the log:
+
+```
+[boot]   ·   npcs (18 ms)
+[boot]   ·   doors (4810 ms)
+[boot]   · settlements (4885 ms)
+```
+
+`RegisterDoors` called `MakeDoor` for each of a city's 232 doorways, and `MakeDoor` ran `DoorProbe.Measure`
+against the **world**: a handful of `GetBlock` calls per door, each one loading (and on a first visit
+generating) the chunk it lands in, until the city's whole 256×256 footprint was resident — at boot, before
+anybody had walked a step.
+
+The structure that was just generated already holds those blocks. `RecordAuthoredDoor` now runs the very same
+`DoorProbe.Measure` over the **layout**, while it is in hand, and stores the result per world cell
+(`LoadedWorld.SettlementDoorFits`: wall axis, gap width, gap centre). `RegisterDoors` builds the door straight
+from that record and reads no world block at all. The axis still comes from the generator where it recorded
+one (#1986); the layout only supplies what it did not say. Ship doors, station doors and player-built doors
+keep the world/structure probe they had, and a marker without a record (an older stamp) falls back to it.
+
+`CityWorldTests.EveryCityDoor_IsTheDoorTheStampedBlocksWouldGive` pins the equivalence: for every one of the
+city's doorways, the door that was hung is exactly the door the stamped blocks produce — same wall, same
+width, same centre to three decimals.
+
+Measured on the same city save as §23: `doors` **4810 ms → 20 ms**, the `settlements` pass **4885 ms → 104 ms**,
+the whole `structures` pass **4902 ms → 295 ms**, and the boot **5.3 s → 2.9 s**.

@@ -24,6 +24,22 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚪 A structure measures its own doors — the city boot stops loading its whole footprint (#1994, 2026-09-24, branch perf/settlement-doors)
+
+Straight out of #1990's measurement: with the re-stamping gone, **`doors` was 4810 ms of a 4885 ms
+`settlements` pass** (the NPCs: 18 ms). `RegisterDoors` measured every one of the city's 232 doorways against
+the *world*, and each probe loaded the chunk it landed in until the whole 256×256 footprint was resident — at
+boot, before anybody had walked a step.
+
+- **✅ Measured on the layout instead.** `RecordAuthoredDoor` runs the same `DoorProbe.Measure` over the
+  structure's own blocks while it is in hand and stores wall axis, gap width and gap centre per world cell
+  (`LoadedWorld.SettlementDoorFits`); `RegisterDoors` builds the door from that and reads no world block.
+  Ship, station and player-built doors keep their probe, and a marker without a record falls back to it.
+- **✅ Proven identical.** `CityWorldTests.EveryCityDoor_IsTheDoorTheStampedBlocksWouldGive`: for every one of
+  the city's doorways the hung door is exactly what the stamped blocks produce — wall, width and centre.
+- **📏 `doors` 4810 ms → 20 ms**, `settlements` 4885 → **104 ms**, `structures` 4902 → **295 ms**,
+  boot of the city save **5.3 s → 2.9 s**.
+
 ### 🧱 A building stays the way the players left it — structures are stamped once (#1990, 2026-09-24, branch perf/no-restamp)
 
 Follow-up to #1992. Settlements, cities and factories wrote their whole structure into the world on **every**
