@@ -214,6 +214,12 @@ public sealed partial class WorldGenerator
             relief *= ReliefMulAt(muls, seed, worldX, worldZ);
         }
 
+        // Generation 9 (#2000): inside the sand-sea region the land's relief eases into broad dunes.
+        if (w.SandSea)
+        {
+            return planet.BaseHeight + (int)System.Math.Round(SandSeaBlend(w, seed, worldX, worldZ, baseline + relief * drama));
+        }
+
         return planet.BaseHeight + (int)System.Math.Round(baseline + relief * drama);
     }
 

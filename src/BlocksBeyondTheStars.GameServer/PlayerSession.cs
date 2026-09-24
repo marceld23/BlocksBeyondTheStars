@@ -25,6 +25,11 @@ public sealed class PlayerSession
     /// Cleared by the first report that lands near the authoritative position.</summary>
     public bool AwaitingSpawnAdopt { get; set; }
 
+    /// <summary>#2001: the uptime of the last accepted move and the ground covered since the last step pulse — a
+    /// walking (not sneaking) player shakes the sand every few blocks.</summary>
+    public double StepClockAt { get; set; }
+    public float StepDistance { get; set; }
+
     /// <summary>The player's UI language ("en"/"de") sent on join (item 15). Server-authored dynamic text — LLM
     /// NPC greetings — is generated in this language. Connection-scoped (not persisted); defaults to English.</summary>
     public string Locale { get; set; } = "en";

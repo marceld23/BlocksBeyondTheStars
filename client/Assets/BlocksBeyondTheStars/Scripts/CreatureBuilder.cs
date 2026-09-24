@@ -39,6 +39,10 @@ namespace BlocksBeyondTheStars.Client
         private Material _bodyMat;
         private Light _glow;
 
+        /// <summary>#1998: while set, the parts being added keep their box collider (a giant's legs, torso and segments —
+        /// the player bumps into them); every other part is render-only.</summary>
+        private bool _keepColliders;
+
         /// <summary>Builds the body under <paramref name="root"/> from the descriptor. Non-standard body
         /// plans (#637/#638) branch into their own build paths; the default path is unchanged, so every
         /// pre-plan species still renders exactly as before.</summary>
@@ -60,6 +64,18 @@ namespace BlocksBeyondTheStars.Client
             if (c.BodyPlan == "Ray")
             {
                 BuildRay(root, c);
+                return;
+            }
+
+            if (c.BodyPlan == "Colossus")
+            {
+                BuildColossus(root, c); // #1999
+                return;
+            }
+
+            if (c.BodyPlan == "Sandworm")
+            {
+                BuildSandworm(root, c); // #2001
                 return;
             }
 
@@ -994,7 +1010,7 @@ namespace BlocksBeyondTheStars.Client
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = partName + "Mesh";
             var col = go.GetComponent<Collider>();
-            if (col != null)
+            if (col != null && !_keepColliders)
             {
                 Object.Destroy(col);
             }
@@ -1007,13 +1023,321 @@ namespace BlocksBeyondTheStars.Client
             return pivot;
         }
 
+
+        // ------------------------------------------------------------------------------------------------
+        // Giants (#1998-#2001): the colossus and the sandworm. Both are built from the same cube parts as every
+        // other creature; their core parts also carry colliders on the giant layer, so the player bumps into a leg
+        // or a worm segment (a kinematic rigidbody on the root keeps the moving compound cheap).
+        // ------------------------------------------------------------------------------------------------
+
+        /// <summary>The colossus (#1999): a 40-60 block quadruped laid out by the shared <see cref="ColossusBody"/> (the
+        /// server takes its hit capsules and stomp reach from the same numbers), with jointed legs the gait and the foot
+        /// planner drive, a neck chain per head, tusks, a tail and a rolled back: plates, spikes, crystals or a forest.</summary>
+        private void BuildColossus(GameObject root, NetCreature c)
+        {
+            var body = ColossusBody.For(c.GiantHeight, c.LegRatio, c.NeckLength);
+            Color baseColor = Rgb(c.ColorRgb);
+            Color bellyColor = Rgb(c.BellyRgb);
+            if (c.Hostile)
+            {
+                baseColor = Color.Lerp(baseColor, new Color(0.85f, 0.2f, 0.15f), 0.2f);
+            }
+
+            _bodyMat = Lit(c.Glows ? baseColor * 1.4f : baseColor, PickHide(c));
+            var bellyMat = Lit(bellyColor, PickHide(c));
+            int idh = StableIdHash(c.SpeciesId);
+            _keepColliders = true;
+
+            var rig = new GameObject("BodyRig");
+            rig.transform.SetParent(root.transform, false);
+
+            // The torso: a heavy barrel with a raised shoulder hump and a belly slab.
+            float tl = body.TorsoLength, tw = body.TorsoWidth, th = body.TorsoHeight;
+            AddPart(rig, "Torso", new Vector3(0f, body.TorsoY, 0f), new Vector3(tw, th, tl), _bodyMat);
+            AddPart(rig, "Hump", new Vector3(0f, body.TorsoY + th * 0.35f, tl * 0.18f), new Vector3(tw * 0.9f, th * 0.55f, tl * 0.45f), _bodyMat);
+            _keepColliders = false;
+            AddPart(rig, "Belly", new Vector3(0f, body.TorsoY - th * 0.42f, 0f), new Vector3(tw * 0.92f, th * 0.3f, tl * 0.88f), bellyMat);
+
+            // Jointed legs in the shared order (front-left, front-right, rear-left, rear-right) — ColossusBody.Hip and the
+            // server's stomp leg index use the same numbering.
+            _keepColliders = true;
+            for (int leg = 0; leg < 4; leg++)
+            {
+                var (hx, hy, hz) = body.Hip(leg);
+                _legs.Add(AddLeg(rig.transform, leg >> 1, leg & 1, 2, new Vector3(hx, hy, hz), body.LegLength, body.LegThickness, _bodyMat));
+            }
+
+            // Necks and heads — a hydra fans its necks out from the shoulders.
+            var (ny, nz) = body.NeckBase;
+            int heads = Mathf.Clamp(c.Heads, 1, 3);
+            float headUnit = body.HeadSize / 0.95f;
+            for (int hd = 0; hd < heads; hd++)
+            {
+                float fan = heads == 1 ? 0f : Mathf.Lerp(-1f, 1f, hd / (float)(heads - 1));
+                Transform parent = NewPivot(rig.transform, heads == 1 ? "NeckRoot" : "NeckRoot" + hd, new Vector3(fan * tw * 0.3f, ny, nz));
+                parent.localRotation = Quaternion.Euler(-ColossusBody.NeckPitchDeg, fan * 22f, 0f);
+                for (int nk = 0; nk < body.NeckSegments; nk++)
+                {
+                    float taper = 1f - 0.12f * nk;
+                    var seg = NewPivot(parent, "Neck" + nk, nk == 0 ? Vector3.zero : new Vector3(0f, 0f, body.NeckSegment));
+                    AddPartTo(seg, "NeckSeg" + nk, new Vector3(0f, 0f, body.NeckSegment * 0.5f),
+                        new Vector3(body.HeadSize * 0.6f * taper, body.HeadSize * 0.6f * taper, body.NeckSegment * 1.1f), _bodyMat);
+                    _neckChain.Add(seg);
+                    parent = seg;
+                }
+
+                _headPivot = NewPivot(parent, heads == 1 ? "Head" : "Head" + hd,
+                    body.NeckSegments > 0 ? new Vector3(0f, 0f, body.NeckSegment) : Vector3.zero);
+                _headPivot.localRotation = Quaternion.Euler(ColossusBody.NeckPitchDeg, 0f, 0f); // the face looks ahead again
+                AddHeadBox(headUnit * 0.95f, headUnit * 0.85f, headUnit * 0.9f, headUnit * 0.45f, _bodyMat);
+                _keepColliders = false;
+                AddEyes(c, headUnit, 1f);
+                int tusks = Mathf.Clamp(c.Horns, 0, 4);
+                if (tusks > 0)
+                {
+                    var tuskMat = Lit(new Color(0.92f, 0.88f, 0.78f), null);
+                    for (int tk = 0; tk < tusks; tk++)
+                    {
+                        float tx = tusks == 1 ? 0f : Mathf.Lerp(-headUnit * 0.32f, headUnit * 0.32f, tk / (float)(tusks - 1));
+                        AddPartTo(_headPivot, "Tusk" + tk, new Vector3(tx, -headUnit * 0.25f, headUnit * 0.9f),
+                            new Vector3(headUnit * 0.12f, headUnit * 0.12f, headUnit * 0.8f), tuskMat);
+                    }
+                }
+
+                _keepColliders = true;
+            }
+
+            _keepColliders = false;
+            if (c.HasTail)
+            {
+                AddTail(rig.transform, new Vector3(0f, body.TorsoY + th * 0.15f, -tl * 0.5f), body.TailLength, body.LegThickness * 0.6f, 5, _bodyMat);
+            }
+
+            AddColossusBack(rig.transform, c, body, idh);
+
+            if (c.Glows)
+            {
+                var go = new GameObject("Glow");
+                go.transform.SetParent(rig.transform, false);
+                go.transform.localPosition = new Vector3(0f, body.TorsoY, 0f);
+                _glow = go.AddComponent<Light>();
+                _glow.type = LightType.Point;
+                _glow.range = body.Top * 0.8f;
+                _glow.intensity = 1.2f;
+                _glow.color = Rgb(c.ColorRgb);
+                _glow.shadows = LightShadows.None;
+            }
+
+            MakeGiantBody(root);
+            var desc = Describe(c, rig.transform, body.LegLength * 0.25f, body.LegLength, idh);
+            desc.Aquatic = false;
+            desc.Giant = true;
+            var anim = root.AddComponent<CreatureAnimator>();
+            anim.Init(desc);
+            anim.CadenceScale = 0.6f; // a giant's stride is metres long; the beat is slow by construction, a touch slower still
+        }
+
+        /// <summary>What grows on the colossus's back: armour plates, a spike ridge, glowing crystals or a small forest.</summary>
+        private void AddColossusBack(Transform rig, NetCreature c, ColossusBody body, int idh)
+        {
+            float top = body.TorsoY + body.TorsoHeight * 0.5f;
+            float tl = body.TorsoLength;
+            var rng = new System.Random(idh);
+            switch (c.BackFeature)
+            {
+                case "plates":
+                    {
+                        var mat = Lit(Rgb(c.BellyRgb) * 0.85f, _plated ?? _hide);
+                        for (int i = 0; i < 7; i++)
+                        {
+                            float z = Mathf.Lerp(-tl * 0.4f, tl * 0.4f, i / 6f);
+                            float h = body.TorsoHeight * (0.35f + 0.25f * Mathf.Sin(i / 6f * Mathf.PI));
+                            AddPartTo(rig, "Plate" + i, new Vector3(0f, top + h * 0.45f, z), new Vector3(body.TorsoWidth * 0.12f, h, tl * 0.1f), mat);
+                        }
+
+                        break;
+                    }
+
+                case "spikes":
+                    {
+                        var mat = Lit(new Color(0.22f, 0.18f, 0.16f), null);
+                        for (int i = 0; i < 12; i++)
+                        {
+                            float z = Mathf.Lerp(-tl * 0.45f, tl * 0.45f, i / 11f);
+                            float side = (i & 1) == 0 ? -1f : 1f;
+                            AddPartTo(rig, "Spike" + i, new Vector3(side * body.TorsoWidth * 0.18f, top + body.TorsoHeight * 0.25f, z),
+                                new Vector3(body.LegThickness * 0.35f, body.TorsoHeight * 0.6f, body.LegThickness * 0.35f), mat);
+                        }
+
+                        break;
+                    }
+
+                case "crystals":
+                    {
+                        var mat = Unlit(Color.Lerp(Rgb(c.ColorRgb), new Color(0.6f, 0.95f, 1f), 0.6f));
+                        for (int i = 0; i < 9; i++)
+                        {
+                            var p = new Vector3((float)(rng.NextDouble() - 0.5) * body.TorsoWidth * 0.7f, top, (float)(rng.NextDouble() - 0.5) * tl * 0.8f);
+                            float h = body.TorsoHeight * (0.3f + (float)rng.NextDouble() * 0.5f);
+                            var pivot = NewPivot(rig, "Crystal" + i, p);
+                            pivot.localRotation = Quaternion.Euler((float)(rng.NextDouble() - 0.5) * 40f, (float)rng.NextDouble() * 90f, (float)(rng.NextDouble() - 0.5) * 40f);
+                            AddPartTo(pivot, "CrystalCore", new Vector3(0f, h * 0.5f, 0f), new Vector3(h * 0.3f, h, h * 0.3f), mat);
+                        }
+
+                        break;
+                    }
+
+                case "forest":
+                    {
+                        var trunk = Lit(new Color(0.36f, 0.25f, 0.16f), _barkskin ?? _hide);
+                        var leaves = Lit(new Color(0.22f, 0.5f, 0.2f), _mossy ?? _hide);
+                        var moss = Lit(new Color(0.28f, 0.45f, 0.22f), _mossy ?? _hide);
+                        AddPartTo(rig, "Moss", new Vector3(0f, top + 0.2f, 0f), new Vector3(body.TorsoWidth * 0.9f, 0.5f, tl * 0.8f), moss);
+                        for (int i = 0; i < 8; i++)
+                        {
+                            var p = new Vector3((float)(rng.NextDouble() - 0.5) * body.TorsoWidth * 0.7f, top, (float)(rng.NextDouble() - 0.5) * tl * 0.7f);
+                            float h = 3f + (float)rng.NextDouble() * 4f;
+                            AddPartTo(rig, "Trunk" + i, p + new Vector3(0f, h * 0.5f, 0f), new Vector3(0.6f, h, 0.6f), trunk);
+                            AddPartTo(rig, "Crown" + i, p + new Vector3(0f, h + 1.2f, 0f), new Vector3(2.8f, 2.4f, 2.8f), leaves);
+                        }
+
+                        break;
+                    }
+            }
+
+            if (c.HasCrest)
+            {
+                var mat = Lit(Rgb(c.BellyRgb), _spined ?? _hide);
+                for (int i = 0; i < 6; i++)
+                {
+                    float z = Mathf.Lerp(tl * 0.1f, tl * 0.48f, i / 5f);
+                    AddPartTo(rig, "Crest" + i, new Vector3(0f, top + body.TorsoHeight * 0.2f, z),
+                        new Vector3(body.LegThickness * 0.2f, body.TorsoHeight * 0.4f, tl * 0.04f), mat);
+                }
+            }
+        }
+
+        /// <summary>The sandworm (#2001): the fixed archetype — a long tube of armoured ring segments tapering to the tail, a
+        /// blunt head that opens into mandible petals around rings of teeth. The <see cref="SandwormView"/> on the root poses
+        /// it every frame along the shared <c>SandwormPath</c>; there is no gait, so no <see cref="CreatureAnimator"/>.</summary>
+        private void BuildSandworm(GameObject root, NetCreature c)
+        {
+            float girth = Mathf.Max(2f, c.WormGirth > 0f ? c.WormGirth : 8f);
+            int segCount = Mathf.Clamp(c.BodySegments, 24, 48);
+            float length = Mathf.Max(20f, c.WormLength > 0f ? c.WormLength : girth * 14f);
+            float segLen = length / segCount;
+            Color baseColor = Rgb(c.ColorRgb);
+            Color bellyColor = Rgb(c.BellyRgb);
+            _bodyMat = Lit(baseColor, PickHide(c));
+            var plateMat = Lit(Color.Lerp(baseColor, bellyColor, 0.5f) * 0.9f, _plated ?? _hide);
+            var bellyMat = Lit(bellyColor, PickHide(c));
+            var spikeMat = Lit(new Color(0.22f, 0.17f, 0.14f), null);
+            var glowMat = Unlit(Color.Lerp(bellyColor, new Color(1f, 0.85f, 0.4f), 0.7f));
+            int spikeRows = Mathf.Clamp(c.Horns, 0, 3);
+
+            var segments = new Transform[segCount];
+            for (int i = 0; i < segCount; i++)
+            {
+                float t = i / (float)(segCount - 1);
+                float taper = Mathf.Lerp(1f, 0.55f, t * t);
+                float g = girth * taper;
+                var seg = new GameObject("Seg" + i).transform;
+                seg.SetParent(root.transform, false);
+                _keepColliders = true;
+                AddPartTo(seg, "Core", Vector3.zero, new Vector3(g, g, segLen * 1.08f), _bodyMat);
+                _keepColliders = false;
+                // The armour ring: a plate over the back and both flanks, a paler belly plate — slightly proud of the core
+                // and a little shorter, so the ring seams read between the segments.
+                AddPartTo(seg, "PlateTop", new Vector3(0f, g * 0.5f, 0f), new Vector3(g * 0.92f, g * 0.12f, segLen * 0.9f), plateMat);
+                AddPartTo(seg, "PlateL", new Vector3(-g * 0.5f, 0f, 0f), new Vector3(g * 0.12f, g * 0.8f, segLen * 0.9f), plateMat);
+                AddPartTo(seg, "PlateR", new Vector3(g * 0.5f, 0f, 0f), new Vector3(g * 0.12f, g * 0.8f, segLen * 0.9f), plateMat);
+                AddPartTo(seg, "Belly", new Vector3(0f, -g * 0.5f, 0f), new Vector3(g * 0.8f, g * 0.1f, segLen * 0.95f), bellyMat);
+                if (c.HasCrest)
+                {
+                    AddPartTo(seg, "Ridge", new Vector3(0f, g * 0.62f, 0f), new Vector3(g * 0.14f, g * 0.2f, segLen * 0.7f), plateMat);
+                }
+
+                if (spikeRows > 0 && i % 3 == 1)
+                {
+                    for (int s = 0; s < spikeRows; s++)
+                    {
+                        float x = spikeRows == 1 ? 0f : Mathf.Lerp(-g * 0.3f, g * 0.3f, s / (float)(spikeRows - 1));
+                        AddPartTo(seg, "Spike" + s, new Vector3(x, g * 0.62f, 0f), new Vector3(g * 0.08f, g * 0.35f, g * 0.08f), spikeMat);
+                    }
+                }
+
+                if (c.Glows && (i & 1) == 0)
+                {
+                    AddPartTo(seg, "SpotL", new Vector3(-g * 0.57f, g * 0.1f, 0f), new Vector3(g * 0.03f, g * 0.14f, segLen * 0.3f), glowMat);
+                    AddPartTo(seg, "SpotR", new Vector3(g * 0.57f, g * 0.1f, 0f), new Vector3(g * 0.03f, g * 0.14f, segLen * 0.3f), glowMat);
+                }
+
+                segments[i] = seg;
+            }
+
+            // The head: a blunt collar, a dark-red maw with two rings of teeth, and the mandible petals hinged at the rim.
+            var head = new GameObject("WormHead").transform;
+            head.SetParent(root.transform, false);
+            _keepColliders = true;
+            AddPartTo(head, "Collar", new Vector3(0f, 0f, -girth * 0.1f), new Vector3(girth * 1.12f, girth * 1.12f, girth * 0.55f), _bodyMat);
+            _keepColliders = false;
+            var mawMat = Lit(new Color(0.42f, 0.06f, 0.08f), null);
+            var toothMat = Lit(new Color(0.95f, 0.93f, 0.85f), null);
+            AddPartTo(head, "Maw", new Vector3(0f, 0f, girth * 0.19f), new Vector3(girth * 0.85f, girth * 0.85f, girth * 0.05f), mawMat);
+            for (int ring = 0; ring < 2; ring++)
+            {
+                int teeth = 10 + ring * 4;
+                float r = girth * (0.25f + ring * 0.13f);
+                for (int k = 0; k < teeth; k++)
+                {
+                    float a = (k + ring * 0.5f) / teeth * Mathf.PI * 2f;
+                    var tooth = NewPivot(head, "Tooth" + ring + "_" + k, new Vector3(Mathf.Cos(a) * r, Mathf.Sin(a) * r, girth * 0.22f));
+                    tooth.localRotation = Quaternion.LookRotation(new Vector3(-Mathf.Cos(a), -Mathf.Sin(a), 1.2f));
+                    AddPartTo(tooth, "Fang", new Vector3(0f, 0f, girth * 0.08f), new Vector3(girth * 0.05f, girth * 0.05f, girth * 0.18f), toothMat);
+                }
+            }
+
+            int petals = Mathf.Clamp(c.Mandibles, 3, 5);
+            var petalPivots = new Transform[petals];
+            for (int k = 0; k < petals; k++)
+            {
+                float a = k / (float)petals * Mathf.PI * 2f + Mathf.PI * 0.5f;
+                var rim = new Vector3(Mathf.Cos(a) * girth * 0.5f, Mathf.Sin(a) * girth * 0.5f, girth * 0.17f);
+                var pivot = NewPivot(head, "Mandible" + k, rim);
+                // The petal's local +Y points out from the mouth's centre; opening folds it back around its local X axis.
+                pivot.localRotation = Quaternion.Euler(0f, 0f, a * Mathf.Rad2Deg - 90f);
+                AddPartTo(pivot, "Petal", new Vector3(0f, -girth * 0.22f, girth * 0.28f),
+                    new Vector3(girth * 0.62f, girth * 0.1f, girth * 0.62f), plateMat);
+                AddPartTo(pivot, "PetalTooth", new Vector3(0f, -girth * 0.18f, girth * 0.6f),
+                    new Vector3(girth * 0.08f, girth * 0.08f, girth * 0.14f), toothMat);
+                petalPivots[k] = pivot;
+            }
+
+            MakeGiantBody(root);
+            var view = root.AddComponent<SandwormView>();
+            view.Init(segments, head, petalPivots, girth, length, _renderers.ToArray());
+        }
+
+        /// <summary>Puts a giant's collider parts on the giant layer and gives the root a kinematic rigidbody, so the moving
+        /// compound collides with the player's capsule without costing a static-collider rebuild every frame.</summary>
+        private static void MakeGiantBody(GameObject root)
+        {
+            var rb = root.GetComponent<Rigidbody>() ?? root.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            foreach (var col in root.GetComponentsInChildren<Collider>(true))
+            {
+                col.gameObject.layer = CreatureView.GiantLayer;
+            }
+        }
+
         /// <summary>Adds a render-only cube parented to an arbitrary transform (e.g. eyes on the head pivot).</summary>
         private void AddPartTo(Transform parent, string partName, Vector3 localPos, Vector3 scale, Material mat, PrimitiveType shape = PrimitiveType.Cube)
         {
             var go = GameObject.CreatePrimitive(shape);
             go.name = partName;
             var col = go.GetComponent<Collider>();
-            if (col != null)
+            if (col != null && !_keepColliders)
             {
                 Object.Destroy(col);
             }
@@ -1030,9 +1354,9 @@ namespace BlocksBeyondTheStars.Client
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = partName;
             var col = go.GetComponent<Collider>();
-            if (col != null)
+            if (col != null && !_keepColliders)
             {
-                Object.Destroy(col); // render-only; never blocks the player
+                Object.Destroy(col); // render-only; never blocks the player (a giant's core parts excepted, #1998)
             }
 
             go.transform.SetParent(root.transform, false);
@@ -1063,6 +1387,9 @@ namespace BlocksBeyondTheStars.Client
         private static Shader _unlitShader, _litShader;
         private static readonly Dictionary<Color, Material> UnlitCache = new Dictionary<Color, Material>();
         private static readonly Dictionary<(Color Color, Texture2D Tex), Material> LitCache = new Dictionary<(Color, Texture2D), Material>();
+
+        /// <summary>#1999: the shared unlit colour material, for the view's own markers (the stomp ring).</summary>
+        internal static Material UnlitMaterial(Color color) => Unlit(color);
 
         private static Material Unlit(Color color)
         {

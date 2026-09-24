@@ -63,6 +63,9 @@ namespace BlocksBeyondTheStars.Client
         public event Action<PlanetEnemyDefeated>? PlanetEnemyDefeated;
         public event Action<SentryShot>? SentryShotReceived; // #1214: cosmetic base-turret tracer
         public event Action<CreatureList>? CreaturesReceived;
+
+        /// <summary>#1998: a thump, stomp, breach or strike at a spot — dust, a camera shake, maybe a push.</summary>
+        public event Action<WorldFx>? WorldFxReceived;
         public event Action<ContainerList>? ContainersReceived;
 
         /// <summary>Ground drop packets on this body (#853) — the bundles a full inventory left lying around.
@@ -1003,6 +1006,7 @@ namespace BlocksBeyondTheStars.Client
                 case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
                 case SentryShot m: SentryShotReceived?.Invoke(m); break;
                 case CreatureList m: CreaturesReceived?.Invoke(m); break;
+                case WorldFx m: WorldFxReceived?.Invoke(m); break;
                 case ContainerList m: ContainersReceived?.Invoke(m); break;
                 case DropPacketList m: DropPacketsReceived?.Invoke(m); break;
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;

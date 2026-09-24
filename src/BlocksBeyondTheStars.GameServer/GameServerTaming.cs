@@ -769,9 +769,9 @@ public sealed partial class GameServer
         double bestSq = range * range;
         foreach (var c in _creatures)
         {
-            if (c.IsCompanion)
+            if (c.IsCompanion || c.IsGiant)
             {
-                continue;
+                continue; // #1998: a giant cannot be tamed
             }
 
             double d = WrapDistSq(at, c.Position);

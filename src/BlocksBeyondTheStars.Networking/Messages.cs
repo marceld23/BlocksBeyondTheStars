@@ -1920,6 +1920,67 @@ public sealed class NetCreature
     /// arc integration uses the same glide factor the server does (#1368). Additive; a legacy server sends
     /// false, which is also what it simulates.</summary>
     public bool Glides { get; set; }
+
+    // --- Giants (#1998, generation 9). All additive: an older client ignores them (and draws a giant as the plain
+    // body its traits describe); for every other creature they stay at their defaults. ---
+
+    /// <summary>The giant's height in blocks (0 = not a giant).</summary>
+    public float GiantHeight { get; set; }
+
+    /// <summary>Colossus: its back ("plates", "spikes", "crystals", "forest", empty) and leg length vs torso.</summary>
+    public string BackFeature { get; set; } = string.Empty;
+    public float LegRatio { get; set; } = 1f;
+
+    /// <summary>Sandworm: mandible petals, body length and diameter.</summary>
+    public int Mandibles { get; set; }
+    public float WormLength { get; set; }
+    public float WormGirth { get; set; }
+
+    /// <summary>The server's heading (radians, dirX = cos, dirZ = sin) — a giant turns in arcs, so the client does
+    /// not guess it from the ~2 Hz positions.</summary>
+    public float Facing { get; set; }
+
+    /// <summary>What the giant is doing: "walk", "stand", "stomp" (colossus); "hidden", "approach", "breach", "rear"
+    /// (sandworm). Empty for every other creature.</summary>
+    public string Phase { get; set; } = string.Empty;
+
+    /// <summary>Seconds already run of the current phase when this snapshot was sent, and the phase's length —
+    /// the client runs the same shared curve (<c>SandwormPath</c>) or stomp timing from them.</summary>
+    public float PhaseT { get; set; }
+    public float PhaseDur { get; set; }
+
+    /// <summary>The phase's anchor point: the stomp's landing spot; the breach's ground point under the top of the arc;
+    /// the rear's strike target (Y = the surface there).</summary>
+    public float EvX { get; set; }
+    public float EvY { get; set; }
+    public float EvZ { get; set; }
+
+    /// <summary>The move's direction on the ground (unit X/Z), its peak height and — for a rear — how far before its
+    /// target the tower rises. For a stomp <see cref="EvLeg"/> is the leg (0..3: front-left, front-right, rear-left,
+    /// rear-right).</summary>
+    public float EvDirX { get; set; }
+    public float EvDirZ { get; set; }
+    public float EvPeak { get; set; }
+    public float EvStrike { get; set; }
+    public int EvLeg { get; set; }
+}
+
+/// <summary>A world effect at a spot (#1998): a thumper's thump, a colossus stomp, a sandworm breaching or striking. The
+/// client throws dust, shakes the camera with distance and plays the sound; inside <see cref="Radius"/> (a stomp, a
+/// strike) it also knocks its own player away from the spot — movement is the client's, the damage the server's.</summary>
+public sealed class WorldFx
+{
+    /// <summary>"thump" | "stomp" | "breach" | "strike" | "dive" | "rumble".</summary>
+    public string Kind { get; set; } = string.Empty;
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+
+    /// <summary>0..1: how big the dust and the shake are.</summary>
+    public float Strength { get; set; }
+
+    /// <summary>Knock-back radius (blocks); 0 = no push.</summary>
+    public float Radius { get; set; }
 }
 
 /// <summary>Snapshot of live creatures (fauna) near the player on the planet surface.</summary>

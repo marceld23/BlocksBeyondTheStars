@@ -101,6 +101,13 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="CreatureView"/> stops applying its own velocity-derived slope pitch on top.</summary>
         public bool FootPitchActive => _feet.Active;
 
+        /// <summary>#1999: the foot planner — a giant listens to its footfalls (dust, shake) and forces a stomp.</summary>
+        public CreatureFeet Feet => _feet;
+
+        /// <summary>#1999: the server announced a stomp — leg <paramref name="leg"/> lifts high and lands on
+        /// <paramref name="target"/> when the telegraph runs out.</summary>
+        public void Stomp(int leg, Vector3 target, float remaining) => _feet.ForceStep(leg, target, remaining, 0.55f);
+
         // --- level of detail ---
         private CreatureLod _lod = CreatureLod.Near;
         private float _lodAccum;   // dt banked while skipping frames at the Far tier

@@ -159,7 +159,7 @@ public sealed partial class GameServer
         bool any = false;
         foreach (var c in _creatures)
         {
-            if (WrapDistSq(target, c.Position) <= StasisRadius * StasisRadius)
+            if (!c.IsGiant && WrapDistSq(target, c.Position) <= StasisRadius * StasisRadius) // #1998: too big to hold
             {
                 c.FrozenTimer = System.Math.Max(c.FrozenTimer, StasisDuration); // never shorten an existing freeze
                 any = true;
@@ -183,6 +183,8 @@ public sealed partial class GameServer
     {
         var center = WorldConstants.CanonicalBlock(new Vector3i(
             (int)System.Math.Floor(target.X), (int)System.Math.Floor(target.Y), (int)System.Math.Floor(target.Z)), _world.Circumference);
+        // #2001: a blast is heard far through the sand (read before it carves: the ground under the blast).
+        EmitVibration(new Vector3f(center.X + 0.5f, center.Y + 0.5f, center.Z + 0.5f), VibrationSource.Blaster, session.State.PlayerId);
 
         for (int dx = -BlasterRadius; dx <= BlasterRadius; dx++)
             for (int dy = -BlasterRadius; dy <= BlasterRadius; dy++)

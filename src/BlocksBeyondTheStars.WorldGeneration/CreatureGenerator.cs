@@ -136,6 +136,14 @@ public static class CreatureGenerator
             Hide = a.Hide,
             AngeredByMining = a.AngeredByMining,
             GiftsWhenCalm = a.GiftsWhenCalm,
+            GiantHeight = a.GiantHeight,  // #1998: an authored giant (#2003) carries the same traits as a rolled one
+            BackFeature = a.BackFeature,
+            LegRatio = a.LegRatio,
+            NeckLength = a.NeckLength,
+            Mandibles = a.Mandibles,
+            WormLength = a.WormLength,
+            WormGirth = a.WormGirth,
+            Hearing = a.Hearing,
         };
 
         species.VoiceSeed = unchecked((int)(speciesSeed ^ (speciesSeed >> 32)) ^ 0x5EED_1CE);
@@ -146,6 +154,123 @@ public static class CreatureGenerator
         }
 
         return species;
+    }
+
+    // ---------------- Giants (#1998–#2001, generation 9) ----------------
+
+    /// <summary>The species id of a world's colossus.</summary>
+    public const string ColossusId = "gi_colossus";
+
+    /// <summary>The species id of a world's sandworms (one species, one or two individuals).</summary>
+    public const string SandwormId = "gi_sandworm";
+
+    private static readonly string[] GiantBacks = { "", "plates", "spikes", "crystals", "forest" };
+    private static readonly string[] ColossusHides = { "hide", "plated", "scales", "shaggy", "mossy", "barkskin", "mottled", "banded" };
+    private static readonly string[] WormHides = { "plated", "banded", "scales", "chitin", "warty", "mottled" };
+
+    /// <summary>A world's colossus (#1999): a 40–60 block quadruped rolled from the world seed and its location — the
+    /// same giant on every visit, a different one on every world. The server decides WHETHER a world has one
+    /// (<see cref="GiantRules.HostsColossus"/>); this only decides what it is.</summary>
+    public static CreatureSpecies GenerateColossus(long worldSeed, string locationId)
+    {
+        long s = unchecked(worldSeed ^ ((long)WorldGenerator.StableHash("colossus:" + locationId) << 16) ^ 0x0C0105505L);
+        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+        float height = 40f + (float)rng.NextDouble() * 20f;
+        var temperament = (CreatureTemperament)Weighted(rng,
+            (int)CreatureTemperament.Passive, 40,
+            (int)CreatureTemperament.Skittish, 15,
+            (int)CreatureTemperament.Territorial, 30,
+            (int)CreatureTemperament.Aggressive, 15);
+        var sp = new CreatureSpecies
+        {
+            Id = ColossusId,
+            NameKey = "creature.generic.name",
+            Name = NameGenerator.Creature(rng),
+            Habitat = CreatureHabitat.Land,
+            Activity = CreatureActivity.Cathemeral, // a giant never lies down for the night
+            Temperament = temperament,
+            LocoStyle = LocomotionStyle.Strider,
+            BodyPlan = CreatureBodyPlan.Colossus,
+            GiantHeight = height,
+            Size = height / 10f,
+            MaxHealth = 3000f + (height - 40f) * 75f,       // 3000..4500 — very, very tough (decision 8)
+            AttackDamage = 22f + (float)rng.NextDouble() * 10f, // per stomp, not per second
+            Speed = 3.2f + (float)rng.NextDouble(),          // 3.2..4.2 — always slower than a walking player (6)
+            Legs = 4,
+            HasTail = rng.NextDouble() < 0.7,
+            NeckLength = Weighted(rng, 0, 15, 1, 25, 2, 30, 3, 20, 4, 10),
+            Heads = Weighted(rng, 1, 85, 2, 10, 3, 5),
+            Horns = rng.Next(5),                              // tusks
+            HasCrest = rng.NextDouble() < 0.35,
+            BackFeature = GiantBacks[rng.Next(GiantBacks.Length)],
+            LegRatio = 0.8f + (float)rng.NextDouble() * 0.5f,
+            Eyes = Weighted(rng, 2, 80, 4, 15, 1, 5),
+            ColorRgb = PickColor(rng, CreatureHabitat.Land),
+            BellyRgb = PickColor(rng, CreatureHabitat.Land),
+            Glows = rng.NextDouble() < 0.2,
+            Hide = ColossusHides[rng.Next(ColossusHides.Length)],
+            DropItem = "creature_meat",
+            DropCount = 20,
+            DropKind = CreatureDropKind.Food,
+        };
+        sp.VoiceSeed = unchecked((int)(s ^ (s >> 32)) ^ 0x5EED_1CE);
+        return sp;
+    }
+
+    /// <summary>A sand-sea world's sandworm (#2001): the fixed sandworm archetype — a long armoured tube, a mouth of
+    /// mandible petals with rings of teeth — with its size, colours, plates, hearing and temper rolled per world.</summary>
+    public static CreatureSpecies GenerateSandworm(long worldSeed, string locationId)
+    {
+        long s = unchecked(worldSeed ^ ((long)WorldGenerator.StableHash("sandworm:" + locationId) << 16) ^ 0x5A2D3A0L);
+        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+        float height = 40f + (float)rng.NextDouble() * 20f;
+        float girth = 7f + (float)rng.NextDouble() * 4f;
+        var sp = new CreatureSpecies
+        {
+            Id = SandwormId,
+            NameKey = "creature.generic.name",
+            Name = NameGenerator.Creature(rng),
+            Habitat = CreatureHabitat.Land,
+            Activity = CreatureActivity.Cathemeral,
+            Temperament = rng.NextDouble() < 0.6 ? CreatureTemperament.Aggressive : CreatureTemperament.Territorial,
+            LocoStyle = LocomotionStyle.Slitherer,
+            BodyPlan = CreatureBodyPlan.Sandworm,
+            GiantHeight = height,
+            Size = height / 10f,
+            WormGirth = girth,
+            WormLength = height * 2.1f + (float)rng.NextDouble() * 20f,
+            BodySegments = 30 + rng.Next(15),                 // ring segments
+            Mandibles = 3 + rng.Next(3),                      // 3..5 petals
+            Horns = rng.Next(4),                              // rows of back spikes
+            HasCrest = rng.NextDouble() < 0.5,                // a plated dorsal ridge
+            Hearing = 0.8f + (float)rng.NextDouble() * 0.5f,
+            MaxHealth = 2500f + (height - 40f) * 75f,         // 2500..4000
+            AttackDamage = 35f + (float)rng.NextDouble() * 10f, // per strike
+            Speed = 9f + (float)rng.NextDouble() * 3f,        // under the sand, blocks/s
+            Legs = 0,
+            Eyes = 0,
+            ColorRgb = SandColor(rng),
+            BellyRgb = SandColor(rng),
+            Glows = rng.NextDouble() < 0.3,
+            Hide = WormHides[rng.Next(WormHides.Length)],
+            DropItem = "creature_meat",
+            DropCount = 20,
+            DropKind = CreatureDropKind.Food,
+        };
+        sp.VoiceSeed = unchecked((int)(s ^ (s >> 32)) ^ 0x5EED_1CE);
+        return sp;
+    }
+
+    /// <summary>The sandworm's palette: sand, ochre, rust, umber and dusk tones.</summary>
+    private static int SandColor(System.Random rng)
+    {
+        int[] palette = { 0xC8A26B, 0xB5793E, 0x8E5A33, 0x6B4A36, 0xA88B6A, 0x7E6A7A, 0xD2B48C, 0x9C6644 };
+        int c = palette[rng.Next(palette.Length)];
+        int jitter = rng.Next(-14, 15);
+        int r = System.Math.Clamp(((c >> 16) & 0xFF) + jitter, 0, 255);
+        int g = System.Math.Clamp(((c >> 8) & 0xFF) + jitter, 0, 255);
+        int b = System.Math.Clamp((c & 0xFF) + jitter, 0, 255);
+        return (r << 16) | (g << 8) | b;
     }
 
     private static int AbundanceCount(string? abundance) => (abundance ?? "few").ToLowerInvariant() switch

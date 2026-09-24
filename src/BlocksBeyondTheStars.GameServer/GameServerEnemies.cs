@@ -684,13 +684,28 @@ public sealed partial class GameServer
         // range like the machete's must not silently reject those hits — equipping a weapon must never make
         // you worse than bare fists).
         float reach = isWeapon ? System.Math.Max(tool.Range, EnemyAttackReach) : EnemyAttackReach;
-        if (WrapDistSq(p.Position, target.Position) > reach * reach)
+
+        // #1998: a giant is not one point at its feet — reach, sightline and aim are measured to the nearest point of its
+        // body (the legs of a colossus, the part of a sandworm above the sand). A buried sandworm cannot be hit.
+        var aimAt = target.Position;
+        if (isCreature && target.IsGiant)
+        {
+            if (!GiantHittable(target))
+            {
+                Reject(session, "attack", "@srv.attack.no_target");
+                return;
+            }
+
+            aimAt = GiantAimPoint(target, p.Position);
+        }
+
+        if (WrapDistSq(p.Position, aimAt) > reach * reach)
         {
             Reject(session, "attack", "@srv.attack.out_of_reach");
             return;
         }
 
-        if (!ValidateAim(session, target, tool, isWeapon, aimDir))
+        if (!ValidateAim(session, target, tool, isWeapon, aimDir, aimAt))
         {
             return;
         }
@@ -729,6 +744,13 @@ public sealed partial class GameServer
 
         if (target.Hull > 0f)
         {
+            if (isCreature && target.IsGiant)
+            {
+                OnGiantHit(target); // #1998: a giant answers a hit by its own rules
+                BroadcastCreatures();
+                return;
+            }
+
             // A surviving creature that retaliates (territorial / already hostile) is provoked:
             // for a while it hunts and bites back (and a pack-hunter rallies nearby kin).
             if (isCreature)
@@ -756,6 +778,11 @@ public sealed partial class GameServer
         if (isCreature)
         {
             OnCreatureKilled(target, session); // 2026-09: the shapeshifter's death, or one of its shape's kind
+            if (target.IsGiant)
+            {
+                OnGiantDefeated(target, session); // #1998: the return clock, the achievement, the witnesses
+            }
+
             BroadcastCreatures();
         }
         else
@@ -788,9 +815,11 @@ public sealed partial class GameServer
     /// client, or a melee swing) skips the angle checks. With AutoAim ON the target only has to sit
     /// in a wide forward cone; with AutoAim OFF the crosshair ray must actually pass near the target's body.
     /// Every attack, at any range, needs a clear sightline — no hitting through walls.</summary>
-    private bool ValidateAim(PlayerSession session, CombatEntity target, ToolProperties tool, bool isWeapon, Vector3f aimDir)
+    private bool ValidateAim(PlayerSession session, CombatEntity target, ToolProperties tool, bool isWeapon, Vector3f aimDir,
+        Vector3f? aimPoint = null)
     {
         var p = session.State;
+        var targetPos = aimPoint ?? target.Position; // #1998: a giant's nearest body point
 
         // Walls stop attacks — ALL of them, and BEFORE the aim-data check.
         //
@@ -804,7 +833,7 @@ public sealed partial class GameServer
         //
         // Same voxel sightline the machines use, so cover behaves identically whoever is shooting; glass
         // blocks it too, being Solid.
-        if (!HasLineOfSight(p.Position, target.Position))
+        if (!HasLineOfSight(p.Position, targetPos))
         {
             Reject(session, "attack", "@srv.attack.no_line");
             return false;
@@ -819,9 +848,9 @@ public sealed partial class GameServer
         bool ranged = isWeapon && tool.Range > EnemyAttackReach;
 
         const float eye = 1.5f; // matches HasLineOfSight/the client camera height
-        var dst = Unwrapped(p.Position, target.Position);
+        var dst = Unwrapped(p.Position, targetPos);
         float tx = dst.X - p.Position.X;
-        float ty = (dst.Y + 0.9f) - (p.Position.Y + eye); // aim roughly at the body, not the feet
+        float ty = (dst.Y + (aimPoint is null ? 0.9f : eye)) - (p.Position.Y + eye); // aim roughly at the body, not the feet
         float tz = dst.Z - p.Position.Z;
         float dist = (float)System.Math.Sqrt(tx * tx + ty * ty + tz * tz);
         if (dist < 0.75f)

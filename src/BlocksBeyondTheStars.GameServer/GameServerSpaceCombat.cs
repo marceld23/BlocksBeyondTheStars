@@ -126,6 +126,15 @@ public sealed class CombatEntity
     /// <summary>True when this entity is a tamed companion rather than wild fauna.</summary>
     public bool IsCompanion => OwnerId.Length > 0;
 
+    /// <summary>A one-per-world giant's own state (#1998, the colossus or a sandworm); null for every other entity.
+    /// Giants live in the creature list for the wire, the hits and the kills, but move, attack, spawn and leave by
+    /// their own rules (<c>GameServerGiants</c>) — the spawner, the far prune, the bite aura, sentries, fire, the
+    /// stasis projector and taming all pass them by.</summary>
+    public GiantRuntime? Giant { get; set; }
+
+    /// <summary>True for the colossus and the sandworms (#1998).</summary>
+    public bool IsGiant => Giant is not null;
+
     /// <summary>Companion payoff (#1210, server-only): uptime until which the pet poses "alert" (client flag),
     /// and when its next produce drop is due (0 = not armed yet).</summary>
     public double AlertUntil { get; set; }

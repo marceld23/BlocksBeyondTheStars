@@ -678,6 +678,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Live procedural creatures near the player (fauna), with their species descriptor.</summary>
         public NetCreature[] Creatures { get; private set; } = System.Array.Empty<NetCreature>();
 
+        /// <summary>#1998: world effects (thumps, stomps, breaches) waiting for the creature view to play them.</summary>
+        public readonly System.Collections.Generic.List<WorldFx> PendingWorldFx = new System.Collections.Generic.List<WorldFx>();
+
         /// <summary>Settlement / station NPCs (vendors, quartermasters, settlers) near the player.</summary>
         public NetNpc[] Npcs { get; private set; } = System.Array.Empty<NetNpc>();
 
@@ -2408,6 +2411,13 @@ namespace BlocksBeyondTheStars.Client
             Network.StationBoardedReceived += m => { LastMessage = $"Boarded {m.Name}."; CurrentStationId = m.StationId ?? string.Empty; };
             Network.PlanetEnemiesReceived += m => PlanetEnemies = m.Enemies;
             Network.CreaturesReceived += m => Creatures = m.Creatures;
+            Network.WorldFxReceived += m =>
+            {
+                if (PendingWorldFx.Count < 64)
+                {
+                    PendingWorldFx.Add(m);
+                }
+            };
             Network.NpcsReceived += m => Npcs = m.Npcs;
             Network.NpcStandingsReceived += m =>
             {

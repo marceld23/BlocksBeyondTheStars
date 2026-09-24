@@ -63,6 +63,13 @@ namespace BlocksBeyondTheStars.Client
             public GameObject Zzz;       // floating "z z z" shown above a sleeping (off-phase) creature
             public TextMesh ZzzText;     // the sleep label's text component
             public CreatureAnimator Animator; // the rig's animator, looked up once at build (#1368) — not per frame
+
+            // #1998: the giants — the sandworm's own view, the local phase clock, the last announced stomp.
+            public SandwormView Worm;
+            public NetCreature LastNet;
+            public string PhaseKey = string.Empty;
+            public float PhaseStartLocal;
+            public string StompKey = string.Empty;
         }
 
         private readonly Dictionary<string, Entry> _creatures = new Dictionary<string, Entry>();
@@ -97,6 +104,10 @@ namespace BlocksBeyondTheStars.Client
             new CreatureBuilder { Ground = ProbeGround }.Build(root, c);
             var anims = root.GetComponents<CreatureAnimator>();
             entry.Animator = anims.Length > 0 ? anims[anims.Length - 1] : null;
+            if (c.GiantHeight > 0f)
+            {
+                SetUpGiant(entry, c); // #1998
+            }
         }
 
         // Reused across frames: allocating these per Update is steady-state GC churn (worst on WebGL,
@@ -126,6 +137,7 @@ namespace BlocksBeyondTheStars.Client
             var seen = _seenScratch;
             seen.Clear();
             var cam = Camera.main; // for the floating health bars (#692)
+            PlayWorldFx(); // #1998: thumps, stomps, breaches
             foreach (var c in Game.Creatures)
             {
                 seen.Add(c.Id);
@@ -167,6 +179,10 @@ namespace BlocksBeyondTheStars.Client
                         Animator = root.GetComponent<CreatureAnimator>(),
                     };
                     _creatures[c.Id] = entry;
+                    if (c.GiantHeight > 0f)
+                    {
+                        SetUpGiant(entry, c); // #1998: colliders into the aim lookup, footfalls into dust + shake
+                    }
                 }
 
                 // Dead reckoning (#654): positions arrive at ~2 Hz, so chasing the newest (stale) target
@@ -265,6 +281,24 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
+                // #1998: a giant turns by the server's heading (it walks in arcs and stands still to stomp), and poses by its
+                // phase clock — the colossus lifts the announced foot, the sandworm runs its breach or rear along the curve.
+                if (c.GiantHeight > 0f)
+                {
+                    float phaseTime = GiantPhaseTime(entry, c, now);
+                    if (entry.Worm != null)
+                    {
+                        entry.Worm.Apply(c, phaseTime, Game, Fx, now);
+                    }
+                    else
+                    {
+                        var want = new Vector3(Mathf.Cos(c.Facing), 0f, Mathf.Sin(c.Facing));
+                        entry.FaceDir = Vector3.Slerp(entry.FaceDir.sqrMagnitude > 1e-4f ? entry.FaceDir : want, want, 1f - Mathf.Exp(-3f * dt));
+                        entry.Root.transform.rotation = Quaternion.LookRotation(entry.FaceDir, Vector3.up);
+                        GiantStomp(entry, c, phaseTime);
+                    }
+                }
+
                 // Motion class + vertical state for the animator (#1333): wings only beat in the air, legs tuck
                 // mid-jump, a perched flier folds up, crawlers undulate. Cheap per-frame set; the animator
                 // detects the transitions itself (landing squash).
@@ -288,7 +322,7 @@ namespace BlocksBeyondTheStars.Client
                     float camDist = cam != null
                         ? Vector3.Distance(cam.transform.position, entry.Root.transform.position)
                         : toPlayer.magnitude;
-                    entry.Animator.SetLod(PickLod(camDist, entry.Animator.Lod));
+                    entry.Animator.SetLod(PickLod(camDist, entry.Animator.Lod, c.GiantHeight > 0f ? Mathf.Max(1f, c.GiantHeight / 6f) : 1f));
                 }
 
                 SetStasis(entry, c.Frozen, c.Size); // icy-blue shell while held in stasis (item 36)
@@ -362,7 +396,7 @@ namespace BlocksBeyondTheStars.Client
 
                     // No bite-lunge once the player has fled into their ship: the server stops targeting a
                     // boarded player (no proximity damage), so the render side must not keep mauling the hull.
-                    if (c.Hostile && !Game.Aboard && now >= entry.NextAttack
+                    if (c.Hostile && !Game.Aboard && now >= entry.NextAttack && c.GiantHeight <= 0f // a giant stomps/strikes instead
                         && (entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < 9f)
                     {
                         entry.NextAttack = now + Random.Range(1.5f, 3.5f);
@@ -402,10 +436,25 @@ namespace BlocksBeyondTheStars.Client
                 // Floating health bar (#692): sits just above where a companion nameplate would hang, height
                 // scaled with the creature's size; companions read friendly cyan, wild fauna the health ramp.
                 float barHeight = 1.5f * Mathf.Clamp(c.Size, 0.4f, 8f) + 0.7f;
-                EnemyHealthBars.Push(Game, cam, c.Id,
-                    entry.Root.transform.position + Vector3.up * barHeight,
-                    c.Hull, c.HullMax, friendly: !string.IsNullOrEmpty(c.OwnerId),
-                    fadeStart: 18f, fadeEnd: 28f);
+                if (c.GiantHeight > 0f)
+                {
+                    // #1998: a giant's bar hangs over its head and reads from far off; a buried sandworm shows none.
+                    if (entry.Worm == null || entry.Worm.Surfaced)
+                    {
+                        var anchor = entry.Worm != null
+                            ? entry.Worm.HeadScenePos + Vector3.up * (c.WormGirth + 2f)
+                            : entry.Root.transform.position + Vector3.up * (c.GiantHeight + 3f);
+                        EnemyHealthBars.Push(Game, cam, c.Id, anchor, c.Hull, c.HullMax, friendly: false,
+                            fadeStart: 150f, fadeEnd: 220f);
+                    }
+                }
+                else
+                {
+                    EnemyHealthBars.Push(Game, cam, c.Id,
+                        entry.Root.transform.position + Vector3.up * barHeight,
+                        c.Hull, c.HullMax, friendly: !string.IsNullOrEmpty(c.OwnerId),
+                        fadeStart: 18f, fadeEnd: 28f);
+                }
             }
 
             if (_creatures.Count > seen.Count)
@@ -429,6 +478,7 @@ namespace BlocksBeyondTheStars.Client
                     Destroy(e.Root);
                     _creatures.Remove(id);
                     EnemyHealthBars.Forget(id);
+                    UnregisterGiant(id); // #1998
                 }
             }
         }
@@ -724,9 +774,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The detail tier for a creature at <paramref name="dist"/> metres from the camera. The tier
         /// it is already in gets a couple of metres of extra room in both directions, so an animal grazing on
         /// a boundary does not flip back and forth between two levels of detail every frame.</summary>
-        private CreatureLod PickLod(float dist, CreatureLod current)
+        private CreatureLod PickLod(float dist, CreatureLod current, float sizeScale = 1f)
         {
-            float scale = ReducedEffects ? 0.55f : 1f;
+            // #1998: a 60-block giant keeps walking properly far beyond where a sheep would freeze.
+            float scale = (ReducedEffects ? 0.55f : 1f) * sizeScale;
             float near = LodNear * scale + (current == CreatureLod.Near ? LodHysteresis : -LodHysteresis);
             float mid = LodMid * scale + (current == CreatureLod.Mid ? LodHysteresis : -LodHysteresis);
             float far = LodFar * scale + (current == CreatureLod.Far ? LodHysteresis : -LodHysteresis);
@@ -734,6 +785,235 @@ namespace BlocksBeyondTheStars.Client
                 : dist < mid ? CreatureLod.Mid
                 : dist < far ? CreatureLod.Far
                 : CreatureLod.Frozen;
+        }
+
+
+        // ------------------------------------------------------------------------------------------------
+        // Giants (#1998-#2002)
+        // ------------------------------------------------------------------------------------------------
+
+        /// <summary>The Unity layer of the giants' colliders (by index — a code-added layer name is not baked into a batch
+        /// build). The player's capsule collides with it; its ground snap and camera boom ignore it.</summary>
+        public const int GiantLayer = 20;
+
+        private static readonly Dictionary<Collider, string> GiantColliderIds = new Dictionary<Collider, string>();
+        private static readonly Dictionary<string, Collider[]> GiantColliderSets = new Dictionary<string, Collider[]>();
+
+        /// <summary>The creature id a giant collider belongs to (the player's aim and scan rays hit colliders).</summary>
+        public static string GiantIdFor(Collider col)
+            => col != null && GiantColliderIds.TryGetValue(col, out var id) ? id : null;
+
+        /// <summary>The point of a giant's body nearest <paramref name="from"/> (auto-aim, melee sweep); false while nothing
+        /// of it is there to hit (a sandworm under the sand).</summary>
+        public static bool GiantNearestPoint(string id, Vector3 from, out Vector3 point)
+        {
+            point = default;
+            if (id == null || !GiantColliderSets.TryGetValue(id, out var set))
+            {
+                return false;
+            }
+
+            float best = float.MaxValue;
+            bool any = false;
+            foreach (var col in set)
+            {
+                if (col == null || !col.enabled)
+                {
+                    continue;
+                }
+
+                var p = col.ClosestPoint(from);
+                float d = (p - from).sqrMagnitude;
+                if (d < best)
+                {
+                    best = d;
+                    point = p;
+                    any = true;
+                }
+            }
+
+            return any;
+        }
+
+        private static void RegisterGiant(string id, GameObject root)
+        {
+            UnregisterGiant(id);
+            var set = root.GetComponentsInChildren<Collider>(true);
+            GiantColliderSets[id] = set;
+            foreach (var col in set)
+            {
+                GiantColliderIds[col] = id;
+            }
+        }
+
+        private static void UnregisterGiant(string id)
+        {
+            if (id == null || !GiantColliderSets.TryGetValue(id, out var set))
+            {
+                return;
+            }
+
+            foreach (var col in set)
+            {
+                if (col != null)
+                {
+                    GiantColliderIds.Remove(col);
+                }
+            }
+
+            GiantColliderSets.Remove(id);
+        }
+
+        private WeaponFx _fx;
+        private PlayerController _player;
+
+        private WeaponFx Fx => _fx != null ? _fx : (_fx = FindAnyObjectByType<WeaponFx>());
+
+        private PlayerController LocalPlayer => _player != null ? _player : (_player = FindAnyObjectByType<PlayerController>());
+
+        /// <summary>Wires a freshly built giant: its colliders into the aim/scan lookup, a colossus's footfalls into dust and
+        /// a ground shake.</summary>
+        private void SetUpGiant(Entry entry, NetCreature c)
+        {
+            RegisterGiant(c.Id, entry.Root);
+            entry.Worm = entry.Root.GetComponent<SandwormView>();
+            if (entry.Animator != null)
+            {
+                float height = c.GiantHeight;
+                entry.Animator.Feet.FootPlanted = p => GiantFootfall(p, height);
+            }
+        }
+
+        /// <summary>A colossus foot comes down: dust at the foot, a deep thud, the ground shaking with distance.</summary>
+        private void GiantFootfall(Vector3 at, float height)
+        {
+            Fx?.Dust(at + Vector3.up * 0.2f, 12);
+            float dist = Vector3.Distance(at, Game.PlayerPosition);
+            ClientAudio.Instance?.At("land", at, 0.45f, Mathf.Clamp01(1.2f - dist / 90f));
+            LocalPlayer?.AddCameraShake(Mathf.Clamp01(1f - dist / 70f) * 0.3f * Mathf.Clamp(height / 50f, 0.6f, 1.2f));
+        }
+
+        /// <summary>The local phase clock of a giant: the server says how long the phase has run when it sent the snapshot;
+        /// the client keeps counting from there, re-syncing only when it drifts or the phase changes.</summary>
+        private static float GiantPhaseTime(Entry e, NetCreature c, float now)
+        {
+            string key = c.Phase + "|" + c.EvX.ToString("0.0") + "|" + c.EvZ.ToString("0.0");
+            if (!ReferenceEquals(c, e.LastNet))
+            {
+                e.LastNet = c;
+                float local = now - e.PhaseStartLocal;
+                if (key != e.PhaseKey || Mathf.Abs(local - c.PhaseT) > 0.35f)
+                {
+                    e.PhaseKey = key;
+                    e.PhaseStartLocal = now - c.PhaseT;
+                }
+            }
+
+            return now - e.PhaseStartLocal;
+        }
+
+        /// <summary>A colossus stomp the server announced: the foot lifts high and comes down where it said, a dark ring
+        /// marks the spot until then.</summary>
+        private void GiantStomp(Entry e, NetCreature c, float phaseTime)
+        {
+            string key = c.EvX.ToString("0.0") + "|" + c.EvZ.ToString("0.0");
+            if (c.Phase != "stomp" || key == e.StompKey)
+            {
+                return;
+            }
+
+            e.StompKey = key;
+            var at = Game.ScenePos(c.EvX, c.EvY, c.EvZ);
+            float remaining = Mathf.Max(0.2f, c.PhaseDur - phaseTime);
+            e.Animator?.Stomp(c.EvLeg, at, remaining);
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ring.name = "StompRing";
+            Destroy(ring.GetComponent<Collider>());
+            ring.transform.SetParent(transform, true);
+            ring.transform.position = at + Vector3.up * 0.06f;
+            ring.transform.localScale = new Vector3(11f, 0.02f, 11f);
+            var mr = ring.GetComponent<Renderer>();
+            mr.sharedMaterial = StompRingMaterial();
+            Destroy(ring, remaining + 0.1f);
+        }
+
+        private static Material StompRingMaterial() => CreatureBuilder.UnlitMaterial(new Color(0.35f, 0.05f, 0.05f));
+
+        /// <summary>Plays the world effects the server sent (#1998): dust, a sound, a camera shake falling off with distance,
+        /// and — inside a stomp's or a strike's radius — a push that throws the local player clear.</summary>
+        private void PlayWorldFx()
+        {
+            var list = Game.PendingWorldFx;
+            if (list.Count == 0)
+            {
+                return;
+            }
+
+            var player = LocalPlayer;
+            foreach (var fx in list)
+            {
+                var at = Game.ScenePos(fx.X, fx.Y, fx.Z);
+                var me = Game.PlayerPosition;
+                float dist = Vector3.Distance(at, me);
+                var audio = ClientAudio.Instance;
+                switch (fx.Kind)
+                {
+                    case "thump":
+                        Fx?.Dust(at + Vector3.up * 0.3f, 6);
+                        audio?.At("land", at, 0.5f, 0.8f);
+                        player?.AddCameraShake(Mathf.Clamp01(1f - dist / 25f) * 0.2f);
+                        break;
+                    case "stomp":
+                        for (int i = 0; i < 4; i++)
+                        {
+                            var off = Random.insideUnitCircle * Mathf.Max(1f, fx.Radius * 0.6f);
+                            Fx?.Dust(at + new Vector3(off.x, 0.3f, off.y), 8);
+                        }
+
+                        audio?.At("thunder_2", at, 0.55f, Mathf.Clamp01(fx.Strength));
+                        player?.AddCameraShake(Mathf.Clamp01(1f - dist / 60f) * 0.9f * fx.Strength);
+                        break;
+                    case "strike":
+                        for (int i = 0; i < 6; i++)
+                        {
+                            var off = Random.insideUnitCircle * Mathf.Max(1f, fx.Radius * 0.7f);
+                            Fx?.Dust(at + new Vector3(off.x, 0.3f, off.y), 8);
+                        }
+
+                        audio?.At("thunder_3", at, 0.5f, 1f);
+                        player?.AddCameraShake(Mathf.Clamp01(1f - dist / 80f));
+                        break;
+                    case "breach":
+                        audio?.At("creature_call_rumble", at, 0.5f, 1f);
+                        player?.AddCameraShake(Mathf.Clamp01(1f - dist / 140f) * 0.6f);
+                        break;
+                    case "dive":
+                        Fx?.Dust(at + Vector3.up * 0.3f, 16);
+                        audio?.At("thunder_1", at, 0.6f, 0.6f);
+                        player?.AddCameraShake(Mathf.Clamp01(1f - dist / 90f) * 0.35f);
+                        break;
+                    case "rumble":
+                        audio?.At("creature_call_rumble", at, 0.4f, 0.45f * Mathf.Clamp01(fx.Strength));
+                        player?.AddCameraShake(Mathf.Clamp01(1f - dist / 120f) * 0.25f * Mathf.Clamp01(fx.Strength));
+                        break;
+                }
+
+                // Inside the blast: thrown clear — away from the spot and up.
+                if (fx.Radius > 0f && player != null && !Game.Aboard)
+                {
+                    var away = me - at;
+                    away.y = 0f;
+                    float d = away.magnitude;
+                    if (d <= fx.Radius && Mathf.Abs(me.y - at.y) < fx.Radius + 4f)
+                    {
+                        var dir = d > 0.1f ? away / d : Random.insideUnitSphere;
+                        dir.y = 0f;
+                        player.ApplyKnock(dir.normalized * 9f + Vector3.up * 7f);
+                    }
+                }
+            }
+
+            list.Clear();
         }
 
         /// <summary>How long a full phrase takes — so an answering animal waits for the first to finish.</summary>

@@ -42,6 +42,12 @@ public sealed partial class WorldGenerator
         public int[] CoolBiomes = System.Array.Empty<int>(); // the resolved indices the classic mix spreads over
         public double HotThreshold = double.MaxValue; // hot-zone field quantile: columns at/above it are hot
         public int FixedIceSheet;             // a type's fixed ice sheet over water (0 = the classic freeze)
+
+        // Generation 9 (#2000, the sand sea) — at their no-op on every other world.
+        public int SandBiome = -1;            // resolved index of the sand-sea biome (-1 = no sea)
+        public int[] DryBiomes = System.Array.Empty<int>(); // the resolved indices the classic mix spreads over
+        public double SandThreshold = double.MaxValue; // the sea field's quantile (from the wonder profile)
+        public int SandCeiling = int.MinValue; // the highest surface still sea — higher is a rock island
     }
 
     // STATIC cache: the calibration is a pure function of (world seed, planet, circumference, cratered,
@@ -212,6 +218,35 @@ public sealed partial class WorldGenerator
             }
 
             c.FixedIceSheet = System.Math.Max(0, planet.IceSheetDepth);
+        }
+
+        // 8) Generation 9 (#2000): the sand sea — the region field's top SandSeaShare quantile is the sea biome, the
+        //    classic mix spreads over the others. The threshold was measured with the wonder profile; the ceiling reads
+        //    the sea level measured in step 2.
+        if (SandSeaWorld(planet))
+        {
+            var resolved = ResolveBiomes(planet);
+            int sea = -1;
+            var dry = new System.Collections.Generic.List<int>(resolved.Count);
+            for (int i = 0; i < resolved.Count; i++)
+            {
+                if (!resolved[i].SandSea)
+                {
+                    dry.Add(i);
+                }
+                else if (sea < 0)
+                {
+                    sea = i;
+                }
+            }
+
+            if (sea >= 0 && dry.Count > 0)
+            {
+                c.SandBiome = sea;
+                c.DryBiomes = dry.ToArray();
+                c.SandThreshold = WonderFor(planet).SandThreshold;
+                c.SandCeiling = SandSeaCeiling(planet, c.SeaLevel);
+            }
         }
 
         return c;

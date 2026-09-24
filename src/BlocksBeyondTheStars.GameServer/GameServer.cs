@@ -1721,6 +1721,7 @@ public sealed partial class GameServer
             Guard("TickFlora", deltaSeconds, TickFlora);
             Guard("TickCreatures", deltaSeconds, TickCreatures);
             Guard("TickSreekmakra", deltaSeconds, TickSreekmakra); // 2026-09: Valuma's shapeshifter and mood (1 Hz)
+            Guard("TickGiants", deltaSeconds, TickGiants); // #1998: the colossus, the sandworms and the thumpers
             Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
             Guard("TickNpcPaths", deltaSeconds, TickNpcPaths); // #1866: at most one NPC path search per tick
             Guard("TickNpcs", deltaSeconds, TickNpcs);
@@ -4455,10 +4456,15 @@ public sealed partial class GameServer
                 session.AwaitingSpawnAdopt = false;
             }
 
+            var before = session.State.Position;
             session.State.Position = reported;
             session.State.Yaw = move.Yaw;
             session.State.Pitch = move.Pitch;
             UpdateDrivingSpeeder(session); // if driving a speeder, slave it to this pose + drain its energy cell
+            if (onSurface)
+            {
+                GiantsOnPlayerMoved(session, before, reported); // #2001: footsteps on the sand sea are heard
+            }
         }
     }
 
@@ -4501,6 +4507,7 @@ public sealed partial class GameServer
             return;
         }
 
+        EmitVibration(p.Position, VibrationSource.HardLanding, p.PlayerId); // #2001: a hard landing shakes the sand
         float damage = Mitigate(p, System.Math.Min(120f, over * FallDamagePerSpeed));
         if (damage <= 0f)
         {
@@ -4771,6 +4778,10 @@ public sealed partial class GameServer
         else if (def.Key == "beam_block")
         {
             RemoveBeamAt(pos); // mining a beam block forgets its name/owner + map marker (teleporter pad)
+        }
+        else if (def.Key == ThumperBlockKey)
+        {
+            StopThumper(pos); // #2002: a thumper mined back stops thumping
         }
         else if (def.Key is "station_vendor" or "mission_board" || NpcProfessions.ByPostBlock(def.Key) != null)
         {
@@ -5401,6 +5412,10 @@ public sealed partial class GameServer
         if (blockDef.Key == WaterSpoutBlockKey)
         {
             StartSpout(session, pos); // #1726: a waterfall block starts pouring the moment it is placed
+        }
+        else if (blockDef.Key == ThumperBlockKey)
+        {
+            StartThumper(session, pos); // #2002: a placed thumper starts thumping
         }
 
         ActivateGranular(pos); // #1319: placed sand with nothing under it drops; over lava it sinks
@@ -6289,6 +6304,10 @@ public sealed partial class GameServer
                 p.GodMode = !p.GodMode;
                 Send(session, new ServerMessage { Text = p.GodMode ? "@srv.admin.god_on" : "@srv.admin.god_off" });
                 CheatLog(p, $"toggled god mode to {p.GodMode}");
+                break;
+
+            case "summon_giant":
+                AdminSummonGiant(session, cmd.StringArg); // #1998: /giant colossus|sandworm — for testing
                 break;
 
             case "instant_build":

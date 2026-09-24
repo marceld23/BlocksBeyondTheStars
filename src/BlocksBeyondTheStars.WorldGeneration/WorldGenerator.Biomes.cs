@@ -18,9 +18,10 @@ public sealed partial class WorldGenerator
     internal readonly struct BiomeResolved
     {
         public BiomeResolved(BlockId surface, BlockId sub, double floraMul, double treeMul, FloraThemes.Theme theme,
-            double reliefMul = 1.0, bool hot = false)
+            double reliefMul = 1.0, bool hot = false, bool sandSea = false)
         {
             Hot = hot;
+            SandSea = sandSea;
             Surface = surface;
             Sub = sub;
             FloraMul = floraMul;
@@ -40,6 +41,9 @@ public sealed partial class WorldGenerator
 
         /// <summary>The hot-zone biome (generation 8, Titas) — placed by the hot-zone field, not the altitude mix.</summary>
         public bool Hot { get; }
+
+        /// <summary>The sand-sea biome (generation 9, #2000) — placed by the sea field, not the altitude mix.</summary>
+        public bool SandSea { get; }
     }
 
     /// <summary>
@@ -83,12 +87,31 @@ public sealed partial class WorldGenerator
             }
         }
 
+        // Generation 9 (#2000): a sand-sea world always keeps its sea biome, whichever others the roll picked.
+        if (SandSeaWorld(planet))
+        {
+            bool has = false;
+            for (int i = 0; i < count && !has; i++)
+            {
+                has = planet.Biomes[order[i]].SandSea;
+            }
+
+            for (int i = count; i < pool && !has; i++)
+            {
+                if (planet.Biomes[order[i]].SandSea)
+                {
+                    (order[count - 1], order[i]) = (order[i], order[count - 1]);
+                    has = true;
+                }
+            }
+        }
+
         for (int i = 0; i < count; i++)
         {
             var b = planet.Biomes[order[i]];
             var theme = string.IsNullOrWhiteSpace(b.FloraTheme) ? planetTheme : FloraThemes.Resolve(b.FloraTheme);
             list.Add(new BiomeResolved(ResolveBlock(b.SurfaceBlock), ResolveBlock(b.SubSurfaceBlock),
-                b.FloraDensityMul, b.TreeDensityMul, theme, b.ReliefMul, b.HotZone));
+                b.FloraDensityMul, b.TreeDensityMul, theme, b.ReliefMul, b.HotZone, b.SandSea));
         }
 
         return list;
@@ -160,6 +183,14 @@ public sealed partial class WorldGenerator
     /// the last entry caps the peaks. Regions stay large so per-biome weather covers a meaningful area.</summary>
     private int BiomeIndex(WorldCalibration calib, long seed, int worldX, int worldZ, int count, int surfaceY)
     {
+        if (calib.SandBiome >= 0)
+        {
+            // Generation 9 (#2000): the sand-sea field claims its low columns; the classic mix spreads over the rest.
+            return SandSeaColumnAt(calib, seed, worldX, worldZ, surfaceY)
+                ? calib.SandBiome
+                : calib.DryBiomes[ClassicBiomeIndex(calib, seed, worldX, worldZ, calib.DryBiomes.Length, surfaceY)];
+        }
+
         if (calib.HotBiome >= 0)
         {
             // Generation 8 (Titas): the hot-zone field claims its columns; the classic mix spreads over the other biomes.

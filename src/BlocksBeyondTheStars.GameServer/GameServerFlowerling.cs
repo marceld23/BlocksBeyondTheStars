@@ -58,6 +58,9 @@ public sealed partial class GameServer
         }
 
         var at = new Vector3f(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f);
+        // #2001: every break is also a knock on the ground — a sandworm hears it when it happened on the sand sea.
+        // Heard from the cell under the broken one (the break itself left air): mining into the sand shakes the sand.
+        EmitVibration(new Vector3f(at.X, at.Y - 0.5f, at.Z), VibrationSource.Mining, session.State.PlayerId);
         float range2 = MiningAngerRange * MiningAngerRange;
         foreach (var c in _creatures)
         {

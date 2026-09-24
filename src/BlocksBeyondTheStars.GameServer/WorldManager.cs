@@ -120,6 +120,7 @@ internal sealed class LoadedWorld
     public List<CombatEntity> Bandits { get; } = new();               // lone robbers + camp guards on this world
     public List<BanditCampInstance> BanditCamps { get; } = new();     // 0..N stamped bandit camps
     public List<SpsLabInstance> SpsLabs { get; } = new();
+    public GiantWorldState Giants { get; } = new();                   // the colossus, the sandworms and the thumpers (#1998)
     public SreekmakraState Sreekmakra { get; } = new();                // the one shapeshifter of a Valuma world (2026-09)             // 0..N abandoned SPS research stations (2026-09, Titas)
     public List<MonumentInstance> Monuments { get; } = new();         // 0..N stamped rune monuments
     public List<GameServer.ServerNpc> Npcs { get; } = new();
