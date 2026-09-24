@@ -872,6 +872,14 @@ public sealed partial class GameServer
         Hide = s.Hide,
         AngeredByMining = s.AngeredByMining,
         GiftsWhenCalm = s.GiftsWhenCalm,
+        // Giants (#1998) are never tamed, but the snapshot copies every trait so no future path loses one.
+        GiantHeight = s.GiantHeight,
+        BackFeature = s.BackFeature,
+        LegRatio = s.LegRatio,
+        Mandibles = s.Mandibles,
+        WormLength = s.WormLength,
+        WormGirth = s.WormGirth,
+        Hearing = s.Hearing,
     };
 
     // ---------------------------------------------------------------------------------------------

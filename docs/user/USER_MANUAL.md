@@ -1328,6 +1328,23 @@ separate unlock; admins can still disable it through server world rules.
   trees with varying crown widths, a herd has small and large animals. The variation is cosmetic (a creature's
   size doesn't change its health, damage or loot).
 
+### Giants (the colossus and the sandworm)
+- **A colossus** is a 40–60 block tall four-legged giant. It only lives on **very flat, very light worlds** (the lighter
+  moons of plains, downs and dune types) and even there only on one world in three. Every colossus is different:
+  peaceful ones migrate and graze on treetops, shy ones walk away, territorial ones fight back when hit, aggressive
+  ones stalk you. Before it stomps, a **dark ring** marks the spot — get out of it, or get under a roof or into a
+  cave: a stomp never reaches inside. You bump into its legs; you can fight it (it takes a long time — bring friends).
+- **A sandworm** lives only on **sand-sea worlds** — a planet class (new worlds) where half the surface is a sea of deep
+  sand between rock islands, mountains, canyons, lava and water. It hears you through the sand: walking, mining,
+  drilling, blasting, a hard landing, a speeder. **Sneaking** (crouching) barely makes a sound, and **rock, a landing pad
+  or a floor you built are silent** — only the sand of the sand sea carries a step. When it comes, the sand ripples and
+  rumbles and VEGA warns you: get onto rock. It breaches in an arc, or rears up as a tower and strikes the spot it heard.
+  You can only hit it while it is above the sand.
+- **Thumper** (workshop recipe): place it on sand-sea ground and it pounds the ground every two seconds for a minute
+  and a half — the worm comes for it and swallows it. Use it to lure the worm away from you or to watch it. On rock
+  nothing hears it; mine it back to switch it off.
+- A defeated giant is gone for a few in-game days, then another one comes. Neither ever changes a block.
+
 ### Taming creatures (companions)
 - Craft a **Creature Translator** (`creature_translator`, workshop recipe + blueprint) and some **bait**
   (`forage_bait` / `meat_bait` / `nectar_lure`, hand-crafted). Select the translator and **right-click** a
@@ -1801,6 +1818,7 @@ rejections) appear in the **chat scrollback**, not just the brief HUD toast.
 | `/tpp Player` | Teleport to a player on the body you are on — you land **beside** them, never inside them (#1055) |
 | `/settime day\|night\|…` | Set the world time of day |
 | `/setweather clear\|storm\|…` | Set the world weather |
+| `/giant colossus\|sandworm` | Summon this world's colossus or sandworm near you (a sandworm needs a sand sea) — for testing |
 | `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |
 | `/god` | Toggle invulnerability |
 | `/instant` | Toggle free/instant crafting |

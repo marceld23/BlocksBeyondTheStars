@@ -740,7 +740,10 @@ public sealed partial class GameServer
                 int sx = (int)System.Math.Floor(e.Position.X), sz = (int)System.Math.Floor(e.Position.Z);
                 BroadcastToWorld(new WorldFx
                 {
-                    Kind = "rumble", X = e.Position.X, Y = _generator.SurfaceHeight(_world.Planet, sx, sz) + 1, Z = e.Position.Z,
+                    Kind = "rumble",
+                    X = e.Position.X,
+                    Y = _generator.SurfaceHeight(_world.Planet, sx, sz) + 1,
+                    Z = e.Position.Z,
                     Strength = System.Math.Clamp(1f - d / 120f, 0.25f, 1f),
                 });
             }

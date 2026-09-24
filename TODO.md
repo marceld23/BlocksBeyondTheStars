@@ -24,6 +24,47 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🐛 Giants — a procedural colossus and sandworm on a new sand-sea planet class; the flowerling's face and temper (#2004: #1997–#2002, 2026-09-24, branch feat/giants)
+
+The school club invented creatures as tall as high-rise buildings: a giant four-legged animal and a sandworm that
+lives in a sand sea, reacts to vibrations and surfaces partly or completely. Marcel's decisions: **60 blocks**,
+**procedural**, a **new sand-sea planet class**, **effects only** (no block changes), **players bump into them**, a
+**thumper** lures worms, **defeatable but very tough**, the colossus **only on very flat, very light worlds and very
+rare**, sandworms **only on sand-sea worlds**. Everything is **terrain generation 9** — older worlds are unchanged.
+
+- **✅ The flowerling (#1997).** Its maw, teeth and calm grin sat *inside* the head cubes since #1766 — invisible. The
+  face now comes from `FloralFaceLayout` (Shared, tested): a dark-red open maw with teeth, a held snarl, red flared
+  petals. Its mining grudge was set out to 16 blocks but hunted only within 8 (from 12 blocks it flipped "hostile" and
+  wandered off); now it hunts the whole range, gives up after 15 s instead of 7, runs 40 % faster (still below a walk),
+  wakes when mined beside, and a roused creature now bites at night.
+- **✅ Giant foundation (#1998).** `GameServerGiants`: one-per-world giants outside the spawner, the far prune and the
+  fauna cap, placed 130–210 blocks from a player on foot, a return time in `WorldMetadata.GiantBackAt` after a defeat.
+  Shared, pure: `GiantRules` (world gates, vibration), `ColossusBody` (layout + hit capsules), `SandwormPath` (the
+  breach/rear curve both sides run). Hits aim at the nearest body point; the client gives giants colliders on layer 20
+  (the player bumps into them; ground snap and camera boom ignore it), picks and scans them by collider, scales their
+  LOD with size, and plays the new `WorldFx` message (dust, shake, knock-back). `/giant colossus|sandworm` summons one.
+- **✅ Procedural colossus (#1999).** 40–60 blocks, rolled temperament (passive / skittish / territorial / aggressive),
+  legs, necks and heads, tusks, back (plates, spikes, crystals, a forest), colours; 3000–4500 health; a macro walker on
+  the heightfield that avoids water, steep ground, settlements and bases; telegraphed stomps (a ring, then the foot) —
+  a player under a roof or in a cave is safe. Hosted when the type is very flat (amplitude ≤ 10, only flats/downs/dunes),
+  the world's gravity ≤ 0.70 (the lighter moons), the fauna is not none/authored-only, and a one-in-three roll.
+- **✅ Sand-sea planet class (#2000).** `sand_sea` (min generation 9): a calibrated sea region (`SandSeaShare` 0.5) of
+  broad dunes, lifted above the sea level once it is known (never floods), 24 blocks of sand with a cave shield
+  (no caves, tunnels or caverns under it), rock islands where a butte or inselberg rises; mountains, canyons, mesas,
+  lava and water around it, rolled per world.
+- **✅ Procedural sandworm (#2001).** The fixed archetype (ring segments, mandible petals, tooth rings) with rolled
+  size, girth, length, mandibles, plates, glow, hearing and temper; 2500–4000 health, hittable only above the sand. It
+  hears steps (not sneaking), mining, drills, blasts, hard landings, speeders — **only on sand-sea sand**, so rock, a
+  pad or a floor is safe — comes with a ripple and a rumble, breaches (a warning arc) or rears and strikes. The buried
+  body is drawn inside the terrain, which hides it: **no block ever moves**.
+- **✅ Thumper (#2002).** Workshop recipe; on sand-sea ground it thumps every 2 s for 90 s, the worm comes, rears and
+  swallows it (the block goes, no drop). On rock nothing hears it; mining it back stops it.
+- **⚠ Maintainer:** real sounds (stomp, rumble, roar, breach, thump — the thunder and rumble calls are placeholders),
+  the thumper's icon and block texture (a copy of the radio beacon tile for now). **⚠ Playtest:** a flat moon with a
+  colossus (or `/giant colossus`), a sand-sea world with its worm, the thumper; the flowerling's face and temper.
+- **Follow-up (#2003):** the club's worksheets — an authored sand-sea planet, colossus and sandworm — become data
+  entries (every rolled trait is already a plain species field).
+
 ### 🧱 A building stays the way the players left it — structures are stamped once (#1990, 2026-09-24, branch perf/no-restamp)
 
 Follow-up to #1992. Settlements, cities and factories wrote their whole structure into the world on **every**

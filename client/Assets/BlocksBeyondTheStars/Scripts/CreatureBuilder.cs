@@ -1322,7 +1322,11 @@ namespace BlocksBeyondTheStars.Client
         /// compound collides with the player's capsule without costing a static-collider rebuild every frame.</summary>
         private static void MakeGiantBody(GameObject root)
         {
-            var rb = root.GetComponent<Rigidbody>() ?? root.AddComponent<Rigidbody>();
+            var rb = root.GetComponent<Rigidbody>();
+            if (rb == null)
+            {
+                rb = root.AddComponent<Rigidbody>(); // Unity's null is not C#'s: no ?? on components
+            }
             rb.isKinematic = true;
             rb.useGravity = false;
             foreach (var col in root.GetComponentsInChildren<Collider>(true))

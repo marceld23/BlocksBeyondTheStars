@@ -1629,3 +1629,32 @@ roster and the mission board are built from. That costs ~20 ms for a whole city;
 pass really spends its seconds on is hanging the doors and populating the place, both of which read world
 blocks and pull the footprint's chunks into memory. Measured on a real city save (`Glutweite`, interleaved
 runs of the same copy): ready **7.1 s / 12.9 s** before, **4.2 s / 5.2 s** after.
+
+## 24. Generation 9 — the sand sea and the giants (#2000, #1998–#2002, 2026-09-24)
+
+**The sand-sea planet class.** `sand_sea` (`minTerrainGeneration: 9`) carries two new `PlanetType` fields —
+`SandSeaShare` (0.5) and `SandSeaDepth` (24) — and one biome flag, `Biome.SandSea`. Every other type leaves them at
+their no-op, and nothing reads them below generation 9, so no older world moves.
+
+- **The region.** A torus FBM field (`SandSeaField`, ~260-block basins) whose top `SandSeaShare` quantile is sea. The
+  threshold is measured once per world from the field alone (`SandSeaThreshold`, kept on the wonder profile), so the
+  relief may read it before the calibration exists — the same mechanism as the Titas hot zone, without its circularity.
+- **The relief.** Inside the region `SandSeaBlend` eases the land's relief into broad dunes (`SandDunes`: long crests
+  plus a cross-ripple, 0–6 blocks) over a narrow band at the edge. Outside it the type's own styles — dunes, mountains,
+  canyons, mesas, flats, badlands — and its tags (buttes, inselbergs, volcanic) lay out the rock country as usual.
+- **Never flooded.** Once the sea level is known (never inside the calibration sample), `SandSeaRaise` lifts a sea
+  column that sits at or under the waterline onto a dune floor three blocks above it.
+- **The biome.** The calibration records the sea biome and the dry ones (`SandBiome`, `DryBiomes`, `SandCeiling`);
+  `BiomeIndex` gives the sea biome to a column inside the region whose surface is at most `SandCeiling` (the dune floor
+  plus ten) — a butte or an inselberg rising out of the sea is a **rock island**. `ResolveBiomes` always keeps the sea
+  biome on a sand-sea world, whichever others the per-world roll picked.
+- **The column.** A sea column's topsoil is `SandSeaDepth` blocks of sand, and its cave shield covers the same band
+  (plus three) — the classic caves and the tunnel carver skip it, and a mega-cavern reaching into it is dropped. So
+  nothing ever opens under the sea, and the sandworm's buried body is never seen through a hole.
+- `IsSandSeaAt(planet, x, z)` answers for the server: the worm's habitat, where a vibration carries, where a thumper
+  is heard.
+
+**The giants** live outside the procedural roster (`CreatureGenerator.GenerateColossus` / `GenerateSandworm`, species
+ids `gi_colossus` / `gi_sandworm`) and never touch world generation; `GiantRules` decides which worlds host them —
+the colossus on a very flat type with gravity ≤ 0.70 and a one-in-three roll, sandworms on every sand-sea world. See
+`GameServerGiants` and the TODO entry for the behaviour.

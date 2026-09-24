@@ -303,6 +303,7 @@ public sealed class NetCodecTests
         [259] = typeof(WorldTextureList),
         [260] = typeof(SetToolLookIntent),
         [261] = typeof(PlayerToolLook),
+        [262] = typeof(WorldFx),
 
     };
 
