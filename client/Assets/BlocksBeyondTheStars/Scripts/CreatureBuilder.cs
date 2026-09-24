@@ -840,42 +840,47 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#1760: the flowerling's flower head — eight petal boxes fanned around the head in the belly (petal)
-        /// colour, a yellow disc behind the face, and the mouth: a wide dark grin when calm, a red maw with a row of
-        /// white teeth on the hinged jaw when hostile. Built on top of the standard head, so the eyes, the jaw hinge
-        /// and the blink all keep working.</summary>
+        /// colour, a yellow disc behind the face, and the mouth: a wide dark grin when calm, a red open maw with teeth
+        /// (the lower row on the hinged jaw) when hostile. #1997: the face comes from <see cref="FloralFaceLayout"/>, which
+        /// keeps every part in front of the head — the first version built both faces inside the head cubes, so neither
+        /// mood ever showed. An angry flowerling's petals flare out and flush red.</summary>
         private void AddFloralHead(NetCreature c, float unit, float headScale, Color petalColor)
         {
             float w = unit * 0.9f * headScale, h = unit * 0.85f * headScale, d = unit * 0.8f * headScale, headZ = unit * 0.45f;
+            if (c.Hostile)
+            {
+                petalColor = Color.Lerp(petalColor, new Color(0.86f, 0.12f, 0.12f), 0.6f);
+            }
+
             var petalMat = Lit(petalColor, _petal ?? _hide);
             var discMat = Lit(new Color(0.98f, 0.82f, 0.25f), null);
             AddPartTo(_headPivot, "PetalDisc", new Vector3(0f, h * 0.15f, headZ - d * 0.35f), new Vector3(w * 1.35f, h * 1.35f, d * 0.12f), discMat);
             const int Petals = 8;
+            float flare = c.Hostile ? 1.15f : 1f;
             for (int i = 0; i < Petals; i++)
             {
                 float a = i / (float)Petals * Mathf.PI * 2f;
-                float r = Mathf.Max(w, h) * 0.95f;
+                float r = Mathf.Max(w, h) * 0.95f * flare;
                 var petal = NewPivot(_headPivot, "Petal" + i, new Vector3(Mathf.Cos(a) * r, h * 0.15f + Mathf.Sin(a) * r, headZ - d * 0.4f));
-                petal.localRotation = Quaternion.Euler(0f, 0f, a * Mathf.Rad2Deg);
-                AddPartTo(petal, "PetalBox", Vector3.zero, new Vector3(w * 0.95f, h * 0.5f, d * 0.1f), petalMat);
+                // A calm flower lies flat; an angry one flares its petals forward around the face.
+                petal.localRotation = Quaternion.Euler(0f, 0f, a * Mathf.Rad2Deg) * Quaternion.Euler(c.Hostile ? -24f : 0f, 0f, 0f);
+                AddPartTo(petal, "PetalBox", Vector3.zero, new Vector3(w * 0.95f * flare, h * 0.5f, d * 0.1f), petalMat);
             }
 
-            if (c.Hostile)
+            var grinMat = Lit(new Color(0.12f, 0.08f, 0.10f), null);
+            var mawMat = Lit(new Color(0.55f, 0.08f, 0.10f), null);
+            var toothMat = Lit(new Color(0.97f, 0.96f, 0.90f), null);
+            int n = 0;
+            foreach (var box in FloralFaceLayout.Build(w, h, d, headZ, c.Hostile))
             {
-                var mawMat = Lit(new Color(0.55f, 0.08f, 0.10f), null);
-                var toothMat = Lit(new Color(0.97f, 0.96f, 0.90f), null);
-                AddPartTo(_jawPivot, "Maw", new Vector3(0f, h * 0.16f, d * 0.12f), new Vector3(w * 0.8f, h * 0.22f, d * 0.7f), mawMat);
-                for (int t = 0; t < 4; t++)
+                var mat = box.Part switch
                 {
-                    float tx = Mathf.Lerp(-w * 0.32f, w * 0.32f, t / 3f);
-                    AddPartTo(_jawPivot, "Tooth" + t, new Vector3(tx, h * 0.24f, d * 0.42f), new Vector3(w * 0.1f, h * 0.16f, d * 0.08f), toothMat);
-                }
-            }
-            else
-            {
-                var grinMat = Lit(new Color(0.12f, 0.08f, 0.10f), null);
-                AddPartTo(_headPivot, "Grin", new Vector3(0f, -h * 0.12f, headZ + d * 0.46f), new Vector3(w * 0.72f, h * 0.07f, d * 0.06f), grinMat);
-                AddPartTo(_headPivot, "GrinL", new Vector3(-w * 0.36f, -h * 0.02f, headZ + d * 0.46f), new Vector3(w * 0.08f, h * 0.14f, d * 0.06f), grinMat);
-                AddPartTo(_headPivot, "GrinR", new Vector3(w * 0.36f, -h * 0.02f, headZ + d * 0.46f), new Vector3(w * 0.08f, h * 0.14f, d * 0.06f), grinMat);
+                    FloralFacePart.Maw => mawMat,
+                    FloralFacePart.Tooth => toothMat,
+                    _ => grinMat,
+                };
+                AddPartTo(box.OnJaw ? _jawPivot : _headPivot, box.Part.ToString() + n++,
+                    new Vector3(box.CenterX, box.CenterY, box.CenterZ), new Vector3(box.SizeX, box.SizeY, box.SizeZ), mat);
             }
         }
 

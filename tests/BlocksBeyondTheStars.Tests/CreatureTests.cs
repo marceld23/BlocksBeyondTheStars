@@ -1416,7 +1416,7 @@ public sealed class CreatureTests : IDisposable
     /// <summary>A flower-fields world of generation 5 with the player standing on cleared ground at (x, z) and a
     /// flowerling a few blocks away. Returns the creature id and the player's feet Y.</summary>
     private (SvGameServer Server, SqliteWorldRepository Repo, string Creature, int FeetY, BlocksBeyondTheStars.GameServer.PlayerSession Player)
-        FlowerlingScene()
+        FlowerlingScene(int along = 3)
     {
         var server = Started("flower_fields", out var repo, c => c.World.TerrainGeneration = 5);
         int x = 24, z = 24;
@@ -1428,19 +1428,106 @@ public sealed class CreatureTests : IDisposable
 
         // Clear a box of air over the ground (the flower fields are dense, and a flower in the sightline would
         // be a test of the flora, not of the rule).
-        for (int dx = -3; dx <= 6; dx++)
+        // #1997: a flat grass strip out to the flowerling, so a longer approach is a test of the rule, not the relief.
+        var grass = _content.GetBlock("grass")!.NumericId;
+        for (int dx = -3; dx <= System.Math.Max(6, along + 3); dx++)
             for (int dz = -3; dz <= 6; dz++)
+            {
                 for (int dy = 1; dy <= 4; dy++)
                 {
                     server.World.SetBlock(new Vector3i(x + dx, surface + dy, z + dz), BlockId.Air);
                 }
 
+                if (along > 3)
+                {
+                    server.World.SetBlock(new Vector3i(x + dx, surface, z + dz), grass);
+                }
+            }
+
         var p = server.AddLocalPlayer("Justus");
         p.State.AboardShip = false;
         p.State.Position = new Vector3f(x + 0.5f, surface + 1, z + 0.5f);
         p.State.Inventory.SetSlot(0, new ItemStack("basic_drill", 1));
-        string id = server.SpawnCreatureAtForTest(new Vector3f(x + 3.5f, surface + 1, z + 3.5f), "au_flowerling");
+        var at = along > 3 ? new Vector3f(x + along + 0.5f, surface + 1, z + 0.5f) : new Vector3f(x + 3.5f, surface + 1, z + 3.5f);
+        string id = server.SpawnCreatureAtForTest(at, "au_flowerling");
         return (server, repo, id, surface + 1, p);
+    }
+
+    [Fact]
+    public void Flowerling_HuntsAMiner_AcrossItsWholeAngerRange()
+    {
+        // #1997: angered from 12 blocks it used to read "hostile" and wander off (it only hunted within 8) — now it comes.
+        var (server, repo, id, feetY, p) = FlowerlingScene(along: 12);
+        using (repo)
+        {
+            server.SetLocalDayFractionForTest(0.5, 24f); // noon — it is awake
+            var stone = new Vector3i(23, feetY, 24);
+            server.World.SetBlock(stone, _content.GetBlock("stone")!.NumericId);
+            server.MineBlock("Justus", stone.X, stone.Y, stone.Z);
+            Assert.True(server.ProvokeTimerForTest(id) > 0.0, "the flowerling did not mind the mining");
+
+            float before = p.State.Health;
+            for (int i = 0; i < 48; i++)
+            {
+                p.State.Position = new Vector3f(24.5f, feetY, 24.5f);
+                server.TickForTest(0.25);
+            }
+
+            var c = server.NetCreatureForTest(id);
+            float dist = (float)System.Math.Sqrt((c.X - 24.5f) * (c.X - 24.5f) + (c.Z - 24.5f) * (c.Z - 24.5f));
+            Assert.True(dist < 4f, $"the angry flowerling stayed {dist:0.0} blocks away");
+            Assert.True(p.State.Health < before, "the angry flowerling never bit");
+        }
+    }
+
+    [Fact]
+    public void Flowerling_MiningBesideItWakesIt_AndItBitesAtNight()
+    {
+        // #1997: at night it slept through its own grudge (and a roused hunter never bit after dark).
+        var (server, repo, id, feetY, p) = FlowerlingScene();
+        using (repo)
+        {
+            server.SetLocalDayFractionForTest(0.0, 24f); // midnight — a diurnal flowerling sleeps
+            server.TickForTest(0.25);
+            Assert.True(server.NetCreatureForTest(id).Asleep, "the flowerling should be asleep at midnight");
+
+            var stone = new Vector3i(25, feetY, 24);
+            server.World.SetBlock(stone, _content.GetBlock("stone")!.NumericId);
+            server.MineBlock("Justus", stone.X, stone.Y, stone.Z);
+            server.TickForTest(0.25);
+            Assert.False(server.NetCreatureForTest(id).Asleep, "mining right beside it did not wake it");
+
+            float before = p.State.Health;
+            for (int i = 0; i < 24; i++)
+            {
+                p.State.Position = new Vector3f(24.5f, feetY, 24.5f);
+                server.TickForTest(0.25);
+            }
+
+            Assert.True(p.State.Health < before, "the woken flowerling never bit");
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FloralFace_EveryPartStandsInFrontOfTheHead(bool hostile)
+    {
+        // #1997: the first face was built inside the head cubes (the maw, the teeth) and 0.01 d behind the face (the grin).
+        foreach (float scale in new[] { 0.75f, 1f, 1.4f })
+        {
+            float unit = 0.5f * 1.6f;
+            float w = unit * 0.9f * scale, h = unit * 0.85f * scale, d = unit * 0.8f * scale, headZ = unit * 0.45f;
+            var boxes = FloralFaceLayout.Build(w, h, d, headZ, hostile);
+            Assert.NotEmpty(boxes);
+            Assert.Contains(boxes, b => b.Part == (hostile ? FloralFacePart.Maw : FloralFacePart.Grin));
+            float front = FloralFaceLayout.FaceFrontZ(d, headZ);
+            foreach (var b in boxes)
+            {
+                Assert.True(FloralFaceLayout.FrontZInHead(b, h, d, headZ) > front + 1e-4f,
+                    $"{b.Part} (jaw={b.OnJaw}) ends at {FloralFaceLayout.FrontZInHead(b, h, d, headZ):0.000}, the face is at {front:0.000}");
+            }
+        }
     }
 
     [Fact]

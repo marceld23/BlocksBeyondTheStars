@@ -140,6 +140,7 @@ namespace BlocksBeyondTheStars.Client
 
         // Per-temperament idle head gestures.
         private bool _hostile;
+        private bool _snarls;      // #1997: an angry flowerling holds its jaw open — the maw has to show
         private bool _asleep;
         private Idle _idleKind = Idle.Breathe;
         private float _gestureTimer;   // counts down to the next gesture
@@ -178,6 +179,7 @@ namespace BlocksBeyondTheStars.Client
 
             _skyGlider = _rig.SkyGlider;
             _ray = string.Equals(_rig.BodyPlan, "Ray", System.StringComparison.OrdinalIgnoreCase);
+            _snarls = _rig.Hostile && string.Equals(_rig.BodyPlan, "Floral", System.StringComparison.OrdinalIgnoreCase);
             _eyelids = _rig.Eyelids ?? System.Array.Empty<Transform>();
             _ears = _rig.Ears ?? System.Array.Empty<Transform>();
             _earRest = new Quaternion[_ears.Length];
@@ -884,6 +886,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float slack = _asleep ? 5f + Mathf.Sin(t * 0.6f) * 3f : 0f;
+            if (_snarls && !_asleep)
+            {
+                slack = FloralFaceLayout.SnarlDeg + Mathf.Sin(t * 2.3f) * 2f; // a held snarl with a faint tremble
+            }
             for (int i = 0; i < _jaws.Length; i++)
             {
                 if (_jaws[i] == null)

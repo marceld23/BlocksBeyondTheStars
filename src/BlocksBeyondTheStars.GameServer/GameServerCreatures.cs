@@ -270,7 +270,9 @@ public sealed partial class GameServer
 
             // Hostile species attack; so do provoked (territorial) creatures fighting back.
             bool aggressiveNow = sp.Hostile || creature.ProvokeTimer > 0;
-            if (!aggressiveNow || !SpeciesActive(sp, creature.Position))
+            // #1997: a roused sleeper (hit, or woken by mining beside it) hunts per its temperament — and now bites too;
+            // the day/night gate alone left a woken hunter chasing the player all night without ever landing a bite.
+            if (!aggressiveNow || (!SpeciesActive(sp, creature.Position) && creature.AwakeOverrideTimer <= 0))
             {
                 continue;
             }
@@ -882,6 +884,13 @@ public sealed partial class GameServer
             bool hunting = SreekmakraHunting(creature); // 2026-09: the shapeshifter hunts in any shape
             bool aggressor = hunting || temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
             float aggro = CreatureAggroRange + System.Math.Max(0f, sp.Size - 2f);
+            // #1997: a mining grudge reaches as far as the anger does — it was set out to 16 blocks but only hunted
+            // within 8, so a flowerling angered from 12 blocks flipped to "hostile" and wandered off.
+            bool miningGrudge = sp.AngeredByMining && creature.ProvokeTimer > 0;
+            if (miningGrudge)
+            {
+                aggro = System.Math.Max(aggro, MiningAngerRange);
+            }
             if (creature.GiveUpTimer > 0)
             {
                 creature.GiveUpTimer = System.Math.Max(0, creature.GiveUpTimer - dt);
@@ -893,7 +902,7 @@ public sealed partial class GameServer
                 // off rather than only stopping the bite.
                 bool sees = HasLineOfSight(creature.Position, np);
                 creature.ChaseTimer += dt * (sees ? 1.0 : CreatureBlindChaseGiveUpRate);
-                if (creature.ChaseTimer >= CreatureChaseGiveUpSeconds)
+                if (creature.ChaseTimer >= (miningGrudge ? MiningGrudgeChaseSeconds : CreatureChaseGiveUpSeconds))
                 {
                     creature.GiveUpTimer = CreatureGiveUpCooldownSeconds;
                     creature.ChaseTimer = 0;
@@ -905,6 +914,12 @@ public sealed partial class GameServer
             }
 
             var profile = ProfileFor(creature.SpeciesId);
+            if (miningGrudge)
+            {
+                profile.CruiseSpeed *= MiningGrudgeSpeedFactor; // #1997: an angry flowerling means it (still slower than a walk)
+                profile.BurstSpeed *= MiningGrudgeSpeedFactor;
+            }
+
             if (hunting)
             {
                 profile.CruiseSpeed *= SreekmakraSpeedFactor; // the shape's own speed ×1.5 (2026-09)

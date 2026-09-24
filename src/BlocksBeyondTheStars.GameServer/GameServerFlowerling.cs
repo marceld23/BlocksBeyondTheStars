@@ -30,6 +30,9 @@ public sealed partial class GameServer
 {
     private const float MiningAngerRange = 16f;
     private const double MiningGrudgeSeconds = 60.0;
+    private const float MiningWakeRange = 8f;           // #1997: mining this close wakes a sleeping flowerling
+    private const double MiningGrudgeChaseSeconds = 15.0; // #1997: an angry flowerling chases twice as long as a hunter
+    private const float MiningGrudgeSpeedFactor = 1.4f;  // #1997: …and 40 % faster (a burst of ~4.7, a walk is 6)
     private const double CalmSecondsForGift = 120.0;
     private const float GiftRange = 3f;
     private const double GiftCooldownSeconds = 45.0;
@@ -63,12 +66,30 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (WrapDistSq(c.Position, at) > range2 || !HasLineOfSight(c.Position, at))
+            double distSq = WrapDistSq(c.Position, at);
+            if (distSq > range2)
             {
-                continue; // it did not see that
+                continue;
+            }
+
+            // #1997: the noise of mining right beside it wakes a sleeping flowerling (it used to sleep through its own
+            // grudge, which then ran out by morning); awake it stays for as long as the grudge lasts.
+            bool close = distSq <= MiningWakeRange * MiningWakeRange;
+            if (!HasLineOfSight(c.Position, at))
+            {
+                if (close)
+                {
+                    c.AwakeOverrideTimer = System.Math.Max(c.AwakeOverrideTimer, CreatureWakeSeconds);
+                }
+
+                continue; // it heard it but did not see who
             }
 
             c.ProvokeTimer = System.Math.Max(c.ProvokeTimer, MiningGrudgeSeconds);
+            if (close)
+            {
+                c.AwakeOverrideTimer = System.Math.Max(c.AwakeOverrideTimer, MiningGrudgeSeconds);
+            }
         }
     }
 
