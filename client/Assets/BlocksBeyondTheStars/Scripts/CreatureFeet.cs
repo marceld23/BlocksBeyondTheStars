@@ -38,6 +38,8 @@ namespace BlocksBeyondTheStars.Client
         {
             public bool Valid;      // has a target at all
             public bool Planted;    // false = mid-swing
+            public bool Forced;     // #1999: a stomp the server announced — the planner leaves it alone until it lands
+            public float Lift;      // this swing's arc height, as a fraction of the stand height
             public Vector3 Target;  // scene space, where the sole sits
             public Vector3 SwingFrom;
             public float SwingT;
@@ -47,6 +49,11 @@ namespace BlocksBeyondTheStars.Client
         private LegRig[] _legs = System.Array.Empty<LegRig>();
         private Foot[] _feet = System.Array.Empty<Foot>();
         private GroundProbe _probe;
+        private float _maxSwing = MaxSwingSeconds;
+
+        /// <summary>#1999: raised when a swinging foot comes down (scene position) — a giant's footfall throws dust and
+        /// shakes the ground. Null for ordinary creatures.</summary>
+        public System.Action<Vector3> FootPlanted;
         private Vector3 _lastRoot;
         private bool _hasRoot;
         private float _standHeight = 1f;
@@ -68,6 +75,26 @@ namespace BlocksBeyondTheStars.Client
             _feet = new Foot[_legs.Length];
             _probe = probe;
             _standHeight = Mathf.Max(0.05f, legLength * 0.92f); // a standing leg keeps a slight bend
+            // #1999: a 30-block leg cannot swing in 0.6 s — the longest swing grows with the leg.
+            _maxSwing = Mathf.Max(MaxSwingSeconds, legLength * 0.08f);
+        }
+
+        /// <summary>#1999: a stomp — the foot lifts high and comes down on <paramref name="target"/> after
+        /// <paramref name="duration"/> seconds, whatever the gait says.</summary>
+        public void ForceStep(int index, Vector3 target, float duration, float liftFraction)
+        {
+            if (index < 0 || index >= _feet.Length || !_feet[index].Valid)
+            {
+                return;
+            }
+
+            _feet[index].SwingFrom = FootPosition(index);
+            _feet[index].Target = Ground(target);
+            _feet[index].Planted = false;
+            _feet[index].Forced = true;
+            _feet[index].SwingT = 0f;
+            _feet[index].SwingDur = Mathf.Max(0.2f, duration);
+            _feet[index].Lift = liftFraction;
         }
 
         /// <summary>Drops every foot, so the next frame re-plants from scratch. Used when the rig comes back
@@ -116,8 +143,8 @@ namespace BlocksBeyondTheStars.Client
 
             float duty = CreatureGait.DutyFactor(gait);
             float swingDur = cycleRate > 0.05f
-                ? Mathf.Clamp((1f - duty) / cycleRate, 0.08f, MaxSwingSeconds)
-                : MaxSwingSeconds;
+                ? Mathf.Clamp((1f - duty) / cycleRate, 0.08f, _maxSwing)
+                : _maxSwing;
             float slipLimit = Mathf.Max(0.05f, stride * SlipToStep);
             int swinging = CountSwinging();
             int maxSwinging = Mathf.Max(1, _legs.Length <= 4 ? 2 : _legs.Length / 2);
@@ -159,6 +186,7 @@ namespace BlocksBeyondTheStars.Client
                         _feet[i].Planted = false;
                         _feet[i].SwingT = 0f;
                         _feet[i].SwingDur = swingDur;
+                        _feet[i].Lift = LiftFraction;
                         swinging++;
                     }
                     else if (drift.magnitude > slipLimit * 3f)
@@ -173,7 +201,9 @@ namespace BlocksBeyondTheStars.Client
                     if (_feet[i].SwingT >= _feet[i].SwingDur)
                     {
                         _feet[i].Planted = true;
+                        _feet[i].Forced = false;
                         _feet[i].SwingT = 0f;
+                        FootPlanted?.Invoke(_feet[i].Target);
                     }
                 }
             }
@@ -193,7 +223,7 @@ namespace BlocksBeyondTheStars.Client
             float s = Mathf.Clamp01(foot.SwingT / foot.SwingDur);
             float eased = s * s * (3f - 2f * s);
             var p = Vector3.Lerp(foot.SwingFrom, foot.Target, eased);
-            p.y += Mathf.Sin(s * Mathf.PI) * _standHeight * LiftFraction;
+            p.y += Mathf.Sin(s * Mathf.PI) * _standHeight * (foot.Lift > 0f ? foot.Lift : LiftFraction);
             return p;
         }
 

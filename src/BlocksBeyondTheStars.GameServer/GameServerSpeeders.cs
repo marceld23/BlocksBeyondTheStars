@@ -718,6 +718,8 @@ public sealed partial class GameServer
             return;
         }
 
+        EmitVibration(p.Position, Shared.Definitions.VibrationSource.SpeederCrash, p.PlayerId); // #2001: a crash on the sand is heard far
+
         float damage = Math.Min(SpeederImpactDamageCap, over * SpeederImpactDamagePerSpeed);
         if (damage <= 0f)
         {

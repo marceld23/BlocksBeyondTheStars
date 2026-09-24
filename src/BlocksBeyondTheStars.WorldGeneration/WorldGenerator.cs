@@ -506,6 +506,10 @@ public sealed partial class WorldGenerator
         // School club wave 3 (#1762, generation 5): the gaming planet's mountain-sized monitor, keyboard and mouse.
         public bool GamingLandmarks;
 
+        // Terrain generation 9 (#2000): the sand sea — its region field's quantile, measured once per world.
+        public bool SandSea;
+        public double SandThreshold = double.MaxValue;
+
         /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
         public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
@@ -1036,6 +1040,12 @@ public sealed partial class WorldGenerator
                 w.HybridEligible = _terrainGeneration >= 1 && w.Styles.Length != 0
                     ? (w.Styles.Length > 1 || StyleHybridEligible(w.Styles[0]))
                     : StyleHybridEligible(w.Style);
+                if (SandSeaWorld(planet))
+                {
+                    w.SandSea = true; // #2000 — a field quantile only, so the relief can read it before the calibration
+                    w.SandThreshold = SandSeaThreshold(planet, seed);
+                }
+
                 ulong uh = Noise.Hash(seed ^ 0x57FADE, 2, 4, 8);
                 w.HybridA = 0.34 + (uh & 0xFF) / 255.0 * 0.08;
                 w.HybridB = w.HybridA + 0.08;
@@ -1108,6 +1118,12 @@ public sealed partial class WorldGenerator
         if (overlay != 0.0)
         {
             h += (int)System.Math.Round(overlay);
+        }
+
+        // Generation 9 (#2000): a sand sea never floods — once the sea is known its low columns ride just above it.
+        if (w.SandSea && !_calibrating)
+        {
+            h = SandSeaRaise(planet, w, worldX, worldZ, h);
         }
 
         return h > MaxNaturalSurfaceY ? MaxNaturalSurfaceY : h;

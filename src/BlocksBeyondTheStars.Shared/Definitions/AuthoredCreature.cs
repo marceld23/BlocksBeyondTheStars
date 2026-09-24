@@ -72,4 +72,15 @@ public sealed class AuthoredCreature
 
     /// <summary>Damian's rule (#1760): a calm individual near a player who has not mined for a while spills a gift.</summary>
     public bool GiftsWhenCalm { get; set; }
+
+    // --- Giants (#1998, generation 9) — the traits the procedural colossus / sandworm roll, so the school club's
+    // concrete giants (#2003) become data entries. Zero/empty on every other species. ---
+    public float GiantHeight { get; set; }
+    public string BackFeature { get; set; } = string.Empty;
+    public float LegRatio { get; set; } = 1f;
+    public int NeckLength { get; set; }
+    public int Mandibles { get; set; }
+    public float WormLength { get; set; }
+    public float WormGirth { get; set; }
+    public float Hearing { get; set; }
 }

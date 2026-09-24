@@ -30,6 +30,11 @@ public sealed class Biome
     /// ponds, never snow or ice — laid out by <see cref="PlanetType.HotZoneShare"/> instead of the altitude mix.</summary>
     public bool HotZone { get; set; }
 
+    /// <summary>The sand sea (generation 9, #2000): this biome is the deep-sand sea of its world, laid out by
+    /// <see cref="PlanetType.SandSeaShare"/> instead of the altitude mix — flat dunes, sand to
+    /// <see cref="PlanetType.SandSeaDepth"/>, no caves under it; the sandworm's habitat.</summary>
+    public bool SandSea { get; set; }
+
     /// <summary>The air temperature of this biome in °C (a hot zone's +100), or null to use the planet's.</summary>
     public double? Temperature { get; set; }
 }
@@ -370,4 +375,12 @@ public sealed class PlanetType
 
     /// <summary>Peaceful fauna (Valuma): every procedural species is passive or skittish and bites for nothing.</summary>
     public bool PeacefulFauna { get; set; }
+
+    // --- Generation 9 (2026-09, #2000): the sand-sea planet class. No-op defaults; read on generation-9 worlds only. ---
+
+    /// <summary>Share of the surface that is sand sea (≈0.5) — needs one <see cref="Biome.SandSea"/> biome; 0 = none.</summary>
+    public double SandSeaShare { get; set; }
+
+    /// <summary>How deep the sand of the sea reaches (blocks); the cave shield covers the same band.</summary>
+    public int SandSeaDepth { get; set; } = 24;
 }

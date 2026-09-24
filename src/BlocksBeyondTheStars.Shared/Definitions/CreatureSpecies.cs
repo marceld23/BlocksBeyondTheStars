@@ -50,6 +50,8 @@ public enum CreatureBodyPlan
     Titan,    // elephant/giraffe-scale land megafauna: pillar legs, neck/trunk, tusks (#638)
     Floral,   // a walking flower: two legs, a petal ring around the head, a grin that becomes a maw (#1760, authored only)
     Ray,      // a flat disc that flies on wing waves — under water, or hovering through the sky (#1778, generation 6)
+    Colossus, // a 40–60 block quadruped on very flat, light worlds (#1999, generation 9) — a one-per-world giant
+    Sandworm, // the sand sea's giant worm (#2001, generation 9): hears vibrations, breaches through the sand
 }
 
 /// <summary>
@@ -202,6 +204,33 @@ public sealed class CreatureSpecies
 
     /// <summary>Spills a small gift to a nearby player who has not mined for a while (the flowerling).</summary>
     public bool GiftsWhenCalm { get; set; }
+
+    // --- Giants (#1998, generation 9): the colossus and the sandworm. Zero/empty on every other species. ---
+
+    /// <summary>A giant's height in blocks (the colossus to the top of its head, the sandworm how high it rears);
+    /// 0 = not a giant. <see cref="Size"/> is this ÷ 10, so the scan and the voice keep their scale.</summary>
+    public float GiantHeight { get; set; }
+
+    /// <summary>Colossus: what grows on its back — "plates", "spikes", "crystals", "forest" or empty.</summary>
+    public string BackFeature { get; set; } = string.Empty;
+
+    /// <summary>Colossus: leg length relative to the torso (0.8 stocky … 1.3 long-legged).</summary>
+    public float LegRatio { get; set; } = 1f;
+
+    /// <summary>Sandworm: how many mandible petals its mouth opens into (3–5).</summary>
+    public int Mandibles { get; set; }
+
+    /// <summary>Sandworm: body length in blocks.</summary>
+    public float WormLength { get; set; }
+
+    /// <summary>Sandworm: body diameter in blocks.</summary>
+    public float WormGirth { get; set; }
+
+    /// <summary>Sandworm: how far it hears a vibration (blocks).</summary>
+    public float Hearing { get; set; }
+
+    /// <summary>True for the one-per-world giants (#1998): they never come from the spawner and move by their own rules.</summary>
+    public bool IsGiant => BodyPlan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm;
 
     /// <summary>Only Aggressive/PackHunter creatures roam and deal proximity damage.</summary>
     public bool Hostile => Temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;

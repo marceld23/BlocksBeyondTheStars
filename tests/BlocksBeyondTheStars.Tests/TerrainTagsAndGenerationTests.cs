@@ -70,8 +70,9 @@ public sealed class TerrainTagsAndGenerationTests
         gen.SetLavaCoreVolcanoes(true); // the creation-time default — the gates below are independent of it
         // The eight data-only types of #1649 exist BECAUSE the tags decide (an ash-sea world routes lava rivers
         // without carrying the lava/ashen key) — the frozen predicates only describe the classic types.
-        // The city world (#1793) is tag-driven the same way: a sand desert that carries buttes and the volcanic family.
-        var gen1Types = new HashSet<string> { "red_desert", "boreal", "archipelago", "glacier", "meadowlands", "ashen_ocean", "dust_bowl", "frozen_ocean", "gds_desert" };
+        // The city world (#1793) is tag-driven the same way: a sand desert that carries buttes and the volcanic family —
+        // and so is the sand sea (#2000): its lava and its rock islands come from the volcanic and butte tags.
+        var gen1Types = new HashSet<string> { "red_desert", "boreal", "archipelago", "glacier", "meadowlands", "ashen_ocean", "dust_bowl", "frozen_ocean", "gds_desert", "sand_sea" };
         foreach (var planet in Content.Planets.Values.Where(p => !gen1Types.Contains(p.Key)))
         {
             var gates = gen.WonderGatesForTest(planet);

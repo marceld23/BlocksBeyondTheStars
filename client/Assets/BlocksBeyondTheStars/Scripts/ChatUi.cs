@@ -820,6 +820,11 @@ namespace BlocksBeyondTheStars.Client
                     net.SendAdminCommand("set_weather", stringArg: p[1]);
                     return true;
 
+                case "/giant": // #1998: summon this world's colossus or sandworm (testing)
+                    if (p.Length < 2) { LocalLine(L("ui.cmd.usage_giant")); return true; }
+                    net.SendAdminCommand("summon_giant", stringArg: p[1]);
+                    return true;
+
                 case "/fly": net.SendAdminCommand("fly"); return true;
                 case "/god": net.SendAdminCommand("godmode"); return true;
                 case "/instant": net.SendAdminCommand("instant_build"); return true;

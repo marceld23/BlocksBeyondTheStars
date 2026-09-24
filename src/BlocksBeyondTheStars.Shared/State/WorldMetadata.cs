@@ -179,6 +179,9 @@ public sealed class WorldMetadata
     /// <summary>When the next Sreekmakra may appear per world (2026-09, Valuma): location id → unix seconds. Set when one is
     /// defeated (a few in-game days) or fled (a day).</summary>
     public System.Collections.Generic.Dictionary<string, long> SreekmakraBackAt { get; set; } = new();
+
+    /// <summary>When a defeated giant comes back (#1998): "locationId|colossus" / "locationId|sandworm0" → unix seconds.</summary>
+    public System.Collections.Generic.Dictionary<string, long> GiantBackAt { get; set; } = new();
 }
 
 /// <summary>One interview a player gave a reporter (2026-09).</summary>

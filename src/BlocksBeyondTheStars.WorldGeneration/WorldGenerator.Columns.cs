@@ -974,6 +974,7 @@ public sealed partial class WorldGenerator
         // Per-column biome → surface/sub-surface blocks (single-biome worlds use index 0).
         int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, surfaceY);
         var biome = biomes[biomeIndex];
+        bool sandSeaHere = calib.SandBiome >= 0 && biomeIndex == calib.SandBiome; // generation 9 (#2000)
         var surfaceId = biome.Surface;
         var subSurfaceId = biome.Sub;
 
@@ -1150,6 +1151,28 @@ public sealed partial class WorldGenerator
         bool cavernHere = cavernWorld
             && TryGetCavernSpan(planet, worldX, worldZ, out cavLo, out cavHi, out cavLakeY);
 
+        // Generation 9 (#2000): nothing opens under the sand sea — its deep sand band is shielded from every carver
+        // (caves, the worm tunnels below, and the mega-caverns), so the sandworm's buried body never shows through.
+        if (sandSeaHere)
+        {
+            int seaLo = surfaceY - System.Math.Max(1, planet.SandSeaDepth) - 3, seaHi = surfaceY + 1;
+            if (shieldHi >= shieldLo)
+            {
+                shieldLo = System.Math.Min(shieldLo, seaLo);
+                shieldHi = System.Math.Max(shieldHi, seaHi);
+            }
+            else
+            {
+                shieldLo = seaLo;
+                shieldHi = seaHi;
+            }
+
+            if (cavernHere && cavHi >= seaLo)
+            {
+                cavernHere = false;
+            }
+        }
+
         // Tunnel carver (#708): this column's worm-carve y-spans (empty on most columns). An underground river's
         // passage (generation 3) is appended as one more span: the same carve, one more source.
         int tunnelCount = tunnelWorld ? TunnelSpans(planet, worldX, worldZ, tunnelSpans) : 0;
@@ -1230,6 +1253,10 @@ public sealed partial class WorldGenerator
         // Non-uniform topsoil: this column's surface/sub-surface layer thickness (varies per column, not a
         // flat band) so the stone/ore boundary undulates and reaches close to the surface in the thin spots.
         int effSurfaceDepth = VariedSurfaceDepth(planet, seed, worldX, worldZ) + coverDepth - 1; // the blanket sits on top
+        if (sandSeaHere)
+        {
+            effSurfaceDepth = System.Math.Max(effSurfaceDepth, planet.SandSeaDepth); // #2000: the sea is deep sand
+        }
 
         return new ColumnProfile
         {

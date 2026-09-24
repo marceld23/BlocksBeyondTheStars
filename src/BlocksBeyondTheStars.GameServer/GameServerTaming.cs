@@ -769,9 +769,9 @@ public sealed partial class GameServer
         double bestSq = range * range;
         foreach (var c in _creatures)
         {
-            if (c.IsCompanion)
+            if (c.IsCompanion || c.IsGiant)
             {
-                continue;
+                continue; // #1998: a giant cannot be tamed
             }
 
             double d = WrapDistSq(at, c.Position);
@@ -872,6 +872,14 @@ public sealed partial class GameServer
         Hide = s.Hide,
         AngeredByMining = s.AngeredByMining,
         GiftsWhenCalm = s.GiftsWhenCalm,
+        // Giants (#1998) are never tamed, but the snapshot copies every trait so no future path loses one.
+        GiantHeight = s.GiantHeight,
+        BackFeature = s.BackFeature,
+        LegRatio = s.LegRatio,
+        Mandibles = s.Mandibles,
+        WormLength = s.WormLength,
+        WormGirth = s.WormGirth,
+        Hearing = s.Hearing,
     };
 
     // ---------------------------------------------------------------------------------------------

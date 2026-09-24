@@ -180,8 +180,14 @@ public sealed class WorldDescription
 
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
-    /// planet types).</summary>
-    public const int CurrentTerrainGeneration = 8;
+    /// planet types, 2026-09 the giants + the sand-sea planet class).</summary>
+    public const int CurrentTerrainGeneration = 9;
+
+    /// <summary>The generation of the giants (#2004): the sand-sea planet class (a calibrated sea region of deep sand with
+    /// no caves under it), the procedural colossus on very flat, light worlds and the sandworm of the sand seas. Every
+    /// field of this wave has a classic no-op default and every giant lives outside the procedural roster, so an older
+    /// world's terrain and fauna stay bit-for-bit what they were.</summary>
+    public const int GiantsGeneration = 9;
 
     /// <summary>The generation of the city worlds (#1793): the G.D.S. lava desert with its one walled city. A
     /// data-only planet type gated on this generation, so no older galaxy ever rolls it; the composer itself

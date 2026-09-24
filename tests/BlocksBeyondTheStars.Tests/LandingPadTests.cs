@@ -358,8 +358,10 @@ public sealed class LandingPadTests : IDisposable
     public void LavaWorld_NewWorlds_RaiseABasaltIsletOverLava_NeverAShaftInIt()
     {
         // Generation 8: the dry test reads every lava body, and a pad still standing in lava after the nudge stands on
-        // a basalt islet three blocks over the melt — never the shaft with molten walls Justus landed in.
-        var (server, repo) = NewLavaServer("lava8", LavaIsletSeed, BlocksBeyondTheStars.Shared.World.WorldDescription.CurrentTerrainGeneration);
+        // a basalt islet three blocks over the melt — never the shaft with molten walls Justus landed in. Pinned to the
+        // generation that introduced it (every later one takes the same path): the seed is chosen for that galaxy, and
+        // a later generation's new planet types (generation 9's sand sea) re-roll which world the seed lands on.
+        var (server, repo) = NewLavaServer("lava8", LavaIsletSeed, BlocksBeyondTheStars.Shared.World.WorldDescription.LavaPadsGeneration);
         using (repo)
         {
             server.AddLocalPlayer("Pilot");

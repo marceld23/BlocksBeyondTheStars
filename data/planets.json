@@ -900,6 +900,32 @@
     ]
   },
   {
+    "key": "sand_sea", "minTerrainGeneration": 9, "floraTheme": "desert", "baseTemperature": 36, "nameKey": "planet.sand_sea.name", "atmosphereHeight": 200, "cloudColor": 15263976, "cloudDensity": 0.2,
+    "terrainTags": ["buttes", "inselbergs", "wind", "volcanic"],
+    "baseHeight": 62, "amplitude": 14, "terrainScale": 58.0, "terrainStyle": "dunes",
+    "terrainStyles": ["dunes", "mountains", "canyons", "mesa", "flats", "badlands"],
+    "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.8, "dataCacheRarity": 0.0012,
+    "weather": "dynamic", "stormChance": 0.2, "dayLengthSeconds": 640, "worldRadius": 950, "floraDensity": 0.04, "treeDensity": 0.0, "creatureAbundance": "few", "atmosphere": "breathable", "spawnWeight": 6, "waterAbundance": 0.15,
+    "weatherVolatility": 1.1, "seasonAmplitude": 0.2,
+    "weatherEvents": { "gale": 2.4, "heatwave": 2.0, "fog": 0.1, "ground_fog": 0.2, "drizzle": 0.2 },
+    "sandSeaShare": 0.5, "sandSeaDepth": 24,
+    "biomes": [
+      { "surfaceBlock": "sand",      "subSurfaceBlock": "sand", "sandSea": true, "floraDensityMul": 0.25, "treeDensityMul": 0.0 },
+      { "surfaceBlock": "sandstone", "subSurfaceBlock": "sandstone", "reliefMul": 1.3 },
+      { "surfaceBlock": "stone",     "subSurfaceBlock": "stone", "reliefMul": 1.5 },
+      { "surfaceBlock": "basalt",    "subSurfaceBlock": "basalt", "reliefMul": 1.2 },
+      { "surfaceBlock": "sand",      "subSurfaceBlock": "sandstone" }
+    ],
+    "ores": [
+      { "block": "iron_ore", "rarity": 0.06, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 6, "maxDepth": 2048 },
+      { "block": "gold_ore", "rarity": 0.02, "minDepth": 20, "maxDepth": 2048 },
+      { "block": "silicate", "rarity": 0.08, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "sulfur_ore", "rarity": 0.03, "minDepth": 4, "maxDepth": 2048 }
+    ]
+  },
+  {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,

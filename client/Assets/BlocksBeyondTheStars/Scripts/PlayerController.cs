@@ -319,6 +319,27 @@ namespace BlocksBeyondTheStars.Client
         // Camera feel (first-person head-bob, FOV kick, landing shake).
         private float _bobPhase;
         private float _camShake;
+
+        /// <summary>#1998: a push from a stomp or a sandworm strike (horizontal, blocks/s), easing off.</summary>
+        private Vector3 _knock;
+
+        /// <summary>#1998: every environment raycast of the player (ground snap, spawn search, headroom, camera boom)
+        /// ignores the giants' colliders — they block the capsule, but nobody should "stand" on a foot or snap onto a leg.</summary>
+        private static int WorldRayMask => ~(1 << CreatureView.GiantLayer);
+
+        /// <summary>#1998: shakes the camera (0..1), e.g. a giant's footfall or a sandworm breaching nearby. The camera-
+        /// motion comfort setting still scales it away.</summary>
+        public void AddCameraShake(float amount) => _camShake = Mathf.Max(_camShake, Mathf.Clamp01(amount));
+
+        /// <summary>#1998: knocks the player away (a stomp, a strike): an upward pop plus a horizontal push that eases off.</summary>
+        public void ApplyKnock(Vector3 impulse)
+        {
+            _knock = new Vector3(impulse.x, 0f, impulse.z);
+            if (impulse.y > 0f)
+            {
+                _verticalVelocity = Mathf.Max(_verticalVelocity, impulse.y);
+            }
+        }
         private float _baseFov = 60f;
         private bool _moving;
 
@@ -491,7 +512,7 @@ namespace BlocksBeyondTheStars.Client
                 // has streamed and says "air". Otherwise the collider answering is terrain under a slab whose
                 // chunk has not arrived yet, and releasing on it drops the player through that slab once it
                 // does (#1449, the beam pad on a mine ceiling). A hit right under the feet is the floor itself.
-                bool groundBelow = Physics.Raycast(_spawnPos + Vector3.up * 0.5f, Vector3.down, out var gHit, 10f)
+                bool groundBelow = Physics.Raycast(_spawnPos + Vector3.up * 0.5f, Vector3.down, out var gHit, 10f, WorldRayMask)
                                    && gHit.collider != _controller
                                    && (!_snapOntoFloor
                                        || gHit.distance <= SnapFloorOnIt
@@ -864,8 +885,22 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // #1998: a giant is hit where the ray meets its body — its colliders, not a sphere at its feet.
+            if (Physics.Raycast(o, dir, out var giantHit, best, 1 << CreatureView.GiantLayer, QueryTriggerInteraction.Ignore)
+                && CreatureView.GiantIdFor(giantHit.collider) is { } giantId)
+            {
+                best = giantHit.distance;
+                id = giantId;
+                pos = giantHit.point;
+            }
+
             foreach (var c in Game.Creatures)
             {
+                if (c.GiantHeight > 0f)
+                {
+                    continue; // picked by its colliders above
+                }
+
                 float size = Mathf.Clamp(c.Size, 0.4f, 8f);
                 var basePos = Game.ScenePos(c.X, c.Y, c.Z);
                 var center = basePos + Vector3.up * (0.6f * size);
@@ -919,6 +954,17 @@ namespace BlocksBeyondTheStars.Client
             // Creatures (fauna) are attackable too — the server shares the hit path.
             foreach (var c in Game.Creatures)
             {
+                if (c.GiantHeight > 0f)
+                {
+                    // #1998: a giant counts from the nearest point of its body (and a buried sandworm not at all).
+                    if (CreatureView.GiantNearestPoint(c.Id, eye, out var near))
+                    {
+                        Consider(c.Id, near - Vector3.up * 0.9f);
+                    }
+
+                    continue;
+                }
+
                 Consider(c.Id, Game.ScenePos(c.X, c.Y, c.Z));
             }
 
@@ -1473,8 +1519,26 @@ namespace BlocksBeyondTheStars.Client
             Vector3 fwd = Camera.transform.forward;
 
             float best = float.MaxValue;
+            // #1998: a giant is scanned where the ray meets its body (a head 60 blocks up is out of arm's reach — the
+            // scanner reads a giant's flank from further away).
+            if (Physics.Raycast(eye, fwd, out var giantHit, Reach * 6f, 1 << CreatureView.GiantLayer, QueryTriggerInteraction.Ignore)
+                && CreatureView.GiantIdFor(giantHit.collider) is { } giantId
+                && System.Array.Find(Game.Creatures, g => g.Id == giantId) is { } giant)
+            {
+                best = giantHit.distance;
+                kind = "creature";
+                key = giant.SpeciesId;
+                _scanEntityId = giant.Id;
+                at = giantHit.point;
+            }
+
             foreach (var c in Game.Creatures)
             {
+                if (c.GiantHeight > 0f)
+                {
+                    continue; // picked by its colliders above
+                }
+
                 float size = Mathf.Clamp(c.Size, 0.4f, 8f);
                 var basePos = Game.ScenePos(c.X, c.Y, c.Z); // seam-aware (longitude wraps)
                 var center = basePos + Vector3.up * (0.6f * size);
@@ -2440,7 +2504,7 @@ namespace BlocksBeyondTheStars.Client
 
                     // Surface under this spot? Start the ray well above any local terrain so a hill doesn't make us
                     // start inside a collider.
-                    if (!Physics.Raycast(new Vector3(x, anchor.y + 60f, z), Vector3.down, out var hit, 120f, ~0, QueryTriggerInteraction.Ignore)
+                    if (!Physics.Raycast(new Vector3(x, anchor.y + 60f, z), Vector3.down, out var hit, 120f, WorldRayMask, QueryTriggerInteraction.Ignore)
                         || hit.collider == _controller)
                     {
                         continue;
@@ -2463,7 +2527,7 @@ namespace BlocksBeyondTheStars.Client
                     // Open sky overhead? A hit means a solid ceiling above us (cave / overhang / hull under a solid
                     // roof) → indoors. (The ship's glass skylight has no collider, so this passes for an interior spot
                     // under it — the enclosure check below is what catches those.)
-                    if (Physics.Raycast(stand + Vector3.up * 0.3f, Vector3.up, out var up, 5f, ~0, QueryTriggerInteraction.Ignore)
+                    if (Physics.Raycast(stand + Vector3.up * 0.3f, Vector3.up, out var up, 5f, WorldRayMask, QueryTriggerInteraction.Ignore)
                         && up.collider != _controller)
                     {
                         continue;
@@ -2478,7 +2542,7 @@ namespace BlocksBeyondTheStars.Client
                     Vector3[] sides = { Vector3.forward, Vector3.back, Vector3.left, Vector3.right };
                     foreach (var s in sides)
                     {
-                        if (Physics.Raycast(eye, s, out var w, 5f, ~0, QueryTriggerInteraction.Ignore) && w.collider != _controller)
+                        if (Physics.Raycast(eye, s, out var w, 5f, WorldRayMask, QueryTriggerInteraction.Ignore) && w.collider != _controller)
                         {
                             walls++;
                         }
@@ -2566,7 +2630,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True when a streamed collider (terrain, ship deck, pad) sits within a short drop below us —
         /// after a snap onto a floor cell, only the floor right under the feet counts (#1276).</summary>
         private bool ColliderBelow()
-            => Physics.Raycast(transform.position + Vector3.up * 0.5f, Vector3.down, out var hit, _snapOntoFloor ? SnapFloorMaxDrop : 10f)
+            => Physics.Raycast(transform.position + Vector3.up * 0.5f, Vector3.down, out var hit, _snapOntoFloor ? SnapFloorMaxDrop : 10f, WorldRayMask)
                && hit.collider != _controller;
 
         private void LookAround()
@@ -2769,7 +2833,7 @@ namespace BlocksBeyondTheStars.Client
                 // The block column backs the physics ray up: it knows a chunk whose collider is still baking,
                 // and it is what lifts a hull that got wedged into a block back out.
                 float groundY = float.NaN;
-                if (Physics.Raycast(transform.position + Vector3.up * 1.0f, Vector3.down, out var hit, 12f, ~0, QueryTriggerInteraction.Ignore)
+                if (Physics.Raycast(transform.position + Vector3.up * 1.0f, Vector3.down, out var hit, 12f, WorldRayMask, QueryTriggerInteraction.Ignore)
                     && hit.collider != _controller)
                 {
                     groundY = hit.point.y;
@@ -2898,7 +2962,7 @@ namespace BlocksBeyondTheStars.Client
             if (float.IsNaN(surface))
             {
                 _boatDrySeconds += Time.deltaTime;
-                if (Physics.Raycast(pos + Vector3.up * 1.5f, Vector3.down, out var hit, 6f, ~0, QueryTriggerInteraction.Ignore)
+                if (Physics.Raycast(pos + Vector3.up * 1.5f, Vector3.down, out var hit, 6f, WorldRayMask, QueryTriggerInteraction.Ignore)
                     && hit.collider != _controller)
                 {
                     vSpeed = Mathf.Clamp((hit.point.y + 0.4f - pos.y) * 6f, -6f, 4f);
@@ -3282,6 +3346,12 @@ namespace BlocksBeyondTheStars.Client
             UpdateJetpack(jetpacking);
 
             move.y = _verticalVelocity;
+            if (_knock.sqrMagnitude > 0.01f)
+            {
+                move.x += _knock.x; // #1998: a giant's push rides on top of the player's own move
+                move.z += _knock.z;
+                _knock = Vector3.MoveTowards(_knock, Vector3.zero, 14f * Time.deltaTime);
+            }
 
             // Sneak edge-stop: while crouched and standing on the ground, cancel any horizontal component that
             // would carry the feet off a ledge into open air (checked per axis so you can still slide ALONG the
@@ -3561,7 +3631,7 @@ namespace BlocksBeyondTheStars.Client
 
             Vector3 dir = to / full;
             float allowed = full;
-            if (Physics.SphereCast(pivot, CameraBoomRadius, dir, out var hit, full, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
+            if (Physics.SphereCast(pivot, CameraBoomRadius, dir, out var hit, full, Physics.DefaultRaycastLayers & WorldRayMask, QueryTriggerInteraction.Ignore)
                 && hit.collider != _controller)
             {
                 allowed = Mathf.Max(CameraBoomMinimum, hit.distance - 0.05f);
