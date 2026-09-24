@@ -223,6 +223,48 @@ public sealed class CityWorldTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// #1994: the doors are measured on the structure's own layout now, not against the world — that is what
+    /// keeps a city's boot from pulling its whole 256×256 footprint into memory (4.8 s of a 4.9 s pass). This
+    /// asserts the shortcut is honest: every door the registry hung is the door the stamped BLOCKS would have
+    /// produced — same wall, same width, same centre.
+    /// </summary>
+    [Fact]
+    public void EveryCityDoor_IsTheDoorTheStampedBlocksWouldGive()
+    {
+        var server = Start(Key, out var repo);
+        using (repo)
+        {
+            bool SolidInWorld(int x, int y, int z) => !server.World.GetBlock(new Vector3i(x, y, z)).IsAir;
+            var hung = server.DoorFits.Where(d => !d.PlayerBuilt).ToList();
+            int compared = 0;
+
+            foreach (var (type, pos) in server.SettlementMarkers)
+            {
+                if (!type.StartsWith("door", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                int cx = (int)Math.Floor(pos.X), cy = (int)Math.Floor(pos.Y), cz = (int)Math.Floor(pos.Z);
+                var fromBlocks = DoorProbe.Measure(SolidInWorld, cx, cy, cz);
+
+                // The door hung for this marker: the one whose centre is within the doorway it sits in.
+                var door = hung.OrderBy(d => Math.Abs(d.Pos.X - pos.X) + Math.Abs(d.Pos.Z - pos.Z)).First();
+                Assert.True(Math.Abs(door.Pos.X - pos.X) <= 1.5f && Math.Abs(door.Pos.Z - pos.Z) <= 1.5f,
+                    $"a door hangs at the marker {cx},{cy},{cz}");
+
+                compared++;
+                Assert.Equal(fromBlocks.AxisX, door.AxisX);
+                Assert.Equal(fromBlocks.Width, door.Width);
+                Assert.Equal(fromBlocks.CentreX(cx), door.Pos.X, 3);
+                Assert.Equal(fromBlocks.CentreZ(cz), door.Pos.Z, 3);
+            }
+
+            Assert.True(compared >= 200, $"the city's doorways were compared, found {compared}");
+        }
+    }
+
     [Fact]
     public void CityComposer_PlacesEveryRole_AndTheMarkersTheServerNeeds()
     {

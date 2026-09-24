@@ -587,9 +587,10 @@ a body's **landing pads** are searched once and then pinned in the save (#1989, 
 [WORLD_GENERATION.md](WORLD_GENERATION.md) §22), so the first boot of a world pays for the search and every
 later one does not.
 
-A third, for a city world: composing the city itself is **~20 ms**. What the `settlements` line above mostly
-measures is the passes that touch the city's blocks — hanging its 232 doors and populating it — which pull
-the whole footprint's chunks into memory.
+A third, for a city world: composing the city itself is **~20 ms**, and since #1994 neither hanging its doors
+nor populating it reads a world block either (both work off the layout), so the `settlements` line is ~100 ms
+and the city's chunks stay unloaded until somebody walks there. If that line grows again, something started
+asking the world for what the structure already knows — see [WORLD_GENERATION.md](WORLD_GENERATION.md) §24.
 
 ## Optional AI backend (development)
 

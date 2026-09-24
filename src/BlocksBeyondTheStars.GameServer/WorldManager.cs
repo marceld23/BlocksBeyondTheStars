@@ -108,6 +108,28 @@ internal sealed class SpsLabInstance
     public Vector3f Center { get; set; }
 }
 
+/// <summary>A door a stamped structure asks for, measured on the structure's layout (#1994): the wall axis, the
+/// width of the opening and the world position of its centre — everything the door registry would otherwise
+/// have to re-measure against the world's blocks.</summary>
+internal readonly struct AuthoredDoor
+{
+    public AuthoredDoor(bool axisX, float width, Vector3f centre)
+    {
+        AxisX = axisX;
+        Width = width;
+        Centre = centre;
+    }
+
+    /// <summary>True when the wall runs along X (the passage through it along Z).</summary>
+    public bool AxisX { get; }
+
+    /// <summary>Gap width in blocks along the wall axis.</summary>
+    public float Width { get; }
+
+    /// <summary>The doorway gap's centre in world space, at floor level.</summary>
+    public Vector3f Centre { get; }
+}
+
 internal sealed class LoadedWorld
 {
     public required ServerWorld World { get; init; }
@@ -132,9 +154,14 @@ internal sealed class LoadedWorld
     public List<GameServer.ServerNetFragment> NetFragments { get; } = new(); // story net fragments scattered on the surface (P2)
     public List<(string Type, Vector3f Pos)> SettlementMarkers { get; } = new(); // union of EVERY settlement's markers (doors + proximity)
 
-    /// <summary>#1986: the wall a stamped door was authored into, by its block cell — true = the wall runs
-    /// along X. A door whose generator recorded no side (a template's) is absent and gets the block probe.</summary>
-    public Dictionary<Vector3i, bool> SettlementDoorAxes { get; } = new();
+    /// <summary>
+    /// #1986/#1994: the door a stamped structure asks for, by its block cell — the wall it was cut into and
+    /// how wide the opening is, both read off the structure's own layout while it is in hand.
+    /// <para>The door registry used to measure this against the WORLD, which meant 232 block probes across a
+    /// city at every boot and pulled the whole footprint's chunks into memory for 4.8 s. The layout says the
+    /// same thing for free — it is what the blocks were stamped from.</para>
+    /// </summary>
+    public Dictionary<Vector3i, AuthoredDoor> SettlementDoorFits { get; } = new();
     public List<(int BaseId, string Type, Vector3f Pos)> BaseMarkers { get; } = new(); // #1865: staffed trading posts + boards of planet bases
     public Queue<int> NpcPathQueue { get; } = new(); // #1866: NPC ids waiting for a path search (one per tick)
     public List<SettlementInstance> Settlements { get; } = new();                 // 0..N settlements on this world

@@ -126,21 +126,26 @@ public sealed partial class GameServer
         _doors.Clear();
         _nextDoorId = 1;
 
-        // Settlement doorways. #1986: a generated building records the wall it cut the doorway into, so the
-        // leaf hangs in that wall; only a door without a recorded side (a template's) is probed for one.
-        var authoredAxes = _worlds.Active.SettlementDoorAxes;
+        // Settlement doorways. #1986/#1994: the structure measured its own doorways on its layout when it was
+        // stamped — wall axis and gap width — so hanging them reads no world block at all. A marker without
+        // such a record (an older stamp in a world being re-entered) falls back to probing the blocks.
+        var authored = _worlds.Active.SettlementDoorFits;
         foreach (var (type, pos) in _settlementMarkers)
         {
             if (type == "door_slide" || type == "door_hinge" || type == "door_energy")
             {
-                bool? axis = null;
-                if (authoredAxes.Count > 0
-                    && authoredAxes.TryGetValue(WorldConstants.CanonicalBlock(pos.ToBlock(), _world.Circumference), out bool authored))
-                {
-                    axis = authored;
-                }
-
-                _doors.Add(MakeDoor(DoorBlocks.KindForMarker(type), pos, forceAxisX: axis));
+                string kind = DoorBlocks.KindForMarker(type);
+                _doors.Add(authored.TryGetValue(WorldConstants.CanonicalBlock(pos.ToBlock(), _world.Circumference), out var fit)
+                    ? new ServerDoor
+                    {
+                        Id = _nextDoorId++,
+                        Kind = kind,
+                        Pos = fit.Centre,
+                        AxisX = fit.AxisX,
+                        Width = fit.Width,
+                        OpenRange = SlideDoorOpenRange,
+                    }
+                    : MakeDoor(kind, pos));
             }
         }
 

@@ -495,7 +495,7 @@ public sealed partial class GameServer
         // Phase C — record instances, markers (world space), missions + ruin loot.
         _settlements.Clear();
         _settlementMarkers.Clear();
-        _worlds.Active.SettlementDoorAxes.Clear(); // #1986: rebuilt with the markers below
+        _worlds.Active.SettlementDoorFits.Clear(); // #1986/#1994: rebuilt with the markers below
         foreach (var p in placed)
         {
             var inst = new SettlementInstance
@@ -517,13 +517,12 @@ public sealed partial class GameServer
                 inst.Markers.Add((m.Type, pos));
                 _settlementMarkers.Add((m.Type, pos));
 
-                // #1986: the generator knows which wall it cut this doorway into — remember it by cell so the
-                // door registry hangs the leaf in that wall instead of guessing from the blocks around it.
-                if (m.DoorAxis != DoorWall.Unknown)
+                // #1986/#1994: the structure knows its own doorway — the wall the generator cut it into, and
+                // how wide the opening is, measured on the layout that is in hand right now. Remembered by
+                // cell so the door registry neither guesses the wall nor reads a single world block for it.
+                if (m.Type.StartsWith("door", StringComparison.Ordinal))
                 {
-                    var cell = new Vector3i(p.Origin.X + m.LocalPos.X, p.GroundY + m.LocalPos.Y, p.Origin.Z + m.LocalPos.Z);
-                    _worlds.Active.SettlementDoorAxes[WorldConstants.CanonicalBlock(cell, _world.Circumference)]
-                        = m.DoorAxis == DoorWall.AlongX;
+                    RecordAuthoredDoor(p, m);
                 }
 
                 if (m.Type == "loot")
@@ -544,8 +543,8 @@ public sealed partial class GameServer
         }
 
         // Phase D — populate inhabited settlements with NPCs and hang real doors in the doorways.
-        SpawnSettlementNpcs(rng);
-        RegisterDoors();
+        BootDetail("  npcs", () => SpawnSettlementNpcs(rng));
+        BootDetail("  doors", RegisterDoors);
     }
 
     /// <summary>The city world (#1793): instead of the hospitality roll, exactly ONE gigantic walled city composed
@@ -951,6 +950,34 @@ public sealed partial class GameServer
     {
         long s = instSeed ^ WorldGenerator.StableHash(lane);
         return new System.Random(unchecked((int)(s ^ (s >> 32))));
+    }
+
+    /// <summary>
+    /// Measures one stamped doorway on its own structure (#1994) and remembers it by world cell for
+    /// <c>RegisterDoors</c>: the wall the generator recorded (<see cref="SettlementMarker.DoorAxis"/>, #1986)
+    /// or, for a template that names none, the layout's own jambs; the width from the layout's air run.
+    /// <para>The registry used to ask the WORLD for both, which is 232 block probes on a city — enough to pull
+    /// the whole footprint's chunks into memory at boot (4.8 s of a 4.9 s pass). The layout gives the same
+    /// answer for free: it is what those blocks were stamped from.</para>
+    /// </summary>
+    private void RecordAuthoredDoor(PlacedSettlement p, SettlementMarker marker)
+    {
+        var s = p.Structure;
+        bool Solid(int x, int y, int z)
+            => x >= 0 && y >= 0 && z >= 0 && x < s.Width && y < s.Height && z < s.Length && s.Get(x, y, z) != 0;
+
+        bool? forced = marker.DoorAxis switch
+        {
+            DoorWall.AlongX => true,
+            DoorWall.AlongZ => false,
+            _ => null,
+        };
+
+        var fit = DoorProbe.Measure(Solid, marker.LocalPos.X, marker.LocalPos.Y, marker.LocalPos.Z, forced);
+        var cell = new Vector3i(p.Origin.X + marker.LocalPos.X, p.GroundY + marker.LocalPos.Y, p.Origin.Z + marker.LocalPos.Z);
+        var centre = new Vector3f(fit.CentreX(cell.X), cell.Y, fit.CentreZ(cell.Z));
+        _worlds.Active.SettlementDoorFits[WorldConstants.CanonicalBlock(cell, _world.Circumference)]
+            = new AuthoredDoor(fit.AxisX, fit.Width, centre);
     }
 
     /// <summary>
