@@ -77,7 +77,7 @@
   { "key": "factory_carbon_composite","station": "factory", "inputs": [ { "item": "carbon", "count": 3 } ],                                                                "outputs": [ { "item": "carbon_composite", "count": 1 } ] },
   { "key": "factory_energy_cell",     "station": "factory", "inputs": [ { "item": "copper_ore", "count": 2 }, { "item": "silicate", "count": 2 }, { "item": "carbon", "count": 3 } ], "outputs": [ { "item": "energy_cell_1", "count": 1 } ] },
   { "key": "factory_circuit_board",   "station": "factory", "inputs": [ { "item": "gold_ore", "count": 3 }, { "item": "silver_ore", "count": 3 }, { "item": "silicate", "count": 4 } ], "outputs": [ { "item": "circuit_board", "count": 1 } ] },
-  { "key": "factory_polymer",         "station": "factory", "inputs": [ { "item": "carbon", "count": 3 }, { "item": "sulfur_ore", "count": 2 } ],                           "outputs": [ { "item": "polymer", "count": 1 } ] },
+  { "key": "factory_polymer",         "station": "factory", "inputs": [ { "item": "carbon", "count": 3 }, { "item": "sulfur_ore", "count": 2 } ],                           "outputs": [ { "item": "polymer", "count": 2 } ] },
   { "key": "factory_titanium_plate",  "station": "factory", "inputs": [ { "item": "titanium_ore", "count": 3 } ],                                                          "outputs": [ { "item": "titanium_plate", "count": 1 } ] },
   // #1200 raw-ore -> part tier: the factory skips the smelt stages of the alloy / component chains at the price of
   // more ore per step (never a better per-ore yield than the refinery route). Gives the 11 single-use ores a

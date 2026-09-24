@@ -229,6 +229,35 @@ public sealed class MaterialEconomyTests
     }
 
     [Fact]
+    public void FactoryPolymer_StaysWithinTwiceTheWorkshopRawMaterialCost()
+    {
+        var factory = _c.Recipes["factory_polymer"];
+        var polymer = _c.Recipes["polymer"];
+        var carbonComposite = _c.Recipes["carbon_composite"];
+        var sulfur = _c.Recipes["sulfur"];
+
+        Assert.Equal(CraftingStation.Factory, factory.Station);
+        Assert.Equal(CraftingStation.Workshop, polymer.Station);
+        Assert.Equal(2, factory.Outputs.Single(o => o.Item == "polymer").Count);
+
+        double factoryOutput = factory.Outputs.Single(o => o.Item == "polymer").Count;
+        double workshopOutput = polymer.Outputs.Single(o => o.Item == "polymer").Count;
+        double workshopCarbonPerPolymer = (double)polymer.Inputs.Single(i => i.Item == "carbon_composite").Count
+            * carbonComposite.Inputs.Single(i => i.Item == "carbon").Count
+            / carbonComposite.Outputs.Single(o => o.Item == "carbon_composite").Count / workshopOutput;
+        double workshopSulfurOrePerPolymer = (double)polymer.Inputs.Single(i => i.Item == "sulfur").Count
+            * sulfur.Inputs.Single(i => i.Item == "sulfur_ore").Count
+            / sulfur.Outputs.Single(o => o.Item == "sulfur").Count / workshopOutput;
+
+        double factoryCarbonPerPolymer = factory.Inputs.Single(i => i.Item == "carbon").Count / factoryOutput;
+        double factorySulfurOrePerPolymer = factory.Inputs.Single(i => i.Item == "sulfur_ore").Count / factoryOutput;
+        Assert.True(factoryCarbonPerPolymer <= 2 * workshopCarbonPerPolymer,
+            $"factory_polymer costs {factoryCarbonPerPolymer} carbon per polymer; workshop costs {workshopCarbonPerPolymer}");
+        Assert.True(factorySulfurOrePerPolymer <= 2 * workshopSulfurOrePerPolymer,
+            $"factory_polymer costs {factorySulfurOrePerPolymer} sulfur_ore per polymer; workshop costs {workshopSulfurOrePerPolymer}");
+    }
+
+    [Fact]
     public void ReactorFuel_IsAOneTimeBuildCost_OfAtLeastFourBigThings_AndNeverARecipeInput()
     {
         var uses = Uses();
