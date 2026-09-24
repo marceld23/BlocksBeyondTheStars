@@ -11,6 +11,95 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.14] — 2026-09-24
+
+The giants release. The school club dreamed up **creatures as tall as a high-rise**, and here they are. A **colossus**
+— a four-legged giant up to sixty blocks tall — roams the flattest, lightest moons. On a brand-new kind of planet, the
+**sand sea**, a **sandworm** hunts by the vibration of your steps and bursts out of the dunes. A **thumper** lures it
+away, or brings it in close enough to watch. The flowerling finally **shows its face** — and it means it now when you
+dig in front of it. Under the hood, worlds **load up to eight times faster**, and a wall you knock down in a village or
+the city **stays down**.
+
+ℹ️ **Compatibility:** the network protocol stays at version 6 and saves migrate unchanged. The sand sea and the giants
+belong to **new worlds** (terrain generation 9); the worlds you already have keep their planets and their animals.
+The first time you open an existing world it writes down its landing pads and its buildings once, and loads faster
+from then on. An older game version can still join a 2026.9.14 world, but it will not show the giants properly —
+update to see them.
+
+### 🏜️ A new kind of planet: the sand sea (#2000)
+
+- **Half of the world is a sea of deep sand** — wide, rolling dunes, twenty-four blocks of sand with no caves beneath
+  them, never flooded. Around the sea every world rolls its own coast: mountains, canyons, table mountains, lava
+  fields or open water. **Rock islands** rise out of the sand here and there — and on rock you are safe.
+
+### 🐛 The sandworm (#2001)
+
+- **It hears you through the sand.** Walking, mining, drilling, a blast, a hard landing or a speeder all carry
+  through the sand sea — **sneaking** barely does, and **rock, a landing pad or a floor you built are silent**.
+- **You get a warning.** The sand ripples and rumbles as it comes, and VEGA tells you to get onto rock. Then it
+  bursts out of the dunes in an arc — or rears up like a tower and strikes the spot it heard.
+- **Every world rolls its own worm** — its length, its colours, its armour plates, the mandibles of its mouth, how
+  keen its hearing is and how short its temper. It is very tough, and you can only hit it while it is out of the sand.
+- It never moves a single block: the part of it under the sand is simply hidden by the sand.
+
+### 🥁 The thumper (#2002)
+
+- **Build one at the workshop** and set it down on the sand sea: it pounds the ground every two seconds for a minute
+  and a half. The worm hears it from far away, comes for it and **swallows it whole**. Lure the worm away from you —
+  or bring it in where you can watch it. On rock nothing hears it; mine it back to switch it off.
+
+### 🦣 The colossus (#1999)
+
+- **A four-legged giant, forty to sixty blocks tall**, and every one is different: gentle ones migrate and graze on
+  treetops, shy ones walk away, some fight back when hit, and a few come looking for you. Backs of armour plates,
+  spikes, crystals — or a small forest.
+- **It only lives on the flattest, lightest moons** — and only on one in three of those. When you find one, you will
+  see it from far away.
+- **Before it stomps, a dark ring marks the spot.** Get out of it — or get under a roof or into a cave: a stomp never
+  reaches inside.
+
+### 🦶 Giants are really there (#1998)
+
+- **You bump into them**: the legs of a colossus and the body of a worm are solid. Your hits land where you aim —
+  on a leg, on the body — and you can scan them. Their footfalls throw up dust and shake the ground.
+- A defeated giant is gone for a few days, then another one comes. There is an achievement for each.
+- Admins can call one in for a look: **`/giant colossus`** or **`/giant sandworm`** (a worm needs a sand sea).
+
+### 🌸 The flowerling shows its face (#1997)
+
+- **Its face was hidden inside its head** — the friendly smile and the angry maw alike. Now you see the grin when it
+  is calm, and when you dig in front of it the petals flush red, the jaw drops open and the teeth show.
+- **And it means it now.** It used to get angry from sixteen blocks away but only came for you within eight — so from
+  further off it just wandered away. Now it comes the whole way, keeps up the chase for longer and is a little faster
+  (still slower than you walk). Digging right beside it wakes it at night, too.
+
+### ⏱️ Worlds load much faster (#1987 #1988 #1989 #1990 #1994)
+
+- **An ordinary world opens in about six seconds instead of fourteen**; the city world that took twenty-three
+  seconds is ready in **about three**. The landing pads are worked out once and remembered, the network set-up runs
+  alongside the world build instead of in front of it, and buildings are no longer rebuilt on every start.
+- **The loading bar tells the truth** — it follows what the world is actually doing instead of a guess.
+
+### 🧱 Buildings stay the way you left them (#1990)
+
+- **A wall you knock down in a village, the city or a factory stays down.** These places used to rebuild themselves
+  every time the world was opened. Now, like vaults and ruins, they are built once — what you do to them stays done.
+
+### 🚪 City doors hang straight (#1986)
+
+- **About one door in twelve in the city stood across its doorway**, twice as wide as the opening and reaching into
+  the room behind it. Every city door now hangs in the wall it was cut into, exactly as wide as its opening.
+
+### 🌐 Browser: no more white floor you fall through (#1991)
+
+- Next to a landing pad the browser version sometimes drew a flat white patch of far-away terrain right where you
+  stood — and you could walk through it. The distant-terrain patches now stay out of your immediate surroundings.
+
+### 🙏 Credits (#1985)
+
+- **Noah and Daimien** from the school club are now spelled correctly — in the credits and in the flower-fields
+  planet description, in all fourteen languages.
+
 ## [2026.9.13] — 2026-09-21
 
 The doorway release. The ship, station and town editors finally **show you what you are about to build**. Until
@@ -5720,7 +5809,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.13...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.14...HEAD
+[2026.9.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.13...v2026.9.14
 [2026.9.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.12...v2026.9.13
 [2026.9.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.11...v2026.9.12
 [2026.9.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.10...v2026.9.11
