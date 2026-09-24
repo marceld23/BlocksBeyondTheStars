@@ -472,14 +472,25 @@ public sealed partial class GameServer
     /// voxels in one transaction, then instances + markers + boards + loot, then residents and doors.</summary>
     private void CommitSettlements(List<PlacedSettlement> placed, string surface, System.Random rng)
     {
-        // Phase B — stamp every settlement's voxels in ONE transaction (hundreds–thousands of cells each).
-        _repo.RunInTransaction(() =>
+        // Phase B — stamp every settlement's voxels in ONE transaction (hundreds–thousands of cells each),
+        // and only the FIRST time (#1990): a settlement that is already in the world is left exactly as the
+        // players left it. See StructureBlocksFeature.
+        var fresh = placed.FindAll(p => !StructureBlocksStamped(p));
+        if (fresh.Count > 0)
         {
-            foreach (var p in placed)
+            _repo.RunInTransaction(() =>
             {
-                StampSettlementBlocks(p, surface);
+                foreach (var p in fresh)
+                {
+                    StampSettlementBlocks(p, surface);
+                }
+            });
+
+            foreach (var p in fresh)
+            {
+                MarkStructureBlocksStamped(p); // after the transaction: a crash mid-stamp re-stamps, never half-marks
             }
-        });
+        }
 
         // Phase C — record instances, markers (world space), missions + ruin loot.
         _settlements.Clear();
@@ -941,6 +952,25 @@ public sealed partial class GameServer
         long s = instSeed ^ WorldGenerator.StableHash(lane);
         return new System.Random(unchecked((int)(s ^ (s >> 32))));
     }
+
+    /// <summary>
+    /// The stamped-feature key for one structure's voxels (#1990) — its pinned origin column, so it is the same
+    /// key on every load and two structures on one world can never share it.
+    /// <para>Settlements, cities and factories used to write their whole structure into the world on EVERY
+    /// server start: a 256×256 city re-wrote 405 332 cells per load, and a wall a player had mined grew back
+    /// with them. The rest of the world has worked the other way round for a long time — a vault, a monument,
+    /// a ruin and a bandit camp are stamped once and "a mined [one] stays mined" — and this brings the
+    /// buildings in line with it. A save that has the structure but not the mark (every world made before
+    /// this) stamps once more and is marked from then on, so nothing has to be migrated.</para>
+    /// </summary>
+    private static string StructureBlocksFeature(Vector3i origin, int groundY)
+        => $"structblocks:{origin.X}:{groundY}:{origin.Z}";
+
+    /// <summary>Whether this structure's voxels are already in the world (#1990).</summary>
+    private bool StructureBlocksStamped(PlacedSettlement p) => FeatureStamped(StructureBlocksFeature(p.Origin, p.GroundY));
+
+    /// <summary>Records that this structure's voxels are in the world, so no later load writes them again (#1990).</summary>
+    private void MarkStructureBlocksStamped(PlacedSettlement p) => MarkFeatureStamped(StructureBlocksFeature(p.Origin, p.GroundY));
 
     /// <summary>The pinned placement record for a structure instance on the active world, or null.</summary>
     private StructurePlacementRecord? FindPlacementRecord(string kind, int index)

@@ -571,11 +571,25 @@ instrumented — a travel-time world load runs the same passes unreported.
 To time a world without the client, run the server straight at a **copy** of the save
 (`--saves <dir> --world <name> --data <repo>/data --port 31599`) and pipe `stop` into its stdin.
 
+The `structures` pass runs a dozen stampers, so it reports each of them underneath itself (#1990) — anything
+under a millisecond stays quiet:
+
+```
+[boot]   · settlements (4095 ms)
+[boot]   · bandit camps (4 ms)
+[boot]   · monuments (1 ms)
+[boot] 11/12 structures (4111 ms)
+```
+
 Two things to know when reading the numbers: the **NetCodec warm-up** (7–8 s of MessagePack codegen) runs on
 a background thread beside these passes since #1987, so its line reports a duration that overlaps them; and
 a body's **landing pads** are searched once and then pinned in the save (#1989, see
 [WORLD_GENERATION.md](WORLD_GENERATION.md) §22), so the first boot of a world pays for the search and every
 later one does not.
+
+A third, for a city world: composing the city itself is **~20 ms**. What the `settlements` line above mostly
+measures is the passes that touch the city's blocks — hanging its 232 doors and populating it — which pull
+the whole footprint's chunks into memory.
 
 ## Optional AI backend (development)
 

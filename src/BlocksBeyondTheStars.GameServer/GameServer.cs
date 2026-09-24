@@ -369,6 +369,18 @@ public sealed partial class GameServer
         _boot.Run(name, step);
     }
 
+    /// <summary>Runs one step inside a boot pass, reported indented beneath it (#1990).</summary>
+    private void BootDetail(string name, Action step)
+    {
+        if (_boot is null)
+        {
+            step();
+            return;
+        }
+
+        _boot.Detail(name, step);
+    }
+
     /// <summary>Opens the save and brings its block-id palette up to date — the first boot pass.</summary>
     private void InitializePersistence()
     {
@@ -743,59 +755,59 @@ public sealed partial class GameServer
 
                     if (_config.PlaceSettlements && !restricted)
                     {
-                        StampSettlement();
+                        BootDetail("settlements", StampSettlement);
                     }
 
                     if (_config.PlaceRuins && !restricted)
                     {
-                        StampRuins(); // standalone fallen-city ruins (unprotected) — after settlements so they avoid them
+                        BootDetail("ruins", StampRuins); // standalone fallen-city ruins (unprotected) — after settlements so they avoid them
                     }
 
                     if (!restricted)
                     {
-                        StampBanditCamps(); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
+                        BootDetail("bandit camps", StampBanditCamps); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
                     }
 
-                    StampSpsLabs(); // 2026-09: abandoned SPS research stations — only on a type that allows them (Titas)
+                    BootDetail("sps labs", StampSpsLabs); // 2026-09: abandoned SPS research stations — only on a type that allows them (Titas)
 
                     if (_config.PlaceMonuments && !restricted)
                     {
-                        StampMonuments(); // eroded rune relics (unprotected) — the only surface feature airless bodies get
+                        BootDetail("monuments", StampMonuments); // eroded rune relics (unprotected) — the only surface feature airless bodies get
                     }
 
                     if (_config.PlaceFactories && !restricted)
                     {
-                        StampFactories(); // rare industrial factories (protected until claimed) — avoid settlements
+                        BootDetail("factories", StampFactories); // rare industrial factories (protected until claimed) — avoid settlements
                     }
 
                     if (_config.PlaceWrecks && !restricted)
                     {
-                        StampWreck();
+                        BootDetail("wreck", StampWreck);
                     }
 
                     if (_config.PlaceVaults && !restricted)
                     {
-                        StampVaults(); // buried vault ruins ("Welten reicher" W-R3) — 0-2 per world, loot via containers
+                        BootDetail("vaults", StampVaults); // buried vault ruins ("Welten reicher" W-R3) — 0-2 per world, loot via containers
                     }
 
                     if (_config.PlaceDataCubes && !restricted)
                     {
-                        StampDataCubes(); // minigame download cubes — 0-N per world (many bodies get none)
+                        BootDetail("data cubes", StampDataCubes); // minigame download cubes — 0-N per world (many bodies get none)
                     }
 
                     if (Allowed("net_fragments"))
                     {
-                        StampNetFragments(); // story net fragments scattered on the surface (P2; self-skips when story off / Void)
+                        BootDetail("net fragments", StampNetFragments); // story net fragments scattered on the surface (P2; self-skips when story off / Void)
                     }
 
                     if (_config.PlaceChests && !restricted)
                     {
-                        StampChests(); // rare standalone treasure caches (0-N per body)
+                        BootDetail("chests", StampChests); // rare standalone treasure caches (0-N per body)
                     }
 
                     if (!restricted)
                     {
-                        StampUniqueSites(); // #1129: this body may carry one of the galaxy's one-of-a-kind places
+                        BootDetail("unique sites", StampUniqueSites); // #1129: this body may carry one of the galaxy's one-of-a-kind places
                     }
                 }
             });
