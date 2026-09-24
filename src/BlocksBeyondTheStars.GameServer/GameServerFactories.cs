@@ -191,13 +191,23 @@ public sealed partial class GameServer
             return;
         }
 
-        _repo.RunInTransaction(() =>
+        // #1990: a factory hall's voxels go into the world once — a later load leaves what the players made of it.
+        var fresh = placed.FindAll(e => !StructureBlocksStamped(e.Item1));
+        if (fresh.Count > 0)
         {
-            foreach (var (p, _) in placed)
+            _repo.RunInTransaction(() =>
             {
-                StampSettlementBlocks(p, surface);
+                foreach (var (p, _) in fresh)
+                {
+                    StampSettlementBlocks(p, surface);
+                }
+            });
+
+            foreach (var (p, _) in fresh)
+            {
+                MarkStructureBlocksStamped(p);
             }
-        });
+        }
 
         foreach (var (p, roster) in placed)
         {

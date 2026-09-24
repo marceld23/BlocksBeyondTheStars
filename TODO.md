@@ -24,6 +24,27 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧱 A building stays the way the players left it — structures are stamped once (#1990, 2026-09-24, branch perf/no-restamp)
+
+Follow-up to #1992. Settlements, cities and factories wrote their whole structure into the world on **every**
+server start; vaults, monuments, ruins and bandit camps have been stamped once for a long time ("a mined vault
+stays mined"). Two consequences: a 256×256 city re-wrote 405 332 cells per load, and **a wall a player had mined
+was standing again after a restart**.
+
+- **✅ Stamped once.** `StructureBlocksFeature(origin, groundY)` records the instance in
+  `WorldMetadata.StampedFeatures` after its voxels are committed (after the transaction, so a crash re-stamps
+  rather than half-marking); later loads skip the write. Covers settlements, the city and factories — the two
+  commit paths that were left. Old saves stamp once more and are marked from then on; no migration.
+  **Marcel decided this (2026-09-24): no self-repair, for all structures.**
+- **✅ The boot says where its seconds go.** The `structures` pass reports each stamper under itself
+  (`[boot]   · settlements (4095 ms)`), which is how the rest of this entry was measured at all.
+- **📏 Measured** on a copy of Marcel's real `Glutweite` save, interleaved runs of the same copy:
+  ready **7.1 s / 12.9 s** before → **4.2 s / 5.2 s** after.
+- **🔎 Finding for the next round:** composing the whole city costs **~20 ms**. Nearly all of the remaining
+  `settlements` time is the passes that *read world blocks* — hanging the 232 doors and populating the place —
+  which pull the footprint's chunks into memory at boot. A door's width still comes from a world probe even
+  though the layout that was just generated knows it (see #1994).
+
 ### ⏱️ Loading a world, crooked city doors and two misspelled names (#1985–#1991, 2026-09-23, branch fix/load-doors-credits)
 
 Marcel reported "loading a world takes an eternity", crooked sliding doors in his `Glutweite` city save, and two

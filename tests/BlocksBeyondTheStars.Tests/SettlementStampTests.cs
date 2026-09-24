@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -129,6 +130,61 @@ public sealed class SettlementStampTests : IDisposable
 
             Assert.True(solidNearby, "A stamped settlement should place solid blocks in the world.");
         }
+    }
+
+    /// <summary>
+    /// #1990: a settlement's blocks are stamped into the world ONCE. Until now every server start wrote the
+    /// whole structure again, so a wall a player had mined stood there again after a restart — and a 256×256
+    /// city re-wrote 405 332 cells per load. A vault, a monument, a ruin and a bandit camp have always been
+    /// stamped once; the buildings now work the same way.
+    /// </summary>
+    [Fact]
+    public void AWallAPlayerMined_StaysMined_WhenTheWorldIsLoadedAgain()
+    {
+        for (long seed = 1; seed <= 40; seed++)
+        {
+            var server = Started("jungle", seed, out var repo);
+            if (!server.HasSettlement)
+            {
+                server.Stop();
+                repo.Dispose();
+                continue;
+            }
+
+            // A solid cell of the stamped settlement, mined away by a player.
+            var marker = server.SettlementMarkers.First();
+            var basePos = new Vector3i((int)marker.Pos.X, (int)marker.Pos.Y, (int)marker.Pos.Z);
+            Vector3i? wall = null;
+            for (int dx = -4; dx <= 4 && wall is null; dx++)
+                for (int dy = -1; dy <= 4 && wall is null; dy++)
+                    for (int dz = -4; dz <= 4 && wall is null; dz++)
+                    {
+                        var cell = new Vector3i(basePos.X + dx, basePos.Y + dy, basePos.Z + dz);
+                        if (!server.World.GetBlock(cell).IsAir)
+                        {
+                            wall = cell;
+                        }
+                    }
+
+            Assert.True(wall is not null, "sanity: the settlement stamped solid blocks");
+            server.World.SetBlock(wall!.Value, BlockId.Air, owner: "Marcel");
+            Assert.True(server.World.GetBlock(wall.Value).IsAir, "sanity: the cell is mined");
+            server.Stop();
+            repo.Dispose();
+
+            // Load the same world again: the settlement must not rebuild itself over the hole.
+            var again = Started("jungle", seed, out var repo2);
+            using (repo2)
+            {
+                Assert.True(again.World.GetBlock(wall.Value).IsAir,
+                    "a mined settlement wall must stay mined when the world is loaded again (#1990)");
+                again.Stop();
+            }
+
+            return;
+        }
+
+        throw new Xunit.Sdk.XunitException("No settlement found on 'jungle' across 40 seeds.");
     }
 
     public void Dispose()

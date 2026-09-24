@@ -1605,3 +1605,27 @@ entry is ignored and re-searched.
 Note when reading boot timings on a **city** world: the pad search also warms the generator's column caches,
 so removing it moves some cost into the `structures` pass that stamps the city. The gain is real but smaller
 there than on an ordinary world (`PadTest` meadowlands: ready 12.7 s → 6.7 s).
+
+## 23. A structure is stamped once (#1990, 2026-09-24)
+
+A vault, a monument, a ruin and a bandit camp have always been written into the world exactly once, guarded by
+`FeatureStamped(...)` — "the same deterministic rolls re-derive the entrances, but no blocks are written, so a
+mined vault stays mined". **Settlements, cities and factories did not follow that rule**: `CommitSettlements`
+(and the factory commit) called `StampSettlementBlocks` on every server start, so every load re-wrote the whole
+structure — 405 332 cells for a 256×256 city — and a wall a player had mined stood there again afterwards.
+
+`StructureBlocksFeature(origin, groundY)` closes the gap with the same mechanism: the voxels are written on the
+first stamp and the instance's origin column is recorded in `WorldMetadata.StampedFeatures`
+(`<body>|structblocks:<x>:<y>:<z>`). Later loads skip the write and leave the buildings as the players left
+them. The mark is set **after** the transaction commits, so a crash mid-stamp re-stamps rather than half-marking.
+A save that has the structure but not the mark — every world made before this — stamps once more and is marked
+from then on, so nothing needs migrating.
+
+Marcel's decision (2026-09-24), asked because it changes the game and not just the clock: **no self-repair, for
+all structures.** What the players do to a building stays done.
+
+The structure is still *generated* on every load — the markers it carries are what the door registry, the NPC
+roster and the mission board are built from. That costs ~20 ms for a whole city; what the `settlements` boot
+pass really spends its seconds on is hanging the doors and populating the place, both of which read world
+blocks and pull the footprint's chunks into memory. Measured on a real city save (`Glutweite`, interleaved
+runs of the same copy): ready **7.1 s / 12.9 s** before, **4.2 s / 5.2 s** after.

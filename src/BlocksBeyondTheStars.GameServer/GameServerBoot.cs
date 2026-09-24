@@ -51,6 +51,20 @@ internal sealed class BootProgress
         _log.Info($"[boot] {_done}/{_planned} {name} ({watch.Elapsed.TotalMilliseconds:F0} ms)");
     }
 
+    /// <summary>Times one step WITHIN a pass and reports it indented, without advancing the counter (#1990):
+    /// the "structures" pass runs a dozen stampers, and its total alone never said which of them is slow.
+    /// A step under a millisecond stays quiet so the log keeps its shape.</summary>
+    public void Detail(string name, Action step)
+    {
+        var watch = Stopwatch.StartNew();
+        step();
+        double ms = watch.Elapsed.TotalMilliseconds;
+        if (ms >= 1.0)
+        {
+            _log.Info($"[boot]   · {name} ({ms:F0} ms)");
+        }
+    }
+
     /// <summary>Total boot time, reported once the port is about to open.</summary>
     public void Finish()
         => _log.Info($"[boot] {_planned}/{_planned} ready ({_total.Elapsed.TotalMilliseconds:F0} ms total)");

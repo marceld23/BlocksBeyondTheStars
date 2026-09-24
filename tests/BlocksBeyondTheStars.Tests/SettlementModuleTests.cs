@@ -615,6 +615,10 @@ public sealed class SettlementModuleTests : IDisposable
 
             // An older save: the same world with its records marked "modules never" replays WITHOUT modules —
             // the layout under an existing world does not change.
+            // #1990: "does not change" is now literal. The blocks are stamped once, so a later load re-derives
+            // the layout for its markers, doors and residents but writes nothing: the flag decides what the
+            // SERVER believes stands there, and the ground keeps what the first stamp put down (the gold below).
+            // The pin itself — the thing this test is named for — is asserted either way.
             {
                 var repo2 = new SqliteWorldRepository(new SaveGamePaths(_root, world));
                 repo2.Initialize();
@@ -643,7 +647,7 @@ public sealed class SettlementModuleTests : IDisposable
                             }
                     }
 
-                    Assert.Equal(0, goldCells);
+                    Assert.True(goldCells > 0, "the ground a first stamp laid down is left alone on later loads (#1990)");
                     server2.Stop();
                 }
             }
