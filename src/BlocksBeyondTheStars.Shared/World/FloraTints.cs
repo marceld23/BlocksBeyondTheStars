@@ -23,6 +23,33 @@ public static class FloraTints
         return HsvToRgb(hue, sat, val);
     }
 
+    /// <summary>The rainbow glow class (generation 11): ONE plant's own colour (RGB 0..1), taken from its cell, so
+    /// every plant of the species differs from its neighbours. Any hue, vivid (saturation 0.8..1, full value) — the
+    /// class is about colour. A pure function of the canonical cell, so the mesher's tint and the light the plant
+    /// casts agree on every client without any traffic.</summary>
+    public static (float R, float G, float B) RainbowAt(int x, int y, int z)
+    {
+        unchecked
+        {
+            ulong h = ((ulong)(uint)x * 0x9E3779B97F4A7C15UL) ^ ((ulong)(uint)y * 0xC2B2AE3D27D4EB4FUL)
+                ^ ((ulong)(uint)z * 0x165667B19E3779F9UL);
+            h ^= h >> 31;
+            h *= 0xBF58476D1CE4E5B9UL;
+            h ^= h >> 29;
+            float hue = (h % 3600UL) / 3600f;
+            float sat = 0.80f + ((h >> 16) % 1000UL) / 1000f * 0.20f; // 0.8..1.0
+            return HsvToRgb(hue, sat, 1f);
+        }
+    }
+
+    /// <summary>A colour (RGB 0..1) scaled by <paramref name="strength"/> as 0xRRGGBB — the dim light colour a glowing
+    /// plant casts (a dim colour is a short reach in the client's light flood fill).</summary>
+    public static int ToRgb24((float R, float G, float B) c, float strength)
+    {
+        static int Channel(float v, float s) => System.Math.Clamp((int)(v * s * 255f + 0.5f), 0, 255);
+        return (Channel(c.R, strength) << 16) | (Channel(c.G, strength) << 8) | Channel(c.B, strength);
+    }
+
     /// <summary>The bark/trunk tint colour (RGB 0..1) for a world — wood gets ONE deterministic colour per
     /// world (uniform across every trunk on the planet). The hue is fully random per world like the leaves,
     /// but value is forced into a DARK band (0.30..0.58) while leaves always sit bright (0.85..1.15), so the

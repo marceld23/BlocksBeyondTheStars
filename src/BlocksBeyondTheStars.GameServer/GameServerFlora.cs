@@ -61,7 +61,8 @@ public sealed partial class GameServer
             }
 
             _floraIds.Add(flora.NumericId.Value);
-            _floraHostIds[flora.NumericId.Value] = HostIds(sp.Hosts.Concat(sp.LateHosts).ToArray()); // regrow on a late host too
+            // Regrow on a late host too, and — generation 11 — on the cave rock a species grows on underground.
+            _floraHostIds[flora.NumericId.Value] = HostIds(sp.Hosts.Concat(sp.LateHosts).Concat(sp.CaveHosts).Distinct().ToArray());
             if (sp.Hanging)
             {
                 _floraHangingIds.Add(flora.NumericId.Value); // #1759: roots in the block ABOVE

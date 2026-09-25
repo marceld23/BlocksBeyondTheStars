@@ -1709,3 +1709,40 @@ their no-op, and nothing reads them below generation 9, so no older world moves.
 ids `gi_colossus` / `gi_sandworm`) and never touch world generation; `GiantRules` decides which worlds host them —
 the colossus on a very flat type with gravity ≤ 0.70 and a one-in-three roll, sandworms on every sand-sea world. See
 `GameServerGiants` and the TODO entry for the behaviour.
+
+## 26. Generation 11 — cave flora, the rainbow glow class, cold flora (2026-09-25)
+
+Everything in this wave is gated on `WorldDescription.CaveFloraGeneration` (11); an older world keeps its plants.
+
+**The habitat class.** `FloraCatalog.Species` gained `Habitat` (`Surface` / `Cave` / `Both`), `CaveHosts` (the rock a
+species roots on underground — kept apart from `Hosts` so the surface pools and the surface coverage rule never see
+it), `Rainbow` (every plant its own colour) and `Light` (the fraction of its colour a plant casts as block light).
+The four new species (`flora_cavecap`, `flora_glowmoss`, `flora_glowthread` hanging, `flora_prismbloom` rainbow) are
+appended after `flora_hangkelp` with `MinGeneration` 11; the surface fungi became `Both`.
+
+**Rosters.** `FloraGenerator` keeps a plant world's caves planted (`EnsureCaveCoverage`: one cave-only species at
+least, the rainbow class always). A barren or airless world with caves rolls `BarrenCaveFloraChance` (0.5) from its
+own seed and then carries a cave-only roster from the same per-species streams. Cave-only species and the rainbow
+class never count as (or become) the species that keeps a SURFACE host planted (`SurfaceCover`).
+
+**The cave pass** (`WorldGenerator.CaveFloraGen11.cs`) runs per chunk after the column loop, reading the finished
+chunk — the y-loop (one of the largest methods, #1740) is untouched:
+
+- a **floor** is an air cell whose cell below is a cave host, at least `CaveFloraMinDepth` (6) under the column's
+  ground top; a **ceiling** is an air cell whose cell above is a cave host with open air below (hanging species);
+- two low-frequency fields per column: a patch field scaling the density (×2 / 1.2 / 0.6 / 0.15 — grottoes and bare
+  stretches, ~11 % of floor cells on average at `CaveFloorDensity` 0.12, ceilings at 0.05) and a pick field choosing
+  the species of a patch (weights: cave-only 3, surface fungi 2, rainbow 2); barren worlds grow at half density;
+- the chunk's bottom layer takes no floor plant and its top layer no hanging one (their host sits in the next chunk).
+
+**Rainbow clusters on the surface** use the same pass: dry columns whose cell above the ground is still air after the
+surface flora, on a rainbow host, not on frozen ground, inside a rare cluster field (> 0.74) at 35 % fill.
+
+**Cold flora.** `SurfaceFloraColdFactor`: a Cold-tagged species keeps `max(classic, 0.6 × adapted)`, the adapted fade
+running from −30 °C to −45 °C; everything else keeps the classic +4 … −8 °C fade. `FrozenFloraHost`: altitude snow /
+ice (and a snow blanket) host their own pool, so a snow cap grows frost flowers instead of fading grass plants.
+
+**Client.** The mesher colours a rainbow plant with `FloraTints.RainbowAt(x, y, z)` (canonical cell, vivid hue) and the
+light index registers the glowers with `Light` > 0 (`ClientWorld.SetCellLightResolver`) at this world's species colour
+or the cell's rainbow colour, scaled by `Light` — a dim start level is a short reach in the flood fill. The classic
+glowers keep their self-glow only.

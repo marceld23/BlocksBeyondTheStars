@@ -40,6 +40,52 @@ namespace BlocksBeyondTheStars.Client
         /// index dedicated light blocks as light sources.</summary>
         public void SetBlockLightResolver(System.Func<ushort, int> resolver) => _blockLightColor = resolver;
 
+        // Generation 11: glowing plants that light their surroundings. Their light colour is the world's colour of the
+        // species, or — the rainbow class — the colour of the plant's own cell, so it is asked per position; the id
+        // table keeps that call off the (vast) majority of cells that are no such plant.
+        private bool[]? _cellLightIds;
+        private System.Func<ushort, Vector3i, int>? _cellLightColor;
+
+        /// <summary>Registers the blocks whose light colour depends on the world or on their cell (generation 11's
+        /// glowing plants) and the resolver asked for them with the cell's canonical position; null clears it. Set it
+        /// before a world's chunks are stored — a chunk already indexed keeps the lights it was indexed with.</summary>
+        public void SetCellLightResolver(System.Func<ushort, Vector3i, int>? resolver, IEnumerable<ushort>? ids)
+        {
+            _cellLightColor = resolver;
+            if (resolver == null || ids == null)
+            {
+                _cellLightIds = null;
+                return;
+            }
+
+            int size = 0;
+            foreach (ushort id in ids)
+            {
+                size = System.Math.Max(size, id + 1);
+            }
+
+            var flags = new bool[size];
+            foreach (ushort id in ids)
+            {
+                flags[id] = true;
+            }
+
+            _cellLightIds = size > 0 ? flags : null;
+        }
+
+        /// <summary>The inherent light colour of a block at a canonical cell (0 = no light source): the block's own
+        /// colour, else — for a registered plant — the per-cell resolver's.</summary>
+        private int InherentLightAt(ushort id, Vector3i pos)
+        {
+            int rgb = _blockLightColor != null ? _blockLightColor(id) : 0;
+            if (rgb == 0 && _cellLightIds is { } flags && id < flags.Length && flags[id] && _cellLightColor != null)
+            {
+                rgb = _cellLightColor(id, pos);
+            }
+
+            return rgb;
+        }
+
         // Round worlds: chunks are cached by canonical chunk coordinate (a chunk a lap away — east OR
         // north — is the same chunk), and block lookups canonicalize X AND Z so an unbounded player
         // coordinate still resolves after laps in any direction.
@@ -169,7 +215,7 @@ namespace BlocksBeyondTheStars.Client
             // Light colour priority (#1126): an explicit glow always wins; otherwise a block that IS a light
             // source (base colour non-zero) casts its DYE colour when dyed — a red-dyed lamp floods red — and
             // its natural colour when plain. A dye on a non-source block never turns it into a lamp.
-            int baseRgb = block != BlockId.AirValue && _blockLightColor != null ? _blockLightColor(block) : 0;
+            int baseRgb = block != BlockId.AirValue ? InherentLightAt(block, pos) : 0;
             int rgb = glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
             if (rgb != 0)
             {
@@ -272,7 +318,7 @@ namespace BlocksBeyondTheStars.Client
 
                         // Same priority as ApplyBlockChange (#1126): glow > dye-on-a-light-source > natural.
                         var (tint, glow) = chunk.GetModifier(x, y, z);
-                        int baseRgb = _blockLightColor != null ? _blockLightColor(id.Value) : 0;
+                        int baseRgb = InherentLightAt(id.Value, new Vector3i(origin.X + x, origin.Y + y, origin.Z + z));
                         int rgb = glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
                         if (rgb != 0)
                         {

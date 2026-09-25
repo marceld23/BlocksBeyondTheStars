@@ -708,6 +708,14 @@ public sealed class GameContent
                     block.FloraHost = true;
                 }
             }
+
+            foreach (var hostKey in species.CaveHosts) // generation 11: the cave rock a species roots on underground
+            {
+                if (_blocks.TryGetValue(hostKey, out var block))
+                {
+                    block.FloraHost = true;
+                }
+            }
         }
     }
 

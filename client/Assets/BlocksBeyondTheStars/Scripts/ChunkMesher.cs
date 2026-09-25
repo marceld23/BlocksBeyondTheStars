@@ -676,6 +676,12 @@ namespace BlocksBeyondTheStars.Client
                 // resolver, so wood_log stays a normal paintable hull block there.
                 bool isWood = floraTint != null && (tf & TraitWood) != 0;
                 Color speciesTint = (isFlora || isWood) && floraTint != null ? floraTint(id) : Color.black;
+                // Generation 11, the rainbow class: every plant takes its own colour from its cell instead of the one
+                // per-world species hue (planet chunks only, like every flora tint).
+                if (floraTint != null && (tf & TraitRainbowFlora) != 0)
+                {
+                    speciesTint = RainbowTint(origin.X + x, origin.Y + y, origin.Z + z);
+                }
                 // #1716: a farmed crop is flora for everything BUT the tint. It carries no species colour (the
                 // tint map skips crops so a berry reads as ripe fruit on every world), and a black species tint
                 // in tint mode 1 made the shader fall back to the WORLD hue — violet berries on a violet world,
@@ -1797,7 +1803,7 @@ namespace BlocksBeyondTheStars.Client
         {
             "flora_cactus" or "flora_pitcher" or "flora_sporepod" or "flora_glowvine" => 8, // cylinder (columns)
             "flora_crystal" or "flora_shardbloom" or "flora_emberbloom" or "flora_frostflower" => 7, // cone (shards)
-            "flora_mushroom" or "flora_glowcap" or "flora_cropshroom" => 3, // dome (caps)
+            "flora_mushroom" or "flora_glowcap" or "flora_cropshroom" or "flora_cavecap" => 3, // dome (caps)
             _ => 4, // sphere (puffball, succulent, bulb, gasbloom, …)
         };
 
@@ -1870,6 +1876,22 @@ namespace BlocksBeyondTheStars.Client
                 default: return 0f;
             }
         }
+
+        /// <summary>Whether the project renders in Linear space — captured on the main thread (GameBootstrap) because the
+        /// mesher may run on a worker, where Unity's QualitySettings must not be touched.</summary>
+        internal static volatile bool LinearColorSpace;
+
+        /// <summary>A rainbow-class plant's own colour (generation 11) as the value the block shader multiplies: the
+        /// sRGB hue of <see cref="FloraTints.RainbowAt"/>, converted like <c>ShaderColor.Srgb</c> converts the
+        /// per-species tints (by hand, so it is safe off the main thread).</summary>
+        private static Color RainbowTint(int x, int y, int z)
+        {
+            var (r, g, b) = FloraTints.RainbowAt(x, y, z);
+            return LinearColorSpace ? new Color(SrgbToLinear(r), SrgbToLinear(g), SrgbToLinear(b)) : new Color(r, g, b);
+        }
+
+        private static float SrgbToLinear(float c)
+            => c <= 0.04045f ? c / 12.92f : (float)System.Math.Pow((c + 0.055) / 1.055, 2.4);
 
         /// <summary>Converts a 0xRRGGBB integer to a linear-ish UnityEngine.Color (0..1 per channel).</summary>
         private static Color RgbToColor(int rgb)
@@ -2140,6 +2162,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitExposesOpaqueFace = 1u << 19; // transparent | flora | foliage | slim prop (air handled by the caller)
         private const uint TraitCultivated = 1u << 20;        // #1716: a farmed crop — flora that keeps its authored colour (no tint mode)
         private const uint TraitHangingFlora = 1u << 21;      // #1759: a plant rooted in the block ABOVE — the billboard grows downward
+        private const uint TraitRainbowFlora = 1u << 22;      // generation 11: every plant its own colour (FloraTints.RainbowAt)
 
         private sealed class BlockTraits
         {
@@ -2182,6 +2205,7 @@ namespace BlocksBeyondTheStars.Client
                     if (key != null && SolidFlora.Contains(key)) f |= TraitSolidFlora;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsCultivated(key)) f |= TraitCultivated;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsHanging(key)) f |= TraitHangingFlora;
+                    if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsRainbow(key)) f |= TraitRainbowFlora;
                     if (key == "water") f |= TraitWater;
                     if (key == "lava") f |= TraitLava;
                     if (key == "fire") f |= TraitFire;

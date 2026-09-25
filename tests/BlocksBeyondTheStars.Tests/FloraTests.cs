@@ -144,8 +144,9 @@ public sealed class FloraTests : IDisposable
 
         // Coverage: every land host surface keeps at least one active land species (no bare biome) …
         // (Cultivated crops are skipped: their hosts are greenhouse beds and hydroponic trays, which are no
-        // world surface at all, so there is nothing for world gen to cover there.)
-        var landHosts = FloraCatalog.All.Where(s => !s.Aquatic && !s.Cultivated).SelectMany(s => s.Hosts).Distinct();
+        // world surface at all, so there is nothing for world gen to cover there. So are the cave-only species of
+        // generation 11: their hosts are the rock of a cave floor or ceiling, not a surface.)
+        var landHosts = FloraCatalog.All.Where(s => !s.Aquatic && !s.Cultivated && s.OnSurface).SelectMany(s => s.Hosts).Distinct();
         foreach (var host in landHosts)
         {
             Assert.Contains(roster, s => s.Active && !s.Aquatic

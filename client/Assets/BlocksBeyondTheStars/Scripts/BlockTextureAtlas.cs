@@ -1224,6 +1224,36 @@ namespace BlocksBeyondTheStars.Client
                     Speckle(ox, oy, rng, new Color(0.55f, 0.95f, 1f), 12);
                     break;
 
+                // Generation 11, cave flora — code-painted placeholders until the official tiles exist. Every wild plant
+                // is re-coloured by the world's (or, for the prism bloom, the plant's own) hue in the shader, so these
+                // tiles only carry the light/dark pattern: the dome of a cap, a moss carpet, hanging threads, petals.
+                case "flora_cavecap":
+                    // The dark cave mushroom: a mottled cap surface (the dome form wears it) with pale gill spots.
+                    FillTile(ox, oy, rng, new Color(0.30f, 0.26f, 0.28f));
+                    Speckle(ox, oy, rng, new Color(0.52f, 0.46f, 0.48f), 26);
+                    Speckle(ox, oy, rng, new Color(0.74f, 0.70f, 0.66f), 8);
+                    break;
+
+                case "flora_glowmoss":
+                    // A low glowing carpet (cutout billboard): short pale tufts with bright tips.
+                    ClearTile(ox, oy);
+                    PaintBlades(ox, oy, rng, 18, Tile / 3 + 4, new Color(0.62f, 0.78f, 0.66f), new Color(0.95f, 1f, 0.95f));
+                    break;
+
+                case "flora_glowthread":
+                    // Threads hanging from a cave ceiling (cutout billboard, drawn root-at-top like the hanging kelp):
+                    // thin strands of varied length, each ending in a bright bead.
+                    ClearTile(ox, oy);
+                    PaintHangingThreads(ox, oy, rng, 9, new Color(0.70f, 0.80f, 0.84f), new Color(1f, 1f, 1f));
+                    break;
+
+                case "flora_prismbloom":
+                    // The rainbow class: near-white petals around a bright core (the sphere form wears it), so the
+                    // plant's own colour comes through at full strength.
+                    FillTile(ox, oy, rng, new Color(0.86f, 0.86f, 0.88f));
+                    PaintPetalRays(ox, oy, new Color(0.98f, 0.98f, 1f), new Color(0.66f, 0.66f, 0.70f));
+                    break;
+
                 case "flora_frostflower":
                     // Pale icy crystal bloom.
                     PaintCrystals(ox, oy, rng, new Color(0.82f, 0.94f, 1f), new Color(0.46f, 0.62f, 0.82f));
@@ -1299,6 +1329,65 @@ namespace BlocksBeyondTheStars.Client
                 {
                     float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c;
                     Color px = d > 0.9f ? rim : Color.Lerp(Color.Lerp(Color.white, color, 0.5f), color, Mathf.Clamp01(d * 1.4f));
+                    Texture.SetPixel(ox + x, oy + y, px);
+                }
+            }
+        }
+
+        /// <summary>Makes a whole tile transparent — the cutout background a code-painted leafy plant is drawn onto.</summary>
+        private void ClearTile(int ox, int oy)
+        {
+            var clear = new Color(0f, 0f, 0f, 0f);
+            for (int x = 0; x < Tile; x++)
+            {
+                for (int y = 0; y < Tile; y++)
+                {
+                    Texture.SetPixel(ox + x, oy + y, clear);
+                }
+            }
+        }
+
+        /// <summary>Fills a tile with a colour and a light per-pixel grain (no tiled edge — for plant surfaces).</summary>
+        private void FillTile(int ox, int oy, System.Random rng, Color color)
+        {
+            for (int x = 0; x < Tile; x++)
+            {
+                for (int y = 0; y < Tile; y++)
+                {
+                    float n = 0.88f + 0.24f * (float)rng.NextDouble();
+                    Texture.SetPixel(ox + x, oy + y, new Color(color.r * n, color.g * n, color.b * n, 1f));
+                }
+            }
+        }
+
+        /// <summary>Strands hanging down from the tile's top row, each of its own length, ending in a bright bead.</summary>
+        private void PaintHangingThreads(int ox, int oy, System.Random rng, int count, Color strand, Color bead)
+        {
+            for (int s = 0; s < count; s++)
+            {
+                int tx = 2 + rng.Next(Tile - 4);
+                int end = Tile / 5 + rng.Next(Tile / 2);
+                for (int y = Tile - 1; y > end; y--)
+                {
+                    Texture.SetPixel(ox + tx, oy + y, strand);
+                }
+
+                PutDot(ox + System.Math.Min(tx, Tile - 2), oy + end, bead);
+            }
+        }
+
+        /// <summary>Radial petal rays around a bright centre, darker gaps between them.</summary>
+        private void PaintPetalRays(int ox, int oy, Color petal, Color gap)
+        {
+            float c = (Tile - 1) * 0.5f;
+            for (int x = 0; x < Tile; x++)
+            {
+                for (int y = 0; y < Tile; y++)
+                {
+                    float dx = x - c, dy = y - c;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy) / c;
+                    float ray = Mathf.Abs(Mathf.Sin(Mathf.Atan2(dy, dx) * 4f)); // eight petals
+                    Color px = d < 0.22f ? petal : Color.Lerp(gap, petal, Mathf.Clamp01(ray * 1.3f - d * 0.35f));
                     Texture.SetPixel(ox + x, oy + y, px);
                 }
             }

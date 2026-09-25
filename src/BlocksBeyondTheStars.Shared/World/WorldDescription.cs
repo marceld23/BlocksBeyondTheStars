@@ -180,8 +180,16 @@ public sealed class WorldDescription
 
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
-    /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan).</summary>
-    public const int CurrentTerrainGeneration = 10;
+    /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora).</summary>
+    public const int CurrentTerrainGeneration = 11;
+
+    /// <summary>The generation of the cave flora wave (2026-09): plants in caves (a cave habitat with its own species,
+    /// the fungi of the surface also growing underground, glowers that light their surroundings), the rainbow glow
+    /// class (every plant its own colour, in caves and in rare surface clusters), and cold-adapted species that
+    /// survive the cold (plus altitude snow and ice hosting their own flora). Species of this wave carry
+    /// <c>MinGeneration</c> 11 and every generator change is gated on it, so an older world keeps its plants bit
+    /// for bit.</summary>
+    public const int CaveFloraGeneration = 11;
 
     /// <summary>The generation of the arachnid body plan (#2009): a speeder-sized eight-legger rolled into the Land pool
     /// AFTER every older roll (the same discipline as the generation-6 kinds), so a world of any older generation keeps

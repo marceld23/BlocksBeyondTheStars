@@ -104,6 +104,9 @@ public sealed class WorldGenerationGoldenTests
         new("meadowlands-gen5", 20260903, "meadowlands", 0, false, null, 5),
         new("titas-gen8", 20260916, "titas", 0, false, null, 8), // 2026-09: snow blanket, fixed ice sheet, hot zones, dead forests
         new("valuma-gen8", 20260916, "valuma", 0, false, null, 8), // 2026-09: calm plains, no built props
+        // Generation 11 (2026-09-25): cave flora (floors, ceilings, the rainbow class), rainbow surface clusters, cold flora.
+        new("karst-gen11", 20260903, "karst", 0, false, null, 11),
+        new("tundra-gen11", 20260903, "tundra", 0, false, null, 11),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -174,6 +177,9 @@ public sealed class WorldGenerationGoldenTests
             // Pinned 2026-09-16 (Titas, generation 8; Windows 11, .NET 10).
             ["titas-gen8"] = 0xb916e711d799bed4UL,
             ["valuma-gen8"] = 0x18bf753a86f701f7UL,
+            // Pinned 2026-09-25 (generation 11, cave flora, Windows 11, .NET 10).
+            ["karst-gen11"] = 0xcb33a5b7758cd9adUL,
+            ["tundra-gen11"] = 0xe89f39b4dac6d442UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.
