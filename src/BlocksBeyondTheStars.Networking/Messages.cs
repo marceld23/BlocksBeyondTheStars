@@ -1882,6 +1882,15 @@ public sealed class NetCreature
     public int NeckLength { get; set; }
     public bool HasTrunk { get; set; }
 
+    /// <summary>The head's silhouette (#2009): "Box" (the head every species had) or one of the arachnid plan's pyramids
+    /// ("Pyramid" | "Spire" | "Frustum" | "Ziggurat"). Additive: an older client draws the box; an older server sends
+    /// nothing, which the client reads as the box.</summary>
+    public string HeadShape { get; set; } = "Box";
+
+    /// <summary>#2009: an arachnid ambusher sitting motionless in wait — the client holds the crouch and skips the idle
+    /// flourishes. Additive; false for everything else and from an older server.</summary>
+    public bool Lurking { get; set; }
+
     /// <summary>Heads / wing pairs / fin pairs (#1780-#1782, generation 6). Additive: an older client ignores them and
     /// draws the classic single head / pair / pair; an older server leaves them at 0, which the client reads as 1.</summary>
     public int Heads { get; set; } = 1;
@@ -2094,6 +2103,7 @@ public sealed class NetCompanion
     public string BodyPlan { get; set; } = "Standard"; // #637/#638 — the portrait renders the real plan
     public int NeckLength { get; set; }
     public bool HasTrunk { get; set; }
+    public string HeadShape { get; set; } = "Box"; // #2009 — the portrait shows the pyramid an arachnid companion wears
     public int Heads { get; set; } = 1;     // #1780-#1782 (generation 6) — the portrait shows every head, wing pair and fin pair
     public int WingPairs { get; set; } = 1;
     public int FinPairs { get; set; } = 1;

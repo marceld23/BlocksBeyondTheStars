@@ -59,9 +59,10 @@ public sealed partial class GameServer
 
     private static long NowUnixSeconds => System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-    /// <summary>The land shapes a Sreekmakra may take: rolled land species, no titans, never its own kind.</summary>
+    /// <summary>The land shapes a Sreekmakra may take: rolled land species, no titans, no arachnids (#2009), never its own kind.</summary>
     private List<CreatureSpecies> SreekmakraShapes()
-        => _speciesRoster.Where(sp => sp.Habitat == CreatureHabitat.Land && sp.BodyPlan != CreatureBodyPlan.Titan
+        => _speciesRoster.Where(sp => sp.Habitat == CreatureHabitat.Land
+            && sp.BodyPlan is not (CreatureBodyPlan.Titan or CreatureBodyPlan.Arachnid)
             && !sp.Id.StartsWith("au_", System.StringComparison.Ordinal)).ToList();
 
     /// <summary>Once a second per world: keep the one shapeshifter alive, let it change shape, keep its hunt going; and

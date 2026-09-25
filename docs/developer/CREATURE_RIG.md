@@ -23,8 +23,23 @@ The same descriptor must always yield the same body: every client draws a specie
 per-individual variation is derived from `StableIdHash(SpeciesId)`, never from `Random` at build
 time. (`Random` inside the animator is fine — that is per-client cosmetic timing, not body shape.)
 
-Four body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637) and **Ray** (#1778);
-the flowerling (#1760) is the standard body with a petal head.
+Seven body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
+**Colossus** (#1999), **Sandworm** (#2001) and **Arachnid** (#2009); the flowerling (#1760) is the standard
+body with a petal head.
+
+**Arachnid (#2009).** `BuildArachnid`: a cephalothorax box and a sphere abdomen on eight jointed legs in four
+rows (hips on the thorax flanks; the crawler stance splays them 22°), a head that is either the classic box
+with its hinged jaw or a pyramid — the only creature part that is a mesh rather than a primitive. The pyramid
+family (`CreatureHeadShape`: Pyramid, Spire, Frustum, Ziggurat) is built by `ArachnidHeadMesh` from the tiers in
+`ArachnidRules.HeadTiers` (Shared, tested): one flat-shaded square frustum per tier, cached per shape, added
+through `AddMeshPart` (the primitive helpers only make cubes and spheres). The eye clusters (2–8 eyes in two
+rows) sit ON the front slope: `ArachnidRules.FootprintAt` says where the face is at a given height and the eye
+is pushed out along the slope's normal, so nothing sinks into the mesh (the lesson of the flowerling's face,
+#1997). Fangs are the species' `Horns` worn as chelicerae. The thorax, abdomen and head keep their colliders
+(`MakeGiantBody`, the giants' layer) so the player bumps into the body and aims at it; the legs stay
+render-only. The rig sets `LeggedCrawler`: a crawler by leg count (tripod / metachronal gait, no jumping) that
+nevertheless strides at full amplitude without the beetle weave. `SetLurking` (from the wire's `Lurking`)
+flattens the body, widens the splay and stops every flourish while it lies in wait.
 
 ## Rig conventions
 

@@ -883,6 +883,10 @@ public sealed partial class GameServer
             // A provoked territorial creature hunts like an aggressor until it calms down.
             var temperament = CreatureBehaviour.EffectiveTemperament(sp.Temperament, creature.ProvokeTimer > 0);
             Vector3f? nearest = NearestPlayerPosition(targets, creature.Position);
+            if (sp.BodyPlan == CreatureBodyPlan.Arachnid && !creature.IsCompanion)
+            {
+                AnnounceArachnid(creature, targets); // #2009: VEGA points out the first one a player gets near
+            }
 
             // Give-up leash: an aggressor that has been chasing within aggro range too long backs off for a
             // while — it wanders away and won't chase/attack — so creatures never hound the player forever.
@@ -978,6 +982,30 @@ public sealed partial class GameServer
                     asleep: true, MoveMode.Roam, moving: false);
                 LiftEmbeddedHoverer(creature, sp, motion); // #1854: a sleeping gas sac does not sink either
                 continue;
+            }
+
+            // #2009: an arachnid ambusher lies in wait — motionless like a rock until a player comes within LurkRange, then
+            // it is provoked (a territorial one hunts like an aggressor for the provoke window, a hunter simply starts its
+            // chase) and rushes. It never roams on its own; after a chase gives up it wanders through the cooldown like any
+            // aggressor and settles back into the wait when that runs out. Companions never lurk.
+            creature.Lurking = false;
+            if (!creature.IsCompanion && creature.ProvokeTimer <= 0 && creature.GiveUpTimer <= 0 && creature.PanicTimer <= 0
+                && ArachnidRules.Lurks(sp))
+            {
+                if (nearest is { } lurkPrey && WrapDistSq(creature.Position, lurkPrey) <= ArachnidRules.LurkRange * ArachnidRules.LurkRange)
+                {
+                    creature.ProvokeTimer = CreatureProvokeSeconds;
+                    temperament = CreatureBehaviour.EffectiveTemperament(sp.Temperament, provoked: true);
+                    aggressor = true;
+                }
+                else
+                {
+                    creature.Lurking = true;
+                    creature.Position = ResolveVertical(creature, sp, motion, creature.Position, 0f, profile, moveDt,
+                        asleep: false, MoveMode.Roam, moving: false);
+                    LiftEmbeddedHoverer(creature, sp, motion);
+                    continue;
+                }
             }
 
             // Decide intent: hunters Seek a nearby player, skittish flee one, everyone else (and a give-up
@@ -1824,8 +1852,9 @@ public sealed partial class GameServer
     /// <summary>How many cells tall a creature's body is for collision purposes (its render height is
     /// <c>Size × 1.8</c>), clamped so tiny fauna still gets a head cell and a titan can still duck under an
     /// overhang instead of being walled in by its own crown.</summary>
-    private static int CreatureBodyHeight(CreatureSpecies sp) => System.Math.Clamp(
-        (int)System.Math.Ceiling(sp.Size * 1.8f), CreatureBodyMinHeight, CreatureBodyMaxHeight);
+    private static int CreatureBodyHeight(CreatureSpecies sp) => sp.BodyPlan == CreatureBodyPlan.Arachnid
+        ? ArachnidRules.BodyHeightCells(sp.Size, CreatureBodyMinHeight, CreatureBodyMaxHeight) // #2009: low and wide, not tall
+        : System.Math.Clamp((int)System.Math.Ceiling(sp.Size * 1.8f), CreatureBodyMinHeight, CreatureBodyMaxHeight);
 
     /// <summary>Whether a creature's BODY would sit inside colliding blocks at a spot (#855). Creatures have no
     /// colliders and the server tracks a single point, so before this gate a wall was only ever seen indirectly —
@@ -2552,6 +2581,74 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>#2009: VEGA points out an arachnid the first time one comes within <see cref="ArachnidRules.SightingRange"/> of a
+    /// player — once per session, so the line is a sighting, not a nag.</summary>
+    private void AnnounceArachnid(CombatEntity creature, List<PlayerSession> targets)
+    {
+        float rangeSq = ArachnidRules.SightingRange * ArachnidRules.SightingRange;
+        foreach (var s in targets)
+        {
+            if (!s.ArachnidSighted && WrapDistSq(creature.Position, s.State.Position) <= rangeSq)
+            {
+                s.ArachnidSighted = true;
+                SendVegaLine(s, "vega.sys.arachnid_sighted", 3);
+            }
+        }
+    }
+
+    /// <summary>#2009: <c>/arachnid</c> — puts an arachnid of this world near an admin for testing. The roster's own species
+    /// when the world rolled one; otherwise a rolled one joins the roster (so it can be scanned, tamed and respawned like
+    /// any species): this world's Land roll with the plan forced. Placed 12–22 blocks out on a spot the spawner would
+    /// accept (habitat, body volume, ship margin, sealed rooms).</summary>
+    private void AdminSummonArachnid(PlayerSession session)
+    {
+        var sp = _speciesRoster.FirstOrDefault(s => s.BodyPlan == CreatureBodyPlan.Arachnid);
+        if (sp is null)
+        {
+            var planet = _content.GetPlanet(_worlds.Active.PlanetType);
+            if (planet is null)
+            {
+                return;
+            }
+
+            sp = CreatureGenerator.GenerateArachnid(planet,
+                BlocksBeyondTheStars.WorldGeneration.WorldGenerator.RosterSeedFor(_meta.Seed, _world.LocationId));
+            _speciesRoster = _speciesRoster.Append(sp).ToArray();
+            _speciesById[sp.Id] = sp;
+            _locoProfiles[sp.Id] = LocomotionController.ForSpecies(sp);
+        }
+
+        var at = session.State.Position;
+        var rng = new System.Random(unchecked((int)(_uptime * 1000.0)));
+        bool placed = false;
+        for (int attempt = 0; attempt < 24 && !placed; attempt++)
+        {
+            double angle = rng.NextDouble() * System.Math.PI * 2.0;
+            float dist = 12f + (float)rng.NextDouble() * 10f;
+            int x = (int)System.Math.Floor(at.X + System.Math.Cos(angle) * dist);
+            int z = (int)System.Math.Floor(at.Z + System.Math.Sin(angle) * dist);
+            int surface = _generator.SurfaceHeight(_world.Planet, x, z);
+            var pos = new Vector3f(x + 0.5f, GroundFeetYAt(x, z, surface + 1), z + 0.5f);
+            if (SpawnSpotClear(sp, pos, x, z, surface))
+            {
+                SpawnCreature(sp, pos);
+                placed = true;
+            }
+        }
+
+        Send(session, new ServerMessage { Text = placed ? "@srv.admin.arachnid_summoned" : "@srv.admin.arachnid_no_room" });
+        CheatLog(session.State, $"summoned an arachnid ({(placed ? "placed" : "no room")})");
+    }
+
+    /// <summary>Test seam: /arachnid without the chat.</summary>
+    public void SummonArachnidForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } s)
+        {
+            AdminSummonArachnid(s);
+        }
+    }
+
     private const float TitanDespawnRange = 110f; // a landmark animal must not evaporate mid-approach (#638)
 
     /// <summary>Removes creatures farther than <see cref="CreatureDespawnRange"/> from every player
@@ -2577,7 +2674,8 @@ public sealed partial class GameServer
                 return false; // companions are managed by ReconcileCompanions, giants by TickGiants (#1998) — never far-pruned
             }
 
-            float limitSq = _speciesById.TryGetValue(c.SpeciesId, out var sp) && sp.BodyPlan == CreatureBodyPlan.Titan
+            float limitSq = _speciesById.TryGetValue(c.SpeciesId, out var sp)
+                            && sp.BodyPlan is CreatureBodyPlan.Titan or CreatureBodyPlan.Arachnid // #2009: a speeder-sized silhouette keeps the titan's leash
                 ? titanSq
                 : maxSq;
             var nearest = NearestPlayerPosition(targets, c.Position);
@@ -2725,6 +2823,8 @@ public sealed partial class GameServer
             Hide = sp?.Hide ?? string.Empty, // #1763: an authored species' fixed hide tile
             NeckLength = sp?.NeckLength ?? 0,
             HasTrunk = sp?.HasTrunk ?? false,
+            HeadShape = (sp?.HeadShape ?? CreatureHeadShape.Box).ToString(), // #2009
+            Lurking = e.Lurking,                                              // #2009: an ambusher sitting in wait
             Heads = System.Math.Max(1, sp?.Heads ?? 1),         // #1780-#1782 (generation 6); a pre-wave snapshot carries 0
             WingPairs = System.Math.Max(1, sp?.WingPairs ?? 1),
             FinPairs = System.Math.Max(1, sp?.FinPairs ?? 1),

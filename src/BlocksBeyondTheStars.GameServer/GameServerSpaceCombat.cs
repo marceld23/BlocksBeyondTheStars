@@ -54,6 +54,10 @@ public sealed class CombatEntity
     /// <summary>Seconds an aggressor that gave up will ignore the player (wanders off, won't chase or attack).</summary>
     public double GiveUpTimer { get; set; }
 
+    /// <summary>#2009: an arachnid ambusher is sitting in wait this tick — motionless until a player comes within
+    /// <see cref="Shared.Definitions.ArachnidRules.LurkRange"/>. Transient; on the wire only for the client's pose.</summary>
+    public bool Lurking { get; set; }
+
     /// <summary>Server uptime after which a gift-giving species (#1760, the flowerling) may spill its next gift.</summary>
     public double GiftReadyAt { get; set; }
 

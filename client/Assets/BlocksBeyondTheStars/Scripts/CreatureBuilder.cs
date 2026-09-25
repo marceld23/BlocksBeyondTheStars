@@ -79,6 +79,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (c.BodyPlan == "Arachnid")
+            {
+                BuildArachnid(root, c); // #2009
+                return;
+            }
+
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
             Color baseColor = Rgb(c.ColorRgb);
             Color bellyColor = Rgb(c.BellyRgb);
@@ -638,6 +644,200 @@ namespace BlocksBeyondTheStars.Client
             // (the hand-tuned 1/size curve it replaces was doing the whole job on its own).
             anim.CadenceScale = Mathf.Clamp(1.15f / Mathf.Max(1f, c.Size * 0.35f), 0.6f, 1f);
         }
+
+        /// <summary>The arachnid (#2009): a speeder-sized eight-legger — a cephalothorax on eight splayed jointed legs (four
+        /// rows), a rounder abdomen behind it, a head that is a box or one of the pyramid family
+        /// (<see cref="ArachnidHeadMesh"/>), spider eye clusters on the head's front face or slope, fangs. The thorax,
+        /// abdomen and head keep their colliders on the giants' layer (#1998) so the player bumps into the body and hits
+        /// it where the ray meets it; the legs stay render-only so nobody gets wedged between a shin and the belly.</summary>
+        private void BuildArachnid(GameObject root, NetCreature c)
+        {
+            float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 8f);
+            Color baseColor = Rgb(c.ColorRgb);
+            Color bellyColor = Rgb(c.BellyRgb);
+            if (c.Hostile)
+            {
+                baseColor = Color.Lerp(baseColor, new Color(0.85f, 0.2f, 0.15f), 0.25f);
+            }
+
+            if (c.Asleep)
+            {
+                baseColor *= 0.85f;
+            }
+
+            if (!string.IsNullOrEmpty(c.OwnerId))
+            {
+                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
+            }
+
+            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
+            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
+
+            int idh = StableIdHash(c.SpeciesId);
+            float headScale = 0.85f + ((idh >> 2) & 7) / 7f * 0.4f;  // 0.85..1.25
+            float bodyWide = 0.9f + ((idh >> 5) & 7) / 7f * 0.35f;   // 0.9..1.25
+            float legLong = 0.9f + ((idh >> 8) & 7) / 7f * 0.35f;    // 0.9..1.25
+
+            var body = new GameObject("BodyRig");
+            body.transform.SetParent(root.transform, false);
+
+            // The hip height IS the leg length (the shared convention): the shins fold to meet the ground.
+            float legH = unit * 1.15f * legLong;
+            float bodyY = legH + unit * 0.2f;                        // the thorax rides just above the hips
+            float thoraxW = unit * 2.0f * bodyWide, thoraxH = unit * 1.2f, thoraxL = unit * 1.6f;
+            float abdomenL = unit * 2.0f;
+            float abdomenZ = -(thoraxL * 0.5f + abdomenL * 0.42f);
+
+            _keepColliders = true;
+            AddPart(body, "Thorax", new Vector3(0f, bodyY, 0f), new Vector3(thoraxW, thoraxH, thoraxL), _bodyMat);
+            // The abdomen: a sphere behind the thorax, a little higher and a little wider — the spider read.
+            AddPartTo(body.transform, "Abdomen", new Vector3(0f, bodyY + unit * 0.15f, abdomenZ),
+                new Vector3(unit * 2.3f * bodyWide, unit * 1.7f, abdomenL), _bodyMat, PrimitiveType.Sphere);
+            _keepColliders = false;
+            AddPart(body, "Belly", new Vector3(0f, bodyY - thoraxH * 0.42f, 0f),
+                new Vector3(thoraxW * 0.9f, unit * 0.3f, thoraxL * 0.9f), bellyMat);
+            // A belly patch under the abdomen too, so the two-tone reads from every side.
+            AddPartTo(body.transform, "AbdomenBelly", new Vector3(0f, bodyY - unit * 0.5f, abdomenZ),
+                new Vector3(unit * 1.6f * bodyWide, unit * 0.4f, abdomenL * 0.7f), bellyMat, PrimitiveType.Sphere);
+
+            if (c.HasCrest)
+            {
+                // A dorsal ridge of small plates along the abdomen, in the belly tone.
+                for (int i = 0; i < 4; i++)
+                {
+                    float z = -(thoraxL * 0.5f + abdomenL * (0.15f + 0.18f * i));
+                    AddPart(body, "Crest" + i, new Vector3(0f, bodyY + unit * (0.95f - 0.08f * i), z),
+                        new Vector3(unit * 0.16f, unit * 0.32f, unit * 0.22f), bellyMat);
+                }
+            }
+
+            // Eight legs in four rows on the thorax flanks, row 0 at the front (the shared convention). The crawler
+            // stance splays them 22° outward (PoseLegs), so the span reaches well past the body: the spider silhouette.
+            const int Rows = 4;
+            float hipX = thoraxW * 0.5f;
+            float legThick = unit * 0.2f;
+            for (int row = 0; row < Rows; row++)
+            {
+                float z = Mathf.Lerp(thoraxL * 0.42f, -thoraxL * 0.42f, row / (float)(Rows - 1));
+                _legs.Add(AddLeg(body.transform, row, 0, Rows, new Vector3(-hipX, legH, z), legH, legThick, _bodyMat));
+                _legs.Add(AddLeg(body.transform, row, 1, Rows, new Vector3(hipX, legH, z), legH, legThick, _bodyMat));
+            }
+
+            // The head on a neck pivot in front of the thorax: the classic box with its hinged jaw, or a pyramid mesh
+            // (apex up, its base a little below the pivot so the eyes on its slope sit at eye height).
+            float headW = unit * 1.0f * headScale, headD = unit * 0.9f * headScale, headH = unit * 0.9f * headScale;
+            float headZ = unit * 0.45f;
+            _headPivot = NewPivot(body.transform, "Head", new Vector3(0f, bodyY + unit * 0.1f, thoraxL * 0.5f + unit * 0.1f));
+            var shape = ParseHeadShape(c.HeadShape);
+            _keepColliders = true;
+            if (ArachnidRules.IsPyramid(shape))
+            {
+                headH *= ArachnidRules.HeightScale(shape);
+                AddMeshPart(_headPivot, "HeadPyramid", new Vector3(0f, -headH * 0.5f, headZ),
+                    new Vector3(headW, headH, headD), _bodyMat, ArachnidHeadMesh.For(shape));
+                _heads.Add(_headPivot);
+            }
+            else
+            {
+                AddHeadBox(headW, headH, headD, headZ, _bodyMat);
+            }
+
+            _keepColliders = false;
+            AddArachnidEyes(c, unit, headScale, headW, headH, headD, headZ, shape);
+
+            // Fangs (the species' horns, worn as chelicerae): two dark spikes hanging from the head's front, angled forward.
+            if (c.Horns >= 2)
+            {
+                var fangMat = Lit(new Color(0.18f, 0.15f, 0.14f), null);
+                for (int f = 0; f < 2; f++)
+                {
+                    float x = (f == 0 ? -1f : 1f) * headW * 0.22f;
+                    var fang = NewPivot(_headPivot, "Fang" + f, new Vector3(x, -headH * 0.45f, headZ + headD * 0.35f));
+                    fang.localRotation = Quaternion.Euler(-28f, 0f, (f == 0 ? 1f : -1f) * 8f);
+                    AddPartTo(fang, "FangBox", new Vector3(0f, -unit * 0.22f, 0f), new Vector3(unit * 0.13f, unit * 0.45f, unit * 0.13f), fangMat);
+                    AddPartTo(fang, "FangTip", new Vector3(0f, -unit * 0.5f, 0f), new Vector3(unit * 0.08f, unit * 0.14f, unit * 0.08f), fangMat);
+                }
+            }
+
+            if (c.Glows)
+            {
+                var go = new GameObject("Glow");
+                go.transform.SetParent(body.transform, false);
+                go.transform.localPosition = new Vector3(0f, bodyY, 0f);
+                _glow = go.AddComponent<Light>();
+                _glow.type = LightType.Point;
+                _glow.range = unit * 6f;
+                _glow.intensity = 1.1f;
+                _glow.color = Rgb(c.ColorRgb);
+                _glow.shadows = LightShadows.None;
+            }
+
+            MakeGiantBody(root); // #1998: a kinematic compound on the giants' layer — the player bumps into the body
+
+            var rig = Describe(c, body.transform, unit, legH, idh);
+            rig.Aquatic = false;
+            rig.LeggedCrawler = true; // a crawler by leg count, but it walks — no beetle weave, full stride
+            var anim = root.AddComponent<CreatureAnimator>();
+            anim.Init(rig);
+            anim.CadenceScale = Mathf.Clamp(1.15f / Mathf.Max(1f, c.Size * 0.35f), 0.6f, 1f);
+        }
+
+        /// <summary>Spider eye clusters (#2009): up to eight eyes in two rows on the head's front — on the face of a box head,
+        /// or ON the front slope of a pyramid, each pushed out along the slope's normal so none sinks into the mesh (the
+        /// flowerling's face was lost inside its head exactly that way, #1997). Every eye gets its eyelid, so the cluster blinks.</summary>
+        private void AddArachnidEyes(NetCreature c, float unit, float headScale, float headW, float headH, float headD, float headZ, CreatureHeadShape shape)
+        {
+            int eyes = Mathf.Clamp(c.Eyes, 0, 8);
+            if (eyes <= 0)
+            {
+                return;
+            }
+
+            var eyeMat = Unlit(c.Glows ? new Color(0.85f, 1f, 0.95f) : new Color(0.97f, 0.97f, 0.88f));
+            var pupilMat = Unlit(new Color(0.04f, 0.04f, 0.06f));
+            var glintMat = Unlit(Color.white);
+            float eyeSize = unit * 0.26f * headScale * (eyes > 4 ? 0.8f : 1f);
+            int rows = eyes <= 2 ? 1 : 2;
+            int topRow = rows == 1 ? eyes : Mathf.CeilToInt(eyes / 2f);
+            bool pyramid = ArachnidRules.IsPyramid(shape);
+            for (int e = 0; e < eyes; e++)
+            {
+                int row = e < topRow ? 0 : 1;
+                int inRow = row == 0 ? topRow : eyes - topRow;
+                int idx = row == 0 ? e : e - topRow;
+                float spread = headW * (inRow > 2 ? 0.34f : 0.22f);
+                float x = inRow == 1 ? 0f : Mathf.Lerp(-spread, spread, idx / (float)(inRow - 1));
+                Vector3 pos, normal;
+                if (pyramid)
+                {
+                    // Where the front slope is at this height, and which way it faces: the footprint's change over a
+                    // small step of height gives the slope, the normal is perpendicular to it (out and up).
+                    float y01 = rows == 1 ? 0.42f : row == 0 ? 0.5f : 0.28f;
+                    float foot = ArachnidRules.FootprintAt(shape, y01);
+                    float dz = (ArachnidRules.FootprintAt(shape, Mathf.Min(1f, y01 + 0.05f)) - ArachnidRules.FootprintAt(shape, Mathf.Max(0f, y01 - 0.05f))) * headD * 0.5f;
+                    float dy = 0.1f * headH;
+                    normal = new Vector3(0f, -dz, dy).normalized;
+                    pos = new Vector3(x, -headH * 0.5f + headH * y01, headZ + headD * 0.5f * foot);
+                }
+                else
+                {
+                    float y = rows == 1 ? headH * 0.12f : row == 0 ? headH * 0.22f : -headH * 0.02f;
+                    pos = new Vector3(x, y, headZ + headD * 0.5f);
+                    normal = Vector3.forward;
+                }
+
+                pos += normal * (eyeSize * 0.35f);
+                AddPartTo(_headPivot, "Eye" + e, pos, Vector3.one * eyeSize, eyeMat, PrimitiveType.Sphere);
+                AddPartTo(_headPivot, "Pupil" + e, pos + normal * (eyeSize * 0.38f), Vector3.one * (eyeSize * 0.55f), pupilMat, PrimitiveType.Sphere);
+                AddPartTo(_headPivot, "Glint" + e, pos + normal * (eyeSize * 0.46f) + new Vector3(eyeSize * 0.14f, eyeSize * 0.16f, 0f),
+                    Vector3.one * (eyeSize * 0.16f), glintMat, PrimitiveType.Sphere);
+                AddEyelid(pos, eyeSize, _bodyMat);
+            }
+        }
+
+        /// <summary>The wire's head shape name → the enum; anything unknown (an older server sends nothing) is the box.</summary>
+        private static CreatureHeadShape ParseHeadShape(string name)
+            => !string.IsNullOrEmpty(name) && System.Enum.TryParse<CreatureHeadShape>(name, true, out var shape) ? shape : CreatureHeadShape.Box;
 
         /// <summary>A pair of two-panel wings: shoulder → inner panel → wrist → outer panel. The wrist is what
         /// makes a fold read as a fold — the single slab this replaces could only be rotated bodily up over
@@ -1332,6 +1532,32 @@ namespace BlocksBeyondTheStars.Client
             foreach (var col in root.GetComponentsInChildren<Collider>(true))
             {
                 col.gameObject.layer = CreatureView.GiantLayer;
+            }
+        }
+
+        /// <summary>#2009: a part with its own mesh (the pyramid heads) — the primitive helpers only make cubes and spheres.
+        /// Render-only unless colliders are being kept, in which case it gets a box collider of the mesh's bounds.</summary>
+        private void AddMeshPart(Transform parent, string partName, Vector3 localPos, Vector3 scale, Material mat, Mesh mesh)
+        {
+            if (mesh == null)
+            {
+                AddPartTo(parent, partName, localPos, scale, mat);
+                return;
+            }
+
+            var go = new GameObject(partName);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            go.transform.localScale = scale;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = mat;
+            _renderers.Add(mr);
+            if (_keepColliders)
+            {
+                var col = go.AddComponent<BoxCollider>();
+                col.center = mesh.bounds.center;
+                col.size = mesh.bounds.size;
             }
         }
 

@@ -139,6 +139,10 @@ namespace BlocksBeyondTheStars.Client
         public int LegCount;
         public bool Giant;         // titan plan or size past the giant threshold — plods, never bounds
 
+        /// <summary>#2009: a crawler that walks on its legs (the arachnid) — full stride, no body weave; the crawler
+        /// path otherwise treats every many-legged body as a beetle that moves by undulating.</summary>
+        public bool LeggedCrawler;
+
         /// <summary>Hip height (also the leg's full length) — the lever every stride is measured against.</summary>
         public float LegLength = 1f;
 

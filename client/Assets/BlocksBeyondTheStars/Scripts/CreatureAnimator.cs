@@ -81,6 +81,8 @@ namespace BlocksBeyondTheStars.Client
 
         // --- rest pose (a sleeping animal lies down instead of dozing on its feet) ---
         private float _rest;
+        private float _lurk;     // #2009: 0..1 smoothed ambush crouch (an arachnid lying in wait)
+        private bool _lurking;   // #2009: the server says it is sitting in wait this tick
         private float _restSide;    // which way the head tucks — stable per creature
 
         // --- long-idle flourishes ---
@@ -239,6 +241,10 @@ namespace BlocksBeyondTheStars.Client
             _perched = perched;
         }
 
+        /// <summary>#2009: the server's ambush flag — while set the body flattens toward the ground, the legs spread
+        /// wider and every idle flourish stops: a rock, until the rock moves.</summary>
+        public void SetLurking(bool lurking) => _lurking = lurking;
+
         /// <summary>Opens the jaw for one vocalisation pulse. <see cref="CreatureView"/> already knows exactly
         /// when a phrase pulse fires (#902) — this is what turns that into a moving mouth.</summary>
         public void Pulse(float strength)
@@ -348,7 +354,7 @@ namespace BlocksBeyondTheStars.Client
             bool crawler = _motionClass == MotionClass.Crawler;
             bool flier = _motionClass == MotionClass.Flier;
             bool hoverer = _motionClass == MotionClass.Hoverer;
-            bool undulates = _aquatic || crawler; // swimmers and land crawlers both move by the body, not the legs
+            bool undulates = _aquatic || (crawler && !_rig.LeggedCrawler); // swimmers and land crawlers both move by the body, not the legs — the arachnid strides (#2009)
 
             float moving = Mathf.Clamp01(speed / 3f);
             float t = Time.time + _phase;
@@ -358,9 +364,11 @@ namespace BlocksBeyondTheStars.Client
             bool canRest = _motionClass == MotionClass.Walker || _motionClass == MotionClass.Crawler;
             float restTarget = _asleep && canRest && !_airborne ? 1f : 0f;
             _rest = Mathf.MoveTowards(_rest, restTarget, dt / (restTarget > _rest ? 1.2f : 0.6f));
+            _lurk = Mathf.MoveTowards(_lurk, _lurking && !_airborne && _rest < 0.5f ? 1f : 0f, dt / 0.5f); // #2009
 
             // Long-idle flourishes: only once an animal has genuinely settled, and only close enough to see.
-            _idleTime = moving < 0.05f && _rest < 0.2f ? _idleTime + dt : 0f;
+            // An ambusher (#2009) never fidgets — a tail swat would give the rock away.
+            _idleTime = moving < 0.05f && _rest < 0.2f && _lurk < 0.5f ? _idleTime + dt : 0f;
             if (FaceDetail)
             {
                 StepFlourish(dt);
@@ -449,7 +457,7 @@ namespace BlocksBeyondTheStars.Client
             float dutyNow = CreatureGait.DutyFactor(_gait);
             float dutyPrev = CreatureGait.DutyFactor(_prevGait);
             bool fading = _gaitFade < 1f;
-            float splay = crawler && _legs.Length >= 6 ? 22f : 0f; // many-legged bodies stand wide, not underneath
+            float splay = (crawler && _legs.Length >= 6 ? 22f : 0f) + _lurk * 14f; // many-legged bodies stand wide, not underneath; wider still in ambush (#2009)
 
             for (int i = 0; i < _legs.Length; i++)
             {
@@ -472,7 +480,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 // Idle sway: a slow, tiny shuffle so a standing animal is not a statue.
-                float idle = Mathf.Sin(t * 1.1f + i * 0.7f) * 1.5f;
+                float idle = Mathf.Sin(t * 1.1f + i * 0.7f) * 1.5f * (1f - _lurk); // a lurking body is a statue on purpose (#2009)
                 float pitch = Mathf.Lerp(idle, swing, gaitWeight) - 35f * _legTuck;
 
                 // Lying down: the legs tuck under the belly — the front pair folds back, the rear pair
@@ -724,6 +732,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 restDrop += _rig.LegLength * 0.04f;
             }
+
+            restDrop += _lurk * _rig.LegLength * 0.3f; // #2009: an ambusher flattens itself to the ground
 
             // Standing on a slope: the body tilts to the plane through the planted feet. Without this the
             // root pitches but the legs do not, so half the feet hang in the air and half sink into the hill.

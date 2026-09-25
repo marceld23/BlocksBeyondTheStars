@@ -27,6 +27,9 @@ public sealed class AuthoredCreature
     public LocomotionStyle LocoStyle { get; set; } = LocomotionStyle.Strider;
     public CreatureBodyPlan BodyPlan { get; set; } = CreatureBodyPlan.Standard;
 
+    /// <summary>The head's silhouette (#2009): the classic box, or one of the arachnid plan's pyramids.</summary>
+    public CreatureHeadShape HeadShape { get; set; } = CreatureHeadShape.Box;
+
     public float Size { get; set; } = 1f;
     /// <summary>Null = the generator's formula for the size and temperament.</summary>
     public float? MaxHealth { get; set; }

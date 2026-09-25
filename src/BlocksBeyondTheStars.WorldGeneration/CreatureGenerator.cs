@@ -108,6 +108,7 @@ public static class CreatureGenerator
             Temperament = a.Temperament,
             LocoStyle = a.LocoStyle,
             BodyPlan = a.BodyPlan,
+            HeadShape = a.HeadShape, // #2009: a worksheet arachnid may wear a pyramid
             Size = a.Size,
             MaxHealth = a.MaxHealth ?? 10f + a.Size * 8f + (hostile ? 10f : 0f),
             Speed = a.Speed,
@@ -167,6 +168,13 @@ public static class CreatureGenerator
     private static readonly string[] GiantBacks = { "", "plates", "spikes", "crystals", "forest" };
     private static readonly string[] ColossusHides = { "hide", "plated", "scales", "shaggy", "mossy", "barkskin", "mottled", "banded" };
     private static readonly string[] WormHides = { "plated", "banded", "scales", "chitin", "warty", "mottled" };
+
+    /// <summary>#2009: the hides an arachnid rolls — shaggy is the tarantula, the rest read as armour.</summary>
+    private static readonly string[] ArachnidHides = { "chitin", "plated", "spined", "banded", "shaggy", "mottled" };
+
+    /// <summary>#2009: the share of standard-plan Land species that become arachnids on a generation-10 world — rare
+    /// (Marcel: rarer than the titan's 18 %): with 5–9 species per world, roughly every third or fourth world has one.</summary>
+    private const double ArachnidChance = 1.0 / 12.0;
 
     /// <summary>A world's colossus (#1999): a 40–60 block quadruped rolled from the world seed and its location — the
     /// same giant on every visit, a different one on every world. The server decides WHETHER a world has one
@@ -515,7 +523,74 @@ public static class CreatureGenerator
             ApplyNewKinds(rng, species);
         }
 
+        // Generation 10 (#2009): the arachnid — rolled LAST, after every older roll, and only on a generation-10 world,
+        // so a species of any older world keeps every trait it had (the roll is the final draw, nothing reads the RNG
+        // after it). One draw per standard-plan Land species; the plan then overrides what the body demands and
+        // re-rolls what depends on it (the gait, the group size).
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ArachnidGeneration
+            && species.Habitat == CreatureHabitat.Land && species.BodyPlan == CreatureBodyPlan.Standard
+            && rng.NextDouble() < ArachnidChance)
+        {
+            ApplyArachnidPlan(rng, species);
+        }
+
         return species;
+    }
+
+    /// <summary>The arachnid (#2009): a speeder-sized eight-legger — Size 3–3.6 on eight splayed legs, a cephalothorax
+    /// and an abdomen, a head that is a box or one of four pyramids (apex up, and not always the same one), spider eye
+    /// clusters, fangs on most. Temperament, activity and colours stay exactly as rolled (the normal roll, so a world's
+    /// arachnid may be a grazer or a pack hunter); the gait is re-rolled for the new body; a hunter or a territorial one
+    /// lies in wait (<see cref="ArachnidRules.Lurks"/>). Solitary unless it hunts as a pack.</summary>
+    private static void ApplyArachnidPlan(System.Random rng, CreatureSpecies sp)
+    {
+        sp.BodyPlan = CreatureBodyPlan.Arachnid;
+        sp.Size = ArachnidRules.MinSize + (float)rng.NextDouble() * (ArachnidRules.MaxSize - ArachnidRules.MinSize);
+        sp.Legs = 8;
+        sp.BodySegments = 2;                                    // cephalothorax + abdomen
+        sp.HeadShape = (CreatureHeadShape)Weighted(rng,
+            (int)CreatureHeadShape.Box, 50,
+            (int)CreatureHeadShape.Pyramid, 18,
+            (int)CreatureHeadShape.Spire, 12,
+            (int)CreatureHeadShape.Frustum, 10,
+            (int)CreatureHeadShape.Ziggurat, 10);
+        sp.Eyes = Weighted(rng, 2, 20, 4, 30, 6, 25, 8, 25);   // spider eye clusters
+        sp.EyeStalks = false;
+        sp.Horns = rng.NextDouble() < 0.65 ? 2 : 0;             // the builder draws them as fangs
+        sp.Hide = ArachnidHides[rng.Next(ArachnidHides.Length)];
+        sp.HasWings = false;
+        sp.WingPairs = 1;
+        sp.FinPairs = 1;
+        sp.HasGasSac = false;
+        sp.HasTail = false;
+        sp.Tentacles = 0;
+        sp.Heads = 1;                                           // generation 6 may have rolled a hydra before this plan
+        sp.NeckLength = 0;
+        sp.HasTrunk = false;
+        sp.HoverAltitude = 0f;
+        sp.MaxHealth = (10f + sp.Size * 8f + (sp.Hostile ? 10f : 0f)) * 2.5f; // ≈ 85–110: a real fight, below a titan
+        sp.AttackDamage = 3f + (float)rng.NextDouble() * 5f;    // used when hostile or provoked
+        sp.Speed = 2.0f + (float)rng.NextDouble() * 2.0f;       // quick for its size, still below a running player
+        sp.DropCount = 2 + rng.Next(3);                         // 2..4
+        sp.LocoStyle = PickLocoStyle(rng, sp);                  // prowler / darter / grazer / strider by temperament
+        sp.SocialGroupSize = sp.Temperament == CreatureTemperament.PackHunter ? 2 + rng.Next(2) : 1;
+    }
+
+    /// <summary>A rolled arachnid for a world whose roster has none (#2009, the <c>/arachnid</c> test command): this
+    /// world's own Land roll with the plan forced, from a seed salted so it never collides with a roster slot.</summary>
+    public static CreatureSpecies GenerateArachnid(PlanetType planet, long rosterSeed)
+    {
+        long s = unchecked(rosterSeed ^ 0x5A2A_C41DL);
+        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+        var sp = MakeSpecies(90, rng, allowWater: false, allowLava: false, allowCave: false, biomeCount: planet.Biomes.Count,
+            forcedHabitat: CreatureHabitat.Land, speciesSeed: s,
+            terrainGeneration: BlocksBeyondTheStars.Shared.World.WorldDescription.ArachnidGeneration);
+        if (sp.BodyPlan != CreatureBodyPlan.Arachnid)
+        {
+            ApplyArachnidPlan(rng, sp);
+        }
+
+        return sp;
     }
 
     /// <summary>The generation-6 kinds (#1778-#1782), in a fixed roll order: first the body (ray / air fish),

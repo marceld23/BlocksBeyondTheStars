@@ -60,6 +60,16 @@ public sealed partial class GameServer
                 "ui.scan.temperament." + sp.Temperament.ToString().ToLowerInvariant(),
                 Shared.Definitions.CreatureVoices.DescriptorKey(voice),
             };
+            if (sp.BodyPlan == Shared.Definitions.CreatureBodyPlan.Arachnid)
+            {
+                // #2009: the plan is a trait of its own — and an ambusher's habit is the one thing a scan must warn about,
+                // because "territorial" alone promises it only bites back.
+                readout.TraitKeys = readout.TraitKeys
+                    .Concat(new[] { "ui.scan.body.arachnid" })
+                    .Concat(Shared.Definitions.ArachnidRules.Lurks(sp) ? new[] { "ui.scan.body.ambush" } : System.Array.Empty<string>())
+                    .ToArray();
+            }
+
             readout.ThreatKey = sp.Hostile ? "ui.scan.threat.hostile"
                 : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "ui.scan.threat.provokable"
                 : "ui.scan.threat.safe";

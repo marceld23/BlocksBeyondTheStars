@@ -63,6 +63,8 @@ public sealed class CreatureMotionTests
         Assert.True(CreatureMotion.CanJump(Species(CreatureHabitat.Land, legs: 4, size: 1.2f)));
         Assert.False(CreatureMotion.CanJump(Species(CreatureHabitat.Land, legs: 4, size: 2.1f)));                    // Q3: giant by size
         Assert.False(CreatureMotion.CanJump(Species(CreatureHabitat.Land, legs: 4, plan: CreatureBodyPlan.Titan, size: 4f)));
+        Assert.False(CreatureMotion.CanJump(Species(CreatureHabitat.Land, legs: 8, plan: CreatureBodyPlan.Arachnid, size: 3.3f))); // #2009: a crawler and a giant by size
+        Assert.Equal(MotionClass.Crawler, CreatureMotion.ClassOf(Species(CreatureHabitat.Land, legs: 8, plan: CreatureBodyPlan.Arachnid, size: 3.3f)));
         Assert.False(CreatureMotion.CanJump(Species(CreatureHabitat.Land, legs: 0, style: LocomotionStyle.Slitherer))); // crawlers never
         Assert.False(CreatureMotion.CanJump(Species(CreatureHabitat.Air, legs: 2, wings: true)));                   // fliers take off instead
     }

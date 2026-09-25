@@ -52,6 +52,21 @@ public enum CreatureBodyPlan
     Ray,      // a flat disc that flies on wing waves — under water, or hovering through the sky (#1778, generation 6)
     Colossus, // a 40–60 block quadruped on very flat, light worlds (#1999, generation 9) — a one-per-world giant
     Sandworm, // the sand sea's giant worm (#2001, generation 9): hears vibrations, breaches through the sand
+    Arachnid, // a speeder-sized eight-legger (#2009, generation 10): a rolled head shape, an ambusher when it hunts
+}
+
+/// <summary>
+/// The silhouette of a head (#2009). Every plan before the arachnid wore <see cref="Box"/>; the arachnid rolls one
+/// of the pyramids — all apex up — so its head is sometimes a pyramid and, when it is, not always the same one.
+/// The tiers of each shape are in <see cref="ArachnidRules.HeadTiers"/>; the client builds the mesh from them.
+/// </summary>
+public enum CreatureHeadShape
+{
+    Box,      // the classic cube head with a hinged jaw
+    Pyramid,  // a plain square pyramid, apex up
+    Spire,    // a tall, narrow pyramid
+    Frustum,  // a pyramid with its top cut flat
+    Ziggurat, // two stacked tiers: a flat-topped base and a small pyramid on it
 }
 
 /// <summary>
@@ -145,6 +160,10 @@ public sealed class CreatureSpecies
 
     /// <summary>Titan plan only (#638): a segmented trunk hanging from the head (elephant).</summary>
     public bool HasTrunk { get; set; }
+
+    /// <summary>The head's silhouette (#2009): the classic box on every species that predates it, one of the pyramids on
+    /// an arachnid that rolled one. Additive with a classic default, so no older world or companion snapshot changes.</summary>
+    public CreatureHeadShape HeadShape { get; set; } = CreatureHeadShape.Box;
 
     /// <summary>How many heads the body carries (#1780, generation 6): 1 = the classic single head, 2-3 = side by
     /// side on a standard body, or each on its own neck on a titan (the hydra). Rolled AFTER every older roll and

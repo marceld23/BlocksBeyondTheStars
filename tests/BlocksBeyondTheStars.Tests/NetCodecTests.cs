@@ -497,6 +497,36 @@ public sealed class NetCodecTests
     }
 
     [Fact]
+    public void NetCreature_HeadShapeAndLurking_RoundTrip_AndDefaultToABoxThatIsNotWaiting()
+    {
+        // #2009: both ADDITIVE — a legacy creature reads as a box-headed animal that is not lying in wait; a populated one
+        // survives the trip on the creature list and the companion roster.
+        var legacy = new NetCreature();
+        Assert.Equal("Box", legacy.HeadShape);
+        Assert.False(legacy.Lurking);
+        Assert.Equal("Box", new NetCompanion().HeadShape);
+
+        var list = new CreatureList
+        {
+            Creatures = new[]
+            {
+                new NetCreature { Id = "a", BodyPlan = "Arachnid", HeadShape = "Ziggurat", Lurking = true, Legs = 8, Size = 3.3f },
+                new NetCreature { Id = "b", BodyPlan = "Standard" },
+            },
+        };
+        var decoded = Assert.IsType<CreatureList>(NetCodec.Decode(NetCodec.Encode(list)));
+        Assert.Equal("Ziggurat", decoded.Creatures[0].HeadShape);
+        Assert.True(decoded.Creatures[0].Lurking);
+        Assert.Equal(8, decoded.Creatures[0].Legs);
+        Assert.Equal("Box", decoded.Creatures[1].HeadShape);
+        Assert.False(decoded.Creatures[1].Lurking);
+
+        var companions = new CompanionList { Companions = new[] { new NetCompanion { Id = "c", BodyPlan = "Arachnid", HeadShape = "Spire" } } };
+        var decodedCompanions = Assert.IsType<CompanionList>(NetCodec.Decode(NetCodec.Encode(companions)));
+        Assert.Equal("Spire", decodedCompanions.Companions[0].HeadShape);
+    }
+
+    [Fact]
     public void ShipRepairStatus_MissingCellList_RoundTrips_AndDefaultsToEmpty()
     {
         // #1368: the breach cells are ADDITIVE parallel arrays on the repair readout — a legacy status carries

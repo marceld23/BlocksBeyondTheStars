@@ -312,7 +312,14 @@ live by `GameServerCreatures.cs`.
   **Medusa** (25 % of Air/Water species) — translucent pulsing bell, 6–10 rim tentacles, drifting,
   usually glowing, never hostile, per-species hover altitude 3–12; **Titan** (18 % of Land species) —
   size 3.5–6, pillar legs, neck (≥2 segments reads giraffe) or trunk, horns worn as tusks, HP ×3.5,
-  drops 3–6, dangerous when provoked but never a pack-hunter. Everything else stays **Standard**.
+  drops 3–6, dangerous when provoked but never a pack-hunter; **Arachnid** (#2009, generation 10 —
+  1 in 12 standard Land species, rolled LAST in `MakeSpecies` so older rosters are untouched) — size
+  3.0–3.6 (about the speeder hull) on eight legs in four rows, cephalothorax + abdomen, a head that is a
+  box (50 %) or one of four apex-up pyramids (`CreatureHeadShape`: Pyramid / Spire / Frustum / Ziggurat),
+  2/4/6/8 eyes, fangs on most, a hide from chitin / plated / spined / banded / shaggy / mottled, HP ×2.5,
+  speed 2–4, the gait re-rolled for the body, solitary unless a pack hunter; temperament, activity and
+  colours stay the normal roll, and a hunting or territorial one **lies in wait** (`ArachnidRules.Lurks`).
+  Everything else stays **Standard**.
 - **Fins:** legless water and amphibian bodies almost always carry pectoral, caudal and dorsal fins
   (a legged water species sometimes does; a medusa never). Like the voice seed, this is **derived
   rather than drawn** — `CreatureMotion.FinsFor` folds the species' own seed, so it consumes no RNG
@@ -340,7 +347,7 @@ water columns — the water and lava probes read **real blocks first** and the g
 columns, so a pool the player built hosts a school and a drained pond does not, and every herd member
 runs the same probe from its own spot, #1718; cave animals only in caves — the cave-floor and shoreline
 probes never load a chunk, #1719; titans additionally need a 3×3 level-ground clearance),
-despawn beyond 70 blocks (titans 110 — a landmark animal must not evaporate mid-approach). **No
+despawn beyond 70 blocks (titans and arachnids 110 — a landmark animal must not evaporate mid-approach). **No
 monoculture (#1325):** each species may hold at most a **share** of the live cap — 40 %, never below 3,
 never below cap ÷ roster size — a herd counts its members against it and spawns partially (as against
 the world cap), and a species OVER its share (the cap shrank, an older save) sheds its farthest members
@@ -1290,6 +1297,20 @@ generation-5 roster is therefore bit-for-bit the classic two-argument roster (`C
 serialises both). The diversity re-draw (`EnsureHabitatDiversity`) passes the generation through, so a
 re-drawn niche slot rolls the wave too. Nothing is persisted: the roster is re-derived on every start, and a
 companion snapshot carries the three counts (`CloneSpecies`).
+
+**Generation 10 — the arachnid (#2009).** The same discipline once more: the arachnid roll is the very last
+draw of `MakeSpecies` (after `ApplyNewKinds`) and runs only when the save's generation is ≥
+`WorldDescription.ArachnidGeneration` (10). Because nothing reads the RNG after it, a generation-10 roster
+equals its generation-9 self field for field except in the slots that became arachnids
+(`CreatureArachnidTests.TheWaveGatesOnGenerationTen…` serialises both). The plan resets what generation 6 may
+already have rolled for the slot (a hydra's heads, a wing pair) and re-rolls the gait and the group size for
+the new body. There is no terrain change in this wave, so a seed still lands on the planet type it did
+before. The server's rules for the body — `CreatureBodyHeight` (Size × 0.8, three cells, instead of the upright
+Size × 1.8), the titan's despawn leash, the Sreekmakra's disguise list, the lurk (`ArachnidRules.LurkRange` 6:
+motionless until a player is that close, then provoked — a territorial one hunts like an aggressor for the
+provoke window, a hunter starts its chase) — read the pure statics in `ArachnidRules`, as do the client and
+the tests. `/arachnid` (admin) places the roster's arachnid near the player, rolling one into the roster first
+(`CreatureGenerator.GenerateArachnid`) on a world that did not draw the plan.
 
 **Roll order inside the wave.** Body first: a standard-plan Air or Water species becomes a **ray** with
 20 % (`ApplyRayPlan`); a standard-plan Air species that stayed an air animal becomes an **air fish** with 25 %
