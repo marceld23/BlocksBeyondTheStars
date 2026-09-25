@@ -1710,7 +1710,7 @@ ids `gi_colossus` / `gi_sandworm`) and never touch world generation; `GiantRules
 the colossus on a very flat type with gravity ≤ 0.70 and a one-in-three roll, sandworms on every sand-sea world. See
 `GameServerGiants` and the TODO entry for the behaviour.
 
-## 26. Generation 11 — cave flora, the rainbow glow class, cold flora (2026-09-25)
+## 26. Generation 11 — cave flora, the rainbow glow class, cold flora (#2013, 2026-09-25)
 
 Everything in this wave is gated on `WorldDescription.CaveFloraGeneration` (11); an older world keeps its plants.
 

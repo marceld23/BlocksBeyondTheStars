@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🍄 Cave flora — plants in caves, glowers that light their surroundings, the rainbow glow class, wild frostflowers (2026-09-25, branch feat/cave-flora, terrain generation 11)
+### 🍄 Cave flora — plants in caves, glowers that light their surroundings, the rainbow glow class, wild frostflowers (#2013, 2026-09-25, branch feat/cave-flora, terrain generation 11)
 
 Marcel's request: the frostflower must grow in the wild; caves get plants (mushrooms and glowing plants) as a new
 plant class; a new glowing class that is colourful (random colours) and also grows on the surface. His decisions:
