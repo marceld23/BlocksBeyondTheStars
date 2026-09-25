@@ -239,6 +239,14 @@ TEXTURES = [
     ("bone", "bleached pale ivory bone surface, a dense mass of old dry bones and skull fragments, slightly yellowed, top-down"),
     ("sandstone", "warm ochre sandstone rock with fine horizontal sediment banding in tan, rust and cream, top-down"),
     ("scree", "loose grey and brown angular rock fragments and gravel, a talus slope of broken stone, top-down"),
+    # Cave flora (terrain generation 11). Wild flora is re-coloured by the world's hue in the shader, so these carry the
+    # light/dark pattern: moss + threads are cutout billboards (dark background → bake_leaf_alpha punches it out), the
+    # threads hang from the TOP edge (a hanging billboard roots in the tile's top row), the prism bloom is near-white
+    # so each plant's own rainbow colour comes through at full strength.
+    ("flora_cavecap", "a cluster of dark cave mushrooms with broad dusky grey-violet caps speckled with small pale spots, damp cave floor, top-down"),
+    ("flora_glowmoss", "side view of one low wide mound of softly glowing pale green-white cave moss tufts with tiny luminous tips, growing along the bottom edge of the image, the rest of the image solid pitch-black empty background"),
+    ("flora_glowthread", "many thin softly glowing pale silky threads hanging straight down from the top edge of the image, each ending in a small bright luminous bead, on a pure black background, side view"),
+    ("flora_prismbloom", "densely packed luminous pale white flower petals filling the whole image edge to edge, overlapping soft shining petals with small bright white centres, no background visible, top-down"),
 ]
 
 if TYPE_CHECKING:

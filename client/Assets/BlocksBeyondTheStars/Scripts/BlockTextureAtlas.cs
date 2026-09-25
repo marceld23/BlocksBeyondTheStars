@@ -1224,7 +1224,8 @@ namespace BlocksBeyondTheStars.Client
                     Speckle(ox, oy, rng, new Color(0.55f, 0.95f, 1f), 12);
                     break;
 
-                // Generation 11, cave flora — code-painted placeholders until the official tiles exist. Every wild plant
+                // Generation 11, cave flora — code-painted fallbacks behind the bundled AI tiles (used when a texture pack or
+                // the official-only mode leaves a key without one). Every wild plant
                 // is re-coloured by the world's (or, for the prism bloom, the plant's own) hue in the shader, so these
                 // tiles only carry the light/dark pattern: the dome of a cap, a moss carpet, hanging threads, petals.
                 case "flora_cavecap":

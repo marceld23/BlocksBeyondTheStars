@@ -59,13 +59,14 @@ rainbow class on every world with plant life; cave glow colour per world; ~10–
   `TraitRainbowFlora`, sRGB→linear by hand because the mesher may run on a worker); the new glowers are light sources
   (`ClientWorld.SetCellLightResolver`, registered in `GameBootstrap.RebuildPlantLights`): this world's species colour
   or the cell's rainbow colour, scaled by `Light` — a dim colour is a short reach in the existing flood fill. The
-  classic glowers keep their self-glow only. Code-painted placeholder tiles (cutouts for moss + threads); the server
+  classic glowers keep their self-glow only. AI tiles (`gen_textures.py`, moss + threads baked as cutouts; code-painted
+  fallbacks in the atlas); the server
   regrows cave plants on their cave rock.
 - **Tests:** `CaveFloraTests` (catalog order + gates, rosters on plant / barren worlds, cave plants only underground on
   cave rock, cold flora incl. the frostflower, rainbow clusters rare, rainbow colour), golden groups `karst-gen11` +
   `tundra-gen11`.
 - ⚠ Open: Marcel's playtest (a NEW world: a cave, a tundra, a jungle; light in the caves, frame time in a planted cave
-  — WebGL too); official textures for the four species (maintainer task — the placeholders are code-painted).
+  — WebGL too); a look at the four AI tiles in the game (re-roll with `gen_textures.py --only <key>` if one reads wrong).
 
 ### 🕷️ Arachnid — a speeder-sized eight-legger with a rolled head shape (sometimes a pyramid), rolled looks and temper, an ambush, solid to bump into (#2009, 2026-09-25, branch feat/arachnid)
 
