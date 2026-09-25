@@ -23,7 +23,7 @@ refreshed 2026-08-08.
   (the `Client.Core` split, the three test tiers, the selectable `run-tests.ps1` runner).
 - [SERVER_TESTING.md](SERVER_TESTING.md) — **writing tests** for the server/shared .NET suite: exemplar
   tests to copy from, the content/locale fixtures, what "meaningful" assertions look like, and the CI
-  analyzer traps. Start here for a first test contribution (e.g. issue #571).
+  analyzer traps. Start here for a first test contribution (open tasks carry the `good first issue` label).
 - [SELF_HOSTING.md](SELF_HOSTING.md) — run and host a dedicated server, config keys, the web portal & updates.
 - [HOSTED_WORLDS.md](HOSTED_WORLDS.md) — the hosted-worlds ("Official Worlds") service: control plane
   (WorldHost), one container per world, routing, portal and operations.
