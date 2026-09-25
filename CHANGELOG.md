@@ -11,6 +11,75 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.15] — 2026-09-25
+
+The glowing-flowers release. Meet the **prism bloom**: a new flower that **glows — and every single one shines in a
+colour of its own**. It lights up the ground around it, deep in caves and in bright little patches out in the open,
+on every world that has plants. Down in the caves it has company: **glow moss** carpets the floor and **glow threads**
+hang from the ceiling, and they light up the dark too — a cave is no longer bare, black rock. On the coldest worlds
+the **frost flower finally blooms in the wild**. And out there, something **as big as a speeder walks on eight
+legs** — the ones that sit perfectly still are waiting for you. Plus: the world picker **scrolls**, so if you have
+more than nine worlds, the older ones are no longer lost.
+
+ℹ️ **Compatibility:** the network protocol stays at version 6 and saves migrate unchanged. The new plants and the
+arachnid belong to **new worlds**; the worlds you already have keep their plants and their animals exactly as they
+are. An older game version should update before it joins a 2026.9.15 world — it does not know the new plants and
+would draw some blocks wrong. The desktop game updates itself on start, and the browser version is always current.
+
+### 🌈 The prism bloom — a flower in every colour (#2013)
+
+- **A new flower that glows, and no two are alike.** Every prism bloom shines in its own colour, so a patch of them
+  is a whole rainbow — and each one **lights up its surroundings**, casting its colour onto the ground and the rock
+  around it.
+- It grows **in caves** and, now and then, in **small bright clusters out on the surface** — on every world that has
+  plants. Pick one and you get a crystal along with the fibre.
+
+### ✨ Caves that glow (#2013)
+
+- **Glow moss** spreads in soft carpets over cave floors, and **glow threads** hang down from the ceilings like
+  curtains of light. **Both give off light** in the world's own colour — a cave full of them is no longer pitch black.
+- **Caves are no longer bare.** The dark **cave cap** mushroom stands on cave floors, and the mushrooms from the
+  surface grow down there too. Even a bare, airless moon has a good chance of green — and glow — in its caves.
+- Pick a cave plant and it grows back, just like the plants up on the surface.
+
+### ❄️ Frost flowers in the wild (#2013)
+
+- **Cold worlds grow plants.** Until now every plant froze away the moment it got properly cold, so tundras, ice
+  worlds and snowy mountain tops stayed completely bare. Hardy plants now hold on far into the frost, and snow and
+  ice grow their own — among them the **frost flower**, which until now never grew in the wild. Pick one and it
+  breaks into a crystal.
+
+### 🕷️ The arachnid (#2009)
+
+- **An eight-legged creature as big as a speeder**, with a body in two parts and eyes in twos, fours, sixes or
+  eights — most of them with fangs. Every world rolls its own: its colours, its hide, its legs and **its head**. Half
+  of them have a plain, boxy head; the others wear a **pyramid** — pointed, tall and thin, cut off flat or built in
+  steps like a temple.
+- **Some only wander. The others lie in wait.** An arachnid with a bad temper crouches flat, spreads its legs and
+  keeps perfectly still — until you come within a few steps. Then it rushes you. A scan tells you which kind you
+  have found, and VEGA warns you the first time you meet one.
+- **It is really there**: you bump into its body, and your hits land where you aim. It is tough, it hisses and
+  clicks in its own voice, and — with patience — you can tame one.
+- It is rare: only about one kind of land animal in twelve is an arachnid. Admins can call one in with **`/arachnid`**.
+
+### 📂 Every world in the list (#2010)
+
+- **The world picker only ever showed nine worlds.** From the tenth on, your **oldest** worlds were simply missing:
+  you could not play them or delete them, and "New world" claimed their names were already taken. The list now
+  scrolls — with the mouse wheel, the scrollbar or a gamepad — and after you delete a world it stays where you were.
+  With nine worlds or fewer it looks exactly as before. The same list is used for hosting a game.
+
+### 🏭 The factory makes twice the polymer (#1993)
+
+- The factory's polymer recipe now turns out **two polymer instead of one** for the same carbon and sulfur ore.
+  A new check makes sure every factory recipe stays fair against the workshop route. Thank you, **@Jay-Hu911** 🙏
+
+### 🙏 Credits (#2007 #2008)
+
+- **@Jay-Hu911** joins the community contributors — in the README and in the in-game credits, in all fourteen
+  languages.
+- **Theo** joins the school club's children in the credits.
+
 ## [2026.9.14] — 2026-09-24
 
 The giants release. The school club dreamed up **creatures as tall as a high-rise**, and here they are. A **colossus**
@@ -5809,7 +5878,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.14...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.15...HEAD
+[2026.9.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.14...v2026.9.15
 [2026.9.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.13...v2026.9.14
 [2026.9.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.12...v2026.9.13
 [2026.9.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.11...v2026.9.12
