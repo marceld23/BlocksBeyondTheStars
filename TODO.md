@@ -24,6 +24,23 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ⚖️ Factory polymer yields 2 — and one test holds every factory recipe to the 2× rule (#575, 2026-09-25, PR #1993 by @Jay-Hu911)
+
+The first PR out of the community balance review (#575). The findings slices compared the refinery and all 18
+factory recipes with their workshop / refinery chains; `factory_polymer` was the one outlier against both.
+
+- **✅ `factory_polymer`: 3 carbon + 2 sulfur_ore → 2 polymer** (was 1): 1.5× carbon and 2× sulfur_ore of the
+  workshop chain instead of 3× / 4×. Same inputs, so a factory batch stays worth running; no market recipe touches polymer.
+- **✅ The #1200 rule as a test.** `MaterialEconomyTests.FactoryRecipes_StayWithinTwiceTheirReferenceRawMaterialCost_OrAreExplicitlyExempt`:
+  10 factory recipes are compared with a reference chain written into the test (no raw input above 2× per output
+  unit; `factory_diamond`'s carbon counts as a catalyst), the rest are exempt by name, and a factory recipe that is
+  neither fails the test. Exempt: the six pre-#1200 outliers `factory_iron_plate`, `factory_metal_panel`,
+  `factory_steel`, `factory_cable`, `factory_energy_cell`, `factory_circuit_board` (each waits for its own review —
+  the list only gets shorter), and `factory_glass` / `factory_power_cell` (no comparable chain).
+- **Open (#575):** the reference chains mix smelt stations — `factory_magnet` against `refine_iron`, bronze and brass
+  against the workshop `copper_wire`. Against `refine_copper` (1 ore → 3 wire) their copper side input is 3×.
+- **Credits:** @Jay-Hu911 in the README contributors list and the in-game Credits (`ui.credits.body`, 14 languages).
+
 ### 🐛 Giants — a procedural colossus and sandworm on a new sand-sea planet class; the flowerling's face and temper (#2004: #1997–#2002, 2026-09-24, branch feat/giants)
 
 The school club invented creatures as tall as high-rise buildings: a giant four-legged animal and a sandworm that
