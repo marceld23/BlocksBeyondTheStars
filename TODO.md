@@ -69,6 +69,19 @@ pyramid; the normal temperament roll; solid; every extra (fangs, own voice, ambu
   roams, scan traits, summon), `NetCodecTests` round trip, `CreatureMotionTests`.
 - ⚠ Open: Marcel's playtest (`/arachnid` on a fresh world — look, gait, the pyramid heads, the ambush, the collision).
 
+### 🐛 The world picker scrolls — every save is listed, not just the newest nine (#2010, 2026-09-25, branch fix/save-select-scroll)
+
+- **✅ No more hidden saves.** `UiSaveSelect` stopped at the nine rows its panel holds (`Mathf.Min(worlds.Length, 9)`,
+  there since the picker's first version). `ListWorlds` sorts newest first, so from the tenth world on the player's
+  OLDEST saves were never built — unplayable and undeletable from the game, while "New world" still called their
+  names taken. Singleplayer and Host Game (same screen).
+- **✅ A scrolling list.** The rows sit in a clipped `ScrollRect` (mouse wheel, drag, the gamepad's `UiNav`
+  scroll-into-view); a long list gets the full-size draggable scrollbar and slightly narrower rows. A list that fits
+  looks exactly as before.
+- **✅ Delete keeps your place.** The delete confirmation rebuilds the screen (B59); the scroll offset is carried
+  across that rebuild, so clearing out old worlds far down the list no longer jumps back to the top.
+- **Open:** playtest with 10+ saves (wheel, scrollbar, gamepad, delete further down).
+
 ### 🎓 Theo joins the school club in the credits (2026-09-25, branch docs/credits-theo)
 
 - **✅ Credits:** Theo added to the school club's children in the README and the in-game Credits

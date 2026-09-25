@@ -14,6 +14,21 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class UiSaveSelect
     {
+        // The world list (left panel): a clipped viewport under the header, rows at a fixed pitch.
+        private const float ListY = 56f;
+        private const float ListH = 566f;
+        private const float RowPitch = 62f;
+        private const float RowH = 54f;
+
+        /// <summary>
+        /// The list's scroll offset (content y, px from the top) carried across the rebuild a delete triggers.
+        /// <see cref="AppShell.RefreshSaveSelect"/> destroys the whole screen so the deleted world drops off the
+        /// list, and without this the list jumped back to the top after every delete — clearing out old worlds
+        /// far down a long list meant scrolling back down each time. Consumed (reset) by every
+        /// <see cref="Build"/>, so only the rebuild right after a delete restores it.
+        /// </summary>
+        private static float _restoreScrollY;
+
         /// <summary>Compact playtime for a save-list row: "12 h 30 min", "45 min", or "&lt;1 min" (h/min are
         /// understood in both German and English, so the figure needs no localization).</summary>
         private static string FormatPlaytime(long totalSeconds)
@@ -92,6 +107,40 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
+        /// <summary>The world list's clipped, vertically scrolling viewport inside the left panel
+        /// (<see cref="ListY"/>..+<see cref="ListH"/>); <paramref name="content"/> takes the rows, placed absolutely
+        /// (top-left) at <see cref="RowPitch"/>. The caller sizes the content's height from the world count.</summary>
+        private static ScrollRect BuildWorldListViewport(Transform panel, out RectTransform content)
+        {
+            var viewGo = new GameObject("WorldListScroll", typeof(RectTransform));
+            viewGo.transform.SetParent(panel, false);
+            UiKit.Place(viewGo, 20f, ListY, 680f, ListH);
+
+            var scroll = viewGo.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 28f;
+            viewGo.AddComponent<RectMask2D>();
+
+            // A near-transparent graphic so the wheel/drag has something to hit between the rows.
+            var hit = viewGo.AddComponent<Image>();
+            hit.color = new Color(0f, 0f, 0f, 0.001f);
+
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            contentGo.transform.SetParent(viewGo.transform, false);
+            content = contentGo.GetComponent<RectTransform>();
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.anchoredPosition = Vector2.zero;
+            content.sizeDelta = Vector2.zero;
+
+            scroll.viewport = viewGo.GetComponent<RectTransform>();
+            scroll.content = content;
+            return scroll;
+        }
+
         public static GameObject Build(AppShell shell)
         {
             var canvas = UiKit.CreateCanvas("SaveSelectUI");
@@ -128,6 +177,12 @@ namespace BlocksBeyondTheStars.Client
             Text confirmText = null;
             string[] target = { null };
 
+            // Every save gets a row. The list used to stop at the nine rows the panel holds, and ListWorlds sorts
+            // newest first — so a tenth world silently vanished, the player's OLDEST ones, unplayable and
+            // undeletable, while "New world" still called their names taken (#2010). A long list scrolls instead.
+            float restoreScrollY = _restoreScrollY;
+            _restoreScrollY = 0f;
+            RectTransform list = null;
             var worlds = LocalServerLauncher.ListWorlds();
             if (worlds.Length == 0)
             {
@@ -135,14 +190,28 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                int shown = Mathf.Min(worlds.Length, 9);
-                for (int i = 0; i < shown; i++)
+                float contentH = worlds.Length * RowPitch - (RowPitch - RowH);
+                bool scrolls = contentH > ListH;
+                var scroll = BuildWorldListViewport(left, out list);
+                list.sizeDelta = new Vector2(0f, Mathf.Max(ListH, contentH));
+
+                // A list that fits keeps the old row widths; a scrolling one narrows them for the scrollbar.
+                // The bar is the full-size, draggable one (not the thin inline strip): it is what says "there is
+                // more below", and a child must be able to grab it.
+                float rowW = scrolls ? 590f : 612f;
+                if (scrolls)
+                {
+                    UiKit.AddVerticalScrollbar(left, scroll, 686f, ListY, 14f, ListH);
+                    list.anchoredPosition = new Vector2(0f, Mathf.Clamp(restoreScrollY, 0f, contentH - ListH));
+                }
+
+                for (int i = 0; i < worlds.Length; i++)
                 {
                     string w = worlds[i];
                     long played = LocalServerLauncher.ReadWorldPlaytimeSeconds(w);
                     string label = played > 0 ? $"▸  {w}    ({FormatPlaytime(played)})" : $"▸  {w}";
-                    UiKit.AddButton(left, 20f, 56f + i * 62f, 612f, 54f, label, () => Launch(w), "btn_singleplayer");
-                    UiKit.AddButton(left, 640f, 56f + i * 62f, 60f, 54f, "✕", () =>
+                    UiKit.AddButton(list, 0f, i * RowPitch, rowW, RowH, label, () => Launch(w), "btn_singleplayer");
+                    UiKit.AddButton(list, rowW + 8f, i * RowPitch, 60f, RowH, "✕", () =>
                     {
                         target[0] = w;
                         if (confirmText != null) confirmText.text = shell.L("ui.save.delete_confirm").Replace("{world}", w);
@@ -349,6 +418,7 @@ namespace BlocksBeyondTheStars.Client
                     LocalServerLauncher.DeleteWorld(target[0]);
                 }
 
+                _restoreScrollY = list != null ? list.anchoredPosition.y : 0f; // the rebuild keeps the list where it was
                 shell.RefreshSaveSelect(); // force a rebuild so the deleted world drops off the list (B59)
             }, "btn_exit");
             UiKit.AddButton(panel.transform, 370f, 160f, 290f, 58f, shell.L("ui.save.delete_no"), () => confirm.SetActive(false), "btn_singleplayer");

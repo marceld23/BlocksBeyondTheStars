@@ -21,7 +21,8 @@ Last updated: 2026-08-26.
 - Launch the client. **Windows:** `BlocksBeyondTheStars.Launcher.exe` (shows a loading splash then starts the game)
   or `BlocksBeyondTheStars.exe` directly. **Linux:** `./BlocksBeyondTheStars.Launcher.Console` (prints "Loading..."
   to the terminal then starts the game) or `./BlocksBeyondTheStars.x86_64` directly.
-  From the main menu: **Singleplayer** → pick an existing save or
+  From the main menu: **Singleplayer** → pick an existing save (newest first; a long list scrolls with the mouse
+  wheel, the scrollbar or the gamepad; **✕** deletes a save after a confirmation) or
   start a **New world** (name + seed), **Host Game** → host a world for friends, **Join Server**, or
   **Official Worlds** → online multiplayer on the official servers (see below).
 - **Host Game (in-game multiplayer hosting):** the same world picker as singleplayer — *any* saved world
