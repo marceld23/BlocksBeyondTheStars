@@ -6310,6 +6310,10 @@ public sealed partial class GameServer
                 AdminSummonGiant(session, cmd.StringArg); // #1998: /giant colossus|sandworm — for testing
                 break;
 
+            case "summon_arachnid":
+                AdminSummonArachnid(session); // #2009: /arachnid — for testing
+                break;
+
             case "instant_build":
                 p.InstantBuild = !p.InstantBuild;
                 Send(session, new ServerMessage { Text = p.InstantBuild ? "@srv.admin.build_on" : "@srv.admin.build_off" });

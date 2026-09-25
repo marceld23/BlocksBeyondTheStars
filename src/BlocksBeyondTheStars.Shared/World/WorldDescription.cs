@@ -180,8 +180,13 @@ public sealed class WorldDescription
 
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
-    /// planet types, 2026-09 the giants + the sand-sea planet class).</summary>
-    public const int CurrentTerrainGeneration = 9;
+    /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan).</summary>
+    public const int CurrentTerrainGeneration = 10;
+
+    /// <summary>The generation of the arachnid body plan (#2009): a speeder-sized eight-legger rolled into the Land pool
+    /// AFTER every older roll (the same discipline as the generation-6 kinds), so a world of any older generation keeps
+    /// its roster bit for bit. No terrain changes in this wave — a seed lands on the same planet type as before.</summary>
+    public const int ArachnidGeneration = 10;
 
     /// <summary>The generation of the giants (#2004): the sand-sea planet class (a calibrated sea region of deep sand with
     /// no caves under it), the procedural colossus on very flat, light worlds and the sandworm of the sand seas. Every

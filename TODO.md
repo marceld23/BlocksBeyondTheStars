@@ -24,6 +24,51 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🕷️ Arachnid — a speeder-sized eight-legger with a rolled head shape (sometimes a pyramid), rolled looks and temper, an ambush, solid to bump into (#2009, 2026-09-25, branch feat/arachnid)
+
+Marcel's request: a new eight-legged creature class, about the size of the speeder, sometimes with a pyramid head,
+eyes / colour / behaviour rolled. His decisions: Land only; rarer than the titan; apex up, but not always the same
+pyramid; the normal temperament roll; solid; every extra (fangs, own voice, ambush, scan line, VEGA line); tamable.
+
+- **✅ The plan (`CreatureBodyPlan.Arachnid`, `ApplyArachnidPlan`).** Rolled LAST in `MakeSpecies` behind the new
+  `WorldDescription.ArachnidGeneration = 10` (`CurrentTerrainGeneration` 9 → 10, no terrain change): one draw per
+  standard-plan Land species, 1 in 12. Size 3.0–3.6 (unit 1.5–1.8 → a body of about the speeder hull 3 × 2 × 5),
+  8 legs in four rows, cephalothorax + abdomen, eyes 2/4/6/8, fangs (`Horns` = 2) on 65 %, a hide from chitin /
+  plated / spined / banded / shaggy / mottled, HP ×2.5 (≈ 85–110), speed 2–4, drops 2–4, the gait re-rolled for the
+  body, solitary unless a pack hunter. Temperament, activity, colours and glow stay the normal roll.
+  `CreatureArachnidTests` proves a generation-9 roster carries none and every unconverted gen-10 species is
+  bit-for-bit its gen-9 self.
+- **✅ Head shapes (`CreatureHeadShape`, `CreatureSpecies.HeadShape`).** Box 50 %, Pyramid 18, Spire 12, Frustum 10,
+  Ziggurat 10 — all apex up. The tiers live in `ArachnidRules.HeadTiers` (Shared, tested); the client builds a
+  flat-shaded mesh per shape (`ArachnidHeadMesh`, cached) through the new `CreatureBuilder.AddMeshPart`, and the
+  eye clusters sit ON the slope, pushed out along its normal (`ArachnidRules.FootprintAt`). Additive wire fields
+  `NetCreature.HeadShape` / `NetCompanion.HeadShape` (default "Box", no protocol bump); `AuthoredCreature.HeadShape`
+  so a worksheet entry can use the plan.
+- **✅ Ambush.** `ArachnidRules.Lurks` (aggressive, pack hunter, territorial): the server holds the creature
+  motionless (`CombatEntity.Lurking`, on the wire) until a player is within `LurkRange` 6 blocks, then provokes
+  it — a territorial one hunts like an aggressor for the 12 s window, a hunter starts its chase; after a give-up it
+  roams the cooldown and settles back into the wait. The client (`CreatureAnimator.SetLurking`) flattens the body,
+  spreads the legs and stops every flourish. Passive / skittish ones roam. `ArachnidServerTests` covers both
+  tempers on a live server.
+- **✅ Solid + hit on the body.** `BuildArachnid` keeps the thorax, abdomen and head colliders (`MakeGiantBody`,
+  layer 20) and `CreatureView` registers them like a giant's, so the player bumps into it and aims at where the ray
+  meets it; the legs stay render-only.
+- **✅ Server gates.** `CreatureBodyHeight` is plan-aware (`ArachnidRules.BodyHeightCells`: Size × 0.8 → 3 cells,
+  not 6–7); the titan's 110-block despawn leash covers the plan; the Sreekmakra never disguises as one; the
+  large-body checks engage by themselves at Size ≥ 3.
+- **✅ Voice, scan, VEGA.** `CreatureVoices`: an `Arachnid` pool (hiss / sizzle / chitter / click), 2–4 pulses,
+  cadence 9–20 s — before the size rule that would have made it bellow. Scan traits `ui.scan.body.arachnid` +
+  `ui.scan.body.ambush` (EN + DE). `vega.sys.arachnid_sighted` once per session when one comes within 40 blocks.
+- **✅ `/arachnid`** (admin, `summon_arachnid`): places the roster's arachnid near you, or rolls one
+  (`CreatureGenerator.GenerateArachnid`) into the roster first — so a world that did not roll the plan can still
+  show it.
+- **✅ Animator.** `RigDescription.LeggedCrawler`: the arachnid is a crawler by leg count (tripod / metachronal
+  gait, never jumps) but strides at full amplitude without the beetle weave; titan-style cadence.
+- **Tests:** `CreatureArachnidTests` (plan invariants + occurrence, the gen-10 gate, determinism, authored head
+  shape, lurk rule, body height, head tiers, voice), `ArachnidServerTests` (ambush in both tempers, a passive one
+  roams, scan traits, summon), `NetCodecTests` round trip, `CreatureMotionTests`.
+- ⚠ Open: Marcel's playtest (`/arachnid` on a fresh world — look, gait, the pyramid heads, the ambush, the collision).
+
 ### 🎓 Theo joins the school club in the credits (2026-09-25, branch docs/credits-theo)
 
 - **✅ Credits:** Theo added to the school club's children in the README and the in-game Credits

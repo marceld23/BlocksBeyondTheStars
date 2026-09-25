@@ -147,6 +147,10 @@ public static class CreatureVoices
 
     private static readonly string[] Sibilant = { "creature_call_hiss", "creature_call_sizzle" };
 
+    /// <summary>#2009: what an arachnid can say — a hiss, a chitter, a click. Its size would otherwise put it in the
+    /// titan's bellow pool, and a speeder-sized spider that moos is wrong in a way a child notices at once.</summary>
+    private static readonly string[] Arachnid = { "creature_call_hiss", "creature_call_sizzle", "creature_call_chitter", "creature_call_click" };
+
     // Habitat-flavoured pools: cave dwellers sound deep + echoey, amphibians wet + croaky, water
     // creatures burble, lava critters hiss/rumble, fliers shriek/trill. Land uses the full pool.
     private static readonly string[] LandCalls =
@@ -343,7 +347,11 @@ public static class CreatureVoices
     private static List<string> NarrowByBody(IReadOnlyList<string> pool, VoiceTraits t)
     {
         string[]? want = null;
-        if (t.BodyPlan == "Titan" || t.Size >= 2.6f)
+        if (t.BodyPlan == "Arachnid")
+        {
+            want = Arachnid; // #2009: before the size rule — an arachnid is titan-sized but hisses and chitters
+        }
+        else if (t.BodyPlan == "Titan" || t.Size >= 2.6f)
         {
             want = Deep;
         }
@@ -487,6 +495,11 @@ public static class CreatureVoices
             return 1;
         }
 
+        if (t.BodyPlan == "Arachnid")
+        {
+            return 2 + Roll(seed, "pulses.arachnid", 3); // #2009: 2..4 quick pulses — a chitter, not a bellow
+        }
+
         if (t.BodyPlan == "Titan" || t.Size >= 2.6f)
         {
             return 1 + Roll(seed, "pulses.titan", 2);
@@ -552,6 +565,11 @@ public static class CreatureVoices
         if (t.BodyPlan == "Medusa" || t.Tentacles >= 4)
         {
             return (26f, 55f); // a drifting lantern should barely make a sound
+        }
+
+        if (t.BodyPlan == "Arachnid")
+        {
+            return (9f, 20f); // #2009: calls more often than a titan, less than a chatterer
         }
 
         if (t.BodyPlan == "Titan" || t.Size >= 2.6f)

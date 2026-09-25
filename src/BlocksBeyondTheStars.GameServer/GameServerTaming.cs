@@ -750,6 +750,7 @@ public sealed partial class GameServer
                 BodyPlan = sp.BodyPlan.ToString(),
                 NeckLength = sp.NeckLength,
                 HasTrunk = sp.HasTrunk,
+                HeadShape = sp.HeadShape.ToString(), // #2009
                 Heads = System.Math.Max(1, sp.Heads),
                 WingPairs = System.Math.Max(1, sp.WingPairs),
                 FinPairs = System.Math.Max(1, sp.FinPairs),
@@ -859,6 +860,7 @@ public sealed partial class GameServer
         BodyPlan = s.BodyPlan,
         NeckLength = s.NeckLength,
         HasTrunk = s.HasTrunk,
+        HeadShape = s.HeadShape, // #2009: a tamed arachnid keeps its pyramid
         Heads = System.Math.Max(1, s.Heads),         // #1780-#1782: a hydra companion keeps its heads (0 = a pre-wave snapshot)
         WingPairs = System.Math.Max(1, s.WingPairs),
         FinPairs = System.Math.Max(1, s.FinPairs),

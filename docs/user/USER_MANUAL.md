@@ -1327,6 +1327,13 @@ separate unlock; admins can still disable it through server world rules.
   own size (most near the normal size, the occasional runt or giant) — a wood is a mix of saplings and tall
   trees with varying crown widths, a herd has small and large animals. The variation is cosmetic (a creature's
   size doesn't change its health, damage or loot).
+- **Arachnids** are eight-legged animals as big as a speeder that some worlds roll into their fauna (about every
+  third or fourth world has one species). Their heads are boxes or pyramids of several kinds, their eyes come in
+  clusters of 2, 4, 6 or 8, and their temper is rolled like any other animal's: many graze or run away, but a
+  hunting or territorial arachnid **lies in wait** — it sits perfectly still like a rock until you come within
+  about six blocks, then rushes. The **scanner** tells you which kind you are looking at ("Eight-legged", "Lies
+  in wait"), and VEGA points out the first one you get near. You bump into its body, your shots land where you
+  aim on it, and it can be tamed like any other animal.
 
 ### Giants (the colossus and the sandworm)
 - **A colossus** is a 40–60 block tall four-legged giant. It only lives on **very flat, very light worlds** (the lighter
@@ -1819,6 +1826,7 @@ rejections) appear in the **chat scrollback**, not just the brief HUD toast.
 | `/settime day\|night\|…` | Set the world time of day |
 | `/setweather clear\|storm\|…` | Set the world weather |
 | `/giant colossus\|sandworm` | Summon this world's colossus or sandworm near you (a sandworm needs a sand sea) — for testing |
+| `/arachnid` | Summon this world's arachnid near you (rolls one into the world's fauna first if it has none) — for testing |
 | `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |
 | `/god` | Toggle invulnerability |
 | `/instant` | Toggle free/instant crafting |

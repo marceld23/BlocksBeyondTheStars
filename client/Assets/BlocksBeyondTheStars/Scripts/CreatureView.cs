@@ -183,6 +183,10 @@ namespace BlocksBeyondTheStars.Client
                     {
                         SetUpGiant(entry, c); // #1998: colliders into the aim lookup, footfalls into dust + shake
                     }
+                    else if (c.BodyPlan == "Arachnid")
+                    {
+                        RegisterGiant(c.Id, root); // #2009: solid to bump into and hit on its body, but no footfall shake
+                    }
                 }
 
                 // Dead reckoning (#654): positions arrive at ~2 Hz, so chasing the newest (stale) target
@@ -312,6 +316,7 @@ namespace BlocksBeyondTheStars.Client
                     // server's own predicate, plus "not still climbing", so the spread starts at the apex.
                     bool gliding = c.Glides && airborne && c.VertVel <= 0.05f;
                     entry.Animator.SetMotion(c.Motion, airborne, c.Perched && !airborne, c.Asleep, gliding);
+                    entry.Animator.SetLurking(c.Lurking); // #2009: an ambusher holds its crouch
 
                     // Where to look. Only bother while the player is close enough for a head turn to read;
                     // beyond that the gaze is released and the head goes back to its own idle business.

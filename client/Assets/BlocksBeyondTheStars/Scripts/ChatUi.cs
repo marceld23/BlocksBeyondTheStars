@@ -825,6 +825,10 @@ namespace BlocksBeyondTheStars.Client
                     net.SendAdminCommand("summon_giant", stringArg: p[1]);
                     return true;
 
+                case "/arachnid": // #2009: summon this world's arachnid near you (testing)
+                    net.SendAdminCommand("summon_arachnid");
+                    return true;
+
                 case "/fly": net.SendAdminCommand("fly"); return true;
                 case "/god": net.SendAdminCommand("godmode"); return true;
                 case "/instant": net.SendAdminCommand("instant_build"); return true;
