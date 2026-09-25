@@ -228,6 +228,88 @@ public sealed class MaterialEconomyTests
         }
     }
 
+    private Dictionary<string, double> RawCostPerOutput(string outputItem, string[] recipeKeys)
+    {
+        var recipesByOutput = recipeKeys.Select(key => _c.Recipes[key])
+            .ToDictionary(recipe => recipe.Outputs.Single().Item);
+        var costs = new Dictionary<string, double>();
+
+        void Expand(string item, double amount)
+        {
+            if (!recipesByOutput.TryGetValue(item, out var recipe))
+            {
+                costs[item] = costs.GetValueOrDefault(item) + amount;
+                return;
+            }
+
+            double crafts = amount / recipe.Outputs.Single().Count;
+            foreach (var input in recipe.Inputs)
+            {
+                Expand(input.Item, crafts * input.Count);
+            }
+        }
+
+        Expand(outputItem, 1);
+        return costs;
+    }
+
+    [Fact]
+    public void FactoryRecipes_StayWithinTwiceTheirReferenceRawMaterialCost_OrAreExplicitlyExempt()
+    {
+        var referenceChains = new Dictionary<string, string[]>
+        {
+            ["factory_carbon_composite"] = new[] { "carbon_composite" },
+            ["factory_polymer"] = new[] { "polymer", "carbon_composite", "sulfur" },
+            ["factory_titanium_plate"] = new[] { "titanium_plate" },
+            ["factory_light_alloy"] = new[] { "refine_light_alloy", "aluminium_ingot" },
+            ["factory_bronze"] = new[] { "refine_bronze", "tin_ingot", "copper_wire" },
+            ["factory_brass"] = new[] { "refine_brass", "zinc_ingot", "copper_wire" },
+            ["factory_carbide"] = new[] { "carbide", "tungsten_ingot", "platinum_ingot" },
+            ["factory_magnet"] = new[] { "magnet_sintered", "neodymium", "refine_iron" },
+            ["factory_diamond"] = new[] { "diamond" },
+            ["factory_reactor_fuel"] = new[] { "reactor_fuel", "uranium", "lead_ingot" },
+        };
+        // Diamond compression adds carbon as a catalyst; its diamond-ore cost is still directly comparable.
+        var extraCatalysts = new Dictionary<string, string[]> { ["factory_diamond"] = new[] { "carbon" } };
+
+        // These recipes predate #1200 and keep their historical premiums until each gets its own review.
+        var oldOutliers = new[]
+        {
+            "factory_iron_plate", "factory_metal_panel", "factory_steel", "factory_cable",
+            "factory_energy_cell", "factory_circuit_board",
+        };
+        // These shortcuts use different raw-material families, so a like-for-like ratio does not exist.
+        var noComparableChain = new[] { "factory_glass", "factory_power_cell" };
+
+        var factoryKeys = _c.Recipes.Values.Where(recipe => recipe.Station == CraftingStation.Factory)
+            .Select(recipe => recipe.Key).OrderBy(key => key);
+        var coveredKeys = referenceChains.Keys.Concat(oldOutliers).Concat(noComparableChain).OrderBy(key => key);
+        Assert.Equal(factoryKeys, coveredKeys);
+
+        foreach (var (factoryKey, recipeKeys) in referenceChains)
+        {
+            var factory = _c.Recipes[factoryKey];
+            var output = factory.Outputs.Single();
+            var referenceCosts = RawCostPerOutput(output.Item, recipeKeys);
+            var comparedInputs = factory.Inputs.Where(input => referenceCosts.ContainsKey(input.Item)).ToList();
+            Assert.NotEmpty(comparedInputs);
+            var unmatchedInputs = factory.Inputs.Where(input => !referenceCosts.ContainsKey(input.Item))
+                .Select(input => input.Item).OrderBy(item => item);
+            var allowedCatalysts = extraCatalysts.TryGetValue(factoryKey, out var catalysts)
+                ? catalysts.OrderBy(item => item)
+                : Enumerable.Empty<string>();
+            Assert.Equal(allowedCatalysts, unmatchedInputs);
+
+            foreach (var input in comparedInputs)
+            {
+                double factoryCost = (double)input.Count / output.Count;
+                double referenceCost = referenceCosts[input.Item];
+                Assert.True(factoryCost <= 2 * referenceCost,
+                    $"{factoryKey} costs {factoryCost} {input.Item} per {output.Item}; reference chain costs {referenceCost}");
+            }
+        }
+    }
+
     [Fact]
     public void ReactorFuel_IsAOneTimeBuildCost_OfAtLeastFourBigThings_AndNeverARecipeInput()
     {
