@@ -28,6 +28,17 @@ public enum FloraTag
     Floral = 1 << 9,    // flowers — the strict "floral" theme of the flower planet (#1760) activates only these
 }
 
+/// <summary>Where a species grows (generation 11, cave flora). <see cref="Surface"/> is every classic species: the
+/// air cell above a host surface. <see cref="Cave"/> species live only underground — on a cave floor (or, when
+/// <see cref="FloraCatalog.Species.Hanging"/>, from a cave ceiling) — and never join the surface pools or the
+/// surface coverage rule. <see cref="Both"/> grows in both places: the fungi of the surface also take to the caves.</summary>
+public enum FloraHabitat
+{
+    Surface = 0,
+    Cave,
+    Both,
+}
+
 /// <summary>How tall a flora billboard renders. <see cref="Tall"/> plants get a taller cross-billboard
 /// (client mesher) so a field reads in layers — low ground cover under tall grass/reeds/ferns. Only
 /// affects leafy cross-billboard flora; solid/cube flora ignore it.</summary>
@@ -69,8 +80,19 @@ public static class FloraCatalog
         string[]? LateHosts = null,
         bool Solid = false,
         bool Hanging = false,
-        int MinGeneration = 0)
+        int MinGeneration = 0,
+        FloraHabitat Habitat = FloraHabitat.Surface,
+        string[]? CaveHosts = null,
+        bool Rainbow = false,
+        float Light = 0f)
     {
+        // Habitat / CaveHosts / Rainbow / Light (generation 11, cave flora). Habitat says where the generator plants a
+        // species (the surface, the caves or both). CaveHosts are the blocks a species roots on UNDERGROUND — kept apart
+        // from Hosts so a surface mushroom that also grows on cave rock never starts growing on mountain stone, and so
+        // the surface coverage rule never sees them; null = the ordinary Hosts. Rainbow: every plant of the species takes
+        // its own colour from its cell (FloraTints.RainbowAt) instead of the one per-world species hue. Light: the
+        // fraction of the plant's colour it casts on its surroundings as coloured block light (0 = it only glows itself,
+        // like every classic glower) — a dim colour gives a short reach in the client's flood fill.
         // Hanging (#1759): the plant roots in the block ABOVE it and grows downward — the underside of a floating
         // island. World generation, the server's host check and regrow, and the client's billboard all read this
         // one flag. MinGeneration (#1756): a species appended for a later wave rolls INACTIVE on every world whose
@@ -82,7 +104,23 @@ public static class FloraCatalog
         /// generation pools them from generation 3; the server's regrow and the client's fertile-ground cue
         /// always count them (a late host block never exists on an older world).</summary>
         public string[] LateHosts { get; init; } = LateHosts ?? System.Array.Empty<string>();
+
+        /// <summary>The blocks this species roots on in a cave (its <see cref="Hosts"/> unless it names its own).</summary>
+        public string[] CaveHosts { get; init; } = CaveHosts ?? Hosts;
+
+        /// <summary>True when the generator may plant this species on a cave floor or ceiling.</summary>
+        public bool InCaves => Habitat != FloraHabitat.Surface;
+
+        /// <summary>True when the generator may plant this species on the surface.</summary>
+        public bool OnSurface => Habitat != FloraHabitat.Cave;
     }
+
+    // The natural rock a cave floor or ceiling is made of across the planet types: the deep rock and the mantle, the
+    // strata bands, the topsoil of a shallow cave, crystal geode shells, karst dripstone (salt) and ice-world rock.
+    private static readonly string[] CaveRock =
+    {
+        "stone", "basalt", "granite", "sandstone", "sulfur_stone", "dirt", "mud", "mycelium", "crystal", "salt", "ice",
+    };
 
     /// <summary>All flora species, paired with the surface block keys they may grow on.</summary>
     public static readonly IReadOnlyList<Species> All = new[]
@@ -93,13 +131,13 @@ public static class FloraCatalog
         new Species("flora_flower",      new[] { "grass", "alien_grass" }, Tags: FloraTag.Lush | FloraTag.Floral), // Floral (#1760): no existing theme prefers it, so old rosters do not move
         new Species("flora_bush",        new[] { "grass" }, Tags: FloraTag.Lush),
         new Species("flora_vine",        new[] { "grass" }, Tags: FloraTag.Lush | FloraTag.Tropical, Height: FloraHeight.Tall),
-        new Species("flora_mushroom",    new[] { "grass", "mud", "mycelium" }, Tags: FloraTag.Fungal, Solid: true),
+        new Species("flora_mushroom",    new[] { "grass", "mud", "mycelium" }, Tags: FloraTag.Fungal, Solid: true, Habitat: FloraHabitat.Both, CaveHosts: CaveRock),
         // Desert (sand) + dry salt flats.
         new Species("flora_cactus",      new[] { "sand" }, Tags: FloraTag.Dry, Solid: true),
         new Species("flora_dryshrub",    new[] { "sand", "dirt", "salt" }, Tags: FloraTag.Dry),
         // Swamp / wetland (mud) + fungal mycelium.
         new Species("flora_reed",        new[] { "mud" }, Tags: FloraTag.Wetland, Height: FloraHeight.Tall, LateHosts: new[] { "peat" }), // peat: the cotton-grass stand of a bog
-        new Species("flora_glowcap",     new[] { "mud", "mycelium" }, Tags: FloraTag.Fungal | FloraTag.Glow, Solid: true),
+        new Species("flora_glowcap",     new[] { "mud", "mycelium" }, Tags: FloraTag.Fungal | FloraTag.Glow, Solid: true, Habitat: FloraHabitat.Both, CaveHosts: CaveRock),
         // Aquatic — kelp roots on the seabed, lily pads float on the water surface (world gen places these
         // under/at the sea; the host lets harvested plants regrow on the same spot, like land flora).
         new Species("flora_kelp",        new[] { "sand", "dirt", "mud", "stone" }, Aquatic: true, Tags: FloraTag.Wetland, Height: FloraHeight.Tall),
@@ -118,13 +156,13 @@ public static class FloraCatalog
         new Species("flora_glowvine",    new[] { "grass", "mud", "mycelium", "alien_grass" }, Tags: FloraTag.Lush | FloraTag.Glow, Solid: true), // bioluminescent (ChunkMesher.GlowFor)
         // Stony / rocky.
         new Species("flora_moss",        new[] { "stone", "dirt" }, Tags: FloraTag.Rocky | FloraTag.Lush),
-        new Species("flora_sporepod",    new[] { "crystal", "stone", "mycelium" }, Tags: FloraTag.Fungal | FloraTag.Glow, Solid: true), // faintly glowing
+        new Species("flora_sporepod",    new[] { "crystal", "stone", "mycelium" }, Tags: FloraTag.Fungal | FloraTag.Glow, Solid: true, Habitat: FloraHabitat.Both, CaveHosts: CaveRock), // faintly glowing
         // Desert + dry salt flats.
         new Species("flora_succulent",   new[] { "sand", "salt" }, Tags: FloraTag.Dry, Solid: true),
         new Species("flora_thornbush",   new[] { "sand", "dirt", "alien_grass" }, Tags: FloraTag.Dry, Height: FloraHeight.Tall),
         // Swamp / wetland + fungal mycelium.
         new Species("flora_pitcher",     new[] { "mud", "grass" }, Tags: FloraTag.Wetland, Solid: true),
-        new Species("flora_puffball",    new[] { "mud", "dirt", "mycelium" }, Tags: FloraTag.Fungal, Solid: true),
+        new Species("flora_puffball",    new[] { "mud", "dirt", "mycelium" }, Tags: FloraTag.Fungal, Solid: true, Habitat: FloraHabitat.Both, CaveHosts: CaveRock),
         // Harsh worlds — icy tundra.
         new Species("flora_lichen",      new[] { "ice", "stone", "snow" }, Tags: FloraTag.Cold | FloraTag.Rocky, LateHosts: new[] { "peat" }),
         new Species("flora_ashweed",     new[] { "basalt", "ash" }, Tags: FloraTag.Dry),
@@ -153,6 +191,14 @@ public static class FloraCatalog
         new Species("flora_sunblossom",  new[] { "grass", "dirt" }, Tags: FloraTag.Lush | FloraTag.Floral, MinGeneration: 5),          // the flower fields' big round staple (#1760)
         new Species("flora_tulip",       new[] { "grass" }, Tags: FloraTag.Lush | FloraTag.Floral, MinGeneration: 5),                  // slim cups in every colour (#1760)
         new Species("flora_hangkelp",    new[] { "stone", "dirt", "grass" }, Tags: FloraTag.Wetland, Height: FloraHeight.Tall, Hanging: true, MinGeneration: 5), // the underside of a floating island (#1759)
+
+        // --- Cave flora (generation 11): the cave habitat's own species, and the rainbow glow class that grows in the
+        // caves and in rare surface clusters. Appended BEFORE the crops for the same reason as the wave above. The cap
+        // is the dark cave mushroom; moss, threads and the prism bloom glow and light up the rock around them. ---
+        new Species("flora_cavecap",     CaveRock, Tags: FloraTag.Fungal, Solid: true, MinGeneration: 11, Habitat: FloraHabitat.Cave),
+        new Species("flora_glowmoss",    CaveRock, Tags: FloraTag.Glow | FloraTag.Rocky, MinGeneration: 11, Habitat: FloraHabitat.Cave, Light: 0.30f),
+        new Species("flora_glowthread",  CaveRock, Tags: FloraTag.Glow | FloraTag.Wetland, Height: FloraHeight.Tall, Hanging: true, MinGeneration: 11, Habitat: FloraHabitat.Cave, Light: 0.45f), // hangs from a cave ceiling
+        new Species("flora_prismbloom",  new[] { "grass", "dirt", "mud", "alien_grass", "mycelium", "stone", "crystal" }, Tags: FloraTag.Glow, Solid: true, MinGeneration: 11, Habitat: FloraHabitat.Both, CaveHosts: CaveRock, Rainbow: true, Light: 0.50f), // every plant its own colour
 
         // --- Cultivated crops (#627): farmed, not wild. Grown in settlement/station greenhouses and by the
         // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible
@@ -224,6 +270,26 @@ public static class FloraCatalog
 
         return false;
     }
+
+    /// <summary>The catalog entry of a species block key, or null for a key that is no species.</summary>
+    public static Species? Find(string key)
+    {
+        foreach (var sp in All)
+        {
+            if (sp.Key == key)
+            {
+                return sp;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>True for a species whose every plant takes its own colour from its cell (generation 11).</summary>
+    public static bool IsRainbow(string key) => Find(key)?.Rainbow == true;
+
+    /// <summary>The fraction of its colour a species casts on its surroundings as block light (0 = none).</summary>
+    public static float LightOf(string key) => Find(key)?.Light ?? 0f;
 
     /// <summary>True for a species that renders as a solid cube (see <see cref="Species.Solid"/>).</summary>
     public static bool IsSolid(string key)

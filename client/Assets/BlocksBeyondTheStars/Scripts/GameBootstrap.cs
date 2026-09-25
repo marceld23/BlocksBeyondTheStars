@@ -275,6 +275,52 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _floraTintByBlock = map;
+            ChunkMesher.LinearColorSpace = QualitySettings.activeColorSpace == ColorSpace.Linear; // main thread: the mesher may run on a worker
+            RebuildPlantLights();
+        }
+
+        /// <summary>Generation 11: the glowing plants that light their surroundings (<c>FloraCatalog.Species.Light</c>)
+        /// cast a dim version of their own colour — this world's colour of the species, or the plant's own cell colour
+        /// for the rainbow class. Registered with the light-source index before the world's chunks arrive.</summary>
+        private void RebuildPlantLights()
+        {
+            if (World == null || Content == null)
+            {
+                return;
+            }
+
+            var lightById = new System.Collections.Generic.Dictionary<ushort, int>();
+            var rainbowStrength = new System.Collections.Generic.Dictionary<ushort, float>();
+            foreach (var sp in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
+            {
+                if (sp.Light <= 0f || sp.Cultivated || Content.GetBlock(sp.Key) is not { } def)
+                {
+                    continue;
+                }
+
+                if (sp.Rainbow)
+                {
+                    rainbowStrength[def.NumericId.Value] = sp.Light;
+                }
+                else
+                {
+                    lightById[def.NumericId.Value] = FloraTints.ToRgb24(FloraTints.For(_worldSeed, LocationName, sp.Key), sp.Light);
+                }
+            }
+
+            var ids = new System.Collections.Generic.List<ushort>(lightById.Keys);
+            ids.AddRange(rainbowStrength.Keys);
+            World.SetCellLightResolver((id, pos) =>
+            {
+                if (lightById.TryGetValue(id, out int rgb))
+                {
+                    return rgb;
+                }
+
+                return rainbowStrength.TryGetValue(id, out float strength)
+                    ? FloraTints.ToRgb24(FloraTints.RainbowAt(pos.X, pos.Y, pos.Z), strength)
+                    : 0;
+            }, ids);
         }
 
         /// <summary>The mesher's tint lookup: a flora block's per-world colour, black (= "use the global

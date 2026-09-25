@@ -1314,6 +1314,18 @@ separate unlock; admins can still disable it through server world rules.
 - **Multiplayer:** players can be on **different planets / star systems at once**, each with their own ship
   and start point. The star map (Tab → Map) shows where everyone is ("◈ Alice, Bob").
 
+### Plant life
+- **Caves grow plants** (worlds created from 2026-09 on, terrain generation 11): the dark **cave cap**, carpets
+  of **glow moss** and **glow threads** hanging from the ceiling, and the mushrooms of the surface. Glow moss, glow
+  threads and the prism bloom **light up the rock around them** in their own colour — a planted cave is never
+  pitch black. Even a barren world or an asteroid may hide them: about every second one does.
+- **The prism bloom** glows in every colour — each plant its own. It grows in caves and, rarely, in small
+  clusters on the surface: a find worth marking on the map.
+- **Cold worlds have plants too:** frost flowers, snow bushes, ice reeds and lichen grow on snow and ice (on a
+  tundra, an ice world, a snow-capped mountain) where every other plant gives up.
+- The glowing plants' colour (and every other wild plant's) is this world's own; harvested cave plants regrow on
+  their rock like any other flora.
+
 ### Creatures
 - Fauna spawn near players (habitat-gated), with temperaments; hostile creatures show visible attacks.
   Flora regrows when its host block survives. Nothing spawns inside a **sealed room** of a founded base

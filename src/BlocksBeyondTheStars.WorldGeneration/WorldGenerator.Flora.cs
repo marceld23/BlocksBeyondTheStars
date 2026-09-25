@@ -98,6 +98,7 @@ public sealed partial class WorldGenerator
     // baseline would depend on visit order instead of the seed).
     private string? _floraResolvedFor;
     private long _floraResolvedSalt; // the body salt the pools were resolved under (#478 — per-body rosters)
+    private int _floraResolvedGeneration = -1; // the roster reads the generation (#1715, generation 11), so it is part of the key
     private bool _kelpActive, _lilyActive; // whether the seabed kelp / surface lily archetypes grow on this world
     private bool _coralActive, _seagrassActive; // the other two seabed archetypes (coral reefs / seagrass)
     private BlockId _hangingFloraId = BlockId.Air; // #1759: the species hanging from island undersides (Air = none)
@@ -112,13 +113,14 @@ public sealed partial class WorldGenerator
     /// surface or the seas ever go bare).</summary>
     private void ResolveFlora(PlanetType planet)
     {
-        if (_floraResolvedFor == planet.Key && _floraResolvedSalt == _locationSalt)
+        if (_floraResolvedFor == planet.Key && _floraResolvedSalt == _locationSalt && _floraResolvedGeneration == _terrainGeneration)
         {
             return;
         }
 
         _floraResolvedFor = planet.Key;
         _floraResolvedSalt = _locationSalt;
+        _floraResolvedGeneration = _terrainGeneration;
         _floraBySurface.Clear(); // re-resolving for a different planet/body: drop the previous pools
         _floraTagByBlock.Clear();
 
@@ -140,19 +142,25 @@ public sealed partial class WorldGenerator
         _hangingFloraId = BlockId.Air;
         foreach (var sp in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
         {
-            if (sp.Hanging && active.Contains(sp.Key) && _content.GetBlock(sp.Key) is { } hang)
+            // A cave species that hangs (generation 11, the glow threads) roots in a cave ceiling, never under an island.
+            if (sp.Hanging && sp.OnSurface && active.Contains(sp.Key) && _content.GetBlock(sp.Key) is { } hang)
             {
                 _hangingFloraId = hang.NumericId;
                 break;
             }
         }
 
+        ResolveCaveFlora(planet, active); // generation 11: the cave pools, the rainbow class and the cold-adapted set
+
         var acc = new System.Collections.Generic.Dictionary<ushort, System.Collections.Generic.List<BlockId>>();
         foreach (var sp in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
         {
-            if (sp.Aquatic || sp.Hanging || !active.Contains(sp.Key) || _content.GetBlock(sp.Key) is not { } flora)
+            // Aquatic flora are placed in submerged columns, hanging flora under islands, cave-only flora underground
+            // and the rainbow class in its own rare clusters (generation 11); inactive forms don't grow here at all.
+            if (sp.Aquatic || sp.Hanging || !sp.OnSurface || sp.Rainbow || !active.Contains(sp.Key)
+                || _content.GetBlock(sp.Key) is not { } flora)
             {
-                continue; // aquatic flora are placed in submerged columns, hanging flora under islands; inactive forms don't grow here
+                continue;
             }
 
             _floraTagByBlock[flora.NumericId.Value] = sp.Tags;

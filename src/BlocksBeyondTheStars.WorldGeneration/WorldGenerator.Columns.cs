@@ -187,6 +187,9 @@ public sealed partial class WorldGenerator
         // Scratch spans reused by every column (#705/#708) — allocated once per chunk (CA2014).
         System.Span<ColumnBand> bandScratch = stackalloc ColumnBand[MaxColumnBands];
         System.Span<(int Lo, int Hi)> tunnelScratch = stackalloc (int Lo, int Hi)[TunnelMaxSpans];
+        // Generation 11: each column's ground top + water top, for the cave flora pass after the column loop.
+        System.Span<int> groundTops = stackalloc int[WorldConstants.ChunkSize * WorldConstants.ChunkSize];
+        System.Span<int> waterTops = stackalloc int[WorldConstants.ChunkSize * WorldConstants.ChunkSize];
 
         // #1526: everything the column phase reads, bundled once per chunk for ComputeColumn.
         var ctx = new ColumnContext
@@ -253,6 +256,8 @@ public sealed partial class WorldGenerator
                 int surfaceY = col.SurfaceY;
                 int seabedY = col.SeabedY;
                 int waterTop = col.WaterTop;
+                groundTops[lx * WorldConstants.ChunkSize + lz] = seabedY;
+                waterTops[lx * WorldConstants.ChunkSize + lz] = waterTop;
                 var columnFluid = col.ColumnFluid;
                 int iceTop = col.IceTop;
                 var biome = biomes[col.BiomeIndex];
@@ -606,17 +611,19 @@ public sealed partial class WorldGenerator
                     // On a beach the painted ground is the beach block, not the biome surface — grow that
                     // host's flora (sparse sand tufts), never grass plants standing in sand (#679).
                     // A generation-3 landmark paint likewise hosts its own flora (reeds on peat, lichen on a frost
-                    // ridge's stone, ember blooms on a lava flow's basalt) — never on an older world.
+                    // ridge's stone, ember blooms on a lava flow's basalt) — never on an older world. Generation 11: altitude
+                    // snow and ice host their own flora too (frost flowers on a snow cap).
                     var floraId = FloraForSurface(planet, biome, seed, worldX, worldZ,
-                        beachHere || paintedHost ? surfaceId : (BlockId?)null);
+                        beachHere || paintedHost || FrozenFloraHost(surfaceId, snowId, iceId) ? surfaceId : (BlockId?)null);
                     int fy = seabedY + 1;
                     int fly = fy - origin.Y;
                     // Local density is modulated by a vegetation-richness mask (lush forest floors / meadows vs
                     // sparse open ground) + the per-biome density, so undergrowth gathers into thickets instead
                     // of an even sprinkle — and the same forest the trees cluster in is also carpeted with plants.
-                    // The cold factor (#476) thins growth toward the snow line and stops it at the ice.
+                    // The cold factor (#476) thins growth toward the snow line and stops it at the ice — except, from
+                    // generation 11, for the cold-adapted species, which grow on far into the frost.
                     double localFloraDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ)
-                        * ColdFloraFactor(calib, surfaceY);
+                        * SurfaceFloraColdFactor(calib, surfaceY, floraId);
                     if (beachHere)
                     {
                         localFloraDensity *= 0.35; // beaches read best mostly bare
@@ -670,6 +677,9 @@ public sealed partial class WorldGenerator
                     }
                 }
             }
+
+        // Generation 11: plants in the caves (floors + ceilings) and the rainbow clusters on the surface.
+        StampFloraGen11(planet, seed, chunk, origin, calib, groundTops, waterTops, flora);
 
         if (trees)
         {

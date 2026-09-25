@@ -42,6 +42,7 @@ FOLIAGE = [
     "flora_lichen", "flora_lily", "flora_moss", "flora_orchid", "flora_palm", "flora_plant", "flora_reed",
     "flora_rockflower", "flora_saltgrass", "flora_seagrass", "flora_snowbush", "flora_thornbush", "flora_vine",
     "flora_sunblossom", "flora_tulip", "flora_hangkelp",
+    "flora_glowmoss", "flora_glowthread",  # generation 11 cave flora (code-painted cutouts until their tiles exist)
     # flora_sapling (#1774) is NOT here: its tile ships with a chroma-keyed alpha (the plant on a plain tan ground),
     # so the darkness cut would remove the stem, not the background.
 ]

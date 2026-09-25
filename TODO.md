@@ -24,6 +24,50 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🍄 Cave flora — plants in caves, glowers that light their surroundings, the rainbow glow class, wild frostflowers (#2013, 2026-09-25, branch feat/cave-flora, terrain generation 11)
+
+Marcel's request: the frostflower must grow in the wild; caves get plants (mushrooms and glowing plants) as a new
+plant class; a new glowing class that is colourful (random colours) and also grows on the surface. His decisions:
+cold species survive the cold AND snow caps host them; caves everywhere with a certain probability (barren worlds
+too); the new glowers light up their surroundings; the four proposed species + the surface fungi in caves; the
+rainbow class on every world with plant life; cave glow colour per world; ~10–15 % of cave floor cells.
+
+- **✅ Generation 11** (`WorldDescription.CaveFloraGeneration`, `CurrentTerrainGeneration` 10 → 11). Every rule below
+  is gated on it; the four new species carry `MinGeneration` 11 and sit after `flora_hangkelp`, before the crops, so no
+  older roster id moves. The golden groups of every older generation stay pinned.
+- **✅ Habitat class** (`FloraHabitat` Surface / Cave / Both, `Species.CaveHosts`, `Rainbow`, `Light`). Cave-only
+  species never join the surface pools or the surface coverage rule; the surface fungi (mushroom, glowcap, puffball,
+  sporepod) are `Both` with cave rock as `CaveHosts` (kept apart from `Hosts`, so they never start growing on
+  mountain stone). New species: `flora_cavecap` (dome, no glow), `flora_glowmoss` (floor carpet, glow 0.6, light
+  0.30), `flora_glowthread` (hangs from a cave ceiling, glow 0.8, light 0.45), `flora_prismbloom` (sphere, glow 0.85,
+  light 0.50, every plant its own colour).
+- **✅ Rosters** (`FloraGenerator`). A plant world always keeps one cave species active and grows the rainbow class
+  (`EnsureCaveCoverage`); a barren / airless world with caves rolls cave flora at `BarrenCaveFloraChance` (0.5) and
+  then carries only cave-capable species (`CaveOnlyRoster`, same per-species streams). Cave-only species roll without
+  the flower planet's strict rule.
+- **✅ The cave pass** (`WorldGenerator.CaveFloraGen11.cs`, after the column loop — the y-loop is untouched): a floor is
+  an air cell on cave rock ≥ 6 below the column's ground top, a ceiling an air cell under cave rock with open air
+  below; patch fields make grottoes and bare stretches (floor ~11 % of cells on average, ceiling ~5 %, barren worlds
+  half). Weighted picks: cave species 3, surface fungi 2, rainbow 2. Measured: 13–66 cave plants per 1000 surface
+  columns on plant worlds, 3–18 on the barren ones that grow them.
+- **✅ Rainbow clusters on the surface**: rare patches (cluster field > 0.74, 35 % fill, not on frozen ground) on grass /
+  dirt / mud / alien grass / mycelium / stone / crystal — measured 0–5 per 1000 columns.
+- **✅ Cold flora**: a Cold-tagged species (frostflower, snow bush, ice reed, lichen) fades only between −30 and −45 °C
+  (at 60 % of the ground's density on frozen ground), and altitude snow / ice host their own pool instead of the
+  biome's grass plants. Tundra 0 → ~19, ice 0 → ~7, boreal ~12 → ~74 land plants per 1000 columns.
+- **✅ Client**: the rainbow class takes `FloraTints.RainbowAt(cell)` instead of the species hue (mesher trait
+  `TraitRainbowFlora`, sRGB→linear by hand because the mesher may run on a worker); the new glowers are light sources
+  (`ClientWorld.SetCellLightResolver`, registered in `GameBootstrap.RebuildPlantLights`): this world's species colour
+  or the cell's rainbow colour, scaled by `Light` — a dim colour is a short reach in the existing flood fill. The
+  classic glowers keep their self-glow only. AI tiles (`gen_textures.py`, moss + threads baked as cutouts; code-painted
+  fallbacks in the atlas); the server
+  regrows cave plants on their cave rock.
+- **Tests:** `CaveFloraTests` (catalog order + gates, rosters on plant / barren worlds, cave plants only underground on
+  cave rock, cold flora incl. the frostflower, rainbow clusters rare, rainbow colour), golden groups `karst-gen11` +
+  `tundra-gen11`.
+- ⚠ Open: Marcel's playtest (a NEW world: a cave, a tundra, a jungle; light in the caves, frame time in a planted cave
+  — WebGL too); a look at the four AI tiles in the game (re-roll with `gen_textures.py --only <key>` if one reads wrong).
+
 ### 🕷️ Arachnid — a speeder-sized eight-legger with a rolled head shape (sometimes a pyramid), rolled looks and temper, an ambush, solid to bump into (#2009, 2026-09-25, branch feat/arachnid)
 
 Marcel's request: a new eight-legged creature class, about the size of the speeder, sometimes with a pyramid head,

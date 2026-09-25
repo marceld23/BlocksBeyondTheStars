@@ -27,13 +27,20 @@ public static class FloraGenerator
     public static IReadOnlyList<FloraSpecies> GenerateRoster(PlanetType planet, long worldSeed, int terrainGeneration = 0)
     {
         var list = new List<FloraSpecies>();
+        long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key) ^ 0x5EEDF10A;
+        bool caveWave = terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.CaveFloraGeneration;
         if (planet.IsAirless || planet.FloraDensity <= 0)
         {
-            return list; // airless (asteroids / airless moons+planets) + barren worlds grow nothing
-        }
+            // Airless (asteroids / airless moons+planets) + barren worlds grow nothing on the surface. Since generation
+            // 11 their caves may still grow (Marcel: "everywhere in caves, with a certain probability"): a per-world
+            // roll decides, and the roster then holds only the species that live in caves.
+            if (!caveWave || !BarrenCavesGrow(planet, planetSeed))
+            {
+                return list;
+            }
 
-        long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key) ^ 0x5EEDF10A;
-        const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
+            return CaveOnlyRoster(planet, planetSeed, terrainGeneration);
+        }
 
         // The world's flora theme biases WHICH forms grow: species whose climate tags match the theme are
         // common, off-theme species an occasional find — so a tropical world and a savanna world (both grass)
@@ -74,8 +81,10 @@ public static class FloraGenerator
                 continue;
             }
 
-            long s = unchecked(planetSeed ^ ((long)i * golden));
-            var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+            var rng = SpeciesRng(planetSeed, i);
+            // A cave-only species (generation 11) rolls without the strict theme: the flower planet's rule is about
+            // its fields, and its caves grow like every other world's.
+            bool rollStrict = strict && archetype.OnSurface;
             list.Add(new FloraSpecies
             {
                 Id = "fl" + i,
@@ -85,14 +94,100 @@ public static class FloraGenerator
                 Aquatic = archetype.Aquatic,
                 // A species of a later wave (#1756, MinGeneration) draws its roll like every other — the draw keeps
                 // the rng stream identical — but stays inactive on a world whose generation predates it.
-                Active = rng.NextDouble() < FloraThemes.ActivationChance(preferred, archetype.Tags, strict)
+                Active = rng.NextDouble() < FloraThemes.ActivationChance(preferred, archetype.Tags, rollStrict)
                     && archetype.MinGeneration <= terrainGeneration,
             });
             i++;
         }
 
         EnsureCoverage(list, planet, terrainGeneration, strict ? preferred : FloraTag.None);
+        if (caveWave)
+        {
+            EnsureCaveCoverage(list, terrainGeneration);
+        }
+
         return list;
+    }
+
+    /// <summary>The share of barren / airless worlds (generation 11) whose caves grow plants at all.</summary>
+    public const double BarrenCaveFloraChance = 0.5;
+
+    /// <summary>Whether a barren or airless world's caves grow plants (generation 11): a world without caves never
+    /// does, every other one rolls <see cref="BarrenCaveFloraChance"/> from its own seed.</summary>
+    private static bool BarrenCavesGrow(PlanetType planet, long planetSeed)
+    {
+        if (planet.Void || planet.CaveThreshold <= 0.0)
+        {
+            return false;
+        }
+
+        long s = unchecked(planetSeed ^ 0x0CA7EF10L);
+        return new System.Random(unchecked((int)(s ^ (s >> 32)))).NextDouble() < BarrenCaveFloraChance;
+    }
+
+    /// <summary>A barren world's roster (generation 11): only the species that live in caves, each drawn from the SAME
+    /// per-species stream as on a green world (so an id always names the same kind of plant), rolled against the
+    /// planet's theme without the strict rule — then the cave coverage rule.</summary>
+    private static List<FloraSpecies> CaveOnlyRoster(PlanetType planet, long planetSeed, int terrainGeneration)
+    {
+        var list = new List<FloraSpecies>();
+        FloraTag preferred = FloraThemes.Resolve(planet.FloraTheme).Preferred;
+        int i = 0;
+        foreach (var archetype in FloraCatalog.All)
+        {
+            if (archetype.Cultivated || !archetype.InCaves)
+            {
+                i++;
+                continue;
+            }
+
+            var rng = SpeciesRng(planetSeed, i);
+            list.Add(new FloraSpecies
+            {
+                Id = "fl" + i,
+                Name = NameGenerator.Flora(rng),
+                BlockKey = archetype.Key,
+                Toxic = rng.NextDouble() < 0.3,
+                Aquatic = archetype.Aquatic,
+                Active = rng.NextDouble() < FloraThemes.ActivationChance(preferred, archetype.Tags, strict: false)
+                    && archetype.MinGeneration <= terrainGeneration,
+            });
+            i++;
+        }
+
+        EnsureCaveCoverage(list, terrainGeneration);
+        return list;
+    }
+
+    /// <summary>The per-species random stream: the planet seed salted with the catalog index (the index is the
+    /// species' roster id, which is why new species are only ever appended).</summary>
+    private static System.Random SpeciesRng(long planetSeed, int index)
+    {
+        const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
+        long s = unchecked(planetSeed ^ ((long)index * golden));
+        return new System.Random(unchecked((int)(s ^ (s >> 32))));
+    }
+
+    /// <summary>Generation 11: a world that grows plants keeps its caves planted — at least one species of the cave
+    /// habitat itself (the first eligible one in catalog order when none rolled active) — and the rainbow class grows
+    /// on every such world (Marcel: "on every world with plant life").</summary>
+    private static void EnsureCaveCoverage(List<FloraSpecies> roster, int terrainGeneration)
+    {
+        static bool CaveOnly(FloraSpecies r) => FloraCatalog.Find(r.BlockKey)?.Habitat == FloraHabitat.Cave;
+        bool Eligible(FloraSpecies r) => FloraCatalog.Find(r.BlockKey) is { } sp && sp.MinGeneration <= terrainGeneration;
+
+        if (!roster.Any(r => r.Active && CaveOnly(r)) && roster.FirstOrDefault(r => CaveOnly(r) && Eligible(r)) is { } pick)
+        {
+            pick.Active = true;
+        }
+
+        foreach (var r in roster)
+        {
+            if (Eligible(r) && FloraCatalog.IsRainbow(r.BlockKey))
+            {
+                r.Active = true;
+            }
+        }
     }
 
     /// <summary>Force-activates the minimum flora so no part of the world goes bare: every land host surface
@@ -107,14 +202,17 @@ public static class FloraGenerator
         bool strict = strictTags != FloraTag.None;
         bool Eligible(string blockKey)
             => FloraCatalog.All.FirstOrDefault(s => s.Key == blockKey) is { } sp && !sp.Hanging && sp.MinGeneration <= terrainGeneration
-               && (!strict || (sp.Tags & strictTags) != 0);
+               && SurfaceCover(sp) && (!strict || (sp.Tags & strictTags) != 0);
 
         var landHosts = new HashSet<string>();
         foreach (var sp in FloraCatalog.All)
         {
-            if (sp.Cultivated || sp.Hanging)
+            // A crop's host (a greenhouse bed / hydroponic tray) is no world surface — nothing to cover; a cave-only
+            // species and the rainbow class (generation 11) are never what keeps a surface planted, so their hosts
+            // stay out of this set (which also keeps its insertion order, and so every older roster, as it was).
+            if (sp.Cultivated || sp.Hanging || !SurfaceCover(sp))
             {
-                continue; // a crop's host (a greenhouse bed / hydroponic tray) is no world surface — nothing to cover
+                continue;
             }
 
             if (!sp.Aquatic)
@@ -141,7 +239,7 @@ public static class FloraGenerator
 
         foreach (var host in landHosts)
         {
-            bool covered = roster.Any(r => r.Active && !r.Aquatic && HostsFor(r.BlockKey).Contains(host));
+            bool covered = roster.Any(r => r.Active && !r.Aquatic && SurfaceCover(r.BlockKey) && HostsFor(r.BlockKey).Contains(host));
             if (!covered)
             {
                 var pick = roster.FirstOrDefault(r => !r.Aquatic && Eligible(r.BlockKey) && HostsFor(r.BlockKey).Contains(host));
@@ -158,6 +256,13 @@ public static class FloraGenerator
             roster.First(r => r.Aquatic).Active = true;
         }
     }
+
+    /// <summary>Whether a species can be what keeps a SURFACE host planted: a cave-only species (generation 11) grows
+    /// underground and the rainbow class only in rare clusters, so neither may stand in for a surface's plant life.
+    /// Both are new in generation 11, so no older roster ever met them here.</summary>
+    private static bool SurfaceCover(FloraCatalog.Species sp) => sp.OnSurface && !sp.Rainbow;
+
+    private static bool SurfaceCover(string blockKey) => FloraCatalog.Find(blockKey) is { } sp && SurfaceCover(sp);
 
     private static IReadOnlyList<string> HostsFor(string blockKey)
         => FloraCatalog.All.FirstOrDefault(s => s.Key == blockKey)?.Hosts ?? System.Array.Empty<string>();
