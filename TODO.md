@@ -24,6 +24,12 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎓 Theo joins the school club in the credits (2026-09-25, branch docs/credits-theo)
+
+- **✅ Credits:** Theo added to the school club's children in the README and the in-game Credits
+  (`ui.credits.body`, 14 languages; the names stay in Latin script, as in every other language).
+- **✅ README catch-up:** the club list still read Damian / Noa — now Daimien / Noah, as #1985 already fixed in the game.
+
 ### ⚖️ Factory polymer yields 2 — and one test holds every factory recipe to the 2× rule (#575, 2026-09-25, PR #1993 by @Jay-Hu911)
 
 The first PR out of the community balance review (#575). The findings slices compared the refinery and all 18
