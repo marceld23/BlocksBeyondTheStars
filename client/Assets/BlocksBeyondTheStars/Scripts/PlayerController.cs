@@ -103,6 +103,52 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A lootable container is within loot reach (LootContainer applies).</summary>
         public bool NearContainer => NearestContainerId(crateOnly: false) != null;
 
+        /// <summary>#2018: the selected hotbar item is food an animal would eat AND a begging animal is within
+        /// <c>HerdRules.FeedProbeRange</c> (FeedCreature applies). The creature list arrives at 2 Hz, so the scan over it
+        /// is cached for a quarter second — the probe is polled by the HUD, the touch button and the actions list every frame.</summary>
+        public bool CanFeedCreature
+        {
+            get
+            {
+                if (Time.time >= _nextFeedProbeAt)
+                {
+                    _nextFeedProbeAt = Time.time + 0.25f;
+                    _canFeedCreature = ComputeCanFeedCreature();
+                }
+
+                return _canFeedCreature;
+            }
+        }
+
+        private float _nextFeedProbeAt;
+        private bool _canFeedCreature;
+
+        private bool ComputeCanFeedCreature()
+        {
+            if (Game?.Content == null || Game.Creatures == null)
+            {
+                return false;
+            }
+
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            if (string.IsNullOrEmpty(held) || !BlocksBeyondTheStars.Shared.Definitions.HerdRules.IsFoodForCreatures(Game.Content.GetItem(held)))
+            {
+                return false;
+            }
+
+            const float range = BlocksBeyondTheStars.Shared.Definitions.HerdRules.FeedProbeRange;
+            float rangeSq = range * range;
+            foreach (var c in Game.Creatures)
+            {
+                if (c.Begging && (Game.ScenePos(c.X, c.Y, c.Z) - Game.PlayerPosition).sqrMagnitude <= rangeSq)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>A storage crate is within reach (DepositToCrate applies).</summary>
         public bool NearCrate => NearestContainerId(crateOnly: true) != null;
 
@@ -723,6 +769,14 @@ namespace BlocksBeyondTheStars.Client
             if (InputMap.Down(InputAction.LootContainer))
             {
                 LootNearestContainer();
+            }
+
+            // #2018: Feed — one piece of the held food flies to the begging herd. The server validates food + a beggar near;
+            // the probe keeps the key silent when nothing is hungry, so Q never eats or wastes anything by accident.
+            if (InputMap.Down(InputAction.FeedCreature) && CanFeedCreature)
+            {
+                Game.Network?.SendThrowFood(Game.SelectedHotbarSlot);
+                ClientAudio.Instance?.Cue("loot");
             }
 
             if (InputMap.Down(InputAction.DepositToCrate))

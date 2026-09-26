@@ -138,6 +138,7 @@ namespace BlocksBeyondTheStars.Client
             seen.Clear();
             var cam = Camera.main; // for the floating health bars (#692)
             PlayWorldFx(); // #1998: thumps, stomps, breaches
+            float begFastSq = BegFastThresholdSq(); // #2018: which beggars get the excited call cadence this frame
             foreach (var c in Game.Creatures)
             {
                 seen.Add(c.Id);
@@ -317,6 +318,7 @@ namespace BlocksBeyondTheStars.Client
                     bool gliding = c.Glides && airborne && c.VertVel <= 0.05f;
                     entry.Animator.SetMotion(c.Motion, airborne, c.Perched && !airborne, c.Asleep, gliding);
                     entry.Animator.SetLurking(c.Lurking); // #2009: an ambusher holds its crouch
+                    entry.Animator.SetBegging(c.Begging); // #2018: a beggar holds its head up and bounces
 
                     // Where to look. Only bother while the player is close enough for a head turn to read;
                     // beyond that the gaze is released and the head goes back to its own idle business.
@@ -350,9 +352,13 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        entry.NextCall = now + Random.Range(entry.Voice.CadenceMin, entry.Voice.CadenceMax);
-                        StartPhrase(entry, entry.Voice.Pulses, 0.8f, Vector3.zero, now);
-                        if (Random.value < 0.2f)
+                        // #2018: a begging animal calls at a quarter of its cadence and a touch louder — but only the three
+                        // nearest beggars do, so a herd of twelve does not flood the mix (the rest call as they always did).
+                        float cadence = Random.Range(entry.Voice.CadenceMin, entry.Voice.CadenceMax);
+                        bool excited = c.Begging && (Game.ScenePos(c.X, c.Y, c.Z) - Game.PlayerPosition).sqrMagnitude <= begFastSq;
+                        entry.NextCall = now + (excited ? cadence * 0.25f : cadence);
+                        StartPhrase(entry, entry.Voice.Pulses, excited ? 1f : 0.8f, Vector3.zero, now);
+                        if (!excited && Random.value < 0.2f)
                         {
                             entry.AnswerAt = now + PhraseLength(entry.Voice) + Random.Range(0.4f, 0.9f);
                         }
@@ -965,7 +971,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     case "thump":
                         Fx?.Dust(at + Vector3.up * 0.3f, 6);
-                        audio?.At("land", at, 0.5f, 0.8f);
+                        audio?.At("thumper_thump", at, 0.55f, 1f); // its own piston thud (2026-09-26; was the landing cue)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 25f) * 0.2f);
                         break;
                     case "stomp":
@@ -975,7 +981,7 @@ namespace BlocksBeyondTheStars.Client
                             Fx?.Dust(at + new Vector3(off.x, 0.3f, off.y), 8);
                         }
 
-                        audio?.At("thunder_2", at, 0.55f, Mathf.Clamp01(fx.Strength));
+                        audio?.At("giant_stomp", at, 0.7f, Mathf.Clamp01(fx.Strength)); // a real footfall (2026-09-26; was a thunder placeholder)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 60f) * 0.9f * fx.Strength);
                         break;
                     case "strike":
@@ -985,20 +991,20 @@ namespace BlocksBeyondTheStars.Client
                             Fx?.Dust(at + new Vector3(off.x, 0.3f, off.y), 8);
                         }
 
-                        audio?.At("thunder_3", at, 0.5f, 1f);
+                        audio?.At("sandworm_strike", at, 0.7f, 1f); // the head coming down (2026-09-26; was a thunder placeholder)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 80f));
                         break;
                     case "breach":
-                        audio?.At("creature_call_rumble", at, 0.5f, 1f);
+                        audio?.At("sandworm_breach", at, 0.7f, 1f); // sand bursting + the roar (was the rumble call)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 140f) * 0.6f);
                         break;
                     case "dive":
                         Fx?.Dust(at + Vector3.up * 0.3f, 16);
-                        audio?.At("thunder_1", at, 0.6f, 0.6f);
+                        audio?.At("sandworm_dive", at, 0.6f, 0.8f); // the sand collapsing into the hole (was a thunder placeholder)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 90f) * 0.35f);
                         break;
                     case "rumble":
-                        audio?.At("creature_call_rumble", at, 0.4f, 0.45f * Mathf.Clamp01(fx.Strength));
+                        audio?.At("sandworm_rumble", at, 0.45f, 0.5f * Mathf.Clamp01(fx.Strength)); // something huge moving under the sand
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 120f) * 0.25f * Mathf.Clamp01(fx.Strength));
                         break;
                 }
@@ -1022,6 +1028,38 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>How long a full phrase takes — so an answering animal waits for the first to finish.</summary>
+        /// <summary>#2018: the squared distance of the third-nearest begging creature — or "everything" while three or fewer
+        /// beg — so only the nearest three call at the excited cadence. One pass over the ≤ 64-entry list, no allocation.</summary>
+        private float BegFastThresholdSq()
+        {
+            float first = float.MaxValue, second = float.MaxValue, third = float.MaxValue;
+            int begging = 0;
+            foreach (var c in Game.Creatures)
+            {
+                if (!c.Begging)
+                {
+                    continue;
+                }
+
+                begging++;
+                float d = (Game.ScenePos(c.X, c.Y, c.Z) - Game.PlayerPosition).sqrMagnitude;
+                if (d < first)
+                {
+                    third = second; second = first; first = d;
+                }
+                else if (d < second)
+                {
+                    third = second; second = d;
+                }
+                else if (d < third)
+                {
+                    third = d;
+                }
+            }
+
+            return begging <= 3 ? float.MaxValue : third;
+        }
+
         private static float PhraseLength(CreatureVoice voice)
             => Mathf.Max(0, voice.Pulses - 1) * voice.PulseGapMs * 0.001f;
 

@@ -36,7 +36,9 @@ buttons and a tablet a handful of thumb targets. `ContextActionsUi` (`Scripts/Co
 device-neutral answer: one control — `InputAction.ContextActions` (pad **LS** click, touch **ACT**, no key by
 default) — opens a list of every verb whose *applicability probe* is true right now (rotate with a rotatable
 block held, trade / dock with a player in reach, undock when docked, loot / stash with a container in reach,
-lamp, thermal with binoculars raised, EVA deploy, speeder exit / refuel, VEGA continue, …). Picking an entry
+lamp, thermal with binoculars raised, EVA deploy, speeder exit / refuel, VEGA continue, feed a begging herd
+with food in hand (#2018, `PlayerController.CanFeedCreature`, keyboard **Q**, plus a contextual touch **FEED**
+button), …). Picking an entry
 calls **`InputMap.InjectNextFrame(action)`**, which makes `InputMap.Down(action)` true exactly once on the
 following frame — after the list has closed and gameplay polls again — so the existing poll sites fire
 unchanged; the list is a second *front-end*, not a second rule set. Probes live next to the handlers they

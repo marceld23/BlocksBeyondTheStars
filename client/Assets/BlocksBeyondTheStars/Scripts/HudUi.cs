@@ -1100,7 +1100,7 @@ namespace BlocksBeyondTheStars.Client
             _prompt.text = prompt;
             // Only actionable on foot (#751): PlayerController never polls the loot key while the
             // flight view is up or a speeder is driven, so showing the prompt there was a dead key.
-            _loot.text = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.InSpeeder) ? string.Empty : LootText(loc);
+            _loot.text = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.InSpeeder) ? string.Empty : FeedOrLootText(loc);
 
             RefreshScan(loc);
             RefreshWreck(loc);
@@ -2699,6 +2699,25 @@ namespace BlocksBeyondTheStars.Client
             string here = Game.LifeSupportSource == 3 ? loc.Get("ui.base.air_here_ok") : loc.Get("ui.base.air_here_no");
             return $"{loc.Get("ui.base.rename_hint")}  ·  {air}  ·  {here}";
         }
+
+        /// <summary>#2018: the Feed prompt while food is held and a begging animal is near — it shares the loot line, and a herd
+        /// begging at your feet is the rarer, more urgent thing to say than a crate three blocks off.</summary>
+        private string FeedOrLootText(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            if (_playerRig == null)
+            {
+                _playerRig = FindAnyObjectByType<PlayerController>(); // the rig WorldRig creates; null in the menu
+            }
+
+            if (_playerRig != null && _playerRig.CanFeedCreature)
+            {
+                return loc.Get("ui.hud.feed");
+            }
+
+            return LootText(loc);
+        }
+
+        private PlayerController _playerRig; // #2018: cached for the Feed prompt's probe
 
         private string LootText(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {

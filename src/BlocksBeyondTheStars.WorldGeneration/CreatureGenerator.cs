@@ -137,6 +137,7 @@ public static class CreatureGenerator
             Hide = a.Hide,
             AngeredByMining = a.AngeredByMining,
             GiftsWhenCalm = a.GiftsWhenCalm,
+            BegsForFood = a.BegsForFood,  // #2018: a worksheet species may beg (the rule honours it on passive Land species only)
             GiantHeight = a.GiantHeight,  // #1998: an authored giant (#2003) carries the same traits as a rolled one
             BackFeature = a.BackFeature,
             LegRatio = a.LegRatio,
@@ -534,7 +535,40 @@ public static class CreatureGenerator
             ApplyArachnidPlan(rng, species);
         }
 
+        // Generation 12 (#2018): big herds and the begging trait — rolled after the arachnid draw (so a generation-10/11
+        // species keeps every trait it had; nothing reads the RNG after this) and only on a generation-12 world.
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BigHerdsGeneration)
+        {
+            ApplyBigHerds(rng, species);
+        }
+
         return species;
+    }
+
+    /// <summary>The big herds (#2018, generation 12): peaceful standard-plan Land species only — a passive one begs with
+    /// <see cref="HerdRules.BeggingChance"/> and then always lives in a herd of 8–12; the other passive ones and the skittish
+    /// ones roll a herd of 6–9 with <see cref="HerdRules.BigHerdChance"/>. Everything else (titans keep 2–4, arachnids their
+    /// solitude, every hunter and territorial species) consumes no draw at all, so its RNG stream is untouched. Skittish species
+    /// never beg (decision 2026-09-26): the flee reflex and a beggar's approach contradict each other.</summary>
+    private static void ApplyBigHerds(System.Random rng, CreatureSpecies sp)
+    {
+        if (sp.Habitat != CreatureHabitat.Land || sp.BodyPlan != CreatureBodyPlan.Standard)
+        {
+            return;
+        }
+
+        if (sp.Temperament == CreatureTemperament.Passive && rng.NextDouble() < HerdRules.BeggingChance)
+        {
+            sp.BegsForFood = true;
+            sp.SocialGroupSize = HerdRules.BeggarHerdMin + rng.Next(HerdRules.BeggarHerdMax - HerdRules.BeggarHerdMin + 1);
+            return;
+        }
+
+        if (sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish
+            && rng.NextDouble() < HerdRules.BigHerdChance)
+        {
+            sp.SocialGroupSize = HerdRules.BigHerdMin + rng.Next(HerdRules.BigHerdMax - HerdRules.BigHerdMin + 1);
+        }
     }
 
     /// <summary>The arachnid (#2009): a speeder-sized eight-legger — Size 3–3.6 on eight splayed legs, a cephalothorax

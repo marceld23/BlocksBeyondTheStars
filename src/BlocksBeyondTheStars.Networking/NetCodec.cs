@@ -532,6 +532,7 @@ public static class NetCodec
         Register(260, typeof(SetToolLookIntent));            // Client -> Server (#1963)
         Register(261, typeof(PlayerToolLook));               // Server -> Client
         Register(262, typeof(WorldFx));                      // Server -> Client (#1998: thumps, stomps, breaches)
+        Register(263, typeof(ThrowFoodIntent));              // Client -> Server (#2018: the Feed action)
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

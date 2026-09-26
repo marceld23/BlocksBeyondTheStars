@@ -61,6 +61,20 @@ public sealed class CombatEntity
     /// <summary>Server uptime after which a gift-giving species (#1760, the flowerling) may spill its next gift.</summary>
     public double GiftReadyAt { get; set; }
 
+    /// <summary>#2018: where a begging herd animal is in its routine (<see cref="BegPhase.None"/> for everything that does not
+    /// beg). Server-only, never persisted — on the wire only as <c>NetCreature.Begging</c> for the pose and the call cadence.</summary>
+    public BegPhase BegPhase { get; set; }
+
+    /// <summary>#2018: server uptime at which the current begging phase ends — the interest runs out, the squabble is decided,
+    /// the trot away is over.</summary>
+    public double BegUntil { get; set; }
+
+    /// <summary>#2018: server uptime before which this animal ignores food again after a bout of begging.</summary>
+    public double BegCooldownUntil { get; set; }
+
+    /// <summary>#2018: server uptime of the next begging hop (a grounded jumper hops on a beat while it begs).</summary>
+    public double NextBegHopAt { get; set; }
+
     /// <summary>For asteroids: size tier (2 = large, 1 = medium, 0 = small). Large ones split when destroyed.</summary>
     public int AsteroidTier { get; set; }
 
@@ -166,6 +180,18 @@ public sealed class CombatEntity
 
     /// <summary>True for the Bandit* kinds (targetable humans, not Guardian machines — no story credit).</summary>
     public bool IsBandit => Kind is CombatEntityKind.Bandit or CombatEntityKind.BanditGunner or CombatEntityKind.BanditShip;
+}
+
+/// <summary>A begging herd animal's routine (#2018, server-only): it <see cref="Beg"/>s from a player holding food (approaches and
+/// orbits), <see cref="Rush"/>es a thrown piece, <see cref="Squabble"/>s over it, and <see cref="Leave"/>s — a trot away before it
+/// goes back to roaming.</summary>
+public enum BegPhase : byte
+{
+    None,
+    Beg,
+    Rush,
+    Squabble,
+    Leave,
 }
 
 /// <summary>A bandit's hold-up script phase (server-only).</summary>

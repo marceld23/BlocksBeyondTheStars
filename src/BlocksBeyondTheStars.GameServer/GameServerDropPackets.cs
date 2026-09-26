@@ -325,6 +325,11 @@ public sealed partial class GameServer
 
             foreach (var packet in _containers.Where(c => c.Kind == DropPacketKind).ToList())
             {
+                if (ThrownFoodBlocksPickup(session, packet))
+                {
+                    continue; // #2018: the piece you just threw to the herd is theirs for a few seconds — not yours, nor your pet's
+                }
+
                 // #1210: a packet in the player's own reach — or in reach of one of THEIR present companions
                 // (fetch: the pet carries it over; owner-only, owner within leash range) — pours into their pool.
                 bool ownReach = WrapDistSq(session.State.Position, Center(packet.Position)) <= DropPickupRadius * DropPickupRadius;

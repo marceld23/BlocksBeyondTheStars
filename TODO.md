@@ -24,6 +24,56 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🐑 Begging herds — big herds, animals that beg for the food in your hand, a Feed action (Q) (#2018: #2019 #2020 #2021 #2022, 2026-09-26, branch feat/food-begging-herds, terrain generation 12)
+
+Marcel's request: a new behaviour for peaceful land herd animals — when a player nearby holds food they come hopping
+over, circle and call; food away → they leave; food thrown → they rush it, squabble and eat. His decisions: the trait
+is ROLLED (30 % of passive land species), herds grow to 8–12 (and other peaceful herds to 6–9 with 20 %), skittish
+never beg, food = hunger-restoring and not poisonous, a NEW one-piece throw action that leaves keyboard / pad / touch
+intact, one VEGA line, the own call at a faster cadence, docs + manual + Codex in the same PR.
+
+- **✅ Generation 12 (#2019).** `WorldDescription.BigHerdsGeneration = 12` (`CurrentTerrainGeneration` 11 → 12, no
+  terrain change); `CreatureGenerator.ApplyBigHerds` draws AFTER the arachnid draw for peaceful standard-plan Land
+  species only: passive → 30 % `BegsForFood` + herd 8–12; passive rest + skittish → 20 % herd 6–9. `AuthoredCreature.
+  BegsForFood` for worksheet species. `CreatureHerdTests`: gen-11 rosters untouched, converted species differ only in the
+  two herd fields, the shares land (30 % / 20 %), determinism.
+- **✅ The herd budget (#2019).** A "few" world holds ≈ 10–12 animals and the species share is 40 % of the cap, so a herd
+  of twelve would have been cut to four and pruned. Now members of a species with a group ≥ 6 count one per three
+  (`HerdRules.WeightedCount`) toward `WildCreatureCount` and the species share — in the spawner AND the crowding prune
+  (`WeightedWildCountOf`, the one place this can silently break); the hard cap of 64 stays a real count (`RawWildCount`);
+  one herd per species at a time; `SpawnGroupAround` clamps at 12 (was 5), four radii out to 11.5 blocks, a second spot
+  per member. `HerdServerTests.ABigHerd_…`: ≥ 8 members on open ground, weighted < raw, no second herd, the prune leaves it.
+- **✅ Begging (#2020, `GameServerFoodBegging.cs`).** `RefreshLureTargets` = one item lookup per player per tick; a beggar
+  (`HerdRules.BegsForFood`: flag ∧ Land ∧ Passive ∧ not a giant; never frozen / asleep / panicked / provoked, never a
+  companion) within `LureRange` 10 (no line of sight) of a food holder enters `BegPhase.Beg`: Seek at burst speed toward
+  a point that travels around the player (`HerdRules.OrbitPoint`, 0.9 rad/s, two rings so twelve fit, `BegSeparation`
+  keeps the spacing), a `HopHeight` launch every 0.55 s for jumpers; food stowed / player > 14 / 25 s → `Leave` (Flee at
+  cruise speed 4 s) + 60 s cooldown. State on `CombatEntity` (`BegPhase`, `BegUntil`, `BegCooldownUntil`, `NextBegHopAt`),
+  never persisted. Wire: additive `NetCreature.Begging`. Scan: `ui.scan.behaviour.begs`. VEGA once per player:
+  `ShipAiHintOnce("feed_herd")`. Idle cost: one flag test per creature + one array read.
+- **✅ Feed (#2021).** `InputAction.FeedCreature`, default **Q** (free on foot), rebindable (`ui.key.feed_creature`); probe
+  `PlayerController.CanFeedCreature` (food in the selected slot ∧ a `Begging` creature within 12, cached 4 Hz); a
+  `ContextActionsUi` row → the pad L3 list and the touch ACT list; a contextual touch **FEED** button; HUD line
+  `ui.hud.feed` in the loot slot. `ThrowFoodIntent` (NetCodec 263 + golden list) → `HandleThrowFood`: food + a beggar near,
+  one unit out, a creature-loot drop packet 2.5 blocks along the yaw (`SettleDropCell`), a 10 s pickup grace for the
+  thrower (`WorldRuntime.ThrownFood`, transient — no container column), one pass sets `Rush` on beggars within 12;
+  arrival → `Squabble` 3–5 s (a tight fast orbit around the piece); the first timer to end eats one unit
+  (`EatThrownFood`), the rest leave. Refusals `srv.feed.not_food` / `srv.feed.nobody_hungry`. `HerdServerTests`: approach
+  + orbit + leave + cooldown, poison / bait lure nobody, skittish never, a sleeper ignores food, throw → rush → eaten while
+  the thrower keeps 4 of 5, refusal without a beggar.
+- **✅ Client (#2022).** `CreatureAnimator.SetBegging` (head up, a bounce, no flourish); `CreatureView` quarters the
+  call cadence for the 3 nearest beggars (`BegFastThresholdSq`). Docs: WORLD_GENERATION §7, CREATURE_RIG,
+  INPUT_AND_CONTROLLER, USER_MANUAL (controls ×3, fauna, throw-away note), the Codex "Creatures" article (EN + DE).
+  Locales EN + DE: `ui.key.feed_creature`, `ui.touch.feed`, `ui.hud.feed`, `ui.scan.behaviour.begs`, `vega.hint.feed_herd`,
+  `srv.feed.*`.
+- **✅ Also in this PR — the giants follow-up Marcel asked for mid-way:** a spawn-frequency analysis (colossus ≈ 2.4 % of
+  MOONS and never on a planet — the planet gravity band 0.80–1.60 is above the 0.70 gate; sandworms only on `sand_sea`,
+  ≈ 2.5 % of rolled bodies, none in universes created before generation 9), `GiantNaturalSpawnTests` (the natural
+  sandworm spawn, wrap-aware), the six real giant sounds and the sand-sea VEGA line (see the giants entry below).
+- ⚠ Open: Marcel's playtest on a FRESH generation-12 world ("many" type — about every second roster has a beggar): the
+  approach and the two rings, the hops, the fast calls, Q / L3 list / FEED button, the throw, the squabble; the herd of
+  twelve against the population.
+
 ### 🧪 Server test coverage umbrella closed (#571, 2026-09-26)
 
 - **✅ #571 closed as completed.** Every target it listed is covered (@ahmdkaml, #917–#947); the work carried on
@@ -194,9 +244,13 @@ rare**, sandworms **only on sand-sea worlds**. Everything is **terrain generatio
   body is drawn inside the terrain, which hides it: **no block ever moves**.
 - **✅ Thumper (#2002).** Workshop recipe; on sand-sea ground it thumps every 2 s for 90 s, the worm comes, rears and
   swallows it (the block goes, no drop). On rock nothing hears it; mining it back stops it.
-- **⚠ Maintainer:** real sounds (stomp, rumble, roar, breach, thump — the thunder and rumble calls are placeholders),
-  the thumper's icon and block texture (a copy of the radio beacon tile for now). **⚠ Playtest:** a flat moon with a
-  colossus (or `/giant colossus`), a sand-sea world with its worm, the thumper; the flowerling's face and temper.
+- **✅ Real sounds (2026-09-26, with #2018):** `giant_stomp`, `sandworm_breach` / `_strike` / `_dive` / `_rumble`,
+  `thumper_thump` — six ElevenLabs one-shots wired in `CreatureView.PlayWorldFx` (the thunder and rumble-call
+  placeholders are gone). **✅ Sand-sea VEGA line** `vega.hint.world.sand_sea` on the first landing (Marcel's pick from
+  the spawn analysis: the worm is there from the first minute — `GiantNaturalSpawnTests` — but stays hidden until you
+  WALK on sea sand within ~36–58 blocks; the line says so). **⚠ Maintainer:** the thumper's icon and block texture (a
+  copy of the radio beacon tile for now). **⚠ Playtest:** a flat moon with a colossus (or `/giant colossus`), a sand-sea
+  world with its worm, the thumper; the flowerling's face and temper.
 - **Follow-up (#2003):** the club's worksheets — an authored sand-sea planet, colossus and sandworm — become data
   entries (every rolled trait is already a plain species field).
 

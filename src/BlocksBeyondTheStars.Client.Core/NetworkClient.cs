@@ -639,6 +639,9 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendConsume(string itemKey) => Send(new ConsumeItemIntent { ItemKey = itemKey });
 
+        /// <summary>The Feed action (#2018): throw one piece of the food in <paramref name="slot"/> to a begging herd.</summary>
+        public void SendThrowFood(int slot) => Send(new ThrowFoodIntent { Slot = slot });
+
         public void SendUseGadget(string gadgetKey, Vector3f target)
             => Send(new UseGadgetIntent { GadgetKey = gadgetKey, X = target.X, Y = target.Y, Z = target.Z });
 

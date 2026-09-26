@@ -328,8 +328,23 @@ live by `GameServerCreatures.cs`.
   [CREATURE_RIG.md](CREATURE_RIG.md).
 - **Social species (#639):** each species rolls a `SocialGroupSize` (1 = solitary): titan herds 2–4,
   schooling water species 3–5, some flocks of fliers 2–4, occasional grazer pairs/trios. The spawner
-  places the whole group together (4–8 blocks apart, each member habitat-gated and cap-counted), and
+  places the whole group together (4–12 blocks apart, each member habitat-gated and cap-counted), and
   roaming members drift gently toward nearby kin so groups stay loosely together.
+- **Big herds + the begging trait (#2018, generation 12):** two draws appended AFTER the arachnid draw
+  (`CreatureGenerator.ApplyBigHerds`) and only on a generation-12 world, so older rosters stay bit for bit.
+  Peaceful standard-plan Land species only: a **passive** one begs with **30 %** (`CreatureSpecies.BegsForFood`)
+  and then always lives in a herd of **8–12**; the other passive ones and the skittish ones roll a herd of
+  **6–9** with **20 %**. Skittish species never beg (`HerdRules.BegsForFood` = flag ∧ Land ∧ Passive ∧ not a
+  giant). Because a "few" world holds about a dozen animals in total, a herd is **cheap for the population
+  model**: members of a species with a group ≥ 6 count **one per three** toward the world cap and the species
+  share (`HerdRules.WeightedCount`, read by the spawner AND the crowding prune — the two must agree or the prune
+  sheds the herd the spawner just placed); the hard cap of 64 stays a real body count; a big-herd species
+  spawns again only once none of its wild members is alive (one herd at a time). The spawner clamps a group
+  at 12 (was 5) and tries a second spot per member. Every constant lives in `HerdRules`; the behaviour itself
+  is `GameServerFoodBegging.cs` (a beggar within 10 blocks of a player holding food — a consumable that restores
+  hunger and does not poison — seeks a point that travels around the player on one of two rings, hops on a
+  beat, leaves when the food is stowed or after 25 s, and rushes / squabbles over / eats a piece thrown with the
+  Feed action). Authored species may set `begsForFood` in `data/creatures.json`.
 - **Per biome:** on multi-biome worlds each species gets a **biome affinity** (`rng.Next(biomeCount)`,
   or −1 = anywhere). Spawning prefers biome natives, then falls back to any species — roughly
   **one-plus native species per biome** plus the biome-agnostic ones. A biome with fewer than **two**
