@@ -1761,3 +1761,52 @@ ice (and a snow blanket) host their own pool, so a snow cap grows frost flowers 
 light index registers the glowers with `Light` > 0 (`ClientWorld.SetCellLightResolver`) at this world's species colour
 or the cell's rainbow colour, scaled by `Light` — a dim start level is a short reach in the flood fill. The classic
 glowers keep their self-glow only.
+
+## 27. Generation 13 — the toxic worlds (#2024–#2032, 2026-09-26)
+
+A rare, exotic **planet class** whose worlds **roll their traits**, so no two are alike. Everything is gated on
+`WorldDescription.ToxicWorldsGeneration` (13); every new `PlanetType` field defaults to its classic no-op, so an older
+world — Titas included — is bit for bit what it was.
+
+**The type.** `toxic_world` (`minTerrainGeneration: 13`, `exotic`, `spawnWeight: 2`): ash / sulphur stone / mud / scree
+badlands with hoodoos and buttes, a sickly haze, acid rain ×3, unbreathable air with an almost useless oxygen extractor
+(`oxygenExtractability` 0.1), **no surface flora, trees or fauna**, a thin topsoil (`surfaceDepth` 2) and **every ore
+vein from ≤ 8 blocks down**, the rare tier-2 veins first. A vein with `minDepth ≤ 8` runs in the "shallow" mode of
+`SelectOre` (scale 0.30 instead of 0.15, cap 8 % instead of 5 %, coarse + fine veins) and the first vein that hits wins,
+so the rare ores are both close to the surface and about twice as dense as the same vein fifty blocks down. Like every
+gated type it reaches a galaxy only through `ApplyGenerationTypes` (≈ 18 % of the planets **and moons** outside the start
+system); weight 2 of a pool of ≈ 84 is about half a world per galaxy (measured over 200 galaxies: one weight point ≈
+0.24 worlds per galaxy, 61 % of gated worlds are moons). "Exotic worlds: Off" removes it.
+
+**The traits — `WorldTraits.For(planet, rosterSeed, generation)`** (WorldGeneration, next to `RosterSeedFor`). One
+function, every consumer — the wonder profile (outcrops), the creature roster (cave fauna), the server (air and water
+damage, the water tint, VEGA's scan) — with the roster seed, so they can never disagree (the #1722 discipline). One
+`System.Random` per trait salted `"trait:<name>"` + the type key: a chance ≤ 0 never hits, ≥ 1 always does on any
+generation (Titas' water keeps working at generation 8 without a roll), anything between rolls per world on generation
+13 only. Nothing is persisted — the chances are generator constants from now on.
+
+| Field | toxic_world | Trait / consumer |
+|---|---|---|
+| `CorrosiveAirChance` + `AirDamagePerSecond` | 0.4 · 0.2 HP/s | `CorrosiveAir` → `GameServer.TickCorrosiveAir` |
+| `WaterDamageChance` (default 1.0) + `WaterDamagePerSecond` | 0.8 · 2 HP/s | `ToxicWater` → `TickToxicWater`, `FluidTints.ForWorld(…, toxicWater)` |
+| `CaveFaunaChance` | 0.18 | `CaveFauna` → `CreatureGenerator` (1–2 `forcedHabitat: Cave` species on an otherwise empty roster), `WorldCreatureCap` base 4 |
+| `CaveFloraChance` (default null = `BarrenCaveFloraChance` 0.5) | 0.18 | `FloraGenerator.BarrenCavesGrow` |
+| `OreOutcropChance` | 0.18 | `OreOutcrops` → `WonderProfile.OreOutcrops` → prop row `ore-outcrop` |
+| `SettlementsBias` (default 1.0) | 0.1 | × the settlement λ |
+| `RuinedSettlementsOnly` | true | every settlement ruined (the complete-template path skipped, the instance stream kept), no bandit camps |
+| `ruinsBias` · `factoriesBias` (existing) | 0.62 · 0.78 | ≈ 11 % / ≈ 10 % of the worlds get one |
+
+**Ore outcrops** (`WorldGenerator.ToxicWorldsGen13.cs`): the `ore-outcrop` row is appended at the end of the prop table
+(so every older row keeps its precedence) and gated on the profile flag; its shape stamps a 1–4 cell clump of one of the
+type's `RareTier` veins, picked per clump from the column hash, each side cell seated on its own column. Its material key
+is only the row's guard. Note that the wonder profile is memoised **across generator instances** on the 8-tuple key — a
+test that flips a chance must use a fresh body id.
+
+**The server** (`GameServerToxicWorlds.cs`): `ActiveTraits` caches the world's traits on the `WorldManager` entry.
+Corrosive air takes `AirDamagePerSecond × HazardSeverityFactor × (1 − CorrosionResistance)` outdoors; the shelter is the
+vitals tick's `lifeSupport` (ship, station, base zone, sealed room) or being under water; off in EVA, above the
+atmosphere, in Creative mode and at hazard tier Off. `CorrosionResistance` is a new item stat (best carried piece, cap
+0.8): the suit liners carry 0.25 / 0.45 / 0.65. The toxic-water tick now reads the trait and — the #2028 fix — respects
+Creative mode and hazard tier Off and scales with the tier, like every other environmental hazard. On landing VEGA reports
+the world's rolled hazards once **per world** (`vega.hint.toxic_scan_{both,air,water,calm}`, once-flag
+`toxic:<location>:<scan>`), and the music maps `toxic_world` to the `planet_toxic` tracks.

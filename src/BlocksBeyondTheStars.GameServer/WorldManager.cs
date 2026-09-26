@@ -192,6 +192,10 @@ internal sealed class LoadedWorld
     /// documented "stable per world") — hashed once instead of an interpolated string 15× per second.</summary>
     public double? FaunaJitter { get; set; }
 
+    /// <summary>#2024: the traits this world rolled (<see cref="WorldTraits"/>) — a pure function of seed, body, type and
+    /// generation, resolved once on first use (the vitals tick reads it every tick).</summary>
+    public WorldTraits? Traits { get; set; }
+
     /// <summary>#1530: signature of the joined set (ids + spectate flags) as of the last presence beat; a change
     /// forces a full presence resend so a joiner / un-spectating admin sees everyone at once.</summary>
     public long PresenceViewerSignature { get; set; }

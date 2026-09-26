@@ -510,6 +510,9 @@ public sealed partial class WorldGenerator
         public bool SandSea;
         public double SandThreshold = double.MaxValue;
 
+        // Terrain generation 13 (#2030): this world rolled rare-ore outcrops on its surface (WorldTraits).
+        public bool OreOutcrops;
+
         /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
         public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
@@ -1044,6 +1047,12 @@ public sealed partial class WorldGenerator
                 {
                     w.SandSea = true; // #2000 — a field quantile only, so the relief can read it before the calibration
                     w.SandThreshold = SandSeaThreshold(planet, seed);
+                }
+
+                if (_terrainGeneration >= WorldDescription.ToxicWorldsGeneration)
+                {
+                    // #2030: THE trait roll (the roster seed, like every other consumer), cached with the profile.
+                    w.OreOutcrops = WorldTraits.For(planet, RosterSeed, _terrainGeneration).OreOutcrops;
                 }
 
                 ulong uh = Noise.Hash(seed ^ 0x57FADE, 2, 4, 8);

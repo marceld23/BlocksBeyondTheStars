@@ -358,7 +358,8 @@ separate unlock; admins can still disable it through server world rules.
   surface every world settles near a mild ground temperature — unless lava or ice is right beside you),
   **build a roof** (shelter halves the stress), wait out midday/midnight, stay near the ship, and craft
   **suit liners** at the workshop (Thermo Liner 40% → Insulation Suite 65% → Climate Rig 85%; only the
-  best carried liner counts — armor pieces also carry a little insulation). In vacuum the readout shows
+  best carried liner counts — armor pieces also carry a little insulation; the liners also slow a toxic world's
+  corrosive air, see below). In vacuum the readout shows
   the sun-side/shadow hull temperature (about +120 °C to −150 °C). The world option **Environmental
   hazards** (world creation, or live in the in-game Settings tab as world admin) scales this from Off to
   Hard; Creative/Sandbox worlds are always exempt.
@@ -379,6 +380,18 @@ separate unlock; admins can still disable it through server world rules.
   kind it is copying — then it drops its disguise and comes to you as a companion in its true form (one per player;
   achievement *Shapeshifter's Friend*). In its true form it cannot be tamed. Stay long and VEGA starts to feel watched;
   later the fog closes in.
+- **Toxic worlds** (rare — about one in every other galaxy, planets and moons; an exotic world type, so the world option
+  *Exotic worlds* scales it): ash and sulphur, **nothing grows or lives on the surface**, and the air is never breathable
+  (the oxygen extractor barely helps). Every toxic world **rolls its own dangers**: on some (4 in 10) the **air is
+  corrosive** — outdoors your health slowly drops (about 8 minutes from full at Normal); your ship, a station, a base or
+  a sealed room keep it out, and the **suit liners** slow it (Thermo Liner 25 %, Insulation Suite 45 %, Climate Rig
+  65 % — the best one you carry counts). On most (8 in 10) the **water is toxic** and looks it (sickly green or rust
+  brown): a few seconds are fine, then it burns. The reward: **rare ores lie right under the surface** — every vein
+  starts within a few blocks, uranium, neodymium, platinum, tungsten, diamond, titanium and cobalt first (a tier-2 drill
+  mines them) — and on some worlds clumps of them lie **on the ground**. Rarely, a little life survives in the caves (cave
+  animals, cave plants). Nobody lives there: settlements are rare and always **ruined**, ruins and factories rare, no
+  bandit camps. VEGA reports each toxic world's air and water when you land. Like every hazard, corrosive air and toxic
+  water follow the *Environmental hazards* option and spare Creative mode.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between

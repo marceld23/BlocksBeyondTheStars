@@ -113,7 +113,8 @@ public static class FloraGenerator
     public const double BarrenCaveFloraChance = 0.5;
 
     /// <summary>Whether a barren or airless world's caves grow plants (generation 11): a world without caves never
-    /// does, every other one rolls <see cref="BarrenCaveFloraChance"/> from its own seed.</summary>
+    /// does, every other one rolls its type's <see cref="PlanetType.CaveFloraChance"/> (#2029: the toxic worlds' rare
+    /// 0.18) — or <see cref="BarrenCaveFloraChance"/> for every type that names none — from its own seed.</summary>
     private static bool BarrenCavesGrow(PlanetType planet, long planetSeed)
     {
         if (planet.Void || planet.CaveThreshold <= 0.0)
@@ -122,7 +123,7 @@ public static class FloraGenerator
         }
 
         long s = unchecked(planetSeed ^ 0x0CA7EF10L);
-        return new System.Random(unchecked((int)(s ^ (s >> 32)))).NextDouble() < BarrenCaveFloraChance;
+        return new System.Random(unchecked((int)(s ^ (s >> 32)))).NextDouble() < (planet.CaveFloraChance ?? BarrenCaveFloraChance);
     }
 
     /// <summary>A barren world's roster (generation 11): only the species that live in caves, each drawn from the SAME

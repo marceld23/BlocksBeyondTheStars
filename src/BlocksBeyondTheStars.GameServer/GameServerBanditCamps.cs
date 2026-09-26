@@ -32,9 +32,9 @@ public sealed partial class GameServer
         }
 
         var planet = _world.Planet;
-        if (planet.IsAirless)
+        if (planet.IsAirless || planet.RuinedSettlementsOnly)
         {
-            return; // bandits camp where they can breathe (matches the ruins/settlement logic)
+            return; // bandits camp where they can breathe (matches the ruins/settlement logic); nobody lives on a toxic world (#2031)
         }
 
         long cSeed = _meta.Seed ^ WorldGenerator.StableHash("banditcamp:" + _world.LocationId); // per body (#478)

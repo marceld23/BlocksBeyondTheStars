@@ -121,6 +121,10 @@ public sealed class ItemDefinition
     /// (issue #669). Like the oxygen tanks only the BEST carried piece counts — tiers, no stacking.</summary>
     public float ThermalInsulation { get; set; }
 
+    /// <summary>Corrosion resistance 0..1 (#2026): the fraction of a toxic world's corrosive-air damage this gear keeps
+    /// out. Carried by the suit liners; like the insulation only the BEST carried piece counts.</summary>
+    public float CorrosionResistance { get; set; }
+
     /// <summary>Scanner: multiplies knowledge gained from a first scan (1 = no bonus).</summary>
     public float ScanKnowledgeMultiplier { get; set; } = 1f;
 

@@ -266,7 +266,8 @@ public sealed partial class GameServer
         // scales with how big and how liveable the world is.
         double sizeFactor = _world.Circumference / SettlementRefCirc;
         double character = RollWorldCharacter(rng);
-        double lambda = h * sizeFactor * SettlementBaseDensity * factor * character;
+        // #2031: a type may bias the count (the toxic worlds: 0.1, a rare find); 1.0 is the identical draw for every other type.
+        double lambda = h * sizeFactor * SettlementBaseDensity * factor * character * System.Math.Max(0.0, planet.SettlementsBias);
         int requested = DrawCount(rng, lambda, SettlementHardCap);
         if (requested <= 0)
         {
@@ -358,6 +359,13 @@ public sealed partial class GameServer
                 composition = pinRec?.Composition is { } pinned ? new List<string>(pinned) : new List<string>();
             }
 
+            if (planet.RuinedSettlementsOnly)
+            {
+                // #2031: nobody lives on this world — a complete template is an inhabited settlement, so the generator's
+                // ruined build takes its place (every pick above was still drawn: the instance stream is unchanged).
+                template = null;
+            }
+
             if (template != null)
             {
                 tier = template.Tier;
@@ -368,7 +376,8 @@ public sealed partial class GameServer
             }
             else
             {
-                ruined = ir.NextDouble() < RuinChance(h);
+                // The ruin roll is drawn first either way (the stream contract); a toxic world (#2031) ruins every settlement.
+                ruined = ir.NextDouble() < RuinChance(h) || planet.RuinedSettlementsOnly;
                 bool kitPath = kit != null || pinnedKit;
                 structure = SettlementGenerator.Generate(tier, ruined, instSeed, surface, _content,
                     modulesOn ? modules : null, moduleChance, composition, _log.Warn, layout, kit, kitPath ? kitPool : null);

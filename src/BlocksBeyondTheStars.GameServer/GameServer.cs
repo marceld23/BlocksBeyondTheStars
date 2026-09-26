@@ -2001,6 +2001,10 @@ public sealed partial class GameServer
                 p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dt * 10)));
             }
 
+            // Corrosive air (#2026, the toxic worlds that rolled it): outdoors the air itself slowly burns. Before the
+            // water, so a player in toxic water on such a world dies of the water (the faster of the two).
+            TickCorrosiveAir(session, dt, sheltered: lifeSupport || submerged);
+
             // Toxic water (2026-09, Titas): after a short grace the water itself burns — standing on its ice is safe.
             TickToxicWater(session, dt);
 
@@ -2124,13 +2128,16 @@ public sealed partial class GameServer
     private const double ToxicWaterGraceSeconds = 3.0;
 
     /// <summary>The water of a type with <see cref="Shared.Definitions.PlanetType.WaterDamagePerSecond"/> hurts anyone in it
-    /// (feet or head in a water cell) after <see cref="ToxicWaterGraceSeconds"/>; a speeder or the ice on top keeps you dry.</summary>
+    /// (feet or head in a water cell) after <see cref="ToxicWaterGraceSeconds"/>; a speeder or the ice on top keeps you dry.
+    /// #2027: only on a world whose water IS toxic (a toxic world rolls it; Titas always). #2028: like every environmental
+    /// hazard it is off in Creative mode and at hazard tier Off, and it scales with the tier.</summary>
     private void TickToxicWater(PlayerSession session, double dt)
     {
         var p = session.State;
-        double dps = _world.Planet?.WaterDamagePerSecond ?? 0.0;
+        double dps = (_world.Planet?.WaterDamagePerSecond ?? 0.0) * Rules.HazardSeverityFactor;
         bool wet = dps > 0.0 && _waterId != 0 && !p.InEva && p.InSpeeder.Length == 0 && !p.AboardShip
             && _generator.TerrainGeneration >= Shared.World.WorldDescription.ExtremePlanetsGeneration
+            && Rules.TemperatureHazardsEnabledFor(p.ModeOverride) && ActiveTraits.ToxicWater
             && (FeetInWater(p) || HeadUnderwater(p));
         if (!wet)
         {

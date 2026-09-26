@@ -128,6 +128,9 @@ public sealed partial class GameServer
     /// <summary>The procedural species this world derived from its seed + planet.</summary>
     public IReadOnlyList<CreatureSpecies> SpeciesRoster => _speciesRoster;
 
+    /// <summary>#2029: the population base of a "none" world whose roster kept a few cave species (a toxic world).</summary>
+    private const double CaveOnlyFaunaBase = 4.0;
+
     private void InitCreatures()
     {
         // Per-BODY roster (#478): the seed is salted with the location id — THE formula (#1722: one shared
@@ -184,7 +187,9 @@ public sealed partial class GameServer
         double baseN = _world.Planet.CreatureAbundance?.ToLowerInvariant() switch
         {
             "many" => 20.0,
-            "none" => 0.0,
+            // #2029: a lifeless world that kept a few cave species (a toxic world's rare underground life) — a small herd
+            // of them, never more.
+            "none" => ActiveTraits.CaveFauna && _speciesRoster.Length > 0 ? CaveOnlyFaunaBase : 0.0,
             _ => 10.0, // "few" / default
         };
 

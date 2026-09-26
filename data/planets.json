@@ -926,6 +926,44 @@
     ]
   },
   {
+    "key": "toxic_world", "minTerrainGeneration": 13, "exotic": true, "floraTheme": "ashen", "baseTemperature": 30, "nameKey": "planet.toxic_world.name", "atmosphereHeight": 200, "cloudColor": 11120737, "cloudDensity": 0.65,
+    "terrainTags": ["hoodoos", "buttes"],
+    "baseHeight": 62, "amplitude": 14, "terrainScale": 50.0, "terrainStyle": "badlands",
+    "terrainStyles": ["badlands", "canyons", "flats", "shattered"],
+    "surfaceBlock": "ash", "subSurfaceBlock": "basalt", "deepBlock": "stone", "surfaceDepth": 2,
+    "caveThreshold": 0.72, "dataCacheRarity": 0.002,
+    "weather": "dynamic", "stormChance": 0.35, "dayLengthSeconds": 600, "worldRadius": 860, "floraDensity": 0.0, "treeDensity": 0.0, "creatureAbundance": "none", "atmosphere": "toxic", "oxygenExtractability": 0.1, "atmosphereDensity": 0.7, "spawnWeight": 2, "waterAbundance": 0.3,
+    "waterTint": "auto", "beachBlock": "sulfur_stone",
+    "weatherVolatility": 1.1, "seasonAmplitude": 0.2,
+    "weatherEvents": { "acid_rain": 3.0, "ground_fog": 1.4, "fog": 1.2, "gale": 1.0, "drizzle": 0.2 },
+    "corrosiveAirChance": 0.4, "airDamagePerSecond": 0.2, "waterDamagePerSecond": 2, "waterDamageChance": 0.8,
+    "caveFaunaChance": 0.18, "caveFloraChance": 0.18, "oreOutcropChance": 0.18,
+    "ruinsBias": 0.62, "factoriesBias": 0.78, "settlementsBias": 0.1, "ruinedSettlementsOnly": true,
+    "biomes": [
+      { "surfaceBlock": "ash",          "subSurfaceBlock": "basalt" },
+      { "surfaceBlock": "sulfur_stone", "subSurfaceBlock": "sulfur_stone", "reliefMul": 1.2 },
+      { "surfaceBlock": "mud",          "subSurfaceBlock": "mud", "reliefMul": 0.4 },
+      { "surfaceBlock": "scree",        "subSurfaceBlock": "dirt", "reliefMul": 1.3 }
+    ],
+    "ores": [
+      { "block": "uranium_ore",   "rarity": 0.014, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "neodymium_ore", "rarity": 0.014, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "platinum_ore",  "rarity": 0.012, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "tungsten_ore",  "rarity": 0.012, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "diamond_ore",   "rarity": 0.01,  "minDepth": 5, "maxDepth": 2048 },
+      { "block": "titanium_ore",  "rarity": 0.025, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "cobalt_ore",    "rarity": 0.016, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "gold_ore",      "rarity": 0.02,  "minDepth": 3, "maxDepth": 2048 },
+      { "block": "silver_ore",    "rarity": 0.02,  "minDepth": 3, "maxDepth": 2048 },
+      { "block": "lithium_ore",   "rarity": 0.02,  "minDepth": 4, "maxDepth": 2048 },
+      { "block": "sulfur_ore",    "rarity": 0.05,  "minDepth": 2, "maxDepth": 2048 },
+      { "block": "iron_ore",      "rarity": 0.07,  "minDepth": 2, "maxDepth": 2048 },
+      { "block": "copper_ore",    "rarity": 0.05,  "minDepth": 2, "maxDepth": 2048 },
+      { "block": "silicate",      "rarity": 0.05,  "minDepth": 2, "maxDepth": 2048 },
+      { "block": "carbon",        "rarity": 0.04,  "minDepth": 3, "maxDepth": 2048 }
+    ]
+  },
+  {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,
