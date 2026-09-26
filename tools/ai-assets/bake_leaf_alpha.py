@@ -43,9 +43,17 @@ FOLIAGE = [
     "flora_rockflower", "flora_saltgrass", "flora_seagrass", "flora_snowbush", "flora_thornbush", "flora_vine",
     "flora_sunblossom", "flora_tulip", "flora_hangkelp",
     "flora_glowmoss", "flora_glowthread",  # generation 11 cave flora (code-painted cutouts until their tiles exist)
+    "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana",  # fruit trees (#2038): a pale fruit on black
     # flora_sapling (#1774) is NOT here: its tile ships with a chroma-keyed alpha (the plant on a plain tan ground),
     # so the darkness cut would remove the stem, not the background.
 ]
+
+
+# Tiles painted as ONE pale object on a pure black ground (the fruit of #2038): a fixed fraction would either leave
+# black around the object or eat its edge, so these cut every pixel that is (nearly) black instead — per pixel, not per
+# coarse cell, because a fruit needs a clean outline, not chunky leaf gaps.
+DARK_GROUND = {"flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana"}
+DARK_GROUND_CUTOFF = 0.12  # brightness at or below this = the black ground (a dark stem sits well above it)
 
 
 def leafiness(r: int, g: int, b: int) -> float:
@@ -71,6 +79,10 @@ def bake(key: str, hole: float, grid: int) -> str:
     # Compute the mask on a COARSE grid so holes are chunky, connected gaps (visible at a distance + after
     # mip-mapping) instead of scattered single pixels that just average back to opaque. Each coarse cell's
     # leafiness is the mean over its block; the darkest `hole` fraction of cells become fully transparent.
+    dark_ground = key in DARK_GROUND
+    if dark_ground:
+        grid = TILE  # per pixel
+
     cell = max(1, TILE // grid)
     cells = []
     for cy in range(0, TILE, cell):
@@ -79,11 +91,12 @@ def bake(key: str, hole: float, grid: int) -> str:
             for y in range(cy, min(cy + cell, TILE)):
                 for x in range(cx, min(cx + cell, TILE)):
                     r, g, b, _ = px[x, y]
-                    tot += leafiness(r, g, b)
+                    # the black ground is cut by brightness alone: near-black pixels carry noisy saturation
+                    tot += (0.299 * r + 0.587 * g + 0.114 * b) / 255.0 if dark_ground else leafiness(r, g, b)
                     cnt += 1
             cells.append((cx, cy, tot / cnt))
 
-    cutoff = sorted(s for _, _, s in cells)[min(len(cells) - 1, int(len(cells) * hole))]
+    cutoff = DARK_GROUND_CUTOFF if dark_ground else sorted(s for _, _, s in cells)[min(len(cells) - 1, int(len(cells) * hole))]
 
     transparent = 0
     for cx, cy, s in cells:

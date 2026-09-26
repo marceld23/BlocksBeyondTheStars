@@ -166,7 +166,7 @@ internal sealed class LoadedWorld
     public Queue<int> NpcPathQueue { get; } = new(); // #1866: NPC ids waiting for a path search (one per tick)
     public List<SettlementInstance> Settlements { get; } = new();                 // 0..N settlements on this world
     public List<(string Type, Vector3f Pos)> WreckMarkers { get; } = new();
-    public Dictionary<Vector3i, (ushort FloraId, double Timer)> FloraRegrow { get; } = new();
+    public Dictionary<Vector3i, (ushort FloraId, double Timer, int Tint)> FloraRegrow { get; } = new();
 
     /// <summary>#1507: the far-column streaming band per chunk column (see <c>GameServer.FarColumnBand</c>). The
     /// band is a pure function of the column's terrain surface and the world's sea level, so it is computed once

@@ -691,21 +691,33 @@ public sealed partial class WorldGenerator
                 double hJit = SizeFactor(seed + 0x71EE6, wx, wz, 0.12);              // independent height jitter
                 double cJit = SizeFactor(seed + 0x71EE7, wx, wz, 0.12);              // independent crown jitter
 
+                // #2038 (generation 14): a fruit-bearing kind that rolled fruit records the crown it builds, and the fruit is
+                // hung under its lowest leaves once the tree stands (WorldGenerator.FruitTreesGen14.cs). Below generation 14,
+                // and for every tree without fruit, the builders write straight into the chunk exactly as before.
+                var foliage = kind == TreeKind.Conifer ? pineId : kind == TreeKind.Palm ? palmId : leafId;
+                var fruitRecorder = FruitRecorderFor(planet, seed, kind, wx, wz, foliage, SetCell);
+                System.Action<int, int, int, BlockId, bool> set = fruitRecorder != null ? fruitRecorder.Set : SetCell;
+
                 switch (kind)
                 {
-                    case TreeKind.Conifer: BuildConifer(wx, sy, wz, sizeF, hJit, cJit, logId, pineId, SetCell); break;
-                    case TreeKind.Palm: BuildPalm(wx, sy, wz, sizeF, hJit, cJit, logId, palmId, SetCell); break;
-                    case TreeKind.Jungle: BuildJungle(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
-                    case TreeKind.Dead: BuildDead(wx, sy, wz, sizeF, hJit, logId, SetCell); break;
+                    case TreeKind.Conifer: BuildConifer(wx, sy, wz, sizeF, hJit, cJit, logId, pineId, set); break;
+                    case TreeKind.Palm: BuildPalm(wx, sy, wz, sizeF, hJit, cJit, logId, palmId, set); break;
+                    case TreeKind.Jungle: BuildJungle(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
+                    case TreeKind.Dead: BuildDead(wx, sy, wz, sizeF, hJit, logId, set); break;
                     // #1648 generation-1 kinds (the palette only offers them from generation 1)
-                    case TreeKind.Baobab: BuildBaobab(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
-                    case TreeKind.Mangrove: BuildMangrove(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
-                    case TreeKind.Bamboo: BuildBamboo(wx, sy, wz, sizeF, hJit, (int)(Noise.Value01(seed + 0xBA3B0, WorldConstants.WrapX(wx, _circumference), 41, Wz(wz)) * 997), logId, leafId, SetCell); break;
-                    case TreeKind.Saguaro: BuildSaguaro(wx, sy, wz, sizeF, hJit, (int)(Noise.Value01(seed + 0x5A6A0, WorldConstants.WrapX(wx, _circumference), 41, Wz(wz)) * 997), leafId, SetCell); break;
-                    case TreeKind.Willow: BuildWillow(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
-                    case TreeKind.MushroomTree: BuildMushroomTree(wx, sy, wz, sizeF, hJit, stemId, capId, SetCell); break;
-                    case TreeKind.CrystalTree: BuildCrystalTree(wx, sy, wz, sizeF, hJit, crystalTreeId, SetCell); break;
-                    default: BuildBroadleaf(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
+                    case TreeKind.Baobab: BuildBaobab(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
+                    case TreeKind.Mangrove: BuildMangrove(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
+                    case TreeKind.Bamboo: BuildBamboo(wx, sy, wz, sizeF, hJit, (int)(Noise.Value01(seed + 0xBA3B0, WorldConstants.WrapX(wx, _circumference), 41, Wz(wz)) * 997), logId, leafId, set); break;
+                    case TreeKind.Saguaro: BuildSaguaro(wx, sy, wz, sizeF, hJit, (int)(Noise.Value01(seed + 0x5A6A0, WorldConstants.WrapX(wx, _circumference), 41, Wz(wz)) * 997), leafId, set); break;
+                    case TreeKind.Willow: BuildWillow(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
+                    case TreeKind.MushroomTree: BuildMushroomTree(wx, sy, wz, sizeF, hJit, stemId, capId, set); break;
+                    case TreeKind.CrystalTree: BuildCrystalTree(wx, sy, wz, sizeF, hJit, crystalTreeId, set); break;
+                    default: BuildBroadleaf(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
+                }
+
+                if (fruitRecorder != null)
+                {
+                    HangFruit(fruitRecorder, chunk, origin, seed, wx, wz);
                 }
             }
     }

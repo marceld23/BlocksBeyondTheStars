@@ -64,7 +64,7 @@ public sealed class IconCoverageTests
     public void ToxicConsumables_AreFlaggedForTheGreenTint()
     {
         // The green poison tint keys off ConsumeHealth < 0; make sure the toxic items still carry that.
-        var toxic = new[] { "toxic_gland", "toxic_berries" };
+        var toxic = new[] { "toxic_gland", "toxic_berries", "toxic_fruit_round", "toxic_fruit_long", "toxic_fruit_grape", "toxic_fruit_banana" };
         foreach (var key in toxic)
         {
             var def = _content.GetItem(key);

@@ -58,6 +58,16 @@
   { "key": "berries",         "nameKey": "item.berries.name",         "category": "consumable", "maxStack": 20,   "descriptionKey": "item.berries.desc", "consumeHealth": 5, "consumeHunger": 18 },
   { "key": "grain",           "nameKey": "item.grain.name",           "category": "consumable", "maxStack": 20,   "descriptionKey": "item.grain.desc", "consumeHunger": 10 },
   { "key": "toxic_berries",   "nameKey": "item.toxic_berries.name",   "category": "consumable", "maxStack": 20,   "descriptionKey": "item.toxic_berries.desc", "consumeHealth": -18, "consumeHunger": 8 },
+  // Fruit (#2038): one item per fruit shape and its toxic twin — a fruit is more filling than a handful of berries, and a
+  // toxic one (from a world whose trees are toxic) hurts like toxic berries; the detoxifier washes it safe.
+  { "key": "fruit_round",        "nameKey": "item.fruit_round.name",        "category": "consumable", "maxStack": 20, "descriptionKey": "item.fruit_round.desc",        "consumeHealth": 6,   "consumeHunger": 24 },
+  { "key": "fruit_long",         "nameKey": "item.fruit_long.name",         "category": "consumable", "maxStack": 20, "descriptionKey": "item.fruit_long.desc",         "consumeHealth": 5,   "consumeHunger": 22 },
+  { "key": "fruit_grape",        "nameKey": "item.fruit_grape.name",        "category": "consumable", "maxStack": 20, "descriptionKey": "item.fruit_grape.desc",        "consumeHealth": 4,   "consumeHunger": 20 },
+  { "key": "fruit_banana",       "nameKey": "item.fruit_banana.name",       "category": "consumable", "maxStack": 20, "descriptionKey": "item.fruit_banana.desc",       "consumeHealth": 6,   "consumeHunger": 26 },
+  { "key": "toxic_fruit_round",  "nameKey": "item.toxic_fruit_round.name",  "category": "consumable", "maxStack": 20, "descriptionKey": "item.toxic_fruit_round.desc",  "consumeHealth": -20, "consumeHunger": 8 },
+  { "key": "toxic_fruit_long",   "nameKey": "item.toxic_fruit_long.name",   "category": "consumable", "maxStack": 20, "descriptionKey": "item.toxic_fruit_long.desc",   "consumeHealth": -18, "consumeHunger": 8 },
+  { "key": "toxic_fruit_grape",  "nameKey": "item.toxic_fruit_grape.name",  "category": "consumable", "maxStack": 20, "descriptionKey": "item.toxic_fruit_grape.desc",  "consumeHealth": -16, "consumeHunger": 8 },
+  { "key": "toxic_fruit_banana", "nameKey": "item.toxic_fruit_banana.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.toxic_fruit_banana.desc", "consumeHealth": -20, "consumeHunger": 8 },
   { "key": "emergency_ration","nameKey": "item.emergency_ration.name", "category": "consumable", "maxStack": 20,   "descriptionKey": "item.emergency_ration.desc", "consumeHunger": 40 },
   { "key": "algae_ration",    "nameKey": "item.algae_ration.name",    "category": "consumable", "maxStack": 20,   "descriptionKey": "item.algae_ration.desc", "consumeHunger": 30 },
   { "key": "suit_teleporter", "nameKey": "item.suit_teleporter.name", "category": "component",  "maxStack": 1,    "descriptionKey": "item.suit_teleporter.desc" },

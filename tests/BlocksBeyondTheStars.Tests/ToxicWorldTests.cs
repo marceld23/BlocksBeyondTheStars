@@ -34,7 +34,7 @@ public sealed class ToxicWorldTests
     public void TheClass_IsARareExoticGenerationThirteenType_WithNoSurfaceLife_AndOnlyShallowOres()
     {
         Assert.Equal(13, Gen);
-        Assert.Equal(Gen, WorldDescription.CurrentTerrainGeneration);
+        Assert.True(WorldDescription.CurrentTerrainGeneration >= Gen); // generation 14 (#2038) came after this wave
         var p = Toxic;
         Assert.Equal(Gen, p.MinTerrainGeneration);
         Assert.True(p.Exotic);
