@@ -11,6 +11,82 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.16] — 2026-09-26
+
+The orchard release. **Trees bear fruit**: round fruit, long fruit, grape clusters and bananas hang under the crowns,
+and every kind of tree on a world carries its own fruit in its own colour. Out on the grass, **big herds** roam — and
+some of them have a nose for food: hold something tasty and they come **hopping over, circle you and beg**. Press
+**Q** and throw them a piece. Far out in the galaxy waits a rare new kind of planet, the **toxic world**: nothing lives
+on its ash and sulphur, the air may burn and the water may be poison — but rare ores lie right under your feet. And
+light is finally real: a **glowing block shines itself**, and the **lantern, the campfire and the forge light up**
+everything around them.
+
+ℹ️ **Compatibility:** the network protocol stays at version 6, and saves migrate on their own. Fruit trees, big herds
+and toxic worlds belong to **new worlds**; the worlds you already have keep their trees, their animals and their
+planets exactly as they are. The new light, the giant sounds, the thumper's look and the factory recipes work
+everywhere, in old worlds too. An older game version should update before it joins a 2026.9.16 world — it does not
+know the fruit and would draw some blocks wrong. The desktop game updates itself on start, and the browser version is
+always current.
+
+### 🍎 Trees bear fruit (#2038 #2039 #2040 #2041 #2042)
+
+- **About one tree in three hangs two to five pieces of fruit under its crown** — round fruit, long fruit,
+  grape clusters or bananas. Every kind of tree rolls its own: all the broadleaf trees of a world carry the same fruit
+  in the same colour, its conifers another, its palms another.
+- **Pick it by hand** and it grows back on the same branch after two minutes, in the same colour — even after a
+  restart. A tree you grow from a sapling bears fruit too.
+- **Fruit is food — but it is poisonous exactly when its tree is.** Scan the tree before you eat. The detoxifier
+  washes toxic fruit clean, just like toxic berries.
+- A scan of pine needles or palm fronds now tells you about the tree they belong to.
+
+### 🐑 Big herds that beg for food (#2018 #2019 #2020 #2021 #2022)
+
+- **Some peaceful grazers now live in herds of six to twelve.** A big herd does not crowd out the other animals of
+  the world.
+- **About one in three kinds of gentle herd animal has a nose for food.** Hold something edible in your hand — berries,
+  fruit, a ration, cooked meat — and a herd close by comes **hopping over**, circles you and calls excitedly. Put the
+  food away or walk off, and they trot away again.
+- **Press Feed to throw them one piece** — **Q** on the keyboard, the actions list (L3) on a gamepad, the **FEED**
+  button on a touch screen. The herd rushes it, squabbles over it for a few seconds, and one of them gets it.
+- A scan tells you which animals beg ("Comes running for food"), and VEGA explains the trick the first time. Sleeping
+  herds ignore food, shy animals never beg, and poisonous food and taming baits do not count.
+
+### ☠️ A new kind of planet: the toxic world (#2024 #2025 #2026 #2027 #2029 #2030 #2031 #2032)
+
+- **A rare, exotic world of ash and sulphur.** Nothing grows or lives on its surface, and the air is never
+  breathable. But the ground is rich: **rare ores lie just under the surface**, and on some toxic worlds they lie right
+  on the ground.
+- **Every toxic world rolls its own dangers.** On some the **air is corrosive**: out in the open your health slowly
+  drops. Your ship, a station, a base or a sealed room keep it out, and the suit liners slow it down. On most the
+  **water is poison**, and it looks it. VEGA scans every toxic world when you land and tells you what you are up
+  against, and the toxic world has music of its own.
+- Rarely, a little life hangs on in the caves. Nobody lives here: the settlements are empty ruins, and there are no
+  bandit camps.
+- **Fixed along the way:** toxic water no longer hurts in Creative mode or with environmental hazards switched off —
+  that goes for Titas' yellow water too (#2028).
+
+### 💡 Real light sources (#2036)
+
+- **A glowing block now shines itself.** Blocks you colour with **Glow** (one crystal each) used to light only their
+  neighbours and kept their old colour. Now they glow in their light colour, bright as a lamp, and you can see them
+  at night and from far away. Glowing glass takes the colour and stays a frosted pane. This works in ships and
+  stations too.
+- **The lantern and the campfire finally light up their surroundings** — the campfire really lights the camp now. The
+  **forge** glows with a dim, warm hearth, and a **beam block** softly lights the room in teal.
+
+### 🔊 Giants that sound like giants (#2023 #2002)
+
+- **The colossus and the sandworm have their own voices now**: the stomp, the worm bursting out of the dunes, its
+  strike, its dive and its rumble — and the thumper's thump. The first time you land on a sand sea, VEGA warns you
+  what the dunes carry.
+- **The thumper gets its own look** — a squat piston rig with a heavy hammer, orange warning stripes and an amber
+  light, in the world and in your inventory.
+
+### 🏭 Factory bronze and brass need less copper (#2035)
+
+- The factory's bronze and brass recipes now need **one copper ore instead of two** for the same three ingots — in
+  line with the refinery. Thank you, **@Jay-Hu911** 🙏
+
 ## [2026.9.15] — 2026-09-25
 
 The glowing-flowers release. Meet the **prism bloom**: a new flower that **glows — and every single one shines in a
@@ -5878,7 +5954,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.15...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.16...HEAD
+[2026.9.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.15...v2026.9.16
 [2026.9.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.14...v2026.9.15
 [2026.9.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.13...v2026.9.14
 [2026.9.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.12...v2026.9.13
