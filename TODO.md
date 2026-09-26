@@ -24,6 +24,16 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧪 Server test coverage umbrella closed (#571, 2026-09-26)
+
+- **✅ #571 closed as completed.** Every target it listed is covered (@ahmdkaml, #917–#947); the work carried on
+  in #569/#1048. The open-ended remainder had no end point and the baseline table in its body had gone stale.
+  Future test work gets small, scoped issues of its own.
+- **✅ Docs index** — `docs/developer/README.md` no longer points first-time test contributors at the closed
+  issue but at the `good first issue` label; `SERVER_TESTING.md` stays the starting guide.
+- Candidates for such an issue (last coverage run 2026-08-12): `WorldManager` (56.9 % line) and
+  `GameLocaleExtensions` (38.3 %) — no test file references either by name.
+
 ### 🍄 Cave flora — plants in caves, glowers that light their surroundings, the rainbow glow class, wild frostflowers (#2013, 2026-09-25, branch feat/cave-flora, terrain generation 11)
 
 Marcel's request: the frostflower must grow in the wild; caves get plants (mushrooms and glowing plants) as a new
