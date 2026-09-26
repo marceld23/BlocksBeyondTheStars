@@ -27,6 +27,7 @@ public sealed partial class GameServer
         public Vector3f Pos;            // beacon block centre
         public string Label = string.Empty;
         public string OwnerId = string.Empty;
+        public bool Alarm;              // #2053: a conduit beside it is ON — the marker blinks red on the map
     }
 
     private List<ServerBeacon> _beacons => _worlds.Active.Beacons;
@@ -165,6 +166,7 @@ public sealed partial class GameServer
         Z = b.Pos.Z,
         Label = b.Label,
         OwnerId = b.OwnerId,
+        Alarm = b.Alarm,
     };
 
     /// <summary>Trims a player-typed label to a single short line (drops newlines, clamps length).</summary>
@@ -177,5 +179,19 @@ public sealed partial class GameServer
 
         var trimmed = StripControlChars(raw);
         return trimmed.Length > BeaconLabelMaxLength ? trimmed.Substring(0, BeaconLabelMaxLength) : trimmed;
+    }
+
+    /// <summary>#2053: the Crystal Net switches a beacon's alarm — the marker turns red and blinks for everyone on the world.</summary>
+    private void SetBeaconAlarm(Vector3i cell, bool on)
+    {
+        var beacon = _beacons.FirstOrDefault(b =>
+            (int)System.Math.Floor(b.Pos.X) == cell.X && (int)System.Math.Floor(b.Pos.Y) == cell.Y && (int)System.Math.Floor(b.Pos.Z) == cell.Z);
+        if (beacon is null || beacon.Alarm == on)
+        {
+            return;
+        }
+
+        beacon.Alarm = on;
+        BroadcastBeacons();
     }
 }

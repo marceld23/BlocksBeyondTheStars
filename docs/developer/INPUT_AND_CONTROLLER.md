@@ -47,6 +47,19 @@ HoldsWeapon / BinocularsRaised`, `PlayerInteractions.CanRequestTradeOrDock / Can
 `VegaPanel.LineShowing`); add a probe + a `Table` row when a new verb lands, or it stays keyboard-only.
 `InputMap.LabelKey(action)` (`ui.key.*`) names entries and the settings rows from one table.
 
+### The Crystal Net rides Interact (#2049)
+
+The Crystal Net (#2045, [CRYSTAL_NET.md](CRYSTAL_NET.md)) adds **no binding**. Everything a player does at a
+device is the existing `InputAction.Interact` — keyboard **E**, pad **(X)**, touch **USE** — resolved by what
+is under the crosshair (`Game.AimedCrystalDevice`): a switch toggles, a button presses, a configurable device
+(sensor filters, gate modes, sound picks, the fabricator's recipe, a sender's or beam pad's pair, the clone
+tank's species) opens `CrystalDeviceUi` — a mode grid, cycling setting rows or a list, modal like `BeamPadUi`,
+pad-navigable, closed by Esc / pad **(B)** / its Close button. Step plates and sensors take no input at all. The
+HUD prompt names the verb per device (`ui.crystal.prompt.toggle / press / menu`, formatted with the active
+device's Interact glyph via `HudUi.CrystalPromptKey`); on touch the text hint is blank as usual and the **USE**
+button carries the verb — nothing is added to the ACT list, because Interact already has a button in every
+cluster.
+
 ## Pad rebinding & glyphs
 
 - **Rebinding:** every control row in the settings screen has two buttons — the keyboard key and the pad

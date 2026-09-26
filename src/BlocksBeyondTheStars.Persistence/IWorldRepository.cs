@@ -514,6 +514,17 @@ public interface IWorldRepository : IDisposable
 
     void DeleteBeam(string planet, int x, int y, int z);
 
+    // --- Crystal Net cells (#2046: conduits + devices, keyed by cell) ---
+
+    /// <summary>Inserts or updates a Crystal Net cell (a conduit or a device with its owner / mode / config).</summary>
+    void SaveCrystalCell(StoredCrystalCell cell);
+
+    /// <summary>Every Crystal Net cell of a world — the index is rebuilt from these rows alone on activation.</summary>
+    IReadOnlyList<StoredCrystalCell> ListCrystalCells(string planet);
+
+    /// <summary>Forgets a Crystal Net cell (its conduit / device block was mined or blasted).</summary>
+    void DeleteCrystalCell(string planet, int x, int y, int z);
+
     /// <summary>Stores (inserts or replaces) a player-founded planet base, keyed by its world cell.</summary>
     void SaveBase(StoredBase basePoint);
 
@@ -639,4 +650,23 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Creates a consistent backup copy of the world and returns its path.</summary>
     string CreateBackup(string label);
+}
+
+/// <summary>A Crystal Net cell (#2046): a crystal conduit or a device block, persisted by its world cell. The voxel
+/// itself comes back via the normal block-edit store; this row carries what the voxel grid cannot — the kind, the
+/// owner, the picked mode and the kind-specific config (a recipe, a pair target, a period) — and lets the server
+/// rebuild every network from the rows alone on world activation, without touching a chunk.</summary>
+public sealed class StoredCrystalCell
+{
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+
+    /// <summary>The <c>CrystalDeviceKind</c> name ("Conduit", "Switch", …).</summary>
+    public string Kind { get; set; } = string.Empty;
+    public string OwnerId { get; set; } = string.Empty;
+    public int Mode { get; set; }
+    public string Config { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
 }

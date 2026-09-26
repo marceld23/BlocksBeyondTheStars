@@ -50,6 +50,7 @@ public sealed partial class GameServer
         public bool PlayerBuilt;       // placed by a player (persisted + removable by mining), not stamped
         public float OpenRange = 4.5f; // proximity at which a slide door opens (SlideDoorOpenRange; tighter for the hatch)
         public double NpcHeldUntil;    // #1866: a hand door an NPC swung open closes after this uptime (0 = a player's, left alone)
+        public Shared.Definitions.DoorMode Mode; // #2048: derived from the conduit beside it on every Crystal Net beat
     }
 
     /// <summary>
@@ -268,6 +269,20 @@ public sealed partial class GameServer
         bool changed = false;
         foreach (var door in _doors)
         {
+            // #2048: a door beside a crystal conduit obeys the signal — ON holds it open, OFF locks it shut — whatever
+            // kind it is. The mode is derived on the Crystal Net beat (CrystalDoorBeat); here it only overrides.
+            if (door.Mode == Shared.Definitions.DoorMode.HeldOpen)
+            {
+                if (!door.Open) { door.Open = true; MarkBaseWallsDirty(_world, door.Pos.ToBlock()); changed = true; }
+                continue;
+            }
+
+            if (door.Mode == Shared.Definitions.DoorMode.Locked)
+            {
+                if (door.Open) { door.Open = false; door.NpcHeldUntil = 0; MarkBaseWallsDirty(_world, door.Pos.ToBlock()); changed = true; }
+                continue;
+            }
+
             if (door.Kind != "slide" && door.Kind != "energy")
             {
                 // hinge doors are manual (HandleDoorInteract); slide + energy auto-open on proximity. A hand door an NPC
@@ -331,6 +346,14 @@ public sealed partial class GameServer
         if (WrapDistSq(session.State.Position, door.Pos) > HingeDoorReach * HingeDoorReach)
         {
             return; // too far to reach the latch
+        }
+
+        if (door.Mode != Shared.Definitions.DoorMode.Normal)
+        {
+            // #2048: the conduit beside it owns this door now — a locked door does not open by hand, a held-open one
+            // does not close. The player is told once per press rather than left rattling a silent latch.
+            Reject(session, "door", door.Mode == Shared.Definitions.DoorMode.Locked ? "@srv.door.locked" : "@srv.door.held_open");
+            return;
         }
 
         door.Open = !door.Open;
@@ -489,5 +512,6 @@ public sealed partial class GameServer
         AxisX = d.AxisX,
         Width = d.Width,
         Open = d.Open,
+        Mode = (int)d.Mode,
     };
 }

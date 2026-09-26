@@ -74,6 +74,9 @@ refreshed 2026-08-08.
   jobs with yield, and the station night.
 - [MATTER_CONVERTER.md](MATTER_CONVERTER.md) — the Transmuter station: craft scarce ore from spare
   terrain (lossy `matter_dust` intermediate, no Tier-3 output).
+- [CRYSTAL_NET.md](CRYSTAL_NET.md) — the Crystal Net (#2045): crystal conduits carrying a visible ON/OFF
+  signal between switches, sensors, gates, lamps, doors, sound devices and machines (matter link, auto-drill,
+  fabricator, caller, clone tank); the network index, the beats, caps, persistence, wire, and how to add a device.
 - [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md) — factories with roster-limited
   production terminals, ruins/treasure chests, and access-code claiming.
 - [VOICE_CHAT.md](VOICE_CHAT.md) — push-to-talk voice chat + the tiered radio reach (planet/system/galaxy).
@@ -119,3 +122,4 @@ ones are marked, not deleted.
 - [0010 — Velopack distribution + self-host portal](adr/0010-velopack-distribution-and-self-host-portal.md)
 - [0011 — CodeQL code scanning strategy](adr/0011-codeql-security-scanning-strategy.md)
 - [0012 — CalVer date-based versioning](adr/0012-calver-date-based-versioning.md)
+- [0013 — The Crystal Net: a binary, visible signal network without power](adr/0013-crystal-net-binary-visible-signal-network.md)

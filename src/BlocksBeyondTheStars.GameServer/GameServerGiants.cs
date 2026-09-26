@@ -1152,6 +1152,14 @@ public sealed partial class GameServer
         SendVegaLine(session, heard ? "vega.sys.thumper_on" : "vega.sys.thumper_rock", 3);
     }
 
+    /// <summary>#2053: a conduit starts a thumper without a player at hand (no VEGA line — the signal is the intent).</summary>
+    private void StartThumperAt(Vector3i cell, string ownerId)
+    {
+        var gs = Giants;
+        gs.Thumpers.RemoveAll(t => t.Cell == cell);
+        gs.Thumpers.Add(new ThumperState { Cell = cell, Until = _uptime + ThumperRunSeconds, NextPulse = _uptime + 0.5, OwnerId = ownerId });
+    }
+
     private void StopThumper(Vector3i cell) => Giants.Thumpers.RemoveAll(t => t.Cell == cell);
 
     private bool IsThumperAt(Vector3f at)

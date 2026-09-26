@@ -800,7 +800,12 @@ namespace BlocksBeyondTheStars.Client
             // procedural tile when none is bundled. The procedural tint comes from the curated palette
             // when there is an entry, else from the authored `color` in blocks.json (#1051 — it used to
             // be ignored here, so every data-tinted block without a tile painted the same default grey).
-            if (!TryPaintFromAsset(key, ox, oy))
+            // #2048: an unlit lamp twin (<key>_off) wears its lit tile, darkened — no asset of its own.
+            if (CrystalNetRules.IsLightOffKey(key) && TryPaintFromAsset(CrystalNetRules.LightOnKey(key), ox, oy))
+            {
+                DarkenTile(ox, oy, 0.42f);
+            }
+            else if (!TryPaintFromAsset(key, ox, oy))
             {
                 Color baseCol = BaseColor(key) ?? DataColor(def) ?? DefaultTint;
                 var rng = new System.Random(Hash(key));
@@ -832,6 +837,19 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Sets a uniform alpha across a tile (used to make water see-through in the atlas).</summary>
+        /// <summary>Scales a tile's colour down (an unlit lamp keeps its shape and loses its shine).</summary>
+        private void DarkenTile(int ox, int oy, float factor)
+        {
+            for (int px = 0; px < Tile; px++)
+            {
+                for (int py = 0; py < Tile; py++)
+                {
+                    var c = Texture.GetPixel(ox + px, oy + py);
+                    Texture.SetPixel(ox + px, oy + py, new Color(c.r * factor, c.g * factor, c.b * factor, c.a));
+                }
+            }
+        }
+
         private void FadeTileAlpha(int ox, int oy, float alpha)
         {
             for (int px = 0; px < Tile; px++)

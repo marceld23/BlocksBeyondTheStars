@@ -533,6 +533,12 @@ public static class NetCodec
         Register(261, typeof(PlayerToolLook));               // Server -> Client
         Register(262, typeof(WorldFx));                      // Server -> Client (#1998: thumps, stomps, breaches)
         Register(263, typeof(ThrowFoodIntent));              // Client -> Server (#2018: the Feed action)
+
+        // Crystal Net (#2045, protocol v7): networks, devices, device intents, device sounds.
+        Register(264, typeof(CrystalNetList));               // Server -> Client (#2046)
+        Register(265, typeof(CrystalDeviceList));            // Server -> Client (#2046)
+        Register(266, typeof(SetCrystalDeviceIntent));       // Client -> Server (#2046)
+        Register(267, typeof(SoundFx));                      // Server -> Client (#2052)
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

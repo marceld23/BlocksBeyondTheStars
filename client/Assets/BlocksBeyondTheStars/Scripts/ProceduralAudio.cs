@@ -83,10 +83,134 @@ namespace BlocksBeyondTheStars.Client
             "water_shore" => WindLoop("water_shore", 4f, 0.20f, 0.8f),
             "drill_loop" => DrillLoop("drill_loop"),
             "engine_idle" => EngineLoop("engine_idle"),
+            // #2052 Crystal Net device cues — code-synthesized fallbacks; the bundled ElevenLabs clips take priority.
+            "crystal_switch" => Thud("crystal_switch", 0.10f, 0.5f),
+            "crystal_button" => Beep("crystal_button", 1320f, 0.08f, 0.3f),
+            "alarm_siren_0" => Siren("alarm_siren_0", 620f, 880f, 1.2f),
+            "alarm_siren_1" => Siren("alarm_siren_1", 440f, 520f, 0.5f),
+            "alarm_siren_2" => Siren("alarm_siren_2", 700f, 1100f, 2.0f),
+            "chime_0" => Chime("chime_0"),
+            "chime_1" => Arp("chime_1", 0.5f, 0.35f, up: false),
+            "chime_2" => Beep("chime_2", 1568f, 0.6f, 0.3f),
+            "chime_3" => Clang("chime_3", 1046f, 0.5f, 0.35f),
+            "horn_0" => Horn("horn_0", 110f, 1.6f),
+            "horn_1" => Horn("horn_1", 220f, 1.0f),
+            "horn_2" => Horn("horn_2", 82f, 1.2f),
+            "caller_whistle" => Arp("caller_whistle", 0.5f, 0.35f, up: true),
+            "fabricator_craft" => Clang("fabricator_craft", 520f, 0.35f, 0.35f),
+            "clone_tank_bubble" => Loop("clone_tank_bubble", 2.0f, t => (Mathf.Sin(t * 37f) * Mathf.Sin(t * 5.3f) > 0.85f ? 0.5f : 0f) * Mathf.Sin(t * 2200f) * 0.25f),
+            "auto_drill_loop" => Loop("auto_drill_loop", 1.5f, t => (Mathf.Sin(t * 620f) * 0.35f + Mathf.Sin(t * 47f) * 0.15f) * 0.5f),
+            var note when note.StartsWith("note_", System.StringComparison.Ordinal) => Note(note),
             _ => null,
         };
 
         // ── primitives ───────────────────────────────────────────────────────────────────────
+
+
+        // --- Crystal Net helpers (#2052) ---
+
+        /// <summary>The Crystal Net's device cue ids the synthesizer can stand in for (the melody notes are
+        /// generated on demand from their id, see <see cref="Note"/>).</summary>
+        public static readonly string[] CrystalIds =
+        {
+            "crystal_switch", "crystal_button", "alarm_siren_0", "alarm_siren_1", "alarm_siren_2",
+            "chime_0", "chime_1", "chime_2", "chime_3", "horn_0", "horn_1", "horn_2",
+            "caller_whistle", "fabricator_craft", "clone_tank_bubble", "auto_drill_loop",
+        };
+
+        /// <summary>The eight-note scale of the melody block (C4 … C5) and its four instruments.</summary>
+        private static readonly float[] NoteHz = { 261.63f, 293.66f, 329.63f, 349.23f, 392.00f, 440.00f, 493.88f, 523.25f };
+
+        /// <summary>A melody-block note from its id <c>note_&lt;instrument&gt;_&lt;index&gt;</c>: 0 crystal (sine),
+        /// 1 bell (clang), 2 bass (an octave down), 3 blip (short square-ish).</summary>
+        private static AudioClip Note(string id)
+        {
+            var parts = id.Split('_');
+            int inst = parts.Length > 1 && int.TryParse(parts[1], out int i0) ? Mathf.Clamp(i0, 0, 3) : 0;
+            int idx = parts.Length > 2 && int.TryParse(parts[2], out int i1) ? Mathf.Clamp(i1, 0, NoteHz.Length - 1) : 0;
+            float hz = NoteHz[idx];
+            switch (inst)
+            {
+                case 1: return Clang(id, hz * 2f, 0.6f, 0.35f);
+                case 2: return Beep(id, hz * 0.5f, 0.45f, 0.4f);
+                case 3: return Buf(id, 0.18f, d =>
+                {
+                    for (int i = 0; i < d.Length; i++)
+                    {
+                        float t = i / (float)Rate;
+                        d[i] = Mathf.Sign(Mathf.Sin(2f * Mathf.PI * hz * t)) * Mathf.Exp(-t * 18f) * 0.22f;
+                    }
+                });
+                default: return Beep(id, hz, 0.5f, 0.35f);
+            }
+        }
+
+        /// <summary>A siren: the pitch sweeps between two frequencies over <paramref name="period"/> seconds, looped.</summary>
+        private static AudioClip Siren(string name, float lo, float hi, float period) => Loop(name, period, t =>
+        {
+            float phase = Mathf.PingPong(t / period * 2f, 1f);
+            float hz = Mathf.Lerp(lo, hi, phase);
+            return Mathf.Sin(2f * Mathf.PI * hz * t) * 0.3f;
+        });
+
+        /// <summary>A horn: a fat low tone with a soft attack and a long tail.</summary>
+        private static AudioClip Horn(string name, float hz, float dur) => Buf(name, dur, d =>
+        {
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float env = Mathf.Min(1f, t * 8f) * Mathf.Exp(-Mathf.Max(0f, t - dur * 0.6f) * 6f);
+                d[i] = (Mathf.Sin(2f * Mathf.PI * hz * t) + 0.5f * Mathf.Sin(2f * Mathf.PI * hz * 2f * t) + 0.25f * Mathf.Sin(2f * Mathf.PI * hz * 3f * t)) * env * 0.25f;
+            }
+        });
+
+        /// <summary>A seamless loop of <paramref name="seconds"/> from a sample function of time.</summary>
+        private static AudioClip Loop(string name, float seconds, System.Func<float, float> f) => Buf(name, seconds, d =>
+        {
+            for (int i = 0; i < d.Length; i++)
+            {
+                d[i] = f(i / (float)Rate);
+            }
+
+            LoopFade(d, Rate / 20);
+        });
+
+        /// <summary>Every melody-block note id (four instruments × eight notes), pre-filled into the cue table.</summary>
+        public static readonly string[] NoteIds =
+        {
+            "note_0_0",
+            "note_0_1",
+            "note_0_2",
+            "note_0_3",
+            "note_0_4",
+            "note_0_5",
+            "note_0_6",
+            "note_0_7",
+            "note_1_0",
+            "note_1_1",
+            "note_1_2",
+            "note_1_3",
+            "note_1_4",
+            "note_1_5",
+            "note_1_6",
+            "note_1_7",
+            "note_2_0",
+            "note_2_1",
+            "note_2_2",
+            "note_2_3",
+            "note_2_4",
+            "note_2_5",
+            "note_2_6",
+            "note_2_7",
+            "note_3_0",
+            "note_3_1",
+            "note_3_2",
+            "note_3_3",
+            "note_3_4",
+            "note_3_5",
+            "note_3_6",
+            "note_3_7",
+        };
 
         private static AudioClip Buf(string name, float seconds, System.Action<float[]> fill)
         {

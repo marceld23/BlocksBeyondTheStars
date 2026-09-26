@@ -208,6 +208,12 @@ namespace BlocksBeyondTheStars.Client
             var beamView = root.AddComponent<BeamView>();
             beamView.Game = boot;
 
+            // #2049: the Crystal Net's glow over ON conduits + the device menu (mode grid / pairing list).
+            var crystalView = root.AddComponent<CrystalNetView>();
+            crystalView.Game = boot;
+            var crystalUi = root.AddComponent<CrystalDeviceUi>();
+            crystalUi.Game = boot;
+
             // Transporter panel: opens on E at a beam pad (destinations: own + allied pads on this world).
             var beamPad = root.AddComponent<BeamPadUi>();
             beamPad.Game = boot;

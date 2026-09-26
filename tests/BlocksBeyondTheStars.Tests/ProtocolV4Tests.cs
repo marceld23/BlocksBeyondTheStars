@@ -50,12 +50,13 @@ public sealed class ProtocolV4Tests : IDisposable
         };
 
     [Fact]
-    public void Version_IsSix()
+    public void Version_IsSeven()
     {
         // v4 = LZ4 + BlueprintsUnchanged (this file); v5 = the second LiteNetLib channel + WorldId (ProtocolV5Tests);
-        // v6 = the far-terrain tile request/answer (#1821, FarTerrainTileTests).
-        Assert.Equal(6, Protocol.Version);
-        Assert.Equal(6, new JoinRequest().ProtocolVersion);
+        // v6 = the far-terrain tile request/answer (#1821, FarTerrainTileTests); v7 = the Crystal Net lists, device
+        // intent and sounds plus NetDoor.Mode (#2045, CrystalNetTests).
+        Assert.Equal(7, Protocol.Version);
+        Assert.Equal(7, new JoinRequest().ProtocolVersion);
     }
 
     [Fact]

@@ -78,6 +78,7 @@ public sealed class MemoryWorldSnapshot
     public List<StoredDoor> Doors { get; set; } = new();
     public List<StoredBeacon> Beacons { get; set; } = new();
     public List<StoredBeam> Beams { get; set; } = new();
+    public List<StoredCrystalCell> CrystalCells { get; set; } = new(); // #2046
     public List<StoredBase> Bases { get; set; } = new();
     public List<StoredPaintDesign> PaintDesigns { get; set; } = new();
     public List<StoredCustomShape> CustomShapes { get; set; } = new();
@@ -126,6 +127,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredDoor> _doors = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBeacon> _beacons = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBeam> _beams = new();
+    private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredCrystalCell> _crystalCells = new(); // #2046
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBase> _bases = new();
     private readonly Dictionary<int, StoredPaintDesign> _paintDesigns = new();
     private readonly Dictionary<int, StoredCustomShape> _customShapes = new();
@@ -217,6 +219,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
             Doors = _doors.Values.Select(CloneDoor).ToList(),
             Beacons = _beacons.Values.Select(CloneBeacon).ToList(),
             Beams = _beams.Values.Select(CloneBeam).ToList(),
+            CrystalCells = _crystalCells.Values.Select(CloneCrystalCell).ToList(),
             Bases = _bases.Values.Select(CloneBase).ToList(),
             PaintDesigns = _paintDesigns.Values.Select(ClonePaintDesign).ToList(),
             CustomShapes = _customShapes.Values.Select(CloneCustomShape).ToList(),
@@ -365,6 +368,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var beam in snapshot.Beams)
         {
             _beams[(beam.Planet, beam.X, beam.Y, beam.Z)] = CloneBeam(beam);
+        }
+
+        foreach (var cell in snapshot.CrystalCells)
+        {
+            _crystalCells[(cell.Planet, cell.X, cell.Y, cell.Z)] = CloneCrystalCell(cell);
         }
 
         foreach (var basePoint in snapshot.Bases)
@@ -989,6 +997,9 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private static StoredBeam CloneBeam(StoredBeam b)
         => new() { Planet = b.Planet, X = b.X, Y = b.Y, Z = b.Z, Name = b.Name, OwnerId = b.OwnerId };
 
+    private static StoredCrystalCell CloneCrystalCell(StoredCrystalCell c)
+        => new() { Planet = c.Planet, X = c.X, Y = c.Y, Z = c.Z, Kind = c.Kind, OwnerId = c.OwnerId, Mode = c.Mode, Config = c.Config, Label = c.Label };
+
     private static StoredBase CloneBase(StoredBase b)
         => new() { Planet = b.Planet, X = b.X, Y = b.Y, Z = b.Z, Name = b.Name, OwnerId = b.OwnerId };
 
@@ -1210,6 +1221,34 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             _dirty = true;
             _beams.Remove((planet, x, y, z));
+        }
+    }
+
+    // --- Crystal Net cells (#2046) ---
+
+    public void SaveCrystalCell(StoredCrystalCell cell)
+    {
+        lock (_gate)
+        {
+            _dirty = true;
+            _crystalCells[(cell.Planet, cell.X, cell.Y, cell.Z)] = CloneCrystalCell(cell);
+        }
+    }
+
+    public IReadOnlyList<StoredCrystalCell> ListCrystalCells(string planet)
+    {
+        lock (_gate)
+        {
+            return _crystalCells.Values.Where(c => c.Planet == planet).Select(CloneCrystalCell).ToList();
+        }
+    }
+
+    public void DeleteCrystalCell(string planet, int x, int y, int z)
+    {
+        lock (_gate)
+        {
+            _dirty = true;
+            _crystalCells.Remove((planet, x, y, z));
         }
     }
 

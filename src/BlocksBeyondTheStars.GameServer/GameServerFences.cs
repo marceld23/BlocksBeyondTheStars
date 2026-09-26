@@ -66,7 +66,13 @@ public sealed partial class GameServer
     private bool IsFenceCell(int x, int y, int z)
     {
         ushort v = _world.GetBlock(new Vector3i(x, y, z)).Value;
-        return (v == _energyFenceId || v == _energyGateId) && v != 0;
+        if (v == 0)
+        {
+            return false;
+        }
+
+        // #2053: a gate a conduit holds open lets fauna through — the pen's door on a signal.
+        return v == _energyFenceId || (v == _energyGateId && !CrystalGateOpen(new Vector3i(x, y, z)));
     }
 
     /// <summary>Test/util: expose the fauna fence sweep so tests can probe exact steps without fighting

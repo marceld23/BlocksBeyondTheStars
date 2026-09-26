@@ -23,6 +23,9 @@ public sealed class NetBeacon
 
     /// <summary>Owning player's id — only the owner may rename the beacon (everyone sees the marker).</summary>
     public string OwnerId { get; set; } = string.Empty;
+
+    /// <summary>#2053: the Crystal Net raised this beacon's alarm — the map marker turns red and blinks.</summary>
+    public bool Alarm { get; set; }
 }
 
 /// <summary>Full set of beacons the client should show for its world (server → client).</summary>

@@ -142,6 +142,10 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS beam (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 name TEXT NOT NULL, owner TEXT NOT NULL, PRIMARY KEY (planet, x, y, z));
+            CREATE TABLE IF NOT EXISTS crystal_cell (
+                planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
+                kind TEXT NOT NULL, owner TEXT NOT NULL, mode INTEGER NOT NULL DEFAULT 0,
+                config TEXT NOT NULL DEFAULT '', label TEXT NOT NULL DEFAULT '', PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS base_claim (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 name TEXT NOT NULL, owner TEXT NOT NULL, PRIMARY KEY (planet, x, y, z));
@@ -1673,6 +1677,73 @@ public sealed class SqliteWorldRepository : IWorldRepository
         {
             using var cmd = Connection.CreateCommand();
             cmd.CommandText = "DELETE FROM beam WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$x", x);
+            cmd.Parameters.AddWithValue("$y", y);
+            cmd.Parameters.AddWithValue("$z", z);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    // --- Crystal Net cells (#2046: conduits + devices, keyed by cell) ---
+
+    public void SaveCrystalCell(StoredCrystalCell cell)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO crystal_cell (planet, x, y, z, kind, owner, mode, config, label) " +
+                              "VALUES ($p, $x, $y, $z, $k, $o, $m, $c, $l) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET kind=excluded.kind, owner=excluded.owner, " +
+                              "mode=excluded.mode, config=excluded.config, label=excluded.label;";
+            cmd.Parameters.AddWithValue("$p", cell.Planet);
+            cmd.Parameters.AddWithValue("$x", cell.X);
+            cmd.Parameters.AddWithValue("$y", cell.Y);
+            cmd.Parameters.AddWithValue("$z", cell.Z);
+            cmd.Parameters.AddWithValue("$k", cell.Kind);
+            cmd.Parameters.AddWithValue("$o", cell.OwnerId);
+            cmd.Parameters.AddWithValue("$m", cell.Mode);
+            cmd.Parameters.AddWithValue("$c", cell.Config);
+            cmd.Parameters.AddWithValue("$l", cell.Label);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredCrystalCell> ListCrystalCells(string planet)
+    {
+        var result = new List<StoredCrystalCell>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT x, y, z, kind, owner, mode, config, label FROM crystal_cell WHERE planet = $p;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredCrystalCell
+                {
+                    Planet = planet,
+                    X = reader.GetInt32(0),
+                    Y = reader.GetInt32(1),
+                    Z = reader.GetInt32(2),
+                    Kind = reader.GetString(3),
+                    OwnerId = reader.GetString(4),
+                    Mode = reader.GetInt32(5),
+                    Config = reader.GetString(6),
+                    Label = reader.GetString(7),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteCrystalCell(string planet, int x, int y, int z)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM crystal_cell WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
             cmd.Parameters.AddWithValue("$p", planet);
             cmd.Parameters.AddWithValue("$x", x);
             cmd.Parameters.AddWithValue("$y", y);

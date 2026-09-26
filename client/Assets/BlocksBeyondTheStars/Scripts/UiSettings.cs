@@ -142,6 +142,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Voice chat (on by default; only carries on a server that also enabled voice). The master toggle
             // turns the whole feature off; the rows below tune it.
+            Toggle(ref y, L("ui.settings.mute_alarms"), S.MuteAlarms, () => { S.MuteAlarms = !S.MuteAlarms; ClientAudio.Instance?.ApplyAlarmMute(); Rebuild(); }); // #2052
             Toggle(ref y, L("ui.settings.voice"), S.VoiceEnabled, () => { S.VoiceEnabled = !S.VoiceEnabled; Rebuild(); });
             if (S.VoiceEnabled)
             {

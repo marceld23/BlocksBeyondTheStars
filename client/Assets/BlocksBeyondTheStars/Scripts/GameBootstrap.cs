@@ -397,6 +397,31 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Placed beam blocks (teleporter pads) on the current world, for the map + the transporter panel.</summary>
         public NetBeam[] Beams { get; private set; } = System.Array.Empty<NetBeam>();
 
+        /// <summary>#2046: the Crystal Net's networks on the current world (cells + ON/OFF) — <see cref="CrystalNetView"/> draws the glow.</summary>
+        public NetCrystalNet[] CrystalNets { get; private set; } = System.Array.Empty<NetCrystalNet>();
+
+        /// <summary>#2046: the Crystal Net's devices on the current world (kind, mode, config, output) — for the E-ladder + the device menu.</summary>
+        public NetCrystalDevice[] CrystalDevices { get; private set; } = System.Array.Empty<NetCrystalDevice>();
+
+        /// <summary>#2049: the Crystal Net device at a cell, or null (a linear scan — a base holds dozens, not thousands).</summary>
+        public NetCrystalDevice CrystalDeviceAt(int x, int y, int z)
+        {
+            var list = CrystalDevices;
+            for (int i = 0; i < list.Length; i++)
+            {
+                var d = list[i];
+                if (d.X == x && d.Y == y && d.Z == z)
+                {
+                    return d;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>#2049: the Crystal Net device the player is looking at this frame (set by PlayerController, read by the HUD prompt).</summary>
+        public NetCrystalDevice AimedCrystalDevice { get; set; }
+
         /// <summary>Live hover speeders on the current world (parked + driven). <see cref="SpeederView"/> renders
         /// them; <see cref="PlayerController"/> reads them to board/drive. Server-authoritative.</summary>
         public NetSpeeder[] Speeders { get; private set; } = System.Array.Empty<NetSpeeder>();
@@ -2276,6 +2301,9 @@ namespace BlocksBeyondTheStars.Client
             Network.PlanetPoisReceived += m => PlanetPois = m.Pois;
             Network.BeaconsReceived += m => Beacons = m.Beacons ?? System.Array.Empty<NetBeacon>();
             Network.BeamsReceived += m => Beams = m.Beams ?? System.Array.Empty<NetBeam>();
+            Network.CrystalNetsReceived += m => CrystalNets = m.Nets ?? System.Array.Empty<NetCrystalNet>();
+            Network.CrystalDevicesReceived += m => CrystalDevices = m.Devices ?? System.Array.Empty<NetCrystalDevice>();
+            Network.SoundFxReceived += m => ClientAudio.Instance?.Fx(m, ScenePos(m.X, m.Y, m.Z)); // #2052
             Network.BeamTeleportedReceived += m => RespawnTarget = new Vector3(m.X, m.Y, m.Z); // snap the body onto the destination pad
             Network.BasesReceived += m => Bases = m.Bases ?? System.Array.Empty<NetBase>();
             Network.FactoriesReceived += m => Factories = m.Factories ?? System.Array.Empty<NetFactory>();
@@ -3238,6 +3266,8 @@ namespace BlocksBeyondTheStars.Client
             Beacons = System.Array.Empty<NetBeacon>();
             Markers = System.Array.Empty<NetMarker>(); // per-world — the server re-sends the new body's set (#1217)
             Beams = System.Array.Empty<NetBeam>();
+            CrystalNets = System.Array.Empty<NetCrystalNet>();
+            CrystalDevices = System.Array.Empty<NetCrystalDevice>();
             Bases = System.Array.Empty<NetBase>();
             Factories = System.Array.Empty<NetFactory>();
             DataCubes = System.Array.Empty<NetDataCube>();

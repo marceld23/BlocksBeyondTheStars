@@ -1093,7 +1093,8 @@ public sealed partial class GameServer
             // #2018: a begging herd animal (food in a nearby hand, a thrown piece, the trot away) decides its own intent and the
             // temperament intents below are skipped while it does. Only passive species beg, so nothing they would otherwise
             // do is lost; frozen, sleeping and panicked animals never reach this line with a live phase (TryBegIntent drops it).
-            bool begging = !hunting && TryBegIntent(creature, sp, nearest, ref profile, ref intent, ref target);
+            bool begging = !hunting && (TryBegIntent(creature, sp, nearest, ref profile, ref intent, ref target)
+                || TryCallerIntent(creature, sp, nearest, ref profile, ref intent, ref target)); // #2057: a caller block calls the peaceful ones
             Vector3f? stepTarget = begging || (aggressor && creature.GiveUpTimer > 0) ? null : nearest;
             if (stepTarget is { } tp)
             {
@@ -2753,7 +2754,7 @@ public sealed partial class GameServer
         float titanSq = titanRange * titanRange;
         int removed = _creatures.RemoveAll(c =>
         {
-            if (c.IsCompanion || c.IsGiant)
+            if (c.IsCompanion || c.IsGiant || c.CloneOf.Length > 0)
             {
                 return false; // companions are managed by ReconcileCompanions, giants by TickGiants (#1998) — never far-pruned
             }
@@ -2784,7 +2785,7 @@ public sealed partial class GameServer
             // Farthest-from-any-player first, out-of-sight members only — the animals in view stay put, and so
             // does a hunter mid-charge (#1356: a Seek intent is a live hunt/approach, not just a provoked one).
             var shed = _creatures
-                .Where(c => !c.IsCompanion && !c.IsGiant && c.SpeciesId == sp.Id && c.ProvokeTimer <= 0 && c.Loco.Mode != MoveMode.Seek)
+                .Where(c => !c.IsCompanion && !c.IsGiant && c.CloneOf.Length == 0 && c.SpeciesId == sp.Id && c.ProvokeTimer <= 0 && c.Loco.Mode != MoveMode.Seek)
                 .Select(c => (Creature: c, DistSq: NearestPlayerPosition(targets, c.Position) is { } np ? WrapDistSq(np, c.Position) : double.MaxValue))
                 .Where(t => t.DistSq > crowdSq)
                 .OrderByDescending(t => t.DistSq)

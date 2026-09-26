@@ -309,6 +309,10 @@ public sealed class NetCodecTests
         [261] = typeof(PlayerToolLook),
         [262] = typeof(WorldFx),
         [263] = typeof(ThrowFoodIntent),
+        [264] = typeof(CrystalNetList),
+        [265] = typeof(CrystalDeviceList),
+        [266] = typeof(SetCrystalDeviceIntent),
+        [267] = typeof(SoundFx),
 
     };
 

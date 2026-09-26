@@ -24,6 +24,75 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 💎 Crystal Net — crystal as a visible signal line (#2045: #2046–#2059, 2026-09-27, branch feat/crystal-net) — ⚠ RELEASE NOTE: protocol v7, older game versions cannot join
+
+Marcel's wish: a base that *does* things — a doorbell, a night light, an airlock that locks while the alarm runs,
+a quarry that fills a crate — "a bit like redstone, made for kids". Crystal conduits carry one bit: a network is
+the connected run of conduit + device cells, ON when any source is ON, and the whole line glows while it is. Gates
+sit between networks and add one 100 ms beat; sensors poll every 500 ms; nothing runs on a world nobody is on.
+Design + code map: [docs/developer/CRYSTAL_NET.md](docs/developer/CRYSTAL_NET.md), decision
+[ADR 0013](docs/developer/adr/0013-crystal-net-binary-visible-signal-network.md).
+
+Marcel's decisions (2026-09-26): visible conduits; only ON/OFF (no strength, no colours); matter beaming without a
+physical connection via the sender/receiver pair, free per shot; every device blueprint- and recipe-gated; the
+auto-drill stationary with a switchable "only ore / everything" mode; both a caller and a clone tank, clones are
+wild and non-hostile only; no power requirement (for now, #1101); one logic block and one timer block with mode
+pickers; not on ships, yes on player stations; the protocol bump accepted.
+
+- **✅ Core (#2046, 2026-09-27, hash: pending).** `CrystalNetRules` (beats, caps, kinds, output face), the per-world
+  index (`GameServerCrystalNet.cs`: join / merge / split, gates as non-members, passive ports joining beside a
+  conduit), the logic + sensor beats under `Guard`, `crystal_cell` rows (SQLite + PostgreSQL) rebuilt on activation,
+  `CrystalNetList` / `CrystalDeviceList` / `SetCrystalDeviceIntent` / `SoundFx`, protocol 6 → 7.
+- **✅ First circuit content (#2047, 2026-09-27, hash: pending).** Conduit, switch (remembers its lever), button
+  (0.5 s pulse), step plate (anyone / players / owner / creatures); blueprint `crystal_conduit` (← comm radio) in
+  the new **Crystal Net** tech tab; workshop recipes with crystal; VEGA's first-conduit and cap lines.
+- **✅ Doors + lights (#2048, 2026-09-27, hash: pending).** Every `category: light` block swaps to an unlit
+  `<key>_off` twin while OFF (tint, glow, form kept; orphaned lamps relight); any door beside a conduit is held open
+  (ON) or locked (OFF, hand toggle refused) via `NetDoor.Mode`.
+- **✅ Client view + menus (#2049, 2026-09-27, hash: pending).** Glow on the listed cells, door mode light, device
+  output states, the Interact-driven menus (icon grid for modes, list for pairing / recipes / species; Esc / pad B /
+  Close), HUD hints — no new binding.
+- **✅ Sensors (#2050, 2026-09-27, hash: pending).** Proximity (7 filters, near / mid / far = 4 / 6 / 8),
+  daylight (day / night), storage (full / empty / has filter item), watcher (pulse on `BlockSet` of the cell in
+  front); presence gathered once per beat; blueprint `crystal_sensors`.
+- **✅ Logic (#2051, 2026-09-27, hash: pending).** Logic block (AND / OR / NOT / XOR; NOT with no input is ON) and
+  timer block (delay / clock / counter / toggle; `period=`, `count=`), output on the face looked at when placing,
+  one beat of delay per gate; `LogicGate` + `TimerState` pure and tested; blueprint `crystal_logic`.
+- **✅ Sound (#2052, 2026-09-27, hash: pending).** Alarm siren (3 loops; a beacon on the same network turns red),
+  chime (4), horn (3), melody block (8 notes × 4 instruments, synthesised), announcer (6 presets or an own screened
+  line, owner + allies only); 8 loops per world; blueprint `crystal_sound`.
+- **✅ Ports on existing blocks (#2053, 2026-09-27, hash: pending).** Beam pad (pulse beams whoever stands on it to
+  its paired pad; pulses on arrival), radio beacon (alarm marker; ON while the owner is within 12), sentry post
+  (OFF = holds fire; ON while it has a target), thumper (pulse starts its run), water spout (OFF stops pouring),
+  energy gate (ON lets animals through), hydro tray (pulse harvests into the adjacent crate; ON while ripe).
+- **✅ Matter link (#2054, 2026-09-27, hash: pending).** Receiver named at placement, sender pairs via its menu
+  (`pair=`); one stack ≤ 16 per pulse from the crate beside the sender into the crate beside the receiver (filter
+  honoured), held ON = one per 2 s, same world, free; blocked → sender output ON; receiver pulses on arrival.
+- **✅ Auto-drill (#2055, 2026-09-27, hash: pending).** Stationary quarry below itself — Mk1 5×5 / 8 deep / 1 per
+  2 s / tier 1, Mk2 7×7 / 16 / 1 per s / tier 2, Mk3 9×9 / 32 / 2 per s / tier 3; "only ore" (default) /
+  "everything"; stops before fluids, never player-placed or protected cells; crate full → pauses (output ON), done
+  → output ON; 2 blocks per tick per world; blueprints `auto_drill_1..3` (← titanium / diamond drill, mining beam).
+- **✅ Fabricator (#2056, 2026-09-27, hash: pending).** One workshop recipe per device (`recipe=`), inputs from all
+  adjacent crates all-or-nothing, output into the first crate that takes it, blueprint-gated like a hand craft,
+  owner must be present; held ON = one craft per 2 s; blueprint `fabricator` (← crystal_logic).
+- **✅ Caller + clone tank (#2057, 2026-09-27, hash: pending).** Caller: pulse calls passive / skittish land animals
+  within 24 to orbit it for 20 s and snaps the owner's companions over. Clone tank: a WILD animal of a non-hostile
+  species the owner scanned or tamed on this world, 1 bait of its preference + 2 matter dust (crate or pocket),
+  60 s, release automatically or on signal; clones counted on the tank and re-spawned on load, freed when the tank
+  is mined; 2 tanks / 6 living clones per owner; planet-only. Blueprints `caller` (← conduit + translator),
+  `clone_tank` (← caller + matter forge).
+- **✅ Art + audio (#2058, 2026-09-27, hash: pending).** 23 tiles + 23 icons (OpenAI, `gen_textures.py` /
+  `gen_item_icons.py`), 16 ElevenLabs clips (`gen_sound.py`: `alarm_siren_0..2`, `chime_0..3`, `horn_0..2`,
+  `auto_drill_loop`, `clone_tank_bubble`, `fabricator_craft`, `caller_whistle`, `crystal_switch`,
+  `crystal_button`), melody notes in `ProceduralAudio`, unlit lamp twins darkened in the atlas; NOTICES updated.
+- **✅ Docs (#2059, 2026-09-27, hash: pending).** `docs/developer/CRYSTAL_NET.md`, ADR 0013, developer README
+  index, SOUND_DESIGN §12, INPUT_AND_CONTROLLER (rides Interact), USER_MANUAL subsection + pad / touch lines
+  (+ the sentry bullet now names the power relay chain), Codex article `crystal_net`, this block.
+- ⚠ **Open:** playtest on a fresh world (doorbell: plate + chime; night light: daylight sensor + lamp; airlock:
+  NOT gate + two doors; quarry: drill + crate + storage sensor + siren) **and on a player station** (lamps and
+  doors on a boarded station; caller / clone tank refused there with VEGA's line); confirm a v6 client is
+  refused cleanly by a v7 server.
+
 ### 🍎 Fruit trees — four fruit shapes, colour per tree kind, toxic like the tree (#2038: #2039–#2042, 2026-09-26, branch feat/fruit-trees, terrain generation 14)
 
 Marcel's question: do trees already carry fruit — different shapes (banana, apple …), random colour, sometimes toxic —
