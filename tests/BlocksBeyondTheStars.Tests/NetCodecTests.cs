@@ -304,6 +304,7 @@ public sealed class NetCodecTests
         [260] = typeof(SetToolLookIntent),
         [261] = typeof(PlayerToolLook),
         [262] = typeof(WorldFx),
+        [263] = typeof(ThrowFoodIntent),
 
     };
 

@@ -224,6 +224,15 @@ public sealed class CreatureSpecies
     /// <summary>Spills a small gift to a nearby player who has not mined for a while (the flowerling).</summary>
     public bool GiftsWhenCalm { get; set; }
 
+    // --- Herds (2026-09, generation 12, #2018). Rolled AFTER every older roll and only on a generation-12 world, so every
+    // older species keeps the default and no existing world changes. ---
+
+    /// <summary>The species begs for food (#2018): a passive land herd that comes hopping to a player who holds something
+    /// edible, circles and calls, and rushes a thrown piece. Rolled for 30 % of passive standard-plan Land species (which then
+    /// always live in a herd of 8–12); the rule that also requires the temper and the habitat is
+    /// <see cref="HerdRules.BegsForFood"/>.</summary>
+    public bool BegsForFood { get; set; }
+
     // --- Giants (#1998, generation 9): the colossus and the sandworm. Zero/empty on every other species. ---
 
     /// <summary>A giant's height in blocks (the colossus to the top of its head, the sandworm how high it rears);

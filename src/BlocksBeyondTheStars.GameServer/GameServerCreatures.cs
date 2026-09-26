@@ -75,8 +75,55 @@ public sealed partial class GameServer
     /// <summary>Live creatures on the surface (passive + hostile fauna).</summary>
     public IReadOnlyList<CombatEntity> Creatures => _creatures;
 
-    /// <summary>Wild fauna only (excludes tamed companions) — companions don't count against the world's cap.</summary>
-    private int WildCreatureCount => _creatures.Count(c => !c.IsCompanion && !c.IsGiant); // #1998: giants are outside the cap
+    /// <summary>Wild fauna only (excludes tamed companions) — companions don't count against the world's cap. #2018: the count
+    /// is WEIGHTED — members of a big-herd species count one per <see cref="HerdRules.BigHerdCapDivisor"/> (a herd of twelve
+    /// costs four slots), so a "few" world with a dozen animals can still carry one herd. The hard cap stays a real count
+    /// (<see cref="TrySpawnCreatureNear"/> checks <see cref="RawWildCount"/> against it).</summary>
+    private int WildCreatureCount
+    {
+        get
+        {
+            _wildCounts.Clear();
+            foreach (var c in _creatures)
+            {
+                if (c.IsCompanion || c.IsGiant) // #1998: giants are outside the cap
+                {
+                    continue;
+                }
+
+                _wildCounts.TryGetValue(c.SpeciesId, out int n);
+                _wildCounts[c.SpeciesId] = n + 1;
+            }
+
+            int total = 0;
+            foreach (var kv in _wildCounts)
+            {
+                total += _speciesById.TryGetValue(kv.Key, out var sp) ? HerdRules.WeightedCount(sp, kv.Value) : kv.Value;
+            }
+
+            return total;
+        }
+    }
+
+    private readonly Dictionary<string, int> _wildCounts = new(); // reused by WildCreatureCount (no per-call alloc)
+
+    /// <summary>Every wild animal counted once — the hard cap and the client are about bodies, not budget (#2018).</summary>
+    private int RawWildCount
+    {
+        get
+        {
+            int n = 0;
+            foreach (var c in _creatures)
+            {
+                if (!c.IsCompanion && !c.IsGiant)
+                {
+                    n++;
+                }
+            }
+
+            return n;
+        }
+    }
 
     /// <summary>The procedural species this world derived from its seed + planet.</summary>
     public IReadOnlyList<CreatureSpecies> SpeciesRoster => _speciesRoster;
@@ -402,7 +449,7 @@ public sealed partial class GameServer
     {
         _spawnAttemptsForTest++;
         cap = System.Math.Min(cap, CreatureHardCap);
-        if (WildCreatureCount >= cap)
+        if (WildCreatureCount >= cap || RawWildCount >= CreatureHardCap) // #2018: the budget is weighted, the hard cap is bodies
         {
             return false;
         }
@@ -438,9 +485,14 @@ public sealed partial class GameServer
                     continue; // not native to this biome (relaxed on the second pass)
                 }
 
-                if (WildCountOf(sp.Id) >= share)
+                if (WeightedWildCountOf(sp) >= share)
                 {
                     continue; // this species already holds its share of the world (#1325) — let another fill the cap
+                }
+
+                if (HerdRules.IsBigHerd(sp) && WildCountOf(sp.Id) > 0)
+                {
+                    continue; // #2018: one herd at a time — a second one only once the first has been pruned away
                 }
 
                 float y;
@@ -626,6 +678,11 @@ public sealed partial class GameServer
         return System.Math.Max(SpeciesShareMin, System.Math.Max(share, (cap + roster - 1) / roster));
     }
 
+    /// <summary>What the species' live wild animals cost against its share (#2018): every animal, or one per
+    /// <see cref="HerdRules.BigHerdCapDivisor"/> for a big herd. The spawner and the crowding prune MUST both read this one —
+    /// a prune on the raw count would shed the herd the spawner just placed.</summary>
+    private int WeightedWildCountOf(CreatureSpecies sp) => HerdRules.WeightedCount(sp, WildCountOf(sp.Id));
+
     /// <summary>Live WILD individuals of one species (companions never count, as with the world cap).</summary>
     private int WildCountOf(string speciesId)
     {
@@ -673,66 +730,79 @@ public sealed partial class GameServer
     /// are simply skipped, so a group spawns partially rather than forcing bad placements.</summary>
     private void SpawnGroupAround(CreatureSpecies sp, int x, int z, int cap)
     {
-        int group = System.Math.Clamp(sp.SocialGroupSize, 1, 5);
+        int group = System.Math.Clamp(sp.SocialGroupSize, 1, HerdRules.MaxGroupSize); // #2018: was 5 before the big herds
         int share = SpeciesShare(cap);
-        for (int k = 1; k < group && WildCreatureCount < cap && WildCountOf(sp.Id) < share; k++)
+        for (int k = 1; k < group && WildCreatureCount < cap && RawWildCount < CreatureHardCap && WeightedWildCountOf(sp) < share; k++)
         {
-            // Golden-angle bearings with alternating radii — spread out, not a neat ring.
+            // Golden-angle bearings with alternating radii — spread out, not a neat ring. #2018: four radii out to 11.5
+            // blocks so a herd of twelve has room, and a member whose spot is taken by a wall or a pond tries once more a
+            // little further round — rough ground otherwise left a "herd of twelve" at seven.
             double a = k * 2.399963;
-            float dist = 4f + (k % 3) * 2f;
-            int mx = x + (int)System.Math.Round(System.Math.Cos(a) * dist);
-            int mz = z + (int)System.Math.Round(System.Math.Sin(a) * dist);
-            int surface = _generator.SurfaceHeight(_world.Planet, mx, mz);
-
-            float y;
-            if (sp.Habitat == CreatureHabitat.Water || sp.Habitat == CreatureHabitat.Amphibian)
+            float dist = 4f + (k % 4) * 2.5f;
+            if (!TryPlaceGroupMember(sp, x, z, a, dist))
             {
-                // #1718: a member runs the leader's probe from its own spot. It used to ask only its own column,
-                // so beside a small pond the golden-angle spots landed on the bank and the school was the leader
-                // alone — the water four blocks away was never looked at.
-                if (!TryFindWaterColumnNear(mx, mz, out mx, out mz, out int waterTopY, out int seabedY))
-                {
-                    continue; // no water near this member's spot — the school stays smaller
-                }
-
-                surface = _generator.SurfaceHeight(_world.Planet, mx, mz);
-                y = sp.Habitat == CreatureHabitat.Water ? (seabedY + 1 + waterTopY) * 0.5f : waterTopY;
+                TryPlaceGroupMember(sp, x, z, a + 1.2, dist + 1.5f);
             }
-            else if (sp.Habitat == CreatureHabitat.Lava)
-            {
-                if (!TryFindLavaColumnNear(mx, mz, out mx, out mz, out int lavaTop))
-                {
-                    continue;
-                }
-
-                surface = _generator.SurfaceHeight(_world.Planet, mx, mz);
-                y = lavaTop;
-            }
-            else if (sp.Habitat == CreatureHabitat.Cave)
-            {
-                int caveY = FindCaveFloorY(mx, mz, surface);
-                if (caveY < 0)
-                {
-                    continue;
-                }
-
-                y = caveY;
-            }
-            else
-            {
-                y = sp.Habitat == CreatureHabitat.Air ? surface + 4f : GroundFeetYAt(mx, mz, surface + 1); // real ground (#650)
-            }
-
-            // Herd members run the leader's full reject list (#638/#750/#855/#1314): the herd stays smaller
-            // rather than planting a member inside a wall, a ship, or a sealed base room.
-            var pos = new Vector3f(mx + 0.5f, y, mz + 0.5f);
-            if (!SpawnSpotClear(sp, pos, mx, mz, surface))
-            {
-                continue;
-            }
-
-            SpawnCreature(sp, pos);
         }
+    }
+
+    /// <summary>One herd member's placement at bearing <paramref name="a"/> and distance <paramref name="dist"/> from the leader:
+    /// the habitat probe from its own spot and the leader's full reject list. False when the spot will not do.</summary>
+    private bool TryPlaceGroupMember(CreatureSpecies sp, int x, int z, double a, float dist)
+    {
+        int mx = x + (int)System.Math.Round(System.Math.Cos(a) * dist);
+        int mz = z + (int)System.Math.Round(System.Math.Sin(a) * dist);
+        int surface = _generator.SurfaceHeight(_world.Planet, mx, mz);
+
+        float y;
+        if (sp.Habitat == CreatureHabitat.Water || sp.Habitat == CreatureHabitat.Amphibian)
+        {
+            // #1718: a member runs the leader's probe from its own spot. It used to ask only its own column,
+            // so beside a small pond the golden-angle spots landed on the bank and the school was the leader
+            // alone — the water four blocks away was never looked at.
+            if (!TryFindWaterColumnNear(mx, mz, out mx, out mz, out int waterTopY, out int seabedY))
+            {
+                return false; // no water near this member's spot — the school stays smaller
+            }
+
+            surface = _generator.SurfaceHeight(_world.Planet, mx, mz);
+            y = sp.Habitat == CreatureHabitat.Water ? (seabedY + 1 + waterTopY) * 0.5f : waterTopY;
+        }
+        else if (sp.Habitat == CreatureHabitat.Lava)
+        {
+            if (!TryFindLavaColumnNear(mx, mz, out mx, out mz, out int lavaTop))
+            {
+                return false;
+            }
+
+            surface = _generator.SurfaceHeight(_world.Planet, mx, mz);
+            y = lavaTop;
+        }
+        else if (sp.Habitat == CreatureHabitat.Cave)
+        {
+            int caveY = FindCaveFloorY(mx, mz, surface);
+            if (caveY < 0)
+            {
+                return false;
+            }
+
+            y = caveY;
+        }
+        else
+        {
+            y = sp.Habitat == CreatureHabitat.Air ? surface + 4f : GroundFeetYAt(mx, mz, surface + 1); // real ground (#650)
+        }
+
+        // Herd members run the leader's full reject list (#638/#750/#855/#1314): the herd stays smaller
+        // rather than planting a member inside a wall, a ship, or a sealed base room.
+        var pos = new Vector3f(mx + 0.5f, y, mz + 0.5f);
+        if (!SpawnSpotClear(sp, pos, mx, mz, surface))
+        {
+            return false;
+        }
+
+        SpawnCreature(sp, pos);
+        return true;
     }
 
     /// <summary>Adds a live creature of the species at the position.</summary>
@@ -787,7 +857,7 @@ public sealed partial class GameServer
             return;
         }
 
-        for (int i = 0; i < count && WildCreatureCount < System.Math.Min(cap, CreatureHardCap); i++)
+        for (int i = 0; i < count && WildCreatureCount < System.Math.Min(cap, CreatureHardCap) && RawWildCount < CreatureHardCap; i++)
         {
             TrySpawnCreatureNear(player, cap);
         }
@@ -830,6 +900,7 @@ public sealed partial class GameServer
 
         double moveDt = System.Math.Min(dt, CreatureMoveDtCap);
         _creatureClock += moveDt;
+        RefreshLureTargets(targets); // #2018: who holds food this tick — one dictionary lookup per player, read by every beggar
 
         foreach (var creature in _creatures)
         {
@@ -1014,7 +1085,11 @@ public sealed partial class GameServer
             // flees too — panic reaches further than the skittish reflex and moves even placid grazers.
             var intent = MoveMode.Roam;
             Vector3f? target = null;
-            Vector3f? stepTarget = aggressor && creature.GiveUpTimer > 0 ? null : nearest;
+            // #2018: a begging herd animal (food in a nearby hand, a thrown piece, the trot away) decides its own intent and the
+            // temperament intents below are skipped while it does. Only passive species beg, so nothing they would otherwise
+            // do is lost; frozen, sleeping and panicked animals never reach this line with a live phase (TryBegIntent drops it).
+            bool begging = !hunting && TryBegIntent(creature, sp, nearest, ref profile, ref intent, ref target);
+            Vector3f? stepTarget = begging || (aggressor && creature.GiveUpTimer > 0) ? null : nearest;
             if (stepTarget is { } tp)
             {
                 float dx = tp.X - creature.Position.X, dz = tp.Z - creature.Position.Z;
@@ -1069,6 +1144,10 @@ public sealed partial class GameServer
             if (intent == MoveMode.Roam && sp.SocialGroupSize > 1 && res.Moving)
             {
                 stepped = GroupSteer(creature, sp, stepped, moveDt, profile);
+            }
+            else if (begging && res.Moving)
+            {
+                stepped = BegSeparation(creature, sp, stepped, moveDt, profile); // #2018: twelve animals on one ring keep their spacing
             }
 
             // Apply the horizontal step through every barrier (ship, fence, terrain gate, body sweep) and then
@@ -2691,7 +2770,7 @@ public sealed partial class GameServer
         float crowdSq = crowdRange * crowdRange;
         foreach (var sp in _speciesRoster)
         {
-            int over = WildCountOf(sp.Id) - share;
+            int over = WeightedWildCountOf(sp) - share; // #2018: the same weighted count the spawner used, or it sheds the herd
             if (over <= 0)
             {
                 continue;
@@ -2825,6 +2904,7 @@ public sealed partial class GameServer
             HasTrunk = sp?.HasTrunk ?? false,
             HeadShape = (sp?.HeadShape ?? CreatureHeadShape.Box).ToString(), // #2009
             Lurking = e.Lurking,                                              // #2009: an ambusher sitting in wait
+            Begging = e.BegPhase is BegPhase.Beg or BegPhase.Rush or BegPhase.Squabble, // #2018: the pose + the fast calls
             Heads = System.Math.Max(1, sp?.Heads ?? 1),         // #1780-#1782 (generation 6); a pre-wave snapshot carries 0
             WingPairs = System.Math.Max(1, sp?.WingPairs ?? 1),
             FinPairs = System.Math.Max(1, sp?.FinPairs ?? 1),

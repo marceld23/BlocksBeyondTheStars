@@ -70,6 +70,12 @@ public sealed partial class GameServer
                     .ToArray();
             }
 
+            if (Shared.Definitions.HerdRules.BegsForFood(sp))
+            {
+                // #2018: the one habit a player can act on — hold food and the herd comes; the scan says so.
+                readout.TraitKeys = readout.TraitKeys.Concat(new[] { "ui.scan.behaviour.begs" }).ToArray();
+            }
+
             readout.ThreatKey = sp.Hostile ? "ui.scan.threat.hostile"
                 : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "ui.scan.threat.provokable"
                 : "ui.scan.threat.safe";

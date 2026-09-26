@@ -76,6 +76,10 @@ public sealed class AuthoredCreature
     /// <summary>Damian's rule (#1760): a calm individual near a player who has not mined for a while spills a gift.</summary>
     public bool GiftsWhenCalm { get; set; }
 
+    /// <summary>The species begs for the food a player holds (#2018) — see <see cref="CreatureSpecies.BegsForFood"/>. The rule
+    /// (<see cref="HerdRules.BegsForFood"/>) honours it on passive Land species only.</summary>
+    public bool BegsForFood { get; set; }
+
     // --- Giants (#1998, generation 9) — the traits the procedural colossus / sandworm roll, so the school club's
     // concrete giants (#2003) become data entries. Zero/empty on every other species. ---
     public float GiantHeight { get; set; }

@@ -180,8 +180,15 @@ public sealed class WorldDescription
 
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
-    /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora).</summary>
-    public const int CurrentTerrainGeneration = 11;
+    /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora,
+    /// #2018 big herds + the begging trait).</summary>
+    public const int CurrentTerrainGeneration = 12;
+
+    /// <summary>The generation of the big herds (#2018, 2026-09): a peaceful standard-plan Land species may roll a herd of 6–12
+    /// instead of the classic 2–3, and a passive one may roll the begging trait (<see cref="Definitions.CreatureSpecies.BegsForFood"/>).
+    /// Both draws come AFTER every older roll (the arachnid draw included) and only on a generation-12 world, so a world of
+    /// any older generation keeps its roster bit for bit. No terrain change — a seed lands on the same planet type as before.</summary>
+    public const int BigHerdsGeneration = 12;
 
     /// <summary>The generation of the cave flora wave (2026-09): plants in caves (a cave habitat with its own species,
     /// the fungi of the surface also growing underground, glowers that light their surroundings), the rainbow glow

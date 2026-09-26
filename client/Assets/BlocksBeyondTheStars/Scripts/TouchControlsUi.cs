@@ -49,6 +49,7 @@ namespace BlocksBeyondTheStars.Client
         private TouchLookPad _lookPad;
         private TouchButton _jump, _mine, _place, _descend, _chat;      // on foot
         private TouchButton _rotate, _attack;                           // on foot, contextual (#1042)
+        private TouchButton _feed;                                      // on foot, contextual (#2018: food in hand + a begging animal near)
         private TouchButton _fire, _flightUp, _flightDown;              // flight + EVA
         private TouchButton _land, _shipIn, _auto, _flightMap;          // helm only — swapped out in EVA
         private TouchButton _evaPlace, _evaDeploy;                      // EVA only (#1042)
@@ -257,6 +258,7 @@ namespace BlocksBeyondTheStars.Client
                 SetActive(_rotate?.gameObject, Player != null && Player.HeldRotatable);
                 var finale = FinaleView.Instance;
                 SetActive(_attack?.gameObject, (Player != null && Player.HoldsWeapon) || (finale != null && finale.BreachAvailable));
+                SetActive(_feed?.gameObject, Player != null && Player.CanFeedCreature); // #2018
             }
 
             if (flight)
@@ -382,11 +384,14 @@ namespace BlocksBeyondTheStars.Client
             // button (weapon swing on tap; the Guardian-core breach channels while held).
             _rotate = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-420f, 300f), 96f, L("ui.touch.rotate", "ROTATE"));
             _attack = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-560f, 240f), 100f, L("ui.touch.attack", "ATTACK"));
+            // #2018: FEED while food is held and a begging animal is near — above ATTACK, clear of ROTATE.
+            _feed = MakeButton(foot, new Vector2(1f, 0f), new Vector2(-560f, 360f), 96f, L("ui.touch.feed", "FEED"));
             _actions.Add((InputAction.Interact, use));
             _actions.Add((InputAction.ToggleThirdPerson, footView));
             _actions.Add((InputAction.PlanetMap, footMap));
             _actions.Add((InputAction.RotateShape, _rotate));
             _actions.Add((InputAction.PrimaryFire, _attack));
+            _actions.Add((InputAction.FeedCreature, _feed));
             _heldActions.Add((InputAction.PrimaryFire, _attack));
 
             // ---- Flight + EVA cluster ------------------------------------------------------------------
@@ -427,7 +432,7 @@ namespace BlocksBeyondTheStars.Client
             // contextual buttons start hidden too — Update shows each while its verb applies.
             _flightCluster.SetActive(false);
             _speederCluster.SetActive(false);
-            foreach (var b in new[] { _rotate, _attack, _evaPlace, _evaDeploy, _vegaNext, _contextActions })
+            foreach (var b in new[] { _rotate, _attack, _feed, _evaPlace, _evaDeploy, _vegaNext, _contextActions })
             {
                 b.gameObject.SetActive(false);
             }

@@ -317,6 +317,14 @@ public sealed class ConsumeItemIntent
     public string ItemKey { get; set; } = string.Empty;
 }
 
+/// <summary>The Feed action (#2018): throws ONE piece of the food in <see cref="Slot"/> a few blocks ahead for a begging herd.
+/// The server checks that the slot holds food an animal would eat and that a begging animal is near, spills the piece as a
+/// drop packet the thrower cannot pick up again for a few seconds, and sends the herd to it.</summary>
+public sealed class ThrowFoodIntent
+{
+    public int Slot { get; set; }
+}
+
 /// <summary>Client right-clicks a held gadget (item 36 — field medkit / stasis projector / terrain blaster).
 /// The server validates the gadget, suit energy + cooldown, then applies the keyed effect at the aim point.</summary>
 public sealed class UseGadgetIntent
@@ -1890,6 +1898,9 @@ public sealed class NetCreature
     /// <summary>#2009: an arachnid ambusher sitting motionless in wait — the client holds the crouch and skips the idle
     /// flourishes. Additive; false for everything else and from an older server.</summary>
     public bool Lurking { get; set; }
+    /// <summary>#2018: a herd animal begging for the food a player holds (or squabbling over a thrown piece) — the client
+    /// raises the head, bounces and calls at a fast cadence. Additive; false for everything else and from an older server.</summary>
+    public bool Begging { get; set; }
 
     /// <summary>Heads / wing pairs / fin pairs (#1780-#1782, generation 6). Additive: an older client ignores them and
     /// draws the classic single head / pair / pair; an older server leaves them at 0, which the client reads as 1.</summary>

@@ -41,6 +41,12 @@ render-only. The rig sets `LeggedCrawler`: a crawler by leg count (tripod / meta
 nevertheless strides at full amplitude without the beetle weave. `SetLurking` (from the wire's `Lurking`)
 flattens the body, widens the splay and stops every flourish while it lies in wait.
 
+**Begging (#2018).** `SetBegging` (from the wire's `Begging`) is the herd animal's "all eyes on the food" pose: the
+head comes up and stays up (the grazing dip is scaled out), the body gets a quick little bounce on top of whatever
+the gait does, and the long-idle flourishes stop. The real hops are server-side airborne arcs (`Airborne` +
+`VertVel`, integrated like any jump); the bounce is the fidget between them. `CreatureView` also quarters the
+species' call cadence for the three nearest begging animals, so a herd of twelve never floods the mix.
+
 ## Rig conventions
 
 Parts hang off a `BodyRig` child of the entity root, so the animator can undulate the whole creature

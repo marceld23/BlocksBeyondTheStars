@@ -83,6 +83,8 @@ namespace BlocksBeyondTheStars.Client
         private float _rest;
         private float _lurk;     // #2009: 0..1 smoothed ambush crouch (an arachnid lying in wait)
         private bool _lurking;   // #2009: the server says it is sitting in wait this tick
+        private bool _begging;   // #2018: the server says it begs for food this tick
+        private float _beg;      // #2018: 0..1 smoothed begging pose (head up, a bounce, no flourish)
         private float _restSide;    // which way the head tucks — stable per creature
 
         // --- long-idle flourishes ---
@@ -245,6 +247,10 @@ namespace BlocksBeyondTheStars.Client
         /// wider and every idle flourish stops: a rock, until the rock moves.</summary>
         public void SetLurking(bool lurking) => _lurking = lurking;
 
+        /// <summary>#2018: the server's begging flag — while set the head comes up and stays up (no grazing dip), the body
+        /// bounces on a quick beat and the long-idle flourishes stop: all eyes on the food.</summary>
+        public void SetBegging(bool begging) => _begging = begging;
+
         /// <summary>Opens the jaw for one vocalisation pulse. <see cref="CreatureView"/> already knows exactly
         /// when a phrase pulse fires (#902) — this is what turns that into a moving mouth.</summary>
         public void Pulse(float strength)
@@ -365,10 +371,11 @@ namespace BlocksBeyondTheStars.Client
             float restTarget = _asleep && canRest && !_airborne ? 1f : 0f;
             _rest = Mathf.MoveTowards(_rest, restTarget, dt / (restTarget > _rest ? 1.2f : 0.6f));
             _lurk = Mathf.MoveTowards(_lurk, _lurking && !_airborne && _rest < 0.5f ? 1f : 0f, dt / 0.5f); // #2009
+            _beg = Mathf.MoveTowards(_beg, _begging && _rest < 0.5f ? 1f : 0f, dt / 0.4f); // #2018
 
             // Long-idle flourishes: only once an animal has genuinely settled, and only close enough to see.
-            // An ambusher (#2009) never fidgets — a tail swat would give the rock away.
-            _idleTime = moving < 0.05f && _rest < 0.2f && _lurk < 0.5f ? _idleTime + dt : 0f;
+            // An ambusher (#2009) never fidgets — a tail swat would give the rock away. A beggar (#2018) has no idle either.
+            _idleTime = moving < 0.05f && _rest < 0.2f && _lurk < 0.5f && _beg < 0.5f ? _idleTime + dt : 0f;
             if (FaceDetail)
             {
                 StepFlourish(dt);
@@ -734,6 +741,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             restDrop += _lurk * _rig.LegLength * 0.3f; // #2009: an ambusher flattens itself to the ground
+            // #2018: the beggar's excited little bounce — a quick body beat on top of whatever the gait does (the real hops
+            // come from the server as airborne arcs; this is the fidget between them).
+            restDrop -= Mathf.Max(0f, Mathf.Sin(t * 9f)) * 0.06f * _rig.LegLength * _beg;
 
             // Standing on a slope: the body tilts to the plane through the planted feet. Without this the
             // root pitches but the legs do not, so half the feet hang in the air and half sink into the hill.
@@ -824,7 +834,7 @@ namespace BlocksBeyondTheStars.Client
                     yaw += h == 0 ? gaze : gaze * 0.35f + Mathf.Sin(t * 0.7f + off) * 6f;
                 }
 
-                pitch += gesture / gestureJoints;
+                pitch += gesture / gestureJoints * (1f - _beg) - 14f * _beg; // #2018: a beggar keeps its head up, no grazing dip
 
                 // Lying down: the head lowers and tucks to one side.
                 if (_rest > 0f)

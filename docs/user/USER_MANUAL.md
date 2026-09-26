@@ -119,6 +119,7 @@ Last updated: 2026-08-26.
 | **R** | At your own **cockpit / ship console** while the repair panel is up: repair the ship (see §5 → Repairing your own ship); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder or stairs** selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
+| **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
@@ -158,7 +159,7 @@ buttons — retuning is tracked in issue #195):
 | **(X)** | Use / board / interact |
 | **(Y)** | Toggle first / third-person camera |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
-| **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
+| **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp, thermal vision, feed a begging herd, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
 | **View** (the two-rectangles button left of the Xbox logo; "Back" on a 360 pad, Share on PlayStation, − on Nintendo) | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard) |
 | **Menu** (☰ — the three-lines button right of the Xbox logo; Unity and 360-era pads call it Start. The Xbox-logo button itself belongs to Windows' Game Bar and never reaches the game) | Open / close the gameplay menu — its top strip has the **Pause menu** button (Resume / Settings / Quit, the same dialog **Esc** opens on the keyboard); **(B)** resumes |
 
@@ -228,7 +229,7 @@ buttons swap with what you're doing:
 | **NEXT ▶** (top-centre) | **VEGA: continue** — advance or dismiss the ship AI's line; shown only while a line is up |
 | **≡** (top-right) | Open / close the gameplay menu |
 | *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump · mine · place · use/board · descend · open chat · camera · planet map |
-| *On foot, when it applies:* **ROTATE · ATTACK** | Rotate the held block's placement (appears while a rotatable block is selected) · swing / fire the held weapon (hold on the Guardian core to breach it) |
+| *On foot, when it applies:* **ROTATE · ATTACK · FEED** | Rotate the held block's placement (appears while a rotatable block is selected) · swing / fire the held weapon (hold on the Guardian core to breach it) · throw one piece of the held food to a begging herd (appears while you hold food and an animal begs nearby) |
 | *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · MAP · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · system chart · camera · dock/board · float up/down |
 | *EVA (spacewalk):* **FIRE (hold) · PLACE · DEPLOY · VIEW · USE · UP · DOWN** | Mine · place the selected block · deploy a station core · camera · board · float up/down |
 | *Speeder:* **BOOST (hold) · JUMP · EXIT · FUEL** | Boost · hop · dismount · refuel |
@@ -529,7 +530,8 @@ separate unlock; admins can still disable it through server world rules.
 - **Throwing things away:** select an item in the **Inventory** or **Cargo Hold** tab and press **"Throw
   away"** — it asks once ("Really throw away?"), and the second click destroys *every* stack of that item.
   This cannot be undone and gives nothing back. Your starting equipment (drill, scanner, suit lamp, machete,
-  sidearm) has no such button, so you can never leave yourself without a way to dig or a way to see.
+  sidearm) has no such button, so you can never leave yourself without a way to dig or a way to see. (To put
+  **one piece of food on the ground** for a begging herd, use **Feed** — **Q** — instead; see §5 → Creatures.)
 - **When everything is full:** if your backpack *and* your hold are full, whatever you mine or craft next is
   simply gone — the game warns you when that happens, so throw something away or empty the hold first.
 
@@ -1340,6 +1342,18 @@ separate unlock; admins can still disable it through server world rules.
   own size (most near the normal size, the occasional runt or giant) — a wood is a mix of saplings and tall
   trees with varying crown widths, a herd has small and large animals. The variation is cosmetic (a creature's
   size doesn't change its health, damage or loot).
+- **Big herds and begging animals** (worlds created from terrain generation 12 on): some peaceful land grazers
+  live in **herds of six to twelve**, and about a third of the passive herd species have a **nose for food**. Hold
+  anything edible in your hand — berries, grain, a ration, cooked meat; nothing poisonous, and the taming baits
+  don't count — and a herd within about ten blocks comes **hopping over**, circles you at arm's length and calls
+  excitedly; put the food away (or walk off) and they trot away, and after half a minute of getting nothing they
+  lose interest for a while. Press **Feed** (**Q**; gamepad: the L3 actions list; touch: the **FEED** button) to
+  throw them **one piece**: it lands a few blocks ahead, the herd rushes it, squabbles over it for a few seconds,
+  eats it and leaves. You cannot pick a thrown piece up again for ten seconds (after that it is an ordinary drop
+  packet). The scan readout marks such a species with **"Comes running for food"**; VEGA explains the trick the
+  first time a herd begs from you. A sleeping herd ignores food, a startled one runs like any other, and skittish
+  species never beg. Big herds are cheap for the world's animal budget (three herd animals count as one), so a herd
+  never crowds out the other species.
 - **Arachnids** are eight-legged animals as big as a speeder that some worlds roll into their fauna (about every
   third or fourth world has one species). Their heads are boxes or pyramids of several kinds, their eyes come in
   clusters of 2, 4, 6 or 8, and their temper is rolled like any other animal's: many graze or run away, but a
