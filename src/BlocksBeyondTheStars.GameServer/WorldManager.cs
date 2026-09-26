@@ -150,6 +150,7 @@ internal sealed class LoadedWorld
     public List<GameServer.ServerDataCube> DataCubes { get; } = new(); // minigame download cubes scattered on the surface
     public List<GameServer.ServerBeacon> Beacons { get; } = new(); // placed radio beacons (item 37)
     public List<GameServer.ServerBeam> Beams { get; } = new(); // placed beam blocks (teleporter pads)
+    public GameServer.CrystalNetState CrystalNet { get; } = new(); // #2046: conduit networks + devices of this world
     public List<GameServer.ServerSpeeder> Speeders { get; } = new(); // deployed hover speeders (materialised per present owner)
     public List<GameServer.ServerNetFragment> NetFragments { get; } = new(); // story net fragments scattered on the surface (P2)
     public List<(string Type, Vector3f Pos)> SettlementMarkers { get; } = new(); // union of EVERY settlement's markers (doors + proximity)

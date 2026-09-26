@@ -230,6 +230,10 @@ namespace BlocksBeyondTheStars.Client
         /// only by <see cref="FrameRateCap"/> — the recommended setting for the Linux/Proton client.</summary>
         public bool VSync = true;
 
+        /// <summary>#2052: silence the Crystal Net's alarm sirens on this device (a classroom tablet, a sleeping sibling) — the
+        /// siren still blinks and the beacon marker still turns red, only the wail is muted.</summary>
+        public bool MuteAlarms = false;
+
         /// <summary>Frame-rate cap in fps applied when <see cref="VSync"/> is off; 0 = unlimited. One of the
         /// values in <see cref="UiSettings"/>'s cap cycle (30/60/72/90/120/144/240).</summary>
         public int FrameRateCap = 0;

@@ -39,6 +39,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Mirrored;          // hinge: the leaf hangs on the RIGHT jamb — the right half of a double door (#1729)
             public DoorPairs.Sides Partners; // hinge: the local sides sharing a jamb with a partner leaf — no post there (#1852)
             public bool Open;
+            public int Mode;               // #2048: 0 normal, 1 locked (red), 2 held open (green) — the Crystal Net's say
             public bool Posed;             // its panels stand where Anim says — a resting door is not re-posed every frame
             public float Anim;             // 0 closed → 1 open, eased toward Open
             public Transform Field;        // energy door: the translucent blue field shown in the open doorway
@@ -162,6 +163,16 @@ namespace BlocksBeyondTheStars.Client
                 {
                     d.Open = nd.Open;
                     PlayDoorSfx(d);
+                }
+            }
+
+            // #2048: the Crystal Net's mode light — a locked door reads red, a held-open one green, a free one plain.
+            foreach (var nd in m.Doors)
+            {
+                if (_doors.TryGetValue(nd.Id, out var dm) && dm.Mode != nd.Mode)
+                {
+                    dm.Mode = nd.Mode;
+                    TintForMode(dm);
                 }
             }
 
@@ -364,6 +375,32 @@ namespace BlocksBeyondTheStars.Client
                 Field = field,
                 FieldMat = fieldMat,
             };
+        }
+
+        private static readonly int ModeColorId = Shader.PropertyToID("_Color");
+
+        /// <summary>Tints a door's panels by its Crystal Net mode (#2048) through a property block, so shared
+        /// materials stay shared and a door without a conduit keeps its plain look.</summary>
+        private static void TintForMode(Door d)
+        {
+            if (d?.Go == null)
+            {
+                return;
+            }
+
+            var col = d.Mode == 1 ? new Color(1f, 0.45f, 0.4f) : d.Mode == 2 ? new Color(0.55f, 1f, 0.6f) : Color.white;
+            var block = new MaterialPropertyBlock();
+            foreach (var r in d.Go.GetComponentsInChildren<Renderer>())
+            {
+                if (d.Field != null && r.transform == d.Field)
+                {
+                    continue; // the energy field drives its own colour + alpha
+                }
+
+                r.GetPropertyBlock(block);
+                block.SetColor(ModeColorId, col);
+                r.SetPropertyBlock(block);
+            }
         }
 
         private static readonly int FieldColorId = Shader.PropertyToID("_Color");

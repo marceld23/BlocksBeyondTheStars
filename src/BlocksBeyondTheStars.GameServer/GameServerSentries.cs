@@ -86,7 +86,7 @@ public sealed partial class GameServer
 
             foreach (var cell in _sentryCells[b.Id])
             {
-                var (enemies, creatures) = FireSentry(cell, b);
+                var (enemies, creatures) = FireSentryLinked(cell, b); // #2053: a conduit can hold its fire and reads "has a target"
                 enemiesChanged |= enemies;
                 creaturesChanged |= creatures;
             }

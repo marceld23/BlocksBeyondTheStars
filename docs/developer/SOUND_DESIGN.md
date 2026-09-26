@@ -183,6 +183,31 @@ tense **synth** combat mood in both modes — the track library is intentionally
 muffles underwater (low-pass), and rides `MusicVolume` while SFX/ambience stay independent on
 `SfxVolume`. The studio/title splash stings are left untouched (music is silent over the splash).
 
+## 12. Crystal Net devices (#2052 / #2058) — *ElevenLabs clips + procedural notes*
+
+The server drives every device sound through one message, `SoundFx` (`SoundId`, position, `Pitch`, `Loop`,
+`Stop`, `SourceId` = the device id so a stop finds its loop). A loop is started once and stopped once; nothing is
+re-sent per beat, and at most **8** sound devices play per world (`CrystalNetRules.MaxSoundDevicesPlayingPerWorld`).
+All cues are 3D at the device cell. See [CRYSTAL_NET.md](CRYSTAL_NET.md).
+
+| Sound | Trigger | Files | Source |
+|---|---|---|---|
+| alarm siren (3 to pick from) | network ON → loop, OFF → stop | `alarm_siren_0..2` (seamless loops) | EL |
+| chime (4) | rising edge | `chime_0..3` | EL |
+| horn (3) | rising edge | `horn_0..2` | EL |
+| melody block: 8 notes (C4…C5) × 4 instruments (crystal sine / bell / bass / blip) | rising edge | `note_<inst>_<n>` — no files | **procedural** (`ProceduralAudio.Note`, pre-filled into the cue table) |
+| announcer | rising edge (a toast to the owner + allies) | `ai_blip` (existing VEGA chirp) | EL (existing) |
+| switch flip / button press | the player's Interact | `crystal_switch`, `crystal_button` | EL |
+| auto-drill | working (loop while it mines) | `auto_drill_loop` | EL |
+| clone tank | growing (loop for 60 s), stop on release | `clone_tank_bubble` | EL |
+| fabricator | one craft done | `fabricator_craft` | EL |
+| caller | pulse | `caller_whistle` | EL |
+| matter link | one shot, at both ends | `beam_teleport` (existing) | EL (existing) |
+| auto-drill mined block | per block | `WorldFx` "thump" (existing giants path) | EL (existing) |
+
+Sixteen new ElevenLabs clips in total (`tools/ai-assets/gen_sound.py`, logged in `NOTICES.md`); the melody
+notes are the only new procedural cue. The lamp swap makes no sound.
+
 ---
 
 ## Totals & rollout

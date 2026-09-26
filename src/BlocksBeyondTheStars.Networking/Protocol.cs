@@ -22,8 +22,10 @@ public static class Protocol
     /// WorldReset and JoinAccepted carry a WorldId, which lets the client order the two channels: world-stream
     /// messages of a world it has not been told about yet wait, those of the world it just left are dropped.
     /// v6 (#1821): FarTerrainTileRequest / FarTerrainTile — the far view asks the server for the persisted builds
-    /// (cities, settlements, player builds) of distant tiles; a v5 server cannot decode the request.</summary>
-    public const int Version = 6;
+    /// (cities, settlements, player builds) of distant tiles; a v5 server cannot decode the request.
+    /// v7 (#2045): the Crystal Net — CrystalNetList / CrystalDeviceList / SetCrystalDeviceIntent / SoundFx, and
+    /// NetDoor carries a Mode (normal / locked / held open); a v6 peer cannot decode the new lists.</summary>
+    public const int Version = 7;
 
     public const int DefaultGameplayPort = 31415;
     public const int DefaultAdminPort = 31416;

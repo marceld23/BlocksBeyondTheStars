@@ -397,9 +397,10 @@ namespace BlocksBeyondTheStars.Client
                 var beaconCol = new Color(1f, 0.72f, 0.2f);
                 foreach (var b in Game.Beacons)
                 {
-                    Marker(b.X, b.Z, 32f, beaconCol, "✦", "map_beacon");
+                    var bc = b.Alarm ? new Color(1f, 0.25f, 0.2f) : beaconCol; // #2053: an alarmed beacon reads red on the map too
+                    Marker(b.X, b.Z, 32f, bc, "✦", "map_beacon");
                     string name = string.IsNullOrEmpty(b.Label) ? L("ui.beacon.default") : b.Label;
-                    MarkerLabel(b.X, b.Z, name, beaconCol);
+                    MarkerLabel(b.X, b.Z, name, bc);
                     float bd = GroundDistance(b.X, b.Z);
                     poiLines.Append($"\n✦ {name}  —  {Mathf.RoundToInt(bd)} m");
                 }

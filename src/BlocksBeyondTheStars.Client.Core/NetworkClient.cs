@@ -80,6 +80,9 @@ namespace BlocksBeyondTheStars.Client
         public event Action<PlanetPoiList>? PlanetPoisReceived;
         public event Action<BeaconList>? BeaconsReceived;
         public event Action<BeamList>? BeamsReceived; // placed beam blocks (teleporter pads) on the current world
+        public event Action<CrystalNetList>? CrystalNetsReceived; // #2046: the Crystal Net's networks (cells + ON/OFF) on the current world
+        public event Action<CrystalDeviceList>? CrystalDevicesReceived; // #2046: its devices (kind, mode, config, output)
+        public event Action<SoundFx>? SoundFxReceived; // #2052: a device plays / loops / stops a sound at a cell
         public event Action<BeamTeleported>? BeamTeleportedReceived; // my arrival after a beam (snap + arrival fx)
         public event Action<BeamFx>? BeamFxReceived; // beam column VFX at both pads, shown to everyone on the world
         public event Action<BaseList>? BasesReceived; // player-founded planet bases (Grundstein) on the current world
@@ -482,6 +485,10 @@ namespace BlocksBeyondTheStars.Client
             => Send(new SetBeamNameIntent { BeamId = beamId, Name = name ?? string.Empty });
 
         /// <summary>Beam from the pad I'm standing at to a chosen destination pad on this world.</summary>
+        /// <summary>#2046: toggle a switch (action 0), press a button / start a machine (1) or configure a device (2) at a cell.</summary>
+        public void SendSetCrystalDevice(int x, int y, int z, int action, int mode = 0, string config = "", string label = "")
+            => Send(new SetCrystalDeviceIntent { X = x, Y = y, Z = z, Action = action, Mode = mode, Config = config ?? string.Empty, Label = label ?? string.Empty });
+
         public void SendBeamTeleport(int sourceId, int targetId)
             => Send(new BeamTeleportIntent { SourceId = sourceId, TargetId = targetId });
 
@@ -1019,6 +1026,9 @@ namespace BlocksBeyondTheStars.Client
                 case PlanetPoiList m: PlanetPoisReceived?.Invoke(m); break;
                 case BeaconList m: BeaconsReceived?.Invoke(m); break;
                 case BeamList m: BeamsReceived?.Invoke(m); break;
+                case CrystalNetList m: CrystalNetsReceived?.Invoke(m); break;
+                case CrystalDeviceList m: CrystalDevicesReceived?.Invoke(m); break;
+                case SoundFx m: SoundFxReceived?.Invoke(m); break;
                 case BeamTeleported m: BeamTeleportedReceived?.Invoke(m); break;
                 case BeamFx m: BeamFxReceived?.Invoke(m); break;
                 case BaseList m: BasesReceived?.Invoke(m); break;

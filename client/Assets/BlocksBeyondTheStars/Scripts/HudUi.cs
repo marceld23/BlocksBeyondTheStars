@@ -1069,6 +1069,12 @@ namespace BlocksBeyondTheStars.Client
                     // #1073: "Workbench — crafting: menu (Tab) → Crafting" — the block names the tab it powers.
                     prompt = loc.Get("ui.station.block." + Game.AimedStationBlock);
                 }
+                else if (Game.AimedCrystalDevice is { } crystalDev)
+                {
+                    // #2049: a Crystal Net device in the crosshair says what Interact does to it — the glyph follows
+                    // the device in hand, and a tablet reads its USE button instead of a key name.
+                    prompt = string.Format(loc.Get(CrystalPromptKey(crystalDev)), InteractGlyph(loc));
+                }
                 else if (BeamView.Instance != null && BeamView.Instance.NearestUsableBeam(Game.PlayerPosition, BeamUseRange) != 0)
                 {
                     // Standing on / beside an own or allied teleporter pad: the same reach PlayerController
@@ -1609,6 +1615,30 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
         }
+
+        /// <summary>#2049: the prompt key for a Crystal Net device in the crosshair: a switch toggles, a button
+        /// presses, a configurable device opens its menu, everything else just names itself as linked.</summary>
+        private static string CrystalPromptKey(NetCrystalDevice dev)
+        {
+            var kind = CrystalDeviceUi.KindOf(dev);
+            if (kind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Switch)
+            {
+                return "ui.crystal.prompt.toggle";
+            }
+
+            if (kind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Button)
+            {
+                return "ui.crystal.prompt.press";
+            }
+
+            return BlocksBeyondTheStars.Shared.Definitions.CrystalNetRules.IsConfigurable(kind) ? "ui.crystal.prompt.menu" : "ui.crystal.prompt.linked";
+        }
+
+        /// <summary>The Interact glyph for a prompt: the pad button, the key, or on a tablet the label of the on-screen
+        /// USE button (#2049) — <see cref="InputMap.Glyph"/> alone falls back to the key name there.</summary>
+        private static string InteractGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+            => InputMap.ActiveDevice == InputDeviceKind.Touch ? loc.Get("ui.touch.use") : GlyphText(loc, InputAction.Interact);
+
 
         /// <summary><see cref="InputMap.Glyph"/> with mouse buttons rendered as their localized short names
         /// (the LMB/RMB style the hint line already uses) instead of the raw KeyCode name — "Mouse2" reads

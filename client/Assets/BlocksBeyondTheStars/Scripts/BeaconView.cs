@@ -37,7 +37,9 @@ namespace BlocksBeyondTheStars.Client
                 // SceneX/SceneZ map the canonical spot to the lap nearest the player, so the label sits over the rendered block.
                 var pos = new Vector3(Game.SceneX(b.X), b.Y + 1.7f, Game.SceneZ(b.Z));
                 // Landmark labels carry further than NPC names: fade between 40 m and 60 m.
-                labels.World(cam, pos, name, amber, false, 40f, 60f);
+                // #2053: a beacon on an ON alarm network blinks red — the Crystal Net's alarm you can see from afar.
+                var col = b.Alarm ? (Mathf.Repeat(Time.time, 0.8f) < 0.4f ? new Color(1f, 0.25f, 0.2f) : new Color(0.6f, 0.1f, 0.1f)) : amber;
+                labels.World(cam, pos, name, col, b.Alarm, 40f, 60f);
             }
         }
     }

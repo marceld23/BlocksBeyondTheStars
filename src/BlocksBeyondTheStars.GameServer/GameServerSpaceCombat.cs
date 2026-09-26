@@ -138,6 +138,9 @@ public sealed class CombatEntity
     /// <summary>The persisted companion record id (links this live entity to <c>PlayerState.TamedCreatures</c>).</summary>
     public string CompanionId { get; set; } = string.Empty;
 
+    /// <summary>#2057: the clone tank ("x,y,z") this wild animal grew in — never far-pruned while the tank stands; empty for everything else.</summary>
+    public string CloneOf { get; set; } = string.Empty;
+
     /// <summary>A tamed companion's player-given name (drawn as a nameplate); empty for wild fauna.</summary>
     public string CustomName { get; set; } = string.Empty;
 
@@ -191,6 +194,7 @@ public enum BegPhase : byte
     Beg,
     Rush,
     Squabble,
+    Called,    // #2057: coming to a caller block (non-begging species use this phase alone)
     Leave,
 }
 

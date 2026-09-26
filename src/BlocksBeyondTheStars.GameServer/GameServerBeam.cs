@@ -187,6 +187,7 @@ public sealed partial class GameServer
             ToZ = to.Z,
         });
 
+        CrystalPortPulse(target.Cell); // #2053: "someone arrived" on the far pad
         string label = string.IsNullOrEmpty(target.Name) ? "beam block" : target.Name;
         Send(session, new ServerMessage { Text = "@srv.beam.done:" + label });
     }

@@ -1823,6 +1823,8 @@ namespace BlocksBeyondTheStars.Client
             // powers in the menu — the server unlocks recipes by standing next to it, but nothing in the world
             // said so. Ship marker cells are covered by NearbyStation above; the factory terminal has its own label.
             Game.AimedStationBlock = null;
+            // #2049: the Crystal Net device in the crosshair, for the HUD prompt (one ray, the same reach as E).
+            Game.AimedCrystalDevice = AimBlock(out var crystalAim, out _) ? Game.CrystalDeviceAt(crystalAim.x, crystalAim.y, crystalAim.z) : null;
             if (string.IsNullOrEmpty(Game.NearbyStation) && AimBlock(out var aimHit, out _))
             {
                 string aimedKey = Game.Content?.BlockById(Game.World.GetBlock(aimHit.x, aimHit.y, aimHit.z))?.Key;
@@ -1891,6 +1893,30 @@ namespace BlocksBeyondTheStars.Client
                         ContainerFilterUi.Instance?.Open(c.Id, c.Filter);
                         return;
                     }
+                }
+            }
+
+            // #2049: a Crystal Net device you're aiming at — a switch toggles, a button presses, everything with a menu
+            // opens it. Aim-based, so it works the same with mouse look, the right stick and the touch look pad.
+            if (AimBlock(out var crystalHit, out _) && Game.CrystalDeviceAt(crystalHit.x, crystalHit.y, crystalHit.z) is { } crystalDev)
+            {
+                var crystalKind = CrystalDeviceUi.KindOf(crystalDev);
+                if (crystalKind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Switch)
+                {
+                    Game.Network?.SendSetCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 0);
+                    return;
+                }
+
+                if (crystalKind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Button)
+                {
+                    Game.Network?.SendSetCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 1);
+                    return;
+                }
+
+                if (BlocksBeyondTheStars.Shared.Definitions.CrystalNetRules.IsConfigurable(crystalKind))
+                {
+                    CrystalDeviceUi.Instance?.Open(crystalDev);
+                    return;
                 }
             }
 

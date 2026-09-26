@@ -399,5 +399,65 @@
     "key": "archaeology", "nameKey": "blueprint.archaeology.name", "descriptionKey": "blueprint.archaeology.desc",
     "category": "Tools", "prerequisites": [ "terrain_scanner" ], "knowledgeCost": 25,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "ancient_brick", "count": 2 }, { "item": "rune_stone", "count": 1 } ]
+  },
+  {
+    "key": "crystal_conduit", "nameKey": "blueprint.crystal_conduit.name", "descriptionKey": "blueprint.crystal_conduit.desc",
+    "category": "Crystal", "prerequisites": [ "comm_radio" ], "knowledgeCost": 20,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "crystal", "count": 4 }, { "item": "circuit_board", "count": 1 } ]
+  },
+  {
+    "key": "crystal_sensors", "nameKey": "blueprint.crystal_sensors.name", "descriptionKey": "blueprint.crystal_sensors.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_conduit" ], "knowledgeCost": 30,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "crystal", "count": 6 }, { "item": "circuit_board", "count": 2 } ]
+  },
+  {
+    "key": "crystal_logic", "nameKey": "blueprint.crystal_logic.name", "descriptionKey": "blueprint.crystal_logic.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_conduit" ], "knowledgeCost": 30,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "crystal", "count": 6 }, { "item": "circuit_board", "count": 2 } ]
+  },
+  {
+    "key": "crystal_sound", "nameKey": "blueprint.crystal_sound.name", "descriptionKey": "blueprint.crystal_sound.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_conduit" ], "knowledgeCost": 25,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "crystal", "count": 4 }, { "item": "brass_fitting", "count": 2 } ]
+  },
+  {
+    "key": "fabricator", "nameKey": "blueprint.fabricator.name", "descriptionKey": "blueprint.fabricator.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_logic" ], "knowledgeCost": 45,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "circuit_board", "count": 3 }, { "item": "crystal", "count": 8 } ]
+  },
+  {
+    "key": "caller", "nameKey": "blueprint.caller.name", "descriptionKey": "blueprint.caller.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_conduit", "creature_translator" ], "knowledgeCost": 35,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "crystal", "count": 4 }, { "item": "meat_bait", "count": 2 } ]
+  },
+  {
+    "key": "clone_tank", "nameKey": "blueprint.clone_tank.name", "descriptionKey": "blueprint.clone_tank.desc",
+    "category": "Crystal", "prerequisites": [ "caller", "matter_forge" ], "knowledgeCost": 95,
+    "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "circuit_board", "count": 4 }, { "item": "matter_dust", "count": 4 } ]
+  },
+  {
+    "key": "auto_drill_1", "nameKey": "blueprint.auto_drill_1.name", "descriptionKey": "blueprint.auto_drill_1.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_conduit", "titanium_drill" ], "knowledgeCost": 40,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "crystal", "count": 6 }, { "item": "magnet", "count": 1 } ]
+  },
+  {
+    "key": "auto_drill_2", "nameKey": "blueprint.auto_drill_2.name", "descriptionKey": "blueprint.auto_drill_2.desc",
+    "category": "Crystal", "prerequisites": [ "auto_drill_1", "diamond_drill" ], "knowledgeCost": 165,
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "carbide", "count": 2 }, { "item": "crystal", "count": 8 } ]
+  },
+  {
+    "key": "auto_drill_3", "nameKey": "blueprint.auto_drill_3.name", "descriptionKey": "blueprint.auto_drill_3.desc",
+    "category": "Crystal", "prerequisites": [ "auto_drill_2", "mining_beam" ], "knowledgeCost": 170,
+    "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "crystal", "count": 12 }, { "item": "power_cell", "count": 1 } ]
+  },
+  {
+    "key": "matter_sender", "nameKey": "blueprint.matter_sender.name", "descriptionKey": "blueprint.matter_sender.desc",
+    "category": "Crystal", "prerequisites": [ "beam_block", "matter_forge" ], "knowledgeCost": 95,
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "matter_dust", "count": 4 }, { "item": "crystal", "count": 8 } ]
+  },
+  {
+    "key": "matter_receiver", "nameKey": "blueprint.matter_receiver.name", "descriptionKey": "blueprint.matter_receiver.desc",
+    "category": "Crystal", "prerequisites": [ "matter_sender" ], "knowledgeCost": 100,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "matter_dust", "count": 2 }, { "item": "crystal", "count": 6 } ]
   }
 ]

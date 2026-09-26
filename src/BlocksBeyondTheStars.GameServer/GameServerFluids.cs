@@ -284,7 +284,7 @@ public sealed partial class GameServer
     /// below is mined), so a spout on a wall keeps pouring for as long as it stands there.</summary>
     private void PourFromSpout(Vector3i pos)
     {
-        if (_waterId == 0)
+        if (_waterId == 0 || CrystalSpoutClosed(pos)) // #2053: a conduit can shut a spout
         {
             return;
         }

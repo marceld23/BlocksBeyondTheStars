@@ -29,6 +29,10 @@ public sealed class NetDoor
 
     /// <summary>Whether the door is currently open (panels retracted / leaf swung; collider disabled).</summary>
     public bool Open { get; set; }
+
+    /// <summary>The Crystal Net mode (#2048): 0 normal, 1 locked (a conduit beside it is OFF — never opens), 2 held
+    /// open (the conduit is ON — never closes). The client shows a small red / green mode light on the frame.</summary>
+    public int Mode { get; set; }
 }
 
 /// <summary>Full set of doors the client should currently render for its world (server → client).</summary>

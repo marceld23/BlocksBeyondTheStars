@@ -816,6 +816,7 @@ public sealed partial class GameServer
         LoadPlayerDoors(); // persisted player-built doors load on every world (void or not, settlement or not)
         LoadBeacons();     // placed radio beacons restore their label/owner entities (the blocks come back via edits)
         LoadBeams();       // placed beam blocks restore their name/owner entities (the blocks come back via edits)
+        LoadCrystalNet();  // #2046: conduits + devices rebuild their networks from their rows
 
         MarkBodyVisited(locationId); // #1856: resolves a station world's `station:` id to its body, so stations chart too
 
@@ -1058,6 +1059,7 @@ public sealed partial class GameServer
         SendBeacons(session);
         SendMarkers(session); // the new body's markers (#1217) — the old world's set is stale now
         SendBeams(session); // placed beam blocks (teleporter pads) on this body
+        SendCrystalNet(session); // #2046: the Crystal Net lists of this world
         SendBases(session); // player-founded bases on this body (Grundstein markers)
         BroadcastLandingPads(session); // the arrival claimed a pad — everyone's map must show it (#1020)
         SendContainers(session);
@@ -1729,6 +1731,7 @@ public sealed partial class GameServer
             Guard("TickStationStaffing", deltaSeconds, TickStationStaffing); // #1487: crew only staffs posts in sealed rooms
             Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
             Guard("TickDoors", deltaSeconds, TickDoors);
+            Guard("TickCrystalNet", deltaSeconds, TickCrystalNet); // #2046: the Crystal Net's logic + sensor beats
             Guard("TickDropPackets", deltaSeconds, TickDropPackets); // #853: ground packets flow back into whoever walks over them
             Guard("TickCompanionPayoff", TickCompanionPayoff); // #1210: companions growl at hostiles, stall robbers, drop produce (1 Hz)
             Guard("TickCompanionScouting", TickCompanionScouting); // #1225: a deeply bonded companion shares a landmark now and then
@@ -2496,6 +2499,7 @@ public sealed partial class GameServer
         SendBeacons(session);
         SendMarkers(session);
         SendBeams(session);
+        SendCrystalNet(session); // #2046: the Crystal Net lists of this world
         SendBases(session);
         SendSpeeders(session);
     }
@@ -3641,6 +3645,7 @@ public sealed partial class GameServer
             case SetBeaconLabelIntent beacon: HandleSetBeaconLabel(session, beacon); break;
             case SetBeamNameIntent beamName: HandleSetBeamName(session, beamName); break;
             case BeamTeleportIntent beamJump: HandleBeamTeleport(session, beamJump); break;
+            case SetCrystalDeviceIntent crystal: HandleSetCrystalDevice(session, crystal); break; // #2046: toggle / press / configure a device
             case SetBaseNameIntent baseName: HandleSetBaseName(session, baseName); break;
             case SetStationNameIntent stationName: HandleSetStationName(session, stationName); break;
             case RequestLandingPadsIntent reqPads: HandleRequestLandingPads(session, reqPads); break;
@@ -3978,6 +3983,7 @@ public sealed partial class GameServer
         SettleAchievements(session);
         SendBeacons(session);
         SendBeams(session); // placed beam blocks (teleporter pads) on the join world
+        SendCrystalNet(session); // #2046: the Crystal Net lists of this world
         SendBases(session); // player-founded bases on the join world (Grundstein markers)
         SendAllianceList(session); // the player's alliance roster (shared station/base access + Funk tab)
         SendCrewList(session);     // crew roster + open invites (#1216)
@@ -4717,6 +4723,12 @@ public sealed partial class GameServer
         => _content.GetItem("toxic_" + item) != null ? "toxic_" + item : item;
 
     private void BreakBlockAt(PlayerSession session, Vector3i pos, BlockDefinition def, MaterialPool pool)
+        => BreakBlockCore(session, session.State.PlayerId, pos, def, pool, null);
+
+    /// <summary>The break itself, with or without a player: a machine (#2055: the auto-drill) mines through the same
+    /// path — drops composed the same way, the same wakes and hooks — but banks the yield through <paramref name="bank"/>
+    /// and skips the player-only hooks (VEGA, missions, the bed partner).</summary>
+    private void BreakBlockCore(PlayerSession? session, string ownerId, Vector3i pos, BlockDefinition def, MaterialPool? pool, System.Action<string, int>? bank)
     {
         var current = _world.GetBlock(pos);
         var (dropTint, dropGlow) = _world.GetModifier(pos); // read the dye/glow BEFORE clearing, to recover it into the drop
@@ -4773,12 +4785,13 @@ public sealed partial class GameServer
 
         // Attribution (issue #490): removing a block is an edit like any other, and it is the one that grief
         // reports are actually about ("someone tore my house down") — so the remover is recorded as the owner.
-        _world.SetBlock(pos, BlockId.Air, owner: session.State.PlayerId);
+        _world.SetBlock(pos, BlockId.Air, owner: ownerId);
         _miningProgress.Remove(pos);
+        OnCrystalBlockRemoved(pos, def); // #2046: a mined conduit or device leaves the Crystal Net
 
         if (IsContainerBlock(def.Key))
         {
-            RemoveCrateContainer(pos, pool); // mining a crate/wood box returns its stored contents (Task 5 Stage 3b)
+            if (pool is not null) { RemoveCrateContainer(pos, pool); } // mining a crate/wood box returns its stored contents (Task 5 Stage 3b)
         }
         else if (def.Key == "radio_beacon")
         {
@@ -4808,7 +4821,7 @@ public sealed partial class GameServer
         int bloomBonus = floraHarvest ? WeatherHarvestBonus() : 0;
         foreach (var drop in yield.Take(fixedDrops))
         {
-            pool.Add(drop.Item, drop.Count + bloomBonus);
+            if (pool is not null) { pool.Add(drop.Item, drop.Count + bloomBonus); } else { bank?.Invoke(drop.Item, drop.Count + bloomBonus); }
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
@@ -4817,7 +4830,7 @@ public sealed partial class GameServer
         WriteBackStationCell(pos, BlockId.Air);
         if (def.Key == BedBlock)
         {
-            ClearBedPartner(session, pos, current, dropDescriptor); // #1846: a two-cell bed falls as one piece
+            if (session is not null) { ClearBedPartner(session, pos, current, dropDescriptor); } // #1846: a two-cell bed falls as one piece
         }
 
         if (IsSapling(current.Value))
@@ -4837,6 +4850,11 @@ public sealed partial class GameServer
         }
 
         OnSupportRemoved(pos); // #1319: a granular block above a mined cell settles down
+
+        if (session is null)
+        {
+            return; // a machine's break: no VEGA, no mission progress, no flowerling grudge
+        }
 
         OnBlockMined(session, def.Key);
         ShipAiOnMine(session); // VEGA onboarding: the "mine a few blocks" stage counts every break
@@ -5406,6 +5424,7 @@ public sealed partial class GameServer
             OnBasePostChanged(session, pos, placed: true); // #1865: a post at home is staffed by a resident
         }
 
+        OnCrystalBlockPlaced(session, pos, blockDef, place.Label, place.Yaw); // #2046: a conduit or device joins the Crystal Net
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow, Shape = placeShape });
         NudgeCreatureBodyChecks(pos); // #1357: an animal the block landed in steps aside on its next tick
         if (IsFluid(blockDef.NumericId.Value))

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
@@ -80,7 +81,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Fill any cue that has no bundled recording with a code-synthesized version, so the whole
             // game is audible even with no recorded assets (recordings, when present, take priority).
-            foreach (var id in ProceduralAudio.KnownIds)
+            foreach (var id in ProceduralAudio.KnownIds.Concat(ProceduralAudio.CrystalIds).Concat(ProceduralAudio.NoteIds))
             {
                 if (!_clips.ContainsKey(id))
                 {
@@ -747,6 +748,99 @@ namespace BlocksBeyondTheStars.Client
             {
                 _src.PlayOneShot(clip, Mathf.Clamp01(vol * SfxVol()));
             }
+        }
+
+
+        // --- Crystal Net device sounds (#2052) ---
+
+        private readonly Dictionary<int, AudioSource> _fxLoops = new Dictionary<int, AudioSource>();
+
+        /// <summary>A device plays a sound at a cell: a one-shot through the pooled emitters, or a loop that keeps
+        /// playing until its stop arrives (nothing is re-sent per beat). Alarm sirens honour the mute setting —
+        /// the siren still blinks, only the wail goes quiet.</summary>
+        public void Fx(BlocksBeyondTheStars.Networking.Messages.SoundFx m, Vector3 pos)
+        {
+            if (m == null || string.IsNullOrEmpty(m.SoundId))
+            {
+                return;
+            }
+
+            if (m.Stop)
+            {
+                StopFxLoop(m.SourceId);
+                return;
+            }
+
+            bool alarm = m.SoundId.StartsWith("alarm_siren", System.StringComparison.Ordinal);
+            if (!m.Loop)
+            {
+                At(m.SoundId, pos, m.Pitch <= 0f ? 1f : m.Pitch, alarm ? 0.9f : 0.8f);
+                return;
+            }
+
+            if (!_clips.TryGetValue(m.SoundId, out var clip) || clip == null)
+            {
+                return;
+            }
+
+            StopFxLoop(m.SourceId);
+            var go = new GameObject("fx_loop_" + m.SourceId);
+            go.transform.SetParent(transform, false);
+            go.transform.position = pos;
+            var src = go.AddComponent<AudioSource>();
+            src.playOnAwake = false;
+            src.clip = clip;
+            src.loop = true;
+            src.spatialBlend = 1f;
+            src.minDistance = 6f;
+            src.maxDistance = alarm ? 48f : 24f;
+            src.rolloffMode = AudioRolloffMode.Linear;
+            src.pitch = m.Pitch <= 0f ? 1f : m.Pitch;
+            src.volume = Mathf.Clamp01(0.8f * SfxVol());
+            src.mute = alarm && (Settings?.MuteAlarms ?? false);
+            src.Play();
+            _fxLoops[m.SourceId] = src;
+        }
+
+        private void StopFxLoop(int sourceId)
+        {
+            if (_fxLoops.TryGetValue(sourceId, out var old))
+            {
+                _fxLoops.Remove(sourceId);
+                if (old != null)
+                {
+                    old.Stop();
+                    Destroy(old.gameObject);
+                }
+            }
+        }
+
+        /// <summary>Settings → mute alarms flipped: running sirens follow at once.</summary>
+        public void ApplyAlarmMute()
+        {
+            bool mute = (Settings?.MuteAlarms ?? false);
+            foreach (var kv in _fxLoops)
+            {
+                if (kv.Value != null && kv.Value.clip != null && kv.Value.clip.name.StartsWith("alarm_siren", System.StringComparison.Ordinal))
+                {
+                    kv.Value.mute = mute;
+                }
+            }
+        }
+
+        /// <summary>Every device loop stops (a world change, a disconnect).</summary>
+        public void StopAllFxLoops()
+        {
+            foreach (var kv in _fxLoops)
+            {
+                if (kv.Value != null)
+                {
+                    kv.Value.Stop();
+                    Destroy(kv.Value.gameObject);
+                }
+            }
+
+            _fxLoops.Clear();
         }
 
         private float SfxVol()
