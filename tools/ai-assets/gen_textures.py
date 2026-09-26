@@ -155,6 +155,8 @@ TEXTURES = [
     ("door_energy", "a sci-fi doorway, a dark metal frame filled with a softly glowing translucent blue energy field with faint horizontal shimmer lines, front view"),
     ("asteroid_rock", "a rough grey pitted space asteroid rock surface, cratered stony texture with mineral flecks, seamless"),
     ("radio_beacon", "a sci-fi radio beacon transmitter tower, a slim metal pole on a base with a glowing cyan antenna ring and blinking status light, front view"),
+    # #2002 the thumper (2026-09-26): its own tile at last — it shipped as a copy of the radio beacon's.
+    ("thumper", "a sci-fi sand thumper machine, a squat dark metal piston rig with a heavy hammer head on a wide riveted base plate, orange warning stripes and a small amber status light, front view"),
     ("base_core", "a sci-fi base foundation cornerstone block, a carved grey stone slab with a glowing teal-cyan claim emblem and faint engraved energy lines, top-down"),
     ("beam_block", "a sci-fi teleporter pad, a dark metal floor plate with a glowing cyan hexagonal grid, concentric light rings and small status lights around the rim, top-down"),
     # Materialvielfalt — dead-end fixes + new tiers + metal storage blocks.

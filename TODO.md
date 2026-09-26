@@ -248,9 +248,11 @@ rare**, sandworms **only on sand-sea worlds**. Everything is **terrain generatio
   `thumper_thump` — six ElevenLabs one-shots wired in `CreatureView.PlayWorldFx` (the thunder and rumble-call
   placeholders are gone). **✅ Sand-sea VEGA line** `vega.hint.world.sand_sea` on the first landing (Marcel's pick from
   the spawn analysis: the worm is there from the first minute — `GiantNaturalSpawnTests` — but stays hidden until you
-  WALK on sea sand within ~36–58 blocks; the line says so). **⚠ Maintainer:** the thumper's icon and block texture (a
-  copy of the radio beacon tile for now). **⚠ Playtest:** a flat moon with a colossus (or `/giant colossus`), a sand-sea
-  world with its worm, the thumper; the flowerling's face and temper.
+  WALK on sea sand within ~36–58 blocks; the line says so). **✅ The thumper's own look (2026-09-26):** a block tile
+  (`gen_textures.py --only thumper` → `thumper.bytes`) and an inventory icon (`gen_item_icons.py --only thumper` →
+  `item_thumper.png`) — a squat piston rig with a hammer head, orange stripes and an amber light; it no longer borrows
+  the radio beacon's tile. **⚠ Playtest:** a flat moon with a colossus (or `/giant colossus`), a sand-sea world with
+  its worm, the thumper; the flowerling's face and temper.
 - **Follow-up (#2003):** the club's worksheets — an authored sand-sea planet, colossus and sandworm — become data
   entries (every rolled trait is already a plain species field).
 
