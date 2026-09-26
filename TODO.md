@@ -248,8 +248,8 @@ factory recipes with their workshop / refinery chains; `factory_polymer` was the
   neither fails the test. Exempt: the six pre-#1200 outliers `factory_iron_plate`, `factory_metal_panel`,
   `factory_steel`, `factory_cable`, `factory_energy_cell`, `factory_circuit_board` (each waits for its own review —
   the list only gets shorter), and `factory_glass` / `factory_power_cell` (no comparable chain).
-- **Open (#575):** the reference chains mix smelt stations — `factory_magnet` against `refine_iron`, bronze and brass
-  against the workshop `copper_wire`. Against `refine_copper` (1 ore → 3 wire) their copper side input is 3×.
+- **✅ Copper reference chain (#2016):** bronze and brass now use `refine_copper` in the guard, and their factory
+  recipes use 1 copper ore (was 2) per 3 alloy: 1.5× copper while tin / zinc stay at 1×.
 - **Credits:** @Jay-Hu911 in the README contributors list and the in-game Credits (`ui.credits.body`, 14 languages).
 
 ### 🐛 Giants — a procedural colossus and sandworm on a new sand-sea planet class; the flowerling's face and temper (#2004: #1997–#2002, 2026-09-24, branch feat/giants)
