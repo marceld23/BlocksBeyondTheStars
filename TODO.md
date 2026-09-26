@@ -24,6 +24,49 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ☣️ Toxic worlds — a rare exotic planet class whose worlds roll corrosive air, toxic water, rare cave life; ores always shallow (#2024: #2025–#2032, 2026-09-26, branch feat/toxic-worlds, terrain generation 13)
+
+Marcel's request: a planet CLASS (not one special planet) with very poor living conditions — unbreathable air that on
+some worlds also burns, water that is usually toxic, no plants — but rare materials near the surface; each world rolls
+its own traits. His decisions: exotic; air corrosive on 40 %, water toxic on 80 %, cave animals / cave plants / surface
+ore clumps each rare (18 %), ores ALWAYS shallow; the class rare (weight 2 ≈ every second galaxy); corrosive air hurts
+slowly and an improved suit protects partly; no real mine structure; settlements only ruined, rare, nobody living there;
+moons allowed; fix the toxic-water bug.
+
+- **✅ The class + `WorldTraits` (#2025).** `WorldDescription.ToxicWorldsGeneration = 13` (`CurrentTerrainGeneration`
+  12 → 13). `toxic_world` in `planets.json` (min generation 13, exotic, weight 2): ash / sulphur stone / mud / scree
+  badlands, no surface flora / trees / fauna, oxygen extractability 0.1, acid rain ×3, `surfaceDepth` 2, every vein from
+  ≤ 8 blocks down with the tier-2 veins first. `WorldTraits.For(planet, rosterSeed, generation)` — one roll per trait
+  (`CorrosiveAir`, `ToxicWater`, `CaveFauna`, `OreOutcrops`), chance 0 never / 1 always / between rolled on gen 13 only.
+  New `PlanetType` fields with no-op defaults: `CorrosiveAirChance`, `AirDamagePerSecond`, `WaterDamageChance` (1.0),
+  `CaveFaunaChance`, `CaveFloraChance` (null = 0.5), `OreOutcropChance`, `SettlementsBias` (1.0), `RuinedSettlementsOnly`.
+  Measured: one weight point of the gated pool ≈ 0.24 worlds per galaxy, 61 % of gated worlds are moons.
+- **✅ Corrosive air (#2026, `GameServerToxicWorlds.cs`).** Outdoors on a world that rolled it: `AirDamagePerSecond` 0.2
+  (≈ 8 min from full) × hazard tier × (1 − `CorrosionResistance`); the vitals tick's life support (ship, station, base
+  zone, sealed room) or water keeps it out; off in EVA, above the atmosphere, Creative, hazards Off. New item stat
+  `CorrosionResistance` (best piece, cap 0.8): suit liners 0.25 / 0.45 / 0.65; their descriptions say so (14 languages).
+  Death line `srv.death.corrosive_air`.
+- **✅ Toxic water per world (#2027).** `TickToxicWater` reads the trait (Titas: chance 1.0, unchanged); an "auto" water
+  world whose water is toxic picks from a poison palette (`FluidTints.ForWorld(…, toxicWater)`: poison green, sulphur,
+  rust, murky green).
+- **✅ Bug #2028.** Toxic water hurt in Creative mode and with environmental hazards Off (only God mode was spared) — it
+  now uses `TemperatureHazardsEnabledFor` + `HazardSeverityFactor` like every other hazard.
+- **✅ Rare cave life (#2029).** The trait gives an otherwise empty roster 1–2 `forcedHabitat: Cave` species (own
+  sub-seed) and `WorldCreatureCap` a base of 4; `BarrenCavesGrow` reads `CaveFloraChance ?? 0.5`.
+- **✅ Ore outcrops (#2030, `WorldGenerator.ToxicWorldsGen13.cs`).** `WonderProfile.OreOutcrops`; the `ore-outcrop` prop row
+  (appended, 0.0009 per column) stamps 1–4 cell clumps of the type's rare-tier veins.
+- **✅ Structures (#2031).** `ruinsBias` 0.62 (≈ 11 %), `factoriesBias` 0.78 (≈ 10 %), `SettlementsBias` 0.1 (≈ 14 %);
+  `RuinedSettlementsOnly` ruins every settlement (template path skipped, instance stream kept) → no NPCs; no bandit camps.
+- **✅ VEGA + music (#2032).** On landing, once per WORLD: `vega.hint.toxic_scan_{both,air,water,calm}` (once-flag
+  `toxic:<location>:<scan>`); `MusicLibrary`: `toxic_world` → `planet_toxic`. Codex "Air, Weather & Hazards" (EN + DE),
+  USER_MANUAL (Survival), WORLD_GENERATION §27.
+- Tests: `ToxicWorldTests` (content, galaxy roll gen 12 vs 13 + exotic Off + moons, trait shares + determinism, Titas at
+  gen 8, cave fauna / flora shares, shallow tier-2 ore + no surface flora, outcrops only when rolled, poison palette,
+  liners) and `ToxicWorldServerTests` (air damage + ship + liners + Creative, a world that rolled nothing, toxic water per
+  world, Titas in Creative / hazards Off, ruined settlements without NPCs or bandit camps, the per-world scan).
+- ⚠ Open: Marcel's playtest on a FRESH generation-13 world — find a toxic world (star map; about one in every other
+  galaxy, often a moon), the haze and the poison water, the corrosive air and the liners, the shallow ore and the outcrops.
+
 ### 🐑 Begging herds — big herds, animals that beg for the food in your hand, a Feed action (Q) (#2018: #2019 #2020 #2021 #2022, 2026-09-26, branch feat/food-begging-herds, terrain generation 12)
 
 Marcel's request: a new behaviour for peaceful land herd animals — when a player nearby holds food they come hopping

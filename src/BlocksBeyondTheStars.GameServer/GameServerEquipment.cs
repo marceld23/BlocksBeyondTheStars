@@ -32,6 +32,10 @@ public sealed partial class GameServer
     private float ThermalInsulation(PlayerState p)
         => SuitEquipment.ThermalInsulation(_content.Items.Values, key => p.Inventory.Has(key, 1));
 
+    /// <summary>Best carried corrosion resistance 0..0.8 (#2026, the suit liners); only the BEST piece counts.</summary>
+    private float CorrosionResistance(PlayerState p)
+        => SuitEquipment.CorrosionResistance(_content.Items.Values, key => p.Inventory.Has(key, 1));
+
     /// <summary>Best scanner knowledge multiplier from carried scanners (1 = no bonus).</summary>
     private float ScanMultiplier(PlayerState p)
         => SuitEquipment.ScanMultiplier(_content.Items.Values, key => p.Inventory.Has(key, 1));

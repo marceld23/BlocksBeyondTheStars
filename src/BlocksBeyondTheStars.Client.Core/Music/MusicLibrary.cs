@@ -211,7 +211,8 @@ namespace BlocksBeyondTheStars.Client.Music
                 case "ashen":
                 case "volcanic": return PlanetLava;
                 case "fungal":
-                case "corrupted": return PlanetToxic;
+                case "corrupted":
+                case "toxic_world": return PlanetToxic; // #2032: the toxic-world class
                 case "ocean": return PlanetOcean;
                 case "swamp":
                 case "jungle":

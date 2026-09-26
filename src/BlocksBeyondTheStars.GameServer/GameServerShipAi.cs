@@ -435,9 +435,12 @@ public sealed partial class GameServer
         SendVegaLine(session, "vega.hint." + HintLineId(hintId), 1, arg);
     }
 
-    /// <summary>Per-world-type flavour hints share one line per TYPE but a once-flag per type key.</summary>
+    /// <summary>Per-world-type flavour hints share one line per TYPE but a once-flag per type key; a toxic world's scan
+    /// (#2032) shares one line per hazard combination but a once-flag per WORLD ("toxic:&lt;location&gt;:&lt;scan&gt;").</summary>
     private static string HintLineId(string hintId)
-        => hintId.StartsWith("world:", System.StringComparison.Ordinal) ? "world." + hintId["world:".Length..] : hintId;
+        => hintId.StartsWith("world:", System.StringComparison.Ordinal) ? "world." + hintId["world:".Length..]
+            : hintId.StartsWith(ToxicScanHintPrefix, System.StringComparison.Ordinal) ? "toxic_scan_" + hintId[(hintId.LastIndexOf(':') + 1)..]
+            : hintId;
 
     /// <summary>First-visit flavour for notable world types (called after a landing).</summary>
     private void ShipAiWorldFlavour(PlayerSession session)
@@ -461,6 +464,8 @@ public sealed partial class GameServer
         {
             ShipAiHintOnce(session, "world:" + id);
         }
+
+        ShipAiToxicScan(session); // #2032: a toxic world reports ITS rolled hazards, once per world
 
         // Parked on the sea floor (#1455): the shaft is dry, the walls are not to be mined, and the way off
         // the planet is E at the cockpit — the one landing a first-time player cannot read on their own.

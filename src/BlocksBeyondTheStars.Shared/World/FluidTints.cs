@@ -41,12 +41,23 @@ public static class FluidTints
         (0xC94A4A, 4),  // red
     };
 
+    /// <summary>The water of a toxic world whose water is poisonous (#2027): sickly yellow-green, sulphur and rust —
+    /// never the inviting blue, so the danger is visible before the first step in.</summary>
+    private static readonly (int Rgb, int Weight)[] PoisonPalette =
+    {
+        (0x8FB82E, 45), // poison green
+        (0xB8C23A, 30), // sulphur yellow-green
+        (0x9C6B2E, 15), // rust brown
+        (0x7A9A4A, 10), // murky green
+    };
+
     /// <summary>The water colour and mode of one world. Deterministic from the seed and the body, like every
     /// other per-world look; the same historical location hash as <see cref="FloraTints.ForWorld"/>.
     /// <paramref name="terrainGeneration"/> is the SAVE's generation: the colour is computed at runtime, not baked
     /// into the world, so without this gate an old save would change colour the day its type opted in. Below
-    /// <see cref="WorldDescription.AuthoredContentGeneration"/> every world keeps the classic blue.</summary>
-    public static (int Rgb, Mode Mode) ForWorld(long worldSeed, string? locationKey, PlanetType? planet, int terrainGeneration)
+    /// <see cref="WorldDescription.AuthoredContentGeneration"/> every world keeps the classic blue. <paramref name="toxicWater"/>
+    /// (#2027, the world's rolled trait): an "auto" world then picks from the poison palette; fixed tints stay fixed.</summary>
+    public static (int Rgb, Mode Mode) ForWorld(long worldSeed, string? locationKey, PlanetType? planet, int terrainGeneration, bool toxicWater = false)
     {
         string spec = planet?.WaterTint?.Trim() ?? string.Empty;
         if (spec.Length == 0 || terrainGeneration < WorldDescription.AuthoredContentGeneration)
@@ -64,7 +75,8 @@ public static class FluidTints
             return (fixedRgb & 0xFFFFFF, Mode.Tint);
         }
 
-        // "auto" (and any unknown word): the seeded palette pick.
+        // "auto" (and any unknown word): the seeded palette pick — from the poison palette when the water is toxic (#2027).
+        var palette = toxicWater ? PoisonPalette : AutoPalette;
         int h = 17;
         foreach (char c in locationKey ?? string.Empty)
         {
@@ -73,28 +85,28 @@ public static class FluidTints
 
         uint mix = unchecked((uint)(h ^ (int)worldSeed ^ 0x7A7E12));
         int total = 0;
-        foreach (var (_, w) in AutoPalette)
+        foreach (var (_, w) in palette)
         {
             total += w;
         }
 
         int roll = (int)(mix % (uint)total);
         int i = 0;
-        for (; i < AutoPalette.Length; i++)
+        for (; i < palette.Length; i++)
         {
-            roll -= AutoPalette[i].Weight;
+            roll -= palette[i].Weight;
             if (roll < 0)
             {
                 break;
             }
         }
 
-        if (i >= AutoPalette.Length)
+        if (i >= palette.Length)
         {
-            i = AutoPalette.Length - 1;
+            i = palette.Length - 1;
         }
 
-        int anchor = AutoPalette[i].Rgb;
+        int anchor = palette[i].Rgb;
         int r = (anchor >> 16) & 0xFF, g = (anchor >> 8) & 0xFF, b = anchor & 0xFF;
         int Jit(int shift) => (int)((mix >> shift) & 0x1F) - 16; // -16..+15
         int rgb = (Clamp8(r + Jit(3)) << 16) | (Clamp8(g + Jit(8)) << 8) | Clamp8(b + Jit(13));

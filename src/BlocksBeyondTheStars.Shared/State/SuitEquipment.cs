@@ -73,6 +73,25 @@ public static class SuitEquipment
         return Math.Min(MaxThermalInsulation, best);
     }
 
+    /// <summary>Hard ceiling for corrosion resistance — corrosive air always bites a little (#2026).</summary>
+    public const float MaxCorrosionResistance = 0.8f;
+
+    /// <summary>Best carried corrosion resistance 0..0.8 (#2026): the fraction of a toxic world's corrosive-air damage the
+    /// suit keeps out. Tiered like the thermal liners that carry it — only the BEST piece counts.</summary>
+    public static float CorrosionResistance(IEnumerable<ItemDefinition> items, Func<string, bool> carried)
+    {
+        float best = 0f;
+        foreach (var item in items)
+        {
+            if (item.CorrosionResistance > best && carried(item.Key))
+            {
+                best = item.CorrosionResistance;
+            }
+        }
+
+        return Math.Min(MaxCorrosionResistance, best);
+    }
+
     /// <summary>Best scanner knowledge multiplier from carried scanners (1 = no bonus).</summary>
     public static float ScanMultiplier(IEnumerable<ItemDefinition> items, Func<string, bool> carried)
     {
@@ -93,7 +112,7 @@ public static class SuitEquipment
     /// Suit tab list exactly these.</summary>
     public static bool IsSuitGear(ItemDefinition def)
     {
-        if (def.ArmorResistance > 0f || def.OxygenBonus > 0f || def.ThermalInsulation > 0f)
+        if (def.ArmorResistance > 0f || def.OxygenBonus > 0f || def.ThermalInsulation > 0f || def.CorrosionResistance > 0f)
         {
             return true;
         }

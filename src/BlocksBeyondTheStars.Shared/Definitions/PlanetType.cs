@@ -383,4 +383,35 @@ public sealed class PlanetType
 
     /// <summary>How deep the sand of the sea reaches (blocks); the cave shield covers the same band.</summary>
     public int SandSeaDepth { get; set; } = 24;
+
+    // --- Generation 13 (2026-09, #2024): the toxic-world class. Its worlds ROLL traits (WorldTraits): a chance of 0 is
+    // never, 1 is always (no roll, any generation), anything between rolls per world on generation-13 worlds only. ---
+
+    /// <summary>Chance that a world of this type has CORROSIVE air (#2026): outdoors without life support it eats
+    /// <see cref="AirDamagePerSecond"/> of health. 0 = never (every classic type).</summary>
+    public double CorrosiveAirChance { get; set; }
+
+    /// <summary>Health per second corrosive air takes outdoors (#2026, toxic worlds 0.2 ≈ 8 minutes from full), before the
+    /// hazard tier and the suit's corrosion resistance.</summary>
+    public double AirDamagePerSecond { get; set; }
+
+    /// <summary>Chance that a world's water is toxic when <see cref="WaterDamagePerSecond"/> is set (#2027). 1 = every world of
+    /// the type (Titas — the default, no roll), toxic worlds 0.8.</summary>
+    public double WaterDamageChance { get; set; } = 1.0;
+
+    /// <summary>Chance that a world with no procedural fauna keeps a few CAVE species (#2029, toxic worlds 0.18). 0 = never.</summary>
+    public double CaveFaunaChance { get; set; }
+
+    /// <summary>Chance that a barren world (no surface flora) grows plants in its caves (#2029, toxic worlds 0.18); null =
+    /// the generation-11 default for every barren type (<c>FloraGenerator.BarrenCaveFloraChance</c>, 0.5).</summary>
+    public double? CaveFloraChance { get; set; }
+
+    /// <summary>Chance that a world shows clumps of its rare-tier ores on the surface (#2030, toxic worlds 0.18). 0 = never.</summary>
+    public double OreOutcropChance { get; set; }
+
+    /// <summary>Multiplies the expected settlement count (#2031, toxic worlds 0.1); 1 = the classic hospitality model.</summary>
+    public double SettlementsBias { get; set; } = 1.0;
+
+    /// <summary>Nobody lives here (#2031): every settlement of such a world is a ruin, and no bandit camp stamps.</summary>
+    public bool RuinedSettlementsOnly { get; set; }
 }

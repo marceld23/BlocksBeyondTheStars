@@ -127,6 +127,7 @@ public sealed class MusicLibraryTests
     [InlineData("salt_flats", MusicLibrary.PlanetDesert)]
     [InlineData("volcanic", MusicLibrary.PlanetLava)]
     [InlineData("fungal", MusicLibrary.PlanetToxic)]
+    [InlineData("toxic_world", MusicLibrary.PlanetToxic)] // #2032: the toxic-world class
     [InlineData("ocean", MusicLibrary.PlanetOcean)]
     [InlineData("jungle", MusicLibrary.PlanetVerdant)]
     [InlineData("crystal_living", MusicLibrary.PlanetCrystal)]

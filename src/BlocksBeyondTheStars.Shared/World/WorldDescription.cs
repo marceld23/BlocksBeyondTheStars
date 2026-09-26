@@ -181,8 +181,15 @@ public sealed class WorldDescription
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
     /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora,
-    /// #2018 big herds + the begging trait).</summary>
-    public const int CurrentTerrainGeneration = 12;
+    /// #2018 big herds + the begging trait, #2024 the toxic-world class).</summary>
+    public const int CurrentTerrainGeneration = 13;
+
+    /// <summary>The generation of the toxic worlds (#2024, 2026-09): the <c>toxic_world</c> planet class, whose worlds ROLL
+    /// their traits (corrosive air, toxic water, cave fauna, rare-ore outcrops — <c>WorldTraits</c>). A data-only planet
+    /// type gated on this generation, so no older galaxy ever rolls it; every trait with a real chance (between 0 and 1)
+    /// rolls only on a world of this generation, and every new field defaults to its classic no-op, so an older world
+    /// (Titas included) stays bit for bit what it was.</summary>
+    public const int ToxicWorldsGeneration = 13;
 
     /// <summary>The generation of the big herds (#2018, 2026-09): a peaceful standard-plan Land species may roll a herd of 6–12
     /// instead of the classic 2–3, and a passive one may roll the begging trait (<see cref="Definitions.CreatureSpecies.BegsForFood"/>).

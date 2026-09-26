@@ -124,6 +124,9 @@ public sealed partial class WorldGenerator
         new("pc-heap", 0x6A3E2, 167, 0.008, PropMaterial.Boulder, StampPcHeap, PropGaming, "gaming_pc", "gaming_keyboard"),
         // Marcel's playtest 2026-09-11 ("Strukturen, die aussehen wie Gaming-PCs, und das oft"): house-sized PC towers.
         new("pc-tower", 0x6A3E3, 173, 0.0025, PropMaterial.Boulder, StampPcTower, PropGaming, "gaming_pc", "gaming_monitor"),
+        // Terrain generation 13 (#2030): the toxic worlds that rolled outcrops show their rare ores on the surface. The key
+        // is the row's guard only — the shape picks one of the type's rare-tier veins per clump.
+        new("ore-outcrop", 0x0E2C1, 179, 0.0009, PropMaterial.Boulder, StampOreOutcrop, PropOreOutcrops, "titanium_ore"),
     };
 
     /// <summary>The prop rows active on this world (tests): the classic rows whose material exists here, plus

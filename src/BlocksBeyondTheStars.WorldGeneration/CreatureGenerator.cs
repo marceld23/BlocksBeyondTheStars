@@ -58,6 +58,20 @@ public static class CreatureGenerator
                 }
             }
         }
+        else if (!planet.IsAirless && allowCave && WorldTraits.For(planet, worldSeed, terrainGeneration).CaveFauna)
+        {
+            // Generation 13 (#2029): a world with no procedural fauna (the toxic worlds) may still keep one or two CAVE
+            // species — life that fled underground. Own sub-seed, so no other roster ever moves.
+            long caveSeed = unchecked(planetSeed ^ WorldGenerator.StableHash("cave-fauna"));
+            int caveCount = 1 + (int)((ulong)caveSeed % 2UL);
+            for (int i = 0; i < caveCount; i++)
+            {
+                long s = unchecked(caveSeed ^ ((long)i * golden));
+                var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+                list.Add(MakeSpecies(i, rng, allowWater: false, allowLava: false, allowCave: true, biomeCount,
+                    forcedHabitat: CreatureHabitat.Cave, speciesSeed: s, terrainGeneration));
+            }
+        }
 
         // Airless bodies (asteroids / airless moons+planets) stay lifeless whatever the data says; otherwise the
         // authored species join at the tail on a generation-5 world. Their sub-seed is salted with the key, not
