@@ -20,6 +20,10 @@ public sealed class EconomyBalanceTests
     private static readonly string[] DeepTier =
         { "gold_ore", "silver_ore", "cobalt_ore", "uranium_ore", "platinum_ore", "tungsten_ore", "neodymium_ore" };
 
+    // The deliberate exception (#2024, Marcel 2026-09-26): the toxic worlds keep EVERY vein shallow — the reward for
+    // braving corrosive air and toxic water; the tier-2 drill still gates the rare ones. ToxicWorldTests pins their ores.
+    private static readonly string[] ShallowTreasureTypes = { "toxic_world" };
+
     [Fact]
     public void DataCache_DropsEasedFragmentYield()
     {
@@ -56,7 +60,7 @@ public sealed class EconomyBalanceTests
             {
                 if (SurfaceTier.Contains(ore.Block))
                     Assert.True(ore.MinDepth <= 8, $"{planet.Key}/{ore.Block}: surface-tier ore too deep ({ore.MinDepth})");
-                if (DeepTier.Contains(ore.Block))
+                if (DeepTier.Contains(ore.Block) && !ShallowTreasureTypes.Contains(planet.Key))
                     Assert.True(ore.MinDepth >= 16, $"{planet.Key}/{ore.Block}: deep-tier ore too shallow ({ore.MinDepth})");
             }
         }
