@@ -1371,8 +1371,9 @@ separate unlock; admins can still disable it through server world rules.
 - **A sandworm** lives only on **sand-sea worlds** — a planet class (new worlds) where half the surface is a sea of deep
   sand between rock islands, mountains, canyons, lava and water. It hears you through the sand: walking, mining,
   drilling, blasting, a hard landing, a speeder. **Sneaking** (crouching) barely makes a sound, and **rock, a landing pad
-  or a floor you built are silent** — only the sand of the sand sea carries a step. When it comes, the sand ripples and
-  rumbles and VEGA warns you: get onto rock. It breaches in an arc, or rears up as a tower and strikes the spot it heard.
+  or a floor you built are silent** — only the sand of the sand sea carries a step (VEGA tells you so the first time you
+  land on a sand-sea world; the worm is out there from the start, hidden under the dunes until it hears you). When it
+  comes, the sand ripples and rumbles and VEGA warns you: get onto rock. It breaches in an arc, or rears up as a tower and strikes the spot it heard.
   You can only hit it while it is above the sand.
 - **Thumper** (workshop recipe): place it on sand-sea ground and it pounds the ground every two seconds for a minute
   and a half — the worm comes for it and swallows it. Use it to lure the worm away from you or to watch it. On rock

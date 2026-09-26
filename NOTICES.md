@@ -33,7 +33,9 @@ the ship-AI radio chirp `ai_blip` (VEGA companion), the water-body ambient loops
 `algae_tank_craft` (bubbling harvest blub, via `tools/ai-assets/gen_sound.py`), the energy-fence
 ambience `energy_fence_hum` (soft force-field hum loop, same `gen_sound.py`), and the VEGA
 voice chatter `vega_chatter_1..3` (non-verbal vocoder radio babble played while VEGA's lines type
-out, same `gen_sound.py`))
+out, same `gen_sound.py`), and the giants' six one-shots `giant_stomp`, `sandworm_breach`,
+`sandworm_strike`, `sandworm_dive`, `sandworm_rumble`, `thumper_thump` (the colossus footfall, the sandworm's
+breach / strike / dive / approach rumble, the thumper's piston thud — same `gen_sound.py`, 2026-09-26))
 are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/developer/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio

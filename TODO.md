@@ -66,6 +66,10 @@ intact, one VEGA line, the own call at a faster cadence, docs + manual + Codex i
   INPUT_AND_CONTROLLER, USER_MANUAL (controls ×3, fauna, throw-away note), the Codex "Creatures" article (EN + DE).
   Locales EN + DE: `ui.key.feed_creature`, `ui.touch.feed`, `ui.hud.feed`, `ui.scan.behaviour.begs`, `vega.hint.feed_herd`,
   `srv.feed.*`.
+- **✅ Also in this PR — the giants follow-up Marcel asked for mid-way:** a spawn-frequency analysis (colossus ≈ 2.4 % of
+  MOONS and never on a planet — the planet gravity band 0.80–1.60 is above the 0.70 gate; sandworms only on `sand_sea`,
+  ≈ 2.5 % of rolled bodies, none in universes created before generation 9), `GiantNaturalSpawnTests` (the natural
+  sandworm spawn, wrap-aware), the six real giant sounds and the sand-sea VEGA line (see the giants entry below).
 - ⚠ Open: Marcel's playtest on a FRESH generation-12 world ("many" type — about every second roster has a beggar): the
   approach and the two rings, the hops, the fast calls, Q / L3 list / FEED button, the throw, the squabble; the herd of
   twelve against the population.
@@ -240,9 +244,13 @@ rare**, sandworms **only on sand-sea worlds**. Everything is **terrain generatio
   body is drawn inside the terrain, which hides it: **no block ever moves**.
 - **✅ Thumper (#2002).** Workshop recipe; on sand-sea ground it thumps every 2 s for 90 s, the worm comes, rears and
   swallows it (the block goes, no drop). On rock nothing hears it; mining it back stops it.
-- **⚠ Maintainer:** real sounds (stomp, rumble, roar, breach, thump — the thunder and rumble calls are placeholders),
-  the thumper's icon and block texture (a copy of the radio beacon tile for now). **⚠ Playtest:** a flat moon with a
-  colossus (or `/giant colossus`), a sand-sea world with its worm, the thumper; the flowerling's face and temper.
+- **✅ Real sounds (2026-09-26, with #2018):** `giant_stomp`, `sandworm_breach` / `_strike` / `_dive` / `_rumble`,
+  `thumper_thump` — six ElevenLabs one-shots wired in `CreatureView.PlayWorldFx` (the thunder and rumble-call
+  placeholders are gone). **✅ Sand-sea VEGA line** `vega.hint.world.sand_sea` on the first landing (Marcel's pick from
+  the spawn analysis: the worm is there from the first minute — `GiantNaturalSpawnTests` — but stays hidden until you
+  WALK on sea sand within ~36–58 blocks; the line says so). **⚠ Maintainer:** the thumper's icon and block texture (a
+  copy of the radio beacon tile for now). **⚠ Playtest:** a flat moon with a colossus (or `/giant colossus`), a sand-sea
+  world with its worm, the thumper; the flowerling's face and temper.
 - **Follow-up (#2003):** the club's worksheets — an authored sand-sea planet, colossus and sandworm — become data
   entries (every rolled trait is already a plain species field).
 

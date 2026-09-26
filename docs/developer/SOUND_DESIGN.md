@@ -124,6 +124,14 @@ takes ("short warning growl of a friendly alien pet standing guard, protective n
 `NetCreature.Alerting` flip through the species' own timbre (`CreatureVoiceBank.Resolve`, pitch ∝ 1/Size), so a
 tiny pet yips and a titan rumbles off the same file.
 
+**Giants (#1998–#2002, real sounds since 2026-09-26):** six ElevenLabs one-shots played by `CreatureView.PlayWorldFx`
+straight from the server's `WorldFx` kind, positioned at the event, volume falling off with distance like the camera
+shake — `giant_stomp` (the colossus footfall; a sub-bass impact with debris), `sandworm_breach` (sand bursting + the
+roar), `sandworm_strike` (the head coming down), `sandworm_dive` (the sand collapsing into the hole),
+`sandworm_rumble` (the approach, every 1.5 s at the worm's position, scaled by the server's strength) and
+`thumper_thump` (the piston thud every 2 s). Until then the stomp and the strike borrowed the storm's thunder
+one-shots and the breach / rumble the `creature_call_rumble` voice sample.
+
 ## 9. NPCs (humans + aliens) — *ElevenLabs, NON-VERBAL*
 
 No speech. Short vocalisations only: **idle murmur, greet/notice, acknowledge, trade-confirm,

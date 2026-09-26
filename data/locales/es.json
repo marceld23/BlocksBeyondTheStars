@@ -3119,6 +3119,7 @@
   "vega.hint.tameable_near": "Ese animal puede domesticarse. Apunta el traductor y haz lo que pida.",
   "vega.hint.companion_fetch": "Tu compañero acaba de traerte eso. Todo lo que alcance, es tuyo — no hace falta perseguir cada resto.",
   "vega.hint.feed_herd": "Pueden oler lo que llevas. Lánzales un trozo — la tecla Alimentar, Q en el teclado — y míralos pelear por él.",
+  "vega.hint.world.sand_sea": "Un mar de arena. Las dunas transmiten cada paso por docenas de bloques: camina sobre ellas y algo bajo la arena vendrá a ver quién llama. Avanza agachado, o quédate en la roca, si prefieres que no aparezca.",
   "vega.hint.player_near": "{0} está cerca. Reúnanse — pueden comerciar o teletransportarse entre sí con el teletransportador.",
   "vega.hint.asteroid_near": "Asteroides en rango. Rómpelos con el láser de la nave — el rayo tractor atrae los fragmentos.",
   "vega.hint.asteroid_no_tool": "Asteroides — pero no hay nada a bordo que los pueda romper. Un láser de nave o un rompedor de asteroides serviría.",

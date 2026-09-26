@@ -971,7 +971,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     case "thump":
                         Fx?.Dust(at + Vector3.up * 0.3f, 6);
-                        audio?.At("land", at, 0.5f, 0.8f);
+                        audio?.At("thumper_thump", at, 0.55f, 1f); // its own piston thud (2026-09-26; was the landing cue)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 25f) * 0.2f);
                         break;
                     case "stomp":
@@ -981,7 +981,7 @@ namespace BlocksBeyondTheStars.Client
                             Fx?.Dust(at + new Vector3(off.x, 0.3f, off.y), 8);
                         }
 
-                        audio?.At("thunder_2", at, 0.55f, Mathf.Clamp01(fx.Strength));
+                        audio?.At("giant_stomp", at, 0.7f, Mathf.Clamp01(fx.Strength)); // a real footfall (2026-09-26; was a thunder placeholder)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 60f) * 0.9f * fx.Strength);
                         break;
                     case "strike":
@@ -991,20 +991,20 @@ namespace BlocksBeyondTheStars.Client
                             Fx?.Dust(at + new Vector3(off.x, 0.3f, off.y), 8);
                         }
 
-                        audio?.At("thunder_3", at, 0.5f, 1f);
+                        audio?.At("sandworm_strike", at, 0.7f, 1f); // the head coming down (2026-09-26; was a thunder placeholder)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 80f));
                         break;
                     case "breach":
-                        audio?.At("creature_call_rumble", at, 0.5f, 1f);
+                        audio?.At("sandworm_breach", at, 0.7f, 1f); // sand bursting + the roar (was the rumble call)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 140f) * 0.6f);
                         break;
                     case "dive":
                         Fx?.Dust(at + Vector3.up * 0.3f, 16);
-                        audio?.At("thunder_1", at, 0.6f, 0.6f);
+                        audio?.At("sandworm_dive", at, 0.6f, 0.8f); // the sand collapsing into the hole (was a thunder placeholder)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 90f) * 0.35f);
                         break;
                     case "rumble":
-                        audio?.At("creature_call_rumble", at, 0.4f, 0.45f * Mathf.Clamp01(fx.Strength));
+                        audio?.At("sandworm_rumble", at, 0.45f, 0.5f * Mathf.Clamp01(fx.Strength)); // something huge moving under the sand
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 120f) * 0.25f * Mathf.Clamp01(fx.Strength));
                         break;
                 }
