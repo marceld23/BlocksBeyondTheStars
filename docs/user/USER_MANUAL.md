@@ -404,7 +404,8 @@ separate unlock; admins can still disable it through server world rules.
   where a bed does not fit — a narrow cabin, a corridor niche. It counts as a bed: **E** makes it your home
   spawn and resting nearby mends your health. Your **starter ship's cabin** has one; roomier ships (hammerhead,
   corvette, courier, hauler, thunderbolt, deathblock) carry a real two-cell bed instead.
-- **Campfire** (hand-crafted from logs + stone): a contained flame that never spreads. It lights the camp,
+- **Campfire** (hand-crafted from logs + stone): a contained flame that never spreads. It lights the camp
+  (like the lantern, it throws real light onto the ground and walls around it — a forge's hearth glows dimly too),
   counters the cold while you stand near it, and is a **cooking station** — with creature meat in your
   pockets, craft **cooked meat** at the fire (far more filling than raw, and it heals). The flame also does
   the slow jobs better than your hands: char logs to carbon, melt ice to water one-for-one, boil water down
@@ -558,7 +559,9 @@ separate unlock; admins can still disable it through server world rules.
     simply receives the item). *Remove from quick-bar* stows the slot into the first free backpack slot.
   - **Colour** — only for a dyeable building material: the familiar swatch palette recolours the **whole
     stack** in place. **Dye** is free; **Glow** turns the stack into coloured light sources and costs **one
-    crystal per block** (the button shows the cost, and the panel refuses if you're short). **Glass and the
+    crystal per block** (the button shows the cost, and the panel refuses if you're short). A glowing block
+    **shines in its light colour itself** — it blooms like a lamp and stays visible at night and from afar — and
+    lights everything around it in that colour (glowing glass takes the colour but stays a frosted pane). **Glass and the
     light fixtures dye too**: dyed glass stays frosted, just coloured (the blueprint-gated **Clear Glass** — two glass + one polymer at the workshop — is the see-through exception for canopies and domes, and dyes too); a **dyed lamp casts light in its dye
     colour** (no crystal needed — it already is a lamp); a dyed torch burns with a coloured flame. Doors
     can't be dyed (they're moving fittings, not blocks). Under **My
@@ -885,7 +888,8 @@ separate unlock; admins can still disable it through server world rules.
   every beam block you can reach — your own and any **allied** player's — **on the same world**, with each pad's
   name, coordinates and distance; pick one to **beam** there.
 - Beaming costs **6 suit energy** with a **6 s cooldown**. Each pad shows its name on the planet map (key **M**)
-  and as a floating label in the world. Only the owner can rename a pad; mining it removes it.
+  and as a floating label in the world. Only the owner can rename a pad; mining it removes it. A pad glows teal
+  and softly lights the room around it.
 
 ### Suit teleporter (back to ship · to an ally)
 - Craft the **suit teleporter** (`suit_teleporter`; blueprint *Suit Teleporter* in the Suit category, then a

@@ -67,6 +67,14 @@ public sealed class BlockDefinition
     public int? Color { get; set; }
 
     /// <summary>
+    /// Makes the block a real light source (#2036): the colour (0xRRGGBB) it floods into its surroundings on top
+    /// of its own <see cref="Emission"/> glow. A darker colour reaches less far — each channel fades one step per
+    /// block. <c>0</c> opts a block out; null leaves it to <see cref="BlockLight.NaturalColorOf"/>'s fallback for
+    /// authored fixtures. Set in <c>data/blocks.json</c>.
+    /// </summary>
+    public int? LightColor { get; set; }
+
+    /// <summary>
     /// What the block's tile shows (#1900): <c>"material"</c> (a surface — stone, planks, steel; the default) or
     /// <c>"picture"</c> (a drawing of the whole object — the bed seen from above, a flower pot). A picture only fits
     /// the face it was drawn for, so a picture block that renders as a non-cube form declares <see cref="Faces"/>.
@@ -85,8 +93,8 @@ public sealed class BlockDefinition
 
     /// <summary>
     /// Whether this block may be re-coloured by the player (the always-available "Dye"/"Glow" crafting
-    /// actions). Only plain building/terrain materials are tintable; machines, doors, glass, flora and
-    /// light blocks are excluded because they carry their own optics/tint logic. Set in <c>data/blocks.json</c>.
+    /// actions). Plain building/terrain materials, glass and the light fixtures are tintable (#1126); machines,
+    /// doors and flora are excluded because they carry their own optics/tint logic. Set in <c>data/blocks.json</c>.
     /// </summary>
     public bool Tintable { get; set; }
 
