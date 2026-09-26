@@ -1810,3 +1810,50 @@ atmosphere, in Creative mode and at hazard tier Off. `CorrosionResistance` is a 
 Creative mode and hazard tier Off and scales with the tier, like every other environmental hazard. On landing VEGA reports
 the world's rolled hazards once **per world** (`vega.hint.toxic_scan_{both,air,water,calm}`, once-flag
 `toxic:<location>:<scan>`), and the music maps `toxic_world` to the `planet_toxic` tracks.
+
+## 28. Generation 14 — the fruit trees (#2038–#2042, 2026-09-26)
+
+About a third of the leafy trees hang **fruit under their crowns**. Everything is gated on
+`WorldDescription.FruitTreesGeneration` (14): the four fruit species are catalog entries with that `MinGeneration`
+(inactive on every older roster), the stamp asks the generation first, and the colour lives in the fruit cell's tint
+modifier — so an older world keeps its trees, its roster and its chunks bit for bit.
+
+**The species.** `flora_fruit_round`, `flora_fruit_long`, `flora_fruit_grape`, `flora_fruit_banana` — appended to
+`FloraCatalog.All` before the crops with `Fruit: true`, `Hanging: true` and the three foliage blocks as hosts. A fruit
+never grows on its own: it is never pooled on a surface, never covers one, is never the island-underside hanger, and its
+foliage hosts do not flag the leaves as `FloraHost` (a leaf is no ground to plant on). The roster gives each shape a
+coined name and its activation (85 % on-theme / 40 % off — round: lush/cold, long: dry/lush, grape: lush/wetland, banana:
+tropical) but **not its own toxic roll**: `FloraGenerator.GenerateRoster` overrides the fruit species' flag with the
+world's `TreeSpecies.Toxic` (from the same `RosterSeedFor` seed the server names the tree with), so a tree and its fruit
+are one identity and the tree's flag — a scan label until now — finally means something.
+
+**The rules** (`FruitRules`, pure functions of the roster seed): `BearsFruit(kind)` — broadleaf, conifer, palm, jungle,
+baobab, mangrove, willow (dead snags, bamboo, saguaros, mushroom and crystal trees bear none); `ShapeFor(seed, kind,
+activeFruitKeys)` — one of the world's active shapes per kind, so all broadleafs of a world carry the same shape and its
+palms another; `TintFor(seed, kind)` — one colour per kind and world (any hue, saturation 0.45–0.85, value 0.85–1.0);
+`TreeBearsFruit(hash)` — 35 % of the trees; `PickFruitCells(leaves, cells, hash)` — 2–5 cells under the crown's LOWEST
+leaves (a leaf with nothing of the tree beneath it), spread along the crown.
+
+**The stamp** (`WorldGenerator.FruitTreesGen14.cs`, called from `StampTrees`): a fruit-bearing tree gets a
+`FruitRecorder` wrapped around its `set` callback, which records the builder's whole cell sequence — clipped or not — so
+a tree straddling a chunk edge picks the same fruit cells from every chunk; `HangFruit` then writes only the cells this
+chunk owns, into air only, and only under a leaf the chunk can see was really written (a crown pressed into a slope grows
+no fruit under rock; a leaf in the chunk above is trusted). Each fruit cell gets the kind's colour as its tint modifier
+(`ChunkData.SetModifier`), which the chunk message already carries and the mesher already renders as a dyed
+cross-billboard (tint mode 3, hanging from the block above via `TraitHangingFlora`). The builders and their salts are
+untouched; the fruit stays inside the crown's footprint, so the 4-cell margin and `MaxStampRise` are what they were.
+
+**The server.** `BreakBlockAt` reads the cell's tint before clearing it and hands it to `ScheduleFloraRegrow`, whose
+queue tuple and persisted row (`flora_regrow.tint`, SQLite + PostgreSQL, default 0) carry it; a fruit regrows after
+120 s (`FruitRules.RegrowSeconds`, small flora 30 s) with `SetBlock(pos, block, tint)` and `BlockChanged.Tint`. The
+toxic swap became a rule: a toxic species' drop `x` becomes `toxic_x` when that item exists (berries as before, the four
+fruits now); the detoxifier washes each toxic fruit (`wash_fruit_*`). A tree grown from a sapling (`TryGrowTree`) hangs
+fruit of the broadleaf kind through the same rules (`HangFruitOnGrownTree`). `pine_needles` and `palm_frond` are mapped
+to the tree species now, so a conifer's needles and a palm's fronds scan as the tree; a fruit scans as flora with the
+species name and the inherited Toxic / Edible. Settlements clear fruit with the tree (`SettlementVegetationIds`).
+Begging herds need nothing new: a fruit is a consumable that restores hunger.
+
+**Content.** Blocks `flora_fruit_*` (hand-harvested, one fruit each), items `fruit_round` / `fruit_long` /
+`fruit_grape` / `fruit_banana` (hunger 20–26, a little health) and `toxic_fruit_*` (health −16…−20), tiles + icons
+AI-generated (`gen_textures.py`, `gen_item_icons.py`), the tiles alpha-baked (`bake_leaf_alpha.py`). Tests:
+`FruitTreeTests`.

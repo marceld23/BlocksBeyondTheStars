@@ -32,6 +32,7 @@ public sealed class FloraRegrowRow
     public int Z { get; set; }
     public ushort Block { get; set; }
     public double Timer { get; set; }
+    public int Tint { get; set; } // #2038: a fruit grows back in its colour
 }
 
 /// <summary>One weather-deposited cell (settled snow, #900) as a snapshot row.</summary>
@@ -115,7 +116,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<ushort, string> _palette = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, int Tint, int Glow, int Shape, string Owner, DateTime? EditedUtc)> _blockEdits = new();
     private readonly Dictionary<(string Planet, int Cx, int Cy, int Cz), List<(string Planet, int X, int Y, int Z)>> _blockEditsByChunk = new();
-    private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, double Timer)> _flora = new();
+    private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, double Timer, int Tint)> _flora = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, double Timer)> _deposits = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (byte Level, bool Falling)> _fluidCells = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (double Remaining, int Generation)> _fireCells = new();
@@ -255,6 +256,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
                 Z = kv.Key.Z,
                 Block = kv.Value.Block,
                 Timer = kv.Value.Timer,
+                Tint = kv.Value.Tint,
             });
         }
 
@@ -327,7 +329,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
 
         foreach (var row in snapshot.FloraRegrow)
         {
-            _flora[(row.Planet, row.X, row.Y, row.Z)] = (row.Block, row.Timer);
+            _flora[(row.Planet, row.X, row.Y, row.Z)] = (row.Block, row.Timer, row.Tint);
         }
 
         foreach (var row in snapshot.WeatherDeposits)
@@ -493,7 +495,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
             var value = _flora[key];
             if (remap.TryGetValue(value.Block, out ushort nb) && nb != value.Block)
             {
-                _flora[key] = (nb, value.Timer);
+                _flora[key] = (nb, value.Timer, value.Tint);
             }
         }
 
@@ -772,12 +774,12 @@ public sealed class MemoryWorldRepository : IWorldRepository
 
     // ---------------- Flora regrowth ----------------
 
-    public void SaveFloraRegrow(string planet, Vector3i worldPosition, ushort block, double timer)
+    public void SaveFloraRegrow(string planet, Vector3i worldPosition, ushort block, double timer, int tint = 0)
     {
         lock (_gate)
         {
             _dirty = true;
-            _flora[(planet, worldPosition.X, worldPosition.Y, worldPosition.Z)] = (block, timer);
+            _flora[(planet, worldPosition.X, worldPosition.Y, worldPosition.Z)] = (block, timer, tint);
         }
     }
 
@@ -787,7 +789,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             return _flora
                 .Where(kv => kv.Key.Planet == planet)
-                .Select(kv => new StoredFloraRegrow(new Vector3i(kv.Key.X, kv.Key.Y, kv.Key.Z), kv.Value.Block, kv.Value.Timer))
+                .Select(kv => new StoredFloraRegrow(new Vector3i(kv.Key.X, kv.Key.Y, kv.Key.Z), kv.Value.Block, kv.Value.Timer, kv.Value.Tint))
                 .ToList();
         }
     }

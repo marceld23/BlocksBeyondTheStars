@@ -10,6 +10,10 @@ using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
 
+// The codec tests swap NetCodec.MessagePackSerializeOverride — a process-global hook — for a moment; any test class encoding
+// a message at that moment (a server AddLocalPlayer, say) would throw "bad message". The sequential collection keeps every
+// other class out of that moment (seen once on CI shard 3 against StationBodyIdentityTests, 2026-09-26).
+[Collection(RealTimeSensitiveCollection.Name)]
 public sealed class NetCodecTests
 {
     private const string MessageNamespace =

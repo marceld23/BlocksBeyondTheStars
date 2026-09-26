@@ -177,8 +177,8 @@ public sealed partial class GameServer
         if (_floraRegrow.TryGetValue(canonical, out var regrow) && regrow.FloraId == _saplingId)
         {
             double t = System.Math.Max(1.0, regrow.Timer - GardenerSaplingBoostSeconds);
-            _floraRegrow[canonical] = (regrow.FloraId, t);
-            _repo.SaveFloraRegrow(_world.LocationId, canonical, regrow.FloraId, t);
+            _floraRegrow[canonical] = (regrow.FloraId, t, regrow.Tint);
+            _repo.SaveFloraRegrow(_world.LocationId, canonical, regrow.FloraId, t, regrow.Tint);
             return;
         }
 

@@ -101,6 +101,20 @@ public static class FloraGenerator
         }
 
         EnsureCoverage(list, planet, terrainGeneration, strict ? preferred : FloraTag.None);
+
+        // #2038: a fruit is toxic exactly when the world's tree species is — a tree and what hangs from it are one
+        // identity, so the tree's flag (a scan label until now) finally means something. The fruit species' own roll
+        // above is still drawn (the rng stream of every later species stays as it is) and then overridden. The tree
+        // species is derived from the same seed the server names it with (RosterSeedFor), so the scan of a trunk and
+        // of its fruit always agree.
+        bool treeToxic = TreeGenerator.Generate(planet, worldSeed)?.Toxic ?? false;
+        foreach (var fs in list)
+        {
+            if (FloraCatalog.IsFruit(fs.BlockKey))
+            {
+                fs.Toxic = treeToxic;
+            }
+        }
         if (caveWave)
         {
             EnsureCaveCoverage(list, terrainGeneration);

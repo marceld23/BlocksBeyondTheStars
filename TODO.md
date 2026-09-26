@@ -24,6 +24,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🍎 Fruit trees — four fruit shapes, colour per tree kind, toxic like the tree (#2038: #2039–#2042, 2026-09-26, branch feat/fruit-trees, terrain generation 14)
+
+Marcel's question: do trees already carry fruit — different shapes (banana, apple …), random colour, sometimes toxic —
+and is there a palm and a conifer? Palms and conifers existed (12 `TreeKind`s, each foliage block with its own per-world
+hue); fruit did not, and the world's tree species carried a toxic flag that meant nothing in play. His decisions: colour
+**per tree kind**; shapes round, long, grape cluster, banana; a fruit toxic exactly when the tree is; conifers bear fruit
+too; ~35 % of trees, 2–5 pieces, regrow ~120 s; one item and one icon per shape plus a toxic twin; sapling trees bear
+fruit too; generation 14, new worlds only.
+
+- **✅ Content + rules (#2039).** Four `FloraCatalog` species (`Fruit`, `Hanging`, hosts = the foliage blocks,
+  `MinGeneration` 14), eight consumables, four detoxifier wash recipes, EN + DE texts; `FruitRules` (bearing kinds, shape
+  and colour per kind and world, 35 % / 2–5, the lowest-leaf pick); the roster overrides a fruit's toxic roll with the
+  tree's.
+- **✅ Worldgen (#2040).** `StampTrees` records a fruit-bearing tree's crown and hangs the fruit under its lowest leaves
+  with the kind's colour as the cell tint (`WorldGenerator.FruitTreesGen14.cs`); nothing below generation 14.
+- **✅ Server (#2041).** The toxic swap is a rule (`toxic_<item>` when it exists); the regrow queue and its persisted row
+  carry the tint (SQLite + PostgreSQL column); fruit regrows after 120 s in its colour, also across a restart; a sapling's
+  tree hangs fruit; needles and fronds scan as the tree.
+- **✅ Client + art + docs (#2042).** Four tiles + eight icons (OpenAI), alpha bake, wiki paragraph, developer docs
+  (WORLD_GENERATION §28), machine pass for the twelve other locales, local Unity build.
+- ⚠ **Open:** playtest on a fresh generation-14 world — a jungle for bananas under the palms, a boreal world for fruit
+  under the conifers; scan a fruit and its trunk (same name, same Toxic / Edible); pick a fruit, wait two minutes, watch
+  it return in the same colour; hold a fruit near a begging herd.
+
 ### 💡 Real light sources — glow blocks shine themselves; lantern, campfire, forge and beam pad light their surroundings (#2036, 2026-09-26, branch feat/real-light-sources)
 
 Marcel's question: do glowing blocks really glow, or do they only light the surroundings? The game has two separate

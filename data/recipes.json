@@ -63,6 +63,11 @@
   // #1203 detoxifier wash (bio_refining blueprint): toxic berries become safe, mud filters to water, giant-mushroom
   // parts (mineable, no sink before) become bait.
   { "key": "wash_berries", "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "toxic_berries", "count": 2 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "berries", "count": 2 } ] },
+  // #2038: the toxic fruit of a toxic tree washes safe the same way.
+  { "key": "wash_fruit_round",  "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "toxic_fruit_round",  "count": 2 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "fruit_round",  "count": 2 } ] },
+  { "key": "wash_fruit_long",   "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "toxic_fruit_long",   "count": 2 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "fruit_long",   "count": 2 } ] },
+  { "key": "wash_fruit_grape",  "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "toxic_fruit_grape",  "count": 2 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "fruit_grape",  "count": 2 } ] },
+  { "key": "wash_fruit_banana", "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "toxic_fruit_banana", "count": 2 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "fruit_banana", "count": 2 } ] },
   { "key": "filter_mud", "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "mud", "count": 2 } ], "outputs": [ { "item": "water", "count": 1 } ] },
   { "key": "mushroom_bait", "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "mushroom_cap", "count": 1 }, { "item": "mushroom_stem", "count": 1 } ], "outputs": [ { "item": "forage_bait", "count": 3 } ] },
 

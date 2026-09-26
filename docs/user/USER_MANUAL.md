@@ -343,7 +343,8 @@ separate unlock; admins can still disable it through server world rules.
 - **Oxygen** (max 100 + tank bonuses): refills aboard ship / on breathable worlds; drains outside on
   toxic/airless worlds. An `oxygen_extractor` cuts the drain on extractable atmospheres.
 - **Hunger** (max 100): drains off-ship; below ~15 the suit auto-eats stored/loose rations.
-  Food sources: hunt creatures (meat), harvest berry flora (replantable via seeds), raid a settlement's
+  Food sources: hunt creatures (meat), harvest berry flora (replantable via seeds), pick the **fruit** that hangs
+  under tree crowns on newer worlds (it grows back; toxic exactly when its tree is — scan first), raid a settlement's
   **greenhouse** (see below), craft emergency rations — or build an **algae tank** (workshop, no blueprint)
   at a base: standing next to it grows 2 algae rations from 1 water (melt 2 snow or 2 ice into water by
   hand if there is no lake).
@@ -414,7 +415,7 @@ separate unlock; admins can still disable it through server world rules.
   food in the game), **algae soup** (rations + water + salt) and **mushroom skewers** (giant-mushroom caps on
   a stem). Meals heal too.
 - **Algae tank & detoxifier packs** (the **Bio-Refining** blueprint, after *Detoxifier*): the tank grows
-  **biofuel**, **plant fibre** and **polymer** from water and rations; the detoxifier **washes toxic berries**
+  **biofuel**, **plant fibre** and **polymer** from water and rations; the detoxifier **washes toxic berries and toxic fruit**
   back into safe ones (with carbon), filters **mud to water** and turns giant-mushroom parts into **forage
   bait**. **Archaeology** (after *Terrain Scanner*) reworks **ancient bricks** into concrete and **obsidian**
   into glass; researchers at any market buy **rune stones** for data fragments.

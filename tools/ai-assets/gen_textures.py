@@ -249,6 +249,12 @@ TEXTURES = [
     ("flora_glowmoss", "side view of one low wide mound of softly glowing pale green-white cave moss tufts with tiny luminous tips, growing along the bottom edge of the image, the rest of the image solid pitch-black empty background"),
     ("flora_glowthread", "many thin softly glowing pale silky threads hanging straight down from the top edge of the image, each ending in a small bright luminous bead, on a pure black background, side view"),
     ("flora_prismbloom", "densely packed luminous pale white flower petals filling the whole image edge to edge, overlapping soft shining petals with small bright white centres, no background visible, top-down"),
+    # Fruit trees (#2038, generation 14): one pale fruit hanging from a short dark stem on a black ground, side view like the
+    # glow threads — the dye tint colours the body per tree kind and world, the alpha bake cuts the black away.
+    ("flora_fruit_round", "a single plump round apple-like fruit in pale ivory white with soft grey shading, hanging from a short dark brown stem at the top edge of the image, one small dark leaf at the stem, on a pure black background, side view"),
+    ("flora_fruit_long", "a single long slender smooth pod-like fruit in pale ivory white with soft grey shading, hanging straight down from a short dark brown stem at the top edge of the image, on a pure black background, side view"),
+    ("flora_fruit_grape", "a single hanging cluster of many small round pale ivory white grapes with soft grey shading, hanging from a short dark brown stem at the top edge of the image, the entire rest of the image solid pitch-black #000000 with no gradient and no vignette, side view"),
+    ("flora_fruit_banana", "a single curved banana-shaped fruit in pale ivory white with soft grey shading, hanging from a short dark brown stem at the top edge of the image, on a pure black background, side view"),
 ]
 
 if TYPE_CHECKING:

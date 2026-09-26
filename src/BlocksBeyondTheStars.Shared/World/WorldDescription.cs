@@ -181,8 +181,15 @@ public sealed class WorldDescription
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
     /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora,
-    /// #2018 big herds + the begging trait, #2024 the toxic-world class).</summary>
-    public const int CurrentTerrainGeneration = 13;
+    /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees).</summary>
+    public const int CurrentTerrainGeneration = 14;
+
+    /// <summary>The generation of the fruit trees (#2038, 2026-09): about a third of the leafy trees hang fruit under their
+    /// crowns — four fruit shapes (appended <c>FloraCatalog</c> species with this <c>MinGeneration</c>), the shape and colour
+    /// rolled per tree kind and world (<c>FruitRules</c>), toxic exactly when the world's tree species is. The stamp and the
+    /// roster entries are gated on this generation and the colour lives in the cell's tint modifier, so a world of any older
+    /// generation keeps its trees, its roster and its chunks bit for bit.</summary>
+    public const int FruitTreesGeneration = 14;
 
     /// <summary>The generation of the toxic worlds (#2024, 2026-09): the <c>toxic_world</c> planet class, whose worlds ROLL
     /// their traits (corrosive air, toxic water, cave fauna, rare-ore outcrops — <c>WorldTraits</c>). A data-only planet

@@ -84,7 +84,8 @@ public static class FloraCatalog
         FloraHabitat Habitat = FloraHabitat.Surface,
         string[]? CaveHosts = null,
         bool Rainbow = false,
-        float Light = 0f)
+        float Light = 0f,
+        bool Fruit = false)
     {
         // Habitat / CaveHosts / Rainbow / Light (generation 11, cave flora). Habitat says where the generator plants a
         // species (the surface, the caves or both). CaveHosts are the blocks a species roots on UNDERGROUND — kept apart
@@ -93,6 +94,11 @@ public static class FloraCatalog
         // its own colour from its cell (FloraTints.RainbowAt) instead of the one per-world species hue. Light: the
         // fraction of the plant's colour it casts on its surroundings as coloured block light (0 = it only glows itself,
         // like every classic glower) — a dim colour gives a short reach in the client's flood fill.
+        // Fruit (#2038, generation 14): a fruit shape that hangs under a tree crown. It never grows on its own — world
+        // generation and a grown sapling hang it under the lowest leaves of a tree kind that rolled its shape — so its
+        // foliage hosts are no ground to plant on (GameContent.MarkFloraHostDefaults skips them), it never covers a
+        // surface, it is never the island-underside hanger, and it is toxic exactly when the world's tree species is
+        // (FloraGenerator overrides its roll). The colour rides in the fruit cell's tint modifier (FruitRules).
         // Hanging (#1759): the plant roots in the block ABOVE it and grows downward — the underside of a floating
         // island. World generation, the server's host check and regrow, and the client's billboard all read this
         // one flag. MinGeneration (#1756): a species appended for a later wave rolls INACTIVE on every world whose
@@ -121,6 +127,9 @@ public static class FloraCatalog
     {
         "stone", "basalt", "granite", "sandstone", "sulfur_stone", "dirt", "mud", "mycelium", "crystal", "salt", "ice",
     };
+
+    // The foliage a fruit hangs from (#2038): a leaf crown, a needle cone, a palm's fronds.
+    private static readonly string[] FruitHosts = { "tree_leaves", "pine_needles", "palm_frond" };
 
     /// <summary>All flora species, paired with the surface block keys they may grow on.</summary>
     public static readonly IReadOnlyList<Species> All = new[]
@@ -199,6 +208,14 @@ public static class FloraCatalog
         new Species("flora_glowmoss",    CaveRock, Tags: FloraTag.Glow | FloraTag.Rocky, MinGeneration: 11, Habitat: FloraHabitat.Cave, Light: 0.30f),
         new Species("flora_glowthread",  CaveRock, Tags: FloraTag.Glow | FloraTag.Wetland, Height: FloraHeight.Tall, Hanging: true, MinGeneration: 11, Habitat: FloraHabitat.Cave, Light: 0.45f), // hangs from a cave ceiling
         new Species("flora_prismbloom",  new[] { "grass", "dirt", "mud", "alien_grass", "mycelium", "stone", "crystal" }, Tags: FloraTag.Glow, Solid: true, MinGeneration: 11, Habitat: FloraHabitat.Both, CaveHosts: CaveRock, Rainbow: true, Light: 0.50f), // every plant its own colour
+
+        // --- Fruit trees (#2038, generation 14): the four fruit shapes that hang under a tree crown. Which shape a tree
+        // kind bears, and in which colour, is rolled per world and kind (FruitRules); the tags only bias which shapes a
+        // world activates at all. Appended before the crops for the same reason as the waves above. ---
+        new Species("flora_fruit_round",  FruitHosts, Tags: FloraTag.Lush | FloraTag.Cold, Hanging: true, MinGeneration: 14, Fruit: true),    // an apple-like fruit
+        new Species("flora_fruit_long",   FruitHosts, Tags: FloraTag.Dry | FloraTag.Lush, Hanging: true, MinGeneration: 14, Fruit: true),     // a long pod
+        new Species("flora_fruit_grape",  FruitHosts, Tags: FloraTag.Lush | FloraTag.Wetland, Hanging: true, MinGeneration: 14, Fruit: true), // a grape cluster
+        new Species("flora_fruit_banana", FruitHosts, Tags: FloraTag.Tropical, Hanging: true, MinGeneration: 14, Fruit: true),               // a banana
 
         // --- Cultivated crops (#627): farmed, not wild. Grown in settlement/station greenhouses and by the
         // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible
@@ -287,6 +304,24 @@ public static class FloraCatalog
 
     /// <summary>True for a species whose every plant takes its own colour from its cell (generation 11).</summary>
     public static bool IsRainbow(string key) => Find(key)?.Rainbow == true;
+
+    /// <summary>True for a fruit shape that hangs under a tree crown (#2038, see <see cref="Species.Fruit"/>).</summary>
+    public static bool IsFruit(string key) => Find(key)?.Fruit == true;
+
+    /// <summary>The block keys of the fruit shapes in catalog order — the order the world's active subset keeps.</summary>
+    public static IReadOnlyList<string> FruitKeys()
+    {
+        var keys = new List<string>();
+        foreach (var sp in All)
+        {
+            if (sp.Fruit)
+            {
+                keys.Add(sp.Key);
+            }
+        }
+
+        return keys;
+    }
 
     /// <summary>The fraction of its colour a species casts on its surroundings as block light (0 = none).</summary>
     public static float LightOf(string key) => Find(key)?.Light ?? 0f;

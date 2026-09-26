@@ -38,7 +38,10 @@ public sealed class CaveFloraTests
         int kelp = keys.IndexOf("flora_hangkelp");
         Assert.Equal(new[] { "flora_cavecap", "flora_glowmoss", "flora_glowthread", "flora_prismbloom" },
             keys.Skip(kelp + 1).Take(4));
-        Assert.All(FloraCatalog.All.Skip(kelp + 5), sp => Assert.True(sp.Cultivated, $"{sp.Key} sits among the crops"));
+        // The fruit trees (#2038, generation 14) appended their four shapes after this wave, still before the crops.
+        Assert.Equal(new[] { "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana" },
+            keys.Skip(kelp + 5).Take(4));
+        Assert.All(FloraCatalog.All.Skip(kelp + 9), sp => Assert.True(sp.Cultivated, $"{sp.Key} sits among the crops"));
         foreach (var key in keys.Skip(kelp + 1).Take(4))
         {
             var sp = FloraCatalog.Find(key)!;
@@ -77,6 +80,11 @@ public sealed class CaveFloraTests
     {
         foreach (var sp in FloraCatalog.All)
         {
+            if (sp.Fruit)
+            {
+                continue; // #2038: a fruit hangs from a leaf, and a leaf is no ground — never a FloraHost, never in a cave
+            }
+
             foreach (var host in sp.CaveHosts)
             {
                 if (_content.GetBlock(host) is { } block)

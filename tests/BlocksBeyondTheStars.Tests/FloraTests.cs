@@ -145,8 +145,9 @@ public sealed class FloraTests : IDisposable
         // Coverage: every land host surface keeps at least one active land species (no bare biome) …
         // (Cultivated crops are skipped: their hosts are greenhouse beds and hydroponic trays, which are no
         // world surface at all, so there is nothing for world gen to cover there. So are the cave-only species of
-        // generation 11: their hosts are the rock of a cave floor or ceiling, not a surface.)
-        var landHosts = FloraCatalog.All.Where(s => !s.Aquatic && !s.Cultivated && s.OnSurface).SelectMany(s => s.Hosts).Distinct();
+        // generation 11: their hosts are the rock of a cave floor or ceiling, not a surface. And so are the hanging
+        // species: a fruit (#2038) hangs from a leaf, which is no surface either — EnsureCoverage skips them too.)
+        var landHosts = FloraCatalog.All.Where(s => !s.Aquatic && !s.Cultivated && !s.Hanging && s.OnSurface).SelectMany(s => s.Hosts).Distinct();
         foreach (var host in landHosts)
         {
             Assert.Contains(roster, s => s.Active && !s.Aquatic
@@ -381,7 +382,9 @@ public sealed class FloraTests : IDisposable
     [Fact]
     public void FloraHostFlag_CoversTheWholeCatalogHostUnion()
     {
-        foreach (var key in FloraCatalog.All.SelectMany(s => s.Hosts).Distinct())
+        // A fruit's hosts are foliage (#2038): it hangs from a leaf, and a leaf is no ground to plant on — so the fruit
+        // species are the one exception to "every catalog host is a FloraHost".
+        foreach (var key in FloraCatalog.All.Where(s => !s.Fruit).SelectMany(s => s.Hosts).Distinct())
         {
             var block = _content.GetBlock(key);
             if (block != null)

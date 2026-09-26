@@ -102,6 +102,9 @@ public sealed partial class WorldGenerator
     private bool _kelpActive, _lilyActive; // whether the seabed kelp / surface lily archetypes grow on this world
     private bool _coralActive, _seagrassActive; // the other two seabed archetypes (coral reefs / seagrass)
     private BlockId _hangingFloraId = BlockId.Air; // #1759: the species hanging from island undersides (Air = none)
+    // #2038 (generation 14): the world's active fruit shapes in catalog order — FruitRules rolls per tree kind which one
+    // the kind bears. Empty below generation 14, where the fruit species stay inactive.
+    private readonly System.Collections.Generic.List<string> _activeFruitKeys = new();
     // surface block id -> the pool of (this world's active) flora that may grow on it.
     private readonly System.Collections.Generic.Dictionary<ushort, BlockId[]> _floraBySurface = new();
     // flora block id -> its climate tags (for theme-weighted, patchy species selection).
@@ -143,10 +146,19 @@ public sealed partial class WorldGenerator
         foreach (var sp in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
         {
             // A cave species that hangs (generation 11, the glow threads) roots in a cave ceiling, never under an island.
-            if (sp.Hanging && sp.OnSurface && active.Contains(sp.Key) && _content.GetBlock(sp.Key) is { } hang)
+            if (sp.Hanging && !sp.Fruit && sp.OnSurface && active.Contains(sp.Key) && _content.GetBlock(sp.Key) is { } hang)
             {
                 _hangingFloraId = hang.NumericId;
                 break;
+            }
+        }
+
+        _activeFruitKeys.Clear();
+        foreach (var sp in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
+        {
+            if (sp.Fruit && active.Contains(sp.Key) && _content.GetBlock(sp.Key) is { } fruit && !fruit.NumericId.IsAir)
+            {
+                _activeFruitKeys.Add(sp.Key); // #2038: a fruit hangs under a crown, never in a surface pool
             }
         }
 
@@ -200,6 +212,13 @@ public sealed partial class WorldGenerator
     }
 
     /// <summary>The block key of this world's hanging species (#1759), or null when none is active (tests).</summary>
+    /// <summary>Test seam (#2038): the fruit shapes this world activated, in catalog order.</summary>
+    internal IReadOnlyList<string> ActiveFruitKeysForTest(PlanetType planet)
+    {
+        ResolveFlora(planet);
+        return _activeFruitKeys;
+    }
+
     internal string? HangingFloraForTest(PlanetType planet)
     {
         ResolveFlora(planet);

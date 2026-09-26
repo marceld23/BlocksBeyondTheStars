@@ -1848,8 +1848,9 @@ public sealed partial class GameServer
     /// <summary>The blocks a natural tree is made of — never structural, so never the settlement's (#1659).
     /// Small flora is not listed: it is walk-through and already exempt from protection as harvestable.</summary>
     private HashSet<ushort> SettlementVegetationIds
-        => _settlementVegetationIds ??= HostIds("wood_log", "tree_leaves", "pine_needles", "palm_frond",
-            BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLogKey, BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLeavesKey);
+        => _settlementVegetationIds ??= HostIds(System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(
+            new[] { "wood_log", "tree_leaves", "pine_needles", "palm_frond", BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLogKey, BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLeavesKey },
+            BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.FruitKeys()))); // #2038: the fruit under a crown goes with the tree
 
     /// <summary>Whether the settlement's own layout puts a block at this world cell — the greenhouse frame,
     /// a stilt pile, a wall — as opposed to whatever else happens to stand inside its box.</summary>

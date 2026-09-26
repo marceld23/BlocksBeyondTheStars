@@ -4711,6 +4711,11 @@ public sealed partial class GameServer
     /// ground as a drop packet (#853). Mining used to be refused outright in that situation — correct while
     /// there was no world container to spill into (#600/#607), and pure frustration once there is one.
     /// </para></summary>
+    /// <summary>The poisonous twin of a toxic species' drop (#2038): <c>toxic_&lt;item&gt;</c> when such an item exists
+    /// (berries → toxic_berries, every fruit → its toxic counterpart), else the drop itself (fibre is fibre).</summary>
+    private string ToxicCounterpart(string item)
+        => _content.GetItem("toxic_" + item) != null ? "toxic_" + item : item;
+
     private void BreakBlockAt(PlayerSession session, Vector3i pos, BlockDefinition def, MaterialPool pool)
     {
         var current = _world.GetBlock(pos);
@@ -4743,7 +4748,7 @@ public sealed partial class GameServer
             && _floraSpeciesByBlock.TryGetValue(current.Value, out var toxSp) && toxSp.Toxic;
         foreach (var drop in def.Drops)
         {
-            string item = toxicFloraDrop && drop.Item == "berries" ? "toxic_berries" : drop.Item;
+            string item = toxicFloraDrop ? ToxicCounterpart(drop.Item) : drop.Item;
             if ((dropTint != 0 || dropGlow != 0 || dropShape != 0 || dropDesign != 0) && _content.GetItem(item)?.PlacesBlock == def.Key)
             {
                 item = ItemKey.Compose(item, dropTint, dropGlow, dropShape, dropDesign);
@@ -4821,7 +4826,7 @@ public sealed partial class GameServer
         }
         else if (floraHarvest)
         {
-            ScheduleFloraRegrow(pos, current.Value); // regrows if the host stays intact
+            ScheduleFloraRegrow(pos, current.Value, dropTint); // regrows if the host stays intact — a fruit in its colour (#2038)
         }
 
         // Wake adjacent fluid so a hole opened in or under a body of water/lava refills — whether the mined

@@ -28,6 +28,13 @@ public sealed class CraftingConsistencyTests
             foreach (var d in b.Drops) set.Add(d.Item);
         }
 
+        // #2038: a toxic species swaps ANY drop x for toxic_x when such an item exists (GameServer.ToxicCounterpart) —
+        // the berries as before, and the four fruits of a toxic tree.
+        foreach (var drop in set.ToList())
+        {
+            if (_c.GetItem("toxic_" + drop) != null) set.Add("toxic_" + drop);
+        }
+
         foreach (var r in _c.Recipes.Values)
         {
             foreach (var o in r.Outputs) set.Add(o.Item);

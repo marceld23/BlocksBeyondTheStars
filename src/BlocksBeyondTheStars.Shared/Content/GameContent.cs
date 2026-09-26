@@ -693,6 +693,11 @@ public sealed class GameContent
     {
         foreach (var species in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
         {
+            if (species.Fruit)
+            {
+                continue; // #2038: a fruit hangs from a leaf — foliage is no ground the player plants on
+            }
+
             foreach (var hostKey in species.Hosts)
             {
                 if (_blocks.TryGetValue(hostKey, out var block))

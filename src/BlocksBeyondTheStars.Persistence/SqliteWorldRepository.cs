@@ -162,7 +162,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
                 block INTEGER NOT NULL, shape INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (structure, x, y, z));
             CREATE TABLE IF NOT EXISTS flora_regrow (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
-                block INTEGER NOT NULL, timer REAL NOT NULL, PRIMARY KEY (planet, x, y, z));
+                block INTEGER NOT NULL, timer REAL NOT NULL, tint INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS weather_deposit (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 block INTEGER NOT NULL, timer REAL NOT NULL, PRIMARY KEY (planet, x, y, z));
@@ -223,6 +223,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
             TryExecute("ALTER TABLE space_structure ADD COLUMN smin_x INTEGER NOT NULL DEFAULT 0;");
             TryExecute("ALTER TABLE space_structure ADD COLUMN smin_y INTEGER NOT NULL DEFAULT 0;");
             TryExecute("ALTER TABLE space_structure ADD COLUMN smin_z INTEGER NOT NULL DEFAULT 0;");
+            // A fruit grows back in its tree kind's colour (#2038): the cell's tint modifier, 0 for every other plant.
+            TryExecute("ALTER TABLE flora_regrow ADD COLUMN tint INTEGER NOT NULL DEFAULT 0;");
         }
         catch (SqliteException ex) when (ex.SqliteErrorCode is 11 or 26)
         {
@@ -945,14 +947,15 @@ public sealed class SqliteWorldRepository : IWorldRepository
 
     // --- Flora regrowth (harvested plants returning on their cell) ---
 
-    public void SaveFloraRegrow(string planet, Vector3i worldPosition, ushort block, double timer)
+    public void SaveFloraRegrow(string planet, Vector3i worldPosition, ushort block, double timer, int tint = 0)
     {
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO flora_regrow (planet, x, y, z, block, timer) " +
-                              "VALUES ($p, $x, $y, $z, $b, $t) " +
-                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET block=excluded.block, timer=excluded.timer;";
+            cmd.CommandText = "INSERT INTO flora_regrow (planet, x, y, z, block, timer, tint) " +
+                              "VALUES ($p, $x, $y, $z, $b, $t, $c) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET block=excluded.block, timer=excluded.timer, tint=excluded.tint;";
+            cmd.Parameters.AddWithValue("$c", tint);
             cmd.Parameters.AddWithValue("$p", planet);
             cmd.Parameters.AddWithValue("$x", worldPosition.X);
             cmd.Parameters.AddWithValue("$y", worldPosition.Y);
@@ -969,7 +972,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT x, y, z, block, timer FROM flora_regrow WHERE planet = $p;";
+            cmd.CommandText = "SELECT x, y, z, block, timer, tint FROM flora_regrow WHERE planet = $p;";
             cmd.Parameters.AddWithValue("$p", planet);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -977,7 +980,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
                 result.Add(new StoredFloraRegrow(
                     new Vector3i(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2)),
                     (ushort)reader.GetInt32(3),
-                    reader.GetDouble(4)));
+                    reader.GetDouble(4),
+                    reader.GetInt32(5)));
             }
         }
 

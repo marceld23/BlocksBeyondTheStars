@@ -283,11 +283,16 @@ public readonly struct StoredFloraRegrow
     public readonly ushort Block;
     public readonly double Timer;
 
-    public StoredFloraRegrow(Vector3i worldPosition, ushort block, double timer)
+    /// <summary>The colour modifier (0xRRGGBB) the plant grows back with — a fruit's tree-kind colour (#2038), 0 for
+    /// every other plant.</summary>
+    public readonly int Tint;
+
+    public StoredFloraRegrow(Vector3i worldPosition, ushort block, double timer, int tint = 0)
     {
         WorldPosition = worldPosition;
         Block = block;
         Timer = timer;
+        Tint = tint;
     }
 }
 
@@ -389,8 +394,9 @@ public interface IWorldRepository : IDisposable
     /// highest such edit (any height). Bounded by the box — the far-terrain tiles ask 64×64 blocks at a time.</summary>
     IReadOnlyList<EditColumnTop> LoadEditColumnTops(string planet, int minX, int minZ, int maxX, int maxZ);
 
-    /// <summary>Stores (inserts or replaces) a scheduled flora regrowth, keyed by its world cell.</summary>
-    void SaveFloraRegrow(string planet, Vector3i worldPosition, ushort block, double timer);
+    /// <summary>Stores (inserts or replaces) a scheduled flora regrowth, keyed by its world cell. <paramref name="tint"/>
+    /// is the colour modifier the plant grows back with (a fruit's, #2038; 0 = none).</summary>
+    void SaveFloraRegrow(string planet, Vector3i worldPosition, ushort block, double timer, int tint = 0);
 
     /// <summary>Lists all scheduled flora regrowths on a planet (restored into the regrow queue on world load).</summary>
     IReadOnlyList<StoredFloraRegrow> ListFloraRegrow(string planet);
