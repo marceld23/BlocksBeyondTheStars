@@ -30,6 +30,10 @@ namespace BlocksBeyondTheStars.Client
         /// Used both by the mesher's flood-fill and by callers when gathering nearby light sources.</summary>
         public const int LightRadius = 9;
 
+        /// <summary>Self-glow of a cell made with the Glow action (#2036) — the torch/strip-light level, so a glowing
+        /// block shines and blooms like a fixture instead of only lighting the faces around it.</summary>
+        public const float GlowCellEmission = 0.85f;
+
         /// <summary>Edge-bevel size (fraction of a block) for plain opaque cubes: exposed CONVEX edges are cut
         /// with a small 45° chamfer so silhouettes + lighting soften and the world reads less blocky. Only
         /// applied where two exposed faces meet (a flat field of ground adds ZERO extra geometry — its side
@@ -695,9 +699,19 @@ namespace BlocksBeyondTheStars.Client
                 // Player dye (always-available recolour): the placed cell carries a surface tint in its chunk
                 // modifier. Mode 3 = a luminance-based recolour in the shader applied everywhere (independent
                 // of the flora-tint global), so dyed building blocks read vividly on any world / in caves.
-                var (modTint, _) = chunk.GetModifierLocal(WorldConstants.LocalIndex(x, y, z));
-                bool dyed = modTint != 0;
-                Color dye = dyed ? RgbToColor(modTint) : Color.black;
+                var (modTint, modGlow) = chunk.GetModifierLocal(WorldConstants.LocalIndex(x, y, z));
+                // A glowing cell (the Glow action, #2036) is a real light: besides flooding its colour into the
+                // surroundings it shines itself — its surface takes the light colour (a dye on the same cell still
+                // wins) and an opaque cell glows like a fixture. See-through cells only take the colour: the
+                // transparent shader reads emission as an energy field and would drop the frosted pane.
+                if (modGlow != 0 && atlas != null && !transparent)
+                {
+                    emission = Mathf.Max(emission, GlowCellEmission);
+                }
+
+                int surfaceTint = modTint != 0 ? modTint : modGlow;
+                bool dyed = surfaceTint != 0;
+                Color dye = dyed ? RgbToColor(surfaceTint) : Color.black;
                 float floraFlag = dyed ? 3f : isWood ? 4f : floraTinted ? 1f : painted ? 2f : 0f;
                 // Foliage flag (TEXCOORD2.x): tree crowns + leafy plants whose tile carries a baked alpha
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
@@ -1897,13 +1911,6 @@ namespace BlocksBeyondTheStars.Client
         private static Color RgbToColor(int rgb)
             => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
 
-        /// <summary>
-        /// The light colour a cell emits as 0xRRGGBB, or 0 if it is not a light source. A placed glow block
-        /// carries its colour in <paramref name="glowMod"/>; otherwise the dedicated light blocks
-        /// (light_*, the bright strip lights) emit their fixed colour. Natural emissives (lava, crystals,
-        /// glowing ores/flora) deliberately return 0 — they keep their existing self-glow look and do NOT
-        /// flood the world with propagated light. Shared by the mesher and the client light-source registry.
-        /// </summary>
         /// <summary>Light colour with the full modifier priority from #1126: glow > dye-on-a-light-source >
         /// natural. ClientWorld applies the same rule for planet chunks; this overload brings ships, landed
         /// ships and stations in line (#1159 — a red-dyed lamp aboard flooded its corridor white).</summary>
@@ -1918,6 +1925,14 @@ namespace BlocksBeyondTheStars.Client
             return baseRgb != 0 && tintMod != 0 ? tintMod & 0xFFFFFF : baseRgb;
         }
 
+        /// <summary>
+        /// The light colour a cell emits as 0xRRGGBB, or 0 if it is not a light source. A placed glow block
+        /// carries its colour in <paramref name="glowMod"/>; otherwise the block type decides — the fixtures that
+        /// declare a <c>lightColor</c> in data/blocks.json (lamps, torch, lantern, campfire, fire, forge, beam pad,
+        /// strip lights; #2036). Natural emissives (lava, crystals, glowing ores/flora) deliberately return 0 —
+        /// they keep their self-glow look and do NOT flood the world with propagated light. Shared by the mesher
+        /// and the client light-source registry.
+        /// </summary>
         public static int BlockLightColor(GameContent content, BlockId id, int glowMod)
         {
             if (glowMod != 0)
@@ -1925,26 +1940,7 @@ namespace BlocksBeyondTheStars.Client
                 return glowMod & 0xFFFFFF;
             }
 
-            var def = content?.BlockById(id);
-            if (def == null)
-            {
-                return 0;
-            }
-
-            switch (def.Key)
-            {
-                case "light_white": return 0xFFFFFF;
-                case "light_red": return 0xFF3838;
-                case "light_green": return 0x53FF61;
-            }
-
-            // Bright authored light fixtures (strip lights) carry their own colour + a high emission.
-            if (def.Color is int c && (def.Emission ?? 0f) >= 0.85f)
-            {
-                return c & 0xFFFFFF;
-            }
-
-            return 0;
+            return BlocksBeyondTheStars.Shared.Definitions.BlockLight.NaturalColorOf(content?.BlockById(id));
         }
 
         /// <summary>

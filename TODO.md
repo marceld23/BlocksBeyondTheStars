@@ -24,6 +24,33 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 💡 Real light sources — glow blocks shine themselves; lantern, campfire, forge and beam pad light their surroundings (#2036, 2026-09-26, branch feat/real-light-sources)
+
+Marcel's question: do glowing blocks really glow, or do they only light the surroundings? The game has two separate
+mechanisms: **emission** (the block's own surface shines, HDR + bloom, lights nothing else) and **block light** (the
+radius-9 coloured flood fill that lights neighbouring faces). Several blocks only had one of them. His call: real light
+sources wherever it makes sense.
+
+- **✅ Glow blocks shine.** The mesher dropped the cell's glow modifier (`var (modTint, _)`), so a block made with the
+  Glow action (1 crystal) only lit its neighbours; it kept its own texture colour and read ~¼ as bright as a lamp.
+  Now a glowing opaque cell gets `ChunkMesher.GlowCellEmission` (0.85, the torch/strip-light level) and its surface
+  takes the glow colour through the dye recolour (a dye on the same cell still wins). See-through cells (glass) take
+  only the colour — the transparent shader reads emission as an energy field. Ships/stations mesh through the same
+  path.
+- **✅ Light sources are declared in data.** New optional `lightColor` (0xRRGGBB) in `data/blocks.json` /
+  `BlockDefinition.LightColor`; the rule lives in Shared `BlockLight.NaturalColorOf` (explicit colour wins, `0` opts
+  out; the old implicit "colour + emission ≥ 0.85" rule stays only as the Material Editor fallback). The lantern and
+  the campfire (emission 0.8, added after the threshold) never qualified — they now light, as do the **forge** (a dim
+  warm hearth, `0xA85420`) and the **beam pad** (its teal). Lamps (`light_*`, formerly a hard-coded switch), torch,
+  fire and strip lights moved to data unchanged.
+- **Not light sources, deliberately:** lava / ores / crystals (flood-fill cost on lava lakes, cave darkness), glowing
+  flora (the generation-11 plants already light via the flora catalog), machines and station blocks (designed
+  interior lighting).
+- **Tests:** `BlockLightTests` (the new fixtures light, migrated colours unchanged, every `light`-category block lights,
+  every shipped light declares its colour, natural emitters/machines only glow, fallback + explicit opt-out).
+- ⚠ **Open:** playtest in a dark cave — lantern, campfire, forge and a red-glow stone block light the walls; the
+  glow block itself shines red with bloom and stays visible from afar.
+
 ### ☣️ Toxic worlds — a rare exotic planet class whose worlds roll corrosive air, toxic water, rare cave life; ores always shallow (#2024: #2025–#2032, 2026-09-26, branch feat/toxic-worlds, terrain generation 13)
 
 Marcel's request: a planet CLASS (not one special planet) with very poor living conditions — unbreathable air that on
