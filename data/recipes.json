@@ -85,8 +85,8 @@
   // (#1299), so recipes added here only reach factories stamped AFTER the addition — existing (and claimed)
   // factories keep what they made.
   { "key": "factory_light_alloy", "station": "factory", "inputs": [ { "item": "aluminium_ore", "count": 6 }, { "item": "titanium_ore", "count": 2 } ], "outputs": [ { "item": "light_alloy", "count": 2 } ] },
-  { "key": "factory_bronze", "station": "factory", "inputs": [ { "item": "tin_ore", "count": 2 }, { "item": "copper_ore", "count": 2 } ], "outputs": [ { "item": "bronze", "count": 3 } ] },
-  { "key": "factory_brass", "station": "factory", "inputs": [ { "item": "zinc_ore", "count": 2 }, { "item": "copper_ore", "count": 2 } ], "outputs": [ { "item": "brass", "count": 3 } ] },
+  { "key": "factory_bronze", "station": "factory", "inputs": [ { "item": "tin_ore", "count": 2 }, { "item": "copper_ore", "count": 1 } ], "outputs": [ { "item": "bronze", "count": 3 } ] },
+  { "key": "factory_brass", "station": "factory", "inputs": [ { "item": "zinc_ore", "count": 2 }, { "item": "copper_ore", "count": 1 } ], "outputs": [ { "item": "brass", "count": 3 } ] },
   { "key": "factory_power_cell", "station": "factory", "inputs": [ { "item": "lithium_ore", "count": 2 }, { "item": "cobalt_ore", "count": 2 }, { "item": "copper_ore", "count": 2 }, { "item": "silicate", "count": 2 } ], "outputs": [ { "item": "power_cell", "count": 1 } ] },
   { "key": "factory_carbide", "station": "factory", "inputs": [ { "item": "tungsten_ore", "count": 3 }, { "item": "platinum_ore", "count": 3 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "carbide", "count": 1 } ] },
   { "key": "factory_magnet", "station": "factory", "inputs": [ { "item": "neodymium_ore", "count": 3 }, { "item": "iron_ore", "count": 3 } ], "outputs": [ { "item": "magnet", "count": 4 } ] },
