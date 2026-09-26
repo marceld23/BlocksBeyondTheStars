@@ -11,6 +11,106 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.17] — 2026-09-27
+
+The crystal-net release. **Crystal becomes a signal line**: lay **crystal conduits** from a switch to a lamp and the
+whole line glows while the signal is ON — one bit, ON or OFF, nothing hidden. **Doors lock and hold open on a signal,
+lamps switch**, a **step plate** rings a **chime**, a **proximity sensor** wakes an **alarm siren** and turns the beacon
+red on the map, a **daylight sensor** lights the square at night, and a **logic block** and a **timer block** combine
+and shape signals. The wild part: a **Matter Sender** turns the contents of a crate into information and a paired
+**Matter Receiver** turns it back into matter anywhere on the world — no wire between them. An **Auto-Drill** mines
+the ground below itself into a crate, a **Fabricator** crafts one recipe per pulse, a **Caller** calls the animals
+over, and a **Clone Tank** grows a wild animal of a species you have scanned.
+
+ℹ️ **Compatibility:** the network protocol moves to **version 7** — an older game version cannot join a 2026.9.17
+world and must update first. The desktop game updates itself on start, and the browser version is always current.
+Saves migrate on their own; the Crystal Net works in **old worlds too** (every world, not only new ones). Your
+existing lamps, doors and machines are untouched until you lay a conduit beside them.
+
+### 💎 Crystal conduits and the first circuit (#2046 #2047 #2049)
+
+- **Crystal Conduit**, **Crystal Switch**, **Crystal Button** and **Step Plate** — the whole first circuit sits behind
+  one blueprint, *Crystal Net*, in a new tech category of the same name (after the comm radio).
+- Everything a conduit touches is one **network**: ON as soon as any switch, plate or sensor on it says ON; the line
+  **glows** while it is. Only ON and OFF — no signal strength, no colours, nothing to count.
+- **Interact** does everything: look at a switch and press it to toggle, at a button to pulse, at any device with a
+  menu to open it — keyboard **E**, gamepad **X**, touch **USE**. The device menu is an icon grid (modes) with a few
+  cycling rows (reach, seconds, count, instrument) and lists for pairing; pad-navigable, closes with Esc / B / Close.
+- Nothing runs while nobody is on the world: your base wakes up with you.
+
+### 🚪💡 Doors and lamps on a signal (#2048)
+
+- **Any door beside a conduit obeys the signal**: ON holds it open, OFF locks it shut (the latch refuses your hand and
+  tells you why). No conduit beside it — a normal door again. A lock reads red on the frame, a held-open door green.
+- **Every lamp beside a conduit switches** — white, red and green lights, strip lights, torches, lanterns — and goes
+  dark as an unlit twin while the signal is OFF. Mine the conduit and an orphaned lamp lights up again on its own.
+
+### 👁️ Senses (#2050)
+
+- **Proximity Sensor** (anyone / players / only me / wild animals / tame animals / hostiles / settlers; reach near,
+  mid, far), **Daylight Sensor** (ON by day or by night), **Storage Sensor** (crate full, empty, or holds enough of its
+  filter item) and the **Watcher**, which pulses whenever the block in front of it changes — a mined block, a placed
+  one, a crop that ripened. Blueprint *Crystal Senses*.
+
+### 🔀 Logic and time (#2051)
+
+- One **Logic Block** — AND, OR, NOT or XOR, picked in its menu. The face you looked at when placing it is the output,
+  the other faces are inputs, and it never conducts straight through.
+- One **Timer Block** — delay, clock, counter or toggle, with seconds and count in its menu. A clock plus a counter
+  plus a few melody blocks is a tune. Blueprint *Crystal Logic*.
+
+### 🔔 Sound (#2052)
+
+- **Alarm Siren** (three sirens; wails and blinks while ON, and a beacon on the same network turns its map marker
+  red), **Chime** (four), **Horn** (three), **Melody Block** (eight notes, four instruments) and the **Announcer**,
+  which speaks a preset line — or your own — to you and your allies on the world. Blueprint *Crystal Sound*.
+- Settings → **Mute crystal alarm sirens** for classrooms and sleeping siblings: the siren still blinks, only the
+  wail goes quiet.
+
+### 🔌 The devices you already have (#2053)
+
+- A conduit beside a **beam block** beams whoever stands on it to the pad paired in its menu — no transporter panel —
+  and the far pad pulses "someone arrived". A **radio beacon** raises the alarm on a signal and reports its owner
+  within twelve blocks. A **sentry post** holds its fire while its conduit is OFF and reports "has a target". The
+  **thumper** starts on a pulse, the **water spout** stops pouring while OFF, the **energy gate** lets animals through
+  while ON, and a **hydro tray** harvests its crop into the crate beside it on a pulse.
+
+### ✨ Matter through the beam (#2054)
+
+- **Matter Sender** and **Matter Receiver**: name the receiver when you place it, pick it in the sender's menu, and
+  every pulse beams one stack from the crate beside the sender into the crate beside the receiver — anywhere on
+  this world, no conduit between them, honouring the far crate's filter. Held ON it sends a stack every two seconds.
+  Free per shot; the pace is the limit. Blueprints after the beam block and the transmuter.
+
+### ⛏️ Auto-Drill Mk1 – Mk3 (#2055)
+
+- A **stationary quarry**: while its network is ON it mines the area below itself, layer by layer, into the crate
+  beside it — **Mk1** 5×5 and eight deep, one block every two seconds; **Mk2** 7×7, sixteen deep, one per second,
+  tier-2 ores; **Mk3** 9×9, thirty-two deep, two per second, every ore a mining beam takes.
+- Its menu chooses **only ore** (the ground stays standing) or **everything** (a real pit). It stops in front of water
+  and lava, never touches anything a player built or any protected place, pauses when its crate is full and lights
+  up when it is done. Each tier upgrades the one before.
+
+### 🛠️ Fabricator (#2056)
+
+- An automatic workbench: pick one recipe in its menu, and every pulse crafts it once from the crates beside it into
+  one of them. Needs the recipe's blueprint, exactly like a hand craft, and only crafts while you are on the world.
+
+### 🐾 Caller and Clone Tank (#2057)
+
+- The **Caller** brings the peaceful animals around — and your own companions — to the block for a while.
+- The **Clone Tank** grows a **wild** animal of a species you have scanned or tamed on this world: one bait of its
+  liking plus two matter dust, a minute of bubbling, and the animal is set free beside the tank. Only peaceful
+  species, never a hostile one. Clones stay with their tank across a reload; mining the tank sets them free.
+  Both work on planets, moons and asteroids (animals do not live on a station).
+
+### 🎨 Look and sound, docs (#2058 #2059)
+
+- Every device has its own block tile and inventory icon, the sirens, chimes, horns, drill, tank and whistle have
+  their own clips, and the melody notes are synthesized in the game.
+- The **Codex** has a new *Crystal Net* article (DE + EN), the user manual a full section, and the developer docs a
+  design document plus ADR 0013.
+
 ## [2026.9.16] — 2026-09-26
 
 The orchard release. **Trees bear fruit**: round fruit, long fruit, grape clusters and bananas hang under the crowns,
@@ -5954,7 +6054,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.16...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.17...HEAD
+[2026.9.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.16...v2026.9.17
 [2026.9.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.15...v2026.9.16
 [2026.9.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.14...v2026.9.15
 [2026.9.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.13...v2026.9.14

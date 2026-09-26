@@ -39,53 +39,53 @@ auto-drill stationary with a switchable "only ore / everything" mode; both a cal
 wild and non-hostile only; no power requirement (for now, #1101); one logic block and one timer block with mode
 pickers; not on ships, yes on player stations; the protocol bump accepted.
 
-- **✅ Core (#2046, 2026-09-27, hash: pending).** `CrystalNetRules` (beats, caps, kinds, output face), the per-world
+- **✅ Core (#2046, 2026-09-27, PR #2060, squash fe571587).** `CrystalNetRules` (beats, caps, kinds, output face), the per-world
   index (`GameServerCrystalNet.cs`: join / merge / split, gates as non-members, passive ports joining beside a
   conduit), the logic + sensor beats under `Guard`, `crystal_cell` rows (SQLite + PostgreSQL) rebuilt on activation,
   `CrystalNetList` / `CrystalDeviceList` / `SetCrystalDeviceIntent` / `SoundFx`, protocol 6 → 7.
-- **✅ First circuit content (#2047, 2026-09-27, hash: pending).** Conduit, switch (remembers its lever), button
+- **✅ First circuit content (#2047, 2026-09-27, PR #2060, squash fe571587).** Conduit, switch (remembers its lever), button
   (0.5 s pulse), step plate (anyone / players / owner / creatures); blueprint `crystal_conduit` (← comm radio) in
   the new **Crystal Net** tech tab; workshop recipes with crystal; VEGA's first-conduit and cap lines.
-- **✅ Doors + lights (#2048, 2026-09-27, hash: pending).** Every `category: light` block swaps to an unlit
+- **✅ Doors + lights (#2048, 2026-09-27, PR #2060, squash fe571587).** Every `category: light` block swaps to an unlit
   `<key>_off` twin while OFF (tint, glow, form kept; orphaned lamps relight); any door beside a conduit is held open
   (ON) or locked (OFF, hand toggle refused) via `NetDoor.Mode`.
-- **✅ Client view + menus (#2049, 2026-09-27, hash: pending).** Glow on the listed cells, door mode light, device
+- **✅ Client view + menus (#2049, 2026-09-27, PR #2060, squash fe571587).** Glow on the listed cells, door mode light, device
   output states, the Interact-driven menus (icon grid for modes, list for pairing / recipes / species; Esc / pad B /
   Close), HUD hints — no new binding.
-- **✅ Sensors (#2050, 2026-09-27, hash: pending).** Proximity (7 filters, near / mid / far = 4 / 6 / 8),
+- **✅ Sensors (#2050, 2026-09-27, PR #2060, squash fe571587).** Proximity (7 filters, near / mid / far = 4 / 6 / 8),
   daylight (day / night), storage (full / empty / has filter item), watcher (pulse on `BlockSet` of the cell in
   front); presence gathered once per beat; blueprint `crystal_sensors`.
-- **✅ Logic (#2051, 2026-09-27, hash: pending).** Logic block (AND / OR / NOT / XOR; NOT with no input is ON) and
+- **✅ Logic (#2051, 2026-09-27, PR #2060, squash fe571587).** Logic block (AND / OR / NOT / XOR; NOT with no input is ON) and
   timer block (delay / clock / counter / toggle; `period=`, `count=`), output on the face looked at when placing,
   one beat of delay per gate; `LogicGate` + `TimerState` pure and tested; blueprint `crystal_logic`.
-- **✅ Sound (#2052, 2026-09-27, hash: pending).** Alarm siren (3 loops; a beacon on the same network turns red),
+- **✅ Sound (#2052, 2026-09-27, PR #2060, squash fe571587).** Alarm siren (3 loops; a beacon on the same network turns red),
   chime (4), horn (3), melody block (8 notes × 4 instruments, synthesised), announcer (6 presets or an own screened
   line, owner + allies only); 8 loops per world; blueprint `crystal_sound`.
-- **✅ Ports on existing blocks (#2053, 2026-09-27, hash: pending).** Beam pad (pulse beams whoever stands on it to
+- **✅ Ports on existing blocks (#2053, 2026-09-27, PR #2060, squash fe571587).** Beam pad (pulse beams whoever stands on it to
   its paired pad; pulses on arrival), radio beacon (alarm marker; ON while the owner is within 12), sentry post
   (OFF = holds fire; ON while it has a target), thumper (pulse starts its run), water spout (OFF stops pouring),
   energy gate (ON lets animals through), hydro tray (pulse harvests into the adjacent crate; ON while ripe).
-- **✅ Matter link (#2054, 2026-09-27, hash: pending).** Receiver named at placement, sender pairs via its menu
+- **✅ Matter link (#2054, 2026-09-27, PR #2060, squash fe571587).** Receiver named at placement, sender pairs via its menu
   (`pair=`); one stack ≤ 16 per pulse from the crate beside the sender into the crate beside the receiver (filter
   honoured), held ON = one per 2 s, same world, free; blocked → sender output ON; receiver pulses on arrival.
-- **✅ Auto-drill (#2055, 2026-09-27, hash: pending).** Stationary quarry below itself — Mk1 5×5 / 8 deep / 1 per
+- **✅ Auto-drill (#2055, 2026-09-27, PR #2060, squash fe571587).** Stationary quarry below itself — Mk1 5×5 / 8 deep / 1 per
   2 s / tier 1, Mk2 7×7 / 16 / 1 per s / tier 2, Mk3 9×9 / 32 / 2 per s / tier 3; "only ore" (default) /
   "everything"; stops before fluids, never player-placed or protected cells; crate full → pauses (output ON), done
   → output ON; 2 blocks per tick per world; blueprints `auto_drill_1..3` (← titanium / diamond drill, mining beam).
-- **✅ Fabricator (#2056, 2026-09-27, hash: pending).** One workshop recipe per device (`recipe=`), inputs from all
+- **✅ Fabricator (#2056, 2026-09-27, PR #2060, squash fe571587).** One workshop recipe per device (`recipe=`), inputs from all
   adjacent crates all-or-nothing, output into the first crate that takes it, blueprint-gated like a hand craft,
   owner must be present; held ON = one craft per 2 s; blueprint `fabricator` (← crystal_logic).
-- **✅ Caller + clone tank (#2057, 2026-09-27, hash: pending).** Caller: pulse calls passive / skittish land animals
+- **✅ Caller + clone tank (#2057, 2026-09-27, PR #2060, squash fe571587).** Caller: pulse calls passive / skittish land animals
   within 24 to orbit it for 20 s and snaps the owner's companions over. Clone tank: a WILD animal of a non-hostile
   species the owner scanned or tamed on this world, 1 bait of its preference + 2 matter dust (crate or pocket),
   60 s, release automatically or on signal; clones counted on the tank and re-spawned on load, freed when the tank
   is mined; 2 tanks / 6 living clones per owner; planet-only. Blueprints `caller` (← conduit + translator),
   `clone_tank` (← caller + matter forge).
-- **✅ Art + audio (#2058, 2026-09-27, hash: pending).** 23 tiles + 23 icons (OpenAI, `gen_textures.py` /
+- **✅ Art + audio (#2058, 2026-09-27, PR #2060, squash fe571587).** 23 tiles + 23 icons (OpenAI, `gen_textures.py` /
   `gen_item_icons.py`), 16 ElevenLabs clips (`gen_sound.py`: `alarm_siren_0..2`, `chime_0..3`, `horn_0..2`,
   `auto_drill_loop`, `clone_tank_bubble`, `fabricator_craft`, `caller_whistle`, `crystal_switch`,
   `crystal_button`), melody notes in `ProceduralAudio`, unlit lamp twins darkened in the atlas; NOTICES updated.
-- **✅ Docs (#2059, 2026-09-27, hash: pending).** `docs/developer/CRYSTAL_NET.md`, ADR 0013, developer README
+- **✅ Docs (#2059, 2026-09-27, PR #2060, squash fe571587).** `docs/developer/CRYSTAL_NET.md`, ADR 0013, developer README
   index, SOUND_DESIGN §12, INPUT_AND_CONTROLLER (rides Interact), USER_MANUAL subsection + pad / touch lines
   (+ the sentry bullet now names the power relay chain), Codex article `crystal_net`, this block.
 - ⚠ **Open:** playtest on a fresh world (doorbell: plate + chime; night light: daylight sensor + lamp; airlock:
