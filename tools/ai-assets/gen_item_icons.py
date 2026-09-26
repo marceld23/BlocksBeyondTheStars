@@ -138,6 +138,7 @@ ITEMS = [
     ("magnet", "a red horseshoe magnet with glowing poles"),
     ("light_alloy", "a lightweight brushed silver alloy plate"),
     ("radio_beacon", "a sci-fi radio beacon transmitter device, a slim metal mast on a tripod base with a glowing cyan antenna ring and a blinking status light"),
+    ("thumper", "a sci-fi sand thumper device, a squat dark metal piston rig with a heavy hammer head on a wide riveted base plate, orange warning stripes and a small amber status light"),  # #2002 (2026-09-26)
     ("speeder", "a sleek futuristic single-seat hover speeder vehicle seen at a three-quarter angle, smooth silver-blue aerodynamic hull with an open cockpit seat, swept side pods and two glowing cyan engine thrusters at the rear, hovering"),
     ("boat", "a small sturdy open motorboat seen at a three-quarter angle, warm wooden plank hull with a rounded bow, a low metal rail, a single seat and a compact grey outboard motor at the stern, sitting on calm water"),
     # Materialvielfalt — new tiers + functional alloy sinks (non-block items only).
