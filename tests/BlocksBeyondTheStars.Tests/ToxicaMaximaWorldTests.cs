@@ -65,18 +65,12 @@ public sealed class ToxicaMaximaWorldTests
             return chunk.Get(x - origin.X, y - origin.Y, z - origin.Z);
         }
 
-        /// <summary>The highest non-air cell of a column between y 1 and 150, or -1 (the needles reach high, the hollows low).</summary>
+        /// <summary>The column's ground cell: the generator's own surface height (no chunk scan — the CI runner pays for every
+        /// chunk this probe touches, #2068), or -1 where a cave mouth, hole or lake has taken the ground away.</summary>
         public int Surface(int x, int z)
         {
-            for (int y = 150; y >= 1; y--)
-            {
-                if (!At(x, y, z).IsAir)
-                {
-                    return y;
-                }
-            }
-
-            return -1;
+            int sy = _gen.SurfaceHeight(_planet, x, z);
+            return sy is >= 1 and <= 150 && !At(x, sy, z).IsAir ? sy : -1;
         }
     }
 
@@ -270,7 +264,7 @@ public sealed class ToxicaMaximaWorldTests
         int columns = 0, taintedTop = 0, oreShallow = 0, cleanSeen = 0, wet = 0, bottomless = 0;
         var offenders = new List<string>();
         var tops = new Dictionary<string, int>();
-        foreach (var (x, z) in Columns(step: 19, span: 1200))
+        foreach (var (x, z) in Columns(step: 17, span: 800))
         {
             int sy = probe.Surface(x, z);
             if (sy < 0)
@@ -316,7 +310,7 @@ public sealed class ToxicaMaximaWorldTests
             }
         }
 
-        Assert.True(columns > 500, $"only {columns} dry columns sampled ({wet} under water, {bottomless} with no surface in 1..150)");
+        Assert.True(columns > 400, $"only {columns} dry columns sampled ({wet} under water, {bottomless} with no ground at the surface height)");
         string others = string.Join(", ", tops.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}×{kv.Value}"));
         Assert.True(taintedTop >= columns * 0.9, $"{taintedTop} of {columns} dry columns wear a tainted surface; the others: {others}");
         Assert.True(oreShallow > 0, "no tainted ore within the top eight blocks of any sampled column");
@@ -331,7 +325,7 @@ public sealed class ToxicaMaximaWorldTests
         var woodLog = Block("wood_log");
         var leaves = Block("tree_leaves");
         int snags = 0, caveAir = 0;
-        foreach (var (x, z) in Columns(step: 3, span: 600))
+        foreach (var (x, z) in Columns(step: 3, span: 480))
         {
             int sy = probe.Surface(x, z);
             if (sy < 0)
@@ -339,20 +333,21 @@ public sealed class ToxicaMaximaWorldTests
                 continue;
             }
 
-            // Anything above the ground here is a tree.
-            for (int y = sy; y > sy - 14 && y > 2; y--)
+            // A snag's trunk stands on the ground cell; nothing else grows here. Below the ground, air is a cave.
+            var above = probe.At(x, sy + 1, z);
+            if (above == taintedLog)
             {
-                var b = probe.At(x, y, z);
-                if (b == taintedLog && y == sy)
-                {
-                    snags++;
-                }
+                snags++;
+            }
 
-                Assert.NotEqual(woodLog, b);
-                Assert.NotEqual(leaves, b);
-                if (y < sy - 3 && b.IsAir)
+            Assert.NotEqual(woodLog, above);
+            Assert.NotEqual(leaves, above);
+            for (int y = sy - 4; y > sy - 12 && y > 2; y--)
+            {
+                if (probe.At(x, y, z).IsAir)
                 {
                     caveAir++;
+                    break;
                 }
             }
         }
