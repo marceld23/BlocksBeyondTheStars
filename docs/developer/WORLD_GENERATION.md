@@ -2121,3 +2121,20 @@ rolls `WormRules.WormChance` (0.15) **as the very last draw** to become `Creatur
 0, arms 0, 6–12 links, the slither style, a slow pace, knee- to hip-high, antennae for horns, a small group). Rosters of
 every older generation are bit for bit unchanged (`CreatureWormTests`). The client draws the chain as the tail rig
 (`CREATURE_RIG.md`, Worm).
+
+**The sea giant (#2111, `WorldDescription.LeviathanGeneration` = 18).** Justus asked for "the largest form of water life";
+Marcel's decision: the sea giant first, on the sandworm's mover, and it hunts. Nothing in the chunk pipeline changes — the
+leviathan is a query over the water the world was born with. `WorldGenerator.DeepSeaGen18.cs`: a column is **deep sea**
+(`IsDeepSeaAt`, `TryGetDeepSea`) when `TryGetWaterSurface` reports at least `GiantRules.LeviathanMinDepth` (12) blocks of
+liquid water over the bed — enough to hide a body that cruises at girth × 1.4 + 2 below the surface; a world **hosts** the
+giant (`HostsDeepSea`, measured once per type on a 48-block grid) when at least `LeviathanMinDeepShare` (3 %) of its
+columns are. The data gate is `GiantRules.AllowsLeviathan`: generation 18, `waterAbundance ≥ 0.6`, `baseTemperature > 0`
+(no breach through an ice sheet), fauna that admits giants — oceans, coral seas, archipelagos, rainbow seas, river
+lowlands; never the sand sea (0.15) and never an older save. `CreatureGenerator.GenerateLeviathan` (id `gi_leviathan`)
+rolls it outside the roster like every giant. On the server every sandworm rule that asked "is this the sea, where is its
+surface, how deep am I hidden" now goes through `InMedium` / `SurfaceYOf` / `HiddenY` keyed on the giant's kind
+(`GameServerGiants`): the same spawn, path, hearing (`VibratesWater`: the first block under the source, within two cells, is
+water — a pier, a raft and the shore are silent; `GiantRules.CarriesThroughWater` says which sources the water carries: a
+swimmer, a boat, the fish's steps, a hard landing, a blast — not mining, not a thumper), the same strike, plus
+`StrikeBoatsNear` (hull damage twice the strike, a parked boat too). Effects: `sea_breach` / `sea_strike` / `sea_dive` /
+`wake`. Tests: `LeviathanServerTests`, `GiantRulesTests`.

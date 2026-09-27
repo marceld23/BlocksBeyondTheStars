@@ -36,6 +36,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True while any of the body is drawn above the sand.</summary>
         public bool Surfaced { get; private set; }
 
+        /// <summary>#2111: the leviathan — the same curve through the sea: the fountains are spray, the ripple is a wake.</summary>
+        public bool Water { get; set; }
+
+        private static readonly Color Foam = new Color(0.8f, 0.9f, 0.97f);
+
         /// <summary>The head's scene position right now (for the health bar and the voice).</summary>
         public Vector3 HeadScenePos => _head != null ? _head.position : transform.position;
 
@@ -65,6 +70,11 @@ namespace BlocksBeyondTheStars.Client
         /// dust): the block just under the surface at (x, z), its atlas average read once per block kind.</summary>
         private Color DustTint(GameBootstrap game, float worldX, float surfaceY, float worldZ)
         {
+            if (Water)
+            {
+                return Foam; // #2111: the sea throws spray, whatever lies on its bed
+            }
+
             if (game?.World == null)
             {
                 return _dustTint;

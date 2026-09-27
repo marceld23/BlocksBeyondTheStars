@@ -1577,7 +1577,7 @@ separate unlock; admins can still disable it through server world rules.
   in wait"), and VEGA points out the first one you get near. You bump into its body, your shots land where you
   aim on it, and it can be tamed like any other animal.
 
-### Giants (the colossus and the sandworm)
+### Giants (the colossus, the sandworm and the leviathan)
 - **A colossus** is a 40–60 block tall four-legged giant. It only lives on **very flat, very light worlds** (the lighter
   moons of plains, downs and dune types) and even there only on one world in three. Every colossus is different:
   peaceful ones migrate and graze on treetops, shy ones walk away, territorial ones fight back when hit, aggressive
@@ -1600,7 +1600,15 @@ separate unlock; admins can still disable it through server world rules.
 - **Sound devices as lures:** a Crystal-Net **chime** or **horn** standing on sea sand shakes it once each time it sounds,
   and an **alarm siren** keeps shaking it every two seconds while it wails — wire one to a switch, a sensor or a clock and
   the worm comes to it (or stays away from you). On rock they are as silent to the worm as everything else.
-- A defeated giant is gone for a few in-game days, then another one comes. Neither ever changes a block.
+- **A leviathan** (new worlds since generation 18, Justus' idea) is the sea's giant — the largest form of water life, a
+  60–120 block body with fins, a fluke and two jaws — and lives under the **deep sea of a warm, living water world** (oceans,
+  coral seas, archipelagos, river lowlands: plenty of water, not frozen over, at least a few percent of the world at least
+  twelve blocks deep). It does everything the sandworm does, in water: it hears **swimmers, boats and the fish** through the
+  water (a step on a pier, a raft or the shore is silent, and so is mining), a **wake** rolls toward you and VEGA warns you,
+  then it **breaches** in an arc or rears up and **strikes** the spot — a boat under its head takes heavy **hull damage** (a
+  parked one too), whoever is on it is hurt, and every fish in reach is **swallowed**, leaving a little meat. You can only
+  hit it while it is above the water. Get to the shore, or hold still.
+- A defeated giant is gone for a few in-game days, then another one comes. None of them ever changes a block.
 
 ### Taming creatures (companions)
 - Craft a **Creature Translator** (`creature_translator`, workshop recipe + blueprint) and some **bait**
@@ -2075,7 +2083,7 @@ rejections) appear in the **chat scrollback**, not just the brief HUD toast.
 | `/tpp Player` | Teleport to a player on the body you are on — you land **beside** them, never inside them (#1055) |
 | `/settime day\|night\|…` | Set the world time of day |
 | `/setweather clear\|storm\|…` | Set the world weather |
-| `/giant colossus\|sandworm` | Summon this world's colossus or sandworm near you (a sandworm needs a sand sea) — for testing |
+| `/giant colossus\|sandworm\|leviathan` | Summon this world's colossus, sandworm or leviathan near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
 | `/arachnid` | Summon this world's arachnid near you (rolls one into the world's fauna first if it has none) — for testing |
 | `/biped` | Summon a begging herd of this world's bipeds near you (Mini-Michi-Paul on a tropical world; rolls a begging biped into the world's fauna first if it has none) — for testing |
 | `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |

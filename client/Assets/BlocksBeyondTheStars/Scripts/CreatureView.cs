@@ -882,6 +882,9 @@ namespace BlocksBeyondTheStars.Client
 
         private PlayerController LocalPlayer => _player != null ? _player : (_player = FindAnyObjectByType<PlayerController>());
 
+        /// <summary>#2111: the leviathan's spray — pale sea foam, whatever the seabed.</summary>
+        private static readonly Color SeaSpray = new Color(0.8f, 0.9f, 0.97f);
+
         /// <summary>Wires a freshly built giant: its colliders into the aim/scan lookup, a colossus's footfalls into dust and
         /// a ground shake.</summary>
         private void SetUpGiant(Entry entry, NetCreature c)
@@ -1016,6 +1019,43 @@ namespace BlocksBeyondTheStars.Client
                     case "rumble":
                         audio?.At("sandworm_rumble", at, 0.45f, 0.5f * Mathf.Clamp01(fx.Strength)); // something huge moving under the sand
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 120f) * 0.25f * Mathf.Clamp01(fx.Strength));
+                        break;
+
+                    // #2111: the leviathan's moves — the sandworm's kinds in water: spray instead of dust, its own clips, less shake
+                    // (water does not carry a tremor to the shore).
+                    case "sea_breach":
+                        for (int i = 0; i < 6; i++)
+                        {
+                            var off = Random.insideUnitCircle * 4f;
+                            Fx?.Dust(at + new Vector3(off.x, 0.4f, off.y), 10, SeaSpray);
+                        }
+
+                        audio?.At("leviathan_breach", at, 0.75f, 1f);
+                        player?.AddCameraShake(Mathf.Clamp01(1f - dist / 100f) * 0.35f);
+                        break;
+                    case "sea_strike":
+                        for (int i = 0; i < 8; i++)
+                        {
+                            var off = Random.insideUnitCircle * Mathf.Max(1f, fx.Radius * 0.8f);
+                            Fx?.Dust(at + new Vector3(off.x, 0.4f, off.y), 10, SeaSpray);
+                        }
+
+                        audio?.At("leviathan_strike", at, 0.75f, Mathf.Clamp(fx.Strength, 0.5f, 1f));
+                        player?.AddCameraShake(Mathf.Clamp01(1f - dist / 70f) * 0.7f * fx.Strength);
+                        break;
+                    case "sea_dive":
+                        for (int i = 0; i < 3; i++)
+                        {
+                            var off = Random.insideUnitCircle * 3f;
+                            Fx?.Dust(at + new Vector3(off.x, 0.3f, off.y), 8, SeaSpray);
+                        }
+
+                        audio?.At("leviathan_dive", at, 0.6f, 0.8f);
+                        player?.AddCameraShake(Mathf.Clamp01(1f - dist / 60f) * 0.2f);
+                        break;
+                    case "wake":
+                        Fx?.Dust(at + Vector3.up * 0.2f, 6, SeaSpray);
+                        audio?.At("leviathan_wake", at, 0.45f, 0.5f * Mathf.Clamp01(fx.Strength)); // something enormous under the surface
                         break;
                 }
 

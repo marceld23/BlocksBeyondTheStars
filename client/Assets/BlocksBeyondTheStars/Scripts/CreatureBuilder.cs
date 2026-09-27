@@ -98,6 +98,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (c.BodyPlan == "Leviathan")
+            {
+                BuildLeviathan(root, c); // #2111
+                return;
+            }
+
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
             Color baseColor = Rgb(c.ColorRgb);
             Color bellyColor = Rgb(c.BellyRgb);
@@ -1740,6 +1746,125 @@ namespace BlocksBeyondTheStars.Client
             MakeGiantBody(root);
             var view = root.AddComponent<SandwormView>();
             view.Init(segments, head, petalPivots, girth, length, _renderers.ToArray());
+        }
+
+        /// <summary>The leviathan (#2111): the sandworm's long body in the sea — a smooth tapering tube of segments with a pale
+        /// belly, a dorsal fin on a crested species, pairs of flank fins along the body, a fluke at the tail, and a sleek head
+        /// with two eyes and two hinged jaws (the worm's petals, two of them: top and bottom). The same <see cref="SandwormView"/>
+        /// poses it along the shared <c>SandwormPath</c>; the view's water flag turns the sand fountains into spray.</summary>
+        private void BuildLeviathan(GameObject root, NetCreature c)
+        {
+            float girth = Mathf.Max(2f, c.WormGirth > 0f ? c.WormGirth : 5f);
+            int segCount = Mathf.Clamp(c.BodySegments, 20, 40);
+            float length = Mathf.Max(20f, c.WormLength > 0f ? c.WormLength : girth * 16f);
+            float segLen = length / segCount;
+            Color baseColor = Rgb(c.ColorRgb);
+            Color bellyColor = Rgb(c.BellyRgb);
+            _bodyMat = Lit(c.Glows ? baseColor * 1.3f : baseColor, PickHide(c));
+            var bellyMat = Lit(bellyColor, PickHide(c));
+            var finMat = Lit(Color.Lerp(baseColor, bellyColor, 0.35f) * 0.95f, _plated ?? _hide);
+            var spineMat = Lit(baseColor * 0.6f, null);
+            var glowMat = Unlit(Color.Lerp(bellyColor, new Color(0.5f, 0.95f, 1f), 0.7f));
+            int spineRows = Mathf.Clamp(c.Horns, 0, 2);
+            int finPairs = Mathf.Clamp(c.FinPairs, 1, 3);
+
+            var segments = new Transform[segCount];
+            for (int i = 0; i < segCount; i++)
+            {
+                float t = i / (float)(segCount - 1);
+                // Thickest a third of the way back, tapering to a narrow tail stock for the fluke.
+                float taper = Mathf.Lerp(0.8f, 1f, Mathf.Clamp01(t / 0.3f)) * Mathf.Lerp(1f, 0.32f, Mathf.Clamp01((t - 0.3f) / 0.7f) * Mathf.Clamp01((t - 0.3f) / 0.7f));
+                float g = girth * taper;
+                var seg = new GameObject("Seg" + i).transform;
+                seg.SetParent(root.transform, false);
+                _keepColliders = true;
+                AddPartTo(seg, "Core", Vector3.zero, new Vector3(g, g * 0.92f, segLen * 1.08f), _bodyMat);
+                _keepColliders = false;
+                AddPartTo(seg, "Belly", new Vector3(0f, -g * 0.42f, 0f), new Vector3(g * 0.7f, g * 0.14f, segLen * 1.0f), bellyMat);
+                if (c.HasCrest && t > 0.15f && t < 0.5f)
+                {
+                    // The dorsal fin: tallest over the thickest part of the body, a thin blade.
+                    float fin = g * (0.55f + 0.5f * Mathf.Sin((t - 0.15f) / 0.35f * Mathf.PI));
+                    AddPartTo(seg, "Dorsal", new Vector3(0f, g * 0.46f + fin * 0.5f, 0f), new Vector3(g * 0.08f, fin, segLen * 0.9f), finMat);
+                }
+
+                if (spineRows > 0 && t > 0.5f && i % 2 == 0)
+                {
+                    for (int s = 0; s < spineRows; s++)
+                    {
+                        float x = spineRows == 1 ? 0f : (s == 0 ? -g * 0.18f : g * 0.18f);
+                        AddPartTo(seg, "Spine" + s, new Vector3(x, g * 0.5f, 0f), new Vector3(g * 0.07f, g * 0.3f, g * 0.07f), spineMat);
+                    }
+                }
+
+                if (c.Glows && (i & 1) == 0)
+                {
+                    AddPartTo(seg, "SpotL", new Vector3(-g * 0.5f, g * 0.05f, 0f), new Vector3(g * 0.03f, g * 0.1f, segLen * 0.35f), glowMat);
+                    AddPartTo(seg, "SpotR", new Vector3(g * 0.5f, g * 0.05f, 0f), new Vector3(g * 0.03f, g * 0.1f, segLen * 0.35f), glowMat);
+                }
+
+                segments[i] = seg;
+            }
+
+            // Flank fins: pairs spread along the front two thirds, swept back, angled a little down.
+            for (int p = 0; p < finPairs; p++)
+            {
+                int at = Mathf.Clamp(Mathf.RoundToInt(segCount * (0.18f + 0.22f * p)), 1, segCount - 2);
+                float g = girth * Mathf.Lerp(1f, 0.7f, p / 2f);
+                float finLen = g * (1.6f - 0.3f * p);
+                foreach (int side in new[] { -1, 1 })
+                {
+                    var pivot = NewPivot(segments[at], "Fin" + p + (side < 0 ? "L" : "R"), new Vector3(side * g * 0.45f, -g * 0.1f, 0f));
+                    pivot.localRotation = Quaternion.Euler(0f, side * -35f, side * 18f);
+                    AddPartTo(pivot, "FinBlade", new Vector3(side * finLen * 0.5f, 0f, -finLen * 0.1f), new Vector3(finLen, g * 0.08f, g * 0.7f), finMat);
+                }
+            }
+
+            // The fluke: two horizontal blades on the last segment.
+            var tail = segments[segCount - 1];
+            float tailG = girth * 0.32f;
+            foreach (int side in new[] { -1, 1 })
+            {
+                var pivot = NewPivot(tail, "Fluke" + (side < 0 ? "L" : "R"), new Vector3(0f, 0f, -segLen * 0.3f));
+                pivot.localRotation = Quaternion.Euler(0f, side * 28f, 0f);
+                AddPartTo(pivot, "FlukeBlade", new Vector3(side * girth * 0.7f, 0f, -girth * 0.25f), new Vector3(girth * 1.4f, tailG * 0.25f, girth * 0.8f), finMat);
+            }
+
+            // The head: a sleek snout, two eyes, and two hinged jaws with a row of teeth each.
+            var head = new GameObject("WormHead").transform;
+            head.SetParent(root.transform, false);
+            _keepColliders = true;
+            AddPartTo(head, "Skull", new Vector3(0f, 0f, -girth * 0.05f), new Vector3(girth * 1.0f, girth * 0.85f, girth * 0.7f), _bodyMat);
+            _keepColliders = false;
+            AddPartTo(head, "Snout", new Vector3(0f, girth * 0.12f, girth * 0.45f), new Vector3(girth * 0.7f, girth * 0.4f, girth * 0.5f), _bodyMat);
+            var eyeMat = Unlit(c.Glows ? new Color(0.6f, 1f, 0.95f) : new Color(0.95f, 0.9f, 0.5f));
+            AddPartTo(head, "EyeL", new Vector3(-girth * 0.42f, girth * 0.2f, girth * 0.25f), new Vector3(girth * 0.16f, girth * 0.16f, girth * 0.16f), eyeMat);
+            AddPartTo(head, "EyeR", new Vector3(girth * 0.42f, girth * 0.2f, girth * 0.25f), new Vector3(girth * 0.16f, girth * 0.16f, girth * 0.16f), eyeMat);
+            var mawMat = Lit(new Color(0.5f, 0.1f, 0.14f), null);
+            var toothMat = Lit(new Color(0.95f, 0.93f, 0.85f), null);
+            AddPartTo(head, "Maw", new Vector3(0f, -girth * 0.1f, girth * 0.3f), new Vector3(girth * 0.66f, girth * 0.3f, girth * 0.05f), mawMat);
+
+            var jaws = new Transform[2];
+            for (int k = 0; k < 2; k++)
+            {
+                float a = k == 0 ? Mathf.PI * 0.5f : Mathf.PI * 1.5f; // top, bottom
+                var rim = new Vector3(0f, Mathf.Sin(a) * girth * 0.24f - girth * 0.1f, girth * 0.3f);
+                var pivot = NewPivot(head, "Jaw" + k, rim);
+                pivot.localRotation = Quaternion.Euler(0f, 0f, a * Mathf.Rad2Deg - 90f);
+                AddPartTo(pivot, "Petal", new Vector3(0f, -girth * 0.12f, girth * 0.4f), new Vector3(girth * 0.7f, girth * 0.12f, girth * 0.85f), _bodyMat);
+                for (int tth = 0; tth < 5; tth++)
+                {
+                    float x = Mathf.Lerp(-girth * 0.26f, girth * 0.26f, tth / 4f);
+                    AddPartTo(pivot, "Tooth" + tth, new Vector3(x, -girth * 0.02f, girth * 0.25f + tth * girth * 0.12f), new Vector3(girth * 0.06f, girth * 0.14f, girth * 0.06f), toothMat);
+                }
+
+                jaws[k] = pivot;
+            }
+
+            MakeGiantBody(root);
+            var view = root.AddComponent<SandwormView>();
+            view.Water = true;
+            view.Init(segments, head, jaws, girth, length, _renderers.ToArray());
         }
 
         /// <summary>Puts a giant's collider parts on the giant layer and gives the root a kinematic rigidbody, so the moving

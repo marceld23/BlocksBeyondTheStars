@@ -18,6 +18,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// and are solid to the player (client colliders). They live in the creature list for the wire, the hits and the kill
 /// path, but spawn, move, attack and leave by the rules here, on the Sreekmakra pattern: one per world (two sandworms on
 /// a big one), placed near a player on foot, never far-pruned, a return time in the metadata after a defeat.
+///
+/// The <b>leviathan</b> (#2111, generation 18, Justus' idea) is the sandworm's mover in WATER: it lives under the deep sea of
+/// a living water world, hears swimmers, boats and the fish through the water, breaches, strikes (a boat's hull cracks) and
+/// swallows. Everything that asks "what medium, where is its surface, how deep is it hidden" goes through
+/// <see cref="InMedium"/>, <see cref="SurfaceYOf"/> and <see cref="HiddenY"/>, keyed on the giant's kind.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -92,7 +97,59 @@ public sealed partial class GameServer
             gs.WormCount = GiantRules.SandwormCount(planet, _world.Circumference, generation);
             RegisterGiantSpecies(worm);
         }
+
+        // #2111: the sea giant — the data allows it (generation 18, a living water world) and the sea is deep enough.
+        if (GiantRules.AllowsLeviathan(planet, generation) && _generator.HostsDeepSea(planet))
+        {
+            var leviathan = CreatureGenerator.GenerateAuthoredGiant(planet, rosterSeed, authored, CreatureBodyPlan.Leviathan, generation)
+                            ?? CreatureGenerator.GenerateLeviathan(_meta.Seed, _world.LocationId);
+            gs.Leviathan = leviathan;
+            gs.LeviathanCount = GiantRules.LeviathanCount(_world.Circumference);
+            RegisterGiantSpecies(leviathan);
+        }
     }
+
+    /// <summary>The two giants that hide in a medium and come for what shakes it: the sandworm (sand), the leviathan (water).</summary>
+    private static bool IsBurrower(CreatureBodyPlan kind) => kind is CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan;
+
+    private static string GiantName(CreatureBodyPlan kind) => kind switch
+    {
+        CreatureBodyPlan.Colossus => "colossus",
+        CreatureBodyPlan.Leviathan => "leviathan",
+        _ => "sandworm",
+    };
+
+    /// <summary>Whether (x, z) is the giant's medium: sand-sea sand for a sandworm, deep sea for a leviathan (#2111).</summary>
+    private bool InMedium(CreatureSpecies sp, int x, int z)
+        => sp.BodyPlan == CreatureBodyPlan.Leviathan ? _generator.IsDeepSeaAt(_world.Planet, x, z) : _generator.IsSandSeaAt(_world.Planet, x, z);
+
+    /// <summary>The surface plane the giant breaks through at (x, z): the top of the sand, or the water's surface.</summary>
+    private float SurfaceYOf(CreatureSpecies sp, int x, int z)
+    {
+        if (sp.BodyPlan == CreatureBodyPlan.Leviathan && _generator.TryGetWaterSurface(_world.Planet, x, z, out int top, out _))
+        {
+            return top + 1;
+        }
+
+        return _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+    }
+
+    /// <summary>How deep a hidden giant runs under its surface at (x, z): the sandworm under the sand, the leviathan under
+    /// the water — never below the seabed.</summary>
+    private float HiddenY(CreatureSpecies sp, int x, int z)
+    {
+        float depth = sp.WormGirth * 1.4f + 2f;
+        if (sp.BodyPlan == CreatureBodyPlan.Leviathan && _generator.TryGetWaterSurface(_world.Planet, x, z, out int top, out int bed))
+        {
+            return System.Math.Max(bed + 1 + sp.WormGirth * 0.5f, top + 1 - depth);
+        }
+
+        return _generator.SurfaceHeight(_world.Planet, x, z) + 1 - depth;
+    }
+
+    /// <summary>The world effect a burrower's move throws: the sandworm's kinds, or the leviathan's water kinds (#2111).</summary>
+    private static string BurrowFx(CreatureSpecies sp, string kind)
+        => sp.BodyPlan == CreatureBodyPlan.Leviathan ? (kind == "rumble" ? "wake" : "sea_" + kind) : kind;
 
     private void RegisterGiantSpecies(CreatureSpecies sp)
     {
@@ -104,7 +161,7 @@ public sealed partial class GameServer
     private IEnumerable<CombatEntity> LiveGiants() => _creatures.Where(c => c.IsGiant);
 
     private string GiantSlotKey(CreatureBodyPlan kind, int slot)
-        => _world.LocationId + "|" + (kind == CreatureBodyPlan.Colossus ? "colossus" : "sandworm" + slot);
+        => _world.LocationId + "|" + (kind == CreatureBodyPlan.Colossus ? "colossus" : GiantName(kind) + slot);
 
     // =====================================================================================================
     // Tick
@@ -120,7 +177,7 @@ public sealed partial class GameServer
         var gs = Giants;
         TickThumpers(dt);
         TickSoundDevicePulses(); // #2077: a wailing siren on the sand keeps shaking it
-        if (gs.Colossus is null && gs.Sandworm is null)
+        if (gs.Colossus is null && gs.Sandworm is null && gs.Leviathan is null)
         {
             return;
         }
@@ -200,6 +257,20 @@ public sealed partial class GameServer
                 TrySpawnSandworm(worm, slot, onFoot);
             }
         }
+
+        if (gs.Leviathan is { } leviathan)
+        {
+            for (int slot = 0; slot < gs.LeviathanCount; slot++)
+            {
+                if (LiveGiants().Any(c => c.Giant!.Kind == CreatureBodyPlan.Leviathan && c.Giant.Slot == slot)
+                    || (_meta.GiantBackAt.TryGetValue(GiantSlotKey(CreatureBodyPlan.Leviathan, slot), out long lb) && now < lb))
+                {
+                    continue;
+                }
+
+                TrySpawnSandworm(leviathan, slot, onFoot); // #2111: the same spawn, in the sea
+            }
+        }
     }
 
     private CombatEntity SpawnGiantEntity(CreatureSpecies sp, GiantRuntime g, Vector3f pos)
@@ -218,7 +289,13 @@ public sealed partial class GameServer
             Giant = g,
         };
         e.Loot.Add(new ItemAmount(sp.DropItem, sp.DropCount));
-        foreach (var extra in g.Kind == CreatureBodyPlan.Colossus ? ColossusLoot : SandwormLoot)
+        var extras = g.Kind switch
+        {
+            CreatureBodyPlan.Colossus => ColossusLoot,
+            CreatureBodyPlan.Leviathan => LeviathanLoot,
+            _ => SandwormLoot,
+        };
+        foreach (var extra in extras)
         {
             e.Loot.Add(extra);
         }
@@ -236,6 +313,12 @@ public sealed partial class GameServer
     private static readonly ItemAmount[] SandwormLoot =
     {
         new("crystal", 8), new("silicate", 12), new("data_fragment", 2),
+    };
+
+    /// <summary>#2111: the sea giant's extras — crystal, the salt of the sea, and what it swallowed over the years.</summary>
+    private static readonly ItemAmount[] LeviathanLoot =
+    {
+        new("crystal", 8), new("salt", 12), new("data_fragment", 2),
     };
 
     // =====================================================================================================
@@ -597,9 +680,12 @@ public sealed partial class GameServer
     // Sandworm (#2001)
     // =====================================================================================================
 
+    /// <summary>Places a burrowing giant hidden in its medium 70–170 blocks from a player on foot: a sandworm under the sand
+    /// sea, a leviathan (#2111) under the deep sea.</summary>
     private bool TrySpawnSandworm(CreatureSpecies sp, int slot, List<PlayerSession> onFoot)
     {
-        var rng = new System.Random(unchecked((int)(_meta.Seed ^ WorldGenerator.StableHash("sandworm-spawn:" + _world.LocationId + slot) ^ (long)_uptime)));
+        string name = GiantName(sp.BodyPlan);
+        var rng = new System.Random(unchecked((int)(_meta.Seed ^ WorldGenerator.StableHash(name + "-spawn:" + _world.LocationId + slot) ^ (long)_uptime)));
         var near = onFoot[rng.Next(onFoot.Count)].State.Position;
         for (int attempt = 0; attempt < 16; attempt++)
         {
@@ -607,46 +693,51 @@ public sealed partial class GameServer
             float dist = WormSpawnMin + (float)rng.NextDouble() * (WormSpawnMax - WormSpawnMin);
             int x = (int)System.Math.Floor(near.X + System.Math.Cos(angle) * dist);
             int z = (int)System.Math.Floor(near.Z + System.Math.Sin(angle) * dist);
-            if (!_generator.IsSandSeaAt(_world.Planet, x, z))
+            if (!InMedium(sp, x, z))
             {
                 continue;
             }
 
             var g = new GiantRuntime
             {
-                Kind = CreatureBodyPlan.Sandworm,
+                Kind = sp.BodyPlan,
                 Slot = slot,
                 Facing = (float)angle,
                 Phase = "hidden",
                 PhaseStart = _uptime,
                 CooldownUntil = _uptime + 4.0,
             };
-            SpawnGiantEntity(sp, g, new Vector3f(x + 0.5f, WormDepthY(sp, x, z), z + 0.5f));
-            _log.Info($"A sandworm ({sp.Name}, {sp.GiantHeight:0} blocks, {sp.Temperament}) lurks under '{_world.LocationId}'.");
+            SpawnGiantEntity(sp, g, new Vector3f(x + 0.5f, HiddenY(sp, x, z), z + 0.5f));
+            _log.Info($"A {name} ({sp.Name}, {sp.GiantHeight:0} blocks, {sp.Temperament}) lurks under '{_world.LocationId}'.");
             return true;
         }
 
         return false;
     }
 
-    /// <summary>How deep a hidden sandworm runs under the sea at (x, z).</summary>
-    private float WormDepthY(CreatureSpecies sp, int x, int z)
-        => _generator.SurfaceHeight(_world.Planet, x, z) + 1 - (sp.WormGirth * 1.4f + 2f);
-
-    /// <summary>A vibration at <paramref name="at"/> (#2001). It carries through the sand only: a source whose ground is not
-    /// sand-sea sand — rock, a landing pad, a player's floor — is heard by nothing. Every live sandworm in reach grows its
-    /// attention; the latest loud source is what it comes for.</summary>
+    /// <summary>A vibration at <paramref name="at"/> (#2001). It carries through the giant's own medium only: a sandworm hears a
+    /// source whose ground is sand-sea sand (rock, a landing pad, a player's floor are silent), a leviathan (#2111) a source
+    /// in or on the water. Every live burrower in reach grows its attention; the latest loud source is what it comes for.</summary>
     internal void EmitVibration(Vector3f at, VibrationSource source, string playerId = "")
     {
-        if (!Giants.HasWorms || !VibratesSand(at))
+        if (!Giants.HasWorms)
         {
             return;
         }
 
+        bool? sand = null, water = null;
         foreach (var worm in LiveGiants())
         {
             var g = worm.Giant!;
-            if (g.Kind != CreatureBodyPlan.Sandworm || g.Move != WormMove.None || !_speciesById.TryGetValue(worm.SpeciesId, out var sp))
+            if (!IsBurrower(g.Kind) || g.Move != WormMove.None || !_speciesById.TryGetValue(worm.SpeciesId, out var sp))
+            {
+                continue;
+            }
+
+            bool carries = g.Kind == CreatureBodyPlan.Leviathan
+                ? water ??= GiantRules.CarriesThroughWater(source) && VibratesWater(at)
+                : sand ??= VibratesSand(at);
+            if (!carries)
             {
                 continue;
             }
@@ -700,6 +791,32 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>Whether a source at this spot shakes the WATER (#2111): a swimmer's feet, a boat's hull or a fish sit in a water
+    /// cell, or on one — the first block under the source, within two cells, is water. A source on a pier, a shore or a raft of
+    /// blocks is silent to the leviathan, like rock is to the sandworm.</summary>
+    private bool VibratesWater(Vector3f at)
+    {
+        if (_waterId == 0)
+        {
+            return false;
+        }
+
+        int x = (int)System.Math.Floor(at.X), z = (int)System.Math.Floor(at.Z);
+        int y = (int)System.Math.Floor(at.Y);
+        for (int dy = 0; dy <= 2; dy++)
+        {
+            var id = _world.GetBlock(new Vector3i(x, y - dy, z));
+            if (id.IsAir)
+            {
+                continue;
+            }
+
+            return id.Value == _waterId;
+        }
+
+        return false;
+    }
+
     private bool TickSandworm(CombatEntity e, GiantRuntime g, CreatureSpecies sp, List<PlayerSession> onFoot, double dt)
     {
         if (e.ProvokeTimer > 0)
@@ -733,7 +850,7 @@ public sealed partial class GameServer
                 g.NextRumbleAt = _uptime;
                 if (g.HeardPlayerId.Length > 0 && FindSessionByPlayerId(g.HeardPlayerId) is { } warned)
                 {
-                    SendVegaLine(warned, "vega.sys.sandworm_near", 3);
+                    SendVegaLine(warned, sp.BodyPlan == CreatureBodyPlan.Leviathan ? "vega.sys.leviathan_near" : "vega.sys.sandworm_near", 3);
                 }
             }
 
@@ -760,9 +877,9 @@ public sealed partial class GameServer
                 int sx = (int)System.Math.Floor(e.Position.X), sz = (int)System.Math.Floor(e.Position.Z);
                 BroadcastToWorld(new WorldFx
                 {
-                    Kind = "rumble",
+                    Kind = BurrowFx(sp, "rumble"),
                     X = e.Position.X,
-                    Y = _generator.SurfaceHeight(_world.Planet, sx, sz) + 1,
+                    Y = SurfaceYOf(sp, sx, sz),
                     Z = e.Position.Z,
                     Strength = System.Math.Clamp(1f - d / 120f, 0.25f, 1f),
                 });
@@ -793,18 +910,18 @@ public sealed partial class GameServer
         return changed;
     }
 
-    /// <summary>Moves a hidden worm along its heading under the sea; refuses (and stays) where the sea ends.</summary>
+    /// <summary>Moves a hidden burrower along its heading under its sea; refuses (and stays) where the sea ends.</summary>
     private bool MoveWormUnder(CombatEntity e, CreatureSpecies sp, float heading, float step)
     {
         float nx = e.Position.X + (float)System.Math.Cos(heading) * step;
         float nz = e.Position.Z + (float)System.Math.Sin(heading) * step;
         int ix = (int)System.Math.Floor(nx), iz = (int)System.Math.Floor(nz);
-        if (!_generator.IsSandSeaAt(_world.Planet, ix, iz))
+        if (!InMedium(sp, ix, iz))
         {
             return false;
         }
 
-        e.Position = new Vector3f((float)Shared.World.WorldConstants.WrapX(nx, _world.Circumference), WormDepthY(sp, ix, iz),
+        e.Position = new Vector3f((float)Shared.World.WorldConstants.WrapX(nx, _world.Circumference), HiddenY(sp, ix, iz),
             (float)Shared.World.WorldConstants.WrapZ(nz, _world.Circumference));
         return true;
     }
@@ -816,7 +933,7 @@ public sealed partial class GameServer
         bool strike = g.HeardThumper || sp.Temperament == CreatureTemperament.Aggressive || g.Warned;
         var target = g.Heard;
         int tx = (int)System.Math.Floor(target.X), tz = (int)System.Math.Floor(target.Z);
-        float surfaceY = _generator.SurfaceHeight(_world.Planet, tx, tz) + 1;
+        float surfaceY = SurfaceYOf(sp, tx, tz);
         float dirX = (float)System.Math.Cos(g.Facing), dirZ = (float)System.Math.Sin(g.Facing);
         WormMove move = strike ? WormMove.Rear : WormMove.Breach;
         var anchor = new Vector3f(target.X, surfaceY, target.Z);
@@ -827,12 +944,12 @@ public sealed partial class GameServer
             anchor = new Vector3f(target.X - dirZ * 14f, surfaceY, target.Z + dirX * 14f);
         }
 
-        // The body must rise out of the sea: the rising spot and the anchor both on sand-sea ground, else try the other way.
-        if (!WormMoveFits(move, anchor, dirX, dirZ, strikeDist))
+        // The body must rise out of the sea: the rising spot and the anchor both in its medium, else try the other way.
+        if (!WormMoveFits(sp, move, anchor, dirX, dirZ, strikeDist))
         {
             dirX = -dirX;
             dirZ = -dirZ;
-            if (!WormMoveFits(move, anchor, dirX, dirZ, strikeDist))
+            if (!WormMoveFits(sp, move, anchor, dirX, dirZ, strikeDist))
             {
                 g.Approaching = false;
                 g.Attention = 0f;
@@ -855,17 +972,18 @@ public sealed partial class GameServer
         g.HitThisMove.Clear();
         g.Warned = !strike; // a territorial worm strikes on its next approach if the shaking goes on
         g.Attention = strike ? 0f : GiantRules.AttentionThreshold * 0.4f;
-        BroadcastToWorld(new WorldFx { Kind = "breach", X = anchor.X, Y = anchor.Y, Z = anchor.Z, Strength = 1f });
+        BroadcastToWorld(new WorldFx { Kind = BurrowFx(sp, "breach"), X = anchor.X, Y = anchor.Y, Z = anchor.Z, Strength = 1f });
         return true;
     }
 
-    private bool WormMoveFits(WormMove move, Vector3f anchor, float dirX, float dirZ, float strikeDist)
+    private bool WormMoveFits(CreatureSpecies sp, WormMove move, Vector3f anchor, float dirX, float dirZ, float strikeDist)
     {
         float back = move == WormMove.Rear ? strikeDist : 0f;
         int ax = (int)System.Math.Floor(anchor.X), az = (int)System.Math.Floor(anchor.Z);
         int rx = (int)System.Math.Floor(anchor.X - dirX * back), rz = (int)System.Math.Floor(anchor.Z - dirZ * back);
-        return _generator.IsSandSeaAt(_world.Planet, rx, rz)
-               && (move == WormMove.Breach || _generator.IsSandSeaAt(_world.Planet, ax, az) || IsThumperAt(anchor));
+        // The strike may land beside the medium: a thumper on the sand's edge, a swimmer or a boat at the shore (#2111).
+        return InMedium(sp, rx, rz)
+               && (move == WormMove.Breach || InMedium(sp, ax, az) || IsThumperAt(anchor) || (sp.BodyPlan == CreatureBodyPlan.Leviathan && VibratesWater(anchor)));
     }
 
     private bool TickWormMove(CombatEntity e, GiantRuntime g, CreatureSpecies sp, SandwormPath path, List<PlayerSession> onFoot)
@@ -879,11 +997,16 @@ public sealed partial class GameServer
             g.StrikeDone = true;
             var at = g.MoveAnchor;
             float radius = sp.WormGirth * 0.9f + 1.5f;
-            BroadcastToWorld(new WorldFx { Kind = "strike", X = at.X, Y = at.Y, Z = at.Z, Strength = 1f, Radius = radius + 2f });
+            BroadcastToWorld(new WorldFx { Kind = BurrowFx(sp, "strike"), X = at.X, Y = at.Y, Z = at.Z, Strength = 1f, Radius = radius + 2f });
             SwallowThumpersNear(at, radius);
             if (sp.SwallowsCreatures)
             {
                 SwallowCreaturesNear(at, radius); // #2076: and the animals that stood there
+            }
+
+            if (sp.BodyPlan == CreatureBodyPlan.Leviathan)
+            {
+                StrikeBoatsNear(at, radius + 1f, sp); // #2111: a boat under the head — its hull cracks
             }
             foreach (var s in onFoot)
             {
@@ -935,7 +1058,7 @@ public sealed partial class GameServer
                     {
                         g.HitThisMove.Add(p.PlayerId);
                         HurtPlayer(s, sp.AttackDamage * WormBodyHitShare, "@srv.death.giant");
-                        BroadcastToWorld(new WorldFx { Kind = "stomp", X = c.X, Y = c.Y, Z = c.Z, Strength = 0.5f, Radius = reach + 1.5f });
+                        BroadcastToWorld(new WorldFx { Kind = sp.BodyPlan == CreatureBodyPlan.Leviathan ? "sea_strike" : "stomp", X = c.X, Y = c.Y, Z = c.Z, Strength = 0.5f, Radius = reach + 1.5f });
                         break;
                     }
                 }
@@ -947,10 +1070,10 @@ public sealed partial class GameServer
             return false;
         }
 
-        // Back under the sand: cool down, then listen again.
+        // Back under the sand (the water): cool down, then listen again.
         var end = path.HeadAt(path.Duration);
         int ex = (int)System.Math.Floor(end.X), ez = (int)System.Math.Floor(end.Z);
-        e.Position = new Vector3f(end.X, WormDepthY(sp, ex, ez), end.Z);
+        e.Position = new Vector3f(end.X, HiddenY(sp, ex, ez), end.Z);
         g.Move = WormMove.None;
         g.Path = null;
         g.Phase = "hidden";
@@ -958,8 +1081,39 @@ public sealed partial class GameServer
         g.HasRoute = false;
         var rng = new System.Random(unchecked((int)(WorldGenerator.StableHash(e.Id) ^ (long)(_uptime * 10))));
         g.CooldownUntil = _uptime + WormCooldownMin + rng.NextDouble() * WormCooldownJitter;
-        BroadcastToWorld(new WorldFx { Kind = "dive", X = end.X, Y = g.MoveAnchor.Y, Z = end.Z, Strength = 0.6f });
+        BroadcastToWorld(new WorldFx { Kind = BurrowFx(sp, "dive"), X = end.X, Y = g.MoveAnchor.Y, Z = end.Z, Strength = 0.6f });
         return true;
+    }
+
+    /// <summary>The leviathan's head came down on the water (#2111): every boat in reach takes hull damage — twice the strike
+    /// (a boat is not armoured like a suit) — and sinks when the hull gives; a parked boat too. The driver is hurt by the
+    /// strike itself like anyone standing there.</summary>
+    private void StrikeBoatsNear(Vector3f at, float radius, CreatureSpecies sp)
+    {
+        int hit = 0;
+        foreach (var s in _speeders.ToList())
+        {
+            if (!IsBoat(s.Rec))
+            {
+                continue;
+            }
+
+            var pos = new Vector3f(s.Rec.X, s.Rec.Y, s.Rec.Z);
+            var un = Unwrapped(at, pos);
+            float dx = un.X - at.X, dz = un.Z - at.Z;
+            if (dx * dx + dz * dz > radius * radius || System.Math.Abs(pos.Y - at.Y) > sp.WormGirth + 3f)
+            {
+                continue;
+            }
+
+            DamageSpeeder(s, sp.AttackDamage * 2f, "leviathan");
+            hit++;
+        }
+
+        if (hit > 0)
+        {
+            _log.Info($"A leviathan on '{_world.LocationId}' struck {hit} boat(s).");
+        }
     }
 
     // =====================================================================================================
@@ -994,7 +1148,7 @@ public sealed partial class GameServer
             n.EvZ = g.StompAt.Z;
             n.EvLeg = g.StompLeg;
         }
-        else if (g.Kind == CreatureBodyPlan.Sandworm && g.Move != WormMove.None && g.Path is { } path)
+        else if (IsBurrower(g.Kind) && g.Move != WormMove.None && g.Path is { } path)
         {
             n.PhaseDur = path.Duration;
             n.EvX = g.MoveAnchor.X;
@@ -1086,7 +1240,7 @@ public sealed partial class GameServer
     private void OnGiantHit(CombatEntity giant)
     {
         giant.ProvokeTimer = System.Math.Max(giant.ProvokeTimer, ColossusProvokeSeconds);
-        if (giant.Giant is { Kind: CreatureBodyPlan.Sandworm } g)
+        if (giant.Giant is { } g && IsBurrower(g.Kind))
         {
             g.Warned = true;
         }
@@ -1112,18 +1266,18 @@ public sealed partial class GameServer
 
         if (killer is not null)
         {
-            Advance(killer, g.Kind == CreatureBodyPlan.Colossus ? "defeat:colossus" : "defeat:sandworm");
+            Advance(killer, "defeat:" + GiantName(g.Kind));
         }
 
-        _log.Info($"A {(g.Kind == CreatureBodyPlan.Colossus ? "colossus" : "sandworm")} on '{_world.LocationId}' was defeated{(killer is null ? string.Empty : " by " + killer.State.Name)}.");
+        _log.Info($"A {GiantName(g.Kind)} on '{_world.LocationId}' was defeated{(killer is null ? string.Empty : " by " + killer.State.Name)}.");
     }
 
     // =====================================================================================================
     // Vibration sources from the player (#2001)
     // =====================================================================================================
 
-    /// <summary>Every accepted move: a player walking (not sneaking) or driving over the sand sends step pulses; a jetpack,
-    /// a ship, flying and sitting send nothing.</summary>
+    /// <summary>Every accepted move: a player walking (not sneaking) or driving over the sand sends step pulses; a swimmer or
+    /// a boat under way (#2111) sends the water's pulses; a jetpack, a ship, flying and sitting send nothing.</summary>
     private void GiantsOnPlayerMoved(PlayerSession session, Vector3f before, Vector3f after)
     {
         if (!Giants.HasWorms)
@@ -1144,21 +1298,24 @@ public sealed partial class GameServer
         float dx = un.X - before.X, dz = un.Z - before.Z;
         float moved = (float)System.Math.Sqrt(dx * dx + dz * dz);
         float speed = moved / (float)since;
-        bool driving = TryGetDrivenSpeeder(p, out _);
-        if (!driving && !GiantRules.WalkShakes(speed))
+        bool boating = TryGetDrivenSpeeder(p, out var vehicle) && IsBoat(vehicle.Rec);
+        bool driving = !boating && vehicle is not null;
+        bool swimming = !boating && !driving && Giants.Leviathan is not null && FeetInWater(p);
+        if (!driving && !boating && !swimming && !GiantRules.WalkShakes(speed))
         {
             return; // sneaking: the sand stays quiet
         }
 
         session.StepDistance += moved;
-        float spacing = driving ? GiantRules.StepSpacing * 2.5f : GiantRules.StepSpacing;
+        float spacing = driving || boating ? GiantRules.StepSpacing * 2.5f : GiantRules.StepSpacing;
         if (session.StepDistance < spacing)
         {
             return;
         }
 
         session.StepDistance = 0f;
-        EmitVibration(after, driving ? VibrationSource.Speeder : VibrationSource.Step, p.PlayerId);
+        var source = boating ? VibrationSource.Boat : driving ? VibrationSource.Speeder : swimming ? VibrationSource.Swim : VibrationSource.Step;
+        EmitVibration(after, source, p.PlayerId);
     }
 
     // =====================================================================================================
@@ -1258,9 +1415,11 @@ public sealed partial class GameServer
     private void TickCreatureSteps(double dt)
     {
         var gs = Giants;
-        // Only a HUNTING worm listens to the animals (the species flag: authored, or rolled true from generation 17) — an
-        // older sand-sea world's worm never learns of the herds, so its thumper and its player targets stay what they were.
-        if (!gs.HasWorms || !gs.Sandworm!.SwallowsCreatures || dt <= 0.0 || !LiveGiants().Any(c => c.Giant!.Kind == CreatureBodyPlan.Sandworm))
+        // Only a HUNTING giant listens to the animals (the species flag: authored, or rolled true from generation 17; a leviathan
+        // always, #2111) — an older sand-sea world's worm never learns of the herds, so its thumper and its player targets stay
+        // what they were. (No type hosts both a sandworm and a leviathan: a sand sea is a dry world.)
+        bool hunter = (gs.Sandworm?.SwallowsCreatures ?? false) || gs.Leviathan is not null;
+        if (!gs.HasWorms || !hunter || dt <= 0.0 || !LiveGiants().Any(c => IsBurrower(c.Giant!.Kind)))
         {
             if (gs.CreatureSteps.Count > 0)
             {
@@ -1346,7 +1505,7 @@ public sealed partial class GameServer
         if (eaten > 0)
         {
             BroadcastCreatures();
-            _log.Info($"A sandworm on '{_world.LocationId}' swallowed {eaten} animal(s).");
+            _log.Info($"A giant on '{_world.LocationId}' swallowed {eaten} animal(s).");
         }
     }
 
@@ -1376,30 +1535,38 @@ public sealed partial class GameServer
     // Admin (testing) and test seams
     // =====================================================================================================
 
-    /// <summary>/giant colossus|sandworm — summons this world's giant of that kind (or a fresh one) near the admin.</summary>
+    /// <summary>/giant colossus|sandworm|leviathan — summons this world's giant of that kind (or a fresh one) near the admin.</summary>
     private void AdminSummonGiant(PlayerSession session, string? kind)
     {
-        bool worm = string.Equals(kind, "sandworm", System.StringComparison.OrdinalIgnoreCase) || string.Equals(kind, "worm", System.StringComparison.OrdinalIgnoreCase);
+        var plan = (kind ?? string.Empty).ToLowerInvariant() switch
+        {
+            "sandworm" or "worm" => CreatureBodyPlan.Sandworm,
+            "leviathan" or "sea" => CreatureBodyPlan.Leviathan, // #2111
+            _ => CreatureBodyPlan.Colossus,
+        };
         var gs = Giants;
-        var sp = worm
-            ? gs.Sandworm ?? CreatureGenerator.GenerateSandworm(_meta.Seed, _world.LocationId)
-            : gs.Colossus ?? CreatureGenerator.GenerateColossus(_meta.Seed, _world.LocationId);
-        RegisterGiantSpecies(sp);
-        if (worm)
+        CreatureSpecies sp;
+        switch (plan)
         {
-            gs.Sandworm ??= sp;
-            gs.WormCount = System.Math.Max(1, gs.WormCount);
-        }
-        else
-        {
-            gs.Colossus ??= sp;
+            case CreatureBodyPlan.Sandworm:
+                sp = gs.Sandworm ??= CreatureGenerator.GenerateSandworm(_meta.Seed, _world.LocationId);
+                gs.WormCount = System.Math.Max(1, gs.WormCount);
+                break;
+            case CreatureBodyPlan.Leviathan:
+                sp = gs.Leviathan ??= CreatureGenerator.GenerateLeviathan(_meta.Seed, _world.LocationId);
+                gs.LeviathanCount = System.Math.Max(1, gs.LeviathanCount);
+                break;
+            default:
+                sp = gs.Colossus ??= CreatureGenerator.GenerateColossus(_meta.Seed, _world.LocationId);
+                break;
         }
 
+        RegisterGiantSpecies(sp);
         _creatures.RemoveAll(c => c.IsGiant && c.Giant!.Kind == sp.BodyPlan);
         var list = new List<PlayerSession> { session };
-        bool ok = worm ? TrySpawnSandworm(sp, 0, list) : TrySpawnColossus(sp, list);
+        bool ok = IsBurrower(plan) ? TrySpawnSandworm(sp, 0, list) : TrySpawnColossus(sp, list);
         Send(session, new ServerMessage { Text = ok ? "@srv.admin.giant_summoned" : "@srv.admin.giant_no_room" });
-        CheatLog(session.State, $"summoned a {(worm ? "sandworm" : "colossus")} ({(ok ? "placed" : "no room")})");
+        CheatLog(session.State, $"summoned a {GiantName(plan)} ({(ok ? "placed" : "no room")})");
     }
 
     /// <summary>Test seam: /giant without the chat — summons this world's giant of a kind near the player.</summary>
@@ -1413,6 +1580,15 @@ public sealed partial class GameServer
 
     /// <summary>Test seam: whether a column is sand sea on the active world.</summary>
     public bool IsSandSeaAtForTest(int x, int z) => _generator.IsSandSeaAt(_world.Planet, x, z);
+
+    /// <summary>Test seam (#2111): whether a column is deep sea on the active world, and the water column there.</summary>
+    public bool IsDeepSeaAtForTest(int x, int z) => _generator.IsDeepSeaAt(_world.Planet, x, z);
+
+    public (int Top, int Bed)? DeepSeaAtForTest(int x, int z)
+        => _generator.TryGetDeepSea(_world.Planet, x, z, out int top, out int bed) ? (top, bed) : null;
+
+    /// <summary>Test seam (#2111): the sea giant this world hosts and how many.</summary>
+    public (CreatureSpecies? Leviathan, int Count) LeviathanSpeciesForTest() => (Giants.Leviathan, Giants.LeviathanCount);
 
     /// <summary>Test seam: the live giants of the active world (id, kind, phase, position, attention).</summary>
     public IReadOnlyList<(string Id, CreatureBodyPlan Kind, string Phase, Vector3f Position, float Attention)> GiantsForTest()
@@ -1434,9 +1610,12 @@ public sealed partial class GameServer
         }
 
         var list = new List<PlayerSession> { s };
-        return kind == CreatureBodyPlan.Colossus
-            ? Giants.Colossus is { } c && TrySpawnColossus(c, list)
-            : Giants.Sandworm is { } w && TrySpawnSandworm(w, 0, list);
+        return kind switch
+        {
+            CreatureBodyPlan.Colossus => Giants.Colossus is { } c && TrySpawnColossus(c, list),
+            CreatureBodyPlan.Leviathan => Giants.Leviathan is { } l && TrySpawnSandworm(l, 0, list),
+            _ => Giants.Sandworm is { } w && TrySpawnSandworm(w, 0, list),
+        };
     }
 
     /// <summary>Test seam: forces a giant into place and state.</summary>
@@ -1521,6 +1700,10 @@ internal sealed class GiantWorldState
     public CreatureSpecies? Colossus { get; set; }
     public CreatureSpecies? Sandworm { get; set; }
     public int WormCount { get; set; }
+
+    /// <summary>#2111: the sea giant of a deep-sea world, and how many (one, two on a big world).</summary>
+    public CreatureSpecies? Leviathan { get; set; }
+    public int LeviathanCount { get; set; }
     public double SpawnCheckIn { get; set; }
     public double BroadcastIn { get; set; }
     public List<ThumperState> Thumpers { get; } = new();
@@ -1529,13 +1712,16 @@ internal sealed class GiantWorldState
     public Dictionary<string, CreatureStepTrack> CreatureSteps { get; } = new();
     public double NextStepPruneAt { get; set; }
 
-    public bool HasWorms => Sandworm is not null;
+    /// <summary>Whether anything listens for vibrations here: a sandworm (the sand) or a leviathan (the water, #2111).</summary>
+    public bool HasWorms => Sandworm is not null || Leviathan is not null;
 
     public void Clear()
     {
         Colossus = null;
         Sandworm = null;
         WormCount = 0;
+        Leviathan = null;
+        LeviathanCount = 0;
         SpawnCheckIn = 0;
         BroadcastIn = 0;
         Thumpers.Clear();

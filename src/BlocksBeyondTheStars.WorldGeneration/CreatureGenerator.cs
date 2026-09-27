@@ -337,8 +337,84 @@ public static class CreatureGenerator
         return null;
     }
 
-    /// <summary>A body plan that lives in the giant slots, never in the roster (#2075).</summary>
-    private static bool IsGiantPlan(CreatureBodyPlan plan) => plan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm;
+    /// <summary>A body plan that lives in the giant slots, never in the roster (#2075, #2111).</summary>
+    private static bool IsGiantPlan(CreatureBodyPlan plan) => plan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan;
+
+    public const string LeviathanId = "gi_leviathan";
+
+    private static readonly string[] LeviathanHides = { "scales", "slick", "plated", "banded", "mottled" };
+
+    /// <summary>A deep-sea world's leviathan (#2111, generation 18): the largest form of water life — the sandworm's long body
+    /// with fins along the flanks and a fluke, two jaws instead of mandible petals, a sea palette, its size, hearing and temper
+    /// rolled per world. It always hunts (fish, and whoever swims or sails). The species is rolled outside the roster, so no
+    /// older world's species move.</summary>
+    public static CreatureSpecies GenerateLeviathan(long worldSeed, string locationId)
+    {
+        long s = unchecked(worldSeed ^ ((long)WorldGenerator.StableHash("leviathan:" + locationId) << 16) ^ 0x1E71A7A4L);
+        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+        float height = 30f + (float)rng.NextDouble() * 20f;        // how high it breaches (30–50)
+        float girth = 4f + (float)rng.NextDouble() * 3f;           // 4–7: hidden at 7.6–11.8 under the surface
+        var sp = new CreatureSpecies
+        {
+            Id = LeviathanId,
+            NameKey = "creature.generic.name",
+            Name = NameGenerator.Creature(rng),
+            Habitat = CreatureHabitat.Water,
+            Activity = CreatureActivity.Cathemeral,
+            Temperament = rng.NextDouble() < 0.5 ? CreatureTemperament.Aggressive : CreatureTemperament.Territorial,
+            LocoStyle = LocomotionStyle.Slitherer,
+            BodyPlan = CreatureBodyPlan.Leviathan,
+            GiantHeight = height,
+            Size = height / 10f,
+            WormGirth = girth,
+            WormLength = 60f + (float)rng.NextDouble() * 60f,      // 60–120 blocks
+            BodySegments = 24 + rng.Next(13),                       // 24..36 segments
+            Mandibles = 2,                                          // upper and lower jaw
+            Horns = rng.Next(3),                                    // rows of dorsal spines
+            HasCrest = rng.NextDouble() < 0.7,                      // a dorsal fin
+            HasFins = true,
+            FinPairs = 2 + rng.Next(2),                             // 2..3 pairs of flank fins
+            HasTail = true,
+            Hearing = 0.9f + (float)rng.NextDouble() * 0.5f,
+            MaxHealth = 2000f + (height - 30f) * 60f,               // 2000..3200
+            AttackDamage = 30f + (float)rng.NextDouble() * 10f,     // per strike
+            Speed = 8f + (float)rng.NextDouble() * 4f,              // under the surface, blocks/s
+            Legs = 0,
+            Eyes = 2,
+            ColorRgb = SeaColor(rng),
+            BellyRgb = SeaBellyColor(rng),
+            Glows = rng.NextDouble() < 0.4,
+            Hide = LeviathanHides[rng.Next(LeviathanHides.Length)],
+            DropItem = "creature_meat",
+            DropCount = 20,
+            DropKind = CreatureDropKind.Food,
+            SwallowsCreatures = true,                               // it hunts from the first day
+        };
+        sp.VoiceSeed = unchecked((int)(s ^ (s >> 32)) ^ 0x5EED_1CE);
+        return sp;
+    }
+
+    /// <summary>The leviathan's back: deep blues, teal, slate, storm grey, bottle green.</summary>
+    private static int SeaColor(System.Random rng)
+    {
+        int[] palette = { 0x1E3A5F, 0x1B4F72, 0x146C6E, 0x2E4053, 0x0E6655, 0x34495E, 0x1A5276, 0x2C3E50 };
+        return Jitter(palette[rng.Next(palette.Length)], rng.Next(-12, 13));
+    }
+
+    /// <summary>The leviathan's belly: pale — bone, foam, pale teal, silver.</summary>
+    private static int SeaBellyColor(System.Random rng)
+    {
+        int[] palette = { 0xD5DBDB, 0xE8F6F3, 0xAED6F1, 0xBDC3C7, 0xD1F2EB, 0xF4F6F7 };
+        return Jitter(palette[rng.Next(palette.Length)], rng.Next(-10, 11));
+    }
+
+    private static int Jitter(int c, int jitter)
+    {
+        int r = System.Math.Clamp(((c >> 16) & 0xFF) + jitter, 0, 255);
+        int g = System.Math.Clamp(((c >> 8) & 0xFF) + jitter, 0, 255);
+        int b = System.Math.Clamp((c & 0xFF) + jitter, 0, 255);
+        return (r << 16) | (g << 8) | b;
+    }
 
     public static CreatureSpecies GenerateSandworm(long worldSeed, string locationId, int terrainGeneration = 0)
     {

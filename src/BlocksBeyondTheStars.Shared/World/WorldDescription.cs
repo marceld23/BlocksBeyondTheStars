@@ -198,6 +198,12 @@ public sealed class WorldDescription
     /// the legged slitherer roll (a long body with legs that "slithered") is gone. Older rosters keep every species bit for bit.</summary>
     public const int WormGeneration = 18;
 
+    /// <summary>The generation of the sea giant (#2111, the same wave as <see cref="OilGeneration"/>): a <b>leviathan</b> —
+    /// the largest form of water life — lives under every deep sea of a living water world (<c>GiantRules.HostsLeviathan</c>),
+    /// on the sandworm's model: it hears swimmers, boats and fish, breaches, strikes and swallows. Rolled outside the roster
+    /// like every giant, so no older world's species move; an older save never hosts one.</summary>
+    public const int LeviathanGeneration = 18;
+
     /// <summary>The generation of the bipeds (#2080, 2026-09, the school club idea of Paul and Ben): an upright two-legged body
     /// plan with two arms and a big head, rolled last for some standard Land species and always peaceful
     /// (<c>CreatureBodyPlan.Biped</c>); a favourite food for every begging species, drawn from the fruit its world grows, and

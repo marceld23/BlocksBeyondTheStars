@@ -18,6 +18,8 @@ public enum VibrationSource : byte
     Thumper,      // the thumper's pulse (#2002) — built to be heard
     Horn,         // a Crystal-Net chime or horn sounding on the sand (#2077)
     Siren,        // a Crystal-Net alarm siren wailing on the sand (#2077) — louder, and it keeps pulsing while it is on
+    Swim,         // a player swimming (#2111) — heard through the water by the leviathan
+    Boat,         // a boat under way (#2111) — the hull's wake, heard through the water
 }
 
 /// <summary>
@@ -129,6 +131,45 @@ public static class GiantRules
             ? planet.SandwormCount
             : SandwormCount(circumference);
 
+    // ---------------- The sea giant (#2111, generation 18) ----------------
+
+    /// <summary>A world this watery or more may host a leviathan: the boreal and river lowlands at 0.6 up to the oceans.</summary>
+    public const double LeviathanMinWaterAbundance = 0.6;
+
+    /// <summary>The liquid water a leviathan needs under the surface (blocks, surface to seabed): the body cruises hidden at
+    /// girth × 1.4 + 2 (<see cref="SandwormPath.Depth"/>, 7–11 for the rolled girths), so a column this deep hides it whole.</summary>
+    public const int LeviathanMinDepth = 12;
+
+    /// <summary>At least this share of a world's columns must be deep sea (<see cref="LeviathanMinDepth"/>) for it to host a
+    /// leviathan — a scattering of deep ponds is no home for a 100-block body.</summary>
+    public const double LeviathanMinDeepShare = 0.03;
+
+    /// <summary>Whether this world's DATA allows a leviathan (#2111): generation 18+, a living type that pools plenty of water
+    /// and is not frozen over (a breach through an ice sheet is no show), fauna that admits giants. The generator then measures
+    /// whether the sea is deep enough (<c>WorldGenerator.HostsDeepSea</c>); the server combines the two.</summary>
+    public static bool AllowsLeviathan(PlanetType planet, int terrainGeneration)
+        => planet is not null && !planet.Void && terrainGeneration >= WorldDescription.LeviathanGeneration
+           && (planet.WaterAbundance ?? 0.0) >= LeviathanMinWaterAbundance
+           && planet.BaseTemperature > 0.0
+           && FaunaAllowsGiants(planet);
+
+    /// <summary>How many leviathans a sea world carries: one, two on a big world (the sandworm's rule).</summary>
+    public static int LeviathanCount(int circumference) => SandwormCount(circumference);
+
+    /// <summary>Whether a source is heard through WATER (the leviathan) rather than through sand (the sandworm): a swimmer, a
+    /// boat, a hard landing into the sea, a blast, and the steps of the fish (<see cref="VibrationSource.Step"/> from a water
+    /// creature). Mining and drilling shake rock, not the sea; a thumper, a horn or a siren stand on ground and are the sand's.</summary>
+    public static bool CarriesThroughWater(VibrationSource source) => source switch
+    {
+        VibrationSource.Swim => true,
+        VibrationSource.Boat => true,
+        VibrationSource.Step => true,
+        VibrationSource.HardLanding => true,
+        VibrationSource.Blaster => true,
+        VibrationSource.SpeederCrash => true,
+        _ => false,
+    };
+
     /// <summary>The block a sand sea is made of (#2074): the surface block of the biome flagged <see cref="PlanetType.Biome.SandSea"/>,
     /// or <c>sand</c> where no biome says. A vibration carries only through THIS block, and the worm's dust wears its colour.</summary>
     public static string SeaSandBlock(PlanetType? planet)
@@ -174,6 +215,8 @@ public static class GiantRules
         VibrationSource.SpeederCrash => 120f,
         VibrationSource.Horn => 160f,   // #2077: a chime or a horn on the sand
         VibrationSource.Siren => 220f,  // #2077: the alarm siren — between the speeder crash and the thumper
+        VibrationSource.Swim => 50f,    // #2111: a swimmer — a little louder than a step, water carries
+        VibrationSource.Boat => 90f,    // #2111: a boat's wake — the water's speeder
         _ => 260f, // Thumper
     };
 
@@ -189,6 +232,8 @@ public static class GiantRules
         VibrationSource.SpeederCrash => 2.5f,
         VibrationSource.Horn => 1.2f,
         VibrationSource.Siren => 1.5f,
+        VibrationSource.Swim => 0.6f,
+        VibrationSource.Boat => 1.0f,
         _ => 1.6f, // Thumper
     };
 

@@ -23,9 +23,9 @@ The same descriptor must always yield the same body: every client draws a specie
 per-individual variation is derived from `StableIdHash(SpeciesId)`, never from `Random` at build
 time. (`Random` inside the animator is fine — that is per-client cosmetic timing, not body shape.)
 
-Nine body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
-**Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009), **Biped** (#2081) and **Worm** (#2109); the
-flowerling (#1760) is the standard body with a petal head.
+Ten body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
+**Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009), **Biped** (#2081), **Worm** (#2109) and
+**Leviathan** (#2111); the flowerling (#1760) is the standard body with a petal head.
 
 **Worm (#2109, generation 18).** `BuildWorm`: a legless slitherer, knee- to hip-high (`WormRules`) — Marcel's finding
 on a sand sea was that every "worm" walked, because the generator never gave a Land species 0 legs and a long body
@@ -35,6 +35,15 @@ and handed to the animator **as the tail**: `PoseTail` already runs its beat lin
 0.55 rad, 8–34° on the move, curled at rest), and a legless land crawler "undulates", so the whole body runs the wave
 that is the slither — no new animator code. A belly stripe and, on a crested species, a dorsal ridge ride the first
 links. Render-only, no colliders (small). The server side is the ordinary crawler: `MotionClass.Crawler`, no jumps.
+
+**Leviathan (#2111, generation 18).** `BuildLeviathan`: the sandworm's body in the sea — a smooth tube of `BodySegments`
+(24–36) thickest a third of the way back and tapering to a narrow tail stock, a pale belly plate, a dorsal fin over the
+thickest part on a crested species, `FinPairs` (2–3) pairs of swept-back flank fins along the front two thirds, a fluke of
+two horizontal blades on the last segment, dorsal spines for the horns, glow spots on a glowing species; the head is a
+skull, a snout, two eyes and **two hinged jaws** (`Mandibles` = 2) with a row of teeth each — the worm's petal pivots, top
+and bottom, so `PosePetals` opens them for the strike unchanged. The same `SandwormView` poses it along the shared
+`SandwormPath` from the server's phase fields; its `Water` flag turns the sand fountains and the approach ripple into
+pale spray (`Foam`), whatever the seabed. Colliders on the core and the skull (`MakeGiantBody`, the giant layer).
 
 **Biped (#2081).** `BuildBiped`: an upright two-legger built from the shares in `BipedRules` (the server measures the
 same body height from them) — two jointed legs under a stubby torso (the knees fold back, `KneeSign` +1, like ours), a
@@ -47,8 +56,8 @@ the elbow; standing, a small sway; begging (#2018) both arms go up and forward (
 throws them up; lying down they hug the body. Render-only, no colliders (small and peaceful).
 
 A giant body plan may also be **authored** (#2075): a `data/creatures.json` record with
-`bodyPlan: "Sandworm"` or `"Colossus"` listed in a type's `authoredCreatures` becomes that world's giant (the
-Ignivermis of Arena Nigra) — the rig builds it from the same numbers (`giantHeight`, `wormGirth`, `wormLength`,
+`bodyPlan: "Sandworm"`, `"Colossus"` or `"Leviathan"` listed in a type's `authoredCreatures` becomes that world's giant
+(the Ignivermis of Arena Nigra) — the rig builds it from the same numbers (`giantHeight`, `wormGirth`, `wormLength`,
 `mandibles`, `horns`, `hide`, the two colours, `glows`), and the roster never spawns it as an animal.
 
 **Arachnid (#2009).** `BuildArachnid`: a cephalothorax box and a sphere abdomen on eight jointed legs in four

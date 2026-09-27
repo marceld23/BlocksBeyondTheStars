@@ -85,7 +85,63 @@ public sealed class GiantRulesTests
         Assert.Equal(2, GiantRules.SandwormCount(9000));
     }
 
+    [Fact]
+    public void Leviathan_NeedsGenerationEighteen_AWarmWateryLivingType_AndTheWaterCarriesItsOwnSources()
+    {
+        // #2111: the data gate — the generator then measures the depth (LeviathanServerTests).
+        var ocean = Content.GetPlanet("ocean")!;
+        Assert.True(GiantRules.AllowsLeviathan(ocean, WorldDescription.LeviathanGeneration));
+        Assert.False(GiantRules.AllowsLeviathan(ocean, WorldDescription.LeviathanGeneration - 1)); // an older save never hosts one
+        Assert.True(GiantRules.AllowsLeviathan(Content.GetPlanet("coral_sea")!, 18));
+        Assert.True(GiantRules.AllowsLeviathan(Content.GetPlanet("river_lowlands")!, 18)); // 0.7 water
+        Assert.False(GiantRules.AllowsLeviathan(Content.GetPlanet("desert")!, 18));        // dry
+        Assert.False(GiantRules.AllowsLeviathan(Content.GetPlanet("sand_sea")!, 18));      // 0.15 water — the sandworm's world
+        Assert.False(GiantRules.AllowsLeviathan(Content.GetPlanet("frozen_ocean")!, 18));  // frozen over: no breach through ice
+        Assert.False(GiantRules.AllowsLeviathan(Content.GetPlanet("scrapyard")!, 18));     // no fauna
+        Assert.Equal(1, GiantRules.LeviathanCount(4000));
+        Assert.Equal(2, GiantRules.LeviathanCount(9000));
+
+        // What the water carries: a swimmer, a boat, the fish's steps, a hard landing, a blast — not a pick on the shore, not a thumper.
+        Assert.True(GiantRules.CarriesThroughWater(VibrationSource.Swim));
+        Assert.True(GiantRules.CarriesThroughWater(VibrationSource.Boat));
+        Assert.True(GiantRules.CarriesThroughWater(VibrationSource.Step));
+        Assert.False(GiantRules.CarriesThroughWater(VibrationSource.Mining));
+        Assert.False(GiantRules.CarriesThroughWater(VibrationSource.Thumper));
+        Assert.False(GiantRules.CarriesThroughWater(VibrationSource.Siren));
+        Assert.True(GiantRules.Reach(VibrationSource.Boat) > GiantRules.Reach(VibrationSource.Swim));
+    }
+
     // ---------------- the procedural giants ----------------
+
+    [Fact]
+    public void Leviathan_IsALeviathanEveryTime_WithRolledVariations()
+    {
+        for (int i = 0; i < 40; i++)
+        {
+            var a = CreatureGenerator.GenerateLeviathan(500 + i, "sys3-p1");
+            var b = CreatureGenerator.GenerateLeviathan(500 + i, "sys3-p1");
+            Assert.Equal(a.Name, b.Name);
+            Assert.Equal(a.WormLength, b.WormLength);
+            Assert.Equal(CreatureBodyPlan.Leviathan, a.BodyPlan);
+            Assert.Equal(CreatureHabitat.Water, a.Habitat);
+            Assert.True(a.IsGiant);
+            Assert.True(a.IsBurrowingGiant);
+            Assert.True(a.SwallowsCreatures, "a leviathan always hunts");
+            Assert.True(a.HasFins);
+            Assert.Equal(0, a.Legs);
+            Assert.Equal(2, a.Mandibles); // two jaws
+            Assert.InRange(a.GiantHeight, 30f, 50f);
+            Assert.InRange(a.WormGirth, 4f, 7f);
+            Assert.InRange(a.WormLength, 60f, 120f);
+            Assert.InRange(a.MaxHealth, 2000f, 3200f);
+            Assert.True(a.WormGirth * 1.4f + 2f <= GiantRules.LeviathanMinDepth, "the hidden body must fit under a deep-sea column");
+            Assert.NotEqual(CreatureTemperament.PackHunter, a.Temperament);
+        }
+
+        var looks = Enumerable.Range(0, 40).Select(i => CreatureGenerator.GenerateLeviathan(i, "w" + i))
+            .Select(s => (s.Temperament, s.ColorRgb, s.FinPairs, s.HasCrest)).Distinct().Count();
+        Assert.True(looks > 20, $"only {looks} distinct leviathans in 40 worlds");
+    }
 
     [Fact]
     public void Colossus_IsDeterministic_SixtyBlocksAtMost_ToughAndSlowerThanAWalk()

@@ -138,6 +138,13 @@ at the eaten animal's spot) and the ambience bed `amb_black_dunes` (hot wind ove
 rock — `ClientAudio.BiomeBed` for the `arena_nigra` key). The Crystal Net's chime, horn and siren keep their own clips
 (#2052); on sea sand they now also shake the ground for the worm, which is a server rule, not a sound.
 
+**The leviathan (#2111, 2026-09-27, Justus' idea):** four more ElevenLabs one-shots for the sea giant's `WorldFx` kinds
+(the sandworm's kinds in water, played by `CreatureView.PlayWorldFx` with pale spray instead of dust and a smaller camera
+shake — water carries no tremor to the shore): `leviathan_breach` (a wall of water erupting + a deep whale-like bellow),
+`leviathan_strike` (the body slamming down, a hull cracking), `leviathan_dive` (a massive body sliding back under, water
+closing over it) and `leviathan_wake` (the approach: something enormous moving fast just under the surface, every 1.5 s at
+the giant's position, scaled by the server's strength).
+
 ## 9. NPCs (humans + aliens) — *ElevenLabs, NON-VERBAL*
 
 No speech. Short vocalisations only: **idle murmur, greet/notice, acknowledge, trade-confirm,
