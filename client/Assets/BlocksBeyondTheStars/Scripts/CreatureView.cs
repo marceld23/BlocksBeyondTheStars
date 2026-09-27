@@ -66,6 +66,7 @@ namespace BlocksBeyondTheStars.Client
 
             // #1998: the giants — the sandworm's own view, the local phase clock, the last announced stomp.
             public SandwormView Worm;
+            public SkyGiantView Sky; // #2112: the sky giant's follow-the-leader body
             public NetCreature LastNet;
             public string PhaseKey = string.Empty;
             public float PhaseStartLocal;
@@ -301,6 +302,7 @@ namespace BlocksBeyondTheStars.Client
                         entry.FaceDir = Vector3.Slerp(entry.FaceDir.sqrMagnitude > 1e-4f ? entry.FaceDir : want, want, 1f - Mathf.Exp(-3f * dt));
                         entry.Root.transform.rotation = Quaternion.LookRotation(entry.FaceDir, Vector3.up);
                         GiantStomp(entry, c, phaseTime);
+                        entry.Sky?.Apply(now); // #2112: the body trails the head along its own track
                     }
                 }
 
@@ -891,6 +893,7 @@ namespace BlocksBeyondTheStars.Client
         {
             RegisterGiant(c.Id, entry.Root);
             entry.Worm = entry.Root.GetComponent<SandwormView>();
+            entry.Sky = entry.Root.GetComponent<SkyGiantView>();
             if (entry.Animator != null)
             {
                 float height = c.GiantHeight;
@@ -1056,6 +1059,9 @@ namespace BlocksBeyondTheStars.Client
                     case "wake":
                         Fx?.Dust(at + Vector3.up * 0.2f, 6, SeaSpray);
                         audio?.At("leviathan_wake", at, 0.45f, 0.5f * Mathf.Clamp01(fx.Strength)); // something enormous under the surface
+                        break;
+                    case "skycall": // #2112: the sky giant's call, carried on the wind — no shake, it is far up
+                        audio?.At("sky_giant_call", at, 0.8f, 1f);
                         break;
                 }
 

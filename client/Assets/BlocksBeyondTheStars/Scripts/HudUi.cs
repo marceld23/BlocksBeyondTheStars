@@ -919,6 +919,7 @@ namespace BlocksBeyondTheStars.Client
                 : Game.LifeSupportSource == 2 ? "  (" + loc.Get("ui.hud.station_air") + ")" // #1473: sealed station pocket
                 : baseAir ? "  (" + loc.Get("ui.hud.base_air") + ")"
                 : Game.LifeSupportSource == 4 ? "  (" + loc.Get("ui.hud.factory_air") + ")" // #2070: a factory hall breathes
+                : Game.LifeSupportSource == 5 ? "  (" + loc.Get("ui.hud.city_air") + ")" // #2112: a sky city's air pocket
                 : string.Empty;
             string oxy = loc.Get("ui.hud.oxygen") + oxySuffix;
             SetVital(1, oxy, Game.Oxygen, Game.Oxygen / Mathf.Max(1f, Game.SuitOxygenMax), Oxygen, true);

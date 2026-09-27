@@ -2132,7 +2132,7 @@ namespace BlocksBeyondTheStars.Client
 
             var def = content.BlockById(id);
             // alpha-blended — see through them
-            return def?.Key is "glass" or "glass_clear" or "force_field" or "water" or "fire" or "energy_fence" or "energy_gate";
+            return def?.Key is "glass" or "glass_clear" or "force_field" or "water" or "gas" or "fire" or "energy_fence" or "energy_gate"; // #2112: the gas sea
         }
 
         /// <summary>The one deliberately CLEAR glass (#1274): the canopy/dome exception to the frosted rule
@@ -2213,7 +2213,7 @@ namespace BlocksBeyondTheStars.Client
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.KeepsOwnColour(key)) f |= TraitCultivated;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsHanging(key)) f |= TraitHangingFlora;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsRainbow(key)) f |= TraitRainbowFlora;
-                    if (key == "water") f |= TraitWater;
+                    if (key == "water" || key == "gas") f |= TraitWater; // #2112: the gas sea meshes like water (a see-through surface)
                     if (key == "lava") f |= TraitLava;
                     if (key == "fire") f |= TraitFire;
                     if (key == "torch" || key == "lantern") f |= TraitTorchProp;

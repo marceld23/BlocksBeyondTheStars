@@ -58,6 +58,21 @@ public static class CreatureGenerator
                 }
             }
 
+            // Generation 18 (#2112): a gas giant has no ground but its islands — every rolled species flies. The type is
+            // itself gated on generation 18, so no older world's roster can take this branch.
+            if (planet.IsGasWorld && terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.GasGiantGeneration)
+            {
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i].Habitat != CreatureHabitat.Air)
+                    {
+                        long s = unchecked(planetSeed ^ ((long)i * golden) ^ WorldGenerator.StableHash("sky:" + i));
+                        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+                        list[i] = MakeSpecies(i, rng, allowWater: false, allowLava: false, allowCave: false, biomeCount, CreatureHabitat.Air, speciesSeed: s, terrainGeneration);
+                    }
+                }
+            }
+
             // Generation 15 (#2069, Toxica-Maxima): a contaminated roster hunts on sight, never sleeps, wears the type's eyes
             // and drops toxic meat. A post-pass like MakePeaceful, so no rolled trait moves; only a generation-15 world reads it.
             if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ToxicaMaximaGeneration && planet.ContaminatedFauna)
@@ -337,8 +352,67 @@ public static class CreatureGenerator
         return null;
     }
 
-    /// <summary>A body plan that lives in the giant slots, never in the roster (#2075, #2111).</summary>
-    private static bool IsGiantPlan(CreatureBodyPlan plan) => plan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan;
+    /// <summary>A body plan that lives in the giant slots, never in the roster (#2075, #2111, #2112).</summary>
+    private static bool IsGiantPlan(CreatureBodyPlan plan)
+        => plan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan or CreatureBodyPlan.SkyGiant;
+
+    public const string SkyGiantId = "gi_sky_giant";
+
+    private static readonly string[] SkyGiantHides = { "slick", "scales", "mottled", "banded", "hide" };
+
+    /// <summary>A gas giant's sky giant (#2112, generation 18): a 40–80 block sailer — a long tapering body under a row of
+    /// wing-sails, a fluke, a blunt head — that drifts between the islands and never lands. Always passive: a spectacle,
+    /// not a threat; defeatable like every giant, but it never strikes back. Rolled outside the roster.</summary>
+    public static CreatureSpecies GenerateSkyGiant(long worldSeed, string locationId)
+    {
+        long s = unchecked(worldSeed ^ ((long)WorldGenerator.StableHash("sky-giant:" + locationId) << 16) ^ 0x5C1A7E5L);
+        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+        float length = 40f + (float)rng.NextDouble() * 40f;    // 40–80 blocks
+        float girth = 4f + (float)rng.NextDouble() * 3f;       // 4–7
+        var sp = new CreatureSpecies
+        {
+            Id = SkyGiantId,
+            NameKey = "creature.generic.name",
+            Name = NameGenerator.Creature(rng),
+            Habitat = CreatureHabitat.Air,
+            Activity = CreatureActivity.Cathemeral,
+            Temperament = CreatureTemperament.Passive,
+            LocoStyle = LocomotionStyle.Drifter,
+            BodyPlan = CreatureBodyPlan.SkyGiant,
+            GiantHeight = length * 0.5f,                       // the scan's scale, and the health-bar anchor
+            Size = length / 20f,
+            WormGirth = girth,
+            WormLength = length,
+            BodySegments = 18 + rng.Next(9),                   // 18..26
+            WingPairs = 3 + rng.Next(3),                       // 3..5 sails along the back
+            HasWings = true,
+            HasTail = true,
+            HasCrest = rng.NextDouble() < 0.5,
+            Horns = rng.Next(3),
+            Eyes = 2,
+            Legs = 0,
+            HoverAltitude = 50f,
+            MaxHealth = 1800f + (length - 40f) * 30f,          // 1800..3000
+            AttackDamage = 0f,
+            Speed = 5f + (float)rng.NextDouble() * 3f,         // a slow drift, blocks/s
+            ColorRgb = SkyColor(rng),
+            BellyRgb = SeaBellyColor(rng),
+            Glows = rng.NextDouble() < 0.5,
+            Hide = SkyGiantHides[rng.Next(SkyGiantHides.Length)],
+            DropItem = "creature_meat",
+            DropCount = 16,
+            DropKind = CreatureDropKind.Food,
+        };
+        sp.VoiceSeed = unchecked((int)(s ^ (s >> 32)) ^ 0x5EED_1CE);
+        return sp;
+    }
+
+    /// <summary>The sky giant's back: dusk violet, storm grey, rose, pale amber — the colours of its own sky.</summary>
+    private static int SkyColor(System.Random rng)
+    {
+        int[] palette = { 0x6C5B7B, 0x8E7C93, 0xA26769, 0xC9A27A, 0x5D6D7E, 0x9B8BB4, 0xB48A78 };
+        return Jitter(palette[rng.Next(palette.Length)], rng.Next(-12, 13));
+    }
 
     public const string LeviathanId = "gi_leviathan";
 

@@ -204,6 +204,12 @@ public sealed class WorldDescription
     /// like every giant, so no older world's species move; an older save never hosts one.</summary>
     public const int LeviathanGeneration = 18;
 
+    /// <summary>The generation of the gas giant (#2112, the same wave as <see cref="OilGeneration"/>): a world class with no
+    /// solid surface — a lethal sea of gas over the whole heightfield, floating islands above it, metal landing decks, sky
+    /// cities with a breathable pocket, and the passive <b>sky giant</b> drifting between the islands. The galaxy's
+    /// <c>LoneGiant</c> planet becomes one, plus a roll on the outermost orbit. An older galaxy keeps every body's type.</summary>
+    public const int GasGiantGeneration = 18;
+
     /// <summary>The generation of the bipeds (#2080, 2026-09, the school club idea of Paul and Ben): an upright two-legged body
     /// plan with two arms and a big head, rolled last for some standard Land species and always peaceful
     /// (<c>CreatureBodyPlan.Biped</c>); a favourite food for every begging species, drawn from the fruit its world grows, and

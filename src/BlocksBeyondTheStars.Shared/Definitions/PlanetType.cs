@@ -114,6 +114,14 @@ public sealed class PlanetType
     /// above the surface — drifting voxel islands you reach by flying up or building a tower. Off by default.</summary>
     public bool FloatingIslands { get; set; }
 
+    /// <summary>The gas giant (#2112, generation 18): <c>"gas"</c> makes the world's sea a sea of GAS that floods the whole
+    /// heightfield (the <c>gas</c> block: a still liquid you sink into and die in; there is no solid surface) — with
+    /// <see cref="FloatingIslands"/> the islands are the only ground. Empty (every classic type) = the water/lava rule.</summary>
+    public string SeaFluid { get; set; } = string.Empty;
+
+    /// <summary>True for the gas-giant class (#2112): the sea is gas.</summary>
+    public bool IsGasWorld => string.Equals(SeaFluid, "gas", System.StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Islands afloat on the sea (#1757, generation 5): lens-shaped land bodies whose top rises a few
     /// blocks above the waterline and whose keel hangs a few blocks below it, with open water between the keel
     /// and the seabed — the "schwimmende Inseln" of the rainbow planet. The world's own terrain stays almost

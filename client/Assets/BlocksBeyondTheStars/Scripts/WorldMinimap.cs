@@ -66,6 +66,7 @@ namespace BlocksBeyondTheStars.Client
             bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
             double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
             bool lavaSea = waterAb <= 0.0 && (planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0)) > 0.0;
+            bool gasSea = planet.IsGasWorld; // #2112: the gas giant's sea of gas
 
             Color ground = atlas != null && content.GetBlock(planet.SurfaceBlock) is { } sb
                 ? atlas.AverageColor(sb.NumericId.Value)
@@ -77,8 +78,8 @@ namespace BlocksBeyondTheStars.Client
                 planet.SurfaceBlock == "mycelium" ? "mushroom_cap" : "tree_leaves");
             var floraCol = new Color(fr, fg, fb);
 
-            var shallow = lavaSea ? new Color(0.95f, 0.45f, 0.15f) : new Color(0.30f, 0.55f, 0.78f);
-            var deep = lavaSea ? new Color(0.55f, 0.15f, 0.05f) : new Color(0.10f, 0.22f, 0.45f);
+            var shallow = gasSea ? new Color(0.88f, 0.72f, 0.52f) : lavaSea ? new Color(0.95f, 0.45f, 0.15f) : new Color(0.30f, 0.55f, 0.78f);
+            var deep = gasSea ? new Color(0.62f, 0.42f, 0.40f) : lavaSea ? new Color(0.55f, 0.15f, 0.05f) : new Color(0.10f, 0.22f, 0.45f);
 
             var px = new Color[texW * texH];
             for (int y = 0; y < texH; y++)

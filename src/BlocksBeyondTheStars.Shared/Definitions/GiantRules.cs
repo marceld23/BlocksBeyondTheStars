@@ -170,6 +170,16 @@ public static class GiantRules
         _ => false,
     };
 
+    // ---------------- The sky giant (#2112, generation 18) ----------------
+
+    /// <summary>The sky giant's lane: how high over the gas it drifts (blocks above the sea), and the ring it circles.</summary>
+    public const float SkyGiantAltitudeMin = 42f, SkyGiantAltitudeMax = 70f;
+    public const float SkyGiantLaneRadiusMin = 70f, SkyGiantLaneRadiusMax = 130f;
+
+    /// <summary>Whether this world hosts a sky giant (#2112): every gas giant of generation 18+ whose fauna admits giants.</summary>
+    public static bool HostsSkyGiant(PlanetType planet, int terrainGeneration)
+        => planet is not null && planet.IsGasWorld && terrainGeneration >= WorldDescription.GasGiantGeneration && FaunaAllowsGiants(planet);
+
     /// <summary>The block a sand sea is made of (#2074): the surface block of the biome flagged <see cref="PlanetType.Biome.SandSea"/>,
     /// or <c>sand</c> where no biome says. A vibration carries only through THIS block, and the worm's dust wears its colour.</summary>
     public static string SeaSandBlock(PlanetType? planet)

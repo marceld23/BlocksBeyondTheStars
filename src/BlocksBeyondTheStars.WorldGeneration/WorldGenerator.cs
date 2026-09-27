@@ -256,6 +256,9 @@ public sealed partial class WorldGenerator
     /// <summary>How far the islet's plateau and beach rims wander from their nominal radius (#1620).</summary>
     private const double IsletRimWobble = 3.0;
 
+    /// <summary>#2112: how many blocks of metal a deck pad carries under its floor.</summary>
+    private const int DeckThickness = 3;
+
     /// <summary>Flora chance per plateau column outside the reserved pad on an islet (#1620) — a few tufts
     /// of the biome's own flora, not a meadow, so the pad stays readable from the air.</summary>
     private const double IsletFloraChance = 0.16;
@@ -282,6 +285,11 @@ public sealed partial class WorldGenerator
         var lavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
         var beachId = BeachBlockFor(planet);
         var basaltId = _content.GetBlock("basalt")?.NumericId ?? beachId;
+        // #2112: the metal deck's blocks (the gas giant's landing platform).
+        var deckFloorId = _content.GetBlock("steel_floor")?.NumericId ?? basaltId;
+        var deckFillId = _content.GetBlock("metal_panel")?.NumericId ?? deckFloorId;
+        var deckRailId = _content.GetBlock("energy_fence")?.NumericId ?? BlockId.Air;
+        var deckLightId = _content.GetBlock("light_white")?.NumericId ?? BlockId.Air;
         for (int lx = 0; lx < cs; lx++)
             for (int lz = 0; lz < cs; lz++)
             {
@@ -299,6 +307,11 @@ public sealed partial class WorldGenerator
                 // whatever sea still stands above its lower rim.
                 bool islet = pad.Islet;
                 bool slope = islet && padY < pad.SurfaceY;
+                if (pad.Deck && slope)
+                {
+                    continue; // #2112: a metal deck has no beach slope — the platform hangs over the gas
+                }
+
                 int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, padY);
                 // A classic islet (#1665) is beach block through and through, like the worlds it was made for.
                 var surfaceId = slope || pad.ClassicShape ? beachId : biomes[biomeIndex].Surface;
@@ -311,12 +324,29 @@ public sealed partial class WorldGenerator
                     subSurfaceId = basaltId;
                 }
 
+                if (pad.Deck)
+                {
+                    // A metal deck (#2112): steel floor over metal panels, three blocks thick, hanging over the gas.
+                    surfaceId = deckFloorId;
+                    subSurfaceId = deckFillId;
+                }
+
+                int pdx0 = WorldConstants.WrapDeltaX(worldX - pad.CenterX, _circumference);
+                int pdz0 = worldZ - pad.CenterZ;
+                int d2 = pdx0 * pdx0 + pdz0 * pdz0;
+                bool deckRim = pad.Deck && d2 > (pad.PlateauRadius - 1) * (pad.PlateauRadius - 1);
+
                 for (int ly = 0; ly < cs; ly++)
                 {
                     int worldY = origin.Y + ly;
                     if (worldY > padY)
                     {
-                        if (!slope)
+                        if (deckRim && worldY == padY + 1)
+                        {
+                            // The rail around the deck's rim: an energy fence, a light every few posts (off the reserved pad).
+                            chunk.Set(lx, ly, lz, (pdx0 + pdz0 * 3) % 7 == 0 && !deckLightId.IsAir ? deckLightId : deckRailId);
+                        }
+                        else if (!slope)
                         {
                             chunk.Set(lx, ly, lz, BlockId.Air); // shear off anything above the pad level
                         }
@@ -324,6 +354,11 @@ public sealed partial class WorldGenerator
                     else if (worldY == padY)
                     {
                         chunk.Set(lx, ly, lz, surfaceId); // a natural, level pad surface
+                    }
+                    else if (pad.Deck)
+                    {
+                        // The deck is a platform, not a mound: three blocks of fill, then the gas again below it.
+                        chunk.Set(lx, ly, lz, worldY >= padY - DeckThickness ? subSurfaceId : seaFluid);
                     }
                     else if (islet)
                     {
@@ -341,7 +376,7 @@ public sealed partial class WorldGenerator
                 }
 
                 // A few tufts of the biome's flora on the islet plateau, off the reserved pad (#1620).
-                if (islet && !slope && !planet.Void && !pad.ClassicShape && !pad.Molten)
+                if (islet && !slope && !planet.Void && !pad.ClassicShape && !pad.Molten && !pad.Deck)
                 {
                     int fy = padY + 1 - origin.Y;
                     int pdx = WorldConstants.WrapDeltaX(worldX - pad.CenterX, _circumference);
@@ -367,6 +402,18 @@ public sealed partial class WorldGenerator
         var (level, fluid) = ResolveSeaFluid(planet);
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
         return level != int.MinValue && !waterId.IsAir && fluid.Value == waterId.Value;
+    }
+
+    /// <summary>#2112: how far over its highest ground a gas giant's gas stands — nothing of the heightfield ever shows.</summary>
+    public const int GasSeaRise = 6;
+
+    /// <summary>True when the world's sea is GAS (#2112, the gas giant): the far terrain paints it as gas, the landing pads
+    /// become metal decks, and the server's contact rule kills in it.</summary>
+    public bool SeaIsGas(PlanetType planet)
+    {
+        var (level, fluid) = ResolveSeaFluid(planet);
+        var gasId = _content.GetBlock("gas")?.NumericId ?? BlockId.Air;
+        return level != int.MinValue && !gasId.IsAir && fluid.Value == gasId.Value;
     }
 
     // World options (creation-time, from the save's WorldDescription): global factors on top of the

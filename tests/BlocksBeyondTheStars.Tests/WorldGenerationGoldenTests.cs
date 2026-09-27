@@ -116,6 +116,8 @@ public sealed class WorldGenerationGoldenTests
         new("arena_nigra-gen17", 20260927, "arena_nigra", 0, false, null, 17),
         // Generation 18 (2026-09-27, #2106): oil pockets — a living world's chunks are the same but for the pockets.
         new("jungle-gen18", 20260927, "jungle", 0, false, null, 18),
+        // Generation 18 (2026-09-27, #2112): the gas giant — the gas sea over the whole heightfield, the islands, the deck pad.
+        new("gas_giant-gen18", 20260927, "gas_giant", 0, false, null, 18),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -198,6 +200,8 @@ public sealed class WorldGenerationGoldenTests
             ["arena_nigra-gen17"] = 0xea4db59aa9b556e4UL,
             // Pinned 2026-09-27 (oil pockets, generation 18; Windows 11, .NET 10).
             ["jungle-gen18"] = 0x77b4051ac5c69436UL,
+            // Pinned 2026-09-27 (the gas giant, generation 18; Windows 11, .NET 10).
+            ["gas_giant-gen18"] = 0x6fb7a2990de25b64UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

@@ -104,6 +104,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (c.BodyPlan == "SkyGiant")
+            {
+                BuildSkyGiant(root, c); // #2112
+                return;
+            }
+
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
             Color baseColor = Rgb(c.ColorRgb);
             Color bellyColor = Rgb(c.BellyRgb);
@@ -1865,6 +1871,98 @@ namespace BlocksBeyondTheStars.Client
             var view = root.AddComponent<SandwormView>();
             view.Water = true;
             view.Init(segments, head, jaws, girth, length, _renderers.ToArray());
+        }
+
+        /// <summary>The sky giant (#2112): a long tapering sailer — a tube of segments with a pale belly, a row of tall
+        /// wing-sails standing up from the back (the species' <c>WingPairs</c>), a pair of broad glide fins under the front
+        /// third, a fluke at the tail, a blunt head with two eyes. The <see cref="SkyGiantView"/> lays the body along the
+        /// head's own track every frame; there is no gait, so no <see cref="CreatureAnimator"/>.</summary>
+        private void BuildSkyGiant(GameObject root, NetCreature c)
+        {
+            float girth = Mathf.Max(2f, c.WormGirth > 0f ? c.WormGirth : 5f);
+            int segCount = Mathf.Clamp(c.BodySegments, 14, 30);
+            float length = Mathf.Max(20f, c.WormLength > 0f ? c.WormLength : girth * 10f);
+            float segLen = length / (segCount - 1);
+            Color baseColor = Rgb(c.ColorRgb);
+            Color bellyColor = Rgb(c.BellyRgb);
+            _bodyMat = Lit(c.Glows ? baseColor * 1.3f : baseColor, PickHide(c));
+            var bellyMat = Lit(bellyColor, PickHide(c));
+            var sailMat = Lit(Color.Lerp(bellyColor, baseColor, 0.3f), _plated ?? _hide);
+            var glowMat = Unlit(Color.Lerp(bellyColor, new Color(0.7f, 0.95f, 1f), 0.6f));
+            int sailPairs = Mathf.Clamp(c.WingPairs, 2, 5);
+
+            var segments = new Transform[segCount];
+            var sails = new System.Collections.Generic.List<Transform>();
+            for (int i = 0; i < segCount; i++)
+            {
+                float t = i / (float)(segCount - 1);
+                float taper = Mathf.Lerp(0.85f, 1f, Mathf.Clamp01(t / 0.25f)) * Mathf.Lerp(1f, 0.3f, Mathf.Clamp01((t - 0.25f) / 0.75f));
+                float g = girth * taper;
+                var seg = new GameObject("Seg" + i).transform;
+                seg.SetParent(root.transform, false);
+                _keepColliders = true;
+                AddPartTo(seg, "Core", Vector3.zero, new Vector3(g, g * 0.8f, segLen * 1.08f), _bodyMat);
+                _keepColliders = false;
+                AddPartTo(seg, "Belly", new Vector3(0f, -g * 0.36f, 0f), new Vector3(g * 0.7f, g * 0.14f, segLen), bellyMat);
+                if (c.Glows && (i & 1) == 0)
+                {
+                    AddPartTo(seg, "SpotL", new Vector3(-g * 0.5f, 0f, 0f), new Vector3(g * 0.03f, g * 0.12f, segLen * 0.3f), glowMat);
+                    AddPartTo(seg, "SpotR", new Vector3(g * 0.5f, 0f, 0f), new Vector3(g * 0.03f, g * 0.12f, segLen * 0.3f), glowMat);
+                }
+
+                segments[i] = seg;
+            }
+
+            // The sails: tall thin blades standing up from the back, spread over the front two thirds, leaning back.
+            for (int p = 0; p < sailPairs; p++)
+            {
+                int at = Mathf.Clamp(Mathf.RoundToInt(segCount * (0.12f + 0.55f * p / Mathf.Max(1, sailPairs - 1))), 1, segCount - 3);
+                float g = girth * Mathf.Lerp(1f, 0.7f, p / (float)Mathf.Max(1, sailPairs - 1));
+                float sail = g * (2.2f - 0.25f * p);
+                foreach (int side in new[] { -1, 1 })
+                {
+                    var pivot = NewPivot(segments[at], "Sail" + p + (side < 0 ? "L" : "R"), new Vector3(side * g * 0.18f, g * 0.35f, 0f));
+                    pivot.localRotation = Quaternion.Euler(-18f, 0f, side * -28f);
+                    AddPartTo(pivot, "SailBlade", new Vector3(0f, sail * 0.5f, 0f), new Vector3(g * 0.06f, sail, segLen * 1.6f), sailMat);
+                    sails.Add(pivot);
+                }
+            }
+
+            // Glide fins under the front third, and the fluke at the tail.
+            int finAt = Mathf.Clamp(Mathf.RoundToInt(segCount * 0.3f), 1, segCount - 2);
+            foreach (int side in new[] { -1, 1 })
+            {
+                var pivot = NewPivot(segments[finAt], "Glide" + (side < 0 ? "L" : "R"), new Vector3(side * girth * 0.45f, -girth * 0.05f, 0f));
+                pivot.localRotation = Quaternion.Euler(0f, side * -20f, side * 8f);
+                AddPartTo(pivot, "GlideBlade", new Vector3(side * girth * 1.1f, 0f, -girth * 0.2f), new Vector3(girth * 2.2f, girth * 0.08f, girth * 0.9f), sailMat);
+            }
+
+            var tail = segments[segCount - 1];
+            foreach (int side in new[] { -1, 1 })
+            {
+                var pivot = NewPivot(tail, "Fluke" + (side < 0 ? "L" : "R"), new Vector3(0f, 0f, -segLen * 0.3f));
+                pivot.localRotation = Quaternion.Euler(0f, side * 30f, 0f);
+                AddPartTo(pivot, "FlukeBlade", new Vector3(side * girth * 0.6f, 0f, -girth * 0.2f), new Vector3(girth * 1.2f, girth * 0.06f, girth * 0.7f), sailMat);
+            }
+
+            // The head: a blunt skull, a short snout, two eyes; the mouth stays shut — it eats nobody.
+            var head = new GameObject("SkyHead").transform;
+            head.SetParent(root.transform, false);
+            _keepColliders = true;
+            AddPartTo(head, "Skull", new Vector3(0f, 0f, 0f), new Vector3(girth * 0.95f, girth * 0.8f, girth * 0.8f), _bodyMat);
+            _keepColliders = false;
+            AddPartTo(head, "Snout", new Vector3(0f, -girth * 0.08f, girth * 0.5f), new Vector3(girth * 0.6f, girth * 0.4f, girth * 0.5f), _bodyMat);
+            var eyeMat = Unlit(c.Glows ? new Color(0.7f, 1f, 0.95f) : new Color(0.95f, 0.85f, 0.45f));
+            AddPartTo(head, "EyeL", new Vector3(-girth * 0.4f, girth * 0.18f, girth * 0.3f), new Vector3(girth * 0.15f, girth * 0.15f, girth * 0.15f), eyeMat);
+            AddPartTo(head, "EyeR", new Vector3(girth * 0.4f, girth * 0.18f, girth * 0.3f), new Vector3(girth * 0.15f, girth * 0.15f, girth * 0.15f), eyeMat);
+            if (c.HasCrest)
+            {
+                AddPartTo(head, "Crest", new Vector3(0f, girth * 0.55f, -girth * 0.1f), new Vector3(girth * 0.08f, girth * 0.5f, girth * 0.6f), sailMat);
+            }
+
+            MakeGiantBody(root);
+            var view = root.AddComponent<SkyGiantView>();
+            view.Init(segments, sails.ToArray(), head, length);
         }
 
         /// <summary>Puts a giant's collider parts on the giant layer and gives the root a kinematic rigidbody, so the moving

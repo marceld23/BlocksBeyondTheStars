@@ -214,6 +214,7 @@ namespace BlocksBeyondTheStars.Client.Music
                 case "fungal":
                 case "corrupted":
                 case "toxica_maxima": // #2068: Justus' poisoned landmark
+                case "gas_giant": // #2112: Justus' gas giant — toxic, cold, a storm without end
                 case "toxic_world": return PlanetToxic; // #2032: the toxic-world class
                 case "ocean": return PlanetOcean;
                 case "swamp":

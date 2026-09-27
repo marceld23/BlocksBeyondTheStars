@@ -17,6 +17,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
         Ground = 0,
         Water = 1,
         Lava = 2,
+        Gas = 3, // #2112: the gas giant's sea of gas
     }
 
     /// <summary>One sampled far-terrain column: the top of what the player would see there.</summary>
@@ -50,6 +51,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
         private readonly Dictionary<string, ushort> _blockIds = new Dictionary<string, ushort>();
         private readonly GameContent _content;
         private readonly bool _seaIsWater;
+        private readonly bool _seaIsGas; // #2112
         private readonly bool _pondsAndRivers;
 
         public PlanetType Planet { get; }
@@ -71,6 +73,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
             LatitudePeriod = WorldConstants.LatitudePeriodFor(Circumference);
             SeaLevel = generator.SeaLevel(planet);
             _seaIsWater = SeaLevel != int.MinValue && generator.SeaIsWater(planet);
+            _seaIsGas = SeaLevel != int.MinValue && generator.SeaIsGas(planet);
             _pondsAndRivers = !planet.IsAirless;
         }
 
@@ -103,7 +106,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
             {
                 pads.Add(new LandingPadFlatten(packed[o], packed[o + 1], packed[o + 2], packed[o + 3],
                     islet: packed[o + 4] != 0, plateauRadius: packed[o + 5], isletRadius: packed[o + 6],
-                    classicShape: packed[o + 7] != 0, molten: packed[o + 4] == 2));
+                    classicShape: packed[o + 7] != 0, molten: packed[o + 4] == 2, deck: packed[o + 4] == 3));
             }
 
             return pads;
@@ -119,7 +122,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
             int ground = _generator.SurfaceHeight(Planet, worldX, worldZ);
             if (SeaLevel != int.MinValue && ground <= SeaLevel) // the generator's own sea-column test
             {
-                return new FarSample(SeaLevel + 1, _seaIsWater ? FarSurface.Water : FarSurface.Lava, 0);
+                return new FarSample(SeaLevel + 1, _seaIsWater ? FarSurface.Water : _seaIsGas ? FarSurface.Gas : FarSurface.Lava, 0);
             }
 
             if (detail && _pondsAndRivers

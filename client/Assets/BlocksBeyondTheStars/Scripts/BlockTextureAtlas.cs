@@ -834,6 +834,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 FadeTileAlpha(ox, oy, 0.28f); // clear water → the bed reads through, only a light blue wash (depth tint adds blue with depth)
             }
+            else if (key == "gas")
+            {
+                FadeTileAlpha(ox, oy, 0.62f); // #2112: the gas sea is a haze — thicker than water, you still see a little way down into it
+            }
         }
 
         /// <summary>Sets a uniform alpha across a tile (used to make water see-through in the atlas).</summary>

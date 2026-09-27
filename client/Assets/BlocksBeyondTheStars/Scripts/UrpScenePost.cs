@@ -406,6 +406,7 @@ namespace BlocksBeyondTheStars.Client
                 case "desert": return "desert";
                 case "ice": case "frozen": return "ice";
                 case "lava": case "volcanic": case "arena_nigra": return "lava"; // #2078: the black dunes take the volcanic mood
+                case "gas_giant": return "ice"; // #2112: the cold mood for the gas giant's endless storm
                 case "swamp": return "swamp";
                 case "crystal": return "crystal";
                 default: return "default";

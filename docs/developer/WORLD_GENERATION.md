@@ -2138,3 +2138,54 @@ water — a pier, a raft and the shore are silent; `GiantRules.CarriesThroughWat
 swimmer, a boat, the fish's steps, a hard landing, a blast — not mining, not a thumper), the same strike, plus
 `StrikeBoatsNear` (hull damage twice the strike, a parked boat too). Effects: `sea_breach` / `sea_strike` / `sea_dive` /
 `wake`. Tests: `LeviathanServerTests`, `GiantRulesTests`.
+
+## 34. Generation 18 — the gas giant and the sky giant (#2112, 2026-09-27, Justus' "where are the gases?")
+
+**A world class with no solid surface.** Marcel's decisions: cold (−120 °C) **and** toxic; the `LoneGiant` system's planet
+becomes a gas giant on generation-18 galaxies plus an outermost-orbit roll; sky cities carry a breathable pocket; rings on
+about three in five; the sky giant is passive — a spectacle. The class is one data row (`gas_giant`, `minTerrainGeneration`
+18, `spawnWeight` 0) and one new type field, `seaFluid: "gas"` (`PlanetType.IsGasWorld`), plus `floatingIslands`.
+
+- **The gas sea.** A third sea fluid next to water and lava: the `gas` block — a still liquid like oil (#2106: `liquid`,
+  not `solid`, not `mineable`, **no drops**, so the pump refuses it), meshed by the client like water (`TraitWater`, its own
+  banded amber tile, alpha 0.62 — a haze you see a little way into). The calibration takes a gas branch before the water
+  one: `SeaLevel = MaxHeight + GasSeaRise` (6), so the gas floods the **whole heightfield** and nothing of it ever shows —
+  every column is a sea column, there are no ponds, rivers, beaches or ice (`waterAbundance` 0), and `SeaIsGas` answers
+  for the far terrain (`FarSurface.Gas`), the minimap, the pads and the server. The contact rule (`GameServerGasGiant`):
+  `InGas` = the feet cell or the cell under them is gas → `GasContactDps` (30, twice lava, **no armour**), death line
+  `srv.death.gas`; an animal that falls in burns the same way (`BurnDpsFor`); a giant never does.
+- **The islands.** The classic floating-island tiers (`FloatingIslandTier`, 1–3 tiers from `BaseHeight + 28`) over a
+  low, flat heightfield (`baseHeight` 40, `amplitude` 6): tier 0 hangs just over the gas, the lower stalactites dip into it.
+  The islands are the only ground: the roster is **all fliers** (`GenerateRoster` re-rolls every non-Air slot with a
+  salted seed on a gas world — the type is gated, so no older roster moves), and a settlement seats **only on an island**
+  (`GameServerSettlements`: `wantIsland` is forced, the guaranteed search returns false instead of a ground seat — a
+  build too big for an island has no spot).
+- **The decks.** Every landing pad of a gas world is a **metal deck** (`LandingPad.Deck`, `LandingPadFlatten.Deck`, flag
+  32 in the pinned pads, code 3 on the far-terrain wire): `DecidePad` seats it at `SeaLevel + IsletRise` like an ocean
+  islet, and `FlattenLandingPads` builds a platform instead of a mound — a `steel_floor` top over three blocks of
+  `metal_panel`, gas again below, no beach slope, an `energy_fence` rail around the plateau rim with a `light_white` every
+  seventh post, no flora.
+- **The sky cities.** `InSkyCityAir`: on a gas world every inhabited settlement on an island holds a pocket of air over its
+  footprint (a 6-block margin, 12 blocks over its roofs; an abandoned one has lost it) — life-support source 5,
+  `ui.hud.city_air`. The base-air idea for a place nobody founded.
+- **The galaxy.** `UniverseGenerator.ApplyGasGiants` runs after the generic gen-1 retype: for every system but the start
+  system, the lone giant's planet (`SystemArchetypes.ForIndex`) becomes the gas giant, any other system's **outermost**
+  planet rolls one in `GasGiantOuterOrbitChance` (40/256), both ring in `GasGiantRingChance` (154/256) if they had no ring;
+  the first breathable planet and a once-per-galaxy landmark are spared, moons keep their types. The generic roll never
+  picks the type (weight 0). A description below generation 18 keeps every body's type (`GalaxyLayoutRegressionTests`
+  pins generation 0).
+- **The sky giant** (`CreatureBodyPlan.SkyGiant`, `GiantRules.HostsSkyGiant`, `CreatureGenerator.GenerateSkyGiant`, id
+  `gi_sky_giant`): a 40–80 block passive sailer rolled outside the roster. `TrySpawnSkyGiant` puts it on a **lane** 120–200
+  blocks from a player — a ring of 70–130 blocks around a centre, 42–70 over the gas — and `TickSkyGiant` runs it round
+  the ring at the species' pace while the centre wanders to a new spot every two minutes; it bobs, calls every half minute
+  (`WorldFx` `skycall`, the clip `sky_giant_call`), never lands and never strikes; a hit only makes it climb for twenty
+  seconds. It is hit along a **trail** of its own recent positions (`GiantRuntime.Trail`, a capsule per span,
+  `SkyGiantAimPoint`), which is also how the client draws it (`SkyGiantView`: the head's local track, follow-the-leader).
+  Achievement `sky_giant`, `/giant sky`.
+- **Glue per key:** `Sky.GradeFor`, `UrpScenePost` (the ice mood), `SpaceView` (the `gas` tile is the whole face of the
+  sphere; the amber storm shell), `WorldMinimap`, `MusicLibrary` (toxic), `ClientAudio` (`amb_gas_giant`),
+  `GameServerShipAi` (`vega.hint.world.gas_giant`), test lists (`TerrainTagsAndGenerationTests`, `ToxicaMaximaWorldTests`).
+
+Tests: `GasGiantWorldTests` (the data, the flooded heightfield with islands above, the galaxy placement, the all-flying
+roster, the sky giant's rules), `GasGiantServerTests` (the deck, the contact rule, the city air, the sky giant), golden
+`gas_giant-gen18`.

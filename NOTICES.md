@@ -44,7 +44,8 @@ synthesised in code), and Toxica-Maxima's three clips (#2071: the poisoned-world
 `toxic_storm_loop`, the decontaminator's rinse `decontaminate` — same `gen_sound.py`, 2026-09-27), and Arena Nigra's
 two clips (#2079: the black-dunes ambience `amb_black_dunes`, the worm's `sandworm_swallow` — same `gen_sound.py`,
 2026-09-27), the drill laser's cut `drill_laser_zap` (#2108, same `gen_sound.py`, 2026-09-27), and the leviathan's four
-clips `leviathan_breach`, `leviathan_strike`, `leviathan_dive`, `leviathan_wake` (#2111, same `gen_sound.py`, 2026-09-27))
+clips `leviathan_breach`, `leviathan_strike`, `leviathan_dive`, `leviathan_wake` (#2111, same `gen_sound.py`, 2026-09-27), and
+the gas giant's `amb_gas_giant` bed and `sky_giant_call` (#2112, same `gen_sound.py`, 2026-09-27))
 are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/developer/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio

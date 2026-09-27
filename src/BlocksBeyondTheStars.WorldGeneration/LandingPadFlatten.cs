@@ -31,13 +31,18 @@ public readonly struct LandingPadFlatten
     /// through — ash and sand are granular and would sink into woken lava — and grows no flora.</summary>
     public readonly bool Molten;
 
+    /// <summary>A metal deck (#2112, the gas giant): the islet stands in the gas sea, so it is a floating platform of steel —
+    /// a level steel-floor top over metal-panel fill, an energy-fence rail around the plateau rim with lights, no beach
+    /// slope below the plateau (the platform hangs over the gas) and no flora.</summary>
+    public readonly bool Deck;
+
     public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius)
         : this(centerX, centerZ, surfaceY, radius, islet: false, plateauRadius: radius, isletRadius: radius)
     {
     }
 
     public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius, bool islet, int plateauRadius, int isletRadius, bool classicShape = false,
-        bool molten = false)
+        bool molten = false, bool deck = false)
     {
         CenterX = centerX;
         CenterZ = centerZ;
@@ -48,13 +53,14 @@ public readonly struct LandingPadFlatten
         IsletRadius = islet ? System.Math.Max(PlateauRadius, isletRadius) : radius;
         ClassicShape = islet && classicShape;
         Molten = islet && !classicShape && molten;
+        Deck = islet && !classicShape && deck;
     }
 
     /// <summary>Field-wise equality (the generator's mode checks and the chunk-generation pool compare pad lists).</summary>
     public bool SameAs(LandingPadFlatten other)
         => CenterX == other.CenterX && CenterZ == other.CenterZ && SurfaceY == other.SurfaceY && Radius == other.Radius
             && Islet == other.Islet && PlateauRadius == other.PlateauRadius && IsletRadius == other.IsletRadius
-            && ClassicShape == other.ClassicShape && Molten == other.Molten;
+            && ClassicShape == other.ClassicShape && Molten == other.Molten && Deck == other.Deck;
 
     /// <summary>Whether two pad lists hold the same pads in the same order (null = empty).</summary>
     public static bool SameList(IReadOnlyList<LandingPadFlatten>? a, IReadOnlyList<LandingPadFlatten>? b)

@@ -144,7 +144,7 @@ public sealed class ToxicaMaximaWorldTests
 
         // Every classic type keeps the generation-15 no-op defaults. Arena Nigra (#2073, generation 16) is the one other type
         // that names its sky and its precipitation — and has its own tests.
-        foreach (var other in Content.Planets.Values.Where(t => t.Key != Key && t.Key != "arena_nigra"))
+        foreach (var other in Content.Planets.Values.Where(t => t.Key != Key && t.Key != "arena_nigra" && t.Key != "gas_giant")) // #2112: the gas giant names its sky and its storm too
         {
             Assert.Equal(0, other.SkyColor);
             Assert.Equal(string.Empty, other.Precipitation);

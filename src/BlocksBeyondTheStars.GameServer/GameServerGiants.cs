@@ -107,6 +107,15 @@ public sealed partial class GameServer
             gs.LeviathanCount = GiantRules.LeviathanCount(_world.Circumference);
             RegisterGiantSpecies(leviathan);
         }
+
+        // #2112: the sky giant — every gas giant's own spectacle.
+        if (GiantRules.HostsSkyGiant(planet, generation))
+        {
+            var sky = CreatureGenerator.GenerateAuthoredGiant(planet, rosterSeed, authored, CreatureBodyPlan.SkyGiant, generation)
+                      ?? CreatureGenerator.GenerateSkyGiant(_meta.Seed, _world.LocationId);
+            gs.SkyGiant = sky;
+            RegisterGiantSpecies(sky);
+        }
     }
 
     /// <summary>The two giants that hide in a medium and come for what shakes it: the sandworm (sand), the leviathan (water).</summary>
@@ -116,6 +125,7 @@ public sealed partial class GameServer
     {
         CreatureBodyPlan.Colossus => "colossus",
         CreatureBodyPlan.Leviathan => "leviathan",
+        CreatureBodyPlan.SkyGiant => "sky_giant",
         _ => "sandworm",
     };
 
@@ -177,7 +187,7 @@ public sealed partial class GameServer
         var gs = Giants;
         TickThumpers(dt);
         TickSoundDevicePulses(); // #2077: a wailing siren on the sand keeps shaking it
-        if (gs.Colossus is null && gs.Sandworm is null && gs.Leviathan is null)
+        if (gs.Colossus is null && gs.Sandworm is null && gs.Leviathan is null && gs.SkyGiant is null)
         {
             return;
         }
@@ -219,9 +229,12 @@ public sealed partial class GameServer
                 continue;
             }
 
-            changed |= g.Kind == CreatureBodyPlan.Colossus
-                ? TickColossus(giant, g, sp, onFoot, dt)
-                : TickSandworm(giant, g, sp, onFoot, dt);
+            changed |= g.Kind switch
+            {
+                CreatureBodyPlan.Colossus => TickColossus(giant, g, sp, onFoot, dt),
+                CreatureBodyPlan.SkyGiant => TickSkyGiant(giant, g, sp, dt), // #2112
+                _ => TickSandworm(giant, g, sp, onFoot, dt),
+            };
         }
 
         gs.BroadcastIn -= dt;
@@ -271,6 +284,12 @@ public sealed partial class GameServer
                 TrySpawnSandworm(leviathan, slot, onFoot); // #2111: the same spawn, in the sea
             }
         }
+
+        if (gs.SkyGiant is { } sky && !LiveGiants().Any(c => c.Giant!.Kind == CreatureBodyPlan.SkyGiant)
+            && (!_meta.GiantBackAt.TryGetValue(GiantSlotKey(CreatureBodyPlan.SkyGiant, 0), out long sb) || now >= sb))
+        {
+            TrySpawnSkyGiant(sky, onFoot); // #2112
+        }
     }
 
     private CombatEntity SpawnGiantEntity(CreatureSpecies sp, GiantRuntime g, Vector3f pos)
@@ -293,6 +312,7 @@ public sealed partial class GameServer
         {
             CreatureBodyPlan.Colossus => ColossusLoot,
             CreatureBodyPlan.Leviathan => LeviathanLoot,
+            CreatureBodyPlan.SkyGiant => SkyGiantLoot,
             _ => SandwormLoot,
         };
         foreach (var extra in extras)
@@ -1172,9 +1192,9 @@ public sealed partial class GameServer
     private bool GiantHittable(CombatEntity giant)
     {
         var g = giant.Giant!;
-        if (g.Kind == CreatureBodyPlan.Colossus)
+        if (g.Kind is CreatureBodyPlan.Colossus or CreatureBodyPlan.SkyGiant)
         {
-            return true;
+            return true; // always in the open: a colossus on its legs, a sky giant against the sky (#2112)
         }
 
         return g.Move != WormMove.None && g.Path is { } path && path.Exposed((float)(_uptime - g.PhaseStart));
@@ -1195,6 +1215,12 @@ public sealed partial class GameServer
         var shift = new Vector3f(local.X - giant.Position.X, 0f, local.Z - giant.Position.Z); // same lap as the player
         Vector3f best = giant.Position;
         float bestD = float.MaxValue;
+        if (g.Kind == CreatureBodyPlan.SkyGiant)
+        {
+            best = SkyGiantAimPoint(giant, g, sp, eye, shift); // #2112: the head and the trailing body
+            return new Vector3f(best.X, best.Y - 1.5f, best.Z);
+        }
+
         if (g.Kind == CreatureBodyPlan.Colossus)
         {
             var body = ColossusBody.For(sp.GiantHeight, sp.LegRatio, sp.NeckLength);
@@ -1243,6 +1269,10 @@ public sealed partial class GameServer
         if (giant.Giant is { } g && IsBurrower(g.Kind))
         {
             g.Warned = true;
+        }
+        else if (giant.Giant is { Kind: CreatureBodyPlan.SkyGiant } sky)
+        {
+            sky.ClimbUntil = _uptime + 20.0; // #2112: a passive giant just climbs out of reach for a while
         }
     }
 
@@ -1542,6 +1572,7 @@ public sealed partial class GameServer
         {
             "sandworm" or "worm" => CreatureBodyPlan.Sandworm,
             "leviathan" or "sea" => CreatureBodyPlan.Leviathan, // #2111
+            "sky" or "skygiant" or "sky_giant" => CreatureBodyPlan.SkyGiant, // #2112
             _ => CreatureBodyPlan.Colossus,
         };
         var gs = Giants;
@@ -1556,6 +1587,9 @@ public sealed partial class GameServer
                 sp = gs.Leviathan ??= CreatureGenerator.GenerateLeviathan(_meta.Seed, _world.LocationId);
                 gs.LeviathanCount = System.Math.Max(1, gs.LeviathanCount);
                 break;
+            case CreatureBodyPlan.SkyGiant:
+                sp = gs.SkyGiant ??= CreatureGenerator.GenerateSkyGiant(_meta.Seed, _world.LocationId);
+                break;
             default:
                 sp = gs.Colossus ??= CreatureGenerator.GenerateColossus(_meta.Seed, _world.LocationId);
                 break;
@@ -1564,7 +1598,9 @@ public sealed partial class GameServer
         RegisterGiantSpecies(sp);
         _creatures.RemoveAll(c => c.IsGiant && c.Giant!.Kind == sp.BodyPlan);
         var list = new List<PlayerSession> { session };
-        bool ok = IsBurrower(plan) ? TrySpawnSandworm(sp, 0, list) : TrySpawnColossus(sp, list);
+        bool ok = IsBurrower(plan) ? TrySpawnSandworm(sp, 0, list)
+            : plan == CreatureBodyPlan.SkyGiant ? TrySpawnSkyGiant(sp, list)
+            : TrySpawnColossus(sp, list);
         Send(session, new ServerMessage { Text = ok ? "@srv.admin.giant_summoned" : "@srv.admin.giant_no_room" });
         CheatLog(session.State, $"summoned a {GiantName(plan)} ({(ok ? "placed" : "no room")})");
     }
@@ -1614,6 +1650,7 @@ public sealed partial class GameServer
         {
             CreatureBodyPlan.Colossus => Giants.Colossus is { } c && TrySpawnColossus(c, list),
             CreatureBodyPlan.Leviathan => Giants.Leviathan is { } l && TrySpawnSandworm(l, 0, list),
+            CreatureBodyPlan.SkyGiant => Giants.SkyGiant is { } s2 && TrySpawnSkyGiant(s2, list),
             _ => Giants.Sandworm is { } w && TrySpawnSandworm(w, 0, list),
         };
     }
@@ -1683,6 +1720,20 @@ public sealed class GiantRuntime
     public float MoveStrike { get; set; }
     public bool StrikeDone { get; set; }
     public HashSet<string> HitThisMove { get; } = new();
+
+    // Sky giant (#2112): the lane it drifts on, and the trail its body is hit along.
+    public float LaneX { get; set; }
+    public float LaneZ { get; set; }
+    public float LaneTargetX { get; set; }
+    public float LaneTargetZ { get; set; }
+    public float LaneRadius { get; set; }
+    public float Altitude { get; set; }
+    public float LaneAngle { get; set; }
+    public bool LaneClockwise { get; set; }
+    public double LaneUntil { get; set; }
+    public double NextCallAt { get; set; }
+    public double ClimbUntil { get; set; }
+    public List<Vector3f> Trail { get; } = new();
 }
 
 /// <summary>A running thumper (#2002) — runtime only: a thumper left over a reload is just a block until placed again.</summary>
@@ -1704,6 +1755,9 @@ internal sealed class GiantWorldState
     /// <summary>#2111: the sea giant of a deep-sea world, and how many (one, two on a big world).</summary>
     public CreatureSpecies? Leviathan { get; set; }
     public int LeviathanCount { get; set; }
+
+    /// <summary>#2112: the sky giant of a gas giant (one).</summary>
+    public CreatureSpecies? SkyGiant { get; set; }
     public double SpawnCheckIn { get; set; }
     public double BroadcastIn { get; set; }
     public List<ThumperState> Thumpers { get; } = new();
@@ -1722,6 +1776,7 @@ internal sealed class GiantWorldState
         WormCount = 0;
         Leviathan = null;
         LeviathanCount = 0;
+        SkyGiant = null;
         SpawnCheckIn = 0;
         BroadcastIn = 0;
         Thumpers.Clear();

@@ -130,7 +130,15 @@ public sealed partial class WorldGenerator
         // becomes the basin share (1 − rolled land fraction), so the waterline settles at/near the shelf
         // edge regardless of how the threshold→area mapping behaves. The percentile machinery makes it exact.
         var continent = ContinentProfileFor(planet, seed);
-        if (waterAb > 0.0 && _content.GetBlock("water") is { } water)
+        if (planet.IsGasWorld && _content.GetBlock("gas") is { } gas)
+        {
+            // #2112: the gas giant has no solid surface — the gas floods the WHOLE heightfield, a few blocks over its highest
+            // ground, so nothing of it ever shows; the floating islands are the only land. Never below generation 18 (the type
+            // itself is gated), so no classic world can take this branch.
+            c.SeaLevel = c.MaxHeight + GasSeaRise;
+            c.SeaFluid = gas.NumericId;
+        }
+        else if (waterAb > 0.0 && _content.GetBlock("water") is { } water)
         {
             double frac = planet.BuoyantIslands
                 ? 0.95 + 0.03 * R01(0x5EA04)       // #1757: the land is the islands afloat — 95–98 % of the terrain floods

@@ -420,6 +420,7 @@ namespace BlocksBeyondTheStars.Client
                 case "desert": return (new Color(1.07f, 1.00f, 0.90f), 0.95f, 1.12f);
                 case "ice": case "frozen": return (new Color(0.94f, 1.00f, 1.09f), 0.90f, 1.06f);
                 case "lava": case "volcanic": case "arena_nigra": return (new Color(1.10f, 0.95f, 0.86f), 1.05f, 1.14f); // #2078: the black dunes take the volcanic grade
+                case "gas_giant": return (new Color(1.04f, 0.96f, 1.02f), 0.92f, 1.08f); // #2112: a cold amber-violet dusk over the gas
                 case "swamp": return (new Color(0.97f, 1.03f, 0.95f), 0.85f, 1.03f);
                 case "crystal": return (new Color(1.04f, 0.97f, 1.09f), 1.10f, 1.05f);
                 default: return (new Color(1f, 1f, 1f), 1.00f, 1.03f);

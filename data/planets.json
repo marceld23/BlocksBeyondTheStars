@@ -1029,6 +1029,31 @@
       { "block": "tungsten_ore", "rarity": 0.008, "minDepth": 44, "maxDepth": 2048 }
     ]
   },
+  // #2112 (Justus, 2026-09-27): the gas giant — no solid surface. A lethal sea of gas floods the whole heightfield; the only
+  // land is the floating islands above it (three tiers), metal landing decks and the sky cities with their breathable
+  // pocket. Cold (-120 °C) and toxic, a permanent storm, rings on most. Every rolled animal flies; the passive sky giant
+  // drifts between the islands. Placed by the galaxy (the LoneGiant system's planet + an outermost-orbit roll), never by
+  // the ordinary type roll (spawnWeight 0).
+  {
+    "key": "gas_giant", "minTerrainGeneration": 18, "exotic": true, "floraTheme": "tundra", "baseTemperature": -120, "nameKey": "planet.gas_giant.name", "atmosphereHeight": 420, "cloudColor": 13145196, "cloudDensity": 0.85, "skyColor": 6048107,
+    "seaFluid": "gas", "floatingIslands": true,
+    "baseHeight": 40, "amplitude": 6, "terrainScale": 60.0, "terrainStyle": "flats",
+    "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3, "caveThreshold": 0.0, "dataCacheRarity": 0.0008,
+    "weather": "stormy", "stormChance": 0.6, "dayLengthSeconds": 900, "worldRadius": 1200,
+    "floraDensity": 0.03, "treeDensity": 0.0, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.1, "spawnWeight": 0,
+    "waterAbundance": 0.0, "lavaAbundance": 0.0,
+    "weatherVolatility": 1.4, "seasonAmplitude": 0.0,
+    "weatherEvents": { "gale": 3.0, "fog": 1.5, "ground_fog": 0.0, "drizzle": 0.0, "acid_rain": 0.0, "heatwave": 0.0 },
+    "ruinsBias": 0.4,
+    "biomes": [
+      { "surfaceBlock": "stone", "subSurfaceBlock": "stone" }
+    ],
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.03, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.02, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.03, "minDepth": 2, "maxDepth": 2048 }
+    ]
+  },
   {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,

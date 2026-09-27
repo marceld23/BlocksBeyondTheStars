@@ -180,7 +180,61 @@ public sealed class UniverseGenerator
                 }
             }
         }
+
+        ApplyGasGiants(galaxy, firstBreathable);
     }
+
+    /// <summary>#2112 (generation 18, Marcel's placement): the <see cref="SystemArchetype.LoneGiant"/> system's one planet —
+    /// "the gas giant fantasy" the archetype was written for — BECOMES the gas giant, and the outermost planet of any other
+    /// system rolls one in <see cref="GasGiantOuterOrbitChance"/>; both get rings in about three cases of five. Runs after
+    /// the generic retype (the gas giant's own spawn weight is 0, so that roll never picks it), touches only the type and
+    /// the ring seed of the chosen body, and never the start system, the first breathable planet or a once-per-galaxy
+    /// landmark. An older galaxy (a description below generation 18) keeps every body's type.</summary>
+    private void ApplyGasGiants(Galaxy galaxy, CelestialBody? firstBreathable)
+    {
+        if (_desc.TerrainGeneration < WorldDescription.GasGiantGeneration || _content.GetPlanet(GasGiantKey) is null)
+        {
+            return;
+        }
+
+        for (int si = 1; si < galaxy.Systems.Count; si++)
+        {
+            var system = galaxy.Systems[si];
+            var archetype = _desc.SystemVariance ? SystemArchetypes.ForIndex(_seed, si) : SystemArchetype.Standard;
+            CelestialBody? planet = null;
+            if (archetype == SystemArchetype.LoneGiant)
+            {
+                planet = system.Bodies.Find(b => b.Kind == CelestialKind.Planet);
+            }
+            else
+            {
+                ulong h = Noise.Hash(_seed ^ 0x6A5, si, 0, 0x2112);
+                if ((h & 0xFF) < (ulong)GasGiantOuterOrbitChance)
+                {
+                    planet = system.Bodies.FindLast(b => b.Kind == CelestialKind.Planet); // the outermost orbit
+                }
+            }
+
+            if (planet is null || ReferenceEquals(planet, firstBreathable)
+                || _content.GetPlanet(planet.PlanetType ?? string.Empty)?.OncePerGalaxy == true)
+            {
+                continue;
+            }
+
+            planet.PlanetType = GasGiantKey;
+            if (planet.RingSeed == 0 && (Noise.Hash(_seed ^ 0x6A5, si, 1, 0x2112) & 0xFF) < (ulong)GasGiantRingChance)
+            {
+                planet.RingSeed = 1 + (int)(Noise.Hash(_seed ^ 0x6A5, si, 2, 0x2112) % 999_999UL);
+            }
+        }
+    }
+
+    /// <summary>The gas giant's type key (#2112).</summary>
+    public const string GasGiantKey = "gas_giant";
+
+    /// <summary>One system in six (of the ones that are not a lone giant) puts a gas giant on its outermost orbit; ~60 % ring.</summary>
+    private const int GasGiantOuterOrbitChance = 40;  // of 256
+    private const int GasGiantRingChance = 154;       // of 256
 
     /// <summary>The landable-asteroid families and their relative frequency (#515). Every non-selectable
     /// "asteroid…" type in planets.json is one, weighted by its <c>spawnWeight</c> — so adding a family is a

@@ -145,6 +145,12 @@ shake — water carries no tremor to the shore): `leviathan_breach` (a wall of w
 closing over it) and `leviathan_wake` (the approach: something enormous moving fast just under the surface, every 1.5 s at
 the giant's position, scaled by the server's strength).
 
+**The gas giant (#2112, 2026-09-27, Justus' idea):** two ElevenLabs clips — the ambience bed `amb_gas_giant` (an endless
+howling wind over a bottomless sea of cold gas, thunder far below; `ClientAudio.BiomeBed` for the `gas_giant` key, a
+seamless loop) and `sky_giant_call` (a vast, slow, resonant whale-like moan carried on the wind — played by
+`CreatureView.PlayWorldFx` for the server's `skycall` kind at the giant's position every half minute or so, no camera
+shake: it is far up).
+
 ## 9. NPCs (humans + aliens) — *ElevenLabs, NON-VERBAL*
 
 No speech. Short vocalisations only: **idle murmur, greet/notice, acknowledge, trade-confirm,

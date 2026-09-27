@@ -60,6 +60,10 @@ public sealed partial class GameServer
         /// <summary>A generation-8 islet raised over lava (built from basalt, see
         /// <see cref="BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten.Molten"/>).</summary>
         public bool LavaIslet;
+
+        /// <summary>A metal deck over the gas sea (#2112, the gas giant): every pad of a gas world is one
+        /// (see <see cref="BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten.Deck"/>).</summary>
+        public bool Deck;
     }
 
     /// <summary>How far above the sea an islet pad's surface sits (a dry beach, not a tidal flat).</summary>
@@ -169,7 +173,7 @@ public sealed partial class GameServer
             flats.Add(pad.Classic
                 ? new BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten(pad.CenterX, pad.CenterZ, pad.CenterY, pad.Radius, pad.Islet, pad.Radius, ClassicIsletRadius, classicShape: true)
                 : new BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten(pad.CenterX, pad.CenterZ, pad.CenterY, pad.Radius, pad.Islet, IsletPlateauRadius, IsletRadius,
-                    molten: pad.LavaIslet));
+                    molten: pad.LavaIslet, deck: pad.Deck));
         }
     }
 
@@ -235,6 +239,7 @@ public sealed partial class GameServer
                 Classic = (flags & 4) != 0,
                 Molten = (flags & 8) != 0,
                 LavaIslet = (flags & 16) != 0,
+                Deck = (flags & 32) != 0, // #2112
             });
         }
 
@@ -259,7 +264,7 @@ public sealed partial class GameServer
             }
 
             int flags = (pad.Wet ? 1 : 0) | (pad.Islet ? 2 : 0) | (pad.Classic ? 4 : 0)
-                        | (pad.Molten ? 8 : 0) | (pad.LavaIslet ? 16 : 0);
+                        | (pad.Molten ? 8 : 0) | (pad.LavaIslet ? 16 : 0) | (pad.Deck ? 32 : 0);
             text.Append(pad.Index).Append(',').Append(pad.CenterX).Append(',').Append(pad.CenterZ).Append(',')
                 .Append(pad.CenterY).Append(',').Append(pad.Radius).Append(',').Append(pad.Depth).Append(',').Append(flags);
         }
@@ -351,6 +356,21 @@ public sealed partial class GameServer
     private LandingPad DecidePad(PlanetType planet, int index, int cx, int cz)
     {
         int groundY = PadGroundY(planet, cx, cz);
+        if (planet.IsGasWorld && _generator.SeaIsGas(planet))
+        {
+            // #2112: a gas giant has no ground to land on — every pad is a metal deck hanging over the gas, three blocks
+            // above its surface (the gas stands over the whole heightfield, so the pad can never be dry).
+            return new LandingPad
+            {
+                Index = index,
+                CenterX = cx,
+                CenterZ = cz,
+                CenterY = _generator.SeaLevel(planet) + IsletRise,
+                Islet = true,
+                Deck = true,
+            };
+        }
+
         if (LavaPadRules && FootprintLava(planet, cx, cz, out int lavaTop))
         {
             // Generation 8: lava anywhere under the footprint — sea, crater, river, caldera or shield lake — gets a

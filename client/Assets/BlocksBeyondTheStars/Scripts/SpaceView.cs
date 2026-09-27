@@ -5538,6 +5538,11 @@ namespace BlocksBeyondTheStars.Client
                 return legacy;
             }
 
+            if (planet.IsGasWorld)
+            {
+                return (new Color(0.96f, 0.9f, 0.84f), "gas"); // #2112: the banded cloud tops are the whole face of a gas giant
+            }
+
             Color ground = PlanetOrbitLook.GroundColor(
                 Game.Content, Game.Atlas, Game.WorldSeed, locationName, key, legacy.tint);
             // Partial cast only: the surface texture already carries the ground colour — full
@@ -5606,6 +5611,7 @@ namespace BlocksBeyondTheStars.Client
                 case "toxic_world": return (Rgb(0xA9B061), 0.65f);    // #2032: the sickly haze of the toxic class
                 case "toxica_maxima": return (Rgb(0x2E4A2B), 0.9f);   // #2063: Toxica-Maxima's dark-green storm shell
                 case "arena_nigra": return (Rgb(0x1C1416), 0.55f);    // #2078: Arena Nigra's black ash clouds
+                case "gas_giant": return (Rgb(0xC8956C), 0.85f);      // #2112: the gas giant's amber storm shell
                 default: return (Rgb(0xEDEFF2), 0f); // barren/asteroid → no clouds
             }
         }

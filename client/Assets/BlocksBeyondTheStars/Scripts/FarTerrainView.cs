@@ -614,6 +614,9 @@ namespace BlocksBeyondTheStars.Client
                     case FarSurface.Lava:
                         c = new Color(1.4f, 0.45f, 0.12f); // HDR-ish: the shader lets lava glow through the haze a little
                         break;
+                    case FarSurface.Gas:
+                        c = new Color(0.78f, 0.58f, 0.42f); // #2112: the amber cloud tops of the gas sea
+                        break;
                     default:
                         c = BlockColor(sample.Block);
                         if (_floraWeight > 0.01f)

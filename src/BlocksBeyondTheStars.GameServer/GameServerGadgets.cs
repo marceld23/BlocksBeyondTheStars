@@ -255,9 +255,9 @@ public sealed partial class GameServer
             (int)System.Math.Floor(target.X), (int)System.Math.Floor(target.Y), (int)System.Math.Floor(target.Z)), _world.Circumference);
         var b = _world.GetBlock(p);
         var d = b.IsAir ? null : _world.Definition(b);
-        if (d is null || !(IsFluid(b.Value) || d.Liquid))
+        if (d is null || !(IsFluid(b.Value) || d.Liquid) || d.Drops.Count == 0)
         {
-            Reject(session, "gadget", "@srv.pump.no_fluid");
+            Reject(session, "gadget", "@srv.pump.no_fluid"); // #2112: a liquid that yields nothing (the gas sea) cannot be pumped
             return false;
         }
 

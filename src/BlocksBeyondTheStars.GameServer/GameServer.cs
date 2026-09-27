@@ -1935,16 +1935,18 @@ public sealed partial class GameServer
             // #2070: an intact factory hall still breathes — under its roof the old industrial life support holds, on every
             // world (Toxica-Maxima's plants are the shelters its corrosive air and acid storms leave you).
             bool factoryAir = !p.InEva && InFactoryAir(p.Position);
-            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || stationAir || factoryAir
+            bool cityAir = !p.InEva && InSkyCityAir(p.Position); // #2112: a sky city's breathable pocket
+            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || stationAir || factoryAir || cityAir
                 || !Rules.OxygenEnabledFor(p.ModeOverride));
             // Which source keeps this player breathing — sent to the client so the HUD can name it
-            // (0 none, 1 ship cabin/aboard, 2 station, 3 base zone or sealed room, 4 factory hall). Base ranks after the
-            // ship and the station so the label only claims the base when nothing closer already covers you.
+            // (0 none, 1 ship cabin/aboard, 2 station, 3 base zone or sealed room, 4 factory hall, 5 sky city). Base ranks
+            // after the ship and the station so the label only claims the base when nothing closer already covers you.
             p.LifeSupportSource = (byte)(!lifeSupport ? 0
                 : p.AboardShip || insideShip ? 1
                 : stationAir ? 2
                 : atBase ? 3
-                : factoryAir ? 4 : 0);
+                : factoryAir ? 4
+                : cityAir ? 5 : 0);
             // Submerged underwater the suit runs on its own air, even on a breathable world — diving spends
             // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).
             // Life support overrides this (ship cabin, station, base zone): an underwater base is a dome.
@@ -1999,6 +2001,14 @@ public sealed partial class GameServer
             if (InLava(p.Position))
             {
                 p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dt * 15)));
+            }
+
+            // The gas sea (#2112, the gas giant): there is no bottom and nothing to breathe — armour is no help. Faster than
+            // lava, so a fall from an island ends in seconds, not in a long sink.
+            if (InGas(p.Position))
+            {
+                p.Health = System.Math.Max(0f, p.Health - (float)(dt * GasContactDps));
+                session.HazardDeathReason = "@srv.death.gas";
             }
 
             // Standing in fire burns too (item 30) — a little less than lava.

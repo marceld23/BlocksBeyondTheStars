@@ -681,6 +681,7 @@ namespace BlocksBeyondTheStars.Client
             "corrupted" => "amb_corrupted", // distorted murmur
             "toxic_world" or "toxica_maxima" => "amb_toxic", // #2068: the dead, bubbling hum of a poisoned world
             "arena_nigra" => "amb_black_dunes", // #2079: hot wind over black dunes, distant lava
+            "gas_giant" => "amb_gas_giant", // #2112: an endless wind over a bottomless sea of cold gas, thunder far below
             "skylands" or "highland" => "amb_wind_high", // thin high-altitude wind
             _ => "wind_light", // rocky / crystal / varied / asteroid → light wind
         };

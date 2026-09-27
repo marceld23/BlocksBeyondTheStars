@@ -162,6 +162,11 @@ public sealed partial class GameServer
             return BurnLavaDps;
         }
 
+        if (InGas(e.Position))
+        {
+            return GasContactDps; // #2112: the gas sea takes an animal that falls into it (a giant never does, see above)
+        }
+
         return InFire(e.Position) ? BurnFireDps : 0f;
     }
 

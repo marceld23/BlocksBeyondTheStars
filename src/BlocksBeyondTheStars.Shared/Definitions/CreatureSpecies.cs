@@ -56,6 +56,7 @@ public enum CreatureBodyPlan
     Biped,    // an upright two-legger with two arms and a big head (#2081, generation 16): always peaceful, lives in a group
     Worm,     // a legless slitherer (#2109, generation 18): a head and a chain of 6–12 links that runs a wave — never legs
     Leviathan, // the deep sea's giant (#2111, generation 18): the sandworm's mover in water — cruises under the surface, breaches, hunts fish and boats
+    SkyGiant,  // the gas giant's giant (#2112, generation 18): a 40–80 block sky-sailer drifting between the islands, passive — a spectacle
 }
 
 /// <summary>
@@ -292,7 +293,7 @@ public sealed class CreatureSpecies
     public bool SwallowsCreatures { get; set; }
 
     /// <summary>True for the one-per-world giants (#1998, #2111): they never come from the spawner and move by their own rules.</summary>
-    public bool IsGiant => BodyPlan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan;
+    public bool IsGiant => BodyPlan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan or CreatureBodyPlan.SkyGiant;
 
     /// <summary>The two giants that live hidden in a medium and come for what shakes it (#2001 the sandworm in the sand,
     /// #2111 the leviathan in the sea): the same path, the same hearing, the same strike.</summary>

@@ -23,9 +23,9 @@ The same descriptor must always yield the same body: every client draws a specie
 per-individual variation is derived from `StableIdHash(SpeciesId)`, never from `Random` at build
 time. (`Random` inside the animator is fine — that is per-client cosmetic timing, not body shape.)
 
-Ten body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
-**Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009), **Biped** (#2081), **Worm** (#2109) and
-**Leviathan** (#2111); the flowerling (#1760) is the standard body with a petal head.
+Eleven body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
+**Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009), **Biped** (#2081), **Worm** (#2109),
+**Leviathan** (#2111) and **SkyGiant** (#2112); the flowerling (#1760) is the standard body with a petal head.
 
 **Worm (#2109, generation 18).** `BuildWorm`: a legless slitherer, knee- to hip-high (`WormRules`) — Marcel's finding
 on a sand sea was that every "worm" walked, because the generator never gave a Land species 0 legs and a long body
@@ -44,6 +44,16 @@ skull, a snout, two eyes and **two hinged jaws** (`Mandibles` = 2) with a row of
 and bottom, so `PosePetals` opens them for the strike unchanged. The same `SandwormView` poses it along the shared
 `SandwormPath` from the server's phase fields; its `Water` flag turns the sand fountains and the approach ripple into
 pale spray (`Foam`), whatever the seabed. Colliders on the core and the skull (`MakeGiantBody`, the giant layer).
+
+**SkyGiant (#2112, generation 18).** `BuildSkyGiant`: the gas giant's passive sailer — a tube of `BodySegments` (18–26)
+thickest a quarter of the way back and tapering to a narrow tail, a pale belly plate, `WingPairs` (3–5) pairs of tall
+thin **sails** standing up from the back over the front two thirds (leaning back, splayed out), a pair of broad **glide
+fins** under the front third, a fluke of two blades on the last segment, a blunt head with a short snout and two eyes (the
+mouth stays shut — it eats nobody), a crest on a crested species. No path is shared for it: the server moves only the
+HEAD (the creature's position, interpolated like any creature's) and `SkyGiantView` lays the body out behind it along the
+head's own recent **track** every frame — follow-the-leader through the curve it just flew (a jump over 40 blocks, the
+longitude wrap, starts the track over); the sails sway on a slow beat. The server measures its hits along the same idea
+(`GiantRuntime.Trail`). Colliders on the core and the skull (`MakeGiantBody`).
 
 **Biped (#2081).** `BuildBiped`: an upright two-legger built from the shares in `BipedRules` (the server measures the
 same body height from them) — two jointed legs under a stubby torso (the knees fold back, `KneeSign` +1, like ours), a

@@ -2,6 +2,7 @@
   "version": 1,
   "default": "ai",
   "textures": {
-    "oil": "hand:procedural (a seeded PIL script, #2106 — no model; re-drawing it needs the script, not a prompt)"
+    "oil": "hand:procedural (a seeded PIL script, #2106 — no model; re-drawing it needs the script, not a prompt)",
+    "gas": "hand:procedural (a seeded PIL script, #2112 — banded amber cloud tops; no model; re-drawing it needs the script, not a prompt)"
   }
 }

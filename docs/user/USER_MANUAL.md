@@ -417,6 +417,14 @@ separate unlock; admins can still disable it through server world rules.
   remain), but **6–10 factories** stand there, one near the landing pad — and **every factory hall breathes**: under its
   roof you have air, no corrosion and no rain, on this planet and on every other world (the HUD says "factory life
   support"). Carbon and silicate are clean there, so the wash loop closes on site.
+- **Gas giant** (Justus' idea, new galaxies since generation 18): a world with **no ground at all**. Below is a bottomless
+  sea of cold **gas** — fall in and you sink and die within seconds, armour or not, there is nothing to breathe. Above it
+  float **islands of rock**, up to three tiers of them; on the lowest ones stand the **sky cities**, and every inhabited
+  city holds a **pocket of breathable air** over its lanes (the HUD says so; an abandoned one has lost it). Everything else
+  is **−120 °C and toxic**, and the storm never stops — the suit will not last long out there. Ships land on **metal decks**
+  hanging over the gas (a rail and lights around the rim); nothing can be pumped out of the gas. Every animal here **flies**,
+  and so does the **sky giant** (see *Giants*). The lone giant of a star system is one of these, and sometimes the
+  outermost planet of any other; most wear rings. From space it shows its banded cloud tops.
 - **Arena Nigra** (Theo's planet — at most one per galaxy, never in the start system; an exotic type): the black
   landmark. The air is **breathable** but it is **hot** (58 °C — the suit's climate drains, then your health; rock islands,
   the ship and a roof shelter you). Two thirds of the world is a **sea of black sand** over basalt, with sharp needles,
@@ -1577,7 +1585,7 @@ separate unlock; admins can still disable it through server world rules.
   in wait"), and VEGA points out the first one you get near. You bump into its body, your shots land where you
   aim on it, and it can be tamed like any other animal.
 
-### Giants (the colossus, the sandworm and the leviathan)
+### Giants (the colossus, the sandworm, the leviathan and the sky giant)
 - **A colossus** is a 40–60 block tall four-legged giant. It only lives on **very flat, very light worlds** (the lighter
   moons of plains, downs and dune types) and even there only on one world in three. Every colossus is different:
   peaceful ones migrate and graze on treetops, shy ones walk away, territorial ones fight back when hit, aggressive
@@ -1608,6 +1616,11 @@ separate unlock; admins can still disable it through server world rules.
   then it **breaches** in an arc or rears up and **strikes** the spot — a boat under its head takes heavy **hull damage** (a
   parked one too), whoever is on it is hurt, and every fish in reach is **swallowed**, leaving a little meat. You can only
   hit it while it is above the water. Get to the shore, or hold still.
+- **A sky giant** (new galaxies since generation 18, Justus' idea) drifts over every **gas giant**: a sailer 40–80 blocks
+  long — a row of tall sails along its back, glide fins, a fluke — that circles slowly between the islands 40–70 blocks
+  over the gas, wandering to a new spot every couple of minutes, and calls now and then. It is **passive**: it never lands,
+  never strikes and eats nobody — a spectacle. You can still fight it (it is always in the open; hit it anywhere along the
+  body); a hit only makes it climb out of reach for a while.
 - A defeated giant is gone for a few in-game days, then another one comes. None of them ever changes a block.
 
 ### Taming creatures (companions)
@@ -2083,7 +2096,7 @@ rejections) appear in the **chat scrollback**, not just the brief HUD toast.
 | `/tpp Player` | Teleport to a player on the body you are on — you land **beside** them, never inside them (#1055) |
 | `/settime day\|night\|…` | Set the world time of day |
 | `/setweather clear\|storm\|…` | Set the world weather |
-| `/giant colossus\|sandworm\|leviathan` | Summon this world's colossus, sandworm or leviathan near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
+| `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
 | `/arachnid` | Summon this world's arachnid near you (rolls one into the world's fauna first if it has none) — for testing |
 | `/biped` | Summon a begging herd of this world's bipeds near you (Mini-Michi-Paul on a tropical world; rolls a begging biped into the world's fauna first if it has none) — for testing |
 | `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |

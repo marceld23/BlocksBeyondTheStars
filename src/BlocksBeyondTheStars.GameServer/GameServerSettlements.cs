@@ -388,7 +388,8 @@ public sealed partial class GameServer
                 }
             }
 
-            bool wantIsland = planet.FloatingIslands && ir.NextDouble() < 0.5;
+            bool islandRoll = ir.NextDouble() < 0.5; // drawn on every world, so the per-instance stream never moves
+            bool wantIsland = planet.FloatingIslands && (islandRoll || planet.IsGasWorld); // #2112: a gas giant has no other ground
 
             // #586: pinned record → legacy re-derive → guaranteed search (fresh worlds only). The record is
             // written on whichever path runs first, so the search algorithm can evolve without moving
@@ -1122,6 +1123,19 @@ public sealed partial class GameServer
         int baseDist = System.Math.Max(80, (int)(circ * 0.4));
         int maxSpread = System.Math.Clamp(System.Math.Max(w, l) / 8, 8, 24);
         bool canIsland = wantIsland && System.Math.Max(w, l) <= 40;
+
+        if (planet.IsGasWorld)
+        {
+            // #2112: on a gas giant the islands are the only ground — a build too big for one has no spot, and nothing
+            // ever seats on the gas. The first-fit island search is the whole search here.
+            if (!canIsland || !TryPlaceSettlement(s, rng, reserved, wantIsland: true, out origin, out groundY, out onIsland))
+            {
+                return false;
+            }
+
+            seat = "island";
+            return true;
+        }
 
         bool Blocked(int cx, int cz, int margin)
             => OverlapsFootprint(cx, cz, hw, hl, reserved, margin);
