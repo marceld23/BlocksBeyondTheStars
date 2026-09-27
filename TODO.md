@@ -29,7 +29,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 Sophie's idea from the school club, Marcel's decisions (2026-09-27): a plant as tall as a tree with a **green trunk, yellow
 leaves and pink blossoms**; the **blossoms glow and light up their surroundings**; it **always bears berries** — normal,
 edible berries that grow back **120 s** after picking; it grows **everywhere** there is plant life and stands **in groups**;
-name "Fifipflanze" / "Fifi Plant"; generation 16 (shared with Arena Nigra); a placed blossom working as a lamp is fine.
+name "Fifipflanze" / "Fifi Plant"; generation 16 (shared with the bipeds #2080 and Arena Nigra); a placed blossom working as a lamp is fine.
 
 - **✅ Content (#2086).** Blocks `fifi_stem` / `fifi_leaf` / `fifi_blossom` (emission + `lightColor`) / `flora_fifi_berries`
   (drops `berries`), the three parts as placeable items, 14 locales with Sophie's credit, `ui.scan.subject.fifi_plant`.
@@ -45,6 +45,30 @@ name "Fifipflanze" / "Fifi Plant"; generation 16 (shared with Arena Nigra); a pl
 - **✅ Assets (#2090).** Four tiles via `gen_textures.py` (the leaves and berries alpha-baked), NOTICES.md.
 - ⚠ OPEN: Marcel's playtest on a fresh generation-16 world (any green world — a grove every 80–100 blocks): the groves by day
   and their pink light at night, picking berries and waiting two minutes; show Sophie.
+
+### 🍌 Mini-Michi-Paul + the bipeds — Paul and Ben's school club creature (#2080: #2081–#2084, 2026-09-27, branch feat/banana-bipeds, terrain generation 16)
+
+Paul and Ben's idea (school club), Marcel's decisions (2026-09-27): a knee-high, peaceful, walking two-legger with two arms, a
+big head with two eyes and yellow skin that travels in a swarm, begs for food and is tamed with **two bananas**; name
+**Mini-Michi-Paul**; the rolled fauna gets the biped class too (always peaceful); hurting one makes the herd run away; the
+call is gibberish that sounds like "meins, meins!".
+- ✅ **Biped body plan** (#2081): `CreatureBodyPlan.Biped` + `Arms` + `HeadRatio`, rolled last on generation-16 worlds for
+  about one standard Land species in six (`BipedRules`), passive/skittish only, groups 4–8 or a begging herd of 8–12; the
+  server's body height from the same shares as the client build; a hurt biped startles its whole herd (10 s, 24 blocks);
+  `/biped` admin summon; client `BuildBiped` + `ArmRig` + `PoseArms` (counter-swing, arms up to beg, hug in sleep).
+- ✅ **Favourite food + feed-taming** (#2082): every begging species of a generation-16 world loves a clean fruit its world
+  grows (`FruitRules.CleanFruitItems`, berries as the fallback); two favourite meals thrown by one player tame one of the
+  herd (counted per herd, `CompleteTame`); lure 13 blocks; after a favourite squabble a 5-s cooldown; VEGA hint, scan lines.
+- ✅ **Voice + skin** (#2083): the gibberish pool `creature_call_gibber` / `_high` / `_chatter` / `_grumble` (ElevenLabs via
+  `gen_sound.py`), one sample per phrase, no harsh effects; the smooth hide tile `creature_skin` (`gen_creatures.py`).
+- ✅ **Mini-Michi-Paul** (#2084): `data/creatures.json` `mini_michi_paul` on jungle / karst / archipelago / coral_sea /
+  rainbow_sea; `AuthoredCreature.MinGeneration` + `FixedName`; `PlanetType.GuaranteedFruit` (bananas always on the palms
+  and jungle trees of those types from generation 16).
+- Docs: WORLD_GENERATION §30, CREATURE_RIG (biped), CREATURE_TAMING (feed-taming), USER_MANUAL (creatures, `/biped`), Codex
+  (creatures + taming). Tests: `CreatureBipedTests`, `BipedServerTests`.
+- ⚠ OPEN: Marcel's playtest (and Paul and Ben's) on a fresh generation-16 jungle world (`scripts/make-test-world.ps1 -Planet
+  jungle`, or `/biped`): the look (knee-high, arms, big head, yellow skin), the gait and the begging arms, the "meins, meins!"
+  calls (four AI takes — re-generate any that do not sound right), two bananas → a companion, the herd fleeing when hurt.
 
 ### ☣️ Toxica-Maxima — Justus' once-per-galaxy toxic landmark planet (#2062: #2063–#2071, 2026-09-27, branch feat/toxica-maxima, terrain generation 15)
 

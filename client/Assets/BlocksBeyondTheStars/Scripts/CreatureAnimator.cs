@@ -35,6 +35,7 @@ namespace BlocksBeyondTheStars.Client
         private RigDescription _rig;
         private LegRig[] _legs = System.Array.Empty<LegRig>();
         private WingRig[] _wings = System.Array.Empty<WingRig>();
+        private ArmRig[] _arms = System.Array.Empty<ArmRig>(); // #2081: a biped's arms
         private Transform[] _tail = System.Array.Empty<Transform>();
         private Transform[] _neck = System.Array.Empty<Transform>();
         private Transform[] _trunk = System.Array.Empty<Transform>();
@@ -166,6 +167,7 @@ namespace BlocksBeyondTheStars.Client
             _rig = rig ?? new RigDescription();
             _legs = _rig.Legs ?? System.Array.Empty<LegRig>();
             _wings = _rig.Wings ?? System.Array.Empty<WingRig>();
+            _arms = _rig.Arms ?? System.Array.Empty<ArmRig>();
             _tail = _rig.Tail ?? System.Array.Empty<Transform>();
             _neck = _rig.Neck ?? System.Array.Empty<Transform>();
             _trunk = _rig.Trunk ?? System.Array.Empty<Transform>();
@@ -401,6 +403,7 @@ namespace BlocksBeyondTheStars.Client
             // they actually end up this frame rather than where they were last frame.
             PoseBody(dt, t, moving, undulates);
             PoseLegs(dt, gaitAmp, moving, crawler, t);
+            PoseArms(gaitAmp, moving, t);
             PoseWings(dt, t, moving, flier, hoverer);
             PoseRayWings(t, moving);
             PoseTail(t, moving, undulates);
@@ -546,6 +549,62 @@ namespace BlocksBeyondTheStars.Client
                 if (leg.Foot != null)
                 {
                     leg.Foot.localRotation = Quaternion.Euler(-(pitch + knee), 0f, 0f);
+                }
+            }
+        }
+
+        /// <summary>Arms (#2081, a biped): walking they swing against the legs — each arm with the OPPOSITE leg, as ours do;
+        /// standing they sway a little; begging (#2018) both go up and reach, waving on a quick beat ("meins, meins!"); mid-jump
+        /// they fly up; lying down they hug the body. Everything poses on top of the rest rotations the builder captured.</summary>
+        private void PoseArms(float amp, float moving, float t)
+        {
+            if (_arms.Length == 0)
+            {
+                return;
+            }
+
+            float gaitWeight = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.04f, 0.3f, moving)) * (1f - _legTuck);
+            float duty = CreatureGait.DutyFactor(_gait);
+            for (int i = 0; i < _arms.Length; i++)
+            {
+                var arm = _arms[i];
+                if (arm?.Shoulder == null)
+                {
+                    continue;
+                }
+
+                float sx = arm.Side == 0 ? -1f : 1f;
+                // The opposite leg's swing, a little smaller: the counter-swing of a walk.
+                float swing = CreatureGait.Evaluate(_walk + CreatureGait.PhaseOffset(_gait, 1 - arm.Side, 0, 1), duty, amp).SwingDeg * 0.8f;
+                float idle = Mathf.Sin(t * 1.3f + arm.Side * 1.7f) * 3f;
+                float pitch = Mathf.Lerp(idle, swing, gaitWeight);
+                float roll = 0f;
+                float elbow = -10f - 18f * gaitWeight;                          // a walking arm bends at the elbow
+
+                // Begging: both arms up and forward, reaching, waving out of step.
+                if (_beg > 0f)
+                {
+                    float wave = Mathf.Sin(t * 10f + arm.Side * Mathf.PI) * 18f;
+                    pitch = Mathf.Lerp(pitch, -150f + wave, _beg);
+                    roll = Mathf.Lerp(roll, sx * -18f, _beg);
+                    elbow = Mathf.Lerp(elbow, -25f + wave * 0.5f, _beg);
+                }
+
+                // A hop throws the arms up.
+                pitch -= 60f * _legTuck;
+
+                // Lying down: the arms hug the body.
+                if (_rest > 0f)
+                {
+                    pitch = Mathf.Lerp(pitch, -45f, _rest);
+                    roll = Mathf.Lerp(roll, sx * 25f, _rest);
+                    elbow = Mathf.Lerp(elbow, -95f, _rest);
+                }
+
+                arm.Shoulder.localRotation = arm.ShoulderRest * Quaternion.Euler(pitch, 0f, roll);
+                if (arm.Elbow != null)
+                {
+                    arm.Elbow.localRotation = arm.ElbowRest * Quaternion.Euler(elbow, 0f, 0f);
                 }
             }
         }

@@ -83,7 +83,7 @@ public sealed partial class WorldGenerator
         }
 
         ResolveFlora(planet); // memoised — the active fruit shapes of this world
-        string? shape = FruitRules.ShapeFor(RosterSeed, kind, _activeFruitKeys);
+        string? shape = FruitRules.ShapeFor(RosterSeed, kind, _activeFruitKeys, FruitRules.GuaranteedFruitFor(planet, _terrainGeneration));
         if (shape == null || _content.GetBlock(shape) is not { } fruit || fruit.NumericId.IsAir)
         {
             return null;

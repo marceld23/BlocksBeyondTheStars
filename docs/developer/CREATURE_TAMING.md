@@ -118,6 +118,19 @@ Codex entry and advances `tame:sreekmakra`. Taming an ordinary animal of the spe
 player already owns one; VEGA explains when the six slots are full). A revealed or fleeing one refuses
 (`creature.tame.msg.sreekmakra`), as does a second one (`creature.tame.msg.sreekmakra_have`).
 
+## Feed-taming (#2082, 2026-09, generation 16)
+
+A begging species of a generation-16 world loves one food (`CreatureSpecies.FavouriteFood`, drawn from the fruit its world
+grows — see WORLD_GENERATION §30). No translator: when the winner of a squabble eats a piece of its favourite that a player
+threw with the Feed action, the meal counts toward that player — per herd (`PlayerSession.FavouriteMeals`, keyed location +
+species), because a squabble's winner is whoever gets there first. At `HerdRules.FeedsToTameFor` meals (2 by default; an
+authored species may set `feedsToTame`) the animal that ate the last one is tamed through `CompleteTame` with its own
+message (`creature.tame.msg.fed`) — the companion cap, the first-tame knowledge, the name and the Companions tab are the
+ritual's. The tame is queued and resolved before the next creature loop (`ResolvePendingFeedTames`), because the meal is
+eaten inside that loop. VEGA explains it once (`vega.hint.favourite_food`); the scan names the favourite and says it tames.
+After a favourite squabble the herd comes back after 5 s instead of the 60-s cooldown. Toxic food never counts. Mini-Michi-Paul
+(Paul and Ben's biped) loves bananas: two bananas tame one. Tests: `BipedServerTests`.
+
 ## Known remaining gaps / deferred (P4)
 
 - Needs a Unity client build.

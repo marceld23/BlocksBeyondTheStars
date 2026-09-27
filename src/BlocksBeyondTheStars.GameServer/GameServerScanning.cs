@@ -70,10 +70,26 @@ public sealed partial class GameServer
                     .ToArray();
             }
 
+            if (sp.BodyPlan == Shared.Definitions.CreatureBodyPlan.Biped)
+            {
+                readout.TraitKeys = readout.TraitKeys.Concat(new[] { "ui.scan.body.biped" }).ToArray(); // #2081
+            }
+
             if (Shared.Definitions.HerdRules.BegsForFood(sp))
             {
                 // #2018: the one habit a player can act on — hold food and the herd comes; the scan says so.
                 readout.TraitKeys = readout.TraitKeys.Concat(new[] { "ui.scan.behaviour.begs" }).ToArray();
+            }
+
+            if (!string.IsNullOrEmpty(sp.FavouriteFood))
+            {
+                // #2082: what it loves — "ui.scan.favourite|<item key>"; the client names the item in its own language. A beggar
+                // that loves something can be won over with it, so the scan says that too.
+                readout.TraitKeys = readout.TraitKeys.Concat(new[] { "ui.scan.favourite|" + sp.FavouriteFood }).ToArray();
+                if (Shared.Definitions.HerdRules.TamesByFeeding(sp))
+                {
+                    readout.TraitKeys = readout.TraitKeys.Concat(new[] { "ui.scan.behaviour.feed_tame" }).ToArray();
+                }
             }
 
             readout.ThreatKey = sp.Hostile ? "ui.scan.threat.hostile"

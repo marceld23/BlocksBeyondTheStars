@@ -32,6 +32,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<Transform> _trunkChain = new List<Transform>();
         private readonly List<FinRig> _fins = new List<FinRig>();
         private readonly List<Transform[]> _rayWings = new List<Transform[]>();
+        private readonly List<ArmRig> _arms = new List<ArmRig>(); // #2081: a biped's arms
         private readonly List<Transform> _heads = new List<Transform>();
         private readonly List<Transform> _jaws = new List<Transform>();
         private Transform _headPivot; // the head being built right now (a multi-headed body builds several in turn)
@@ -82,6 +83,12 @@ namespace BlocksBeyondTheStars.Client
             if (c.BodyPlan == "Arachnid")
             {
                 BuildArachnid(root, c); // #2009
+                return;
+            }
+
+            if (c.BodyPlan == "Biped")
+            {
+                BuildBiped(root, c); // #2081
                 return;
             }
 
@@ -780,6 +787,129 @@ namespace BlocksBeyondTheStars.Client
             var anim = root.AddComponent<CreatureAnimator>();
             anim.Init(rig);
             anim.CadenceScale = Mathf.Clamp(1.15f / Mathf.Max(1f, c.Size * 0.35f), 0.6f, 1f);
+        }
+
+        /// <summary>The biped plan (#2081, the school club idea of Paul and Ben — Mini-Michi-Paul): an upright two-legger with two
+        /// arms and a big head. Built from the same shares the server measures its body height with (<see cref="BipedRules"/>):
+        /// two jointed legs under a stubby torso, a belly patch on the front, arms from the shoulders (shoulder → elbow → hand),
+        /// and the big head on a neck pivot at the top of the torso — the head is the classic box (skull + hinged jaw), so the
+        /// shared eye, eyelid, jaw and gaze code all work on it unchanged. Optional antennae (the species' horns) and a stubby
+        /// tail. Small and peaceful: render-only, no colliders.</summary>
+        private void BuildBiped(GameObject root, NetCreature c)
+        {
+            float s = Mathf.Clamp(c.Size, 0.3f, 2.5f);                      // the size IS the standing scale in blocks
+            float headRatio = c.HeadRatio > 0f ? c.HeadRatio : 1.6f;
+            float unit = 0.5f * s;
+            Color baseColor = Rgb(c.ColorRgb);
+            Color bellyColor = Rgb(c.BellyRgb);
+            if (c.Asleep)
+            {
+                baseColor *= 0.85f;
+            }
+
+            if (!string.IsNullOrEmpty(c.OwnerId))
+            {
+                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
+            }
+
+            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
+            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
+
+            int idh = StableIdHash(c.SpeciesId);
+            float bodyWide = 0.9f + ((idh >> 5) & 7) / 7f * 0.25f;          // 0.9..1.15 — chubby or slim
+
+            var body = new GameObject("BodyRig");
+            body.transform.SetParent(root.transform, false);
+
+            float legH = s * BipedRules.LegShare;                            // hip height = leg length (the shared convention)
+            float torsoH = s * BipedRules.TorsoShare;
+            float torsoW = s * 0.40f * bodyWide, torsoD = s * 0.30f;
+            float torsoY = legH + torsoH * 0.5f;
+            AddPart(body, "Torso", new Vector3(0f, torsoY, 0f), new Vector3(torsoW, torsoH, torsoD), _bodyMat);
+            AddPartTo(body.transform, "Belly", new Vector3(0f, torsoY - torsoH * 0.08f, torsoD * 0.5f),
+                new Vector3(torsoW * 0.7f, torsoH * 0.7f, s * 0.03f), bellyMat);
+            // A little hip block, so the legs hang from a pelvis rather than from the torso's corners.
+            AddPartTo(body.transform, "Hips", new Vector3(0f, legH + s * 0.02f, 0f), new Vector3(torsoW * 0.85f, s * 0.07f, torsoD * 0.9f), _bodyMat);
+
+            // Two legs, one row; a biped's knee folds the shin BACK (like ours), unlike a quadruped's hind leg.
+            float legThick = s * 0.11f;
+            for (int side = 0; side < 2; side++)
+            {
+                float x = (side == 0 ? -1f : 1f) * torsoW * 0.26f;
+                var leg = AddLeg(body.transform, 0, side, 1, new Vector3(x, legH, 0f), legH, legThick, _bodyMat);
+                leg.KneeSign = 1;
+                _legs.Add(leg);
+            }
+
+            // Two arms from the shoulders: upper arm → elbow → forearm → a hand in the belly tone.
+            float armLen = s * BipedRules.ArmShare;
+            float armThick = s * 0.08f;
+            float upper = armLen * 0.5f, lower = armLen * 0.5f;
+            var handMat = bellyMat;
+            for (int side = 0; side < 2; side++)
+            {
+                float sx = side == 0 ? -1f : 1f;
+                var shoulder = NewPivot(body.transform, side == 0 ? "ArmL" : "ArmR",
+                    new Vector3(sx * (torsoW * 0.5f + armThick * 0.55f), legH + torsoH * 0.88f, 0f));
+                AddPartTo(shoulder, "UpperArm", new Vector3(0f, -upper * 0.5f, 0f), new Vector3(armThick, upper, armThick), _bodyMat);
+                var elbow = NewPivot(shoulder, "Elbow", new Vector3(0f, -upper, 0f));
+                AddPartTo(elbow, "Forearm", new Vector3(0f, -lower * 0.5f, 0f), new Vector3(armThick * 0.9f, lower, armThick * 0.9f), _bodyMat);
+                AddPartTo(elbow, "Hand", new Vector3(0f, -lower - armThick * 0.45f, 0f), Vector3.one * (armThick * 1.35f), handMat);
+                shoulder.localRotation = Quaternion.Euler(0f, 0f, -sx * 6f);    // the arms hang a touch away from the body
+                _arms.Add(new ArmRig
+                {
+                    Shoulder = shoulder,
+                    Elbow = elbow,
+                    Side = side,
+                    ShoulderRest = shoulder.localRotation,
+                    ElbowRest = elbow.localRotation,
+                });
+            }
+
+            // The big head on a neck pivot at the top of the torso. The classic head box is built around a centre pivot
+            // lifted by half the head (so the head sits ON the torso and turns about the neck); its "unit" is chosen so the box
+            // is exactly the head edge the server measured.
+            float headEdge = BipedRules.HeadEdge(s, headRatio);
+            float hu = headEdge / 0.9f;                                        // the standard head is 0.9 units wide
+            var neck = NewPivot(body.transform, "Head", new Vector3(0f, legH + torsoH, 0f));
+            _headPivot = NewPivot(neck, "HeadCentre", new Vector3(0f, headEdge * 0.47f, -hu * 0.45f + torsoD * 0.05f));
+            AddHeadBox(hu * 0.9f, hu * 0.85f, hu * 0.8f, hu * 0.45f, _bodyMat);
+            _heads[_heads.Count - 1] = neck;                                   // the animator turns the neck, the face comes along
+            AddEyes(c, hu, 1f);
+
+            // Antennae (the species' horns): thin stalks with a bobble, the belly tone on top.
+            int antennae = Mathf.Clamp(c.Horns, 0, 2);
+            for (int a = 0; a < antennae; a++)
+            {
+                float ax = antennae == 1 ? 0f : (a == 0 ? -1f : 1f) * hu * 0.22f;
+                var stalk = NewPivot(_headPivot, "Antenna" + a, new Vector3(ax, hu * 0.36f, hu * 0.40f));
+                stalk.localRotation = Quaternion.Euler(-12f, 0f, antennae == 1 ? 0f : (a == 0 ? 14f : -14f));
+                AddPartTo(stalk, "Stalk", new Vector3(0f, hu * 0.22f, 0f), new Vector3(hu * 0.05f, hu * 0.44f, hu * 0.05f), _bodyMat);
+                AddPartTo(stalk, "Bobble", new Vector3(0f, hu * 0.46f, 0f), Vector3.one * (hu * 0.13f), bellyMat, PrimitiveType.Sphere);
+            }
+
+            if (c.HasTail)
+            {
+                AddTail(body.transform, new Vector3(0f, legH + s * 0.04f, -torsoD * 0.45f), s * 0.22f, s * 0.07f, 2, _bodyMat);
+            }
+
+            if (c.Glows)
+            {
+                var go = new GameObject("Glow");
+                go.transform.SetParent(body.transform, false);
+                go.transform.localPosition = new Vector3(0f, torsoY, 0f);
+                _glow = go.AddComponent<Light>();
+                _glow.type = LightType.Point;
+                _glow.range = s * 4f;
+                _glow.intensity = 1.0f;
+                _glow.color = Rgb(c.ColorRgb);
+                _glow.shadows = LightShadows.None;
+            }
+
+            var rig = Describe(c, body.transform, unit, legH, idh);
+            rig.Arms = _arms.ToArray();
+            var anim = root.AddComponent<CreatureAnimator>();
+            anim.Init(rig);
         }
 
         /// <summary>Spider eye clusters (#2009): up to eight eyes in two rows on the head's front — on the face of a box head,
@@ -1660,6 +1790,7 @@ namespace BlocksBeyondTheStars.Client
         private static Texture2D _mossy, _crystalline, _metallic, _banded, _shaggy;
         private static Texture2D _spined, _mottled, _iridescent, _barkskin, _veined;
         private static Texture2D _petal; // #1760: the flowerling's petal ring
+        private static Texture2D _skin;  // #2083: smooth skin (Mini-Michi-Paul's yellow skin, and the bipeds')
         private static bool _texLoaded;
 
         private static void EnsureTextures()
@@ -1693,6 +1824,7 @@ namespace BlocksBeyondTheStars.Client
             _barkskin = LoadTex("creature_barkskin");
             _veined = LoadTex("creature_veined");
             _petal = LoadTex("creature_petal"); // #1760 (a missing tile falls back to the plain hide)
+            _skin = LoadTex("creature_skin");   // #2083 (likewise)
         }
 
         /// <summary>#1763: an authored species names its hide tile ("fur", "shaggy", "petal", …); null when the name is
@@ -1703,7 +1835,7 @@ namespace BlocksBeyondTheStars.Client
             "feathers" => _feathers, "spots" => _spots, "stripes" => _stripes, "warty" => _warty, "plated" => _plated,
             "finned" => _finned, "tentacled" => _tentacled, "mossy" => _mossy, "crystalline" => _crystalline,
             "metallic" => _metallic, "banded" => _banded, "shaggy" => _shaggy, "spined" => _spined, "mottled" => _mottled,
-            "iridescent" => _iridescent, "barkskin" => _barkskin, "veined" => _veined, "petal" => _petal,
+            "iridescent" => _iridescent, "barkskin" => _barkskin, "veined" => _veined, "petal" => _petal, "skin" => _skin,
             _ => null,
         };
 

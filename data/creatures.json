@@ -20,5 +20,12 @@
     "heads": 2,
     "socialGroupSize": 1,
     "dropItem": "crystal", "dropCount": 4, "dropKind": "Material",
-    "biomeSurfaces": [], "biomeExclusive": false }
+    "biomeSurfaces": [], "biomeExclusive": false },
+  { "key": "mini_michi_paul", "namePrefix": "Mini-Michi-Paul", "fixedName": true, "minGeneration": 16,
+    "habitat": "Land", "activity": "Cathemeral", "temperament": "Passive", "locoStyle": "Strider", "bodyPlan": "Biped",
+    "size": 0.5, "speed": 2.8, "maxHealth": 14,
+    "legs": 2, "arms": 2, "headRatio": 1.8, "hasWings": false, "hasTail": false, "bodySegments": 1, "colorRgb": 15913781, "bellyRgb": 16574624, "eyes": 2, "horns": 0, "hasCrest": false, "glows": false,
+    "socialGroupSize": 10, "begsForFood": true, "favouriteFood": "fruit_banana", "feedsToTame": 2,
+    "dropItem": "plant_fiber", "dropCount": 1, "dropKind": "Material",
+    "biomeSurfaces": [], "biomeExclusive": false, "hide": "skin" }
 ]

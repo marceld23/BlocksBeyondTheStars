@@ -116,6 +116,19 @@ public static class FloraGenerator
                 fs.Toxic = treeToxic;
             }
         }
+
+        // #2084 (generation 16): the type's guaranteed fruit is always active — its palms and jungle trees bear it (FruitRules).
+        // Its activation roll above is still drawn, so no other species' stream moves.
+        if (FruitRules.GuaranteedFruitFor(planet, terrainGeneration) is { } guaranteed)
+        {
+            foreach (var fs in list)
+            {
+                if (fs.BlockKey == guaranteed)
+                {
+                    fs.Active = true;
+                }
+            }
+        }
         if (caveWave)
         {
             EnsureCaveCoverage(list, terrainGeneration);

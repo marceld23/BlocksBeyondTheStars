@@ -191,7 +191,8 @@ public sealed partial class GameServer
         }
     }
 
-    private void CompleteTame(PlayerSession session, TameAttempt attempt, CombatEntity creature, CreatureSpecies sp)
+    private void CompleteTame(PlayerSession session, TameAttempt attempt, CombatEntity creature, CreatureSpecies sp,
+        string successKey = "creature.tame.msg.success")
     {
         var p = session.State;
         string body = _world.LocationId;
@@ -263,7 +264,7 @@ public sealed partial class GameServer
             Success = true,
             CompanionId = tc.Id,
             CompanionName = tc.Name,
-            MessageKey = "creature.tame.msg.success",
+            MessageKey = successKey, // #2082: a feed-tame says what won it over
             KnowledgeGained = reward,
             KnowledgeTotal = p.KnowledgePoints,
         });
@@ -752,6 +753,8 @@ public sealed partial class GameServer
                 NeckLength = sp.NeckLength,
                 HasTrunk = sp.HasTrunk,
                 HeadShape = sp.HeadShape.ToString(), // #2009
+                Arms = sp.Arms,                      // #2081: a biped companion keeps its arms and its big head
+                HeadRatio = sp.HeadRatio > 0f ? sp.HeadRatio : 1f,
                 Heads = System.Math.Max(1, sp.Heads),
                 WingPairs = System.Math.Max(1, sp.WingPairs),
                 FinPairs = System.Math.Max(1, sp.FinPairs),
@@ -877,6 +880,10 @@ public sealed partial class GameServer
         AngeredByMining = s.AngeredByMining,
         GiftsWhenCalm = s.GiftsWhenCalm,
         BegsForFood = s.BegsForFood, // #2018: inert on a companion (it never begs), but the snapshot keeps every trait
+        Arms = s.Arms,                   // #2081: a tamed biped keeps its arms and its big head
+        HeadRatio = s.HeadRatio > 0f ? s.HeadRatio : 1f,
+        FavouriteFood = s.FavouriteFood, // #2082: the scan of a pet still names what it loves
+        FeedsToTame = s.FeedsToTame,
         // Giants (#1998) are never tamed, but the snapshot copies every trait so no future path loses one.
         GiantHeight = s.GiantHeight,
         BackFeature = s.BackFeature,

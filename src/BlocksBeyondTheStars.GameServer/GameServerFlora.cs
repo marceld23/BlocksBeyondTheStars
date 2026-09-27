@@ -52,6 +52,10 @@ public sealed partial class GameServer
     // the roster seed FruitRules rolls the per-kind shape and colour from — the same seed worldgen used.
     private readonly HashSet<ushort> _fruitIds = new();
     private readonly List<string> _activeFruitKeys = new();
+
+    /// <summary>#2084: the fruit this world is sure to grow on its palms and jungle trees (the type's guaranteed fruit on a
+    /// generation-16 world), or null.</summary>
+    private string? _guaranteedFruit;
     private long _fruitRosterSeed;
 
     private void InitFlora()
@@ -99,6 +103,8 @@ public sealed partial class GameServer
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
         long rosterSeed = BlocksBeyondTheStars.WorldGeneration.WorldGenerator.RosterSeedFor(_meta.Seed, _world.LocationId); // #1722: THE formula
         _fruitRosterSeed = rosterSeed;
+        _guaranteedFruit = planet is null ? null
+            : BlocksBeyondTheStars.WorldGeneration.FruitRules.GuaranteedFruitFor(planet, _meta.Description.TerrainGeneration);
         if (planet != null)
         {
             // #1715: the roster reads the world's generation — from generation 4 the biome themes take part in
@@ -177,7 +183,7 @@ public sealed partial class GameServer
 
     /// <summary>Test seam (#2038): the fruit shape this world's trees of a kind bear (null = none).</summary>
     public string? FruitShapeForTest(BlocksBeyondTheStars.Shared.Definitions.TreeKind kind)
-        => BlocksBeyondTheStars.WorldGeneration.FruitRules.ShapeFor(_fruitRosterSeed, kind, _activeFruitKeys);
+        => BlocksBeyondTheStars.WorldGeneration.FruitRules.ShapeFor(_fruitRosterSeed, kind, _activeFruitKeys, _guaranteedFruit);
 
     /// <summary>Test seam (#2038): the colour every fruit of a tree kind carries on this world.</summary>
     public int FruitTintForTest(BlocksBeyondTheStars.Shared.Definitions.TreeKind kind)
@@ -287,7 +293,7 @@ public sealed partial class GameServer
     {
         const BlocksBeyondTheStars.Shared.Definitions.TreeKind kind = BlocksBeyondTheStars.Shared.Definitions.TreeKind.Broadleaf;
         if (_meta.Description.TerrainGeneration < BlocksBeyondTheStars.Shared.World.WorldDescription.FruitTreesGeneration
-            || BlocksBeyondTheStars.WorldGeneration.FruitRules.ShapeFor(_fruitRosterSeed, kind, _activeFruitKeys) is not { } shape
+            || BlocksBeyondTheStars.WorldGeneration.FruitRules.ShapeFor(_fruitRosterSeed, kind, _activeFruitKeys, _guaranteedFruit) is not { } shape
             || _content.GetBlock(shape) is not { } fruitDef || fruitDef.NumericId.Value == 0)
         {
             return;
