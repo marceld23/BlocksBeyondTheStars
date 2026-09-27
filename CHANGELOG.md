@@ -11,6 +11,144 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.18] — 2026-09-28
+
+The ideas release. Five worlds' worth of ideas from the school club and from Justus, all in one version: **oil** under
+the living worlds and a **fluid pump** to draw it, a **drill laser** that cuts a shaft straight down and fills a crate
+with what it finds, a **monorail hover train** you build from pylons — a glowing energy line spawns between them — and
+ride while **walking inside the moving wagons**, a real **inventory with equipment slots**, **gas giants** with floating
+islands and sky cities, a **leviathan** under the deep seas and a **sky giant** drifting over the gas, worms that
+finally **slither**, plus three whole planets: **Toxica-Maxima**, **Arena Nigra** and the **Fifi plant** groves, the
+**bipeds** of Mini-Michi-Paul, and a round of Crystal Net fixes. New worlds land on **terrain generation 18**; every
+existing world keeps its terrain, its animals and its chunks exactly as they were.
+
+ℹ️ **Compatibility:** the network protocol moves to **version 8** — an older game version cannot join a 2026.9.18
+world and must update first (the desktop game updates itself on start, the browser is always current). Saves migrate
+on their own: your gear moves into the new equipment slots the first time you load, the backpack grows to 36 slots,
+and nothing is lost.
+
+### 🛢️ Oil, the fluid pump and the oil products (#2106 #2107)
+
+- **Oil** lies underground on **living worlds** — in sealed, tar-rimmed pockets 40–120 blocks down, beside the caves
+  and never in them, so no cave floods. It is a still liquid you sink into (and cannot breathe in), it burns, and a
+  deposit is **finite**: what you pump out is gone.
+- The **fluid pump** (a gadget, blueprint after the titanium drill) draws a cell of oil, water or lava into your pack;
+  water and lava refill, oil does not. Oil can be placed again like any liquid.
+- At the **refinery**, oil becomes **polymer** (three per cell) and, with carbon, **lubricant** (two per cell). The
+  big drills, the mining beam, the diamond drill, the speeder, the clone tank and the fabricator now need lubricant;
+  the beam block, the sentry post and the matter link need polymer. The starter tier stays oil-free. Oil is **not** a
+  fuel.
+
+### 🔦 The drill laser (#2108)
+
+- A Crystal-Net machine: place it, give it a signal, and it lasers a **1×1 shaft straight down** — one block per half
+  second, up to 128 deep — dropping ore and oil into the crate beside it. In "only ore" mode it vaporises the rock.
+- It stops in front of water, lava, bedrock, a full crate and anything protected; the beam and the zap show and sound
+  where it cuts. Two per builder.
+
+### 🚝 The monorail hover train (#2113)
+
+- **Pylons** you place spawn a glowing **energy line** between them: each pylon links itself to the last one you placed
+  within 32 blocks if the line does not bend more than about 30°, stacked pylons lift the line, and a line that would
+  run through solid blocks is refused ("Obstacle"). The **rail linker** couples two pylons by hand — a loop, a join,
+  or (on two linked pylons) an uncouple. A pylon carries at most two links: no forks yet.
+- The **monorail cab** appears on a line where you use it; **seat**, **sleeper** and **bar wagons** couple behind it
+  (six at most). Press **E** beside a wagon to board and **walk around while it moves** — the wagon is your ground,
+  wagon to wagon through the open ends — or sit down on a seat. E in the cab opens the panel: speed 1–3, halt / go,
+  **autopilot**; F leaves. Allies may ride. An open line turns the train round at both ends, a loop keeps going.
+- **Rail stops** beside the line halt an autopilot train for a few seconds; a Crystal-Net signal on the stop sends it
+  off at once. Other riders are drawn inside the wagons exactly where they stand, on curves and across the world seam.
+- The **rail dealer** (a new profession: post block, settlement building, dialogue) sells pylons, the linker, stops, the
+  cab and the wagons; the *Monorail* blueprint crafts them (the wagons need polymer and lubricant).
+
+### 🎒 Equipment slots and the grid inventory (#2110)
+
+- The suit has **nine equipment slots** now — head, chest, legs, **feet**, back, tank, liner and two modules — and gear
+  works **only while worn**. Old saves move their best pieces into the slots on the first load; worn gear survives a
+  death.
+- The backpack grows from 20 to **36 slots, laid out 9 wide** over the quick-bar; click a stack to pick it up, click a
+  slot to put it down or swap. New: **boots** (fall protection, a little armour and insulation).
+
+### 🪐 The gas giant and the sky giant (#2112)
+
+- A world class with **no ground at all**: below is a bottomless sea of cold, toxic **gas** — fall in and you sink and
+  die within seconds — and above it float **islands of rock** in up to three tiers, with **sky cities** on the lowest
+  ones that hold a **pocket of breathable air**. Ships land on **metal decks** over the gas; everything outside the
+  cities is −120 °C and toxic under a storm that never ends. Every animal there flies.
+- New galaxies put a gas giant on the **lone giant** of a system and sometimes on the outermost orbit of others, most
+  of them ringed; its banded cloud tops show from space.
+- The **sky giant**, a sailer 40–80 blocks long with a row of sails, drifts slowly between the islands and calls now and
+  then. It never lands and never strikes — a spectacle.
+
+### 🌊 The leviathan (#2111)
+
+- The largest form of water life lives under the **deep sea** of warm, living water worlds (oceans, coral seas,
+  archipelagos, river lowlands). It hears **swimmers, boats and fish** through the water — a pier, a raft and the shore
+  are silent — a wake rolls toward you, VEGA warns, and then it breaches or rears and strikes: a boat under its head
+  takes heavy hull damage, whoever is on it is hurt, the fish in reach are swallowed. You can only hit it above the
+  water. Achievement *Sea Tamer*.
+
+### 🐛 Worms that slither (#2109)
+
+- Marcel's finding on a sand sea: the small "worms" all walked. On new worlds a land species can roll the new **worm**
+  body plan — legless, a chain of links running a wave, knee- to hip-high — and the legged slitherer is gone.
+
+### 📦 Ground drops (#2105)
+
+- Dropped blocks lie on the ground in their real texture again (no more half-purple cubes), and other items show
+  their icon.
+
+### ☠️ Toxica-Maxima — Justus' poisoned landmark planet (#2062 #2063 #2064 #2065 #2066 #2067 #2068 #2069 #2070 #2071)
+
+- **One per galaxy at most:** a permanent acid storm under a fixed sky, **tainted** soil, stone and ores with green
+  veins, dead snags of tainted wood, animals with glowing eyes that carry **contaminated meat**, and six to ten
+  **factories** whose halls breathe (factory life support works on every world now).
+- The **Decontaminator** (block, ship module, blueprint) washes tainted ore and meat clean with carbon; the factories
+  do it without.
+- Weather gains a **toxic storm** for every toxic world, acid damage keys on the rain's form, `/setweather` works again,
+  and every new species since generation 15 rolls its own eye colour.
+
+### 🏜️ Arena Nigra — Theo's black-sand planet and the hunting worms (#2073 #2074 #2075 #2076 #2077 #2078 #2079)
+
+- **One per galaxy at most:** a sea of **black sand** over basalt, lava in the gorges, spires and badlands under a red
+  sky and black clouds, ash storms, no flora — and the **Ignivermis**, three red-and-black sandworms with the sharpest
+  hearing of any worm.
+- **Worms hunt** on new sand-sea worlds: the animals walking the sand shake it like you do, a breach or a strike
+  **swallows** every animal in reach and leaves a little meat. Companions and pets are never eaten.
+- A Crystal-Net **chime**, **horn** or **alarm siren** on sea sand shakes it too — wire a lure to a switch or a clock.
+
+### 🌸 The Fifi plant — Sophie's glowing groves (#2085 #2086 #2087 #2088 #2089 #2090)
+
+- A plant as tall as a tree — green trunk, yellow leaves, **pink blossoms that glow and light up their surroundings** —
+  in groves of three to six on every green world. Its **berries always grow back** two minutes after picking, and a
+  placed blossom is a lamp.
+
+### 🍌 Mini-Michi-Paul and the bipeds (#2080 #2081 #2082 #2083 #2084)
+
+- A new **biped** body plan: upright two-leggers with arms and a big head, always peaceful, in groups. Every begging
+  species now **loves one food**; two favourite meals from one player **tame** the animal that eats the second, and
+  hurting one scatters its whole herd.
+- **Mini-Michi-Paul** (Paul and Ben's idea): knee-high, yellow, in swarms on jungle and island worlds, tamed with two
+  **bananas**, with its own gibberish calls ("meins, meins!").
+
+### 💎 Crystal Net: the review fixes (#2091 #2092 #2093 #2094 #2095 #2096 #2097 #2098 #2099)
+
+- **Devices only listen** now — a wired beacon no longer alarms itself, a hydro tray no longer harvests itself, paired
+  beam blocks no longer throw you back, and two machines on one line no longer trigger each other. The new **Device
+  Eye** reads a device's status (or whether a door is open) and drives the network behind it.
+- Gates send the way you looked when placing them; **arrows** and amber **status lights** show it; an ON conduit shows
+  a **travelling glow** away from its sources; the timer's delay is a real **delay line** that passes pulses.
+- Clone tanks list the species you have scanned on **this** world, lamps come back right after a reload, a red / green
+  lamp marks a locked or held door, and a handful of texts are fixed.
+
+### 🙏 Thanks
+
+To **Justus** for the idea reports that drove this release (oil, the laser, the gas planets, the inventory, the train —
+and the drop bug), to **Theo**, **Sophie**, **Paul** and **Ben** from the school club for their planets and creatures,
+and to everyone playtesting.
+
+Full details of every change are in the pull requests: #2072, #2100, #2101, #2102, #2103 and #2115.
+
 ## [2026.9.17] — 2026-09-27
 
 The crystal-net release. **Crystal becomes a signal line**: lay **crystal conduits** from a switch to a lamp and the
@@ -6054,7 +6192,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.17...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.18...HEAD
+[2026.9.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.17...v2026.9.18
 [2026.9.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.16...v2026.9.17
 [2026.9.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.15...v2026.9.16
 [2026.9.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.14...v2026.9.15
