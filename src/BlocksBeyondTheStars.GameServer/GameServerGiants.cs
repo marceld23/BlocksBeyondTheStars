@@ -46,6 +46,7 @@ public sealed partial class GameServer
     private const double WormApproachGiveUp = 30.0;       // a worm that cannot reach what it heard gives up after this
     private const float WormApproachKeep = 0.3f;           // …or when the shaking has faded to this share of the threshold
     private const float WormBodyHitShare = 0.6f;           // a body sweep hurts less than the strike
+    private const double HeardKeepSeconds = 2.0;           // #2076: a louder source keeps the worm's target this long against quieter ones
 
     /// <summary>The thumper block (#2002).</summary>
     internal const string ThumperBlockKey = "thumper";
@@ -71,18 +72,24 @@ public sealed partial class GameServer
         }
 
         int generation = _meta.Description.TerrainGeneration;
+        // #2075: a type may name its giant in data — an authored species with a giant body plan (the Ignivermis of Arena
+        // Nigra) takes the slot the roll would have filled; the roster never spawns it (CreatureGenerator skips giant plans).
+        var authored = _content.AuthoredCreaturesFor(planet);
+        long rosterSeed = WorldGenerator.RosterSeedFor(_meta.Seed, _world.LocationId);
         if (GiantRules.HostsColossus(planet, _worlds.Active.GravityFactor, generation, _meta.Seed, _world.LocationId))
         {
-            var colossus = CreatureGenerator.GenerateColossus(_meta.Seed, _world.LocationId);
+            var colossus = CreatureGenerator.GenerateAuthoredGiant(planet, rosterSeed, authored, CreatureBodyPlan.Colossus, generation)
+                           ?? CreatureGenerator.GenerateColossus(_meta.Seed, _world.LocationId);
             gs.Colossus = colossus;
             RegisterGiantSpecies(colossus);
         }
 
         if (GiantRules.HostsSandworms(planet, generation))
         {
-            var worm = CreatureGenerator.GenerateSandworm(_meta.Seed, _world.LocationId);
+            var worm = CreatureGenerator.GenerateAuthoredGiant(planet, rosterSeed, authored, CreatureBodyPlan.Sandworm, generation)
+                       ?? CreatureGenerator.GenerateSandworm(_meta.Seed, _world.LocationId, generation);
             gs.Sandworm = worm;
-            gs.WormCount = GiantRules.SandwormCount(_world.Circumference);
+            gs.WormCount = GiantRules.SandwormCount(planet, _world.Circumference, generation);
             RegisterGiantSpecies(worm);
         }
     }
@@ -112,6 +119,7 @@ public sealed partial class GameServer
 
         var gs = Giants;
         TickThumpers(dt);
+        TickSoundDevicePulses(); // #2077: a wailing siren on the sand keeps shaking it
         if (gs.Colossus is null && gs.Sandworm is null)
         {
             return;
@@ -135,6 +143,8 @@ public sealed partial class GameServer
             gs.SpawnCheckIn = GiantSpawnCheckSeconds;
             TrySpawnGiants(gs, onFoot);
         }
+
+        TickCreatureSteps(dt); // #2076: the animals on the sea shake the sand too
 
         bool changed = false;
         foreach (var giant in LiveGiants().ToList())
@@ -647,9 +657,19 @@ public sealed partial class GameServer
                 continue;
             }
 
-            g.Attention += GiantRules.Weight(source);
+            float weight = GiantRules.Weight(source);
+            g.Attention += weight;
+            // #2076: the louder recent source is what it comes for — a thumper, a horn or a miner keeps the worm's target
+            // for a couple of seconds even while a herd's steps patter around it; a quieter pulse only retargets once the
+            // loud one has gone stale. Every pulse still feeds the attention.
+            if (weight < g.HeardWeight && _uptime - g.HeardAt < HeardKeepSeconds)
+            {
+                continue;
+            }
+
             g.Heard = at;
             g.HeardAt = _uptime;
+            g.HeardWeight = weight;
             g.HeardThumper = source == VibrationSource.Thumper;
             g.HeardPlayerId = playerId;
         }
@@ -674,7 +694,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            return _content.BlockById(id)?.Key == "sand";
+            return _content.BlockById(id)?.Key == GiantRules.SeaSandBlock(_world.Planet); // #2074: the sea's own sand, whatever block it is
         }
 
         return false;
@@ -861,6 +881,10 @@ public sealed partial class GameServer
             float radius = sp.WormGirth * 0.9f + 1.5f;
             BroadcastToWorld(new WorldFx { Kind = "strike", X = at.X, Y = at.Y, Z = at.Z, Strength = 1f, Radius = radius + 2f });
             SwallowThumpersNear(at, radius);
+            if (sp.SwallowsCreatures)
+            {
+                SwallowCreaturesNear(at, radius); // #2076: and the animals that stood there
+            }
             foreach (var s in onFoot)
             {
                 var p = s.State;
@@ -1148,7 +1172,7 @@ public sealed partial class GameServer
         var at = new Vector3f(cell.X + 0.5f, cell.Y, cell.Z + 0.5f);
         gs.Thumpers.Add(new ThumperState { Cell = cell, Until = _uptime + ThumperRunSeconds, NextPulse = _uptime + 0.5, OwnerId = session.State.PlayerId });
         bool heard = _generator.IsSandSeaAt(_world.Planet, cell.X, cell.Z)
-                     && _content.BlockById(_world.GetBlock(new Vector3i(cell.X, cell.Y - 1, cell.Z)))?.Key == "sand";
+                     && _content.BlockById(_world.GetBlock(new Vector3i(cell.X, cell.Y - 1, cell.Z)))?.Key == GiantRules.SeaSandBlock(_world.Planet);
         SendVegaLine(session, heard ? "vega.sys.thumper_on" : "vega.sys.thumper_rock", 3);
     }
 
@@ -1216,6 +1240,135 @@ public sealed partial class GameServer
                 _world.SetBlock(t.Cell, BlockId.Air);
                 BroadcastToWorld(new BlockChanged { X = t.Cell.X, Y = t.Cell.Y, Z = t.Cell.Z, Block = BlockId.AirValue });
             }
+        }
+    }
+
+    // =====================================================================================================
+    // The animals on the sea (#2076) and the sound devices (#2077)
+    // =====================================================================================================
+
+    private const double CreatureStepPruneSeconds = 10.0;
+    private const double SirenPulseSeconds = 2.0;
+    private const float SwallowReachY = 8f;
+
+    /// <summary>The animals shake the sand too (#2076): a wild land creature moving across sea sand sends a step pulse every
+    /// <see cref="GiantRules.StepSpacing"/> blocks, like a player on foot — so a herd on the dunes brings the worm, and the
+    /// worm's hunting shows itself. Only while a worm is live (nobody else listens); companions, clones and the giants
+    /// themselves make no sound the worm cares about.</summary>
+    private void TickCreatureSteps(double dt)
+    {
+        var gs = Giants;
+        // Only a HUNTING worm listens to the animals (the species flag: authored, or rolled true from generation 17) — an
+        // older sand-sea world's worm never learns of the herds, so its thumper and its player targets stay what they were.
+        if (!gs.HasWorms || !gs.Sandworm!.SwallowsCreatures || dt <= 0.0 || !LiveGiants().Any(c => c.Giant!.Kind == CreatureBodyPlan.Sandworm))
+        {
+            if (gs.CreatureSteps.Count > 0)
+            {
+                gs.CreatureSteps.Clear();
+            }
+
+            return;
+        }
+
+        foreach (var creature in _creatures)
+        {
+            if (creature.IsCompanion || creature.IsGiant || creature.CloneOf.Length > 0)
+            {
+                continue;
+            }
+
+            if (!gs.CreatureSteps.TryGetValue(creature.Id, out var track))
+            {
+                track = new CreatureStepTrack { Last = creature.Position };
+                gs.CreatureSteps[creature.Id] = track;
+            }
+
+            track.SeenAt = _uptime;
+            var un = Unwrapped(track.Last, creature.Position);
+            float dx = un.X - track.Last.X, dz = un.Z - track.Last.Z;
+            float moved = (float)System.Math.Sqrt(dx * dx + dz * dz);
+            track.Last = creature.Position;
+            if (moved <= 0f || moved > 8f || !GiantRules.CreatureShakes(moved / (float)dt))
+            {
+                continue; // standing still, a spawn / push-out jump, or a creep too slow to hear
+            }
+
+            track.Distance += moved;
+            if (track.Distance < GiantRules.StepSpacing)
+            {
+                continue;
+            }
+
+            track.Distance = 0f;
+            EmitVibration(creature.Position, VibrationSource.Step);
+        }
+
+        if (_uptime >= gs.NextStepPruneAt)
+        {
+            gs.NextStepPruneAt = _uptime + CreatureStepPruneSeconds;
+            var stale = gs.CreatureSteps.Where(kv => _uptime - kv.Value.SeenAt > CreatureStepPruneSeconds).Select(kv => kv.Key).ToList();
+            foreach (var id in stale)
+            {
+                gs.CreatureSteps.Remove(id);
+            }
+        }
+    }
+
+    /// <summary>The strike landed on the animals (#2076): every ordinary creature in reach is swallowed — gone from the world
+    /// without a kill, a "swallow" effect at its spot and a piece or two of meat left on the sand (loot-lifetime packets).
+    /// Companions, pets, clones and the giants themselves are never eaten.</summary>
+    private void SwallowCreaturesNear(Vector3f at, float radius)
+    {
+        int eaten = 0;
+        for (int i = _creatures.Count - 1; i >= 0; i--)
+        {
+            var c = _creatures[i];
+            if (c.IsCompanion || c.IsGiant || c.CloneOf.Length > 0)
+            {
+                continue;
+            }
+
+            var un = Unwrapped(at, c.Position);
+            float dx = un.X - at.X, dz = un.Z - at.Z;
+            if (dx * dx + dz * dz > radius * radius || System.Math.Abs(c.Position.Y - at.Y) > SwallowReachY)
+            {
+                continue;
+            }
+
+            _creatures.RemoveAt(i);
+            Giants.CreatureSteps.Remove(c.Id);
+            var cell = new Vector3i((int)System.Math.Floor(c.Position.X), (int)System.Math.Floor(c.Position.Y), (int)System.Math.Floor(c.Position.Z));
+            SpillToGround(cell, new[] { new ItemAmount("creature_meat", GiantRules.SwallowMeat(c.Id)) }, creatureLoot: true);
+            BroadcastToWorld(new WorldFx { Kind = "swallow", X = c.Position.X, Y = c.Position.Y, Z = c.Position.Z, Strength = 1f });
+            eaten++;
+        }
+
+        if (eaten > 0)
+        {
+            BroadcastCreatures();
+            _log.Info($"A sandworm on '{_world.LocationId}' swallowed {eaten} animal(s).");
+        }
+    }
+
+    /// <summary>A wailing alarm siren on sea sand keeps shaking it (#2077): a pulse every two seconds while its loop plays —
+    /// a thumper you can wire to a switch, a sensor or a clock. Chimes and horns pulse once per sounding (the actuator's
+    /// rising edge, <c>ApplyCrystalActuator</c>). A device on rock is silent to the worm like every other source.</summary>
+    private void TickSoundDevicePulses()
+    {
+        if (!Giants.HasWorms)
+        {
+            return;
+        }
+
+        foreach (var c in CrystalNet.Cells.Values)
+        {
+            if (c.Kind != CrystalDeviceKind.AlarmSiren || !c.Looping || c.Inert || _uptime < c.NextBeat)
+            {
+                continue;
+            }
+
+            c.NextBeat = _uptime + SirenPulseSeconds;
+            EmitVibration(new Vector3f(c.Cell.X + 0.5f, c.Cell.Y - 0.5f, c.Cell.Z + 0.5f), VibrationSource.Siren, c.OwnerId);
         }
     }
 
@@ -1336,6 +1489,7 @@ public sealed class GiantRuntime
     public Vector3f Heard { get; set; }
     public double HeardAt { get; set; }
     public bool HeardThumper { get; set; }
+    public float HeardWeight { get; set; } // #2076: how loud the source it is coming for was
     public string HeardPlayerId { get; set; } = string.Empty;
     public double CooldownUntil { get; set; }
     public double NextRumbleAt { get; set; }
@@ -1371,6 +1525,10 @@ internal sealed class GiantWorldState
     public double BroadcastIn { get; set; }
     public List<ThumperState> Thumpers { get; } = new();
 
+    /// <summary>#2076: where every wild creature was last seen and how far it has walked since its last step pulse.</summary>
+    public Dictionary<string, CreatureStepTrack> CreatureSteps { get; } = new();
+    public double NextStepPruneAt { get; set; }
+
     public bool HasWorms => Sandworm is not null;
 
     public void Clear()
@@ -1381,5 +1539,15 @@ internal sealed class GiantWorldState
         SpawnCheckIn = 0;
         BroadcastIn = 0;
         Thumpers.Clear();
+        CreatureSteps.Clear();
+        NextStepPruneAt = 0;
     }
+}
+
+/// <summary>A wild creature's walk over the sea (#2076): its last position, the distance since its last step pulse, when it was seen.</summary>
+internal sealed class CreatureStepTrack
+{
+    public Vector3f Last { get; set; }
+    public float Distance { get; set; }
+    public double SeenAt { get; set; }
 }

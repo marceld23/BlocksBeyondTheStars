@@ -66,7 +66,7 @@ public sealed class ToxicWorldTests
 
         // Every classic type keeps the no-op defaults (Titas' water stays always toxic). Toxica-Maxima (#2062, generation 15)
         // is the one other type that uses these fields — always corrosive, no settlements — and has its own tests.
-        foreach (var other in _content.Planets.Values.Where(t => t.Key != Key && t.Key != "toxica_maxima"))
+        foreach (var other in _content.Planets.Values.Where(t => t.Key != Key && t.Key != "toxica_maxima" && t.Key != "arena_nigra")) // #2078: no settlements on the black sand either
         {
             Assert.Equal(0.0, other.CorrosiveAirChance);
             Assert.Equal(1.0, other.WaterDamageChance);

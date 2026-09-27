@@ -132,6 +132,12 @@ roar), `sandworm_strike` (the head coming down), `sandworm_dive` (the sand colla
 `thumper_thump` (the piston thud every 2 s). Until then the stomp and the strike borrowed the storm's thunder
 one-shots and the breach / rumble the `creature_call_rumble` voice sample.
 
+**Arena Nigra (#2076/#2079, 2026-09-27):** two more ElevenLabs clips — `sandworm_swallow` (a worm gulping an animal
+under the sand: wet crunch, gulp, cascading sand; played by `CreatureView.PlayWorldFx` for the server's `swallow` kind
+at the eaten animal's spot) and the ambience bed `amb_black_dunes` (hot wind over black dunes, distant lava, cooling
+rock — `ClientAudio.BiomeBed` for the `arena_nigra` key). The Crystal Net's chime, horn and siren keep their own clips
+(#2052); on sea sand they now also shake the ground for the worm, which is a server rule, not a sound.
+
 ## 9. NPCs (humans + aliens) — *ElevenLabs, NON-VERBAL*
 
 No speech. Short vocalisations only: **idle murmur, greet/notice, acknowledge, trade-confirm,

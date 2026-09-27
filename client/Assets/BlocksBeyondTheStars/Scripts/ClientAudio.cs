@@ -680,6 +680,7 @@ namespace BlocksBeyondTheStars.Client
             "fungal" => "amb_fungal",      // eerie spore-forest hum
             "corrupted" => "amb_corrupted", // distorted murmur
             "toxic_world" or "toxica_maxima" => "amb_toxic", // #2068: the dead, bubbling hum of a poisoned world
+            "arena_nigra" => "amb_black_dunes", // #2079: hot wind over black dunes, distant lava
             "skylands" or "highland" => "amb_wind_high", // thin high-altitude wind
             _ => "wind_light", // rocky / crystal / varied / asteroid → light wind
         };

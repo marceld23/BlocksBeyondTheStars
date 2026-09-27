@@ -58,6 +58,36 @@ namespace BlocksBeyondTheStars.Client
             SetVisible(false);
         }
 
+        private Color _dustTint = new Color(0.62f, 0.57f, 0.47f);
+        private ushort _dustTintBlock;
+
+        /// <summary>The dust wears the colour of the ground the worm breaks through (#2074: a black-sand sea throws black
+        /// dust): the block just under the surface at (x, z), its atlas average read once per block kind.</summary>
+        private Color DustTint(GameBootstrap game, float worldX, float surfaceY, float worldZ)
+        {
+            if (game?.World == null)
+            {
+                return _dustTint;
+            }
+
+            var id = game.World.GetBlock(Mathf.FloorToInt(worldX), Mathf.FloorToInt(surfaceY) - 1, Mathf.FloorToInt(worldZ));
+            if (id.IsAir)
+            {
+                return _dustTint;
+            }
+
+            if (id.Value != _dustTintBlock)
+            {
+                _dustTintBlock = id.Value;
+                if (game.Atlas != null)
+                {
+                    _dustTint = game.Atlas.AverageColor(id.Value);
+                }
+            }
+
+            return _dustTint;
+        }
+
         /// <summary>Poses the worm for this frame. <paramref name="phaseTime"/> is the seconds into the current move on the
         /// local clock; <paramref name="dust"/> throws the sand effects (null = none).</summary>
         public void Apply(NetCreature c, float phaseTime, GameBootstrap game, WeaponFx dust, float now)
@@ -76,7 +106,7 @@ namespace BlocksBeyondTheStars.Client
                     var at = game.ScenePos(c.X, c.Y, c.Z);
                     if (SurfaceAbove(game, c.X, c.Y, c.Z, out float y))
                     {
-                        dust.Dust(new Vector3(at.x, y + 0.2f, at.z), 5);
+                        dust.Dust(new Vector3(at.x, y + 0.2f, at.z), 5, DustTint(game, c.X, y, c.Z));
                     }
                 }
 
@@ -185,11 +215,12 @@ namespace BlocksBeyondTheStars.Client
 
                 float f = Mathf.Abs(a.Y - b.Y) < 1e-4f ? 0.5f : (surface - a.Y) / (b.Y - a.Y);
                 var at = game.ScenePos(a.X + (b.X - a.X) * f, surface, a.Z + (b.Z - a.Z) * f);
+                var tint = DustTint(game, a.X + (b.X - a.X) * f, surface, a.Z + (b.Z - a.Z) * f);
                 int count = Mathf.Clamp(Mathf.RoundToInt(_girth * 1.8f), 8, 22);
                 for (int k = 0; k < 3; k++)
                 {
                     var ring = Random.insideUnitCircle * (_girth * 0.6f);
-                    dust.Dust(at + new Vector3(ring.x, 0.2f, ring.y), count / 3);
+                    dust.Dust(at + new Vector3(ring.x, 0.2f, ring.y), count / 3, tint);
                 }
             }
         }

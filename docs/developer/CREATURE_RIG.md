@@ -37,6 +37,11 @@ horns are antennae with a bobble. `PoseArms`: walking, each arm swings with the 
 the elbow; standing, a small sway; begging (#2018) both arms go up and forward (−150°) and wave out of step; a hop
 throws them up; lying down they hug the body. Render-only, no colliders (small and peaceful).
 
+A giant body plan may also be **authored** (#2075): a `data/creatures.json` record with
+`bodyPlan: "Sandworm"` or `"Colossus"` listed in a type's `authoredCreatures` becomes that world's giant (the
+Ignivermis of Arena Nigra) — the rig builds it from the same numbers (`giantHeight`, `wormGirth`, `wormLength`,
+`mandibles`, `horns`, `hide`, the two colours, `glows`), and the roster never spawns it as an animal.
+
 **Arachnid (#2009).** `BuildArachnid`: a cephalothorax box and a sphere abdomen on eight jointed legs in four
 rows (hips on the thorax flanks; the crawler stance splays them 22°), a head that is either the classic box
 with its hinged jaw or a pyramid — the only creature part that is a mesh rather than a primitive. The pyramid

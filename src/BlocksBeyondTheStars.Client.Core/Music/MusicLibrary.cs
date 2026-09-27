@@ -209,6 +209,7 @@ namespace BlocksBeyondTheStars.Client.Music
                 case "gds_desert": return PlanetDesert; // #1793: the G.D.S. lava desert
                 case "lava":
                 case "ashen":
+                case "arena_nigra": // #2078: Theo's black-sand landmark — hot black dunes over lava
                 case "volcanic": return PlanetLava;
                 case "fungal":
                 case "corrupted":

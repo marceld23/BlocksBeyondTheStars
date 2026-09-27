@@ -16,6 +16,8 @@ public enum VibrationSource : byte
     Speeder,      // a speeder driving over the sand
     SpeederCrash, // a speeder hitting something
     Thumper,      // the thumper's pulse (#2002) — built to be heard
+    Horn,         // a Crystal-Net chime or horn sounding on the sand (#2077)
+    Siren,        // a Crystal-Net alarm siren wailing on the sand (#2077) — louder, and it keeps pulsing while it is on
 }
 
 /// <summary>
@@ -120,6 +122,38 @@ public static class GiantRules
     /// <summary>How many sandworms a sand-sea world carries: one, two on a big world.</summary>
     public static int SandwormCount(int circumference) => circumference >= 6000 ? 2 : 1;
 
+    /// <summary>How many sandworms THIS type's world carries (#2075): the type's own <see cref="PlanetType.SandwormCount"/>
+    /// on a generation-17 world, else the classic rule by circumference.</summary>
+    public static int SandwormCount(PlanetType planet, int circumference, int terrainGeneration)
+        => planet is { SandwormCount: > 0 } && terrainGeneration >= WorldDescription.ArenaNigraGeneration
+            ? planet.SandwormCount
+            : SandwormCount(circumference);
+
+    /// <summary>The block a sand sea is made of (#2074): the surface block of the biome flagged <see cref="PlanetType.Biome.SandSea"/>,
+    /// or <c>sand</c> where no biome says. A vibration carries only through THIS block, and the worm's dust wears its colour.</summary>
+    public static string SeaSandBlock(PlanetType? planet)
+    {
+        if (planet is not null)
+        {
+            foreach (var biome in planet.Biomes)
+            {
+                if (biome.SandSea && !string.IsNullOrEmpty(biome.SurfaceBlock))
+                {
+                    return biome.SurfaceBlock;
+                }
+            }
+        }
+
+        return "sand";
+    }
+
+    /// <summary>Whether a ROLLED sandworm of this world hunts the animals (#2076): generation 17 and later. An authored worm
+    /// says so itself (<see cref="AuthoredCreature.SwallowsCreatures"/>); older sand-sea worlds keep their worms' manners.</summary>
+    public static bool RolledWormsHunt(int terrainGeneration) => terrainGeneration >= WorldDescription.ArenaNigraGeneration;
+
+    /// <summary>The meat a swallowed animal leaves on the sand (#2076): one or two pieces, by the animal's own hash.</summary>
+    public static int SwallowMeat(string creatureId) => 1 + (int)((uint)StableHash("swallow:" + (creatureId ?? string.Empty)) % 2u);
+
     // ---------------- Vibration (#2001) ----------------
 
     /// <summary>A player on foot shakes the sand only above this speed: crouching (2.4) sneaks, walking (6) is heard.</summary>
@@ -138,6 +172,8 @@ public static class GiantRules
         VibrationSource.HardLanding => 70f,
         VibrationSource.Speeder => 80f,
         VibrationSource.SpeederCrash => 120f,
+        VibrationSource.Horn => 160f,   // #2077: a chime or a horn on the sand
+        VibrationSource.Siren => 220f,  // #2077: the alarm siren — between the speeder crash and the thumper
         _ => 260f, // Thumper
     };
 
@@ -151,6 +187,8 @@ public static class GiantRules
         VibrationSource.HardLanding => 1.2f,
         VibrationSource.Speeder => 0.9f,
         VibrationSource.SpeederCrash => 2.5f,
+        VibrationSource.Horn => 1.2f,
+        VibrationSource.Siren => 1.5f,
         _ => 1.6f, // Thumper
     };
 
@@ -166,6 +204,13 @@ public static class GiantRules
 
     /// <summary>Whether a player on foot moving at <paramref name="speed"/> blocks/s shakes the sand (sneaking does not).</summary>
     public static bool WalkShakes(float speed) => speed > SneakSpeed;
+
+    /// <summary>A wild creature shakes the sand above this speed (#2076): a grazing herd ambles at 2–3 blocks/s, well under a
+    /// player's sneak, and must still be heard — only a creature standing still is quiet.</summary>
+    public const float CreatureStepSpeed = 0.8f;
+
+    /// <summary>Whether a creature moving at <paramref name="speed"/> blocks/s shakes the sand (#2076).</summary>
+    public static bool CreatureShakes(float speed) => speed > CreatureStepSpeed;
 
     /// <summary>A worm's attention after <paramref name="dt"/> seconds of quiet.</summary>
     public static float DecayAttention(float attention, float dt)

@@ -182,8 +182,8 @@ public sealed class WorldDescription
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
     /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora,
     /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees, #2062 Toxica-Maxima,
-    /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant).</summary>
-    public const int CurrentTerrainGeneration = 16;
+    /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant, #2073 Arena Nigra).</summary>
+    public const int CurrentTerrainGeneration = 17;
 
     /// <summary>The generation of the bipeds (#2080, 2026-09, the school club idea of Paul and Ben): an upright two-legged body
     /// plan with two arms and a big head, rolled last for some standard Land species and always peaceful
@@ -200,6 +200,15 @@ public sealed class WorldDescription
     /// (<c>FloraCatalog.Species.Authored</c> with this <c>MinGeneration</c>) and the stamp is gated on this generation, so a
     /// world of any older generation keeps its terrain, its roster and its chunks bit for bit.</summary>
     public const int FifiPlantGeneration = 16;
+
+    /// <summary>The generation of Arena Nigra (#2073, 2026-09): Theo's once-per-galaxy black-sand landmark planet and the
+    /// hunting sandworms — a sand sea of any granular block (the sea biome's, not the literal <c>sand</c>), an authored giant
+    /// per type (<c>PlanetType.AuthoredCreatures</c> with a giant body plan) and a worm count per type
+    /// (<c>PlanetType.SandwormCount</c>), sandworms that hear the animals walking on the sea and swallow what a breach hits
+    /// (<c>CreatureSpecies.SwallowsCreatures</c>, rolled true from this generation on), and the Crystal Net's sound devices as
+    /// vibration sources. Every new field defaults to its classic no-op and the worm's hunting is gated on this generation,
+    /// so an older sand-sea world keeps its terrain, its roster and its worm's manners bit for bit.</summary>
+    public const int ArenaNigraGeneration = 17;
 
     /// <summary>The generation of Toxica-Maxima (#2062, 2026-09): Justus' once-per-galaxy toxic landmark planet — tainted
     /// ground and ores, dead forests of tainted wood (<c>PlanetType.DeadTreeBlock</c>), contaminated fauna with green eyes

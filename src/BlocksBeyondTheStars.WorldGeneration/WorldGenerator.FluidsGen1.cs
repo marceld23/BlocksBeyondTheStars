@@ -476,7 +476,9 @@ public sealed partial class WorldGenerator
         // Dry riverbeds on dry worlds: winding channels of scree (rock ground) or sand.
         if (w.DryBeds && DryBedAt(w, worldX, worldZ))
         {
-            var bed = biomeSurface == c.StoneId || biomeSurface == c.GraniteId ? c.ScreeId : c.SandId;
+            // #2074: a bed through a sea of another sand (Arena Nigra's black sand) keeps that sand — classic worlds paint sand as before.
+            var bed = biomeSurface == c.StoneId || biomeSurface == c.GraniteId ? c.ScreeId
+                : biomeSurface == c.SeaSandId ? c.SeaSandId : c.SandId;
             if (!bed.IsAir)
             {
                 subSurface = bed;

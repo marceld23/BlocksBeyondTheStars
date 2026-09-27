@@ -1321,6 +1321,7 @@ public sealed partial class GameServer
                 if (on)
                 {
                     PlayCrystalSound(c, "chime_" + Math.Max(0, Math.Min(3, c.Mode)), 1f);
+                    EmitVibration(new Vector3f(c.Cell.X + 0.5f, c.Cell.Y - 0.5f, c.Cell.Z + 0.5f), VibrationSource.Horn, c.OwnerId); // #2077: the worm hears it
                 }
 
                 break;
@@ -1328,6 +1329,7 @@ public sealed partial class GameServer
                 if (on)
                 {
                     PlayCrystalSound(c, "horn_" + Math.Max(0, Math.Min(2, c.Mode)), 1f);
+                    EmitVibration(new Vector3f(c.Cell.X + 0.5f, c.Cell.Y - 0.5f, c.Cell.Z + 0.5f), VibrationSource.Horn, c.OwnerId); // #2077: the worm hears it
                 }
 
                 break;

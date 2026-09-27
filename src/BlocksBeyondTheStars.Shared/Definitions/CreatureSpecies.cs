@@ -284,6 +284,11 @@ public sealed class CreatureSpecies
     /// <summary>Sandworm: how far it hears a vibration (blocks).</summary>
     public float Hearing { get; set; }
 
+    /// <summary>Sandworm: it hunts the animals (#2076) — a breach or a strike swallows every ordinary creature in its reach and
+    /// leaves a little meat on the sand. Rolled true on generation-17 worlds (<see cref="GiantRules.RolledWormsHunt"/>); an
+    /// authored worm names it. Companions and pets are never eaten.</summary>
+    public bool SwallowsCreatures { get; set; }
+
     /// <summary>True for the one-per-world giants (#1998): they never come from the spawner and move by their own rules.</summary>
     public bool IsGiant => BodyPlan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm;
 

@@ -998,6 +998,11 @@ namespace BlocksBeyondTheStars.Client
                         audio?.At("sandworm_breach", at, 0.7f, 1f); // sand bursting + the roar (was the rumble call)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 140f) * 0.6f);
                         break;
+                    case "swallow": // #2076: a worm ate an animal standing at the spot
+                        Fx?.Dust(at + Vector3.up * 0.4f, 12);
+                        audio?.At("sandworm_swallow", at, 0.7f, 1f);
+                        player?.AddCameraShake(Mathf.Clamp01(1f - dist / 40f) * 0.25f);
+                        break;
                     case "dive":
                         Fx?.Dust(at + Vector3.up * 0.3f, 16);
                         audio?.At("sandworm_dive", at, 0.6f, 0.8f); // the sand collapsing into the hole (was a thunder placeholder)

@@ -1970,7 +1970,7 @@ tame one, another food and a toxic banana do not count, the herd runs, scan + wi
 
 **Sophie's plant from the school club**: as tall as a tree, a green trunk, a crown of yellow leaves, pink blossoms that
 glow and light up their surroundings, and berries that always grow back. It stands **in groups, everywhere** there is
-plant life. Gated on `WorldDescription.FifiPlantGeneration` (16, shared with the bipeds of §30 and Arena Nigra): the berry species carries that
+plant life. Gated on `WorldDescription.FifiPlantGeneration` (16, shared with the bipeds of §30): the berry species carries that
 `MinGeneration`, the stamp asks the generation first, so every older world keeps its terrain, roster and chunks bit for bit.
 
 **Authored flora.** Like Leni, the flowerling and Lena's Paul flower (§15) the Fifi plant is authored — the same name,
@@ -2012,3 +2012,65 @@ Settlements clear Fifi plants from their box like trees (`SettlementVegetationId
 Tests: `FifiPlantTests` (catalog + roster, blocks + light, groves + seams, shape, stamp across chunk edges and nothing on
 generation 15, harvest + 120 s regrow + no regrow without the leaf, scan), goldens `meadowlands-gen16` and `desert-gen16`
 (seeds whose sampled chunks hold a grove).
+
+## 32. Generation 17 — Arena Nigra and the hunting worms (#2073–#2079, 2026-09-27, Theo's idea)
+
+A **once-per-galaxy black-sand landmark**, the third of the fixed-name planets after Titas and Toxica-Maxima, and four
+things the whole game inherits from it. Everything is gated on `WorldDescription.ArenaNigraGeneration` (17); every new
+field defaults to its classic no-op and the worms' new manners are rolled from the generation, so an older sand-sea world
+keeps its terrain, its roster and its worm bit for bit.
+
+**The type (#2078).** `arena_nigra` (`minTerrainGeneration 17`, `exotic`, `spawnWeight 1`, `oncePerGalaxy`, `fixedName
+"Arena Nigra"` — Latin for black sand): the §20 mechanics keep it to at most one PLANET per galaxy, never the start system,
+not guaranteed (about one galaxy in ten). Breathable air at 58 °C (the suit drains, then hurts); `precipitation: "ash"`
+(a type may pin the ladder rain's form since #2063 — here every storm falls black); `skyColor` a deep red and
+`cloudColor` near black (the cloud contrast rule of `CloudTint` separates colours only within ~64 RGB units, so black on red
+passes untouched); `terrainStyles` dunes / spires / canyons / badlands with the tags volcanic / hoodoos / inselbergs / wind
+(obsidian fields and lava flows from the volcanic tag, needles from the styles and the hoodoos, rock islands from the
+inselbergs); `surfaceBlock black_sand` over `basalt`; `sandSeaShare 0.65` and `sandSeaDepth 24` (§25 — the sea biome
+names `black_sand`); `waterAbundance 0` with `lavaAbundance 0.35`, so **lava is the sea fluid** (`ResolveSeaFluid`, §5:
+the flood fraction 0.30 × 0.35 fills the lowest tenth of the raw terrain — the rift floors and basins — and `SandSeaRaise`
+lifts every sea column above it, exactly as it does above water); no flora, `creatureAbundance few`, `settlementsBias 0`,
+few ruins and factories; seven rare veins (obsidian as a vein block like crystal, iron, copper, sulfur, carbon, nickel,
+tungsten deep). `sandwormCount 3` (below), `authoredCreatures: ["ignivermis"]` (below). Glue: `planet.arena_nigra.*`,
+`vega.hint.world.arena_nigra`, the lava pool in `MusicLibrary`, `amb_black_dunes` in `ClientAudio.BiomeBed`, the volcanic
+grade in `Sky.GradeFor` / `UrpScenePost`, a black cloud shell in `SpaceView.PlanetCloudLook`.
+
+**Black sand and the sea's own sand (#2074).** `black_sand` is a granular terrain block like `sand` (no tool, drops
+itself, the tile is its icon). The sand sea never cared which block its biome named — but the worm's hearing did:
+`VibratesSand` accepted a vibration only over the literal block key `sand`. It now compares the block under the source with
+`GiantRules.SeaSandBlock(planet)` — the surface block of the biome flagged `sandSea`, `sand` where no biome says — and the
+thumper's "heard / on rock" VEGA line uses the same rule. On the client `WeaponFx.Dust` takes a tint and `SandwormView`
+reads the atlas average colour of the block the worm breaks through, so a black sea throws black dust (a classic sea stays
+tan).
+
+**Authored giants (#2075).** `AuthoredCreature` has carried the giant traits since #2003; `InitGiants` now reads them:
+`CreatureGenerator.GenerateAuthoredGiant(planet, rosterSeed, authored, kind)` builds the first authored record with the
+matching giant body plan exactly as the roster would (`MakeAuthoredSpecies`, sub-seed salted with the key; `Size` =
+`giantHeight / 10` for a giant) and it takes the slot the roll would have filled — the Ignivermis (`au_ignivermis`: red
+back, black belly, ember glow, hearing 1.3, 55 blocks, 3800 HP, `swallowsCreatures`) is the worm of every Arena Nigra.
+`GenerateRoster` skips giant body plans, so the spawner never rolls it as an animal. `PlanetType.SandwormCount` (0 = the
+classic circumference rule) is honoured by `GiantRules.SandwormCount(planet, circumference, generation)` on generation-17
+worlds — three worms on Arena Nigra.
+
+**The hunting worms (#2076).** Two halves, both server-side. (a) `TickCreatureSteps` (run from `TickGiants` while a worm is
+live): every wild creature's walk is tracked (`GiantWorldState.CreatureSteps`), and a creature moving faster than
+`GiantRules.CreatureStepSpeed` (0.8 blocks/s — a grazer's amble, well under a player's sneak, is heard) sends a `Step`
+pulse every `StepSpacing` blocks through `EmitVibration`, which applies the usual sea-sand rule; companions, clones and the
+giants make no such sound. (b) `SwallowCreaturesNear` beside `SwallowThumpersNear` in the strike: when the species has
+`SwallowsCreatures`, every ordinary creature within the strike radius (and eight blocks in height) is removed without a
+kill, a `WorldFx { Kind = "swallow" }` marks its spot (the client throws sand and plays `sandworm_swallow`) and one or two
+`creature_meat` drop as a loot-lifetime packet (`SpillToGround`, `GiantRules.SwallowMeat`). Companions, pets, clones and
+giants are never eaten. `CreatureSpecies.SwallowsCreatures` is rolled as `GiantRules.RolledWormsHunt(generation)` — true
+from generation 17, from the generation and not the rng, so no rolled trait moves — and an authored worm names it.
+
+**Sound devices as vibration sources (#2077).** `VibrationSource.Horn` (reach 160, weight 1.2) and `Siren` (220, 1.5) are
+appended after `Thumper`. A chime or a horn pulses once per sounding — the rising edge in `ApplyCrystalActuator` — and a
+wailing alarm siren pulses every two seconds while its loop plays (`TickSoundDevicePulses`, on the cell's `NextBeat`); the
+source is the cell under the device, so a device on rock is silent to the worm like every other source. Nothing changes
+for the Crystal Net's own sounds.
+
+Tests: `ArenaNigraWorldTests` (data, once per galaxy, the black sea over lava with nothing carved under it and no flora,
+the authored worm and the roster, the worm count, the hunting roll, the rules), `ArenaNigraServerTests` (the authored worm
+in the slots and never in the spawner, black sand heard and stone not, an animal's walk heard and a breach swallowing it
+with meat left and a pet spared, horn / siren / rock), golden `arena_nigra-gen17`.

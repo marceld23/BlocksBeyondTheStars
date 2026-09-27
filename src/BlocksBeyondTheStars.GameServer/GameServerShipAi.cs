@@ -459,6 +459,7 @@ public sealed partial class GameServer
             "titas" => "titas", // 2026-09: Justus' frozen planet
             "sand_sea" => "sand_sea", // #2018 follow-up: the dunes carry every step — walk them and the worm comes (Marcel, 2026-09-26)
             "toxica_maxima" => "toxica_maxima", // #2068: Justus' poisoned landmark
+            "arena_nigra" => "arena_nigra", // #2078: Theo's black-sand landmark — the Ignivermis hunts here
             _ => string.Empty,
         };
         if (id.Length > 0)

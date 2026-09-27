@@ -448,4 +448,8 @@ public sealed class PlanetType
     /// <summary>The recipe roster of EVERY factory of this type (#2067, Toxica-Maxima: the four ore washes); empty = the
     /// classic seeded subset of all factory recipes.</summary>
     public List<string> FactoryRecipes { get; set; } = new();
+
+    /// <summary>How many sandworms a world of this type carries (#2075, Arena Nigra: 3); 0 = the classic rule of
+    /// <c>GiantRules.SandwormCount</c> (one, two on a big world). Read on generation-17 worlds only.</summary>
+    public int SandwormCount { get; set; }
 }

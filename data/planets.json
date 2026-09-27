@@ -997,6 +997,38 @@
       { "block": "sulfur_ore", "rarity": 0.03, "minDepth": 4, "maxDepth": 2048 }
     ]
   },
+  // Generation 17 (#2073, Arena Nigra): Theo's black-sand landmark — one per galaxy at most, a black sand sea over basalt under a
+  // red sky with black clouds, lava in the deepest gorges and basins (no water, so lava is the sea), sharp needles, no plants, few
+  // animals, rare ores — and the Ignivermis, his red-and-black sandworm (three of them) that hunts the animals on the dunes.
+  {
+    "key": "arena_nigra", "minTerrainGeneration": 17, "exotic": true, "oncePerGalaxy": true, "fixedName": "Arena Nigra", "floraTheme": "desert", "baseTemperature": 58, "nameKey": "planet.arena_nigra.name", "atmosphereHeight": 200, "cloudColor": 1315860, "cloudDensity": 0.55, "skyColor": 12071454,
+    "terrainTags": ["volcanic", "hoodoos", "inselbergs", "wind"],
+    "baseHeight": 62, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "dunes", "terrainStyles": ["dunes", "spires", "canyons", "badlands"],
+    "surfaceBlock": "black_sand", "subSurfaceBlock": "basalt", "deepBlock": "basalt", "surfaceDepth": 3, "caveThreshold": 0.8, "dataCacheRarity": 0.0012,
+    "weather": "dynamic", "precipitation": "ash", "stormChance": 0.3, "dayLengthSeconds": 600, "worldRadius": 960,
+    "floraDensity": 0.0, "treeDensity": 0.0, "creatureAbundance": "few", "atmosphere": "breathable", "spawnWeight": 1,
+    "waterAbundance": 0.0, "lavaAbundance": 0.35,
+    "sandSeaShare": 0.65, "sandSeaDepth": 24, "sandwormCount": 3,
+    "weatherVolatility": 1.2, "seasonAmplitude": 0.1,
+    "weatherEvents": { "ember_fall": 2.5, "heatwave": 2.0, "gale": 2.0, "acid_rain": 0.0, "fog": 0.0, "ground_fog": 0.0, "drizzle": 0.0 },
+    "settlementsBias": 0.0, "ruinsBias": 0.3, "factoriesBias": 0.3,
+    "authoredCreatures": ["ignivermis"],
+    "biomes": [
+      { "surfaceBlock": "black_sand", "subSurfaceBlock": "black_sand", "sandSea": true, "floraDensityMul": 0.0, "treeDensityMul": 0.0 },
+      { "surfaceBlock": "basalt",     "subSurfaceBlock": "basalt", "reliefMul": 1.5 },
+      { "surfaceBlock": "black_sand", "subSurfaceBlock": "basalt", "reliefMul": 1.1 }
+    ],
+    "ores": [
+      { "block": "obsidian",     "rarity": 0.02,  "minDepth": 3,  "maxDepth": 2048 },
+      { "block": "iron_ore",     "rarity": 0.03,  "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "copper_ore",   "rarity": 0.02,  "minDepth": 6,  "maxDepth": 2048 },
+      { "block": "sulfur_ore",   "rarity": 0.02,  "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "carbon",       "rarity": 0.02,  "minDepth": 6,  "maxDepth": 2048 },
+      { "block": "silicate",     "rarity": 0.03,  "minDepth": 2,  "maxDepth": 2048 },
+      { "block": "nickel_ore",   "rarity": 0.01,  "minDepth": 12, "maxDepth": 2048 },
+      { "block": "tungsten_ore", "rarity": 0.008, "minDepth": 44, "maxDepth": 2048 }
+    ]
+  },
   {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,

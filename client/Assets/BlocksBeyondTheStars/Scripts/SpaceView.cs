@@ -5605,6 +5605,7 @@ namespace BlocksBeyondTheStars.Client
                 case "rock": return (Rgb(0xEDEFF2), 0.35f);
                 case "toxic_world": return (Rgb(0xA9B061), 0.65f);    // #2032: the sickly haze of the toxic class
                 case "toxica_maxima": return (Rgb(0x2E4A2B), 0.9f);   // #2063: Toxica-Maxima's dark-green storm shell
+                case "arena_nigra": return (Rgb(0x1C1416), 0.55f);    // #2078: Arena Nigra's black ash clouds
                 default: return (Rgb(0xEDEFF2), 0f); // barren/asteroid → no clouds
             }
         }

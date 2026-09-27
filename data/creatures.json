@@ -27,5 +27,13 @@
     "legs": 2, "arms": 2, "headRatio": 1.8, "hasWings": false, "hasTail": false, "bodySegments": 1, "colorRgb": 15913781, "bellyRgb": 16574624, "eyes": 2, "horns": 0, "hasCrest": false, "glows": false,
     "socialGroupSize": 10, "begsForFood": true, "favouriteFood": "fruit_banana", "feedsToTame": 2,
     "dropItem": "plant_fiber", "dropCount": 1, "dropKind": "Material",
-    "biomeSurfaces": [], "biomeExclusive": false, "hide": "skin" }
+    "biomeSurfaces": [], "biomeExclusive": false, "hide": "skin" },
+  { "key": "ignivermis", "namePrefix": "Ignivermis",
+    "habitat": "Land", "activity": "Cathemeral", "temperament": "Aggressive", "locoStyle": "Slitherer", "bodyPlan": "Sandworm",
+    "size": 5.5, "speed": 11.0, "maxHealth": 3800, "attackDamage": 45,
+    "legs": 0, "hasWings": false, "hasTail": false, "bodySegments": 40, "colorRgb": 11540504, "bellyRgb": 1315860, "eyes": 0, "horns": 3, "hasCrest": true, "glows": true,
+    "mandibles": 5, "giantHeight": 55, "wormGirth": 10, "wormLength": 140, "hearing": 1.3, "swallowsCreatures": true,
+    "socialGroupSize": 1,
+    "dropItem": "creature_meat", "dropCount": 20, "dropKind": "Food",
+    "biomeSurfaces": [], "biomeExclusive": false, "hide": "plated" }
 ]

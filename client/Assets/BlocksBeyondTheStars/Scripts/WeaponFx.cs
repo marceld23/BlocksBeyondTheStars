@@ -276,17 +276,23 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>The classic tan dust of a footfall on ordinary ground.</summary>
+        private static readonly Color DefaultDust = new Color(0.62f, 0.57f, 0.47f);
+
         /// <summary>A low dust puff (landing / footfall).</summary>
-        public void Dust(Vector3 at, int count = 7)
+        public void Dust(Vector3 at, int count = 7) => Dust(at, count, DefaultDust);
+
+        /// <summary>A low dust puff in the colour of the ground it comes from (#2074: a black-sand sea throws black dust).</summary>
+        public void Dust(Vector3 at, int count, Color tint)
         {
-            if (DustPuff(at, count))
+            if (DustPuff(at, count, tint))
             {
                 return;
             }
 
             for (int i = 0; i < count; i++) // fallback: the old Unlit cube dust
             {
-                var p = Cube("Dust", at + Vector3.up * 0.05f, Vector3.one * 0.1f, new Color(0.62f, 0.57f, 0.47f));
+                var p = Cube("Dust", at + Vector3.up * 0.05f, Vector3.one * 0.1f, tint);
                 var s = p.AddComponent<Spark>();
                 s.Vel = new Vector3(Random.Range(-1.5f, 1.5f), Random.Range(0.3f, 1.2f), Random.Range(-1.5f, 1.5f));
             }
@@ -296,7 +302,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A one-shot alpha-blended dust puff: soft tan bits that drift up + out and settle, self-destroying.
         /// Returns false if the alpha particle shader is missing (caller falls back to cubes).</summary>
-        private bool DustPuff(Vector3 at, int count)
+        private bool DustPuff(Vector3 at, int count, Color tint)
         {
             var shader = Shader.Find("BlocksBeyondTheStars/ParticleAlpha");
             if (shader == null)
@@ -317,7 +323,7 @@ namespace BlocksBeyondTheStars.Client
             main.startLifetime = new ParticleSystem.MinMaxCurve(0.4f, 0.8f);
             main.startSpeed = new ParticleSystem.MinMaxCurve(0.5f, 1.6f);
             main.startSize = new ParticleSystem.MinMaxCurve(0.14f, 0.3f);
-            main.startColor = new Color(0.66f, 0.6f, 0.5f, 0.7f);
+            main.startColor = new Color(tint.r * 1.06f, tint.g * 1.05f, tint.b * 1.06f, 0.7f); // the ground's colour, a touch lighter (#2074)
             main.maxParticles = count + 2;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.gravityModifier = 0.25f;

@@ -112,4 +112,7 @@ public sealed class AuthoredCreature
     public float WormLength { get; set; }
     public float WormGirth { get; set; }
     public float Hearing { get; set; }
+
+    /// <summary>Sandworm: it swallows the animals a breach hits (#2076) — see <see cref="CreatureSpecies.SwallowsCreatures"/>.</summary>
+    public bool SwallowsCreatures { get; set; }
 }

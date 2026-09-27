@@ -892,6 +892,7 @@ public sealed partial class GameServer
         WormLength = s.WormLength,
         WormGirth = s.WormGirth,
         Hearing = s.Hearing,
+        SwallowsCreatures = s.SwallowsCreatures, // #2076: inert on a companion, but the snapshot keeps every trait
     };
 
     // ---------------------------------------------------------------------------------------------

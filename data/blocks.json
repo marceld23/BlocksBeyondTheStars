@@ -277,5 +277,7 @@
   { "key": "tainted_log",          "nameKey": "block.tainted_log.name",          "category": "building", "hardness": 1.6, "requiredTool": "drill", "minToolTier": 1, "flammable": true, "color": 4870200, "drops": [ { "item": "tainted_log", "count": 1 } ] },
   // #2067: the decontaminator — the matter-side twin of the detoxifier, a crafting station for the washes above.
   { "key": "decontaminator",       "nameKey": "block.decontaminator.name",       "category": "machine", "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "emission": 0.3, "color": 3519387, "drops": [ { "item": "decontaminator", "count": 1 } ] },
-  { "key": "device_eye", "nameKey": "block.device_eye.name", "category": "machine", "hardness": 1.5, "requiredTool": "none", "minToolTier": 0, "emission": 0.3, "color": 3977695, "drops": [ { "item": "device_eye", "count": 1 } ] }
+  { "key": "device_eye", "nameKey": "block.device_eye.name", "category": "machine", "hardness": 1.5, "requiredTool": "none", "minToolTier": 0, "emission": 0.3, "color": 3977695, "drops": [ { "item": "device_eye", "count": 1 } ] },
+  // #2074 (Arena Nigra): black volcanic sand — the sea sand of Theo's landmark; granular like sand, and the sandworm hears through it.
+  { "key": "black_sand",           "nameKey": "block.black_sand.name",           "granular": true, "category": "terrain", "hardness": 0.5, "requiredTool": "none", "minToolTier": 0, "color": 1710618, "drops": [ { "item": "black_sand", "count": 1 } ] }
 ]

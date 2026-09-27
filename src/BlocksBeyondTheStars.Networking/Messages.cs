@@ -1999,7 +1999,7 @@ public sealed class NetCreature
 /// strike) it also knocks its own player away from the spot — movement is the client's, the damage the server's.</summary>
 public sealed class WorldFx
 {
-    /// <summary>"thump" | "stomp" | "breach" | "strike" | "dive" | "rumble".</summary>
+    /// <summary>"thump" | "stomp" | "breach" | "strike" | "dive" | "rumble" | "swallow" (#2076: a worm ate an animal at the spot).</summary>
     public string Kind { get; set; } = string.Empty;
     public float X { get; set; }
     public float Y { get; set; }

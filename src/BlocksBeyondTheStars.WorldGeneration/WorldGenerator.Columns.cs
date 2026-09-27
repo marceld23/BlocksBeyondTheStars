@@ -128,6 +128,7 @@ public sealed partial class WorldGenerator
         var dirtId = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
         var mudId = _content.GetBlock("mud")?.NumericId ?? BlockId.Air;
         var sandId = _content.GetBlock("sand")?.NumericId ?? BlockId.Air;
+        var seaSandId = _content.GetBlock(GiantRules.SeaSandBlock(planet))?.NumericId ?? sandId; // #2074: the sea's own sand
         var stoneId = _content.GetBlock("stone")?.NumericId ?? BlockId.Air;
         var mossStoneId = _content.GetBlock("moss_stone")?.NumericId ?? BlockId.Air;
         var screeId = _content.GetBlock("scree")?.NumericId ?? BlockId.Air;
@@ -229,6 +230,7 @@ public sealed partial class WorldGenerator
             DirtId = dirtId,
             MudId = mudId,
             SandId = sandId,
+            SeaSandId = seaSandId,
             StoneId = stoneId,
             GraniteId = graniteId,
             MossStoneId = mossStoneId,
@@ -792,6 +794,7 @@ public sealed partial class WorldGenerator
         public bool GeodeWorld, StrataWorld; // #1646
         public bool Gen1Paints; // #1647
         public BlockId GrassId, DirtId, MudId, SandId, StoneId, GraniteId, MossStoneId, ScreeId, SandstoneId, AshId; // #1647
+        public BlockId SeaSandId; // #2074: the sand of this type's sand sea (= SandId on every classic type)
         public double PondThreshold;
         public BlockId SeabedId; // #1757: the floor of every submerged sea column beyond the beach apron (Air = classic)
         public int SnowCover; // generation 8 (Titas): a fixed snow blanket this deep on dry land (0 = the classic snow pass)

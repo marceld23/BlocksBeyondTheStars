@@ -131,6 +131,40 @@ call is gibberish that sounds like "meins, meins!".
   jungle`, or `/biped`): the look (knee-high, arms, big head, yellow skin), the gait and the begging arms, the "meins, meins!"
   calls (four AI takes — re-generate any that do not sound right), two bananas → a companion, the herd fleeing when hurt.
 
+### 🏜️ Arena Nigra — Theo's once-per-galaxy black-sand landmark planet and the hunting sandworms (#2073: #2074–#2079, 2026-09-27, branch feat/arena-nigra, terrain generation 17)
+
+Theo's idea (school club), Marcel's decisions (2026-09-27): ONE black planet per galaxy at most (weight 1, once per galaxy,
+exotic, like Titas), fixed name **Arena Nigra** (Latin: black sand). Breathable but hot (58 °C, the ordinary suit rule); a
+**sea of black sand** over basalt with needles, rare deep gorges of **lava** (no water — lava is the sea fluid), a **red
+sky** under **black clouds**, storms that fall as **ash**; no plants, few animals, rare ores (obsidian veins, iron, copper).
+The worm is the **Ignivermis** — an AUTHORED giant (red back, black belly, ember glow, hearing 1.3), three of them — and
+every sandworm of a generation-17 sand-sea world **hunts the animals**: their steps shake the sand, a breach swallows what
+it hits, a piece or two of meat stays on the sand, pets are never eaten. The Crystal Net's chime / horn / siren shake the
+sea sand as lures. Every new field defaults to its classic no-op; the hunting is rolled from the generation, so an older
+sand-sea world keeps its worm's manners bit for bit.
+
+- **✅ Black sand + the sea's own sand (#2074).** Block/item `black_sand` (granular, tile = icon); `GiantRules.SeaSandBlock`
+  (the `sandSea` biome's surface block) replaces the literal `sand` in `VibratesSand` and the thumper's VEGA check; client
+  `WeaponFx.Dust(at, count, tint)` + `SandwormView.DustTint` (atlas average colour of the block the worm breaks through).
+- **✅ Authored giants + worm count (#2075).** `CreatureGenerator.GenerateAuthoredGiant` (an `authoredCreatures` record with a
+  giant body plan takes the slot; the roster skips giant plans); `PlanetType.SandwormCount` via
+  `GiantRules.SandwormCount(planet, circumference, generation)`; `data/creatures.json` `ignivermis`.
+- **✅ Worms hunt animals (#2076).** `TickCreatureSteps` (wild creatures moving > 0.8 blocks/s over sea sand send step pulses),
+  `SwallowCreaturesNear` beside the thumper swallow (`CreatureSpecies.SwallowsCreatures`: rolled `RolledWormsHunt(gen ≥ 17)`,
+  authored by field; companions / clones / giants spared; `creature_meat` ×1–2 via `SpillToGround`; `WorldFx swallow` +
+  `sandworm_swallow` on the client).
+- **✅ Sound devices as vibration sources (#2077).** `VibrationSource.Horn` (160 / 1.2) and `Siren` (220 / 1.5); chime + horn
+  pulse on the actuator's rising edge, the siren every 2 s while looping (`TickSoundDevicePulses`).
+- **✅ The planet type (#2078).** `arena_nigra` in `planets.json`, `WorldDescription.ArenaNigraGeneration` = 17 (current
+  generation 17), locales EN/DE by hand + 12 machine top-ups (`planet.*`, `vega.hint.world.arena_nigra`, block/item names),
+  ShipAi / MusicLibrary (lava pool) / `BiomeBed` (`amb_black_dunes`) / `GradeFor` + `MoodFor` (volcanic) / `PlanetCloudLook`;
+  golden `arena_nigra-gen17`; `ArenaNigraWorldTests` / `ArenaNigraServerTests`; `WORLD_GENERATION.md` §32, USER_MANUAL,
+  SOUND_DESIGN, CREATURE_RIG.
+- **✅ Assets (#2079).** `black_sand` tile (OpenAI), `amb_black_dunes` + `sandworm_swallow` (ElevenLabs) — NOTICES.md.
+- ⚠ OPEN: Marcel's playtest with Theo — find Arena Nigra on a fresh generation-17 galaxy (the star map; or
+  `scripts/make-test-world.ps1 -Planet arena_nigra`): the black dunes under the red sky, an ash storm, a herd on the sand and
+  the worm eating it, a horn on the sand as a lure, lava in a gorge.
+
 ### ☣️ Toxica-Maxima — Justus' once-per-galaxy toxic landmark planet (#2062: #2063–#2071, 2026-09-27, branch feat/toxica-maxima, terrain generation 15)
 
 Justus' idea, Marcel's decisions (2026-09-27): ONE poisoned planet per galaxy at most (weight 1, once per galaxy, exotic, like

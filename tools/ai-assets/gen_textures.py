@@ -157,6 +157,8 @@ TEXTURES = [
     ("radio_beacon", "a sci-fi radio beacon transmitter tower, a slim metal pole on a base with a glowing cyan antenna ring and blinking status light, front view"),
     # #2002 the thumper (2026-09-26): its own tile at last — it shipped as a copy of the radio beacon's.
     ("thumper", "a sci-fi sand thumper machine, a squat dark metal piston rig with a heavy hammer head on a wide riveted base plate, orange warning stripes and a small amber status light, front view"),
+    # #2074 Arena Nigra (2026-09-27): the black volcanic sand of Theo's landmark — the sea the Ignivermis hunts in.
+    ("black_sand", "fine jet-black volcanic sand, tiny glassy glints, faint dark-grey wind ripples, matte"),
     # #2058 Crystal Net (2026-09-27): the conduit, its sources, gates, sinks and machines — one tile each.
     ("crystal_conduit", "a sci-fi crystal conduit block, translucent violet crystal rod embedded in a dark metal frame with small silver clamps, faint inner glow, front view"),
     ("crystal_switch", "a sci-fi wall switch block, dark metal plate with a chunky violet crystal lever and a small green status light, front view"),

@@ -95,6 +95,11 @@ public static class CreatureGenerator
                     continue;
                 }
 
+                if (IsGiantPlan(record.BodyPlan))
+                {
+                    continue; // #2075: an authored giant lives in the giant slots (GenerateAuthoredGiant), never in the roster
+                }
+
                 long s = unchecked(planetSeed ^ ((long)list.Count * golden) ^ WorldGenerator.StableHash("authored:" + record.Key));
                 var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
                 list.Add(MakeAuthoredSpecies(record, planet, rng, s));
@@ -218,7 +223,13 @@ public static class CreatureGenerator
             WormLength = a.WormLength,
             WormGirth = a.WormGirth,
             Hearing = a.Hearing,
+            SwallowsCreatures = a.SwallowsCreatures, // #2076: an authored worm says whether it hunts the animals
         };
+
+        if (species.GiantHeight > 0f)
+        {
+            species.Size = species.GiantHeight / 10f; // #2075: a giant's scan and voice scale, exactly as for a rolled one
+        }
 
         species.VoiceSeed = unchecked((int)(speciesSeed ^ (speciesSeed >> 32)) ^ 0x5EED_1CE);
         species.HasFins = CreatureMotion.FinsFor(species);
@@ -300,7 +311,36 @@ public static class CreatureGenerator
 
     /// <summary>A sand-sea world's sandworm (#2001): the fixed sandworm archetype — a long armoured tube, a mouth of
     /// mandible petals with rings of teeth — with its size, colours, plates, hearing and temper rolled per world.</summary>
-    public static CreatureSpecies GenerateSandworm(long worldSeed, string locationId)
+    /// <summary>The type's AUTHORED giant of this body plan (#2075): the first record in <paramref name="authored"/> with a
+    /// giant body plan, built exactly as the roster would build it (same sub-seed, salted with the key, so nothing else moves),
+    /// or null — the caller then rolls the procedural one. An authored worm's hunting is its own field, not the generation's.</summary>
+    public static CreatureSpecies? GenerateAuthoredGiant(PlanetType planet, long worldSeed, IReadOnlyList<AuthoredCreature>? authored, CreatureBodyPlan kind, int terrainGeneration)
+    {
+        if (authored is null || planet is null)
+        {
+            return null;
+        }
+
+        long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);
+        foreach (var record in authored)
+        {
+            if (record.BodyPlan != kind || !IsGiantPlan(record.BodyPlan) || record.MinGeneration > terrainGeneration)
+            {
+                continue;
+            }
+
+            long s = unchecked(planetSeed ^ WorldGenerator.StableHash("authored:" + record.Key));
+            var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+            return MakeAuthoredSpecies(record, planet, rng, s);
+        }
+
+        return null;
+    }
+
+    /// <summary>A body plan that lives in the giant slots, never in the roster (#2075).</summary>
+    private static bool IsGiantPlan(CreatureBodyPlan plan) => plan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm;
+
+    public static CreatureSpecies GenerateSandworm(long worldSeed, string locationId, int terrainGeneration = 0)
     {
         long s = unchecked(worldSeed ^ ((long)WorldGenerator.StableHash("sandworm:" + locationId) << 16) ^ 0x5A2D3A0L);
         var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
@@ -337,6 +377,7 @@ public static class CreatureGenerator
             DropItem = "creature_meat",
             DropCount = 20,
             DropKind = CreatureDropKind.Food,
+            SwallowsCreatures = GiantRules.RolledWormsHunt(terrainGeneration), // #2076: from the generation, not the roll — no trait moves
         };
         sp.VoiceSeed = unchecked((int)(s ^ (s >> 32)) ^ 0x5EED_1CE);
         return sp;

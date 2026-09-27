@@ -417,6 +417,16 @@ separate unlock; admins can still disable it through server world rules.
   remain), but **6–10 factories** stand there, one near the landing pad — and **every factory hall breathes**: under its
   roof you have air, no corrosion and no rain, on this planet and on every other world (the HUD says "factory life
   support"). Carbon and silicate are clean there, so the wash loop closes on site.
+- **Arena Nigra** (Theo's planet — at most one per galaxy, never in the start system; an exotic type): the black
+  landmark. The air is **breathable** but it is **hot** (58 °C — the suit's climate drains, then your health; rock islands,
+  the ship and a roof shelter you). Two thirds of the world is a **sea of black sand** over basalt, with sharp needles,
+  rare deep gorges filled with **lava** (there is no water — the lowest ground is lava), a **red sky** under **black
+  clouds** and storms that fall as **ash**. **Nothing grows** there and only a few animals live there, because the
+  **Ignivermis** hunts them: Theo's red-and-black sandworm — **three** of them — with the sharpest hearing of any worm.
+  Everything a sandworm does (see *Giants*) it does here on black sand, and it **eats the animals**: a herd walking the
+  dunes shakes the sand like you do, the worm comes, and whatever stands where it strikes is swallowed — a piece or two of
+  **meat** stays on the sand (pets and companions are never eaten). Ores are rare: obsidian veins, iron, copper, sulfur,
+  carbon under the rock. VEGA warns you on landing; a few ruins stand on the rock, no settlements.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between
@@ -1551,6 +1561,13 @@ separate unlock; admins can still disable it through server world rules.
 - **Thumper** (workshop recipe): place it on sand-sea ground and it pounds the ground every two seconds for a minute
   and a half — the worm comes for it and swallows it. Use it to lure the worm away from you or to watch it. On rock
   nothing hears it; mine it back to switch it off.
+- **Worms hunt animals** (new worlds since generation 17, and every Ignivermis of Arena Nigra): the animals walking the sea
+  sand shake it like you do, so a herd on the dunes brings the worm — and whatever stands where it breaches or strikes is
+  **swallowed**; a piece or two of **meat** is left on the sand. Companions and pets are never eaten. On an older sand-sea
+  world the worm keeps its old manners.
+- **Sound devices as lures:** a Crystal-Net **chime** or **horn** standing on sea sand shakes it once each time it sounds,
+  and an **alarm siren** keeps shaking it every two seconds while it wails — wire one to a switch, a sensor or a clock and
+  the worm comes to it (or stays away from you). On rock they are as silent to the worm as everything else.
 - A defeated giant is gone for a few in-game days, then another one comes. Neither ever changes a block.
 
 ### Taming creatures (companions)
