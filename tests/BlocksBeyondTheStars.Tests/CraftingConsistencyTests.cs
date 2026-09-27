@@ -156,6 +156,8 @@ public sealed class CraftingConsistencyTests
             "magnet", "light_alloy",
             // New tiers / functional sinks (Materialvielfalt): each must be made AND consumed somewhere.
             "diamond", "polymer", "biofuel", "bronze_gear", "brass_fitting",
+            // The oil products (#2107): refined from oil and consumed by the drill / vehicle tier.
+            "lubricant",
         };
         var consumed = Consumed();
         var deadEnds = intermediates.Where(m => !consumed.Contains(m)).ToList();

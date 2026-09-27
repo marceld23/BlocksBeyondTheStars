@@ -196,6 +196,7 @@
   { "key": "diamond",        "nameKey": "item.diamond.name",        "category": "material",  "maxStack": 1024 },
   { "key": "polymer",        "nameKey": "item.polymer.name",        "category": "material",  "maxStack": 1024 },
   { "key": "biofuel",        "nameKey": "item.biofuel.name",        "category": "component", "maxStack": 50,   "descriptionKey": "item.biofuel.desc" },
+  { "key": "lubricant",      "nameKey": "item.lubricant.name",      "category": "component", "maxStack": 50,   "descriptionKey": "item.lubricant.desc" },
   { "key": "bronze_gear",    "nameKey": "item.bronze_gear.name",    "category": "component", "maxStack": 1024 },
   { "key": "brass_fitting",  "nameKey": "item.brass_fitting.name",  "category": "component", "maxStack": 1024 },
   { "key": "diamond_drill",  "nameKey": "item.diamond_drill.name",  "category": "tool", "maxStack": 1,    "descriptionKey": "item.diamond_drill.desc", "tool": { "kind": "drill", "tier": 3, "miningPower": 3.2, "energyPerUse": 0.0 }, "heldModel": [{"p":[0,0,0.04],"s":[0.15,0.15,0.26],"c":"#474d5c"},{"p":[0.1,0,0.06],"s":[0.03,0.1,0.22],"c":"#8c94a3"},{"p":[-0.1,0,0.06],"s":[0.03,0.1,0.22],"c":"#8c94a3"},{"p":[0,0,0.2],"s":[0.12,0.12,0.05],"c":"#8c94a3"},{"p":[0,0,0.29],"s":[0.07,0.07,0.14],"c":"#8cf2ff"},{"p":[0,-0.12,-0.04],"s":[0.07,0.16,0.08],"c":"#333842"}] },

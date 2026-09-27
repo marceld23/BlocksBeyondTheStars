@@ -64,7 +64,7 @@
   {
     "key": "jump_generator", "nameKey": "module.jump_generator.name", "descriptionKey": "module.jump_generator.desc",
     "mandatory": false, "requiredBlueprint": "jump_generator",
-    "buildCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 8 }, { "item": "glass", "count": 6 }, { "item": "reactor_fuel", "count": 1 }, { "item": "circuit_board", "count": 2 }, { "item": "neodymium", "count": 2 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 8 }, { "item": "glass", "count": 6 }, { "item": "reactor_fuel", "count": 1 }, { "item": "circuit_board", "count": 2 }, { "item": "neodymium", "count": 2 }, { "item": "lubricant", "count": 2 } ],
     "stats": { "jump_range": 1000 }
   },
   {
@@ -88,7 +88,7 @@
   {
     "key": "asteroid_breaker", "nameKey": "module.asteroid_breaker.name", "descriptionKey": "module.asteroid_breaker.desc",
     "mandatory": false, "requiredBlueprint": "asteroid_breaker",
-    "buildCost": [ { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 2 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 2 }, { "item": "lubricant", "count": 1 } ],
     "stats": { "weapon_class": 0, "weapon_damage": 25, "weapon_range": 40, "weapon_cooldown": 1.5, "weapon_energy": 2 }
   },
   {

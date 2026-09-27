@@ -630,6 +630,13 @@ separate unlock; admins can still disable it through server world rules.
   lithium, neodymium, plus light alloy, biofuel and magnets) feeds at least three recipes across two stations —
   refinery variants of bronze, brass, steel, carbide, power cells and magnets out-yield the workshop ones, lithium
   triples a cell batch, and biofuel makes torches and lanterns where no tree grows.
+- **Oil products (2026-09):** the refinery turns **crude oil** (pumped from the pockets under living worlds, see
+  the fluid pump in §5) into **polymer** (3 per cell — cheaper than the carbon-and-sulfur road) and, with a piece of
+  carbon, into **lubricant** (2 per cell). Oil is **never fuel**. Lubricant is the gate of the drill and vehicle
+  tier: the diamond drill, the mining beam, the auto-drills Mk2/Mk3, the drill laser, the speeder, the clone tank,
+  the fabricator, and the jump generator and asteroid breaker modules need it. Polymer now also seals the beam
+  block, the sentry post and the matter sender/receiver. The starter tier (basic and titanium drill, the base core,
+  the first machines) stays oil-free, so you can always reach a living world first.
 - **Interior decor is craftable:** the lights, light strips, force field, medbay/lab/cargo/engine panels, engine
   nozzle, factory terminal, pipe and machine housing that ship interiors, stations and factories are built from all
   have workshop recipes (lights: crystal in a glass housing — no power needed; the force field needs the energy-door
