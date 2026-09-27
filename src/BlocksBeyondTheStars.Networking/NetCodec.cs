@@ -543,6 +543,14 @@ public static class NetCodec
         // Equipment slots (#2110).
         Register(268, typeof(EquipItemIntent));              // Client -> Server
         Register(269, typeof(UnequipItemIntent));            // Client -> Server
+
+        // #2113: the monorail hover train — rail lines, trains, boarding, the cab panel, packing up.
+        Register(270, typeof(RailList));                     // Server -> Client (the rail lines of the world)
+        Register(271, typeof(TrainList));                    // Server -> Client (the trains, ~5 Hz while one moves)
+        Register(272, typeof(EnterTrainIntent));             // Client -> Server
+        Register(273, typeof(ExitTrainIntent));              // Client -> Server
+        Register(274, typeof(SetTrainIntent));               // Client -> Server (speed, halt, autopilot)
+        Register(275, typeof(StowTrainIntent));              // Client -> Server
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

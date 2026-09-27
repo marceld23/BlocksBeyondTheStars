@@ -121,6 +121,32 @@ public sealed partial class GameServer
                 DeployVehicle(session, item.Key); // unfolds a hover speeder / launches a boat ahead (consumes the item, #1215)
                 cooldown = SpeederDeployCooldown;
                 break;
+            case RailRules.LinkerItemKey: // #2113: the linker couples two pylons (first pick, second pick)
+                if (!UseRailLinker(session, target))
+                {
+                    return;
+                }
+
+                cooldown = 0.2;
+                break;
+            case RailRules.CabItemKey: // #2113: the cab appears on the line under the aim
+                if (!UseRailCab(session, target))
+                {
+                    return;
+                }
+
+                cooldown = SpeederDeployCooldown;
+                break;
+            case "wagon_seats":
+            case "wagon_sleeper":
+            case "wagon_bar": // #2113: a wagon couples behind the last one
+                if (!UseRailWagon(session, item.Key, target))
+                {
+                    return;
+                }
+
+                cooldown = SpeederDeployCooldown;
+                break;
             default:
                 Reject(session, "gadget", "@srv.gadget.unknown");
                 return;

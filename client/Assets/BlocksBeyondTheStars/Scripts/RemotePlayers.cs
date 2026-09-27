@@ -18,6 +18,7 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
         public WeaponFx Weapons; // shared VFX layer, for remote jetpack thrust flames
+        public TrainView Trains; // #2113: riders are placed relative to the wagons this client draws
 
         /// <summary>How far behind the newest presence packet remote avatars are rendered (B Tier1b). Must exceed
         /// the ~0.1 s presence interval so two snapshots usually straddle the render time; 0.15 s absorbs one
@@ -33,6 +34,8 @@ namespace BlocksBeyondTheStars.Client
             public bool Jetpacking;        // show a thrust flame under the avatar while firing
             public ParticleSystem Thrust;  // the persistent flame emitter (#1511), created on first use; dies with Go
             public bool Seated;            // sit pose (#806) — avatar lowered onto the chair seat
+            public string Frame = string.Empty; // #2113: aboard a train — the wagon frame and the offset in it
+            public Vector3 Local;
             public bool Hidden;            // stealth field active, or the player is up in space — no avatar
             public int Gear = -1;          // cached so gear is only rebuilt on change
             public int Skin, Torso, Arms, Legs; // #1777: cached colours — re-applied when a presence carries new ones
@@ -155,7 +158,22 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var r in _remotes.Values)
             {
-                if (r.Interp.Sample(now, circ, out var pos, out var yaw))
+                // #2113: a rider is placed relative to the wagon as THIS client draws it — nobody slides through a wall.
+                if (r.Frame.Length > 0 && Trains != null && Trains.TryGetWagon(r.Frame, out var wagon))
+                {
+                    var aboard = wagon.TransformPoint(r.Local);
+                    if (r.Seated)
+                    {
+                        aboard.y -= 0.45f;
+                    }
+
+                    r.Go.transform.position = aboard;
+                    if (r.Interp.Sample(now, circ, out _, out var wagonYaw))
+                    {
+                        r.Go.transform.rotation = Quaternion.Euler(0f, wagonYaw, 0f);
+                    }
+                }
+                else if (r.Interp.Sample(now, circ, out var pos, out var yaw))
                 {
                     var scene = Game != null ? Game.ScenePos(pos.X, pos.Y, pos.Z) : new Vector3(pos.X, pos.Y, pos.Z);
                     if (r.Seated)
@@ -239,6 +257,8 @@ namespace BlocksBeyondTheStars.Client
 
             r.Interp.Push(Time.timeAsDouble, new Vector3f(m.X, m.Y, m.Z), m.Yaw);
             r.Jetpacking = m.Jetpacking;
+            r.Frame = m.FrameId ?? string.Empty; // #2113
+            r.Local = new Vector3(m.LocalX, m.LocalY, m.LocalZ);
             if (m.Seated != r.Seated)
             {
                 r.Seated = m.Seated;

@@ -187,6 +187,12 @@ ITEMS = [
     ("lubricant", "a small dark metal can of amber machine lubricant oil with a long thin spout and a drip of oil"),
     # #2110 the feet slot: the suit boots.
     ("boots", "a pair of sturdy sci-fi space-suit boots, dark grey armoured with thick rubber soles and small cyan ankle lights"),
+    # #2113 the monorail (2026-09-27): the linker gadget, the cab and the three wagons as packable items.
+    ("rail_linker", "a handheld sci-fi rail linker tool, a dark metal grip with two glowing cyan prongs and a small holographic link readout"),
+    ("rail_cab", "a sleek sci-fi monorail cab wagon, pale silver-blue with a wide curved cyan windscreen, hovering slightly, side view"),
+    ("wagon_seats", "a sleek sci-fi monorail passenger wagon with rows of seats behind large windows, pale silver with cyan trim, hovering slightly, side view"),
+    ("wagon_sleeper", "a sleek sci-fi monorail sleeper wagon with bunk windows and warm cabin lights, pale silver with cyan trim, hovering slightly, side view"),
+    ("wagon_bar", "a sleek sci-fi monorail bar wagon with a lit counter visible through wide windows, pale silver with amber and cyan trim, hovering slightly, side view"),
     ("bronze_gear", "a single toothed bronze mechanical gear cog with a warm golden-brown sheen"),
     ("brass_fitting", "a small polished brass pipe fitting coupling with threads"),
     ("matter_dust", "a small heap of softly glowing violet-grey crystalline matter dust, faint sci-fi energy sparkles rising from it"),

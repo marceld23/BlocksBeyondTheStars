@@ -210,6 +210,7 @@ drives its own network (#2092).
 | `water_spout` | Spout | level listener | OFF stops pouring | — | — | — |
 | `energy_gate` | EnergyGate | level listener | ON lets animals through | — | — | — |
 | `hydro_tray` | HydroTray | edge listener | rising edge harvests into the crate beside it | — | ON while something is ripe | — |
+| `rail_stop` | RailStop | edge listener | rising edge departs the train halted here | — | — | — (#2113: a stop within 4 blocks of a rail line; the autopilot halts at it for 8 s — see `MONORAIL.md`) |
 
 Rows: every kind except Conduit and Light carries a persisted row (`NeedsRow`). Menus: `IsConfigurable` lists the
 kinds whose Interact opens a picker or a list (not the Device Eye: it has nothing to set); `ModeCount` tells the

@@ -49,6 +49,11 @@ public sealed class MoveIntent
     public float Z { get; set; }
     public float Yaw { get; set; }
     public float Pitch { get; set; }
+
+    /// <summary>#2113: the moving frame. Aboard a train the client reports its pose INSIDE the wagon — this is the frame
+    /// (<c>RailRules.FrameId</c>: train and wagon) and X/Y/Z are then the wagon-local offset; the server derives the world
+    /// position from the wagon pose it drives. Empty = a world pose, as always. Additive: an older client never sends it.</summary>
+    public string FrameId { get; set; } = string.Empty;
 }
 
 public sealed class MineBlockIntent
@@ -1146,6 +1151,11 @@ public sealed class PlayerStateUpdate
     /// <summary>Id of the hover speeder the player is currently piloting (empty = on foot). Drives the client's
     /// switch into vehicle-drive mode + the speeder HUD.</summary>
     public string InSpeeder { get; set; } = string.Empty;
+
+    /// <summary>#2113: the train frame the player rides in (train:wagon, empty = on foot) and the seat (−1 = standing).
+    /// The client parents itself to that wagon and reports its pose inside it.</summary>
+    public string InTrain { get; set; } = string.Empty;
+    public int TrainSeat { get; set; } = -1;
 
     /// <summary>Fleet-admin observer mode is active for this player (issue #487): the client switches to free
     /// flight with no collision, hides the viewmodel/hotbar and shows the SPECTATOR badge. Server-authoritative
@@ -2355,6 +2365,14 @@ public sealed class PlayerPresence
 
     /// <summary>Item key currently held (selected hotbar slot), shown in the avatar's hand; empty if none.</summary>
     public string Held { get; set; } = string.Empty;
+
+    /// <summary>#2113: aboard a train — the frame (train:wagon) and the rider's wagon-local offset, so every client places
+    /// the avatar relative to the wagon as IT draws it and nobody slides through a wall. X/Y/Z stay the world pose the
+    /// server derived (an older client keeps using them). Empty frame = on foot.</summary>
+    public string FrameId { get; set; } = string.Empty;
+    public float LocalX { get; set; }
+    public float LocalY { get; set; }
+    public float LocalZ { get; set; }
 }
 
 /// <summary>A player left; the client removes their avatar.</summary>

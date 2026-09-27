@@ -59,6 +59,14 @@ package in this order):
 
 Analysis 2026-09-27 (gitignored, `analysis/justus-ideas-2026-09-27.md`); decisions Q1–Q13 recorded in the epic.
 
+**Status 2026-09-28:** #2105–#2114 built on the branch, package by package, each with a green .NET build, targeted
+tests and a local Unity build; the assets (oil, drill-laser, gas and rail tiles; pump, lubricant, boots and rail icons;
+leviathan, gas-giant and sky-giant clips) were generated with the project's tools; all 14 locales at 100 %. The network
+protocol moves to **v8** (the monorail's messages and the moving frame). One PR for the whole package. Open: the
+playtests (oil pockets + pump, the drill laser, small worms, the new inventory, a leviathan near a boat, a gas giant in a
+new galaxy, a six-pylon loop with a stop and two riders). Developer docs: `WORLD_GENERATION.md` §33–34, `MONORAIL.md`,
+`CREATURE_RIG.md`, `CRYSTAL_NET.md`, `CRAFTING_TECH_SHIP_UI.md`.
+
 ### 🌸 The Fifi plant — Sophie's tree-sized glowing berry plant (#2085: #2086–#2090, 2026-09-27, branch feat/fifi-plant, terrain generation 16)
 
 Sophie's idea from the school club, Marcel's decisions (2026-09-27): a plant as tall as a tree with a **green trunk, yellow

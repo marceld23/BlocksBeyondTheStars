@@ -42,6 +42,9 @@ public sealed partial class GameServer
             case CrystalDeviceKind.DrillLaser:
                 DrillLaserStep(c);
                 break;
+            case CrystalDeviceKind.RailStop:
+                DepartTrainsAtStop(c.Cell); // #2113: the signal departs the train halted here
+                break;
             case CrystalDeviceKind.Caller:
                 CallerPulse(c);
                 break;

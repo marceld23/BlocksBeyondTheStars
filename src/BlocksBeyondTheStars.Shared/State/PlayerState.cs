@@ -263,6 +263,15 @@ public sealed class PlayerState
     /// on (re)join so a reload never starts the player "inside" a speeder; never meaningfully persisted.</summary>
     public string InSpeeder { get; set; } = string.Empty;
 
+    /// <summary>#2113: the train frame the player rides in (<c>RailRules.FrameId</c>, empty = on foot), the seat (−1 =
+    /// standing) and the wagon-local offset the client last reported. The server derives <see cref="Position"/> from the
+    /// wagon pose plus this offset every tick while aboard. Never persisted as a bond: a reload puts the player on foot.</summary>
+    public string InTrain { get; set; } = string.Empty;
+    public int TrainSeat { get; set; } = -1;
+    public float TrainLocalX { get; set; }
+    public float TrainLocalY { get; set; }
+    public float TrainLocalZ { get; set; }
+
     /// <summary>Named map markers this player saved (#1217) — per world, capped server-side at 8 per world.
     /// Shared ones are shown to allies + crew on the same body while this player is online. Persisted.</summary>
     public List<PlayerMarker> Markers { get; set; } = new();

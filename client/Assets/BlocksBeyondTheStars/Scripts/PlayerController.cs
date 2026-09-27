@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 
@@ -660,6 +662,47 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #2113: aboard a train the wagon is the reference frame — the body is parented to it, so its motion carries
+            // us; a seated rider is parked on the seat, a standing one walks on with the ordinary on-foot code below.
+            if (UpdateTrainFrame())
+            {
+                UpdateJetpack(false);
+                if (Game.TrainSeat >= 0)
+                {
+                    HoldTrainSeat();
+                    LookAround();
+                    if (Camera != null && !ThirdPerson)
+                    {
+                        Camera.transform.localPosition = Vector3.Lerp(Camera.transform.localPosition, SeatedEye, Time.deltaTime * 8f);
+                    }
+
+                    bool wantsUp = InputMap.JumpDown() || InputMap.CrouchHeld() || Mathf.Abs(InputMap.MoveX()) > 0.3f || Mathf.Abs(InputMap.MoveY()) > 0.3f;
+                    if (InputMap.Down(InputAction.SpeederExit))
+                    {
+                        Game.Network?.SendExitTrain();
+                    }
+                    else if (wantsUp && RailRules.TryParseFrame(Game.InTrain, out string sitTrain, out int sitWagon))
+                    {
+                        Game.Network?.SendEnterTrain(sitTrain, sitWagon, -1); // stand up in the same wagon
+                    }
+
+                    SendMovement();
+                    Game.PlayerPosition = transform.position;
+                    Game.PlayerYaw = transform.eulerAngles.y;
+                    Game.PlayerVerticalVelocity = 0f;
+                    return;
+                }
+
+                if (InputMap.Down(InputAction.SpeederExit))
+                {
+                    Game.Network?.SendExitTrain();
+                }
+                else if (InputMap.Down(InputAction.Interact) && TrainInteract())
+                {
+                    return;
+                }
+            }
+
             // Sitting on a chair (#806): control frozen, look free. Stand with E/jump/crouch/movement —
             // or when the chair vanishes under us (mined, reshaped, chunk unloaded).
             if (_seatCell is { } seat)
@@ -704,6 +747,11 @@ namespace BlocksBeyondTheStars.Client
             // On foot: board a speeder you own that you're standing next to (E), or pack one up (X). Checked
             // before the generic E interact so boarding the speeder beside you wins.
             if (InputMap.Down(InputAction.Interact) && TryBoardNearbySpeeder())
+            {
+                return;
+            }
+
+            if (InputMap.Down(InputAction.Interact) && TryBoardNearbyTrain()) // #2113
             {
                 return;
             }
@@ -3499,7 +3547,7 @@ namespace BlocksBeyondTheStars.Client
                 // the fall via the swim branch — but landing in even ONE block of water should cushion it too,
                 // like Minecraft (Severin playtest: shallow water still hurt because the chest wasn't submerged).
                 // Flying down onto the ground is a landing, not a fall — the descent is powered, not a drop.
-                if (-prevVy > _effSafeFallSpeed && !FeetInWater() && !_flying)
+                if (-prevVy > _effSafeFallSpeed && !FeetInWater() && !_flying && _trainFrame == null) // #2113: the frame's motion is never a fall
                 {
                     Game?.Network?.SendFallDamage(-prevVy);
                 }
@@ -4602,7 +4650,182 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _moveSendTimer = 0f;
+            if (_trainFrame != null && !string.IsNullOrEmpty(Game.InTrain))
+            {
+                // #2113: aboard — the pose is the wagon-local offset in the train's frame. Out of the box = we walked off.
+                var local = _trainFrame.InverseTransformPoint(transform.position);
+                var l = new Vector3f(local.x, local.y, local.z);
+                if (RailRules.OutsideWagon(l))
+                {
+                    Game.Network.SendExitTrain();
+                    LeaveTrainFrame();
+                    return;
+                }
+
+                Game.Network.SendFramedMove(Game.InTrain, l, transform.eulerAngles.y, _pitch);
+                return;
+            }
+
             Game.Network.SendMove(transform.position, transform.eulerAngles.y, _pitch);
+        }
+
+        // ---------------------------------------------------------------------------------------------------------
+        // #2113: the moving frame — riding a monorail train
+        // ---------------------------------------------------------------------------------------------------------
+
+        private Transform _trainFrame;
+        private string _trainFrameId = string.Empty;
+        private TrainView _trainView;
+        private const float TrainBoardReach = 2.6f;
+
+        /// <summary>Keeps the body parented to the wagon named by the server (<see cref="GameBootstrap.InTrain"/>): the first
+        /// time a frame appears the body is brought into the wagon's box and parented to it; when the server takes the
+        /// frame away the body is released. Returns true while aboard.</summary>
+        private bool UpdateTrainFrame()
+        {
+            string frame = Game != null ? Game.InTrain : string.Empty;
+            if (string.IsNullOrEmpty(frame))
+            {
+                if (_trainFrame != null)
+                {
+                    LeaveTrainFrame();
+                }
+
+                return false;
+            }
+
+            if (_trainView == null)
+            {
+                _trainView = Object.FindAnyObjectByType<TrainView>();
+            }
+
+            if (_trainView == null || !_trainView.TryGetWagon(frame, out var wagon))
+            {
+                return _trainFrame != null; // the list has not caught up: keep riding the last known wagon
+            }
+
+            if (_trainFrame != wagon || _trainFrameId != frame)
+            {
+                _trainFrame = wagon;
+                _trainFrameId = frame;
+                _seatCell = null;
+                transform.SetParent(wagon, true);
+                var local = wagon.InverseTransformPoint(transform.position);
+                var clamped = RailRules.ClampLocal(new Vector3f(local.x, local.y, local.z));
+                bool wasEnabled = _controller.enabled;
+                _controller.enabled = false;
+                transform.position = wagon.TransformPoint(new Vector3(clamped.X, clamped.Y + 0.05f, clamped.Z));
+                _controller.enabled = wasEnabled;
+                _verticalVelocity = 0f;
+            }
+
+            if (Game.TrainSeat < 0 && !_controller.enabled)
+            {
+                _controller.enabled = true; // stood up from a seat
+                Avatar?.SetSeated(false);
+            }
+
+            return true;
+        }
+
+        private void LeaveTrainFrame()
+        {
+            transform.SetParent(null, true);
+            _trainFrame = null;
+            _trainFrameId = string.Empty;
+            _controller.enabled = true;
+            Avatar?.SetSeated(false);
+            ApplyCameraMode();
+        }
+
+        /// <summary>A seated rider is parked on the seat of the wagon, controller off (the seat is the frame's fixed point).</summary>
+        private void HoldTrainSeat()
+        {
+            if (_trainFrame == null || !RailRules.TryParseFrame(Game.InTrain, out _, out int wagonIndex))
+            {
+                return;
+            }
+
+            var train = Game.RiddenTrain;
+            string item = train != null && train.Wagons != null && wagonIndex < train.Wagons.Length ? train.Wagons[wagonIndex] : string.Empty;
+            var seats = RailRules.SeatOffsets(item);
+            if (Game.TrainSeat >= seats.Count)
+            {
+                return;
+            }
+
+            var seat = seats[Game.TrainSeat];
+            _controller.enabled = false;
+            _verticalVelocity = 0f;
+            transform.position = _trainFrame.TransformPoint(new Vector3(seat.X, seat.Y, seat.Z));
+            Avatar?.SetSeated(true);
+        }
+
+        /// <summary>E aboard: in the cab the panel opens; beside a seat you sit down. Returns true when it did something.</summary>
+        private bool TrainInteract()
+        {
+            if (_trainFrame == null || !RailRules.TryParseFrame(Game.InTrain, out string trainId, out int wagonIndex))
+            {
+                return false;
+            }
+
+            var train = Game.RiddenTrain;
+            string item = train != null && train.Wagons != null && wagonIndex < train.Wagons.Length ? train.Wagons[wagonIndex] : string.Empty;
+            var seats = RailRules.SeatOffsets(item);
+            var local = _trainFrame.InverseTransformPoint(transform.position);
+            int best = -1;
+            float bestD = 1.3f;
+            for (int i = 0; i < seats.Count; i++)
+            {
+                float d = Vector2.Distance(new Vector2(local.x, local.z), new Vector2(seats[i].X, seats[i].Z));
+                if (d < bestD)
+                {
+                    bestD = d;
+                    best = i;
+                }
+            }
+
+            if (best >= 0 && item != RailRules.CabItemKey)
+            {
+                Game.Network?.SendEnterTrain(trainId, wagonIndex, best);
+                return true;
+            }
+
+            if (wagonIndex == 0)
+            {
+                TrainCabUi.Instance?.Open(trainId);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>On foot: E beside a wagon boards it (your own train or an ally's — the server decides).</summary>
+        private bool TryBoardNearbyTrain()
+        {
+            if (Game?.Network == null || Game.Trains == null || Game.Trains.Length == 0)
+            {
+                return false;
+            }
+
+            if (_trainView == null)
+            {
+                _trainView = Object.FindAnyObjectByType<TrainView>();
+            }
+
+            if (_trainView == null)
+            {
+                return false;
+            }
+
+            var t = _trainView.NearestWagon(transform.position, out int wagon, out float dist);
+            if (t == null || dist > TrainBoardReach)
+            {
+                return false;
+            }
+
+            Game.Network.SendEnterTrain(t.Id, wagon, -1);
+            return true;
         }
 
         private static Vector3Int FloorVec(Vector3 v)

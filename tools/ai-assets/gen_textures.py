@@ -183,6 +183,10 @@ TEXTURES = [
     ("auto_drill_3", "a sci-fi auto-drill mk3 block, massive dark metal rig with a wide diamond-tipped drill head pointing down and three glowing violet crystal lights, front view"),
     # #2108 the drill laser (2026-09-27): a Crystal Net machine that cuts a shaft straight down.
     ("drill_laser", "a sci-fi drill laser machine block, dark armoured metal housing with a large downward-pointing cyan laser emitter lens in the centre, thin glowing cyan light strips, three small violet crystal studs, front view"),
+    # #2113 the monorail (2026-09-27): the pylon, the stop and the rail dealer's post.
+    ("rail_pylon", "a sci-fi monorail pylon block, a dark steel post with riveted bands and a glowing cyan energy emitter ring at the top, front view, flat lighting"),
+    ("rail_stop", "a sci-fi monorail stop block, a dark steel signal post with a bright amber halt light and a small holographic timetable panel, front view, flat lighting"),
+    ("rail_post", "a rail dealer's trading post block, a dark steel counter with a small model monorail wagon on top and a cyan rail-line sign, front view, flat lighting"),
     ("matter_sender", "a sci-fi matter sender block, dark metal pedestal with an upward violet crystal emitter ring and cyan energy motes rising, front view"),
     ("matter_receiver", "a sci-fi matter receiver block, dark metal pedestal with a downward cyan crystal collector ring and violet energy motes settling, front view"),
     # #2092 the Device Eye (2026-09-27): reads what a machine is doing and tells the wire.

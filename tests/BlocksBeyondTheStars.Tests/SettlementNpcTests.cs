@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -81,7 +82,7 @@ public sealed class SettlementNpcTests : IDisposable
                 // settlers' spot nearest to home.
                 string[] markerTypes = npc.Role switch
                 {
-                    "vendor" => new[] { "vendor", "doctor", "grocer", "arms_dealer", "sage", "tamer", "blockfarmer" }, // 2026-09: trading professions
+                    "vendor" => new[] { "vendor", "doctor", "grocer", "arms_dealer", "sage", "tamer", "blockfarmer", "rail_dealer" }, // 2026-09: trading professions; #2113 the rail dealer
                     "quartermaster" => new[] { "mission_board" },
                     "settler" => new[] { "npc", "greenhouse", "workshop", "tavern", "vendor", "mission_board", "streamer", "reporter" },
                     "guardian" => new[] { "guard_post" },
@@ -171,8 +172,15 @@ public sealed class SettlementNpcTests : IDisposable
                         // The leash is HORIZONTAL (the code checks XZ only); Y follows the real floor now
                         // (#711) so a doorstep is allowed but the vertical drift stays tightly bounded.
                         float dx = n.Pos.X - n.Home.X, dz = n.Pos.Z - n.Home.Z;
+                        string marker = server.SettlementMarkers.FirstOrDefault(m =>
+                            System.Math.Abs(m.Pos.X - n.Home.X) < 0.001f && System.Math.Abs(m.Pos.Z - n.Home.Z) < 0.001f).Type ?? "?";
+                        if (NpcProfessions.ByMarker(marker) is { WorksOutside: true })
+                        {
+                            continue; // the blockfarmer commutes to the quarry beyond the settlement's edge by day — no home leash
+                        }
+
                         Assert.True(dx * dx + dz * dz <= 16f, // leash ~1.6 → max ~3.6m overshoot
-                            $"NPC '{n.Role}' wandered too far from home ({dx * dx + dz * dz}).");
+                            $"NPC '{n.Role}' at marker '{marker}' (seed {seed}, tick {i}) wandered too far from home ({dx * dx + dz * dz}): home {n.Home}, now {n.Pos}.");
                         Assert.True(System.Math.Abs(n.Pos.Y - n.Home.Y) <= 3f,
                             $"NPC '{n.Role}' drifted vertically ({n.Pos.Y} vs home {n.Home.Y}).");
                     }

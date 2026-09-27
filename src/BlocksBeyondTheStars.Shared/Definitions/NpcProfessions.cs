@@ -94,6 +94,8 @@ public static class NpcProfessions
         new NpcProfession("blockfarmer", "vendor", "blocks", "quarry_post", "quarry", "Storage", "npc_pickaxe", "quarrying", worksOutside: true),
         new NpcProfession("streamer", "settler", string.Empty, "streamer_post", "studio", "Lounge", "npc_camera", "streaming", asksForPhotos: true),
         new NpcProfession("reporter", "settler", string.Empty, "press_desk", "newsroom", "Board", "npc_microphone", "writing", interviews: true),
+        // #2113: the rail dealer — pylons, the linker, stops, the cab and the wagons of the monorail, at a base's rail post.
+        new NpcProfession("rail_dealer", "vendor", "rails", "rail_post", "depot", "Workshop", "npc_hammer", "railing"),
     };
 
     private static readonly Dictionary<string, NpcProfession> ByJobMap = Build(p => p.Job);

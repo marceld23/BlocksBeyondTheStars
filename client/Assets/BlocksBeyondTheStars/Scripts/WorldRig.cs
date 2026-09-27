@@ -214,6 +214,10 @@ namespace BlocksBeyondTheStars.Client
             var crystalUi = root.AddComponent<CrystalDeviceUi>();
             crystalUi.Game = boot;
 
+            // #2113: the monorail cab's panel (speed, halt, autopilot, pack up).
+            var cabUi = root.AddComponent<TrainCabUi>();
+            cabUi.Game = boot;
+
             // Transporter panel: opens on E at a beam pad (destinations: own + allied pads on this world).
             var beamPad = root.AddComponent<BeamPadUi>();
             beamPad.Game = boot;
@@ -254,6 +258,13 @@ namespace BlocksBeyondTheStars.Client
             var speeders = root.AddComponent<SpeederView>();
             speeders.Game = boot;
 
+            // #2113: the monorail — the glowing rail lines and the trains hovering on them.
+            var rails = root.AddComponent<RailView>();
+            rails.Game = boot;
+            var trains = root.AddComponent<TrainView>();
+            trains.Game = boot;
+            trains.Rails = rails;
+
             // Hyperspace warp animation (plays on a system-to-system jump).
             var warp = root.AddComponent<HyperspaceWarp>();
             warp.Game = boot;
@@ -285,6 +296,7 @@ namespace BlocksBeyondTheStars.Client
             // Render other players (multiplayer presence).
             var remotes = root.AddComponent<RemotePlayers>();
             remotes.Game = boot;
+            remotes.Trains = trains; // #2113: riders are placed relative to the wagons this client draws
 
             // Suit teleporter destination picker (#1056): back to ship, or to an allied player on this body.
             var teleporter = root.AddComponent<TeleporterUi>();

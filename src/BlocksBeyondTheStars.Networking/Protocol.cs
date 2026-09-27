@@ -24,8 +24,12 @@ public static class Protocol
     /// v6 (#1821): FarTerrainTileRequest / FarTerrainTile — the far view asks the server for the persisted builds
     /// (cities, settlements, player builds) of distant tiles; a v5 server cannot decode the request.
     /// v7 (#2045): the Crystal Net — CrystalNetList / CrystalDeviceList / SetCrystalDeviceIntent / SoundFx, and
-    /// NetDoor carries a Mode (normal / locked / held open); a v6 peer cannot decode the new lists.</summary>
-    public const int Version = 7;
+    /// NetDoor carries a Mode (normal / locked / held open); a v6 peer cannot decode the new lists.
+    /// v8 (#2113): the monorail — RailList / TrainList / EnterTrainIntent / ExitTrainIntent / SetTrainIntent /
+    /// StowTrainIntent, MoveIntent and PlayerPresence carry a moving frame (train + local offset) and
+    /// PlayerStateUpdate the ridden train; a v7 client drops every rail line and train and would draw a rider at
+    /// the wagon's origin instead of inside it.</summary>
+    public const int Version = 8;
 
     public const int DefaultGameplayPort = 31415;
     public const int DefaultAdminPort = 31416;

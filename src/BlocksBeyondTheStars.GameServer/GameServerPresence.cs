@@ -413,6 +413,10 @@ public sealed partial class GameServer
             Seated = p.Seated,
             Gear = GearMask(p),
             Held = HeldItemKey(p),
+            FrameId = p.InTrain, // #2113: aboard a train — the wagon frame and the rider's offset in it
+            LocalX = p.TrainLocalX,
+            LocalY = p.TrainLocalY,
+            LocalZ = p.TrainLocalZ,
         };
     }
 

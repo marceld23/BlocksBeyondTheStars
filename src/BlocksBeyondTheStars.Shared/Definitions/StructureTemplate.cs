@@ -122,13 +122,16 @@ public static class StructureRoles
     public const string Studio = "studio";
     public const string Newsroom = "newsroom";
 
-    public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom };
+    /// <summary>#2113: the rail dealer's depot — the monorail's parts, pylons to wagons. It takes a dwelling plot.</summary>
+    public const string Depot = "depot";
+
+    public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom, Depot };
     public static readonly string[] CityRoles = { CityHousing, CityMarket, CityHall, CityGarden, CityTower };
 
     /// <summary>Every role, in the order the editor's stepper walks them (whole first).</summary>
     public static readonly string[] All =
     {
-        string.Empty, House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom,
+        string.Empty, House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom, Depot,
         CityHousing, CityMarket, CityHall, CityGarden, CityTower,
     };
 

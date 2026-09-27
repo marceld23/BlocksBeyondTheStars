@@ -55,6 +55,10 @@ public enum CrystalDeviceKind
     /// spoils into the crate beside it (ore and oil; in "only ore" mode the rock is vaporised). Appended last: the kind
     /// travels by name, but an enum index must never shift.</summary>
     DrillLaser,
+
+    /// <summary>#2113: a monorail stop — a train on autopilot halts beside it for a while; a signal's rising edge on its
+    /// port departs the halted train at once. Appended last.</summary>
+    RailStop,
 }
 
 /// <summary>How a door reacts to the Crystal Net: no conduit beside it → <see cref="Normal"/>; a conduit beside it
@@ -226,6 +230,7 @@ public static class CrystalNetRules
         ["matter_sender"] = CrystalDeviceKind.MatterSender,
         ["matter_receiver"] = CrystalDeviceKind.MatterReceiver,
         ["drill_laser"] = CrystalDeviceKind.DrillLaser,
+        ["rail_stop"] = CrystalDeviceKind.RailStop, // #2113
         ["radio_beacon"] = CrystalDeviceKind.Beacon,
         ["beam_block"] = CrystalDeviceKind.BeamPad,
         ["sentry_post"] = CrystalDeviceKind.Sentry,
@@ -297,7 +302,7 @@ public static class CrystalNetRules
         or CrystalDeviceKind.MelodyBlock or CrystalDeviceKind.Announcer or CrystalDeviceKind.Thumper
         or CrystalDeviceKind.HydroTray or CrystalDeviceKind.BeamPad or CrystalDeviceKind.Fabricator
         or CrystalDeviceKind.MatterSender or CrystalDeviceKind.CloneTank or CrystalDeviceKind.AutoDrill
-        or CrystalDeviceKind.Caller or CrystalDeviceKind.DrillLaser;
+        or CrystalDeviceKind.Caller or CrystalDeviceKind.DrillLaser or CrystalDeviceKind.RailStop; // #2113: a signal departs the train
 
     /// <summary>Devices the sensor beat polls (world queries, capped per world).</summary>
     public static bool IsSensor(CrystalDeviceKind kind) => kind is CrystalDeviceKind.StepPlate

@@ -498,6 +498,7 @@ public sealed partial class GameServer
     private static string KeyForKind(CrystalDeviceKind kind) => kind switch
     {
         CrystalDeviceKind.Conduit => CrystalNetRules.ConduitBlockKey,
+        CrystalDeviceKind.RailStop => "rail_stop", // #2113
         CrystalDeviceKind.Switch => "crystal_switch",
         CrystalDeviceKind.Button => "crystal_button",
         CrystalDeviceKind.StepPlate => "step_plate",
@@ -637,7 +638,7 @@ public sealed partial class GameServer
                 return;
             case 1 when cell.Kind is CrystalDeviceKind.Fabricator or CrystalDeviceKind.MatterSender or CrystalDeviceKind.CloneTank
                 or CrystalDeviceKind.AutoDrill or CrystalDeviceKind.Caller or CrystalDeviceKind.Thumper or CrystalDeviceKind.HydroTray
-                or CrystalDeviceKind.DrillLaser:
+                or CrystalDeviceKind.DrillLaser or CrystalDeviceKind.RailStop: // #2113: a press on the stop departs the train
                 if (!CanConfigureCrystal(cell, me, session.State.IsAdmin))
                 {
                     Reject(session, "crystal", "@srv.crystal.owner_only");

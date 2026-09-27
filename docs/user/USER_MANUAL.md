@@ -1696,6 +1696,26 @@ separate unlock; admins can still disable it through server world rules.
   back onto the last spot that floated. Shallow water lets you nose onto a beach to get out.
 - Hull damage, destruction and persistence match the speeder; the boat cannot be refuelled (nothing to fill).
 
+### Monorail hover train (Justus' idea)
+- **The line.** Craft **rail pylons** (blueprint *Monorail*, or buy them from a **rail dealer** — place a *Rail Dealer's
+  Post* at your base). Place a row of pylons: each one **links itself** to the last one you placed within **32 blocks**, as
+  long as the line does not bend more than about **30°** — and a glowing **energy line** appears between them. **Stack**
+  pylons to lift the line over things. A line that would run **through solid blocks is refused** ("Obstacle") — give it
+  room. A pylon carries **at most two links** (no forks). The **rail linker** couples any two pylons by hand (use it on
+  the first, then the second): close a **loop**, join two lines, or — on two linked pylons — uncouple them.
+- **Stops.** A **rail stop** placed beside the line (within four blocks) halts a train on autopilot for a few seconds. It
+  is a Crystal-Net device: a signal on its port (a switch, a button, a sensor) sends the halted train off at once.
+- **The train.** Use the **monorail cab** on a line and it appears there, hovering. Use a **seat wagon**, **sleeper
+  wagon** or **bar wagon** just behind the last wagon to couple it on (six wagons at most). **E** near a wagon boards it;
+  inside, **you walk around while it moves** — the wagon is your ground, wagon to wagon through the open ends — or sit
+  down on a seat (E beside it; jump or move to stand up). **E in the cab** opens the panel: **speed 1–3**, **halt / go**,
+  **autopilot** (the train runs by itself, halts at every stop, and turns round at the ends of an open line — on a
+  loop it just keeps going). **F** or walking out of the open side leaves the train; you are set down beside it.
+  Allies may ride your train. The owner **packs it up** from the cab panel or with the stow key beside it: the cab
+  and every wagon come back as items. A fall taken aboard is never a fall.
+- Other riders on the same train are placed inside the wagons exactly as your game draws them, so nobody slides
+  through a wall on a curve or across the world seam.
+
 ### Craftable block shapes
 - Any held **building material** can be re-formed into a non-cube **shape** — **slab, pyramid, dome (half-sphere),
   sphere, ramp, stairs, cone, cylinder, panel** (thin plate), **post** (slim pillar), **beam** (horizontal bar),

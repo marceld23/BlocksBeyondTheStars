@@ -27,7 +27,7 @@ public sealed class NpcProfessionTests : IDisposable
     [Fact]
     public void TheTable_IsUnique_AndEveryProfessionHasItsRoomItsBuildingAndItsKeys()
     {
-        Assert.Equal(8, NpcProfessions.All.Count);
+        Assert.Equal(9, NpcProfessions.All.Count); // #2113: the rail dealer joined the table
         Assert.Equal(NpcProfessions.All.Count, NpcProfessions.All.Select(p => p.Job).Distinct().Count());
         Assert.Equal(NpcProfessions.All.Count, NpcProfessions.All.Select(p => p.PostBlock).Distinct().Count());
         Assert.Equal(NpcProfessions.All.Count, NpcProfessions.All.Select(p => p.Function).Distinct().Count());

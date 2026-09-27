@@ -65,6 +65,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 3 } ]
   },
   {
+    "key": "monorail", "nameKey": "blueprint.monorail.name", "descriptionKey": "blueprint.monorail.desc",
+    "category": "Tools", "prerequisites": [ "speeder", "fluid_pump" ], "knowledgeCost": 160,
+    "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "titanium_plate", "count": 12 }, { "item": "crystal", "count": 6 }, { "item": "polymer", "count": 6 } ]
+  },
+  {
     "key": "camera", "nameKey": "blueprint.camera.name", "descriptionKey": "blueprint.camera.desc",
     "category": "Tools", "prerequisites": [], "knowledgeCost": 9,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 3 }, { "item": "glass", "count": 1 } ]

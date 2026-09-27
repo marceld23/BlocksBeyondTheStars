@@ -6,6 +6,7 @@ using System.IO;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Primitives;
@@ -430,6 +431,36 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Id of the speeder the local player is currently driving ("" = on foot) — from the authoritative
         /// player state. Drives the vehicle HUD + the drive controls.</summary>
         public string InSpeeder { get; private set; } = string.Empty;
+
+        /// <summary>#2113: the monorail's rail lines and trains on the current world (<see cref="RailView"/> draws the lines,
+        /// <see cref="TrainView"/> the wagons), and the train frame the local player rides in ("" = on foot) with the seat.</summary>
+        public NetRailLine[] Rails { get; private set; } = System.Array.Empty<NetRailLine>();
+        public NetTrain[] Trains { get; private set; } = System.Array.Empty<NetTrain>();
+        public double TrainsReceivedAt { get; private set; }
+        public string InTrain { get; private set; } = string.Empty;
+        public int TrainSeat { get; private set; } = -1;
+
+        /// <summary>The train the local player rides (null on foot).</summary>
+        public NetTrain RiddenTrain
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(InTrain) || !RailRules.TryParseFrame(InTrain, out string trainId, out _))
+                {
+                    return null;
+                }
+
+                foreach (var t in Trains)
+                {
+                    if (t != null && t.Id == trainId)
+                    {
+                        return t;
+                    }
+                }
+
+                return null;
+            }
+        }
 
         /// <summary>Current local speeder ground speed (m/s, signed), published by <see cref="PlayerController"/>
         /// while driving so the vehicle HUD can show it.</summary>
@@ -2383,6 +2414,12 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.CompanionsReceived += m => Companions = m ?? new CompanionList();
             Network.SpeedersReceived += m => Speeders = m.Speeders ?? System.Array.Empty<NetSpeeder>();
+            Network.RailsReceived += m => Rails = m.Lines ?? System.Array.Empty<NetRailLine>(); // #2113
+            Network.TrainsReceived += m =>
+            {
+                Trains = m.Trains ?? System.Array.Empty<NetTrain>();
+                TrainsReceivedAt = Time.timeAsDouble;
+            };
             Network.SpeederFxReceived += m =>
             {
                 PendingSpeederFx.Add(m);
@@ -3313,6 +3350,8 @@ namespace BlocksBeyondTheStars.Client
             DataCubes = System.Array.Empty<NetDataCube>();
             NetFragments = System.Array.Empty<NetStoryFragment>();
             Speeders = System.Array.Empty<NetSpeeder>();
+            Rails = System.Array.Empty<NetRailLine>(); // #2113: per-world — the new world re-sends its lines and trains
+            Trains = System.Array.Empty<NetTrain>();
             PendingSpeederFx.Clear(); // queued one-shot FX would play at old-world coordinates
             Waypoint = null; // a map-click waypoint is old-world coordinates too — without this the HUD
                              // compass kept pointing at a meaningless spot on every next planet (#592)
@@ -3524,6 +3563,13 @@ namespace BlocksBeyondTheStars.Client
             Aboard = m.AboardShip;
             InEva = m.InEva;
             InSpeeder = m.InSpeeder ?? string.Empty;
+            if (InTrain.Length > 0 && string.IsNullOrEmpty(m.InTrain))
+            {
+                RespawnTarget = new Vector3(m.X, m.Y, m.Z); // #2113: set down beside the wagon — the body snaps there
+            }
+
+            InTrain = m.InTrain ?? string.Empty; // #2113
+            TrainSeat = m.TrainSeat;
 
             // Observer mode toggled by the server (issue #487) — tell the player which mode they are in, since
             // the visual difference (no hotbar, free flight) is easy to mistake for a bug otherwise.

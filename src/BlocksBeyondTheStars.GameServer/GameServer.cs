@@ -816,6 +816,7 @@ public sealed partial class GameServer
         LoadBeacons();     // placed radio beacons restore their label/owner entities (the blocks come back via edits)
         LoadBeams();       // placed beam blocks restore their name/owner entities (the blocks come back via edits)
         LoadCrystalNet();  // #2046: conduits + devices rebuild their networks from their rows
+        LoadRails();       // #2113: the monorail's pylons, links and trains from the metadata
 
         MarkBodyVisited(locationId); // #1856: resolves a station world's `station:` id to its body, so stations chart too
 
@@ -1059,6 +1060,7 @@ public sealed partial class GameServer
         SendMarkers(session); // the new body's markers (#1217) — the old world's set is stale now
         SendBeams(session); // placed beam blocks (teleporter pads) on this body
         SendCrystalNet(session); // #2046: the Crystal Net lists of this world
+        SendRails(session);      // #2113: the rail lines and trains of this world
         SendBases(session); // player-founded bases on this body (Grundstein markers)
         BroadcastLandingPads(session); // the arrival claimed a pad — everyone's map must show it (#1020)
         SendContainers(session);
@@ -1723,6 +1725,7 @@ public sealed partial class GameServer
             Guard("TickCreatures", deltaSeconds, TickCreatures);
             Guard("TickSreekmakra", deltaSeconds, TickSreekmakra); // 2026-09: Valuma's shapeshifter and mood (1 Hz)
             Guard("TickGiants", deltaSeconds, TickGiants); // #1998: the colossus, the sandworms and the thumpers
+            Guard("TickTrains", deltaSeconds, TickTrains); // #2113: the monorail trains and their riders
             Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
             Guard("TickNpcPaths", deltaSeconds, TickNpcPaths); // #1866: at most one NPC path search per tick
             Guard("TickNpcs", deltaSeconds, TickNpcs);
@@ -2368,6 +2371,7 @@ public sealed partial class GameServer
         _inShipInterior.Remove(p.PlayerId); // and any in-ship walkabout
         _dockedFromEva.Remove(p.PlayerId);  // and any "ship floating while docked" memory
         ReleaseDrivenVehicle(p);            // and the seat of a speeder/boat — the bond used to survive (#1661)
+        LeaveTrainSilently(p);              // #2113: and the train — the respawn places the body
 
         if (useCustomSpawn && TryCustomRespawn(session, reason, salvaged, sameWorld))
         {
@@ -2518,6 +2522,7 @@ public sealed partial class GameServer
         SendMarkers(session);
         SendBeams(session);
         SendCrystalNet(session); // #2046: the Crystal Net lists of this world
+        SendRails(session);      // #2113: the rail lines and trains of this world
         SendBases(session);
         SendSpeeders(session);
     }
@@ -3662,6 +3667,10 @@ public sealed partial class GameServer
             case RefuelSpeederIntent refuelSpeeder: HandleRefuelSpeeder(session, refuelSpeeder); break;
             case SpeederImpactIntent speederImpact: HandleSpeederImpact(session, speederImpact); break;
             case RecallVehicleIntent recallVehicle: HandleRecallVehicle(session, recallVehicle); break;
+            case EnterTrainIntent enterTrain: HandleEnterTrain(session, enterTrain); break; // #2113
+            case ExitTrainIntent: HandleExitTrain(session); break;
+            case SetTrainIntent setTrain: HandleSetTrain(session, setTrain); break;
+            case StowTrainIntent stowTrain: HandleStowTrain(session, stowTrain); break;
             case SetBeaconLabelIntent beacon: HandleSetBeaconLabel(session, beacon); break;
             case SetBeamNameIntent beamName: HandleSetBeamName(session, beamName); break;
             case BeamTeleportIntent beamJump: HandleBeamTeleport(session, beamJump); break;
@@ -3836,6 +3845,8 @@ public sealed partial class GameServer
             state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
             ClampInventory(state.Inventory, $"player '{name}' inventory");
             EnsureEquipmentInitialised(state); // #2110: a pre-slot save's gear moves into the slots once
+            state.InTrain = string.Empty;      // #2113: a train bond never survives a join — the player stands where they were
+            state.TrainSeat = -1;
             ClampInventory(state.Equipment, $"player '{name}' equipment");
             ClampInventory(state.RationStore, $"player '{name}' ration store");
         }
@@ -4006,6 +4017,7 @@ public sealed partial class GameServer
         SendBeacons(session);
         SendBeams(session); // placed beam blocks (teleporter pads) on the join world
         SendCrystalNet(session); // #2046: the Crystal Net lists of this world
+        SendRails(session);      // #2113: the rail lines and trains of this world
         SendBases(session); // player-founded bases on the join world (Grundstein markers)
         SendAllianceList(session); // the player's alliance roster (shared station/base access + Funk tab)
         SendCrewList(session);     // crew roster + open invites (#1216)
@@ -4239,6 +4251,8 @@ public sealed partial class GameServer
             state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
             ClampInventory(state.Inventory, $"player '{name}' inventory");
             EnsureEquipmentInitialised(state); // #2110: a pre-slot save's gear moves into the slots once
+            state.InTrain = string.Empty;      // #2113: a train bond never survives a join — the player stands where they were
+            state.TrainSeat = -1;
             ClampInventory(state.Equipment, $"player '{name}' equipment");
             ClampInventory(state.RationStore, $"player '{name}' ration store");
         }
@@ -4455,6 +4469,11 @@ public sealed partial class GameServer
             return; // lying dead awaiting the respawn choice — the corpse doesn't walk
         }
 
+        if (HandleFramedMove(session, move))
+        {
+            return; // #2113: aboard a train the pose is wagon-local; the world position is derived from the train
+        }
+
         // MVP: trust position but clamp to sane finite values. (Full movement validation later.)
         if (float.IsFinite(move.X) && float.IsFinite(move.Y) && float.IsFinite(move.Z))
         {
@@ -4524,6 +4543,11 @@ public sealed partial class GameServer
         if (InSpace(p.PlayerId) || !float.IsFinite(intent.ImpactSpeed))
         {
             return; // piloting in space — there is no on-foot fall to take
+        }
+
+        if (p.InTrain.Length > 0)
+        {
+            return; // #2113: the frame's own motion is never a fall
         }
 
         if (session.StationZeroG || InStationZeroGFallGrace(session))
@@ -4813,6 +4837,7 @@ public sealed partial class GameServer
         _world.SetBlock(pos, BlockId.Air, owner: ownerId);
         _miningProgress.Remove(pos);
         OnCrystalBlockRemoved(pos, def); // #2046: a mined conduit or device leaves the Crystal Net
+        OnRailBlockRemoved(pos, def); // #2113: a mined pylon leaves the rail graph
 
         if (IsContainerBlock(def.Key))
         {
@@ -5450,6 +5475,7 @@ public sealed partial class GameServer
         }
 
         OnCrystalBlockPlaced(session, pos, blockDef, place.Label, place.Yaw); // #2046: a conduit or device joins the Crystal Net
+        OnRailBlockPlaced(session, pos, blockDef); // #2113: a pylon joins the rail graph (and auto-links), a stop joins its line
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow, Shape = placeShape });
         NudgeCreatureBodyChecks(pos); // #1357: an animal the block landed in steps aside on its next tick
         if (IsFluid(blockDef.NumericId.Value))
@@ -7014,6 +7040,8 @@ public sealed partial class GameServer
             StationName = CurrentStationName(p.PlayerId),
             AiCoreTier = VegaCoreTier(session),
             InSpeeder = p.InSpeeder,
+            InTrain = p.InTrain, // #2113
+            TrainSeat = p.TrainSeat,
             Spectating = session.Spectating,
             // A creative world lets everybody fly; a per-player Creative override (#1121) grants it too;
             // /fly keeps working as the per-player admin cheat.

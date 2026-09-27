@@ -315,6 +315,12 @@ public sealed class NetCodecTests
         [267] = typeof(SoundFx),
         [268] = typeof(EquipItemIntent),
         [269] = typeof(UnequipItemIntent),
+        [270] = typeof(RailList),
+        [271] = typeof(TrainList),
+        [272] = typeof(EnterTrainIntent),
+        [273] = typeof(ExitTrainIntent),
+        [274] = typeof(SetTrainIntent),
+        [275] = typeof(StowTrainIntent),
 
     };
 

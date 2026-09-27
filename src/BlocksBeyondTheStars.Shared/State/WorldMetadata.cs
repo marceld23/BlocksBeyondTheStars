@@ -98,6 +98,15 @@ public sealed class WorldMetadata
     public System.Collections.Generic.Dictionary<string, string> BodyLandingPads { get; set; } = new();
 
     /// <summary>
+    /// The monorail (#2113): bodyId → the rail graph of that world (one pylon per entry as <c>x,y,z:lx,ly,lz;lx,ly,lz</c>,
+    /// pylons separated by <c>|</c>) and bodyId → its trains (one per entry as <c>id,owner,line,arc,speed,dir,auto,wagon+wagon</c>,
+    /// trains separated by <c>|</c>). The pylons are blocks in the world; the links between them and the trains are
+    /// not, so they are written down here on every change. Additive JSON fields, no migration.
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string> RailGraphs { get; set; } = new();
+    public System.Collections.Generic.Dictionary<string, string> Trains { get; set; } = new();
+
+    /// <summary>
     /// VEGA's relay-network insight stages already spoken ("relay" / "lane" / "growth", F-2 of #1125) —
     /// each epilogue insight plays exactly once per save. Additive JSON field, no migration.
     /// </summary>
