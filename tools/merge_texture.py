@@ -52,7 +52,7 @@ def alpha_mode(key):
     if key.startswith(("creature_", "microfauna_", "avatar_")):
         return "free"
     if key.startswith("flora_") or key in (
-            "tree_leaves", "pine_needles", "palm_frond", "giant_leaves", "fire", "torch", "lantern"):
+            "tree_leaves", "pine_needles", "palm_frond", "giant_leaves", "fifi_leaf", "fire", "torch", "lantern"):
         return "cutout"
     return "opaque"
 

@@ -44,6 +44,7 @@ FOLIAGE = [
     "flora_sunblossom", "flora_tulip", "flora_hangkelp",
     "flora_glowmoss", "flora_glowthread",  # generation 11 cave flora (code-painted cutouts until their tiles exist)
     "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana",  # fruit trees (#2038): a pale fruit on black
+    "fifi_leaf", "flora_fifi_berries",  # the Fifi plant (#2085): its yellow crown + its berries (a berry cluster on black)
     # flora_sapling (#1774) is NOT here: its tile ships with a chroma-keyed alpha (the plant on a plain tan ground),
     # so the darkness cut would remove the stem, not the background.
 ]
@@ -52,7 +53,7 @@ FOLIAGE = [
 # Tiles painted as ONE pale object on a pure black ground (the fruit of #2038): a fixed fraction would either leave
 # black around the object or eat its edge, so these cut every pixel that is (nearly) black instead — per pixel, not per
 # coarse cell, because a fruit needs a clean outline, not chunky leaf gaps.
-DARK_GROUND = {"flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana"}
+DARK_GROUND = {"flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana", "flora_fifi_berries"}
 DARK_GROUND_CUTOFF = 0.12  # brightness at or below this = the black ground (a dark stem sits well above it)
 
 

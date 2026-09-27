@@ -706,6 +706,13 @@ public sealed partial class WorldGenerator
             StampGiantTrees(planet, seed, chunk, coord, biomes, fluidLevel);
         }
 
+        // Generation 16 (#2085): Sophie's Fifi plants — groves of tree-sized plants with glowing blossoms and berries on
+        // every world with plant life (the pass gates itself on the generation and the world's ground).
+        if (flora && floraDensity > 0.0)
+        {
+            StampFifiPlants(planet, seed, chunk, coord, biomes, fluidLevel, trees);
+        }
+
         if (geysers)
         {
             StampGeysers(planet, seed, chunk, coord, geyserVentId, fluidLevel);

@@ -1735,7 +1735,9 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
+            // #2085: the Fifi plant's yellow leaves are a cutout crown too — but no flora block, so they keep their colour.
             return key == "tree_leaves" || key == "pine_needles" || key == "palm_frond" || key == "giant_leaves"
+                || BlocksBeyondTheStars.Shared.Definitions.FifiPlant.IsAuthoredFoliage(key)
                 || (key.StartsWith("flora_", System.StringComparison.Ordinal) && !SolidFlora.Contains(key));
         }
 
@@ -2156,7 +2158,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitFlowerPot = 1u << 17;
         private const uint TraitFire = 1u << 18;
         private const uint TraitExposesOpaqueFace = 1u << 19; // transparent | flora | foliage | slim prop (air handled by the caller)
-        private const uint TraitCultivated = 1u << 20;        // #1716: a farmed crop — flora that keeps its authored colour (no tint mode)
+        private const uint TraitCultivated = 1u << 20;        // #1716: a farmed crop (and #2085 an authored plant) — flora that keeps its authored colour (no tint mode)
         private const uint TraitHangingFlora = 1u << 21;      // #1759: a plant rooted in the block ABOVE — the billboard grows downward
         private const uint TraitRainbowFlora = 1u << 22;      // generation 11: every plant its own colour (FloraTints.RainbowAt)
 
@@ -2199,7 +2201,7 @@ namespace BlocksBeyondTheStars.Client
                     if (key != null && key.StartsWith("flora_", System.StringComparison.Ordinal)) f |= TraitFloraPrefix;
                     if (key != null && TallFlora.Contains(key)) f |= TraitTallFlora;
                     if (key != null && SolidFlora.Contains(key)) f |= TraitSolidFlora;
-                    if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsCultivated(key)) f |= TraitCultivated;
+                    if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.KeepsOwnColour(key)) f |= TraitCultivated;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsHanging(key)) f |= TraitHangingFlora;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsRainbow(key)) f |= TraitRainbowFlora;
                     if (key == "water") f |= TraitWater;

@@ -139,6 +139,19 @@ public sealed partial class GameServer
                 readout.Display = string.IsNullOrEmpty(tree.Name) ? subjectKey : tree.Name;
                 ledgerKey = $"tree:{tree.Id}";
             }
+            else if (Shared.Definitions.FifiPlant.IsPart(subjectKey))
+            {
+                // #2085: Sophie's Fifi plant is authored — no coined name, never toxic, the same on every world. Every part
+                // reads as the edible "Fifi plant" (the client localizes ui.scan.subject.fifi_plant), and the trunk, the
+                // leaves, the blossoms and the berries count as ONE discovery, like a tree's trunk and leaves.
+                readout.Kind = "flora";
+                readout.InfoKey = hasDrops ? string.Empty : "ui.scan.flora_harvest";
+                readout.ThreatKey = "ui.scan.threat.edible";
+                readout.LegacyInfo = hasDrops ? $"Yields: {readout.LegacyInfo}" : "Harvestable flora.";
+                readout.LegacyThreat = "Edible";
+                readout.Display = Shared.Definitions.FifiPlant.ScanSubject;
+                ledgerKey = Shared.Definitions.FifiPlant.LedgerKey;
+            }
             else if (FloraSpeciesForBlock(subjectKey) is { } flora)
             {
                 readout.Kind = "flora";

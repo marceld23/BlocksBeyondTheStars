@@ -109,8 +109,9 @@ public sealed class FloraTests : IDisposable
 
         Assert.NotEmpty(a);
         // One species per WILD archetype. Cultivated crops (#627) are deliberately absent: a roster entry
-        // would hand them a rolled name and toxicity, and a greenhouse berry has to stay edible everywhere.
-        Assert.Equal(a.Count, FloraCatalog.All.Count(s => !s.Cultivated));
+        // would hand them a rolled name and toxicity, and a greenhouse berry has to stay edible everywhere. An
+        // authored plant (#2085, the Fifi plant's berries) stays out for the same reason.
+        Assert.Equal(a.Count, FloraCatalog.All.Count(s => !s.Cultivated && !s.Authored));
         Assert.DoesNotContain(a, s => FloraCatalog.IsCultivated(s.BlockKey));
         for (int i = 0; i < a.Count; i++)
         {

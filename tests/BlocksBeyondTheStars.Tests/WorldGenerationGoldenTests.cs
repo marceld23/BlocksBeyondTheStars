@@ -109,6 +109,9 @@ public sealed class WorldGenerationGoldenTests
         new("tundra-gen11", 20260903, "tundra", 0, false, null, 11),
         // Generation 15 (2026-09-27, #2068): Toxica-Maxima — tainted ground and ores, dead snags of tainted wood, needles and caves.
         new("toxica_maxima-gen15", 20260927, "toxica_maxima", 0, false, null, 15),
+        // Generation 16 (2026-09-27, #2087): Sophie's Fifi plant — seeds whose sampled chunks hold a grove (meadow + desert sand).
+        new("meadowlands-gen16", 20260954, "meadowlands", 0, false, null, 16),
+        new("desert-gen16", 20260931, "desert", 0, false, null, 16),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -184,6 +187,9 @@ public sealed class WorldGenerationGoldenTests
             ["tundra-gen11"] = 0xe89f39b4dac6d442UL,
             // Pinned 2026-09-27 (Toxica-Maxima, generation 15; Windows 11, .NET 10).
             ["toxica_maxima-gen15"] = 0x1ec4ca28d46a4ab8UL,
+            // Pinned 2026-09-27 (the Fifi plant, generation 16; Windows 11, .NET 10).
+            ["meadowlands-gen16"] = 0x3ec554a1642681e7UL,
+            ["desert-gen16"] = 0x5ee850488e4f46b8UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

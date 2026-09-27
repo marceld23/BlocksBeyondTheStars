@@ -85,8 +85,14 @@ public static class FloraCatalog
         string[]? CaveHosts = null,
         bool Rainbow = false,
         float Light = 0f,
-        bool Fruit = false)
+        bool Fruit = false,
+        bool Authored = false)
     {
+        // Authored (#2085, generation 16): a plant a child of the school club designed — named, coloured and edible the same
+        // on every world. Like a crop it never joins a world roster (no coined name, no toxic roll, so its drop is never
+        // swapped for the toxic twin) and keeps its authored colour (no world tint); unlike a crop no greenhouse grows it.
+        // World generation places it as part of its authored plant (the Fifi plant's berries, FifiPlant), so an authored
+        // fruit is not one of the tree fruit shapes either (FruitKeys leaves it out).
         // Habitat / CaveHosts / Rainbow / Light (generation 11, cave flora). Habitat says where the generator plants a
         // species (the surface, the caves or both). CaveHosts are the blocks a species roots on UNDERGROUND — kept apart
         // from Hosts so a surface mushroom that also grows on cave rock never starts growing on mountain stone, and so
@@ -217,6 +223,11 @@ public static class FloraCatalog
         new Species("flora_fruit_grape",  FruitHosts, Tags: FloraTag.Lush | FloraTag.Wetland, Hanging: true, MinGeneration: 14, Fruit: true), // a grape cluster
         new Species("flora_fruit_banana", FruitHosts, Tags: FloraTag.Tropical, Hanging: true, MinGeneration: 14, Fruit: true),               // a banana
 
+        // --- The Fifi plant (#2085, generation 16): Sophie's berries, hanging under the plant's yellow leaves and back two
+        // minutes after picking (Fruit). Authored — the same edible berries in the same colour on every world, in no roster.
+        // Appended before the crops like every wave. ---
+        new Species(FifiPlant.BerriesKey, new[] { FifiPlant.LeafKey }, Tags: FloraTag.Lush, Hanging: true, MinGeneration: 16, Fruit: true, Authored: true),
+
         // --- Cultivated crops (#627): farmed, not wild. Grown in settlement/station greenhouses and by the
         // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible
         // on every world; the host list is what the greenhouse beds and hydroponic trays are made of.
@@ -305,16 +316,25 @@ public static class FloraCatalog
     /// <summary>True for a species whose every plant takes its own colour from its cell (generation 11).</summary>
     public static bool IsRainbow(string key) => Find(key)?.Rainbow == true;
 
-    /// <summary>True for a fruit shape that hangs under a tree crown (#2038, see <see cref="Species.Fruit"/>).</summary>
+    /// <summary>True for a fruit that hangs under a crown and ripens again slowly (#2038, see <see cref="Species.Fruit"/>) —
+    /// the tree fruit shapes and the Fifi plant's authored berries (#2085).</summary>
     public static bool IsFruit(string key) => Find(key)?.Fruit == true;
 
-    /// <summary>The block keys of the fruit shapes in catalog order — the order the world's active subset keeps.</summary>
+    /// <summary>True for a plant a child of the school club designed (#2085, see <see cref="Species.Authored"/>).</summary>
+    public static bool IsAuthored(string key) => Find(key)?.Authored == true;
+
+    /// <summary>True for a species that keeps its authored colour on every world instead of the world's flora hue: the
+    /// farmed crops (#1716) and the authored plants (#2085).</summary>
+    public static bool KeepsOwnColour(string key) => Find(key) is { } sp && (sp.Cultivated || sp.Authored);
+
+    /// <summary>The block keys of the TREE fruit shapes in catalog order — the order the world's active subset keeps. An
+    /// authored fruit (#2085) belongs to its own plant, never to a tree, and is left out.</summary>
     public static IReadOnlyList<string> FruitKeys()
     {
         var keys = new List<string>();
         foreach (var sp in All)
         {
-            if (sp.Fruit)
+            if (sp.Fruit && !sp.Authored)
             {
                 keys.Add(sp.Key);
             }

@@ -289,6 +289,13 @@ TEXTURES = [
     ("flora_fruit_long", "a single long slender smooth pod-like fruit in pale ivory white with soft grey shading, hanging straight down from a short dark brown stem at the top edge of the image, on a pure black background, side view"),
     ("flora_fruit_grape", "a single hanging cluster of many small round pale ivory white grapes with soft grey shading, hanging from a short dark brown stem at the top edge of the image, the entire rest of the image solid pitch-black #000000 with no gradient and no vignette, side view"),
     ("flora_fruit_banana", "a single curved banana-shaped fruit in pale ivory white with soft grey shading, hanging from a short dark brown stem at the top edge of the image, on a pure black background, side view"),
+    # The Fifi plant (#2085, generation 16) — Sophie's plant from the school club, in HER colours (authored: no world tint):
+    # a green trunk, yellow leaves (bake_leaf_alpha punches the dark gaps), glowing pink blossoms, and a berry cluster
+    # hanging from the top edge on black like the fruit tiles (the dark-ground bake cuts the black away).
+    ("fifi_stem", "a smooth juicy bright green plant stalk surface like the stem of a giant flower, fine vertical fibres and a few lighter lime-green streaks, front view"),
+    ("fifi_leaf", "a dense crown of many small overlapping bright lemon-yellow leaves with sunny highlights, dark olive shadows in the gaps between the leaves, top-down"),
+    ("fifi_blossom", "densely packed bright pink flower blossoms filling the whole image edge to edge, overlapping soft hot-pink and light pink petals with small luminous pale pink centres, no background visible, top-down"),
+    ("flora_fifi_berries", "a single hanging cluster of many small round shiny deep magenta-pink berries with bright highlights, hanging from a short green stem at the top edge of the image, the entire rest of the image solid pitch-black #000000 with no gradient and no vignette, side view"),
 ]
 
 if TYPE_CHECKING:

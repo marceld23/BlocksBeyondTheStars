@@ -260,8 +260,9 @@ namespace BlocksBeyondTheStars.Client
 
                 // Farmed crops (#627) keep their own colour on every world. The per-world hue is what makes a
                 // world's WILD plant life its own; a greenhouse berry has to read as ripe fruit whether it grows
-                // in a village on a green world or on an alien one, or the player can't tell food from scenery.
-                if (BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsCultivated(def.Key))
+                // in a village on a green world or on an alien one, or the player can't tell food from scenery. An
+                // authored plant (#2085, the Fifi plant's berries) keeps the colours its designer chose, too.
+                if (BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.KeepsOwnColour(def.Key))
                 {
                     continue;
                 }

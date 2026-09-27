@@ -77,8 +77,10 @@ public static class FruitRules
     /// because the caller records the builder's whole cell sequence, not what its own chunk kept.</summary>
     /// <param name="leafCells">Every leaf cell the builder wrote or tried to write, in builder order.</param>
     /// <param name="treeCells">Every cell of the tree (leaves and logs).</param>
+    /// <param name="minFruit">Fewest fruit to pick (the trees' <see cref="MinFruitPerTree"/>; the Fifi plant hangs more).</param>
+    /// <param name="maxFruit">Most fruit to pick.</param>
     public static List<(int X, int Y, int Z)> PickFruitCells(IReadOnlyList<(int X, int Y, int Z)> leafCells,
-        HashSet<(int X, int Y, int Z)> treeCells, ulong treeHash)
+        HashSet<(int X, int Y, int Z)> treeCells, ulong treeHash, int minFruit = MinFruitPerTree, int maxFruit = MaxFruitPerTree)
     {
         var candidates = new List<(int X, int Y, int Z)>();
         var seen = new HashSet<(int X, int Y, int Z)>();
@@ -97,7 +99,7 @@ public static class FruitRules
             return picked;
         }
 
-        int count = MinFruitPerTree + (int)((treeHash >> 8) % (ulong)(MaxFruitPerTree - MinFruitPerTree + 1));
+        int count = minFruit + (int)((treeHash >> 8) % (ulong)(maxFruit - minFruit + 1));
         if (candidates.Count <= count)
         {
             picked.AddRange(candidates);

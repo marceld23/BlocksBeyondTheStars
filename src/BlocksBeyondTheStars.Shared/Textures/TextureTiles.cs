@@ -91,6 +91,7 @@ public static class TextureTiles
 
         if (key.StartsWith("flora_", StringComparison.Ordinal)
             || key is "tree_leaves" or "pine_needles" or "palm_frond" or "giant_leaves" // cutout crowns
+            || Definitions.FifiPlant.IsAuthoredFoliage(key)                             // the Fifi plant's leaves (#2085)
             || key is "fire"                                                            // the flame silhouette
             || key is "torch" or "lantern")                                             // billboards (#1957)
         {

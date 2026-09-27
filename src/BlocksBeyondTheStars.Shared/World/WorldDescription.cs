@@ -181,8 +181,16 @@ public sealed class WorldDescription
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
     /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora,
-    /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees, #2062 Toxica-Maxima).</summary>
-    public const int CurrentTerrainGeneration = 15;
+    /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees, #2062 Toxica-Maxima,
+    /// #2085 the Fifi plant).</summary>
+    public const int CurrentTerrainGeneration = 16;
+
+    /// <summary>The generation of the Fifi plant (#2085, 2026-09): Sophie's tree-sized plant from the school club — a green
+    /// trunk, yellow leaves, glowing pink blossoms that light their surroundings and berries that always grow back — standing
+    /// in groves on every world with plant life (<c>FifiPlantRules</c>). Its berry is an authored catalog species
+    /// (<c>FloraCatalog.Species.Authored</c> with this <c>MinGeneration</c>) and the stamp is gated on this generation, so a
+    /// world of any older generation keeps its terrain, its roster and its chunks bit for bit.</summary>
+    public const int FifiPlantGeneration = 16;
 
     /// <summary>The generation of Toxica-Maxima (#2062, 2026-09): Justus' once-per-galaxy toxic landmark planet — tainted
     /// ground and ores, dead forests of tainted wood (<c>PlanetType.DeadTreeBlock</c>), contaminated fauna with green eyes

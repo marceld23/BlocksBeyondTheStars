@@ -74,8 +74,9 @@ public static class FloraGenerator
             // Farmed crops (#627) are not part of this world's plant life: they never grow wild, and above all
             // they must never take on a rolled species identity — a roster entry would let the toxic roll swap
             // their edible berries for toxic ones. The index still advances so the WILD species keep their
-            // seed salt (and their "fl<i>" ids) no matter where a crop sits in the catalog.
-            if (archetype.Cultivated)
+            // seed salt (and their "fl<i>" ids) no matter where a crop sits in the catalog. An authored plant (#2085, the
+            // Fifi plant's berries) stays out for the same reason: its identity is designed, never rolled.
+            if (archetype.Cultivated || archetype.Authored)
             {
                 i++;
                 continue;
@@ -150,7 +151,7 @@ public static class FloraGenerator
         int i = 0;
         foreach (var archetype in FloraCatalog.All)
         {
-            if (archetype.Cultivated || !archetype.InCaves)
+            if (archetype.Cultivated || archetype.Authored || !archetype.InCaves)
             {
                 i++;
                 continue;

@@ -352,7 +352,10 @@ separate unlock; admins can still disable it through server world rules.
   toxic/airless worlds. An `oxygen_extractor` cuts the drain on extractable atmospheres.
 - **Hunger** (max 100): drains off-ship; below ~15 the suit auto-eats stored/loose rations.
   Food sources: hunt creatures (meat), harvest berry flora (replantable via seeds), pick the **fruit** that hangs
-  under tree crowns on newer worlds (it grows back; toxic exactly when its tree is — scan first), raid a settlement's
+  under tree crowns on newer worlds (it grows back; toxic exactly when its tree is — scan first), pick the berries under
+  a **Fifi plant** (Sophie's tree-sized plant from the school club: green trunk, yellow leaves, glowing pink blossoms that
+  light up the night; it stands in groups on every green world of the newest generation, and its berries are always
+  edible and grow back after two minutes), raid a settlement's
   **greenhouse** (see below), craft emergency rations — or build an **algae tank** (workshop, no blueprint)
   at a base: standing next to it grows 2 algae rations from 1 water (melt 2 snow or 2 ice into water by
   hand if there is no lake).

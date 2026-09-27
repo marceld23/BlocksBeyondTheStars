@@ -1916,3 +1916,50 @@ Tests: `ToxicaMaximaWorldTests` (data, once per galaxy, tainted columns and shal
 contaminated roster, eye colours per generation), `ToxicaMaximaServerTests` (storm floor + acid, sky colour, factory
 count + air, decontaminator station + recipes, scan, VEGA, `/setweather`), golden `toxica_maxima-gen15`,
 `MaterialEconomyTests` reference chains for the factory washes.
+
+## 30. Generation 16 — the Fifi plant (#2085–#2090, 2026-09-27, Sophie's idea)
+
+**Sophie's plant from the school club**: as tall as a tree, a green trunk, a crown of yellow leaves, pink blossoms that
+glow and light up their surroundings, and berries that always grow back. It stands **in groups, everywhere** there is
+plant life. Gated on `WorldDescription.FifiPlantGeneration` (16, shared with Arena Nigra): the berry species carries that
+`MinGeneration`, the stamp asks the generation first, so every older world keeps its terrain, roster and chunks bit for bit.
+
+**Authored flora.** Like Leni, the flowerling and Lena's Paul flower (§15) the Fifi plant is authored — the same name,
+colours and edible berries on every world. The berries are the first catalog species with `FloraCatalog.Species.Authored`:
+never in a world roster (`FloraGenerator` skips it like a crop, the index still advances, so no older roster id moves),
+so no coined name and no toxic roll — the harvest's toxic swap can never touch it; no world tint (`FloraCatalog.KeepsOwnColour`,
+the crops' exemption in the mesher and the tint map); no greenhouse (`CultivatedKeys` stays the crops). It is `Fruit` +
+`Hanging` with the host `fifi_leaf`: it regrows after `FruitRules.RegrowSeconds` (120 s) under an intact leaf, but it is
+no TREE fruit shape (`FruitKeys()` leaves authored fruit out). `FifiPlant` (Shared) names the four blocks once.
+
+**The blocks.** `fifi_stem` (terrain, green), `fifi_leaf` (flora, yellow — cutout foliage like a tree crown, listed in
+`ChunkMesher.IsFoliageBlock`, `TextureTiles.AlphaModeOf`, `merge_texture.py` and `bake_leaf_alpha.py`, but no flora block,
+so never re-tinted), `fifi_blossom` (flora, pink, `emission` 0.9 and `lightColor` — a real light source through the #2036
+path), `flora_fifi_berries` (drops two normal `berries`). The three parts are placeable items; a placed blossom is a lamp.
+
+**The rules** (`FifiPlantRules`, pure functions of the planet seed). *Groves:* the world is cut into 48-block cells
+(X wraps at the circumference, Z at the latitude period; a cell cut short by the seam holds a grove only where the whole
+ring fits); 35 % of the cells hold one grove of 3–6 plants on a ring 5–8 blocks around a hashed centre, a big grove
+sometimes with one more in the middle, trunks at least 5 apart. The ring is an integer table sorted by exact integer
+comparisons — no trigonometry, so every platform plants the same cells. Every member lies inside its own cell, so
+`IsGroveMember` is a pure function of the column. *Shape* (`ShapeFor(hash, size)`, relative to the root cell): a straight
+trunk into the crown's centre, a rounded, slightly flat crown of radius 2 or 3 (a bell size factor, total height 7–11),
+5–8 blossoms on the crown's top and sides (always one on the very top, never on the underside), 3–6 berries in the air
+cells under the lowest leaves (the fruit trees' `PickFruitCells` with a larger count).
+
+**The stamp** (`WorldGenerator.FifiPlantsGen16.cs`, after the giant trees): every world with plant life
+(`FloraDensity` and the world's flora factor above zero, not airless, not void) whose biomes or beach offer a host —
+grass, dirt, mud, peat, alien grass, mycelium, sand, snow. Per root column: grove membership, the surface, then no sea,
+pond, river, generation-1 water or sand sea, not inside the deep woods (forest mask above 0.62, so trunks do not collide
+with tree crowns), and a host ground (the beach block on a dry beach). Sophie chose "everywhere", so the tree line and the
+cold-flora fade do not apply. The trunk overwrites, leaves / blossoms / berries fill air only, and a berry is written only
+under a leaf the chunk really holds. Margin 3 (the widest crown), rise 12 — inside `MaxStampRise`. About one plant per
+2 000–4 000 columns on a green world, a grove every 80–100 blocks.
+
+**Server.** Harvest and regrow run through the ordinary flora path (`_fruitIds` gives the 120 s). The scan reads every
+part as the edible "Fifi plant" (`ui.scan.subject.fifi_plant`) and counts it as one discovery (`flora:fifi_plant`).
+Settlements clear Fifi plants from their box like trees (`SettlementVegetationIds`).
+
+Tests: `FifiPlantTests` (catalog + roster, blocks + light, groves + seams, shape, stamp across chunk edges and nothing on
+generation 15, harvest + 120 s regrow + no regrow without the leaf, scan), goldens `meadowlands-gen16` and `desert-gen16`
+(seeds whose sampled chunks hold a grove).

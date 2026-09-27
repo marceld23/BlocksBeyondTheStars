@@ -41,7 +41,9 @@ public sealed class CaveFloraTests
         // The fruit trees (#2038, generation 14) appended their four shapes after this wave, still before the crops.
         Assert.Equal(new[] { "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana" },
             keys.Skip(kelp + 5).Take(4));
-        Assert.All(FloraCatalog.All.Skip(kelp + 9), sp => Assert.True(sp.Cultivated, $"{sp.Key} sits among the crops"));
+        // The Fifi plant (#2085, generation 16) appended its authored berries after them, still before the crops.
+        Assert.Equal(FifiPlant.BerriesKey, keys[kelp + 9]);
+        Assert.All(FloraCatalog.All.Skip(kelp + 10), sp => Assert.True(sp.Cultivated, $"{sp.Key} sits among the crops"));
         foreach (var key in keys.Skip(kelp + 1).Take(4))
         {
             var sp = FloraCatalog.Find(key)!;
