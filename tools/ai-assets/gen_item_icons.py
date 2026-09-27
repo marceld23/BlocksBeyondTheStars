@@ -203,6 +203,8 @@ MODULES = [
     ("cargo_hold_3", "a tall triple-stack of large ship cargo container modules bound by a heavy steel frame, glowing cyan status strips"),
     ("refinery", "a ship ore refinery smelter module"),
     ("detoxifier", "a ship chemical detoxifier purifier module"),
+    # Toxica-Maxima (#2067): the decontaminator ship module (the placed block shows its own tile).
+    ("decontaminator", "a ship decontamination module, a sealed steel rinse chamber with a round porthole of glowing green fluid, green-and-black hazard stripes and pipes"),
     ("transmuter", "a ship matter transmuter module, a dark hexagonal reactor housing with a glowing violet matter-reassembly core and faint energy arcs"),
     ("tractor_beam", "a ship tractor-beam emitter dish projecting a beam"),
     ("oxygen_generator", "a ship oxygen generator with a tank"),

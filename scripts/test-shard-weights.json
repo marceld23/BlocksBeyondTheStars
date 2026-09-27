@@ -336,6 +336,8 @@
   "TorchTests": 6.8,
   "ToxicWorldServerTests": 33.0,
   "ToxicWorldTests": 13.0,
+  "ToxicaMaximaServerTests": 30.0,
+  "ToxicaMaximaWorldTests": 40.0,
   "TradeTests": 68.7,
   "TravelTests": 162.9,
   "UnderwaterPlacementTests": 40.5,

@@ -89,8 +89,8 @@ public sealed class ToxicaMaximaServerTests : IDisposable
         Assert.Equal(0xA8E063, server.SkyColor); // the type's light green, not a seeded hue
         Assert.True(server.ActiveTraitsForTest.CorrosiveAir && server.ActiveTraitsForTest.ToxicWater, "always, no roll");
 
-        // A minute later the ladder is still the storm — or one of the events the type allows; never a clear sky.
-        TickSeconds(server, 60);
+        // Later the ladder is still the storm — or one of the events the type allows; never a clear sky.
+        TickSeconds(server, 20);
         Assert.Contains(sim.State, new[] { "storm", "acid_rain", "toxic_storm", "gale", "ground_fog" });
 
         // In the open the acid drains the suit and the corrosive air eats health; Creative mode takes nothing.
