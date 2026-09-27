@@ -239,6 +239,10 @@ public sealed class PlayerState
     /// first-tame knowledge bonus is paid once per species (mirrors <see cref="Scanned"/>). Persisted.</summary>
     public HashSet<string> TamedSpecies { get; set; } = new();
 
+    /// <summary>#2097: every creature species scanned, per world — <c>"&lt;locationId&gt;:&lt;speciesId&gt;"</c>. Species ids
+    /// repeat across planets and <see cref="Scanned"/> is global, so the clone tank asks this set. Persisted.</summary>
+    public HashSet<string> ScannedCreatureSites { get; set; } = new();
+
     /// <summary>Hover speeders this player has deployed into the world — packable single-seat vehicles bound to
     /// the body they were deployed on (like <see cref="TamedCreatures"/>). They materialise as live entities only
     /// while the owner is on that body; otherwise stored here. Server-authoritative, persisted in the player blob.</summary>

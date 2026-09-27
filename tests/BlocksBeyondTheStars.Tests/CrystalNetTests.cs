@@ -464,6 +464,7 @@ public sealed class CrystalNetTests : IDisposable
             }
 
             p.State.Scanned.Add("creature:" + sp.Id);
+            p.State.ScannedCreatureSites.Add(server.ActiveLocationId + ":" + sp.Id); // #2097: scanned on this world
             server.PlaceBlock("Builder", 1, 200, 0, "clone_tank");
             var tank = new Vector3i(1, 200, 0);
             server.SetCrystalDeviceForTest(p, tank, action: 2, mode: 0, config: "sp=" + sp.Id);
@@ -494,6 +495,182 @@ public sealed class CrystalNetTests : IDisposable
         }
     }
 
+    // ---------------------------------------------------------------------------------------------------
+    // Review fixes (#2091)
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void ABeacon_WithAConduit_ReportsItsOwner_ButDoesNotDriveItsOwnNetwork()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Builder(server, new Vector3f(0, 200, 0), "radio_beacon", "crystal_conduit");
+            server.PlaceBlock("Builder", 1, 200, 0, "radio_beacon", "Home");
+            server.PlaceBlock("Builder", 2, 200, 0, "crystal_conduit"); // wires the beacon
+            p.State.Position = new Vector3f(1.5f, 201f, 2.5f);       // the owner is near
+            Ticks(server, 0.8);
+
+            Assert.True(server.CrystalDeviceOutput(new Vector3i(1, 200, 0)));   // the beacon reports "owner near" …
+            Assert.False(server.CrystalLevelAt(new Vector3i(2, 200, 0)));       // … but only listens to its network
+        }
+    }
+
+    [Fact]
+    public void ADeviceEye_ReportsWhatTheMachineInFrontIsDoing_IntoItsOwnNetwork()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Builder(server, new Vector3f(0, 200, 0), "matter_sender", "device_eye", "crystal_conduit");
+            server.PlaceBlock("Builder", 3, 200, 0, "matter_sender");            // unpaired → blocked on its first shot
+            server.PlaceBlock("Builder", 2, 200, 0, "device_eye", yaw: 1);      // looks +X at the sender, reports out of its back (−X)
+            server.PlaceBlock("Builder", 1, 200, 0, "crystal_conduit");
+            Ticks(server, 0.3);
+            Assert.False(server.CrystalLevelAt(new Vector3i(1, 200, 0)));
+
+            server.SetCrystalDeviceForTest(p, new Vector3i(3, 200, 0), action: 1); // one shot: nothing to send → blocked
+            Ticks(server, 0.3);
+            Assert.True(server.CrystalDeviceOutput(new Vector3i(3, 200, 0)));      // the sender's status
+            Assert.True(server.CrystalDeviceOutput(new Vector3i(2, 200, 0)));      // the eye sees it …
+            Assert.True(server.CrystalLevelAt(new Vector3i(1, 200, 0)));           // … and drives the net behind it
+            Assert.False(server.CrystalLevelAt(new Vector3i(3, 200, 0)));          // the sender's own control net stays OFF
+            Assert.Equal(2, server.CrystalNetSnapshots.Count);                     // the eye joins nothing
+        }
+    }
+
+    [Fact]
+    public void WiredPairedBeamBlocks_DoNotThrowAnArrivingPlayerBack()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Builder(server, new Vector3f(0, 200, 0), "beam_block", "crystal_button", "crystal_conduit");
+            server.PlaceBlock("Builder", 1, 200, 0, "beam_block", "A");
+            server.PlaceBlock("Builder", 8, 200, 0, "beam_block", "B");
+            server.PlaceBlock("Builder", 0, 200, 0, "crystal_button");   // wires pad A
+            server.PlaceBlock("Builder", 9, 200, 0, "crystal_conduit");  // wires pad B
+            var beams = server.BeamSnapshots;
+            int idA = beams.Single(b => b.Name == "A").Id, idB = beams.Single(b => b.Name == "B").Id;
+            p.State.Position = new Vector3f(1.5f, 200f, 0.5f);
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 2, config: "pair=" + idB);
+            p.State.Position = new Vector3f(8.5f, 200f, 0.5f);
+            server.SetCrystalDeviceForTest(p, new Vector3i(8, 200, 0), action: 2, config: "pair=" + idA);
+
+            p.State.Position = new Vector3f(1.5f, 201f, 0.5f);           // on pad A
+            server.SetCrystalDeviceForTest(p, new Vector3i(0, 200, 0), action: 1);
+            Ticks(server, 2.0);
+
+            Assert.InRange(p.State.Position.X, 8f, 9f);                  // arrived on B and stayed there
+        }
+    }
+
+    [Fact]
+    public void AHalfSecondClock_RingsAChime_EveryHalfSecond()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer(out var repo, transport);
+        using (repo)
+        {
+            var p = Builder(server, new Vector3f(0, 200, 0), "timer_block", "chime");
+            server.PlaceBlock("Builder", 1, 200, 0, "timer_block", yaw: 1);   // sends +X
+            server.PlaceBlock("Builder", 2, 200, 0, "chime");
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 2, mode: (int)TimerMode.Clock, config: "period=0.5");
+            transport.Sent.Clear();
+            Ticks(server, 3.0);
+
+            int rings = transport.Sent.OfType<SoundFx>().Count(f => f.SoundId.StartsWith("chime_", StringComparison.Ordinal));
+            Assert.InRange(rings, 5, 7); // #2092: every tick of the clock, not every second one
+        }
+    }
+
+    [Fact]
+    public void ADelay_PassesAButtonPulse_Later()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Builder(server, new Vector3f(0, 200, 0), "crystal_button", "timer_block", "crystal_conduit");
+            server.PlaceBlock("Builder", 1, 200, 0, "crystal_button");
+            server.PlaceBlock("Builder", 2, 200, 0, "timer_block", yaw: 1);
+            server.PlaceBlock("Builder", 3, 200, 0, "crystal_conduit");
+            server.SetCrystalDeviceForTest(p, new Vector3i(2, 200, 0), action: 2, mode: (int)TimerMode.Delay, config: "period=1");
+            Ticks(server, 0.3);
+
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 1); // a 0.5 s pulse
+            Ticks(server, 0.6);
+            Assert.False(server.CrystalLevelAt(new Vector3i(3, 200, 0)));       // not yet
+            Ticks(server, 0.7);
+            Assert.True(server.CrystalLevelAt(new Vector3i(3, 200, 0)));        // #2095: the pulse arrives a second later
+            Ticks(server, 1.0);
+            Assert.False(server.CrystalLevelAt(new Vector3i(3, 200, 0)));       // and ends again
+        }
+    }
+
+    [Fact]
+    public void ALampSavedDark_LightsUpAfterAReload_WhenItsNetworkIsOn()
+    {
+        var server = NewServer(out var repo1);
+        using (repo1)
+        {
+            var p = Builder(server, new Vector3f(0, 200, 0), "crystal_switch", "light_white");
+            server.PlaceBlock("Builder", 1, 200, 0, "crystal_switch");
+            server.PlaceBlock("Builder", 2, 200, 0, "light_white");
+            Ticks(server, 0.7);
+            Assert.Equal("light_white_off", KeyAt(server, 2, 200, 0));
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 0); // lever ON, saved — the lamp has not swapped yet
+        }
+
+        var reloaded = NewServer(out var repo2);
+        using (repo2)
+        {
+            Builder(reloaded, new Vector3f(0, 200, 0), "crystal_conduit");
+            Ticks(reloaded, 0.7);
+            Assert.Equal("light_white", KeyAt(reloaded, 2, 200, 0)); // #2096: the first beat reads the dark twin and lights it
+        }
+    }
+
+    [Fact]
+    public void ACloneTank_OnlyOffersSpeciesScannedOnThisWorld()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Builder(server, new Vector3f(0, 200, 0), "clone_tank");
+            var sp = server.SpeciesRoster.FirstOrDefault(s => !s.Hostile);
+            if (sp is null)
+            {
+                return; // a barren test world
+            }
+
+            p.State.Scanned.Add("creature:" + sp.Id);                     // scanned — but on another world
+            p.State.ScannedCreatureSites.Add("some_other_world:" + sp.Id);
+            Assert.DoesNotContain(server.CloneableSpeciesFor("Builder"), s => s.SpeciesId == sp.Id);
+
+            server.ScanSubject("Builder", "creature", sp.Id);                // a scan here records this world
+            Assert.Contains(server.ActiveLocationId + ":" + sp.Id, p.State.ScannedCreatureSites);
+            Assert.Contains(server.CloneableSpeciesFor("Builder"), s => s.SpeciesId == sp.Id);
+        }
+    }
+
+    [Fact]
+    public void CrystalServerMessages_UseTheNamePlaceholder_TheClientKnows()
+    {
+        foreach (var lang in new[] { "en", "de" })
+        {
+            var table = TestLocales.Load(lang);
+            foreach (var kv in table.Where(kv => kv.Key.StartsWith("srv.crystal.", StringComparison.Ordinal)))
+            {
+                Assert.DoesNotContain("{0}", kv.Value); // #2096: the client substitutes {name} only
+            }
+
+            foreach (var bait in new[] { "forage_bait", "meat_bait", "nectar_lure" })
+            {
+                Assert.True(table.ContainsKey("srv.crystal.clone_price." + bait), $"{lang}: clone price line for {bait}");
+            }
+        }
+    }
+
     [Fact]
     public void Rules_LogicGates_AndTimers_ArePure()
     {
@@ -516,6 +693,12 @@ public sealed class CrystalNetTests : IDisposable
 
         Assert.True(t.Output);
         t.Step(TimerMode.Delay, false, 0.1, 0.5, 1);
+        Assert.True(t.Output); // #2095: the fall travels through the delay as well
+        for (int i = 0; i < 5; i++)
+        {
+            t.Step(TimerMode.Delay, false, 0.1, 0.5, 1);
+        }
+
         Assert.False(t.Output);
 
         var counter = new TimerState();

@@ -471,7 +471,12 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (p.Scanned.Contains("creature:" + sp.Id) || p.TamedSpecies.Contains(_world.LocationId + ":" + sp.Id))
+            // #2097: scanned ON THIS WORLD (species ids repeat across planets, the scan ledger does not know where) — the
+            // per-body record, or for a scan made before it existed the first-scan site — or tamed here.
+            string here = _world.LocationId + ":" + sp.Id;
+            bool scannedHere = p.ScannedCreatureSites.Contains(here)
+                || (p.ScannedWhere.TryGetValue("creature:" + sp.Id, out var site) && site is not null && site.BodyId == _world.LocationId);
+            if (scannedHere || p.TamedSpecies.Contains(here))
             {
                 result.Add((sp.Id, sp.Name));
             }
@@ -517,7 +522,7 @@ public sealed partial class GameServer
         {
             if (by is not null)
             {
-                Reject(by, "crystal", "@srv.crystal.clone_price:" + bait);
+                Reject(by, "crystal", "@srv.crystal.clone_price." + bait); // #2096: one line per bait, no raw item key
             }
 
             return;

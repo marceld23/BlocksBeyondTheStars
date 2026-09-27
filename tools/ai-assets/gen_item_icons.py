@@ -174,6 +174,7 @@ ITEMS = [
     ("auto_drill_3", "a sci-fi auto-drill mk3, massive dark metal rig with a wide diamond-tipped drill head and three violet lights"),
     ("matter_sender", "a sci-fi matter sender pedestal with an upward violet crystal emitter ring and cyan energy motes"),
     ("matter_receiver", "a sci-fi matter receiver pedestal with a downward cyan crystal collector ring and violet energy motes"),
+    ("device_eye", "a sci-fi device eye sensor, a dark metal housing with one large round teal crystal lens like an eye and a thin brass rim"),  # #2092 (2026-09-27)
     ("speeder", "a sleek futuristic single-seat hover speeder vehicle seen at a three-quarter angle, smooth silver-blue aerodynamic hull with an open cockpit seat, swept side pods and two glowing cyan engine thrusters at the rear, hovering"),
     ("boat", "a small sturdy open motorboat seen at a three-quarter angle, warm wooden plank hull with a rounded bow, a low metal rail, a single seat and a compact grey outboard motor at the stern, sitting on calm water"),
     # Materialvielfalt — new tiers + functional alloy sinks (non-block items only).

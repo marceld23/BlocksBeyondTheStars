@@ -320,5 +320,6 @@
   { "key": "tainted_diamond_ore",  "nameKey": "item.tainted_diamond_ore.name",  "category": "material",   "maxStack": 1024, "descriptionKey": "item.tainted_diamond_ore.desc" },
   { "key": "toxic_meat",           "nameKey": "item.toxic_meat.name",           "category": "consumable", "maxStack": 20,   "descriptionKey": "item.toxic_meat.desc", "consumeHealth": -16, "consumeHunger": 10 },
   // #2067: the decontaminator station block — placed at a base, the planetside counterpart of its ship module.
-  { "key": "decontaminator", "craftTab": "machines", "nameKey": "item.decontaminator.name", "category": "block", "maxStack": 16, "placesBlock": "decontaminator", "descriptionKey": "item.decontaminator.desc" }
+  { "key": "decontaminator", "craftTab": "machines", "nameKey": "item.decontaminator.name", "category": "block", "maxStack": 16, "placesBlock": "decontaminator", "descriptionKey": "item.decontaminator.desc" },
+  { "key": "device_eye", "craftTab": "machines", "nameKey": "item.device_eye.name", "category": "block", "maxStack": 16, "placesBlock": "device_eye", "descriptionKey": "item.device_eye.desc" }
 ]

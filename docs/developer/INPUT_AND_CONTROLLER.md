@@ -54,7 +54,7 @@ device is the existing `InputAction.Interact` — keyboard **E**, pad **(X)**, t
 is under the crosshair (`Game.AimedCrystalDevice`): a switch toggles, a button presses, a configurable device
 (sensor filters, gate modes, sound picks, the fabricator's recipe, a sender's or beam pad's pair, the clone
 tank's species) opens `CrystalDeviceUi` — a mode grid, cycling setting rows or a list, modal like `BeamPadUi`,
-pad-navigable, closed by Esc / pad **(B)** / its Close button. Step plates and sensors take no input at all. The
+pad-navigable, closed by Esc / pad **(B)** / its Close button. Step plates, sensors and the Device Eye take no input at all. The
 HUD prompt names the verb per device (`ui.crystal.prompt.toggle / press / menu`, formatted with the active
 device's Interact glyph via `HudUi.CrystalPromptKey`); on touch the text hint is blank as usual and the **USE**
 button carries the verb — nothing is added to the ACT list, because Interact already has a button in every

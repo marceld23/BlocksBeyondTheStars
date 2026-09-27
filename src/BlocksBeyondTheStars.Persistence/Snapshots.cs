@@ -114,6 +114,9 @@ public sealed class PlayerSnapshot
     /// <summary>Species already tamed once (first-tame knowledge bookkeeping; signature "&lt;body&gt;:&lt;sp&gt;").</summary>
     public List<string> TamedSpecies { get; set; } = new();
 
+    /// <summary>#2097: creature species scanned per world ("&lt;location&gt;:&lt;species&gt;"). Absent in older saves.</summary>
+    public List<string> ScannedCreatureSites { get; set; } = new();
+
     /// <summary>Deployed hover speeders (packable surface vehicles) — bound to their home body, restored on reload.</summary>
     public List<DeployedSpeeder> DeployedSpeeders { get; set; } = new();
 
@@ -243,6 +246,7 @@ public static class StateMapper
         ExploredCells = CloneExploredCells(p.ExploredCells),
         TamedCreatures = p.TamedCreatures.Select(CloneTamed).ToList(),
         TamedSpecies = p.TamedSpecies.ToList(),
+        ScannedCreatureSites = p.ScannedCreatureSites.ToList(),
         DeployedSpeeders = p.DeployedSpeeders.Select(CloneSpeeder).ToList(),
         Markers = p.Markers.Select(CloneMarker).ToList(),
         Notes = p.Notes.Select(CloneNote).ToList(),
@@ -473,6 +477,7 @@ public static class StateMapper
         ExploredCells = CloneExploredCells(s.ExploredCells),
         TamedCreatures = (s.TamedCreatures ?? new List<TamedCreature>()).Select(CloneTamed).ToList(),
         TamedSpecies = new HashSet<string>(s.TamedSpecies ?? new List<string>()),
+        ScannedCreatureSites = new HashSet<string>(s.ScannedCreatureSites ?? new List<string>()),
         DeployedSpeeders = (s.DeployedSpeeders ?? new List<DeployedSpeeder>()).Select(CloneSpeeder).ToList(),
         Markers = (s.Markers ?? new List<PlayerMarker>()).Select(CloneMarker).ToList(),
         Notes = (s.Notes ?? new List<PlayerNote>()).Select(CloneNote).ToList(),

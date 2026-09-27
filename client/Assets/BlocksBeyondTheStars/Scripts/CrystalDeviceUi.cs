@@ -344,18 +344,18 @@ namespace BlocksBeyondTheStars.Client
             return result;
         }
 
-        /// <summary>The animals around: every species with a creature on this world right now — the server checks
-        /// that the owner has scanned or tamed it here, and never clones a hostile one.</summary>
+        /// <summary>#2097: the species the server allows this tank's owner to clone here — scanned or tamed on this world,
+        /// never a hostile one — as "id|coined name" in the device's <c>Choices</c>. Empty → nothing to pick yet.</summary>
         private List<(string, string)> SpeciesOptions()
         {
             var result = new List<(string, string)>();
-            var seen = new HashSet<string>();
-            if (Game?.Creatures == null) return result;
-            foreach (var c in Game.Creatures)
+            if (_dev?.Choices == null) return result;
+            foreach (var choice in _dev.Choices)
             {
-                if (c.Hostile || string.IsNullOrEmpty(c.SpeciesId) || !seen.Add(c.SpeciesId)) continue;
-                string text = string.IsNullOrEmpty(c.Name) ? L(c.NameKey) : c.Name;
-                result.Add((c.SpeciesId, text));
+                int bar = choice.IndexOf('|');
+                if (bar <= 0) continue;
+                string name = choice.Substring(bar + 1);
+                result.Add((choice.Substring(0, bar), string.IsNullOrEmpty(name) ? L("ui.crystal.unnamed") : name));
             }
 
             result.Sort((a, b) => string.CompareOrdinal(a.Item2, b.Item2));

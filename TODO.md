@@ -46,6 +46,67 @@ name "Fifipflanze" / "Fifi Plant"; generation 16 (shared with the bipeds #2080 a
 - ⚠ OPEN: Marcel's playtest on a fresh generation-16 world (any green world — a grove every 80–100 blocks): the groves by day
   and their pink light at night, picking berries and waiting two minutes; show Sophie.
 
+### 💎 Crystal Net review fixes — devices only listen, the Device Eye, a travelling glow (#2091: #2092–#2099, 2026-09-27, branch fix/crystal-net-review)
+
+Why: the review of v2026.9.17 found that "one port per device" made listening devices hear their own reports — a
+wired beacon alarmed itself when its owner came near, a wired hydro tray harvested itself, two wired and paired beam
+blocks threw a player back and forth, "release on signal" released at once, blocked machines latched their own line
+ON — that a gate's direction ("the face you looked at") was read both ways, that a 0.5 s clock rang a chime only on
+every second tick, and that two server lines showed a raw `{0}`. Protocol stays 7. Design + code map:
+[docs/developer/CRYSTAL_NET.md](docs/developer/CRYSTAL_NET.md); decision: the #2091 amendment of
+[ADR 0013](docs/developer/adr/0013-crystal-net-binary-visible-signal-network.md).
+
+- **✅ Devices only listen + the Device Eye (#2092, 2026-09-27, hash: pending).** Only sources
+  (`CrystalNetRules.IsSource`: switch, button, step plate, proximity / daylight / storage sensor, watcher) and the
+  gates drive a network (`CrystalLogicBeat` step 2); every other device only listens, and its own report is a
+  *status* (beacon: owner within 12; beam block: someone arrived, 0.5 s; sentry: has a target; hydro tray: ripe;
+  matter sender: blocked; matter receiver: arrival pulse; auto-drill: crate full / pit done; fabricator: blocked;
+  clone tank: growing, then a 0.5 s "ready" pulse). New block **`device_eye`** (EN "Device Eye", DE "Geräte-Auge";
+  blueprint `crystal_sensors`; workshop 1 crystal + 1 glass + 1 circuit board): gate-like, a member of no network,
+  looks the way the player looked when placing it (`OutputFace(yaw)`), reads the status of the device in front of
+  it — or whether a door there is open — and drives the network behind itself (`DriveFace`). Edge listeners
+  (`IsEdgeSink`) act on the rising edge of their network (`CrystalNetwork.PrevLevel`) with a 0.2 s floor, so a
+  0.5 s clock rings a chime every 0.5 s; level listeners keep the 0.5 s actuator limit. A beam triggered by a
+  signal skips a player still on the normal 6 s beam cooldown and sets it after the jump (no ping-pong whatever
+  the wiring; still no suit energy). Tile + icon (OpenAI, `gen_textures.py` / `gen_item_icons.py`).
+- **✅ Direction arrows + status lights (#2093, 2026-09-27, hash: pending).** A logic / timer block sends the way
+  the player was looking when placing it (the face pointing away from the player), a watcher and a Device Eye look
+  that way; a gate reads a neighbouring gate only when that gate's drive face points at it. The client
+  (`CrystalNetView`) draws a small arrow on that face of logic block, timer block, watcher and eye (cyan while the
+  block's output is ON, dim otherwise) and an amber status light on top of every other device except lamps while
+  it reports ON. Item descriptions (EN + DE) reworded to "the way you were looking; the arrow shows it".
+- **✅ Travelling glow (#2094, 2026-09-27, hash: pending).** An ON network's glow runs as bright bands along the
+  conduit away from its active sources (a source reporting ON, or the cell a gate / eye sends into), ~5 cells per
+  second, bands 6 cells apart — a breadth-first walk over the net's cells on the client, vertex colours with the
+  Always-Included `BlocksBeyondTheStars/ParticleAlpha` shader; no visible source → the even breathing pulse.
+  Client only.
+- **✅ Delay line (#2095, 2026-09-27, hash: pending).** The timer block's delay passes whatever enters it — pulses
+  included, rises and falls — exactly N seconds later (`TimerState` edge queue, ≤ 128 edges). Tune recipe: a clock
+  into melody block A, the same clock through a 0.5 s delay into B, through a 1 s delay into C, … (one network per
+  melody block); several melody blocks on ONE network still sound together as a chord.
+- **✅ Small defects (#2096, 2026-09-27, hash: pending).** `srv.crystal.announce_custom` is `{name}` (the client
+  substitutes only `{name}`); the clone tank's price refusal is one line per bait
+  (`srv.crystal.clone_price.forage_bait` / `.meat_bait` / `.nectar_lure`). A lamp is no longer assumed lit when the
+  net is rebuilt: its first beat reads the block that stands there (`Synced`; `SwapCrystalLight` returns whether
+  the block was readable), so a lamp saved dark lights up after a reload when its network is ON.
+- **✅ Clone tank species (#2097, 2026-09-27, hash: pending).** The menu lists exactly the species the server
+  allows (new additive wire field `NetCrystalDevice.Choices` = "speciesId|coined name"; no protocol bump). A
+  species counts only if the owner scanned it **on this world** (new persisted `PlayerState.ScannedCreatureSites`
+  "<locationId>:<speciesId>", recorded on every creature scan; older saves fall back to the first-scan site in
+  `ScannedWhere`) or tamed it here — species ids repeat across planets.
+- **✅ Door lamp (#2098, 2026-09-27, hash: pending).** A door's Crystal Net mode is a small lamp above the doorway —
+  red = locked, green = held open, none = normal — instead of a tint over the whole door (the property-block tint
+  broke SRP batching and turned untextured door parts white).
+- **✅ Tests + docs (#2099, 2026-09-27, hash: pending).** `CrystalNetTests` +8 facts (24 total): a beacon does not
+  drive its own net; a Device Eye reports a blocked sender into its own net; wired paired beam blocks don't throw
+  back; a 0.5 s clock rings a chime every 0.5 s; a delay passes a button pulse; a lamp saved dark lights after a
+  reload; the clone tank offers only species scanned on this world; crystal server lines use `{name}`. Docs:
+  USER_MANUAL Crystal Net section + pad / touch lines, Codex article `crystal-net` (EN + DE), CRYSTAL_NET.md,
+  ADR 0013 amendment, NOTICES (`device_eye` tile, `item_device_eye` icon).
+- ⚠ OPEN: playtest in a fresh world **and** on a player station — a wired beacon, hydro tray, paired beam-block
+  pair and clone tank no longer trigger themselves; a Device Eye on a blocked matter sender and on a door; the
+  arrows, status lights and the travelling glow; a delay tune on melody blocks; the door lamp.
+
 ### 🍌 Mini-Michi-Paul + the bipeds — Paul and Ben's school club creature (#2080: #2081–#2084, 2026-09-27, branch feat/banana-bipeds, terrain generation 16)
 
 Paul and Ben's idea (school club), Marcel's decisions (2026-09-27): a knee-high, peaceful, walking two-legger with two arms, a

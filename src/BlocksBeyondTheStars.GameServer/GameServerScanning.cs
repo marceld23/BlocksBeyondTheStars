@@ -48,6 +48,7 @@ public sealed partial class GameServer
 
         if (subjectType == "creature" && _speciesById.TryGetValue(subjectKey, out var sp))
         {
+            session.State.ScannedCreatureSites.Add(_world.LocationId + ":" + sp.Id); // #2097: every scan, per world
             // The voice descriptor (#907) makes a species' call a readable trait like its colour or gait,
             // instead of something the player can only recognise subconsciously.
             var voice = Shared.Definitions.CreatureVoices.Derive(

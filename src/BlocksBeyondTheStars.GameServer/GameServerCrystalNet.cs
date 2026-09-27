@@ -62,6 +62,9 @@ public sealed partial class GameServer
         public int Id { get; init; }
         public HashSet<Vector3i> Cells { get; } = new();
         public bool Level { get; set; }
+
+        /// <summary>#2092: the level of the previous logic beat — an edge device acts on Level && !PrevLevel.</summary>
+        public bool PrevLevel { get; set; }
     }
 
     /// <summary>A conduit or device cell of the Crystal Net. Conduits carry no output; a device's <see cref="Output"/>
@@ -82,8 +85,9 @@ public sealed partial class GameServer
         public bool Inert;              // registered over a cap: it exists, it does nothing
         public bool Output;
         public double PulseUntil;       // pulse sources: fall back after this uptime
-        public bool Applied;            // actuators: the level last applied to the world
-        public double LastActuated;     // actuators: uptime of the last world change (rate limit)
+        public bool Applied;            // level actuators: the level last applied to the world
+        public bool Synced;             // lamps: the world block was read once and matches Applied (#2096)
+        public double LastActuated = -1000; // actuators: uptime of the last action (rate limit); "long ago" at start
         public bool Looping;            // sound devices: a loop is playing
         public TimerState? Timer;       // timer blocks
         public double NextBeat;         // machines: the next move / craft / mine
@@ -247,9 +251,10 @@ public sealed partial class GameServer
             cell.Config = CrystalConfigWith(cell.Config, "key", blockKey);
         }
 
-        // Level sinks start in their world state: a lamp is lit, a sentry fires, a spout pours — so an OFF network
-        // is a change the first beat applies (Applied = the level the world currently shows).
-        cell.Applied = kind is CrystalDeviceKind.Light or CrystalDeviceKind.Sentry or CrystalDeviceKind.Spout;
+        // Level sinks start in their world state: a sentry fires, a spout pours — so an OFF network is a change the first
+        // beat applies (Applied = the level the world currently shows). A lamp is NOT assumed lit (#2096): it may have
+        // been saved as its dark twin, so the first beat reads the block that actually stands there (Synced).
+        cell.Applied = kind is CrystalDeviceKind.Sentry or CrystalDeviceKind.Spout;
 
         if (kind == CrystalDeviceKind.Switch)
         {
@@ -519,6 +524,7 @@ public sealed partial class GameServer
         CrystalDeviceKind.Spout => "water_spout",
         CrystalDeviceKind.EnergyGate => "energy_gate",
         CrystalDeviceKind.HydroTray => "hydro_tray",
+        CrystalDeviceKind.DeviceEye => "device_eye",
         _ => string.Empty,
     };
 
@@ -821,7 +827,9 @@ public sealed partial class GameServer
 
         foreach (var c in state.Cells.Values)
         {
-            if (c.Inert || c.IsConduit || !c.Output)
+            // #2092: only sources and gates drive a network. Every other device only LISTENS — its report stays a status
+            // (its light, a Device Eye) and never reads back as its own command.
+            if (c.Inert || c.IsConduit || !c.Output || !(c.IsGate || CrystalNetRules.IsSource(c.Kind)))
             {
                 continue;
             }
@@ -841,8 +849,20 @@ public sealed partial class GameServer
                 continue;
             }
 
-            var inputs = CrystalGateInputs(c);
             bool next;
+            if (c.Kind == CrystalDeviceKind.DeviceEye)
+            {
+                next = CrystalEyeReads(c); // #2092: what the device (or door) in front of it is doing
+                if (next != c.Output)
+                {
+                    c.Output = next;
+                    state.DeviceListDirty = true;
+                }
+
+                continue;
+            }
+
+            var inputs = CrystalGateInputs(c);
             if (c.Kind == CrystalDeviceKind.LogicBlock)
             {
                 next = LogicGate.Evaluate((LogicMode)c.Mode, inputs);
@@ -869,6 +889,32 @@ public sealed partial class GameServer
         {
             if (c.Inert || c.IsConduit || c.IsGate || c.NetId == 0 || !state.Nets.TryGetValue(c.NetId, out var net))
             {
+                continue;
+            }
+
+            if (CrystalNetRules.IsEdgeSink(c.Kind))
+            {
+                // #2092: an edge device acts on the rising edge of the network itself, not on its own last-applied state —
+                // a 0.5 s clock rings a chime every 0.5 s. A small floor keeps a 0.1 s flicker from double-firing.
+                if (net.Level && !net.PrevLevel && _uptime - c.LastActuated >= CrystalEdgeMinIntervalSeconds)
+                {
+                    ApplyCrystalActuator(c, true);
+                    c.LastActuated = _uptime;
+                }
+
+                continue;
+            }
+
+            if (c.Kind == CrystalDeviceKind.Light && !c.Synced)
+            {
+                // #2096: the lamp's first beat reads the block that actually stands there; an unloaded chunk retries.
+                if (SwapCrystalLight(c, net.Level))
+                {
+                    c.Synced = true;
+                    c.Applied = net.Level;
+                    c.LastActuated = _uptime;
+                }
+
                 continue;
             }
 
@@ -899,13 +945,51 @@ public sealed partial class GameServer
         {
             state.NetListDirty = true;
         }
+
+        foreach (var net in state.Nets.Values)
+        {
+            net.PrevLevel = net.Level; // #2092: the edge detector's memory
+        }
     }
+
+    /// <summary>#2092: the shortest gap between two actions of one edge device (a 0.1 s flicker must not double-fire).</summary>
+    private const double CrystalEdgeMinIntervalSeconds = 0.2;
 
     private readonly Dictionary<int, bool> _crystalLastSentLevel = new();
 
+    /// <summary>#2092: the Device Eye reads the status of the Crystal Net device in front of it (blocked, arrived, owner
+    /// near, has a target, ripe, growing, ready, done — whatever that device reports), or whether a door in front of it
+    /// is open. Nothing in front → OFF.</summary>
+    private bool CrystalEyeReads(ServerCrystalCell eye)
+    {
+        var front = eye.Cell + CrystalNetRules.OutputFace(eye.Yaw);
+        if (CrystalNet.Cells.TryGetValue(front, out var dev))
+        {
+            return !dev.IsConduit && !dev.Inert && dev.Output;
+        }
+
+        foreach (var door in _doors)
+        {
+            var floor = door.Pos.ToBlock();
+            if (front.Y < floor.Y || front.Y > floor.Y + 1)
+            {
+                continue;
+            }
+
+            float dx = front.X + 0.5f - door.Pos.X, dz = front.Z + 0.5f - door.Pos.Z;
+            float half = System.Math.Max(0.5f, door.Width * 0.5f) + 0.05f;
+            if (System.Math.Abs(dx) <= half && System.Math.Abs(dz) <= half)
+            {
+                return door.Open;
+            }
+        }
+
+        return false;
+    }
+
     private int CrystalGateOutputNet(ServerCrystalCell gate)
     {
-        var outCell = gate.Cell + CrystalNetRules.OutputFace(gate.Yaw);
+        var outCell = gate.Cell + CrystalNetRules.DriveFace(gate.Kind, gate.Yaw);
         return CrystalNet.Cells.TryGetValue(outCell, out var c) && !c.IsGate ? c.NetId : 0;
     }
 
@@ -926,7 +1010,11 @@ public sealed partial class GameServer
             {
                 if (c.IsGate)
                 {
-                    result.Add(c.Output); // gate to gate: read the neighbour's output directly
+                    // Gate to gate: read the neighbour's output directly — but only when it points at this gate.
+                    if (c.Cell + CrystalNetRules.DriveFace(c.Kind, c.Yaw) == gate.Cell)
+                    {
+                        result.Add(c.Output);
+                    }
                 }
                 else if (c.NetId != 0 && c.NetId != outNet && seen.Add(c.NetId) && CrystalNet.Nets.TryGetValue(c.NetId, out var net))
                 {
@@ -1339,9 +1427,9 @@ public sealed partial class GameServer
             SetCrystalLoop(c, false, string.Empty);
         }
 
-        if (c.Kind == CrystalDeviceKind.Light && relight && c.Applied == false)
+        if (c.Kind == CrystalDeviceKind.Light && relight)
         {
-            SwapCrystalLight(c, true);
+            SwapCrystalLight(c, true); // no-op when it is already lit
         }
 
         if (c.Kind == CrystalDeviceKind.Beacon)
@@ -1362,24 +1450,25 @@ public sealed partial class GameServer
 
     /// <summary>Swaps a lamp between its lit block and its unlit twin, keeping dye, glow and form (#2048). One
     /// <see cref="BlockChanged"/> per swap — the reason actuators are rate-limited.</summary>
-    private void SwapCrystalLight(ServerCrystalCell c, bool on)
+    private bool SwapCrystalLight(ServerCrystalCell c, bool on)
     {
-        var current = _content.BlockById(_world.GetBlockIfLoaded(c.Cell));
-        if (current is null)
+        var id = _world.GetBlockIfLoaded(c.Cell);
+        var current = _content.BlockById(id);
+        if (current is null || id.IsAir)
         {
-            return;
+            return false; // chunk not loaded (or the lamp is gone): try again next beat
         }
 
         string wantKey = on ? CrystalNetRules.LightOnKey(current.Key) : CrystalNetRules.LightOffKey(CrystalNetRules.LightOnKey(current.Key));
         if (wantKey == current.Key)
         {
-            return;
+            return true;
         }
 
         var want = _content.GetBlock(wantKey);
         if (want is null)
         {
-            return; // a lamp without a twin (a modded pack) simply stays lit
+            return true; // a lamp without a twin (a modded pack) simply stays lit
         }
 
         var (tint, glow) = _world.GetModifier(c.Cell);
@@ -1388,6 +1477,7 @@ public sealed partial class GameServer
         BroadcastToWorld(new BlockChanged { X = c.Cell.X, Y = c.Cell.Y, Z = c.Cell.Z, Block = want.NumericId.Value, Tint = tint, Glow = glow, Shape = shape });
         WriteBackStationCell(c.Cell, want.NumericId, tint, glow, shape);
         c.BlockKey = want.Key;
+        return true;
     }
 
     private void PlayCrystalSound(ServerCrystalCell c, string soundId, float pitch)
@@ -1477,6 +1567,12 @@ public sealed partial class GameServer
                 continue;
             }
 
+            if (_beamCooldown.GetValueOrDefault(s.State.PlayerId) > 0)
+            {
+                continue; // #2092: whoever just arrived stays put — no ping-pong between wired pads, whatever the wiring
+            }
+
+            _beamCooldown[s.State.PlayerId] = BeamCooldownSeconds;
             s.State.Position = to;
             StreamFootingNow(s, to);
             SendPlayerState(s);
@@ -1528,8 +1624,13 @@ public sealed partial class GameServer
                 Label = c.Label,
                 OwnerId = c.OwnerId,
                 Output = c.Output,
+                Choices = c.Kind == CrystalDeviceKind.CloneTank ? CloneChoicesFor(c.OwnerId) : System.Array.Empty<string>(),
             }).ToArray(),
         };
+
+    /// <summary>#2097: the species a tank's owner may clone here, as "id|coined name" — the device menu lists exactly these.</summary>
+    private string[] CloneChoicesFor(string ownerId)
+        => CloneableSpeciesFor(ownerId).Select(sp => sp.SpeciesId + "|" + sp.Name).ToArray();
 
     private void SendCrystalNet(PlayerSession session)
     {
