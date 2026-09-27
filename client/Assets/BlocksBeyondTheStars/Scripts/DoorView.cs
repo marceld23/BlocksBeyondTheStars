@@ -40,6 +40,7 @@ namespace BlocksBeyondTheStars.Client
             public DoorPairs.Sides Partners; // hinge: the local sides sharing a jamb with a partner leaf — no post there (#1852)
             public bool Open;
             public int Mode;               // #2048: 0 normal, 1 locked (red), 2 held open (green) — the Crystal Net's say
+            public GameObject ModeLamp;    // #2098: the small lamp above the doorway that shows Mode (null when normal)
             public bool Posed;             // its panels stand where Anim says — a resting door is not re-posed every frame
             public float Anim;             // 0 closed → 1 open, eased toward Open
             public Transform Field;        // energy door: the translucent blue field shown in the open doorway
@@ -172,7 +173,7 @@ namespace BlocksBeyondTheStars.Client
                 if (_doors.TryGetValue(nd.Id, out var dm) && dm.Mode != nd.Mode)
                 {
                     dm.Mode = nd.Mode;
-                    TintForMode(dm);
+                    ShowModeLamp(dm);
                 }
             }
 
@@ -377,30 +378,94 @@ namespace BlocksBeyondTheStars.Client
             };
         }
 
-        private static readonly int ModeColorId = Shader.PropertyToID("_Color");
+        private static Material _lampLocked, _lampHeld;
+        private static Mesh _lampMesh;
 
-        /// <summary>Tints a door's panels by its Crystal Net mode (#2048) through a property block, so shared
-        /// materials stay shared and a door without a conduit keeps its plain look.</summary>
-        private static void TintForMode(Door d)
+        /// <summary>#2098: the door's Crystal Net mode as a small lamp above the doorway — red while a conduit locks it,
+        /// green while one holds it open, none for a normal door. A separate little object with two shared unlit
+        /// materials: the door's own renderers keep their materials (a property-block tint broke SRP batching and turned
+        /// untextured door parts white when the mode returned to normal).</summary>
+        private static void ShowModeLamp(Door d)
         {
             if (d?.Go == null)
             {
                 return;
             }
 
-            var col = d.Mode == 1 ? new Color(1f, 0.45f, 0.4f) : d.Mode == 2 ? new Color(0.55f, 1f, 0.6f) : Color.white;
-            var block = new MaterialPropertyBlock();
-            foreach (var r in d.Go.GetComponentsInChildren<Renderer>())
+            if (d.Mode == 0)
             {
-                if (d.Field != null && r.transform == d.Field)
+                if (d.ModeLamp != null)
                 {
-                    continue; // the energy field drives its own colour + alpha
+                    Destroy(d.ModeLamp);
+                    d.ModeLamp = null;
                 }
 
-                r.GetPropertyBlock(block);
-                block.SetColor(ModeColorId, col);
-                r.SetPropertyBlock(block);
+                return;
             }
+
+            if (d.ModeLamp == null)
+            {
+                var go = new GameObject("CrystalModeLamp");
+                go.transform.SetParent(d.Go.transform, false);
+                go.transform.localPosition = new Vector3(0f, Height + 0.14f, 0f);
+                go.transform.localScale = new Vector3(0.3f, 0.14f, 0.3f);
+                go.AddComponent<MeshFilter>().sharedMesh = LampMesh();
+                var mr = go.AddComponent<MeshRenderer>();
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                d.ModeLamp = go;
+            }
+
+            d.ModeLamp.GetComponent<MeshRenderer>().sharedMaterial = LampMaterial(d.Mode == 1);
+        }
+
+        private static Material LampMaterial(bool locked)
+        {
+            var mat = locked ? _lampLocked : _lampHeld;
+            if (mat != null)
+            {
+                return mat;
+            }
+
+            if (_fieldShader == null)
+            {
+                _fieldShader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
+            }
+
+            mat = new Material(_fieldShader);
+            mat.SetColor(FieldColorId, locked ? new Color(1f, 0.25f, 0.2f, 1f) : new Color(0.3f, 1f, 0.45f, 1f));
+            if (locked)
+            {
+                _lampLocked = mat;
+            }
+            else
+            {
+                _lampHeld = mat;
+            }
+
+            return mat;
+        }
+
+        /// <summary>A unit cube centred on the origin (scaled by the lamp's transform).</summary>
+        private static Mesh LampMesh()
+        {
+            if (_lampMesh != null)
+            {
+                return _lampMesh;
+            }
+
+            var v = new[]
+            {
+                new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, -0.5f), new Vector3(0.5f, 0.5f, -0.5f), new Vector3(-0.5f, 0.5f, -0.5f),
+                new Vector3(-0.5f, -0.5f, 0.5f), new Vector3(0.5f, -0.5f, 0.5f), new Vector3(0.5f, 0.5f, 0.5f), new Vector3(-0.5f, 0.5f, 0.5f),
+            };
+            var t = new[]
+            {
+                0, 3, 2, 0, 2, 1, 5, 6, 7, 5, 7, 4, 4, 7, 3, 4, 3, 0,
+                1, 2, 6, 1, 6, 5, 3, 7, 6, 3, 6, 2, 4, 0, 1, 4, 1, 5,
+            };
+            _lampMesh = new Mesh { name = "crystal_mode_lamp", vertices = v, triangles = t };
+            _lampMesh.RecalculateBounds();
+            return _lampMesh;
         }
 
         private static readonly int FieldColorId = Shader.PropertyToID("_Color");

@@ -201,7 +201,7 @@ panels; the hint line under the tools always says which controls are live.
 
 **Crystal Net on a pad:** **(X)** on a crystal switch flips it, on a button presses it, and on a device with
 settings opens its menu (a picture grid or a list — navigate with the stick / d-pad, **(A)** picks, **(B)**
-closes). Step plates and sensors need nothing pressed.
+closes). Step plates, sensors and the Device Eye need nothing pressed.
 
 **Controller settings.** *Settings → Controller* has the pad's own rows: the **stick dead zone** (raise it
 if a worn stick drifts on its own), separate **look speeds left/right and up/down** as a multiplier on your
@@ -239,8 +239,8 @@ buttons swap with what you're doing:
 | *Speeder:* **BOOST (hold) · JUMP · EXIT · FUEL** | Boost · hop · dismount · refuel |
 
 **Crystal Net on touch:** **USE** while looking at a crystal switch flips it, at a button presses it, and at a
-device with settings opens its menu (tap a picture or a list entry; **Close** or ≡ leaves it). Step plates and
-sensors need no button at all.
+device with settings opens its menu (tap a picture or a list entry; **Close** or ≡ leaves it). Step plates,
+sensors and the Device Eye need no button at all.
 
 Menus are tapped directly. Text entry (your name, chat): on a native tablet the on-screen keyboard opens
 by itself; in a tablet **browser** a small input prompt opens instead. On a desktop or a desktop browser
@@ -933,19 +933,32 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Crystal Net (signals, sensors, automation)
 - **What it is.** **Crystal conduits** carry a simple signal — **ON or OFF**, nothing else. Lay a line of
-  conduits from a switch to a lamp and you have a circuit: everything the line touches is one **network**, the
-  whole line **glows** while the signal is ON, and it goes dark when it is OFF. A network is ON as soon as any
-  one thing on it says ON. Think of it as a little bit of redstone, made for kids: no strengths, no colours,
-  nothing hidden — you can see the whole state by looking at the wire.
+  conduits from a switch to a lamp and you have a circuit: everything the line touches is one **network**. While
+  the signal is ON, **a glow runs along the wire, away from the switch** (or the sensor or logic block that sends
+  it), so you can see where the signal comes from and where it goes; when it is OFF the line is dark. A network is
+  ON as soon as any one of its **sources** says ON. Think of it as a little bit of redstone, made for kids: no
+  strengths, no colours, nothing hidden — you can see the whole state by looking at the wire.
 - **Getting started.** Research **Crystal Net** in the tech tree (Crystal Net tab, after the comm radio) and
   craft at a workshop — every part needs a **crystal**. The first blueprint gives you the conduit, the
-  **switch**, the **button** and the **step plate**; the sensors, the logic blocks, the sound devices and each
-  machine have blueprints of their own in the same tab.
+  **switch**, the **button** and the **step plate**; the sensors (together with the **Device Eye**), the logic
+  blocks, the sound devices and each machine have blueprints of their own in the same tab.
 - **Using things.** Everything is the normal **Interact** action — press **Interact (E / X / USE)** while
   looking at the block. A **switch** flips ON/OFF and stays where you left it, even after a reload. A
   **button** gives one half-second pulse. A device with settings opens a small **menu** (pictures to pick a
   mode, or a list to pick a partner, a recipe or an animal); close it with Esc / pad (B) / its Close button.
-  Only the owner or an ally can change a device's settings. Step plates and sensors need no pressing at all.
+  Only the owner or an ally can change a device's settings. Step plates, sensors and the Device Eye need no
+  pressing at all.
+- **Who talks, who listens.** Only **sources** switch a network ON: the **switch**, the **button**, the **step
+  plate**, the **sensors** and the **watcher** — and the **logic block**, the **timer block** and the **Device
+  Eye**, which send their answer into the wire their arrow points to (the eye into the wire behind it).
+  Everything else — lamps, doors, sirens, chimes, the machines, beam blocks, beacons — only **listens**: it does
+  what its network says and never switches its own network ON, not even when it has news. Its news shows as a
+  small **amber light** on top of the block, and a **Device Eye** puts that news on a wire.
+- **Reading a circuit.** The glow runs away from whatever sends the signal. A small **arrow** on a logic block,
+  timer block, watcher or Device Eye shows which way it sends or looks, and it lights up **cyan** while the
+  block's own answer is ON. An **amber light** on top of any other device means it reports ON right now — a
+  flipped switch, a sensor that sees something, a blocked sender, a full drill, a growing clone tank. A door on a
+  wire has a small lamp above the doorway: **red** = locked, **green** = held open.
 - **Sources (things that say ON):**
   - **Step plate** — ON while someone stands on it. Its menu picks who counts: anyone, players, only you,
     or animals.
@@ -955,49 +968,74 @@ separate unlock; admins can still disable it through server world rules.
     square.
   - **Storage sensor** — reads the crate beside it: ON when it is full, when it is empty, or when it holds
     enough of its filter item.
-  - **Watcher** — one pulse whenever the block in front of it changes: mined, placed, a crop that ripened.
-    Place it facing the thing it should watch.
+  - **Watcher** — one pulse whenever the block in front of it changes: mined, placed, a crop that ripened. It
+    looks the way **you** were looking when you placed it, so place it against the thing it should watch while
+    you look at that thing; the arrow shows where it looks.
+  - **Device Eye** — tells the wire what a machine is doing. Place it against a device while you look at that
+    device (it looks the same way you do; the arrow shows it) and lay a conduit **behind** the eye, on your
+    side: that network is ON while the device reports ON. What the devices report: a **matter sender** that
+    cannot send, a **matter receiver** where something just arrived (a short pulse), an **auto-drill** whose
+    crate is full or whose pit is done, a **fabricator** that is stuck, a **clone tank** that is growing (and a
+    short pulse when the clone is ready), a **hydro tray** with something ripe, a **sentry post** with a
+    target, a **radio beacon** whose owner is within 12 blocks, and a **beam block** someone just arrived at (a
+    short pulse). It reads a switch, a sensor or a logic block in front of it too — and placed beside a doorway,
+    looking into it, it is **ON while that door is open** (a lamp or a chime that tells you someone opened the
+    door). It comes with the sensors' blueprint (*Crystal Senses*): 1 crystal, 1 glass and 1 circuit board at a
+    workshop.
 - **Logic (thinking blocks).** A **logic block** combines signals — AND (all inputs ON), OR (any), NOT (none —
   an unconnected NOT is ON, handy for an airlock) or XOR (exactly one). A **timer block** shapes a signal —
-  delay (ON a few seconds after its input), clock (a tick every few seconds), counter (fires every Nth pulse)
-  or toggle (each pulse flips it). Both send their result out of the **face you looked at when placing** them;
-  the other faces are inputs. They never pass a signal straight through, and each one adds a tiny delay.
+  **delay** (whatever goes in comes out exactly that many seconds later; even a short button pulse comes out as
+  the same short pulse), **clock** (a tick every few seconds), **counter** (fires every Nth pulse) or **toggle**
+  (each pulse flips it); its menu sets the seconds (0.5 to 10) and the count. Both **send their answer the way
+  you were looking when you placed them** — out of the side facing away from you, where the arrow is — so lay
+  the output wire on that side; the other sides are inputs. They never pass a signal straight through, and each
+  one adds a tiny delay.
 - **Sound & words.** An **alarm siren** wails while its network is ON (three sirens to choose from; a radio
   beacon on the same network turns its map marker red) — give it an OFF switch, everyone hears it. A
-  **chime** rings once per pulse (a step plate outside + a chime inside = a doorbell), a **horn** blasts once
-  and carries farther, a **melody block** plays one note per pulse (eight notes, four instruments — several on
-  a clock play a tune), and an **announcer** shows a short line to you and your allies: one of six preset
-  lines or one you type yourself.
-- **Things that already react** the moment a conduit lies beside them (no new blocks needed): every **lamp**
-  (OFF = dark; mine the conduit and it lights up again), every **door** (ON = held open, OFF = locked — it
-  will not open by hand; no conduit = a normal door), a **beam pad** (a pulse beams whoever stands on it to
-  the partner pad chosen in its menu; it pulses when someone arrives), a **radio beacon** (ON while you are
-  within 12 blocks; a siren turns its marker red), a **sentry post** (OFF = holds its fire; ON while it has a
-  target), the **thumper** (a pulse starts its run), a **water spout** (OFF stops the water), an **energy
-  gate** (ON lets animals through) and a **hydro tray** (a pulse harvests the crop into the crate beside it;
-  ON while something is ripe).
+  **chime** rings once per pulse (a step plate outside + a chime inside = a doorbell; on a half-second clock it
+  rings every half second), a **horn** blasts once and carries farther, a **melody block** plays one note per
+  pulse (eight notes, four instruments), and an **announcer** shows a short line to you and your allies: one
+  of six preset lines or one you type yourself.
+- **Playing a tune.** Several melody blocks on **one** network play together, as a chord. For a tune, give every
+  note its own wire and its own moment: a **clock** into melody block A, the same clock through a timer block
+  set to a **0.5-second delay** into melody block B, through a **1-second delay** into C, and so on — each
+  melody block on a network of its own.
+- **Things that already react** the moment a conduit lies beside them (no new blocks needed) — they only
+  listen: every **lamp** (OFF = dark; mine the conduit and it lights up again), every **door** (ON = held open,
+  OFF = locked — it will not open by hand; no conduit = a normal door), a **beam block** (a pulse beams whoever
+  stands on it to the partner pad chosen in its menu, free of suit energy; whoever just arrived stays put for a
+  few seconds, so two wired pads never throw you back and forth), a **radio beacon** (ON turns its map marker
+  red), a **sentry post** (OFF = holds its fire), the **thumper** (a pulse starts its run), a **water spout**
+  (OFF stops the water), an **energy gate** (ON lets animals through) and a **hydro tray** (a pulse harvests the
+  crop into the crate beside it). What they have to say — the beacon's "my owner is near", the sentry's "I have
+  a target", the tray's "ripe", the beam block's "someone arrived" — shows on their amber light; a Device Eye
+  puts it on a wire.
 - **Matter link (beaming crates).** A **matter receiver** gets a name when you place it. A **matter sender**
   picks one of your (or an ally's) receivers in its menu, and every pulse takes one stack (up to 16 items)
   from the crate beside the sender and beams it into the crate beside the receiver — anywhere on the same
   world, no conduit in between, and it respects the far crate's filter. Held ON it sends a stack every two
-  seconds. The sender's own light turns ON when it cannot send (nothing fits, no crate); the receiver pulses
-  when something lands.
+  seconds. The sender's **amber light** turns on while it cannot send (nothing fits, no crate, no partner); the
+  receiver's light flashes when something lands — a Device Eye puts either on a wire.
 - **Auto-drill (a quarry in a box).** Three tiers: Mk1 digs the 5×5 square below itself 8 layers deep, one
   block every two seconds, with a tier-1 drill; Mk2 7×7, 16 layers, one block a second, tier-2 ores; Mk3 9×9,
   32 layers, two blocks a second, everything a mining beam could take. It stays where you put it, works while
   its network is ON, and drops everything into the crate beside it. Its menu chooses **only ore** (the ground
   stays standing — the default) or **everything** (a real pit). It stops in front of water and lava, never
-  touches anything a player built, and pauses with its light ON when the crate is full or the pit is done.
+  touches anything a player built, and pauses with its **amber light** on when the crate is full or the pit is
+  done (a Device Eye on the drill and a siren behind the eye = "come and empty me").
 - **Fabricator (an automatic workbench).** Pick one recipe in its menu; every pulse crafts it once, taking the
   parts from the crates beside it and putting the result back into one. It needs the recipe's blueprint, like
-  a hand craft, and it only works **while you are on the world**.
+  a hand craft, and it only works **while you are on the world**. Its amber light shows when it is stuck
+  (parts missing, no room, you are away).
 - **Caller and clone tank (planets, moons and asteroids only).** A pulse on the **caller** brings the peaceful
   animals within 24 blocks and your own companions to the block for about 20 seconds — a dinner bell for the
-  herd. The **clone tank** grows a **wild** animal of a species you have **scanned or tamed on this world**
-  (never a hostile one): pick the species in its menu, pay **one bait** the species likes and **two matter
-  dust** (from the crate beside the tank or your own pocket), wait a minute, and the animal walks out beside
-  the tank — at once, or on a signal if you set it so. Clones stay with their tank across reloads; mine the
-  tank and they are simply free. Two tanks and six living clones per player.
+  herd. The **clone tank** grows a **wild** animal (never a hostile one): its menu lists exactly the species
+  you may clone here — the ones you have **scanned on this world** or tamed here (a scan on another planet does
+  not count). Pick one, pay **one bait** the species likes and **two matter dust** (from the crate beside the
+  tank or your own pocket), wait a minute, and the animal walks out beside the tank — at once, or when its
+  network is ON if you set it to release on a signal. Its amber light is on while the clone grows and flashes
+  once when it is ready. Clones stay with their tank across reloads; mine the tank and they are simply free.
+  Two tanks and six living clones per player.
 - **Where it works.** On planets, moons, asteroids and **your own space stations** — not aboard ships. And
   only **while you are on that world**: nothing ticks while you are away, your base wakes up with you. A
   drill does not dig while you are off exploring.

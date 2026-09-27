@@ -5,6 +5,8 @@
 - **Context source:** [#2045](https://github.com/marceld23/BlocksBeyondTheStars/issues/2045) (parts
   #2046–#2059); the design and implementation are described in
   [../CRYSTAL_NET.md](../CRYSTAL_NET.md)
+- **Amendment (2026-09-27, #2091):** only sources and gates drive a network; device reports become statuses read
+  by a new Device Eye; direction arrows and a travelling glow — see the section at the end.
 
 ## Context
 
@@ -73,3 +75,36 @@ working while its owner is away.
   revisited — strength would undo the readability the whole system is built for.
 - **Compatibility:** a v6 client meets a v7 server with a version refusal instead of a decode error; the
   release note says so.
+
+## Amendment (2026-09-27, #2091)
+
+**Context.** The review of v2026.9.17 found that the first model — *one port per device*, every device's
+`Output` ORed into its own network — made listening devices hear their own reports: a wired radio beacon alarmed
+itself when its owner came near, a wired hydro tray harvested itself the moment it ripened, two wired and paired
+beam pads threw a player back and forth, a clone tank set to "release on signal" released at once (its own
+"growing" report was the signal), and a blocked machine latched its own control line ON. Players also could not
+tell which way a gate sends ("the face you looked at" was read both ways), and an evenly pulsing wire did not
+show where a signal comes from.
+
+**Decision.**
+
+1. **Only sources and gates drive a network.** A source (`CrystalNetRules.IsSource`: switch, button, step plate,
+   the proximity / daylight / storage sensors, watcher) puts its `Output` on its own network; a gate (logic block,
+   timer block and the new Device Eye) drives the network on its drive face. Every other device only listens —
+   its `Output` is a **status** that never drives its own network.
+2. **Statuses are read by a Device Eye.** The new gate-like `device_eye` looks the way the player was looking
+   when placing it, reads the status of the device in front of it (or whether a door there is open) and drives
+   the network behind itself. A machine's report reaches a wire only through an eye the player placed on
+   purpose — self-triggering is impossible by construction, and a report is still usable.
+3. **Direction is visible.** Every directional block (logic block, timer block, watcher, Device Eye) points the
+   way the player was looking when placing it, and the client draws an arrow on that face that lights up while
+   the block's output is ON; every other device shows an amber status light while it reports ON.
+4. **The glow shows the flow.** An ON network's glow travels along the conduit away from its active sources
+   (client-side breadth-first distances, vertex colours) instead of pulsing evenly.
+5. Edge listeners act on the rising edge of their network (`PrevLevel`), with a 0.2 s floor; level listeners keep
+   the 0.5 s actuator limit. A remote beam respects the normal beam cooldown. Protocol stays 7 (one additive
+   field, `NetCrystalDevice.Choices`).
+
+**Consequences.** Wiring a machine's report costs one extra block (the eye) — deliberate: the extra block is what
+makes the flow readable. The one-bit, visible model of the original decision is unchanged; the amendment only
+narrows *who* may drive a network and makes direction and flow visible.

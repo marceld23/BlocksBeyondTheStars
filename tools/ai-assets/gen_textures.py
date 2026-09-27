@@ -181,6 +181,8 @@ TEXTURES = [
     ("auto_drill_3", "a sci-fi auto-drill mk3 block, massive dark metal rig with a wide diamond-tipped drill head pointing down and three glowing violet crystal lights, front view"),
     ("matter_sender", "a sci-fi matter sender block, dark metal pedestal with an upward violet crystal emitter ring and cyan energy motes rising, front view"),
     ("matter_receiver", "a sci-fi matter receiver block, dark metal pedestal with a downward cyan crystal collector ring and violet energy motes settling, front view"),
+    # #2092 the Device Eye (2026-09-27): reads what a machine is doing and tells the wire.
+    ("device_eye", "a sci-fi device eye block, a dark metal housing with one large round teal crystal lens like an eye looking forward, a thin brass rim and a small cable socket at the back, front view"),
     ("base_core", "a sci-fi base foundation cornerstone block, a carved grey stone slab with a glowing teal-cyan claim emblem and faint engraved energy lines, top-down"),
     ("beam_block", "a sci-fi teleporter pad, a dark metal floor plate with a glowing cyan hexagonal grid, concentric light rings and small status lights around the rim, top-down"),
     # Materialvielfalt — dead-end fixes + new tiers + metal storage blocks.

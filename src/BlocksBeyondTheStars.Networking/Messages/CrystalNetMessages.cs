@@ -41,6 +41,9 @@ public sealed class NetCrystalDevice
     public string Label { get; set; } = string.Empty;
     public string OwnerId { get; set; } = string.Empty;
     public bool Output { get; set; }
+
+    /// <summary>#2097 (additive): a clone tank's allowed species for its owner, as "speciesId|coined name".</summary>
+    public string[] Choices { get; set; } = System.Array.Empty<string>();
 }
 
 /// <summary>Every device of the player's world; sent on join and coalesced once per tick on change.</summary>

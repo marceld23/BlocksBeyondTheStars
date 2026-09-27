@@ -449,5 +449,6 @@
   { "key": "factory_clean_iron_ore",     "station": "factory", "factoryPool": false, "inputs": [ { "item": "tainted_iron_ore",     "count": 6 } ], "outputs": [ { "item": "iron_ore",     "count": 4 } ] },
   { "key": "factory_clean_copper_ore",   "station": "factory", "factoryPool": false, "inputs": [ { "item": "tainted_copper_ore",   "count": 6 } ], "outputs": [ { "item": "copper_ore",   "count": 4 } ] },
   { "key": "factory_clean_titanium_ore", "station": "factory", "factoryPool": false, "inputs": [ { "item": "tainted_titanium_ore", "count": 6 } ], "outputs": [ { "item": "titanium_ore", "count": 4 } ] },
-  { "key": "factory_clean_diamond_ore",  "station": "factory", "factoryPool": false, "inputs": [ { "item": "tainted_diamond_ore",  "count": 6 } ], "outputs": [ { "item": "diamond_ore",  "count": 4 } ] }
+  { "key": "factory_clean_diamond_ore",  "station": "factory", "factoryPool": false, "inputs": [ { "item": "tainted_diamond_ore",  "count": 6 } ], "outputs": [ { "item": "diamond_ore",  "count": 4 } ] },
+  { "key": "device_eye", "station": "workshop", "requiredBlueprint": "crystal_sensors", "inputs": [ { "item": "crystal", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "circuit_board", "count": 1 } ], "outputs": [ { "item": "device_eye", "count": 1 } ] }
 ]

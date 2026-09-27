@@ -47,6 +47,9 @@ public enum CrystalDeviceKind
     Spout,
     EnergyGate,
     HydroTray,
+
+    /// <summary>#2092: reads what the device (or door) in front of it is doing and drives the network behind it.</summary>
+    DeviceEye,
 }
 
 /// <summary>How a door reacts to the Crystal Net: no conduit beside it → <see cref="Normal"/>; a conduit beside it
@@ -216,6 +219,7 @@ public static class CrystalNetRules
         ["water_spout"] = CrystalDeviceKind.Spout,
         ["energy_gate"] = CrystalDeviceKind.EnergyGate,
         ["hydro_tray"] = CrystalDeviceKind.HydroTray,
+        ["device_eye"] = CrystalDeviceKind.DeviceEye,
     };
 
     /// <summary>The kind a block key plays in the net, or <see cref="CrystalDeviceKind.None"/> for an ordinary block.
@@ -262,8 +266,24 @@ public static class CrystalNetRules
     public static string LightOnKey(string offKey)
         => IsLightOffKey(offKey) ? offKey.Substring(0, offKey.Length - LightOffSuffix.Length) : offKey;
 
-    /// <summary>A gate sits between networks: it is no member of any, it reads its input faces and drives its output face.</summary>
-    public static bool IsGate(CrystalDeviceKind kind) => kind is CrystalDeviceKind.LogicBlock or CrystalDeviceKind.TimerBlock;
+    /// <summary>A gate sits between networks: it is no member of any, it reads its input faces (the Device Eye: the device
+    /// in front of it) and drives the network on its drive face.</summary>
+    public static bool IsGate(CrystalDeviceKind kind) => kind is CrystalDeviceKind.LogicBlock or CrystalDeviceKind.TimerBlock or CrystalDeviceKind.DeviceEye;
+
+    /// <summary>#2092: the kinds whose own output drives their network — the switch, the button, the step plate, the four
+    /// sensors and the watcher. Every other member only LISTENS: its report (blocked, arrived, owner near, has a target,
+    /// ripe, growing, …) stays a status for its light and for a Device Eye, and never reads back as its own command.</summary>
+    public static bool IsSource(CrystalDeviceKind kind) => kind is CrystalDeviceKind.Switch or CrystalDeviceKind.Button
+        or CrystalDeviceKind.StepPlate or CrystalDeviceKind.ProximitySensor or CrystalDeviceKind.DaylightSensor
+        or CrystalDeviceKind.StorageSensor or CrystalDeviceKind.Watcher;
+
+    /// <summary>#2092: listeners that act once on a rising edge of their network (a ring, a start, a beam, a harvest). The
+    /// rest follow the level (a lamp, a siren, a door, a sentry, a spout, a gate for animals, a beacon's alarm).</summary>
+    public static bool IsEdgeSink(CrystalDeviceKind kind) => kind is CrystalDeviceKind.Chime or CrystalDeviceKind.Horn
+        or CrystalDeviceKind.MelodyBlock or CrystalDeviceKind.Announcer or CrystalDeviceKind.Thumper
+        or CrystalDeviceKind.HydroTray or CrystalDeviceKind.BeamPad or CrystalDeviceKind.Fabricator
+        or CrystalDeviceKind.MatterSender or CrystalDeviceKind.CloneTank or CrystalDeviceKind.AutoDrill
+        or CrystalDeviceKind.Caller;
 
     /// <summary>Devices the sensor beat polls (world queries, capped per world).</summary>
     public static bool IsSensor(CrystalDeviceKind kind) => kind is CrystalDeviceKind.StepPlate
@@ -310,8 +330,9 @@ public static class CrystalNetRules
         new(1, 0, 0), new(-1, 0, 0), new(0, 1, 0), new(0, -1, 0), new(0, 0, 1), new(0, 0, -1),
     };
 
-    /// <summary>The horizontal output direction of a gate from its stored yaw (0..3 quarter turns): the face the
-    /// player looked at when placing it is the front, so the output leaves "away from the player".</summary>
+    /// <summary>The horizontal direction a block points to from its stored yaw (0..3 quarter turns) — the way the player
+    /// looked when placing it (yaw 0 = +Z, 1 = +X). A logic / timer block sends that way; a watcher and a Device Eye look
+    /// that way. The client draws an arrow on that face (#2093).</summary>
     public static Geometry.Vector3i OutputFace(int yaw) => (yaw & 3) switch
     {
         0 => new Geometry.Vector3i(0, 0, 1),
@@ -319,6 +340,14 @@ public static class CrystalNetRules
         2 => new Geometry.Vector3i(0, 0, -1),
         _ => new Geometry.Vector3i(-1, 0, 0),
     };
+
+    /// <summary>The face a gate drives: the pointed-to face for logic and timer blocks, the BACK for a Device Eye (it
+    /// looks at a device in front and reports behind itself, #2092).</summary>
+    public static Geometry.Vector3i DriveFace(CrystalDeviceKind kind, int yaw)
+    {
+        var f = OutputFace(yaw);
+        return kind == CrystalDeviceKind.DeviceEye ? new Geometry.Vector3i(-f.X, -f.Y, -f.Z) : f;
+    }
 }
 
 /// <summary>The logic block's truth (pure, tested).</summary>
@@ -354,8 +383,15 @@ public sealed class TimerState
 {
     public bool Output;
     public bool LastInput;
-    public double Elapsed;     // delay: seconds since the input rose; clock: seconds into the period
+    public double Elapsed;     // clock: seconds into the period
     public int Count;          // counter: pulses seen since the last fire
+
+    /// <summary>Delay line (#2095): the timer's own clock and the input edges still travelling through the delay.</summary>
+    public double Now;
+    private readonly Queue<(double At, bool Level)> _edges = new();
+
+    /// <summary>At most this many edges travel through one delay at a time (a 10 s delay fed by a 0.1 s clock holds 100).</summary>
+    public const int MaxDelayEdges = 128;
 
     /// <summary>Advances the timer by <paramref name="dt"/> seconds. <paramref name="period"/> is the delay /
     /// clock period in seconds (0.5..10), <paramref name="count"/> the counter target (1..64).</summary>
@@ -367,16 +403,23 @@ public sealed class TimerState
         switch (mode)
         {
             case TimerMode.Delay:
-                // The output follows the input, but each rise arrives `period` seconds late; a fall is immediate.
-                if (input)
+                // A real delay line (#2095): the output is the input as it was `period` seconds ago — rises AND falls,
+                // so a button pulse comes out as the same pulse, later. Edges queue with their time; the oldest are
+                // released once they are `period` old. The queue is bounded; on overflow the oldest edge is released now.
+                Now += dt;
+                if (input != LastInput)
                 {
-                    Elapsed += dt;
-                    Output = Elapsed + 1e-9 >= period;
+                    if (_edges.Count >= MaxDelayEdges)
+                    {
+                        Output = _edges.Dequeue().Level;
+                    }
+
+                    _edges.Enqueue((Now, input));
                 }
-                else
+
+                while (_edges.Count > 0 && Now - _edges.Peek().At + 1e-9 >= period)
                 {
-                    Elapsed = 0;
-                    Output = false;
+                    Output = _edges.Dequeue().Level;
                 }
 
                 break;
@@ -435,5 +478,7 @@ public sealed class TimerState
         LastInput = false;
         Elapsed = 0;
         Count = 0;
+        Now = 0;
+        _edges.Clear();
     }
 }

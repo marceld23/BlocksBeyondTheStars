@@ -3,31 +3,58 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Geometry;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The Crystal Net's glow (#2049): every cell of an ON network wears a translucent violet shell that pulses
-    /// softly, so a kid can see the signal run along the conduit. Built from <see cref="GameBootstrap.CrystalNets"/>
-    /// — one mesh for the whole world, rebuilt only when a new list arrives (a level change is one message per
-    /// world, never a chunk re-mesh) and positioned through <c>ScenePos</c> so the wrap-around seam is honoured.
+    /// What the Crystal Net looks like (#2049, #2093, #2094):
+    /// <list type="bullet">
+    /// <item>every cell of an ON network wears a translucent violet shell, and <b>bright bands travel along the wire away
+    /// from the sources that drive it</b> — a switch, a plate or sensor reporting ON, or the cell a logic block, timer block or
+    /// Device Eye sends into. The distance of every cell from those sources comes from a breadth-first walk over the
+    /// network's cells; no active source found → the whole net breathes evenly;</item>
+    /// <item>an <b>arrow</b> on the face a logic block, timer block, watcher or Device Eye points to (the way the player
+    /// looked when placing it): a gate sends that way, a watcher and an eye look that way. It lights up while the
+    /// block's own output is ON;</item>
+    /// <item>a small amber <b>status light</b> on top of every other device while it reports ON (a flipped switch, a
+    /// sensor that sees something, a blocked sender, a full drill, a growing tank, …).</item>
+    /// </list>
+    /// Built from <see cref="GameBootstrap.CrystalNets"/> and <see cref="GameBootstrap.CrystalDevices"/>: two meshes,
+    /// rebuilt only when a list arrives (and every few seconds, so the wrap-around seam follows the player); the wave
+    /// only rewrites the shell's vertex colours per frame — eight shared vertices per cell. Vertex colours need the
+    /// Always-Included <c>BlocksBeyondTheStars/ParticleAlpha</c> shader. Client only: nothing here is authoritative.
     /// </summary>
     public sealed class CrystalNetView : MonoBehaviour
     {
         public GameBootstrap Game;
 
-        private const float Inflate = 0.03f;      // the shell sits just outside the block faces
-        private const int MaxCells = 4096;         // 64 nets × 64 cells is a big base; beyond that only the first cells glow
+        private const float Inflate = 0.03f;       // the shell sits just outside the block faces
+        private const int MaxCells = 4096;          // 64 nets × 64 cells is a big base; beyond that only the first cells glow
+        private const float BandSpacing = 6f;       // cells between two bright bands
+        private const float BandSpeed = 5f;         // cells per second the bands travel away from their source
+        private const float RebuildSeconds = 3f;    // re-place the meshes now and then so the lap seam follows the player
 
-        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly Color32 ArrowOn = new Color32(120, 235, 255, 245);
+        private static readonly Color32 ArrowOff = new Color32(70, 90, 120, 200);
+        private static readonly Color32 StatusOn = new Color32(255, 180, 40, 245);
 
-        private GameObject _go;
-        private Mesh _mesh;
+        private GameObject _netGo, _devGo;
+        private Mesh _netMesh, _devMesh;
         private Material _mat;
-        private NetCrystalNet[] _built;
-        private int _builtCount;
+        private NetCrystalNet[] _builtNets;
+        private NetCrystalDevice[] _builtDevices;
+        private float _builtAt;
         private bool _subscribed;
+
+        // Per shell cell: its distance from the nearest active source (-1 = no source in its net → even breathing).
+        private readonly List<float> _cellDistance = new List<float>();
+        private readonly List<Color32> _colors = new List<Color32>();
+        private readonly List<Vector3> _verts = new List<Vector3>();
+        private readonly List<int> _tris = new List<int>();
 
         private void Update()
         {
@@ -43,123 +70,347 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var nets = Game.CrystalNets;
-            if (!ReferenceEquals(nets, _built))
+            var devices = Game.CrystalDevices;
+            if (!ReferenceEquals(nets, _builtNets) || !ReferenceEquals(devices, _builtDevices) || Time.time - _builtAt > RebuildSeconds)
             {
-                Rebuild(nets);
+                Rebuild(nets, devices);
             }
 
-            if (_go != null && _builtCount > 0)
+            bool visible = !Game.SpaceViewActive;
+            if (_netGo != null)
             {
-                _go.SetActive(!Game.SpaceViewActive);
-                // A slow breathing pulse: the net is alive, not painted on.
-                float a = 0.30f + 0.12f * Mathf.Sin(Time.time * 3.2f);
-                _mat.SetColor(ColorId, new Color(0.62f, 0.45f, 1f, a));
+                _netGo.SetActive(visible && _cellDistance.Count > 0);
+                if (_netGo.activeSelf)
+                {
+                    Animate();
+                }
+            }
+
+            if (_devGo != null)
+            {
+                _devGo.SetActive(visible && _devMesh.vertexCount > 0);
             }
         }
 
         private void Clear()
         {
-            _built = null;
-            _builtCount = 0;
-            if (_go != null)
-            {
-                _go.SetActive(false);
-            }
+            _builtNets = null;
+            _builtDevices = null;
+            _cellDistance.Clear();
+            if (_netGo != null) _netGo.SetActive(false);
+            if (_devGo != null) _devGo.SetActive(false);
         }
 
-        private void Rebuild(NetCrystalNet[] nets)
+        // ---------------------------------------------------------------------------------------------------
+        // Build
+        // ---------------------------------------------------------------------------------------------------
+
+        private void Rebuild(NetCrystalNet[] nets, NetCrystalDevice[] devices)
         {
-            _built = nets;
-            _builtCount = 0;
-            if (nets == null || nets.Length == 0)
-            {
-                if (_go != null)
-                {
-                    _go.SetActive(false);
-                }
-
-                return;
-            }
-
+            _builtNets = nets;
+            _builtDevices = devices;
+            _builtAt = Time.time;
             EnsureObjects();
-            var verts = new List<Vector3>();
-            var tris = new List<int>();
-            foreach (var net in nets)
-            {
-                if (!net.On || net.Cells == null)
-                {
-                    continue;
-                }
 
-                for (int i = 0; i + 2 < net.Cells.Length && _builtCount < MaxCells; i += 3)
+            var byCell = new Dictionary<Vector3i, NetCrystalDevice>();
+            if (devices != null)
+            {
+                foreach (var d in devices)
                 {
-                    var p = Game.ScenePos(net.Cells[i], net.Cells[i + 1], net.Cells[i + 2]);
-                    AddCube(verts, tris, p);
-                    _builtCount++;
+                    byCell[new Vector3i(d.X, d.Y, d.Z)] = d;
                 }
             }
 
-            _mesh.Clear();
-            if (_builtCount == 0)
+            BuildShells(nets, byCell);
+            BuildDeviceOverlay(devices);
+        }
+
+        private void BuildShells(NetCrystalNet[] nets, Dictionary<Vector3i, NetCrystalDevice> byCell)
+        {
+            _verts.Clear();
+            _tris.Clear();
+            _cellDistance.Clear();
+            if (nets != null)
             {
-                _go.SetActive(false);
+                // The cells a gate or eye with an ON output sends into are sources of the wave in that net.
+                var driven = new HashSet<Vector3i>();
+                foreach (var d in byCell.Values)
+                {
+                    var kind = CrystalDeviceUi.KindOf(d);
+                    if (d.Output && CrystalNetRules.IsGate(kind))
+                    {
+                        driven.Add(new Vector3i(d.X, d.Y, d.Z) + CrystalNetRules.DriveFace(kind, YawOf(d)));
+                    }
+                }
+
+                foreach (var net in nets)
+                {
+                    if (!net.On || net.Cells == null)
+                    {
+                        continue;
+                    }
+
+                    var cells = new List<Vector3i>(net.Cells.Length / 3);
+                    for (int i = 0; i + 2 < net.Cells.Length; i += 3)
+                    {
+                        cells.Add(new Vector3i(net.Cells[i], net.Cells[i + 1], net.Cells[i + 2]));
+                    }
+
+                    var dist = Distances(cells, byCell, driven);
+                    for (int i = 0; i < cells.Count && _cellDistance.Count < MaxCells; i++)
+                    {
+                        var c = cells[i];
+                        var p = Game.ScenePos(c.X, c.Y, c.Z);
+                        AddBox(p + new Vector3(-Inflate, -Inflate, -Inflate), p + new Vector3(1f + Inflate, 1f + Inflate, 1f + Inflate));
+                        _cellDistance.Add(dist.TryGetValue(c, out float d) ? d : -1f);
+                    }
+                }
+            }
+
+            _netMesh.Clear();
+            if (_cellDistance.Count == 0)
+            {
                 return;
             }
 
-            _mesh.SetVertices(verts);
-            _mesh.SetTriangles(tris, 0);
-            _mesh.RecalculateBounds();
-            _go.SetActive(true);
+            _netMesh.SetVertices(_verts);
+            _netMesh.SetTriangles(_tris, 0);
+            _colors.Clear();
+            for (int i = 0; i < _verts.Count; i++)
+            {
+                _colors.Add(new Color32(158, 115, 255, 90));
+            }
+
+            _netMesh.SetColors(_colors);
+            _netMesh.RecalculateBounds();
         }
+
+        /// <summary>Breadth-first distance of every cell of one network from its active sources: members that are
+        /// sources reporting ON, and cells a gate drives. Empty when the net has no active source it can see.</summary>
+        private static Dictionary<Vector3i, float> Distances(List<Vector3i> cells, Dictionary<Vector3i, NetCrystalDevice> byCell, HashSet<Vector3i> driven)
+        {
+            var result = new Dictionary<Vector3i, float>();
+            var set = new HashSet<Vector3i>(cells);
+            var queue = new Queue<Vector3i>();
+            foreach (var c in cells)
+            {
+                bool seed = driven.Contains(c)
+                    || (byCell.TryGetValue(c, out var d) && d.Output && CrystalNetRules.IsSource(CrystalDeviceUi.KindOf(d)));
+                if (seed)
+                {
+                    result[c] = 0f;
+                    queue.Enqueue(c);
+                }
+            }
+
+            while (queue.Count > 0)
+            {
+                var c = queue.Dequeue();
+                float next = result[c] + 1f;
+                foreach (var f in CrystalNetRules.Faces)
+                {
+                    var n = c + f;
+                    if (set.Contains(n) && !result.ContainsKey(n))
+                    {
+                        result[n] = next;
+                        queue.Enqueue(n);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private void BuildDeviceOverlay(NetCrystalDevice[] devices)
+        {
+            _verts.Clear();
+            _tris.Clear();
+            var colors = new List<Color32>();
+            if (devices != null)
+            {
+                foreach (var d in devices)
+                {
+                    var kind = CrystalDeviceUi.KindOf(d);
+                    if (kind == CrystalDeviceKind.Light || kind == CrystalDeviceKind.None)
+                    {
+                        continue;
+                    }
+
+                    var p = Game.ScenePos(d.X, d.Y, d.Z);
+                    bool pointed = CrystalNetRules.IsGate(kind) || kind == CrystalDeviceKind.Watcher;
+                    if (pointed)
+                    {
+                        int before = _verts.Count;
+                        AddArrow(p, CrystalNetRules.OutputFace(YawOf(d)));
+                        for (int i = before; i < _verts.Count; i++)
+                        {
+                            colors.Add(d.Output ? ArrowOn : ArrowOff);
+                        }
+                    }
+
+                    if (d.Output && !CrystalNetRules.IsGate(kind))
+                    {
+                        int before = _verts.Count;
+                        var c = p + new Vector3(0.5f, 1.04f, 0.5f);
+                        AddBox(c - new Vector3(0.1f, 0.04f, 0.1f), c + new Vector3(0.1f, 0.1f, 0.1f));
+                        for (int i = before; i < _verts.Count; i++)
+                        {
+                            colors.Add(StatusOn);
+                        }
+                    }
+                }
+            }
+
+            _devMesh.Clear();
+            if (_verts.Count == 0)
+            {
+                return;
+            }
+
+            _devMesh.SetVertices(_verts);
+            _devMesh.SetTriangles(_tris, 0);
+            _devMesh.SetColors(colors);
+            _devMesh.RecalculateBounds();
+        }
+
+        /// <summary>The yaw a device was placed with, from its config line ("yaw=N"); 0 when it has none.</summary>
+        private static int YawOf(NetCrystalDevice d)
+        {
+            if (string.IsNullOrEmpty(d.Config))
+            {
+                return 0;
+            }
+
+            foreach (var part in d.Config.Split(';'))
+            {
+                if (part.StartsWith("yaw=", System.StringComparison.Ordinal) && int.TryParse(part.Substring(4), out int yaw))
+                {
+                    return yaw;
+                }
+            }
+
+            return 0;
+        }
+
+        // ---------------------------------------------------------------------------------------------------
+        // The travelling wave
+        // ---------------------------------------------------------------------------------------------------
+
+        private void Animate()
+        {
+            float t = Time.time;
+            float k = 2f * Mathf.PI / BandSpacing;
+            float breathe = 0.30f + 0.12f * Mathf.Sin(t * 3.2f);
+            _colors.Clear();
+            for (int i = 0; i < _cellDistance.Count; i++)
+            {
+                float d = _cellDistance[i];
+                float a;
+                if (d < 0f)
+                {
+                    a = breathe;
+                }
+                else
+                {
+                    // cos(k·d − k·v·t) peaks move outward at v cells per second; ^4 keeps the bands narrow and bright.
+                    float wave = Mathf.Max(0f, Mathf.Cos(k * d - k * BandSpeed * t));
+                    wave *= wave;
+                    wave *= wave;
+                    a = 0.16f + 0.62f * wave;
+                }
+
+                byte alpha = (byte)Mathf.Clamp(Mathf.RoundToInt(a * 255f), 0, 255);
+                byte g = (byte)Mathf.Clamp(115 + (int)(90 * (a - 0.16f)), 0, 255);
+                var col = new Color32(158, g, 255, alpha);
+                for (int v = 0; v < 8; v++)
+                {
+                    _colors.Add(col);
+                }
+            }
+
+            _netMesh.SetColors(_colors);
+        }
+
+        // ---------------------------------------------------------------------------------------------------
+        // Geometry
+        // ---------------------------------------------------------------------------------------------------
 
         private void EnsureObjects()
         {
-            if (_go != null)
+            if (_netGo != null)
             {
                 return;
             }
 
-            _go = new GameObject("CrystalNetGlow");
-            _go.transform.SetParent(transform, false);
-            _mesh = new Mesh { name = "crystal_net_glow" };
-            _mesh.MarkDynamic();
-            _go.AddComponent<MeshFilter>().sharedMesh = _mesh;
-            var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
+            var shader = Shader.Find("BlocksBeyondTheStars/ParticleAlpha") ?? Shader.Find("Unlit/Transparent");
             _mat = new Material(shader) { renderQueue = 3050 };
-            _mat.SetColor(ColorId, new Color(0.62f, 0.45f, 1f, 0.35f));
-            var mr = _go.AddComponent<MeshRenderer>();
+            _netGo = MakeLayer("CrystalNetGlow", out _netMesh);
+            _devGo = MakeLayer("CrystalDeviceMarks", out _devMesh);
+        }
+
+        private GameObject MakeLayer(string name, out Mesh mesh)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            mesh = new Mesh { name = name, indexFormat = IndexFormat.UInt32 };
+            mesh.MarkDynamic();
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = _mat;
-            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.shadowCastingMode = ShadowCastingMode.Off;
             mr.receiveShadows = false;
+            go.SetActive(false);
+            return go;
         }
 
-        /// <summary>An inflated unit cube around the block cell whose min corner is <paramref name="p"/>.</summary>
-        private static void AddCube(List<Vector3> verts, List<int> tris, Vector3 p)
+        /// <summary>An axis-aligned box from <paramref name="lo"/> to <paramref name="hi"/>: eight shared vertices.</summary>
+        private void AddBox(Vector3 lo, Vector3 hi)
         {
-            float lo = -Inflate, hi = 1f + Inflate;
-            Vector3 a = p + new Vector3(lo, lo, lo), b = p + new Vector3(hi, lo, lo), c = p + new Vector3(hi, hi, lo), d = p + new Vector3(lo, hi, lo);
-            Vector3 e = p + new Vector3(lo, lo, hi), f = p + new Vector3(hi, lo, hi), g = p + new Vector3(hi, hi, hi), h = p + new Vector3(lo, hi, hi);
-            Quad(verts, tris, a, d, c, b); // -Z
-            Quad(verts, tris, f, g, h, e); // +Z
-            Quad(verts, tris, e, h, d, a); // -X
-            Quad(verts, tris, b, c, g, f); // +X
-            Quad(verts, tris, d, h, g, c); // +Y
-            Quad(verts, tris, e, a, b, f); // -Y
+            int i = _verts.Count;
+            _verts.Add(new Vector3(lo.x, lo.y, lo.z)); // 0
+            _verts.Add(new Vector3(hi.x, lo.y, lo.z)); // 1
+            _verts.Add(new Vector3(hi.x, hi.y, lo.z)); // 2
+            _verts.Add(new Vector3(lo.x, hi.y, lo.z)); // 3
+            _verts.Add(new Vector3(lo.x, lo.y, hi.z)); // 4
+            _verts.Add(new Vector3(hi.x, lo.y, hi.z)); // 5
+            _verts.Add(new Vector3(hi.x, hi.y, hi.z)); // 6
+            _verts.Add(new Vector3(lo.x, hi.y, hi.z)); // 7
+            Quad(i + 0, i + 3, i + 2, i + 1); // -Z
+            Quad(i + 5, i + 6, i + 7, i + 4); // +Z
+            Quad(i + 4, i + 7, i + 3, i + 0); // -X
+            Quad(i + 1, i + 2, i + 6, i + 5); // +X
+            Quad(i + 3, i + 7, i + 6, i + 2); // +Y
+            Quad(i + 4, i + 0, i + 1, i + 5); // -Y
         }
 
-        private static void Quad(List<Vector3> verts, List<int> tris, Vector3 v0, Vector3 v1, Vector3 v2, Vector3 v3)
+        /// <summary>A small pyramid on the face of the block at <paramref name="p"/> that <paramref name="dir"/> points
+        /// out of: its square base lies on the face, its tip sticks out — an arrow you can read from any angle.</summary>
+        private void AddArrow(Vector3 p, Vector3i dir)
         {
-            int i = verts.Count;
-            verts.Add(v0);
-            verts.Add(v1);
-            verts.Add(v2);
-            verts.Add(v3);
-            tris.Add(i);
-            tris.Add(i + 1);
-            tris.Add(i + 2);
-            tris.Add(i);
-            tris.Add(i + 2);
-            tris.Add(i + 3);
+            var n = new Vector3(dir.X, dir.Y, dir.Z);
+            var centre = p + new Vector3(0.5f, 0.5f, 0.5f) + n * 0.51f;
+            var u = Mathf.Abs(n.y) > 0.5f ? Vector3.right : Vector3.up;
+            var v = Vector3.Cross(n, u).normalized;
+            u = Vector3.Cross(v, n).normalized;
+            const float half = 0.2f, tip = 0.22f;
+            int i = _verts.Count;
+            _verts.Add(centre + (u + v) * half);
+            _verts.Add(centre + (u - v) * half);
+            _verts.Add(centre + (-u - v) * half);
+            _verts.Add(centre + (-u + v) * half);
+            _verts.Add(centre + n * tip);
+            _tris.Add(i + 0); _tris.Add(i + 1); _tris.Add(i + 4);
+            _tris.Add(i + 1); _tris.Add(i + 2); _tris.Add(i + 4);
+            _tris.Add(i + 2); _tris.Add(i + 3); _tris.Add(i + 4);
+            _tris.Add(i + 3); _tris.Add(i + 0); _tris.Add(i + 4);
+            _tris.Add(i + 0); _tris.Add(i + 2); _tris.Add(i + 1);
+            _tris.Add(i + 0); _tris.Add(i + 3); _tris.Add(i + 2);
+        }
+
+        private void Quad(int a, int b, int c, int d)
+        {
+            _tris.Add(a); _tris.Add(b); _tris.Add(c);
+            _tris.Add(a); _tris.Add(c); _tris.Add(d);
         }
     }
 }
