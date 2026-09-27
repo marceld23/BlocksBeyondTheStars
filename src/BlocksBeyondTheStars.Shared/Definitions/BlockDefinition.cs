@@ -32,6 +32,12 @@ public sealed class BlockDefinition
     /// <summary>Whether the block is solid (collision / opaque). Air is not solid.</summary>
     public bool Solid { get; set; } = true;
 
+    /// <summary>A still liquid (#2106: oil). The player sinks into it and cannot breathe in it, the pump harvests it
+    /// and the aim ray stops at it like at water — but it is <b>not</b> simulated: it never flows, never refills a
+    /// mined cell and never floods a cave. A finite deposit, unlike water and lava (which stay the automaton's
+    /// two fluids and are keyed by name there).</summary>
+    public bool Liquid { get; set; }
+
     /// <summary>Tool kind required to mine effectively. <see cref="ToolKind.None"/> = hands are fine.</summary>
     public ToolKind RequiredTool { get; set; } = ToolKind.None;
 

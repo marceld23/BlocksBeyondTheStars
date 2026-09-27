@@ -1746,8 +1746,8 @@ namespace BlocksBeyondTheStars.Client
 
         private static bool IsFluidBlockSlow(GameContent content, BlockId id)
         {
-            var key = content.BlockById(id)?.Key;
-            return key is "water" or "lava";
+            var def = content.BlockById(id);
+            return def?.Key is "water" or "lava" || (def?.Liquid ?? false); // #2106: a still liquid (oil) meshes like one
         }
 
         /// <summary>True for slim props that mesh their OWN geometry and never fill their cell: the
@@ -2205,7 +2205,8 @@ namespace BlocksBeyondTheStars.Client
                     if (IsFluidBlockSlow(content, id)) f |= TraitFluid;
                     if (IsClearGlassSlow(content, id)) f |= TraitClearGlass;
                     if (IsWoodBlockSlow(content, id)) f |= TraitWood;
-                    if (key != "water" && key != "fire" && key != "energy_gate") f |= TraitCollidable;
+                    bool liquid = content.BlockById(id)?.Liquid ?? false; // #2106: oil — you sink into it like water
+                    if (key != "water" && key != "fire" && key != "energy_gate" && !liquid) f |= TraitCollidable;
                     if (key != null && key.StartsWith("flora_", System.StringComparison.Ordinal)) f |= TraitFloraPrefix;
                     if (key != null && TallFlora.Contains(key)) f |= TraitTallFlora;
                     if (key != null && SolidFlora.Contains(key)) f |= TraitSolidFlora;

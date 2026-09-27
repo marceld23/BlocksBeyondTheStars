@@ -35,6 +35,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 6 }, { "item": "carbide", "count": 2 } ]
   },
   {
+    "key": "fluid_pump", "nameKey": "blueprint.fluid_pump.name", "descriptionKey": "blueprint.fluid_pump.desc",
+    "category": "Tools", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 40,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 3 } ]
+  },
+  {
     "key": "terrain_scanner", "nameKey": "blueprint.terrain_scanner.name", "descriptionKey": "blueprint.terrain_scanner.desc",
     "category": "Tools", "prerequisites": [], "knowledgeCost": 20,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 3 } ]

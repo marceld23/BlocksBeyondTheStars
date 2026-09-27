@@ -122,6 +122,11 @@ public sealed partial class WorldGenerator
         var strataId = sandstoneId.IsAir ? graniteId : sandstoneId; // #1647: sandstone strata now that the block exists
         bool strataWorld = wonderGates.Strata && !strataId.IsAir;
 
+        // Terrain generation 18 (#2106): the oil pockets — tar-shelled, oil-filled, only where plants and animals live.
+        var oilId = _content.GetBlock("oil")?.NumericId ?? BlockId.Air;
+        var tarShellId = _content.GetBlock("tar")?.NumericId ?? BlockId.Air;
+        bool oilWorld = wonderGates.OilPockets && !oilId.IsAir && !tarShellId.IsAir;
+
         // Generation-1 bodies + paints (#1647): the block ids the paint chain writes, resolved once per chunk.
         bool gen1Paints = wonderGates.Generation >= 1 && !planet.Void && !planet.Cratered && !_crateredWorld && !planet.FloatingIslands;
         var grassId = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
@@ -225,6 +230,9 @@ public sealed partial class WorldGenerator
             TunnelWorld = tunnelWorld,
             GeodeWorld = geodeWorld,
             StrataWorld = strataWorld,
+            OilWorld = oilWorld,
+            OilId = oilId,
+            TarShellId = tarShellId,
             Gen1Paints = gen1Paints,
             GrassId = grassId,
             DirtId = dirtId,
@@ -278,6 +286,8 @@ public sealed partial class WorldGenerator
                 int coverDepth = col.CoverDepth;
                 bool geodeHere = col.GeodeHere;
                 int geoLo = col.GeoLo, geoHi = col.GeoHi, geoInLo = col.GeoInLo, geoInHi = col.GeoInHi;
+                bool oilHere = col.OilHere; // generation 18 (#2106): false on every older column
+                int oilLo = col.OilLo, oilHi = col.OilHi, oilInLo = col.OilInLo, oilInHi = col.OilInHi;
                 int strataShift = col.StrataShift;
                 // Terrain generation 3: the paint fill, the sub-surface fluid spans and the cave shield — all at
                 // their classic no-op values (MinValue / empty / an empty range) on every generation 0–2 column.
@@ -487,6 +497,14 @@ public sealed partial class WorldGenerator
                         }
 
                         chunk.Set(lx, ly, lz, cavernCrystalId);
+                        continue;
+                    }
+
+                    // Oil pocket (#2106, generation 18): a tar shell around still oil — like the geode, claimed before
+                    // the tunnels and caves so nothing ever opens it; the oil is a finite liquid, it never flows.
+                    if (oilHere && worldY >= oilLo && worldY <= oilHi)
+                    {
+                        chunk.Set(lx, ly, lz, worldY >= oilInLo && worldY <= oilInHi ? oilId : tarShellId);
                         continue;
                     }
 
@@ -747,6 +765,10 @@ public sealed partial class WorldGenerator
         public int SurfaceY, SeabedY, WaterTop, IceTop, BiomeIndex, IslandTop, CavLo, CavHi, CavLakeY, EffSurfaceDepth;
         public int GeoLo, GeoHi, GeoInLo, GeoInHi, StrataShift = int.MinValue; // #1646
         public bool CavernHere, BeachHere, GeodeHere;
+        /// <summary>Generation 18 (#2106): the oil pocket's shell span and inner (oil) span; OilHere is false on every
+        /// older column.</summary>
+        public int OilLo, OilHi = -1, OilInLo = 1, OilInHi;
+        public bool OilHere;
         public BlockId ColumnFluid, SurfaceId, SubSurfaceId;
         public BlockId? CraterMetal;
         public ColumnBand[] Bands = System.Array.Empty<ColumnBand>();
@@ -792,6 +814,8 @@ public sealed partial class WorldGenerator
         public bool Ponds, VolcanoWorld, TravertineWorld, CenoteWorld, FreezeWater, BeachPossible, SnowPossible;
         public bool PenitenteWorld, BasaltFieldWorld, AnyBands, CavernWorld, TunnelWorld;
         public bool GeodeWorld, StrataWorld; // #1646
+        public bool OilWorld; // #2106 (generation 18): this world carries oil pockets and has both blocks
+        public BlockId OilId, TarShellId; // #2106
         public bool Gen1Paints; // #1647
         public BlockId GrassId, DirtId, MudId, SandId, StoneId, GraniteId, MossStoneId, ScreeId, SandstoneId, AshId; // #1647
         public BlockId SeaSandId; // #2074: the sand of this type's sand sea (= SandId on every classic type)
@@ -1265,6 +1289,10 @@ public sealed partial class WorldGenerator
         bool geodeHere = c.GeodeWorld && TryGetGeodeSpan(planet, wonder, worldX, worldZ, out geoLo, out geoHi, out geoInLo, out geoInHi);
         int strataShift = c.StrataWorld ? StrataShiftAt(seed, worldX, worldZ) : int.MinValue;
 
+        // Generation 18 (#2106): the oil pocket covering this column (clamped under the local ground).
+        int oilLo = 0, oilHi = -1, oilInLo = 1, oilInHi = 0;
+        bool oilHere = c.OilWorld && TryGetOilPocketSpan(planet, wonder, worldX, worldZ, seabedY, out oilLo, out oilHi, out oilInLo, out oilInHi);
+
         // Crater-floor metal clumps (item 33): on a cratered world, the top cells of a metal-bearing deep
         // crater floor are exposed rare ore instead of regolith (only some craters, a few clumps each).
         BlockId? craterMetal = (planet.Cratered || _crateredWorld)
@@ -1305,6 +1333,11 @@ public sealed partial class WorldGenerator
             GeoHi = geoHi,
             GeoInLo = geoInLo,
             GeoInHi = geoInHi,
+            OilHere = oilHere,
+            OilLo = oilLo,
+            OilHi = oilHi,
+            OilInLo = oilInLo,
+            OilInHi = oilInHi,
             StrataShift = strataShift,
             // Terrain generation 3
             PaintFillToY = paintFillToY,

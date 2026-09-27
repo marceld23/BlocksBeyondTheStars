@@ -1333,8 +1333,16 @@ separate unlock; admins can still disable it through server world rules.
   **Micro-fauna** discoveries chapter and awards a little knowledge. Thermal vision (see §5 → Binoculars)
   also picks critters up as small named contacts.
 - **Terrain scanner** (`terrain_scanner`, workshop recipe + blueprint): a **right-click** gadget that
-  pulses once (10 suit energy, 10 s cooldown) and reveals ores, crystal and data caches within 20 blocks
-  as through-wall glow markers for 8 s, tinted by ore type. An `ai_core_mk2` extends the radius.
+  pulses once (10 suit energy, 10 s cooldown) and reveals ores, crystal, data caches — and **oil** — within
+  20 blocks as through-wall glow markers for 8 s, tinted by ore type. An `ai_core_mk2` extends the radius.
+- **Fluid pump** (`fluid_pump`, workshop recipe + the `fluid_pump` blueprint after the titanium drill): a
+  **right-click** gadget that pulls **one cell of liquid** into your pack (2 suit energy, 0.4 s): **oil**,
+  **water** or **lava**. **Oil** (new worlds since 2026-09) lies in **sealed, tar-rimmed pockets 40–120 blocks
+  under living worlds** — worlds with plants *and* animals; the terrain scanner finds them. It is a **deposit**:
+  what you pump is gone, the pocket never refills and never floods a cave; a drill cannot mine it. Water and
+  lava flow back as they do for a tier-3 drill. Oil **burns** (a torch or lava sets a pocket alight), and the
+  **refinery** turns it into polymer (3 per cell) — see §crafting. You can place oil again; you sink into it
+  and cannot breathe in it, like water.
 
 ### Binoculars & thermal vision
 - Craft **Binoculars** (`binoculars`, workshop recipe + a cheap blueprint). Select them and **right-click**

@@ -114,6 +114,8 @@ public sealed class WorldGenerationGoldenTests
         new("desert-gen16", 20260931, "desert", 0, false, null, 16),
         // Generation 17 (2026-09-27, #2078): Arena Nigra — the black-sand sea over basalt, lava in the low ground, needles.
         new("arena_nigra-gen17", 20260927, "arena_nigra", 0, false, null, 17),
+        // Generation 18 (2026-09-27, #2106): oil pockets — a living world's chunks are the same but for the pockets.
+        new("jungle-gen18", 20260927, "jungle", 0, false, null, 18),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -194,6 +196,8 @@ public sealed class WorldGenerationGoldenTests
             ["desert-gen16"] = 0x5ee850488e4f46b8UL,
             // Pinned 2026-09-27 (Arena Nigra, generation 17; Windows 11, .NET 10).
             ["arena_nigra-gen17"] = 0xea4db59aa9b556e4UL,
+            // Pinned 2026-09-27 (oil pockets, generation 18; Windows 11, .NET 10).
+            ["jungle-gen18"] = 0x77b4051ac5c69436UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

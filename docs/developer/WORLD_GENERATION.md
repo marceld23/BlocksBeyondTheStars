@@ -2074,3 +2074,40 @@ Tests: `ArenaNigraWorldTests` (data, once per galaxy, the black sea over lava wi
 the authored worm and the roster, the worm count, the hunting roll, the rules), `ArenaNigraServerTests` (the authored worm
 in the slots and never in the spawner, black sand heard and stone not, an animal's walk heard and a breach swallowing it
 with meat left and a pet spared, horn / siren / rock), golden `arena_nigra-gen17`.
+
+## 33. Generation 18 — oil pockets and the fluid pump (#2104/#2106, 2026-09-27, Justus' idea)
+
+**A new raw material that is a liquid but not a fluid.** Justus asked for oil; Marcel's rules: it lies **underground**,
+**only on living worlds**, in **pockets of its own beside the caves** (no cave ever floods), and a **hand tool** harvests
+liquids. The engine's two fluids are bottomless sources to the automaton (§5: a mined water or lava cell refills, and a
+pocket with a tunnel under its bed would pour into it forever), so oil is deliberately **not** a third automaton fluid:
+`BlockDefinition.Liquid` (`"liquid": true`, `"solid": false`, `"mineable": false`, `"flammable": true`) marks a **still
+liquid** — you sink into it and cannot breathe in it (`HeadUnderwater`, the client's `WaterProbe`), the aim ray passes
+through it like water unless the pump asks for it (`FluidAim.Liquid`), the chunk mesher meshes it like a fluid
+(`TraitFluid`, no collider), the terrain scanner counts it as valuable — but it never flows, a pumped cell stays air,
+and `IsFluid` (water/lava) is untouched. A **finite deposit.** Gated on `WorldDescription.OilGeneration` (18) through
+`WonderProfile.OilPockets`, which no older world sets, so every generation ≤ 17 chunk is bit-identical.
+
+**Living worlds (`PlanetType.HasLife`).** Air of any kind, `floraDensity > 0`, `creatureAbundance != "none"`, not void —
+derived from the fields, never from a key (jungle, meadowlands, swamp, … yes; toxic_world, crystal, gds_desert, the void
+worlds no). `HasOilPockets` additionally excludes cratered bodies.
+
+**The pocket (`WorldGenerator.OilPocketsGen18.cs`).** A hotspot ellipsoid (`TryGetHotspot`, cell 600, chance 0.25, salt
+`0x01A5EED`): rx 6–14, ry 3–7, centre **40–120 below `BaseHeight`**, a **1.6-thick shell of `tar`** around **`oil`**
+cells. It is claimed in the column's y-loop **right after the geode branch and before the tunnels and blob caves**
+(`Columns.cs`), so the carvers never open it; a column that only grazes the ellipsoid is all shell (the geode's trick,
+#1646). The shell is clamped to `seabedY − 4` and the oil to two cells below that, so a valley never opens the top. The
+mega-cavern and the sub-surface river spans run earlier and win where they overlap — that exposes still oil in a cavern
+wall (a find, not a flood). `ColumnProfile.OilHere/OilLo/OilHi/OilInLo/OilInHi` carry the spans; `ColumnContext.OilWorld`
++ the two block ids are resolved once per chunk. Tests scan for a pocket through `TryGetOilPocketSpanForTest`.
+
+**The pump (`fluid_pump`, gadget, `GameServerGadgets.UseFluidPump`).** Right-click a liquid cell: oil (the cell stays
+air), or water / lava (the automaton refills them, exactly as when a tier-3 drill mines them). The pull goes through
+`BreakBlockCore` — the drop, the fluid wake and the sand above behave as for any mined block; ship, settlement, station
+and other players' base cells are refused; a miss costs neither energy nor cooldown. Blueprint `fluid_pump` (Tools, after
+`titanium_drill`), workshop recipe. The refinery turns oil into `polymer` (3 per cell, out-yielding the carbon+sulfur
+road) — the product chain continues in #2107.
+
+Tests: `OilPocketsWorldTests` (data, the life rule, a sealed tar-rimmed pocket under the ground of a living world, no oil
+on generation 17 or on dead worlds), `GadgetTests` (the pump pulls oil and leaves air, harvests water, refuses rock for
+free), golden `jungle-gen18`.

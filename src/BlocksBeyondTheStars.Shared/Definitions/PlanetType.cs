@@ -266,6 +266,13 @@ public sealed class PlanetType
     /// <see cref="FloraDensity"/>, so airless types should not declare a flora density (#479).</summary>
     public bool IsAirless => string.Equals(Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>A world where plants AND animals live (#2106, Marcel's rule for "a living world"): air of any kind, a
+    /// flora density above zero and a creature abundance that is not "none". Derived from the fields, never from a
+    /// planet key, so a new type joins by its data. Oil pockets (generation 18) form only on such worlds — oil is
+    /// old life.</summary>
+    public bool HasLife => !IsAirless && FloraDensity > 0f && !Void
+        && !string.Equals(CreatureAbundance, "none", System.StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// When true, the sky is always space (black + stars) even on the surface — the system's sun
     /// is still visible. Used by landable asteroids / airless bodies; normal planets keep a sky.

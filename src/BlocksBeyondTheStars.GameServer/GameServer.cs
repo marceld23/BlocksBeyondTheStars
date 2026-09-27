@@ -2116,8 +2116,13 @@ public sealed partial class GameServer
 
         _wetBlockAt ??= (x, y, z) => _world.GetBlock(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(x, y, z)).Value;
         _wetNonFull ??= IsNonFullCell;
-        return WetCell.IsWet(_wetBlockAt, _waterId, _wetNonFull,
-            (int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y + 1.5f), (int)System.Math.Floor(p.Position.Z));
+        int hx = (int)System.Math.Floor(p.Position.X), hy = (int)System.Math.Floor(p.Position.Y + 1.5f), hz = (int)System.Math.Floor(p.Position.Z);
+        if (IsLiquid(_world.GetBlock(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(hx, hy, hz))))
+        {
+            return true; // #2106: a head in oil breathes as little as a head in water
+        }
+
+        return WetCell.IsWet(_wetBlockAt, _waterId, _wetNonFull, hx, hy, hz);
     }
 
     private System.Func<int, int, int, ushort>? _wetBlockAt;

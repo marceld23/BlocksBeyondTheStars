@@ -513,6 +513,9 @@ public sealed partial class WorldGenerator
         // Terrain generation 13 (#2030): this world rolled rare-ore outcrops on its surface (WorldTraits).
         public bool OreOutcrops;
 
+        // Terrain generation 18 (#2106): a living world carries sealed oil pockets underground.
+        public bool OilPockets;
+
         /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
         public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
@@ -1053,6 +1056,11 @@ public sealed partial class WorldGenerator
                 {
                     // #2030: THE trait roll (the roster seed, like every other consumer), cached with the profile.
                     w.OreOutcrops = WorldTraits.For(planet, RosterSeed, _terrainGeneration).OreOutcrops;
+                }
+
+                if (_terrainGeneration >= WorldDescription.OilGeneration)
+                {
+                    w.OilPockets = HasOilPockets(planet); // #2106: only where plants and animals live
                 }
 
                 ulong uh = Noise.Hash(seed ^ 0x57FADE, 2, 4, 8);

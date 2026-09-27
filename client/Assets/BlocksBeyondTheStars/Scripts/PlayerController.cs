@@ -474,6 +474,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
+            RefreshLiquidKeys(); // #2106: cheap (a reference compare) once the content is known
             RecomputeGravity(); // keep the live movement constants in step with this world's gravity factor
 
             // On travel the world is rebuilt at a new location: re-run the spawn snap there.
@@ -1431,7 +1432,9 @@ namespace BlocksBeyondTheStars.Client
             None = 0,
             Water = 1,
             Lava = 2,
+            Liquid = 4, // a still liquid by block data (#2106: oil) — only the pump harvests it, no block displaces it
             Both = Water | Lava,
+            All = Water | Lava | Liquid,
         }
 
         /// <summary>The fluids the selected hotbar tool can mine by the block data (kind + tier — the server
@@ -3574,10 +3577,35 @@ namespace BlocksBeyondTheStars.Client
             return def?.Key;
         }
 
+        /// <summary>The keys of the still liquids by block data (#2106: oil) — filled from the content once it is known
+        /// (<see cref="RefreshLiquidKeys"/>), so the static footing checks can treat them like water without a key list.</summary>
+        private static readonly System.Collections.Generic.HashSet<string> LiquidKeys = new System.Collections.Generic.HashSet<string>();
+        private static BlocksBeyondTheStars.Shared.Content.GameContent _liquidKeysFor;
+
+        private void RefreshLiquidKeys()
+        {
+            var content = Game?.Content;
+            if (content == null || ReferenceEquals(content, _liquidKeysFor))
+            {
+                return;
+            }
+
+            LiquidKeys.Clear();
+            foreach (var def in content.Blocks.Values)
+            {
+                if (def.Liquid)
+                {
+                    LiquidKeys.Add(def.Key);
+                }
+            }
+
+            _liquidKeysFor = content;
+        }
+
         /// <summary>A block key that gives solid footing to stand on (anything placed, but not air or a fluid you'd
-        /// sink through).</summary>
+        /// sink through — water, lava, or a still liquid such as oil).</summary>
         private static bool IsSolidKey(string key)
-            => !string.IsNullOrEmpty(key) && key != "air" && key != "water" && key != "lava";
+            => !string.IsNullOrEmpty(key) && key != "air" && key != "water" && key != "lava" && !LiquidKeys.Contains(key);
 
         /// <summary>
         /// A block that actually has a COLLIDER — i.e. one the capsule can be blocked by or stuck inside.
@@ -4555,8 +4583,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Which fluid a block id is (one key lookup — the aim march calls this per cell).</summary>
         private FluidAim FluidKindOf(BlocksBeyondTheStars.Shared.Primitives.BlockId id)
         {
-            var key = Game.Content?.BlockById(id)?.Key;
-            return key switch
+            var def = Game.Content?.BlockById(id);
+            if (def != null && def.Liquid)
+            {
+                return FluidAim.Liquid; // #2106: oil — the ray passes through it like water unless the pump asks for it
+            }
+
+            return def?.Key switch
             {
                 "water" => FluidAim.Water,
                 "lava" => FluidAim.Lava,

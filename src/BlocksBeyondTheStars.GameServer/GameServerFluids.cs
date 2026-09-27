@@ -198,6 +198,10 @@ public sealed partial class GameServer
 
     private bool IsFluid(ushort id) => id != 0 && (id == _waterId || id == _lavaId);
 
+    /// <summary>A still liquid by its block data (#2106: oil) — NOT one of the automaton's two fluids: it never flows,
+    /// a pumped cell stays air, and only the pump, the scanner, the oxygen drain and the aim treat it as liquid.</summary>
+    private bool IsLiquid(BlockId id) => !id.IsAir && (_world.Definition(id)?.Liquid ?? false);
+
     /// <summary>Registers a full fluid source at the cell (the block must already be set). A source is an
     /// <i>untracked</i> cell — no level entry — so it is always full and never recedes, exactly like a
     /// worldgen sea. Flowing cells, by contrast, live in <c>_fluidLevel</c> and dry up when cut off.</summary>

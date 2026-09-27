@@ -103,6 +103,56 @@ public sealed class GadgetTests : IDisposable
     }
 
     [Fact]
+    public void FluidPump_PullsAnOilCellIntoThePack_AndLeavesAir()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Pumper");
+            p.State.AboardShip = false;
+            p.State.Inventory.Add("fluid_pump", 1, 1);
+
+            var oil = _content.GetBlock("oil")!.NumericId;
+            var cell = new Vector3i(14, 40, 14);
+            server.World.SetBlock(cell, oil);
+
+            server.UseGadgetForTest("Pumper", "fluid_pump", new Vector3f(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f));
+
+            Assert.True(server.World.GetBlock(cell).IsAir, "a pumped oil cell stays air — oil never refills (#2106)");
+            Assert.Equal(1, p.State.Inventory.CountOf("oil"));
+            Assert.True(p.State.SuitEnergy < 100f, "a pull costs suit energy");
+            Assert.True(server.GadgetCooldownForTest("Pumper", "fluid_pump") > 0);
+        }
+    }
+
+    [Fact]
+    public void FluidPump_HarvestsWaterToo_ButNothingElse()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Pumper");
+            p.State.AboardShip = false;
+            p.State.Inventory.Add("fluid_pump", 1, 1);
+
+            var water = _content.GetBlock("water")!.NumericId;
+            var wet = new Vector3i(14, 40, 14);
+            server.World.SetBlock(wet, water);
+            server.UseGadgetForTest("Pumper", "fluid_pump", new Vector3f(wet.X + 0.5f, wet.Y + 0.5f, wet.Z + 0.5f));
+            Assert.Equal(1, p.State.Inventory.CountOf("water"));
+
+            float energy = p.State.SuitEnergy;
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var rock = new Vector3i(18, 40, 18);
+            server.World.SetBlock(rock, stone);
+            server.UseGadgetForTest("Pumper", "fluid_pump", new Vector3f(rock.X + 0.5f, rock.Y + 0.5f, rock.Z + 0.5f));
+            Assert.Equal(stone, server.World.GetBlock(rock));      // rock is not pumped
+            Assert.Equal(energy, p.State.SuitEnergy);              // a miss is free
+            Assert.Equal(0, p.State.Inventory.CountOf("stone"));
+        }
+    }
+
+    [Fact]
     public void FieldMedkit_DoesNothing_WithoutTheGadget()
     {
         var server = Started(out var repo);

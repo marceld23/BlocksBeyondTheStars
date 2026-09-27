@@ -300,6 +300,8 @@ TEXTURES = [
     ("fifi_leaf", "a dense crown of many small overlapping bright lemon-yellow leaves with sunny highlights, dark olive shadows in the gaps between the leaves, top-down"),
     ("fifi_blossom", "densely packed bright pink flower blossoms filling the whole image edge to edge, overlapping soft hot-pink and light pink petals with small luminous pale pink centres, no background visible, top-down"),
     ("flora_fifi_berries", "a single hanging cluster of many small round shiny deep magenta-pink berries with bright highlights, hanging from a short green stem at the top edge of the image, the entire rest of the image solid pitch-black #000000 with no gradient and no vignette, side view"),
+    # #2106 oil (2026-09-27): the finite underground fluid of the living worlds.
+    ("oil", "thick black crude oil filling the whole image edge to edge, glossy near-black liquid surface with a faint iridescent oily sheen and a few slow dull bubbles, no background visible, no edges, no border, top-down"),
 ]
 
 if TYPE_CHECKING:

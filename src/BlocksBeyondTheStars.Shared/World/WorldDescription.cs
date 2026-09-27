@@ -182,8 +182,16 @@ public sealed class WorldDescription
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
     /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora,
     /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees, #2062 Toxica-Maxima,
-    /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant, #2073 Arena Nigra).</summary>
-    public const int CurrentTerrainGeneration = 17;
+    /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant, #2073 Arena Nigra, #2104 Justus' package:
+    /// oil pockets, the worm body plan, the gas giant).</summary>
+    public const int CurrentTerrainGeneration = 18;
+
+    /// <summary>The generation of Justus' package (#2104, 2026-09): <b>oil</b> (#2106) — a finite, still liquid in sealed
+    /// tar-rimmed pockets 40–120 below the surface of every living world (<c>PlanetType.HasLife</c>), harvested with the fluid
+    /// pump; the <b>worm</b> body plan (#2109) — legless slitherers rolled last for some standard Land species; and the
+    /// <b>gas giant</b> world class (#2112). Every new field defaults to its classic no-op and every roll is appended after
+    /// every older roll, so a world of any older generation keeps its terrain, its roster and its chunks bit for bit.</summary>
+    public const int OilGeneration = 18;
 
     /// <summary>The generation of the bipeds (#2080, 2026-09, the school club idea of Paul and Ben): an upright two-legged body
     /// plan with two arms and a big head, rolled last for some standard Land species and always peaceful

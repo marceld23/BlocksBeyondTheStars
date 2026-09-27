@@ -32,11 +32,15 @@ namespace BlocksBeyondTheStars.Client
                 || !ShapeCode.IsCube(_world.GetShape(x, y, z));
         }
 
+        /// <summary>A still liquid by block data (#2106: oil) — swum in and drowned in like water, so a player can climb
+        /// out of a pocket; it is not the automaton's water and gets none of water's surroundings rule.</summary>
+        private bool IsLiquidCell(int x, int y, int z) => _content.BlockById(_world.GetBlock(x, y, z))?.Liquid ?? false;
+
         /// <summary>True when this probe was built for exactly this world and content (the caller rebuilds it on a
         /// world swap).</summary>
         public bool IsFor(ClientWorld world, GameContent content) => ReferenceEquals(world, _world) && ReferenceEquals(content, _content);
 
         /// <summary>True when the cell is water, or a plant / slim prop / building form the water surrounds.</summary>
-        public bool IsWet(int x, int y, int z) => WetCell.IsWet(_blockAt, _water, _nonFull, x, y, z);
+        public bool IsWet(int x, int y, int z) => IsLiquidCell(x, y, z) || WetCell.IsWet(_blockAt, _water, _nonFull, x, y, z);
     }
 }
