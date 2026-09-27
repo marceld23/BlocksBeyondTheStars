@@ -309,6 +309,7 @@
   { "key": "auto_drill_1", "craftTab": "machines", "nameKey": "item.auto_drill_1.name", "category": "block", "maxStack": 16, "placesBlock": "auto_drill_1", "descriptionKey": "item.auto_drill_1.desc" },
   { "key": "auto_drill_2", "craftTab": "machines", "nameKey": "item.auto_drill_2.name", "category": "block", "maxStack": 16, "placesBlock": "auto_drill_2", "descriptionKey": "item.auto_drill_2.desc" },
   { "key": "auto_drill_3", "craftTab": "machines", "nameKey": "item.auto_drill_3.name", "category": "block", "maxStack": 16, "placesBlock": "auto_drill_3", "descriptionKey": "item.auto_drill_3.desc" },
+  { "key": "drill_laser",  "craftTab": "machines", "nameKey": "item.drill_laser.name",  "category": "block", "maxStack": 16, "placesBlock": "drill_laser",  "descriptionKey": "item.drill_laser.desc" },
   { "key": "matter_sender", "craftTab": "machines", "nameKey": "item.matter_sender.name", "category": "block", "maxStack": 16, "placesBlock": "matter_sender", "descriptionKey": "item.matter_sender.desc" },
   { "key": "matter_receiver", "craftTab": "machines", "nameKey": "item.matter_receiver.name", "category": "block", "maxStack": 16, "placesBlock": "matter_receiver", "descriptionKey": "item.matter_receiver.desc" },
   // Generation 15 (#2066, Toxica-Maxima): the tainted materials — each shares its block's key, so it shows the block's tile — and the

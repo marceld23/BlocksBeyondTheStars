@@ -414,6 +414,62 @@ public sealed class CrystalNetTests : IDisposable
     }
 
     [Fact]
+    public void ADrillLaser_CutsAShaftStraightDown_BanksOreAndOil_AndStopsAtWater()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Builder(server, new Vector3f(0, 200, 0), "drill_laser", "crate");
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var ore = _content.GetBlock("iron_ore")!.NumericId;
+            var oil = _content.GetBlock("oil")!.NumericId;
+            var water = _content.GetBlock("water")!.NumericId;
+            // A natural column under the device: stone, an ore, more stone, a cell of still oil, stone, then water.
+            for (int y = 199; y >= 190; y--)
+            {
+                server.World.SetBlock(new Vector3i(10, y, 0), stone);
+            }
+
+            server.World.SetBlock(new Vector3i(10, 197, 0), ore);
+            server.World.SetBlock(new Vector3i(10, 194, 0), oil);
+            server.World.SetBlock(new Vector3i(10, 189, 0), water);
+            // Solid walls beside the shaft, so no neighbour is a fluid until the water itself.
+            for (int y = 199; y >= 189; y--)
+            {
+                foreach (var (dx, dz) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+                {
+                    server.World.SetBlock(new Vector3i(10 + dx, y, dz), stone);
+                }
+            }
+
+            p.State.Position = new Vector3f(9, 200, 0);
+            server.PlaceBlock("Builder", 10, 200, 0, "drill_laser");
+            server.PlaceBlock("Builder", 11, 200, 0, "crate");
+            var crate = server.Containers.Single(c => c.Position == new Vector3i(11, 200, 0));
+            var laser = new Vector3i(10, 200, 0);
+
+            for (int i = 0; i < 40; i++)
+            {
+                server.SetCrystalDeviceForTest(p, laser, action: 1); // pulses, one block each
+                server.TickForTest(0.1);
+            }
+
+            for (int y = 199; y >= 191; y--)
+            {
+                Assert.True(server.World.GetBlock(new Vector3i(10, y, 0)).IsAir, $"the shaft is cut at y={y}");
+            }
+
+            Assert.Equal(stone, server.World.GetBlock(new Vector3i(11, 195, 0))); // one block wide: the walls stand
+            Assert.Equal(stone, server.World.GetBlock(new Vector3i(10, 190, 0))); // the cap over the water is never cut
+            Assert.Equal(water, server.World.GetBlock(new Vector3i(10, 189, 0))); // so the water is never opened
+            Assert.True(server.CrystalDeviceOutput(laser), "halted at the water: the status light is on");
+            Assert.Equal(1, crate.Items.Where(s => s.Item == "iron_ore").Sum(s => s.Count));
+            Assert.Equal(1, crate.Items.Where(s => s.Item == "oil").Sum(s => s.Count)); // oil is banked even in "only ore"
+            Assert.Empty(crate.Items.Where(s => s.Item == "stone"));                     // the rock is vaporised
+        }
+    }
+
+    [Fact]
     public void AnAutoDrill_MinesOnlyOre_BelowItself_IntoItsCrate()
     {
         var server = NewServer(out var repo);

@@ -181,6 +181,8 @@ TEXTURES = [
     ("auto_drill_1", "a sci-fi auto-drill mk1 block, compact dark metal rig with a single steel drill bit pointing down and one violet crystal light, front view"),
     ("auto_drill_2", "a sci-fi auto-drill mk2 block, heavier dark metal rig with twin steel drill bits pointing down, carbide edges and two violet crystal lights, front view"),
     ("auto_drill_3", "a sci-fi auto-drill mk3 block, massive dark metal rig with a wide diamond-tipped drill head pointing down and three glowing violet crystal lights, front view"),
+    # #2108 the drill laser (2026-09-27): a Crystal Net machine that cuts a shaft straight down.
+    ("drill_laser", "a sci-fi drill laser machine block, dark armoured metal housing with a large downward-pointing cyan laser emitter lens in the centre, thin glowing cyan light strips, three small violet crystal studs, front view"),
     ("matter_sender", "a sci-fi matter sender block, dark metal pedestal with an upward violet crystal emitter ring and cyan energy motes rising, front view"),
     ("matter_receiver", "a sci-fi matter receiver block, dark metal pedestal with a downward cyan crystal collector ring and violet energy motes settling, front view"),
     # #2092 the Device Eye (2026-09-27): reads what a machine is doing and tells the wire.

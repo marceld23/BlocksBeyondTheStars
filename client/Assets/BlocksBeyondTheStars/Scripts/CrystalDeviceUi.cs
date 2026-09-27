@@ -160,7 +160,8 @@ namespace BlocksBeyondTheStars.Client
 
             _ = y;
             bool machine = kind is CrystalDeviceKind.Fabricator or CrystalDeviceKind.MatterSender or CrystalDeviceKind.CloneTank
-                or CrystalDeviceKind.AutoDrill or CrystalDeviceKind.Caller or CrystalDeviceKind.Thumper or CrystalDeviceKind.HydroTray;
+                or CrystalDeviceKind.AutoDrill or CrystalDeviceKind.Caller or CrystalDeviceKind.Thumper or CrystalDeviceKind.HydroTray
+                or CrystalDeviceKind.DrillLaser;
             if (machine)
             {
                 UiKit.AddButton(panel, 32f, H - 72f, 300f, 48f, L("ui.crystal.start"), () =>
@@ -219,6 +220,7 @@ namespace BlocksBeyondTheStars.Client
             CrystalDeviceKind.MelodyBlock => "note",
             CrystalDeviceKind.Announcer => "announce",
             CrystalDeviceKind.AutoDrill => "drill",
+            CrystalDeviceKind.DrillLaser => "drill", // #2108: the same two modes (only ore / everything)
             CrystalDeviceKind.CloneTank => "clone",
             _ => "none",
         };

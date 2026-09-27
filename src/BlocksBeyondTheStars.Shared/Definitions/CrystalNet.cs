@@ -50,6 +50,11 @@ public enum CrystalDeviceKind
 
     /// <summary>#2092: reads what the device (or door) in front of it is doing and drives the network behind it.</summary>
     DeviceEye,
+
+    /// <summary>#2108: the drill laser — lasers a 1×1 shaft straight down from its own column, one block per beat, the
+    /// spoils into the crate beside it (ore and oil; in "only ore" mode the rock is vaporised). Appended last: the kind
+    /// travels by name, but an enum index must never shift.</summary>
+    DrillLaser,
 }
 
 /// <summary>How a door reacts to the Crystal Net: no conduit beside it → <see cref="Normal"/>; a conduit beside it
@@ -161,8 +166,16 @@ public static class CrystalNetRules
     public const int MaxCloneTanksPerOwner = 2;
     public const int MaxLivingClonesPerOwner = 6;
 
-    /// <summary>Mined blocks per world per tick across every auto-drill (a wake-set style budget).</summary>
+    /// <summary>Mined blocks per world per tick across every auto-drill and drill laser (a wake-set style budget).</summary>
     public const int MaxDrillBlocksPerTick = 2;
+
+    /// <summary>The drill laser (#2108): how deep its shaft goes below the device, seconds per block, the drill tier it
+    /// cuts up to, and how many one owner may run. Stopped for good by water, lava, bedrock, a protected cell or the
+    /// crate never emptied; the depth reached is persisted in the cell's config (<c>depth=</c>) so a reload resumes.</summary>
+    public const int DrillLaserDepth = 128;
+    public const double DrillLaserBeat = 0.5;
+    public const int DrillLaserToolTier = 3;
+    public const int MaxDrillLasersPerOwner = 2;
 
     /// <summary>How far a caller's pulse reaches and how long the animals stay.</summary>
     public const float CallerRange = 24f;
@@ -212,6 +225,7 @@ public static class CrystalNetRules
         ["auto_drill_3"] = CrystalDeviceKind.AutoDrill,
         ["matter_sender"] = CrystalDeviceKind.MatterSender,
         ["matter_receiver"] = CrystalDeviceKind.MatterReceiver,
+        ["drill_laser"] = CrystalDeviceKind.DrillLaser,
         ["radio_beacon"] = CrystalDeviceKind.Beacon,
         ["beam_block"] = CrystalDeviceKind.BeamPad,
         ["sentry_post"] = CrystalDeviceKind.Sentry,
@@ -283,7 +297,7 @@ public static class CrystalNetRules
         or CrystalDeviceKind.MelodyBlock or CrystalDeviceKind.Announcer or CrystalDeviceKind.Thumper
         or CrystalDeviceKind.HydroTray or CrystalDeviceKind.BeamPad or CrystalDeviceKind.Fabricator
         or CrystalDeviceKind.MatterSender or CrystalDeviceKind.CloneTank or CrystalDeviceKind.AutoDrill
-        or CrystalDeviceKind.Caller;
+        or CrystalDeviceKind.Caller or CrystalDeviceKind.DrillLaser;
 
     /// <summary>Devices the sensor beat polls (world queries, capped per world).</summary>
     public static bool IsSensor(CrystalDeviceKind kind) => kind is CrystalDeviceKind.StepPlate
@@ -300,7 +314,7 @@ public static class CrystalNetRules
         or CrystalDeviceKind.LogicBlock or CrystalDeviceKind.TimerBlock or CrystalDeviceKind.AlarmSiren
         or CrystalDeviceKind.Chime or CrystalDeviceKind.Horn or CrystalDeviceKind.MelodyBlock or CrystalDeviceKind.Announcer
         or CrystalDeviceKind.Fabricator or CrystalDeviceKind.CloneTank or CrystalDeviceKind.AutoDrill
-        or CrystalDeviceKind.MatterSender or CrystalDeviceKind.BeamPad;
+        or CrystalDeviceKind.MatterSender or CrystalDeviceKind.BeamPad or CrystalDeviceKind.DrillLaser;
 
     /// <summary>Devices only a planet, moon or asteroid surface can host — creatures never tick on a void (station) world.</summary>
     public static bool IsPlanetOnly(CrystalDeviceKind kind) => kind is CrystalDeviceKind.Caller or CrystalDeviceKind.CloneTank;
@@ -320,6 +334,7 @@ public static class CrystalNetRules
         CrystalDeviceKind.MelodyBlock => 8,        // eight notes (the instrument rides in Config)
         CrystalDeviceKind.Announcer => 6,          // six preset lines
         CrystalDeviceKind.AutoDrill => 2,          // AutoDrillMode
+        CrystalDeviceKind.DrillLaser => 2,         // AutoDrillMode too: only ore (the rock is vaporised) / everything
         CrystalDeviceKind.CloneTank => 2,          // release automatically / on signal
         _ => 0,
     };

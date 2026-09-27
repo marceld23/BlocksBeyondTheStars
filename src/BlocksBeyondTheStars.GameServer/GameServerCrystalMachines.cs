@@ -39,6 +39,9 @@ public sealed partial class GameServer
             case CrystalDeviceKind.AutoDrill:
                 AutoDrillStep(c);
                 break;
+            case CrystalDeviceKind.DrillLaser:
+                DrillLaserStep(c);
+                break;
             case CrystalDeviceKind.Caller:
                 CallerPulse(c);
                 break;
@@ -79,6 +82,9 @@ public sealed partial class GameServer
                     break;
                 case CrystalDeviceKind.AutoDrill when held && _uptime >= c.NextBeat:
                     AutoDrillStep(c);
+                    break;
+                case CrystalDeviceKind.DrillLaser when held && _uptime >= c.NextBeat:
+                    DrillLaserStep(c);
                     break;
                 case CrystalDeviceKind.CloneTank:
                     CloneTankBeat(c, held);
@@ -355,6 +361,114 @@ public sealed partial class GameServer
         {
             SetCrystalBlocked(drill, true); // done: the volume is mined; the light stays on until the drill is re-placed
         }
+    }
+
+    // ------------------------------------------------------------------------------------------------------
+    // Drill laser (#2108): a 1×1 shaft straight down from the device's own column, one block per beat.
+    // ------------------------------------------------------------------------------------------------------
+
+    /// <summary>One beat of a drill laser. Unlike the auto-drill it LOADS the chunk it aims at (a shaft goes far below
+    /// the rows streamed around a player, and an unloaded cell must never read as air and be skipped); it passes air
+    /// (a cave) without a beat; it banks ore and oil — in "only ore" mode the rock is vaporised, in "everything" mode
+    /// it goes into the crate too; and it stops for good at water or lava (in the shaft or beside it), at bedrock or
+    /// anything its tier cannot cut, at a protected cell, or at its maximum depth. The depth reached lives in the
+    /// cell's config (<c>depth=</c>), so a reload resumes where it stopped.</summary>
+    private void DrillLaserStep(ServerCrystalCell laser)
+    {
+        laser.NextBeat = _uptime + CrystalNetRules.DrillLaserBeat;
+        if (_drillBlocksThisTick >= CrystalNetRules.MaxDrillBlocksPerTick)
+        {
+            laser.NextBeat = _uptime + CrystalNetRules.LogicBeatSeconds; // the world's budget for this tick is spent — try next beat
+            return;
+        }
+
+        var crate = AdjacentCrystalCrate(laser.Cell, out _);
+        if (crate is null)
+        {
+            SetCrystalBlocked(laser, true);
+            return;
+        }
+
+        int depth = int.TryParse(CrystalConfigValue(laser.Config, "depth"), out int saved) ? System.Math.Max(0, saved) : 0;
+        bool onlyOre = (AutoDrillMode)laser.Mode == AutoDrillMode.OnlyOre;
+        var tool = new ToolProperties { Kind = ToolKind.Drill, Tier = CrystalNetRules.DrillLaserToolTier };
+        int scanned = 0;
+        while (depth < CrystalNetRules.DrillLaserDepth && scanned < 16)
+        {
+            var target = new Vector3i(laser.Cell.X, laser.Cell.Y - 1 - depth, laser.Cell.Z);
+            scanned++;
+            var id = _world.GetBlock(target); // loads / generates on purpose (#2108) — never "air because unloaded"
+            if (id.IsAir)
+            {
+                depth++; // a cave: the beam passes through
+                continue;
+            }
+
+            var def = _content.BlockById(id);
+            if (def is null || IsFluid(id.Value) || (!def.Mineable && !def.Liquid) || (!def.Liquid && !MiningRules.ToolCanMine(tool, def))
+                || DrillCellProtected(target, id, laser.OwnerId))
+            {
+                DrillLaserStop(laser, depth);
+                return;
+            }
+
+            // Never open a fluid into the shaft: a cell with water or lava beside it ends the dig.
+            foreach (var face in CrystalNetRules.Faces)
+            {
+                if (IsFluid(_world.GetBlock(target + face).Value))
+                {
+                    DrillLaserStop(laser, depth);
+                    return;
+                }
+            }
+
+            bool bank = !onlyOre || def.Category == "ore" || def.Liquid;
+            var drops = new List<ItemAmount>();
+            if (bank && !NpcCrateHasRoom(crate, def.Drops))
+            {
+                DrillLaserStop(laser, depth); // the crate is full: it resumes from the same cell once emptied and started again
+                return;
+            }
+
+            BreakBlockCore(null, laser.OwnerId, target, def, null, (item, count) =>
+            {
+                if (bank)
+                {
+                    drops.Add(new ItemAmount(item, count));
+                }
+            });
+            _drillBlocksThisTick++;
+            depth++;
+            laser.Config = CrystalConfigWith(laser.Config, "depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            SaveCrystalCell(laser);
+            if (drops.Count > 0 && !NpcDepositToContainer(crate, drops))
+            {
+                SpillToGround(target, drops, creatureLoot: false); // the dry run said yes; a composed key can still refuse
+            }
+
+            // The beam: from the device straight down to the cell it just cut (Radius carries the length for the client).
+            BroadcastToWorld(new WorldFx { Kind = "laser", X = target.X + 0.5f, Y = target.Y + 0.5f, Z = target.Z + 0.5f, Strength = 0.3f, Radius = depth });
+            SetCrystalBlocked(laser, false);
+            return;
+        }
+
+        if (depth >= CrystalNetRules.DrillLaserDepth)
+        {
+            DrillLaserStop(laser, depth); // done: the shaft is as deep as it goes
+        }
+    }
+
+    /// <summary>The laser halts: the depth reached is kept, the status light turns amber (a Device Eye reads it).</summary>
+    private void DrillLaserStop(ServerCrystalCell laser, int depth)
+    {
+        string kept = depth.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (CrystalConfigValue(laser.Config, "depth") != kept)
+        {
+            laser.Config = CrystalConfigWith(laser.Config, "depth", kept);
+            SaveCrystalCell(laser);
+        }
+
+        SetCrystalBlocked(laser, true);
     }
 
     /// <summary>The cells a drill may never touch: ships, settlements, stations, the Guardian core, factories, other

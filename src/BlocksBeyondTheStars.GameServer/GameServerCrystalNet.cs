@@ -295,6 +295,7 @@ public sealed partial class GameServer
             CrystalDeviceKind.MatterSender => CrystalNetRules.MaxMatterSendersPerOwner,
             CrystalDeviceKind.Fabricator => CrystalNetRules.MaxFabricatorsPerOwner,
             CrystalDeviceKind.CloneTank => CrystalNetRules.MaxCloneTanksPerOwner,
+            CrystalDeviceKind.DrillLaser => CrystalNetRules.MaxDrillLasersPerOwner,
             _ => 0,
         };
         if (ownerCap > 0 && state.Cells.Values.Count(c => !c.Inert && c.Kind == cell.Kind && c.OwnerId == cell.OwnerId) >= ownerCap)
@@ -515,6 +516,7 @@ public sealed partial class GameServer
         CrystalDeviceKind.Caller => "caller",
         CrystalDeviceKind.CloneTank => "clone_tank",
         CrystalDeviceKind.AutoDrill => "auto_drill_1",
+        CrystalDeviceKind.DrillLaser => "drill_laser",
         CrystalDeviceKind.MatterSender => "matter_sender",
         CrystalDeviceKind.MatterReceiver => "matter_receiver",
         CrystalDeviceKind.Beacon => "radio_beacon",
@@ -634,7 +636,8 @@ public sealed partial class GameServer
                 BroadcastToWorld(new SoundFx { SoundId = "crystal_button", X = pos.X + 0.5f, Y = pos.Y + 0.5f, Z = pos.Z + 0.5f, SourceId = cell.Id });
                 return;
             case 1 when cell.Kind is CrystalDeviceKind.Fabricator or CrystalDeviceKind.MatterSender or CrystalDeviceKind.CloneTank
-                or CrystalDeviceKind.AutoDrill or CrystalDeviceKind.Caller or CrystalDeviceKind.Thumper or CrystalDeviceKind.HydroTray:
+                or CrystalDeviceKind.AutoDrill or CrystalDeviceKind.Caller or CrystalDeviceKind.Thumper or CrystalDeviceKind.HydroTray
+                or CrystalDeviceKind.DrillLaser:
                 if (!CanConfigureCrystal(cell, me, session.State.IsAdmin))
                 {
                     Reject(session, "crystal", "@srv.crystal.owner_only");
@@ -1410,6 +1413,7 @@ public sealed partial class GameServer
             case CrystalDeviceKind.MatterSender:
             case CrystalDeviceKind.CloneTank:
             case CrystalDeviceKind.AutoDrill:
+            case CrystalDeviceKind.DrillLaser:
             case CrystalDeviceKind.Caller:
                 if (on)
                 {

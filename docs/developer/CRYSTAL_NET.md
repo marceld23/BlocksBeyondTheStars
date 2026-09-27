@@ -199,6 +199,7 @@ drives its own network (#2092).
 | `caller` | Caller | machine (edge, planet-only) | rising edge | — | — | — |
 | `clone_tank` | CloneTank | machine (edge, planet-only) | start / held | — | ON while growing, then a 0.5 s "ready" pulse | mode 0 release automatically / 1 on signal; config `sp=`, `growing=`, `clones=` |
 | `auto_drill_1/2/3` | AutoDrill | machine (edge) | rising edge / held | — | ON = crate full / pit done | mode = `AutoDrillMode` (only ore / everything) |
+| `drill_laser` | DrillLaser | machine (edge) | rising edge / held | — | ON = halted (water / lava / bedrock / protected / crate full / 128 deep) | mode = `AutoDrillMode`; config `depth=<blocks cut>` (#2108) |
 | `matter_sender` | MatterSender | machine (edge) | rising edge / held | — | ON = blocked (cannot send) | config `pair=<receiver device id>` |
 | `matter_receiver` | MatterReceiver | listener (port) | — | — | 0.5 s pulse on arrival | label = its name |
 | every `category: light` block | Light | level listener | level | — | — | — (OFF swaps to `<key>_off`) |
@@ -250,6 +251,18 @@ network (before #2092 a blocked machine latched its own control line ON).
   beside it. Drops go into the crate beside the drill (`NpcCrateHasRoom` dry run first — a full crate pauses the
   drill with its status ON, the cursor stays on that cell); a finished volume leaves the status ON until the drill
   is re-placed. World budget: `MaxDrillBlocksPerTick` (2) across every drill.
+- **Drill laser (#2108, Justus' idea, Marcel's shape).** A 1×1 shaft straight down from the device's own column
+  (`DrillLaserStep`): one block every `DrillLaserBeat` (0.5 s) up to `DrillLaserDepth` (128), cutting what a
+  tier-3 drill cuts. Three things set it apart from the auto-drill: it **loads the chunk it aims at**
+  (`_world.GetBlock`, never `GetBlockIfLoaded` — a shaft runs far below the rows streamed around a player, and an
+  unloaded cell must never read as air and be skipped); it **banks oil** (`BlockDefinition.Liquid`, #2106) as well
+  as ore, and in **only ore** mode the rock is vaporised rather than left standing (a shaft has to go down); and it
+  **stops for good** instead of skipping — at water or lava in the shaft or beside it, at bedrock or anything its
+  tier cannot cut, at a protected cell, at a full crate (resumes from the same cell once emptied and started again)
+  and at its maximum depth — with the status ON (a Device Eye reads it). The depth reached is persisted in the
+  cell's config (`depth=`), so a reload resumes. Every cut broadcasts `WorldFx { Kind = "laser", Radius = depth }`:
+  the client draws the beam from the device down to the cell and plays `drill_laser_zap`. Shares the world budget
+  with the auto-drills; `MaxDrillLasersPerOwner` (2).
 - **Caller (#2057).** A pulse marks the block active for `CallerHoldSeconds` (20 s) and snaps the owner's
   companions within `CallerRange` (24) to it. The creature tick (`TryCallerIntent`, run after the begging
   routine had nothing to say) sends every passive or skittish **land** animal within range — not companions,

@@ -208,6 +208,7 @@ All cues are 3D at the device cell. See [CRYSTAL_NET.md](CRYSTAL_NET.md).
 | announcer | rising edge (a toast to the owner + allies) | `ai_blip` (existing VEGA chirp) | EL (existing) |
 | switch flip / button press | the player's Interact | `crystal_switch`, `crystal_button` | EL |
 | auto-drill | working (loop while it mines) | `auto_drill_loop` | EL |
+| drill laser (#2108) | one cell cut (per `WorldFx laser`) | `drill_laser_zap` | EL |
 | clone tank | growing (loop for 60 s), stop on release | `clone_tank_bubble` | EL |
 | fabricator | one craft done | `fabricator_craft` | EL |
 | caller | pulse | `caller_whistle` | EL |

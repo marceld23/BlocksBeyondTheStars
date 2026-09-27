@@ -1003,6 +1003,11 @@ namespace BlocksBeyondTheStars.Client
                         audio?.At("sandworm_swallow", at, 0.7f, 1f);
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 40f) * 0.25f);
                         break;
+                    case "laser": // #2108: the drill laser cut a cell — the beam runs from the device (Radius blocks above) down to it
+                        Fx?.Shoot(at + Vector3.up * Mathf.Max(1f, fx.Radius), at, new Color(0.45f, 0.92f, 1f));
+                        Fx?.Dust(at + Vector3.up * 0.3f, 4);
+                        audio?.At("drill_laser_zap", at, 0.5f, 1f);
+                        break;
                     case "dive":
                         Fx?.Dust(at + Vector3.up * 0.3f, 16);
                         audio?.At("sandworm_dive", at, 0.6f, 0.8f); // the sand collapsing into the hole (was a thunder placeholder)

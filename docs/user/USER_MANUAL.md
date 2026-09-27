@@ -1043,6 +1043,13 @@ separate unlock; admins can still disable it through server world rules.
   stays standing — the default) or **everything** (a real pit). It stops in front of water and lava, never
   touches anything a player built, and pauses with its **amber light** on when the crate is full or the pit is
   done (a Device Eye on the drill and a siren behind the eye = "come and empty me").
+- **Drill laser (a shaft, not a pit).** Place it on the ground with a crate beside it and switch its network
+  ON: it lasers a **one-block shaft straight down** from where it stands, a block every half second, **up to 128
+  deep**, and puts the **ore and the oil** it hits into the crate — the way to reach a deep oil pocket the scanner
+  showed you without digging. **Only ore** (the default) vaporises the plain rock, **everything** keeps it. It stops
+  for good at water or lava (in the shaft or right beside it), at bedrock, at anything a player built, when the
+  crate is full or at its full depth — the **amber light** comes on (a Device Eye reads it); empty the crate and
+  start it again and it continues from where it stopped, even after a reload. Two per player. Needs lubricant.
 - **Fabricator (an automatic workbench).** Pick one recipe in its menu; every pulse crafts it once, taking the
   parts from the crates beside it and putting the result back into one. It needs the recipe's blueprint, like
   a hand craft, and it only works **while you are on the world**. Its amber light shows when it is stuck

@@ -456,6 +456,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "crystal", "count": 12 }, { "item": "power_cell", "count": 1 } ]
   },
   {
+    "key": "drill_laser", "nameKey": "blueprint.drill_laser.name", "descriptionKey": "blueprint.drill_laser.desc",
+    "category": "Crystal", "prerequisites": [ "auto_drill_3", "fluid_pump" ], "knowledgeCost": 220,
+    "unlockCost": [ { "item": "data_fragment", "count": 8 }, { "item": "crystal", "count": 16 }, { "item": "lubricant", "count": 2 } ]
+  },
+  {
     "key": "matter_sender", "nameKey": "blueprint.matter_sender.name", "descriptionKey": "blueprint.matter_sender.desc",
     "category": "Crystal", "prerequisites": [ "beam_block", "matter_forge" ], "knowledgeCost": 95,
     "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "matter_dust", "count": 4 }, { "item": "crystal", "count": 8 } ]
