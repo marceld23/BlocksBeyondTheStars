@@ -401,6 +401,19 @@ separate unlock; admins can still disable it through server world rules.
   animals, cave plants). Nobody lives there: settlements are rare and always **ruined**, ruins and factories rare, no
   bandit camps. VEGA reports each toxic world's air and water when you land. Like every hazard, corrosive air and toxic
   water follow the *Environmental hazards* option and spare Creative mode.
+- **Toxica-Maxima** (Justus' planet — at most one per galaxy, never in the start system; an exotic type): the poisoned
+  landmark. Its air is **always corrosive** and its water **always toxic** (the same rules and liners as on the toxic
+  worlds), and a **green acid thunderstorm never ends** under a light-green sky: lightning, acid rain that drains the
+  suit and then your health in the open, a roof stops it. The **ground itself is tainted** — soil, stone, the dead
+  trees' wood and the ores: diamond, titanium, iron and copper lie right under the surface, more than anywhere else,
+  but every piece is *tainted* and matches no recipe. **Decontaminate** it: the **Decontaminator** (blueprint after
+  the detoxifier; a block for your base or a ship module) washes **2 tainted + 1 carbon → 2 clean** (ore, stone, soil,
+  wood, and the **contaminated meat** of the planet's animals), and the planet's abandoned **factories** wash ore in
+  bulk at their terminals (6 tainted → 4 clean, no carbon). Every animal there is **contaminated**: it hunts on sight,
+  never sleeps and has **glowing green eyes** — the scanner says "Contaminated". Nobody settled the planet (ruins
+  remain), but **6–10 factories** stand there, one near the landing pad — and **every factory hall breathes**: under its
+  roof you have air, no corrosion and no rain, on this planet and on every other world (the HUD says "factory life
+  support"). Carbon and silicate are clean there, so the wash loop closes on site.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between

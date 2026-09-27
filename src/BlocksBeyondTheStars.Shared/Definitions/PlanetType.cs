@@ -414,4 +414,33 @@ public sealed class PlanetType
 
     /// <summary>Nobody lives here (#2031): every settlement of such a world is a ruin, and no bandit camp stamps.</summary>
     public bool RuinedSettlementsOnly { get; set; }
+
+    // --- Generation 15 (2026-09, #2062): Toxica-Maxima, Justus' once-per-galaxy toxic landmark. No-op defaults; every
+    // field is read on generation-15 worlds only (WorldDescription.ToxicaMaximaGeneration). ---
+
+    /// <summary>A fixed daytime sky colour (packed 0xRRGGBB, #2063); 0 = the classic per-world seeded hue.</summary>
+    public int SkyColor { get; set; }
+
+    /// <summary>What the LADDER rain and storm fall as on this type ("acid", #2063); empty = resolved by climate (rain,
+    /// snow, sand, ash). The weather events keep their own forms.</summary>
+    public string Precipitation { get; set; } = string.Empty;
+
+    /// <summary>The block a <see cref="DeadForests"/> snag is built of (#2068, Toxica-Maxima: tainted wood); empty =
+    /// <c>wood_log</c>.</summary>
+    public string DeadTreeBlock { get; set; } = string.Empty;
+
+    /// <summary>Contaminated fauna (#2069): every procedural species hunts on sight, never sleeps, wears the type's
+    /// <see cref="EyeColor"/> and drops toxic meat instead of food.</summary>
+    public bool ContaminatedFauna { get; set; }
+
+    /// <summary>The eye colour (packed 0xRRGGBB) of a <see cref="ContaminatedFauna"/> roster (#2069); 0 = the rolled eyes.</summary>
+    public int EyeColor { get; set; }
+
+    /// <summary>How many factories a world of this type stamps, as [min, max] (#2070, Toxica-Maxima 6–10); empty = the
+    /// classic 0 / 1 / 2 roll. The first one stands near the landing pad.</summary>
+    public List<int> FactoryCount { get; set; } = new();
+
+    /// <summary>The recipe roster of EVERY factory of this type (#2067, Toxica-Maxima: the four ore washes); empty = the
+    /// classic seeded subset of all factory recipes.</summary>
+    public List<string> FactoryRecipes { get; set; } = new();
 }

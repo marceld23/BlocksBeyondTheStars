@@ -459,5 +459,11 @@
     "key": "matter_receiver", "nameKey": "blueprint.matter_receiver.name", "descriptionKey": "blueprint.matter_receiver.desc",
     "category": "Crystal", "prerequisites": [ "matter_sender" ], "knowledgeCost": 100,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "matter_dust", "count": 2 }, { "item": "crystal", "count": 6 } ]
+  },
+  // Generation 15 (#2067, Toxica-Maxima): the decontaminator — the detoxifier's matter-side twin, block and ship module.
+  {
+    "key": "decontaminator", "nameKey": "blueprint.decontaminator.name", "descriptionKey": "blueprint.decontaminator.desc",
+    "category": "ShipExpansion", "prerequisites": [ "detoxifier" ], "knowledgeCost": 50,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "metal_panel", "count": 4 }, { "item": "carbon", "count": 6 } ]
   }
 ]

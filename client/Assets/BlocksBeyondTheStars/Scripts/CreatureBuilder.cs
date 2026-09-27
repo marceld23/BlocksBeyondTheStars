@@ -342,8 +342,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Rounded (sphere) eyes — bigger, with a dark pupil + a small white glint so they look glossy (B17).
-            var eyeMat = Unlit(c.Glows ? new Color(0.85f, 1f, 0.95f) : new Color(0.97f, 0.97f, 0.88f));
-            var pupilMat = Unlit(new Color(0.04f, 0.04f, 0.06f));
+            var eyeMat = EyeMaterial(c);
+            var pupilMat = PupilMaterial(c);
             var glintMat = Unlit(Color.white);
             float eyeSize = unit * 0.32f * headScale; // bigger (was 0.24)
 
@@ -428,8 +428,8 @@ namespace BlocksBeyondTheStars.Client
             int eyes = Mathf.Clamp(c.Eyes, 0, 2);
             if (eyes > 0)
             {
-                var eyeMat = Unlit(c.Glows ? new Color(0.85f, 1f, 0.95f) : new Color(0.97f, 0.97f, 0.88f));
-                var pupilMat = Unlit(new Color(0.04f, 0.04f, 0.06f));
+                var eyeMat = EyeMaterial(c);
+                var pupilMat = PupilMaterial(c);
                 float eyeSize = bellR * 0.22f;
                 for (int e = 0; e < eyes; e++)
                 {
@@ -793,8 +793,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var eyeMat = Unlit(c.Glows ? new Color(0.85f, 1f, 0.95f) : new Color(0.97f, 0.97f, 0.88f));
-            var pupilMat = Unlit(new Color(0.04f, 0.04f, 0.06f));
+            var eyeMat = EyeMaterial(c);
+            var pupilMat = PupilMaterial(c);
             var glintMat = Unlit(Color.white);
             float eyeSize = unit * 0.26f * headScale * (eyes > 4 ? 0.8f : 1f);
             int rows = eyes <= 2 ? 1 : 2;
@@ -1620,6 +1620,24 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#1999: the shared unlit colour material, for the view's own markers (the stomp ring).</summary>
         internal static Material UnlitMaterial(Color color) => Unlit(color);
+
+        /// <summary>The eyeball's material (#2069): a species with an iris colour (<c>EyeRgb</c>, generation 15 — Toxica-Maxima's
+        /// contaminated animals are green-eyed) wears it on the whole eye, self-lit, so the eyes glow in the dark; 0 keeps the
+        /// classic pale eye (a glower's tinted white). Shared by the standard, titan, ray, colossus, medusa and arachnid builds.</summary>
+        private static Material EyeMaterial(NetCreature c)
+        {
+            if (c.EyeRgb != 0)
+            {
+                int rgb = c.EyeRgb;
+                return Unlit(new Color(((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f));
+            }
+
+            return Unlit(c.Glows ? new Color(0.85f, 1f, 0.95f) : new Color(0.97f, 0.97f, 0.88f));
+        }
+
+        /// <summary>The pupil (#2069): a coloured iris gets a near-black pupil so the colour reads as a ring around it.</summary>
+        private static Material PupilMaterial(NetCreature c)
+            => Unlit(c.EyeRgb != 0 ? new Color(0.02f, 0.03f, 0.02f) : new Color(0.04f, 0.04f, 0.06f));
 
         private static Material Unlit(Color color)
         {

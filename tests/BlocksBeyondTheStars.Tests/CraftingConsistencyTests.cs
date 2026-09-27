@@ -20,9 +20,10 @@ public sealed class CraftingConsistencyTests
     /// <summary>Items a player can come by: block drops + recipe outputs + a few creature drops.</summary>
     private HashSet<string> Obtainable()
     {
-        // Runtime drops with no data-side source: fauna drops (procedural species) and the toxic berries a toxic
-        // flora species swaps in for its berries when broken (#1203 gives them a detoxifier sink).
-        var set = new HashSet<string> { "creature_meat", "toxic_gland", "toxic_berries" };
+        // Runtime drops with no data-side source: fauna drops (procedural species), the toxic berries a toxic
+        // flora species swaps in for its berries when broken (#1203 gives them a detoxifier sink), and the contaminated
+        // meat of Toxica-Maxima's animals (#2069; the decontaminator washes it).
+        var set = new HashSet<string> { "creature_meat", "toxic_gland", "toxic_berries", "toxic_meat" };
         foreach (var b in _c.Blocks.Values)
         {
             foreach (var d in b.Drops) set.Add(d.Item);
@@ -125,8 +126,9 @@ public sealed class CraftingConsistencyTests
         foreach (var p in _c.Planets.Values.Where(p => p.Ores.Count > 0))
         {
             var ores = p.Ores.Select(o => o.Block).ToHashSet();
-            Assert.True(ores.Contains("copper_ore"), $"planet has ores but no copper_ore → can't reach cable");
-            Assert.True(ores.Contains("silicate"), $"planet has ores but no silicate → can't reach cable");
+            // #2066: Toxica-Maxima's copper is tainted — the decontaminator (and the planet's factories) wash it into copper ore.
+            Assert.True(ores.Contains("copper_ore") || ores.Contains("tainted_copper_ore"), $"planet {p.Key} has ores but no copper_ore → can't reach cable");
+            Assert.True(ores.Contains("silicate"), $"planet {p.Key} has ores but no silicate → can't reach cable");
         }
     }
 

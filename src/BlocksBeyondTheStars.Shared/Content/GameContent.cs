@@ -1196,6 +1196,39 @@ public sealed class GameContent
                 }
             }
 
+            // Generation 15 (#2062, Toxica-Maxima): the new type fields name real content, and only the forms the client draws.
+            RequireBlock($"Planet '{planet.Key}' dead-tree block", planet.DeadTreeBlock);
+            if (planet.Precipitation.Length > 0
+                && planet.Precipitation is not ("rain" or "drizzle" or "snow" or "sleet" or "hail" or "sandstorm" or "dust" or "ash" or "acid" or "spores"))
+            {
+                problems.Add($"Planet '{planet.Key}' names unknown precipitation '{planet.Precipitation}'.");
+            }
+
+            if (planet.Weather.Length > 0 && !string.Equals(planet.Weather, "dynamic", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(planet.Weather, "clear", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(planet.Weather, "overcast", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(planet.Weather, "stormy", StringComparison.OrdinalIgnoreCase))
+            {
+                problems.Add($"Planet '{planet.Key}' names unknown weather mode '{planet.Weather}'.");
+            }
+
+            if (planet.FactoryCount.Count != 0 && (planet.FactoryCount.Count != 2 || planet.FactoryCount[0] < 1 || planet.FactoryCount[1] < planet.FactoryCount[0]))
+            {
+                problems.Add($"Planet '{planet.Key}' factoryCount must be [min, max] with 1 <= min <= max.");
+            }
+
+            foreach (var recipeKey in planet.FactoryRecipes)
+            {
+                if (!_recipes.TryGetValue(recipeKey, out var factoryRecipe))
+                {
+                    problems.Add($"Planet '{planet.Key}' names unknown factory recipe '{recipeKey}'.");
+                }
+                else if (factoryRecipe.Station != CraftingStation.Factory)
+                {
+                    problems.Add($"Planet '{planet.Key}' factory recipe '{recipeKey}' is not a factory recipe.");
+                }
+            }
+
             // #1763: every authored key must exist, and an "authored" roster must name at least one.
             foreach (var key in planet.AuthoredCreatures)
             {

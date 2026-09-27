@@ -213,7 +213,7 @@ namespace BlocksBeyondTheStars.Client
                 float target = sfx * Mathf.Clamp(0.2f + 0.45f * intensity, 0.18f, 0.6f);
                 bool weatherBed = _ambienceId is "rain_loop" or "storm_loop" or "sandstorm_loop" or "ash_loop"
                     or "wind_strong" or "gale_loop" or "blizzard_loop" or "drizzle_loop" or "acid_hiss"
-                    or "ion_crackle" or "spore_amb" or "meteor_streak";
+                    or "ion_crackle" or "spore_amb" or "meteor_streak" or "toxic_storm_loop";
                 if (weatherBed && Game != null && !Game.ExposedToSky)
                 {
                     target = 0f;
@@ -222,9 +222,9 @@ namespace BlocksBeyondTheStars.Client
                 _ambience.volume = Mathf.MoveTowards(_ambience.volume, target, Time.deltaTime * 0.8f);
             }
 
-            // Occasional thunder during a rain thunderstorm (only with open sky overhead).
-            if (Game?.Environment != null && Game.Environment.Weather == "storm"
-                && Game.Environment.Precipitation is "rain" or "drizzle" && Game.ExposedToSky)
+            // Occasional thunder during a rain thunderstorm (only with open sky overhead) — and in an acid one (#2063/#2064).
+            if (Game?.Environment != null && Game.Environment.Weather is "storm" or "toxic_storm"
+                && Game.Environment.Precipitation is "rain" or "drizzle" or "acid" && Game.ExposedToSky)
             {
                 _thunderTimer -= Time.deltaTime;
                 if (_thunderTimer <= 0f)
@@ -639,6 +639,7 @@ namespace BlocksBeyondTheStars.Client
                 "gale" => "gale_loop",
                 "blizzard" => "blizzard_loop",
                 "acid_rain" => "acid_hiss",
+                "toxic_storm" => "toxic_storm_loop", // #2064
                 "spore_bloom" => "spore_amb",
                 "fog" or "ground_fog" => "wind_light",
                 _ => e.Precipitation switch
@@ -649,6 +650,7 @@ namespace BlocksBeyondTheStars.Client
                     "hail" or "snow" or "sleet" => "wind_strong",
                     "drizzle" => "drizzle_loop",
                     "rain" => e.Weather == "storm" ? "storm_loop" : "rain_loop",
+                    "acid" => e.Weather == "storm" ? "toxic_storm_loop" : "acid_hiss", // #2063: a type whose ladder rain is acid
                     _ => BiomeBed(e.Biome),
                 },
             };
@@ -677,6 +679,7 @@ namespace BlocksBeyondTheStars.Client
             "ocean" => "amb_ocean",        // surf
             "fungal" => "amb_fungal",      // eerie spore-forest hum
             "corrupted" => "amb_corrupted", // distorted murmur
+            "toxic_world" or "toxica_maxima" => "amb_toxic", // #2068: the dead, bubbling hum of a poisoned world
             "skylands" or "highland" => "amb_wind_high", // thin high-altitude wind
             _ => "wind_light", // rocky / crystal / varied / asteroid → light wind
         };

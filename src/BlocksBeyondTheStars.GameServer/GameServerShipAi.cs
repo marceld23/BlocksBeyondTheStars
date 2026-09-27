@@ -458,6 +458,7 @@ public sealed partial class GameServer
             "gds_desert" => "gds", // #1793: the lava desert with the one guarded city
             "titas" => "titas", // 2026-09: Justus' frozen planet
             "sand_sea" => "sand_sea", // #2018 follow-up: the dunes carry every step — walk them and the worm comes (Marcel, 2026-09-26)
+            "toxica_maxima" => "toxica_maxima", // #2068: Justus' poisoned landmark
             _ => string.Empty,
         };
         if (id.Length > 0)

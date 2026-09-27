@@ -57,6 +57,13 @@ public static class CreatureGenerator
                     MakePeaceful(list);
                 }
             }
+
+            // Generation 15 (#2069, Toxica-Maxima): a contaminated roster hunts on sight, never sleeps, wears the type's eyes
+            // and drops toxic meat. A post-pass like MakePeaceful, so no rolled trait moves; only a generation-15 world reads it.
+            if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ToxicaMaximaGeneration && planet.ContaminatedFauna)
+            {
+                MakeContaminated(list, planet.EyeColor);
+            }
         }
         else if (!planet.IsAirless && allowCave && WorldTraits.For(planet, worldSeed, terrainGeneration).CaveFauna)
         {
@@ -134,6 +141,7 @@ public static class CreatureGenerator
             ColorRgb = a.ColorRgb,
             BellyRgb = a.BellyRgb,
             Eyes = a.Eyes,
+            EyeRgb = a.EyeRgb, // #2069: a worksheet species may name its iris
             Horns = a.Horns,
             HasCrest = a.HasCrest,
             Glows = a.Glows,
@@ -404,6 +412,54 @@ public static class CreatureGenerator
         }
     }
 
+    /// <summary>Generation 15 (#2069, Toxica-Maxima): every rolled species is contaminated — it hunts on sight (every fourth in
+    /// a pack), bites even where its plan rolled no bite, is awake around the clock (a sleeping hunter is no hunter), wears the
+    /// type's eye colour and drops toxic meat where it dropped food. Medusas, rays and titans included: their body-plan
+    /// overrides ran before this pass.</summary>
+    private static void MakeContaminated(List<CreatureSpecies> list, int eyeRgb)
+    {
+        for (int i = 0; i < list.Count; i++)
+        {
+            var sp = list[i];
+            sp.Temperament = i % 4 == 3 ? CreatureTemperament.PackHunter : CreatureTemperament.Aggressive;
+            if (sp.AttackDamage <= 0f)
+            {
+                sp.AttackDamage = 2f + i % 6; // the rolled hunters' band (2..7), deterministic per slot
+            }
+
+            sp.Activity = CreatureActivity.Cathemeral;
+            if (eyeRgb != 0)
+            {
+                sp.EyeRgb = eyeRgb;
+            }
+
+            if (sp.DropKind == CreatureDropKind.Food || sp.DropItem == "creature_meat")
+            {
+                sp.DropItem = "toxic_meat";
+                sp.DropKind = CreatureDropKind.Poison;
+            }
+        }
+    }
+
+    /// <summary>Generation 15 (#2069): the eye colour — 60 % keep the classic pale eye, the rest draw one of five irises; a
+    /// hunter leans red, a glower violet. The FINAL draw of a species, after the herds, and only on a generation-15 world, so
+    /// a species of any older world keeps every trait it had.</summary>
+    private static void ApplyEyeColour(System.Random rng, CreatureSpecies sp)
+    {
+        if (rng.NextDouble() < 0.6)
+        {
+            return;
+        }
+
+        int pick = sp.Hostile && rng.NextDouble() < 0.5 ? 4
+            : sp.Glows && rng.NextDouble() < 0.5 ? 3
+            : rng.Next(0, 3);
+        sp.EyeRgb = EyePalette[pick];
+    }
+
+    /// <summary>The rolled irises (#2069): amber, blue, black, violet, red.</summary>
+    private static readonly int[] EyePalette = { 0xE0A020, 0x3A7BD5, 0x101010, 0x8A2BE2, 0xD03030 };
+
     /// <summary>Generation 8 (Valuma): every rolled species is passive or skittish and bites for nothing.</summary>
     private static void MakePeaceful(List<CreatureSpecies> list)
     {
@@ -554,6 +610,13 @@ public static class CreatureGenerator
         if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BigHerdsGeneration)
         {
             ApplyBigHerds(rng, species);
+        }
+
+        // Generation 15 (#2069): the eye colour — after the herds (so a generation-12..14 species keeps every trait it had;
+        // nothing reads the RNG after this) and only on a generation-15 world.
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ToxicaMaximaGeneration)
+        {
+            ApplyEyeColour(rng, species);
         }
 
         return species;

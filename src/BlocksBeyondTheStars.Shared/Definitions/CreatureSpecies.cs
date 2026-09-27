@@ -127,6 +127,12 @@ public sealed class CreatureSpecies
     /// species have three or more. Random per species for visual variety.</summary>
     public int Eyes { get; set; } = 2;
 
+    /// <summary>The iris colour (packed 0xRRGGBB, #2069): 0 = the classic look (a pale eye, a dark pupil — every species
+    /// that predates it), otherwise the iris the client paints. Rolled AFTER every older roll and only on a generation-15
+    /// world; a contaminated roster wears its planet's colour (Toxica-Maxima: green). Additive with a classic default, so
+    /// no older world or companion snapshot changes.</summary>
+    public int EyeRgb { get; set; }
+
     /// <summary>Number of horns/spikes on the head/back (0 = none) — silhouette variety.</summary>
     public int Horns { get; set; }
 

@@ -120,5 +120,11 @@
     "mandatory": false, "requiredBlueprint": "ai_core_mk3",
     "buildCost": [ { "item": "data_fragment", "count": 8 }, { "item": "titanium_plate", "count": 12 }, { "item": "energy_cell_1", "count": 6 }, { "item": "cable", "count": 20 } ],
     "stats": { "ai_core": 3, "energy_production": 5 }
+  },
+  {
+    "key": "decontaminator", "nameKey": "module.decontaminator.name", "descriptionKey": "module.decontaminator.desc",
+    "mandatory": false, "requiredBlueprint": "decontaminator",
+    "buildCost": [ { "item": "iron_plate", "count": 24 }, { "item": "cable", "count": 6 }, { "item": "glass", "count": 4 }, { "item": "polymer", "count": 4 }, { "item": "energy_cell_1", "count": 2 } ],
+    "stats": {}
   }
 ]

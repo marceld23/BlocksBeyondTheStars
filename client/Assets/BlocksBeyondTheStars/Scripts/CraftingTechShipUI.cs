@@ -5385,6 +5385,7 @@ namespace BlocksBeyondTheStars.Client
             "refinery" => "forge",
             "detoxifier" => "detoxifier",
             "transmuter" => "matter_forge",
+            "decontaminator" => "decontaminator", // #2067
             "algaetank" => "algae_tank",
             "campfire" => "campfire",
             "factory" => "factory_terminal",
@@ -5400,6 +5401,7 @@ namespace BlocksBeyondTheStars.Client
             "refinery" => "refinery",
             "detoxifier" => "detoxifier",
             "transmuter" => "transmuter",
+            "decontaminator" => "decontaminator", // #2067
             _ => null,
         };
 
@@ -5515,7 +5517,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var names = new System.Collections.Generic.List<string>();
-            foreach (var s in new[] { "workshop", "refinery", "detoxifier", "transmuter", "algaetank", "campfire", "factory" })
+            foreach (var s in new[] { "workshop", "refinery", "detoxifier", "transmuter", "decontaminator", "algaetank", "campfire", "factory" })
             {
                 if (Game.StationsAvailable.Contains(s))
                 {

@@ -242,6 +242,16 @@ TEXTURES = [
     ("stretcher", "white medical stretcher canvas fabric filling the whole tile edge to edge with no background, a faint green cross in the middle and grey stitched seams, top-down"),
     # 2026-09 Titas: the yellow sulfur stone under the snow.
     ("sulfur_stone", "bright yellow sulfur stone rock, crystalline sulfur crust with pale yellow and ochre patches and small dark pores"),
+    # 2026-09 Toxica-Maxima (#2066/#2067): the tainted ground, ores and wood of Justus' poisoned planet, and the decontaminator.
+    ("tainted_soil", "dead grey-brown topsoil crusted with sickly luminous green slime veins and small glowing toxic puddles"),
+    ("tainted_subsoil", "compacted dark clay earth streaked with dull green mineral poison seams"),
+    ("tainted_stone", "cracked grey rock with glowing acid-green veins seeping through the cracks"),
+    ("tainted_iron_ore", "grey stone with rusty orange iron ore flecks coated in a sickly glowing green toxic film"),
+    ("tainted_copper_ore", "grey stone with orange copper veins corroded to a poisonous glowing green patina"),
+    ("tainted_titanium_ore", "grey stone with silvery white titanium flecks under a glowing acid-green toxic crust"),
+    ("tainted_diamond_ore", "dark grey rock with embedded pale diamond crystals clouded by a murky glowing green poison haze"),
+    ("tainted_log", "dead grey tree bark with vertical wood grain, rotting luminous green sap seeping from the cracks"),
+    ("decontaminator", "a sci-fi decontamination station, a sealed steel chamber with a round porthole of green rinse fluid, green-and-black warning stripes, pipes, valves and a rinse nozzle, top-down"),
     # Factory look (#1050): the machine housing, its pipe stack and the production terminal had no tile.
     ("machine_block", "a heavy sci-fi industrial machine housing, dark grey armoured metal casing with rivets, bolted seams, ventilation slits and a small amber indicator light, front view"),
     ("factory_pipe", "an industrial factory pipe duct, a thick riveted olive-grey metal pipe with flanged joints and a pressure valve, front view"),

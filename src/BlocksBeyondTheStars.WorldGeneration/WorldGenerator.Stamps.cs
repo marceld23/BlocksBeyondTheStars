@@ -563,6 +563,10 @@ public sealed partial class WorldGenerator
         var crystalTreeId = _content.GetBlock("crystal")?.NumericId ?? leafId;
         // Generation 8 (Titas): leafless dead forests — on snow and bare rock, past the tree line, never in a hot zone.
         bool deadForests = planet.DeadForests && _terrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
+        // Generation 15 (#2068): a type's dead snags may be another wood (Toxica-Maxima: tainted logs); Titas keeps its logs.
+        var deadLogId = deadForests && planet.DeadTreeBlock.Length > 0 && _terrainGeneration >= WorldDescription.ToxicaMaximaGeneration
+            ? _content.GetBlock(planet.DeadTreeBlock)?.NumericId ?? logId
+            : logId;
 
         // #1527: the density roll is tested against a conservative UPPER BOUND of every biome's multiplier first,
         // so the ~99 % of margin columns the exact test rejects never pay SurfaceHeight / BiomeIndex. The exact
@@ -703,7 +707,7 @@ public sealed partial class WorldGenerator
                     case TreeKind.Conifer: BuildConifer(wx, sy, wz, sizeF, hJit, cJit, logId, pineId, set); break;
                     case TreeKind.Palm: BuildPalm(wx, sy, wz, sizeF, hJit, cJit, logId, palmId, set); break;
                     case TreeKind.Jungle: BuildJungle(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
-                    case TreeKind.Dead: BuildDead(wx, sy, wz, sizeF, hJit, logId, set); break;
+                    case TreeKind.Dead: BuildDead(wx, sy, wz, sizeF, hJit, deadLogId, set); break;
                     // #1648 generation-1 kinds (the palette only offers them from generation 1)
                     case TreeKind.Baobab: BuildBaobab(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
                     case TreeKind.Mangrove: BuildMangrove(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;

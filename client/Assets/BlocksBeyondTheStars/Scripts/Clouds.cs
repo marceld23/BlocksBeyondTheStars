@@ -170,6 +170,7 @@ namespace BlocksBeyondTheStars.Client
             switch (env.Weather)
             {
                 case "storm": weatherCover = 0.95f; darken = 0.35f; windScale = 3.0f; stormTall = 0.9f; cirrusFade = 0.0f; break;
+                case "toxic_storm": weatherCover = 0.97f; darken = 0.35f; windScale = 3.6f; stormTall = 0.9f; cirrusFade = 0.0f; break; // #2064
                 case "blizzard": weatherCover = 0.98f; darken = 0.45f; windScale = 3.4f; stormTall = 0.7f; cirrusFade = 0.0f; break;
                 case "ember_fall": weatherCover = 0.92f; darken = 0.40f; windScale = 1.6f; stormTall = 0.8f; cirrusFade = 0.0f; break;
                 case "acid_rain": weatherCover = 0.88f; darken = 0.50f; windScale = 2.0f; stormTall = 0.5f; cirrusFade = 0.1f; break;

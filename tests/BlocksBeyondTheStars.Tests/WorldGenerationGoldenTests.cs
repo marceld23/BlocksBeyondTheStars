@@ -107,6 +107,8 @@ public sealed class WorldGenerationGoldenTests
         // Generation 11 (2026-09-25): cave flora (floors, ceilings, the rainbow class), rainbow surface clusters, cold flora.
         new("karst-gen11", 20260903, "karst", 0, false, null, 11),
         new("tundra-gen11", 20260903, "tundra", 0, false, null, 11),
+        // Generation 15 (2026-09-27, #2068): Toxica-Maxima — tainted ground and ores, dead snags of tainted wood, needles and caves.
+        new("toxica_maxima-gen15", 20260927, "toxica_maxima", 0, false, null, 15),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -180,6 +182,8 @@ public sealed class WorldGenerationGoldenTests
             // Pinned 2026-09-25 (generation 11, cave flora, Windows 11, .NET 10).
             ["karst-gen11"] = 0xcb33a5b7758cd9adUL,
             ["tundra-gen11"] = 0xe89f39b4dac6d442UL,
+            // Pinned 2026-09-27 (Toxica-Maxima, generation 15; Windows 11, .NET 10).
+            ["toxica_maxima-gen15"] = 0x1ec4ca28d46a4ab8UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

@@ -116,7 +116,8 @@ public sealed partial class GameServer
     /// (#1483). What a flame needs on an airless body; the world-level atmosphere is checked by the caller.</summary>
     private bool BreathableAirAt(Vector3i cell)
     {
-        if (InAnyBaseZone(cell) || InSealedBaseRoom(cell))
+        if (InAnyBaseZone(cell) || InSealedBaseRoom(cell)
+            || InFactoryAir(new Vector3f(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f))) // #2070: a factory hall breathes
         {
             return true;
         }

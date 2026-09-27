@@ -268,6 +268,11 @@ public sealed class MaterialEconomyTests
             ["factory_magnet"] = new[] { "magnet_sintered", "neodymium", "refine_iron" },
             ["factory_diamond"] = new[] { "diamond" },
             ["factory_reactor_fuel"] = new[] { "reactor_fuel", "uranium", "lead_ingot" },
+            // #2067: Toxica-Maxima's factories wash tainted ore in bulk; the decontaminator's wash is the reference (2 + 1 carbon → 2).
+            ["factory_clean_iron_ore"] = new[] { "clean_iron_ore" },
+            ["factory_clean_copper_ore"] = new[] { "clean_copper_ore" },
+            ["factory_clean_titanium_ore"] = new[] { "clean_titanium_ore" },
+            ["factory_clean_diamond_ore"] = new[] { "clean_diamond_ore" },
         };
         // Diamond compression adds carbon as a catalyst; its diamond-ore cost is still directly comparable.
         var extraCatalysts = new Dictionary<string, string[]> { ["factory_diamond"] = new[] { "carbon" } };

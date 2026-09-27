@@ -64,8 +64,9 @@ public sealed class ToxicWorldTests
         Assert.All(p.Ores, o => Assert.NotNull(_content.GetBlock(o.Block)));
         Assert.All(p.Biomes, b => Assert.NotNull(_content.GetBlock(b.SurfaceBlock)));
 
-        // Every classic type keeps the no-op defaults (Titas' water stays always toxic).
-        foreach (var other in _content.Planets.Values.Where(t => t.Key != Key))
+        // Every classic type keeps the no-op defaults (Titas' water stays always toxic). Toxica-Maxima (#2062, generation 15)
+        // is the one other type that uses these fields — always corrosive, no settlements — and has its own tests.
+        foreach (var other in _content.Planets.Values.Where(t => t.Key != Key && t.Key != "toxica_maxima"))
         {
             Assert.Equal(0.0, other.CorrosiveAirChance);
             Assert.Equal(1.0, other.WaterDamageChance);

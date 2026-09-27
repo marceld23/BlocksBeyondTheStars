@@ -2895,6 +2895,7 @@ public sealed partial class GameServer
             ColorRgb = sp?.ColorRgb ?? 0xFFFFFF,
             Glows = sp?.Glows ?? false,
             Eyes = sp?.Eyes ?? 2,
+            EyeRgb = sp?.EyeRgb ?? 0, // #2069: the iris colour, 0 = the classic eye
             Horns = sp?.Horns ?? 0,
             HasCrest = sp?.HasCrest ?? false,
             BellyRgb = sp?.BellyRgb ?? (sp?.ColorRgb ?? 0xFFFFFF),

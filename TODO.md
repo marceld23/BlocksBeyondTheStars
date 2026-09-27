@@ -24,6 +24,40 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ☣️ Toxica-Maxima — Justus' once-per-galaxy toxic landmark planet (#2062: #2063–#2071, 2026-09-27, branch feat/toxica-maxima, terrain generation 15)
+
+Justus' idea, Marcel's decisions (2026-09-27): ONE poisoned planet per galaxy at most (weight 1, once per galaxy, exotic, like
+Titas), fixed name **Toxica-Maxima**. Corrosive air and toxic water always; the ground, the stone, the ores and the dead
+trees' wood are visible **tainted** blocks; a permanent **acid thunderstorm** under a light-green sky; every animal
+**contaminated** (aggressive, never asleep, green eyes, drops toxic meat); no settlements but **6–10 factories** that wash
+ore and still **breathe**; a new **Decontaminator** station washes everything clean (2 tainted + 1 carbon → 2 clean). Every
+new field defaults to its classic no-op and is read on generation-15 worlds only, so older worlds are bit for bit what they were.
+
+- **✅ Tainted materials (#2066).** Blocks `tainted_soil` / `tainted_subsoil` / `tainted_stone` / `tainted_{iron,copper,titanium,diamond}_ore`
+  / `tainted_log` (each drops itself), items with the same keys (block tiles as icons), `toxic_meat` (−16 HP); nine AI tiles + one icon.
+- **✅ The Decontaminator (#2067).** `CraftingStation.Decontaminator` (block `decontaminator`, ship module, blueprint after the
+  detoxifier), `clean_*` / `wash_meat` recipes (2 + 1 carbon → 2), `factory_clean_*` (6 → 4, `factoryPool: false` — only a type that
+  lists them in `factoryRecipes` offers them); client station mappings, NPC footing.
+- **✅ The planet type (#2068).** `toxica_maxima` in `planets.json` (see the entry), `PlanetType.DeadTreeBlock` (dead snags of tainted
+  wood), `WorldDescription.ToxicaMaximaGeneration` = 15, VEGA landing line, music → toxic pool, ambience `amb_toxic` (also for
+  `toxic_world`), golden `toxica_maxima-gen15`, `ToxicaMaximaWorldTests` / `ToxicaMaximaServerTests`.
+- **✅ Weather fields (#2063).** `skyColor` (fixed sky hue), `weather: "stormy"` (ladder floor = storm), `precipitation` (the ladder
+  rain's form, "acid"); acid damage keyed on the PRECIPITATION, not the event name; client: lightning + thunder for acid storms, the
+  storm wash keeps a share of the world's hue, `SpaceView` cloud shells for both toxic keys.
+- **✅ Toxic storm event (#2064).** `toxic_storm` (Violent, acid, hard wind) on every toxic-atmosphere world (weight 0.6 × the type's
+  `weatherEvents`), clouds / fog / bed / HUD chip / lightning, `weather.toxic_storm` in 14 languages.
+- **✅ `/setweather` fixed (#2065).** The admin command forces the simulation (`WeatherSim.Force`) instead of writing a dead field;
+  an unknown key answers `srv.admin.weather_unknown`.
+- **✅ Contaminated fauna + eye colour (#2069).** `CreatureSpecies.EyeRgb` (+ `NetCreature`, `NetCompanion`, `CloneSpecies`,
+  `AuthoredCreature`), rolled for every generation-15 species (`ApplyEyeColour`: 60 % classic, else amber / blue / black / violet /
+  red), `PlanetType.ContaminatedFauna` + `EyeColor` → `MakeContaminated` (Aggressive / every 4th PackHunter, bite ≥ 2, Cathemeral,
+  green eyes, toxic meat); the client paints the iris (`CreatureBuilder`); scan reads `ui.scan.threat.contaminated`.
+- **✅ Factories (#2070).** `PlanetType.FactoryCount` [min, max] (the first hall in the near ring ≤ 80 blocks from pad 0),
+  `InFactoryAir` → life support source 4 on EVERY world (HUD "factory life support"), `BreathableAirAt`.
+- **✅ Assets (#2071).** Nine tiles, one icon, three sounds (`amb_toxic`, `toxic_storm_loop`, `decontaminate`) — NOTICES.md.
+- ⚠ OPEN: Marcel's playtest — find Toxica-Maxima on a fresh generation-15 galaxy (the star map; or `scripts/make-test-world.ps1
+  -Planet toxica_maxima`), the storm, the factories' air, the decontaminator loop, the green-eyed hunters.
+
 ### 💎 Crystal Net — crystal as a visible signal line (#2045: #2046–#2059, 2026-09-27, branch feat/crystal-net) — ⚠ RELEASE NOTE: protocol v7, older game versions cannot join
 
 Marcel's wish: a base that *does* things — a doorbell, a night light, an airlock that locks while the alarm runs,

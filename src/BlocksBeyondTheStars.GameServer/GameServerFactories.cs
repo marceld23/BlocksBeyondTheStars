@@ -40,6 +40,33 @@ public sealed partial class GameServer
     /// <summary>Whether a factory cell is protected against the given actor (test seam for claim/owner/ally rights).</summary>
     public bool FactoryProtectedForTest(Vector3i pos, string actorId, bool isAdmin = false) => IsFactoryProtected(pos, actorId, isAdmin);
 
+    /// <summary>#2070: inside a stamped factory hall and under its roof, the old industrial life support still holds — the hall
+    /// breathes on every world, unclaimed or not (the city's shelter and the SPS lab's vacuum are the precedents: a footprint
+    /// box plus a roof check, not a pocket fill, so the open doorway is forgiven).</summary>
+    private bool InFactoryAir(Vector3f pos)
+    {
+        if (_factories.Count == 0)
+        {
+            return false;
+        }
+
+        int px = (int)System.Math.Floor(pos.X), py = (int)System.Math.Floor(pos.Y), pz = (int)System.Math.Floor(pos.Z);
+        foreach (var f in _factories)
+        {
+            int dx = WorldConstants.WrapDeltaX(px - f.Min.X, _world.Circumference);
+            if (dx >= 0 && dx <= f.Max.X - f.Min.X && pz >= f.Min.Z && pz <= f.Max.Z
+                && py >= f.Min.Y && py <= f.Max.Y && RoofedAt(pos))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Test seam (#2070).</summary>
+    public bool InFactoryAirForTest(Vector3f pos) => InFactoryAir(pos);
+
     private void StampFactories()
     {
         _factories.Clear();
@@ -56,8 +83,10 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2067: recipes marked factoryPool:false (Toxica-Maxima's ore washes) never enter the seeded roll — only a type that
+        // lists them in factoryRecipes offers them; they stay KNOWN, so a pinned roster that names them survives ResolveFactoryRoster.
         var factoryRecipes = _content.Recipes.Values
-            .Where(x => x.Station == CraftingStation.Factory)
+            .Where(x => x.Station == CraftingStation.Factory && x.FactoryPool)
             .Select(x => x.Key)
             .OrderBy(k => k, System.StringComparer.Ordinal)
             .ToList();
@@ -66,13 +95,32 @@ public sealed partial class GameServer
             return;
         }
 
+        bool gen15 = _meta.Description.TerrainGeneration >= Shared.World.WorldDescription.ToxicaMaximaGeneration;
+        var typedRoster = gen15 ? planet.FactoryRecipes.Where(_content.Recipes.ContainsKey).Distinct().ToList() : new List<string>();
+        var knownRecipes = factoryRecipes.Concat(typedRoster).Distinct().ToList();
+
         long fSeed = _meta.Seed ^ WorldGenerator.StableHash("factory:" + _world.LocationId); // per body (#478)
         var rng = new System.Random(unchecked((int)(fSeed ^ (fSeed >> 32))));
 
         // Rare: most worlds get none. #1761: a type may bias its roll (the scrap planet: 2.5); 1.0 is the identical draw.
-        double r = rng.NextDouble() * System.Math.Max(0.0, planet.FactoriesBias);
-        int count = r < 0.70 ? 0 : r < 0.92 ? 1 : 2;
-        count = System.Math.Min(FactoryHardCap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
+        double u = rng.NextDouble();
+        double r = u * System.Math.Max(0.0, planet.FactoriesBias);
+        int count;
+        bool typedCount = gen15 && planet.FactoryCount.Count == 2;
+        if (typedCount)
+        {
+            // #2070: an industrial type names its band (Toxica-Maxima 6–10) — the same first draw, so the classic lanes keep
+            // their seeds; the world option still scales it, never past the band's top.
+            int min = planet.FactoryCount[0], max = planet.FactoryCount[1];
+            count = min + (int)System.Math.Floor(u * (max - min + 1));
+            count = System.Math.Clamp((int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)), 0, max);
+        }
+        else
+        {
+            count = r < 0.70 ? 0 : r < 0.92 ? 1 : 2;
+            count = System.Math.Min(FactoryHardCap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
+        }
+
         if (count <= 0)
         {
             return;
@@ -113,6 +161,10 @@ public sealed partial class GameServer
             // structure / placement / name lanes below keep their seeds (see ResolveFactoryRoster, #1299).
             int rosterSize = 1 + ir.Next(0, System.Math.Min(4, factoryRecipes.Count));
             var roster = factoryRecipes.OrderBy(_ => ir.Next()).Take(rosterSize).ToList();
+            if (typedRoster.Count > 0)
+            {
+                roster = typedRoster.ToList(); // #2067: a type may fix every hall's roster (the draws above still ran)
+            }
 
             // #586: pinned record → legacy re-derive → guaranteed search (fresh worlds). Factories re-derive
             // every load, so the record is what keeps them attached to their stamped halls (and their claims,
@@ -125,7 +177,7 @@ public sealed partial class GameServer
 
             // #1299: a pinned roster wins over this load's roll (the recipe set may have grown since); a record
             // from before roster pinning freezes the current roll once. The machine count follows the roster.
-            roster = ResolveFactoryRoster(rec, roster, factoryRecipes);
+            roster = ResolveFactoryRoster(rec, roster, knownRecipes);
             var structure = FactoryGenerator.Generate(instSeed, roster.Count, _content);
 
             Vector3i origin;
@@ -154,9 +206,10 @@ public sealed partial class GameServer
             }
             else
             {
+                // #2070: on an industrial type the FIRST hall stands in sight of the pad (the near ring, ≤ 80 blocks).
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
                         wantIsland: false, SeatPolicy.Factory, avoidPlayerEdits: false,
-                        out origin, out groundY, out _, out seat))
+                        out origin, out groundY, out _, out seat, nearDistance: typedCount && i == 0 ? 80 : 0))
                 {
                     RecordPlacementSkip("factory", i);
                     continue;

@@ -79,6 +79,13 @@ public sealed partial class GameServer
             readout.ThreatKey = sp.Hostile ? "ui.scan.threat.hostile"
                 : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "ui.scan.threat.provokable"
                 : "ui.scan.threat.safe";
+            if (_world.Planet is { ContaminatedFauna: true } && !sp.Id.StartsWith("au_", System.StringComparison.Ordinal))
+            {
+                // #2069 (Toxica-Maxima): the roster is contaminated — the scan says so first, and names the threat by its cause.
+                readout.ThreatKey = "ui.scan.threat.contaminated";
+                readout.TraitKeys = new[] { "ui.scan.contaminated" }.Concat(readout.TraitKeys).ToArray();
+            }
+
             readout.LegacyInfo = $"{sp.Habitat} · {sp.Activity} · {sp.Temperament}";
             readout.LegacyThreat = sp.Hostile ? "Hostile" : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "Provokable" : "Safe";
             value = sp.Hostile ? KnowledgeCreatureHostile : KnowledgeCreature;

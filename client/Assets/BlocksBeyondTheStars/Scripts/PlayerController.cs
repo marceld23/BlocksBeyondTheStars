@@ -1830,7 +1830,7 @@ namespace BlocksBeyondTheStars.Client
                 string aimedKey = Game.Content?.BlockById(Game.World.GetBlock(aimHit.x, aimHit.y, aimHit.z))?.Key;
                 // bed + heal_tank (#1456): both take E for the home spawn (HandleSetSpawnPoint below), but without
                 // a prompt the bed was indistinguishable from a decorative slab ("man kann es nicht benutzen").
-                if (aimedKey is "workbench" or "forge" or "detoxifier" or "matter_forge" or "algae_tank" or "campfire"
+                if (aimedKey is "workbench" or "forge" or "detoxifier" or "matter_forge" or "decontaminator" or "algae_tank" or "campfire"
                     or "bed" or "crew_bunk" or "heal_tank")
                 {
                     Game.AimedStationBlock = aimedKey;

@@ -1874,6 +1874,10 @@ public sealed class NetCreature
     public bool HasCrest { get; set; }
     public int BellyRgb { get; set; } = 0xFFFFFF;
 
+    /// <summary>The iris colour (packed 0xRRGGBB, #2069); 0 = the classic pale eye with a dark pupil. Additive: an older
+    /// client ignores it, an older server leaves it 0.</summary>
+    public int EyeRgb { get; set; }
+
     // item-21 morphology rest: tentacles, snail-like eyestalks, a translucent buoyancy gas-sac.
     public int Tentacles { get; set; }
     public bool EyeStalks { get; set; }
@@ -2105,6 +2109,7 @@ public sealed class NetCompanion
     public int BellyRgb { get; set; } = 0xFFFFFF;
     public bool Glows { get; set; }
     public int Eyes { get; set; } = 2;
+    public int EyeRgb { get; set; } // #2069: the iris colour, 0 = classic (additive)
     public int Horns { get; set; }
     public bool HasCrest { get; set; }
     public int Tentacles { get; set; }

@@ -963,6 +963,40 @@
       { "block": "carbon",        "rarity": 0.04,  "minDepth": 3, "maxDepth": 2048 }
     ]
   },
+  // Generation 15 (#2062, Toxica-Maxima): Justus' poisoned landmark — one per galaxy at most, tainted ground and shallow tainted
+  // ores, dead forests of tainted wood, corrosive air and toxic water always, a permanent acid thunderstorm under a light-green
+  // sky, contaminated green-eyed animals, no settlements but 6–10 factories that wash ore and still breathe.
+  {
+    "key": "toxica_maxima", "minTerrainGeneration": 15, "exotic": true, "oncePerGalaxy": true, "fixedName": "Toxica-Maxima", "floraTheme": "ashen", "baseTemperature": 18, "nameKey": "planet.toxica_maxima.name", "atmosphereHeight": 220, "cloudColor": 3033643, "cloudDensity": 0.9, "skyColor": 11067491,
+    "terrainTags": ["hoodoos"],
+    "baseHeight": 64, "amplitude": 14, "terrainScale": 56.0, "terrainStyle": "hills",
+    "terrainStyles": ["hills", "downs", "spires", "stone-forest"],
+    "surfaceBlock": "tainted_soil", "subSurfaceBlock": "tainted_subsoil", "deepBlock": "tainted_stone", "surfaceDepth": 4,
+    "caveThreshold": 0.5, "dataCacheRarity": 0.002,
+    "weather": "stormy", "precipitation": "acid", "stormChance": 0.9, "dayLengthSeconds": 600, "worldRadius": 880, "floraDensity": 0.0, "treeDensity": 0.02, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.1, "atmosphereDensity": 0.75, "spawnWeight": 1, "waterAbundance": 0.35,
+    "waterTint": "#7dbb2f", "beachBlock": "tainted_subsoil",
+    "deadForests": true, "deadTreeBlock": "tainted_log",
+    "contaminatedFauna": true, "eyeColor": 3800852,
+    "weatherVolatility": 1.2, "seasonAmplitude": 0.2,
+    "weatherEvents": { "acid_rain": 3.0, "toxic_storm": 2.0, "gale": 1.5, "ground_fog": 0.8, "fog": 0.0, "drizzle": 0.0, "ion_storm": 0.0, "meteor_shower": 0.0 },
+    "corrosiveAirChance": 1.0, "airDamagePerSecond": 0.2, "waterDamagePerSecond": 2, "waterDamageChance": 1.0,
+    "settlementsBias": 0.0, "ruinedSettlementsOnly": true,
+    "factoryCount": [6, 10], "factoryRecipes": ["factory_clean_iron_ore", "factory_clean_copper_ore", "factory_clean_titanium_ore", "factory_clean_diamond_ore"],
+    "biomes": [
+      { "surfaceBlock": "tainted_soil",  "subSurfaceBlock": "tainted_subsoil" },
+      { "surfaceBlock": "tainted_stone", "subSurfaceBlock": "tainted_stone", "reliefMul": 1.4 },
+      { "surfaceBlock": "tainted_soil",  "subSurfaceBlock": "tainted_subsoil", "reliefMul": 0.6 }
+    ],
+    "ores": [
+      { "block": "tainted_diamond_ore",  "rarity": 0.02, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "tainted_titanium_ore", "rarity": 0.04, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "tainted_iron_ore",     "rarity": 0.09, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "tainted_copper_ore",   "rarity": 0.08, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "carbon",     "rarity": 0.05, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.04, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "sulfur_ore", "rarity": 0.03, "minDepth": 4, "maxDepth": 2048 }
+    ]
+  },
   {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,

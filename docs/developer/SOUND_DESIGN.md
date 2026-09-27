@@ -148,6 +148,9 @@ station NPC markers + trade/mission interactions.
 | per-biome ambient bed (forest/desert/ice/lava/swamp/cave) | planet/biome | ~6 | EL |
 | lava bubbling loop, water/shore loop | near fluid | 2 | EL |
 | day vs night ambience shift | world clock | 2 | proc/EL |
+| poisoned-world bed `amb_toxic` (Toxica-Maxima + the toxic class, #2068) | planet key | 1 | EL |
+| acid-storm bed `toxic_storm_loop` (the `toxic_storm` event, and a storm whose rain is acid, #2063/#2064) | weather / precipitation | 1 | EL |
+| decontaminator rinse `decontaminate` (#2067) | wash craft cue | 1 | EL |
 
 ## 11. Music — ✅ SHIPPED (context cross-fade + Suno track library, 2026-06-13)
 

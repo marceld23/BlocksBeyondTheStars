@@ -38,6 +38,7 @@ public sealed partial class GameServer
         CraftingStation.AlgaeTank,
         CraftingStation.Campfire,
         CraftingStation.Factory,
+        CraftingStation.Decontaminator, // #2067
     };
 
     /// <summary>The placed world block that stands in for a crafting station off the ship (mirrors
@@ -51,6 +52,7 @@ public sealed partial class GameServer
         CraftingStation.AlgaeTank => "algae_tank",
         CraftingStation.Campfire => "campfire",
         CraftingStation.Factory => "factory_terminal",
+        CraftingStation.Decontaminator => "decontaminator", // #2067
         _ => null,
     };
 
@@ -61,6 +63,7 @@ public sealed partial class GameServer
         CraftingStation.Refinery => "refinery",
         CraftingStation.Detoxifier => "detoxifier",
         CraftingStation.Transmuter => "transmuter",
+        CraftingStation.Decontaminator => "decontaminator", // #2067
         _ => null,
     };
 

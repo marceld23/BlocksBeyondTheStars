@@ -180,7 +180,6 @@ public sealed partial class GameServer
     private volatile bool _runLoopActive;
     private readonly System.Threading.ManualResetEventSlim _stopped = new(true);
     private string _timeOfDay = "day";
-    private string _weather = "clear";
 
     public GameServer(
         ServerConfig config,
@@ -1933,15 +1932,19 @@ public sealed partial class GameServer
             // A boarded station breathes too — but a PLAYER-BUILT one only inside a sealed pocket of its hull
             // (#1473): a hole means helmet on until it is patched (a force-field block plugs it).
             bool stationAir = !p.InEva && StationLifeSupport(p, playerCell);
-            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || stationAir
+            // #2070: an intact factory hall still breathes — under its roof the old industrial life support holds, on every
+            // world (Toxica-Maxima's plants are the shelters its corrosive air and acid storms leave you).
+            bool factoryAir = !p.InEva && InFactoryAir(p.Position);
+            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || stationAir || factoryAir
                 || !Rules.OxygenEnabledFor(p.ModeOverride));
             // Which source keeps this player breathing — sent to the client so the HUD can name it
-            // (0 none, 1 ship cabin/aboard, 2 station, 3 base zone or sealed room). Base ranks last so
-            // the label only claims the base when nothing closer (ship/station) already covers you.
+            // (0 none, 1 ship cabin/aboard, 2 station, 3 base zone or sealed room, 4 factory hall). Base ranks after the
+            // ship and the station so the label only claims the base when nothing closer already covers you.
             p.LifeSupportSource = (byte)(!lifeSupport ? 0
                 : p.AboardShip || insideShip ? 1
                 : stationAir ? 2
-                : atBase ? 3 : 0);
+                : atBase ? 3
+                : factoryAir ? 4 : 0);
             // Submerged underwater the suit runs on its own air, even on a breathable world — diving spends
             // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).
             // Life support overrides this (ship cabin, station, base zone): an underwater base is a dome.
@@ -6321,9 +6324,20 @@ public sealed partial class GameServer
                 break;
 
             case "set_weather":
-                _weather = cmd.StringArg ?? _weather;
-                Broadcast(new ServerMessage { Text = "@srv.admin.weather_set:" + _weather });
-                CheatLog(p, $"set weather to {_weather}");
+                // #2065: the command used to write a field nothing read. It forces the simulation's state now (a ladder
+                // state or an event of the catalogue) and refuses anything the catalogue does not know.
+                if (cmd.StringArg is { Length: > 0 } weatherKey && WeatherCatalog.Find(weatherKey) is { } weatherDef)
+                {
+                    _planetWeatherMode = "dynamic";
+                    _sim.Force(weatherDef.Key);
+                    Broadcast(new ServerMessage { Text = "@srv.admin.weather_set:" + weatherDef.Key });
+                    CheatLog(p, $"set weather to {weatherDef.Key}");
+                }
+                else
+                {
+                    Send(session, new ServerMessage { Text = "@srv.admin.weather_unknown" });
+                }
+
                 break;
 
             case "fly":
@@ -6622,6 +6636,7 @@ public sealed partial class GameServer
                 CraftingStation.Transmuter => NearStationBlock(player, "matter_forge"),
                 CraftingStation.AlgaeTank => NearStationBlock(player, "algae_tank"),
                 CraftingStation.Campfire => NearStationBlock(player, "campfire"),
+                CraftingStation.Decontaminator => NearStationBlock(player, "decontaminator"), // #2067
                 // A factory's production terminal. The terminal BLOCK is craftable since #1108 (a housing
                 // for your own halls), but only a spawned factory structure produces — gate on the structure
                 // like HandleCraft's roster check does, not on the block, or the menu lights the Factory tab
@@ -6637,6 +6652,7 @@ public sealed partial class GameServer
             CraftingStation.Refinery => "refinery",
             CraftingStation.Detoxifier => "detoxifier",
             CraftingStation.Transmuter => "transmuter",
+            CraftingStation.Decontaminator => "decontaminator", // #2067
             _ => string.Empty,
         };
 

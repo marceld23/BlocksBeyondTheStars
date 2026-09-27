@@ -741,6 +741,7 @@ public sealed partial class GameServer
                 BellyRgb = sp.BellyRgb,
                 Glows = sp.Glows,
                 Eyes = sp.Eyes,
+                EyeRgb = sp.EyeRgb, // #2069
                 Horns = sp.Horns,
                 HasCrest = sp.HasCrest,
                 Tentacles = sp.Tentacles,
@@ -844,6 +845,7 @@ public sealed partial class GameServer
         BodySegments = s.BodySegments,
         ColorRgb = s.ColorRgb,
         Eyes = s.Eyes,
+        EyeRgb = s.EyeRgb, // #2069: a contaminated pet keeps its green eyes
         Horns = s.Horns,
         HasCrest = s.HasCrest,
         Tentacles = s.Tentacles,

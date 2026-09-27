@@ -128,6 +128,7 @@ public sealed class MusicLibraryTests
     [InlineData("volcanic", MusicLibrary.PlanetLava)]
     [InlineData("fungal", MusicLibrary.PlanetToxic)]
     [InlineData("toxic_world", MusicLibrary.PlanetToxic)] // #2032: the toxic-world class
+    [InlineData("toxica_maxima", MusicLibrary.PlanetToxic)] // #2068: Justus' poisoned landmark
     [InlineData("ocean", MusicLibrary.PlanetOcean)]
     [InlineData("jungle", MusicLibrary.PlanetVerdant)]
     [InlineData("crystal_living", MusicLibrary.PlanetCrystal)]

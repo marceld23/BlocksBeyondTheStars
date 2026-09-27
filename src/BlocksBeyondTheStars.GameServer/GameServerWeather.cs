@@ -241,7 +241,10 @@ public sealed partial class GameServer
         // One seeded daytime sky hue per WORLD (blue → green → yellow → red, blue-dominant), so worlds with an
         // atmosphere don't all share the same blue sky. Seeded from LocationId ^ Seed (like AtmosphereDensity) so
         // two same-type worlds differ. Airless bodies (space sky) carry a value but the client ignores it.
-        _skyColor = SkyHue(unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed)));
+        // #2063: a type may name its sky (Toxica-Maxima's light green); 0 = the seeded hue every classic type keeps.
+        _skyColor = planet is { SkyColor: > 0 }
+            ? planet.SkyColor
+            : SkyHue(unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed)));
         // One seeded cloud tint per WORLD (not just per planet type), the colour analogue of the per-world sky
         // hue: the planet-type base colour gets a small per-world jitter so two same-type worlds differ, then a
         // contrast guarantee pushes it apart in brightness if it drifted too close to this world's sky — clouds
@@ -258,7 +261,10 @@ public sealed partial class GameServer
 
         // The planet's authored mode becomes a BAND on the ladder rather than a freeze: "overcast" raises
         // the floor to clouds, airless bodies drop the ceiling to clear (events still run).
-        _sim.LadderFloor = string.Equals(planet?.Weather, "overcast", System.StringComparison.OrdinalIgnoreCase) && !airless ? 1 : 0;
+        // #2063: "stormy" pins the FLOOR to the storm itself (Toxica-Maxima's permanent thunderstorm); events still roll.
+        _sim.LadderFloor = airless ? 0
+            : string.Equals(planet?.Weather, "stormy", System.StringComparison.OrdinalIgnoreCase) ? WeatherCatalog.MaxSeverity
+            : string.Equals(planet?.Weather, "overcast", System.StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         _sim.LadderCeiling = airless || string.Equals(planet?.Weather, "clear", System.StringComparison.OrdinalIgnoreCase)
             ? 0
             : WeatherCatalog.MaxSeverity;
@@ -474,9 +480,16 @@ public sealed partial class GameServer
             return _sim.Precip == "none" ? def.Precip[0] : _sim.Precip;
         }
 
+        // #2063: a type may name what its ladder rain falls as (Toxica-Maxima: acid) — before the climate has its say.
+        var typed = _content.GetPlanet(_worlds.Active.PlanetType);
+        if (typed is { Precipitation.Length: > 0 })
+        {
+            return typed.Precipitation;
+        }
+
         // Ladder rain (and the two wet events) still resolves by climate, position-dependent: the snow
         // line has to agree with where worldgen actually freezes water.
-        if (_content.GetPlanet(_worlds.Active.PlanetType)?.SurfaceBlock == "sand") return "sandstorm"; // dry worlds blow sand
+        if (typed?.SurfaceBlock == "sand") return "sandstorm"; // dry worlds blow sand
         if (temp >= 55f) return "ash";   // fire-rain / ash on very hot (lava) worlds
         if (temp <= -15f) return "hail"; // very cold → hail
         if (temp <= 2f) return "snow";   // cold → snow

@@ -22,7 +22,7 @@ public sealed class EconomyBalanceTests
 
     // The deliberate exception (#2024, Marcel 2026-09-26): the toxic worlds keep EVERY vein shallow — the reward for
     // braving corrosive air and toxic water; the tier-2 drill still gates the rare ones. ToxicWorldTests pins their ores.
-    private static readonly string[] ShallowTreasureTypes = { "toxic_world" };
+    private static readonly string[] ShallowTreasureTypes = { "toxic_world", "toxica_maxima" }; // #2068: tainted diamond under the surface
 
     [Fact]
     public void DataCache_DropsEasedFragmentYield()

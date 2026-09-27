@@ -44,6 +44,8 @@ public sealed class AuthoredCreature
     public int ColorRgb { get; set; } = 0xFFFFFF;
     public int BellyRgb { get; set; } = 0xFFFFFF;
     public int Eyes { get; set; } = 2;
+    /// <summary>The iris colour (packed 0xRRGGBB, #2069); 0 = the classic pale eye.</summary>
+    public int EyeRgb { get; set; }
     public int Horns { get; set; }
     public bool HasCrest { get; set; }
     public bool Glows { get; set; }

@@ -189,6 +189,14 @@ public static class WeatherCatalog
             PeakLo = 0.30f, PeakHi = 0.65f, DurLo = 50, DurHi = 150, TempDelta = 1f,
             WindLo = 0.05f, WindHi = 0.25f, Precip = new[] { "spores" },
         },
+        // #2064: the toxic storm — acid rain's violent sibling on worlds whose air is not breathable: a hard wind, lightning
+        // (the client draws it for acid precipitation in a violent state) and rain that burns. Appended last.
+        new()
+        {
+            Key = "toxic_storm", Family = WeatherFamily.Violent,
+            PeakLo = 0.70f, PeakHi = 1.00f, DurLo = 25, DurHi = 80, TempDelta = -6f,
+            WindLo = 0.75f, WindHi = 1.00f, Precip = new[] { "acid" },
+        },
     };
 
     private static readonly Dictionary<string, WeatherDef> ByKey = BuildIndex();
@@ -649,6 +657,7 @@ public sealed class WeatherSim
             "blizzard" => ctx.BaseTemperature <= 1 ? 1.6 : 0,
             "heatwave" => ctx.BaseTemperature >= 28 ? 1.3 : 0,
             "acid_rain" => ctx.Toxic ? 1.5 : 0,
+            "toxic_storm" => ctx.Toxic ? 0.6 : 0, // #2064: rarer than acid rain, on the same worlds; a type raises it in data
             "ion_storm" => (ctx.Airless ? 2.2 : 0.7) * (night ? 1.5 : 1.0),
             // Thin or absent air doesn't burn the debris up, so airless bodies see far more of it.
             "meteor_shower" => (ctx.Airless ? 2.6 : 0.5) * (night ? 1.6 : 0.7),

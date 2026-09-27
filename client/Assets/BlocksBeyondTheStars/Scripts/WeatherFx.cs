@@ -118,7 +118,8 @@ namespace BlocksBeyondTheStars.Client
             // Lightning in a water thunderstorm — and in an ion storm, where the charge IS the weather
             // (#900). Still never in a blizzard, sandstorm or ashfall.
             var env = Game.Environment;
-            bool thunderstorm = env.Weather == "storm" && env.Precipitation is "rain" or "drizzle";
+            // #2063/#2064: an acid storm (a type whose ladder rain is acid, or the toxic-storm event) flashes too.
+            bool thunderstorm = env.Weather is "storm" or "toxic_storm" && env.Precipitation is "rain" or "drizzle" or "acid";
             if (thunderstorm || env.Weather == "ion_storm")
             {
                 _flashTimer -= Time.deltaTime;

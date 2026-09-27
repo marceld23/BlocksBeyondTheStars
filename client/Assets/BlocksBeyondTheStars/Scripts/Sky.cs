@@ -326,7 +326,10 @@ namespace BlocksBeyondTheStars.Client
                 // The per-world atmosphere hue (server-seeded; blue → green → yellow → red) is the daytime base,
                 // washing toward overcast grey with weather. Each world's sky now reads distinct instead of a
                 // single fixed blue.
-                Color daySky = Color.Lerp(skyBase, new Color(0.6f, 0.62f, 0.68f), weatherIntensity);
+                // #2063: the wash keeps a share of the world's own hue, so a storm sky stays recognisably THIS world's — a
+                // green sky under a permanent thunderstorm (Toxica-Maxima) reads green-grey, not the same grey as everywhere.
+                Color overcast = Color.Lerp(new Color(0.6f, 0.62f, 0.68f), skyBase, 0.35f);
+                Color daySky = Color.Lerp(skyBase, overcast, weatherIntensity);
 
                 // Tint the daytime sky a touch toward the system star's hue, so a warm / red star gives a warmer
                 // sky and a blue-white star a cooler one (B37). Kept light (0.2) so the per-world atmosphere

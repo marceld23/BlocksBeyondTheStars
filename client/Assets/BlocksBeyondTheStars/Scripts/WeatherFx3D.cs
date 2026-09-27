@@ -331,7 +331,7 @@ namespace BlocksBeyondTheStars.Client
             // so from a hilltop you look out OVER it — Unity's fog has no height falloff of its own.
             bool nearGround = Cam == null || Game?.World == null || IsNearGround(Cam.transform.position);
             bool fog = active && (precip is "sandstorm" or "dust"
-                                  || env.Weather is "storm" or "blizzard" or "fog" or "ion_storm"
+                                  || env.Weather is "storm" or "toxic_storm" or "blizzard" or "fog" or "ion_storm"
                                   || (env.Weather == "ground_fog" && nearGround));
             if (fog)
             {

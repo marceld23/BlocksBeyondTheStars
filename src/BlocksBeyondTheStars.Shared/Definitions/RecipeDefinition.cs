@@ -14,6 +14,11 @@ public sealed class RecipeDefinition
     /// <summary>Where this recipe can be crafted.</summary>
     public CraftingStation Station { get; set; } = CraftingStation.Hand;
 
+    /// <summary>For <see cref="CraftingStation.Factory"/> recipes (#2067): whether a spawned factory may roll this recipe
+    /// into its seeded roster. False = offered only by factories of a planet type that lists it in <c>factoryRecipes</c>
+    /// (Toxica-Maxima's ore washes); the default keeps every classic factory recipe in the pool.</summary>
+    public bool FactoryPool { get; set; } = true;
+
     /// <summary>Blueprint that must be unlocked first; null/empty = available from the start.</summary>
     public string? RequiredBlueprint { get; set; }
 

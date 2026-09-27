@@ -1103,7 +1103,8 @@ public sealed partial class GameServer
     /// avoidance and pad/settlement reservations are never relaxed beyond margin 2.</summary>
     private bool TryPlaceStructureGuaranteed(SettlementStructure s, System.Random rng,
         List<(int Cx, int Cz, int Hw, int Hl)> reserved, bool wantIsland, SeatPolicy policy,
-        bool avoidPlayerEdits, out Vector3i origin, out int groundY, out bool onIsland, out string seat)
+        bool avoidPlayerEdits, out Vector3i origin, out int groundY, out bool onIsland, out string seat,
+        int nearDistance = 0)
     {
         origin = default;
         groundY = 0;
@@ -1128,12 +1129,15 @@ public sealed partial class GameServer
         bool EditGate(int ox, int oz, int gy)
             => avoidPlayerEdits && FootprintHasPlayerEdits(ox, oz, gy, w, s.Height, l);
 
-        // Ring 1 — the classic gates, first-fit. Where they succeed nothing changes visually.
+        // Ring 1 — the classic gates, first-fit. Where they succeed nothing changes visually. #2070: a caller may ask for
+        // the near ring only (Toxica-Maxima's first factory stands in sight of the pad); the widening rings below still
+        // catch it when the near ring is full.
         int attempts = System.Math.Max(w, l) > 48 ? 160 : 64;
+        int ring1 = nearDistance > 40 ? nearDistance - 40 : baseDist;
         for (int attempt = 0; attempt < attempts; attempt++)
         {
             double ang = rng.NextDouble() * System.Math.PI * 2.0;
-            int dist = 40 + rng.Next(0, baseDist);
+            int dist = 40 + rng.Next(0, ring1);
             int cx = pad0X + (int)System.Math.Round(System.Math.Cos(ang) * dist);
             int cz = System.Math.Clamp(pad0Z + (int)System.Math.Round(System.Math.Sin(ang) * dist), -latBand, latBand);
             if (Blocked(cx, cz, SettlementCollisionMargin))

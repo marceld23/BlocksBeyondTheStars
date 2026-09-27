@@ -304,5 +304,18 @@
   { "key": "auto_drill_2", "craftTab": "machines", "nameKey": "item.auto_drill_2.name", "category": "block", "maxStack": 16, "placesBlock": "auto_drill_2", "descriptionKey": "item.auto_drill_2.desc" },
   { "key": "auto_drill_3", "craftTab": "machines", "nameKey": "item.auto_drill_3.name", "category": "block", "maxStack": 16, "placesBlock": "auto_drill_3", "descriptionKey": "item.auto_drill_3.desc" },
   { "key": "matter_sender", "craftTab": "machines", "nameKey": "item.matter_sender.name", "category": "block", "maxStack": 16, "placesBlock": "matter_sender", "descriptionKey": "item.matter_sender.desc" },
-  { "key": "matter_receiver", "craftTab": "machines", "nameKey": "item.matter_receiver.name", "category": "block", "maxStack": 16, "placesBlock": "matter_receiver", "descriptionKey": "item.matter_receiver.desc" }
+  { "key": "matter_receiver", "craftTab": "machines", "nameKey": "item.matter_receiver.name", "category": "block", "maxStack": 16, "placesBlock": "matter_receiver", "descriptionKey": "item.matter_receiver.desc" },
+  // Generation 15 (#2066, Toxica-Maxima): the tainted materials — each shares its block's key, so it shows the block's tile — and the
+  // contaminated meat of the planet's animals. Nothing downstream accepts them; the decontaminator (#2067) washes each clean.
+  { "key": "tainted_soil",         "nameKey": "item.tainted_soil.name",         "category": "block",      "maxStack": 1024, "placesBlock": "tainted_soil", "descriptionKey": "item.tainted_soil.desc" },
+  { "key": "tainted_subsoil",      "nameKey": "item.tainted_subsoil.name",      "category": "block",      "maxStack": 1024, "placesBlock": "tainted_subsoil", "descriptionKey": "item.tainted_subsoil.desc" },
+  { "key": "tainted_stone",        "nameKey": "item.tainted_stone.name",        "category": "block",      "maxStack": 1024, "placesBlock": "tainted_stone", "descriptionKey": "item.tainted_stone.desc" },
+  { "key": "tainted_log",          "nameKey": "item.tainted_log.name",          "category": "block",      "maxStack": 1024, "placesBlock": "tainted_log", "descriptionKey": "item.tainted_log.desc" },
+  { "key": "tainted_iron_ore",     "nameKey": "item.tainted_iron_ore.name",     "category": "material",   "maxStack": 1024, "descriptionKey": "item.tainted_iron_ore.desc" },
+  { "key": "tainted_copper_ore",   "nameKey": "item.tainted_copper_ore.name",   "category": "material",   "maxStack": 1024, "descriptionKey": "item.tainted_copper_ore.desc" },
+  { "key": "tainted_titanium_ore", "nameKey": "item.tainted_titanium_ore.name", "category": "material",   "maxStack": 1024, "descriptionKey": "item.tainted_titanium_ore.desc" },
+  { "key": "tainted_diamond_ore",  "nameKey": "item.tainted_diamond_ore.name",  "category": "material",   "maxStack": 1024, "descriptionKey": "item.tainted_diamond_ore.desc" },
+  { "key": "toxic_meat",           "nameKey": "item.toxic_meat.name",           "category": "consumable", "maxStack": 20,   "descriptionKey": "item.toxic_meat.desc", "consumeHealth": -16, "consumeHunger": 10 },
+  // #2067: the decontaminator station block — placed at a base, the planetside counterpart of its ship module.
+  { "key": "decontaminator", "craftTab": "machines", "nameKey": "item.decontaminator.name", "category": "block", "maxStack": 16, "placesBlock": "decontaminator", "descriptionKey": "item.decontaminator.desc" }
 ]

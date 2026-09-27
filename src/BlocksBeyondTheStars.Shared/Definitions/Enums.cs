@@ -54,4 +54,9 @@ public enum CraftingStation
     /// <summary>A placed campfire block: the hand-tier cooking spot (#807). On-foot only, like the
     /// algae tank — aboard the ship the galley is the life support, not an open flame.</summary>
     Campfire,
+
+    /// <summary>The decontaminator (#2067): the matter-side twin of the detoxifier. A placed block or a ship module that
+    /// washes Toxica-Maxima's tainted ore, stone, soil and wood — and contaminated meat — clean (2 tainted + 1 carbon →
+    /// 2 clean). Appended last so no existing member's value moves.</summary>
+    Decontaminator,
 }

@@ -181,8 +181,16 @@ public sealed class WorldDescription
     /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package,
     /// #1715 flora roster, #1778-#1783 new creature kinds + giant trees, 2026-09 lava pads + the Titas and Valuma
     /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora,
-    /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees).</summary>
-    public const int CurrentTerrainGeneration = 14;
+    /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees, #2062 Toxica-Maxima).</summary>
+    public const int CurrentTerrainGeneration = 15;
+
+    /// <summary>The generation of Toxica-Maxima (#2062, 2026-09): Justus' once-per-galaxy toxic landmark planet — tainted
+    /// ground and ores, dead forests of tainted wood (<c>PlanetType.DeadTreeBlock</c>), contaminated fauna with green eyes
+    /// (<c>PlanetType.ContaminatedFauna</c>), a rolled eye colour for EVERY new species (<c>CreatureSpecies.EyeRgb</c>), a
+    /// sky colour, a storm floor and an acid precipitation per type, a factory count and roster per type. Every new field
+    /// defaults to its classic no-op and is read on generation-15 worlds only, so an older world keeps its terrain, its
+    /// roster and its weather bit for bit.</summary>
+    public const int ToxicaMaximaGeneration = 15;
 
     /// <summary>The generation of the fruit trees (#2038, 2026-09): about a third of the leafy trees hang fruit under their
     /// crowns — four fruit shapes (appended <c>FloraCatalog</c> species with this <c>MinGeneration</c>), the shape and colour

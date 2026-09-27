@@ -54,7 +54,7 @@ public static class NpcFootings
             // furniture and stores
             "bed", "crew_bunk", "campfire", "crate", "wood_crate", "station_container", "flower_pot",
             // workshop devices
-            "workbench", "forge", "matter_forge", "detoxifier", "algae_tank", "heal_tank",
+            "workbench", "forge", "matter_forge", "detoxifier", "decontaminator", "algae_tank", "heal_tank",
             // terminals and posts
             "data_cache", "factory_terminal", "gaming_pc", "gaming_monitor", "gaming_keyboard", "gaming_mouse",
             "station_vendor", "mission_board", "radio_beacon", "sentry_post",

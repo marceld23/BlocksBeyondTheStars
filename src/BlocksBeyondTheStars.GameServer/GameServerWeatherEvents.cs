@@ -109,14 +109,16 @@ public sealed partial class GameServer
         }
 
         // Acid eats through a suit, embers scorch it, meteorite grit shreds it. All three are survivable
-        // and readable: the suit buffer goes first, health only once it's gone.
-        float bite = state switch
-        {
-            "acid_rain" => 1.0f,
-            "ember_fall" => 0.75f,
-            "meteor_shower" => 0.6f,
-            _ => 0f,
-        };
+        // and readable: the suit buffer goes first, health only once it's gone. #2063: acid bites by its PRECIPITATION,
+        // not by the event's name — a storm that rains acid (a type's `precipitation`, the toxic storm) burns like acid rain.
+        string precip = PrecipitationFor(state, CurrentTemperature(state, _dayFraction, p.Position));
+        float bite = precip == "acid" ? (state == "toxic_storm" ? 1.3f : 1.0f)
+            : state switch
+            {
+                "ember_fall" => 0.75f,
+                "meteor_shower" => 0.6f,
+                _ => 0f,
+            };
 
         if (bite <= 0f)
         {
@@ -177,6 +179,7 @@ public sealed partial class GameServer
             "gale" => 0.7,
             "fog" => 0.65,
             "blizzard" => 0.6,
+            "toxic_storm" => 0.6, // #2064
             "storm" => 0.8,
             _ => PrecipitationFor(_weatherState, 20f) == "sandstorm" ? 0.55 : 1.0,
         };

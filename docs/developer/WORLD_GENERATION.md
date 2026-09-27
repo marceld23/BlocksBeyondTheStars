@@ -1857,3 +1857,62 @@ Begging herds need nothing new: a fruit is a consumable that restores hunger.
 `fruit_grape` / `fruit_banana` (hunger 20–26, a little health) and `toxic_fruit_*` (health −16…−20), tiles + icons
 AI-generated (`gen_textures.py`, `gen_item_icons.py`), the tiles alpha-baked (`bake_leaf_alpha.py`). Tests:
 `FruitTreeTests`.
+
+## 29. Generation 15 — Toxica-Maxima (#2062–#2071, 2026-09-27, Justus' idea)
+
+A **once-per-galaxy toxic landmark**, the poisoned sibling of Titas: everything is gated on
+`WorldDescription.ToxicaMaximaGeneration` (15); every new `PlanetType` field defaults to its classic no-op, so an older
+world — the toxic class of §27 included — is bit for bit what it was.
+
+**The type.** `toxica_maxima` (`minTerrainGeneration 15`, `exotic`, `spawnWeight 1`, `oncePerGalaxy`, `fixedName
+"Toxica-Maxima"`): the §20 mechanics keep it to at most one PLANET per galaxy, in the original systems, never the start
+system, never the first breathable world — and not guaranteed (about one galaxy in ten). 18 °C; toxic air with
+`corrosiveAirChance 1.0` (a chance ≥ 1 is "always", no roll, §27) and `waterDamageChance 1.0`; hills and downs with
+`spires` and `stone-forest` regions and `hoodoos`, so the needles carry the type's veins inside (ore depth is measured
+from the raised top); `caveThreshold 0.5` (the maximum carve share) and `waterAbundance 0.35` (cenotes and sinkholes
+need > 0.3); `settlementsBias 0`, `ruinedSettlementsOnly` (no bandit camps), ruins as usual.
+
+**Tainted ground (#2066).** The surface, sub-surface, deep block and the four ores are new blocks —
+`tainted_soil` / `tainted_subsoil` / `tainted_stone` / `tainted_{iron,copper,titanium,diamond}_ore` — with the clean
+twins' hardness and tool tier; each drops an item of its own key (which therefore shows the block's tile). Every vein
+starts within 4 blocks (the shallow mode of §27), the tainted diamond first; `carbon`, `silicate` and `sulfur_ore` stay
+clean, so the wash loop closes on site. The per-world mantle rock (basalt / deepslate / granite) stays clean below the
+contamination by decision. `PlanetType.DeadTreeBlock` (`tainted_log`) is the wood `StampTrees` hands `BuildDead` on a
+generation-15 world; Titas keeps its logs.
+
+**The Decontaminator (#2067).** `CraftingStation.Decontaminator` (appended to the enum), block `decontaminator`, a ship
+module and a blueprint after the detoxifier; `clean_<ore>` / `clean_stone` / `clean_soil` / `clean_subsoil` /
+`clean_wood` / `wash_meat` are `2 tainted + 1 carbon → 2 clean`. The four `factory_clean_*` recipes (6 → 4, no carbon)
+carry `factoryPool: false` (`RecipeDefinition.FactoryPool`): they never enter a seeded roster; a type lists them in
+`PlanetType.FactoryRecipes` and every factory of the type offers exactly those (the classic draws still run, so the
+placement lanes keep their seeds; `ResolveFactoryRoster` knows them, so a pinned roster survives).
+
+**Weather (#2063, #2064).** `PlanetType.SkyColor` replaces the seeded `SkyHue` when set (the client already reads
+`WorldEnvironment.SkyColor`; `Sky.cs` now washes a storm sky toward a grey that keeps 35 % of the world's hue).
+`weather: "stormy"` sets `WeatherSim.LadderFloor` to the storm, so `ClampSeverity` never leaves it; the events still
+roll from `weatherEvents` (`fog` / `drizzle` / `ion_storm` / `meteor_shower` are zeroed on the type). `PlanetType.Precipitation`
+("acid") is what `PrecipitationFor` returns for the ladder rain and the two wet events, before the climate has its say.
+The acid damage of `ApplyWeatherToPlayer` is keyed on the PRECIPITATION now (`acid`), not on the `acid_rain` state, so
+the permanent storm burns like acid rain (the client draws lightning and plays thunder for acid too). The new event
+`toxic_storm` (Violent, 0.7–1.0, wind 0.75–1.0, acid) is gated `ctx.Toxic ? 0.6 : 0` in `EventWeight`, so every world
+class with unbreathable air gets it, rarer than acid rain, and a type raises it in data (`toxic_world` 1.0 default,
+Toxica-Maxima 2.0). `/setweather` (#2065) forces `WeatherSim.Force` now instead of writing a dead field.
+
+**Contaminated fauna + eye colour (#2069).** `CreatureSpecies.EyeRgb` (0 = classic) is rolled by `ApplyEyeColour` as
+the FINAL draw of `MakeSpecies` on a generation-15 world (60 % classic, else amber / blue / black / violet / red — a
+hunter leans red, a glower violet); `AuthoredCreature.EyeRgb` may name it. `PlanetType.ContaminatedFauna` +
+`EyeColor` → `MakeContaminated`, a post-pass beside `MakePeaceful`: Aggressive (every fourth PackHunter), a bite of 2–7
+where the plan rolled none, Cathemeral (a sleeping hunter is no hunter), the type's eyes, `toxic_meat` where the drop was
+food. The wire carries `NetCreature.EyeRgb` / `NetCompanion.EyeRgb` (additive, no protocol bump), `CloneSpecies` copies
+it, `CreatureBuilder` paints the iris self-lit. The scan reads `ui.scan.threat.contaminated` on such a world.
+
+**Factories (#2070).** `PlanetType.FactoryCount` [min, max] replaces the 0 / 1 / 2 roll with the same first draw; the
+world option still scales it, never past max; the first hall asks `TryPlaceStructureGuaranteed` for the near ring
+(`nearDistance` 80). `InFactoryAir` (the hall's box under a roof, the `InCityShelter` shape) is life support on EVERY
+world: source 4 on the wire, "factory life support" in the HUD, corrosive air and acid rain stop under it,
+`BreathableAirAt` counts it.
+
+Tests: `ToxicaMaximaWorldTests` (data, once per galaxy, tainted columns and shallow ores, tainted snags, caves,
+contaminated roster, eye colours per generation), `ToxicaMaximaServerTests` (storm floor + acid, sky colour, factory
+count + air, decontaminator station + recipes, scan, VEGA, `/setweather`), golden `toxica_maxima-gen15`,
+`MaterialEconomyTests` reference chains for the factory washes.

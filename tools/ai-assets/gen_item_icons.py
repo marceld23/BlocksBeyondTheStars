@@ -68,6 +68,8 @@ ITEMS = [
     ("grain", "a small loose handful of ripe golden wheat grains with two short ears of wheat"),
     ("toxic_gland", "a glistening wet alien organ gland"),
     ("toxic_berries", "a small cluster of round berries with a leaf"),
+    # Toxica-Maxima (#2066): the meat of a contaminated animal.
+    ("toxic_meat", "a slab of raw red meat with a sickly glowing green sheen and dripping green veins"),
     # Fruit trees (#2038): one icon per fruit shape and its toxic twin (the toxic ones stay uncoloured — the client tints them).
     ("fruit_round", "a single plump round red-orange apple-like fruit with a short stem and one small green leaf"),
     ("fruit_long", "a single long slender smooth green pod-like fruit with a short stem"),
