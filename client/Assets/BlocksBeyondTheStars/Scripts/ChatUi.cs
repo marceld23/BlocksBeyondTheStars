@@ -829,6 +829,10 @@ namespace BlocksBeyondTheStars.Client
                     net.SendAdminCommand("summon_arachnid");
                     return true;
 
+                case "/biped": // #2081: summon a begging herd of this world's bipeds near you (testing)
+                    net.SendAdminCommand("summon_biped");
+                    return true;
+
                 case "/fly": net.SendAdminCommand("fly"); return true;
                 case "/god": net.SendAdminCommand("godmode"); return true;
                 case "/instant": net.SendAdminCommand("instant_build"); return true;

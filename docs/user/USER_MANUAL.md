@@ -1470,6 +1470,22 @@ separate unlock; admins can still disable it through server world rules.
   first time a herd begs from you. A sleeping herd ignores food, a startled one runs like any other, and skittish
   species never beg. Big herds are cheap for the world's animal budget (three herd animals count as one), so a herd
   never crowds out the other species.
+- **Favourite food + taming by feeding** (worlds created from terrain generation 16 on): every begging species **loves
+  one food** — usually a fruit that grows on that world's trees, otherwise berries. The scan shows it ("Loves:
+  Banana") and a herd smells it from a little further away. Throw a herd **its favourite food** with **Feed** (**Q**)
+  **twice** and the animal that eats the second piece **stays with you as a companion** — no translator needed (VEGA
+  explains it after the first piece). After a favourite snack the herd comes right back for more instead of losing
+  interest. The pieces count for the whole herd, whichever animal wins the squabble; other food doesn't count, and
+  poisonous food never does (wash a toxic fruit at the **detoxifier** first).
+- **Bipeds** (worlds created from terrain generation 16 on): small **upright two-leggers with two arms and a big
+  head**, from knee-high to child-high. They are **always peaceful** (some are shy), never alone, and many of them beg:
+  they come running with **both arms up** and chatter something that sounds like **"meins, meins!"** If you hurt one,
+  **the whole herd runs away** and wants no food for a while. The scan says "Walks upright on two legs".
+- **Mini-Michi-Paul** — invented by **Paul and Ben** of the school club: a **knee-high, yellow biped** with a big head
+  and two big eyes that lives in herds of ten on the **tropical worlds** (jungle, karst, archipelago, coral sea,
+  rainbow sea — worlds created from terrain generation 16 on). It begs for food and **loves bananas**: **two bananas
+  tame one**. On those worlds the palms and jungle trees always carry bananas (pick them by hand; if the world's trees
+  are poisonous, so are the bananas — Mini-Michi-Paul won't touch them until the detoxifier has washed them).
 - **Arachnids** are eight-legged animals as big as a speeder that some worlds roll into their fauna (about every
   third or fourth world has one species). Their heads are boxes or pyramids of several kinds, their eyes come in
   clusters of 2, 4, 6 or 8, and their temper is rolled like any other animal's: many graze or run away, but a
@@ -1971,6 +1987,7 @@ rejections) appear in the **chat scrollback**, not just the brief HUD toast.
 | `/setweather clear\|storm\|…` | Set the world weather |
 | `/giant colossus\|sandworm` | Summon this world's colossus or sandworm near you (a sandworm needs a sand sea) — for testing |
 | `/arachnid` | Summon this world's arachnid near you (rolls one into the world's fauna first if it has none) — for testing |
+| `/biped` | Summon a begging herd of this world's bipeds near you (Mini-Michi-Paul on a tropical world; rolls a begging biped into the world's fauna first if it has none) — for testing |
 | `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |
 | `/god` | Toggle invulnerability |
 | `/instant` | Toggle free/instant crafting |

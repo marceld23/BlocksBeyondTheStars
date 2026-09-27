@@ -151,6 +151,13 @@ public static class CreatureVoices
     /// titan's bellow pool, and a speeder-sized spider that moos is wrong in a way a child notices at once.</summary>
     private static readonly string[] Arachnid = { "creature_call_hiss", "creature_call_sizzle", "creature_call_chitter", "creature_call_click" };
 
+    /// <summary>#2083: what a biped says — gibberish chatter in the shape of "meins, meins!" (Marcel's wish for Paul and Ben's
+    /// bipeds: not a word, so it reads in every language). A biped draws from this pool INSTEAD of its habitat pool.</summary>
+    private static readonly string[] BipedCalls =
+    {
+        "creature_call_gibber", "creature_call_gibber_high", "creature_call_gibber_chatter", "creature_call_gibber_grumble",
+    };
+
     // Habitat-flavoured pools: cave dwellers sound deep + echoey, amphibians wet + croaky, water
     // creatures burble, lava critters hiss/rumble, fliers shriek/trill. Land uses the full pool.
     private static readonly string[] LandCalls =
@@ -213,7 +220,7 @@ public static class CreatureVoices
         get
         {
             var set = new List<string>();
-            foreach (var pool in new[] { LandCalls, CaveCalls, AmphibianCalls, WaterCalls, LavaCalls, AirCalls })
+            foreach (var pool in new[] { LandCalls, CaveCalls, AmphibianCalls, WaterCalls, LavaCalls, AirCalls, BipedCalls })
             {
                 foreach (var name in pool)
                 {
@@ -235,7 +242,7 @@ public static class CreatureVoices
     /// asset set degrades to a different voice instead of a silent animal; the server passes null.</summary>
     public static CreatureVoice Derive(int seed, VoiceTraits t, System.Func<string, bool>? available = null)
     {
-        var pool = Filter(PoolFor(t.Habitat), available);
+        var pool = Filter(PoolFor(t.Habitat, t.BodyPlan, available), available);
         var candidates = Filter(NarrowByBody(pool, t), available);
         string call = Rendezvous(seed, "call", candidates);
 
@@ -271,6 +278,11 @@ public static class CreatureVoices
     /// trait like colour instead of a noise the player can only recognise subconsciously.</summary>
     public static string DescriptorKey(CreatureVoice v)
     {
+        if (Contains(BipedCalls, v.Call))
+        {
+            return "ui.scan.voice.gibber"; // #2083: "meins, meins!"
+        }
+
         if (v.Pulses >= 4 && v.PulseGapMs <= 130)
         {
             return "ui.scan.voice.clicks";
@@ -307,6 +319,24 @@ public static class CreatureVoices
         }
 
         return Contains(High, v.Call) ? "ui.scan.voice.shrill" : "ui.scan.voice.call";
+    }
+
+    /// <summary>The pool a species draws its call from: the biped's own gibberish (#2083) when the caller has at least one of
+    /// its samples — a client without them keeps the habitat pool rather than going silent — and the habitat pool otherwise.</summary>
+    public static IReadOnlyList<string> PoolFor(string habitat, string bodyPlan, System.Func<string, bool>? available = null)
+    {
+        if (bodyPlan == "Biped")
+        {
+            foreach (var name in BipedCalls)
+            {
+                if (available == null || available(name))
+                {
+                    return BipedCalls;
+                }
+            }
+        }
+
+        return PoolFor(habitat);
     }
 
     /// <summary>The habitat's full call pool.</summary>
@@ -347,7 +377,11 @@ public static class CreatureVoices
     private static List<string> NarrowByBody(IReadOnlyList<string> pool, VoiceTraits t)
     {
         string[]? want = null;
-        if (t.BodyPlan == "Arachnid")
+        if (t.BodyPlan == "Biped")
+        {
+            want = BipedCalls; // #2083: its own pool — small bodies would otherwise narrow to the shrill calls
+        }
+        else if (t.BodyPlan == "Arachnid")
         {
             want = Arachnid; // #2009: before the size rule — an arachnid is titan-sized but hisses and chitters
         }
@@ -433,6 +467,13 @@ public static class CreatureVoices
     /// world does not sound uniformly processed.</summary>
     private static VoiceOp PickOp(int seed, VoiceTraits t)
     {
+        if (t.BodyPlan == "Biped")
+        {
+            // #2083: the gibberish must stay readable as "meins" — a little thinner, duller or wobblier per species, never
+            // driven, crushed or reversed.
+            return new[] { VoiceOp.None, VoiceOp.None, VoiceOp.Thin, VoiceOp.Dull, VoiceOp.Tremolo }[Roll(seed, "op.biped", 5)];
+        }
+
         if (t.Temperament == "Aggressive" || t.Temperament == "PackHunter")
         {
             return VoiceOp.Drive;
@@ -498,6 +539,11 @@ public static class CreatureVoices
         if (t.BodyPlan == "Arachnid")
         {
             return 2 + Roll(seed, "pulses.arachnid", 3); // #2009: 2..4 quick pulses — a chitter, not a bellow
+        }
+
+        if (t.BodyPlan == "Biped")
+        {
+            return 1; // #2083: every biped sample already IS the double "meins, meins!" — one per phrase
         }
 
         if (t.BodyPlan == "Titan" || t.Size >= 2.6f)
@@ -570,6 +616,11 @@ public static class CreatureVoices
         if (t.BodyPlan == "Arachnid")
         {
             return (9f, 20f); // #2009: calls more often than a titan, less than a chatterer
+        }
+
+        if (t.BodyPlan == "Biped")
+        {
+            return (6f, 13f); // #2083: a herd of chatterers — often enough to be heard, not a constant din
         }
 
         if (t.BodyPlan == "Titan" || t.Size >= 2.6f)

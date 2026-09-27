@@ -906,6 +906,7 @@ public sealed partial class GameServer
         double moveDt = System.Math.Min(dt, CreatureMoveDtCap);
         _creatureClock += moveDt;
         RefreshLureTargets(targets); // #2018: who holds food this tick — one dictionary lookup per player, read by every beggar
+        ResolvePendingFeedTames();   // #2082: last tick's favourite meals that won an animal over (outside the loop: it edits the list)
 
         foreach (var creature in _creatures)
         {
@@ -1477,7 +1478,12 @@ public sealed partial class GameServer
     /// startled too (a hurt passive grazer bolts even though nothing else scares it).</summary>
     private void StartleKin(CombatEntity source)
     {
-        source.PanicTimer = System.Math.Max(source.PanicTimer, CreaturePanicSeconds);
+        // #2081: a hurt biped sends its whole herd running (decision 2026-09-27) — longer and wider than the classic startle,
+        // and the herd wants no food for a while.
+        bool biped = _speciesById.TryGetValue(source.SpeciesId, out var sp) && BipedRules.IsBiped(sp);
+        double seconds = biped ? BipedRules.PanicSeconds : CreaturePanicSeconds;
+        float radius = biped ? BipedRules.PanicRadius : CreaturePanicRadius;
+        Startle(source, seconds, biped);
         foreach (var other in _creatures)
         {
             if (ReferenceEquals(other, source) || other.IsCompanion || other.SpeciesId != source.SpeciesId)
@@ -1485,10 +1491,20 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (WrapDistSq(other.Position, source.Position) <= CreaturePanicRadius * CreaturePanicRadius)
+            if (WrapDistSq(other.Position, source.Position) <= radius * radius)
             {
-                other.PanicTimer = System.Math.Max(other.PanicTimer, CreaturePanicSeconds);
+                Startle(other, seconds, biped);
             }
+        }
+    }
+
+    private void Startle(CombatEntity c, double seconds, bool dropFood)
+    {
+        c.PanicTimer = System.Math.Max(c.PanicTimer, seconds);
+        if (dropFood)
+        {
+            c.BegPhase = BegPhase.None;
+            c.BegCooldownUntil = System.Math.Max(c.BegCooldownUntil, _uptime + HerdRules.CooldownSeconds);
         }
     }
 
@@ -1937,9 +1953,12 @@ public sealed partial class GameServer
     /// <summary>How many cells tall a creature's body is for collision purposes (its render height is
     /// <c>Size × 1.8</c>), clamped so tiny fauna still gets a head cell and a titan can still duck under an
     /// overhang instead of being walled in by its own crown.</summary>
-    private static int CreatureBodyHeight(CreatureSpecies sp) => sp.BodyPlan == CreatureBodyPlan.Arachnid
-        ? ArachnidRules.BodyHeightCells(sp.Size, CreatureBodyMinHeight, CreatureBodyMaxHeight) // #2009: low and wide, not tall
-        : System.Math.Clamp((int)System.Math.Ceiling(sp.Size * 1.8f), CreatureBodyMinHeight, CreatureBodyMaxHeight);
+    private static int CreatureBodyHeight(CreatureSpecies sp) => sp.BodyPlan switch
+    {
+        CreatureBodyPlan.Arachnid => ArachnidRules.BodyHeightCells(sp.Size, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #2009: low and wide
+        CreatureBodyPlan.Biped => BipedRules.BodyHeightCells(sp.Size, sp.HeadRatio, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #2081: its real height
+        _ => System.Math.Clamp((int)System.Math.Ceiling(sp.Size * 1.8f), CreatureBodyMinHeight, CreatureBodyMaxHeight),
+    };
 
     /// <summary>Whether a creature's BODY would sit inside colliding blocks at a spot (#855). Creatures have no
     /// colliders and the server tracks a single point, so before this gate a wall was only ever seen indirectly —
@@ -2725,6 +2744,61 @@ public sealed partial class GameServer
         CheatLog(session.State, $"summoned an arachnid ({(placed ? "placed" : "no room")})");
     }
 
+    /// <summary>#2081: <c>/biped</c> — puts a herd of this world's bipeds near an admin for testing: the roster's own begging
+    /// biped with a favourite food when the world has one (Mini-Michi-Paul on a tropical world), otherwise a rolled one that
+    /// begs joins the roster (a biped of the roster that does not beg would not show the feeding loop)
+    /// (so it can be scanned, fed, tamed and respawned like any species). Up to six members, 8–16 blocks out, on spots the
+    /// spawner would accept.</summary>
+    private void AdminSummonBiped(PlayerSession session)
+    {
+        var sp = _speciesRoster.FirstOrDefault(s => s.BodyPlan == CreatureBodyPlan.Biped && HerdRules.TamesByFeeding(s));
+        if (sp is null)
+        {
+            var planet = _content.GetPlanet(_worlds.Active.PlanetType);
+            if (planet is null)
+            {
+                return;
+            }
+
+            sp = CreatureGenerator.GenerateBiped(planet,
+                BlocksBeyondTheStars.WorldGeneration.WorldGenerator.RosterSeedFor(_meta.Seed, _world.LocationId),
+                _meta.Description.TerrainGeneration);
+            _speciesRoster = _speciesRoster.Append(sp).ToArray();
+            _speciesById[sp.Id] = sp;
+            _locoProfiles[sp.Id] = LocomotionController.ForSpecies(sp);
+        }
+
+        var at = session.State.Position;
+        var rng = new System.Random(unchecked((int)(_uptime * 1000.0)));
+        int placed = 0;
+        for (int attempt = 0; attempt < 40 && placed < 6; attempt++)
+        {
+            double angle = rng.NextDouble() * System.Math.PI * 2.0;
+            float dist = 8f + (float)rng.NextDouble() * 8f;
+            int x = (int)System.Math.Floor(at.X + System.Math.Cos(angle) * dist);
+            int z = (int)System.Math.Floor(at.Z + System.Math.Sin(angle) * dist);
+            int surface = _generator.SurfaceHeight(_world.Planet, x, z);
+            var pos = new Vector3f(x + 0.5f, GroundFeetYAt(x, z, surface + 1), z + 0.5f);
+            if (SpawnSpotClear(sp, pos, x, z, surface))
+            {
+                SpawnCreature(sp, pos);
+                placed++;
+            }
+        }
+
+        Send(session, new ServerMessage { Text = placed > 0 ? "@srv.admin.biped_summoned" : "@srv.admin.biped_no_room" });
+        CheatLog(session.State, $"summoned bipeds ({placed} placed)");
+    }
+
+    /// <summary>Test seam: /biped without the chat.</summary>
+    public void SummonBipedForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } s)
+        {
+            AdminSummonBiped(s);
+        }
+    }
+
     /// <summary>Test seam: /arachnid without the chat.</summary>
     public void SummonArachnidForTest(string playerId)
     {
@@ -2912,6 +2986,8 @@ public sealed partial class GameServer
             HeadShape = (sp?.HeadShape ?? CreatureHeadShape.Box).ToString(), // #2009
             Lurking = e.Lurking,                                              // #2009: an ambusher sitting in wait
             Begging = e.BegPhase is BegPhase.Beg or BegPhase.Rush or BegPhase.Squabble, // #2018: the pose + the fast calls
+            Arms = sp?.Arms ?? 0,                                // #2081: a biped's two arms
+            HeadRatio = sp is { HeadRatio: > 0f } ? sp.HeadRatio : 1f, // #2081: its big head (a pre-wave snapshot carries 0)
             Heads = System.Math.Max(1, sp?.Heads ?? 1),         // #1780-#1782 (generation 6); a pre-wave snapshot carries 0
             WingPairs = System.Math.Max(1, sp?.WingPairs ?? 1),
             FinPairs = System.Math.Max(1, sp?.FinPairs ?? 1),

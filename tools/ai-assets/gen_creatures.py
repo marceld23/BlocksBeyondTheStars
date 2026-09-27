@@ -52,6 +52,8 @@ TEXTURES = [
     ("iridescent", "smooth iridescent beetle shell shimmering with shifting tones"),
     ("barkskin", "rough woody bark-like hide with cracks and ridges"),
     ("veined", "translucent membranous skin with a network of glowing veins"),
+    # #2083 — the bipeds' smooth skin (Mini-Michi-Paul, Paul and Ben's school club creature).
+    ("skin", "smooth soft bare skin with faint pores and a gentle subtle mottling, no scales, no fur, no hair"),
 ]
 
 

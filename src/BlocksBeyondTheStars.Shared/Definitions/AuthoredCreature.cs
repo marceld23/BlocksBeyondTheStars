@@ -21,6 +21,14 @@ public sealed class AuthoredCreature
     /// <summary>The fixed first part of the coined name ("Leni" → "Leni Tarak"); the second word is coined per world.</summary>
     public string NamePrefix { get; set; } = string.Empty;
 
+    /// <summary>#2084: the name is <see cref="NamePrefix"/> alone on every world — no coined second word ("Mini-Michi-Paul").</summary>
+    public bool FixedName { get; set; }
+
+    /// <summary>#2084: the terrain generation a world needs before this species joins its roster (0 = the authored wave's own
+    /// generation 5). A species that relies on a later wave — the bananas of generation 14, the biped body of 16 — waits for it,
+    /// so no older world meets a creature it cannot tame or draw.</summary>
+    public int MinGeneration { get; set; }
+
     public CreatureHabitat Habitat { get; set; } = CreatureHabitat.Land;
     public CreatureActivity Activity { get; set; } = CreatureActivity.Cathemeral;
     public CreatureTemperament Temperament { get; set; } = CreatureTemperament.Passive;
@@ -81,6 +89,18 @@ public sealed class AuthoredCreature
     /// <summary>The species begs for the food a player holds (#2018) — see <see cref="CreatureSpecies.BegsForFood"/>. The rule
     /// (<see cref="HerdRules.BegsForFood"/>) honours it on passive Land species only.</summary>
     public bool BegsForFood { get; set; }
+
+    /// <summary>#2081: the arms of a biped (2); ignored by the other plans.</summary>
+    public int Arms { get; set; }
+
+    /// <summary>#2081: the head's size relative to the classic head (1 = classic, a biped's big head 1.3–2.0).</summary>
+    public float HeadRatio { get; set; } = 1f;
+
+    /// <summary>#2082: the item this species loves ("fruit_banana"); empty = the generator's roll for a begging species.</summary>
+    public string FavouriteFood { get; set; } = string.Empty;
+
+    /// <summary>#2082: favourite meals from one player that tame it; 0 = <see cref="HerdRules.FeedsToTame"/>.</summary>
+    public int FeedsToTame { get; set; }
 
     // --- Giants (#1998, generation 9) — the traits the procedural colossus / sandworm roll, so the school club's
     // concrete giants (#2003) become data entries. Zero/empty on every other species. ---

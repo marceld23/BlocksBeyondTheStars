@@ -1906,6 +1906,11 @@ public sealed class NetCreature
     /// raises the head, bounces and calls at a fast cadence. Additive; false for everything else and from an older server.</summary>
     public bool Begging { get; set; }
 
+    /// <summary>#2081: the arms of a biped (2; 0 on every other plan) and its head size relative to the classic head. Additive:
+    /// an older client ignores them; an older server leaves them at 0, which the client reads as no arms and a classic head.</summary>
+    public int Arms { get; set; }
+    public float HeadRatio { get; set; } = 1f;
+
     /// <summary>Heads / wing pairs / fin pairs (#1780-#1782, generation 6). Additive: an older client ignores them and
     /// draws the classic single head / pair / pair; an older server leaves them at 0, which the client reads as 1.</summary>
     public int Heads { get; set; } = 1;
@@ -2120,6 +2125,8 @@ public sealed class NetCompanion
     public int NeckLength { get; set; }
     public bool HasTrunk { get; set; }
     public string HeadShape { get; set; } = "Box"; // #2009 — the portrait shows the pyramid an arachnid companion wears
+    public int Arms { get; set; }                   // #2081 — a biped companion keeps its arms and its big head
+    public float HeadRatio { get; set; } = 1f;
     public int Heads { get; set; } = 1;     // #1780-#1782 (generation 6) — the portrait shows every head, wing pair and fin pair
     public int WingPairs { get; set; } = 1;
     public int FinPairs { get; set; } = 1;

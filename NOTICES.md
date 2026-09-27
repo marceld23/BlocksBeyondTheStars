@@ -24,7 +24,8 @@ the death cues `space_death`/`player_death`, the base sentry's shot `sentry_shot
 the companion guard growl `creature_companion_growl`
 (+ `_2` second take, #1210, `gen_sound.py`), the per-species creature calls `creature_call_*`
 (incl. the `*_2` second takes of all 22 calls + the habitat calls `burble`/`sizzle`/`keen`/`thrum`,
-#879, via `tools/ai-assets/gen_sound.py`), the
+#879, and the bipeds' gibberish "meins, meins!" set `creature_call_gibber`/`_high`/`_chatter`/`_grumble`, #2083,
+via `tools/ai-assets/gen_sound.py`), the
 item-21 world ambiences `amb_ocean`/`amb_ashen`/`amb_fungal`/`amb_corrupted`/`amb_wind_high` + the
 `geyser_erupt` eruption, the planet-enemy vocals `enemy_growl`/`enemy_attack`/`enemy_hurt`/`enemy_die`,
 the ship-AI radio chirp `ai_blip` (VEGA companion), the water-body ambient loops
@@ -85,7 +86,7 @@ same OpenAI usage terms. Block-backed materials reuse their in-game block atlas 
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.
 
 **Avatar/creature textures:** `client/Assets/Resources/textures/avatar_*.bytes` (suit/armor/visor/skin)
-and `creature_*.bytes` (12 hide tiles: scales/fur/chitin/hide/slime/feathers/spots/stripes/warty/plated/finned/tentacled, plus the school-club flowerling's `creature_petal`, #1760) are **AI-generated** the same way (`gpt-image-1-mini`, grayscale
+and `creature_*.bytes` (12 hide tiles: scales/fur/chitin/hide/slime/feathers/spots/stripes/warty/plated/finned/tentacled, plus the school-club flowerling's `creature_petal`, #1760, and the bipeds' smooth `creature_skin`, #2083) are **AI-generated** the same way (`gpt-image-1-mini`, grayscale
 tileable 64px tiles that the avatar/creatures tint by colour — see `tools/ai-assets/gen_avatar.py` and
 `gen_creatures.py`); same OpenAI usage terms.
 

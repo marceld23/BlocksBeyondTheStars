@@ -64,6 +64,17 @@ namespace BlocksBeyondTheStars.Client
         public Quaternion WristRest = Quaternion.identity;
     }
 
+    /// <summary>One arm of a biped (#2081): a shoulder that swings (and lifts to beg) and an elbow that bends the forearm.
+    /// Rest rotations are captured at build time so every effect poses additively, as for the legs.</summary>
+    public sealed class ArmRig
+    {
+        public Transform Shoulder;
+        public Transform Elbow;
+        public int Side;           // 0 = left, 1 = right
+        public Quaternion ShoulderRest = Quaternion.identity;
+        public Quaternion ElbowRest = Quaternion.identity;
+    }
+
     /// <summary>What a fin is, so the animator poses it by kind instead of by array index (#1782).</summary>
     public enum FinKind : byte
     {
@@ -94,6 +105,9 @@ namespace BlocksBeyondTheStars.Client
         // --- limbs ---
         public LegRig[] Legs = System.Array.Empty<LegRig>();
         public WingRig[] Wings = System.Array.Empty<WingRig>();
+
+        /// <summary>#2081: a biped's two arms (empty on every other plan).</summary>
+        public ArmRig[] Arms = System.Array.Empty<ArmRig>();
 
         /// <summary>Tail segments from the base outward; one entry is the old rigid box.</summary>
         public Transform[] Tail = System.Array.Empty<Transform>();

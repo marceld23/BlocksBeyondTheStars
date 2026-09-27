@@ -278,6 +278,10 @@ public sealed class PlayerSession
 
     /// <summary>#2009: VEGA has pointed out an arachnid to this player (once per session — a sighting, not a nag).</summary>
     public bool ArachnidSighted { get; set; }
+
+    /// <summary>#2082: favourite meals this player has thrown toward the next feed-tame, per herd ("location:species"). Transient,
+    /// like the wild animals it counts for.</summary>
+    public Dictionary<string, int> FavouriteMeals { get; } = new();
     public double VegaThreatReadyAt { get; set; }
     public double VegaEvadeReadyAt { get; set; }
 

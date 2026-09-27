@@ -53,6 +53,7 @@ public enum CreatureBodyPlan
     Colossus, // a 40–60 block quadruped on very flat, light worlds (#1999, generation 9) — a one-per-world giant
     Sandworm, // the sand sea's giant worm (#2001, generation 9): hears vibrations, breaches through the sand
     Arachnid, // a speeder-sized eight-legger (#2009, generation 10): a rolled head shape, an ambusher when it hunts
+    Biped,    // an upright two-legger with two arms and a big head (#2081, generation 16): always peaceful, lives in a group
 }
 
 /// <summary>
@@ -238,6 +239,26 @@ public sealed class CreatureSpecies
     /// always live in a herd of 8–12); the rule that also requires the temper and the habitat is
     /// <see cref="HerdRules.BegsForFood"/>.</summary>
     public bool BegsForFood { get; set; }
+
+    // --- Bipeds + favourite foods (2026-09, generation 16, #2080). Rolled AFTER every older roll and only on a generation-16
+    // world, so every older species keeps the defaults and no existing world changes. ---
+
+    /// <summary>How many arms the body carries (#2081): 0 on every plan but the biped, which wears two (shoulder, elbow and
+    /// hand cubes the animator swings, raises to beg and hugs in sleep).</summary>
+    public int Arms { get; set; }
+
+    /// <summary>The head's size relative to the classic head (#2081): 1 = the classic proportion (every species that predates
+    /// it), a biped's big head 1.3–2.0.</summary>
+    public float HeadRatio { get; set; } = 1f;
+
+    /// <summary>The item key this species loves (#2082): a begging animal smells it from further away, the scan names it, and
+    /// <see cref="HerdRules.FeedsToTameFor"/> favourite meals thrown by one player tame it. Empty = no favourite (every species
+    /// of an older world, and every species that does not beg).</summary>
+    public string FavouriteFood { get; set; } = string.Empty;
+
+    /// <summary>How many favourite meals from one player tame an animal of this species (#2082); 0 = the rule's default
+    /// (<see cref="HerdRules.FeedsToTame"/>). An authored species may name its own count.</summary>
+    public int FeedsToTame { get; set; }
 
     // --- Giants (#1998, generation 9): the colossus and the sandworm. Zero/empty on every other species. ---
 
