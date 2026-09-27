@@ -193,6 +193,11 @@ public sealed class WorldDescription
     /// every older roll, so a world of any older generation keeps its terrain, its roster and its chunks bit for bit.</summary>
     public const int OilGeneration = 18;
 
+    /// <summary>The generation of the worm body plan (#2109, the same wave as <see cref="OilGeneration"/>): a standard Land
+    /// species may roll <c>CreatureBodyPlan.Worm</c> — legless, a chain of links, the slither style — as the LAST draw, and
+    /// the legged slitherer roll (a long body with legs that "slithered") is gone. Older rosters keep every species bit for bit.</summary>
+    public const int WormGeneration = 18;
+
     /// <summary>The generation of the bipeds (#2080, 2026-09, the school club idea of Paul and Ben): an upright two-legged body
     /// plan with two arms and a big head, rolled last for some standard Land species and always peaceful
     /// (<c>CreatureBodyPlan.Biped</c>); a favourite food for every begging species, drawn from the fruit its world grows, and

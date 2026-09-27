@@ -54,6 +54,7 @@ public enum CreatureBodyPlan
     Sandworm, // the sand sea's giant worm (#2001, generation 9): hears vibrations, breaches through the sand
     Arachnid, // a speeder-sized eight-legger (#2009, generation 10): a rolled head shape, an ambusher when it hunts
     Biped,    // an upright two-legger with two arms and a big head (#2081, generation 16): always peaceful, lives in a group
+    Worm,     // a legless slitherer (#2109, generation 18): a head and a chain of 6–12 links that runs a wave — never legs
 }
 
 /// <summary>

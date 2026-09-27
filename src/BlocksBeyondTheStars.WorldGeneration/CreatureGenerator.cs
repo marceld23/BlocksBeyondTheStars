@@ -652,7 +652,7 @@ public static class CreatureGenerator
         // Movement signature (item: natural locomotion): a randomly-chosen gait biased by the body + habitat +
         // temperament we just generated, so fauna move in recognisably different ways. Drawn LAST so the species'
         // appearance rolls (hence existing worlds' rosters) are unchanged by adding it.
-        species.LocoStyle = PickLocoStyle(rng, species);
+        species.LocoStyle = PickLocoStyle(rng, species, terrainGeneration);
 
         // Body plan + social rolls (#637/#638/#639) — appended AFTER every legacy roll (same discipline
         // as LocoStyle above) so pre-existing worlds keep their species' identity; a plan then only
@@ -719,7 +719,53 @@ public static class CreatureGenerator
             ApplyBipedPlan(rng, species);
         }
 
+        // Generation 18 (#2109): the worm — rolled LAST, after the biped draw (so a generation-16/17 species keeps every trait
+        // it had; nothing reads the RNG after this) and only on a generation-18 world. One draw per standard-plan Land species
+        // that the biped draw left standard.
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.WormGeneration
+            && species.Habitat == CreatureHabitat.Land && species.BodyPlan == CreatureBodyPlan.Standard
+            && rng.NextDouble() < WormRules.WormChance)
+        {
+            ApplyWormPlan(rng, species);
+        }
+
         return species;
+    }
+
+    private static readonly string[] SmallWormHides = { "skin", "banded", "scales", "warty", "mottled" };
+
+    /// <summary>The worm (#2109, Marcel's finding): a legless slitherer, knee- to hip-high — a head and a chain of
+    /// <see cref="WormRules.MinSegments"/>–<see cref="WormRules.MaxSegments"/> links that runs a travelling wave. Colours, eye
+    /// colour, temperament and drop stay as rolled; the plan overrides what the body demands (no legs, no wings, no arms, the
+    /// slither style, a slow pace) and keeps the worm in a small group.</summary>
+    private static void ApplyWormPlan(System.Random rng, CreatureSpecies sp)
+    {
+        sp.BodyPlan = CreatureBodyPlan.Worm;
+        sp.Size = WormRules.MinSize + (float)rng.NextDouble() * (WormRules.MaxSize - WormRules.MinSize);
+        sp.Legs = 0;
+        sp.Arms = 0;
+        sp.BodySegments = WormRules.MinSegments + rng.Next(WormRules.MaxSegments - WormRules.MinSegments + 1);
+        sp.LocoStyle = LocomotionStyle.Slitherer;
+        sp.Speed = WormRules.MinSpeed + (float)rng.NextDouble() * (WormRules.MaxSpeed - WormRules.MinSpeed);
+        sp.MaxHealth = 10f + sp.Size * 8f + (sp.Hostile ? 10f : 0f);
+        sp.Eyes = Weighted(rng, 0, 25, 1, 15, 2, 50, 4, 10);            // many worms are eyeless
+        sp.Horns = Weighted(rng, 0, 65, 1, 15, 2, 20);                    // the builder draws them as antennae
+        sp.EyeStalks = rng.NextDouble() < 0.2;
+        sp.Hide = SmallWormHides[rng.Next(SmallWormHides.Length)];
+        sp.HasTail = false;                                               // the body IS the chain
+        sp.HasWings = false;
+        sp.WingPairs = 1;
+        sp.FinPairs = 1;
+        sp.HasGasSac = false;
+        sp.Tentacles = 0;
+        sp.Heads = 1;
+        sp.NeckLength = 0;
+        sp.HasTrunk = false;
+        sp.HeadShape = CreatureHeadShape.Box;
+        sp.HoverAltitude = 0f;
+        sp.HasFins = CreatureMotion.FinsFor(sp);
+        sp.BegsForFood = false;
+        sp.SocialGroupSize = 1 + rng.Next(3);
     }
 
     private static readonly string[] BipedHides = { "skin", "skin", "fur", "spots", "stripes", "mottled", "feathers", "scales" };
@@ -1069,7 +1115,7 @@ public static class CreatureGenerator
     /// <summary>Picks a creature's <see cref="LocomotionStyle"/> from its already-generated traits: limbless +
     /// segmented bodies slither, two-leggers hop, gas-sacs drift, fliers glide, water fauna school, and the
     /// temperament colours the ground gait (predators prowl, skittish ones dart, grazers feed in stop-and-go).</summary>
-    private static LocomotionStyle PickLocoStyle(System.Random rng, CreatureSpecies sp)
+    private static LocomotionStyle PickLocoStyle(System.Random rng, CreatureSpecies sp, int terrainGeneration = 0)
     {
         var w = new List<(int Value, int Weight)>();
         void Add(LocomotionStyle st, int weight) { if (weight > 0) w.Add(((int)st, weight)); }
@@ -1090,7 +1136,9 @@ public static class CreatureGenerator
         {
             if (sp.Legs == 0) Add(LocomotionStyle.Slitherer, 45);
             if (sp.Legs == 2) Add(LocomotionStyle.Hopper, 35);
-            if (sp.BodySegments >= 3) Add(LocomotionStyle.Slitherer, 25);
+            // Generation 18 (#2109): a long body with legs no longer "slithers" — whoever slithers is a legless worm. The
+            // draw count is the same, only the weights differ, so the gate changes nothing below generation 18.
+            if (sp.BodySegments >= 3 && sp.Legs > 0 && terrainGeneration < BlocksBeyondTheStars.Shared.World.WorldDescription.WormGeneration) Add(LocomotionStyle.Slitherer, 25);
             if (sp.HasGasSac) Add(LocomotionStyle.Drifter, 30);
 
             switch (sp.Temperament)

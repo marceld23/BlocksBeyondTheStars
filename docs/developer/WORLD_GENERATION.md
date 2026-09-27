@@ -2111,3 +2111,13 @@ road) — the product chain continues in #2107.
 Tests: `OilPocketsWorldTests` (data, the life rule, a sealed tar-rimmed pocket under the ground of a living world, no oil
 on generation 17 or on dead worlds), `GadgetTests` (the pump pulls oil and leaves air, harvests water, refuses rock for
 free), golden `jungle-gen18`.
+
+**The worm body plan (#2109, `WorldDescription.WormGeneration` = 18).** Marcel's finding on a sand sea: "the sandworms
+have legs" — the giant is fine, but `PickLegs` never gave a Land species 0 legs, and `PickLocoStyle` let a long body
+(3–4 segments) roll the `Slitherer` style anyway, so every small "worm" walked with a wobble. On a generation-18 world
+(`CreatureGenerator.MakeSpecies`): the legged slitherer roll is gone (the `BodySegments >= 3` weight is skipped — same
+draw count, different weights, so nothing moves below 18), and a standard Land species the biped draw left standard
+rolls `WormRules.WormChance` (0.15) **as the very last draw** to become `CreatureBodyPlan.Worm` (`ApplyWormPlan`: legs
+0, arms 0, 6–12 links, the slither style, a slow pace, knee- to hip-high, antennae for horns, a small group). Rosters of
+every older generation are bit for bit unchanged (`CreatureWormTests`). The client draws the chain as the tail rig
+(`CREATURE_RIG.md`, Worm).

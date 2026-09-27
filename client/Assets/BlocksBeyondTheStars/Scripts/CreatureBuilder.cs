@@ -92,6 +92,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (c.BodyPlan == "Worm")
+            {
+                BuildWorm(root, c); // #2109
+                return;
+            }
+
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
             Color baseColor = Rgb(c.ColorRgb);
             Color bellyColor = Rgb(c.BellyRgb);
@@ -908,6 +914,94 @@ namespace BlocksBeyondTheStars.Client
 
             var rig = Describe(c, body.transform, unit, legH, idh);
             rig.Arms = _arms.ToArray();
+            var anim = root.AddComponent<CreatureAnimator>();
+            anim.Init(rig);
+        }
+
+        /// <summary>The worm (#2109, Marcel's finding "the sandworms have legs"): a legless slitherer — the classic box head
+        /// (skull, hinged jaw, eyes, optional antennae) on a low pivot at the front, and behind it a chain of
+        /// <c>BodySegments</c> tapering links built with <see cref="AddTail"/> and handed to the animator AS the tail: its beat
+        /// already travels link by link (each lags the one before), and a legless land crawler "undulates", so the whole body
+        /// runs the wave that is the slither — no new animator code. A belly stripe under the front links, a dorsal ridge when
+        /// the species has a crest. Small: render-only, no colliders.</summary>
+        private void BuildWorm(GameObject root, NetCreature c)
+        {
+            float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
+            Color baseColor = Rgb(c.ColorRgb);
+            Color bellyColor = Rgb(c.BellyRgb);
+            if (c.Hostile)
+            {
+                baseColor = Color.Lerp(baseColor, new Color(0.85f, 0.2f, 0.15f), 0.25f);
+            }
+
+            if (c.Asleep)
+            {
+                baseColor *= 0.85f;
+            }
+
+            if (!string.IsNullOrEmpty(c.OwnerId))
+            {
+                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
+            }
+
+            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
+            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
+            int idh = StableIdHash(c.SpeciesId);
+            float girth = unit * (0.55f + ((idh >> 5) & 7) / 7f * 0.25f);   // 0.55..0.8 units — slim or plump
+            float bodyY = girth * 0.55f;                                      // lies on the ground
+
+            var body = new GameObject("BodyRig");
+            body.transform.SetParent(root.transform, false);
+
+            // The head: a blunt box on a low pivot at the front — AddHeadBox registers it, so the gesture / gaze / jaw / eye
+            // code works on it unchanged; the horns are antennae with a bobble, like the biped's.
+            float headScale = 0.9f;
+            _headPivot = NewPivot(body.transform, "Head", new Vector3(0f, bodyY + unit * 0.05f, girth * 0.7f));
+            AddHeadBox(unit * 0.8f * headScale, unit * 0.7f * headScale, unit * 0.75f * headScale, unit * 0.4f, _bodyMat);
+            AddEyes(c, unit, headScale);
+            int antennae = Mathf.Clamp(c.Horns, 0, 2);
+            for (int a = 0; a < antennae; a++)
+            {
+                float ax = antennae == 1 ? 0f : (a == 0 ? -1f : 1f) * unit * 0.2f;
+                var stalk = NewPivot(_headPivot, "Antenna" + a, new Vector3(ax, unit * 0.3f, unit * 0.35f));
+                stalk.localRotation = Quaternion.Euler(-14f, 0f, antennae == 1 ? 0f : (a == 0 ? 14f : -14f));
+                AddPartTo(stalk, "Stalk", new Vector3(0f, unit * 0.2f, 0f), new Vector3(unit * 0.05f, unit * 0.4f, unit * 0.05f), _bodyMat);
+                AddPartTo(stalk, "Bobble", new Vector3(0f, unit * 0.42f, 0f), Vector3.one * (unit * 0.12f), bellyMat, PrimitiveType.Sphere);
+            }
+
+            // The body: the chain of links, root link right behind the head, tapering to the tail tip. Its total length grows
+            // with the link count, so a twelve-link worm is a long one.
+            int links = Mathf.Clamp(c.BodySegments, 6, 12);
+            float length = unit * 0.3f * links;
+            AddTail(body.transform, new Vector3(0f, bodyY, girth * 0.2f), length, girth, links, _bodyMat);
+
+            // A paler belly stripe and, on a crested species, a dorsal ridge — both on the first few links so the ridge rides
+            // the wave with the body.
+            for (int i = 0; i < Mathf.Min(_tailChain.Count, 4); i++)
+            {
+                float w = girth * (1f - 0.22f * i);
+                float linkLen = length / links;
+                AddPartTo(_tailChain[i], "Belly" + i, new Vector3(0f, -w * 0.42f, -linkLen * 0.5f), new Vector3(w * 0.8f, w * 0.14f, linkLen * 0.95f), bellyMat);
+                if (c.HasCrest)
+                {
+                    AddPartTo(_tailChain[i], "Ridge" + i, new Vector3(0f, w * 0.52f, -linkLen * 0.5f), new Vector3(w * 0.18f, w * 0.22f, linkLen * 0.7f), bellyMat);
+                }
+            }
+
+            if (c.Glows)
+            {
+                var go = new GameObject("Glow");
+                go.transform.SetParent(body.transform, false);
+                go.transform.localPosition = new Vector3(0f, bodyY, 0f);
+                _glow = go.AddComponent<Light>();
+                _glow.type = LightType.Point;
+                _glow.range = unit * 4f;
+                _glow.intensity = 1.0f;
+                _glow.color = Rgb(c.ColorRgb);
+                _glow.shadows = LightShadows.None;
+            }
+
+            var rig = Describe(c, body.transform, unit, girth, idh);
             var anim = root.AddComponent<CreatureAnimator>();
             anim.Init(rig);
         }

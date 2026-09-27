@@ -1554,6 +1554,9 @@ separate unlock; admins can still disable it through server world rules.
   head**, from knee-high to child-high. They are **always peaceful** (some are shy), never alone, and many of them beg:
   they come running with **both arms up** and chatter something that sounds like **"meins, meins!"** If you hurt one,
   **the whole herd runs away** and wants no food for a while. The scan says "Walks upright on two legs".
+- **Worms** (worlds created from terrain generation 18 on): knee- to hip-high **legless slitherers** — a head and a
+  long chain of links that runs a wave along the body. On these worlds nothing "slithers" on legs any more; a worm is
+  slow, lives in a small group, and can be as peaceful or as bitey as any other rolled animal.
 - **Mini-Michi-Paul** — invented by **Paul and Ben** of the school club: a **knee-high, yellow biped** with a big head
   and two big eyes that lives in herds of ten on the **tropical worlds** (jungle, karst, archipelago, coral sea,
   rainbow sea — worlds created from terrain generation 16 on). It begs for food and **loves bananas**: **two bananas

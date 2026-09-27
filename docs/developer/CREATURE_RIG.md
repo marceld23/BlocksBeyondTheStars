@@ -23,9 +23,18 @@ The same descriptor must always yield the same body: every client draws a specie
 per-individual variation is derived from `StableIdHash(SpeciesId)`, never from `Random` at build
 time. (`Random` inside the animator is fine — that is per-client cosmetic timing, not body shape.)
 
-Eight body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
-**Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009) and **Biped** (#2081); the flowerling (#1760) is
-the standard body with a petal head.
+Nine body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
+**Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009), **Biped** (#2081) and **Worm** (#2109); the
+flowerling (#1760) is the standard body with a petal head.
+
+**Worm (#2109, generation 18).** `BuildWorm`: a legless slitherer, knee- to hip-high (`WormRules`) — Marcel's finding
+on a sand sea was that every "worm" walked, because the generator never gave a Land species 0 legs and a long body
+could still roll the `Slitherer` style. The rig is the classic box head (skull, hinged jaw, eyes, antennae for the
+horns) on a low pivot at the front, and behind it a chain of `BodySegments` (6–12) tapering links built with `AddTail`
+and handed to the animator **as the tail**: `PoseTail` already runs its beat link by link (each lags the one before by
+0.55 rad, 8–34° on the move, curled at rest), and a legless land crawler "undulates", so the whole body runs the wave
+that is the slither — no new animator code. A belly stripe and, on a crested species, a dorsal ridge ride the first
+links. Render-only, no colliders (small). The server side is the ordinary crawler: `MotionClass.Crawler`, no jumps.
 
 **Biped (#2081).** `BuildBiped`: an upright two-legger built from the shares in `BipedRules` (the server measures the
 same body height from them) — two jointed legs under a stubby torso (the knees fold back, `KneeSign` +1, like ours), a
