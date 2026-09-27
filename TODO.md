@@ -24,6 +24,41 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛢️ Justus' ideas 2026-09 — oil, the drill laser, slithering worms, equipment slots, sea + sky giants, the gas giant, the monorail train (#2104: #2105–#2114, 2026-09-27, branch feat/justus-ideas-2026-09, terrain generation 18)
+
+Justus' six F1 idea reports of 2026-09-27 and Marcel's decisions (all in ONE branch and ONE PR, built package after
+package in this order):
+
+1. **#2105 ground drop packets** (bug): the mini-cube wears the chunk shader without the packed vertex channels
+   (half purple since #972); non-block items get a hash colour → block tiles with skylight/colour channels, item icons
+   on a camera-facing quad.
+2. **#2106 oil + the pump** (gen 18): a **finite, static** fluid (`liquid` flag, not simulated) in geode-like pockets
+   with a tar rim, 40–120 below the surface, only on living worlds (`!airless && flora > 0 && creatures != none` as a
+   terrain tag); placeable and flammable; a `fluid_pump` gadget harvests oil (gone), water and lava (refill).
+3. **#2107 oil products**: refinery `oil → polymer`, `oil → lubricant`; lubricant into the drill/vehicle tier
+   (`auto_drill_2/3`, drill laser, `mining_beam`, `diamond_drill`, `speeder`, `clone_tank`, `fabricator` …), polymer
+   into the sealing tier; the starter tier stays oil-free; both economy test lists updated.
+4. **#2108 the drill laser**: a Crystal-Net device digging a 1×1 shaft straight down (depth 128 from data), loading
+   chunks on purpose, collecting oil, stopping at water/lava, the lava band, bedrock, protected cells; beam visual.
+5. **#2109 the worm body plan** (gen 18): `Slitherer` ⇒ legless; a travelling-wave rig; knee- to hip-high; every
+   world with land fauna.
+6. **#2110 equipment slots + grid inventory**: `PlayerState.Equipment` (Head, Chest, Legs, Feet/boots, Back, Tank,
+   Liner, Module ×2), equipped-only semantics, first-load migration, gear survives death, 36 personal slots 9-wide,
+   click-to-pick/place grid from `HotbarActionUi.BuildSwap`.
+7. **#2111 the sea giant**: a leviathan on deep-sea worlds on the `SandwormPath` model (breach = the whale jump),
+   hunts fish, attacks boats.
+8. **#2112 the gas giant** (gen 18): a gas-sea world (third fluid look, lethal contact), floating islands, metal-deck
+   landing islets, breathable sky cities, the LoneGiant planet + an outermost-orbit roll, cold and toxic, rings; the
+   passive **sky giant** on a new air-lane mover.
+9. **#2113 the monorail hover train**: pylons + a spawned curved energy line (data, not blocks; Catmull-Rom),
+   auto-link ≤ 32 blocks/30°, a linker gadget, clearance check, stops as Crystal-Net devices, a server-driven train
+   object, **riders walk inside while it moves** (the game's first moving frame: player parented to the wagon,
+   "train + local offset" on the wire, world pose derived by the server) or sit, cab panel with autopilot, wagons as
+   items, a rail dealer profession + blueprint.
+10. **#2114 assets** (maintainer): tiles, icons, sounds.
+
+Analysis 2026-09-27 (gitignored, `analysis/justus-ideas-2026-09-27.md`); decisions Q1–Q13 recorded in the epic.
+
 ### 🌸 The Fifi plant — Sophie's tree-sized glowing berry plant (#2085: #2086–#2090, 2026-09-27, branch feat/fifi-plant, terrain generation 16)
 
 Sophie's idea from the school club, Marcel's decisions (2026-09-27): a plant as tall as a tree with a **green trunk, yellow

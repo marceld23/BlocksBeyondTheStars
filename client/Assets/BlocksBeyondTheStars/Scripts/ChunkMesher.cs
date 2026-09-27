@@ -1825,6 +1825,14 @@ namespace BlocksBeyondTheStars.Client
 
         private static Vector2 BlockMaterial(GameContent content, BlockId id) => TraitsFor(content).MaterialOf(id);
 
+        /// <summary>The (gloss, metal) pair the mesher packs into a face of this block — for anything outside the
+        /// chunk path that wears <c>ChunkMaterial</c> on its own mesh (the drop packets, #2105) and must fill the
+        /// vertex colour the shader reads.</summary>
+        public static Vector2 MaterialFor(GameContent content, BlockId id) => BlockMaterial(content, id);
+
+        /// <summary>The emission (0..1) the mesher packs into a face of this block — see <see cref="MaterialFor"/>.</summary>
+        public static float EmissionFor(GameContent content, BlockId id) => BlockEmission(content, id);
+
         private static Vector2 BlockMaterialSlow(GameContent content, BlockId id)
         {
             var def = content.BlockById(id);
