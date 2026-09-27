@@ -493,8 +493,8 @@ public sealed class ShipAiTests : IDisposable
 
         var session = server.Sessions[1];
         session.Ships[session.ActiveShipId].Modules.Add("ai_core_mk2");
-        // Trigger a fresh authoritative state send (stealth toggle succeeds with a suit carried).
-        session.State.Inventory.SetSlot(11, new ItemStack("stealth_suit", 1));
+        // Trigger a fresh authoritative state send (stealth toggle succeeds with a suit WORN, #2110).
+        TestGear.Wear(session.State, "stealth_suit");
         client.Send(NetCodec.Encode(new ToggleStealthIntent()), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
@@ -563,7 +563,7 @@ public sealed class ShipAiTests : IDisposable
         var session = server.Sessions[1];
         var p = session.State;
         p.AboardShip = false; // on foot on the surface (no starter ship in this config)
-        p.Inventory.Add("suit_lamp", 1, 1);
+        TestGear.Wear(p, "suit_lamp");
         server.ResetVegaProbeForTest("Nightwalker");
         // A rocky night is cold and a long night makes hungry — retire the other safety hints up front so
         // only the deliberately triggered O2 hint competes with the lamp tip for the cadence.

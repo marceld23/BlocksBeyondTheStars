@@ -653,7 +653,7 @@ public sealed class MissionChainTests : IDisposable
             server.Tick(0.1);
             client.Poll();
             var p = server.Sessions[1];
-            p.State.Inventory.Add("comm_radio", 1, 99);
+            TestGear.Wear(p.State, "comm_radio");
             p.State.Position = BoardPos(server);
 
             int pendingBefore = server.DialogRadioPendingForTest;

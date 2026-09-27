@@ -416,16 +416,19 @@ public sealed partial class GameServer
         };
     }
 
-    /// <summary>Equipped-gear bitmask from carried items (mirrors the local avatar gear logic).</summary>
+    /// <summary>Worn-gear bitmask from the equipment slots (#2110 — mirrors the local avatar gear logic): 1 helmet,
+    /// 2 chest armour or stealth suit, 4 leg armour, 8 a pack on the back (jetpack), 16 lamp, 32 boots, 64 a tank.</summary>
     private static int GearMask(PlayerState p)
     {
         int g = 0;
-        var inv = p.Inventory;
-        if (inv.CountOf("helmet") > 0) g |= 1;
-        if (inv.CountOf("armor_chest") > 0 || inv.CountOf("stealth_suit") > 0) g |= 2;
-        if (inv.CountOf("armor_legs") > 0) g |= 4;
-        if (inv.CountOf("oxygen_tank_2") > 0 || inv.CountOf("jetpack") > 0) g |= 8;
-        if (inv.CountOf("suit_lamp") > 0) g |= 16;
+        var eq = p.Equipment;
+        if (eq.CountOf("helmet") > 0) g |= 1;
+        if (eq.CountOf("armor_chest") > 0 || eq.CountOf("stealth_suit") > 0) g |= 2;
+        if (eq.CountOf("armor_legs") > 0) g |= 4;
+        if (eq.CountOf("jetpack") > 0) g |= 8;
+        if (eq.CountOf("suit_lamp") > 0) g |= 16;
+        if (eq.CountOf("boots") > 0) g |= 32;
+        if (eq.CountOf("oxygen_tank_1") > 0 || eq.CountOf("oxygen_tank_2") > 0 || eq.CountOf("oxygen_tank_3") > 0) g |= 64;
         return g;
     }
 

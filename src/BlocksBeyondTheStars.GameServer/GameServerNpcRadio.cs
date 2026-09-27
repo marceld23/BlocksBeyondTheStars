@@ -52,7 +52,7 @@ public sealed partial class GameServer
     /// star system, comm = the same body. No radio, no call — the world can't reach a silent suit.</summary>
     private bool NpcRadioReaches(PlayerSession session, string bodyId)
     {
-        var inv = session.State.Inventory;
+        var inv = session.State.Equipment; // #2110: the worn radio
         if (inv.Has("galaxy_radio", 1))
         {
             return true;

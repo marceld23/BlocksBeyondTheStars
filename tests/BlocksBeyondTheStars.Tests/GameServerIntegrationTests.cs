@@ -371,8 +371,8 @@ public sealed class GameServerIntegrationTests : IDisposable
         server.Tick(0.1);
         Assert.False(session.State.Jetpacking);
 
-        // With a jetpack and energy: it activates and drains suit energy over ticks.
-        session.State.Inventory.Add("jetpack", 1, 1);
+        // With a jetpack WORN (#2110: gear works only in its slot) and energy: it activates and drains suit energy over ticks.
+        TestGear.Wear(session.State, "jetpack");
         client.Send(NetCodec.Encode(new SetJetpackIntent { Active = true }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         Assert.True(session.State.Jetpacking);

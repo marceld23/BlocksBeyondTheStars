@@ -71,8 +71,8 @@ public sealed class EquipmentTests : IDisposable
                 s.Health = 100f;
             }
 
-            armored.Inventory.Add("armor_chest", 1, 1);
-            armored.Inventory.Add("helmet", 1, 1);
+            TestGear.Wear(armored, "armor_chest");
+            TestGear.Wear(armored, "helmet");
 
             server.Tick(6.0); // spawn
             // Enemies spawn a short distance away on the surface; put both players on it so both are in range.
@@ -98,7 +98,7 @@ public sealed class EquipmentTests : IDisposable
             var p = server.AddLocalPlayer("Diver");
             p.State.AboardShip = true; // life support regenerates
             p.State.Oxygen = 100f;
-            p.State.Inventory.Add("oxygen_tank_2", 1, 1); // +100 max
+            TestGear.Wear(p.State, "oxygen_tank_2"); // +100 max
 
             server.Tick(3.0);
             Assert.True(p.State.Oxygen > 100f, "The bigger tank should let oxygen exceed 100.");
@@ -114,8 +114,8 @@ public sealed class EquipmentTests : IDisposable
             var p = server.AddLocalPlayer("Diver");
             p.State.AboardShip = true; // life support regenerates up to the suit maximum
             p.State.Oxygen = 100f;
-            p.State.Inventory.Add("oxygen_tank_1", 1, 1); // +50
-            p.State.Inventory.Add("oxygen_tank_2", 1, 1); // +100 — only this (the best) should count
+            TestGear.Wear(p.State, "oxygen_tank_1"); // +50
+            TestGear.Wear(p.State, "oxygen_tank_2"); // +100 — only this (the best) should count
 
             // Regen aboard ship (~25/s) for long enough to saturate at the suit maximum, then read the cap.
             server.Tick(20.0);

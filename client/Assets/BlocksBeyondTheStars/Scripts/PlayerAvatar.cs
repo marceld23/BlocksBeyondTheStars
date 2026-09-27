@@ -485,7 +485,7 @@ namespace BlocksBeyondTheStars.Client
         /// Layers equipped gear over the body: a helmet shell, a chest plate, leg plates, a back
         /// pack/tank and a helmet lamp. Rebuilds the gear set from the flags (cheap; only on change).
         /// </summary>
-        public void SetGear(bool helmet, bool chest, bool legs, bool pack, bool lamp = false)
+        public void SetGear(bool helmet, bool chest, bool legs, bool pack, bool lamp = false, bool boots = false, bool tank = false)
         {
             if (_head == null)
             {
@@ -532,9 +532,22 @@ namespace BlocksBeyondTheStars.Client
             {
                 _gear.Add(AddCube("GearPack", transform, new Vector3(0f, 1.4f, -0.24f), new Vector3(0.4f, 0.5f, 0.2f), packMat));
             }
+            else if (tank)
+            {
+                // #2110: a worn oxygen tank without a jetpack — a slim bottle on the back with a pale valve cap.
+                _gear.Add(AddCube("GearTank", transform, new Vector3(0f, 1.42f, -0.22f), new Vector3(0.22f, 0.56f, 0.18f), packMat));
+                _gear.Add(AddCube("GearTankCap", transform, new Vector3(0f, 1.74f, -0.22f), new Vector3(0.12f, 0.08f, 0.12f), plate));
+            }
 
-            // The armor pack replaces the suit's life-support pack (they occupy the same spot on the back).
-            _gearPack = pack;
+            if (boots)
+            {
+                // #2110: boots — a wider, darker sole block on each foot, outside the leg plates.
+                _gear.Add(AddCube("GearBootL", _legL, new Vector3(0f, -0.50f, 0.03f), new Vector3(0.30f, 0.14f, 0.36f), packMat));
+                _gear.Add(AddCube("GearBootR", _legR, new Vector3(0f, -0.50f, 0.03f), new Vector3(0.30f, 0.14f, 0.36f), packMat));
+            }
+
+            // The armor pack (or the tank) replaces the suit's life-support pack (they occupy the same spot on the back).
+            _gearPack = pack || tank;
             ApplySuitPackVisible();
 
             if (lamp)

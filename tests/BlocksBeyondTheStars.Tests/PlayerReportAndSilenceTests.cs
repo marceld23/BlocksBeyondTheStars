@@ -84,7 +84,7 @@ public sealed class PlayerReportAndSilenceTests : IDisposable
         var bob = server.AddLocalPlayer("Bob");
         alice.InstallId = "install-alice";
         bob.InstallId = "install-bob";
-        bob.State.Inventory.Add("comm_radio", 1, 1);
+        TestGear.Wear(bob.State, "comm_radio");
         return (alice, bob);
     }
 
@@ -390,7 +390,7 @@ public sealed class PlayerReportAndSilenceTests : IDisposable
         Assert.True(server.IsChatMutedForTest("Bob")); // still on the books while they are away
 
         var bob2 = server.AddLocalPlayer("Bob");
-        bob2.State.Inventory.Add("comm_radio", 1, 1);
+        TestGear.Wear(bob2.State, "comm_radio");
         transport.Sent.Clear();
 
         Say(server, bob2, "back, can anyone hear me");
@@ -427,7 +427,7 @@ public sealed class PlayerReportAndSilenceTests : IDisposable
         Assert.Contains("@srv.admin.silence_no_target:Nobody", RejectionsTo(transport, admin));
 
         var bob2 = server.AddLocalPlayer("Bob");
-        bob2.State.Inventory.Add("comm_radio", 1, 1);
+        TestGear.Wear(bob2.State, "comm_radio");
         transport.Sent.Clear();
         Say(server, bob2, "free again");
         Assert.Equal(new[] { "free again" }, ChatTo(transport, alice).Select(c => c.Text));

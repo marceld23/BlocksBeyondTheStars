@@ -162,6 +162,25 @@ public sealed class MoveItemIntent
     public int ToSlot { get; set; }
 }
 
+/// <summary>
+/// Client → server (#2110): wear the gear in backpack slot <see cref="FromSlot"/> in equipment slot <see cref="Slot"/>
+/// (an <c>EquipSlot</c> index; −1 = the slot the item belongs to, a free module slot for a module). The server checks
+/// the item's <c>equipSlot</c> and swaps whatever was worn there back into the backpack slot.
+/// </summary>
+public sealed class EquipItemIntent
+{
+    public int FromSlot { get; set; }
+    public int Slot { get; set; } = -1;
+}
+
+/// <summary>Client → server (#2110): take the gear off equipment slot <see cref="Slot"/> into backpack slot
+/// <see cref="ToSlot"/> (−1 = the first free backpack slot; a slot holding gear that fits swaps).</summary>
+public sealed class UnequipItemIntent
+{
+    public int Slot { get; set; }
+    public int ToSlot { get; set; } = -1;
+}
+
 /// <summary>Client asks for the star map (cockpit). Server replies with <see cref="StarMapData"/>.</summary>
 public sealed class RequestStarMap
 {
@@ -1049,6 +1068,11 @@ public sealed class InventoryUpdate
 {
     public NetItemStack[] Personal { get; set; } = System.Array.Empty<NetItemStack>();
     public NetItemStack[] Cargo { get; set; } = System.Array.Empty<NetItemStack>();
+
+    /// <summary>#2110: the worn suit gear by <c>EquipSlot</c> index, and how many personal slots the server keeps (36
+    /// since #2110; a pre-#2110 client never reads it and keeps its own 24).</summary>
+    public NetItemStack[] Equipment { get; set; } = System.Array.Empty<NetItemStack>();
+    public int PersonalSlotCount { get; set; }
 
     /// <summary>Blueprint keys the player has unlocked — lets the client show craftable/locked status.</summary>
     public string[] UnlockedBlueprints { get; set; } = System.Array.Empty<string>();

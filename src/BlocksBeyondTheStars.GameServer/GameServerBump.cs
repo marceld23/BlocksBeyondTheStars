@@ -166,9 +166,10 @@ public sealed partial class GameServer
         float r2 = 24f * 24f;
         bool inSpace = InSpace(p.PlayerId);
 
-        // Player inventory + suit ration dispenser, so a report is self-contained.
+        // Player inventory + suit ration dispenser + the worn gear (#2110), so a report is self-contained.
         var inventory = ItemList(p.Inventory);
         var rations = ItemList(p.RationStore);
+        var equipment = ItemList(p.Equipment);
 
         // Planet surroundings + nearby entities are only meaningful on a surface/interior. While flying in
         // space the on-foot Position is stale, so we capture the space instance (ship flight pos + entities)
@@ -326,6 +327,7 @@ public sealed partial class GameServer
                     selectedHotbarSlot = p.SelectedHotbarSlot,
                     inventory,
                     rations,
+                    equipment, // #2110: the worn gear by slot
                 },
                 environment = worldResident ? BuildEnvironment(p.Position) : null, // the player's local biome weather; null while the body is not loaded (#1567)
                 ship = new { _ship.ShipType, _ship.Hull, hullMax = _shipHullMax, _ship.Shield, shieldMax = _shipShieldMax, modules = _ship.Modules },

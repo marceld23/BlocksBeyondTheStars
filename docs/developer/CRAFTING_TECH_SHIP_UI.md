@@ -85,4 +85,10 @@ components, a category sidebar and blueprint state.
 - Have/need rows now carry a source tag — *craftable* (`GameContent.CraftDepth > 0`) vs *raw resource* —
   and a craftable ingredient the player is short of lists the materials for the missing amount one recipe
   level deep (`IngredientRow`, #1016). A deeper "which planet? cargo? reward?" popover remains deferred.
-- Inventory is still a category list rather than a drag/swap slot grid (tracked separately in TODO.md).
+- Inventory (#2110): the **Backpack** page is a nine-wide slot grid — the **worn** row (one slot per
+  `EquipSlot`: head, chest, legs, feet, back, tank, liner, two modules), the backpack rows (slots 9..35) and,
+  under a line, the quick-bar row (0..8, numbered). Click-to-pick / click-to-place (`_pickKind`/`_pickIndex`),
+  the hotbar swap's model, so mouse, touch and gamepad behave alike: two backpack clicks → `MoveItemIntent`;
+  a backpack pick onto a worn slot → `EquipItemIntent` (checked client-side with `EquipSlots.Accepts` first);
+  a worn pick onto a backpack slot → `UnequipItemIntent`. The detail pane offers **Wear / Take off** for a
+  wearable item. The Suit and Cargo pages stay card lists. Gear works only while worn (`GameBootstrap.Wears`).

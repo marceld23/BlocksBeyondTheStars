@@ -350,9 +350,11 @@ namespace BlocksBeyondTheStars.Client
             var (_, panel) = UiKit.AddModalOverlay(_canvas.transform, 460f, 100f, 1000f, 880f);
             Header(panel, L("ui.hotbar_action.swap_title"));
 
-            const int cols = 6;
-            const float cell = 132f, pitch = 156f, x0 = 32f, y0 = 96f;
-            int slotCount = 24; // the personal inventory's fixed size (quick-bar 0..8 + backpack 9..23)
+            // #2110: nine wide like the inventory grid (quick-bar 0..8 + the backpack rows), the size from the server.
+            const int cols = 9;
+            const float cell = 92f, pitch = 104f, x0 = 32f, y0 = 96f;
+            int slotCount = Game.PersonalSlots;
+            int rows = (slotCount + cols - 1) / cols;
             for (int k = 0; k < slotCount; k++)
             {
                 int kk = k;
@@ -402,7 +404,7 @@ namespace BlocksBeyondTheStars.Client
             // Stow: clear the hotbar slot into the first free backpack slot — the ✕ the crafting menu offers.
             if (!string.IsNullOrEmpty(_item))
             {
-                UiKit.AddButton(panel, 32f, 96f + 4 * 156f + 6f, 340f, 48f, L("ui.inventory.remove_quickslot"),
+                UiKit.AddButton(panel, 32f, 96f + rows * 104f + 6f, 340f, 48f, L("ui.inventory.remove_quickslot"),
                     () => { Game.Network?.SendMoveItem(_slot, -1); Close(); });
             }
 

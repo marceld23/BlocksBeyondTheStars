@@ -107,7 +107,7 @@ Last updated: 2026-08-26.
 |---|---|
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
-| **Space** | Jump — **hold in the air to fire the jetpack** (if one is in your backpack — there is nothing to equip); **in water: swim up / surface** |
+| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot of the Inventory's Worn row); **in water: swim up / surface** |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
 | **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; descend in zero-g |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected) |
@@ -460,7 +460,8 @@ separate unlock; admins can still disable it through server world rules.
   items there — walk your loot past a row of dedicated crates and it sorts itself. The HUD prompt shows
   **Filter on** at such a crate; select nothing in the dialog (or hit *Allow everything*) to go back to
   accepting it all. Dyed or re-formed variants of a chosen material count as that material.
-- **Armor**: each piece (chest/legs/helmet) adds resistance, summed and capped (~75%).
+- **Armor**: each worn piece (chest/legs/helmet/boots) adds resistance, summed and capped (~75%); worn boots also
+  soften a hard landing by about a third.
 - **Water meets lava**: lava hardens wherever water touches it — a lava **pool** (a source) turns to
   **obsidian**, a flowing lava **tongue** cools to **basalt**. Place water onto a lava pool and the pool is
   quenched to obsidian in place; place it beside lava and the neighbouring lava crusts over while the water
@@ -546,14 +547,20 @@ separate unlock; admins can still disable it through server world rules.
   modules (medbay, cockpit, …) cannot be removed. Step or hop up through the hatch to enter.
 
 ### Inventory & cargo hold
-- Your **inventory** is your personal backpack (24 slots) — it travels with you everywhere, and its first
-  nine slots are the **quick-bar** (the on-screen hotbar).
-- **Suit gear works while carried.** Armour, oxygen tanks, suit liners, the jetpack, the suit lamp and the
-  stealth suit take effect as soon as they are *anywhere* in your backpack — there is nothing to equip and
-  no slot to put them in. The Inventory's **Suit** tab lists just that gear and shows what it currently
-  gives you: **armour** (pieces add up, capped at 75 %), **maximum oxygen** and **insulation** (of tanks and
-  liners only the best one you carry counts). The same line sits at the top of the Backpack tab, and the
-  HUD oxygen bar's full mark is your real maximum.
+- Your **inventory** is your personal backpack — **36 slots** since 2026-09 (a nine-wide grid: the
+  **quick-bar** row of nine, the on-screen hotbar, under a line, and 27 backpack slots above it). It travels
+  with you everywhere. Older saves are simply widened.
+- **Suit gear works only while you WEAR it** (2026-09; before, a piece worked anywhere in the pack). The
+  Inventory tab shows a **Worn** row of nine slots above the backpack: **head** (helmet), **chest** (chest
+  armour *or* the stealth suit), **legs**, **feet** (the new **boots**: a softer landing, a little warmth),
+  **back** (the jetpack), **tank** (one oxygen tank), **liner** (one suit liner) and **two modules** (lamp,
+  extractor, a radio, the radar scanner). **Click a piece, then click its slot** — the slot wears it and hands
+  back whatever was worn there; click a worn piece, then a backpack slot, to take it off (or use the
+  **Wear / Take off** button in the detail pane). Two backpack clicks move or swap. The same works by touch and
+  with a gamepad (A picks and places). Worn gear **stays with you** when you stow, stash or die. The status
+  line above the grid shows what the worn gear gives you: **armour** (pieces add up, capped at 75 %),
+  **maximum oxygen** and **insulation**; the HUD oxygen bar's full mark is your real maximum. The first time
+  you open an old save, your best helmet, tank, liner, jetpack, armour and two modules are put on for you.
 - Your ship's **cargo hold** is bulk storage that belongs to the ship (48 slots, growing with cargo-hold
   modules) and is shared by everyone aboard that ship.
 - **What goes where:** mined and crafted items fill your inventory first and only spill into the cargo hold
@@ -590,7 +597,7 @@ separate unlock; admins can still disable it through server world rules.
   during an EVA) to act directly on the **selected hotbar slot** — no trip through the Tab menu. A **radial
   menu** opens around the screen centre: **Swap** on top, **Colour** on the left, **Form** on the right and
   **Close** at the bottom; quarters that don't apply to the held item stay visible but dimmed:
-  - **Swap** — a grid of all 24 backpack slots; pick one and it exchanges with the hotbar slot (an empty slot
+  - **Swap** — a grid of all 36 backpack slots; pick one and it exchanges with the hotbar slot (an empty slot
     simply receives the item). *Remove from quick-bar* stows the slot into the first free backpack slot.
   - **Colour** — only for a dyeable building material: the familiar swatch palette recolours the **whole
     stack** in place. **Dye** is free; **Glow** turns the stack into coloured light sources and costs **one

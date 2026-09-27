@@ -72,6 +72,11 @@ public sealed class PlayerSnapshot
     public Dictionary<string, ScanSite> ScannedWhere { get; set; } = new();
     public List<InventorySlotDto> RationStore { get; set; } = new();
     public List<InventorySlotDto> Inventory { get; set; } = new();
+
+    /// <summary>The worn suit gear by slot (#2110). Absent in older saves ⇒ empty, and
+    /// <see cref="EquipmentInitialised"/> false, so the server migrates the pack's gear into the slots once.</summary>
+    public List<InventorySlotDto> Equipment { get; set; } = new();
+    public bool EquipmentInitialised { get; set; }
     public List<MissionProgress> Missions { get; set; } = new();
     public List<string> Milestones { get; set; } = new();
     public List<string> UnlockedGames { get; set; } = new();
@@ -238,6 +243,8 @@ public static class StateMapper
         ScannedWhere = CloneScanSites(p.ScannedWhere),
         RationStore = DumpInventory(p.RationStore),
         Inventory = DumpInventory(p.Inventory),
+        Equipment = DumpInventory(p.Equipment),
+        EquipmentInitialised = p.EquipmentInitialised,
         Missions = p.Missions.Select(CloneProgress).ToList(),
         Milestones = p.Milestones.ToList(),
         UnlockedGames = p.UnlockedGames.ToList(),
@@ -454,7 +461,10 @@ public static class StateMapper
         NameTokenHash = s.NameTokenHash ?? string.Empty,
         HostedWelcomeShown = s.HostedWelcomeShown,
         LastSeenUtc = s.LastSeenUtc ?? string.Empty,
-        Inventory = RestoreInventory(s.InventorySlotCount, s.Inventory),
+        // #2110: a pre-#2110 save stored 24 slots — widen to the grid's 36 (never narrow a wider save).
+        Inventory = RestoreInventory(Math.Max(s.InventorySlotCount, BlocksBeyondTheStars.Shared.State.PlayerState.PersonalSlots), s.Inventory),
+        Equipment = RestoreInventory(BlocksBeyondTheStars.Shared.State.EquipSlots.Count, s.Equipment ?? new List<InventorySlotDto>()),
+        EquipmentInitialised = s.EquipmentInitialised,
         UnlockedBlueprints = new HashSet<string>(s.UnlockedBlueprints),
         AchievementCounters = new Dictionary<string, int>(s.AchievementCounters ?? new Dictionary<string, int>()),
         Achievements = new HashSet<string>(s.Achievements ?? new List<string>()),

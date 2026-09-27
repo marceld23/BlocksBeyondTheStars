@@ -56,9 +56,14 @@ namespace BlocksBeyondTheStars.Client
         // Quick-bar = the first N personal-inventory slots (must match the server's HotbarSlots / HudUi Slots).
         private const int QuickSlots = 9;
 
-        // The personal inventory's fixed size (quick-bar 0..8 + backpack 9..23) — must match the server's
-        // PlayerState inventory; the snapshot only carries occupied slots, so free slots derive from this.
-        private const int PersonalSlotTotal = 24;
+        // The personal inventory's size (quick-bar 0..8 + the backpack) — the server sends it (#2110: 36); the snapshot
+        // only carries occupied slots, so free slots derive from this.
+        private int PersonalSlotTotal => Game != null ? Game.PersonalSlots : 24;
+
+        // #2110: the grid's click-to-pick state — the slot a click picked up ("inv" = backpack/quick-bar index, "equip" =
+        // equipment slot), or none. The next click puts it down, swaps, wears or takes off.
+        private string _pickKind = string.Empty;
+        private int _pickIndex = -1;
 
         private Canvas _canvas;
         private RectTransform _sidebar, _listContent, _detail, _header;
@@ -280,6 +285,14 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var s in Game.Personal)
                 {
                     unchecked { slotSig = slotSig * 31 + s.Slot * 92821 + (s.Item?.GetHashCode() ?? 0); }
+                }
+            }
+
+            if (Game.Equipment != null) // #2110: a change of clothes redraws the grid too
+            {
+                foreach (var s in Game.Equipment)
+                {
+                    unchecked { slotSig = slotSig * 31 + (s.Slot + 1000) * 92821 + (s.Item?.GetHashCode() ?? 0); }
                 }
             }
 
@@ -1821,6 +1834,11 @@ namespace BlocksBeyondTheStars.Client
                 _category = "personal"; // the world left Sandbox while the page was open
             }
 
+            if (_category == "personal")
+            {
+                return BuildInventoryGrid(); // #2110: the nine-wide slot grid with the worn row
+            }
+
             var items = _category == "cargo" ? Game.Cargo : Game.Personal;
             if (_category == "suit" && items != null)
             {
@@ -1882,6 +1900,271 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return y;
+        }
+
+        // ---------------- #2110: the inventory grid (Justus: "wie in Minecraft") ----------------
+
+        private const float GridCell = 76f, GridPitch = 84f, GridX0 = 8f;
+
+        /// <summary>The personal inventory as slots: the WORN row (one slot per <c>EquipSlot</c>), the backpack rows and,
+        /// under a line, the quick-bar — nine wide. Click-to-pick / click-to-place (the hotbar swap's model): identical on
+        /// mouse, touch and gamepad (the buttons navigate by geometry). A click on a worn slot with a backpack piece picked
+        /// wears it; a click on a backpack slot with a worn piece picked takes it off; two backpack clicks swap.</summary>
+        private float BuildInventoryGrid()
+        {
+            float y = 0f;
+            if (AboardShipNow())
+            {
+                UiKit.AddButton(_listContent, 8, y, 752, 44, L("ui.cargo.stow_all"),
+                    () => Game.Network?.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true));
+                y += 56f;
+            }
+
+            y = AddSuitStatus(y, full: false);
+
+            // The worn row.
+            UiKit.AddText(_listContent, 8, y, 752, 26, L("ui.equip.title"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 30f;
+            for (int slot = 0; slot < BlocksBeyondTheStars.Shared.State.EquipSlots.Count; slot++)
+            {
+                int s = slot;
+                float x = GridX0 + slot * GridPitch;
+                string worn = Game.ItemInEquipSlot(slot);
+                var b = AddGridSlot(x, y, worn, 1, () => OnEquipSlotClicked(s));
+                if (_pickKind == "equip" && _pickIndex == slot)
+                {
+                    Highlight(b);
+                }
+
+                string label = L(BlocksBeyondTheStars.Shared.State.EquipSlots.LabelKey((BlocksBeyondTheStars.Shared.State.EquipSlot)slot));
+                UiKit.AddText(_listContent, x, y + GridCell + 2f, GridCell, 18, label, 12, UiKit.CyanDim, TextAnchor.UpperCenter);
+            }
+
+            y += GridCell + 26f;
+
+            // The backpack rows (slots 9..N-1).
+            UiKit.AddText(_listContent, 8, y, 752, 26, L("ui.inventory.backpack"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 30f;
+            int total = PersonalSlotTotal;
+            int packSlots = Mathf.Max(0, total - QuickSlots);
+            int rows = (packSlots + QuickSlots - 1) / QuickSlots;
+            for (int i = 0; i < packSlots; i++)
+            {
+                int index = QuickSlots + i;
+                float x = GridX0 + (i % QuickSlots) * GridPitch;
+                float yy = y + (i / QuickSlots) * GridPitch;
+                var b = AddGridSlot(x, yy, Game.ItemInSlot(index), Game.CountInSlot(index), () => OnInventorySlotClicked(index));
+                if (_pickKind == "inv" && _pickIndex == index)
+                {
+                    Highlight(b);
+                }
+            }
+
+            y += rows * GridPitch + 6f;
+
+            // A clean line, then the quick-bar row (slots 0..8, numbered).
+            var line = new GameObject("Separator", typeof(RectTransform), typeof(Image));
+            line.transform.SetParent(_listContent, false);
+            UiKit.Place(line, 8f, y, 752f, 2f);
+            line.GetComponent<Image>().color = UiKit.CyanDim;
+            line.GetComponent<Image>().raycastTarget = false;
+            y += 10f;
+            UiKit.AddText(_listContent, 8, y, 752, 26, L("ui.inventory.hotbar"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 30f;
+            for (int k = 0; k < QuickSlots; k++)
+            {
+                int index = k;
+                float x = GridX0 + k * GridPitch;
+                var b = AddGridSlot(x, y, Game.ItemInSlot(index), Game.CountInSlot(index), () => OnInventorySlotClicked(index));
+                var num = UiKit.AddText(b.transform, 5f, 3f, 24f, 18f, (k + 1).ToString(), 12, UiKit.CyanDim, TextAnchor.UpperLeft, FontStyle.Bold);
+                UiKit.AddOutline(num);
+                if (_pickKind == "inv" && _pickIndex == index)
+                {
+                    Highlight(b);
+                }
+            }
+
+            y += GridCell + 12f;
+            var hint = UiKit.AddText(_listContent, 8, y, 752, 44, L("ui.inventory.pick_hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            return y + 50f;
+        }
+
+        private static void Highlight(Button b)
+        {
+            var img = b.GetComponent<Image>();
+            if (img != null)
+            {
+                img.color = UiKit.Cyan;
+            }
+        }
+
+        /// <summary>One slot button: the item's icon (shape silhouette → painted design → atlas tile → generated icon,
+        /// the hotbar's resolution) and its count; empty slots are plain frames.</summary>
+        private Button AddGridSlot(float x, float y, string item, int count, System.Action onClick)
+        {
+            var b = UiKit.AddButton(_listContent, x, y, GridCell, GridCell, string.Empty, onClick);
+            if (string.IsNullOrEmpty(item))
+            {
+                return b;
+            }
+
+            var go = new GameObject("ItemIcon", typeof(RectTransform));
+            go.transform.SetParent(b.transform, false);
+            UiKit.Place(go, 8f, 8f, GridCell - 16f, GridCell - 16f);
+            var raw = go.AddComponent<RawImage>();
+            raw.raycastTarget = false;
+
+            var blockDef = Game.Content?.GetBlock(item);
+            if (blockDef == null && Game.Content?.GetItem(BlocksBeyondTheStars.Shared.State.ItemKey.Base(item))?.PlacesBlock is string pb && pb.Length > 0)
+            {
+                blockDef = Game.Content?.GetBlock(pb);
+            }
+
+            int shape = BlocksBeyondTheStars.Shared.State.ItemKey.Shape(item);
+            Texture2D shapeTex = (blockDef != null && Game.Atlas != null && shape > 0)
+                ? ShapeIconFactory.ForBlock(Game.Atlas, (ushort)blockDef.NumericId.Value, shape, Game.CustomShapes)
+                : null;
+            int design = BlocksBeyondTheStars.Shared.State.ItemKey.Design(item);
+            if (design != 0 && Game.PaintAtlas != null && Game.PaintAtlas.TryGetUv(design, out var designUv))
+            {
+                raw.texture = Game.PaintAtlas.Texture;
+                raw.uvRect = designUv;
+            }
+            else if (shapeTex != null)
+            {
+                raw.texture = shapeTex;
+            }
+            else if (blockDef != null && Game.Atlas != null)
+            {
+                raw.texture = Game.Atlas.Texture;
+                raw.uvRect = Game.Atlas.TileUv(blockDef.NumericId.Value);
+            }
+            else
+            {
+                Texture2D itemTex = IconResolver.ItemTexture(item);
+                var kind = Game.Content?.GetItem(BlocksBeyondTheStars.Shared.State.ItemKey.Base(item))?.Tool?.Kind ?? BlocksBeyondTheStars.Shared.Definitions.ToolKind.None;
+                raw.texture = itemTex != null ? itemTex : IconFactory.ForItem(item, kind);
+            }
+
+            raw.color = IconResolver.Tint(item, Game);
+            if (count > 1)
+            {
+                var cnt = UiKit.AddText(b.transform, 4f, 2f, GridCell - 8f, 18f, count.ToString(), 13, UiKit.TextCol, TextAnchor.UpperRight, FontStyle.Bold);
+                UiKit.AddOutline(cnt);
+            }
+
+            return b;
+        }
+
+        private void ClearPick()
+        {
+            _pickKind = string.Empty;
+            _pickIndex = -1;
+        }
+
+        /// <summary>A backpack / quick-bar slot was clicked.</summary>
+        private void OnInventorySlotClicked(int index)
+        {
+            string item = Game.ItemInSlot(index);
+            if (_pickKind == "inv")
+            {
+                int from = _pickIndex;
+                ClearPick();
+                if (from != index)
+                {
+                    Game.Network?.SendMoveItem(from, index); // move or swap; the server validates
+                    ClientAudio.Instance?.Cue("ui_click");
+                    return;
+                }
+
+                RebuildList(); // the same slot again: just put it down
+                return;
+            }
+
+            if (_pickKind == "equip")
+            {
+                int slot = _pickIndex;
+                ClearPick();
+                Game.Network?.SendUnequipItem(slot, index); // take off into this slot (a fitting piece there swaps)
+                ClientAudio.Instance?.Cue("ui_click");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(item))
+            {
+                return; // nothing to pick up
+            }
+
+            _pickKind = "inv";
+            _pickIndex = index;
+            _selected = "inv:" + item;
+            ClientAudio.Instance?.Cue("ui_click");
+            RebuildList();
+            RebuildDetail();
+        }
+
+        /// <summary>A worn slot was clicked.</summary>
+        private void OnEquipSlotClicked(int slot)
+        {
+            string worn = Game.ItemInEquipSlot(slot);
+            if (_pickKind == "inv")
+            {
+                int from = _pickIndex;
+                string picked = Game.ItemInSlot(from);
+                ClearPick();
+                var def = string.IsNullOrEmpty(picked) ? null : Game.Content?.GetItem(BlocksBeyondTheStars.Shared.State.ItemKey.Base(picked));
+                if (def != null && BlocksBeyondTheStars.Shared.State.EquipSlots.Accepts((BlocksBeyondTheStars.Shared.State.EquipSlot)slot, def.EquipSlot))
+                {
+                    Game.Network?.SendEquipItem(from, slot);
+                    ClientAudio.Instance?.Cue("ui_confirm");
+                }
+                else
+                {
+                    ClientAudio.Instance?.Cue("ui_click");
+                    RebuildList(); // does not fit here: just put it down
+                }
+
+                return;
+            }
+
+            if (_pickKind == "equip")
+            {
+                ClearPick();
+                RebuildList(); // worn ↔ worn is not a move; put it down
+                return;
+            }
+
+            if (string.IsNullOrEmpty(worn))
+            {
+                return;
+            }
+
+            _pickKind = "equip";
+            _pickIndex = slot;
+            _selected = "inv:" + worn;
+            ClientAudio.Instance?.Cue("ui_click");
+            RebuildList();
+            RebuildDetail();
+        }
+
+        /// <summary>The equipment slot a worn item sits in, or −1.</summary>
+        private int WornSlotOf(string item)
+        {
+            if (Game.Equipment == null)
+            {
+                return -1;
+            }
+
+            foreach (var s in Game.Equipment)
+            {
+                if (s.Item == item && s.Count > 0)
+                {
+                    return s.Slot;
+                }
+            }
+
+            return -1;
         }
 
         /// <summary>#1930 ("please unlock everything in Sandbox — you shouldn't have to craft anything any more"): every item of
@@ -1951,19 +2234,7 @@ namespace BlocksBeyondTheStars.Client
         private float AddSuitStatus(float y, bool full)
         {
             var defs = Game.Content.Items.Values;
-            var personal = Game.Personal ?? System.Array.Empty<NetItemStack>();
-            bool Carried(string key)
-            {
-                foreach (var s in personal)
-                {
-                    if (BlocksBeyondTheStars.Shared.State.ItemKey.Base(s.Item) == key)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
+            bool Carried(string key) => Game.Wears(key); // #2110: worn, not carried
 
             int armor = Mathf.RoundToInt(BlocksBeyondTheStars.Shared.State.SuitEquipment.ArmorResistance(defs, Carried) * 100f);
             int oxygen = Mathf.RoundToInt(BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxOxygen(defs, Carried));
@@ -4480,6 +4751,26 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.craft.source")}: {Owned(item)}", 20, UiKit.Cyan, TextAnchor.UpperLeft);
             y += 40f;
+
+            // #2110: wear / take off. A wearable piece in the backpack gets "Wear" (its own slot; a module the first free
+            // module slot); a worn piece gets "Take off" (into the first free backpack slot).
+            if (_category != "cargo" && Game.Content.GetItem(BlocksBeyondTheStars.Shared.State.ItemKey.Base(item)) is { EquipSlot: { Length: > 0 } })
+            {
+                int wornSlot = WornSlotOf(item);
+                int packSlot = SlotOfItem(item, false);
+                if (wornSlot >= 0)
+                {
+                    UiKit.AddButton(_detail, 8, y, 320, 46, L("ui.equip.unequip"),
+                        () => { Game.Network?.SendUnequipItem(wornSlot, -1); ClearPick(); });
+                    y += 54f;
+                }
+                else if (packSlot >= 0)
+                {
+                    UiKit.AddButton(_detail, 8, y, 320, 46, L("ui.equip.equip"),
+                        () => { Game.Network?.SendEquipItem(packSlot, -1); ClearPick(); });
+                    y += 54f;
+                }
+            }
 
             // Cargo transfer: move this one item between the personal inventory and the ship's hold (aboard only).
             // Direction follows the tab you're viewing it from — cargo view pulls it out, personal view stows it.

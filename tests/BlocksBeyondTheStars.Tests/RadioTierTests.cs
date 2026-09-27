@@ -90,7 +90,7 @@ public sealed class RadioTierTests : IDisposable
         var carol = server.AddLocalPlayer("Carol");
         carol.CurrentLocationId = OtherBodySameSystem(server, alice.CurrentLocationId);
 
-        alice.State.Inventory.Add("comm_radio", 1, 1);
+        TestGear.Wear(alice.State, "comm_radio");
 
         transport.Sent.Clear();
         server.Chat("Alice", "hello on this rock");
@@ -111,7 +111,7 @@ public sealed class RadioTierTests : IDisposable
         carol.CurrentLocationId = OtherBodySameSystem(server, alice.CurrentLocationId);
         dave.CurrentLocationId = BodyInOtherSystem(server, alice.CurrentLocationId);
 
-        alice.State.Inventory.Add("system_radio", 1, 1);
+        TestGear.Wear(alice.State, "system_radio");
 
         transport.Sent.Clear();
         server.Chat("Alice", "system net check");
@@ -130,7 +130,7 @@ public sealed class RadioTierTests : IDisposable
         var dave = server.AddLocalPlayer("Dave");
         dave.CurrentLocationId = BodyInOtherSystem(server, alice.CurrentLocationId);
 
-        alice.State.Inventory.Add("galaxy_radio", 1, 1);
+        TestGear.Wear(alice.State, "galaxy_radio");
 
         transport.Sent.Clear();
         server.Chat("Alice", "galaxy broadcast");
@@ -149,7 +149,7 @@ public sealed class RadioTierTests : IDisposable
 
         var alice = server.AddLocalPlayer("Alice");
         var bob = server.AddLocalPlayer("Bob");
-        alice.State.Inventory.Add("comm_radio", 1, 1);
+        TestGear.Wear(alice.State, "comm_radio");
 
         transport.Sent.Clear();
         server.Chat("Alice", "BBTS1-B-" + new string('A', 400));
@@ -195,7 +195,7 @@ public sealed class RadioTierTests : IDisposable
 
         var alice = server.AddLocalPlayer("Alice");
         server.AddLocalPlayer("Bob");
-        alice.State.Inventory.Add("comm_radio", 1, 1);
+        TestGear.Wear(alice.State, "comm_radio");
 
         transport.Sent.Clear();
         server.SendVoice("Alice", new byte[] { 1, 2, 3, 4 }, sequence: 1);
@@ -215,7 +215,7 @@ public sealed class RadioTierTests : IDisposable
         carol.CurrentLocationId = OtherBodySameSystem(server, alice.CurrentLocationId);
         dave.CurrentLocationId = BodyInOtherSystem(server, alice.CurrentLocationId);
 
-        alice.State.Inventory.Add("system_radio", 1, 1);
+        TestGear.Wear(alice.State, "system_radio");
 
         transport.Sent.Clear();
         server.SendVoice("Alice", new byte[] { 9, 8, 7, 6 }, sequence: 42);
@@ -258,7 +258,7 @@ public sealed class RadioTierTests : IDisposable
 
         var alice = server.AddLocalPlayer("Alice");
         server.AddLocalPlayer("Bob");
-        alice.State.Inventory.Add("galaxy_radio", 1, 1);
+        TestGear.Wear(alice.State, "galaxy_radio");
 
         transport.Sent.Clear();
         server.SendVoice("Alice", new byte[8000], sequence: 1); // over the 4 KB per-frame ceiling

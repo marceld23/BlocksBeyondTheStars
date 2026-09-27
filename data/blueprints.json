@@ -255,6 +255,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 9 } ]
   },
   {
+    "key": "boots", "nameKey": "blueprint.boots.name", "descriptionKey": "blueprint.boots.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 10,
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 5 } ]
+  },
+  {
     "key": "helmet", "nameKey": "blueprint.helmet.name", "descriptionKey": "blueprint.helmet.desc",
     "category": "Suit", "prerequisites": [], "knowledgeCost": 14,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 8 }, { "item": "glass", "count": 3 } ]

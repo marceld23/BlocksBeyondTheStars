@@ -185,6 +185,8 @@ ITEMS = [
     # #2106/#2107 oil (2026-09-27): the fluid pump gadget and the refinery lubricant.
     ("fluid_pump", "a handheld sci-fi fluid pump tool, a dark metal body with a wide suction nozzle, a small glass tank showing black oil and a cyan status light"),
     ("lubricant", "a small dark metal can of amber machine lubricant oil with a long thin spout and a drip of oil"),
+    # #2110 the feet slot: the suit boots.
+    ("boots", "a pair of sturdy sci-fi space-suit boots, dark grey armoured with thick rubber soles and small cyan ankle lights"),
     ("bronze_gear", "a single toothed bronze mechanical gear cog with a warm golden-brown sheen"),
     ("brass_fitting", "a small polished brass pipe fitting coupling with threads"),
     ("matter_dust", "a small heap of softly glowing violet-grey crystalline matter dust, faint sci-fi energy sparkles rising from it"),

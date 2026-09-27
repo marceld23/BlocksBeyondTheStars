@@ -199,6 +199,7 @@ public sealed class MaterialEconomyTests
         {
             "ai_memory_fragment", "access_code", "suit_teleporter", "oxygen_extractor", "stealth_suit", "armor_chest",
             "armor_legs", "helmet", "oxygen_tank_3", "suit_liner_3", "suit_lamp", "jetpack", "radar_scanner", "galaxy_radio",
+            "boots", // #2110: the feet slot's piece
         };
         var unconsumedComponents = _c.Items.Values
             .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))

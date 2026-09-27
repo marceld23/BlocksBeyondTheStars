@@ -584,6 +584,12 @@ namespace BlocksBeyondTheStars.Client
         /// (B58 — customising the quick-bar).</summary>
         public void SendMoveItem(int fromSlot, int toSlot) => Send(new MoveItemIntent { FromSlot = fromSlot, ToSlot = toSlot });
 
+        /// <summary>Wears the gear in a backpack slot (#2110); <paramref name="slot"/> −1 = the item's own slot.</summary>
+        public void SendEquipItem(int fromSlot, int slot = -1) => Send(new EquipItemIntent { FromSlot = fromSlot, Slot = slot });
+
+        /// <summary>Takes worn gear off into a backpack slot (#2110); <paramref name="toSlot"/> −1 = the first free one.</summary>
+        public void SendUnequipItem(int slot, int toSlot = -1) => Send(new UnequipItemIntent { Slot = slot, ToSlot = toSlot });
+
         /// <summary>Permanently destroys every stack of the item sitting in <paramref name="slot"/> — of the
         /// backpack, or of the ship's hold with <paramref name="fromCargo"/> (#599). Irreversible: only call
         /// this behind a confirmation. The starter kit is refused server-side.</summary>

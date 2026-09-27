@@ -81,7 +81,7 @@ public sealed class ChatFilterTests : IDisposable
     {
         var alice = server.AddLocalPlayer("Alice");
         var bob = server.AddLocalPlayer("Bob");
-        alice.State.Inventory.Add("comm_radio", 1, 1);
+        TestGear.Wear(alice.State, "comm_radio");
         return (alice, bob);
     }
 

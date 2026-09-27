@@ -257,7 +257,8 @@ namespace BlocksBeyondTheStars.Client
             if (m.Gear != r.Gear)
             {
                 r.Gear = m.Gear;
-                r.Avatar.SetGear((m.Gear & 1) != 0, (m.Gear & 2) != 0, (m.Gear & 4) != 0, (m.Gear & 8) != 0, (m.Gear & 16) != 0);
+                r.Avatar.SetGear((m.Gear & 1) != 0, (m.Gear & 2) != 0, (m.Gear & 4) != 0, (m.Gear & 8) != 0, (m.Gear & 16) != 0,
+                    (m.Gear & 32) != 0, (m.Gear & 64) != 0); // #2110: boots, tank
             }
 
             // Held tool/weapon/block shown in the remote avatar's hand.

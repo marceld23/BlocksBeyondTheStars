@@ -8,15 +8,93 @@ using BlocksBeyondTheStars.Shared.Definitions;
 namespace BlocksBeyondTheStars.Shared.State;
 
 /// <summary>
-/// Suit equipment effects derived from the gear a player <b>carries</b> — there are no equip slots: a
-/// piece works as soon as it is anywhere in the backpack (#1270). One formula for both sides: the server
-/// applies it to vitals/combat, the client shows the same numbers in the inventory's Suit tab and sizes
-/// the HUD oxygen bar with it, so what the player reads can never drift from what the server does.
-/// Data-driven via the item definitions (<c>armorResistance</c>, <c>oxygenBonus</c>,
-/// <c>thermalInsulation</c>, <c>scanKnowledgeMultiplier</c>).
+/// Suit equipment effects derived from the gear a player <b>wears</b> in the suit's slots (#2110,
+/// <see cref="EquipSlot"/>; until then a piece worked as soon as it was anywhere in the backpack, #1270). One
+/// formula for both sides: the server applies it to vitals/combat, the client shows the same numbers in the
+/// inventory's equipment row and sizes the HUD oxygen bar with it, so what the player reads can never drift from
+/// what the server does. Data-driven via the item definitions (<c>equipSlot</c>, <c>armorResistance</c>,
+/// <c>oxygenBonus</c>, <c>thermalInsulation</c>, <c>corrosionResistance</c>, <c>fallProtection</c>,
+/// <c>scanKnowledgeMultiplier</c>). The <c>carried</c> predicates take "is this key worn".
 /// </summary>
 public static class SuitEquipment
 {
+    /// <summary>Fall protection adds up (the boots today), but never makes a fall free.</summary>
+    public const float MaxFallProtection = 0.75f;
+
+    /// <summary>Total fall protection (0..0.75) of the worn gear (#2110).</summary>
+    public static float FallProtection(IEnumerable<ItemDefinition> items, Func<string, bool> worn)
+    {
+        float sum = 0f;
+        foreach (var item in items)
+        {
+            if (item.FallProtection > 0f && worn(item.Key))
+            {
+                sum += item.FallProtection;
+            }
+        }
+
+        return Math.Min(MaxFallProtection, sum);
+    }
+
+    /// <summary>A rank for "the best piece for a slot" — what the one-time migration and a full backpack pick by.</summary>
+    public static float Rank(ItemDefinition def)
+        => def.OxygenBonus * 10f + def.ThermalInsulation * 100f + def.CorrosionResistance * 100f
+           + def.ArmorResistance * 100f + def.FallProtection * 100f + 1f;
+
+    /// <summary>The one-time migration of a save written before the slots existed (#2110): for every empty slot, the
+    /// best wearable piece in the backpack moves into it (one of each — a second helmet stays in the pack). Deterministic,
+    /// so the same save always migrates the same way. Returns how many pieces moved.</summary>
+    public static int MigrateIntoSlots(Inventory backpack, Inventory equipment, Func<string, ItemDefinition?> lookup)
+    {
+        int moved = 0;
+        for (int slot = 0; slot < equipment.SlotCount; slot++)
+        {
+            if (equipment.Slots[slot] is { IsEmpty: false })
+            {
+                continue;
+            }
+
+            int best = -1;
+            float bestRank = -1f;
+            for (int i = 0; i < backpack.SlotCount; i++)
+            {
+                if (backpack.Slots[i] is not { IsEmpty: false } stack)
+                {
+                    continue;
+                }
+
+                var def = lookup(ItemKey.Base(stack.Item));
+                if (def?.EquipSlot is null || !EquipSlots.Accepts((EquipSlot)slot, def.EquipSlot))
+                {
+                    continue;
+                }
+
+                float rank = Rank(def);
+                if (rank > bestRank)
+                {
+                    bestRank = rank;
+                    best = i;
+                }
+            }
+
+            if (best < 0)
+            {
+                continue;
+            }
+
+            var chosen = backpack.Slots[best]!;
+            equipment.SetSlot(slot, new ItemStack(chosen.Item, 1));
+            chosen.Count -= 1;
+            if (chosen.Count <= 0)
+            {
+                backpack.SetSlot(best, null);
+            }
+
+            moved++;
+        }
+
+        return moved;
+    }
     /// <summary>Armour pieces add up, but never block everything.</summary>
     public const float MaxArmorResistance = 0.75f;
 
@@ -112,6 +190,11 @@ public static class SuitEquipment
     /// Suit tab list exactly these.</summary>
     public static bool IsSuitGear(ItemDefinition def)
     {
+        if (!string.IsNullOrEmpty(def.EquipSlot))
+        {
+            return true; // #2110: everything with a slot is suit gear
+        }
+
         if (def.ArmorResistance > 0f || def.OxygenBonus > 0f || def.ThermalInsulation > 0f || def.CorrosionResistance > 0f)
         {
             return true;

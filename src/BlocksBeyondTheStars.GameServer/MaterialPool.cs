@@ -18,15 +18,17 @@ public sealed class MaterialPool
     private readonly GameContent _content;
     private readonly Inventory _personal;
     private readonly Inventory? _cargo;
+    private readonly Inventory _equipment;
 
     public MaterialPool(GameContent content, PlayerState player, ShipState ship)
     {
         _content = content;
         _personal = player.Inventory;
         _cargo = player.AboardShip ? ship.Cargo : null;
+        _equipment = player.Equipment; // #2110: an upgrade (tank II ← tank I) may consume the piece being worn
     }
 
-    public int Count(string item) => _personal.CountOf(item) + (_cargo?.CountOf(item) ?? 0);
+    public int Count(string item) => _personal.CountOf(item) + (_cargo?.CountOf(item) ?? 0) + _equipment.CountOf(item);
 
     public bool Has(IEnumerable<ItemAmount> items)
     {
@@ -56,7 +58,17 @@ public sealed class MaterialPool
 
             if (remaining > 0)
             {
-                _cargo?.Remove(need.Item, remaining);
+                int fromCargo = System.Math.Min(remaining, _cargo?.CountOf(need.Item) ?? 0);
+                if (fromCargo > 0)
+                {
+                    _cargo!.Remove(need.Item, fromCargo);
+                    remaining -= fromCargo;
+                }
+            }
+
+            if (remaining > 0)
+            {
+                _equipment.Remove(need.Item, remaining); // #2110: the worn piece goes last
             }
         }
     }

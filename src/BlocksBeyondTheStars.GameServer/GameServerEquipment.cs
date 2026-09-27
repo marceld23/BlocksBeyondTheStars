@@ -22,23 +22,24 @@ public sealed partial class GameServer
 
     /// <summary>Total physical-damage resistance (0..0.75) from carried armor pieces.</summary>
     private float ArmorResistance(PlayerState p)
-        => SuitEquipment.ArmorResistance(_content.Items.Values, key => p.Inventory.Has(key, 1));
+        => SuitEquipment.ArmorResistance(_content.Items.Values, key => p.Equipment.Has(key, 1));
 
     /// <summary>Maximum suit oxygen — base 100 plus the best carried tank's bonus (tiers do not stack).</summary>
     private float MaxOxygen(PlayerState p)
-        => SuitEquipment.MaxOxygen(_content.Items.Values, key => p.Inventory.Has(key, 1));
+        => SuitEquipment.MaxOxygen(_content.Items.Values, key => p.Equipment.Has(key, 1));
 
     /// <summary>Best carried thermal insulation 0..0.9 (#669); only the BEST piece counts.</summary>
     private float ThermalInsulation(PlayerState p)
-        => SuitEquipment.ThermalInsulation(_content.Items.Values, key => p.Inventory.Has(key, 1));
+        => SuitEquipment.ThermalInsulation(_content.Items.Values, key => p.Equipment.Has(key, 1));
 
     /// <summary>Best carried corrosion resistance 0..0.8 (#2026, the suit liners); only the BEST piece counts.</summary>
     private float CorrosionResistance(PlayerState p)
-        => SuitEquipment.CorrosionResistance(_content.Items.Values, key => p.Inventory.Has(key, 1));
+        => SuitEquipment.CorrosionResistance(_content.Items.Values, key => p.Equipment.Has(key, 1));
 
     /// <summary>Best scanner knowledge multiplier from carried scanners (1 = no bonus).</summary>
+    /// <summary>The scanner bonus comes from a TOOL in the pack (the advanced scanner is held, not worn) — or from worn gear.</summary>
     private float ScanMultiplier(PlayerState p)
-        => SuitEquipment.ScanMultiplier(_content.Items.Values, key => p.Inventory.Has(key, 1));
+        => SuitEquipment.ScanMultiplier(_content.Items.Values, key => p.Inventory.Has(key, 1) || p.Equipment.Has(key, 1));
 
     /// <summary>Applies armor resistance to an incoming physical-damage amount.</summary>
     private float Mitigate(PlayerState p, float damage) => damage * (1f - ArmorResistance(p));
@@ -53,7 +54,7 @@ public sealed partial class GameServer
         }
 
         var p = session.State;
-        if (!p.Inventory.Has(StealthItem, 1))
+        if (!Wears(p, StealthItem))
         {
             Reject(session, "stealth", "@srv.equip.no_stealth");
             return;
@@ -101,7 +102,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!p.Inventory.Has(JetpackItem, 1))
+        if (!Wears(p, JetpackItem))
         {
             p.Jetpacking = false;
             Reject(session, "jetpack", "@srv.equip.no_jetpack");
@@ -120,6 +121,161 @@ public sealed partial class GameServer
 
     /// <summary>Mirrors the client's sit-on-chair pose (#806). Pure cosmetics — no validation beyond
     /// "on foot": movement stays client-authoritative and the flag only feeds the presence broadcast.</summary>
+    // ---------------- Equipment slots (#2110) ----------------
+
+    /// <summary>True while the gear is WORN in one of the suit's slots — the only place gear works since #2110.</summary>
+    private static bool Wears(PlayerState p, string key) => p.Equipment.Has(key, 1);
+
+    /// <summary>Total fall protection (0..0.75) of the worn gear — the boots.</summary>
+    private float FallProtection(PlayerState p)
+        => SuitEquipment.FallProtection(_content.Items.Values, key => p.Equipment.Has(key, 1));
+
+    /// <summary>The one-time migration of a save written before the slots existed: the best wearable piece of every kind
+    /// moves from the backpack into its slot, so nobody loses an active effect on the day the slots arrive.</summary>
+    private void EnsureEquipmentInitialised(PlayerState p)
+    {
+        if (p.EquipmentInitialised)
+        {
+            return;
+        }
+
+        int moved = SuitEquipment.MigrateIntoSlots(p.Inventory, p.Equipment, key => _content.GetItem(key));
+        p.EquipmentInitialised = true;
+        if (moved > 0)
+        {
+            _log.Info($"Equipment slots (#2110): moved {moved} worn piece(s) of '{p.Name}' from the backpack into the slots.");
+        }
+    }
+
+    /// <summary>Wears the gear in a backpack slot: a straight swap with whatever the equipment slot held (gear stacks to
+    /// one, so the backpack slot is free the moment the piece leaves it). −1 picks the item's own slot, and for a module
+    /// the first free module slot.</summary>
+    private void HandleEquipItem(PlayerSession session, EquipItemIntent intent)
+    {
+        var p = session.State;
+        var inv = p.Inventory;
+        var eq = p.Equipment;
+        int from = intent.FromSlot;
+        if (from < 0 || from >= inv.SlotCount || inv.Slots[from] is not { IsEmpty: false } stack)
+        {
+            return;
+        }
+
+        var def = _content.GetItem(ItemKey.Base(stack.Item));
+        if (def?.EquipSlot is null || stack.Count != 1)
+        {
+            Reject(session, "equip", "@srv.equip.not_wearable");
+            return;
+        }
+
+        int slot = intent.Slot;
+        if (slot < 0)
+        {
+            slot = (int)EquipSlots.Parse(def.EquipSlot)!.Value;
+            if (EquipSlots.IsModule((EquipSlot)slot) && eq.Slots[slot] is { IsEmpty: false } && eq.Slots[(int)EquipSlot.Module2] is null)
+            {
+                slot = (int)EquipSlot.Module2;
+            }
+        }
+
+        if (slot < 0 || slot >= eq.SlotCount || !EquipSlots.Accepts((EquipSlot)slot, def.EquipSlot))
+        {
+            Reject(session, "equip", "@srv.equip.wrong_slot");
+            return;
+        }
+
+        var worn = eq.Slots[slot];
+        eq.SetSlot(slot, stack);
+        inv.SetSlot(from, worn);
+        AfterEquipmentChanged(session);
+    }
+
+    /// <summary>Takes gear off into a backpack slot (−1 = the first free slot past the quick-bar, then any); a target slot
+    /// holding gear that fits the same equipment slot swaps.</summary>
+    private void HandleUnequipItem(PlayerSession session, UnequipItemIntent intent)
+    {
+        var p = session.State;
+        var inv = p.Inventory;
+        var eq = p.Equipment;
+        int slot = intent.Slot;
+        if (slot < 0 || slot >= eq.SlotCount || eq.Slots[slot] is not { IsEmpty: false } worn)
+        {
+            return;
+        }
+
+        int to = intent.ToSlot;
+        if (to < 0)
+        {
+            to = inv.FirstEmptySlot(HotbarSlots);
+            if (to < 0)
+            {
+                to = inv.FirstEmptySlot(0);
+            }
+
+            if (to < 0)
+            {
+                Reject(session, "equip", "@srv.equip.no_room");
+                return;
+            }
+        }
+        else if (to >= inv.SlotCount)
+        {
+            return;
+        }
+
+        var target = inv.Slots[to];
+        if (target is { IsEmpty: false })
+        {
+            var def = _content.GetItem(ItemKey.Base(target.Item));
+            if (def?.EquipSlot is null || target.Count != 1 || !EquipSlots.Accepts((EquipSlot)slot, def.EquipSlot))
+            {
+                Reject(session, "equip", "@srv.equip.no_room");
+                return;
+            }
+        }
+
+        eq.SetSlot(slot, target);
+        inv.SetSlot(to, worn);
+        AfterEquipmentChanged(session);
+    }
+
+    /// <summary>What a change of worn gear settles at once: the oxygen never exceeds the tank now worn, a cloak or a
+    /// jetpack without its gear ends, and the client gets the inventory, the vitals and (through the presence) the body.</summary>
+    private void AfterEquipmentChanged(PlayerSession session)
+    {
+        var p = session.State;
+        p.Oxygen = System.Math.Min(p.Oxygen, MaxOxygen(p));
+        if (p.Stealthed && !Wears(p, StealthItem))
+        {
+            p.Stealthed = false;
+        }
+
+        if (p.Jetpacking && !Wears(p, JetpackItem))
+        {
+            p.Jetpacking = false;
+        }
+
+        SendInventory(session);
+        SendPlayerState(session);
+    }
+
+    /// <summary>Test seams (#2110).</summary>
+    public void EquipItemForTest(string playerId, int fromSlot, int slot = -1)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleEquipItem(session, new EquipItemIntent { FromSlot = fromSlot, Slot = slot });
+        }
+    }
+
+    public void UnequipItemForTest(string playerId, int slot, int toSlot = -1)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleUnequipItem(session, new UnequipItemIntent { Slot = slot, ToSlot = toSlot });
+        }
+    }
+
     private void HandleSetSeated(PlayerSession session, SetSeatedIntent intent)
         => session.State.Seated = intent.Active && !InSpace(session.State.PlayerId);
 

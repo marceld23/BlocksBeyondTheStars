@@ -117,8 +117,8 @@ public sealed class ToxicWorldServerTests : IDisposable
         Assert.Equal(100f, p.Health);
 
         // The best liner counts: the climate rig keeps out 65 %.
-        p.Inventory.Add("suit_liner_1", 1, 1);
-        p.Inventory.Add("suit_liner_3", 1, 1);
+        TestGear.Wear(p, "suit_liner_1");
+        TestGear.Wear(p, "suit_liner_3");
         float lined = HealthLostOutside(server, 10);
         Assert.InRange(lined, bare * 0.3f, bare * 0.4f);
 

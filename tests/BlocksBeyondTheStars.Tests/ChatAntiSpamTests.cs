@@ -89,7 +89,7 @@ public sealed class ChatAntiSpamTests : IDisposable
     {
         var alice = server.AddLocalPlayer("Alice");
         var bob = server.AddLocalPlayer("Bob");
-        alice.State.Inventory.Add("comm_radio", 1, 1);
+        TestGear.Wear(alice.State, "comm_radio");
         return (alice, bob);
     }
 
@@ -294,7 +294,7 @@ public sealed class ChatAntiSpamTests : IDisposable
     {
         server.DisconnectLocalPlayerForTest(name);
         var again = server.AddLocalPlayer(name);
-        again.State.Inventory.Add("comm_radio", 1, 1);
+        TestGear.Wear(again.State, "comm_radio");
         return again;
     }
 

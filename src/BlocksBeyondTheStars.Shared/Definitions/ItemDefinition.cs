@@ -128,6 +128,15 @@ public sealed class ItemDefinition
     /// <summary>Scanner: multiplies knowledge gained from a first scan (1 = no bonus).</summary>
     public float ScanKnowledgeMultiplier { get; set; } = 1f;
 
+    /// <summary>The suit slot this gear is worn in (#2110): "head", "chest", "legs", "feet", "back", "tank", "liner" or
+    /// "module" (either of the two module slots). Null = not wearable. Since #2110 gear works only while WORN there,
+    /// never while it merely rides in the backpack.</summary>
+    public string? EquipSlot { get; set; }
+
+    /// <summary>Fall protection 0..1 (#2110, the boots): the fraction of a hard landing's excess speed the worn gear
+    /// absorbs before the fall damage is computed (summed, capped).</summary>
+    public float FallProtection { get; set; }
+
     /// <summary>What the item looks like in the hand (#1962): the boxes of its model. Null = the model every item
     /// of its kind has (a basic drill, a plain gun …). Data, so a content pack can give a new tool its own look
     /// and so a player's own tool looks (#1963) and the official ones are the same kind of thing.</summary>

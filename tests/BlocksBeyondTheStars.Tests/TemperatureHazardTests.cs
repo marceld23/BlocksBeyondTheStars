@@ -123,8 +123,8 @@ public sealed class TemperatureHazardTests : IDisposable
 
         // Best-of insulation (85% rig): refill, re-run the same exposure — the drain must shrink hard.
         p.SuitEnergy = 100f;
-        p.Inventory.Add("suit_liner_3", 1, 1);
-        Assert.Equal(1, p.Inventory.CountOf("suit_liner_3"));
+        TestGear.Wear(p, "suit_liner_3");
+        Assert.Equal(1, p.Equipment.CountOf("suit_liner_3")); // #2110: worn, not carried
         TickSeconds(server, 20);
         float insulatedDrain = 100f - p.SuitEnergy;
         Assert.True(insulatedDrain < nakedDrain * 0.35f,

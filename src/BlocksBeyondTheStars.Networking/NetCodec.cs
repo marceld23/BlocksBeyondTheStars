@@ -539,6 +539,10 @@ public static class NetCodec
         Register(265, typeof(CrystalDeviceList));            // Server -> Client (#2046)
         Register(266, typeof(SetCrystalDeviceIntent));       // Client -> Server (#2046)
         Register(267, typeof(SoundFx));                      // Server -> Client (#2052)
+
+        // Equipment slots (#2110).
+        Register(268, typeof(EquipItemIntent));              // Client -> Server
+        Register(269, typeof(UnequipItemIntent));            // Client -> Server
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

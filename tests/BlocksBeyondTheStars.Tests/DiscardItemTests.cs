@@ -71,10 +71,17 @@ public sealed class DiscardItemTests : IDisposable
             var p = server.AddLocalPlayer("Pilot");
             var inv = p.State.Inventory;
 
-            // A fresh pilot carries the kit in slots 0..4. None of it may be thrown away, or a player could
-            // strand themselves with no drill and no way to craft a replacement.
+            // A fresh pilot carries the kit in slots 0..4 — except the suit lamp, which the join puts ON (#2110: gear
+            // works only while worn, so the lamp lights from the first minute). None of it may be thrown away, or a
+            // player could strand themselves with no drill and no way to craft a replacement.
             for (int slot = 0; slot < StarterKit.Items.Length; slot++)
             {
+                if (inv.Slots[slot] is null)
+                {
+                    Assert.Equal(1, p.State.Equipment.CountOf(StarterKit.Items[slot])); // worn, not lost
+                    continue;
+                }
+
                 string item = inv.Slots[slot]!.Item;
                 server.DiscardItemForTest(p.State.PlayerId, slot);
                 Assert.Equal(item, inv.Slots[slot]?.Item);
@@ -150,13 +157,16 @@ public sealed class DiscardItemTests : IDisposable
         var server = Started("pinned", out var repo);
         using (repo)
         {
-            var inv = server.AddLocalPlayer("Pilot").State.Inventory;
+            var state = server.AddLocalPlayer("Pilot").State;
+            var inv = state.Inventory;
 
             // Pins the protection list to reality: if CreatePlayer ever hands out different gear, this fails
-            // rather than silently leaving the new item discardable (or protecting one nobody starts with).
+            // rather than silently leaving the new item discardable (or protecting one nobody starts with). A
+            // wearable kit item (the suit lamp) is put ON at the join (#2110) instead of sitting in its slot.
             for (int i = 0; i < StarterKit.Items.Length; i++)
             {
-                Assert.Equal(StarterKit.Items[i], inv.Slots[i]?.Item);
+                bool worn = state.Equipment.CountOf(StarterKit.Items[i]) > 0;
+                Assert.True(worn || StarterKit.Items[i] == inv.Slots[i]?.Item, $"kit item {StarterKit.Items[i]} in slot {i} or worn");
                 Assert.True(StarterKit.IsProtected(StarterKit.Items[i]));
             }
 

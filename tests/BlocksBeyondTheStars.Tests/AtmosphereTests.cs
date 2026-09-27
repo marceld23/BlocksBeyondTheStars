@@ -152,7 +152,7 @@ public sealed class AtmosphereTests : IDisposable
             s.Oxygen = 50f;
         }
 
-        a.Inventory.Add("oxygen_extractor", 1, 1);
+        TestGear.Wear(a, "oxygen_extractor");
         return (a, b);
     }
 

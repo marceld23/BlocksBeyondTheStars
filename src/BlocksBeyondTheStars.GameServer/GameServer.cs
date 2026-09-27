@@ -1979,7 +1979,7 @@ public sealed partial class GameServer
             {
                 // Outside without breathable air (toxic / airless) or submerged underwater: drain the tank.
                 float drain = (float)(dt * Rules.OxygenDrainPerSecond);
-                if (!submerged && !p.InEva && !p.AboveAtmosphere && _oxygenExtractability > 0 && p.Inventory.Has("oxygen_extractor", 1))
+                if (!submerged && !p.InEva && !p.AboveAtmosphere && _oxygenExtractability > 0 && Wears(p, "oxygen_extractor"))
                 {
                     // The suit extracts some oxygen from a toxic atmosphere — reduces (never refills)
                     // the drain, scaled by how breathable-ish this world is. Airless worlds (0) don't help.
@@ -3581,6 +3581,8 @@ public sealed partial class GameServer
             case FarTerrainTileRequest farTiles: HandleFarTerrainTileRequest(session, farTiles); break; // #1821
             case SelectHotbarIntent hotbar: session.State.SelectedHotbarSlot = System.Math.Clamp(hotbar.Slot, 0, HotbarSlots - 1); break;
             case MoveItemIntent moveItem: HandleMoveItem(session, moveItem); break;
+            case EquipItemIntent equip: HandleEquipItem(session, equip); break;       // #2110
+            case UnequipItemIntent unequip: HandleUnequipItem(session, unequip); break; // #2110
             case DiscardItemIntent discard: HandleDiscardItem(session, discard); break;
             case MineBlockIntent mine: HandleMine(session, mine); break;
             case PlaceBlockIntent place: HandlePlace(session, place); break;
@@ -3823,6 +3825,8 @@ public sealed partial class GameServer
         {
             state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
             ClampInventory(state.Inventory, $"player '{name}' inventory");
+            EnsureEquipmentInitialised(state); // #2110: a pre-slot save's gear moves into the slots once
+            ClampInventory(state.Equipment, $"player '{name}' equipment");
             ClampInventory(state.RationStore, $"player '{name}' ration store");
         }
         catch (InvalidDataException ex)
@@ -4224,6 +4228,8 @@ public sealed partial class GameServer
         {
             state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
             ClampInventory(state.Inventory, $"player '{name}' inventory");
+            EnsureEquipmentInitialised(state); // #2110: a pre-slot save's gear moves into the slots once
+            ClampInventory(state.Equipment, $"player '{name}' equipment");
             ClampInventory(state.RationStore, $"player '{name}' ration store");
         }
         catch (InvalidDataException ex)
@@ -4524,6 +4530,7 @@ public sealed partial class GameServer
         }
 
         float over = intent.ImpactSpeed - FallSafeImpactSpeed;
+        over *= 1f - FallProtection(p); // #2110: the boots take a share of the excess before it hurts
         if (over <= 0f)
         {
             return;
@@ -7402,6 +7409,8 @@ public sealed partial class GameServer
         Send(session, new InventoryUpdate
         {
             Personal = DumpInventory(session.State.Inventory),
+            PersonalSlotCount = session.State.Inventory.SlotCount,   // #2110
+            Equipment = DumpInventory(session.State.Equipment),      // #2110
             Cargo = session.State.AboardShip ? DumpInventory(_ship.Cargo) : Array.Empty<NetItemStack>(),
             CargoSlotCount = session.State.AboardShip ? _ship.Cargo.SlotCount : 0,
             UnlockedBlueprints = unchanged ? Array.Empty<string>() : unlocked.ToArray(),
@@ -7508,9 +7517,9 @@ public sealed partial class GameServer
 
     /// <summary>Whether a player can transmit on comms at all (holds any radio tier).</summary>
     private static bool HasAnyRadio(PlayerSession s)
-        => s.State.Inventory.Has("comm_radio", 1)
-        || s.State.Inventory.Has("system_radio", 1)
-        || s.State.Inventory.Has("galaxy_radio", 1);
+        => s.State.Equipment.Has("comm_radio", 1)      // #2110: a radio works only while worn (a module slot)
+        || s.State.Equipment.Has("system_radio", 1)
+        || s.State.Equipment.Has("galaxy_radio", 1);
 
     /// <summary>The players who can hear <paramref name="sender"/>'s comms, by the widest radio tier they hold
     /// (the tiers stack as upgrades). <c>galaxy_radio</c> = everyone joined; <c>system_radio</c> = everyone on a
@@ -7519,7 +7528,7 @@ public sealed partial class GameServer
     /// resolvable star system (station/void worlds), the system tier falls back to same-world reach.</summary>
     private IEnumerable<PlayerSession> RadioAudience(PlayerSession sender)
     {
-        var inv = sender.State.Inventory;
+        var inv = sender.State.Equipment; // #2110: the worn radio
 
         if (inv.Has("galaxy_radio", 1))
         {

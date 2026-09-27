@@ -313,6 +313,8 @@ public sealed class NetCodecTests
         [265] = typeof(CrystalDeviceList),
         [266] = typeof(SetCrystalDeviceIntent),
         [267] = typeof(SoundFx),
+        [268] = typeof(EquipItemIntent),
+        [269] = typeof(UnequipItemIntent),
 
     };
 

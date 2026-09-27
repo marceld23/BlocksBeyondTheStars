@@ -146,7 +146,7 @@ public sealed class NameAndAiScreeningTests : IDisposable
         session.State.Position = new Vector3f(0, 200, 0);
         session.State.Inventory.Add("base_core", 4, 16);
         session.State.Inventory.Add("radio_beacon", 4, 16);
-        session.State.Inventory.Add("comm_radio", 1, 1);
+        TestGear.Wear(session.State, "comm_radio");
         return session;
     }
 

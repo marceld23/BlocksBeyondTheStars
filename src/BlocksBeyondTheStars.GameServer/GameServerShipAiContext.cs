@@ -469,7 +469,7 @@ public sealed partial class GameServer
             bool night = LocalDayFraction(session.State.Position) is < 0.15 or > 0.85; // #1865: the local sun
             bool underground = probe.SolidAbove >= VegaTipUndergroundSolid;
             bool dark = (night || underground) && !probe.LightNear;
-            bool hasLamp = p.Inventory.Has("suit_lamp", 1);
+            bool hasLamp = Wears(p, "suit_lamp"); // #2110: the lamp lights only while worn
             if (dark && hasLamp && !session.LampOn)
             {
                 Add("lamp_off");

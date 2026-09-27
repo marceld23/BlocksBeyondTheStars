@@ -1175,15 +1175,15 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private bool _gearHelmet, _gearChest, _gearLegs, _gearPack, _gearLamp;
+        private bool _gearHelmet, _gearChest, _gearLegs, _gearPack, _gearLamp, _gearBoots, _gearTank;
         private float _gearTimer;
 
-        /// <summary>Mirrors the player's carried gear onto the third-person avatar (helmet/chest/legs/
-        /// pack), refreshed a couple of times a second so it tracks pickups/crafts without polling hard.</summary>
+        /// <summary>Mirrors the player's WORN gear (#2110) onto the third-person avatar (helmet/chest/legs/pack/lamp/
+        /// boots/tank), refreshed a couple of times a second so it tracks a change of clothes without polling hard.</summary>
         private void UpdateGearPeriodically()
         {
             _gearTimer -= Time.deltaTime;
-            if (_gearTimer > 0f || Avatar == null || Game?.Personal == null)
+            if (_gearTimer > 0f || Avatar == null || Game?.Equipment == null)
             {
                 return;
             }
@@ -1192,17 +1192,22 @@ namespace BlocksBeyondTheStars.Client
             bool helmet = HasItem("helmet");
             bool chest = HasItem("armor_chest") || HasItem("stealth_suit");
             bool legs = HasItem("armor_legs");
-            bool pack = HasItem("oxygen_tank_2") || HasItem("jetpack");
+            bool pack = HasItem("jetpack");
             bool lamp = HasItem("suit_lamp");
+            bool boots = HasItem("boots");
+            bool tank = HasItem("oxygen_tank_1") || HasItem("oxygen_tank_2") || HasItem("oxygen_tank_3");
 
-            if (helmet != _gearHelmet || chest != _gearChest || legs != _gearLegs || pack != _gearPack || lamp != _gearLamp)
+            if (helmet != _gearHelmet || chest != _gearChest || legs != _gearLegs || pack != _gearPack || lamp != _gearLamp
+                || boots != _gearBoots || tank != _gearTank)
             {
                 _gearHelmet = helmet;
                 _gearChest = chest;
                 _gearLegs = legs;
                 _gearPack = pack;
                 _gearLamp = lamp;
-                Avatar.SetGear(helmet, chest, legs, pack, lamp);
+                _gearBoots = boots;
+                _gearTank = tank;
+                Avatar.SetGear(helmet, chest, legs, pack, lamp, boots, tank);
             }
         }
 
@@ -1297,18 +1302,9 @@ namespace BlocksBeyondTheStars.Client
             return m;
         }
 
-        private bool HasItem(string key)
-        {
-            foreach (var s in Game.Personal)
-            {
-                if (s.Item == key && s.Count > 0)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
+        /// <summary>True while the gear is WORN (#2110: the suit's slots, never the backpack) — the lamp, the jetpack and
+        /// the avatar's plates all read this.</summary>
+        private bool HasItem(string key) => Game != null && Game.Wears(key);
 
         /// <summary>Keeps the mining loop alive while the player holds left-click: a drill cuts any block it is
         /// allowed to, while bare hands can only keep digging the soft, hand-mineable blocks (earth, sand,

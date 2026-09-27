@@ -89,11 +89,11 @@ public sealed class TitasSurvivalTests : IDisposable
     {
         var server = NewServer("liners");
         var p = server.Sessions[1].State;
-        p.Inventory.Add("suit_liner_1", 1, 1);
+        TestGear.Wear(p, "suit_liner_1");
         Assert.Equal(40 * 60.0 * 1.25, server.ExposureSecondsForTest(p.PlayerId, hot: false), 3);
-        p.Inventory.Add("suit_liner_2", 1, 1);
+        TestGear.Wear(p, "suit_liner_2");
         Assert.Equal(40 * 60.0 * 1.5, server.ExposureSecondsForTest(p.PlayerId, hot: false), 3);
-        p.Inventory.Add("suit_liner_3", 1, 1);
+        TestGear.Wear(p, "suit_liner_3");
         Assert.Equal(40 * 60.0 * 2.0, server.ExposureSecondsForTest(p.PlayerId, hot: false), 3);
 
         var light = NewServer("light", c => c.Rules.EnvironmentalHazards = HazardLevel.Light);

@@ -109,7 +109,7 @@ public sealed class NpcRadioTests : IDisposable
             JoinAndDrain(server, client, "Scout");
             var p = server.Sessions[1];
 
-            p.State.Inventory.Add("comm_radio", 1, 99);
+            TestGear.Wear(p.State, "comm_radio");
             p.State.Position = server.NpcSnapshots.First(n => n.Role == "quartermaster").Home; // key seam needs reach
             p.State.NpcMemory[server.NpcKeyForTest("Scout", "quartermaster")!] =
                 new NpcRelationship { Name = "Q", Role = "quartermaster", Value = 20 }; // known
@@ -156,7 +156,7 @@ public sealed class NpcRadioTests : IDisposable
             Assert.Empty(calls);
 
             // Radio, but a stranger: silence.
-            p.State.Inventory.Add("comm_radio", 1, 99);
+            TestGear.Wear(p.State, "comm_radio");
             server.ScanNpcRadioForTest("Quiet");
             server.Tick(0.1);
             client.Poll();
@@ -194,7 +194,7 @@ public sealed class NpcRadioTests : IDisposable
             var calls = CaptureChat(client);
             JoinAndDrain(server, client, "Ranger");
             var p = server.Sessions[1];
-            p.State.Inventory.Add("comm_radio", 1, 99);
+            TestGear.Wear(p.State, "comm_radio");
             p.State.Position = server.NpcSnapshots.First(n => n.Role == "quartermaster").Home;
             p.State.NpcMemory[server.NpcKeyForTest("Ranger", "quartermaster")!] =
                 new NpcRelationship { Name = "Q", Role = "quartermaster", Value = 20 };
@@ -220,7 +220,7 @@ public sealed class NpcRadioTests : IDisposable
             var calls = CaptureChat(client);
             JoinAndDrain(server, client, "Hero");
             var p = server.Sessions[1];
-            p.State.Inventory.Add("comm_radio", 1, 99);
+            TestGear.Wear(p.State, "comm_radio");
             p.State.Position = server.NpcSnapshots.First(n => n.Role == "quartermaster").Home;
             string npcKey = server.NpcKeyForTest("Hero", "quartermaster")!;
             p.State.NpcMemory[npcKey] = new NpcRelationship { Name = "Q", Role = "quartermaster", Value = 20 };
@@ -260,7 +260,7 @@ public sealed class NpcRadioTests : IDisposable
             var calls = CaptureChat(client);
             JoinAndDrain(server, client, "Pilot");
             var p = server.Sessions[1];
-            p.State.Inventory.Add("comm_radio", 1, 99);
+            TestGear.Wear(p.State, "comm_radio");
             p.State.Position = server.NpcSnapshots.First(n => n.Role == "quartermaster").Home; // key seam needs reach
             p.State.NpcMemory[server.NpcKeyForTest("Pilot", "quartermaster")!] =
                 new NpcRelationship { Name = "Q", Role = "quartermaster", Value = 20 };
@@ -291,7 +291,7 @@ public sealed class NpcRadioTests : IDisposable
             var lines = CaptureChat(client);
             JoinAndDrain(server, client, "Courier");
             var p = server.Sessions[1];
-            p.State.Inventory.Add("comm_radio", 1, 99);
+            TestGear.Wear(p.State, "comm_radio");
             string settlement = server.BoardSettlementNameForTest();
             string npcKey = server.SettlementLocationKeyForTest(settlement) + ":quartermaster";
             p.State.NpcMemory[npcKey] = new NpcRelationship { Name = "Q", Role = "quartermaster", Value = 20 };
@@ -321,7 +321,7 @@ public sealed class NpcRadioTests : IDisposable
             var calls = CaptureChat(client);
             JoinAndDrain(server, client, "Listener");
             var p = server.Sessions[1];
-            p.State.Inventory.Add("comm_radio", 1, 99);
+            TestGear.Wear(p.State, "comm_radio");
 
             // Only the VENDOR is known (the settler-legend thread lives with them: known + knowledge 1,
             // which a fresh join satisfies) — the quartermaster stays a stranger so no camp/food call
@@ -357,7 +357,7 @@ public sealed class NpcRadioTests : IDisposable
             var calls = CaptureChat(client);
             JoinAndDrain(server, client, "Newcomer");
             var p = server.Sessions[1];
-            p.State.Inventory.Add("comm_radio", 1, 99);
+            TestGear.Wear(p.State, "comm_radio");
 
             // The dialogue promised a call while the player is still a stranger to the NPC. The join quiet
             // period blocks the first attempt — the one-shot must be DEFERRED, never lost (#1149).

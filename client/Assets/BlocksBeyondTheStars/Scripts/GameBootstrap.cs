@@ -1030,17 +1030,50 @@ namespace BlocksBeyondTheStars.Client
         // Latest authoritative inventory (personal + ship cargo) for the UI.
         public NetItemStack[] Personal { get; private set; } = System.Array.Empty<NetItemStack>();
 
-        /// <summary>Maximum suit oxygen with the tanks currently carried — the HUD bar's full mark (#1270). The
+        /// <summary>The worn suit gear by <c>EquipSlot</c> index (#2110) — the only gear that works.</summary>
+        public NetItemStack[] Equipment { get; private set; } = System.Array.Empty<NetItemStack>();
+
+        /// <summary>How many personal slots the server keeps (#2110: 36 = quick-bar 9 + backpack 27; a server from
+        /// before the slots sends 0 and the classic 24 is assumed).</summary>
+        public int PersonalSlots { get; private set; } = 24;
+
+        /// <summary>The item worn in an equipment slot, or empty.</summary>
+        public string ItemInEquipSlot(int slot)
+        {
+            foreach (var s in Equipment)
+            {
+                if (s.Slot == slot)
+                {
+                    return s.Item;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        /// <summary>True while the gear is worn in one of the suit's slots (#2110) — what every suit effect reads.</summary>
+        public bool Wears(string key)
+        {
+            foreach (var s in Equipment)
+            {
+                if (s.Count > 0 && BlocksBeyondTheStars.Shared.State.ItemKey.Base(s.Item) == key)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Maximum suit oxygen with the tank currently worn — the HUD bar's full mark (#1270). The
         /// bar used to divide by a flat 100, so a Tank III's 300 sat pinned at "full" until two thirds were gone.</summary>
         public float SuitOxygenMax { get; private set; } = BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseOxygen;
 
         private void RefreshSuitStats()
         {
-            var personal = Personal;
             SuitOxygenMax = Content == null
                 ? BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseOxygen
-                : BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxOxygen(Content.Items.Values,
-                    key => System.Array.Exists(personal, s => BlocksBeyondTheStars.Shared.State.ItemKey.Base(s.Item) == key));
+                : BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxOxygen(Content.Items.Values, Wears); // #2110: worn, not carried
         }
         public NetItemStack[] Cargo { get; private set; } = System.Array.Empty<NetItemStack>();
 
@@ -2235,6 +2268,12 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 Personal = m.Personal;
+                Equipment = m.Equipment ?? System.Array.Empty<NetItemStack>(); // #2110
+                if (m.PersonalSlotCount > 0)
+                {
+                    PersonalSlots = m.PersonalSlotCount;
+                }
+
                 RefreshSuitStats();
                 Cargo = m.Cargo;
                 CargoSlots = m.CargoSlotCount;

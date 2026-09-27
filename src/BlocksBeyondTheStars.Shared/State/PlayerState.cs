@@ -63,8 +63,19 @@ public sealed class PlayerState
     /// <summary>Satiation 0..100 (survival): drains over time, refilled by eating; at 0 you starve.</summary>
     public float Hunger { get; set; } = 100f;
 
-    /// <summary>The player's personal inventory.</summary>
-    public Inventory Inventory { get; set; } = new(24);
+    /// <summary>The player's personal inventory: the quick-bar (slots 0..8) and the backpack — <see cref="PersonalSlots"/>
+    /// since #2110 (9 + 27, the nine-wide grid; older saves are widened on load).</summary>
+    public Inventory Inventory { get; set; } = new(PersonalSlots);
+
+    /// <summary>Slots of the personal inventory (#2110: 36, was 24).</summary>
+    public const int PersonalSlots = 36;
+
+    /// <summary>The suit's worn gear by <see cref="EquipSlot"/> (#2110). Gear works only while it sits here.</summary>
+    public Inventory Equipment { get; set; } = new(EquipSlots.Count);
+
+    /// <summary>False until the one-time migration moved the gear of a pre-#2110 save from the backpack into the slots
+    /// (<see cref="SuitEquipment.MigrateIntoSlots"/>, run by the server on join). Persisted.</summary>
+    public bool EquipmentInitialised { get; set; }
 
     /// <summary>Currently selected hotbar slot index.</summary>
     public int SelectedHotbarSlot { get; set; }
