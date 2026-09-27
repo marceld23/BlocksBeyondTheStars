@@ -323,7 +323,7 @@
   "ui.settings.voice_volume": "Voice volume",
   "ui.settings.voice_input": "Transmit mic",
   "ui.settings.push_to_talk": "Push-to-talk key",
-  "ui.admin.help_cheats": "Admin (if allowed): /give Item [Count] [Player] · /settime day|night · /setweather clear|storm · /fly · /god · /instant · /giant colossus|sandworm|leviathan|sky",
+  "ui.admin.help_cheats": "Admin: /give Item [Count] [Player] · /settime day|night · /setweather clear|storm · /fly · /god · /instant · /giant colossus|sandworm|leviathan|sky",
   "ui.admin.help_mode": "Player mode: /mode Player survival|creative|world — that player plays by those rules (kid creative, you survival); world = back to the world's mode",
   "ui.admin.help_gamemode": "World mode: /gamemode explorer|creative|sandbox — for everyone; /gamemode on its own shows the current one",
   "ui.admin.help_teleport": "Teleport: /tp X Y Z · /tp Target, e.g. ship, city, village2, pad1 · /tpp Player · /tp on its own lists every target here",

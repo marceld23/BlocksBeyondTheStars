@@ -31,6 +31,7 @@ public sealed class StructureTemplatePoolTests : IDisposable
         "cabin", "lounge", "door_energy", // #1874: one resident sleeps here / the crew's evening seats / the airtight door
         "tavern", "workshop", "guard_post", // #1885: the innkeeper's and the craftsman's posts, the G.D.S. guardians
         "doctor", "grocer", "arms_dealer", "sage", "tamer", "blockfarmer", "streamer", "reporter", // 2026-09: profession posts
+        "rail_dealer", // #2113: the monorail's dealer at the depot
     };
 
     private readonly string _root;

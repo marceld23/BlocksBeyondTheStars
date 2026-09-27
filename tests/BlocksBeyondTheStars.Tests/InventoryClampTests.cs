@@ -67,7 +67,9 @@ public sealed class InventoryClampTests : IDisposable
     public void PlayerInventoryAndRationStore_AreClampedToEachItemsMaxStack_OnJoin()
     {
         // A max-stack-1 tool, a low-stack consumable, and a stack sitting exactly AT its cap (must stay untouched).
-        const string tool = "oxygen_tank_1", consumable = "medpack", bulk = "stone", ration = "creature_meat";
+        // The tool is not wearable gear: since #2110 the join moves gear into the suit's equipment slots (a tank would
+        // leave slot 0 empty), and this test is about the clamp, not the migration.
+        const string tool = "basic_drill", consumable = "medpack", bulk = "stone", ration = "creature_meat";
         Assert.Equal(1, _content.MaxStackOf(tool));
         Assert.True(_content.MaxStackOf(consumable) < 999);
         Assert.True(_content.MaxStackOf(ration) < 5000);
