@@ -133,4 +133,36 @@ public static class HerdRules
     /// <summary>The squabble ring around a thrown piece for <paramref name="squabblers"/> animals.</summary>
     public static float SquabbleRadiusFor(int squabblers)
         => SquabbleRadius + System.Math.Max(0, squabblers - 1) * SquabbleRadiusPerAnimal;
+
+    // --- Favourite food + feed-taming (#2082, generation 16) ---
+
+    /// <summary>The favourite food of a begging species on a world that grows no clean fruit: the berries every world knows
+    /// (the starter pack carries them, the greenhouse grows them).</summary>
+    public const string FallbackFavouriteFood = "berries";
+
+    /// <summary>A beggar smells its favourite food this far away — further than any other food (<see cref="LureRange"/>), and
+    /// still inside <see cref="LeaveRange"/>, so an animal it lures does not give up on its very next step.</summary>
+    public const float FavouriteLureRange = 13f;
+
+    /// <summary>After a squabble over its favourite food a herd ignores food only this long (the trot away included) — it wants
+    /// more, where any other bout ends in <see cref="CooldownSeconds"/>.</summary>
+    public const double FavouriteCooldownSeconds = 5.0;
+
+    /// <summary>Favourite meals thrown by one player that tame an animal (decision 2026-09-27: two bananas).</summary>
+    public const int FeedsToTame = 2;
+
+    /// <summary>How many favourite meals from one player tame an animal of this species: its own count, or the rule's.</summary>
+    public static int FeedsToTameFor(CreatureSpecies sp) => sp.FeedsToTame > 0 ? sp.FeedsToTame : FeedsToTame;
+
+    /// <summary>Whether the species can be tamed by feeding: a beggar (<see cref="BegsForFood(CreatureSpecies)"/>) that loves a
+    /// food. Companions are excluded by the caller.</summary>
+    public static bool TamesByFeeding(CreatureSpecies sp) => BegsForFood(sp) && !string.IsNullOrEmpty(sp.FavouriteFood);
+
+    /// <summary>Whether <paramref name="itemKey"/> is the species' favourite food.</summary>
+    public static bool IsFavouriteFood(CreatureSpecies sp, string? itemKey)
+        => !string.IsNullOrEmpty(sp.FavouriteFood) && string.Equals(sp.FavouriteFood, itemKey, System.StringComparison.Ordinal);
+
+    /// <summary>How far a beggar of this species smells <paramref name="itemKey"/> in a hand: further for its favourite.</summary>
+    public static float LureRangeFor(CreatureSpecies sp, string? itemKey)
+        => IsFavouriteFood(sp, itemKey) ? FavouriteLureRange : LureRange;
 }

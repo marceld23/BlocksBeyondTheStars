@@ -223,6 +223,11 @@ public sealed class PlanetType
     /// is these and nothing else.</summary>
     public List<string> AuthoredCreatures { get; set; } = new();
 
+    /// <summary>A fruit species (a <c>FloraCatalog</c> fruit block key, "flora_fruit_banana") every generation-16 world of this
+    /// type is sure to grow (#2084): the species is always active, and the world's palm and jungle trees bear it — the other
+    /// tree kinds keep their roll. Mini-Michi-Paul's bananas on the tropical worlds. Empty = the classic roll.</summary>
+    public string GuaranteedFruit { get; set; } = string.Empty;
+
     /// <summary>0..1 — how much surface lava this world has (lava seas in basins on volcanic/airless worlds).
     /// <c>null</c> = auto (volcanic worlds get a moderate amount). Watery worlds get no lava SEA — their
     /// molten side comes from volcanoes (summit crater pools + vents, #477) and the deep lava table

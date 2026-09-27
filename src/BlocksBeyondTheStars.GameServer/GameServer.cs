@@ -6360,6 +6360,10 @@ public sealed partial class GameServer
                 AdminSummonArachnid(session); // #2009: /arachnid — for testing
                 break;
 
+            case "summon_biped":
+                AdminSummonBiped(session); // #2081: /biped — a begging herd of bipeds, for testing
+                break;
+
             case "instant_build":
                 p.InstantBuild = !p.InstantBuild;
                 Send(session, new ServerMessage { Text = p.InstantBuild ? "@srv.admin.build_on" : "@srv.admin.build_off" });

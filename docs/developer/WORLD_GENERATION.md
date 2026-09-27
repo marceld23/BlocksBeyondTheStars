@@ -1916,3 +1916,52 @@ Tests: `ToxicaMaximaWorldTests` (data, once per galaxy, tainted columns and shal
 contaminated roster, eye colours per generation), `ToxicaMaximaServerTests` (storm floor + acid, sky colour, factory
 count + air, decontaminator station + recipes, scan, VEGA, `/setweather`), golden `toxica_maxima-gen15`,
 `MaterialEconomyTests` reference chains for the factory washes.
+
+## 30. Generation 16 — the bipeds, favourite foods and Mini-Michi-Paul (#2080–#2084, 2026-09-27, Paul and Ben's idea)
+
+The school club's Paul and Ben wanted a knee-high, yellow, big-headed little two-legger with two arms that walks in a
+swarm, begs for food and is tamed with bananas. Everything is gated on `WorldDescription.BipedGeneration` (16); every
+new roll is appended after every older roll and every new field defaults to its classic no-op, so an older world keeps
+its roster and its trees bit for bit.
+
+**The biped plan (#2081).** `CreatureBodyPlan.Biped`, rolled as the LAST draw of `MakeSpecies` (after the generation-15
+eye colour) for a standard-plan Land species with `BipedRules.BipedChance` (0.16). `ApplyBipedPlan` overrides what the
+body demands — 2 legs, `Arms` 2, `HeadRatio` 1.3–2.0, one head, no wings / tentacles / gas sac / neck / trunk, size
+0.4–1.3 — and re-rolls what depends on it: the temper is always **peaceful** (passive 70 % / skittish 30 %, no bite,
+decision 2026-09-27), the gait, and the group: a passive biped begs with `BipedRules.BeggingChance` (0.5) and then lives
+in a herd of 8–12; every other biped in a group of 4–8. Hides lean to the new smooth `skin` tile. The server measures the
+body height from the same shares the client builds with (`BipedRules.HeightFor` = legs 0.30 + torso 0.34 + head
+0.26 × ratio, all × size), so a knee-high biped is a one-cell body. A hurt biped startles its whole herd for 10 s within
+24 blocks (the classic startle: 4 s, 12 blocks) and the herd ignores food for the cooldown ("the herd runs away",
+decision 2026-09-27). `/biped` (admin) summons up to six of the roster's begging biped — or rolls one into the roster
+(`CreatureGenerator.GenerateBiped`).
+
+**Favourite food (#2082).** `AssignFavouriteFoods`, a post-pass of `GenerateRoster` (after the authored species), gives
+every begging species that has none a `FavouriteFood`: one of `FruitRules.CleanFruitItems` — the clean fruit items the
+type's tree palettes bear on this world (a toxic tree species bears toxic fruit, so it offers none) — or `berries` when
+the world bears none. The pick is folded from the voice seed, no RNG draw. A beggar smells its favourite from 13 blocks
+(other food 10). **Feed-taming:** when the winner of a squabble eats its species' favourite, the meal counts toward the
+thrower, per herd (`PlayerSession.FavouriteMeals`, keyed location + species — a squabble's winner is random, and two
+bananas must not land on two different animals); at `HerdRules.FeedsToTameFor` (2) the animal that ate the last one
+becomes the thrower's companion through `CompleteTame` (queued, `ResolvePendingFeedTames` runs before the next creature
+loop). After a favourite squabble the herd's cooldown is 5 s instead of 60, so the second banana follows the first.
+
+**Guaranteed fruit + Mini-Michi-Paul (#2084).** `PlanetType.GuaranteedFruit` (a fruit block key): on a generation-16 world
+of the type the species is always active (`FloraGenerator`) and `FruitRules.ShapeFor(..., guaranteed)` hangs it on every
+fruit-bearing palm and jungle tree; the other kinds keep their roll. The five tropical types (`jungle`, `karst`,
+`archipelago`, `coral_sea`, `rainbow_sea`) guarantee `flora_fruit_banana` and host the authored `mini_michi_paul`
+(`data/creatures.json`): Biped, size 0.5, head ratio 1.8, two big eyes, yellow `skin`, passive, herd of 10, begs, loves
+`fruit_banana`, two bananas tame one. Two new authored fields make that possible: `MinGeneration` (the record joins only
+worlds of that generation — an older jungle world has no bananas and no biped body) and `FixedName` (its name is exactly
+"Mini-Michi-Paul", no coined second word). A toxic banana is refused (it is not food for creatures); the detoxifier
+washes it (`wash_fruit_banana`).
+
+**Voice (#2083).** A biped draws its call from its own gibberish pool (`creature_call_gibber`, `_high`, `_chatter`,
+`_grumble` — "meins, meins!" chatter, not a word) instead of its habitat pool, one sample per phrase (each sample already
+is the double call), without the harsh effects; a client that lacks the samples keeps the habitat pool. The scan reads
+`ui.scan.voice.gibber`, `ui.scan.body.biped`, `ui.scan.favourite|<item>` (the client names the item) and
+`ui.scan.behaviour.feed_tame`.
+
+Tests: `CreatureBipedTests` (generation gate bit for bit, the plan's rules, favourite foods from the world's fruit, the
+pure rules, the voice pool, the guaranteed fruit, Mini-Michi-Paul's record and hosts), `BipedServerTests` (two bananas
+tame one, another food and a toxic banana do not count, the herd runs, scan + wire, `/biped`).

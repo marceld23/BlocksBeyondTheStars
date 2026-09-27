@@ -2470,7 +2470,11 @@ namespace BlocksBeyondTheStars.Client
                 var parts = new string[traits.Length];
                 for (int i = 0; i < traits.Length; i++)
                 {
-                    parts[i] = loc.Get(traits[i]);
+                    // "key|item" (#2082): a trait that names an item — "Loves: {item}" — in this client's language.
+                    int bar = traits[i].IndexOf('|');
+                    parts[i] = bar > 0
+                        ? loc.Get(traits[i].Substring(0, bar)).Replace("{item}", ItemOrBlockName(loc, traits[i].Substring(bar + 1)))
+                        : loc.Get(traits[i]);
                 }
 
                 return string.Join("  ·  ", parts);

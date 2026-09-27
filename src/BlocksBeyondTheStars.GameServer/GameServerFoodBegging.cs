@@ -50,6 +50,36 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>The nearest player a beggar of <paramref name="sp"/> smells from <paramref name="from"/> (#2082): food in a hand
+    /// within <see cref="HerdRules.LureRange"/>, its favourite food within <see cref="HerdRules.FavouriteLureRange"/>.</summary>
+    private PlayerSession? NearestLureFor(CreatureSpecies sp, Vector3f from)
+    {
+        if (string.IsNullOrEmpty(sp.FavouriteFood))
+        {
+            return NearestLure(from, HerdRules.LureRange);
+        }
+
+        PlayerSession? best = null;
+        double bestSq = double.MaxValue;
+        foreach (var s in _lureTargets)
+        {
+            if (s.State.IgnoredByHostiles)
+            {
+                continue;
+            }
+
+            float range = HerdRules.LureRangeFor(sp, HeldItemKey(s.State));
+            double d = WrapDistSq(s.State.Position, from);
+            if (d <= range * range && d < bestSq)
+            {
+                bestSq = d;
+                best = s;
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>The nearest player holding food within <paramref name="range"/> of <paramref name="from"/>, or null.</summary>
     private PlayerSession? NearestLure(Vector3f from, float range)
     {
@@ -102,7 +132,7 @@ public sealed partial class GameServer
                         return false;
                     }
 
-                    var lure = NearestLure(c.Position, HerdRules.LureRange);
+                    var lure = NearestLureFor(sp, c.Position);
                     if (lure is null)
                     {
                         return false;
@@ -162,6 +192,7 @@ public sealed partial class GameServer
                     {
                         // The first squabbler whose timer runs out wins the piece; the rest find it gone next tick and leave too.
                         EatThrownFood(food);
+                        OnCreatureAte(c, sp, food); // #2082: a favourite meal counts toward its thrower's feed-tame
                         BeginLeave(c);
                         return LeaveIntent(nearestPlayer, ref profile, ref intent, ref target);
                     }
@@ -235,7 +266,10 @@ public sealed partial class GameServer
     {
         c.BegPhase = BegPhase.Leave;
         c.BegUntil = _uptime + HerdRules.LeaveSeconds;
-        c.BegCooldownUntil = _uptime + HerdRules.CooldownSeconds;
+        // #2082: after a squabble over its favourite food the herd comes back for more almost at once — two bananas must not
+        // be a minute apart; any other bout ends in the long cooldown.
+        c.BegCooldownUntil = _uptime + (c.BegFavourite ? HerdRules.FavouriteCooldownSeconds : HerdRules.CooldownSeconds);
+        c.BegFavourite = false;
     }
 
     /// <summary>A grounded jumper hops on the beat while it begs — the Hopper's own launch, on a timer instead of the gait's wave.
@@ -376,6 +410,7 @@ public sealed partial class GameServer
 
             c.BegPhase = BegPhase.Rush;
             c.BegUntil = _uptime + HerdRules.InterestSeconds; // a rush that never arrives still ends
+            c.BegFavourite = HerdRules.IsFavouriteFood(sp, item); // #2082: a favourite meal leaves them wanting more
             food.Squabblers++;
         }
 

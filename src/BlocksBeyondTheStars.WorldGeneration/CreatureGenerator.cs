@@ -88,13 +88,57 @@ public static class CreatureGenerator
         {
             foreach (var record in authored)
             {
+                // #2084: a record that relies on a later wave (Mini-Michi-Paul: the bananas of 14, the biped body of 16) waits
+                // for it. Skipping it leaves every older world's roster exactly as it was — the record did not exist for it.
+                if (record.MinGeneration > terrainGeneration)
+                {
+                    continue;
+                }
+
                 long s = unchecked(planetSeed ^ ((long)list.Count * golden) ^ WorldGenerator.StableHash("authored:" + record.Key));
                 var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
                 list.Add(MakeAuthoredSpecies(record, planet, rng, s));
             }
         }
 
+        // Generation 16 (#2082): every begging species loves one food — a post-pass, so no rolled trait moves.
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BipedGeneration)
+        {
+            AssignFavouriteFoods(list, planet, worldSeed, terrainGeneration);
+        }
+
         return list;
+    }
+
+    /// <summary>The favourite foods (#2082, generation 16): every begging species that has none (an authored one may name its
+    /// own) loves one of the clean fruit its world's trees bear (<see cref="FruitRules.CleanFruitItems"/>), or the berries when
+    /// the world bears none. Folded from the species' voice seed — no RNG draw, so the roster's rolls stay as they are.</summary>
+    private static void AssignFavouriteFoods(List<CreatureSpecies> list, PlanetType planet, long rosterSeed, int terrainGeneration)
+    {
+        IReadOnlyList<string>? foods = null;
+        foreach (var sp in list)
+        {
+            if (!HerdRules.BegsForFood(sp) || !string.IsNullOrEmpty(sp.FavouriteFood))
+            {
+                continue;
+            }
+
+            foods ??= FruitRules.CleanFruitItems(planet, rosterSeed, terrainGeneration);
+            sp.FavouriteFood = FavouriteFrom(foods, sp.VoiceSeed);
+        }
+    }
+
+    /// <summary>One food of <paramref name="foods"/> picked by <paramref name="seed"/>, or the fallback berries.</summary>
+    internal static string FavouriteFrom(IReadOnlyList<string> foods, int seed)
+    {
+        if (foods.Count == 0)
+        {
+            return HerdRules.FallbackFavouriteFood;
+        }
+
+        uint h = unchecked((uint)seed * 2654435761u);
+        h ^= h >> 15;
+        return foods[(int)(h % (uint)foods.Count)];
     }
 
     /// <summary>Builds the roster entry of an authored record (#1763): the designed traits verbatim, the name's
@@ -123,7 +167,9 @@ public static class CreatureGenerator
         {
             Id = "au_" + a.Key,
             NameKey = "creature.generic.name",
-            Name = string.IsNullOrWhiteSpace(a.NamePrefix) ? coined : a.NamePrefix + " " + second,
+            Name = string.IsNullOrWhiteSpace(a.NamePrefix) ? coined
+                : a.FixedName ? a.NamePrefix // #2084: the kids' name, exactly as they wrote it
+                : a.NamePrefix + " " + second,
             Habitat = a.Habitat,
             Activity = a.Activity,
             Temperament = a.Temperament,
@@ -160,6 +206,10 @@ public static class CreatureGenerator
             AngeredByMining = a.AngeredByMining,
             GiftsWhenCalm = a.GiftsWhenCalm,
             BegsForFood = a.BegsForFood,  // #2018: a worksheet species may beg (the rule honours it on passive Land species only)
+            Arms = a.BodyPlan == CreatureBodyPlan.Biped ? System.Math.Clamp(a.Arms, 0, 2) : 0, // #2081: arms on the biped body only
+            HeadRatio = a.HeadRatio > 0f ? System.Math.Clamp(a.HeadRatio, 0.5f, BipedRules.MaxHeadRatio) : 1f,
+            FavouriteFood = a.FavouriteFood,                  // #2082: empty = the generation-16 roll for a beggar
+            FeedsToTame = System.Math.Max(0, a.FeedsToTame),
             GiantHeight = a.GiantHeight,  // #1998: an authored giant (#2003) carries the same traits as a rolled one
             BackFeature = a.BackFeature,
             LegRatio = a.LegRatio,
@@ -619,7 +669,81 @@ public static class CreatureGenerator
             ApplyEyeColour(rng, species);
         }
 
+        // Generation 16 (#2081): the biped — rolled LAST, after the eye colour (so a generation-15 species keeps every trait it
+        // had; nothing reads the RNG after this) and only on a generation-16 world. One draw per standard-plan Land species.
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BipedGeneration
+            && species.Habitat == CreatureHabitat.Land && species.BodyPlan == CreatureBodyPlan.Standard
+            && rng.NextDouble() < BipedRules.BipedChance)
+        {
+            ApplyBipedPlan(rng, species);
+        }
+
         return species;
+    }
+
+    private static readonly string[] BipedHides = { "skin", "skin", "fur", "spots", "stripes", "mottled", "feathers", "scales" };
+
+    /// <summary>The biped (#2081, the school club idea of Paul and Ben): an upright two-legger with two arms and a big head,
+    /// knee-high to child-high. Always peaceful (decision 2026-09-27: passive or skittish, no bite); never alone — a passive
+    /// one begs with <see cref="BipedRules.BeggingChance"/> and then lives in a begging herd, every other one in a group of
+    /// <see cref="BipedRules.GroupMin"/>–<see cref="BipedRules.GroupMax"/>. Colours, eyes' colour and drop stay as rolled; the
+    /// plan overrides what the body demands and re-rolls what depends on it (the gait, the group).</summary>
+    private static void ApplyBipedPlan(System.Random rng, CreatureSpecies sp)
+    {
+        sp.BodyPlan = CreatureBodyPlan.Biped;
+        sp.Size = BipedRules.MinSize + (float)rng.NextDouble() * (BipedRules.MaxSize - BipedRules.MinSize);
+        sp.HeadRatio = BipedRules.MinHeadRatio + (float)rng.NextDouble() * (BipedRules.MaxHeadRatio - BipedRules.MinHeadRatio);
+        sp.Legs = 2;
+        sp.Arms = 2;
+        sp.BodySegments = 1;
+        sp.Temperament = rng.NextDouble() < 0.7 ? CreatureTemperament.Passive : CreatureTemperament.Skittish;
+        sp.AttackDamage = 0f;
+        sp.MaxHealth = 10f + sp.Size * 8f;
+        sp.Speed = 2.0f + (float)rng.NextDouble() * 1.5f;          // a walking pace — the player (6) outruns them
+        sp.Eyes = Weighted(rng, 2, 70, 1, 10, 3, 15, 4, 5);          // mostly two big eyes
+        sp.Horns = Weighted(rng, 0, 60, 1, 15, 2, 25);                // the builder draws them as antennae
+        sp.HasTail = rng.NextDouble() < 0.3;
+        sp.Hide = BipedHides[rng.Next(BipedHides.Length)];
+        sp.EyeStalks = false;
+        sp.HasCrest = false;
+        sp.HasWings = false;
+        sp.WingPairs = 1;
+        sp.FinPairs = 1;
+        sp.HasGasSac = false;
+        sp.Tentacles = 0;
+        sp.Heads = 1;                                                 // generation 6 may have rolled a second head
+        sp.NeckLength = 0;
+        sp.HasTrunk = false;
+        sp.HeadShape = CreatureHeadShape.Box;
+        sp.HoverAltitude = 0f;
+        sp.HasFins = CreatureMotion.FinsFor(sp);
+        sp.LocoStyle = PickLocoStyle(rng, sp);                        // two legs: hopper, grazer, darter or strider
+        sp.BegsForFood = sp.Temperament == CreatureTemperament.Passive && rng.NextDouble() < BipedRules.BeggingChance;
+        sp.SocialGroupSize = sp.BegsForFood
+            ? HerdRules.BeggarHerdMin + rng.Next(HerdRules.BeggarHerdMax - HerdRules.BeggarHerdMin + 1)
+            : BipedRules.GroupMin + rng.Next(BipedRules.GroupMax - BipedRules.GroupMin + 1);
+    }
+
+    /// <summary>A rolled biped for a world whose roster has none (#2081, the <c>/biped</c> test command): this world's own Land
+    /// roll with the plan forced and — so the test command shows the whole loop — begging, from a seed salted so it never
+    /// collides with a roster slot. Its favourite food is picked like a roster beggar's.</summary>
+    public static CreatureSpecies GenerateBiped(PlanetType planet, long rosterSeed, int terrainGeneration)
+    {
+        long s = unchecked(rosterSeed ^ 0xB1BED5L);
+        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+        var sp = MakeSpecies(91, rng, allowWater: false, allowLava: false, allowCave: false, biomeCount: planet.Biomes.Count,
+            forcedHabitat: CreatureHabitat.Land, speciesSeed: s,
+            terrainGeneration: BlocksBeyondTheStars.Shared.World.WorldDescription.BipedGeneration);
+        if (sp.BodyPlan != CreatureBodyPlan.Biped)
+        {
+            ApplyBipedPlan(rng, sp);
+        }
+
+        sp.Temperament = CreatureTemperament.Passive;
+        sp.BegsForFood = true;
+        sp.SocialGroupSize = System.Math.Max(sp.SocialGroupSize, HerdRules.BeggarHerdMin);
+        sp.FavouriteFood = FavouriteFrom(FruitRules.CleanFruitItems(planet, rosterSeed, terrainGeneration), sp.VoiceSeed);
+        return sp;
     }
 
     /// <summary>The big herds (#2018, generation 12): peaceful standard-plan Land species only — a passive one begs with

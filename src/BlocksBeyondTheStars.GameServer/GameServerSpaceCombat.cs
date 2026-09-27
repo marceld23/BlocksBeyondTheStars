@@ -72,6 +72,10 @@ public sealed class CombatEntity
     /// <summary>#2018: server uptime before which this animal ignores food again after a bout of begging.</summary>
     public double BegCooldownUntil { get; set; }
 
+    /// <summary>#2082: the piece this animal rushes is its species' favourite food — after it the herd wants more, so it comes
+    /// back after <see cref="Shared.Definitions.HerdRules.FavouriteCooldownSeconds"/> instead of the long cooldown.</summary>
+    public bool BegFavourite { get; set; }
+
     /// <summary>#2018: server uptime of the next begging hop (a grounded jumper hops on a beat while it begs).</summary>
     public double NextBegHopAt { get; set; }
 

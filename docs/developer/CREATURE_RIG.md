@@ -23,9 +23,19 @@ The same descriptor must always yield the same body: every client draws a specie
 per-individual variation is derived from `StableIdHash(SpeciesId)`, never from `Random` at build
 time. (`Random` inside the animator is fine — that is per-client cosmetic timing, not body shape.)
 
-Seven body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
-**Colossus** (#1999), **Sandworm** (#2001) and **Arachnid** (#2009); the flowerling (#1760) is the standard
-body with a petal head.
+Eight body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
+**Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009) and **Biped** (#2081); the flowerling (#1760) is
+the standard body with a petal head.
+
+**Biped (#2081).** `BuildBiped`: an upright two-legger built from the shares in `BipedRules` (the server measures the
+same body height from them) — two jointed legs under a stubby torso (the knees fold back, `KneeSign` +1, like ours), a
+belly patch on the front, a hip block, and two arms from the shoulders (upper arm → `Elbow` → forearm → hand in the belly
+tone), recorded as `ArmRig` (side, rest rotations) in `RigDescription.Arms`. The big head is the classic box with its
+hinged jaw, built around a `HeadCentre` pivot lifted by half the head on a neck pivot at the top of the torso; the neck
+is what the rig calls the head, so the shared gesture, gaze, jaw, eye and eyelid code works on it unchanged. The species'
+horns are antennae with a bobble. `PoseArms`: walking, each arm swings with the OPPOSITE leg's phase (×0.8) and bends at
+the elbow; standing, a small sway; begging (#2018) both arms go up and forward (−150°) and wave out of step; a hop
+throws them up; lying down they hug the body. Render-only, no colliders (small and peaceful).
 
 **Arachnid (#2009).** `BuildArachnid`: a cephalothorax box and a sphere abdomen on eight jointed legs in four
 rows (hips on the thorax flanks; the crawler stance splays them 22°), a head that is either the classic box
