@@ -308,6 +308,45 @@ TEXTURES = [
     ("flora_fifi_berries", "a single hanging cluster of many small round shiny deep magenta-pink berries with bright highlights, hanging from a short green stem at the top edge of the image, the entire rest of the image solid pitch-black #000000 with no gradient and no vignette, side view"),
     # #2106 oil (2026-09-27): the finite underground fluid of the living worlds.
     ("oil", "thick black crude oil filling the whole image edge to edge, glossy near-black liquid surface with a faint iridescent oily sheen and a few slow dull bubbles, no background visible, no edges, no border, top-down"),
+    # #2124 (2026-09-28) the object blocks' own faces — Justus: "still many blocks have the same texture on all sides".
+    # A machine keeps its picture on its FRONT (or its top-view picture on top) and wears these on its other sides.
+    # face_* keys are no blocks: data/blocks.json names them in faces[].tile and the atlas deals them into its extras
+    # band. Every panel fills the whole tile edge to edge with its own border, so neighbouring blocks tile cleanly.
+    # Shared casings — one look for a family of machines:
+    ("face_tech_side", "the side panel of a sci-fi machine cabinet, a solid dark navy-grey metal casing panel that fills the entire image, a darker border frame, a thin glowing cyan light seam, recessed vent slots and small corner bolts, flat front view"),
+    ("face_tech_top", "the top lid of a sci-fi machine cabinet seen from above, a solid dark navy-grey metal plate that fills the entire image, a darker border frame, a small grille of cooling vents in the middle and four corner bolts"),
+    ("face_crystal_side", "the side panel of a sci-fi crystal device, a solid dark charcoal-grey metal housing panel that fills the entire image, a bevelled border frame, a thin glowing violet crystal inlay strip across the middle and small silver bolts, flat front view"),
+    ("face_crystal_top", "the top plate of a sci-fi crystal device seen from above, a solid dark charcoal-grey metal plate that fills the entire image, a bevelled border frame, a small round glowing violet crystal stud in the centre and four corner bolts"),
+    ("face_light_side", "the side panel of a clean clinic cabinet, white and pale mint-green enamel metal filling the whole tile edge to edge with a light grey border frame and a thin horizontal seam, no background, flat front view"),
+    ("face_light_top", "the top of a clean clinic counter seen from above, a solid smooth white enamel worktop that fills the entire image with a thin pale grey rim at the edges"),
+    ("face_wood_side", "the side panel of a sturdy wooden cabinet, warm brown vertical wooden planks filling the whole tile edge to edge inside a darker wooden frame with small iron corner brackets, no background, flat front view"),
+    ("face_wood_top", "the top of a wooden counter seen from above, warm brown wooden planks lying side by side filling the whole tile edge to edge with a darker wooden edge, no background"),
+    ("face_plastic_side", "the side of a black gaming computer case, a solid matte charcoal-black plastic panel that fills the entire image with subtle moulded ridges, a slightly lighter dark grey border and a thin bright rainbow RGB light strip glowing along the bottom edge, flat front view"),
+    ("face_plastic_top", "the top of a black gaming computer case seen from above, a solid matte charcoal-black plastic panel that fills the entire image right up to its edges, a dark grey hexagonal mesh dust filter grille in the middle and a slightly lighter dark grey border"),
+    ("face_rust_side", "the side panel of an old broken machine, rusty corroded orange-brown metal casing filling the whole tile edge to edge with dents, a few holes, flaking grey paint and loose rivets, no background, flat front view"),
+    ("face_rust_top", "the top of an old broken machine seen from above, a rusty corroded metal plate filling the whole tile edge to edge with a cracked vent grille, dents and scattered rust, no background"),
+    ("face_industrial_side", "the side panel of an industrial chemical machine, a solid dark grey steel casing panel that fills the entire image, a pipe with a red valve wheel running across it, bolts and a yellow and black hazard stripe band along the bottom edge, flat front view"),
+    ("face_industrial_top", "the top of an industrial machine seen from above, a solid dark grey steel plate that fills the entire image, a round bolted inspection hatch in the middle, rivets and a thin yellow and black hazard stripe border"),
+    # Bespoke sides and tops — a block that needs its own:
+    ("face_workbench_side", "the side of a sci-fi metal workbench, a solid blue-grey steel cabinet that fills the entire image, two tool drawers with handles below and a pegboard with a hanging wrench and screwdriver above, a darker steel border, flat front view"),
+    ("face_forge_side", "the side wall of a stone forge furnace, large dark grey stone bricks in neat staggered rows with light grey mortar joints and a few soot stains, the brick wall fills the entire image edge to edge, flat front view"),
+    ("face_forge_top", "the top of a stone forge furnace seen from above, dark grey stone bricks filling the whole tile edge to edge around a small square chimney hole in the centre glowing orange with embers"),
+    ("face_crate_top", "the lid of a sci-fi steel storage crate seen from above, a solid dark blue-grey metal lid that fills the entire image, a raised border, four corner latches and a recessed handle in the middle"),
+    ("face_wood_crate_top", "the lid of a rustic wooden crate seen from above, rough brown wooden planks lying side by side inside a darker wooden frame filling the whole tile edge to edge, small nail heads at the corners, no background"),
+    ("face_radio_beacon_top", "the top of a sci-fi radio beacon block seen from above, a tan sandstone-coloured square plate filling the whole tile edge to edge with a round dark metal mount in the centre holding a glowing cyan antenna ring and a small red status light"),
+    ("face_base_core_side", "the side of a grey stone foundation cornerstone, smooth carved grey stone filling the whole tile edge to edge with a darker chiselled border and thin glowing teal-cyan energy lines running across it, no background, flat front view"),
+    ("face_container_side", "the side wall of an orange cargo container, corrugated orange painted steel with vertical ribs filling the whole tile edge to edge, a dark border frame and a few scratches, no background, flat front view"),
+    ("face_detoxifier_top", "the top of a round chemical detox vat seen from above, a dark metal rim holding bubbling glowing bright green liquid, small pipes at two corners, on a dark grey steel plate filling the whole tile edge to edge"),
+    ("face_algae_tank_top", "the lid of an algae farm tank seen from above, a dark metal lid filling the whole tile edge to edge with a round glass porthole showing glowing green algae water and small bolts around it"),
+    ("face_heal_tank_top", "the top cap of a medical regeneration capsule seen from above, a dark metal square plate filling the whole tile edge to edge with a round lid glowing soft teal-cyan in a ring around the centre and small bolts at the corners"),
+    ("face_hydro_tray_side", "the side of a hydroponic plant tray, a solid dark grey metal trough wall that fills the entire image, a narrow glowing teal water level window along the top and two small drain pipes, flat front view"),
+    ("face_gaming_pc_side", "a close-up of the tinted tempered glass side panel of a gaming computer tower, the dark glass and its thin black frame fill the entire image edge to edge with no margin, glowing rainbow RGB fans and a graphics card seen through the glass, flat front view"),
+    ("face_sage_lectern_side", "the side panel of a dark violet armoured console cabinet, violet metal filling the whole tile edge to edge with engraved glowing circuit lines, a darker border and two small amber crystal indicator lights, no background, flat front view"),
+    ("face_sage_lectern_top", "the top of a dark violet armoured console cabinet seen from above, violet metal filling the whole tile edge to edge with engraved circuit lines, a small vent grille and a round amber crystal in the centre, no background"),
+    ("face_rail_pylon_top", "the top of a sci-fi monorail pylon seen from above, a round dark steel cap with a glowing cyan energy emitter ring and riveted bands, on a dark steel square plate filling the whole tile edge to edge"),
+    ("face_alarm_siren_top", "the top of an alarm siren seen from above, a round red glass warning lamp dome with a bright highlight on a dark metal square base plate filling the whole tile edge to edge with corner bolts"),
+    ("face_matter_sender_top", "the top of a sci-fi matter sender pedestal seen from above, a solid dark metal square plate that fills the entire image with a round violet crystal emitter ring glowing with small cyan energy motes in the centre"),
+    ("face_matter_receiver_top", "the top of a sci-fi matter receiver pedestal seen from above, a round cyan crystal collector ring with small violet energy motes in the centre of a dark metal square plate filling the whole tile edge to edge"),
 ]
 
 if TYPE_CHECKING:
@@ -383,8 +422,11 @@ def main() -> None:
         ok = False
         for attempt in (1, 2):
             try:
+                # background="opaque" (#2124): block tiles ship opaque (bundle_textures forces alpha 255), and a prompt
+                # that says "no background" otherwise tends to come back as a mostly transparent PNG whose hidden
+                # colours are a blurry grey once the alpha is dropped.
                 resp = client.images.generate(
-                    model="gpt-image-1-mini", prompt=prompt, size="1024x1024", quality="low", n=1)
+                    model="gpt-image-1-mini", prompt=prompt, size="1024x1024", quality="low", n=1, background="opaque")
                 raw = base64.b64decode(resp.data[0].b64_json)
                 img = Image.open(BytesIO(raw)).convert("RGBA").resize((64, 64), Image.NEAREST)
                 if block in POST_PROCESS:
