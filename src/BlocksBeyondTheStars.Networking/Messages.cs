@@ -478,10 +478,21 @@ public sealed class SetLampIntent
 
 /// <summary>Client → server: the player sat down on (or stood up from) a chair-shaped cell (#806).
 /// Pure pose state — no buffs; it rides the presence broadcast so other players see a seated avatar.
-/// The client owns the camera/movement lock; the server only mirrors and sanity-checks the flag.</summary>
+/// The client owns the camera/movement lock; the server mirrors the flag and, since #2122, checks the seat:
+/// it must be a seat within reach that no seated NPC and no other seated player occupies — otherwise an
+/// <see cref="ActionRejected"/> with action <c>"seat"</c> comes back and the client stands up again.</summary>
 public sealed class SetSeatedIntent
 {
     public bool Active { get; set; }
+
+    /// <summary>#2122: <see cref="X"/>/<see cref="Y"/>/<see cref="Z"/> carry the seat cell the player sits down on.
+    /// Additive (contractless): false from an older client — the server then looks for the seat around the
+    /// player's position.</summary>
+    public bool HasCell { get; set; }
+
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
 }
 
 /// <summary>Client → server: the player starts (Active = true) or ends (Active = false) an EVA spacewalk —

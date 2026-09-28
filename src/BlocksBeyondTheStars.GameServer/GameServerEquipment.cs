@@ -276,9 +276,6 @@ public sealed partial class GameServer
         }
     }
 
-    private void HandleSetSeated(PlayerSession session, SetSeatedIntent intent)
-        => session.State.Seated = intent.Active && !InSpace(session.State.PlayerId);
-
     /// <summary>Drains suit energy while the jetpack fires; cuts thrust when the energy runs out.</summary>
     private void TickJetpack(PlayerSession session, double dt)
     {

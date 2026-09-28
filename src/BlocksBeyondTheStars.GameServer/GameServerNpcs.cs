@@ -101,6 +101,7 @@ public sealed partial class GameServer
         public Vector3f Rest;             // where the NPC idles when not at work (its spawn home)
         public Vector3i? Bed;             // head cell of the bed this NPC sleeps in
         public Vector3i? Seat;            // chair / bench cell for the evening
+        public bool SeatWait;             // #2122: somebody sat on the seat — resting beside it, looking again each check
         public bool FurnitureScanned;     // villagers / crew look for a bed and a seat once, lazily
         public byte Pose;                 // 0 stand, 1 sit, 2 lie (NetNpc.Pose)
         public string ActivityKey = string.Empty;

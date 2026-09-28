@@ -871,6 +871,7 @@ public sealed partial class GameServer
         p.TrainLocalY = local.Y;
         p.TrainLocalZ = local.Z;
         p.Seated = seat >= 0;
+        p.SeatCell = null; // a wagon seat is not a chair cell (#2122)
         p.Position = RiderWorld(t, line, rider);
         session.AwaitingSpawnAdopt = false;
         SendPlayerState(session);
@@ -909,6 +910,7 @@ public sealed partial class GameServer
         p.InTrain = string.Empty;
         p.TrainSeat = -1;
         p.Seated = false;
+        p.SeatCell = null;
         session.AwaitingSpawnAdopt = false;
         if (setDown)
         {
@@ -973,6 +975,7 @@ public sealed partial class GameServer
             p.InTrain = string.Empty;
             p.TrainSeat = -1;
             p.Seated = false;
+            p.SeatCell = null;
             SendPlayerState(session);
             BroadcastTrains(force: true);
             return true;

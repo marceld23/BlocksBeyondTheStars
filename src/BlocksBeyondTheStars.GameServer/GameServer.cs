@@ -2367,6 +2367,7 @@ public sealed partial class GameServer
         p.Hunger = 100f;
         p.Stealthed = false;
         p.Seated = false; // death stands you up (#806)
+        p.SeatCell = null; // and frees the chair (#2122)
         p.InEva = false; // a death ends any spacewalk
         _inShipInterior.Remove(p.PlayerId); // and any in-ship walkabout
         _dockedFromEva.Remove(p.PlayerId);  // and any "ship floating while docked" memory

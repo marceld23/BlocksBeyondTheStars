@@ -297,6 +297,7 @@ namespace BlocksBeyondTheStars.Client
             var remotes = root.AddComponent<RemotePlayers>();
             remotes.Game = boot;
             remotes.Trains = trains; // #2113: riders are placed relative to the wagons this client draws
+            pc.Remotes = remotes;    // #2122: nobody sits down into a seated player
 
             // Suit teleporter destination picker (#1056): back to ship, or to an allied player on this body.
             var teleporter = root.AddComponent<TeleporterUi>();

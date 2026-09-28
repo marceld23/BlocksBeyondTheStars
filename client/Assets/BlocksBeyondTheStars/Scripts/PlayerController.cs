@@ -275,6 +275,13 @@ namespace BlocksBeyondTheStars.Client
         private Vector3Int? _seatCell;
         private int _satFrame; // debounce: the E that sat us down must not also stand us up
 
+        // One seat, one sitter (#2122): the server refuses a seat somebody already sits on; every refusal bumps
+        // GameBootstrap.SeatRejections, and a count that moved while we sit stands us back up.
+        private int _seatRejectionsSeen;
+
+        /// <summary>Other players (wired by WorldRig) — the quick "is somebody sitting there?" look (#2122).</summary>
+        public RemotePlayers Remotes;
+
         private CharacterController _controller;
         private float _pitch;
         // Placement orientation override for shaped building blocks: -1 = auto (the server orients from the
@@ -716,6 +723,7 @@ namespace BlocksBeyondTheStars.Client
 
                 bool chairGone = Game?.World == null
                     || Game.Health <= 0f // dying stands you up so the respawn teleport gets a live controller
+                    || Game.SeatRejections != _seatRejectionsSeen // #2122: the server says somebody sits there (toast shown)
                     || !FurnitureShapes.IsSeat(ShapeCode.ShapeOf(Game.World.GetShape(seat.x, seat.y, seat.z)));
                 bool wantsUp = Time.frameCount != _satFrame
                     && (InputMap.JumpDown() || InputMap.CrouchHeld() || InputMap.Down(InputAction.Interact)
@@ -1981,6 +1989,14 @@ namespace BlocksBeyondTheStars.Client
             if (_seatCell is null && AimBlock(out var chairHit, out _)
                 && FurnitureShapes.IsSeat(ShapeCode.ShapeOf(Game.World.GetShape(chairHit.x, chairHit.y, chairHit.z))))
             {
+                // #2122: somebody already sits there — say so instead of dropping the camera into them. The server
+                // checks again (it may know a sitter this client has not heard of yet).
+                if (SeatLooksTaken(chairHit))
+                {
+                    Game.ShowMessage(Game.Localizer?.Get("srv.seat.taken") ?? "Someone is already sitting there.");
+                    return;
+                }
+
                 SitDown(chairHit);
                 return;
             }
@@ -2788,7 +2804,33 @@ namespace BlocksBeyondTheStars.Client
                 ? Game.ScenePos(cell.x + 0.5f, cell.y, cell.z + 0.5f)
                 : new Vector3(cell.x + 0.5f, cell.y, cell.z + 0.5f);
             Avatar?.SetSeated(true);
-            Game?.Network?.SendSetSeated(true);
+            if (Game != null)
+            {
+                _seatRejectionsSeen = Game.SeatRejections; // only a refusal that arrives from now on stands us up
+            }
+
+            Game?.Network?.SendSitDown(cell.x, cell.y, cell.z); // the server checks the seat is free (#2122)
+        }
+
+        /// <summary>Whether a seated NPC or a seated remote player is on the seat cell as far as this client knows
+        /// (#2122) — see <see cref="SeatCells"/>.</summary>
+        private bool SeatLooksTaken(Vector3Int cell)
+        {
+            if (Game == null || Game.Npcs == null)
+            {
+                return false;
+            }
+
+            int circ = Game.Circumference;
+            foreach (var n in Game.Npcs)
+            {
+                if (n != null && n.Pose == 1 && SeatCells.Covers(n.X, n.Y, n.Z, cell.x, cell.y, cell.z, circ))
+                {
+                    return true;
+                }
+            }
+
+            return Remotes != null && Remotes.AnySeatedOn(cell.x, cell.y, cell.z);
         }
 
         /// <summary>Stands the player back up from a chair (#806) and re-enables normal movement.</summary>
