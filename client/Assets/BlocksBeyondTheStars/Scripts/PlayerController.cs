@@ -632,6 +632,16 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #2129: aboard a train the body is a child of the moving wagon. Physics.autoSyncTransforms is off in this
+            // project, so CharacterController.Move starts from the last SIMULATED position and would throw away the
+            // wagon's motion since the last physics step — the rider drifted to the rear and fell out. Sync the moved
+            // wagon (its floor collider and our body) into physics before anything below moves us, the menu branch
+            // (the cab panel) included. TrainView runs earlier in the frame, so the wagons are already posed.
+            if (_trainFrame != null)
+            {
+                Physics.SyncTransforms();
+            }
+
             // A UI panel or the chat input is open: don't steer/interact, just settle by gravity — unless
             // we're driving a speeder: on-foot gravity would drag the player out of hover under the menu
             // and yank them back up on close (#413 N4). Hold the hover position instead. A running camera
@@ -763,6 +773,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 return;
             }
+
+            StepAboardTrain(); // #2129: walking or jumping into a wagon boards it too
 
             if (InputMap.Down(InputAction.StowVehicle) && TryStowNearbySpeeder())
             {
@@ -4788,7 +4800,19 @@ namespace BlocksBeyondTheStars.Client
                 var l = new Vector3f(local.x, local.y, local.z);
                 if (RailRules.OutsideWagon(l))
                 {
-                    Game.Network.SendExitTrain();
+                    // #2129: through the open end into the next wagon of the same train is not leaving — the frame moves
+                    // there. Meanwhile the report stays inside the old wagon's box (the raw spot out here would read as
+                    // walking off), and keeps flowing: the server drops a client silent for 90 s (#964).
+                    if (CrossToNeighbourWagon())
+                    {
+                        Game.Network.SendFramedMove(Game.InTrain, RailRules.ClampLocal(l), transform.eulerAngles.y, _pitch);
+                        return;
+                    }
+
+                    // Walked off: report the spot in the frame, so the server sets us down where we stepped off (an
+                    // ExitTrain would put us beside the wagon instead), and stop riding on our side at once.
+                    Game.Network.SendFramedMove(Game.InTrain, l, transform.eulerAngles.y, _pitch);
+                    _leavingFrame = Game.InTrain;
                     LeaveTrainFrame();
                     return;
                 }
@@ -4815,6 +4839,23 @@ namespace BlocksBeyondTheStars.Client
         private bool UpdateTrainFrame()
         {
             string frame = Game != null ? Game.InTrain : string.Empty;
+            if (_leavingFrame.Length > 0)
+            {
+                if (frame == _leavingFrame)
+                {
+                    // #2129: we walked off on our side; until the server confirms, the frame it still names must not
+                    // pull us back into the wagon.
+                    if (_trainFrame != null)
+                    {
+                        LeaveTrainFrame();
+                    }
+
+                    return false;
+                }
+
+                _leavingFrame = string.Empty;
+            }
+
             if (string.IsNullOrEmpty(frame))
             {
                 if (_trainFrame != null)
@@ -4956,6 +4997,81 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Game.Network.SendEnterTrain(t.Id, wagon, -1);
+            return true;
+        }
+
+        /// <summary>The wagon box (a frame id) the feet were in last frame, empty for none — the edge trigger of
+        /// <see cref="StepAboardTrain"/>.</summary>
+        private string _wagonBox = string.Empty;
+
+        /// <summary>#2129: the frame we walked off on our side, until the server's confirmation clears it.</summary>
+        private string _leavingFrame = string.Empty;
+
+        /// <summary>#2129: the neighbouring wagon we asked the server to move our frame to, and when.</summary>
+        private string _crossingTo = string.Empty;
+        private float _crossingSentAt;
+
+        /// <summary>#2129: stepping into a wagon — through a door, the open end, or a jump onto a moving train — boards it,
+        /// no E needed; before, the floor simply slid away under a player who was never a rider. Edge-triggered per wagon:
+        /// one request per entry into a wagon's box, so a refused one (someone else's train) is not repeated every frame,
+        /// and a rider set down beside the train or walking out at a stop has left the box before the next entry counts.</summary>
+        private void StepAboardTrain()
+        {
+            if (_trainFrame != null || !string.IsNullOrEmpty(Game?.InTrain))
+            {
+                _wagonBox = Game?.InTrain ?? string.Empty; // aboard: leaving this wagon's box re-arms the trigger
+                return;
+            }
+
+            if (Game?.Network == null || Game.Trains == null || Game.Trains.Length == 0)
+            {
+                _wagonBox = string.Empty;
+                return;
+            }
+
+            if (_trainView == null)
+            {
+                _trainView = Object.FindAnyObjectByType<TrainView>();
+            }
+
+            int wagon = 0;
+            var t = _trainView != null ? _trainView.WagonAt(transform.position, out wagon) : null;
+            string box = t == null ? string.Empty : RailRules.FrameId(t.Id, wagon);
+            if (box.Length > 0 && box != _wagonBox)
+            {
+                Game.Network.SendEnterTrain(t.Id, wagon, -1);
+            }
+
+            _wagonBox = box;
+        }
+
+        /// <summary>#2129: the rider has left their wagon's box through an open end. Still inside the train — in the next
+        /// wagon, or in the gap between two coupled wagons — the server is asked to move the frame to the wagon the feet
+        /// are in (re-sent at most twice a second) and the caller keeps its reports inside the old wagon; true. Outside the
+        /// train: false.</summary>
+        private bool CrossToNeighbourWagon()
+        {
+            if (_trainView == null || !RailRules.TryParseFrame(Game.InTrain, out string trainId, out int current))
+            {
+                return false;
+            }
+
+            var t = _trainView.WagonAt(transform.position, out int wagon);
+            if (t == null || t.Id != trainId || wagon == current)
+            {
+                // Not inside another wagon of this train: in the gap between two wagons we hold, beyond the train we leave.
+                var gap = _trainView.WagonAt(transform.position, out _, RailRules.WagonGap);
+                return gap != null && gap.Id == trainId;
+            }
+
+            string frame = RailRules.FrameId(trainId, wagon);
+            if (frame != _crossingTo || Time.time - _crossingSentAt > 0.5f)
+            {
+                _crossingTo = frame;
+                _crossingSentAt = Time.time;
+                Game.Network.SendEnterTrain(trainId, wagon, -1);
+            }
+
             return true;
         }
 

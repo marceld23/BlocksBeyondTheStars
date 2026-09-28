@@ -63,12 +63,18 @@ public sealed partial class WorldGenerator
         if (planet.FloatingIslands)
         {
             int tiers = w.SkyTiers;
+            // #2128: a gas giant's islands are bare rock — no meadow pools and no waterfalls. Both were filled with
+            // water on every world, so the −120 °C gas giant (no water anywhere else) had curtains of water falling
+            // from its island rims. The gas giant exists from generation 18 on only, so no older world changes.
+            bool wetIslands = !planet.IsGasWorld;
             for (int t = 0; t < tiers && n < bands.Length; t++)
             {
                 if (FloatingIslandTier(planet, seed, t, worldX, worldZ, out int top, out int bottom, out double it))
                 {
                     var kind = BandKind.Island;
-                    double pond = FbmT(seed + 0x5C1A7F + t * 0x1010, worldX, worldZ, planet.TerrainScale * 0.8, octaves: 2);
+                    double pond = wetIslands
+                        ? FbmT(seed + 0x5C1A7F + t * 0x1010, worldX, worldZ, planet.TerrainScale * 0.8, octaves: 2)
+                        : 0.0;
                     if (pond > 0.62 && it > 0.55)
                     {
                         kind = BandKind.IslandPond; // a meadow pool sunk into the island top (#707)

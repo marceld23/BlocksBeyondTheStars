@@ -64,21 +64,37 @@ TrainLocalX/Y/Z` (never a persisted bond: a join clears it).
 
 ## Client
 
-- `RailView` — the lines as glowing tubes (a chain of thin boxes in the Crystal Net's glow material) plus an amber
-  marker per stop; caches one `RailSpline` per line by the server's list reference and hands it out (`SplineOf`).
+- `RailView` — the lines as blue **energy bands** (#2129): per spline sample, two crossed ribbons (one flat, one
+  upright) in the additive `BlocksBeyondTheStars/Particle` material with a procedural glow texture (V across: a bright
+  core fading into a soft halo; U along: one narrow brighter pulse per 6 m tile). The vertex colour is HDR so the scene's
+  URP bloom gives the band a soft glow; the pulses travel by scrolling the material's texture offset every frame (no
+  mesh work). A stop is a short, wider amber section of the band. Caches one `RailSpline` per line by the server's list
+  reference and hands it out (`SplineOf`).
 - `TrainView` — a wagon is a hand-authored voxel grid (`WagonCells`: floor, side sills with glass above, a door
   opening in the middle of each side, a roof, the cab's windscreen and console, the seat wagon's benches, the sleeper's
   bunks, the bar's counter) meshed by `ChunkMesher` like the speeder hull, with a `MeshCollider` that is always solid.
   Every frame each wagon is posed on the spline: the server's arc run on by speed and direction since the last update
   and eased toward each new one (`DrawArc`), the wagons behind the cab by `WagonArc`. **The wagon transform is the
   frame**: local X/Y/Z are exactly the rules' local offsets (`Quaternion.LookRotation((cos, 0, sin))` puts local +Z on
-  the heading and local +X on its right).
+  the heading and local +X on its right). `TrainView` runs early in the frame (`DefaultExecutionOrder(-40)`), so the
+  wagons are posed before the player controller moves a rider; `WagonAt` answers which wagon's box holds a point.
 - `PlayerController` — while `Game.InTrain` names a frame the controller parents itself to that wagon transform
   (`UpdateTrainFrame`): the platform's motion and yaw carry the body and the camera, the normal on-foot movement runs
   on top (walking, jumping, gravity onto the wagon's floor collider), `SendMovement` reports the **wagon-local** offset
   with the frame id at 10 Hz (`SendFramedMove`) and treats an offset outside the box as leaving; a seated rider is
   parked on the seat with the controller off; E in the cab opens `TrainCabUi`, E beside a seat sits, F leaves; a fall
-  is never reported aboard. On foot, E near a wagon boards it (`TryBoardNearbyTrain`).
+  is never reported aboard. On foot, E near a wagon boards it (`TryBoardNearbyTrain`), and so does stepping into a
+  wagon's box (`StepAboardTrain`, #2129 — edge-triggered, one `EnterTrain` per entry). Walking through an open end
+  into the next wagon moves the frame there (`CrossToNeighbourWagon` sends `EnterTrain` for it; in the 0.6 m gap the
+  report stays clamped into the old wagon); walking off the train reports the outside spot as a framed move, so the
+  server sets the rider down where they stepped off, and the client does not re-parent to that frame before the
+  server's confirmation.
+- **The physics sync (#2129).** The project runs with `Physics.autoSyncTransforms` off, so a `CharacterController`
+  only sees transform changes — its parent wagon's motion included — at the next physics step, and `Move` starts from
+  the stale simulated position. Without a sync every rendered frame between two fixed steps threw the wagon's motion
+  away: the rider drifted to the rear, crossed `OutsideWagon` and fell out. While aboard, `Update` therefore calls
+  `Physics.SyncTransforms()` before anything moves the body (the open-panel branch included). Anything else that moves
+  a character on a moving transform needs the same.
 - `RemotePlayers` — a presence with a frame is placed with `wagon.TransformPoint(local)` on the wagon this client
   draws (no interpolation), so nobody slides through a wall on a curve or across the seam.
 - `TrainCabUi` — the panel (speed 1–3, halt / go, autopilot, leave, pack up). A public train (empty owner) shows the
