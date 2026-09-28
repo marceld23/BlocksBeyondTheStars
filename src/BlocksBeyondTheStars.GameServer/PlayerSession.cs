@@ -44,6 +44,11 @@ public sealed class PlayerSession
         set => State.CurrentLocationId = value;
     }
 
+    /// <summary>The world id (#1534) this client was last told is current — by <c>JoinAccepted</c> or a
+    /// <c>WorldReset</c>. The client drops every chunk stamped with another world's id, so a landing that
+    /// skips the reset may only happen while this still names the body being landed on (#2117).</summary>
+    public int AnnouncedWorldId { get; set; }
+
     /// <summary>The fixed landing pad this player currently holds on their body (item 38), or -1 if none. Pads
     /// are communal + occupancy is live: a pad counts as taken only while its holder is on the body (not in
     /// space). Set when landing; superseded on the next landing; ignored once the player is in space/elsewhere.

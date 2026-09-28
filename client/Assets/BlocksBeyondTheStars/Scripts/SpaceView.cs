@@ -2876,6 +2876,16 @@ namespace BlocksBeyondTheStars.Client
             BuildScene();
             _sceneInstance = Game.Space != null ? Game.Space.InstanceId : null; // what this scene depicts (#1677)
 
+            // #2118: a flight that resumes (the helm again from inside, out through the airlock, undocked back to an
+            // EVA) starts where the ship was left floating and pointing — not at the launch point, whose first move
+            // report used to overwrite the spot the server remembered.
+            if (Game.SpaceSkipLaunch && Game.SpaceHasResume && _ship != null)
+            {
+                _ship.transform.localPosition = Game.SpaceResumePos;
+                _yaw = Game.SpaceResumeYaw;
+                _ship.transform.localRotation = Quaternion.Euler(0f, _yaw, 0f);
+            }
+
             // React to server-reported hull/shield damage (collisions, enemy fire) with a flash + shake,
             // and to ship destruction with an explosion burst at the hull.
             if (Game.Network != null && !_combatSubscribed)

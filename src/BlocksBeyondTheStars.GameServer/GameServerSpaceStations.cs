@@ -774,8 +774,39 @@ public sealed partial class GameServer
         session.State.AboardShip = true;
         session.SentChunks.Clear();
 
+        SendReturnWorldSnapshot(session, returnType);
+
+        // Drop the now-empty station world from memory (its structure is persisted, NPCs re-spawn next visit).
+        if (!OccupiedLocations().Contains(stationLoc))
+        {
+            _worlds.Unload(stationLoc);
+        }
+
+        // Undock into space flight. If you docked while on an EVA, your ship stayed floating where it was —
+        // return you to the float next to it (no take-off); otherwise relaunch the ship as before. #2118: the
+        // flight view is told where that float is, so it doesn't draw the ship back at the launch point.
+        bool fromEva = _dockedFromEva.Remove(playerId, out var floatShipPos);
+        EnterSpace(playerId, skipLaunch: fromEva, resume: fromEva ? new SpacePlayerPose(floatShipPos, 0f, false) : null);
+        if (fromEva && _playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
+        {
+            inst.ShipPosition = floatShipPos;
+            inst.ShipLastPosition = floatShipPos;
+            session.State.InEva = true; // back outside the ship, floating where you left it
+            SendPlayerState(session);
+        }
+
+        Send(session, new ServerMessage { Text = fromEva ? "@srv.station.back_outside" : "@srv.station.undocked" });
+    }
+
+    /// <summary>Tells the client that the body under the flight view is current again — the world the player just
+    /// left (a station, the ship interior) is gone. A <see cref="WorldReset"/> re-arms the client's world-stream
+    /// filter (#1534) and drops its per-world lists, so everything the body carries goes out again right behind it.
+    /// Without it a later landing on this body streamed chunks the client discarded as "the world we just left"
+    /// (#2117). Shared by undocking from a station and taking the helm again from the ship interior.</summary>
+    private void SendReturnWorldSnapshot(PlayerSession session, string planetType)
+    {
         var (systemName, planetName) = ActiveLocationNames();
-        Send(session, new WorldReset { PlanetType = returnType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });
+        Send(session, new WorldReset { PlanetType = planetType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });
         SendPlayerState(session);
         SendLandedShips(session); // the return world's parked ship objects
         SendShipPlacement(session);
@@ -788,26 +819,6 @@ public sealed partial class GameServer
         SendInventory(session);
         SendDoors(session); // the client drops all doors on WorldReset (#1429) — restock the return world's
         SendWorldScopedLists(session); // …and the teleporter pads etc. — Lyxette's "keine Auswahl E mehr" (#1560)
-
-        // Drop the now-empty station world from memory (its structure is persisted, NPCs re-spawn next visit).
-        if (!OccupiedLocations().Contains(stationLoc))
-        {
-            _worlds.Unload(stationLoc);
-        }
-
-        // Undock into space flight. If you docked while on an EVA, your ship stayed floating where it was —
-        // return you to the float next to it (no take-off); otherwise relaunch the ship as before.
-        bool fromEva = _dockedFromEva.Remove(playerId, out var floatShipPos);
-        EnterSpace(playerId, skipLaunch: fromEva);
-        if (fromEva && _playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
-        {
-            inst.ShipPosition = floatShipPos;
-            inst.ShipLastPosition = floatShipPos;
-            session.State.InEva = true; // back outside the ship, floating where you left it
-            SendPlayerState(session);
-        }
-
-        Send(session, new ServerMessage { Text = fromEva ? "@srv.station.back_outside" : "@srv.station.undocked" });
     }
 
     /// <summary>The void-world cell a station's structure cell (0,0,0) is stamped at (before any exterior shift).</summary>

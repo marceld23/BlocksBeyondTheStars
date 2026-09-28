@@ -24,7 +24,9 @@ public sealed partial class GameServer
     // the ship's parked position, so the ship "stays where it is" across the visit.
     private readonly Dictionary<string, ShipInteriorReturn> _inShipInterior = new();
 
-    private readonly record struct ShipInteriorReturn(string InstanceId, Vector3f ShipPos, string ReturnLoc, string ReturnType);
+    /// <summary>How to drop a pilot back into the flight view: the instance, the ship's pose there (position +
+    /// heading, #2118) and the body world under the flight.</summary>
+    private readonly record struct ShipInteriorReturn(string InstanceId, SpacePlayerPose Ship, string ReturnLoc, string ReturnType);
 
     /// <summary>True while the player is walking inside their ship in space (not piloting, not on a surface).</summary>
     public bool InShipInterior(string playerId) => _inShipInterior.ContainsKey(playerId);
@@ -49,9 +51,14 @@ public sealed partial class GameServer
 
         // Remember how to drop back into the flight view (and the ship's parked spot, even if the now-empty
         // instance unloads while we're inside). #994: THIS pilot's spot, not whichever pilot moved last.
-        _inShipInterior[playerId] = new ShipInteriorReturn(instanceId, PilotPositionIn(instance, playerId), session.CurrentLocationId, _world.PlanetKey);
+        // #2118: the SHIP's pose — boarding from an EVA, the pilot's pose is the suit's, not the ship's.
+        var ship = instance.ShipPoses.TryGetValue(playerId, out var shipPose)
+            ? shipPose
+            : new SpacePlayerPose(PilotPositionIn(instance, playerId), 0f, false);
+        _inShipInterior[playerId] = new ShipInteriorReturn(instanceId, ship, session.CurrentLocationId, _world.PlanetKey);
 
         instance.Players.Remove(playerId);
+        instance.ShipPoses.Remove(playerId);
         _playerInstance.Remove(playerId);
         if (instance.Players.Count == 0)
         {
@@ -102,25 +109,23 @@ public sealed partial class GameServer
 
         _inShipInterior.Remove(playerId);
 
-        // Restore the planet world under the flight view (so a later landing drops you there), like LeaveStation.
+        // Restore the planet world under the flight view (so a later landing drops you there), like LeaveStation —
+        // and TELL the client, like LeaveStation (#2117): the interior's WorldReset made the body "the world we just
+        // left", so without a reset of its own every chunk of a later landing here was dropped — "DAS NICHTS".
         LoadWorld(ret.ReturnType, ret.ReturnLoc);
         SetCurrent(session);
         session.CurrentLocationId = ret.ReturnLoc;
         session.State.AboardShip = true;
         session.State.InEva = false;
         session.SentChunks.Clear();
+        SendReturnWorldSnapshot(session, ret.ReturnType);
 
-        // Back into the flight view, and put the ship back exactly where it was parked. Skip the take-off
-        // sequence — you never landed, you just stepped out of the hull.
-        EnterSpace(playerId, skipLaunch: true);
-        if (_playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
+        // Back into the flight view, the ship exactly where it was parked and heading where it pointed (#2118) —
+        // the flight view is told that pose. Skip the take-off sequence: you never landed, you just stepped out.
+        EnterSpace(playerId, skipLaunch: true, resume: ret.Ship);
+        if (eva && _playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
         {
-            inst.ShipPosition = ret.ShipPos;
-            inst.ShipLastPosition = ret.ShipPos;
-            // #994: per-pilot pose is the authority for player actions now — put it back too, so the first
-            // action after stepping out doesn't range-check against the pre-interior launch seed.
-            inst.PlayerPoses[playerId] = new SpacePlayerPose(ret.ShipPos, 0f, eva);
-            inst.PilotSims[playerId] = new PilotSim { LastPosition = ret.ShipPos };
+            inst.PlayerPoses[playerId] = ret.Ship with { Eva = true };
         }
 
         if (eva)

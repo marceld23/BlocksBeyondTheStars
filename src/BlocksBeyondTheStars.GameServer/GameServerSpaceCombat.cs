@@ -231,6 +231,11 @@ public sealed class SpaceInstance
     /// for the others — and, since #955, the per-pilot position for collision and incoming fire.</summary>
     public Dictionary<string, SpacePlayerPose> PlayerPoses { get; } = new();
 
+    /// <summary>#2118: each pilot's SHIP pose — the last report made while flying, not on an EVA. During a spacewalk
+    /// <see cref="PlayerPoses"/> follows the suit, while the ship floats where the pilot stepped out; boarding it
+    /// again must remember the ship, not the suit.</summary>
+    public Dictionary<string, SpacePlayerPose> ShipPoses { get; } = new();
+
     /// <summary>Per-pilot collision bookkeeping (#955): last ticked position + damage cooldown. One shared
     /// field per instance meant two pilots overwrote each other and ram damage could hit the wrong hull.</summary>
     public Dictionary<string, PilotSim> PilotSims { get; } = new();
@@ -535,8 +540,11 @@ public sealed partial class GameServer
 
     // ---------------- Enter / leave space ----------------
 
-    /// <summary>Launches the player into a space instance around the ship's location.</summary>
-    public void EnterSpace(string playerId, bool skipLaunch = false, bool hyperjump = false)
+    /// <summary>Launches the player into a space instance around the ship's location. <paramref name="resume"/>
+    /// (#2118) puts the ship back where it floated before the player left the flight view without landing (the
+    /// ship interior, a station boarded from an EVA) — the flight view is told that pose, instead of drawing the
+    /// ship at the launch point and reporting THAT back over the remembered spot.</summary>
+    public void EnterSpace(string playerId, bool skipLaunch = false, bool hyperjump = false, SpacePlayerPose? resume = null)
     {
         var session = FindSessionByPlayerId(playerId);
 
@@ -624,8 +632,15 @@ public sealed partial class GameServer
         // once the client sent its first ShipMove, so the others' avatars popped in late (and were destroyed
         // again by any snapshot that arrived before it), and the collision speed baseline started at
         // wherever the pilot already was instead of where they launched.
-        var launchPose = new SpacePlayerPose(instance.ShipPosition, 0f, session?.State.InEva ?? false);
+        if (resume is { } back)
+        {
+            instance.ShipPosition = back.Pos;
+            instance.ShipLastPosition = back.Pos;
+        }
+
+        var launchPose = new SpacePlayerPose(instance.ShipPosition, resume?.Yaw ?? 0f, session?.State.InEva ?? false);
         instance.PlayerPoses[playerId] = launchPose;
+        instance.ShipPoses[playerId] = launchPose with { Eva = false };
         instance.PilotSims[playerId] = new PilotSim { LastPosition = launchPose.Pos };
 
         // Launch with the shields up (baseline + modules). The clamp in RecomputeShipCombatStats only ever lowers
@@ -641,7 +656,7 @@ public sealed partial class GameServer
             // from the map the moment it sees the space state, so a map arriving after it (a big message, a
             // late packet) had the view build the DEPARTURE system and offer its planets to land on.
             SendStarMap(session); // the space view needs the system's bodies to render + land on them
-            SendSpaceState(session, instance, skipLaunch, hyperjump);
+            SendSpaceState(session, instance, skipLaunch, hyperjump, resume);
             SendShipCombatStatus(session);
 
             // item 20 S1: carry the player's ship as a voxel structure in the instance + send it so the flight
@@ -721,6 +736,7 @@ public sealed partial class GameServer
         {
             instance.Players.Remove(playerId);
             instance.PilotSims.Remove(playerId); // per-pilot collision state dies with the flight (#955)
+            instance.ShipPoses.Remove(playerId);
             if (instance.Players.Count == 0)
             {
                 StashFloatingSalvage(instance); // #1475: uncollected ore outlives the flight
@@ -1676,6 +1692,10 @@ public sealed partial class GameServer
         // Per-player pose for visibility — so the others in this instance can render this ship / EVA suit.
         bool eva = FindSessionByPlayerId(playerId)?.State.InEva ?? false;
         instance.PlayerPoses[playerId] = new SpacePlayerPose(pos, yaw, eva);
+        if (!eva)
+        {
+            instance.ShipPoses[playerId] = new SpacePlayerPose(pos, yaw, false); // #2118: the ship itself
+        }
 
         CheckSpaceWreckApproach(instance, playerId, pos); // #1664: flying up to a derelict "visits" it
     }
@@ -2239,7 +2259,7 @@ public sealed partial class GameServer
         Scale = e.Scale,
     };
 
-    private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false, bool hyperjump = false)
+    private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false, bool hyperjump = false, SpacePlayerPose? resume = null)
     {
         var (systemName, bodyName) = LocationNamesFor(session.CurrentLocationId); // #1565: the flight names where it is
         Send(session, new SpaceState
@@ -2249,6 +2269,11 @@ public sealed partial class GameServer
             Entities = instance.Entities.Select(ToNet).ToArray(),
             SkipLaunch = skipLaunch,
             Hyperjump = hyperjump,
+            HasResumePose = resume.HasValue, // #2118: where the ship floated before the flight view closed
+            ResumeX = resume?.Pos.X ?? 0f,
+            ResumeY = resume?.Pos.Y ?? 0f,
+            ResumeZ = resume?.Pos.Z ?? 0f,
+            ResumeYaw = resume?.Yaw ?? 0f,
             // Automatic landed-ship transit: tell the client that finishing
             // the launch animation should signal the server to continue.
             AutomaticTransit = session.AutomaticTransit,
@@ -2625,7 +2650,10 @@ public sealed partial class GameServer
             // relocate path below assumes a resident world: SetActiveWorld failed silently, the cursor stayed
             // on the planet he had LEFT, and he was set down on that old terrain while every id said the new
             // body — "landed on a known world that suddenly looked different". Land it like a fresh arrival.
-            if (!_worlds.IsLoaded(session.CurrentLocationId))
+            // #2117: the same when the client was last told about ANOTHER world (a visit to the ship interior,
+            // a station, …): the relocate below sends no WorldReset, so the client would drop every chunk of
+            // this body as "the world we just left" and stand on nothing but its own ship.
+            if (!_worlds.IsLoaded(session.CurrentLocationId) || session.AnnouncedWorldId != WorldIdOf(session.CurrentLocationId))
             {
                 HandleTravel(session, new TravelIntent { DestinationBodyId = session.CurrentLocationId, PadIndex = intent.PadIndex }, quickTravel: false, allowCurrentBody: true);
                 return;

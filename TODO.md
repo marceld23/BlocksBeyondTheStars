@@ -24,6 +24,22 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚉 Screelit's reports 2026-09-27 — the ship in space, doors and extensions, seats, beards, block faces, the intercity monorail (#2127: #2117–#2126, 2026-09-28, branch fix/screelit-reports-0928, terrain generation 19)
+
+Eight F1 reports from Screelit (Justus) on v2026.9.17 and Marcel's decisions, all in ONE branch and ONE PR:
+
+1. ✅ **#2117 "DAS NICHTS! (schon wieder)"** — taking the helm again (or the airlock) from the ship interior now tells
+   the client the body under the flight is current (`SendReturnWorldSnapshot`, shared with undocking: `WorldReset` +
+   every per-world list); a landing whose body the client was not last told about takes the full landing path
+   (`PlayerSession.AnnouncedWorldId`). Before, a landing on the same body streamed chunks the client dropped as "the
+   world we just left" — the second path of #1945.
+2. ✅ **#2118 "WO?"** — the flight resumes where the ship floated: `SpaceState` carries a resume pose (position +
+   heading, additive fields); the ship's own pose is kept apart from the EVA suit's (`SpaceInstance.ShipPoses`), so
+   boarding from a spacewalk remembers the ship; undocking back to an EVA uses the same pose.
+3. **#2119 doors on ships**, 4. **#2120 ship extensions up to 15³ with sealed air**, 5. **#2121 the repair panel and
+   the owner's own changes**, 6. **#2122 seats**, 7. **#2123 NPC facial hair**, 8. **#2124 object block faces + front
+   facing**, 9. **#2125 the intercity monorail (gen 19)**, 10. **#2126 the VEGA panel tab** — in progress.
+
 ### 🛢️ Justus' ideas 2026-09 — oil, the drill laser, slithering worms, equipment slots, sea + sky giants, the gas giant, the monorail train (#2104: #2105–#2114, 2026-09-27, branch feat/justus-ideas-2026-09, terrain generation 18)
 
 Justus' six F1 idea reports of 2026-09-27 and Marcel's decisions (all in ONE branch and ONE PR, built package after

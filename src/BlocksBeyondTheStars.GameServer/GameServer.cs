@@ -3970,6 +3970,7 @@ public sealed partial class GameServer
             TerrainContinents = _meta.Description.TerrainContinents,
             TerrainGeneration = _meta.Description.TerrainGeneration, // #1644
         });
+        session.AnnouncedWorldId = WorldIdOf(state.CurrentLocationId); // #2117
         SendInventory(session);
         SendPlayerState(session);
         SendShipRepairStatus(session); // a ship at 1/200 hull shows its repair panel from the first frame (#1561)
@@ -4286,6 +4287,7 @@ public sealed partial class GameServer
             // and never sends a payload, so silence is normal rather than a sign of a dead client.
         };
         _sessions[connectionId] = session;
+        session.AnnouncedWorldId = WorldIdOf(joinBody); // #2117: joined on this body, like a JoinAccepted would say
         state.LastSeenUtc = UtcNowIso();
         SetupPlayerShip(session); // local/test players get their own ship too
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
@@ -7504,6 +7506,7 @@ public sealed partial class GameServer
         {
             case WorldReset reset:
                 reset.WorldId = WorldIdOf(session.CurrentLocationId); // the stream that follows is this world's
+                session.AnnouncedWorldId = reset.WorldId; // #2117: the world the client now accepts chunks for
                 session.FarInfoDue = true; // #1820: the far view needs the new world's generator settings
                 break;
             case BlockChanged change:

@@ -1629,6 +1629,16 @@ public sealed class SpaceState
     /// client plays the warp VFX as the view opens (there is no surface take-off).</summary>
     public bool Hyperjump { get; set; }
 
+    /// <summary>#2118: set when the flight resumes where the ship was left floating (taking the helm again from the
+    /// ship interior, stepping out of its airlock, undocking back to an EVA): the ship's position in this instance's
+    /// flight coordinates and its heading (degrees) — the view places the ship there instead of the launch point.
+    /// Additive; an older client ignores it.</summary>
+    public bool HasResumePose { get; set; }
+    public float ResumeX { get; set; }
+    public float ResumeY { get; set; }
+    public float ResumeZ { get; set; }
+    public float ResumeYaw { get; set; }
+
     public bool AutomaticTransit { get; set; } = false;
 
     /// <summary>Friendly names of the star system and the body this flight is anchored on (#1565). An in-flight
