@@ -226,6 +226,7 @@ namespace BlocksBeyondTheStars.Client
         private string _evaAimStructId;      // id of the structure currently aimed at (ship or asteroid)
         private GameObject _aimHighlight;    // marker on the aimed cell
         private Material _aimHighlightMat;   // marker material — tinted by mining progress (#685)
+        private PlacementGhost _evaDoorGhost; // #2119: the door a held door block will hang, shown on the aimed cell
         private string _evaMineProgressStructId; // structure of the last server mining-progress report (#685)
         private Vector3Int _evaMineProgressCell; // its structure-local cell
         private float _evaMineProgressFraction;  // 0..1 of the way to breaking
@@ -573,6 +574,11 @@ namespace BlocksBeyondTheStars.Client
                 case Phase.Landing: UpdateSequence(rising: false); break;
                 case Phase.Boarding: UpdateBoarding(); break;
                 default: if (_eva) { UpdateEva(); } else { UpdateCruise(); } break;
+            }
+
+            if (!_eva)
+            {
+                _evaDoorGhost?.Hide(); // #2119: the door preview belongs to the spacewalk only
             }
 
             PlaceCamera();
@@ -2247,6 +2253,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _evaHasAim = AimVoxel(out _evaAimStructId, out _evaAimHit, out _evaAimPlace);
             UpdateAimHighlight();
+            UpdateEvaDoorGhost();
 
             if (Game.MenuOpen || !_evaHasAim || string.IsNullOrEmpty(_evaAimStructId))
             {
@@ -2271,6 +2278,72 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Game.Network?.SendStructureEdit(_evaAimStructId, _evaAimPlace.x, _evaAimPlace.y, _evaAimPlace.z, mine: false, item);
                 }
+            }
+        }
+
+        /// <summary>#2119: while a door block is held on a spacewalk and the suit aims at the own ship, the door it will
+        /// hang shows in the cell — turned the way the server will turn it (jambs decide, else it faces the suit), so a
+        /// door never looks like a block before it is placed.</summary>
+        private void UpdateEvaDoorGhost()
+        {
+            string doorKind = null;
+            if (_evaHasAim && !Game.MenuOpen && _evaAimStructId == _shipStructureId && _shipCells != null && _ship != null)
+            {
+                string item = Game.ItemInSlot(Game.SelectedHotbarSlot);
+                string placed = string.IsNullOrEmpty(item) ? null : Game.Content?.GetItem(item)?.PlacesBlock;
+                doorKind = DoorBlocks.IsDoorBlock(placed) ? DoorBlocks.KindForBlock(placed) : null;
+            }
+
+            if (doorKind == null)
+            {
+                _evaDoorGhost?.Hide();
+                return;
+            }
+
+            var cells = _shipCells;
+            var cell = _evaAimPlace;
+            bool axisX = DoorProbe.AxisForPlacedDoor(
+                (x, y, z) => cells.TryGetValue(new Vector3i(x, y, z), out var b) && !b.IsAir,
+                cell.x, cell.y, cell.z, _evaYaw - _yaw);
+            var t = _ship.transform;
+            _evaDoorGhost ??= new PlacementGhost();
+            _evaDoorGhost.ShowDoorAt(t.TransformPoint(new Vector3(cell.x + 0.5f, cell.y, cell.z + 0.5f) - _shipCentre), t.rotation, doorKind, axisX);
+        }
+
+        /// <summary>#2119: the doors the owner built into the ship, drawn closed in their doorways (the cells are air).
+        /// Built from the design's door list; the flight view never opens them — you board through the hatch.</summary>
+        private void AddPlacedDoors(GameObject ship, BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign d, Vector3 centre)
+        {
+            int n = d.DoorX?.Length ?? 0;
+            if (n == 0 || d.DoorY == null || d.DoorZ == null || d.DoorKind == null || d.DoorAxisX == null)
+            {
+                return;
+            }
+
+            n = Mathf.Min(n, Mathf.Min(d.DoorY.Length, Mathf.Min(d.DoorZ.Length, Mathf.Min(d.DoorKind.Length, d.DoorAxisX.Length))));
+            var mat = Lit(new Color(0.62f, 0.68f, 0.76f));
+            for (int i = 0; i < n; i++)
+            {
+                var verts = new List<Vector3>();
+                var cols = new List<Color>();
+                var tris = new List<int>();
+                DoorMesh.Append(verts, cols, tris, DoorGeometry.Closed(d.DoorKind[i] ?? DoorBlocks.Energy, 1f), d.DoorAxisX[i], Vector3.zero, _ => Color.white, withField: false);
+                if (verts.Count == 0)
+                {
+                    continue;
+                }
+
+                var mesh = new Mesh { name = "PlacedDoor" };
+                mesh.SetVertices(verts);
+                mesh.SetTriangles(tris, 0);
+                mesh.RecalculateNormals();
+                mesh.RecalculateBounds();
+
+                var go = new GameObject("PlacedDoor");
+                go.transform.SetParent(ship.transform, false);
+                go.transform.localPosition = new Vector3(d.DoorX[i] + 0.5f, d.DoorY[i], d.DoorZ[i] + 0.5f) - centre;
+                go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                go.AddComponent<MeshRenderer>().sharedMaterial = mat;
             }
         }
 
@@ -2980,6 +3053,8 @@ namespace BlocksBeyondTheStars.Client
             _shipVox = null;
             _aimHighlight = null; // marker lived under _root (destroyed)
             _aimHighlightMat = null; // its material dies with it (#685)
+            _evaDoorGhost?.Destroy(); // #2119: the door preview is a scene object of its own
+            _evaDoorGhost = null;
             _ship = null;
             _exhaust = null;
             _thruster = null; // particle thruster lived under the destroyed _ship
@@ -3570,6 +3645,7 @@ namespace BlocksBeyondTheStars.Client
             // used to see straight into the hull). The field drops (hides) on an EVA so you can still board.
             // Detected from the cells so it tracks any ship's actual rear opening, not a hard-coded box.
             AddRearHatchDoor(ship, cells, _shipCentre, minX, maxX, minY, maxY, minZ, maxZ);
+            AddPlacedDoors(ship, d, _shipCentre); // #2119: the doors the owner built are doors in flight too
             return ship;
         }
 

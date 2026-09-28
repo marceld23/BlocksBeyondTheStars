@@ -78,6 +78,14 @@ namespace BlocksBeyondTheStars.Client
             _go.SetActive(true);
         }
 
+        /// <summary>#2119: the same closed door, placed by a world position and rotation — for a door built onto a ship
+        /// floating in space, whose grid turns with the ship instead of lining up with the world.</summary>
+        public void ShowDoorAt(Vector3 position, Quaternion rotation, string kind, bool axisX)
+        {
+            ShowDoor(Vector3Int.zero, kind, axisX);
+            _go.transform.SetPositionAndRotation(position, rotation);
+        }
+
         public void Hide()
         {
             if (_go != null && _go.activeSelf)

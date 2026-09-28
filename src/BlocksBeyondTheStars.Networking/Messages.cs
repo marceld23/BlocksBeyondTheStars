@@ -1696,6 +1696,16 @@ public sealed class SpaceShipDesign
     public float DockZ { get; set; }
     public int DockOutX { get; set; }
     public int DockOutZ { get; set; }
+
+    /// <summary>#2119: the doors the owner built into this ship (design-local doorway base cells, parallel arrays):
+    /// the kind ("slide"/"hinge"/"wood"/"energy") and whether the leaf runs along X. The flight view draws a closed
+    /// door there — the cell itself is air, like every doorway. The design's own doors are not listed (the hatch
+    /// keeps its energy field). Contractless-additive: older payloads carry none.</summary>
+    public int[] DoorX { get; set; } = System.Array.Empty<int>();
+    public int[] DoorY { get; set; } = System.Array.Empty<int>();
+    public int[] DoorZ { get; set; } = System.Array.Empty<int>();
+    public string[] DoorKind { get; set; } = System.Array.Empty<string>();
+    public bool[] DoorAxisX { get; set; } = System.Array.Empty<bool>();
 }
 
 /// <summary>Server → client: a player's ship parked on the current world as a placed voxel OBJECT

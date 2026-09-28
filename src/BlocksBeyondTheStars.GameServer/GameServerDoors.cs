@@ -176,6 +176,23 @@ public sealed partial class GameServer
                 var local = ship.ToLocal(new Vector3i(
                     (int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z)),
                     _world.Circumference);
+
+                // #2119: a door the owner built into the ship hangs exactly as it was built — one cell wide, on the
+                // axis recorded then (like a door built in the world), instead of being re-measured into a gap.
+                if (ship.Structure.PlacedDoorAxes.TryGetValue(local, out bool placedAxisX))
+                {
+                    _doors.Add(new ServerDoor
+                    {
+                        Id = _nextDoorId++,
+                        Kind = kind,
+                        Pos = pos,
+                        AxisX = placedAxisX,
+                        Width = 1f,
+                        OpenRange = SlideDoorOpenRange,
+                    });
+                    continue;
+                }
+
                 _doors.Add(MakeDoor(kind, pos, ShipHatchOpenRange, forceAxisX: local.Z == 0 ? true : (bool?)null,
                     solid: (x, y, z) => !ship.Structure.Get(ship.ToLocal(new Vector3i(x, y, z), _world.Circumference)).IsAir));
             }

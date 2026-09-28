@@ -15,7 +15,12 @@ existing wreck-repair mechanic (*restore toward a design reference, paying a man
 **The unifying idea.** Ship integrity is the diff between a design reference and the current state, in two
 layers; repair pays to close that diff:
 - **Structure (voxels):** the reference is the ship's design — a pristine `BuildShipStructureFrom(persistEdits:false)`
-  build whose cells equal the live structure's `Baseline`. Any baseline cell that is now air is a missing cell.
+  build whose cells equal the live structure's `Baseline`. Any baseline cell that is now air is a missing cell —
+  except (#2121) a cell the **owner** took out on purpose (an own-ship spacewalk mine persists its air edit with
+  `OwnerRemovedMark` in the shape field → `SpaceStructure.OwnerRemoved`) and a doorway the owner hung a door in
+  (`PlacedDoorAxes`, #2119): those are the ship's new design, so the manifest skips them. A wreck's carve (and the
+  test carve) writes a plain air edit and stays damage. A guided per-cell repair of an owner-removed cell still works
+  and clears the mark.
 - **Hull (stat):** the reference is `_shipHullMax`; the deficit is the diff. (Modules / `StationCells` are
   protected and never appear in the manifest.)
 

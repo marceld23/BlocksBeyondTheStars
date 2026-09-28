@@ -4094,6 +4094,21 @@ namespace BlocksBeyondTheStars.Client
                         return;
                     }
 
+                    // #2120: building onto your OWN ship past its design box grows the ship (the server keeps it within
+                    // 15 × 15 × 15 and out of the ground) — but only from inside it: in the ship interior out in space,
+                    // or standing within its cells on a planet. A wall built against the hull from outside stays a
+                    // world block.
+                    if (aimedShip != null && aimedShip.OwnerId == Game.LocalPlayerId && StandingInShip(aimedShip))
+                    {
+                        var el = ShipLocal(aimedShip, placeCell);
+                        bool extOriented = PendingPlacement(item, hitCell, placeCell, out _, out int extUp, out int extYaw);
+                        Game.Network.SendStructureEdit(aimedShip.StructureId, el.x, el.y, el.z, mine: false, item,
+                            upFace: extOriented ? extUp : _placeUpFace,
+                            yaw: extOriented ? extYaw : _placeYaw);
+                        TriggerSwing();
+                        return;
+                    }
+
                     if (def.PlacesBlock == "radio_beacon" && BeaconLabelUi.Instance != null)
                     {
                         // Name the beacon before placing it — the typed label travels with the place (item 37).
@@ -4126,6 +4141,22 @@ namespace BlocksBeyondTheStars.Client
                     TriggerSwing();
                 }
             }
+        }
+
+        /// <summary>#2120: whether the player stands in their ship — anywhere in the ship interior out in space; on a planet
+        /// inside the parked ship's design box, or on one of its cells (the floor of an extension built onto it).</summary>
+        private bool StandingInShip(LandedShipModel ship)
+        {
+            if (Game.LoadingPlanetType == "ship_interior")
+            {
+                return true;
+            }
+
+            var p = transform.position;
+            var local = ShipLocal(ship, new Vector3Int(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y + 0.05f), Mathf.FloorToInt(p.z)));
+            bool inBox = local.x >= 0 && local.x < ship.Width && local.y >= 0 && local.y <= ship.Height
+                && local.z >= 0 && local.z < ship.Length;
+            return inBox || ship.Cells.ContainsKey(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(local.x, local.y - 1, local.z));
         }
 
         /// <summary>A world cell mapped into a parked ship's structure-local grid (wrap-aware on X).</summary>

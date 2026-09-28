@@ -321,9 +321,10 @@ public sealed partial class GameServer
         _ => "iron_wall",
     };
 
-    /// <summary>True when the player has stepped out of the ship's structure bounds — through the hatch, off
-    /// the edge, or off the floor into the surrounding void. Used to turn "walk out the door in the in-space
-    /// ship interior" into an EVA instead of a fall.</summary>
+    /// <summary>True when the player has stepped out of the ship — through the hatch, off the edge, or off the
+    /// floor into the surrounding void. Used to turn "walk out the door in the in-space ship interior" into an EVA
+    /// instead of a fall. #2120: "the ship" is its real cells, so walking through the hatch into an extension the
+    /// owner built behind it stays inside (it used to eject into a spacewalk at the design box's edge).</summary>
     private bool SteppedOutOfShipHull(Vector3f pos)
     {
         var rec = CurLanded;
@@ -332,12 +333,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        const float margin = 0.4f;
-        var s = rec.Structure;
-        double dx = WorldConstants.WrapDeltaX(pos.X - rec.Origin.X, _world.Circumference);
-        return pos.Y < rec.Origin.Y - margin
-            || dx < -margin || dx > s.Width + margin
-            || pos.Z < rec.Origin.Z - margin || pos.Z > rec.Origin.Z + s.Length + margin;
+        return !WithinShipExtents(rec, pos, 0.4f);
     }
 
     private void SendShipStations(PlayerSession session)
@@ -561,7 +557,8 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (LandedBoundsContain(rec, p))
+            // #2120: the design box always holds air; an extension the owner built only where it is sealed.
+            if (LandedBoundsContain(rec, p) || (!IsNpcShipKey(key) && WithinShipExtents(rec, p, 0f) && InSealedShipAir(rec, p)))
             {
                 return true;
             }
@@ -569,6 +566,9 @@ public sealed partial class GameServer
 
         return false;
     }
+
+    /// <summary>A landed NPC trader's hull ("npc:&lt;id&gt;") — never grown by anyone, its box is all there is.</summary>
+    private static bool IsNpcShipKey(string key) => key.StartsWith("npc:", System.StringComparison.Ordinal);
 
     /// <summary>
     /// The ground footprint a hull of this size occupies when stamped centred on a pad — the same
@@ -770,6 +770,12 @@ public sealed partial class GameServer
             session.State.AboardShip = aboard;
             SendInventory(session);   // cargo is only included while aboard
             SendPlayerState(session);
+
+            // #2120: stepping into an extension of your own ship that is not sealed — say why the air is gone.
+            if (!aboard && InShipInterior(session.State.PlayerId) && WithinShipExtents(CurLanded, session.State.Position, 0f))
+            {
+                Send(session, new ServerMessage { Text = "@srv.ship.extension_unsealed" });
+            }
         }
     }
 }

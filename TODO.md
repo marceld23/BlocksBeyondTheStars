@@ -36,9 +36,20 @@ Eight F1 reports from Screelit (Justus) on v2026.9.17 and Marcel's decisions, al
 2. ✅ **#2118 "WO?"** — the flight resumes where the ship floated: `SpaceState` carries a resume pose (position +
    heading, additive fields); the ship's own pose is kept apart from the EVA suit's (`SpaceInstance.ShipPoses`), so
    boarding from a spacewalk remembers the ship; undocking back to an EVA uses the same pose.
-3. **#2119 doors on ships**, 4. **#2120 ship extensions up to 15³ with sealed air**, 5. **#2121 the repair panel and
-   the owner's own changes**, 6. **#2122 seats**, 7. **#2123 NPC facial hair**, 8. **#2124 object block faces + front
-   facing**, 9. **#2125 the intercity monorail (gen 19)**, 10. **#2126 the VEGA panel tab** — in progress.
+3. ✅ **#2119 doors on ships** — a door block built onto/into an authored ship (spacewalk or on foot) is a real door:
+   the cell stays a doorway, `SpaceStructure.PlacedDoorAxes` + `DoorKinds`, persisted as the door block in the cell's
+   structure edit (axis in the shape field), hung one wide by `RegisterDoors`, picked up again (world mine, ship edit,
+   spacewalk); the flight view draws them (`SpaceShipDesign.DoorX/Y/Z/Kind/AxisX`, additive) and shows the door ghost
+   on a spacewalk (`PlacementGhost.ShowDoorAt`).
+4. ✅ **#2120 ship extensions** — authored ships grow up to 15³ (`ShipExtensionFits`; on foot only into open air
+   of the world); the hatch ejects into a spacewalk only outside the real cell extents; aboard = design box OR a
+   sealed pocket (`EnsureShipAir`: outside flood over the extents, airtight full cubes + whole door openings seal,
+   cached per structure revision); the ship interior's void world has no air outside the ship; a hint on stepping
+   into an unsealed extension; the client routes building from inside the ship past the box to the ship.
+5. ✅ **#2121 repair** — owner-mined cells (`OwnerRemovedMark` in the edit's shape field) and owner-built doorways are
+   the new design; a hit still counts.
+6. **#2122 seats**, 7. **#2123 NPC facial hair**, 8. **#2124 object block faces + front facing**, 9. **#2125 the
+   intercity monorail (gen 19)**, 10. **#2126 the VEGA panel tab** — in progress.
 
 ### 🛢️ Justus' ideas 2026-09 — oil, the drill laser, slithering worms, equipment slots, sea + sky giants, the gas giant, the monorail train (#2104: #2105–#2114, 2026-09-27, branch feat/justus-ideas-2026-09, terrain generation 18)
 

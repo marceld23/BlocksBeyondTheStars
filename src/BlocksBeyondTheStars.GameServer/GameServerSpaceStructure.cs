@@ -70,6 +70,24 @@ public sealed class SpaceStructure
     /// the door block the player actually placed, so a wooden/hinge door stays hand-operated (#1021).</summary>
     public Dictionary<Vector3i, string> DoorKinds { get; } = new();
 
+    /// <summary>#2119: doorway cells the OWNER put a door into (not the design's own doors) → the wall axis the door
+    /// was hung along (true = the leaf runs along X). Such a door is one block wide, can be picked up again, and is
+    /// persisted as the door block in the cell's structure edit (the axis in the edit's shape field).</summary>
+    public Dictionary<Vector3i, bool> PlacedDoorAxes { get; } = new();
+
+    /// <summary>#2121: design cells the owner deliberately took out (a hull cell mined on a spacewalk to make room
+    /// for an extension) — the ship's new design, not damage, so the repair never walls them up again.</summary>
+    public HashSet<Vector3i> OwnerRemoved { get; } = new();
+
+    /// <summary>Bumped on every cell or doorway change — the key of the cached extents + sealed air (#2120).</summary>
+    public int Revision { get; set; }
+
+    /// <summary>#2120: the cached sealed-air cells (structure-local) and the cell extents, valid for <see cref="AirRevision"/>.</summary>
+    public HashSet<Vector3i>? SealedAir { get; set; }
+    public Vector3i ExtentMin { get; set; }
+    public Vector3i ExtentMax { get; set; }
+    public int AirRevision { get; set; } = -1;
+
     /// <summary>The medbay heal-tank cell (respawn point), if the design carries one.</summary>
     public Vector3i? MedbayCell { get; set; }
 
@@ -84,6 +102,7 @@ public sealed class SpaceStructure
 
     public void Set(Vector3i pos, BlockId block)
     {
+        Revision++;
         if (block.IsAir)
         {
             Cells.Remove(pos);
@@ -576,9 +595,29 @@ public sealed partial class GameServer
     {
         foreach (var edit in _repo.LoadStructureEdits(StructureEditStoreId(s)))
         {
+            var pos = edit.WorldPosition;
+
+            // #2119: a door the owner built is a doorway, not a voxel — the cell stays air and a real door hangs in it.
+            if (edit.Block != BlockId.AirValue && _content.BlockById(new BlockId(edit.Block)) is { } def && DoorBlocks.IsDoorBlock(def.Key))
+            {
+                s.Set(pos, BlockId.Air);
+                AddPlacedShipDoor(s, pos, DoorBlocks.KindForBlock(def.Key), edit.Shape != PlacedDoorAxisZ);
+                continue;
+            }
+
+            RemovePlacedShipDoor(s, pos); // a later edit on a door's cell (picked up, built over) ends the door
+            if (edit.Block == BlockId.AirValue && edit.Shape == OwnerRemovedMark)
+            {
+                s.OwnerRemoved.Add(pos); // #2121: taken out on purpose, not by a hit
+            }
+            else
+            {
+                s.OwnerRemoved.Remove(pos);
+            }
+
             // With the form (#1943) — and always AS STORED, so an edit on a cell the builder shaped (the foot
             // half of the cabin bed, #1941) replaces that form instead of inheriting it.
-            s.Set(edit.WorldPosition, new BlockId(edit.Block), 0, 0, edit.Shape);
+            s.Set(pos, new BlockId(edit.Block), 0, 0, edit.Block == BlockId.AirValue ? 0 : edit.Shape);
         }
     }
 
@@ -663,6 +702,18 @@ public sealed partial class GameServer
             }
 
             var existing = s.Get(pos);
+
+            // #2119: a door the owner built into the ship comes out again on a spacewalk too.
+            if (existing.IsAir && isOwn && s.Kind == "ship" && PlacedDoorCovering(s, pos) is { } shipDoor)
+            {
+                if (TakeShipDoor(session, s, shipDoor))
+                {
+                    ResendShipDesignToInstance(instance, s, p.PlayerId);
+                }
+
+                return;
+            }
+
             if (existing.IsAir)
             {
                 Reject(session, "structure", "@srv.structure.nothing");
@@ -742,7 +793,9 @@ public sealed partial class GameServer
             // player changes are stored), so the edit survives a server restart + re-entry into space.
             if (s.Kind == "ship")
             {
-                _repo.SetStructureBlock(StructureEditStoreId(s), pos, BlockId.AirValue);
+                // #2121: the owner took it out on purpose — the new design, never "damage" for the repair.
+                _repo.SetStructureBlock(StructureEditStoreId(s), pos, BlockId.AirValue, OwnerRemovedMark);
+                s.OwnerRemoved.Add(pos);
             }
 
             // Bank the mined block's drops (ore from asteroids; rebuild materials from a ship hull) — the
@@ -797,9 +850,16 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!s.Get(pos).IsAir)
+        if (!s.Get(pos).IsAir || (s.Kind == "ship" && PlacedDoorCovering(s, pos) is not null))
         {
             Reject(session, "structure", "@srv.place.not_empty");
+            return;
+        }
+
+        // #2120: a ship grows up to the Ship Keel's 15 × 15 × 15, not further.
+        if (s.Kind == "ship" && !ShipExtensionFits(s, pos))
+        {
+            Reject(session, "structure", "@srv.structure.ship_too_big");
             return;
         }
 
@@ -817,6 +877,17 @@ public sealed partial class GameServer
             SendInventory(session);
         }
 
+        // #2119: a door built onto the ship on a spacewalk is a real door — a doorway with the door hung in it, drawn
+        // closed by the flight view and registered the moment the ship is walked or parked.
+        if (s.Kind == "ship" && DoorBlocks.IsDoorBlock(blockDef.Key))
+        {
+            float suitYaw = instance.PlayerPoses.TryGetValue(p.PlayerId, out var suitPose) ? suitPose.Yaw : 0f;
+            float shipYaw = instance.ShipPoses.TryGetValue(p.PlayerId, out var shipPose) ? shipPose.Yaw : 0f;
+            BuildShipDoor(s, pos, blockDef, suitYaw - shipYaw);
+            ResendShipDesignToInstance(instance, s, p.PlayerId);
+            return;
+        }
+
         s.Set(pos, blockDef.NumericId);
 
         // item 20 S4 durable save: a hull cell the owner built persists as a per-cell delta (own ship only;
@@ -824,6 +895,7 @@ public sealed partial class GameServer
         if (s.Kind == "ship")
         {
             _repo.SetStructureBlock(StructureEditStoreId(s), pos, blockDef.NumericId.Value);
+            s.OwnerRemoved.Remove(pos);
         }
 
         BroadcastToInstance(instance, new StructureBlockChanged
@@ -897,6 +969,17 @@ public sealed partial class GameServer
 
         if (intent.Mine)
         {
+            // #2119: a door the owner built into the ship is picked up again (an authored ship's own doors stay).
+            if (!_ship.IsCustom && s.Get(pos).IsAir && PlacedDoorCovering(s, pos) is { } shipDoor)
+            {
+                if (TakeShipDoor(session, s, shipDoor))
+                {
+                    RefreshParkedShipDoors(rec);
+                }
+
+                return;
+            }
+
             if (s.Baseline.Contains(pos))
             {
                 // A self-built ship stays the player's own design: mining a hull cell is a DESIGN change
@@ -943,14 +1026,18 @@ public sealed partial class GameServer
             return;
         }
 
-        // Place: only into free space INSIDE the ship bounds, attached to something (no floating junk).
-        if (pos.X < 0 || pos.X >= s.Width || pos.Y < 0 || pos.Y > s.Height || pos.Z < 0 || pos.Z >= s.Length)
+        // Place: into free space attached to something (no floating junk) — inside the ship bounds, or (#2120) on an
+        // authored ship anywhere the ship may grow: within 15 × 15 × 15 and into open air (never into the ground or
+        // another building of the world it is parked on). A self-built ship keeps its own construction rules.
+        if (!ShipCellBuildable(rec, pos))
         {
-            Reject(session, "structure", "@srv.structure.inside_only");
+            Reject(session, "structure", !_ship.IsCustom && !ShipExtensionFits(s, pos)
+                ? "@srv.structure.ship_too_big"
+                : "@srv.structure.inside_only");
             return;
         }
 
-        if (!s.Get(pos).IsAir)
+        if (!s.Get(pos).IsAir || PlacedDoorCovering(s, pos) is not null)
         {
             Reject(session, "structure", "@srv.place.not_empty");
             return;
@@ -1016,6 +1103,15 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2119: a door built into an authored ship is a real door — the doorway stays air, the door hangs in it
+        // (it used to become a cube with the door picture on every face).
+        if (DoorBlocks.IsDoorBlock(blockDef.Key))
+        {
+            BuildShipDoor(s, pos, blockDef, p.Yaw);
+            RefreshParkedShipDoors(rec);
+            return;
+        }
+
         // Furniture keeps its FORM aboard as well (#1943): a bed built into a cabin used to become a cube with
         // the bed picture on all six faces, because a ship edit stored the block id alone.
         int shape = StampStructurePropShape(s, intent, blockDef.Key, pos, p.Yaw);
@@ -1023,7 +1119,7 @@ public sealed partial class GameServer
         if (blockDef.Key == BedBlock && FurnitureShapes.TryBedPartnerOffset(shape, out int fdx, out int fdz))
         {
             var foot = new Vector3i(pos.X + fdx, pos.Y, pos.Z + fdz);
-            if (foot.X < 0 || foot.X >= s.Width || foot.Z < 0 || foot.Z >= s.Length || !s.Get(foot).IsAir)
+            if (!ShipCellBuildable(rec, foot) || !s.Get(foot).IsAir || PlacedDoorCovering(s, foot) is not null)
             {
                 shape = PropShapes.BedSingleCell; // no room for the foot half in this cabin — keep the short bed
             }
@@ -1207,8 +1303,16 @@ public sealed partial class GameServer
             i++;
         }
 
+        // #2119: the doors the owner built, drawn closed by the flight view (their cells are air).
+        var doors = s.PlacedDoorAxes.OrderBy(d => d.Key.X).ThenBy(d => d.Key.Y).ThenBy(d => d.Key.Z).ToList();
+
         Send(session, new SpaceShipDesign
         {
+            DoorX = doors.Select(d => d.Key.X).ToArray(),
+            DoorY = doors.Select(d => d.Key.Y).ToArray(),
+            DoorZ = doors.Select(d => d.Key.Z).ToArray(),
+            DoorKind = doors.Select(d => s.DoorKinds.TryGetValue(d.Key, out var k) ? k : DoorBlocks.Energy).ToArray(),
+            DoorAxisX = doors.Select(d => d.Value).ToArray(),
             Id = s.Id,
             Kind = kindOverride ?? s.Kind,
             PosX = s.Position.X,

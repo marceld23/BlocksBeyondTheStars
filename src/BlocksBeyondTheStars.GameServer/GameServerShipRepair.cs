@@ -71,14 +71,16 @@ public sealed partial class GameServer
             : BuildShipStructureFrom("ship:" + ownerId, ownerId,
                 _content.GetShip(_ship.ShipType) ?? _content.GetShip("starter"), persistEdits: false);
 
-    /// <summary>Missing design cells: baseline cells that are currently air, with the block the design wants there.</summary>
+    /// <summary>Missing design cells: baseline cells that are currently air, with the block the design wants there.
+    /// #2121: a cell the owner took out on purpose (to build onward, a doorway for an extension) is the ship's new
+    /// design, not damage — the repair leaves it, and so is a doorway the owner hung a door in.</summary>
     private IEnumerable<(Vector3i Cell, BlockDefinition Block)> EnumerateShipRepairCells(SpaceStructure live, SpaceStructure design)
     {
         foreach (var cell in live.Baseline)
         {
-            if (!live.Get(cell).IsAir)
+            if (!live.Get(cell).IsAir || live.OwnerRemoved.Contains(cell) || PlacedDoorCovering(live, cell) is not null)
             {
-                continue; // still intact
+                continue; // still intact — or changed by its owner, which is design, not damage
             }
 
             var want = design.Get(cell);
@@ -300,7 +302,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!live.Get(cell).IsAir)
+        if (!live.Get(cell).IsAir || PlacedDoorCovering(live, cell) is not null) // #2121: a doorway the owner hung a door in
         {
             Reject(session, "ship_repair", "@srv.repair.cell_intact");
             return;
@@ -339,6 +341,7 @@ public sealed partial class GameServer
     private void CommitShipRepairCell(PlayerSession session, SpaceStructure live, SpaceInstance? instance, Vector3i cell, BlockId block)
     {
         live.Set(cell, block);
+        live.OwnerRemoved.Remove(cell); // asked for back on purpose — part of the ship again
         _repo.SetStructureBlock(live.Id, cell, block.Value);
 
         var msg = new StructureBlockChanged { StructureId = live.Id, X = cell.X, Y = cell.Y, Z = cell.Z, Block = block.Value };

@@ -1961,7 +1961,10 @@ public sealed partial class GameServer
             // Above the atmosphere (built a tower up into space) the air runs out too, even on a breathable
             // world — the suit tank drains until the player descends back below the line. Life support wins
             // over the altitude line as well, so a base founded on a peak above it still breathes.
-            if (!submerged && (lifeSupport || (!p.AboveAtmosphere && !p.InEva && AtmosphereBreathable && !InSpsLab(p.Position)))) // 2026-09: a lab module holds no air
+            // #2120: the ship interior's void world "breathes" only so the cabin needs no special case — out in space
+            // there is no air: an extension that is not sealed is outside the ship's air, helmet on.
+            bool worldAir = AtmosphereBreathable && !InShipInterior(p.PlayerId);
+            if (!submerged && (lifeSupport || (!p.AboveAtmosphere && !p.InEva && worldAir && !InSpsLab(p.Position)))) // 2026-09: a lab module holds no air
             {
                 // Aboard the ship (life support), boarded on a station (its life support), oxygen disabled
                 // by rules, or a breathable atmosphere: regenerate, no drain (up to the tank capacity).
@@ -4607,6 +4610,12 @@ public sealed partial class GameServer
 
         // A player-built door fills an air cell as an entity — mining it removes the door + returns the item.
         if (RemovePlayerDoorAt(session, pos))
+        {
+            return;
+        }
+
+        // #2119: a door the player built into their own parked ship is the ship's — picking it up is a ship edit.
+        if (TryPickUpShipDoor(session, pos))
         {
             return;
         }

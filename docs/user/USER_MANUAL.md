@@ -554,6 +554,12 @@ separate unlock; admins can still disable it through server world rules.
   **furnish the interior**: place blocks in free cabin space (and mine those again) — they stay with
   the ship across launches, landings and the walk-in interior. The hull cannot be damaged and ship
   modules (medbay, cockpit, …) cannot be removed. Step or hop up through the hatch to enter.
+- **Grow your ship**: on a spacewalk you can build onto its hull (and cut hull cells out of it); from inside you
+  can keep building outward — up to **15 × 15 × 15 blocks** in all. A **door** you build into the ship is a real
+  door (you see it while placing, it opens and closes, it shows on the ship in flight, and mining it gives it back).
+  An extension counts as ship and has **air only when it is sealed** — airtight walls (glass counts) and a door in
+  every opening; step into an open one and your helmet goes on. Walking through your hatch into a sealed extension
+  keeps you inside the ship; a spacewalk starts only when you leave the ship's blocks.
 
 ### Inventory & cargo hold
 - Your **inventory** is your personal backpack — **36 slots** since 2026-09 (a nine-wide grid: the
@@ -714,8 +720,9 @@ separate unlock; admins can still disable it through server world rules.
   ship on foot afterwards; the launch check re-runs every start (no engine → grounded until you add one).
 
 ### Repairing your own ship
-- Combat dents your ship's **hull** (it never regenerates on its own), and EVA-carved hull cells stay missing
-  until you refill them. Whenever your ship needs work, a **"Repair ship" / "Schiff reparieren"** panel sits on
+- Combat dents your ship's **hull** (it never regenerates on its own), and hull cells lost in a wreck stay missing
+  until you refill them. Cells **you** cut out on a spacewalk (to build onward) and doorways you hung a door in are
+  your ship's new shape, not damage — the repair leaves them alone. Whenever your ship needs work, a **"Repair ship" / "Schiff reparieren"** panel sits on
   the right of the HUD (a hull bar plus the materials still needed; it greys out and says so while you are
   short). To repair, stand at the **cockpit** or the **ship console** and press **R** — one action fixes hull and
   cells together. The panel refreshes on every landing and login, so it is never stale.
