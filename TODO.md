@@ -24,6 +24,21 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚝 Monorail playtest fixes (#2129, 2026-09-28, branch fix/monorail-ride-and-glow)
+
+Marcel's first ride in release 2026.9.18 fell out of the back of the moving train, and the line looked like a pale
+pole with an untextured block on it.
+
+- ✅ **Riders stay in the moving wagon.** The cause was a client-side desync: `Physics.autoSyncTransforms` is off, and
+  `CharacterController.Move` threw away the parent wagon's motion between physics steps, so the rider drifted out of
+  the rear. The fix: `Physics.SyncTransforms()` before moving a rider, and `TrainView` poses the wagons first.
+- ✅ **Stepping in boards.** Walking or jumping into a wagon, even a moving one, boards it without E (edge-triggered).
+  Walking through an open end into the next wagon moves the frame there instead of leaving. Walking off sets the
+  rider down where they stepped off, not 2.6 m beside the wagon.
+- ✅ **The line is a blue energy band.** Crossed additive ribbons, a soft glow gradient, HDR colour for bloom, and
+  pulses travelling along it. A stop is an amber glow on the band instead of a solid cube. No texture was missing.
+- Open: Marcel's playtest in the test world "Zugstrecke" (build ≥ this merge).
+
 ### 🛢️ Justus' ideas 2026-09 — oil, the drill laser, slithering worms, equipment slots, sea + sky giants, the gas giant, the monorail train (#2104: #2105–#2114, 2026-09-27, branch feat/justus-ideas-2026-09, terrain generation 18)
 
 Justus' six F1 idea reports of 2026-09-27 and Marcel's decisions (all in ONE branch and ONE PR, built package after

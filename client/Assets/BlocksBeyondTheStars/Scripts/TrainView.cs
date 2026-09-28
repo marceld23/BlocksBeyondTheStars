@@ -19,8 +19,10 @@ namespace BlocksBeyondTheStars.Client
     /// arc (the cab's arc from the server, extrapolated by speed and direction between updates and eased to each new one,
     /// the wagons behind it by the train's spacing); a wagon's transform IS the rider's frame: local X across, Y up from
     /// the floor, Z toward the cab — the player controller parents itself to it while aboard and the remote avatars are
-    /// placed with <see cref="Transform.TransformPoint"/>.
+    /// placed with <see cref="Transform.TransformPoint"/>. It runs early in the frame (#2129) so the wagons are posed before
+    /// the player controller syncs physics and moves a rider standing in one.
     /// </summary>
+    [DefaultExecutionOrder(-40)]
     public sealed class TrainView : MonoBehaviour
     {
         public GameBootstrap Game;
@@ -99,6 +101,51 @@ namespace BlocksBeyondTheStars.Client
                     {
                         distance = d;
                         best = t;
+                        wagon = i;
+                    }
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>#2129: the train whose wagon holds the feet at <paramref name="scenePos"/> — inside the walls, from just
+        /// under the floor to below the roof — or null. Standing on the roof or beside the train is not inside. With an
+        /// <paramref name="endSlack"/> a point up to that far past a wagon's open end still counts (the gap between two
+        /// coupled wagons); the wagon it overshoots least wins.</summary>
+        public NetTrain WagonAt(Vector3 scenePos, out int wagon, float endSlack = 0f)
+        {
+            wagon = 0;
+            NetTrain best = null;
+            float bestOver = float.MaxValue;
+            if (Game?.Trains == null)
+            {
+                return null;
+            }
+
+            foreach (var t in Game.Trains)
+            {
+                if (t == null || !_trains.TryGetValue(t.Id, out var view) || view.Root == null || !view.Root.activeSelf)
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < view.Wagons.Count; i++)
+                {
+                    var root = view.Wagons[i].Root;
+                    if (root == null)
+                    {
+                        continue;
+                    }
+
+                    var local = root.transform.InverseTransformPoint(scenePos);
+                    float over = Mathf.Max(0f, Mathf.Abs(local.z) - (RailRules.WagonLength * 0.5f));
+                    if (Mathf.Abs(local.x) <= (RailRules.WagonWidth * 0.5f) - 0.1f
+                        && over <= endSlack && over < bestOver
+                        && local.y >= -0.3f && local.y <= RailRules.WagonHeight - 0.4f)
+                    {
+                        best = t;
+                        bestOver = over;
                         wagon = i;
                     }
                 }

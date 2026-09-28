@@ -1699,14 +1699,17 @@ separate unlock; admins can still disable it through server world rules.
 ### Monorail hover train (Justus' idea)
 - **The line.** Craft **rail pylons** (blueprint *Monorail*, or buy them from a **rail dealer** — place a *Rail Dealer's
   Post* at your base). Place a row of pylons: each one **links itself** to the last one you placed within **32 blocks**, as
-  long as the line does not bend more than about **30°** — and a glowing **energy line** appears between them. **Stack**
+  long as the line does not bend more than about **30°** — and a glowing blue **energy band** appears between them, with
+  pulses of light travelling along it. **Stack**
   pylons to lift the line over things. A line that would run **through solid blocks is refused** ("Obstacle") — give it
   room. A pylon carries **at most two links** (no forks). The **rail linker** couples any two pylons by hand (use it on
   the first, then the second): close a **loop**, join two lines, or — on two linked pylons — uncouple them.
 - **Stops.** A **rail stop** placed beside the line (within four blocks) halts a train on autopilot for a few seconds. It
-  is a Crystal-Net device: a signal on its port (a switch, a button, a sensor) sends the halted train off at once.
+  is a Crystal-Net device: a signal on its port (a switch, a button, a sensor) sends the halted train off at once. The
+  band glows amber where a stop catches it.
 - **The train.** Use the **monorail cab** on a line and it appears there, hovering. Use a **seat wagon**, **sleeper
-  wagon** or **bar wagon** just behind the last wagon to couple it on (six wagons at most). **E** near a wagon boards it;
+  wagon** or **bar wagon** just behind the last wagon to couple it on (six wagons at most). **E** near a wagon boards it
+  — and so does simply **stepping in**: walk through a door or jump into a wagon, even a moving one, and you ride along;
   inside, **you walk around while it moves** — the wagon is your ground, wagon to wagon through the open ends — or sit
   down on a seat (E beside it; jump or move to stand up). **E in the cab** opens the panel: **speed 1–3**, **halt / go**,
   **autopilot** (the train runs by itself, halts at every stop, and turns round at the ends of an open line — on a
