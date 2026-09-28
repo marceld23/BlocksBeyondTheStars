@@ -116,7 +116,7 @@ Last updated: 2026-08-26.
 | **1 – 9** | Select hotbar slot |
 | **Middle mouse** | **Hotbar slot actions** on the selected slot: swap it against any backpack item, and for a building material also colour it (dye / glow / own pattern) or re-form it — see §5 → Hotbar slot actions (rebindable) |
 | **F** | Attack with the held tool/weapon — hits what's **under your crosshair** (the reticle turns red over a target; with **auto-aim** on, the nearest enemy in front of you is acquired automatically) |
-| **R** | At your own **cockpit / ship console** while the repair panel is up: repair the ship (see §5 → Repairing your own ship); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder or stairs** selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
+| **R** | At your own **cockpit / ship console** while the repair panel is up: repair the ship (see §5 → Repairing your own ship); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder, stairs or a block with a front** (machines, counters, devices) selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
 | **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food |
@@ -1764,6 +1764,12 @@ separate unlock; admins can still disable it through server world rules.
   the vertical axis — it always stays upright so beds and campfires keep working. Symmetric forms (sphere,
   dome, cylinder, …) ignore orientation. Mining returns the shaped item; orientation is re-derived each
   time you place it again.
+- **Blocks that face you:** machines, counters, screens and Crystal Net devices have a **front, sides and a top of
+  their own** (a forge shows its fire on the front and bricks on the sides, a crate its lid on top, a workbench its
+  tools on top and drawers on the sides). When you place one, its **front turns toward you** — a watcher and a Device
+  Eye are the exception: their eye looks the way you are looking. While you hold such a block, the preview shows an
+  **arrow** on the side that will be the front; press **R** (**Shift+R** backwards) to turn it before you place it.
+  Mining the block gives back the normal item.
 - **Auto follows your crosshair:** when a cell has no floor under it, the shape leans on **the wall face you
   actually clicked** instead of whichever neighbouring wall the game finds first. Building on a floor still
   keeps the shape upright, so extending a floor sideways lays the next block flat as before.

@@ -71,7 +71,23 @@ Eight F1 reports from Screelit (Justus) on v2026.9.17 and Marcel's decisions, al
    couples it. Both stations on the world map. `CurrentTerrainGeneration` 18 → 19, no chunk changes. Tests:
    `IntercityRailTests`. Docs: MONORAIL.md, WORLD_GENERATION §35. Open: playtest on a gen-19 world with a line; the
    pre-existing rider jump when a train reverses at a line end.
-10. **#2124 object block faces + front facing** — in progress.
+10. ✅ **#2124 object blocks get their own sides, tops and fronts** — 73 object blocks declare `tileKind`; 62 picture
+    cubes keep their picture on the front (or on top) and wear casings, lids or sides. 33 new AI face tiles (`face_*`:
+    14 shared casings + 19 bespoke) dealt into the atlas extras band (`FaceTileBand`, loud on overflow). 34 blocks with
+    `"facing"` store their front in the cube descriptor's up-face field (`CubeFacing`; descriptor 0 = the front is
+    worked out from the neighbours, so world generation is unchanged), placed facing the player (watcher + Device Eye
+    look away); the rotate key and a ghost arrow show the front; drops strip it. The stretcher shows its picture on steel
+    legs. Tests: `BlockFaceTextureTests`, `CubeFacingTests`, `AtlasSlotAllocatorTests`. Doc: CUSTOM_SHAPES.md "Cube
+    faces, face tiles and fronts". Not yet: the held block, drop cubes, inventory icons and the editors' voxel views
+    still show one tile on all faces.
+
+**Found on the way:** the Unity EditMode suite has two failures that are already red on main (`ae8c8f34`):
+`ChunkMesherGoldenEditModeTests` (stale pins — the actual hashes 0xb2fba41e63f8dc45 / 0x3c749dd2a6cc18d1 are identical with
+and without #2124) and `InputAbstractionEditModeTests` (FeedCreature missing from the rebind groups).
+
+**Status 2026-09-28:** all ten built on the branch, merged from four worktrees (three helper worktrees for parallel
+work, removed after merging). Open: the playtests (a same-body landing after the interior; a door + sealed extension
+behind the hatch; two players on one chair; NPC beards; the VEGA tab; block fronts; a gen-19 world with a line).
 
 ### 🛢️ Justus' ideas 2026-09 — oil, the drill laser, slithering worms, equipment slots, sea + sky giants, the gas giant, the monorail train (#2104: #2105–#2114, 2026-09-27, branch feat/justus-ideas-2026-09, terrain generation 18)
 
