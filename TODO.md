@@ -88,6 +88,7 @@ and without #2124) and `InputAbstractionEditModeTests` (FeedCreature missing fro
 **Status 2026-09-28:** all ten built on the branch, merged from four worktrees (three helper worktrees for parallel
 work, removed after merging). Open: the playtests (a same-body landing after the interior; a door + sealed extension
 behind the hatch; two players on one chair; NPC beards; the VEGA tab; block fronts; a gen-19 world with a line).
+**Released** in **v2026.9.19** "the intercity release" (2026-09-29).
 
 ### 🚝 Monorail playtest fixes (#2129, 2026-09-28, branch fix/monorail-ride-and-glow)
 
@@ -103,6 +104,7 @@ pole with an untextured block on it.
 - ✅ **The line is a blue energy band.** Crossed additive ribbons, a soft glow gradient, HDR colour for bloom, and
   pulses travelling along it. A stop is an amber glow on the band instead of a solid cube. No texture was missing.
 - Open: Marcel's playtest in the test world "Zugstrecke" (build ≥ this merge).
+- **Released** in **v2026.9.19** (2026-09-29).
 
 ### 🛢️ Justus' ideas 2026-09 — oil, the drill laser, slithering worms, equipment slots, sea + sky giants, the gas giant, the monorail train (#2104: #2105–#2114, 2026-09-27, branch feat/justus-ideas-2026-09, terrain generation 18)
 
@@ -140,6 +142,7 @@ package in this order):
     rim waterfalls of water (gated on `IsGasWorld`, the class exists from gen 18 only; golden unchanged); the gas sea is
     shaded as a drifting haze (mesher mode 5, a world-space noise field in the tile's own tones via `_Sc_GasLo/Mid/Hi`,
     wisp layers under the surface, soft edges) instead of the gas tile repeated once per block with water's effects.
+    **Released** in **v2026.9.19** (2026-09-29).
 
 Analysis 2026-09-27 (gitignored, `analysis/justus-ideas-2026-09-27.md`); decisions Q1–Q13 recorded in the epic.
 

@@ -11,6 +11,101 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.19] — 2026-09-29
+
+The intercity release. On new worlds, two towns are often joined by an **intercity monorail** now: a station at the
+edge of each town and a **public train** that shuttles between them on its own — step in and ride, no ticket needed.
+Your **ship grows**: build onto it on a spacewalk or keep building outward from inside, up to 15 × 15 × 15 blocks, hang
+**real doors** in it and seal the new rooms to fill them with air. Machines and counters get **a front, sides and a
+top of their own** and turn to face you when you place them, villagers grow **beards**, and a chair holds **one
+sitter**. Justus' eight reports drove most of it — plus the fixes from the first rides on the hover train and the first
+visits to the gas giant.
+
+ℹ️ **Compatibility:** the network protocol stays at version 8, and saves migrate on their own. The intercity lines
+belong to **new worlds** (terrain generation 19); the worlds you already have keep their terrain and their towns
+exactly as they are. Everything else — the ship fixes, doors and extensions, seats, faces, block fronts, the VEGA tab
+and the train and gas-giant fixes — works in old worlds too. Gas giants made with 2026.9.18 lose the water on their
+islands as well; everything you built there stays. An older game version should update before it joins a 2026.9.19
+world. The desktop game updates itself on start, and the browser version is always current.
+
+### 🚉 The intercity monorail (#2125)
+
+- On a **new world** with at least two towns or cities, six worlds in ten join the two closest ones with a monorail
+  line: a **station** at the edge of each town — platform, benches, lamps and a skylit roof — and pylons along the
+  way, the route cut cleanly through hills and forests.
+- A **public train** (a cab and a seat wagon) runs back and forth on its own and waits about **30 seconds** at each
+  station. Walk up and press **E** (or simply step in), press E beside a seat to sit down, and **F** gets you off.
+  It belongs to everyone: no tickets, no ID cards, no vending machines — and nobody can steer it, stop it, pack it up
+  or couple wagons onto it.
+- Both stations show on the **world map** ("… Station"); the stations and the line's pylons can't be mined.
+
+### 🚀 The ship in space (#2117 #2118 #2119 #2120 #2121)
+
+- **"THE NOTHING! (again)"** — taking the helm again from inside your ship (or walking out through the airlock) and
+  then landing on the same world could leave you standing in an empty void. The game now always knows which world
+  lies under the flight, so a landing comes down on real ground.
+- **"WHERE?"** — the flight picks up **where your ship floated**, pointing the same way, whether you come back from
+  the cabin, the helm, the hatch or a spacewalk.
+- **Doors on ships:** a door you build into your ship is a real door — you see it while placing, it opens and closes,
+  it shows on the ship in flight, and mining it gives it back.
+- **Growing your ship:** build onto the hull on a spacewalk, or keep building outward from inside, up to
+  **15 × 15 × 15 blocks** in all. A new room counts as ship and has **air only when it is sealed** — airtight walls
+  (glass counts) and a door in every opening; step into an open one and your helmet goes on, and a hint tells you
+  why. Walking through the hatch into a sealed extension keeps you aboard; a spacewalk starts only when you leave the
+  ship's blocks.
+- **Repair** leaves your changes alone: cells you cut out on purpose and doorways you hung a door in are your ship's
+  new shape, not damage.
+
+### 🪑 One seat, one sitter (#2122)
+
+- A seat somebody already sits on — another player or a villager — can't be taken any more ("Someone is already
+  sitting there."), and villagers no longer sit down into you: they wait beside the chair and sit once you get up.
+- Residents, professionals and station crew each get a **free chair** of their own instead of sharing one; when the
+  tavern runs out of chairs, the others use a chair at home or spend the evening standing.
+
+### 🧔 Faces and block fronts (#2123 #2124)
+
+- Villagers lose the teal breathing strip that looked like a moustache. Instead everyone has a **face of their own**
+  — clean-shaven, a moustache, a goatee, a beard or a full beard in their hair colour — and androids get a small
+  **speaker grille**.
+- **62 machines, counters, screens and Crystal-Net devices** get their own **front, sides and top** — a forge shows
+  its fire on the front and bricks on the sides, a crate its lid on top, a workbench its tools on top and drawers on
+  the sides — with 33 new textures for it.
+- Blocks with a front **turn it toward you** when you place them. While you hold one, the preview shows an **arrow**
+  on the front; **R** (Shift+R backwards) turns it before you place it. A watcher and a Device Eye still look the way
+  you are looking.
+
+### 💬 VEGA folds away (#2126)
+
+- A VEGA message you leave alone for about **45 seconds** folds into a small **tab** beside the objective that shows
+  how many messages are waiting, instead of covering the screen. **N** (pad **View**, touch **NEXT ▶**) or a click or
+  tap on the tab opens it again — nothing is lost — and the Continue button can be clicked and tapped.
+
+### 🚝 Hover train fixes (#2129)
+
+- Riders **stay in the moving train**: in 2026.9.18 the first rides slid out at the back of the wagon, which on a
+  raised line meant a long fall.
+- **Stepping in boards:** walk through a door or jump into a wagon, even a moving one, and you ride along — no E
+  needed. Walking through the open end into the next wagon keeps you aboard, and stepping off sets you down right
+  where you stepped off.
+- The line is a glowing **blue energy band** now, with pulses of light travelling along it, and a stop is an **amber
+  glow** on the band instead of a plain block.
+
+### 🪐 The gas giant's look (#2128)
+
+- The gas sea is a **drifting haze** in amber and violet, streaked along the wind and deeper the further you look —
+  instead of one gas tile repeated in a block grid with water's foam and shine.
+- The floating islands are **bare rock**: no more ponds and waterfalls pouring from their rims on a −120 °C world
+  that has no water.
+
+### 🙏 Thanks
+
+To **Justus** for eight reports in one go (#2127) — the two ship bugs, the doors, the extensions, the seats, the
+beards, the block faces and the intercity idea — and to everyone who rode the first trains and flew out to the first
+gas giants.
+
+Full details of every change are in the pull requests: #2130, #2131 and #2132.
+
 ## [2026.9.18] — 2026-09-28
 
 The ideas release. Five worlds' worth of ideas from the school club and from Justus, all in one version: **oil** under
@@ -6192,7 +6287,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.18...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.19...HEAD
+[2026.9.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.18...v2026.9.19
 [2026.9.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.17...v2026.9.18
 [2026.9.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.16...v2026.9.17
 [2026.9.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.15...v2026.9.16
