@@ -201,6 +201,7 @@ public sealed partial class GameServer
             }
         }
 
+        AppendIntercityPois(session, pois); // #2125: the two stations of the intercity line
         AppendUniqueSitePois(session, pois); // #1129: this world's one-of-a-kind place, once shared
         AppendLandedTraderPoi(session, pois); // #1904: a trader ship parked here right now (live, never persisted)
 
@@ -686,8 +687,10 @@ public sealed partial class GameServer
     /// The seat style (#586) picks how the foundation couples to the terrain: legacy/flat/slope keep the classic
     /// foundation + stepped skirt, shelf cuts into rugged relief and fills with stone, stilts raise a platform
     /// over water on pile columns, lava raises a basalt plinth above a lava sheet, island keeps the floating
-    /// deck. Must run inside a repo transaction (called once per settlement from the batched stamp).</summary>
-    private void StampSettlementBlocks(PlacedSettlement p, string surface)
+    /// deck. Must run inside a repo transaction (called once per settlement from the batched stamp).
+    /// <paramref name="crownRing"/> false keeps the vegetation carve inside the footprint (#2125: a station stamped beside
+    /// a town must not reach into the town's own timber).</summary>
+    private void StampSettlementBlocks(PlacedSettlement p, string surface, bool crownRing = true)
     {
         var s = p.Structure;
         int gy = p.GroundY;
@@ -742,10 +745,11 @@ public sealed partial class GameServer
         //    left alone entirely when a player has built there (a log cabin beside the village is theirs).
         //    Runs on every load, so worlds stamped before this pass heal on their next start.
         var vegetation = SettlementVegetationIds;
-        bool ringIsSomeonesBuild = FootprintHasPlayerEdits(origin.X - (SettlementCrownMargin - 2), origin.Z - (SettlementCrownMargin - 2),
+        int crown = crownRing ? SettlementCrownMargin : 0;
+        bool ringIsSomeonesBuild = crownRing && FootprintHasPlayerEdits(origin.X - (SettlementCrownMargin - 2), origin.Z - (SettlementCrownMargin - 2),
             gy, s.Width + 2 * (SettlementCrownMargin - 2), SettlementVegetationRise, s.Length + 2 * (SettlementCrownMargin - 2));
-        for (int x = -SettlementCrownMargin; x < s.Width + SettlementCrownMargin; x++)
-            for (int z = -SettlementCrownMargin; z < s.Length + SettlementCrownMargin; z++)
+        for (int x = -crown; x < s.Width + crown; x++)
+            for (int z = -crown; z < s.Length + crown; z++)
             {
                 bool inside = x >= 0 && x < s.Width && z >= 0 && z < s.Length;
                 if (!inside && ringIsSomeonesBuild)
@@ -1531,7 +1535,7 @@ public sealed partial class GameServer
             }
         }
 
-        return false;
+        return OverlapsIntercityRail(x, z, halfExtent); // #2125: the stations and the route belong to the towns
     }
 
     // --- count + balance model ----------------------------------------------------------------------------
@@ -1919,8 +1923,13 @@ public sealed partial class GameServer
     public IReadOnlyList<(Vector3i Min, Vector3i Max, int GroundY, bool Ruined)> SettlementBoxesForTest
         => _settlements.Select(s => (s.Min, s.Max, s.GroundY, s.Ruined)).ToList();
 
-    /// <summary>True if the block belongs to an intact (protected) settlement — ruins are scavengeable.</summary>
-    public bool IsSettlementBlock(Vector3i pos)
+    /// <summary>True if the block belongs to an intact (protected) settlement — ruins are scavengeable — or to the
+    /// intercity line that connects two of them (#2125: its stations and generated pylons), so every protection check
+    /// (mining, blasts, the pump, the drills, fire) treats the line like the towns it serves.</summary>
+    public bool IsSettlementBlock(Vector3i pos) => IsSettlementBoxBlock(pos) || IsIntercityRailBlock(pos);
+
+    /// <summary>True if the block lies in an intact settlement's protected box.</summary>
+    private bool IsSettlementBoxBlock(Vector3i pos)
     {
         int circ = _world.Circumference;
         foreach (var s in _settlements)

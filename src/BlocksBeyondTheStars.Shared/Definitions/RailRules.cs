@@ -58,6 +58,24 @@ public static class RailRules
     /// <summary>How long an autopilot train waits at a stop before it moves on (a signal on the stop's port departs it early).</summary>
     public const double StopHaltSeconds = 8.0;
 
+    /// <summary>The owner id of a <b>public</b> train (#2125): the generated intercity line's train belongs to nobody. No
+    /// player id is ever empty (a player id is the player's name), so the empty owner is an unambiguous mark on the wire
+    /// (<c>NetTrain.OwnerId</c>) and in the save — no new field, no protocol change.</summary>
+    public const string PublicOwnerId = "";
+
+    /// <summary>Whether a train with this owner is a public one (#2125): anyone may ride it, nobody may steer, halt, stow
+    /// or couple it.</summary>
+    public static bool IsPublic(string? ownerId) => string.IsNullOrEmpty(ownerId);
+
+    /// <summary>How long a public train waits at each station (#2125) — long enough for a player to walk up and board.</summary>
+    public const double PublicStopHaltSeconds = 30.0;
+
+    /// <summary>The public train's speed setting (1..3, see <see cref="SpeedTable"/>): the middle one, 8 blocks/s.</summary>
+    public const int PublicTrainSpeed = 2;
+
+    /// <summary>The public train's wagons from the cab backwards (#2125): the cab and one passenger wagon with six seats.</summary>
+    public static readonly string[] PublicTrainWagons = { CabItemKey, "wagon_seats" };
+
     /// <summary>A stop block counts for the line when it stands within this many blocks of the line.</summary>
     public const float StopReach = 4f;
 

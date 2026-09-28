@@ -18,7 +18,7 @@ All surface structures are stamped from `GameServer.LoadWorld` (`GameServer.cs`)
 `ServerConfig.Place*` flag. The new stampers join the existing chain:
 
 ```
-StampSettlement → StampRuins → StampBanditCamps → StampMonuments → StampFactories → StampWreck
+StampSettlement → StampIntercityRail → StampRuins → StampBanditCamps → StampMonuments → StampFactories → StampWreck
                 → StampVaults → StampDataCubes → StampNetFragments → StampChests
 ```
 
@@ -28,6 +28,7 @@ StampSettlement → StampRuins → StampBanditCamps → StampMonuments → Stamp
 | Monuments | `StampMonuments` (`GameServerMonuments.cs`) | `PlaceMonuments` | 0–3, one per archetype; airless worlds **included** |
 | Factories | `StampFactories` (`GameServerFactories.cs`) | `PlaceFactories` | ~0–2, mostly none; skipped on airless worlds |
 | Chests | `StampChests` (`GameServerChests.cs`) | `PlaceChests` | ~0–2, mostly none |
+| Intercity line (#2125) | `StampIntercityRail` (`GameServerIntercityRail.cs`) | `PlaceIntercityRail` + `IntercityRailChance` | 0–1, generation 19+, needs two towns — see [MONORAIL.md](MONORAIL.md) |
 
 Every count/position is a hash of `seed ^ StableHash("<kind>:" + locationId)`, so adding any one of them
 leaves the rest of the universe unchanged. Placement reuses the settlement allocator

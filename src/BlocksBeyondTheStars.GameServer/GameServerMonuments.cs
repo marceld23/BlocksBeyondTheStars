@@ -112,6 +112,8 @@ public sealed partial class GameServer
                 (s.Max.X - s.Min.X) / 2 + 1, (s.Max.Z - s.Min.Z) / 2 + 1));
         }
 
+        AppendIntercityReservations(reserved); // #2125: the intercity line's stations and route
+
         foreach (var camp in _banditCamps)
         {
             reserved.Add(((camp.Min.X + camp.Max.X) / 2, (camp.Min.Z + camp.Max.Z) / 2,

@@ -2189,3 +2189,30 @@ about three in five; the sky giant is passive — a spectacle. The class is one 
 Tests: `GasGiantWorldTests` (the data, the flooded heightfield with islands above, the galaxy placement, the all-flying
 roster, the sky giant's rules), `GasGiantServerTests` (the deck, the contact rule, the city air, the sky giant), golden
 `gas_giant-gen18`.
+
+## 35. Generation 19 — the intercity monorail (#2125, 2026-09-28, Justus' idea, Marcel's rules)
+
+**A working train line between two towns.** Marcel's decision on Justus' "abandoned train stations": no tickets, no ID
+cards, no vending machines — if a world has at least two towns, then with a certain probability (60 %) one line connects
+two of them, and it works: a station at each end (considered when the towns are generated), pylons along the route, a
+clear corridor, and a public train you can ride whenever it is there and waiting.
+
+- **The gate.** `WorldDescription.IntercityRailGeneration` = 19 (`CurrentTerrainGeneration` 18 → 19). Nothing in the chunk
+  pipeline changes — the line is a server-side stamp after the settlements — so every chunk of every generation stays
+  bit-identical and no golden moves; the gate only keeps a line from ever growing into a world created before it.
+- **Eligible towns and the roll.** Inhabited settlements of tier `town` or `city` on the ground (not villages, hamlets,
+  ruins or sky-island towns); at least two, then `ServerConfig.IntercityRailChance` (0.6) on a lane of its own
+  (`seed ^ StableHash("intercity:" + body)`), so no other stream moves. The city world has one composed city, a restricted
+  type (Titas, Valuma) stamps no settlements, a gas giant's towns stand on islands, an airless body has none — no line.
+- **The pair and the route.** Closest pair first (wrap-aware centre distance, at most six tries); the stations face each
+  other on the dominant axis; the route's free part (lead to lead) must be 16–960 blocks. Pylon tops follow the generator's
+  surface (`SurfaceHeight`, water surface + ice, lava + 3) two blocks over the highest ground of their spans, limited to a
+  1-in-4 grade from both stations; a pylon taller than 36 or in lava, more than 4000 cells of cut terrain, or a station or
+  span on another settlement, a pad or the wreck site fails the pair deterministically. Planning reads no chunk.
+- **Reserved, pinned, stamped once.** `StampIntercityRail` runs directly after `StampSettlement`, so every later stamper
+  (ruins, bandit camps, factories, monuments via their reserved lists; vaults, data cubes, chests, unique sites via
+  `OverlapsAnySettlement`) keeps clear of the stations and the route. The decision is pinned in the placement records
+  (`rail_line`/0 with the pylon tops, `rail_station`/0,1), the voxels are written once (feature `intercityrail`).
+
+The stations, the corridor carve, protection, the public train and the map markers are described in
+[MONORAIL.md](MONORAIL.md) §"The intercity line". Tests: `IntercityRailTests`.

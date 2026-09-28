@@ -81,7 +81,62 @@ TrainLocalX/Y/Z` (never a persisted bond: a join clears it).
   is never reported aboard. On foot, E near a wagon boards it (`TryBoardNearbyTrain`).
 - `RemotePlayers` — a presence with a frame is placed with `wagon.TransformPoint(local)` on the wagon this client
   draws (no interpolation), so nobody slides through a wall on a curve or across the seam.
-- `TrainCabUi` — the panel (speed 1–3, halt / go, autopilot, leave, pack up).
+- `TrainCabUi` — the panel (speed 1–3, halt / go, autopilot, leave, pack up). A public train (empty owner) shows the
+  "Intercity line" note and only the leave button.
+
+## The intercity line (#2125, terrain generation 19)
+
+Justus suggested abandoned train stations; Marcel's decision instead: **no tickets, no ID cards, no vending machines** —
+if a world has at least two towns, then with a certain probability a working train line connects two of them, the
+station is considered when the towns are generated, and you can ride the train when it is there and waiting.
+
+- **When.** Worlds of `WorldDescription.IntercityRailGeneration` (19) or newer, with at least two **eligible** settlements
+  (inhabited, tier `town` or `city`, on the ground — villages, hamlets, ruins and sky-island towns do not count), roll
+  `ServerConfig.IntercityRailChance` (0.6) once on a lane of their own (`seed ^ StableHash("intercity:" + body)`).
+  `ServerConfig.PlaceIntercityRail` switches new decisions off. The city world (one composed city), restricted types
+  (`RestrictStructures`: Titas, Valuma), gas giants and airless bodies never get one. The pairs are tried closest first
+  (at most six); the first whose route fits wins, a world where none fits simply has no line.
+- **Where it runs** (`GameServerIntercityRail.cs`, `StampIntercityRail`, in the stamp chain right after
+  `StampSettlement`, before the ruins, camps, factories and everything else). Each station (`RailStationGenerator`,
+  20 × 11 × 7, a `SettlementStructure`) stands at its town's edge on the side facing the partner (the dominant axis),
+  slid along that edge toward it, its floor on the town's foundation row. The line: the end pylon inside the hall, the
+  exit pylon at its far end, a straight 10-block lead, then straight to the partner's lead, a pylon every ≤ 18 blocks.
+  Pylon tops stand 2 over the highest ground of their two spans (water at its surface with the ice on top, lava + 3),
+  capped by a 1-in-4 grade from both stations and raised where a valley would be steeper. A route fails (the next pair
+  is tried) when its free part is longer than 960 blocks, a pylon would be taller than 36 or stand in lava, the corridor
+  would cut more than 4000 terrain cells, a station or a span would touch another settlement, a landing pad or the wreck
+  site, or — on a world that was already played on — somebody built there.
+- **Pinned.** `rail_line`/0 (placed or not; `Composition` = the pylon tops `x,y,z` in line order) and `rail_station`/0,1
+  (origin, `GroundY`, seat, `Template` = `heading=N`, `Name` = the town). Every later load replays the records.
+- **Stamped once** (feature `intercityrail`): the stations through `StampSettlementBlocks` (carve, foundation, skirt,
+  apron; the vegetation carve kept inside the hall so it never reaches into the town's timber), the pylon columns from
+  the ground (or the sea bed) up, then the corridor: first exactly the cells `LinkClear` samples, then the wagon's whole
+  box swept every half block — only cells that hold something are touched: a tree that reaches into it is cleared as a
+  whole (connected trunk, crown and fruit within 6 blocks, 600 per tree, 12 000 per line — then cell by cell), terrain
+  and props go cell by cell, fluids stay, a town's blocks are never touched. The boot log reports the pylons, the route,
+  the cells cleared and the milliseconds (0.4–2 s on the probed worlds).
+- **Protected.** `IsSettlementBlock` covers `IsIntercityRailBlock` (the station halls with their plinth, every
+  generated pylon column), so mining (`@srv.protect.rail`), blasts, the pump, the drills and fire all leave it alone. The
+  later stampers keep clear of the stations and of a box around every span (`AppendIntercityReservations`,
+  `OverlapsAnySettlement`).
+- **The runtime.** After `LoadRails`, `EnsureIntercityGraph` registers each station's stop as an owner-less Crystal-Net
+  `RailStop` device and writes the generated nodes and links when missing; after `RebuildRailLines`,
+  `EnsureIntercityTrain` puts the **public train** on the line when it has none: `OwnerId` empty
+  (`RailRules.PublicOwnerId` — no player id is ever empty, so no wire or save change), the cab and a `wagon_seats`,
+  speed 2 (8 blocks/s), autopilot, halted at the lower-arc station. It shuttles (the open line reverses at both ends) and
+  halts at each stop for `RailRules.PublicStopHaltSeconds` (30 s; players' trains keep `StopHaltSeconds`). Anyone may
+  board it; `SetTrainIntent`, `StowTrainIntent`, coupling a wagon, placing a cab on the line and the linker on a
+  generated pylon are refused with `@srv.rail.public_line`; a signal or a press on its stop does not depart it; a stop a
+  player sets beside the line does not join it (only the two stations' stops do); a pylon stacked on a generated one is
+  a node of its own. If its line ever vanished it would simply be removed (it returns to
+  nobody's pack). The graph and the train persist with every other line (`SaveRails` / `LoadRails`).
+- **The map.** Each station is a `rail_station` POI named `poi.rail_station` ("{0} Station" / "Bahnhof {0}"); the client
+  draws it with the station icon in amber (`WorldMap.PoiLook`).
+
+Tests: `IntercityRailTests` (the line between two towns with both stops on it, a clear corridor and both stations on
+the map; the public train shuttling and waiting 30 s at each station, a stranger riding it, every control refused, the
+pylons and the station protected; the same line for the same seed and everything back after a restart; no line on
+generation 18, at chance 0, on an airless, a restricted or the city world; the station layout).
 
 ## Not in this package (honest scope)
 

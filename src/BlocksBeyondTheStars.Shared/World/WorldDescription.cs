@@ -183,8 +183,16 @@ public sealed class WorldDescription
     /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora,
     /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees, #2062 Toxica-Maxima,
     /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant, #2073 Arena Nigra, #2104 Justus' package:
-    /// oil pockets, the worm body plan, the gas giant).</summary>
-    public const int CurrentTerrainGeneration = 18;
+    /// oil pockets, the worm body plan, the gas giant, #2125 the intercity monorail).</summary>
+    public const int CurrentTerrainGeneration = 19;
+
+    /// <summary>The generation of the intercity monorail (#2125, 2026-09, Justus' idea, Marcel's rules): a world with at least
+    /// two inhabited towns or cities has a chance to carry one generated train line between the closest pair of them — a
+    /// station at each end, pylons along the route, a clear corridor, and a public train that shuttles between the stations
+    /// and waits at each one. It is a server-side stamp after the settlements (placement records, voxels once); nothing in
+    /// the chunk pipeline changes, so every chunk of every generation is bit-identical — the gate only keeps a line from
+    /// ever growing into a world of an older generation.</summary>
+    public const int IntercityRailGeneration = 19;
 
     /// <summary>The generation of Justus' package (#2104, 2026-09): <b>oil</b> (#2106) — a finite, still liquid in sealed
     /// tar-rimmed pockets 40–120 below the surface of every living world (<c>PlanetType.HasLife</c>), harvested with the fluid
