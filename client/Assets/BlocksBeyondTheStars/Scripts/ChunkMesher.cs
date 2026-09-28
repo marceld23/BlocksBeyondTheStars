@@ -990,6 +990,25 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                // Per-side tiles of a plain cube (#2124): a machine keeps its picture on its FRONT and wears a casing on
+                // its other sides, a crate gets a lid. The front is the face stored in the cell's descriptor or — for a
+                // generated / pre-#2124 cell, which stores none — the side that looks into the open (CubeFacing.DeriveFront),
+                // so a vendor against a station wall faces the room. A painted design still wins over all of it.
+                var cubeTiles = atlas != null && designId == 0 ? ShapeFaceTextures.CubeTilesFor(content, id) : null;
+                int front = -1;
+                if (cubeTiles != null && cubeTiles.Facing)
+                {
+                    front = CubeFacing.FrontOf(shapeDesc);
+                    if (front < 0)
+                    {
+                        front = CubeFacing.DeriveFront(
+                            traits.ExposesOpaqueFace(worldBlock(wx + 1, wy, wz)),
+                            traits.ExposesOpaqueFace(worldBlock(wx - 1, wy, wz)),
+                            traits.ExposesOpaqueFace(worldBlock(wx, wy, wz + 1)),
+                            traits.ExposesOpaqueFace(worldBlock(wx, wy, wz - 1)));
+                    }
+                }
+
                 // Edge bevel (T0): plain opaque cubes get their exposed convex edges chamfered. Fluids, glass/
                 // fields, flora + foliage keep hard edges (their shaders/geometry are special). openMask marks
                 // which of the 6 faces are exposed — used to inset only the beveled edges + emit chamfers/corners.
@@ -1109,11 +1128,30 @@ namespace BlocksBeyondTheStars.Client
                     {
                         bevelQuad = WaterSurfaceQuad(new Vector3(x, y, z), f);
                     }
-                    // Top/bottom faces take the block's cap tile when it has one (log end grain, #837).
+                    // Top/bottom faces take the block's cap tile when it has one (log end grain, #837). A cube with
+                    // per-side tiles takes its side's tile (#2124); its top picture turns to stand upright for someone
+                    // in front of the block.
                     Rect faceUv = hasCap && dir.Y != 0 ? capUv : uv;
+                    bool ownTile = !(hasCap && dir.Y != 0);
+                    int faceRot = dir.Y != 0 ? uvRot : 0;
+                    if (cubeTiles != null)
+                    {
+                        ushort sideSlot = cubeTiles.SlotOf(CubeFacing.SideOf(f, front));
+                        if (sideSlot != 0)
+                        {
+                            faceUv = atlas.TileUv(sideSlot);
+                            ownTile = false;
+                        }
+
+                        if (f == 0 && front >= 0)
+                        {
+                            faceRot = CubeFacing.TopUvTurns(front);
+                        }
+                    }
+
                     AddFace(verts, designId != 0 ? trisP : transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f,
                         c0, c1, c2, c3, designId != 0 ? designRect : faceUv,
-                        designId != 0 ? 0 : dir.Y != 0 ? uvRot : 0, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation (painted faces never rotate)
+                        designId != 0 ? 0 : faceRot, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation (painted faces never rotate)
                     if (collidable)
                     {
                         // Recorded as a direction bit; the greedy pass after the loop merges these into big
@@ -1126,7 +1164,7 @@ namespace BlocksBeyondTheStars.Client
                     // mode 5 = animated molten lava surface; mode 6 = falling-lava flank (vertical hot streak).
                     // Painted faces force mode 0 — a dye tint (mode 3) would luminance-recolour the design.
                     float faceMode = designId != 0 ? 0f : isLavaSurface ? 5f : (isFallingLava && dir.Y == 0) ? 6f : floraFlag;
-                    if (designId == 0 && !(hasCap && dir.Y != 0))
+                    if (designId == 0 && ownTile)
                     {
                         faceMode += animCode; // #1957 — only a face that shows the block's own tile
                     }
@@ -1206,8 +1244,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     var bevTint = dyed ? dye : painted ? paint : speciesTint;
                     var bevLeaf = new Vector4(0f, bevTint.r, bevTint.g, bevTint.b); // not foliage-cutout
+                    // A cube with a casing (#2124) chamfers its edges in the casing, not in the picture on its front.
+                    ushort bevSlot = cubeTiles != null ? cubeTiles.SlotOf(FaceSide.Side) : (ushort)0;
                     EmitBevel(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        new Vector3(x, y, z), openMask, uv, matR, matG, emission, floraFlag, bevLeaf,
+                        new Vector3(x, y, z), openMask, bevSlot != 0 ? atlas.TileUv(bevSlot) : uv, matR, matG, emission, floraFlag, bevLeaf,
                         Skylight(wx, wy + 1, wz), BlockLightAt(wx, wy + 1, wz), BlockLightDirAt(wx, wy + 1, wz));
                 }
             }
@@ -1244,7 +1284,7 @@ namespace BlocksBeyondTheStars.Client
             data.Connectivity = BlocksBeyondTheStars.Client.ChunkVisibility.ComputeConnectivity((x, y, z) =>
             {
                 var id = chunk.Get(x, y, z);
-                return traits.ExposesOpaqueFace(id) || chunk.GetShape(x, y, z) != 0;
+                return traits.ExposesOpaqueFace(id) || !ShapeCode.IsCube(chunk.GetShape(x, y, z)); // a cube with a stored front (#2124) is still a cube
             });
             data.Pack();
 

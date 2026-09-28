@@ -89,8 +89,19 @@ public sealed class BlockDefinition
     public string? TileKind { get; set; }
 
     /// <summary>Texture slots per part and side of the block's built-in form (#1900), see
-    /// <see cref="BlockFaceTexture"/>. Null = every face shows the slice of the block's own tile it covers.</summary>
+    /// <see cref="BlockFaceTexture"/>. Null = every face shows the slice of the block's own tile it covers.
+    /// A plain CUBE reads the same slots per side (#2124): <c>top</c>, <c>bottom</c>, <c>side</c> and — for a block
+    /// with <see cref="Facing"/> — <c>front</c>.</summary>
     public List<BlockFaceTexture>? Faces { get; set; }
+
+    /// <summary>
+    /// The block has a FRONT (#2124): <c>"toward"</c> turns it to the player who places it (a vending machine, a
+    /// forge, a screen), <c>"away"</c> turns it the way the player looks (an eye that watches what the player
+    /// watched). Null = no front, all four side faces alike. The front face shows the <c>front</c> slot of
+    /// <see cref="Faces"/> (default: the block's own tile); the server stores which face it is in the cell's shape
+    /// descriptor (<see cref="World.CubeFacing"/>). Only for blocks placed as plain cubes.
+    /// </summary>
+    public string? Facing { get; set; }
 
     /// <summary>Animation of the block's OFFICIAL texture (#1957): the speed of the frames bundled as
     /// <c>Resources/textures/&lt;key&gt;__anim.bytes</c> (frames 2..n; frame 1 is the ordinary tile). Null = a still

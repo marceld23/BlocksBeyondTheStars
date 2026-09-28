@@ -65,7 +65,8 @@ refreshed 2026-08-08.
   texture source, world textures, animated tiles, the main-menu form editor and forms over several blocks,
   tool models as data and player tool looks, texture submissions (#1950).
 - [CUSTOM_SHAPES.md](CUSTOM_SHAPES.md) — player-designed block forms: the micro-voxel format, the per-save
-  form registry, the box budget, and how forms are shared.
+  form registry, the box budget, and how forms are shared; also the texture slots of built-in forms (#1900) and of
+  plain cubes — face tiles in the atlas's extras band and the stored front of a block that faces you (#2124).
 - [CREATURE_RIG.md](CREATURE_RIG.md) — how a blocky animal is built and animated: the gait, jointed
   limbs, fins, foot planting on real blocks, and the distance LOD tiers.
 - [CREATURE_TAMING.md](CREATURE_TAMING.md) — taming wild creatures into companions.

@@ -4916,6 +4916,7 @@
   "ui.toollook.hint_pad": "Stick: bewegen · A: malen · X: löschen · Y: Farbe aufnehmen · Steuerkreuz hoch / runter: Schicht · RB: rückgängig · rechter Stick: Vorschau drehen · B: zu den Knöpfen",
   "srv.toollook.limit": "Du hast schon die maximale Zahl eigener Werkzeug-Aussehen.",
   "ui.cat.tex_props": "Türen und Maschinen",
+  "ui.cat.tex_faces": "Blockseiten und Deckel",
   "ui.tex.prop.door_slide_panel": "Schiebetür – Türblatt",
   "ui.tex.prop.door_slide_trim": "Schiebetür – Leuchtstreifen und Rahmen",
   "ui.tex.prop.door_hinge_panel": "Drehtür – Türblatt",

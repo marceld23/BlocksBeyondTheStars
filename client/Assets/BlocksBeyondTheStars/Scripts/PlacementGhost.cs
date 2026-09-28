@@ -46,6 +46,70 @@ namespace BlocksBeyondTheStars.Client
             _go.SetActive(true);
         }
 
+        /// <summary>Shows a cube block that has a FRONT (#2124) — a vending machine, a forge, a watcher — with an arrow
+        /// standing out of the face that will be its front, so "which way will the screen look?" is answered before the
+        /// click. <paramref name="frontFace"/> is a <see cref="CubeFacing"/> face index (2..5).</summary>
+        public void ShowFacingCube(Vector3Int cell, int frontFace)
+        {
+            if (_go == null)
+            {
+                Create();
+            }
+
+            // Facing keys sit above every (shape, yaw, up-face) key (at most 63 << 5 | 31) and apart from the doors (< 0).
+            int key = 0x10000 + frontFace;
+            if (key != _builtKey)
+            {
+                _builtKey = key;
+                var verts = new List<Vector3>();
+                var tris = new List<int>();
+                UnitBox(verts, tris);
+                FrontArrow(verts, tris, frontFace);
+                _mesh.Clear();
+                _mesh.SetVertices(verts);
+                _mesh.SetTriangles(tris, 0);
+                _mesh.RecalculateNormals();
+                _mesh.RecalculateBounds();
+            }
+
+            _go.transform.position = new Vector3(cell.x, cell.y, cell.z);
+            _go.SetActive(true);
+        }
+
+        /// <summary>A flat pyramid on the middle of the front face, its tip pointing out — the "this side" marker.</summary>
+        private static void FrontArrow(List<Vector3> verts, List<int> tris, int frontFace)
+        {
+            var (dx, _, dz) = ShapeCode.FaceDirection(frontFace);
+            var n = new Vector3(dx, 0f, dz);
+            var centre = new Vector3(0.5f, 0.5f, 0.5f) + (n * 0.5f);
+            var side = new Vector3(dz, 0f, -dx); // horizontal, along the face
+            var up = Vector3.up;
+            const float h = 0.22f;
+            Vector3 a = centre + ((-side - up) * h), b = centre + ((-side + up) * h);
+            Vector3 c = centre + ((side + up) * h), d = centre + ((side - up) * h);
+            Vector3 tip = centre + (n * 0.32f);
+            Vector3 inside = centre + (n * 0.1f);
+
+            void Tri(Vector3 p, Vector3 q, Vector3 r)
+            {
+                // Wind every facet outward (away from a point inside the pyramid) whatever the front's direction.
+                Vector3 mid = (p + q + r) / 3f;
+                if (Vector3.Dot(Vector3.Cross(q - p, r - p), mid - inside) < 0f)
+                {
+                    (q, r) = (r, q);
+                }
+
+                int i = verts.Count;
+                verts.Add(p); verts.Add(q); verts.Add(r);
+                tris.Add(i); tris.Add(i + 1); tris.Add(i + 2);
+            }
+
+            Tri(a, b, tip);
+            Tri(b, c, tip);
+            Tri(c, d, tip);
+            Tri(d, a, tip);
+        }
+
         /// <summary>Shows a closed door of <paramref name="kind"/> (width 1) in a world cell, turned for the wall
         /// axis (#1975): the door the server will hang when the held door block is placed here. The mesh comes from
         /// the shared <see cref="DoorGeometry"/>, so the hologram cannot promise a door the world then hangs differently.</summary>

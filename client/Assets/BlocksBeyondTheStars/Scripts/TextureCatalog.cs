@@ -55,6 +55,10 @@ namespace BlocksBeyondTheStars.Client
         public const string GroupIcons = "tex_icons";
         public const string GroupProps = "tex_props";
 
+        /// <summary>The face tiles of blocks (#2124): casings, lids and sides that are no block of their own
+        /// (<c>face_*</c> keys, named by <c>faces[].tile</c> in data/blocks.json).</summary>
+        public const string GroupFaces = "tex_faces";
+
         private static readonly string[] CategoryOrder = { "terrain", "ore", "building", "light", "door", "machine", "flora" };
 
         public static List<TextureEntry> Build(GameContent content, Func<string, string> localize)
@@ -98,6 +102,7 @@ namespace BlocksBeyondTheStars.Client
                     Key = key,
                     Label = key.Replace('_', ' '),
                     Group = key.StartsWith("creature_", StringComparison.Ordinal) ? GroupCreatures
+                        : key.StartsWith("face_", StringComparison.Ordinal) ? GroupFaces
                         : key.StartsWith("avatar_", StringComparison.Ordinal) ? GroupAvatar
                         : key.StartsWith("microfauna_", StringComparison.Ordinal) ? GroupMicrofauna
                         : GroupOther,

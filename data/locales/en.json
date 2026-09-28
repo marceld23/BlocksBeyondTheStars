@@ -4916,6 +4916,7 @@
   "ui.toollook.hint_pad": "Stick: move · A: paint · X: erase · Y: pick colour · D-pad up / down: layer · RB: undo · right stick: turn the preview · B: to the buttons",
   "srv.toollook.limit": "You already have the maximum number of tool looks.",
   "ui.cat.tex_props": "Doors and machines",
+  "ui.cat.tex_faces": "Block sides and lids",
   "ui.tex.prop.door_slide_panel": "Sliding door — leaf",
   "ui.tex.prop.door_slide_trim": "Sliding door — light strip and frame",
   "ui.tex.prop.door_hinge_panel": "Hinged door — leaf",

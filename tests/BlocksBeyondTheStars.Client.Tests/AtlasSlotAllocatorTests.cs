@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -99,5 +100,43 @@ public sealed class AtlasSlotAllocatorTests
         }
 
         Assert.True(strips >= 56, $"only {strips} eight-frame strips fit the dynamic band");
+    }
+
+    [Fact]
+    public void FaceTiles_AreDealtFromTheExtrasBand_InKeyOrder()
+    {
+        // #2124: the atlas paints the face tiles and the mesher maps faces onto them; both deal the slots from the same
+        // key list, so the order must be a pure function of the keys (duplicates and empties collapse).
+        var slots = FaceTileBand.Deal(new[] { "face_b", "face_a", "", "face_b", "face_c" }, out var overflow);
+
+        Assert.Empty(overflow);
+        Assert.Equal(AtlasBands.ExtraStart, slots["face_a"]);
+        Assert.Equal(AtlasBands.ExtraStart + 1, slots["face_b"]);
+        Assert.Equal(AtlasBands.ExtraStart + 2, slots["face_c"]);
+        Assert.Equal(3, slots.Count);
+    }
+
+    [Fact]
+    public void FaceTiles_ThatDoNotFit_AreReportedNotDropped()
+    {
+        var keys = Enumerable.Range(0, FaceTileBand.Capacity + 3).Select(i => $"face_{i:D4}").ToList();
+        var slots = FaceTileBand.Deal(keys, out var overflow);
+
+        Assert.Equal(FaceTileBand.Capacity, slots.Count);
+        Assert.Equal(3, overflow.Count);
+        Assert.All(slots.Values, s => Assert.InRange(s, AtlasBands.ExtraStart, AtlasBands.ExtraEnd - 1));
+    }
+
+    [Fact]
+    public void ShippedFaceTiles_FitTheExtrasBand()
+    {
+        // The content a player runs must never overflow the band: an overflowing face would silently show its block's
+        // own tile (the atlas logs an error, but only in the player's log).
+        var content = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
+        var keys = BlockFaceTextures.TextureOnlyKeys(content.Blocks.Values, key => content.GetBlock(key) != null);
+        FaceTileBand.Deal(keys, out var overflow);
+
+        Assert.NotEmpty(keys);
+        Assert.Empty(overflow);
     }
 }

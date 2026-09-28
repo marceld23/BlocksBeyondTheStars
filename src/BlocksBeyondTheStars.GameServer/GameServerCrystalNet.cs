@@ -115,6 +115,10 @@ public sealed partial class GameServer
     /// <summary>Test seam: the number of registered cells (conduits + devices) in the active world.</summary>
     public int CrystalCellCount => CrystalNet.Cells.Count;
 
+    /// <summary>Test seam: the stored quarter turn of a device (a gate's output / a watcher's eye), or null.</summary>
+    public int? CrystalDeviceYaw(Vector3i cell)
+        => CrystalNet.Cells.TryGetValue(cell, out var c) && !c.IsConduit ? c.Yaw : null;
+
     // ------------------------------------------------------------------------------------------------------
     // Registration: place / mine / load
     // ------------------------------------------------------------------------------------------------------

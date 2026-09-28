@@ -21,12 +21,17 @@ public enum ShapePart : byte
 }
 
 /// <summary>Which way a face of a form looks in the form's OWN frame, before yaw and tilt — so a ladder plate's big
-/// face stays its "top" when it hangs on a wall.</summary>
+/// face stays its "top" when it hangs on a wall. Values are stable: append only.</summary>
 public enum FaceSide : byte
 {
     Top = 0,
     Bottom = 1,
     Side = 2,
+
+    /// <summary>The front of a CUBE block that has one (#2124, <see cref="Definitions.BlockDefinition.Facing"/>): the
+    /// one side face that looks the way the block was turned. Forms never produce it — their faces stay top, bottom
+    /// or side — and a cube without a front shows its <see cref="Side"/> slot on all four sides.</summary>
+    Front = 3,
 }
 
 /// <summary>Names and counts for <see cref="ShapePart"/> and <see cref="FaceSide"/>.</summary>
@@ -36,10 +41,10 @@ public static class ShapeParts
     public const int PartCount = 7;
 
     /// <summary>Number of <see cref="FaceSide"/> values.</summary>
-    public const int SideCount = 3;
+    public const int SideCount = 4;
 
     private static readonly string[] PartNames = { "body", "bed_head", "bed_foot", "pillow", "headboard", "footboard", "rim" };
-    private static readonly string[] SideNames = { "top", "bottom", "side" };
+    private static readonly string[] SideNames = { "top", "bottom", "side", "front" };
 
     /// <summary>The data name of a part, e.g. <c>"bed_head"</c>.</summary>
     public static string Name(ShapePart part) => PartNames[(int)part];
