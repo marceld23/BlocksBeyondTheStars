@@ -66,15 +66,7 @@ public sealed partial class GameServer
             npc.HasWork = true;
             npc.Bed = TakeNearestBed(freeBeds, standing);
             npc.FurnitureScanned = true;
-            if (seats.Count > 0)
-            {
-                npc.Seat = seats[seatCursor % seats.Count];
-                seatCursor++;
-            }
-            else if (npc.Bed is { } own)
-            {
-                npc.Seat = NearestLayoutSeat(settlement, own);
-            }
+            npc.Seat = EveningSeatFor(settlement, seats, ref seatCursor, npc.Bed); // a free one only (#2122)
 
             npc.RoutineEnabled = true;
             _npcs.Add(npc);

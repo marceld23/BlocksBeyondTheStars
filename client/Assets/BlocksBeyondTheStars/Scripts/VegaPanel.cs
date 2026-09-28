@@ -12,7 +12,11 @@ namespace BlocksBeyondTheStars.Client
     /// The HUD companion panel for the ship AI "VEGA": shows her lines with a typewriter effect (queued,
     /// radio blip per line) and a persistent objective chip while the onboarding chain is active, with a
     /// skip button. A revealed page stays until the player presses the continue key — there is no
-    /// auto-dismiss timeout (#1011). Lines arrive as locale KEYS (<see cref="ShipAiLine"/>) and are
+    /// auto-dismiss timeout (#1011). Instead, a revealed (non-prologue) page nobody advanced for a while folds
+    /// into a small "VEGA" tab counting the waiting lines (#2126, <see cref="VegaCollapse"/>); the continue
+    /// control or a click/tap on the tab opens it again with the text intact. The continue hint is a
+    /// clickable pill too — for the mouse wherever the cursor is free (space flight, open prompts) and for
+    /// touch. Lines arrive as locale KEYS (<see cref="ShipAiLine"/>) and are
     /// localized here, so the companion is fully bilingual and offline-safe. Advisor hints (Kind 1)
     /// respect the settings mute.
     /// </summary>
@@ -42,12 +46,29 @@ namespace BlocksBeyondTheStars.Client
         // this box, so a page can never be taller than what VerticalWrapMode.Truncate would show.
         private const float SpeechTextW = 612f, SpeechTextH = 116f;
 
+        // The continue pill (#2126): bottom-right in the speech panel, sized to its text; the collapsed tab sits on the
+        // objective chip's row — at the chip's spot when no objective shows, else just right of the chip.
+        private const float ContinueY = 156f, ContinueH = 28f, ContinuePad = 28f, ContinueRight = 14f;
+        private const float TabH = 40f, TabGap = 8f, TabMinW = 150f, TabMaxW = 480f, TabTextX = 46f;
+
         private Canvas _canvas;
         private GameObject _speech;
         private TMPro.TMP_Text _speechText;
         private TMPro.TMP_Text _continueHint;
+        private RectTransform _continuePill; // the clickable frame around _continueHint (#2126)
+        private TMPro.TMP_Text _skipHint;    // "Skip · [Esc]" on prologue pages, left of the pill (keyboard only)
         private GameObject _chip;
         private TMPro.TMP_Text _chipText;
+
+        // The collapsed tab (#2126) and its state: the fold rule is Unity-free (Client.Core, tested headless).
+        private readonly VegaCollapse _collapse = new VegaCollapse();
+        private GameObject _tab;
+        private RectTransform _tabRect;
+        private TMPro.TMP_Text _tabText;
+        private int _tabCount = -1;                    // the count last drawn, to flash the tab when a line arrives
+        private InputDeviceKind _tabDevice = (InputDeviceKind)(-1);
+        private bool _tabBesideChip;
+        private bool _clicked;                         // the pill or the tab was clicked/tapped since the last frame
 
         private readonly Queue<(string Text, bool Prologue)> _queue = new Queue<(string, bool)>();
         private string _current = string.Empty;  // the page being typed/read (not the whole line)
@@ -123,10 +144,32 @@ namespace BlocksBeyondTheStars.Client
             // Truncate, NOT Overflow: an LLM-authored line has no length bound on the wire, and an
             // over-long one used to run over the continue hint and out of the panel background (#482).
             UiText.Wrap(_speechText, truncate: true); // readable over bright terrain / snow / sky (underlay look)
-            // Lines advance on a KEYPRESS (they queued straight through each other before — unreadable).
-            _continueHint = UiText.Add(_speech.transform, 14, 160, 612, 24, L("ui.vega.next"), 16, UiKit.CyanDim, TextAnchor.MiddleRight, FontStyle.Normal, UiText.Look.Outline);
-            _continueHint.gameObject.SetActive(false);
+            // Lines advance on a KEYPRESS (they queued straight through each other before — unreadable). The hint is
+            // a clickable pill since #2126: brighter and bolder than the old dim 16 px line, and a mouse click (where
+            // the cursor is free) or a tap does what the continue control does.
+            var pill = UiHolo.AddPanel(_speech.transform, 640f - ContinueRight - 200f, ContinueY, 200f, ContinueH,
+                new Color(0.08f, 0.26f, 0.38f, 0.92f), 9f, 1.4f, 1.3f);
+            pill.gameObject.name = "VegaContinue";
+            _continuePill = pill.rectTransform;
+            MakeClickable(pill);
+            _continueHint = UiText.Add(pill.transform, 0, 0, 200f, ContinueH, L("ui.vega.next"), 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
+            _skipHint = UiText.Add(_speech.transform, 14, ContinueY, 300, ContinueH, string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
+            SetContinueVisible(false);
             _speech.SetActive(false);
+
+            // The collapsed tab (#2126): VEGA's icon, her name and the waiting lines, on the chip row; click/tap opens it.
+            var tab = UiHolo.AddPanel(_canvas.transform, 24, ChipY, TabMinW, TabH, new Color(0.05f, 0.10f, 0.16f, 0.86f), 10f, 1.5f, 1.3f);
+            tab.gameObject.name = "VegaTab";
+            _tab = tab.gameObject;
+            _tabRect = tab.rectTransform;
+            MakeClickable(tab);
+            if (avatar != null)
+            {
+                UiKit.AddImage(_tab.transform, 8, 5, 30, 30, avatar, UiKit.Cyan);
+            }
+
+            _tabText = UiText.Add(_tab.transform, TabTextX, 0, TabMaxW - TabTextX, TabH, string.Empty, 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, UiText.Look.Glow);
+            _tab.SetActive(false);
 
             // Objective chip: small persistent strip below the speech spot. (Skipping/restarting the
             // tutorial lives in the Settings tab — the mouse is captured for camera control out here,
@@ -172,8 +215,10 @@ namespace BlocksBeyondTheStars.Client
         /// polls this to keep its scrollback out of the same left-column band.</summary>
         public bool SpeechVisible => _speech != null && _speech.activeSelf;
 
-        /// <summary>Whether the objective chip (y <see cref="ChipY"/>…) is currently drawn — see <see cref="SpeechVisible"/>.</summary>
-        public bool ChipVisible => _chip != null && _chip.activeSelf;
+        /// <summary>Whether the objective chip row (y <see cref="ChipY"/>…) is taken — by the objective chip or by the
+        /// collapsed tab (#2126), which sits on that row — see <see cref="SpeechVisible"/>. A folded panel frees the
+        /// speech band for the chat, the tab keeps the chat's input row off the chip row.</summary>
+        public bool ChipVisible => (_chip != null && _chip.activeSelf) || (_tab != null && _tab.activeSelf);
 
         /// <summary>A client-side hint spoken in VEGA's voice without a server round-trip (#1663) — for UI
         /// lessons only the client knows the moment for (the first time a screen opens). Follows the advisor
@@ -227,6 +272,7 @@ namespace BlocksBeyondTheStars.Client
                 _speech.SetActive(false);
             }
 
+            HideTab(); // a folded line goes with the rest (#2126)
             SetPrologueChrome(false); // never hold an unattended capture run hostage on a story page
             EndStagedPrologue("capture dismiss");
         }
@@ -561,6 +607,8 @@ namespace BlocksBeyondTheStars.Client
                     _speech.SetActive(false);
                 }
 
+                HideTab();
+                _clicked = false;
                 SetPrologueChrome(false);
                 _currentIsPrologue = false;
                 EndStagedPrologue("queue idle"); // finished or skipped — camera back, letterbox out (#760)
@@ -580,19 +628,36 @@ namespace BlocksBeyondTheStars.Client
                 _current = string.Empty;
                 _pages.Clear();
                 _speechText.text = string.Empty;
-                _continueHint.gameObject.SetActive(false);
+                SetContinueVisible(false);
                 StopChatter();
                 return;
             }
 
             // Continue is a rebindable action (#1041): the bound key (default N), the pad's Back button, the
             // touch NEXT button and the context-actions list all land here — the panel used to poll the
-            // raw N key, which no pad or touch device could ever press.
-            bool pressed = InputMap.Down(InputAction.VegaContinue) && !InputCaptured();
+            // raw N key, which no pad or touch device could ever press. A click/tap on the continue pill or the
+            // folded tab counts the same (#2126) — an explicit press, so it is honoured even over a menu.
+            bool pressed = (InputMap.Down(InputAction.VegaContinue) && !InputCaptured()) || _clicked;
+            _clicked = false;
+
+            // Folded into the tab (#2126): the continue control opens it again — it never skips the line unread.
+            if (_collapse.Collapsed)
+            {
+                if (pressed)
+                {
+                    ExpandFromTab();
+                }
+                else
+                {
+                    UpdateTab();
+                }
+
+                return;
+            }
 
             // The hint names the control for the device in hand; re-render it when the player switches
             // device mid-line (picks up the pad, taps the screen).
-            if (_continueHint.gameObject.activeSelf && InputMap.ActiveDevice != _hintDevice)
+            if (ContinueVisible && InputMap.ActiveDevice != _hintDevice)
             {
                 ShowContinueHint();
             }
@@ -624,7 +689,8 @@ namespace BlocksBeyondTheStars.Client
             // Fully revealed: wait for the continue key — and ONLY the key (#1011). The old 25 s
             // auto-advance made hints and story pages vanish before slow readers got through them;
             // nothing gameplay-critical blocks on the panel (later lines just queue), and unattended
-            // capture runs clear it via DismissSpeechForCapture.
+            // capture runs clear it via DismissSpeechForCapture. A page left waiting folds into the tab
+            // instead (#2126) — out of the way, but never gone.
             if (pressed)
             {
                 if (_page < _pages.Count - 1)
@@ -636,8 +702,12 @@ namespace BlocksBeyondTheStars.Client
                     _current = string.Empty;
                     _pages.Clear();
                     _speechText.text = string.Empty;
-                    _continueHint.gameObject.SetActive(false);
+                    SetContinueVisible(false);
                 }
+            }
+            else if (_collapse.Tick(Time.unscaledDeltaTime, fullyRevealed: true, prologue: _currentIsPrologue, hudHidden: InputCaptured()))
+            {
+                CollapseToTab();
             }
         }
 
@@ -648,7 +718,130 @@ namespace BlocksBeyondTheStars.Client
             _shown = 0f;
             _shownChars = -1;
             _speechText.text = string.Empty;
-            _continueHint.gameObject.SetActive(false);
+            SetContinueVisible(false);
+            _collapse.Reset(); // every page gets its own wait before it may fold (#2126)
+        }
+
+        // ---- The continue pill and the folded tab (#2126) ------------------------------------------------------
+
+        /// <summary>Makes a holo panel a click/tap target that acts as the continue control. No pad stop (the pad
+        /// has its own continue button) and no selection on click — a selected button would also fire on Space/Enter,
+        /// and Space is jump.</summary>
+        private void MakeClickable(Image target)
+        {
+            target.raycastTarget = true;
+            var button = target.gameObject.AddComponent<Button>();
+            button.targetGraphic = target;
+            button.transition = Selectable.Transition.None; // the holo shape carries the look (its glow flashes on click)
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            button.onClick.AddListener(UiSound.Click);
+            button.onClick.AddListener(() =>
+            {
+                _clicked = true;
+                UiHolo.Flash(target.GetComponent<UiHolo.Shape>());
+            });
+        }
+
+        /// <summary>A touch tap the full-screen touch look pad caught first (its canvas sits above the HUD): counts as a
+        /// tap on the continue pill or the folded tab when it lands on one (#2126).</summary>
+        public void TapAt(Vector2 screenPos)
+        {
+            if (_canvas == null)
+            {
+                return;
+            }
+
+            // Same camera the canvas's own GraphicRaycaster uses: none for an overlay, the visor HUD camera otherwise.
+            var cam = _canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : _canvas.worldCamera;
+            bool onTab = _tab != null && _tab.activeInHierarchy
+                && RectTransformUtility.RectangleContainsScreenPoint(_tabRect, screenPos, cam);
+            bool onPill = _continuePill != null && _continuePill.gameObject.activeInHierarchy
+                && RectTransformUtility.RectangleContainsScreenPoint(_continuePill, screenPos, cam);
+            if (onTab || onPill)
+            {
+                _clicked = true;
+                UiSound.Click();
+            }
+        }
+
+        private bool ContinueVisible => _continuePill != null && _continuePill.gameObject.activeSelf;
+
+        private void SetContinueVisible(bool on)
+        {
+            if (_continuePill != null && _continuePill.gameObject.activeSelf != on)
+            {
+                _continuePill.gameObject.SetActive(on);
+            }
+
+            if (!on && _skipHint != null && _skipHint.gameObject.activeSelf)
+            {
+                _skipHint.gameObject.SetActive(false); // shown again with the pill (ShowContinueHint) where it applies
+            }
+        }
+
+        /// <summary>Folds the waiting page into the tab: the speech panel goes, the text stays where it is.</summary>
+        private void CollapseToTab()
+        {
+            StopChatter();
+            _speech.SetActive(false);
+            _tabCount = -1; // draw fresh, without the arrival flash
+            _tab.SetActive(true);
+            UpdateTab();
+        }
+
+        /// <summary>Opens the tab again: the same page, fully revealed, with a fresh wait.</summary>
+        private void ExpandFromTab()
+        {
+            _collapse.Expand();
+            HideTab();
+            _speech.SetActive(true);
+            ShowContinueHint();
+            ClientAudio.Instance?.Cue("ai_blip");
+        }
+
+        private void HideTab()
+        {
+            if (_tab != null && _tab.activeSelf)
+            {
+                _tab.SetActive(false);
+            }
+
+            _collapse.Reset();
+            _tabCount = -1;
+        }
+
+        /// <summary>Keeps the tab's text, size and row spot current: the waiting lines (flashing when one more arrives),
+        /// the control that opens it for the device in hand, and beside the objective chip when that is up.</summary>
+        private void UpdateTab()
+        {
+            int count = VegaCollapse.WaitingLines(_queue.Count);
+            bool besideChip = _chip != null && _chip.activeSelf;
+            if (count == _tabCount && InputMap.ActiveDevice == _tabDevice && besideChip == _tabBesideChip)
+            {
+                return;
+            }
+
+            if (_tabCount > 0 && count > _tabCount)
+            {
+                UiHolo.Flash(_tab.GetComponent<UiHolo.Shape>(), 3f, 1.3f, 0.6f); // another line is waiting
+                ClientAudio.Instance?.Cue("ai_blip");
+            }
+
+            _tabCount = count;
+            _tabDevice = InputMap.ActiveDevice;
+            _tabBesideChip = besideChip;
+            string control = _tabDevice switch
+            {
+                InputDeviceKind.Touch => L("ui.touch.next"),
+                InputDeviceKind.Gamepad => InputMap.Glyph(InputAction.VegaContinue),
+                _ => "[" + InputMap.Key(InputAction.VegaContinue) + "]",
+            };
+            _tabText.text = string.Format(L(count == 1 ? "ui.vega.tab_one" : "ui.vega.tab_many"), count, control);
+
+            float width = Mathf.Clamp(TabTextX + _tabText.preferredWidth + 14f, TabMinW, TabMaxW);
+            float x = besideChip ? 24f + 640f + TabGap : 24f;
+            _tabRect.sizeDelta = new Vector2(width, TabH);
+            _tabRect.anchoredPosition = new Vector2(x, -ChipY);
         }
 
         private void ShowContinueHint()
@@ -668,13 +861,27 @@ namespace BlocksBeyondTheStars.Client
             string hint = _pages.Count > 1
                 ? next + "  " + string.Format(L("ui.vega.page"), _page + 1, _pages.Count)
                 : next;
-            if (_currentIsPrologue && _hintDevice == InputDeviceKind.KeyboardMouse)
+
+            // The skip note stays outside the pill (clicking the pill continues, it does not skip).
+            bool skip = _currentIsPrologue && _hintDevice == InputDeviceKind.KeyboardMouse;
+            if (skip)
             {
-                hint += "      " + L("ui.vega.prologue.skip"); // Esc skips the narration (#754) — keyboard only
+                _skipHint.text = L("ui.vega.prologue.skip"); // Esc skips the narration (#754) — keyboard only
             }
 
+            if (_skipHint.gameObject.activeSelf != skip)
+            {
+                _skipHint.gameObject.SetActive(skip);
+            }
+
+            // The pill hugs its text (#2126), right-aligned at the panel's bottom edge (measured live — TMP lays out
+            // against an active object).
+            SetContinueVisible(true);
             _continueHint.text = hint;
-            _continueHint.gameObject.SetActive(true);
+            float width = Mathf.Min(SpeechTextW, _continueHint.preferredWidth + ContinuePad);
+            _continuePill.sizeDelta = new Vector2(width, ContinueH);
+            _continuePill.anchoredPosition = new Vector2(640f - ContinueRight - width, -ContinueY);
+            _continueHint.rectTransform.sizeDelta = new Vector2(width, ContinueH);
         }
 
         /// <summary>Shows/hides the story-page chrome (#754): the dim behind the speech panel, and the

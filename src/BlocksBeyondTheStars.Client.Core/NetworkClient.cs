@@ -688,6 +688,10 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendSetSeated(bool active) => Send(new SetSeatedIntent { Active = active });
 
+        /// <summary>Sits down on the seat at a cell (#2122): the server checks that the seat is there, in reach and
+        /// free, and answers a refusal with an <c>ActionRejected</c> whose action is <c>"seat"</c>.</summary>
+        public void SendSitDown(int x, int y, int z) => Send(new SetSeatedIntent { Active = true, HasCell = true, X = x, Y = y, Z = z });
+
         public void SendSetEva(bool active) => Send(new SetEvaIntent { Active = active });
 
         public void SendDisassemble(string itemKey) => Send(new DisassembleIntent { ItemKey = itemKey });

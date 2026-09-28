@@ -111,15 +111,7 @@ public sealed partial class GameServer
             npc.HasWork = true;
             npc.Bed = bed;
             npc.FurnitureScanned = true; // #1887: the bed is assigned; the seat below
-            if (seats.Count > 0)
-            {
-                npc.Seat = seats[seatCursor % seats.Count];
-                seatCursor++;
-            }
-            else if (bed is { } own)
-            {
-                npc.Seat = NearestLayoutSeat(settlement, own);
-            }
+            npc.Seat = EveningSeatFor(settlement, seats, ref seatCursor, bed);
 
             if (role == "quartermaster")
             {
@@ -246,8 +238,22 @@ public sealed partial class GameServer
         return seats;
     }
 
-    /// <summary>The chair nearest to a bed in the settlement's layout, within <see cref="HomeSeatReach"/>; null when none.</summary>
-    private static Vector3i? NearestLayoutSeat(SettlementInstance settlement, Vector3i bed)
+    /// <summary>A resident's evening seat (#2122): the next free tavern seat, else the nearest free chair by its bed, else
+    /// none (the evening is rested standing) — never a seat another resident already has. The tavern cursor used to wrap,
+    /// so a settlement with more residents than tavern chairs seated two people on one.</summary>
+    private Vector3i? EveningSeatFor(SettlementInstance settlement, List<Vector3i> tavernSeats, ref int cursor, Vector3i? bed)
+    {
+        if (NextFreeSeat(tavernSeats, ref cursor) is { } tavern)
+        {
+            return tavern;
+        }
+
+        return bed is { } own ? NearestLayoutSeat(settlement, own) : null;
+    }
+
+    /// <summary>The unclaimed chair nearest to a bed in the settlement's layout, within <see cref="HomeSeatReach"/>; null
+    /// when none.</summary>
+    private Vector3i? NearestLayoutSeat(SettlementInstance settlement, Vector3i bed)
     {
         var s = settlement.Layout;
         if (s is null)
@@ -268,10 +274,16 @@ public sealed partial class GameServer
                 }
 
                 int d = dx * dx + dz * dz;
-                if (d < bestD)
+                if (d >= bestD)
+                {
+                    continue;
+                }
+
+                var cell = new Vector3i(settlement.Min.X + x, settlement.GroundY + ly, settlement.Min.Z + z);
+                if (!SeatClaimed(cell))
                 {
                     bestD = d;
-                    best = new Vector3i(settlement.Min.X + x, settlement.GroundY + ly, settlement.Min.Z + z);
+                    best = cell;
                 }
             }
 

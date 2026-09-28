@@ -190,6 +190,10 @@ public sealed class PlayerState
     /// presence broadcast so other players see a seated avatar. Not persisted.</summary>
     public bool Seated { get; set; }
 
+    /// <summary>The seat cell (canonical) this player sits on (#2122), so no NPC and no second player sits down into
+    /// them. Null while standing, on a train seat, and for a seated older client that sent no cell. Not persisted.</summary>
+    public Vector3i? SeatCell { get; set; }
+
     // Session cheat toggles (admin only, server-authoritative; not persisted).
     public bool GodMode { get; set; }
     public bool Fly { get; set; }

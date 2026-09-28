@@ -34,6 +34,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Jetpacking;        // show a thrust flame under the avatar while firing
             public ParticleSystem Thrust;  // the persistent flame emitter (#1511), created on first use; dies with Go
             public bool Seated;            // sit pose (#806) — avatar lowered onto the chair seat
+            public Vector3f Reported;      // #2122: the newest reported world position (the seat check reads it)
             public string Frame = string.Empty; // #2113: aboard a train — the wagon frame and the offset in it
             public Vector3 Local;
             public bool Hidden;            // stealth field active, or the player is up in space — no avatar
@@ -94,6 +95,24 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return result;
+        }
+
+        /// <summary>Whether another player sits on the seat cell (<paramref name="x"/>, <paramref name="y"/>,
+        /// <paramref name="z"/>) as far as this client has heard (#2122) — the quick look before sitting down; the
+        /// server has the final word. Train riders sit in a wagon, never on a chair cell.</summary>
+        public bool AnySeatedOn(int x, int y, int z)
+        {
+            int circ = Game != null ? Game.Circumference : BlocksBeyondTheStars.Shared.World.WorldConstants.Circumference;
+            foreach (var r in _remotes.Values)
+            {
+                if (r.Seated && !r.TimedOut && r.Frame.Length == 0
+                    && SeatCells.Covers(r.Reported.X, r.Reported.Y, r.Reported.Z, x, y, z, circ))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>Visible remote avatars as (name, scene position) — the heat signatures the thermal optic
@@ -255,7 +274,8 @@ namespace BlocksBeyondTheStars.Client
                 r.Avatar.SetVisible(!r.Hidden); // the stream resumed — revive unless server-stealthed
             }
 
-            r.Interp.Push(Time.timeAsDouble, new Vector3f(m.X, m.Y, m.Z), m.Yaw);
+            r.Reported = new Vector3f(m.X, m.Y, m.Z);
+            r.Interp.Push(Time.timeAsDouble, r.Reported, m.Yaw);
             r.Jetpacking = m.Jetpacking;
             r.Frame = m.FrameId ?? string.Empty; // #2113
             r.Local = new Vector3(m.LocalX, m.LocalY, m.LocalZ);

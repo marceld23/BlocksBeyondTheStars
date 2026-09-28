@@ -55,6 +55,10 @@ public sealed partial class GameServer
     /// <summary>Horizontal reach around a villager's or crew member's marker in which it finds its bed and seat.</summary>
     private const int FurnitureSearchReach = 8;
 
+    /// <summary>How close to its taken seat an NPC waiting for it (#2122) must still be to sit down once it is free —
+    /// the approach spot is beside the seat, the rest leash lets it drift a little.</summary>
+    private const float SeatWaitReach = 2.5f;
+
     /// <summary>Villagers / crew members that may look for their bed and seat in one tick (each look reads ~1700 cells).</summary>
     private const int FurnitureScansPerTick = 6;
 
@@ -125,6 +129,16 @@ public sealed partial class GameServer
                     {
                         ApplyRoutinePhase(npc, phase);
                     }
+                    else if (npc.SeatWait && npc.Pose == 0 && npc.Goal is null && npc.Seat is { } waitedFor
+                             && WrapDistSq(npc.Pos, new Vector3f(waitedFor.X + 0.5f, waitedFor.Y, waitedFor.Z + 0.5f)) <= SeatWaitReach * SeatWaitReach)
+                    {
+                        // #2122: resting beside a taken seat — sit down once whoever sat there got up.
+                        SitDown(npc, waitedFor);
+                        if (npc.Pose == 1)
+                        {
+                            BroadcastNpcs();
+                        }
+                    }
                 }
             }
 
@@ -152,6 +166,7 @@ public sealed partial class GameServer
     {
         npc.Phase = phase;
         StandUp(npc);
+        npc.SeatWait = false;
         npc.SiteUntil = 0;
         switch (phase)
         {
@@ -252,15 +267,27 @@ public sealed partial class GameServer
         npc.Path = null;
     }
 
-    /// <summary>Sits down on a chair or bench, facing away from its backrest (#1867).</summary>
+    /// <summary>Sits down on a chair or bench, facing away from its backrest (#1867). A seat somebody already sits on —
+    /// a player or another NPC (#2122) — is not sat into: the NPC rests standing beside it and the routine check tries
+    /// again while the phase lasts (<see cref="ServerNpc.SeatWait"/>).</summary>
     private void SitDown(ServerNpc npc, Vector3i seat)
     {
         if (!SeatStillThere(seat))
         {
             npc.Seat = null;
+            npc.SeatWait = false;
             return;
         }
 
+        if (SeatTaken(seat, exceptNpc: npc))
+        {
+            npc.SeatWait = true;
+            npc.ActivityKey = "npc.activity.resting";
+            npc.Path = null;
+            return;
+        }
+
+        npc.SeatWait = false;
         var (bx, bz) = ShapeCode.YawDirection(ShapeCode.OrientationOf(_world.GetShape(seat)));
         npc.Pos = new Vector3f(seat.X + 0.5f, seat.Y, seat.Z + 0.5f);
         npc.Facing = (float)System.Math.Atan2(-bx, -bz);

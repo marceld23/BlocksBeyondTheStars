@@ -1342,6 +1342,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Shows a transient HUD message from a client-side system (e.g. the VEGA autopilot).</summary>
         public void ShowMessage(string text) => LastMessage = text ?? string.Empty;
 
+        /// <summary>Bumped on every refused sit-down (#2122, <c>ActionRejected</c> with action "seat"): the player
+        /// controller, seated since before the bump, stands back up — the toast already says why.</summary>
+        public int SeatRejections { get; private set; }
+
         /// <summary>Opens the story reader panel (#1110) with a localized title/label + text key — or falls
         /// back to the message toast when no reader exists (headless/degraded rigs stay functional).</summary>
         private void OpenReader(string title, string label, string textKey)
@@ -2766,6 +2770,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 Debug.Log($"Action '{m.Action}' rejected: {m.Reason}");
                 LastMessage = RejectionMessage(m.Action, m.Reason);
+                if (m.Action == "seat")
+                {
+                    SeatRejections++; // #2122: somebody sits there — PlayerController stands us back up
+                }
 
                 // The server is authoritative: if a dig is rejected because the cell is "already empty", the
                 // client's view of it is stale — a ghost block (a cell some server path cleared to air without a
