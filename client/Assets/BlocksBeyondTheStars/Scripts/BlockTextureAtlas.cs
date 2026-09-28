@@ -120,6 +120,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            PaintFaceTiles(content);
             BuildVariants(content);
             BuildCapTiles(content);
             foreach (var b in content.Blocks.Values)
@@ -253,6 +254,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     any |= RepaintBlock(b);
                 }
+
+                foreach (var kv in _faceTiles)
+                {
+                    PaintFaceTile(kv.Key, kv.Value);
+                    any = true;
+                }
             }
             else
             {
@@ -262,6 +269,11 @@ namespace BlocksBeyondTheStars.Client
                     if (def != null)
                     {
                         any |= RepaintBlock(def);
+                    }
+                    else if (_faceTiles.TryGetValue(key, out int faceSlot))
+                    {
+                        PaintFaceTile(key, faceSlot); // a casing or lid a player repainted in the texture editor (#2124)
+                        any = true;
                     }
                 }
             }
@@ -395,6 +407,53 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
+        // ---------------------------------------------------------------- face tiles (#2124)
+        //
+        // The bundled textures a block FACE shows that are no block — a machine's casing side, a crate lid — named in
+        // data/blocks.json (faces[].tile) and dealt into the extras band by FaceTileBand. ShapeFaceTextures derives the
+        // same slots from the same content, so the mesher maps faces onto exactly the tiles painted here.
+
+        private System.Collections.Generic.IReadOnlyDictionary<string, int> _faceTiles
+            = new System.Collections.Generic.Dictionary<string, int>();
+
+        private void PaintFaceTiles(GameContent content)
+        {
+            _faceTiles = ShapeFaceTextures.TextureSlots(content, out var overflow);
+            foreach (var kv in _faceTiles)
+            {
+                PaintFaceTile(kv.Key, kv.Value);
+            }
+
+            foreach (string key in overflow)
+            {
+                // Loud on purpose: a face whose tile found no slot shows its block's own tile instead, and nobody
+                // would notice a wrong casing until a player files it. BlockFaceTextureTests catches this in CI.
+                Debug.LogError($"[BlockTextureAtlas] the extras band is full ({FaceTileBand.Capacity} face tiles): '{key}' got no slot");
+            }
+        }
+
+        private void PaintFaceTile(string key, int slot)
+        {
+            int ox = (slot % Cols) * Tile, oy = (slot / Cols) * Tile;
+            if (TryPaintFromAsset(key, ox, oy))
+            {
+                return;
+            }
+
+            // Named in the data but not in the build: a neutral grey plate, reported — never a random neighbour tile.
+            Debug.LogError($"[BlockTextureAtlas] face tile '{key}' is named in blocks.json but has no texture (Resources/textures/{key}.bytes)");
+            var grey = new Color32[Tile * Tile];
+            for (int i = 0; i < grey.Length; i++)
+            {
+                int x = i % Tile, y = i / Tile;
+                bool edge = x == 0 || y == 0 || x == Tile - 1 || y == Tile - 1;
+                byte v = edge ? (byte)70 : (byte)120;
+                grey[i] = new Color32(v, v, v, 255);
+            }
+
+            Texture.SetPixels32(ox, oy, Tile, Tile, grey);
+        }
+
         /// <summary>Natural blocks whose visible tiling is broken with procedural variant tiles
         /// (+ 90° face rotation in the mesher). Ship/tech panels are excluded — those must align.</summary>
         private static readonly string[] VariantKeys =
@@ -434,7 +493,10 @@ namespace BlocksBeyondTheStars.Client
 
                 if (next - 2 <= maxId || next - 1 < AtlasBands.DerivedStart)
                 {
-                    break; // the derived band is full — skip remaining variants rather than overwrite other tiles
+                    // The derived band is full — skip the remaining variants rather than overwrite other tiles, but say
+                    // so (#2124): a skipped variant used to vanish without a trace.
+                    Debug.LogError($"[BlockTextureAtlas] the derived band is full: '{key}' gets no variant tiles");
+                    break;
                 }
 
                 ushort baseId = def.NumericId.Value;
@@ -460,7 +522,10 @@ namespace BlocksBeyondTheStars.Client
 
                 if (next - 2 <= maxId || next - 1 < AtlasBands.DerivedStart)
                 {
-                    break; // the derived band is full — skip remaining variants rather than overwrite other tiles
+                    // The derived band is full — skip the remaining variants rather than overwrite other tiles, but say
+                    // so (#2124): a skipped variant used to vanish without a trace.
+                    Debug.LogError($"[BlockTextureAtlas] the derived band is full: '{key}' gets no variant tiles");
+                    break;
                 }
 
                 ushort baseId = def.NumericId.Value;
@@ -519,7 +584,10 @@ namespace BlocksBeyondTheStars.Client
 
                 if (next <= maxId || next < AtlasBands.DerivedStart)
                 {
-                    break; // band full — the block keeps its single all-faces tile rather than eating another slot
+                    // Band full — the block keeps its single all-faces tile rather than eating another slot. Reported
+                    // (#2124): per-face tiles belong in the extras band (blocks.json faces), not here.
+                    Debug.LogError($"[BlockTextureAtlas] the derived band is full: '{key}' gets no end-grain tile");
+                    break;
                 }
 
                 ushort slot = (ushort)next--;

@@ -1019,6 +1019,13 @@ public sealed partial class GameServer
         // Furniture keeps its FORM aboard as well (#1943): a bed built into a cabin used to become a cube with
         // the bed picture on all six faces, because a ship edit stored the block id alone.
         int shape = StampStructurePropShape(s, intent, blockDef.Key, pos, p.Yaw);
+        if (shape == 0 && blockDef.Facing != null && PropShapes.DefaultPlaceShape(blockDef.Key) == 0)
+        {
+            // A block with a front (#2124) built into a cabin faces the player (or the rotate key's turn) like on a
+            // planet; a ship grid is axis-aligned with the world, so the world rule applies unchanged.
+            shape = CubeFacing.Pack(CubeFacing.FrontForPlacement(blockDef.Facing, intent.Yaw, p.Yaw));
+        }
+
         Vector3i? bedFoot = null;
         if (blockDef.Key == BedBlock && FurnitureShapes.TryBedPartnerOffset(shape, out int fdx, out int fdz))
         {

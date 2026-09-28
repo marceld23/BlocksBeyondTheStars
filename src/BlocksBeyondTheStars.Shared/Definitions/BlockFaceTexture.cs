@@ -20,10 +20,13 @@ public sealed class BlockFaceTexture
     /// <summary>Part name (<see cref="ShapeParts.Name(ShapePart)"/>) or <c>"*"</c> for every part.</summary>
     public string Part { get; set; } = "*";
 
-    /// <summary><c>"top"</c>, <c>"bottom"</c>, <c>"side"</c> or <c>"*"</c> for every side.</summary>
+    /// <summary><c>"top"</c>, <c>"bottom"</c>, <c>"side"</c>, <c>"front"</c> (a cube with
+    /// <see cref="BlockDefinition.Facing"/>, #2124) or <c>"*"</c> for every side.</summary>
     public string Side { get; set; } = "*";
 
-    /// <summary>Block key whose tile the face shows; null = the block's own tile.</summary>
+    /// <summary>The tile the face shows: a block key (that block's tile) or, since #2124, the key of a bundled
+    /// texture that is no block (<c>Resources/textures/&lt;key&gt;.bytes</c> — a casing side, a crate lid), which the
+    /// client deals into the atlas's extras band. Null = the block's own tile.</summary>
     public string? Tile { get; set; }
 
     /// <summary>
@@ -32,7 +35,8 @@ public sealed class BlockFaceTexture
     /// A face's start is its lowest corner along its two axes — top and bottom faces run along X then Z, faces toward
     /// ±X along Z then height, faces toward ±Z along X then height (all in the form's own frame). So for a side face
     /// y0 is the row at its bottom edge and y1 the row at its top edge; swapping a pair mirrors that axis.
-    /// Null = no stretching: the face shows the slice of the tile it covers.
+    /// Null = no stretching: the face shows the slice of the tile it covers. Built-in forms only — a plain cube face
+    /// always shows its whole tile.
     /// </summary>
     public float[]? Rect { get; set; }
 }
@@ -83,13 +87,18 @@ public static class BlockFaceTextures
         => (rect[0], 1f - rect[1], rect[2], 1f - rect[3]);
 
     /// <summary>Everything wrong with a block's slots, as human-readable lines (empty = valid). <paramref name="tileExists"/>
-    /// answers whether a block key has a tile.</summary>
+    /// answers whether a tile key names a tile — a block key, or a bundled texture that is no block (#2124).</summary>
     public static List<string> Validate(BlockDefinition def, Func<string, bool> tileExists)
     {
         var problems = new List<string>();
         if (def.TileKind != null && def.TileKind != Material && def.TileKind != Picture)
         {
             problems.Add($"{def.Key}: tileKind '{def.TileKind}' is neither '{Material}' nor '{Picture}'");
+        }
+
+        if (!CubeFacing.IsValidMode(def.Facing))
+        {
+            problems.Add($"{def.Key}: facing '{def.Facing}' is neither '{CubeFacing.Toward}' nor '{CubeFacing.Away}'");
         }
 
         if (def.Faces == null)
@@ -110,9 +119,14 @@ public static class BlockFaceTextures
                 problems.Add($"{def.Key}: faces[{i}] has unknown side '{f.Side}'");
             }
 
+            if (f.Side == ShapeParts.Name(FaceSide.Front) && def.Facing == null)
+            {
+                problems.Add($"{def.Key}: faces[{i}] dresses the front, but the block declares no facing");
+            }
+
             if (f.Tile != null && !tileExists(f.Tile))
             {
-                problems.Add($"{def.Key}: faces[{i}] names tile '{f.Tile}', which is no block");
+                problems.Add($"{def.Key}: faces[{i}] names tile '{f.Tile}', which is neither a block nor a bundled texture");
             }
 
             if (f.Rect != null && (f.Rect.Length != 4 || Array.Exists(f.Rect, v => v < 0f || v > 1f || float.IsNaN(v))))
@@ -122,5 +136,30 @@ public static class BlockFaceTextures
         }
 
         return problems;
+    }
+
+    /// <summary>The tile keys the blocks' slots name that are NOT blocks (#2124) — the bundled textures a face shows
+    /// on its own, which the client deals into the atlas's extras band. Distinct and in ordinal order, so every
+    /// client (and the content tests) derive the same list, hence the same atlas slots, from the same content.</summary>
+    public static List<string> TextureOnlyKeys(IEnumerable<BlockDefinition> blocks, Func<string, bool> isBlock)
+    {
+        var keys = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var def in blocks)
+        {
+            if (def.Faces == null)
+            {
+                continue;
+            }
+
+            foreach (var f in def.Faces)
+            {
+                if (!string.IsNullOrEmpty(f.Tile) && !isBlock(f.Tile!))
+                {
+                    keys.Add(f.Tile!);
+                }
+            }
+        }
+
+        return new List<string>(keys);
     }
 }

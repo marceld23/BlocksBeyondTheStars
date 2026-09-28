@@ -38,6 +38,55 @@ namespace BlocksBeyondTheStars.Client
     }
 
     /// <summary>
+    /// The face tiles of the extras band (#2124): the bundled textures a block face shows that are no block — a
+    /// casing side, a crate lid. They are named in <c>data/blocks.json</c> (<c>faces[].tile</c>) and dealt one slot
+    /// each from <see cref="AtlasBands.ExtraStart"/> upward in the ordinal order of their keys, so the atlas that
+    /// paints them and the mesher that maps faces onto them derive the same slot from the same content — no shared
+    /// state between the two. Keys that do not fit are returned, never silently dropped: the atlas logs them as an
+    /// error and a content test fails long before a player could see a wrong face.
+    /// </summary>
+    public static class FaceTileBand
+    {
+        /// <summary>How many face tiles the extras band holds.</summary>
+        public const int Capacity = AtlasBands.ExtraEnd - AtlasBands.ExtraStart;
+
+        /// <summary>Deals one slot per key (duplicates collapse) in ordinal order. <paramref name="overflow"/> gets the
+        /// keys the band had no room for.</summary>
+        public static Dictionary<string, int> Deal(IEnumerable<string> keys, out List<string> overflow)
+        {
+            var sorted = new SortedSet<string>(StringComparer.Ordinal);
+            if (keys != null)
+            {
+                foreach (string key in keys)
+                {
+                    if (!string.IsNullOrEmpty(key))
+                    {
+                        sorted.Add(key);
+                    }
+                }
+            }
+
+            var slots = new Dictionary<string, int>(StringComparer.Ordinal);
+            overflow = new List<string>();
+            var band = new AtlasSlotAllocator(AtlasBands.ExtraStart, AtlasBands.ExtraEnd);
+            foreach (string key in sorted)
+            {
+                int slot = band.Allocate();
+                if (slot < 0)
+                {
+                    overflow.Add(key);
+                }
+                else
+                {
+                    slots[key] = slot;
+                }
+            }
+
+            return slots;
+        }
+    }
+
+    /// <summary>
     /// Deals atlas slots inside one band. A run of several slots — the frames of an animated texture — always lies
     /// in ONE atlas row, because the shader steps from frame to frame by adding a tile width to the U coordinate
     /// and a row break would land on an unrelated tile.

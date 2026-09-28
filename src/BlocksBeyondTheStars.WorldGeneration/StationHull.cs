@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.WorldGeneration;
 
@@ -104,7 +105,7 @@ public static class StationHull
 
     /// <summary>
     /// Every non-air cell a pilot can see from outside: the cells next to outside space, plus — through see-through cells
-    /// (glass, force fields) and shaped cells (slabs, stairs, furniture) — the cells next to the air up to
+    /// (glass, force fields) and shaped cells (slabs, stairs, furniture — not a cube that merely has a front) — the cells next to the air up to
     /// <see cref="WindowDepth"/> steps inside. Returned in a fixed x/y/z order.
     /// </summary>
     public static List<Vector3i> VisibleCells(StationStructure s, GameContent content)
@@ -115,7 +116,7 @@ public static class StationHull
         bool Passable(int x, int y, int z)
         {
             ushort b = s.Get(x, y, z);
-            return b != 0 && (seeThrough.Contains(b) || s.GetShape(x, y, z) != 0);
+            return b != 0 && (seeThrough.Contains(b) || !ShapeCode.IsCube(s.GetShape(x, y, z))); // a cube with a front (#2124) is still a cube
         }
 
         // The view through see-through and shaped cells, with a depth budget that shrinks with every step inside.

@@ -95,7 +95,7 @@ namespace BlocksBeyondTheStars.Client
         // They are cheap (a few list scans) and are polled once per frame at most.
 
         /// <summary>The selected hotbar item has a placement orientation to cycle (RotateShape applies).</summary>
-        public bool HeldRotatable => Game != null && HeldPlaceShape(Game.ItemInSlot(Game.SelectedHotbarSlot), out _) > 0;
+        public bool HeldRotatable => Game != null && HeldOrientable(Game.ItemInSlot(Game.SelectedHotbarSlot), out _);
 
         /// <summary>The selected hotbar item is a weapon (PrimaryFire has something better than fists to swing).</summary>
         public bool HoldsWeapon =>
@@ -797,7 +797,7 @@ namespace BlocksBeyondTheStars.Client
             if (InputMap.Down(InputAction.RotateShape))
             {
                 string held = Game != null ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null;
-                if (HeldPlaceShape(held, out var heldCycle) > 0)
+                if (HeldOrientable(held, out var heldCycle))
                 {
                     bool backwards = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
                     StepPlaceOrientation(backwards, heldCycle);
@@ -4328,6 +4328,44 @@ namespace BlocksBeyondTheStars.Client
             return cycle == PropOrientation.None ? 0 : PropShapes.DefaultPlaceShape(def.PlacesBlock);
         }
 
+        /// <summary>The <see cref="BlockDefinition.Facing"/> of the plain cube block the held item places (#2124) — a
+        /// vending machine, a forge, a watcher — or null when it places no block with a front (a form, a prop, an
+        /// ordinary block, nothing at all).</summary>
+        private string HeldFacing(string held)
+        {
+            if (string.IsNullOrEmpty(held) || Game?.Content == null
+                || BlocksBeyondTheStars.Shared.State.ItemKey.Shape(held) > 0)
+            {
+                return null;
+            }
+
+            string placed = Game.Content.GetItem(BlocksBeyondTheStars.Shared.State.ItemKey.Base(held))?.PlacesBlock;
+            if (string.IsNullOrEmpty(placed) || PropShapes.DefaultPlaceShape(placed) != 0)
+            {
+                return null;
+            }
+
+            return Game.Content.GetBlock(placed)?.Facing;
+        }
+
+        /// <summary>True when the held item places something the rotate key and the ghost can orient: a form or prop
+        /// (<see cref="HeldPlaceShape"/>), or a cube with a front (#2124), which turns yaw-only like furniture.</summary>
+        private bool HeldOrientable(string held, out PropOrientation cycle)
+        {
+            if (HeldPlaceShape(held, out cycle) > 0)
+            {
+                return true;
+            }
+
+            if (HeldFacing(held) != null)
+            {
+                cycle = PropOrientation.YawOnly;
+                return true;
+            }
+
+            return false;
+        }
+
         /// <summary>The ladder's rotate-key states, in cycle order: the four walls it can hug, then
         /// free-standing (#909). Auto sits in front of them as index -1. Its plate is a square Panel, so the
         /// quarter turns the other shapes cycle through would be four identical states here, and the two
@@ -4400,7 +4438,19 @@ namespace BlocksBeyondTheStars.Client
             yaw = _placeYaw;
             if (shape <= 0)
             {
-                return false;
+                // A cube with a front (#2124): the one thing to orient is which side the front looks at. The quarter turn
+                // is a look HEADING here (CubeFacing.FrontForPlacement): the rotate key's turn, or in Auto the player's
+                // own heading, settled on the client and sent explicitly so the ghost's arrow and the placed front
+                // cannot disagree (the server would otherwise re-derive it from its own copy of the player's yaw).
+                if (HeldFacing(held) == null)
+                {
+                    return false;
+                }
+
+                shape = 0;
+                upFace = ShapeCode.UpPlusY;
+                yaw = yaw >= 0 && yaw <= 3 ? yaw : CubeFacing.HeadingOfYaw(transform.eulerAngles.y);
+                return true;
             }
 
             // The face the player clicked: the step from the block they aimed at to the cell being filled.
@@ -4471,7 +4521,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _ghostFrame = Time.frameCount;
             string held = Game != null ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null;
-            bool rotatable = HeldPlaceShape(held, out _) > 0;
+            bool rotatable = HeldOrientable(held, out _);
             if (Game != null)
             {
                 // Drives the HUD's "R — rotate" control hint. Answered from the held item alone, so the hint
@@ -4510,7 +4560,15 @@ namespace BlocksBeyondTheStars.Client
             // Shows exactly what the place will send (PendingPlacement feeds both), so the hologram cannot
             // promise a form or an orientation the placed block then contradicts.
             _placementGhost ??= new PlacementGhost();
-            _placementGhost.Show(placeCell, shape, yaw, upFace);
+            if (shape == 0)
+            {
+                // A cube with a front (#2124): the arrow stands on the face the server will make the front.
+                _placementGhost.ShowFacingCube(placeCell, CubeFacing.FrontForPlacement(HeldFacing(held), yaw, transform.eulerAngles.y));
+            }
+            else
+            {
+                _placementGhost.Show(placeCell, shape, yaw, upFace);
+            }
         }
 
         /// <summary>The door kind the held item places, or null when it places no door (#1975).</summary>

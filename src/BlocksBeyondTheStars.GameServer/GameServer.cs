@@ -5406,6 +5406,19 @@ public sealed partial class GameServer
             placeShape = StampPropShape(session, place, blockDef.Key, pos);
         }
 
+        // A block with a FRONT (#2124) — a vending machine, a forge, a watcher — stays a plain cube but remembers
+        // which side its front is on, in the descriptor's otherwise unused up-face field (CubeFacing). "toward" turns
+        // it to the player, "away" the way the player looks; an explicit quarter turn (the rotate key) stands in for the
+        // look heading — the Crystal Net's convention, so a gate's wire and its drawn front can never disagree. The mined
+        // drop keeps only the shape index (0), so the front never rides an item into a stack.
+        int crystalYaw = place.Yaw;
+        if (placeShape == 0 && blockDef.Facing != null && PropShapes.DefaultPlaceShape(blockDef.Key) == 0)
+        {
+            int front = CubeFacing.FrontForPlacement(blockDef.Facing, place.Yaw, session.State.Yaw);
+            placeShape = CubeFacing.Pack(front);
+            crystalYaw = CubeFacing.LookHeadingOf(blockDef.Facing, front); // a gate / watcher signals the way it looks
+        }
+
         // A painted item carries its design id in the key; stamp it into the descriptor's design bits so the
         // placed block shows the texture. Composes with any form above (built-in, custom or prop-stamped).
         // Only a LIVE design is honoured — an item holding a wiped/foreign id places as the plain material,
@@ -5474,7 +5487,7 @@ public sealed partial class GameServer
             OnBasePostChanged(session, pos, placed: true); // #1865: a post at home is staffed by a resident
         }
 
-        OnCrystalBlockPlaced(session, pos, blockDef, place.Label, place.Yaw); // #2046: a conduit or device joins the Crystal Net
+        OnCrystalBlockPlaced(session, pos, blockDef, place.Label, crystalYaw); // #2046: a conduit or device joins the Crystal Net
         OnRailBlockPlaced(session, pos, blockDef); // #2113: a pylon joins the rail graph (and auto-links), a stop joins its line
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow, Shape = placeShape });
         NudgeCreatureBodyChecks(pos); // #1357: an animal the block landed in steps aside on its next tick

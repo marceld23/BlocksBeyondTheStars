@@ -109,6 +109,55 @@ back with a picture on every face. Dedicated seamless tiles (a blanket, a board)
 editing only the data; inventory icons keep using the whole picture tile. The structure editor's voxel view uses
 the proportional UVs but not the slots.
 
+### Cube faces, face tiles and fronts (#2124)
+
+The same slots dress **plain cubes**, side by side — "still many blocks have the same texture on all sides". An object
+block keeps its picture where it belongs and names tiles for its other faces:
+
+```json
+{ "key": "station_vendor", "tileKind": "picture", "facing": "toward",
+  "faces": [ { "side": "side", "tile": "face_tech_side" }, { "side": "top", "tile": "face_tech_top" },
+             { "side": "bottom", "tile": "metal_panel" } ] }
+```
+
+- A cube face is `top`, `bottom`, `side` or — for a block with `"facing"` — `front` (`FaceSide.Front`, cubes only; forms
+  never produce it). A face without a slot shows the block's own tile, so a front-view picture sits on the front by
+  default and a top-view picture (the workbench's tools, the hydro tray's seedlings) stays on top. `part` is `body` for
+  a cube; `rect` only applies to forms (a cube face always shows its whole tile).
+- `tile` names a block key **or a bundled texture that is no block** (`client/Assets/Resources/textures/face_*.bytes` —
+  casings, lids, sides). `BlockFaceTextures.TextureOnlyKeys` lists those keys in ordinal order and `FaceTileBand`
+  (Client.Core) deals them one slot each into the atlas's **extras band** (400..511); `BlockTextureAtlas` paints them
+  and `ShapeFaceTextures` maps faces onto the same slots, both derived from the content alone. A key the band has no
+  room for is logged as an error (and fails `AtlasSlotAllocatorTests`), never silently dropped. The derived band
+  (990..1023, variants + log end grain) is full; it now logs instead of skipping quietly too.
+- Shared casings keep the count low: `face_tech_*` (dark station machines), `face_crystal_*` (Crystal Net devices),
+  `face_light_*` (clinic, press desk, bunk), `face_wood_*` (shop, tamer, quarry posts), `face_plastic_*` (gaming gear),
+  `face_rust_*` (scrap machines), `face_industrial_*` (detox/decontamination, water spout, thumper), plus bespoke
+  sides and tops (crate lids, forge, workbench, sage console, tank tops, …). The texture editor lists them under
+  "Block sides and lids" (`TextureCatalog.GroupFaces`), and a local-pack or world override repaints the slot in place.
+
+**The front.** `"facing": "toward"` turns the front to the player who places the block, `"away"` the way the player
+looks (the watcher's and the Device Eye's eye, matching the Crystal Net direction they store). The server keeps the
+front in the cube's descriptor (`CubeFacing`): a cube has no use for the **up-face** field, so a front cube stores its
+front face there (2..5 = +X, −X, +Z, −Z) and the shape field stays 0 — every `ShapeCode.IsCube` check still sees a
+plain cube (culling, collision, air, support, NPC footing), and the mined drop keeps only the shape index, so the
+front never rides an item into a stack. **Descriptor 0 means "no front stored"**: world generation (station and
+settlement templates, `RoomFurnisher`, ship layouts) and every block placed before #2124 write 0, so no generated
+world changes; the mesher derives a front for those from the neighbours instead (`CubeFacing.DeriveFront`: the side
+that is open with a wall behind it, then any open side, fixed order +Z, +X, −Z, −X). A stored yaw would not do —
+yaw 0 is a real direction. Template rotation (`TemplateTransform.TurnShape`) turns the up-face field, so a stored
+front turns with its building.
+
+The intent's quarter turn for a front cube is a **look heading** (0 = +Z, 1 = +X, 2 = −Z, 3 = −X), not a form's
+geometry yaw: in Auto the client sends the player's own heading, the rotate key walks the four headings
+(`CubeFacing.FrontForPlacement`). That is the convention the Crystal Net's gates and watchers already stored, so the
+drawn front and the wire direction cannot drift apart by the ±X mirror (`ShapeCode.YawFacingForward`). The placement
+ghost (`PlacementGhost.ShowFacingCube`) draws the cube with an arrow on the face that will be the front, and the
+top picture of a front cube is turned (`CubeFacing.TopUvTurns`) so it reads upright from in front. `BlockFaceTextureTests`
+holds the data (every object block declares `tileKind`, a picture cube dresses its other faces, every tile key
+resolves, face tiles are bundled and opaque); `CubeFacingTests` holds the mapping, placement, drop and the
+watcher's eye.
+
 ## Sharing (#846)
 
 Three routes, all riding on things that already existed:
