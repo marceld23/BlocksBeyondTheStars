@@ -3387,6 +3387,8 @@
   "ui.vega.next_touch": "Continue · NEXT ▶",
   "ui.vega.key_touch": "the on-screen action menu",
   "ui.vega.prologue.skip": "Skip · [Esc]",
+  "ui.vega.tab_one": "VEGA · 1 message · Open {1}",
+  "ui.vega.tab_many": "VEGA · {0} messages · Open {1}",
   "ui.scan.first_time": "New discovery!",
   "planet.rocky.desc": "A dusty, cratered world of mesas and bare stone under a thin toxic haze. Mild and quiet, with little life. Surface metals come easy — iron, copper, aluminium and lead sit near the top, with gold and silver a little deeper. A gentle place to learn the ropes and stock up on basic ores.",
   "planet.ice.desc": "A frozen, toxic world locked far below zero. Glassy ice sheets cover the stone and flora barely clings on. Good hunting for cobalt and nickel, with silver and zinc in the shallows and titanium deep down — bring a Tier-2 drill. Wildlife is scarce.",

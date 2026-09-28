@@ -607,11 +607,15 @@ namespace BlocksBeyondTheStars.Client
 
     /// <summary>Full-screen look area: accumulates drag delta (pixels) for the current frame. Owner clears it in
     /// LateUpdate after gameplay has read it, so each frame reports only that frame's movement.</summary>
-    public sealed class TouchLookPad : MonoBehaviour, IDragHandler
+    public sealed class TouchLookPad : MonoBehaviour, IDragHandler, IPointerClickHandler
     {
         public Vector2 Delta { get; private set; }
 
         public void OnDrag(PointerEventData e) => Delta += e.delta;
+
+        /// <summary>A tap that never became a look drag (#2126). The pad lies over the whole HUD, so a tap meant for
+        /// VEGA's continue pill or her folded tab lands here first — hand it on (a drag is never a click).</summary>
+        public void OnPointerClick(PointerEventData e) => VegaPanel.Instance?.TapAt(e.position);
 
         public void ResetDelta() => Delta = Vector2.zero;
 

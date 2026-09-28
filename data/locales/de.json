@@ -3387,6 +3387,8 @@
   "ui.vega.next_touch": "Weiter · WEITER ▶",
   "ui.vega.key_touch": "das Aktionsmenü auf dem Bildschirm",
   "ui.vega.prologue.skip": "Überspringen · [Esc]",
+  "ui.vega.tab_one": "VEGA · 1 Nachricht · Öffnen {1}",
+  "ui.vega.tab_many": "VEGA · {0} Nachrichten · Öffnen {1}",
   "ui.scan.first_time": "Neue Entdeckung!",
   "planet.rocky.desc": "Eine staubige Welt aus Tafelbergen und nacktem Fels unter dünnem Giftschleier. Mild und still, mit wenig Leben. Oberflächenmetalle gibt es reichlich — Eisen, Kupfer, Aluminium und Blei liegen knapp unter der Kruste, Gold und Silber etwas tiefer. Ein ruhiger Ort, um sich einzuarbeiten und Grunderze zu bunkern.",
   "planet.ice.desc": "Eine gefrorene, giftige Welt tief im Frostbereich. Glasige Eisflächen bedecken den Stein, Pflanzen halten sich kaum. Gute Ausbeute an Kobalt und Nickel, dazu Silber und Zink in geringer Tiefe und Titan ganz unten — nimm einen Tier-2-Bohrer mit. Tierleben ist rar.",
