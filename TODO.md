@@ -59,7 +59,19 @@ Eight F1 reports from Screelit (Justus) on v2026.9.17 and Marcel's decisions, al
 8. ✅ **#2126 the VEGA tab** — a revealed, non-prologue line nobody advanced for 45 s folds into a "VEGA · n
    messages" tab (never dismissed unread); continue/click/tap reopens it; the continue hint is a clickable pill
    (touch taps forwarded by the look pad). `VegaCollapse` + `VegaCollapseTests`. Open: playtest on desktop, touch, pad.
-9. **#2124 object block faces + front facing**, 10. **#2125 the intercity monorail (gen 19)** — in progress.
+9. ✅ **#2125 the intercity monorail (terrain generation 19; Justus' idea, Marcel's rules: no tickets, no ID cards, no
+   vending machines)** — a gen-19 world with at least two inhabited towns or cities on the ground rolls 60 %
+   (`ServerConfig.IntercityRailChance`, `PlaceIntercityRail` switch) and joins the closest pair whose route fits (≤ 960
+   blocks; pylons ≤ 36 tall, never in lava; ≤ 4000 cut cells; clear of settlements, pads and the wreck site).
+   `StampIntercityRail` runs right after the settlements; later stampers keep clear. Two stations
+   (`RailStationGenerator`: platforms, benches, lamps, skylit roof, stop plate) at the towns' edges, pylons along the
+   route, the corridor carved exactly where `LinkClear` looks (whole trees included); pinned in placement records,
+   stamped once; stations + pylons protected like a settlement (`@srv.protect.rail`). A public train (empty owner,
+   cab + seat wagon, 8 blocks/s) shuttles and waits 30 s at each station — anyone rides, nobody steers, stows or
+   couples it. Both stations on the world map. `CurrentTerrainGeneration` 18 → 19, no chunk changes. Tests:
+   `IntercityRailTests`. Docs: MONORAIL.md, WORLD_GENERATION §35. Open: playtest on a gen-19 world with a line; the
+   pre-existing rider jump when a train reverses at a line end.
+10. **#2124 object block faces + front facing** — in progress.
 
 ### 🛢️ Justus' ideas 2026-09 — oil, the drill laser, slithering worms, equipment slots, sea + sky giants, the gas giant, the monorail train (#2104: #2105–#2114, 2026-09-27, branch feat/justus-ideas-2026-09, terrain generation 18)
 

@@ -1727,6 +1727,12 @@ separate unlock; admins can still disable it through server world rules.
   and every wagon come back as items. A fall taken aboard is never a fall.
 - Other riders on the same train are placed inside the wagons exactly as your game draws them, so nobody slides
   through a wall on a curve or across the world seam.
+- **Intercity trains.** On some newer worlds, two towns or cities are joined by a monorail line. You'll find a
+  **station** at the edge of each town — look for the amber station marker on the world map ("… Station"). A
+  **public train** runs back and forth between the two stations on its own and waits about **30 seconds** at each one.
+  Walk up to a wagon and press **E** to board (E beside a seat sits down, **F** leaves), then enjoy the ride. The train
+  belongs to everyone: nobody needs a ticket, and nobody can drive, stop, pack up or add wagons to it. The stations and
+  the line's pylons can't be mined.
 
 ### Craftable block shapes
 - Any held **building material** can be re-formed into a non-cube **shape** — **slab, pyramid, dome (half-sphere),
