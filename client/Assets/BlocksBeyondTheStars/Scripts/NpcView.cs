@@ -261,7 +261,11 @@ namespace BlocksBeyondTheStars.Client
                     // person at every place they occupy; everyone else derives from id + name as before.
                     int seed = nd.FaceVariant != 0 ? nd.FaceVariant : unchecked((nd.Id * 486187739) ^ StableHash(nd.Name));
                     Color? hair = !nd.IsRobot && (seed & 0x7) != 0 ? HairTones[(int)((uint)(seed >> 8) % (uint)HairTones.Length)] : (Color?)null;
-                    avatar.Build(skin, outfit, outfit * 0.9f, legs, spacesuit: false, variantSeed: nd.IsRobot ? 0 : seed, hair: hair);
+                    // #2123: no breather strip on NPCs — a civilian's own facial hair (about 40 % none) in its hair
+                    // tone, an android's speaker grille. Same seed, so the face stays the same every visit.
+                    var lowerFace = NpcLooks.LowerFaceFor(seed, nd.IsRobot);
+                    avatar.Build(skin, outfit, outfit * 0.9f, legs, spacesuit: false, variantSeed: nd.IsRobot ? 0 : seed, hair: hair,
+                        lowerFace: lowerFace);
                     if (nd.Look == "gds_guard")
                     {
                         avatar.SetGuardianLook(); // #1793: the G.D.S. machines — red stripe band, glowing eyes

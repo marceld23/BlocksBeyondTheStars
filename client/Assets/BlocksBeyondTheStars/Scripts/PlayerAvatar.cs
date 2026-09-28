@@ -41,7 +41,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _gearPack; // armor pack currently worn — suppresses the suit pack (also across SetVisible)
 
         // Custom pixel face (FaceEditor): a textured plate on the head front that replaces the procedural
-        // eyes/brow/mouth/visor when set. Placed in head-LOCAL space, where the head is a unit-cube primitive
+        // eyes/brow/mouth/lower face when set. Placed in head-LOCAL space, where the head is a unit-cube primitive
         // (scaled by 0.46) — so its FRONT surface is at local z = 0.5. The plate centre must therefore sit at
         // ~0.5 so its front face protrudes past that surface; the old 0.27 left the whole plate buried inside
         // the opaque head (front at 0.295 < 0.5), which is why a drawn face showed nothing. Nudge if a build
@@ -112,9 +112,16 @@ namespace BlocksBeyondTheStars.Client
         private float _walkPhase;
         private float _swingTimer;
 
+        /// <summary>Brow (and facial-hair) colour of an avatar without a hair tone — bald NPCs, players.</summary>
+        private static readonly Color DefaultBrowColor = new Color(0.18f, 0.14f, 0.11f);
+
         public void Build(ClientSettings s) => Build(s.SkinColor, s.TorsoColor, s.ArmColor, s.LegColor, spacesuit: true);
 
-        public void Build(Color skin, Color torso, Color arms, Color legs, bool spacesuit = false, int variantSeed = 0, Color? hair = null)
+        /// <summary>Builds the avatar. <paramref name="lowerFace"/> (#2123) picks what sits below the eyes: the default
+        /// <see cref="LowerFace.Breather"/> keeps the teal breather strip players and previews always had; NPCs pass
+        /// their facial hair (drawn in the <paramref name="hair"/> tone), a bare face, or an android's grille.</summary>
+        public void Build(Color skin, Color torso, Color arms, Color legs, bool spacesuit = false, int variantSeed = 0, Color? hair = null,
+            LowerFace lowerFace = LowerFace.Breather)
         {
             EnsureTextures();
             _suit = spacesuit;
@@ -156,32 +163,33 @@ namespace BlocksBeyondTheStars.Client
             RegisterPaint(BodyPaint.Torso, 0,
                 AddCube("ShoulderR", transform, new Vector3(0.30f, 1.55f, 0f), new Vector3(0.18f, 0.18f, 0.30f), _torso));
 
-            // Neck + head + a dark visor strip on the front. Suited players get a suit-coloured neck seal
-            // (no bare skin between collar and helmet); NPCs keep the skin neck.
+            // Neck + head + the face (its lower part — breather strip, facial hair or grille — see BuildLowerFace).
+            // Suited players get a suit-coloured neck seal (no bare skin between collar and helmet); NPCs keep the
+            // skin neck.
             AddCube("Neck", transform, new Vector3(0f, 1.69f, 0f), new Vector3(0.18f, 0.14f, 0.18f), _suit ? _torso : _skin);
             _head = AddCube("Head", transform, new Vector3(0f, 1.86f, 0f), new Vector3(0.46f, 0.46f, 0.46f), _skin).transform;
             // Face features sit on the head's FRONT surface. The head is a unit-cube primitive, so that surface is
             // at head-LOCAL z = 0.5; features must protrude past it (z ≳ 0.5). The old z ≈ 0.235–0.275 placed them
             // at ~half depth, buried INSIDE the opaque head — the real reason "the face read as blank before".
-            // Visor = a lower-face breather strip (below the eyes).
-            _faceFeatures.Add(AddCube("Visor", _head, new Vector3(0f, -0.10f, 0.49f), new Vector3(0.34f, 0.12f, 0.05f), Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex)));
 
             // Eyes (whites + pupils + a brow + a mouth) so the face reads clearly — bigger/clearer (B20).
             var eyeWhite = Lit(new Color(0.96f, 0.97f, 1f), null);
             var pupil = Lit(new Color(0.04f, 0.04f, 0.07f), null);
-            var brow = hair is { } bc ? Lit(bc, null) : Lit(new Color(0.18f, 0.14f, 0.11f), null);
+            var brow = Lit(hair ?? DefaultBrowColor, null);
             var mouth = Lit(new Color(0.32f, 0.16f, 0.14f), null);
-            // Default procedural features — collected so a custom pixel face (SetFace) can hide them. The
-            // visor (above) is included so a drawn face fully replaces the stock look.
+            // Default procedural features — collected so a custom pixel face (SetFace) can hide them. The lower
+            // face (breather strip, facial hair or grille, BuildLowerFace) is included so a drawn face fully
+            // replaces the stock look.
             // z values are head-LOCAL and must clear the head front (0.5); the +0.255 shift over the old
             // 0.235–0.275 lifts them just proud of the surface while preserving the relief (pupils ahead of the
-            // whites, etc.). See the Visor note above.
+            // whites, etc.).
             _faceFeatures.Add(AddCube("EyeL", _head, new Vector3(-eyeDX, eyeY, 0.50f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
             _faceFeatures.Add(AddCube("EyeR", _head, new Vector3(eyeDX, eyeY, 0.50f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
             _faceFeatures.Add(AddCube("PupilL", _head, new Vector3(-eyeDX, eyeY - 0.015f, 0.53f), new Vector3(pupilW, 0.10f, 0.03f), pupil));
             _faceFeatures.Add(AddCube("PupilR", _head, new Vector3(eyeDX, eyeY - 0.015f, 0.53f), new Vector3(pupilW, 0.10f, 0.03f), pupil));
             _faceFeatures.Add(AddCube("Brow", _head, new Vector3(0f, browY, 0.50f), new Vector3(browW, 0.05f, 0.045f), brow));
             _faceFeatures.Add(AddCube("Mouth", _head, new Vector3(0f, mouthY, 0.49f), new Vector3(mouthW, 0.045f, 0.04f), mouth));
+            BuildLowerFace(lowerFace, mouthW, mouthY, hair ?? DefaultBrowColor);
 
             // Optional hair cap + back (civilian NPCs): head-LOCAL units — the head is a 0.46-scaled unit
             // cube, so anything wrapping its ±0.5 surfaces needs a scale > 1 (see the face-feature note).
@@ -202,6 +210,91 @@ namespace BlocksBeyondTheStars.Client
             if (_suit)
             {
                 BuildSuit();
+            }
+        }
+
+        /// <summary>
+        /// The lower face (#2123, "can this moustache go away — some with no beard, some a beard or a moustache"). The
+        /// teal breather strip read as a moustache on every NPC; players keep it (<see cref="LowerFace.Breather"/>), a
+        /// civilian NPC shows its own facial hair in its hair tone instead — or a bare face — and an android a small
+        /// speaker grille on the chin. Chunky head-LOCAL cubes (the head is a 0.46-scaled unit cube, front surface at
+        /// z = 0.5, see the face-feature note in Build).
+        /// Kid-friendly by construction: every piece keeps clear of the mouth rectangle (the mouth always shows), nothing
+        /// covers the face like the bandits' masks, and no red (the Guardians' colour). All pieces are face features, so
+        /// a custom pixel face hides them with the rest of the stock face.
+        /// </summary>
+        private void BuildLowerFace(LowerFace kind, float mouthW, float mouthY, Color hairColor)
+        {
+            switch (kind)
+            {
+                case LowerFace.Breather:
+                    _faceFeatures.Add(AddCube("Visor", _head, new Vector3(0f, -0.10f, 0.49f), new Vector3(0.34f, 0.12f, 0.05f),
+                        Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex)));
+                    return;
+                case LowerFace.Bare:
+                    return;
+                case LowerFace.Grille:
+                    // A voice grille under the mouth: a metal plate with four upright slots — nothing like facial hair.
+                    var plate = Lit(new Color(0.50f, 0.54f, 0.59f), _armorTex);
+                    var slot = Lit(new Color(0.10f, 0.12f, 0.15f), null);
+                    _faceFeatures.Add(AddCube("Grille", _head, new Vector3(0f, -0.32f, 0.50f), new Vector3(0.26f, 0.12f, 0.04f), plate));
+                    for (int i = 0; i < 4; i++)
+                    {
+                        _faceFeatures.Add(AddCube("GrilleSlot" + i, _head, new Vector3(-0.075f + i * 0.05f, -0.32f, 0.52f),
+                            new Vector3(0.022f, 0.08f, 0.02f), slot));
+                    }
+
+                    return;
+            }
+
+            var hairMat = Lit(hairColor, null);
+            const float front = 0.51f, depth = 0.05f; // plates just proud of the mouth (whose front is at 0.51)
+            float mouthTop = mouthY + 0.0225f, mouthBottom = mouthY - 0.0225f, mouthHalf = mouthW / 2f;
+
+            if (kind is LowerFace.Moustache or LowerFace.FullBeard)
+            {
+                // A bar above the lip (a touch prouder than the beard plates, so it never shares their plane); a plain
+                // moustache gets two tips hanging beside — never over — the mouth corners (a full beard's cheeks are there).
+                float barY = mouthTop + 0.0425f; // bottom edge 0.0075 above the mouth
+                float barW = Mathf.Max(0.26f, mouthW + 0.16f);
+                _faceFeatures.Add(AddCube("Moustache", _head, new Vector3(0f, barY, front + 0.01f), new Vector3(barW, 0.07f, depth), hairMat));
+                if (kind == LowerFace.Moustache)
+                {
+                    float tipX = mouthHalf + 0.05f;
+                    _faceFeatures.Add(AddCube("MoustacheTipL", _head, new Vector3(-tipX, barY - 0.055f, front), new Vector3(0.06f, 0.07f, depth), hairMat));
+                    _faceFeatures.Add(AddCube("MoustacheTipR", _head, new Vector3(tipX, barY - 0.055f, front), new Vector3(0.06f, 0.07f, depth), hairMat));
+                }
+            }
+
+            if (kind == LowerFace.Goatee)
+            {
+                // A patch on the chin below the mouth, and a little point under it.
+                float top = mouthBottom - 0.03f, bottom = -0.47f;
+                _faceFeatures.Add(AddCube("Goatee", _head, new Vector3(0f, (top + bottom) / 2f, front), new Vector3(0.16f, top - bottom, depth), hairMat));
+                _faceFeatures.Add(AddCube("GoateeTip", _head, new Vector3(0f, -0.54f, 0.42f), new Vector3(0.12f, 0.10f, 0.14f), hairMat));
+                return;
+            }
+
+            if (kind is LowerFace.Beard or LowerFace.FullBeard)
+            {
+                // Jaw: a block wrapping the chin from the front round underneath, and a side piece per cheek that covers
+                // the face's outer edge and runs back along the side of the head like a sideburn.
+                _faceFeatures.Add(AddCube("BeardJaw", _head, new Vector3(0f, -0.42f, 0.26f), new Vector3(1.02f, 0.20f, 0.52f), hairMat));
+                _faceFeatures.Add(AddCube("BeardSideL", _head, new Vector3(-0.47f, -0.18f, 0.25f), new Vector3(0.12f, 0.64f, 0.52f), hairMat));
+                _faceFeatures.Add(AddCube("BeardSideR", _head, new Vector3(0.47f, -0.18f, 0.25f), new Vector3(0.12f, 0.64f, 0.52f), hairMat));
+            }
+
+            if (kind == LowerFace.FullBeard)
+            {
+                // Everything around the mouth is beard — the mouth itself stays a clear window — and it hangs below the chin.
+                float jawTop = -0.32f, inner = mouthHalf + 0.03f, outer = 0.5f;
+                float chinTop = mouthBottom - 0.0125f;
+                _faceFeatures.Add(AddCube("BeardChin", _head, new Vector3(0f, (chinTop + jawTop) / 2f, front), new Vector3(1.0f, chinTop - jawTop, depth), hairMat));
+                float cheekTop = mouthTop + 0.03f, cheekBottom = chinTop;
+                float cheekX = (inner + outer) / 2f, cheekW = outer - inner;
+                _faceFeatures.Add(AddCube("BeardCheekL", _head, new Vector3(-cheekX, (cheekTop + cheekBottom) / 2f, front), new Vector3(cheekW, cheekTop - cheekBottom, depth), hairMat));
+                _faceFeatures.Add(AddCube("BeardCheekR", _head, new Vector3(cheekX, (cheekTop + cheekBottom) / 2f, front), new Vector3(cheekW, cheekTop - cheekBottom, depth), hairMat));
+                _faceFeatures.Add(AddCube("BeardHang", _head, new Vector3(0f, -0.62f, 0.38f), new Vector3(0.70f, 0.20f, 0.26f), hairMat));
             }
         }
 
@@ -599,7 +692,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Applies a custom pixel face (drawn in the <see cref="FaceEditor"/>, encoded by
         /// <see cref="FacePalette"/>). A non-empty face shows a textured plate on the head front and hides the
-        /// stock eyes/brow/mouth/visor; an empty face restores the default look. Safe to call before/after
+        /// stock eyes/brow/mouth/lower face (#2123); an empty face restores the default look. Safe to call before/after
         /// <see cref="SetVisible"/>.</summary>
         public void SetFace(string face)
         {
