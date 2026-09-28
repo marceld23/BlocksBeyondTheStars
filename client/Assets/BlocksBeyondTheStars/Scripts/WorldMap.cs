@@ -547,6 +547,7 @@ namespace BlocksBeyondTheStars.Client
             "bandit_camp" => ("⚑", new Color(1f, 0.45f, 0.35f), null), // bounty-mission reveal (#730); glyph fallback
             "factory" => ("⚒", new Color(1f, 0.7f, 0.45f), "map_station"), // no map_factory art yet — the station icon reads industrial
             "landing" => ("⊕", new Color(0.5f, 0.85f, 1f), "map_pad"),
+            "rail_station" => ("◆", new Color(1f, 0.62f, 0.2f), "map_station"), // #2125: an intercity station — the station icon in the rail stops' amber
             "alien_shrine" => ("✶", new Color(0.55f, 1f, 0.6f), null), // #1129 one-of-a-kind site; glyph fallback
             "observatory" => ("◉", new Color(0.7f, 0.85f, 1f), null), // #1129 one-of-a-kind site; glyph fallback
             "guardian_core" => ("◎", GuardianCoreCol, null), // the finale's one aperture (#1792) — no icon art yet; glyph

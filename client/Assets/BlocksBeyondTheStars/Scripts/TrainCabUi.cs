@@ -117,6 +117,16 @@ namespace BlocksBeyondTheStars.Client
                 : L("ui.train.state_running");
             UiKit.AddText(panel, 32f, 66f, W - 64f, 26f, state, 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
+            // #2125: the intercity line's public train (no owner) runs its own timetable — no controls, only the way out.
+            if (string.IsNullOrEmpty(t.OwnerId))
+            {
+                head.text = L("ui.train.public_title");
+                var note = UiKit.AddText(panel, 32f, 110f, W - 64f, 150f, L("ui.train.public"), 18, Color.white, TextAnchor.UpperLeft);
+                note.horizontalOverflow = HorizontalWrapMode.Wrap;
+                UiKit.AddButton(panel, 32f, 300f, 260f, 44f, L("ui.train.leave"), () => { Game?.Network?.SendExitTrain(); Close(); });
+                return;
+            }
+
             float y = 110f;
             UiKit.AddText(panel, 32f, y, 160f, 40f, L("ui.train.speed"), 18, Color.white, TextAnchor.MiddleLeft);
             for (int s = 1; s <= 3; s++)
