@@ -1,6 +1,6 @@
 // Alpha-blended sibling of BlocksBeyondTheStars/BlockAtlas for see-through blocks (glass viewports + station
-// force-field/energy barriers + water). Same atlas + sun globals, but drawn in the Transparent queue so the
-// world behind shows through. Vertex colour: r=gloss, g=metal, b=face shade, a=emission (glow).
+// force-field/energy barriers + water + the gas giant's gas sea, #2128). Same atlas + sun globals, but drawn in the
+// Transparent queue so the world behind shows through. Vertex colour: r=gloss, g=metal, b=face shade, a=emission (glow).
 //   _Sc_Light  = system sun colour x day brightness x weather dim (a>0.5 = set)
 //   _Sc_SunDir = world-space direction TO the sun
 //
@@ -48,6 +48,10 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             float _Sc_ScreenFx; // 1 when the depth+opaque textures exist (Medium+); 0 on Low → water uses the simple look
             float4 _Sc_WaterTint; // #1758: per-world water colour (Sky.cs); read in mode 1
             float _Sc_WaterMode;  // #1758: 0 = the classic blue, 1 = tint, 2 = static rainbow bands by position
+            // #2128: the gas tile's darkest / average / brightest tone (BlockTextureAtlas.PublishGasPalette; a>0.5 = set).
+            float4 _Sc_GasLo;
+            float4 _Sc_GasMid;
+            float4 _Sc_GasHi;
 
             // SRP Batcher (#573): per-MATERIAL properties only. The _Sc_* globals above stay outside — they are
             // set once per frame via Shader.SetGlobal*, not per material.
@@ -96,6 +100,34 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float slot = floor(code / 1024.0) + fmod(floor(_Time.y * fps), frames);
                 float2 cell = floor(uv * 32.0);
                 return (float2(fmod(slot, 32.0), floor(slot / 32.0)) + (uv * 32.0 - cell)) / 32.0;
+            }
+
+            // #2128: value noise for the gas haze. The hash is sin-free (stable at large world coordinates); three
+            // octaves on a rotated lattice so no axis — and never the block grid — shows through.
+            float BbtsGasHash(float2 p)
+            {
+                float3 p3 = frac(float3(p.xyx) * 0.1031);
+                p3 += dot(p3, p3.yzx + 33.33);
+                return frac((p3.x + p3.y) * p3.z);
+            }
+
+            float BbtsGasNoise(float2 p)
+            {
+                float2 c = floor(p);
+                float2 f = frac(p);
+                float2 u = f * f * (3.0 - 2.0 * f);
+                return lerp(lerp(BbtsGasHash(c), BbtsGasHash(c + float2(1.0, 0.0)), u.x),
+                            lerp(BbtsGasHash(c + float2(0.0, 1.0)), BbtsGasHash(c + float2(1.0, 1.0)), u.x), u.y);
+            }
+
+            float BbtsGasFbm(float2 p)
+            {
+                float s = 0.5 * BbtsGasNoise(p);
+                p = float2(1.6 * p.x + 1.2 * p.y, -1.2 * p.x + 1.6 * p.y);
+                s += 0.25 * BbtsGasNoise(p);
+                p = float2(1.6 * p.x + 1.2 * p.y, -1.2 * p.x + 1.6 * p.y);
+                s += 0.125 * BbtsGasNoise(p);
+                return s / 0.875;
             }
 
             Varyings vert(Attributes v)
@@ -169,7 +201,76 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float isField = saturate(emission * 4.0); // ~1 for fire + energy fields, 0 for water and glass
 
                 float alpha;
-                if (tex.a < 0.95 && isClear < 0.5 && isField < 0.5)
+                if (i.water.x > 4.5)
+                {
+                    // #2128: the gas sea is a drifting haze, not a sheet of tiles. Its tile repeated once per block drew
+                    // a grid of stripes; here the colour is a world-space, domain-warped noise field in the tile's own
+                    // tones (lo = the troughs, mid = the body, hi = the lit tops), dragged along by the storm, with
+                    // wisps sampled UNDER the surface along the view ray so the haze has depth. No waves, foam, glint,
+                    // refraction or reflection — it is gas, not water.
+                    float t = _Time.y;
+                    float3 Vw = normalize(i.wp - _WorldSpaceCameraPos);
+                    bool palette = _Sc_GasMid.a > 0.5;
+                    float3 gLo = palette ? _Sc_GasLo.rgb : albedo * 0.72;
+                    float3 gMid = palette ? _Sc_GasMid.rgb : albedo;
+                    float3 gHi = palette ? _Sc_GasHi.rgb : albedo * 1.15;
+
+                    float2 drift = float2(0.55, 0.18) * t; // blocks per second — the gale drags the haze along
+                    // The body: a large, slow colour field tens of blocks across. Height enters as an offset, so a side
+                    // face does not smear one column of the pattern down its whole height.
+                    float2 layerBase = i.wp.xz + float2(0.7, -0.4) * i.wp.y;
+                    float2 p = (layerBase + drift) / 34.0;
+                    float2 warp = float2(BbtsGasFbm(p * 0.6 + 7.3), BbtsGasFbm(p * 0.6 - 3.9));
+                    float field = BbtsGasFbm(p + (warp - 0.5) * 2.2 + float2(0.0, t * 0.006));
+
+                    // Wisps: thin streaks stretched along the wind, sampled 1.5 / 4 / 7 blocks under the surface along the
+                    // view ray (1 / |V.y| lengthens the offset at a grazing view). Each layer drifts at its own pace, so
+                    // looking across the sea they slide over each other like haze at different depths. The Low and
+                    // Potato presets (no screen effects) keep the top layer only.
+                    float slant = 1.0 / max(abs(Vw.y), 0.2);
+                    float2 q = (layerBase + Vw.xz * (1.5 * slant) + drift * 1.4) * float2(1.0 / 26.0, 1.0 / 9.0);
+                    float wisp = smoothstep(0.48, 0.78, BbtsGasFbm(q + warp * 0.8)) * 0.75;
+                    if (_Sc_ScreenFx > 0.5)
+                    {
+                        q = (layerBase + Vw.xz * (4.0 * slant) + drift * 1.1) * float2(1.0 / 30.0, 1.0 / 11.0);
+                        wisp += smoothstep(0.48, 0.78, BbtsGasFbm(q + 17.0)) * 0.50;
+                        q = (layerBase + Vw.xz * (7.0 * slant) + drift * 0.8) * float2(1.0 / 36.0, 1.0 / 13.0);
+                        wisp += smoothstep(0.48, 0.78, BbtsGasFbm(q - 29.0)) * 0.35;
+                    }
+
+                    wisp = saturate(wisp);
+                    float graze = 1.0 - abs(Vw.y);
+
+                    float3 gas = lerp(gLo, gMid, smoothstep(0.30, 0.52, field));
+                    gas = lerp(gas, gHi, smoothstep(0.55, 0.78, field) * 0.85);
+                    gas = lerp(gas, gHi * 1.12, wisp * 0.80);             // the wisps are the lightest, thickest haze
+                    gas = lerp(gas, gHi, graze * graze * graze * 0.45); // and it pales towards the horizon, like any haze
+
+                    // A haze scatters light through its body, so an island's shadow only dims it a little — a crisp,
+                    // block-stepped shadow on a fog bank reads as a solid floor.
+                    float fogShadow = lerp(0.6, 1.0, shadow);
+                    col = gas * light * (0.62 + 0.38 * ndl * fogShadow) * shade;
+                    col += gas * float3(0.10, 0.13, 0.20) * nightFloor * shade;
+                    col += gas * light * pow(saturate(dot(Vw, L)), 6.0) * 0.30; // forward scatter: towards the sun the haze glows
+
+                    // Opacity: a thick haze you see only a little way into — thinner in the troughs, thicker in the
+                    // wisps, closing to a solid wall towards the horizon.
+                    alpha = 0.72 + 0.14 * (field - 0.5) + 0.18 * wisp;
+                    alpha = lerp(alpha, 1.0, graze * graze * 0.85);
+
+                    if (_Sc_ScreenFx > 0.5)
+                    {
+                        // Where something breaks the surface (a pylon, a deck leg, a sinking player) the haze thins out
+                        // softly instead of drawing water's white foam line.
+                        float2 gasUV = GetNormalizedScreenSpaceUV(i.positionCS);
+                        float gasScene = LinearEyeDepth(SampleSceneDepth(gasUV), _ZBufferParams);
+                        float gasFrag = -TransformWorldToView(i.wp).z;
+                        alpha *= lerp(0.35, 1.0, saturate(max(0.0, gasScene - gasFrag) / 1.5));
+                    }
+
+                    alpha = saturate(alpha);
+                }
+                else if (tex.a < 0.95 && isClear < 0.5 && isField < 0.5)
                 {
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
                     // and through it while swimming.
@@ -540,7 +641,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
 
                     float mode = i.water.x;
                     float t = _Time.y;
-                    if (mode > 3.5)
+                    if (mode > 3.5 && mode < 4.5) // #2128: mode 5 (the gas sea) is no waterfall — this fallback pass keeps it calm
                     {
                         // Waterfall flank: bright streaks racing straight DOWN the face (procedural on world
                         // height — atlas UVs cannot scroll; sin(k*y + w*t) moves the pattern downward).

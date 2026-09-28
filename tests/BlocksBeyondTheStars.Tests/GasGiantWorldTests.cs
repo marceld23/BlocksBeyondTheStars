@@ -104,6 +104,45 @@ public sealed class GasGiantWorldTests
     }
 
     [Fact]
+    public void TheIslands_AreBareRock_NoPondsAndNoWaterfalls_WhileTheSkylandsKeepTheirs()
+    {
+        // #2128: the island bands used to carry a meadow pool and an endless waterfall on every floating-island world, so
+        // curtains of water fell from the gas giant's island rims into the −120 °C gas. The skylands keep both — the same
+        // scan over them proves the area is big enough to hold the falls at all (a pond's interior is rarer than its rim).
+        (int ponds, int falls, int islandColumns) Scan(string planetKey, long seed)
+        {
+            var planet = Content.GetPlanet(planetKey)!;
+            var gen = Gen(seed);
+            System.Span<WorldGenerator.ColumnBand> bands = stackalloc WorldGenerator.ColumnBand[WorldGenerator.MaxColumnBands];
+            int ponds = 0, falls = 0, islandColumns = 0;
+            for (int x = -600; x < 600; x += 3)
+                for (int z = -300; z < 300; z += 3)
+                {
+                    int n = gen.GetExtraBands(planet, x, z, bands);
+                    for (int b = 0; b < n; b++)
+                    {
+                        switch (bands[b].Kind)
+                        {
+                            case WorldGenerator.BandKind.Island: islandColumns++; break;
+                            case WorldGenerator.BandKind.IslandPond: ponds++; islandColumns++; break;
+                            case WorldGenerator.BandKind.Waterfall: falls++; break;
+                        }
+                    }
+                }
+
+            return (ponds, falls, islandColumns);
+        }
+
+        var sky = Scan("skylands", 20260927);
+        Assert.True(sky.falls > 0, $"the control scan found no skylands waterfall ({sky.ponds} pond columns) — widen it");
+
+        var gas = Scan(Key, 20260927);
+        Assert.True(gas.islandColumns > 0, "no gas giant island in the scan");
+        Assert.Equal(0, gas.ponds);
+        Assert.Equal(0, gas.falls);
+    }
+
+    [Fact]
     public void TheGalaxy_PutsAGasGiantOnTheLoneGiant_AndSometimesOnTheOutermostOrbit_ButNeverBelowGenerationEighteen()
     {
         WorldDescription Desc(int generation) => new()

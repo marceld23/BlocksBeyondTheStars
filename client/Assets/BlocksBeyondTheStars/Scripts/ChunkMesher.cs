@@ -794,6 +794,9 @@ namespace BlocksBeyondTheStars.Client
                 // would normally be culled (see the submerged-fluid test below) so the cascade reads flat; keep
                 // them and tag them mode 4 so the transparent shader streaks them downward.
                 bool isFallingWater = isWater && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz, loadedFn);
+                // #2128: the gas sea meshes like water (inset surface, corner light) but is shaded as a drifting haze of
+                // its own — every gas face carries mode 5 in TEXCOORD2 instead of the water-body weights.
+                bool isGas = (tf & TraitGas) != 0;
 
                 // Lava SURFACE cell (air above): tag its faces as tint mode 5 so the opaque atlas shader animates
                 // a slow molten crust over the otherwise-static glow (L1). Lava is opaque, so unlike water this
@@ -1166,7 +1169,13 @@ namespace BlocksBeyondTheStars.Client
                     // look blends seamlessly across neighbouring blocks. Until #1749 the mode and flow axis
                     // were per-face hard branches, and a body of varying width — or one full of reeds — drew
                     // a mosaic of ripple directions and brightness steps.
-                    if (isWaterSurface && dir.Y == 1)
+                    if (isGas)
+                    {
+                        // #2128: mode 5 → the transparent shader's gas haze (no waves, foam, reflection or depth blue).
+                        var gas = new Vector4(5f, 0f, 0f, 0f);
+                        leafUv.Add(gas); leafUv.Add(gas); leafUv.Add(gas); leafUv.Add(gas);
+                    }
+                    else if (isWaterSurface && dir.Y == 1)
                     {
                         // Corner offsets follow FaceQuad's +Y order: (0,0) (0,1) (1,1) (1,0).
                         leafUv.Add(WaterCorner(id, wx, wy, wz));
@@ -2169,6 +2178,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitCultivated = 1u << 20;        // #1716: a farmed crop (and #2085 an authored plant) — flora that keeps its authored colour (no tint mode)
         private const uint TraitHangingFlora = 1u << 21;      // #1759: a plant rooted in the block ABOVE — the billboard grows downward
         private const uint TraitRainbowFlora = 1u << 22;      // generation 11: every plant its own colour (FloraTints.RainbowAt)
+        private const uint TraitGas = 1u << 23;               // #2128: the gas sea — shaded as a haze (TEXCOORD2.x = 5), not as water
 
         private sealed class BlockTraits
         {
@@ -2214,6 +2224,7 @@ namespace BlocksBeyondTheStars.Client
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsHanging(key)) f |= TraitHangingFlora;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsRainbow(key)) f |= TraitRainbowFlora;
                     if (key == "water" || key == "gas") f |= TraitWater; // #2112: the gas sea meshes like water (a see-through surface)
+                    if (key == "gas") f |= TraitGas; // #2128: …but is shaded as a drifting haze
                     if (key == "lava") f |= TraitLava;
                     if (key == "fire") f |= TraitFire;
                     if (key == "torch" || key == "lantern") f |= TraitTorchProp;

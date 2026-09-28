@@ -56,6 +56,10 @@ package in this order):
    "train + local offset" on the wire, world pose derived by the server) or sit, cab panel with autopilot, wagons as
    items, a rail dealer profession + blueprint.
 10. **#2114 assets** (maintainer): tiles, icons, sounds.
+11. ✅ **#2128 gas giant look** (playtest follow-up, 2026-09-28): the islands are bare rock — no meadow pools and no
+    rim waterfalls of water (gated on `IsGasWorld`, the class exists from gen 18 only; golden unchanged); the gas sea is
+    shaded as a drifting haze (mesher mode 5, a world-space noise field in the tile's own tones via `_Sc_GasLo/Mid/Hi`,
+    wisp layers under the surface, soft edges) instead of the gas tile repeated once per block with water's effects.
 
 Analysis 2026-09-27 (gitignored, `analysis/justus-ideas-2026-09-27.md`); decisions Q1–Q13 recorded in the epic.
 

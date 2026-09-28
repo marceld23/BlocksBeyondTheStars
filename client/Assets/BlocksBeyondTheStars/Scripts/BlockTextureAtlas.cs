@@ -128,9 +128,56 @@ namespace BlocksBeyondTheStars.Client
             }
 
             PublishAnimation();
+            PublishGasPalette();
             Texture.Apply(updateMipmaps: true);
             BuildNormalAtlas(); // derives from the final atlas, so variants get normals automatically
             GameTextures.Changed += OnTexturesChanged;
+        }
+
+        private static readonly int GasLoId = Shader.PropertyToID("_Sc_GasLo");
+        private static readonly int GasMidId = Shader.PropertyToID("_Sc_GasMid");
+        private static readonly int GasHiId = Shader.PropertyToID("_Sc_GasHi");
+
+        /// <summary>#2128: the gas sea is shaded as a drifting haze in world space, not by tiling its tile once per block —
+        /// but in the tile's own colours. Its darkest, average and brightest tones (the mean of the darkest and of the
+        /// brightest fifth of its pixels) go to the transparent block shader as three globals, so a texture pack that
+        /// repaints the gas recolours the haze too. No gas block (older content) → nothing to publish.</summary>
+        private void PublishGasPalette()
+        {
+            var gas = _content.GetBlock("gas");
+            int id = gas != null ? gas.NumericId.Value : 0;
+            if (id <= 0 || id >= AtlasBands.BlockEnd)
+            {
+                return;
+            }
+
+            var pixels = Texture.GetPixels((id % Cols) * Tile, (id / Cols) * Tile, Tile, Tile);
+            var lum = new float[pixels.Length];
+            var order = new int[pixels.Length];
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                lum[i] = (0.299f * pixels[i].r) + (0.587f * pixels[i].g) + (0.114f * pixels[i].b);
+                order[i] = i;
+            }
+
+            System.Array.Sort(lum, order); // ascending luminance; `order` follows
+            int fifth = pixels.Length / 5;
+            Color Mean(int from, int count)
+            {
+                Color sum = Color.black;
+                for (int k = from; k < from + count; k++)
+                {
+                    sum += pixels[order[k]];
+                }
+
+                return sum / count;
+            }
+
+            Color lo = Mean(0, fifth), mid = Mean(0, pixels.Length), hi = Mean(pixels.Length - fifth, fifth);
+            lo.a = mid.a = hi.a = 1f; // a > 0.5 = published
+            Shader.SetGlobalColor(GasLoId, ShaderColor.Srgb(lo));
+            Shader.SetGlobalColor(GasMidId, ShaderColor.Srgb(mid));
+            Shader.SetGlobalColor(GasHiId, ShaderColor.Srgb(hi));
         }
 
         // ---------------------------------------------------------------- animated tiles (#1957)
@@ -272,6 +319,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             PublishAnimation();
+            PublishGasPalette();
             Texture.Apply(updateMipmaps: true);
             var oldNormals = NormalTexture;
             BuildNormalAtlas();

@@ -2147,8 +2147,13 @@ about three in five; the sky giant is passive — a spectacle. The class is one 
 18, `spawnWeight` 0) and one new type field, `seaFluid: "gas"` (`PlanetType.IsGasWorld`), plus `floatingIslands`.
 
 - **The gas sea.** A third sea fluid next to water and lava: the `gas` block — a still liquid like oil (#2106: `liquid`,
-  not `solid`, not `mineable`, **no drops**, so the pump refuses it), meshed by the client like water (`TraitWater`, its own
-  banded amber tile, alpha 0.62 — a haze you see a little way into). The calibration takes a gas branch before the water
+  not `solid`, not `mineable`, **no drops**, so the pump refuses it), meshed by the client like water (`TraitWater`: the
+  inset surface, corner light) but shaded as a haze of its own (#2128): every gas face carries mode 5 in TEXCOORD2
+  (`TraitGas`), and `BlockAtlasTransparent` draws a world-space, domain-warped noise field in the gas tile's darkest /
+  average / brightest tones (`BlockTextureAtlas.PublishGasPalette` → `_Sc_GasLo/Mid/Hi`) that the gale drags along, with
+  two or three wisp layers sampled under the surface along the view ray, paling and thickening towards the horizon,
+  only lightly dimmed by island shadows (a crisp block-stepped shadow on a fog bank read as a floor) and thinning softly
+  where something breaks the surface — no tile grid, no waves, foam, reflection or deep-water blue. The calibration takes a gas branch before the water
   one: `SeaLevel = MaxHeight + GasSeaRise` (6), so the gas floods the **whole heightfield** and nothing of it ever shows —
   every column is a sea column, there are no ponds, rivers, beaches or ice (`waterAbundance` 0), and `SeaIsGas` answers
   for the far terrain (`FarSurface.Gas`), the minimap, the pads and the server. The contact rule (`GameServerGasGiant`):
@@ -2156,7 +2161,9 @@ about three in five; the sky giant is passive — a spectacle. The class is one 
   `srv.death.gas`; an animal that falls in burns the same way (`BurnDpsFor`); a giant never does.
 - **The islands.** The classic floating-island tiers (`FloatingIslandTier`, 1–3 tiers from `BaseHeight + 28`) over a
   low, flat heightfield (`baseHeight` 40, `amplitude` 6): tier 0 hangs just over the gas, the lower stalactites dip into it.
-  The islands are the only ground: the roster is **all fliers** (`GenerateRoster` re-rolls every non-Air slot with a
+  They are **bare rock** (#2128): `GetExtraBands` skips the meadow pool (`IslandPond`) and the rim waterfall (`Waterfall`)
+  on a gas world — both are water on every other floating-island world, and hung curtains of water from the island rims
+  into the −120 °C gas. The islands are the only ground: the roster is **all fliers** (`GenerateRoster` re-rolls every non-Air slot with a
   salted seed on a gas world — the type is gated, so no older roster moves), and a settlement seats **only on an island**
   (`GameServerSettlements`: `wantIsland` is forced, the guaranteed search returns false instead of a ground seat — a
   build too big for an island has no spot).

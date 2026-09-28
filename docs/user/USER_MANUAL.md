@@ -418,8 +418,9 @@ separate unlock; admins can still disable it through server world rules.
   roof you have air, no corrosion and no rain, on this planet and on every other world (the HUD says "factory life
   support"). Carbon and silicate are clean there, so the wash loop closes on site.
 - **Gas giant** (Justus' idea, new galaxies since generation 18): a world with **no ground at all**. Below is a bottomless
-  sea of cold **gas** — fall in and you sink and die within seconds, armour or not, there is nothing to breathe. Above it
-  float **islands of rock**, up to three tiers of them; on the lowest ones stand the **sky cities**, and every inhabited
+  sea of cold **gas** — a thick amber-and-violet haze that the storm drags slowly along; fall in and you sink and die within
+  seconds, armour or not, there is nothing to breathe. Above it float **islands of bare rock** (there is no water on this
+  world), up to three tiers of them; on the lowest ones stand the **sky cities**, and every inhabited
   city holds a **pocket of breathable air** over its lanes (the HUD says so; an abandoned one has lost it). Everything else
   is **−120 °C and toxic**, and the storm never stops — the suit will not last long out there. Ships land on **metal decks**
   hanging over the gas (a rail and lights around the rim); nothing can be pumped out of the gas. Every animal here **flies**,
