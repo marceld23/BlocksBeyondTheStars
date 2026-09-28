@@ -129,7 +129,7 @@ Last updated: 2026-08-26.
 | **O** | Aboard your own (or any player-built) station: toggle **zero-g construction mode** for yourself — the suit floats over the decks (Jump rises, Crouch sinks) so you can extend the hull without walking; press again to walk. Not saved; off whenever you board |
 | **V** | Toggle first / third-person camera |
 | **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
-| **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter) — rebindable; gamepad **View** (Back), touch **NEXT ▶** |
+| **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter; also opens the folded VEGA tab) — rebindable; gamepad **View** (Back), touch **NEXT ▶** |
 | **Tab** | Open / close the gameplay menu (Inventory, Crafting, Tech, Ship, Map, Missions, Character); also closes full-screen menu screens such as the Codex |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) — rebindable; touch **MAP** |
 | **Enter** | Open the chat box (Esc cancels) |
@@ -160,7 +160,7 @@ buttons — retuning is tracked in issue #195):
 | **(Y)** | Toggle first / third-person camera |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
 | **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp, thermal vision, feed a begging herd, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
-| **View** (the two-rectangles button left of the Xbox logo; "Back" on a 360 pad, Share on PlayStation, − on Nintendo) | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard) |
+| **View** (the two-rectangles button left of the Xbox logo; "Back" on a 360 pad, Share on PlayStation, − on Nintendo) | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard); also opens the folded VEGA tab |
 | **Menu** (☰ — the three-lines button right of the Xbox logo; Unity and 360-era pads call it Start. The Xbox-logo button itself belongs to Windows' Game Bar and never reaches the game) | Open / close the gameplay menu — its top strip has the **Pause menu** button (Resume / Settings / Quit, the same dialog **Esc** opens on the keyboard); **(B)** resumes |
 
 In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back — that includes **every
@@ -230,7 +230,7 @@ buttons swap with what you're doing:
 | **◄ ►** | Cycle hotbar slot (ship-systems bar — laser ↔ tractor beam — at the helm) |
 | **…** (beside ►) | **Hotbar slot actions** on the selected slot (see §5); shown only when the menu can open |
 | **ACT** (beside ◄) | **Actions** — a list of everything you can do right now: rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair a wreck, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, … Tap an entry to do it. Shown only when something applies |
-| **NEXT ▶** (top-centre) | **VEGA: continue** — advance or dismiss the ship AI's line; shown only while a line is up |
+| **NEXT ▶** (top-centre) | **VEGA: continue** — advance or dismiss the ship AI's line; also opens the folded VEGA tab; shown only while a line is up |
 | **≡** (top-right) | Open / close the gameplay menu |
 | *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump · mine · place · use/board · descend · open chat · camera · planet map |
 | *On foot, when it applies:* **ROTATE · ATTACK · FEED** | Rotate the held block's placement (appears while a rotatable block is selected) · swing / fire the held weapon (hold on the Guardian core to breach it) · throw one piece of the held food to a begging herd (appears while you hold food and an animal begs nearby) |
@@ -337,9 +337,12 @@ separate unlock; admins can still disable it through server world rules.
   until the arrow points to the top of the dial and walk; VEGA reminds you of this once you are a long way from
   the hull.
 - **VEGA panel** — the ship AI speaks through a typewriter speech panel with a persistent **objective
-  chip** (live progress, e.g. "mine 1/3") during onboarding. Advance lines with **N** — a line stays on
-  screen until you do (no auto-dismiss), and further lines wait in the queue. Advisor hints can
-  be muted (Settings → VEGA hints); the tutorial can be skipped or **restarted** from the Settings tab.
+  chip** (live progress, e.g. "mine 1/3") during onboarding. Advance lines with **N** or the **Continue** button in
+  the panel (clickable whenever the mouse cursor is free, tappable on touch) — a line stays until you do (no
+  auto-dismiss), and further lines wait in the queue. Leave a line for about 45 seconds and the panel **folds into a
+  small VEGA tab** beside the objective, showing how many messages are waiting; press **N** (pad **View**, touch
+  **NEXT ▶**) or click/tap the tab to open it again — nothing is lost. Advisor hints can be muted (Settings → VEGA
+  hints); the tutorial can be skipped or **restarted** from the Settings tab.
 
 ---
 
@@ -1295,7 +1298,8 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Daily routines & jobs
 - **People keep the hours of the sun above them.** By day they are at work, in the evening they sit down on a
-  **chair or bench** near home, and at night they walk to **their bed** and sleep in it (*"asleep"* on the
+  **chair or bench** near home (every chair belongs to one person — when the tavern runs out of chairs, the others
+  use a chair at home or spend the evening standing), and at night they walk to **their bed** and sleep in it (*"asleep"* on the
   nameplate, a soft *z z z* above them). Without a bed they rest where they live. Talk to a sleeper and you get
   a mumbled *"come back in the morning"*. This goes for your residents, for **villagers** (every house has a
   bed) and for **station crew** — a station keeps its own clock, and its deck lights **dim at station night**
@@ -1734,7 +1738,11 @@ separate unlock; admins can still disable it through server world rules.
   stacks like a block (form and dye colour combine freely). Shaped forms are **player-craft only**: world-gen,
   settlements, stations and ships stay plain cubes.
 - **Sitting:** press **E** on any **chair**- or **bench**-shaped cell to sit down — the camera settles to seat height
-  and other players see you sitting. Stand up with **E**, jump, crouch or any movement key.
+  and other players see you sitting. **One seat, one sitter:** a seat somebody already sits on — another player or a
+  villager/crew member — can't be taken (*"Someone is already sitting there."*), and people won't sit down on your
+  chair either: they wait beside it and sit down once you get up. Stand up with **E**, jump, crouch or any movement key.
+- **Faces:** everyone has a face of their own — some are clean-shaven, others wear a moustache, a goatee, a beard or a
+  full beard in their hair colour; androids have a small speaker grille instead.
 - **Beds are two cells long:** placing a bed writes the head end where you aim and the foot end in the cell you are
   facing (the preview shows both); the foot cell must be free. Mining either half takes the whole bed back, and **E**
   on either half sets your home spawn. Beds placed before this change stay one cell.

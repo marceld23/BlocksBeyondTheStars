@@ -48,8 +48,18 @@ Eight F1 reports from Screelit (Justus) on v2026.9.17 and Marcel's decisions, al
    into an unsealed extension; the client routes building from inside the ship past the box to the ship.
 5. ✅ **#2121 repair** — owner-mined cells (`OwnerRemovedMark` in the edit's shape field) and owner-built doorways are
    the new design; a hit still counts.
-6. **#2122 seats**, 7. **#2123 NPC facial hair**, 8. **#2124 object block faces + front facing**, 9. **#2125 the
-   intercity monorail (gen 19)**, 10. **#2126 the VEGA panel tab** — in progress.
+6. ✅ **#2122 one seat, one sitter** — `SetSeatedIntent` carries the seat cell (additive); the server checks
+   seat/reach/free (a seated NPC or another seated player) and rejects with `@srv.seat.taken|too_far|none`; the client
+   stands back up and pre-checks (`SeatCells`). NPCs never sit into a sitter (they rest beside the chair and sit once it
+   is free); residents, professions and station crew get the next *free* seat (the wrapping cursor double-booked
+   chairs), else a free home chair, else rest standing. Tests: `SeatOccupancyTests`, `SeatCellsTests`.
+7. ✅ **#2123 NPC facial hair** — the teal breather strip (read as a moustache) is gone from NPCs: `NpcLooks`
+   (Client.Core) picks per face seed ~40 % clean-shaven / moustache / goatee / beard / full beard in the hair tone;
+   androids get a speaker grille; players keep the strip. Tests: `NpcLooksTests`.
+8. ✅ **#2126 the VEGA tab** — a revealed, non-prologue line nobody advanced for 45 s folds into a "VEGA · n
+   messages" tab (never dismissed unread); continue/click/tap reopens it; the continue hint is a clickable pill
+   (touch taps forwarded by the look pad). `VegaCollapse` + `VegaCollapseTests`. Open: playtest on desktop, touch, pad.
+9. **#2124 object block faces + front facing**, 10. **#2125 the intercity monorail (gen 19)** — in progress.
 
 ### 🛢️ Justus' ideas 2026-09 — oil, the drill laser, slithering worms, equipment slots, sea + sky giants, the gas giant, the monorail train (#2104: #2105–#2114, 2026-09-27, branch feat/justus-ideas-2026-09, terrain generation 18)
 
