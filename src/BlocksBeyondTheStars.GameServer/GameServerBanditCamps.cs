@@ -92,6 +92,8 @@ public sealed partial class GameServer
                 (s.Max.X - s.Min.X) / 2 + 1, (s.Max.Z - s.Min.Z) / 2 + 1));
         }
 
+        AppendIntercityReservations(reserved); // #2125: the intercity line's stations and route
+
         bool blocksAlreadyStamped = FeatureStamped("banditcamps");
         var placed = new List<PlacedSettlement>();
         for (int i = 0; i < count; i++)

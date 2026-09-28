@@ -125,9 +125,10 @@ public sealed partial class GameServer
         {
             var rails = Rails;
             var below = new Vector3i(pos.X, pos.Y - 1, pos.Z);
-            if (rails.Nodes.TryGetValue(below, out var lower))
+            if (rails.Nodes.TryGetValue(below, out var lower) && !IsGeneratedPylon(below))
             {
-                // Stacking raises the line: the node moves to the new top, its links come along.
+                // Stacking raises the line: the node moves to the new top, its links come along. (#2125: never the
+                // generated intercity line's — a pylon on top of one is a pylon of its own.)
                 rails.Nodes.Remove(below);
                 var raised = new RailNode { Cell = pos };
                 foreach (var l in lower.Links)
@@ -167,7 +168,7 @@ public sealed partial class GameServer
                     Send(session, new ServerMessage { Text = why }); // a refused auto-link says why; out of range is simply a new line
                 }
             }
-            else if (rails.Nodes.Count == 1)
+            else if (rails.Nodes.Keys.Count(k => !IsGeneratedPylon(k)) == 1)
             {
                 SendVegaLine(session, "vega.sys.rail_first", 3);
             }
@@ -269,6 +270,11 @@ public sealed partial class GameServer
             return "@srv.rail.no_pylon";
         }
 
+        if (IsGeneratedPylon(a) || IsGeneratedPylon(b))
+        {
+            return "@srv.rail.public_line"; // #2125: the intercity line's links are the line's
+        }
+
         if (na.Links.Contains(b))
         {
             return "@srv.rail.already_linked";
@@ -308,6 +314,21 @@ public sealed partial class GameServer
     /// pylons and stops themselves are never obstacles, nor are the loaded chunks' fluids and flora.</summary>
     private bool LinkClear(Vector3i a, Vector3i b)
     {
+        foreach (var cell in LinkClearCells(a, b))
+        {
+            if (RailObstacle(cell))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>The cells <see cref="LinkClear"/> samples between two pylon tops (canonical) — also the part of the
+    /// generated intercity line's corridor its stamp carves first (#2125), so a generated link passes the same check.</summary>
+    private IEnumerable<Vector3i> LinkClearCells(Vector3i a, Vector3i b)
+    {
         var ta = PylonTop(a);
         var tb = PylonTop(b);
         float dx = (float)WorldConstants.WrapDeltaX((double)(tb.X - ta.X), _world.Circumference);
@@ -324,19 +345,13 @@ public sealed partial class GameServer
             {
                 for (float up = 0.5f; up < RailRules.WagonHeight; up += 1f)
                 {
-                    var cell = new Vector3i(
+                    yield return new Vector3i(
                         (int)Math.Floor(WorldConstants.WrapX((double)(cx + rx * side), _world.Circumference)),
                         (int)Math.Floor(cy + up),
                         (int)Math.Floor(WorldConstants.WrapZ((double)(cz + rz * side), _world.Circumference)));
-                    if (RailObstacle(cell))
-                    {
-                        return false;
-                    }
                 }
             }
         }
-
-        return true;
     }
 
     private bool RailObstacle(Vector3i cell)
@@ -486,10 +501,12 @@ public sealed partial class GameServer
             rails.Lines[id] = line;
         }
 
-        // The stops: every stop block within reach of a line lands on it.
+        // The stops: every stop block within reach of a line lands on it. #2125: the intercity line keeps exactly its two
+        // stations — a stop a player sets beside it does not make the public train halt.
         var stopId = _content.GetBlock(RailRules.StopBlockKey)?.NumericId ?? BlockId.Air;
         if (!stopId.IsAir)
         {
+            var intercity = IntercityLine();
             foreach (var c in CrystalNet.Cells.Values)
             {
                 if (c.Kind != CrystalDeviceKind.RailStop)
@@ -512,6 +529,11 @@ public sealed partial class GameServer
                     }
                 }
 
+                if (best is not null && ReferenceEquals(best, intercity) && !IsIntercityStop(c.Cell))
+                {
+                    continue;
+                }
+
                 best?.Stops.Add((bestArc, c.Cell));
             }
 
@@ -525,6 +547,11 @@ public sealed partial class GameServer
         for (int i = rails.Trains.Count - 1; i >= 0; i--)
         {
             var t = rails.Trains[i];
+            if (RailRules.IsPublic(t.OwnerId) && !rails.Lines.ContainsKey(t.LineId) && IntercityLine() is { } generated)
+            {
+                t.LineId = generated.Id; // #2125: the line was renumbered, not lost — the public train stays on it
+            }
+
             if (!rails.Lines.TryGetValue(t.LineId, out var line) || line.Spline.TotalArc < RailRules.WagonLength)
             {
                 ReturnTrain(t, "@srv.rail.line_gone");
@@ -600,6 +627,12 @@ public sealed partial class GameServer
 
         if (rails.Nodes[a].Links.Contains(cell))
         {
+            if (IsGeneratedPylon(a) || IsGeneratedPylon(cell))
+            {
+                Reject(session, "rail", "@srv.rail.public_line"); // #2125: nobody breaks the intercity line
+                return false;
+            }
+
             Unlink(a, cell);
             Send(session, new ServerMessage { Text = "@srv.rail.unlinked" });
             RailGraphChanged();
@@ -648,6 +681,12 @@ public sealed partial class GameServer
             return false;
         }
 
+        if (ReferenceEquals(best, IntercityLine()))
+        {
+            Reject(session, "rail", "@srv.rail.public_line"); // #2125: the intercity line runs its own train
+            return false;
+        }
+
         if (rails.Trains.Any(t => t.LineId == best.Id && Math.Abs(best.Spline.NormalizeArc(t.Arc) - bestArc) < RailRules.WagonLength * (t.Wagons.Count + 1)))
         {
             Reject(session, "rail", "@srv.rail.line_busy");
@@ -689,7 +728,7 @@ public sealed partial class GameServer
         float bestD = RailRules.BoardRange * 2f;
         foreach (var t in rails.Trains)
         {
-            if (t.OwnerId != p.PlayerId || !rails.Lines.TryGetValue(t.LineId, out var line))
+            if ((t.OwnerId != p.PlayerId && !RailRules.IsPublic(t.OwnerId)) || !rails.Lines.TryGetValue(t.LineId, out var line))
             {
                 continue;
             }
@@ -706,6 +745,12 @@ public sealed partial class GameServer
         if (best is null)
         {
             Reject(session, "rail", "@srv.rail.no_train");
+            return false;
+        }
+
+        if (RailRules.IsPublic(best.OwnerId))
+        {
+            Reject(session, "rail", "@srv.rail.public_line"); // #2125: nobody couples onto the public train
             return false;
         }
 
@@ -734,6 +779,12 @@ public sealed partial class GameServer
         var rails = Rails;
         var p = session.State;
         var t = rails.Trains.FirstOrDefault(x => x.Id == intent.TrainId);
+        if (t is not null && RailRules.IsPublic(t.OwnerId))
+        {
+            Reject(session, "rail", "@srv.rail.public_line"); // #2125: the public train is nobody's to pack up
+            return;
+        }
+
         if (t is null || t.OwnerId != p.PlayerId)
         {
             Reject(session, "rail", "@srv.rail.not_yours");
@@ -773,6 +824,14 @@ public sealed partial class GameServer
         }
 
         rails.Trains.Remove(t);
+        if (RailRules.IsPublic(t.OwnerId))
+        {
+            // #2125: the public train belongs to nobody — it returns to no pack and drops nothing, it is simply gone.
+            SaveRails();
+            BroadcastTrains(force: true);
+            return;
+        }
+
         var owner = to ?? FindSessionByPlayerId(t.OwnerId);
         if (owner is not null)
         {
@@ -833,9 +892,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (t.OwnerId != p.PlayerId && !AlliedWith(t.OwnerId, p.PlayerId))
+        if (!RailRules.IsPublic(t.OwnerId) && t.OwnerId != p.PlayerId && !AlliedWith(t.OwnerId, p.PlayerId))
         {
-            Reject(session, "rail", "@srv.rail.not_yours");
+            Reject(session, "rail", "@srv.rail.not_yours"); // #2125: the public train takes anyone
             return;
         }
 
@@ -1023,6 +1082,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (RailRules.IsPublic(t.OwnerId))
+        {
+            Reject(session, "rail", "@srv.rail.public_line"); // #2125: the public train keeps its own timetable
+            return;
+        }
+
         if (t.OwnerId != p.PlayerId && !AlliedWith(t.OwnerId, p.PlayerId))
         {
             Reject(session, "rail", "@srv.rail.not_yours");
@@ -1060,7 +1125,7 @@ public sealed partial class GameServer
         bool any = false;
         foreach (var t in Rails.Trains)
         {
-            if (t.Halted && t.HaltStop == stopCell)
+            if (t.Halted && t.HaltStop == stopCell && !RailRules.IsPublic(t.OwnerId)) // #2125: the public train keeps its timetable
             {
                 t.Halted = false;
                 t.HaltStop = null;
@@ -1158,7 +1223,7 @@ public sealed partial class GameServer
                                 t.Halted = true;
                                 t.HaltStop = cell;
                                 t.LastStop = cell;
-                                t.HaltUntil = _uptime + RailRules.StopHaltSeconds;
+                                t.HaltUntil = _uptime + (RailRules.IsPublic(t.OwnerId) ? RailRules.PublicStopHaltSeconds : RailRules.StopHaltSeconds);
                                 t.Arc = arc;
                                 break;
                             }
@@ -1398,7 +1463,12 @@ public sealed partial class GameServer
         }
 
         rails.Loaded = true;
+        bool generated = EnsureIntercityGraph(); // #2125: the intercity line's stops, nodes and links, when missing
         RebuildRailLines();
+        if (EnsureIntercityTrain() || generated)
+        {
+            SaveRails(); // #2125: the public train on the intercity line, when it has none
+        }
     }
 
     private static bool TryCell(string s, out Vector3i cell)

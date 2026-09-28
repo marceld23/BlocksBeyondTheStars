@@ -88,6 +88,8 @@ public sealed partial class GameServer
                 (s.Max.X - s.Min.X) / 2 + 1, (s.Max.Z - s.Min.Z) / 2 + 1));
         }
 
+        AppendIntercityReservations(reserved); // #2125: the intercity line's stations and route
+
         var placed = new List<PlacedSettlement>();
         var usedNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
         foreach (var s in _settlements)

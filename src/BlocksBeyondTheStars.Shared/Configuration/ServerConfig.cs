@@ -328,6 +328,21 @@ public sealed class ServerConfig
     public bool PlaceMonuments { get; set; } = true;
 
     /// <summary>
+    /// Whether the server may lay a generated <b>intercity monorail</b> (#2125) on a new world (terrain generation 19+) — a
+    /// train line with a station at each end between the two closest inhabited towns or cities, and a public train that
+    /// shuttles between them. Only decides for worlds that have not decided yet; a line a world already has stays. The
+    /// stations and pylons are protected like a settlement. Deterministic from the world seed.
+    /// </summary>
+    public bool PlaceIntercityRail { get; set; } = true;
+
+    /// <summary>
+    /// The chance (0..1) that a world with at least two inhabited towns or cities gets its intercity line (#2125) — 0.6 by
+    /// default (Marcel's decision). Rolled once per world, deterministically from the seed and the body id, on a lane of its
+    /// own; tests pin 1.0 to get a line wherever one fits.
+    /// </summary>
+    public double IntercityRailChance { get; set; } = 0.6;
+
+    /// <summary>
     /// Singleplayer/admin convenience: guarantee one data cube right next to the start world's landing pad, so
     /// a solo player can always reach a minigame near spawn. Set only by the bundled singleplayer launcher;
     /// left off on shared/dedicated servers (where the random scatter applies as normal).

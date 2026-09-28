@@ -755,6 +755,7 @@ public sealed partial class GameServer
                     if (_config.PlaceSettlements && !restricted)
                     {
                         BootDetail("settlements", StampSettlement);
+                        BootDetail("intercity rail", StampIntercityRail); // #2125 (generation 19): right after the towns, before anything else reserves ground
                     }
 
                     if (_config.PlaceRuins && !restricted)
@@ -4669,6 +4670,13 @@ public sealed partial class GameServer
         // its bed, so this takes nothing permanent from the settlement. Everything else the greenhouse is made
         // of — glass, beds, frame — stays protected.
         bool harvestingPlant = IsFlora(current.Value);
+
+        // #2125: the intercity line's stations and pylons are the towns' — protected like them, with a line of their own.
+        if (!harvestingPlant && IsIntercityRailBlock(pos) && !IsSettlementBoxBlock(pos))
+        {
+            Reject(session, "mine", "@srv.protect.rail");
+            return;
+        }
 
         // A natural tree inside the box is not the settlement's either (#1659) — see IsSettlementProtected.
         if (!harvestingPlant && IsSettlementProtected(pos, current))

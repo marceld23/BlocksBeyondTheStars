@@ -37,7 +37,8 @@ public sealed class RailTests : IDisposable
         string world = "rail_" + (++_worlds);
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var st = new LoopbackServerTransport(new LoopbackLink());
-        var config = new ServerConfig { WorldName = world, Seed = 1, StartPlanet = "salt_flats", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        // These tests count the player's own lines and trains: no generated intercity line (#2125) on their world.
+        var config = new ServerConfig { WorldName = world, Seed = 1, StartPlanet = "salt_flats", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false, PlaceIntercityRail = false };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;
