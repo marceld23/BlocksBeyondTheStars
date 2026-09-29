@@ -2011,10 +2011,11 @@ public sealed partial class GameServer
             }
 
             // The gas sea (#2112, the gas giant): there is no bottom and nothing to breathe — armour is no help. Faster than
-            // lava, so a fall from an island ends in seconds, not in a long sink.
-            if (InGas(p.Position))
+            // lava, so a fall from an island ends in seconds, not in a long sink — the dense gas under it faster still (#2134).
+            float gasDps = GasContactDpsAt(p.Position);
+            if (gasDps > 0f)
             {
-                p.Health = System.Math.Max(0f, p.Health - (float)(dt * GasContactDps));
+                p.Health = System.Math.Max(0f, p.Health - (float)(dt * gasDps));
                 session.HazardDeathReason = "@srv.death.gas";
             }
 

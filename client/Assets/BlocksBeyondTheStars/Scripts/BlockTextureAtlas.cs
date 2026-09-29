@@ -921,6 +921,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 DarkenTile(ox, oy, 0.42f);
             }
+            else if (key == "gas_dense" && !TryPaintFromAsset(key, ox, oy) && TryPaintFromAsset("gas", ox, oy))
+            {
+                DarkenTile(ox, oy, 0.34f); // #2134: the dense gas wears the gas tile, darkened (a pack may still ship its own)
+            }
             else if (!TryPaintFromAsset(key, ox, oy))
             {
                 Color baseCol = BaseColor(key) ?? DataColor(def) ?? DefaultTint;
@@ -953,6 +957,10 @@ namespace BlocksBeyondTheStars.Client
             else if (key == "gas")
             {
                 FadeTileAlpha(ox, oy, 0.62f); // #2112: the gas sea is a haze — thicker than water, you still see a little way down into it
+            }
+            else if (key == "gas_dense")
+            {
+                FadeTileAlpha(ox, oy, 0.92f); // #2134: the dense gas under it is nearly opaque — nothing shows through from below
             }
         }
 

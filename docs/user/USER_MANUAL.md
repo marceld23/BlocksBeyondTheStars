@@ -423,7 +423,8 @@ separate unlock; admins can still disable it through server world rules.
   support"). Carbon and silicate are clean there, so the wash loop closes on site.
 - **Gas giant** (Justus' idea, new galaxies since generation 18): a world with **no ground at all**. Below is a bottomless
   sea of cold **gas** — a thick amber-and-violet haze that the storm drags slowly along; fall in and you sink and die within
-  seconds, armour or not, there is nothing to breathe. Above it float **islands of bare rock** (there is no water on this
+  seconds, armour or not, there is nothing to breathe. A few blocks down the gas turns into **dense gas** — dark, heavy and
+  churning: it pulls you down (holding Jump only slows you a little) and burns even faster. Above it float **islands of bare rock** (there is no water on this
   world), up to three tiers of them; on the lowest ones stand the **sky cities**, and every inhabited
   city holds a **pocket of breathable air** over its lanes (the HUD says so; an abandoned one has lost it). Everything else
   is **−120 °C and toxic**, and the storm never stops — the suit will not last long out there. Ships land on **metal decks**

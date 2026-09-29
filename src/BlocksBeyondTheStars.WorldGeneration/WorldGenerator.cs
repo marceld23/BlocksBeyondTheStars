@@ -281,6 +281,7 @@ public sealed partial class WorldGenerator
         var origin = WorldConstants.ChunkOrigin(coord);
         int cs = WorldConstants.ChunkSize;
         var (_, seaFluid) = ResolveSeaFluid(planet);
+        int denseGasTop = DenseGasTop(planet); // #2134: MinValue off the gas giant, so a deck's gas reaches down as before
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
         var lavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
         var beachId = BeachBlockFor(planet);
@@ -357,8 +358,16 @@ public sealed partial class WorldGenerator
                     }
                     else if (pad.Deck)
                     {
-                        // The deck is a platform, not a mound: three blocks of fill, then the gas again below it.
-                        chunk.Set(lx, ly, lz, worldY >= padY - DeckThickness ? subSurfaceId : seaFluid);
+                        // The deck is a platform, not a mound: three blocks of fill, then the gas again below it — down to
+                        // the dense gas (#2134), which the column already holds from there to the floor.
+                        if (worldY >= padY - DeckThickness)
+                        {
+                            chunk.Set(lx, ly, lz, subSurfaceId);
+                        }
+                        else if (worldY > denseGasTop)
+                        {
+                            chunk.Set(lx, ly, lz, seaFluid);
+                        }
                     }
                     else if (islet)
                     {
@@ -407,6 +416,10 @@ public sealed partial class WorldGenerator
     /// <summary>#2112: how far over its highest ground a gas giant's gas stands — nothing of the heightfield ever shows.</summary>
     public const int GasSeaRise = 6;
 
+    /// <summary>#2134: how deep the light gas of a gas giant's sea is — this many blocks under its surface the <c>gas_dense</c>
+    /// begins, and it reaches down to the bedrock floor. The heightfield under the sea is never generated as ground.</summary>
+    public const int GasSeaDepth = 8;
+
     /// <summary>True when the world's sea is GAS (#2112, the gas giant): the far terrain paints it as gas, the landing pads
     /// become metal decks, and the server's contact rule kills in it.</summary>
     public bool SeaIsGas(PlanetType planet)
@@ -415,6 +428,11 @@ public sealed partial class WorldGenerator
         var gasId = _content.GetBlock("gas")?.NumericId ?? BlockId.Air;
         return level != int.MinValue && !gasId.IsAir && fluid.Value == gasId.Value;
     }
+
+    /// <summary>#2134: the highest cell of a gas giant's dense gas — a flat line <see cref="GasSeaDepth"/> blocks under the gas
+    /// surface — or <see cref="int.MinValue"/> on every world whose sea is not gas (or content without the block).</summary>
+    public int DenseGasTop(PlanetType planet)
+        => SeaIsGas(planet) && _content.GetBlock("gas_dense") is not null ? SeaLevel(planet) - GasSeaDepth : int.MinValue;
 
     // World options (creation-time, from the save's WorldDescription): global factors on top of the
     // seeded per-world variation. 1.0 = unchanged; deterministic because they come from persisted meta.

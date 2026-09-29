@@ -162,9 +162,10 @@ public sealed partial class GameServer
             return BurnLavaDps;
         }
 
-        if (InGas(e.Position))
+        float gasDps = GasContactDpsAt(e.Position);
+        if (gasDps > 0f)
         {
-            return GasContactDps; // #2112: the gas sea takes an animal that falls into it (a giant never does, see above)
+            return gasDps; // #2112: the gas sea takes an animal that falls into it (a giant never does, see above); #2134 the dense gas faster
         }
 
         return InFire(e.Position) ? BurnFireDps : 0f;

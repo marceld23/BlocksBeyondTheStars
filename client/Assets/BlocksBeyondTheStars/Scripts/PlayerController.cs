@@ -44,6 +44,10 @@ namespace BlocksBeyondTheStars.Client
         public float SwimSinkSpeed = 1.5f; // gentle idle sink toward the seabed
         public float SwimAccel = 12f;      // how fast vertical speed eases toward the swim target
         public float SwimSpeedMul = 0.62f; // horizontal movement is slower in water
+        // #2134: the dense gas under a gas giant's gas sea — consts, not serialized fields, so no scene can override them.
+        private const float DenseGasSinkSpeed = 3.5f; // idle, it pulls you down more than twice as fast as water
+        private const float DenseGasRiseSpeed = 1.2f; // holding Jump only wins a slow climb
+        private const float DenseGasSpeedMul = 0.4f;  // every stroke is heavy
         public float ClimbSpeed = 4f;      // up/down speed while on a ladder (Minecraft-style climbing, #126)
         public float MouseSensitivity = 2f;
         public bool InvertY = false;
@@ -3448,7 +3452,10 @@ namespace BlocksBeyondTheStars.Client
                 // forward (A) — or simply swim into a low ≤1-block bank (B) — give a real jump impulse and keep
                 // full forward speed so you mount the land instead.
                 bool pushing = Mathf.Abs(h) + Mathf.Abs(v) > 0.1f;
-                bool atSurface = BlockKeyAt(transform.position + Vector3.up * 1.9f) != "water"; // open air above the head
+                // Open air above the head — #2134: a still liquid (a gas giant's gas, oil) over the head is no "surface" either;
+                // it used to hand out the climb-out hop at any depth in the gas.
+                string aboveHead = BlockKeyAt(transform.position + Vector3.up * 1.9f);
+                bool atSurface = aboveHead != "water" && !LiquidKeys.Contains(aboveHead ?? string.Empty);
                 bool climbingOut = pushing && atSurface && (InputMap.JumpHeld() || LedgeAhead(move));
                 if (climbingOut)
                 {
@@ -3456,9 +3463,12 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else
                 {
-                    float target = InputMap.JumpHeld() ? SwimUpSpeed : -SwimSinkSpeed;
+                    // #2134: the dense gas under a gas giant's gas sea pulls you down — you sink fast, Jump only wins a
+                    // slow climb, and every stroke is heavy.
+                    bool dense = BlockKeyAt(transform.position + Vector3.up * 1.1f) == "gas_dense";
+                    float target = InputMap.JumpHeld() ? (dense ? DenseGasRiseSpeed : SwimUpSpeed) : -(dense ? DenseGasSinkSpeed : SwimSinkSpeed);
                     _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, target, SwimAccel * Time.deltaTime);
-                    move *= SwimSpeedMul;
+                    move *= dense ? DenseGasSpeedMul : SwimSpeedMul;
                 }
             }
             else if (onLadder)
@@ -3637,8 +3647,9 @@ namespace BlocksBeyondTheStars.Client
                 && !IsBlockingAt(ahead + Vector3.up * 1.6f);      // and open space to stand on top
         }
 
-        /// <summary>True when a solid (standable/blocking) block sits at this world position. Air, water and lava
-        /// don't block; everything else does — a coarse check used to spot a low bank when climbing out of water.</summary>
+        /// <summary>True when a solid (standable/blocking) block sits at this world position. Air, water, lava and the
+        /// still liquids (#2134: a gas giant's gas is no bank to mount) don't block; everything else does — a coarse check
+        /// used to spot a low bank when climbing out of water.</summary>
         private bool IsBlockingAt(Vector3 world)
         {
             if (Game?.World == null || Game.Content == null)
@@ -3653,7 +3664,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string key = Game.Content.BlockById(id)?.Key;
-            return key != "water" && key != "lava";
+            return key != "water" && key != "lava" && !LiquidKeys.Contains(key ?? string.Empty);
         }
 
         /// <summary>True when the player overlaps a ladder block (sampled at shin + chest height), the cue to

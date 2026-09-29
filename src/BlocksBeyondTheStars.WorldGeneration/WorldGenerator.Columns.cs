@@ -82,6 +82,11 @@ public sealed partial class WorldGenerator
         // ground floods — the basin's depth + any rises become shallow water / deep water / islands.
         var (fluidLevel, fluidId) = ResolveSeaFluid(planet);
 
+        // #2134: a gas giant has no ground under its sea — the light gas lies over dense gas that reaches down to the floor.
+        // MinValue on every other world (and on content without the block), where nothing below changes.
+        int denseGasTop = DenseGasTop(planet);
+        var denseGasId = denseGasTop != int.MinValue ? _content.GetBlock("gas_dense")!.NumericId : BlockId.Air;
+
         // Trees: multi-block trunk + leaf crown on grass/earth ground (a small auto density on flora worlds).
         double treeDensity = (planet.TreeDensity ?? (flora ? 0.012 : 0.0)) * floraMul;
         var logId = _content.GetBlock("wood_log")?.NumericId ?? BlockId.Air;
@@ -303,6 +308,16 @@ public sealed partial class WorldGenerator
                 for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
                 {
                     int worldY = origin.Y + ly;
+                    if (denseGasTop != int.MinValue && worldY <= fluidLevel)
+                    {
+                        // #2134: the gas giant's whole column under the sea surface — the light gas, the dense gas under it,
+                        // and the unchanged bedrock floor. No heightfield rock, ore or cache is left under the gas to see
+                        // through it; the islands stand above the sea and take the ordinary path below.
+                        chunk.Set(lx, ly, lz, worldY > denseGasTop ? fluidId
+                            : seabedY - worldY >= floorDepth ? bedrockId : denseGasId);
+                        continue;
+                    }
+
                     if (worldY > seabedY)
                     {
                         // Material bands (generation 3) stand INSIDE the water span — an iceberg's hull below the

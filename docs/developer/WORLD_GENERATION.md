@@ -2157,8 +2157,27 @@ about three in five; the sky giant is passive — a spectacle. The class is one 
   one: `SeaLevel = MaxHeight + GasSeaRise` (6), so the gas floods the **whole heightfield** and nothing of it ever shows —
   every column is a sea column, there are no ponds, rivers, beaches or ice (`waterAbundance` 0), and `SeaIsGas` answers
   for the far terrain (`FarSurface.Gas`), the minimap, the pads and the server. The contact rule (`GameServerGasGiant`):
-  `InGas` = the feet cell or the cell under them is gas → `GasContactDps` (30, twice lava, **no armour**), death line
-  `srv.death.gas`; an animal that falls in burns the same way (`BurnDpsFor`); a giant never does.
+  `GasContactDpsAt` — the feet cell or the cell under them is gas → `GasContactDps` (30, twice lava, **no armour**), dense
+  gas → `DenseGasContactDps` (45), death line `srv.death.gas`; an animal that falls in burns the same way (`BurnDpsFor`);
+  a giant never does.
+- **The dense gas (#2134).** Under the gas there used to be the type's ordinary stone heightfield (with ores and data
+  caches), and a player sinking into the see-through gas looked straight onto its rock faces. Now `WorldGenerator.Generate`
+  decides a gas world's whole column below the sea surface in one place, before the bands and the sea fill: light `gas`
+  down to `DenseGasTop` = `SeaLevel − GasSeaDepth` (8), a flat line; under it the **`gas_dense`** block (a still liquid like
+  the gas, no drops) all the way to the bedrock floor, which stays where it was (`FloorDepth` under the old heightfield —
+  the void rescue still finds ground). No rock, ore or cache is generated under the gas any more; a deck's column keeps
+  its gas only down to the dense line. The client meshes the dense gas on the gas path (`TraitWater` + `TraitGas` +
+  `TraitDenseGas`), but it also faces the light gas above it — that top face is the "floor" of the gas sea — with mode 6
+  in TEXCOORD2: `BlockAtlasTransparent` draws the gas palette darkened and pulled towards violet, a warp that itself
+  moves (so the body wells up and folds in place instead of drifting past), nearly opaque, with three noise fields (cheaper
+  than the sea's haze); the Built-in fallback draws its darkened tile (the gas tile × 0.34, alpha 0.92 — no asset of its
+  own). With the eye in the gas, `WeatherFx` draws an amber gas wash instead of the water blue; in the dense gas a dark,
+  near-opaque wash with two layers of a procedural tileable noise drifting against each other. The swimmer sinks there
+  (3.5 blocks/s idle, Jump only climbs 1.2 blocks/s, strokes × 0.4), and the climb-out assist counts the still liquids
+  (by the `liquid` flag) like water, so gas over the head is no longer "open air" and gas ahead is no bank to mount.
+  **Deliberately ungated:** the change applies
+  to every gas giant (generation ≥ 18), like #2128 — only natural cells under the gas change, which nobody can reach alive;
+  player deltas are kept as always. The `gas_giant-gen18` golden was re-pinned.
 - **The islands.** The classic floating-island tiers (`FloatingIslandTier`, 1–3 tiers from `BaseHeight + 28`) over a
   low, flat heightfield (`baseHeight` 40, `amplitude` 6): tier 0 hangs just over the gas, the lower stalactites dip into it.
   They are **bare rock** (#2128): `GetExtraBands` skips the meadow pool (`IslandPond`) and the rim waterfall (`Waterfall`)

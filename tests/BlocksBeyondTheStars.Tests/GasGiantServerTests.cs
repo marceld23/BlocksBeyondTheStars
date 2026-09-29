@@ -78,7 +78,11 @@ public sealed class GasGiantServerTests : IDisposable
             }
 
             Assert.Equal("gas", _content.BlockById(server.World.GetBlock(new Vector3i(0, top - 4, 0)))?.Key); // a platform, not a mound
-            Assert.Equal("gas", _content.BlockById(server.World.GetBlock(new Vector3i(0, sea - 12, 0)))?.Key);
+            // #2134: under the deck the gas reaches down to the dense gas, like everywhere on the sea — never rock.
+            int denseTop = sea - BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GasSeaDepth;
+            Assert.Equal("gas", _content.BlockById(server.World.GetBlock(new Vector3i(0, denseTop + 1, 0)))?.Key);
+            Assert.Equal("gas_dense", _content.BlockById(server.World.GetBlock(new Vector3i(0, denseTop, 0)))?.Key);
+            Assert.Equal("gas_dense", _content.BlockById(server.World.GetBlock(new Vector3i(0, sea - 40, 0)))?.Key);
         }
     }
 
@@ -92,7 +96,7 @@ public sealed class GasGiantServerTests : IDisposable
             var p = server.AddLocalPlayer("Justus");
             p.State.AboardShip = false;
             TestGear.Wear(p.State, "armor_chest"); // worn armour mitigates lava — not the gas
-            p.State.Position = new Vector3f(0.5f, sea - 8, 0.5f); // fell off the deck into the gas
+            p.State.Position = new Vector3f(0.5f, sea - 3, 0.5f); // fell off the deck into the gas
             float before = p.State.Health;
             for (int i = 0; i < 4; i++)
             {
@@ -101,6 +105,39 @@ public sealed class GasGiantServerTests : IDisposable
 
             float lost = before - p.State.Health;
             Assert.True(lost >= 50f, $"only {lost} health lost in two seconds of gas"); // 30/s, unmitigated
+        }
+    }
+
+    [Fact]
+    public void TheDenseGas_UnderTheSea_BurnsFasterThanTheGas()
+    {
+        // #2134: whoever sinks through the gas into the dense gas under it is gone faster still — no armour helps.
+        var server = Started(Key, out var repo);
+        using (repo)
+        {
+            int sea = server.SeaLevelForTest();
+            int deep = sea - BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GasSeaDepth - 6;
+            Assert.Equal("gas_dense", _content.BlockById(server.World.GetBlock(new Vector3i(0, deep, 0)))?.Key);
+
+            float LostInOneSecond(string name, float y)
+            {
+                var p = server.AddLocalPlayer(name);
+                p.State.AboardShip = false;
+                TestGear.Wear(p.State, "armor_chest");
+                p.State.Position = new Vector3f(0.5f, y, 0.5f);
+                float before = p.State.Health;
+                server.TickForTest(0.5);
+                server.TickForTest(0.5);
+                float lost = before - p.State.Health;
+                p.State.Position = new Vector3f(0.5f, sea + 10, 0.5f); // out again before the next probe ticks
+                return lost;
+            }
+
+            float gas = LostInOneSecond("Floater", sea - 3);
+            float dense = LostInOneSecond("Sinker", deep);
+            Assert.True(gas >= 25f, $"only {gas} health lost in a second of gas");
+            Assert.True(dense >= 40f, $"only {dense} health lost in a second of dense gas");
+            Assert.True(dense > gas + 10f, $"the dense gas ({dense}/s) must burn faster than the gas ({gas}/s)");
         }
     }
 

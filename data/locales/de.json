@@ -456,6 +456,7 @@
   "blueprint.fluid_pump.desc": "Schaltet die Flüssigkeitspumpe frei: holt Öl aus seinen unterirdischen Taschen, und Wasser oder Lava, wo immer sie stehen.",
   "block.oil.name": "Öl",
   "block.gas.name": "Gas",
+  "block.gas_dense.name": "Dichtes Gas",
   "block.oil.desc": "Stilles, schwarzes Rohöl in einer teerumrandeten Tasche tief unter einer belebten Welt. Es fließt nie und es brennt — pumpen, nicht graben.",
   "item.oil.name": "Rohöl",
   "item.oil.desc": "Schwarzes Rohöl, aus einer Tasche unter einer belebten Welt gepumpt. Die Raffinerie macht daraus Polymer und Schmiermittel. Platzierbar, und es brennt.",

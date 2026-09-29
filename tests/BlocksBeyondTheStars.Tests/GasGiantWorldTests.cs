@@ -6,6 +6,7 @@ using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
@@ -46,12 +47,16 @@ public sealed class GasGiantWorldTests
         Assert.Equal(0.0, p.WaterAbundance);
         Assert.True(string.IsNullOrEmpty(p.WaterTint));
 
-        var gas = Content.GetBlock("gas");
-        Assert.NotNull(gas);
-        Assert.True(gas!.Liquid, "a still liquid, never the automaton");
-        Assert.False(gas.Solid);
-        Assert.False(gas.Mineable);
-        Assert.Empty(gas.Drops); // nothing to pump
+        // #2134: the dense gas under the sea is the same kind of block — you sink into it, there is nothing to dig or pump.
+        foreach (string fluidKey in new[] { "gas", "gas_dense" })
+        {
+            var gas = Content.GetBlock(fluidKey);
+            Assert.NotNull(gas);
+            Assert.True(gas!.Liquid, $"{fluidKey}: a still liquid, never the automaton");
+            Assert.False(gas.Solid, fluidKey);
+            Assert.False(gas.Mineable, fluidKey);
+            Assert.Empty(gas.Drops); // nothing to pump
+        }
 
         // Every classic type keeps the no-op default.
         foreach (var other in Content.Planets.Values.Where(t => t.Key != Key))
@@ -61,7 +66,7 @@ public sealed class GasGiantWorldTests
 
         string en = File.ReadAllText(Path.Combine(TestPaths.DataDir(), "locales", "en.json"));
         string de = File.ReadAllText(Path.Combine(TestPaths.DataDir(), "locales", "de.json"));
-        foreach (string key in new[] { "planet.gas_giant.name", "planet.gas_giant.desc", "vega.hint.world.gas_giant", "srv.death.gas", "block.gas.name", "ui.hud.city_air", "achv.sky_giant.name", "achv.sky_giant.desc" })
+        foreach (string key in new[] { "planet.gas_giant.name", "planet.gas_giant.desc", "vega.hint.world.gas_giant", "srv.death.gas", "block.gas.name", "block.gas_dense.name", "ui.hud.city_air", "achv.sky_giant.name", "achv.sky_giant.desc" })
         {
             Assert.Contains("\"" + key + "\"", en);
             Assert.Contains("\"" + key + "\"", de);
@@ -87,7 +92,7 @@ public sealed class GasGiantWorldTests
                 int ground = gen.SurfaceHeight(planet, x, z);
                 Assert.True(ground + WorldGenerator.GasSeaRise <= sea, $"the ground at ({x},{z}) is {ground}, the gas stands at {sea} — nothing of the heightfield may show");
 
-                // The column itself: gas at the sea level, air right above it (unless an island hangs there), rock under the gas.
+                // The column itself: gas at the sea level (#2134: dense gas under it, never rock — see the next test).
                 var atSea = gen.Generate(planet, WorldConstants.WorldToChunk(new Vector3i(x, sea, z)));
                 var o = WorldConstants.ChunkOrigin(WorldConstants.WorldToChunk(new Vector3i(x, sea, z)));
                 Assert.Equal(gasId, atSea.Get(x - o.X, sea - o.Y, z - o.Z));
@@ -101,6 +106,71 @@ public sealed class GasGiantWorldTests
 
         Assert.True(islands > 0, $"no floating island over {columns} sampled columns");
         Assert.True(islands < columns, "the islands must leave open gas between them");
+    }
+
+    [Fact]
+    public void UnderTheGasSea_LiesDenseGas_DownToTheFloor_NeverRock()
+    {
+        // #2134: sinking into the gas used to end on the bare heightfield a few blocks down — stone faces seen through the
+        // haze. Now every column under the sea is light gas for GasSeaDepth blocks, then dense gas all the way to the
+        // unchanged bedrock floor: no rock, ore or cache is left under the gas.
+        var planet = Content.GetPlanet(Key)!;
+        var gen = Gen(20260927);
+        int sea = gen.SeaLevel(planet);
+        int denseTop = gen.DenseGasTop(planet);
+        Assert.Equal(sea - WorldGenerator.GasSeaDepth, denseTop);
+
+        var gasId = Content.GetBlock("gas")!.NumericId;
+        var denseId = Content.GetBlock("gas_dense")!.NumericId;
+        var bedrockId = Content.GetBlock("bedrock")!.NumericId;
+        var cache = new System.Collections.Generic.Dictionary<ChunkCoord, ChunkData>();
+        BlockId At(int x, int y, int z)
+        {
+            var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
+            if (!cache.TryGetValue(coord, out var chunk))
+            {
+                chunk = gen.Generate(planet, coord);
+                cache[coord] = chunk;
+            }
+
+            var o = WorldConstants.ChunkOrigin(coord);
+            return chunk.Get(x - o.X, y - o.Y, z - o.Z);
+        }
+
+        int columns = 0;
+        for (int x = 40; x < 400; x += 37)
+            for (int z = -150; z < 150; z += 41)
+            {
+                columns++;
+                for (int y = denseTop + 1; y <= sea; y++)
+                {
+                    Assert.Equal(gasId, At(x, y, z));
+                }
+
+                // Well past where the heightfield (and its ores) used to begin.
+                for (int y = denseTop; y >= denseTop - 48; y--)
+                {
+                    Assert.True(At(x, y, z) == denseId, $"({x},{y},{z}) is {Content.BlockById(At(x, y, z))?.Key}, not dense gas");
+                }
+            }
+
+        Assert.True(columns > 20, $"only {columns} columns sampled");
+
+        // The floor is where it always was: the bedrock under the old heightfield, dense gas right above it.
+        int fx = 100, fz = 20;
+        int floorY = gen.SurfaceHeight(planet, fx, fz) - gen.FloorDepth(planet);
+        Assert.Equal(bedrockId, At(fx, floorY, fz));
+        Assert.Equal(denseId, At(fx, floorY + 1, fz));
+    }
+
+    [Fact]
+    public void OnlyAGasGiant_HasDenseGas()
+    {
+        // #2134: every other world keeps its sea and its ground — the branch is gated on the sea being gas.
+        foreach (var planet in Content.Planets.Values.Where(t => t.Key != Key))
+        {
+            Assert.Equal(int.MinValue, Gen(20260927).DenseGasTop(planet));
+        }
     }
 
     [Fact]

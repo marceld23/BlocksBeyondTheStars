@@ -143,6 +143,17 @@ package in this order):
     shaded as a drifting haze (mesher mode 5, a world-space noise field in the tile's own tones via `_Sc_GasLo/Mid/Hi`,
     wisp layers under the surface, soft edges) instead of the gas tile repeated once per block with water's effects.
     **Released** in **v2026.9.19** (2026-09-29).
+12. ✅ **#2134 dense gas under the gas sea** (Marcel's playtest, 2026-09-29, branch fix/gas-giant-dense-gas): sinking into
+    the gas showed the bare stone heightfield 6–18 blocks down, through the see-through gas, under a blue water wash.
+    Now a gas giant's column below the sea is light gas for 8 blocks (`GasSeaDepth`), then the new `gas_dense` block (a
+    still liquid, no drops) down to the unchanged bedrock floor: no rock, ore or cache under the gas; decks keep their gas
+    only down to the dense line. It burns 45 HP/s (the gas 30), meshes on the gas path with its own top face and shader
+    mode 6 (a darker, near-opaque, churning haze), the screen takes an amber wash in the gas and a dark churning wash in
+    the dense gas, and the swimmer sinks in it (Jump only slows the fall). Also fixed: the climb-out hop fired at any depth
+    in gas (its "open air" check compared against the `water` key). Deliberately ungated (gen ≥ 18, like #2128); the
+    `gas_giant-gen18` golden was re-pinned. Open: Marcel's playtest in "Gasriese Sandbox" (build ≥ this merge).
+    - Backlog (found on the way): loot scattered on the heightfield — the treasure chest skips only water and lava
+      columns — lands under the gas on a gas giant, out of anyone's reach; it should seat on the islands there.
 
 Analysis 2026-09-27 (gitignored, `analysis/justus-ideas-2026-09-27.md`); decisions Q1–Q13 recorded in the epic.
 

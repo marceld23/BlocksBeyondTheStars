@@ -198,6 +198,9 @@
   { "key": "tar",        "nameKey": "block.tar.name",        "category": "terrain", "hardness": 1.2, "requiredTool": "none",  "minToolTier": 0, "flammable": true, "drops": [ { "item": "tar", "count": 1 } ] },
   { "key": "oil",        "nameKey": "block.oil.name",        "category": "terrain", "hardness": 1.0, "requiredTool": "none",  "minToolTier": 0, "mineable": false, "solid": false, "liquid": true, "flammable": true, "gloss": 0.9, "metal": 0.05, "color": 723725, "drops": [ { "item": "oil", "count": 1 } ] },
   { "key": "gas",        "nameKey": "block.gas.name",        "category": "terrain", "hardness": 1.0, "requiredTool": "none",  "minToolTier": 0, "mineable": false, "solid": false, "liquid": true, "gloss": 0.15, "metal": 0.0, "color": 13145196, "drops": [] },
+  // #2134: the dense gas under a gas giant's gas sea — where the world used to show its bare heightfield. A still liquid
+  // like the gas (you sink into it, it burns faster), darker and nearly opaque; the client wears the gas tile, darkened.
+  { "key": "gas_dense",  "nameKey": "block.gas_dense.name",  "category": "terrain", "hardness": 1.0, "requiredTool": "none",  "minToolTier": 0, "mineable": false, "solid": false, "liquid": true, "gloss": 0.05, "metal": 0.0, "color": 3877429, "drops": [] },
   { "key": "bone",       "nameKey": "block.bone.name",       "category": "terrain", "hardness": 1.8, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "bone", "count": 1 } ] },
   { "key": "sandstone",  "nameKey": "block.sandstone.name",  "category": "terrain", "hardness": 3.6, "requiredTool": "drill", "minToolTier": 0, "drops": [ { "item": "sandstone", "count": 1 } ] },
   { "key": "scree",      "nameKey": "block.scree.name",      "category": "terrain", "hardness": 1.0, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "scree", "count": 1 } ] },

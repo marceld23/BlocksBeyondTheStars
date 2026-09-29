@@ -25,6 +25,9 @@ namespace BlocksBeyondTheStars.Client
         private float _flash;
         private float _flashTimer;
         private float _underwater; // smoothed 0..1 blue submerged wash
+        private float _gasWash;    // #2134: smoothed 0..1 — the eye in a gas giant's gas sea (its own amber haze, not the water blue)
+        private float _denseWash;  // #2134: smoothed 0..1 — the eye in the dense gas under it (a dark, churning body)
+        private Texture2D _churnTex; // #2134: a soft tileable noise, drifted in two layers over the dense wash
 
         // Frost overlay (cold worlds): ice fogs the screen edges as the air drops below freezing. The texture
         // is a soft edge-vignette of crystalline detail; alpha is driven by how far below 0 °C the air is.
@@ -69,7 +72,8 @@ namespace BlocksBeyondTheStars.Client
         {
             // Mirrors the early-outs of DrawOverlay: anything fading, falling or flashing keeps the overlay
             // alive; a quiet clear-sky frame leaves it off.
-            bool anyWash = _underwater > 0.01f || _frost > 0.01f || (_wet > 0.01f && _dropInit) || _flash > 0.01f || _boltTimer > 0.01f;
+            bool anyWash = _underwater > 0.01f || _gasWash > 0.01f || _denseWash > 0.01f || _frost > 0.01f
+                           || (_wet > 0.01f && _dropInit) || _flash > 0.01f || _boltTimer > 0.01f;
             var env = Game?.Environment;
             bool precipitation = env != null && !Game.SpaceViewActive && Game.ExposedToSky
                                  && !string.IsNullOrEmpty(env.Precipitation) && env.Precipitation != "none";
@@ -100,8 +104,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            // Underwater blue wash — independent of weather (works in caves / at night too).
-            _underwater = Mathf.MoveTowards(_underwater, EyeUnderwater() ? 1f : 0f, Time.deltaTime * 3.5f);
+            // Underwater blue wash — independent of weather (works in caves / at night too). #2134: a gas giant's gas and the
+            // dense gas under it are liquids to the water probe too, but they take washes of their own.
+            var eye = EyeFluid();
+            _underwater = Mathf.MoveTowards(_underwater, eye == EyeIn.Water ? 1f : 0f, Time.deltaTime * 3.5f);
+            _gasWash = Mathf.MoveTowards(_gasWash, eye == EyeIn.Gas ? 1f : 0f, Time.deltaTime * 3.5f);
+            _denseWash = Mathf.MoveTowards(_denseWash, eye == EyeIn.DenseGas ? 1f : 0f, Time.deltaTime * 2.5f);
 
             if (Game?.Environment == null)
             {
@@ -362,9 +370,87 @@ namespace BlocksBeyondTheStars.Client
             return _dropTex;
         }
 
-        /// <summary>True when the first-person eye (≈ the head, ~1.5 above the player root) is under water — including
-        /// inside a submerged plant, ladder or form, like the server's oxygen drain (#1902).</summary>
-        private bool EyeUnderwater() => Game != null && Game.IsWaterAt(Game.PlayerPosition + Vector3.up * 1.5f);
+        private enum EyeIn { Air, Water, Gas, DenseGas }
+
+        /// <summary>What the first-person eye (≈ the head, ~1.5 above the player root) is in: water — including inside a
+        /// submerged plant, ladder or form, like the server's oxygen drain (#1902) — or, on a gas giant, the gas sea or the
+        /// dense gas under it (#2134), which the water probe counts as liquid too.</summary>
+        private EyeIn EyeFluid()
+        {
+            if (Game == null)
+            {
+                return EyeIn.Air;
+            }
+
+            var eye = Game.PlayerPosition + Vector3.up * 1.5f;
+            if (!Game.IsWaterAt(eye))
+            {
+                return EyeIn.Air;
+            }
+
+            string key = Game.World != null && Game.Content != null
+                ? Game.Content.BlockById(Game.World.GetBlock(Mathf.FloorToInt(eye.x), Mathf.FloorToInt(eye.y), Mathf.FloorToInt(eye.z)))?.Key
+                : null;
+            return key == "gas_dense" ? EyeIn.DenseGas : key == "gas" ? EyeIn.Gas : EyeIn.Water;
+        }
+
+        /// <summary>#2134: a soft, tileable noise for the dense-gas wash — built once, procedurally (three wrapped lattices of
+        /// value noise), white with the noise in its alpha so <c>GUI.color</c> tints each layer.</summary>
+        private Texture2D ChurnTexture()
+        {
+            if (_churnTex != null)
+            {
+                return _churnTex;
+            }
+
+            const int N = 128;
+            var rng = new System.Random(2134);
+            int[] cells = { 4, 8, 16 };
+            float[] weights = { 0.55f, 0.30f, 0.15f };
+            var lattices = new float[cells.Length][];
+            for (int o = 0; o < cells.Length; o++)
+            {
+                lattices[o] = new float[cells[o] * cells[o]];
+                for (int k = 0; k < lattices[o].Length; k++)
+                {
+                    lattices[o][k] = (float)rng.NextDouble();
+                }
+            }
+
+            var px = new Color32[N * N];
+            for (int y = 0; y < N; y++)
+            {
+                for (int x = 0; x < N; x++)
+                {
+                    float v = 0f;
+                    for (int o = 0; o < cells.Length; o++)
+                    {
+                        int c = cells[o];
+                        float fx = x * c / (float)N, fy = y * c / (float)N;
+                        int x0 = (int)fx, y0 = (int)fy;
+                        float tx = Mathf.SmoothStep(0f, 1f, fx - x0), ty = Mathf.SmoothStep(0f, 1f, fy - y0);
+                        int x1 = (x0 + 1) % c, y1 = (y0 + 1) % c; // wrapped: the texture tiles seamlessly
+                        var l = lattices[o];
+                        float a = Mathf.Lerp(l[y0 * c + x0], l[y0 * c + x1], tx);
+                        float b = Mathf.Lerp(l[y1 * c + x0], l[y1 * c + x1], tx);
+                        v += weights[o] * Mathf.Lerp(a, b, ty);
+                    }
+
+                    px[y * N + x] = new Color32(255, 255, 255, (byte)(Mathf.SmoothStep(0.30f, 0.72f, v) * 255f));
+                }
+            }
+
+            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Bilinear,
+                name = "gas_churn",
+            };
+            tex.SetPixels32(px);
+            tex.Apply();
+            _churnTex = tex;
+            return _churnTex;
+        }
 
         /// <summary>The screen overlay, drawn by <see cref="ImguiOverlay"/> on Repaint only: everything below is
         /// GUI.DrawTexture (up to ~300 streaks + drops in rain), which has no effect in any other event (#1516).</summary>
@@ -380,6 +466,35 @@ namespace BlocksBeyondTheStars.Client
                 GUI.color = WaterColours.Blend(new Color(0.15f, 0.40f, 0.62f, 0.34f * _underwater), Game.Environment, 0.8f, Time.time);
                 GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
                 GUI.color = prevWater;
+            }
+
+            // #2134: a gas giant's gas takes its own wash — the amber haze of the gas sea, and under it the dense gas: a dark,
+            // thick body that churns (two layers of soft noise drifting against each other over a near-opaque base).
+            if ((_gasWash > 0.01f || _denseWash > 0.01f) && Game != null && !Game.SpaceViewActive && !Game.MenuOpen)
+            {
+                GUI.depth = 10;
+                var prevGas = GUI.color;
+                float w = Screen.width, h = Screen.height;
+                var full = new Rect(0, 0, w, h);
+                if (_gasWash > 0.01f)
+                {
+                    GUI.color = new Color(0.72f, 0.55f, 0.42f, 0.42f * _gasWash);
+                    GUI.DrawTexture(full, Texture2D.whiteTexture);
+                }
+
+                if (_denseWash > 0.01f)
+                {
+                    float t = Time.time, aspect = h / Mathf.Max(1f, w);
+                    GUI.color = new Color(0.13f, 0.08f, 0.12f, 0.82f * _denseWash);
+                    GUI.DrawTexture(full, Texture2D.whiteTexture);
+                    var churn = ChurnTexture();
+                    GUI.color = new Color(0.42f, 0.29f, 0.36f, 0.42f * _denseWash);
+                    GUI.DrawTextureWithTexCoords(full, churn, new Rect(t * 0.021f, t * 0.013f, 1.6f, 1.6f * aspect));
+                    GUI.color = new Color(0.04f, 0.02f, 0.04f, 0.45f * _denseWash);
+                    GUI.DrawTextureWithTexCoords(full, churn, new Rect(0.37f - t * 0.017f, 0.11f + t * 0.024f, 1.1f, 1.1f * aspect));
+                }
+
+                GUI.color = prevGas;
             }
 
             // Frost creeps in from the screen edges on cold worlds. Drawn after the water wash (so a frozen lake

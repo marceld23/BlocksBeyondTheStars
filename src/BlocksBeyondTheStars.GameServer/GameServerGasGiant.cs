@@ -14,8 +14,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// The gas giant (#2112, Justus' "where are the gases?", generation 18): the world class with no solid surface. The
 /// generator floods the whole heightfield with the <c>gas</c> block (a still liquid, <c>PlanetType.SeaFluid</c>) and the
-/// floating islands are the only ground; here live the three server rules of the class — the <b>gas sea kills</b>
-/// (<see cref="InGas"/>, faster than lava, no armour), a <b>sky city breathes</b> (<see cref="InSkyCityAir"/>: a pocket
+/// floating islands are the only ground (#2134: under the gas lies <c>gas_dense</c> down to the floor, never rock); here
+/// live the three server rules of the class — the <b>gas sea kills</b> (<see cref="GasContactDpsAt"/>, faster than lava,
+/// the dense gas faster still, no armour), a <b>sky city breathes</b> (<see cref="InSkyCityAir"/>: a pocket
 /// of air over every inhabited settlement on an island) — and the <b>sky giant</b>, the class's own giant: a 40–80 block
 /// sailer that drifts on a slow lane between the islands, calls now and then, never lands and never strikes. It lives in
 /// the giant slots like the colossus (<c>GameServerGiants</c>) and is hit along its trailing body.
@@ -27,36 +28,43 @@ public sealed partial class GameServer
     /// <summary>Health lost per second in the gas — twice the lava, and no armour helps (there is nothing to breathe).</summary>
     internal const float GasContactDps = 30f;
 
-    private ushort _gasId;
+    /// <summary>Health lost per second in the dense gas under the gas sea (#2134) — heavier still: whoever sinks that deep
+    /// is gone in about two seconds. No armour helps either.</summary>
+    internal const float DenseGasContactDps = 45f;
+
+    private ushort _gasId, _denseGasId;
     private bool _gasIdKnown;
 
-    /// <summary>The gas block's id (0 where the content has none) — resolved once.</summary>
-    private ushort GasId
+    /// <summary>Resolves the gas and dense-gas block ids once (0 where the content has none).</summary>
+    private void ResolveGasIds()
     {
-        get
+        if (!_gasIdKnown)
         {
-            if (!_gasIdKnown)
-            {
-                _gasId = _content.GetBlock("gas")?.NumericId.Value ?? 0;
-                _gasIdKnown = true;
-            }
-
-            return _gasId;
+            _gasId = _content.GetBlock("gas")?.NumericId.Value ?? 0;
+            _denseGasId = _content.GetBlock("gas_dense")?.NumericId.Value ?? 0;
+            _gasIdKnown = true;
         }
     }
 
-    /// <summary>True if the position is in the gas sea (the feet cell, or the cell under the feet) — the contact rule.</summary>
-    private bool InGas(Vector3f position)
+    /// <summary>The gas contact rule: the damage per second at a position — the feet cell, or the cell under the feet, in
+    /// the dense gas (#2134) → <see cref="DenseGasContactDps"/>, in the gas sea → <see cref="GasContactDps"/>, else 0.</summary>
+    private float GasContactDpsAt(Vector3f position)
     {
-        ushort id = GasId;
-        if (id == 0)
+        ResolveGasIds();
+        if (_gasId == 0 && _denseGasId == 0)
         {
-            return false;
+            return 0f;
         }
 
         var feet = position.ToBlock();
-        return _world.GetBlock(feet).Value == id
-               || _world.GetBlock(new Vector3i(feet.X, feet.Y - 1, feet.Z)).Value == id;
+        ushort at = _world.GetBlock(feet).Value;
+        ushort under = _world.GetBlock(new Vector3i(feet.X, feet.Y - 1, feet.Z)).Value;
+        if (_denseGasId != 0 && (at == _denseGasId || under == _denseGasId))
+        {
+            return DenseGasContactDps;
+        }
+
+        return _gasId != 0 && (at == _gasId || under == _gasId) ? GasContactDps : 0f;
     }
 
     // ---- the sky cities ----

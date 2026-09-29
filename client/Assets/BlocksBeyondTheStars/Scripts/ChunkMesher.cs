@@ -797,6 +797,9 @@ namespace BlocksBeyondTheStars.Client
                 // #2128: the gas sea meshes like water (inset surface, corner light) but is shaded as a drifting haze of
                 // its own — every gas face carries mode 5 in TEXCOORD2 instead of the water-body weights.
                 bool isGas = (tf & TraitGas) != 0;
+                // #2134: the dense gas under the gas sea — the same haze path, mode 6 (darker, near-opaque, churning), and it
+                // faces the light gas above it: that face is the floor of the gas sea, where the bare rock used to show.
+                bool isDenseGas = (tf & TraitDenseGas) != 0;
 
                 // Lava SURFACE cell (air above): tag its faces as tint mode 5 so the opaque atlas shader animates
                 // a slow molten crust over the otherwise-static glow (L1). Lava is opaque, so unlike water this
@@ -1067,7 +1070,11 @@ namespace BlocksBeyondTheStars.Client
                     // region's edge. Opaque blocks deliberately keep theirs — culling those would turn the edge
                     // of the loaded world see-through instead of closing it off with an ordinary wall.
                     // #1902: water also faces a dry bank plant, and never a wet one (its cell draws the water itself).
-                    bool drawFace = transparent ? (isWater ? OpenForWaterBlock(nb, nx, ny, nz) : nb.IsAir && Loaded(nx, ny, nz))
+                    // #2134: the dense gas also faces the light gas over it (the gas never faces the dense gas — one face each).
+                    bool drawFace = transparent
+                        ? (isWater
+                            ? OpenForWaterBlock(nb, nx, ny, nz) || (isDenseGas && (traits.FlagsOf(nb) & (TraitGas | TraitDenseGas)) == TraitGas)
+                            : nb.IsAir && Loaded(nx, ny, nz))
                         : foliage ? (nb.IsAir || traits.Has(nb, TraitTransparent))
                         : traits.ExposesOpaqueFace(nb);
 
@@ -1209,8 +1216,9 @@ namespace BlocksBeyondTheStars.Client
                     // a mosaic of ripple directions and brightness steps.
                     if (isGas)
                     {
-                        // #2128: mode 5 → the transparent shader's gas haze (no waves, foam, reflection or depth blue).
-                        var gas = new Vector4(5f, 0f, 0f, 0f);
+                        // #2128: mode 5 → the transparent shader's gas haze (no waves, foam, reflection or depth blue);
+                        // #2134: mode 6 → the dense gas under it.
+                        var gas = new Vector4(isDenseGas ? 6f : 5f, 0f, 0f, 0f);
                         leafUv.Add(gas); leafUv.Add(gas); leafUv.Add(gas); leafUv.Add(gas);
                     }
                     else if (isWaterSurface && dir.Y == 1)
@@ -2181,7 +2189,7 @@ namespace BlocksBeyondTheStars.Client
 
             var def = content.BlockById(id);
             // alpha-blended — see through them
-            return def?.Key is "glass" or "glass_clear" or "force_field" or "water" or "gas" or "fire" or "energy_fence" or "energy_gate"; // #2112: the gas sea
+            return def?.Key is "glass" or "glass_clear" or "force_field" or "water" or "gas" or "gas_dense" or "fire" or "energy_fence" or "energy_gate"; // #2112: the gas sea (#2134: and the dense gas under it)
         }
 
         /// <summary>The one deliberately CLEAR glass (#1274): the canopy/dome exception to the frosted rule
@@ -2219,6 +2227,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitHangingFlora = 1u << 21;      // #1759: a plant rooted in the block ABOVE — the billboard grows downward
         private const uint TraitRainbowFlora = 1u << 22;      // generation 11: every plant its own colour (FloraTints.RainbowAt)
         private const uint TraitGas = 1u << 23;               // #2128: the gas sea — shaded as a haze (TEXCOORD2.x = 5), not as water
+        private const uint TraitDenseGas = 1u << 24;          // #2134: the dense gas under the gas sea (also TraitGas) — TEXCOORD2.x = 6
 
         private sealed class BlockTraits
         {
@@ -2263,8 +2272,9 @@ namespace BlocksBeyondTheStars.Client
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.KeepsOwnColour(key)) f |= TraitCultivated;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsHanging(key)) f |= TraitHangingFlora;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsRainbow(key)) f |= TraitRainbowFlora;
-                    if (key == "water" || key == "gas") f |= TraitWater; // #2112: the gas sea meshes like water (a see-through surface)
+                    if (key == "water" || key == "gas" || key == "gas_dense") f |= TraitWater; // #2112: the gas sea meshes like water (a see-through surface)
                     if (key == "gas") f |= TraitGas; // #2128: …but is shaded as a drifting haze
+                    if (key == "gas_dense") f |= TraitGas | TraitDenseGas; // #2134: the dense gas under it — the darker haze (mode 6)
                     if (key == "lava") f |= TraitLava;
                     if (key == "fire") f |= TraitFire;
                     if (key == "torch" || key == "lantern") f |= TraitTorchProp;

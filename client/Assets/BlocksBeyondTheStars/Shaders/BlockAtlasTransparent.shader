@@ -201,7 +201,41 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float isField = saturate(emission * 4.0); // ~1 for fire + energy fields, 0 for water and glass
 
                 float alpha;
-                if (i.water.x > 4.5)
+                if (i.water.x > 5.5)
+                {
+                    // #2134: the dense gas under the gas sea — the floor you see from the islands and sink into, where the bare
+                    // heightfield rock used to show. The gas tile's own tones, darkened and pulled towards violet; the warp
+                    // itself moves, so the body wells up and folds in place instead of sliding past like the gas above it. Nearly
+                    // opaque: nothing under it is meant to be seen. Three noise fields — cheaper than the gas sea's haze.
+                    float t = _Time.y;
+                    bool palette = _Sc_GasMid.a > 0.5;
+                    float3 dLo = (palette ? _Sc_GasLo.rgb : albedo * 0.72) * float3(0.16, 0.12, 0.19);
+                    float3 dMid = (palette ? _Sc_GasMid.rgb : albedo) * float3(0.30, 0.23, 0.31);
+                    float3 dHi = (palette ? _Sc_GasHi.rgb : albedo * 1.15) * float3(0.52, 0.41, 0.50);
+
+                    float2 layerBase = i.wp.xz + float2(0.7, -0.4) * i.wp.y;
+                    float2 p = layerBase / 20.0;
+                    float2 warp = float2(BbtsGasFbm(p * 0.7 + float2(t * 0.050, 3.1)), BbtsGasFbm(p * 0.7 + float2(-5.7, t * 0.041)));
+                    float field = BbtsGasFbm(p + (warp - 0.5) * 3.0 + float2(t * 0.011, -t * 0.008));
+
+                    float3 dense = lerp(dLo, dMid, smoothstep(0.26, 0.55, field));
+                    dense = lerp(dense, dHi, smoothstep(0.62, 0.86, field) * 0.75); // slow pale billows welling up
+                    dense *= 0.88 + 0.12 * sin(t * 0.6 + field * 6.2832);             // a slow breathing of the whole body
+
+                    col = dense * light * (0.60 + 0.40 * ndl * lerp(0.7, 1.0, shadow)) * shade;
+                    col += dense * float3(0.10, 0.13, 0.20) * nightFloor * shade;
+
+                    alpha = saturate(0.90 + 0.08 * (field - 0.5));
+                    if (_Sc_ScreenFx > 0.5)
+                    {
+                        // A sinking body breaks the surface softly, like the gas above.
+                        float2 denseUV = GetNormalizedScreenSpaceUV(i.positionCS);
+                        float denseScene = LinearEyeDepth(SampleSceneDepth(denseUV), _ZBufferParams);
+                        float denseFrag = -TransformWorldToView(i.wp).z;
+                        alpha *= lerp(0.45, 1.0, saturate(max(0.0, denseScene - denseFrag) / 1.5));
+                    }
+                }
+                else if (i.water.x > 4.5)
                 {
                     // #2128: the gas sea is a drifting haze, not a sheet of tiles. Its tile repeated once per block drew
                     // a grid of stripes; here the colour is a world-space, domain-warped noise field in the tile's own
@@ -619,7 +653,13 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float isField = saturate(emission * 4.0); // ~1 for fire + energy fields, 0 for water and glass
 
                 float alpha;
-                if (tex.a < 0.95 && isClear < 0.5 && isField < 0.5)
+                if (i.water.x > 5.5)
+                {
+                    // #2134: the dense gas under the gas sea — its darkened, near-opaque tile, calm in this fallback pass
+                    // (none of the open-water glint and foam below).
+                    alpha = tex.a;
+                }
+                else if (tex.a < 0.95 && isClear < 0.5 && isField < 0.5)
                 {
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
                     // and through it while swimming.

@@ -456,6 +456,7 @@
   "blueprint.fluid_pump.desc": "Unlocks the fluid pump: harvests oil from its underground pockets, and water or lava wherever they pool.",
   "block.oil.name": "Oil",
   "block.gas.name": "Gas",
+  "block.gas_dense.name": "Dense gas",
   "block.oil.desc": "Still, black crude oil in a tar-rimmed pocket deep under a living world. It never flows and it burns — pump it, don't dig it.",
   "item.oil.name": "Crude Oil",
   "item.oil.desc": "Black crude oil, pumped from a pocket under a living world. The refinery turns it into polymer and lubricant. Placeable, and it burns.",
