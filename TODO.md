@@ -58,6 +58,7 @@ Three F1 reports and one client crash from Bloody Mary on v2026.9.19 and Marcel'
 Open: playtests — Verena's world (`new_world`): form editor preview; H in the cabin; E at the cargo station; the ship's
 Market page; build + use the planet scanner on Kleejaje and a moon. Decisions still to confirm: the whole quick-bar vs.
 only the held slot (built: held slot), and the Market page as "only what trades here" (built) vs. a greyed catalog.
+All new texts in all 14 languages (#2143). **Released** in **v2026.9.20** "the prospector release" (2026-09-30).
 
 ### 🚉 Screelit's reports 2026-09-27 — the ship in space, doors and extensions, seats, beards, block faces, the intercity monorail (#2127: #2117–#2126, 2026-09-28, branch fix/screelit-reports-0928, terrain generation 19)
 
@@ -189,6 +190,7 @@ package in this order):
     `gas_giant-gen18` golden was re-pinned. Open: Marcel's playtest in "Gasriese Sandbox" (build ≥ this merge).
     - Backlog (found on the way): loot scattered on the heightfield — the treasure chest skips only water and lava
       columns — lands under the gas on a gas giant, out of anyone's reach; it should seat on the islands there.
+    **Released** in **v2026.9.20** (2026-09-30).
 
 Analysis 2026-09-27 (gitignored, `analysis/justus-ideas-2026-09-27.md`); decisions Q1–Q13 recorded in the epic.
 

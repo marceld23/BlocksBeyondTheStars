@@ -11,6 +11,82 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.9.20] — 2026-09-30
+
+The prospector release. Which ores does this planet hold, how common are they, and how deep do you have to dig? A new
+**planet scanner** for your ship answers that before you land. The **cargo hold** fills with one key, the ship's
+market stops offering food it cannot make, the scanners say what they really do, and the form editor's preview works
+in the downloaded game again. And a gas giant has no rock floor any more: under its gas sea lies **dense, churning
+gas** all the way down. Bloody Mary's first reports drove most of it.
+
+ℹ️ **Compatibility:** the network protocol stays at version 8 and the terrain generation at 19, so saves carry over as
+they are. The dense gas fills the depths of every gas giant, including those made with 2026.9.18 and 2026.9.19. Only
+untouched natural cells under the gas sea change; anything you built is kept. The planet scanner needs a 2026.9.20
+game and server, so an older game version should update before it joins a 2026.9.20 world. The desktop game updates
+itself on start, and the browser version is always current.
+
+### 🛰️ The planet scanner (#2140)
+
+- A new ship module, the **Planet Scanner**. Research its blueprint at the cockpit (20 knowledge, no titanium needed)
+  and build it in the Ship tab.
+- Aboard, open the **Map**, pick a planet or moon of your star system and press **Planet scan**. The fitted module's
+  detail pane scans the world your ship is at, too.
+- The report shows the world's **ore richness** (lean, average or rich) and every **ore vein**: how common it is
+  there, from which depth, and whether it needs a tier-2 drill.
+- It also lists the extras: **oil pockets**, **data caches**, **rare ore lying on the surface**, **metals in deep
+  craters**, and on a gas giant, that its ore sits only on the floating islands.
+- The numbers come from the same rolls the terrain is generated with, so what it promises is really down there.
+
+### 🔭 Scanners that say what they do (#2139)
+
+- The **hand scanner** no longer claims to find resources. It shows what a block yields and which tool it needs, and
+  names plants and creatures. VEGA's first scan lesson now points to the right quick-bar slot (2, not 3).
+- If you dig a lot without an ore finder, VEGA points you once to the **terrain scanner's** blueprint and to the
+  planet scanner.
+- The terrain scanner's pulse **names its finds**, most common first: "12 deposits — iron ore ×8 · copper ore ×3 · …".
+
+### 📦 The cargo hold in one key (#2138)
+
+- Press **H** anywhere aboard (with no storage crate in reach) to move your loose materials and blocks into the hold.
+  The stack in your hand stays, and so does spare suit gear.
+- **E** at the cargo station opens the Cargo Hold page, with **Stow all** next to **Take all out**. The Inventory tab
+  opens on your backpack grid.
+- A line tells you what happened: how many stacks went in, that the hold is full, or that there was nothing to stow.
+  Auto-stow on boarding stays quiet when there is nothing to do.
+
+### 🛒 The ship's market (#2137)
+
+- The ship's Crafting → Market page used to list every vendor's trades. The grocer's "3 silicate → 3 mushroom
+  skewers" looked like a recipe you could make aboard, and then failed. The page now lists only what your ship's
+  console trades (iron ↔ titanium); a vendor's goods are traded at that vendor. Trades read **Can trade** and
+  **Trade** instead of *Craftable* and *Craft*.
+- The vendor screen's trade buttons and the "Trade or talk?" prompt no longer share one label.
+
+### 🎨 The form editor's preview (#2136)
+
+- Painting a custom form with the shape tool broke the 3-D preview in every downloaded build since custom forms
+  arrived: the preview stayed empty and the counters froze. It works again, and a new test catches a shader the
+  build would drop before it ships.
+
+### 🪐 The gas giant's depths (#2134)
+
+- Sinking into a gas giant's sea no longer ends on bare rock. Under 8 blocks of gas lies **dense gas** all the way to
+  the floor: dark, churning and nearly opaque.
+- Dense gas burns faster than the gas above it (45 instead of 30 per second), and you sink through it.
+- Your view fills with an amber haze in the gas and a dark churn in the dense gas, instead of water's blue.
+
+### 🌍 Translations
+
+- Every new text is in all 14 languages (#2143).
+
+### 🙏 Thanks
+
+To **Bloody Mary** for a first batch of reports (#2141): the wish for a resource scan, the cargo shortcut, the food
+"recipes" in the ship, and the crash report that exposed the form editor. And to the playtest that found the rock
+under the gas.
+
+Full details of every change are in the pull requests: #2135, #2142 and #2143.
+
 ## [2026.9.19] — 2026-09-29
 
 The intercity release. On new worlds, two towns are often joined by an **intercity monorail** now: a station at the
@@ -6287,7 +6363,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.19...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.20...HEAD
+[2026.9.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.19...v2026.9.20
 [2026.9.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.18...v2026.9.19
 [2026.9.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.17...v2026.9.18
 [2026.9.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.16...v2026.9.17
