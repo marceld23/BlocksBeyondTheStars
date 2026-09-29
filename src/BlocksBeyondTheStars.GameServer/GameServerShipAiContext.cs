@@ -105,6 +105,9 @@ public sealed partial class GameServer
         // WHY once, because the gate is the first wall a new player meets that no amount of persistence opens.
         new("tier_gate",      VegaTipPriority.Equipment,   0,  600, 3, false),
         new("scanner_idle",   VegaTipPriority.Equipment,   0,  900, 2, true),
+        // #2139 ("Ressourcenscan"): digging a lot without ever having heard of the ore finder — scanner_idle only
+        // spoke once you already carried one, so nothing ever pointed a new player to the blueprint.
+        new("scanner_unknown", VegaTipPriority.Equipment,  0, 1800, 1, true),
         new("speeder_far",    VegaTipPriority.Equipment,  10,  900, 2, true),
         // #1594: on foot and a long walk from the landed ship — tells a first-time player what the blue
         // compass blip is. Not gated on the scan stage (the player who needs it has not scanned anything yet).
@@ -493,6 +496,12 @@ public sealed partial class GameServer
                 && (session.VegaScannerUsedAt <= 0.0 || _uptime - session.VegaScannerUsedAt > 300.0))
             {
                 Add("scanner_idle");
+            }
+
+            if (session.VegaMineRecent > 4.0 && !p.Inventory.Has("terrain_scanner", 1)
+                && !p.UnlockedBlueprints.Contains("terrain_scanner"))
+            {
+                Add("scanner_unknown");
             }
 
             // --- Materials (#1079) ---

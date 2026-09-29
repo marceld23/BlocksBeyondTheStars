@@ -3677,6 +3677,7 @@ public sealed partial class GameServer
             case ExitTrainIntent: HandleExitTrain(session); break;
             case SetTrainIntent setTrain: HandleSetTrain(session, setTrain); break;
             case StowTrainIntent stowTrain: HandleStowTrain(session, stowTrain); break;
+            case PlanetScanIntent planetScan: HandlePlanetScan(session, planetScan); break;
             case SetBeaconLabelIntent beacon: HandleSetBeaconLabel(session, beacon); break;
             case SetBeamNameIntent beamName: HandleSetBeamName(session, beamName); break;
             case BeamTeleportIntent beamJump: HandleBeamTeleport(session, beamJump); break;

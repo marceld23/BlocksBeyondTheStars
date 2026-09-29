@@ -120,7 +120,7 @@ namespace BlocksBeyondTheStars.Client
             _overlay = overlay;
             _title = UiKit.AddText(panel, 20, 34, w - 40f, 60, string.Empty, 30, new Color(0.96f, 0.97f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold);
             _title.supportRichText = false; // NPC names are generated text
-            UiKit.AddButton(panel, 60, 140, 240, 64, Tr("ui.vendor.trade"), Trade, "btn_join");
+            UiKit.AddButton(panel, 60, 140, 240, 64, Tr("ui.vendor.trade_choice"), Trade, "btn_join");
             UiKit.AddButton(panel, 340, 140, 240, 64, Tr("ui.vendor.talk"), Talk, "btn_feedback");
             _overlay.SetActive(false);
         }
@@ -136,7 +136,7 @@ namespace BlocksBeyondTheStars.Client
             return key switch
             {
                 "ui.vendor.choice_title" => "Trade or talk?",
-                "ui.vendor.trade" => "Trade (E)",
+                "ui.vendor.trade_choice" => "Trade (E)",
                 "ui.vendor.talk" => "Talk",
                 _ => key,
             };

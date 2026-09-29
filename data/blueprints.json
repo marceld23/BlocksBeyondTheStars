@@ -155,6 +155,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 } ]
   },
   {
+    "key": "planet_scanner", "nameKey": "blueprint.planet_scanner.name", "descriptionKey": "blueprint.planet_scanner.desc",
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 20,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 6 }, { "item": "cable", "count": 3 } ]
+  },
+  {
     "key": "hull_plating", "nameKey": "blueprint.hull_plating.name", "descriptionKey": "blueprint.hull_plating.desc",
     "category": "ShipDefense", "prerequisites": [], "knowledgeCost": 23,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 10 } ]

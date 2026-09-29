@@ -419,6 +419,10 @@ public sealed class MoveCargoItemIntent
 
     /// <summary>Move all eligible items at once ("stow all" / "take all"); overrides <see cref="Item"/>.</summary>
     public bool BulkAll { get; set; }
+
+    /// <summary>An automatic sweep (auto-stow on boarding): report what was stowed, but say nothing when there was
+    /// nothing to stow or the hold was full — the player didn't ask. Older clients leave it false.</summary>
+    public bool Quiet { get; set; }
 }
 
 /// <summary>Client reports its ship's position while flying in space (server validates + checks collisions).</summary>

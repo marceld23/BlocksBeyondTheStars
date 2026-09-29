@@ -131,7 +131,10 @@ namespace BlocksBeyondTheStars.Client
             _mode = mode;
             _avatarPreview?.SetActive(mode == Mode.Character); // only render the live preview on the colour tab
             _shipPreview?.SetActive(false); // re-enabled by the paint detail pane when that category is shown
-            _category = string.IsNullOrEmpty(_pendingCategory) ? "all" : _pendingCategory;
+            // The Inventory tab has no "all" page (its sidebar is Rucksack / Anzug / Frachtraum) — landing on "all"
+            // showed an orphaned card list without the grid or the stow button, so it opens on the backpack.
+            _category = !string.IsNullOrEmpty(_pendingCategory) ? _pendingCategory
+                : mode == Mode.Inventory ? "personal" : "all";
             _pendingCategory = null;
             _selected = string.Empty;
             _search = string.Empty;
@@ -327,6 +330,8 @@ namespace BlocksBeyondTheStars.Client
                     // Notes (#1844): count + the server-answer counter only — never the note text, or every
                     // keystroke echoed by the server would rebuild the editor under the player's cursor.
                     + (Game.Notes?.Length ?? 0) * 1511 + Game.NotesVersion * 1523
+                    // #2140: a planet-scanner report arrived, or a module was built / removed (the scan button's gate).
+                    + Game.PlanetScanVersion * 1601 + (Game.ShipCombat?.Modules?.Length ?? 0) * 1607
                     // The local custom pixel face + body paintings: applying one in the editor must rebuild the
                     // Character tab so the live preview re-applies it (SetFace/SetBodyPaint run on rebuild).
                     + (Game.FacePixels?.GetHashCode() ?? 0)
@@ -932,6 +937,86 @@ namespace BlocksBeyondTheStars.Client
             => Game?.ShipCombat?.Modules != null
                 && System.Array.IndexOf(Game.ShipCombat.Modules, "radar_array") >= 0;
 
+        /// <summary>#2140: true when the active ship carries the planet scanner.</summary>
+        private bool HasPlanetScanner()
+            => Game?.ShipCombat?.Modules != null
+                && System.Array.IndexOf(Game.ShipCombat.Modules, "planet_scanner") >= 0;
+
+        /// <summary>#2140 ("Ressourcenscan"): the "Planetenscan" button for a body, and — once the server answered for
+        /// this body — the report under it. Without the module the button stays dim and says what it needs.</summary>
+        private float AddPlanetScanSection(float y, string bodyId)
+        {
+            bool fitted = HasPlanetScanner();
+            var btn = UiKit.AddButton(_detail, 8, y, 330, 44, L("ui.planetscan.button"), () =>
+            {
+                ClientAudio.Instance?.Cue("terrain_scan");
+                Game.Network?.SendPlanetScan(bodyId);
+            });
+            SetInteractable(btn, fitted && AboardShipNow());
+            y += 52f;
+            if (!fitted)
+            {
+                var need = UiKit.AddText(_detail, 8, y, 620, 52, L("ui.planetscan.need_module"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                need.horizontalOverflow = HorizontalWrapMode.Wrap;
+                return y + 56f;
+            }
+
+            var scan = Game.LastPlanetScan;
+            return scan != null && (scan.BodyId == bodyId || string.IsNullOrEmpty(bodyId)) ? AddPlanetScanReport(y, scan) : y;
+        }
+
+        /// <summary>The planet-scanner report: the world's richness, every vein (how common, from which depth, which
+        /// drill) and the extras. Colour follows abundance — common veins bright, rare ones dim.</summary>
+        private float AddPlanetScanReport(float y, BlocksBeyondTheStars.Networking.Messages.PlanetScanResult scan)
+        {
+            UiKit.AddText(_detail, 8, y, 620, 30, string.Format(L("ui.planetscan.title"), scan.BodyName), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 36f;
+            UiKit.AddText(_detail, 8, y, 620, 26, $"{L("ui.planetscan.richness")}: {L("ui.planetscan.richness_" + scan.Richness)}", 19, UiKit.TextCol, TextAnchor.UpperLeft);
+            y += 32f;
+
+            if (scan.Ores.Length == 0)
+            {
+                UiKit.AddText(_detail, 8, y, 620, 26, L("ui.planetscan.no_ores"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 30f;
+            }
+
+            foreach (var ore in scan.Ores)
+            {
+                string name = Game.Localizer != null && Game.Localizer.Has($"block.{ore.Block}.name") ? L($"block.{ore.Block}.name") : ore.Block;
+                string line = string.Format(L("ui.planetscan.ore_line"), name, L("ui.planetscan.abundance_" + ore.Abundance), ore.MinDepth);
+                if (ore.RareTier)
+                {
+                    line += "  ·  " + L("ui.planetscan.tier2");
+                }
+
+                Color col = ore.Abundance >= 2 ? UiKit.Cyan : ore.Abundance == 1 ? UiKit.TextCol : UiKit.CyanDim;
+                UiKit.AddText(_detail, 20, y, 608, 26, line, 18, col, TextAnchor.UpperLeft);
+                y += 28f;
+            }
+
+            y += 6f;
+            foreach (var (on, key) in new[]
+                     {
+                         (scan.GasWorld, "ui.planetscan.gas_world"),
+                         (scan.SurfaceOutcrops, "ui.planetscan.outcrops"),
+                         (scan.CraterMetals, "ui.planetscan.crater_metals"),
+                         (scan.OilPockets, "ui.planetscan.oil"),
+                         (scan.DataCaches, "ui.planetscan.data_caches"),
+                     })
+            {
+                if (!on)
+                {
+                    continue;
+                }
+
+                var t = UiKit.AddText(_detail, 8, y, 620, 48, "• " + L(key), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 50f;
+            }
+
+            return y + 8f;
+        }
+
         private List<(string key, string label, string icon)> Categories()
         {
             var list = new List<(string, string, string)> { ("all", L("ui.craft.cat_all"), "cat_all") };
@@ -1181,11 +1266,13 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                // Market (barter) recipes live only under the "market" category; everything else hides them.
+                // Market (barter) recipes live only under the "market" category; everything else hides them. And only
+                // the deals on offer HERE: aboard that is the themeless ones — the grocer's stew is bought at the grocer,
+                // it used to show in the ship as "Baubar" with a live button the server then refused.
                 bool isMarket = r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Market;
                 if (_category == "market")
                 {
-                    if (!isMarket || !MatchesSearch(ItemName(outItem.Item)))
+                    if (!isMarket || !Game.MarketOfferedHere(r) || !MatchesSearch(ItemName(outItem.Item)))
                     {
                         continue;
                     }
@@ -1221,7 +1308,11 @@ namespace BlocksBeyondTheStars.Client
             foreach (var e in entries)
             {
                 string key = e.r.Key;
-                AddCard(y, ItemName(e.outItem), IconFor(e.outItem), e.can ? L("ui.craft.ready") : L("ui.craft.blocked"),
+                bool trade = e.r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Market;
+                string badge = trade
+                    ? (e.can ? L("ui.craft.tradable") : L("ui.vendor.cant_afford"))
+                    : (e.can ? L("ui.craft.ready") : L("ui.craft.blocked"));
+                AddCard(y, ItemName(e.outItem), IconFor(e.outItem), badge,
                     e.can ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), key, () => { _selected = key; RebuildDetail(); }, contentKey: e.outItem);
                 y += 88f;
             }
@@ -1855,8 +1946,13 @@ namespace BlocksBeyondTheStars.Client
             if (AboardShipNow() && _category == "cargo")
             {
                 int used = items?.Length ?? 0;
-                UiKit.AddText(_listContent, 8, y, 400, 44, $"{L("ui.cargo.capacity")}: {used}/{Game.CargoSlots}", 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                UiKit.AddButton(_listContent, 412, y, 348, 44, L("ui.cargo.take_all"),
+                UiKit.AddText(_listContent, 8, y, 752, 32, $"{L("ui.cargo.capacity")}: {used}/{Game.CargoSlots}", 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 40f;
+
+                // Both directions on the hold's own page — E at the cargo station opens here (#2138).
+                UiKit.AddButton(_listContent, 8, y, 372, 44, L("ui.cargo.stow_all"),
+                    () => Game.Network?.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true));
+                UiKit.AddButton(_listContent, 388, y, 372, 44, L("ui.cargo.take_all"),
                     () => Game.Network?.SendMoveCargoItem(toCargo: false, item: string.Empty, bulkAll: true));
                 y += 56f;
             }
@@ -1868,17 +1964,6 @@ namespace BlocksBeyondTheStars.Client
             else if (_category == "suit")
             {
                 y = AddSuitStatus(y, full: true);
-            }
-            else if (AboardShipNow() && _category == "personal")
-            {
-                UiKit.AddButton(_listContent, 8, y, 752, 44, L("ui.cargo.stow_all"),
-                    () => Game.Network?.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true));
-                y += 56f;
-            }
-
-            if (_category == "personal")
-            {
-                y = AddSuitStatus(y, full: false); // one line, so the effect is visible without switching tabs
             }
 
             if (items == null || items.Length == 0)
@@ -4425,7 +4510,8 @@ namespace BlocksBeyondTheStars.Client
             y += 66f;
 
             int n = _craftCount;
-            var btn = UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.action.craft") + (maxCraft > 1 ? " ×" + n : string.Empty), () => { Game.Network.SendCraft(r.Key, n); });
+            string verb = r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Market ? L("ui.vendor.trade") : L("ui.action.craft");
+            var btn = UiKit.AddButton(_detail, 8, y, 280, 56, verb + (maxCraft > 1 ? " ×" + n : string.Empty), () => { Game.Network.SendCraft(r.Key, n); });
             SetInteractable(btn, can);
             y += 70f;
             return y;
@@ -4610,6 +4696,14 @@ namespace BlocksBeyondTheStars.Client
                     // out, with the salvage share (#1269). Hull essentials, stations and the basic hold stay.
                     UiKit.AddText(_detail, 8, y, 620, 26, L("ui.ship.installed"), 20, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
                     y += 32f;
+                    if (m.Key == "planet_scanner")
+                    {
+                        // #2140: scan the body the ship is at right from the module; other bodies via the star map.
+                        y = AddPlanetScanSection(y, string.Empty); // "" = where the ship is (server-resolved, also in the interior)
+                        UiKit.AddText(_detail, 8, y, 620, 26, L("ui.planetscan.map_hint"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                        y += 34f;
+                    }
+
                     if (!m.Removable)
                     {
                         UiKit.AddText(_detail, 8, y, 620, 26, L("ui.ship.not_removable"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
@@ -5026,6 +5120,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             y += 52f;
+
+            // #2140: the planet scanner — which resources this body holds. Bodies of the current star system only (the
+            // server checks the same); stations and ship worlds have no ground to survey.
+            if (!isStation && !string.IsNullOrEmpty(body.PlanetType) && sys != null && sys.Id == CurrentSystemId())
+            {
+                y = AddPlanetScanSection(y, body.Id);
+            }
 
             // A space station: show its owner, board it (if visited), and rename it (if it's yours).
             if (isStation)
@@ -5463,6 +5564,12 @@ namespace BlocksBeyondTheStars.Client
                 if (!Game.MarketAvailable)
                 {
                     reason = L("ui.craft.need_market");
+                    return false;
+                }
+
+                if (!Game.MarketOfferedHere(r))
+                {
+                    reason = L("ui.craft.market_elsewhere");
                     return false;
                 }
             }

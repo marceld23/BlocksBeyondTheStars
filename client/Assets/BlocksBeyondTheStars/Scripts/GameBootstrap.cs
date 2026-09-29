@@ -827,6 +827,50 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Whether the player can barter at a market right now (aboard ship or at a vendor).</summary>
         public bool MarketAvailable => Aboard || NearVendor;
 
+        /// <summary>The trade theme of the closest vendor NPC within trading reach (miner, grocer, doctor, …), or empty
+        /// when none stands by — aboard, the ship's own console has no theme.</summary>
+        public string NearestVendorTheme
+        {
+            get
+            {
+                var p = PlayerPosition;
+                string theme = string.Empty;
+                float bestSq = 3.6f * 3.6f; // same reach as NearVendor
+                foreach (var n in Npcs)
+                {
+                    if (n.Role != "vendor")
+                    {
+                        continue;
+                    }
+
+                    float sq = (ScenePos(n.X, n.Y, n.Z) - p).sqrMagnitude;
+                    if (sq <= bestSq)
+                    {
+                        bestSq = sq;
+                        theme = n.Theme ?? string.Empty;
+                    }
+                }
+
+                return theme;
+            }
+        }
+
+        /// <summary>Whether a market (barter) recipe is on offer right here, today — the server's rule: a themeless deal
+        /// trades wherever the market is (any vendor, the ship's console), a themed one only beside a vendor of that
+        /// trade, a rotating one only on its day. The vendor screen and the crafting tab's "Markt" page both list by
+        /// this, so the ship no longer offers the grocer's food as if it could make it (#2137).</summary>
+        public bool MarketOfferedHere(BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition recipe)
+        {
+            if (!string.IsNullOrEmpty(recipe.MarketTheme)
+                && !string.Equals(recipe.MarketTheme, NearestVendorTheme, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            long day = Environment != null ? (long)System.Math.Floor(Environment.SystemTimeDays) : 0;
+            return recipe.OfferedOnDay(day);
+        }
+
         /// <summary>Lootable containers on the planet (salvage capsules / corpses).</summary>
         public NetContainer[] Containers { get; private set; } = System.Array.Empty<NetContainer>();
 
@@ -944,6 +988,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Convenience: a full world position mapped to the nearest scene position (X and Z wrap).</summary>
         public Vector3 ScenePos(float worldX, float worldY, float worldZ)
             => new Vector3(SceneX(worldX), worldY, SceneZ(worldZ));
+
+        /// <summary>#2140: the last planet-scanner report (any body) and a counter that moves with every report, so the
+        /// open star map / Ship tab rebuilds the moment it arrives.</summary>
+        public PlanetScanResult LastPlanetScan { get; private set; }
+        public int PlanetScanVersion { get; private set; }
 
         /// <summary>Most recent handheld/ship scan readout for the HUD, and when it arrived (for auto-hide).</summary>
         public ScanResult LastScan { get; private set; }
@@ -2673,6 +2722,11 @@ namespace BlocksBeyondTheStars.Client
                 NewStoryUnseen = true;
                 OpenReader(Localizer?.Get("ui.lore.site." + m.Site) ?? m.Site, string.Empty, m.TextKey);
             };
+            Network.PlanetScanReceived += m =>
+            {
+                LastPlanetScan = m;
+                PlanetScanVersion++;
+            };
             Network.ScanResultReceived += m =>
             {
                 LastScan = m;
@@ -3570,7 +3624,7 @@ namespace BlocksBeyondTheStars.Client
             // server-authoritative bulk "stow all" intent the cargo tab's button sends.
             if (m.AboardShip && !_wasAboard && Settings != null && Settings.AutoStowOnBoard)
             {
-                Network?.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true);
+                Network?.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true, quiet: true);
             }
 
             _wasAboard = m.AboardShip;

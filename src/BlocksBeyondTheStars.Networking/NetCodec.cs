@@ -551,6 +551,10 @@ public static class NetCodec
         Register(273, typeof(ExitTrainIntent));              // Client -> Server
         Register(274, typeof(SetTrainIntent));               // Client -> Server (speed, halt, autopilot)
         Register(275, typeof(StowTrainIntent));              // Client -> Server
+
+        // #2140: the ship's planet scanner — "which resources does this planet have?".
+        Register(276, typeof(PlanetScanIntent));             // Client -> Server
+        Register(277, typeof(PlanetScanResult));             // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

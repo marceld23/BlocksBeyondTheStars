@@ -67,7 +67,7 @@ namespace BlocksBeyondTheStars.Client
             new Entry(InputAction.ToggleStationZeroG, u => u.OnFoot && u.Interactions != null && u.Interactions.CanToggleStationZeroG), // #1842
             new Entry(InputAction.LootContainer, u => u.OnFoot && u.Player != null && u.Player.NearContainer),
             new Entry(InputAction.FeedCreature, u => u.OnFoot && u.Player != null && u.Player.CanFeedCreature), // #2018: food in hand + a begging animal near
-            new Entry(InputAction.DepositToCrate, u => u.OnFoot && u.Player != null && u.Player.NearCrate),
+            new Entry(InputAction.DepositToCrate, u => u.OnFoot && u.Player != null && (u.Player.NearCrate || u.Player.CanStowToCargo)),
             new Entry(InputAction.RepairWreck, u => u.OnFoot && u.Player != null && u.Player.NearWreck),
             new Entry(InputAction.StowVehicle, u => u.OnFoot && u.Player != null && u.Player.NearOwnParkedSpeeder),
             new Entry(InputAction.RecallVehicle, u => u.OnFoot && u.Player != null && u.Player.CanRecallVehicle), // at the cockpit (#1661)

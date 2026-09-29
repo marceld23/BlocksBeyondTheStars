@@ -321,6 +321,8 @@ public sealed class NetCodecTests
         [273] = typeof(ExitTrainIntent),
         [274] = typeof(SetTrainIntent),
         [275] = typeof(StowTrainIntent),
+        [276] = typeof(PlanetScanIntent),
+        [277] = typeof(PlanetScanResult),
 
     };
 

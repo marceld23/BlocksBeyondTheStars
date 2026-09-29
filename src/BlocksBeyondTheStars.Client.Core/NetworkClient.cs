@@ -169,6 +169,9 @@ namespace BlocksBeyondTheStars.Client
         // Terrain-scanner pulse result (Feature 40): ore positions for the through-wall glow markers.
         public event Action<OreScanResult>? OreScanReceived;
 
+        /// <summary>#2140: the ship's planet-scanner report for one body.</summary>
+        public event Action<PlanetScanResult>? PlanetScanReceived;
+
         // Weather-scanner reading (#900): what the sky is doing, what is coming and how far off the front is.
         public event Action<WeatherForecast>? WeatherForecastReceived;
 
@@ -701,6 +704,9 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendScanEntity(string entityId) => Send(new ScanEntityIntent { EntityId = entityId });
 
+        /// <summary>#2140: survey a body of the current star system with the ship's planet scanner ("" = where the ship is).</summary>
+        public void SendPlanetScan(string bodyId) => Send(new PlanetScanIntent { BodyId = bodyId ?? string.Empty });
+
         public void SendLootContainer(string containerId) => Send(new LootContainerIntent { ContainerId = containerId });
 
         public void SendDepositContainer(string containerId) => Send(new DepositContainerIntent { ContainerId = containerId });
@@ -711,8 +717,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Move items between the personal inventory and the ship's cargo hold. <paramref name="item"/> = ""
         /// with <paramref name="bulkAll"/> = true is "stow all" / "take all"; otherwise it moves all of one item.</summary>
-        public void SendMoveCargoItem(bool toCargo, string item = "", bool bulkAll = false)
-            => Send(new MoveCargoItemIntent { ToCargo = toCargo, Item = item ?? string.Empty, BulkAll = bulkAll });
+        public void SendMoveCargoItem(bool toCargo, string item = "", bool bulkAll = false, bool quiet = false)
+            => Send(new MoveCargoItemIntent { ToCargo = toCargo, Item = item ?? string.Empty, BulkAll = bulkAll, Quiet = quiet });
 
         // --- Crashed-ship wreck repair / claim ---
         public void SendRepairWreck(int x, int y, int z, string itemKey)
@@ -1109,6 +1115,7 @@ namespace BlocksBeyondTheStars.Client
                 case ShipAiLine m: ShipAiLineReceived?.Invoke(m); break;
                 case VegaJournal m: VegaJournalReceived?.Invoke(m); break;
                 case OreScanResult m: OreScanReceived?.Invoke(m); break;
+                case PlanetScanResult m: PlanetScanReceived?.Invoke(m); break;
                 case WeatherForecast m: WeatherForecastReceived?.Invoke(m); break;
                 case DiscoveryLog m: DiscoveryLogReceived?.Invoke(m); break;
                 case AchievementList m: AchievementsReceived?.Invoke(m); break;

@@ -1047,6 +1047,10 @@ namespace BlocksBeyondTheStars.Client
                         ? "ui.station.helm"
                         : $"ui.station.{Game.NearbyStation}";
                     prompt = $"{loc.Get("ui.hud.use")}: {loc.Get(stationKey)}";
+                    if (Game.NearbyStation == "cargo")
+                    {
+                        prompt += $"  ·  {loc.Get("ui.hud.stow_cargo")} ({InputMap.Glyph(InputAction.DepositToCrate)})";
+                    }
                     if ((Game.NearbyStation == "cockpit" || Game.NearbyStation == "console")
                         && Game.LoadingPlanetType != "ship_interior" && OwnParkedVehicleCount() > 0)
                     {

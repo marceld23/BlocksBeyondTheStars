@@ -137,6 +137,15 @@ namespace BlocksBeyondTheStars.Client
 
         // Public entry points used by station interactions (cockpit → map, etc.).
         public void OpenInventory() => OpenAt(Tab.Inventory);
+
+        /// <summary>E at the ship's cargo station: the Inventory tab on the "Frachtraum" page (the hold's contents,
+        /// capacity, "stow all" + "take all"), not the backpack.</summary>
+        public void OpenCargo()
+        {
+            EnsureUi();
+            _ui.RequestCategory("cargo");
+            OpenAt(Tab.Inventory);
+        }
         public void OpenCrafting() => OpenAt(Tab.Crafting);
         public void OpenMap() => OpenAt(Tab.Map);
         public void OpenTech() => OpenAt(Tab.Tech);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using UnityEngine;
 
@@ -113,7 +114,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.ShowMessage(hits == 0
                     ? loc.Get("ui.scan.ore.none")
-                    : string.Format(loc.Get("ui.scan.ore.found"), scan.Capped ? hits + "+" : hits.ToString()));
+                    : string.Format(loc.Get("ui.scan.ore.found_list"), scan.Capped ? hits + "+" : hits.ToString(), FindsByKind(scan, loc)));
             }
 
             if (hits == 0)
@@ -130,6 +131,29 @@ namespace BlocksBeyondTheStars.Client
                 AddMarker(Game.ScenePos(scan.X[i] + 0.5f, scan.Y[i] + 0.5f, scan.Z[i] + 0.5f),
                     TintFor(i < scan.Block.Length ? scan.Block[i] : (ushort)0), i * 0.61f, 0.65f);
             }
+        }
+
+        /// <summary>What the pulse found, most common first (#2139) — "Eisenerz ×8 · Kupfererz ×3 · Kristall ×1". The toast used
+        /// to give a bare count, so the player had to walk to each glow to learn whether it was worth digging for.</summary>
+        private string FindsByKind(OreScanResult scan, BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            var counts = new Dictionary<ushort, int>();
+            foreach (var b in scan.Block ?? System.Array.Empty<ushort>())
+            {
+                counts[b] = counts.TryGetValue(b, out int n) ? n + 1 : 1;
+            }
+
+            const int shown = 4; // a toast line, not a table
+            var parts = new List<string>();
+            foreach (var kv in counts.OrderByDescending(kv => kv.Value).Take(shown))
+            {
+                string key = Game.Content?.BlockById(new BlocksBeyondTheStars.Shared.Primitives.BlockId(kv.Key))?.Key ?? string.Empty;
+                string name = loc.Has($"block.{key}.name") ? loc.Get($"block.{key}.name") : key;
+                parts.Add($"{name} ×{kv.Value}");
+            }
+
+            string list = string.Join(" · ", parts);
+            return counts.Count > shown ? list + " · …" : list;
         }
 
         /// <summary>Marker tint by block kind: gold warm yellow, copper orange, iron rust, crystal cyan,

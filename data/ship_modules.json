@@ -74,6 +74,12 @@
     "stats": { "radar_bonus": 170 }
   },
   {
+    "key": "planet_scanner", "nameKey": "module.planet_scanner.name", "descriptionKey": "module.planet_scanner.desc",
+    "mandatory": false, "requiredBlueprint": "planet_scanner",
+    "buildCost": [ { "item": "iron_plate", "count": 12 }, { "item": "cable", "count": 4 }, { "item": "glass", "count": 3 }, { "item": "crystal", "count": 4 }, { "item": "energy_cell_1", "count": 1 } ],
+    "stats": {}
+  },
+  {
     "key": "hull_plating", "nameKey": "module.hull_plating.name", "descriptionKey": "module.hull_plating.desc",
     "mandatory": false, "requiredBlueprint": "hull_plating",
     "buildCost": [ { "item": "titanium_plate", "count": 20 }, { "item": "iron_plate", "count": 20 }, { "item": "steel", "count": 6 }, { "item": "lead_ingot", "count": 4 } ],

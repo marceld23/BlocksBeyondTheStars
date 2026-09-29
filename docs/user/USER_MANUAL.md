@@ -120,8 +120,8 @@ Last updated: 2026-08-26.
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
 | **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food |
-| **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
-| **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
+| **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
+| **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
@@ -588,13 +588,20 @@ separate unlock; admins can still disable it through server world rules.
   into the cargo hold. While you're aboard the ship, crafting draws from **both** at once. Asteroid ore that
   finds no room **floats at the rock** instead of vanishing; a tractor beam pulls it in from 16 m, without one
   you fly through it. Floating salvage survives a landing — it is still there when you launch again.
-- **Moving things by hand:** open the **Tab menu → Inventory**. The **Inventory** tab has a **"Stow all
-  materials in cargo"** button (loose materials/components only — your tools, weapons and quick-bar items
-  stay put), and selecting any item offers **"Move to cargo hold"**. The **Cargo Hold** tab shows the hold's
-  **used/total** capacity, a **"Take all out"** button, and per-item **"Move to inventory"**. These only work
-  while you're aboard (in flight or standing in the landed cabin); on foot the cargo tab says so.
+- **Stow everything in one go:** aboard, press **H** (anywhere in the ship with no storage crate in reach) — or
+  **E** at the cargo station, which opens the **Cargo Hold** page. "Stow all" moves your loose **materials,
+  components and blocks** into the hold; your tools, weapons and suit gear stay with you (a spare helmet too), and
+  so does **the stack in your hand** (the selected quick-bar slot) — the rest of the quick-bar is stowed, because
+  what you pick up lands there first. A line says what happened: how many stacks went in, "the hold is full"
+  (the rest stays in your backpack) or "nothing to stow".
+- **Moving things by hand:** open the **Tab menu → Inventory**. It opens on your **backpack** grid, which has a
+  **"Stow all materials in cargo"** button, and selecting any item offers **"Move to cargo hold"**. The
+  **Cargo Hold** page shows the hold's **used/total** capacity, **"Stow all materials in cargo"** and **"Take all
+  out"** side by side, and per-item **"Move to inventory"**. These only work while you're aboard (in flight or
+  standing in the landed cabin); on foot the cargo page says so.
 - **Auto-stow (optional):** turn on *Settings → Comfort → "Auto-stow into cargo on boarding"* to have loose
-  materials moved into the hold automatically each time you board. Off by default.
+  materials moved into the hold automatically each time you board (it says what it stowed, and nothing when
+  there was nothing to stow). Off by default.
 - **Sandbox: All items.** In a Sandbox world (or while an admin gave you the Creative mode) the Inventory has an
   **All items** page: every item of the game, searchable — pick one and **Take 1** or take a full stack. Nothing has
   to be crafted.
@@ -680,7 +687,7 @@ separate unlock; admins can still disable it through server world rules.
   while flying) with **knowledge points** (earned by scanning) plus
   research materials; some require prerequisite blueprints.
 - **Tiered upgrades consume their predecessor:** where an item is a straight upgrade of another —
-  oxygen tanks II/III, the terrain scanner, weapon upgrade chains, the AI cores — the recipe **requires
+  oxygen tanks II/III, the advanced scanner (it takes your hand scanner), weapon upgrade chains, the AI cores — the recipe **requires
   and consumes the previous tier**, so you never end up carrying a redundant Mk1 after building the Mk2.
   Fitting the `ai_core_mk3` module **replaces** the fitted Mk2 and returns half its materials as salvage.
   (Your starter gear — basic drill, scrap pistol — is deliberately chain-free.)
@@ -704,6 +711,14 @@ separate unlock; admins can still disable it through server world rules.
   workshop — and gives back **50 %** of its parts (per part, rounded down). A cargo expansion only comes out
   while the remaining hold still fits everything stored in it. Moving a module to another ship means removing
   it here and building it there.
+- **Planet scanner** (`planet_scanner` module, 2026-09): *which resources does this planet have?* Research the
+  **Planet Scanner** blueprint (Blueprints tab — no titanium needed) and build the module in the Ship tab. Then,
+  aboard (landed, in the interior or in flight): **Map tab → pick a body of this star system → Planet scan**, or
+  **Planet scan** in the fitted module's detail pane for the body the ship is at. The report lists the world's
+  **ore richness** (lean / average / rich), every **ore vein** — how **common** it is here, from **which depth**, and
+  whether it needs a tier-2 drill — and the extras: **oil pockets**, **data caches**, **rare ore lying on the
+  surface**, **metals in deep craters**, and for a gas giant that its ore sits only in the floating islands. The
+  numbers come from the very rolls the terrain is generated with, so what it promises is really down there.
 - **Reactor fuel** (uranium + lead at the refinery) is a **one-time build cost** of the big things: the three
   capital ships (Thunderbolt 2, Hammerhead 3, Deathblock 4), the heavy laser cannon and the jump generator ignite
   their reactors with it once. Nothing burns fuel while running — every device carries its own energy cell.
@@ -1339,10 +1354,11 @@ separate unlock; admins can still disable it through server world rules.
   or **Cancel** aborts. If you know more than your partner you can also *teach knowledge* here (`−` / `+` /
   Max in the "You give" box).
 - **Vendors / market:** press **E** next to a settlement or space-station **vendor** and pick **Trade** (or press **E**
-  again) to open the **Market** (the gameplay menu's Crafting tab on the *Market* category). A vendor's themed goods
-  only trade while that vendor stands right beside you. Barter recipes there trade your raw
-  resources for goods. The market is also available **aboard your ship** (Tab → Crafting → Market), via the
-  ship's trade console — so you can trade without a vendor too. Vendors have **themes**: miners sell iron,
+  again) to open that vendor's **trade screen** (*you give → you get*). A vendor's themed goods only trade while that
+  vendor stands right beside you (the grocer only inside his shop). Barter trades there swap your raw resources for
+  goods. **Aboard your ship** the Crafting tab's **Market** page lists what the ship's trade console itself trades
+  (iron ↔ titanium) — the vendors' themed goods are not offered there; its cards read *Can trade* and the button
+  *Trade*. Vendors have **themes**: miners sell iron,
   copper and lead ore for silicate, traders buy crystal, gold and silver, researchers buy refined uranium and
   sell data fragments and circuit boards, settlers trade food.
 
@@ -1365,6 +1381,10 @@ separate unlock; admins can still disable it through server world rules.
   be earned. Worlds with planet enemies *Off* (the family presets) stay peaceful as before.
 
 ### Scanning & knowledge
+- **Which scanner does what:** the **hand scanner** (starter kit, quick-bar **2**) identifies the one thing you aim
+  at — what a block yields and which tool it needs, a plant's species, a creature's traits; it finds no ore. The
+  **terrain scanner** (below) makes ore near you glow through the rock; the ship's **planet scanner** (§ Ship,
+  modules) tells you which ores a whole world holds.
 - With a scanner selected, **left-click** a creature or block to scan it. Scans award **knowledge points**
   used to unlock blueprints; the readout shows subject/info/threat/knowledge (first-time scans highlight
   the "new discovery" bonus).
@@ -1377,7 +1397,9 @@ separate unlock; admins can still disable it through server world rules.
   also picks critters up as small named contacts.
 - **Terrain scanner** (`terrain_scanner`, workshop recipe + blueprint): a **right-click** gadget that
   pulses once (10 suit energy, 10 s cooldown) and reveals ores, crystal, data caches — and **oil** — within
-  20 blocks as through-wall glow markers for 8 s, tinted by ore type. An `ai_core_mk2` extends the radius.
+  20 blocks as through-wall glow markers for 8 s, tinted by ore type; the toast names the finds, most common first
+  ("12 deposits — iron ore ×8 · copper ore ×3 · …"). An `ai_core_mk2` extends the radius. Digging a lot without
+  one, VEGA points you to its blueprint once.
 - **Fluid pump** (`fluid_pump`, workshop recipe + the `fluid_pump` blueprint after the titanium drill): a
   **right-click** gadget that pulls **one cell of liquid** into your pack (2 suit energy, 0.4 s): **oil**,
   **water** or **lava**. **Oil** (new worlds since 2026-09) lies in **sealed, tar-rimmed pockets 40–120 blocks

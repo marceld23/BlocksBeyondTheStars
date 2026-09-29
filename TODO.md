@@ -24,6 +24,41 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛰️ Bloody Mary's reports 2026-09-29 — resource scan, cargo shortcut, market list, form editor crash (#2141: #2136–#2140, 2026-09-29, branch fix/bloody-mary-reports-0929)
+
+Three F1 reports and one client crash from Bloody Mary on v2026.9.19 and Marcel's decisions, all in ONE branch and ONE PR
+(no terrain-generation bump, no protocol bump — the planet-scan messages are additive):
+
+1. ✅ **#2136 form editor crash** — the custom-form editor's 3-D preview looked up URP/Lit by name; the player build
+   strips it (nothing references it), so `new Material(null)` threw on every paint stroke since #852 (preview dead,
+   labels frozen). It uses `BlocksBeyondTheStars/LitColor` now; `BuildScript.RuntimeShaders` gained the missing
+   `FarTerrain`; a client guard test fails whenever a runtime `Shader.Find` names a shader the build does not keep.
+2. ✅ **#2137 "Nahrung herstellen"** — the ship's Crafting → Market page listed all 49 vendor trades as "Baubar" (the
+   grocer's ore-for-food barter read as a recipe; the server then refused it). One client rule
+   (`GameBootstrap.MarketOfferedHere`: vendor theme + rotation day, the server's rule) for the Market page, `CanCraft`
+   and the vendor screen — aboard only iron ↔ titanium remain; market cards read "Tauschbar", the button "Tauschen".
+   The duplicate `ui.vendor.trade` key is split (`ui.vendor.trade_choice` for the trade-or-talk prompt).
+3. ✅ **#2138 "Frachtraum füllen"** — "stow all" existed but was hidden: **H aboard** (no crate in reach) stows into the
+   hold; **E at the cargo station** opens the Cargo Hold page, which now has "stow all" beside "take all"; the
+   Inventory tab lands on the backpack grid instead of an orphaned list. Stow-all keeps the **stack in the hand** and
+   **spare suit gear**, and answers (`@srv.cargo.stowed:N` / `…stowed_partial:N` / `…full` / nothing to stow);
+   auto-stow on boarding stays quiet when there is nothing to do (`MoveCargoItemIntent.Quiet`, additive).
+4. ✅ **#2139 "Ressourcenscan" part 1** — the hand scanner's text no longer claims it finds resources (all 14 locales);
+   VEGA's scan line says quick-bar slot 2 (was 3, all locales); "Geländescanner" → "Terrain-Scanner"; new VEGA tip
+   `scanner_unknown` (digging a lot without the terrain scanner or its blueprint → points to the blueprint and the
+   planet scanner); the terrain scanner's toast names its finds ("Eisenerz ×8 · Kupfererz ×3 · …"); Codex guide
+   "Prospecting & Ore" and the manual set straight.
+5. ✅ **#2140 "Ressourcenscan" part 2 — the planet scanner** — a new ship module `planet_scanner` (blueprint: 20
+   knowledge, no prerequisite, no titanium; built in the Ship tab). Aboard, **Map → a body of this system → Planet
+   scan** (or from the fitted module) returns the world's ore richness, every vein (common / moderate / rare, start
+   depth, tier-2 drill) and the extras (oil pockets, data caches, surface outcrops, crater metals, gas giant) —
+   `WorldGenerator.SurveyResources` recomputes the terrain's own per-body rolls without touching the active world
+   mode. `PlanetScanIntent`/`PlanetScanResult` (tags 276/277). Icon `item_planet_scanner` (OpenAI, NOTICES.md).
+
+Open: playtests — Verena's world (`new_world`): form editor preview; H in the cabin; E at the cargo station; the ship's
+Market page; build + use the planet scanner on Kleejaje and a moon. Decisions still to confirm: the whole quick-bar vs.
+only the held slot (built: held slot), and the Market page as "only what trades here" (built) vs. a greyed catalog.
+
 ### 🚉 Screelit's reports 2026-09-27 — the ship in space, doors and extensions, seats, beards, block faces, the intercity monorail (#2127: #2117–#2126, 2026-09-28, branch fix/screelit-reports-0928, terrain generation 19)
 
 Eight F1 reports from Screelit (Justus) on v2026.9.17 and Marcel's decisions, all in ONE branch and ONE PR:

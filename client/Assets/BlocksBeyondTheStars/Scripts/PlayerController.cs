@@ -158,6 +158,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A storage crate is within reach (DepositToCrate applies).</summary>
         public bool NearCrate => NearestContainerId(crateOnly: true) != null;
 
+        /// <summary>H stows into the ship's cargo hold (#2138): aboard — in the landed
+        /// cabin or the floating interior — with no storage crate in reach, the same server "stow all" as the
+        /// Inventory tab's button. A crate in reach keeps H for itself.</summary>
+        public bool CanStowToCargo
+            => Game != null && (Game.Aboard || Game.LoadingPlanetType == "ship_interior") && !NearCrate;
+
         /// <summary>A parked speeder of ours is within stow range (StowVehicle applies).</summary>
         public bool NearOwnParkedSpeeder
         {
@@ -1245,6 +1251,13 @@ namespace BlocksBeyondTheStars.Client
                 ClientAudio.Instance?.Cue("loot");
                 Game.Network.SendDepositContainer(nearest);
             }
+            else if (CanStowToCargo)
+            {
+                // The ship's cargo cell is a plain crate BLOCK, not a storage container — H used to do nothing
+                // there. The server answers with what it stowed (or why nothing moved).
+                ClientAudio.Instance?.Cue("loot");
+                Game.Network.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true);
+            }
         }
 
         private bool _gearHelmet, _gearChest, _gearLegs, _gearPack, _gearLamp, _gearBoots, _gearTank;
@@ -2143,7 +2156,7 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     break;
-                case "cargo": Menu?.OpenInventory(); break;
+                case "cargo": Menu?.OpenCargo(); break;
                 case "console": Menu?.OpenShip(); Game.Network?.SendUseStation("console"); break; // ship status/repairs (#463)
                 default:
                     if (Game.NearbyStation == "medbay") ClientAudio.Instance?.Cue("heal");

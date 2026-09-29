@@ -223,6 +223,8 @@ MODULES = [
     ("docking_module", "a ship docking clamp port ring"),
     ("jump_generator", "a glowing ship jump-drive warp generator coil"),
     ("radar_array", "a ship radar dish array"),
+    # #2140: the planet scanner — surveys a world's ore veins from orbit.
+    ("planet_scanner", "a ship planetary survey scanner module, a compact dark steel housing with a rotating sensor dome projecting a fan of glowing cyan scan lines down onto a small rocky planet with orange ore veins"),
     ("hull_plating", "layered reinforced ship hull armor plating"),
     ("shield_generator", "a ship shield generator projecting an energy bubble"),
     ("asteroid_breaker", "a ship-mounted asteroid mining cannon"),
