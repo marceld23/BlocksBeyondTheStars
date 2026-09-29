@@ -235,7 +235,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var mesh = EditorVoxelPreview.CustomShapeMesh(voxels);
-            if (mesh == null)
+            var material = EditorVoxelPreview.PreviewMaterial();
+            if (mesh == null || material == null)
             {
                 return;
             }
@@ -244,7 +245,7 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(_previewSpin, false);
             go.transform.localPosition = new Vector3(-0.5f, -0.5f, -0.5f); // centre the unit cell on the pivot
             go.GetComponent<MeshFilter>().sharedMesh = mesh;
-            go.GetComponent<MeshRenderer>().sharedMaterial = EditorVoxelPreview.PreviewMaterial();
+            go.GetComponent<MeshRenderer>().sharedMaterial = material;
             go.layer = _previewSpin.gameObject.layer;
         }
 

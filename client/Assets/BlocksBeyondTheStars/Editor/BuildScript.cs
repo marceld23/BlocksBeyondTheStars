@@ -45,6 +45,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/BlockAtlas",
             "BlocksBeyondTheStars/BlockAtlasTransparent",
             "BlocksBeyondTheStars/Cloud",
+            "BlocksBeyondTheStars/FarTerrain",
             "BlocksBeyondTheStars/HeatHaze",
             "BlocksBeyondTheStars/LitColor",
             "BlocksBeyondTheStars/Nebula",

@@ -86,12 +86,21 @@ namespace BlocksBeyondTheStars.Client
             return mesh;
         }
 
-        /// <summary>A plain lit material for the form preview, created once per session.</summary>
+        /// <summary>A plain lit material for the form preview, created once per session; null only when no
+        /// shader at all could be found (the caller then shows no preview rather than throwing).</summary>
         public static Material PreviewMaterial()
         {
             if (_previewMaterial == null)
             {
-                var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                // Our own always-included lit shader. URP/Lit was only ever found in the Editor: no asset references
+                // it, so every player build stripped it, Shader.Find returned null and new Material(null) threw on
+                // each paint stroke in the form editor — no preview, frozen labels (#2136).
+                var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
+                if (shader == null)
+                {
+                    return null;
+                }
+
                 _previewMaterial = new Material(shader) { color = new Color(0.55f, 0.78f, 0.92f) };
             }
 
