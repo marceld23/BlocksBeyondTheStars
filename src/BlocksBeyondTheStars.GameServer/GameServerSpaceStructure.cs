@@ -850,9 +850,16 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!s.Get(pos).IsAir || (s.Kind == "ship" && PlacedDoorCovering(s, pos) is not null))
+        if (!s.Get(pos).IsAir)
         {
             Reject(session, "structure", "@srv.place.not_empty");
+            return;
+        }
+
+        // #2148: a ship's doorways stay open — the owner's own doors (#2119) and the design's openings alike.
+        if (s.Kind == "ship" && (PlacedDoorCovering(s, pos) is not null || DoorOpeningCells(s).Contains(pos)))
+        {
+            Reject(session, "structure", "@srv.place.door_here");
             return;
         }
 
@@ -1037,9 +1044,17 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!s.Get(pos).IsAir || PlacedDoorCovering(s, pos) is not null)
+        if (!s.Get(pos).IsAir)
         {
             Reject(session, "structure", "@srv.place.not_empty");
+            return;
+        }
+
+        // Nothing goes into a doorway (#2148): neither where the owner hung a door (#2119) nor into the design's own
+        // openings — the hatch included, which a block used to wall up while its energy door still "opened".
+        if (PlacedDoorCovering(s, pos) is not null || DoorOpeningCells(s).Contains(pos))
+        {
+            Reject(session, "structure", "@srv.place.door_here");
             return;
         }
 

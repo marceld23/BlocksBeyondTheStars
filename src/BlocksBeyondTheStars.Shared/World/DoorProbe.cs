@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using BlocksBeyondTheStars.Shared.Definitions;
 
 namespace BlocksBeyondTheStars.Shared.World;
 
@@ -113,5 +114,40 @@ public static class DoorProbe
 
         double yaw = yawDegrees * Math.PI / 180.0; // wall faces the player's look direction
         return Math.Abs(Math.Cos(yaw)) >= Math.Abs(Math.Sin(yaw));
+    }
+
+    /// <summary>
+    /// Whether a world block is a jamb for a door a PLAYER places (#2146): a wall you would bump into. Fluids,
+    /// small flora (a flower, a grass tuft, a bush), torches, lanterns, ladders, fire and the walk-through energy
+    /// gate are none — the same blocks the client meshes without a collider. On a flower world a blossom in front
+    /// of the doorway used to count as a jamb, which put jambs on both axes and turned the door crosswise.
+    /// </summary>
+    public static bool IsJamb(BlockDefinition? def)
+    {
+        if (def is null || !def.Solid || def.Liquid)
+        {
+            return false;
+        }
+
+        switch (def.Key)
+        {
+            case "air":
+            case "water":
+            case "lava":
+            case "torch":
+            case "lantern":
+            case "ladder":
+            case "fire":
+            case "energy_gate":
+                return false;
+        }
+
+        if (def.Key.StartsWith("flora_", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // A flora species without its own solid form (fruit, authored plants) is a walk-through prop too.
+        return FloraCatalog.Find(def.Key) is not { Solid: false };
     }
 }

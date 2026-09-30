@@ -24,6 +24,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚪 School-club report 2026-09-30 — "the door won't open" (#2149: #2145–#2148, 2026-09-30, branch fix/daimien-door-0930)
+
+Daimien (school club) built a house on a flower world in the browser build (v2026.9.20) and hung a door that "won't open".
+No browser-only defect — three ways a player-built door ended up shut, plus missing teaching. Marcel's decision: doors stay
+**E-only** (no right-click opening). ONE branch, ONE PR, no protocol or terrain-generation bump:
+
+1. ✅ **#2145 nothing into a doorway** — `HandlePlace` only checked the voxel grid, and a door stands in an AIR cell: a
+   right-click at a door (the Minecraft habit) dropped the held block into the opening behind the swinging leaf, or stacked a
+   second door that stayed shut while E toggled the first. `DoorFillsCell` (player-built + stamped, width-aware, 3 high)
+   refuses with `@srv.place.door_here` before anything is consumed.
+2. ✅ **#2146 flowers are no jambs** — the placed-door jamb probe read "anything but air", so a flower in front of the gap put
+   jambs on both axes and the door turned to the player's facing (crosswise; E seemed to close it). Shared
+   `DoorProbe.IsJamb` (solid, no fluid/flora/torch/ladder/walk-through) for the server and the placement ghost.
+3. ✅ **#2147 teach the E** — a right-click at a closed door places nothing and toasts how it opens (hand door: "Doors open
+   with {key}", sliding/energy: opens by itself); E works the aimed hand door before the nearest; the label names the bound
+   key (touch: USE) and says open/close; `block.door_slide.desc` no longer promises "or interact". New keys in all 14 locales.
+4. ✅ **#2148 the hatch stays open** — landed-ship and in-space ship edits refuse every doorway cell (`DoorOpeningCells`),
+   the starter hatch included, which a block used to wall up while its energy door still "opened".
+
+Tests: `DoorwayTests` (6). ⚠ Open: playtest in the browser build (door in a house on a flower world, right-click hint, E on
+the aimed door, hatch refusal).
+
 ### 🛰️ Bloody Mary's reports 2026-09-29 — resource scan, cargo shortcut, market list, form editor crash (#2141: #2136–#2140, 2026-09-29, branch fix/bloody-mary-reports-0929)
 
 Three F1 reports and one client crash from Bloody Mary on v2026.9.19 and Marcel's decisions, all in ONE branch and ONE PR

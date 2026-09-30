@@ -5207,6 +5207,16 @@ public sealed partial class GameServer
             return;
         }
 
+        // A doorway is air to the voxel grid, but a door stands in it (#2145): no block and no second door goes
+        // in. A right-click aimed at a door used to drop the held block into the opening behind it — the door
+        // still swung, but a wall stood in the way — or stacked a second door that stayed shut. Refused before
+        // anything is consumed.
+        if (DoorFillsCell(pos))
+        {
+            Reject(session, "place", "@srv.place.door_here");
+            return;
+        }
+
         if (intoFluid)
         {
             // Two placeables genuinely can't take a fluid cell, and both are refused before anything is

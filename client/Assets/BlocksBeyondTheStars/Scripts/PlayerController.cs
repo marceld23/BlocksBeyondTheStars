@@ -1927,6 +1927,13 @@ namespace BlocksBeyondTheStars.Client
             // Your own base core in the crosshair → the HUD shows the rename key + the core's air readout (#1267).
             Game.AimedOwnBase = AimedOwnedBase();
 
+            // #2147: the hand door E works — the one under the crosshair, else the nearest; its label follows suit.
+            int handDoor = TargetHandDoor();
+            if (DoorView.Instance != null)
+            {
+                DoorView.Instance.SetInteractTarget(handDoor);
+            }
+
             if (!InputMap.Down(InputAction.Interact) || LaunchPrompt.IsOpen || VendorChoicePrompt.IsOpen)
             {
                 return; // the launch / trade-or-talk question owns E while it is up (#1455)
@@ -2041,10 +2048,10 @@ namespace BlocksBeyondTheStars.Client
 
             // A settlement hinge door you're standing at opens/closes with E — checked BEFORE stations so a door
             // next to a market stall still opens (sci-fi slide doors open themselves; this is for village doors) (B47).
-            int door = DoorView.Instance != null ? DoorView.Instance.NearestHinge(transform.position, 3f) : 0;
-            if (door != 0)
+            // Which door: the aimed one before the nearest (#2147), chosen above.
+            if (handDoor != 0)
             {
-                Game.Network?.SendDoorInteract(door);
+                Game.Network?.SendDoorInteract(handDoor);
                 return;
             }
 
@@ -4109,6 +4116,16 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #2147: a right-click at a CLOSED door — the Minecraft habit; here doors open with E — builds nothing
+            // behind it and says how this door opens instead. An open doorway stays free to build past (the door's
+            // own cells are refused by the server either way, #2145).
+            if (place && TryAimDoor(out int clickedDoor, out _)
+                && DoorView.Instance != null && !DoorView.Instance.IsDoorOpen(clickedDoor))
+            {
+                ShowDoorHowTo(clickedDoor);
+                return;
+            }
+
             if (!AimTarget(out var hitCell, out var placeCell, out var aimedShip,
                     fluidSurfaces: mine ? HeldToolFluidAim() : PlaceFluidAim()))
             {
@@ -4249,8 +4266,12 @@ namespace BlocksBeyondTheStars.Client
         /// march in <see cref="AimTarget"/> walks straight through them — which is why mining a door did nothing
         /// (and, until #1710, answered as "ship hull"). The server removes a door for any of its cells
         /// (<c>RemovePlayerDoorAt</c>) and tells the player when a stamped door is protected instead.</summary>
-        private bool TryAimDoor(out Vector3Int cell)
+        private bool TryAimDoor(out Vector3Int cell) => TryAimDoor(out _, out cell);
+
+        /// <summary>As <see cref="TryAimDoor(out Vector3Int)"/>, also naming the door (#2147).</summary>
+        private bool TryAimDoor(out int doorId, out Vector3Int cell)
         {
+            doorId = 0;
             cell = default;
             if (DoorView.Instance == null || Camera == null || Game?.World == null)
             {
@@ -4259,7 +4280,7 @@ namespace BlocksBeyondTheStars.Client
 
             Vector3 o = Camera.transform.position;
             Vector3 dir = Camera.transform.forward;
-            if (!DoorView.Instance.AimDoor(o, dir, Reach, out cell, out float doorDist))
+            if (!DoorView.Instance.AimDoor(o, dir, Reach, out doorId, out cell, out float doorDist))
             {
                 return false;
             }
@@ -4271,11 +4292,48 @@ namespace BlocksBeyondTheStars.Client
                     solid.x, solid.y, solid.z, solid.x + 1f, solid.y + 1f, solid.z + 1f);
                 if (solidDist < doorDist)
                 {
+                    doorId = 0;
                     return false;
                 }
             }
 
             return true;
+        }
+
+        /// <summary>#2147: the hand door E works — the aimed door when it swings by hand and its latch is within the
+        /// server's reach (3 blocks), else the nearest hand door, else 0. Distance alone used to swing the door
+        /// beside the one you were looking at.</summary>
+        private int TargetHandDoor()
+        {
+            var view = DoorView.Instance;
+            if (view == null)
+            {
+                return 0;
+            }
+
+            int nearest = view.NearestHinge(transform.position, 3f);
+            if (nearest == 0)
+            {
+                return 0; // no hand door in reach at all — spare the aim test
+            }
+
+            return TryAimDoor(out int aimed, out _) && aimed != nearest
+                && view.IsHandDoor(aimed) && view.DoorWithin(aimed, transform.position, 3f)
+                ? aimed
+                : nearest;
+        }
+
+        /// <summary>#2147: tells a player who right-clicked a door how it opens — a hand door with the interact key, an
+        /// automatic one by walking up to it. Doors stay E-only; the hint replaces the block the click used to drop
+        /// into the doorway behind it.</summary>
+        private void ShowDoorHowTo(int doorId)
+        {
+            var view = DoorView.Instance;
+            var loc = Game.Localizer;
+            string text = view != null && view.IsHandDoor(doorId)
+                ? (loc?.Get("ui.door.use_key") ?? "Open doors with {key}.").Replace("{key}", view.InteractKeyName())
+                : loc?.Get("ui.door.opens_itself") ?? "This door opens by itself when you walk up to it.";
+            Game.ShowMessage(text);
         }
 
         /// <summary>Like <see cref="AimBlock"/>, but the march also targets the cells of parked ship OBJECTS
@@ -4638,6 +4696,14 @@ namespace BlocksBeyondTheStars.Client
                 Game.HoldingRotatableBlock = rotatable;
             }
 
+            // #2147: a closed door under the crosshair takes the right-click (a how-to hint), so nothing hovers behind it.
+            if ((rotatable || HeldDoorKind(held) != null) && TryAimDoor(out int aimedDoor, out _)
+                && DoorView.Instance != null && !DoorView.Instance.IsDoorOpen(aimedDoor))
+            {
+                _placementGhost?.Hide();
+                return;
+            }
+
             // A held door (#1975): nothing to rotate, but the server hangs a real door — show it in the target cell,
             // turned by the wall beside it (the shared placed-door rule), so its facing is no surprise. A parked
             // ship's cells get no ghost, like every other placement there.
@@ -4645,7 +4711,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (AimTarget(out _, out var doorCell, out var doorShip) && doorShip == null)
                 {
-                    bool axisX = DoorProbe.AxisForPlacedDoor(IsSolidWorldCell, doorCell.x, doorCell.y, doorCell.z, transform.eulerAngles.y);
+                    bool axisX = DoorProbe.AxisForPlacedDoor(IsDoorJambCell, doorCell.x, doorCell.y, doorCell.z, transform.eulerAngles.y);
                     _placementGhost ??= new PlacementGhost();
                     _placementGhost.ShowDoor(doorCell, doorKind, axisX);
                 }
@@ -4692,8 +4758,13 @@ namespace BlocksBeyondTheStars.Client
             return DoorBlocks.IsDoorBlock(placed) ? DoorBlocks.KindForBlock(placed) : null;
         }
 
-        /// <summary>The world grid as the door probe reads it: anything but air is a jamb.</summary>
-        private bool IsSolidWorldCell(int x, int y, int z) => !Game.World.GetBlock(x, y, z).IsAir;
+        /// <summary>The world grid as the door probe reads it: a real wall is a jamb, a flower is not (#2146) — the
+        /// server's own rule, so the ghost shows the door as it will hang.</summary>
+        private bool IsDoorJambCell(int x, int y, int z)
+        {
+            var id = Game.World.GetBlock(x, y, z);
+            return !id.IsAir && DoorProbe.IsJamb(Game.Content?.BlockById(id));
+        }
 
         /// <summary>The up-face for an Auto placement: the shape's base rests on the surface it was built
         /// against — the floor first (→ +Y up, the common case of laying a slab on the ground), then the WALL

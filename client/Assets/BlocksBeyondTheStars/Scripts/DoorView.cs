@@ -49,6 +49,8 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly Dictionary<int, Door> _doors = new Dictionary<int, Door>();
         private bool _subscribed;
+        private int _eTarget;          // #2147: the hand door E works this frame, as the player controller chose it
+        private int _eTargetFrame = -1;
 
         private void Awake() => Instance = this;
 
@@ -539,11 +541,18 @@ namespace BlocksBeyondTheStars.Client
         /// collider, in SCENE space like <see cref="NearestHinge"/>. Stamped station doors answer too: the
         /// server tells the player those are protected, instead of healing a "ghost block" at an air cell.</summary>
         public bool AimDoor(Vector3 origin, Vector3 dir, float reach, out Vector3Int cell, out float distance)
+            => AimDoor(origin, dir, reach, out _, out cell, out distance);
+
+        /// <summary>As <see cref="AimDoor(Vector3, Vector3, float, out Vector3Int, out float)"/>, also naming the
+        /// door (#2147) — so a right-click or E can tell a hand door from an automatic one.</summary>
+        public bool AimDoor(Vector3 origin, Vector3 dir, float reach, out int id, out Vector3Int cell, out float distance)
         {
+            id = 0;
             cell = default;
             distance = float.PositiveInfinity;
-            foreach (var d in _doors.Values)
+            foreach (var kv in _doors)
             {
+                var d = kv.Value;
                 Vector3 c = Game != null ? Game.ScenePos(d.World.x, d.World.y, d.World.z) : d.World;
                 float hx = d.AxisX ? d.Width * 0.5f : Thickness * 2f;
                 float hz = d.AxisX ? Thickness * 2f : d.Width * 0.5f;
@@ -552,12 +561,46 @@ namespace BlocksBeyondTheStars.Client
                 if (t <= reach && t < distance)
                 {
                     distance = t;
+                    id = kv.Key;
                     cell = new Vector3Int(Mathf.FloorToInt(d.World.x), Mathf.FloorToInt(d.World.y), Mathf.FloorToInt(d.World.z));
                 }
             }
 
             return distance <= reach;
         }
+
+        /// <summary>#2147: whether the door swings by hand (E) rather than opening by itself.</summary>
+        public bool IsHandDoor(int id) => _doors.TryGetValue(id, out var d) && IsHinged(d.Kind);
+
+        /// <summary>#2147: whether the door stands (or is swinging) open — the doorway behind it is free to build into.</summary>
+        public bool IsDoorOpen(int id) => _doors.TryGetValue(id, out var d) && d.Open;
+
+        /// <summary>#2147: whether the door is within <paramref name="reach"/> of a scene position — the same measure
+        /// <see cref="NearestHinge"/> takes, and the server's own latch reach.</summary>
+        public bool DoorWithin(int id, Vector3 worldPos, float reach)
+        {
+            if (!_doors.TryGetValue(id, out var d))
+            {
+                return false;
+            }
+
+            Vector3 doorScene = Game != null ? Game.ScenePos(d.World.x, d.World.y, d.World.z) : d.World;
+            return (doorScene - worldPos).sqrMagnitude <= reach * reach;
+        }
+
+        /// <summary>#2147: the player controller names the hand door E works this frame (the aimed one before the
+        /// nearest), so the label hangs over the very door a press will swing.</summary>
+        public void SetInteractTarget(int id)
+        {
+            _eTarget = id;
+            _eTargetFrame = Time.frameCount;
+        }
+
+        /// <summary>#2147: the key — or touch button — that works a hand door, as the player has it bound.</summary>
+        public string InteractKeyName()
+            => InputMap.ActiveDevice == InputDeviceKind.Touch
+                ? (Game?.Localizer?.Get("ui.touch.use") ?? "USE")
+                : InputMap.Glyph(InputAction.Interact);
 
         public int NearestHinge(Vector3 worldPos, float reach)
         {
@@ -588,17 +631,18 @@ namespace BlocksBeyondTheStars.Client
 
         private void LateUpdate()
         {
-            // Show an "E" hint over a hinge door the player can reach.
+            // Show the key hint over the hinge door a press of E would swing (#2147: the bound key, open or close).
             var cam = Camera.main;
             if (cam == null || Game == null)
             {
                 return;
             }
 
-            int near = NearestHinge(Game.PlayerPosition, 3f);
+            int near = _eTargetFrame == Time.frameCount ? _eTarget : NearestHinge(Game.PlayerPosition, 3f);
             if (near != 0 && _doors.TryGetValue(near, out var d))
             {
-                string hint = Game.Localizer != null ? Game.Localizer.Get("ui.door.hint") : "E: Door";
+                string key = d.Open ? "ui.door.hint_close" : "ui.door.hint_open";
+                string hint = (Game.Localizer != null ? Game.Localizer.Get(key) : "{key}: Door").Replace("{key}", InteractKeyName());
                 ScreenLabelLayer.Instance.World(cam, d.Go.transform.position + Vector3.up * 2.2f, hint, UiKit.Cyan);
             }
         }

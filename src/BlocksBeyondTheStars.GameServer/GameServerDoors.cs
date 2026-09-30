@@ -401,8 +401,9 @@ public sealed partial class GameServer
     private void PlaceDoor(PlayerSession session, Vector3i pos, string kind)
     {
         // The shared placed-door rule (#1975): jambs on exactly one axis decide, else the wall faces the player —
-        // the same rule the placement ghost runs, so the hologram and the hung door agree.
-        bool axisX = DoorProbe.AxisForPlacedDoor(IsSolidBlock, pos.X, pos.Y, pos.Z, session.State.Yaw);
+        // the same rule the placement ghost runs, so the hologram and the hung door agree. Only real walls are
+        // jambs (#2146): a flower in front of the doorway no longer turns the door crosswise.
+        bool axisX = DoorProbe.AxisForPlacedDoor(IsDoorJamb, pos.X, pos.Y, pos.Z, session.State.Yaw);
 
         _doors.Add(new ServerDoor
         {
@@ -417,6 +418,19 @@ public sealed partial class GameServer
         BroadcastDoors();
         RefreshStationBoundsAfterDoorChange(); // a doorway on a station's outer face is part of its box (#1559)
     }
+
+    /// <summary>#2146: a world cell a player-placed door takes as a jamb — a wall you would bump into, not a flower.</summary>
+    private bool IsDoorJamb(int x, int y, int z)
+    {
+        var id = _world.GetBlock(new Vector3i(x, y, z));
+        return !id.IsAir && DoorProbe.IsJamb(_content.BlockById(id));
+    }
+
+    /// <summary>#2145: whether any door — one a player hung or one a structure stamped — fills the cell: its opening
+    /// is as wide as the door along its wall, one cell deep and three cells high. Nothing may be built into it: a
+    /// block there stands in the doorway behind a door that still swings, and a second door stacked into the same
+    /// cell stays shut while E toggles the first one.</summary>
+    private bool DoorFillsCell(Vector3i pos) => PlayerDoorFillsCell(pos) || StampedDoorAt(pos);
 
     /// <summary>If a player-built door fills the mined cell's column (its ~3-tall opening), remove it, return the
     /// door item to the miner and forget it. Returns true if it handled the mine (a player door was there).</summary>

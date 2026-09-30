@@ -121,7 +121,7 @@ Last updated: 2026-08-26.
 | **G** | Loot the nearest container |
 | **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
-| **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
+| **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
@@ -675,6 +675,12 @@ separate unlock; admins can still disable it through server world rules.
   nozzle, factory terminal, pipe and machine housing that ship interiors, stations and factories are built from all
   have workshop recipes (lights: crystal in a glass housing — no power needed; the force field needs the energy-door
   blueprint). Only the data cache stays loot-only.
+- **Doors:** the **wooden door** (four logs, by hand) and the **hinged door** (workshop) swing by hand — stand at
+  the door and press **E** (it works the door you're looking at, else the nearest; the label over the door names the
+  key). The **sliding** and **energy doors** open by themselves when you walk up to them. A right-click at a closed
+  door places nothing — it only reminds you how that door opens — and nothing can be built into a doorway (no block,
+  no second door: *"A door is standing there."*). A door hangs along the wall beside it; flowers or grass in front
+  of the doorway don't count as wall.
 - The **transmuter** (the *matter forge* block or ship module, unlocked via Tech) compacts spare terrain
   (sand, dirt, stone, …) into *matter dust* and synthesises it back into ore — a sink for surplus digging.
   With the **matter resynth** blueprint it also rebuilds titanium, silver and cobalt ore and lithium from dust
