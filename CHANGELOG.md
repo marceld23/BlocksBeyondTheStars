@@ -11,6 +11,110 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.1] — 2026-10-02
+
+The sparks release. Until now, almost every shot, scan and drill hit looked the same: a little cube that blinked and
+was gone. Now **every weapon, scanner, drill and gadget has an effect of its own**, on foot and in flight (#2159).
+Plasma bolts light up the cave walls, the terrain scan rolls over the rock like a wave and makes the ores glow through
+it, mined blocks crack and burst into chips of their own colours, your ship trails engine plumes and jumps through a
+tunnel of light, and you see the other players' shots and drilling too. Defeat stays friendly: creatures break apart
+into sparkles, robots fall to parts and bandits beam away. And a school-club report about a door that "won't open"
+fixed the **doors**: nothing builds into a doorway any more, and the game tells you how a door opens.
+
+ℹ️ **Compatibility:** the network protocol stays at version 8 and the terrain generation at 19, so saves and worlds
+carry over as they are. An older game version can still join a 2026.10.1 world, but it shows neither the other
+players' effects nor the new door hints, so update anyway. The desktop game updates itself on start, and the browser
+version is always current.
+
+### 🔭 Scanners you can see (#2153)
+
+- The **terrain scanner** sends a wave rolling over the rock, and the ores it finds glow through the ground as ghostly
+  cubes when the wave reaches them.
+- The **hand scanner** shows a fan of light, a hologram box with a sweeping scan line and little data sparks.
+- The **weather scanner** fires a probe beam into the sky, the **translator** sends out sound-wave rings, and the
+  **binoculars** show a range readout.
+- The ship's **planet scanner** sweeps over the planet, and the resources it finds light up on the globe.
+- **Beam pads** show a column of light when someone teleports.
+
+### 🔫 Weapons and hits (#2154)
+
+- Every weapon has its own shot: a slug, a rail shot with rings, a layered laser beam, a plasma ball that lights up the
+  walls around it, and glowing ribbons for a melee swing.
+- Shots leave the gun barrel now, not the middle of the screen.
+- A target flashes white when it is hit, and a marker around the crosshair shows where damage came from.
+- Muzzle flashes, plasma bolts and explosions light up the ground and the walls nearby.
+- Defeat stays kid-friendly: creatures break apart into sparkles, robots fall to parts, bandits beam away.
+
+### ⛏️ Mining and building (#2155)
+
+- A block you mine shows cracks, and the mining beam glows hot on it.
+- Chips fly off the face you hit, in the block's own colours, and every drill looks a little different.
+- A broken block bursts apart and leaves a small gem to pick up; a placed block lands with a pop.
+- Mining on a spacewalk has the same effects.
+
+### 🚀 Space combat and flight (#2156 #2157)
+
+- The four ship weapons look different from each other, and enemy fire shows up as bolts.
+- Your **shield** is a hexagon bubble that ripples where it is hit, is tinted by its strength and shatters when it
+  breaks.
+- A damaged hull throws sparks and smokes below half strength; enemy ships explode and asteroids break apart.
+- Every engine nozzle has its own **plume**, with a trail and a glow, and other ships have plumes too.
+- **Space dust** streaks past to show your speed, and the **hyperjump** is a tunnel of light.
+- Traders warp in and out as streaks of light, the tractor beam is a visible cone, and your hull is lit by the star of
+  the system you are in.
+- Coming in to land glows with re-entry heat, a launch leaves cloud wisps behind, and ships landing on the surface
+  show engine fire and a ring of dust.
+
+### 👥 Playing together (#2158)
+
+- Other players see your shots, swings, drilling, scans and gadgets now, and you see theirs.
+- Gadgets (medkit, stasis, blaster, terrain scanner) show their effect only once the game has accepted the use, so
+  nothing flashes for an action that did not happen.
+
+### ⚙️ Comfort settings (#2152)
+
+- **Settings → Controls → Screen shake** (0–100 %) sets how hard hits, weapon kicks and explosions rattle the view.
+  **Camera motion** off still stops all of it.
+- **Settings → Comfort → Reduce flashes** turns big full-screen flashes into a soft glow, for light-sensitive eyes.
+- **Settings → Comfort → Reduced effects** draws fewer particles and calmer screen effects. Lower graphics settings
+  use fewer particles on their own.
+
+### 🛠️ Fixed along the way (#2151)
+
+- The ore markers of the terrain scanner were hidden behind the terrain. You see them through the rock now.
+- The lights of beam pads, emergency lamps, landing engines, data cubes and glowing creatures did not shine at all.
+  They do now.
+- Motion blur works again, and several effects no longer pile up memory during a long session.
+- The breaking sound matches the block's material, every kind of object you destroy in space has its own sound, and
+  melee hits, drill impacts and the weapon charge are finally heard.
+
+### 🚪 Doors that open (#2145 #2146 #2147 #2148)
+
+Daimien from the school club built a house on a flower world, hung a door in it and reported: "The door won't open."
+Nothing was broken in the browser. There were three ways a door you built could end up shut, and the game never said
+how doors open. Doors still open with **E**:
+
+- **Nothing builds into a doorway** any more. A right-click at a door used to drop the block in your hand into the
+  opening behind it, or put a second door in the same spot that stayed shut while E opened the first one. The game
+  refuses that now, and nothing is used up.
+- **A flower is no door frame.** A flower in front of the gap used to turn the door sideways across the opening, so E
+  seemed to close it. Only solid blocks count as walls beside a door now.
+- **The game tells you how doors open.** A right-click at a closed door shows "Doors open with E" (or, for sliding
+  and energy doors, that they open by themselves when you walk up). E works the door you are looking at first, and
+  the door's label names the key and says whether it opens or closes.
+- **The ship's hatch stays free.** Nothing can be built into your ship's doorways, the hatch included, whether the
+  ship has landed or is in space. Before, a block could wall the hatch up while its door still "opened".
+
+### 🌍 Translations
+
+- Every new text is in all 14 languages (#2147 #2152).
+
+### 🙏 Thanks
+
+To **Daimien** from the school club for the door report (#2149): one sentence, four fixes.
+
+Full details of every change are in the pull requests: #2150 and #2160.
+
 ## [2026.9.20] — 2026-09-30
 
 The prospector release. Which ores does this planet hold, how common are they, and how deep do you have to dig? A new
@@ -6363,7 +6467,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.20...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.1...HEAD
+[2026.10.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.20...v2026.10.1
 [2026.9.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.19...v2026.9.20
 [2026.9.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.18...v2026.9.19
 [2026.9.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.17...v2026.9.18

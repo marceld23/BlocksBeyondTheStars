@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎆 VFX overhaul — weapons, scanners, mining and gadgets, on foot and in flight (#2159: #2151–#2158, 2026-10-01, branch feat/vfx-overhaul) — ✅ done (unreleased; ⚠ playtest open)
+### 🎆 VFX overhaul — weapons, scanners, mining and gadgets, on foot and in flight (#2159: #2151–#2158, 2026-10-01, branch feat/vfx-overhaul) — ✅ done (released in v2026.10.1; ⚠ playtest open)
 
 **Analysis (2026-10-01).** The effects were functional but basic. On foot, nearly everything was a short-lived opaque
 `Unlit/Color` cube or a few particles below the bloom threshold, and no device had a look of its own: every gun drew the same
@@ -150,6 +150,7 @@ How it all works: [docs/developer/VFX.md](docs/developer/VFX.md).
    - **Tests:** `ActionFxTests`, NetCodec golden list.
 
 ⚠ **Open:** playtest of every effect on Medium, High and Low (WebGL included); multiplayer check that each player sees the other's shots and mining.
+**Released** in **v2026.10.1** "the sparks release" (2026-10-02).
 
 ---
 
@@ -174,6 +175,7 @@ No browser-only defect — three ways a player-built door ended up shut, plus mi
 
 Tests: `DoorwayTests` (6). ⚠ Open: playtest in the browser build (door in a house on a flower world, right-click hint, E on
 the aimed door, hatch refusal).
+**Released** in **v2026.10.1** "the sparks release" (2026-10-02).
 
 ### 🛰️ Bloody Mary's reports 2026-09-29 — resource scan, cargo shortcut, market list, form editor crash (#2141: #2136–#2140, 2026-09-29, branch fix/bloody-mary-reports-0929)
 
