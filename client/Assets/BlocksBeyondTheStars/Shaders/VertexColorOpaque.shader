@@ -31,13 +31,17 @@ Shader "BlocksBeyondTheStars/VertexColorOpaque"
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "FxCommon.hlsl" // VFX overhaul (#2152): FX lights + scan wave globals
 
             float4 _Sc_Light; // global day/night × sun-colour × weather tint (alpha>0.5 = set)
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
 
-            struct Attributes { float4 positionOS : POSITION; float4 color : COLOR; float2 uv : TEXCOORD0; float2 tex : TEXCOORD1; };
-            struct Varyings { float4 positionCS : SV_POSITION; float4 color : COLOR; float3 wp : TEXCOORD0; float3 uvw : TEXCOORD1; };
+            // #2154: per-renderer hit flash (MaterialPropertyBlock), 0 everywhere else — see LitColor.
+            float _HitFlash;
+
+            struct Attributes { float4 positionOS : POSITION; float3 normal : NORMAL; float4 color : COLOR; float2 uv : TEXCOORD0; float2 tex : TEXCOORD1; };
+            struct Varyings { float4 positionCS : SV_POSITION; float4 color : COLOR; float3 wp : TEXCOORD0; float3 uvw : TEXCOORD1; float3 wn : TEXCOORD2; };
 
             Varyings vert(Attributes v)
             {
@@ -47,6 +51,7 @@ Shader "BlocksBeyondTheStars/VertexColorOpaque"
                 o.color = v.color;
                 o.wp = wp;
                 o.uvw = float3(v.uv, v.tex.x); // atlas uv + sample weight (#1400)
+                o.wn = TransformObjectToWorldNormal(v.normal);
                 return o;
             }
 
@@ -56,6 +61,11 @@ Shader "BlocksBeyondTheStars/VertexColorOpaque"
                 float shadow = MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp));
                 float3 tex = lerp(float3(1, 1, 1), SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uvw.xy).rgb, saturate(i.uvw.z));
                 float3 col = i.color.rgb * tex * l * lerp(0.55, 1.0, shadow); // shadowed models dim, never black
+                // A mesh without normals feeds (0,0,0): light it as if facing up instead of normalising a zero vector.
+                float3 N = dot(i.wn, i.wn) > 1e-6 ? normalize(i.wn) : float3(0, 1, 0);
+                col += BbtsFxLights(i.wp, N, i.color.rgb * tex);
+                col += BbtsScanWave(i.wp);
+                col = lerp(col, float3(1.6, 1.6, 1.7), saturate(_HitFlash));
                 return half4(col, i.color.a);
             }
             ENDHLSL

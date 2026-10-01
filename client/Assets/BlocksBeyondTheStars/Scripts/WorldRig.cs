@@ -20,6 +20,13 @@ namespace BlocksBeyondTheStars.Client
         {
             var root = new GameObject("Game");
 
+            // VFX overhaul (#2152): the shared effect toolkit lives on the world root (destroyed with it) and is added
+            // FIRST, so no effect creates a stand-alone one; the player's effect settings are pushed in right away.
+            root.AddComponent<FxKit>();
+            FxKit.Configure(shell.Settings.Preset, shell.Settings.ReducedEffects, shell.Settings.ScreenShake,
+                shell.Settings.ReduceFlashes, shell.Settings.CameraMotion);
+            FxCamera.Reset();
+
             // Render the (unlit) per-block vertex colours; fall back if the shader is missing.
             var shader = Shader.Find("BlocksBeyondTheStars/VertexColorOpaque") ?? Shader.Find("Unlit/Color");
             var material = new Material(shader);
@@ -534,6 +541,7 @@ namespace BlocksBeyondTheStars.Client
             // Terrain-scanner overlay (Feature 40): through-wall ore glow markers after a scan pulse.
             var oreScan = root.AddComponent<OreScanView>();
             oreScan.Game = boot;
+            oreScan.Player = pc; // the scan wave starts at the player (#2153)
 
             // Infrared overlay for the upgraded binoculars: cold-graded frame + through-terrain contact blobs.
             // Idle (and free) until BinocularOptic switches it on.
@@ -576,6 +584,12 @@ namespace BlocksBeyondTheStars.Client
             var weaponFx = root.AddComponent<WeaponFx>();
             pc.Weapons = weaponFx;
             remotes.Weapons = weaponFx; // remote jetpack thrust flames
+
+            // Other players' shots, swings, drilling, scans and every confirmed gadget outcome (#2158).
+            var remoteFx = root.AddComponent<FxRemote>();
+            remoteFx.Game = boot;
+            remoteFx.Remotes = remotes;
+            remoteFx.Player = pc;
 
             // Jetpack thrust flames for the local third-person avatar would render via the player's own VFX.
 

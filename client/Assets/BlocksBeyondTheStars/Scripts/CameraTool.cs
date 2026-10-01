@@ -129,7 +129,8 @@ namespace BlocksBeyondTheStars.Client
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 32760; // above the HUD
             var img = go.AddComponent<Image>();
-            img.color = new Color(1f, 1f, 1f, 0.55f);
+            float peak = FxKit.ReduceFlashes ? 0.18f : 0.55f; // #2152: Reduce flashes softens the shutter flash
+            img.color = new Color(1f, 1f, 1f, peak);
             img.raycastTarget = false;
 
             float t = 0f;
@@ -137,7 +138,7 @@ namespace BlocksBeyondTheStars.Client
             while (t < dur)
             {
                 t += Time.unscaledDeltaTime;
-                img.color = new Color(1f, 1f, 1f, Mathf.Lerp(0.55f, 0f, t / dur));
+                img.color = new Color(1f, 1f, 1f, Mathf.Lerp(peak, 0f, t / dur));
                 yield return null;
             }
 

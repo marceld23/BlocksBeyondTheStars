@@ -188,6 +188,11 @@ namespace BlocksBeyondTheStars.Client
             y += 28f;
             Toggle(ref y, L("ui.settings.invert_y"), S.InvertY, () => { S.InvertY = !S.InvertY; ApplyLiveWorld(); Rebuild(); });
             Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; ApplyLiveWorld(); Rebuild(); });
+            // #2152: how hard hits, weapon kicks and explosions rattle the view (0–100 %, 10 % steps).
+            Stepper(ref y, L("ui.settings.screen_shake"), Mathf.Clamp01(S.ScreenShake), 0, 1,
+                () => { S.ScreenShake = Mathf.Clamp01(Mathf.Round((S.ScreenShake - 0.1f) * 10f) / 10f); ApplyLiveWorld(); Rebuild(); },
+                () => { S.ScreenShake = Mathf.Clamp01(Mathf.Round((S.ScreenShake + 0.1f) * 10f) / 10f); ApplyLiveWorld(); Rebuild(); },
+                Mathf.RoundToInt(Mathf.Clamp01(S.ScreenShake) * 100f) + "%");
 
             // Rebindable key controls (Stream C): one row per remappable action; click to capture a new key.
             Head(ref y, L("ui.settings.controls_keys"));
@@ -259,6 +264,14 @@ namespace BlocksBeyondTheStars.Client
             y += 28f;
 
             Head(ref y, L("ui.settings.comfort"));
+            // #2152: photosensitivity — big full-screen flashes become a soft wash.
+            Toggle(ref y, L("ui.settings.reduce_flashes"), S.ReduceFlashes, () => { S.ReduceFlashes = !S.ReduceFlashes; ApplyLiveWorld(); Rebuild(); });
+            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.reduce_flashes_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 28f;
+            // Fewer particles and calmer screen effects (the existing ReducedEffects flag, now on screen).
+            Toggle(ref y, L("ui.settings.reduced_effects"), S.ReducedEffects, () => { S.ReducedEffects = !S.ReducedEffects; S.Apply(); ApplyLiveWorld(); Rebuild(); });
+            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.reduced_effects_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 28f;
             Toggle(ref y, L("ui.settings.auto_stow"), S.AutoStowOnBoard, () => { S.AutoStowOnBoard = !S.AutoStowOnBoard; Rebuild(); });
             Toggle(ref y, L("ui.settings.show_enemy_health"), S.ShowEnemyHealthBars, () => { S.ShowEnemyHealthBars = !S.ShowEnemyHealthBars; Rebuild(); });
             Toggle(ref y, L("ui.settings.show_session_time"), S.ShowSessionTime, () => { S.ShowSessionTime = !S.ShowSessionTime; Rebuild(); });
@@ -615,6 +628,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             FindAnyObjectByType<VisorHud>()?.ApplyPreset(S.Preset, S.ReducedEffects);
+            FxKit.Configure(S.Preset, S.ReducedEffects, S.ScreenShake, S.ReduceFlashes, S.CameraMotion); // #2152, live
         }
 
         private void VolRow(ref float y, string label, System.Func<float> get, System.Action<float> set)

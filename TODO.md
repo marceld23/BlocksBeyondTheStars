@@ -24,6 +24,135 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎆 VFX overhaul — weapons, scanners, mining and gadgets, on foot and in flight (#2159: #2151–#2158, 2026-10-01, branch feat/vfx-overhaul) — ✅ done (unreleased; ⚠ playtest open)
+
+**Analysis (2026-10-01).** The effects were functional but basic. On foot, nearly everything was a short-lived opaque
+`Unlit/Color` cube or a few particles below the bloom threshold, and no device had a look of its own: every gun drew the same
+5 cm cube for 0.12 s, every scan, the medkit and the terrain scanner the same ring of 16 cubes. Mining had no crack stages and
+tan debris for every block. A defeated creature vanished on the despawn path. In flight all four ship weapons looked
+identical, shields were invisible, and destroyed hostiles and asteroids vanished without an explosion. Other players' tool use
+was invisible.
+
+**Decisions (Marcel, 2026-10-01).**
+- Look: **clean sci-fi**.
+- Defeat stays kid-friendly: creatures break apart into sparkles, robots fall to parts, bandits beam away.
+- The effect look is **data-driven**: an `fx` object in `data/items.json` and `data/ship_modules.json`.
+- Other players' actions become visible.
+- Everything ships in **one branch and one PR**.
+
+**Constraints.**
+- WebGL2: no VFX Graph, no geometry shaders, no DBuffer decals, no Forward+.
+- No URP additional lights.
+- Potato/Low are LDR.
+- Photosensitivity per XAG 118 / WCAG 2.3.1.
+
+How it all works: [docs/developer/VFX.md](docs/developer/VFX.md).
+
+1. ✅ **#2151 — audit defects.**
+   - **Ore-scan markers:** they used `SunGlow` in the Background queue, so the terrain painted over them. They are now `FxHolo` ghost cubes with an x-ray (`ZTest Greater`) pass in `Transparent+50`.
+   - **Invisible effect lights:** URP additional lights are off by design. `FxLightBridge` mirrors the beam pad, emergency lamp, landing-engine glow, data cube, net fragment and glowing creature lights into shader-side FX lights.
+   - **Per-spawn Material leaks removed.** The leaking paths:
+     - `WeaponFx` (rebuilt on `FxKit`);
+     - the `SpaceView` beam / hit / warp / exhaust cubes (removed);
+     - the creature claw;
+     - the `BeamView` flash (now freed with the column);
+     - the `OreScanView` markers.
+   - **Motion blur:** `UrpScenePost.SetMotion` now follows ship speed.
+   - **Muzzle:** shots leave the held item's tip (`HeldItem.MuzzleOf`).
+   - **Gadget outcomes:** played on the server's `ActionFx` confirmation.
+   - **Sounds:** the material-matched break cue (`ClientAudio.MineCue`). The flight view plays a destruction sound per kind (the global `asteroid_break` for every destroyed entity is gone). `melee_hit`, `drill_impact` and `weapon_charge` are finally used.
+   - **Thermal grade:** gated to Medium+ (the opaque texture does not exist below).
+2. ✅ **#2152 — foundation.**
+   - **`FxKit`:**
+     - shared world-space emitters per kind, fed by `Emit`;
+     - material cache;
+     - pooled beams, rings, shells and holograms;
+     - one tween list;
+     - `Scaled` / `FlashScale` / `Rich` density control.
+   - **Shaders:**
+     - new `FxBeam`, `FxRing`, `FxShell`, `FxHolo`, `FxDebris`, `FxCrack`, `FxSpaceDust`, `FxTunnel` and the `FxCommon.hlsl` include;
+     - `Particle` gains `_Intensity`;
+     - BlockAtlas / LitColor / VertexColorOpaque read the FX lights and the scan wave, and have a `_HitFlash` property block;
+     - `SkyBodyPhase` gets the planet-scan sweep;
+     - all of them Always-Included, in `BuildScript.RuntimeShaders` and prewarmed.
+   - **Supporting classes:**
+     - `FxLights`: 8 slots, Low 4, Potato 2;
+     - `FxScanWave`;
+     - `FxCamera`: trauma² rotational shake, kick, FOV punch; replaces the old positional jitter on foot and in flight.
+   - **Data-driven look:**
+     - `FxDefinition` / `FxStyles` / `FxActionKinds` (Shared) and an `fx` object on all 34 tool items and 8 ship modules;
+     - `FxStyleResolver` (Client.Core) with fallback heuristics;
+     - `FxContentTests` and `FxStyleResolverTests`.
+   - **Settings** (all 14 languages):
+     - **Screen shake** (0–100 %, default 70 %);
+     - **Reduce flashes**, which clamps damage, death, ship-destroyed, hyperjump, shutter, flight-hit and blast flashes;
+     - **Reduced effects** (the existing flag, now in the menu).
+3. ✅ **#2153 — scanners.**
+   - **Scan wave:** rolls over the terrain via the block shader, with no full-screen pass.
+   - **Terrain scanner:** wave, ground ring and shell; ore ghost cubes through rock pop in as the front reaches them.
+   - **Hand / advanced scan:** light fan, holo bracket box with a sweeping scan plane, data motes, local wave.
+   - **Weather scanner:** sky probe beam and ring.
+   - **Translator:** sound-wave rings and glyph motes.
+   - **Ship planet scanner:** a pulse and beam, a band sweeping the globe, seeded glowing resource points.
+   - **Binoculars:** range readout.
+   - **Beam pads:** a teleport column.
+4. ✅ **#2154 — weapons and defeat.**
+   - **Weapon styles:**
+     - `slug`: brass slug;
+     - `rail`: charge, rail and rings;
+     - `laser`: layered beam and hot spot;
+     - `plasma`: wobbling ball that lights the walls;
+     - `slash` / `vibro` / `plasma_blade` / `fist`: slash ribbons, arcs, afterimage.
+   - **Firing:** camera kick; remote players' shots start at their avatar's hand.
+   - **Hits:** a white hit flash and squash on creatures and robots (in space too); camera trauma and a direction marker on player damage.
+   - **Defeat:**
+     - creatures break apart into sparkles on the new `CreatureDefeated` (tag 280); despawns stay silent;
+     - robots fall to parts with sparks and bolts;
+     - bandits beam out.
+5. ✅ **#2155 — mining.**
+   - `FxCrack` crack overlay with a wobble on every hit and mining-beam heat glow.
+   - Chips in the block's atlas colours, thrown from the struck face.
+   - A look per drill: dust, hot sparks, crystal glitter, or the mining beam itself.
+   - The 2×2×2 break, limited to 6 per frame.
+   - Pickup gem plus a chime before the hotbar fly-in.
+   - The place pop.
+   - EVA chips and breaks on asteroids and hulls.
+6. ✅ **#2156 — space combat.**
+   - **Weapon looks:**
+     - `twin_pulse`: alternating wing pulses;
+     - `plasma_bolt`: bolts with a flight time;
+     - `heavy_beam`: charge glow, thick beam, muzzle ring;
+     - `drill_beam`: pulse rings and rock chips.
+   - **Hostile fire:** red bolts that ripple the `FxShield` hex bubble, which is tinted by shield level and shatters when the shield breaks; with the shield down, the hull sparks.
+   - **Damage:** the hull smokes below 50 %.
+   - **Destruction:** hostiles explode (flash, fireballs, shockwave, their cube parts flung away, light, trauma, sound); asteroids break up into floating rock with ore glints.
+7. ✅ **#2157 — flight.**
+   - **Engines:**
+     - one plume per stern `engine_nozzle` / `ship_engine` block (max 6);
+     - engine trail and FX light;
+     - a throttle surge punches the FOV;
+     - plumes on other players' ships and on hostile cruisers and bandit ships.
+   - **Speed:** `FxSpaceDust`.
+   - **Hyperjump:** a 3D `FxTunnel` with stretched dust and an FOV punch (the 2D overlay is now a faint wash).
+   - **Traders:** warp zips.
+   - **Landing and launch:** re-entry plasma sheath (scaled by atmosphere) and launch cloud wisps.
+   - **Tractor:** cone.
+   - **Lighting:** the hull is lit from the system's star (`Sky.SpaceSunDir`).
+   - **Other players' landings:** engine fire, a dust ring and a real light.
+8. ✅ **#2158 — multiplayer.**
+   - **`FxIntent` (278) → `ActionFx` (279):**
+     - shot, melee, mine, scan and gadget;
+     - 12/s token bucket, known keys only;
+     - seam-aware 6 / 64 / 96-block limits on a surface, 24 / 128 / 160 per flight instance in space;
+     - never echoed to the sender.
+   - **Gadget outcomes:** an `ActionFx` with `Outcome` goes to everyone in range, the user included; reliable delivery.
+   - **No protocol bump:** older peers drop the unknown tags.
+   - **Tests:** `ActionFxTests`, NetCodec golden list.
+
+⚠ **Open:** playtest of every effect on Medium, High and Low (WebGL included); multiplayer check that each player sees the other's shots and mining.
+
+---
+
 ### 🚪 School-club report 2026-09-30 — "the door won't open" (#2149: #2145–#2148, 2026-09-30, branch fix/daimien-door-0930)
 
 Daimien (school club) built a house on a flower world in the browser build (v2026.9.20) and hung a door that "won't open".

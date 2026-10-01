@@ -129,7 +129,9 @@ namespace BlocksBeyondTheStars.Client
 
         private void UpdateGradeQuad()
         {
-            if (ReducedEffects)
+            // #2151: the grade samples _CameraOpaqueTexture, which only exists from Medium up (Potato/Low never copy it,
+            // whatever is requested) — there the grade read an unbound texture. The contact blobs still carry the mode.
+            if (ReducedEffects || FxKit.Preset < QualityPreset.Medium)
             {
                 ShowQuad(false);
                 return;

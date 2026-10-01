@@ -12,6 +12,9 @@ namespace BlocksBeyondTheStars.Client
     /// streaks rushes outward from the centre (the classic "stars stretch into lines") over a dark-blue
     /// wash, climaxing in a white flash before clearing to reveal the new world (which streams in behind).
     /// Pure uGUI on a DPI-scaled canvas above everything; pooled, no bundled art.
+    /// In the flight view (#2157) the jump is 3D: an <c>FxTunnel</c> of racing streaks wraps the camera, the space dust
+    /// stretches into star lines, the FOV punches out at the flash and the camera rattles — the 2D overlay then only
+    /// adds a faint wash. The flash honours Reduce flashes.
     /// </summary>
     public sealed class HyperspaceWarp : MonoBehaviour
     {
@@ -33,6 +36,10 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _playing;
         private float _t;
+        private bool _threeD;
+        private bool _punched;
+        private MeshRenderer _tunnel;
+        private static Mesh _tunnelMesh;
 
         // WorldRig sets Game right after AddComponent, so subscribe in Start (not OnEnable, which
         // would run during AddComponent while Game is still null).
@@ -55,6 +62,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 Destroy(_canvas.gameObject);
             }
+
+            if (_tunnel != null)
+            {
+                Destroy(_tunnel.gameObject);
+            }
+
+            FxSpaceDust.WarpBoost = 0f;
         }
 
         public void Play()
@@ -63,6 +77,80 @@ namespace BlocksBeyondTheStars.Client
             _t = 0f;
             _playing = true;
             _canvas.enabled = true;
+            _punched = false;
+            var cam = Camera.main;
+            _threeD = Game != null && Game.SpaceViewActive && cam != null;
+            if (_threeD)
+            {
+                EnsureTunnel(cam.transform);
+                FxCamera.AddTrauma(0.3f);
+                ClientAudio.Instance?.Cue("hyperspace_charge", 0.6f);
+            }
+        }
+
+        /// <summary>The 3D tunnel: an open cylinder around the camera's view axis, parented to the camera.</summary>
+        private void EnsureTunnel(Transform cam)
+        {
+            var mat = FxKit.Cached("BlocksBeyondTheStars/FxTunnel", "warp");
+            if (mat == null)
+            {
+                _threeD = false;
+                return;
+            }
+
+            if (_tunnel == null)
+            {
+                var go = new GameObject("WarpTunnel");
+                go.AddComponent<MeshFilter>().sharedMesh = TunnelMesh();
+                _tunnel = go.AddComponent<MeshRenderer>();
+                _tunnel.sharedMaterial = mat;
+                _tunnel.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                _tunnel.receiveShadows = false;
+            }
+
+            _tunnel.transform.SetParent(cam, false);
+            _tunnel.transform.localPosition = Vector3.zero;
+            _tunnel.transform.localRotation = Quaternion.identity;
+            _tunnel.gameObject.SetActive(true);
+        }
+
+        /// <summary>A 48-sided open tube of radius 7 from 8 blocks behind to 140 ahead (UV x around, y along).</summary>
+        private static Mesh TunnelMesh()
+        {
+            if (_tunnelMesh != null)
+            {
+                return _tunnelMesh;
+            }
+
+            const int seg = 48;
+            var verts = new Vector3[(seg + 1) * 2];
+            var uvs = new Vector2[verts.Length];
+            var tris = new int[seg * 6];
+            for (int i = 0; i <= seg; i++)
+            {
+                float a = i / (float)seg * Mathf.PI * 2f;
+                var ring = new Vector3(Mathf.Cos(a) * 7f, Mathf.Sin(a) * 7f, 0f);
+                verts[i * 2] = ring + new Vector3(0f, 0f, -8f);
+                verts[i * 2 + 1] = ring + new Vector3(0f, 0f, 140f);
+                uvs[i * 2] = new Vector2(i / (float)seg, 0f);
+                uvs[i * 2 + 1] = new Vector2(i / (float)seg, 1f);
+            }
+
+            for (int i = 0; i < seg; i++)
+            {
+                int v = i * 2;
+                int k = i * 6;
+                tris[k] = v;
+                tris[k + 1] = v + 1;
+                tris[k + 2] = v + 2;
+                tris[k + 3] = v + 1;
+                tris[k + 4] = v + 3;
+                tris[k + 5] = v + 2;
+            }
+
+            _tunnelMesh = new Mesh { name = "FxWarpTunnel", vertices = verts, uv = uvs, triangles = tris };
+            _tunnelMesh.bounds = new Bounds(new Vector3(0f, 0f, 66f), new Vector3(20f, 20f, 160f));
+            return _tunnelMesh;
         }
 
         private void Update()
@@ -81,11 +169,31 @@ namespace BlocksBeyondTheStars.Client
                 : t > Duration - 0.5f ? Mathf.SmoothStep(1f, 0f, (t - (Duration - 0.5f)) / 0.5f)
                 : 1f;
 
-            _backdrop.color = new Color(0.02f, 0.04f, 0.10f, 0.85f * intensity);
+            // In the flight view the 3D tunnel carries the jump; the overlay only adds a faint wash (#2157).
+            float overlay = _threeD ? 0.3f : 1f;
+            _backdrop.color = new Color(0.02f, 0.04f, 0.10f, 0.85f * intensity * (_threeD ? 0.4f : 1f));
 
-            // A bright white flash as we punch through (peaks just past the midpoint).
+            // A bright white flash as we punch through (peaks just past the midpoint) — softened by Reduce flashes.
             float flash = Mathf.Clamp01(1f - Mathf.Abs(t - 1.95f) / 0.35f);
-            _flash.color = new Color(0.85f, 0.92f, 1f, flash * 0.9f);
+            _flash.color = new Color(0.85f, 0.92f, 1f, flash * 0.9f * FxKit.FlashScale);
+
+            if (_threeD && _tunnel != null)
+            {
+                var b = FxKit.Block;
+                b.Clear();
+                b.SetColor("_Color", FxKit.Lin(new Color(0.55f, 0.75f, 1f)) * new Color(1f, 1f, 1f, intensity));
+                b.SetColor("_Color2", FxKit.Lin(new Color(0.85f, 0.6f, 1f)));
+                b.SetFloat("_Intensity", 2.4f);
+                b.SetFloat("_Speed", 1.5f + 4f * intensity);
+                _tunnel.SetPropertyBlock(b);
+                FxSpaceDust.WarpBoost = intensity;
+                if (!_punched && t >= 1.9f)
+                {
+                    _punched = true;
+                    FxCamera.FovPunch(9f);
+                    FxCamera.AddTrauma(0.35f);
+                }
+            }
 
             for (int i = 0; i < _streaks.Length; i++)
             {
@@ -99,13 +207,18 @@ namespace BlocksBeyondTheStars.Client
                 rt.anchoredPosition = new Vector2(Mathf.Sin(_angle[i]) * r, Mathf.Cos(_angle[i]) * r);
                 rt.sizeDelta = new Vector2(2.5f + _depth[i] * 1.5f, len);
                 rt.localEulerAngles = new Vector3(0f, 0f, -_angle[i] * Mathf.Rad2Deg);
-                _streakImg[i].color = new Color(0.7f, 0.85f, 1f, a);
+                _streakImg[i].color = new Color(0.7f, 0.85f, 1f, a * overlay);
             }
 
             if (_t >= Duration)
             {
                 _playing = false;
                 _canvas.enabled = false;
+                FxSpaceDust.WarpBoost = 0f;
+                if (_tunnel != null)
+                {
+                    _tunnel.gameObject.SetActive(false);
+                }
             }
         }
 

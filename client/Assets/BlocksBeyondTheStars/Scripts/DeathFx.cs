@@ -59,6 +59,11 @@ namespace BlocksBeyondTheStars.Client
         private void Flash(Color color, float duration)
         {
             EnsureUi();
+            if (FxKit.ReduceFlashes)
+            {
+                color.a *= 0.35f; // #2152: Reduce flashes — a soft wash instead of a full-screen glare
+            }
+
             _from = color;
             _dur = Mathf.Max(0.1f, duration);
             _t = 0f;

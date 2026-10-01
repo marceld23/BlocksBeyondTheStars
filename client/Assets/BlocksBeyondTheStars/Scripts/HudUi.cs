@@ -144,6 +144,10 @@ namespace BlocksBeyondTheStars.Client
 
         // Damage feedback (B21): a red screen flash + a cause label when health drops.
         private Image _dmgFlash;
+        private RectTransform _dmgDir;   // #2154: a red marker on a ring around the crosshair, pointing at the threat
+        private Image _dmgDirImg;
+        private float _dmgDirTimer;
+        private Vector3 _dmgDirFrom;
         private TMP_Text _dmgCause;
         private float _prevHealth = 100f, _flashTimer, _causeTimer;
         private string _causeKey = string.Empty;
@@ -318,6 +322,12 @@ namespace BlocksBeyondTheStars.Client
                 _causeKey = InferDamageCause();
                 UrpScenePost.Instance?.PulseVignette(0.4f + Mathf.Clamp01(drop / 25f) * 0.6f); // vignette kick
                 VisorHud.Kick(0.35f + Mathf.Clamp01(drop / 25f) * 0.65f); // the hologram glitches with the hit
+                FxCamera.AddTrauma(0.12f + Mathf.Clamp01(drop / 30f) * 0.35f); // #2152: the hit rattles the view
+                if (NearestThreat(out var threat))
+                {
+                    _dmgDirFrom = threat;
+                    _dmgDirTimer = 1.4f;
+                }
             }
 
             // Respawn: the suit "reboots" — replay the boot-up reveal once the HUD is visible again.
@@ -337,9 +347,12 @@ namespace BlocksBeyondTheStars.Client
             if (_dmgFlash != null)
             {
                 var c = _dmgFlash.color;
-                c.a = Mathf.Clamp01(_flashTimer / 0.6f) * 0.38f; // peak ~0.38 — clear but not blinding
+                // Peak ~0.38 — clear but not blinding; Reduce flashes (#2152) keeps it to a soft tint.
+                c.a = Mathf.Clamp01(_flashTimer / 0.6f) * (FxKit.ReduceFlashes ? 0.14f : 0.38f);
                 _dmgFlash.color = c;
             }
+
+            UpdateDamageDirection(dt);
 
             if (_causeTimer > 0f) { _causeTimer -= dt; }
             if (_dmgCause != null)
@@ -347,6 +360,80 @@ namespace BlocksBeyondTheStars.Client
                 bool showCause = _causeTimer > 0f && Game.Health > 0f && !Game.MenuOpen;
                 _dmgCause.text = showCause && Game.Localizer != null ? Game.Localizer.Get(_causeKey) : string.Empty;
             }
+        }
+
+        /// <summary>Turns and fades the damage direction marker (#2154).</summary>
+        private void UpdateDamageDirection(float dt)
+        {
+            if (_dmgDir == null || _dmgDirImg == null)
+            {
+                return;
+            }
+
+            _dmgDirTimer = Mathf.Max(0f, _dmgDirTimer - dt);
+            var cam = Camera.main;
+            if (_dmgDirTimer <= 0f || cam == null || Game.Health <= 0f)
+            {
+                _dmgDirImg.color = new Color(1f, 0.25f, 0.2f, 0f);
+                return;
+            }
+
+            // Angle of the threat around the view axis: 0 = ahead (marker on top), 90 = to the right.
+            var to = _dmgDirFrom - cam.transform.position;
+            float right = Vector3.Dot(to, cam.transform.right);
+            float fwd = Vector3.Dot(to, Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized);
+            float angle = Mathf.Atan2(right, fwd) * Mathf.Rad2Deg;
+            _dmgDir.localRotation = Quaternion.Euler(0f, 0f, -angle);
+            _dmgDirImg.color = new Color(1f, 0.25f, 0.2f, Mathf.Clamp01(_dmgDirTimer / 0.6f) * 0.85f);
+        }
+
+        /// <summary>The closest hostile planet enemy or creature within 24 blocks (scene position), if any.</summary>
+        private bool NearestThreat(out Vector3 at)
+        {
+            at = default;
+            if (Game == null)
+            {
+                return false;
+            }
+
+            float best = 24f * 24f;
+            bool found = false;
+            var me = Game.PlayerPosition;
+            foreach (var e in Game.PlanetEnemies)
+            {
+                if (!e.Hostile)
+                {
+                    continue;
+                }
+
+                var p = Game.ScenePos(e.X, e.Y, e.Z) + Vector3.up;
+                float d = (p - me).sqrMagnitude;
+                if (d < best)
+                {
+                    best = d;
+                    at = p;
+                    found = true;
+                }
+            }
+
+            foreach (var c in Game.Creatures)
+            {
+                if (!c.Hostile)
+                {
+                    continue;
+                }
+
+                var p = Game.ScenePos(c.X, c.Y, c.Z) + Vector3.up;
+                float d = (p - me).sqrMagnitude;
+                if (d < best)
+                {
+                    best = d;
+                    at = p;
+                    found = true;
+                }
+            }
+
+            return found;
         }
 
         /// <summary>Low-oxygen warning: under 25% O₂ a pulsing blue vignette ramps in (UrpScenePost) and a
@@ -547,6 +634,24 @@ namespace BlocksBeyondTheStars.Client
             _dmgFlash.color = new Color(0.85f, 0.06f, 0.05f, 0f);
             _dmgFlash.raycastTarget = false;
             _dmgCause = UiText.Add(root, W / 2f - 220, H / 2f - 90, 440, 28, string.Empty, 20, new Color(1f, 0.45f, 0.4f), TextAnchor.MiddleCenter, FontStyle.Bold);
+
+            // #2154: the damage direction marker — a short red bar on a ring around the crosshair, turned toward the
+            // threat that most likely hit you (the server reports damage, not its source, so the nearest hostile).
+            var dirGo = new GameObject("DamageDirection", typeof(RectTransform));
+            dirGo.transform.SetParent(root, false);
+            _dmgDir = dirGo.GetComponent<RectTransform>();
+            _dmgDir.anchorMin = _dmgDir.anchorMax = new Vector2(0.5f, 0.5f);
+            _dmgDir.sizeDelta = Vector2.zero;
+            var bar = new GameObject("Bar", typeof(RectTransform));
+            bar.transform.SetParent(_dmgDir, false);
+            var brt = bar.GetComponent<RectTransform>();
+            brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f);
+            brt.sizeDelta = new Vector2(70f, 9f);
+            brt.anchoredPosition = new Vector2(0f, 150f);
+            _dmgDirImg = bar.AddComponent<Image>();
+            _dmgDirImg.sprite = UiKit.SolidSprite;
+            _dmgDirImg.color = new Color(1f, 0.25f, 0.2f, 0f);
+            _dmgDirImg.raycastTarget = false;
 
             // Crosshair.
             _crosshair = new GameObject("Crosshair", typeof(RectTransform));

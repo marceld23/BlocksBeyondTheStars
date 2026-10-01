@@ -79,6 +79,11 @@ namespace BlocksBeyondTheStars.Client
             foreach (var e in Game.PlanetEnemies)
             {
                 seen.Add(e.Id);
+                if (_gone.TryGetValue(e.Id, out float goneAt) && Time.time - goneAt < 3f)
+                {
+                    continue; // #2154: already breaking apart / beaming out — a late list must not rebuild it
+                }
+
                 if (!_enemies.TryGetValue(e.Id, out var en))
                 {
                     en = e.Kind == "ScanDrone" ? BuildDrone(e.Id)
@@ -135,6 +140,7 @@ namespace BlocksBeyondTheStars.Client
                     if (en.PrevHull >= 0f && e.Hull < en.PrevHull - 0.25f)
                     {
                         en.FlinchUntil = Game.WorldTime + 0.25f;
+                        FxDefeat.HitFlash(en.Root, 1f); // #2154: the hit reads on the body
                         audio.At("enemy_hurt", en.Root.transform.position, en.Pitch * MachineJitter(), 0.9f);
                     }
 
@@ -201,13 +207,38 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Death bark at the fallen enemy (the list sync removes the body right after).</summary>
+        // #2154: enemies already handed to a defeat effect, with when — skipped by the list sync for a moment.
+        private readonly System.Collections.Generic.Dictionary<string, float> _gone = new System.Collections.Generic.Dictionary<string, float>();
+
+        /// <summary>The fallen enemy's defeat, kid-friendly (#2154, docs/user/PARENTS.md): a machine falls apart into
+        /// its cube parts with sparks and little bolts; a bandit is chased away — it beams out in a rising teleport
+        /// column, never "dies". Used to be a death bark while the body simply vanished on the next list.</summary>
         private void OnDefeated(BlocksBeyondTheStars.Networking.Messages.PlanetEnemyDefeated m)
         {
-            if (_enemies.TryGetValue(m.Id, out var en))
+            if (!_enemies.TryGetValue(m.Id, out var en))
             {
-                ClientAudio.Instance?.At("enemy_die", en.Root.transform.position, en.Pitch * MachineJitter());
+                return;
             }
+
+            _enemies.Remove(m.Id);
+            EnemyHealthBars.Forget(m.Id);
+            _gone[m.Id] = Time.time;
+            if (en.IsBandit)
+            {
+                var root = en.Root;
+                FxDefeat.BeamOut(root, new Color(0.55f, 0.8f, 1f), () =>
+                {
+                    if (root != null)
+                    {
+                        Destroy(root);
+                    }
+                });
+                return;
+            }
+
+            ClientAudio.Instance?.At("enemy_die", en.Root.transform.position, en.Pitch * MachineJitter());
+            FxDefeat.BreakApart(en.Root, new Color(1f, 0.75f, 0.35f), robot: true);
+            Destroy(en.Root);
         }
 
         /// <summary>A base sentry fired (#1214) — purely cosmetic. The damage is server-authoritative and

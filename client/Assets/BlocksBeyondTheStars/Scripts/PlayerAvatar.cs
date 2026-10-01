@@ -561,6 +561,19 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>The tip of the item in this avatar's hand (gun barrel / tool bit) in world space — where third-person
+        /// and remote players' shots start (#2151/#2158). Falls back to the right hand itself.</summary>
+        public bool TryMuzzle(out Vector3 world)
+        {
+            if (HeldItem.MuzzleOf(_held, out world))
+            {
+                return true;
+            }
+
+            world = _handR != null ? _handR.position : transform.position + Vector3.up * 1.2f;
+            return _handR != null;
+        }
+
         private void ApplyHeldVisible()
         {
             if (_held == null)

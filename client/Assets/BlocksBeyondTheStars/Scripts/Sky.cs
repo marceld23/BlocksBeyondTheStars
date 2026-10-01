@@ -27,6 +27,10 @@ namespace BlocksBeyondTheStars.Client
         /// distance haze + the god-ray shafts. (The old full-screen volumetric pass is gone.)</summary>
         public bool FogEnabled = true;
 
+        /// <summary>World direction TO the system's star while the flight view is up (#2157; zero = unknown) — the space
+        /// branch lights the hull from it instead of keeping the last planet's sun direction.</summary>
+        public static Vector3 SpaceSunDir;
+
         private static readonly int LightId = Shader.PropertyToID("_Sc_Light");
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_SunDir");
         private static readonly int SkyId = Shader.PropertyToID("_Sc_Sky");
@@ -156,6 +160,13 @@ namespace BlocksBeyondTheStars.Client
             if (Game.SpaceViewActive)
             {
                 Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 1f));   // neutral, full-bright
+                // #2157: light the hull from the system's star (set by the flight view), not from the direction the last
+                // planet's sun happened to have when the player took off.
+                if (SpaceSunDir.sqrMagnitude > 1e-4f)
+                {
+                    Shader.SetGlobalVector(SunDirId, SpaceSunDir.normalized);
+                }
+
                 UrpScenePost.Instance?.ApplyGrade(Color.white, 1f, 1f);        // colour grade off on the URP volume
                 UrpScenePost.Instance?.SetMoodLut(null);                       // …and drop the biome mood LUT in space
                 Shader.SetGlobalColor(LampColorId, new Color(0f, 0f, 0f, 0f));

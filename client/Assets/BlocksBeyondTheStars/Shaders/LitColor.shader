@@ -39,8 +39,13 @@ Shader "BlocksBeyondTheStars/LitColor"
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "FxCommon.hlsl" // VFX overhaul (#2152): FX lights + scan wave globals
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
+
+            // #2154: a hit flashes the model white. NOT a material property (creature materials are shared) — set
+            // per renderer through a MaterialPropertyBlock while the flash lasts, 0 everywhere else.
+            float _HitFlash;
 
             // SRP Batcher (#573): every per-MATERIAL property (i.e. everything in the Properties block above)
             // must sit in this one cbuffer, and its layout must be IDENTICAL in every pass of this SubShader —
@@ -92,6 +97,9 @@ Shader "BlocksBeyondTheStars/LitColor"
                     col += _Color.rgb * tex * _Sc_LampColor.rgb * cone * atten * atten * saturate(dot(N, -dir));
                 }
 
+                col += BbtsFxLights(i.wp, N, _Color.rgb * tex);
+                col += BbtsScanWave(i.wp);
+                col = lerp(col, float3(1.6, 1.6, 1.7), saturate(_HitFlash));
                 return half4(col, 1);
             }
             ENDHLSL

@@ -120,6 +120,11 @@ public sealed class PlayerSession
     public double NextFaceChangeAt { get; set; }
     public double NextVoiceFrameAt { get; set; }
 
+    /// <summary>#2158: token bucket for relayed cosmetic action effects (<c>FxIntent</c>), refilled on the server's
+    /// uptime clock — starts full; <see cref="FxRefilledAt"/> is the uptime of the last refill.</summary>
+    public double FxBudget { get; set; } = GameServer.FxRelayBurst;
+    public double FxRefilledAt { get; set; }
+
     /// <summary>Server uptime (seconds) before which the next accepted block paint is throttled (#817) —
     /// same 2 s pacing as the face: each accepted paint can mean a disk save + world-wide rebroadcast.</summary>
     public double NextPaintAt { get; set; }

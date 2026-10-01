@@ -127,6 +127,7 @@ namespace BlocksBeyondTheStars.Client
             var lightGo = new GameObject("Glow");
             lightGo.transform.SetParent(go.transform, false);
             var light = lightGo.AddComponent<Light>();
+            FxLightBridge.Mirror(light); // #2151: URP additional lights are off — light the world through the FX lights
             light.type = LightType.Point;
             light.range = 6f;
             light.intensity = 1.4f;

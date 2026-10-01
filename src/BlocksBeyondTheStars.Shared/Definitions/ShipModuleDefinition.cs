@@ -38,4 +38,9 @@ public sealed class ShipModuleDefinition
     /// Aggregated by the server to compute the ship's effective stats.
     /// </summary>
     public Dictionary<string, double> Stats { get; set; } = new();
+
+    /// <summary>The look of this module's effect in space (#2152): a weapon's shot, the tractor beam, the scanner
+    /// sweep, the shield shimmer, the warp — the <c>"fx"</c> object in <c>data/ship_modules.json</c>. Cosmetic only;
+    /// null = the client's fallback by weapon class and module key.</summary>
+    public FxDefinition? Fx { get; set; }
 }

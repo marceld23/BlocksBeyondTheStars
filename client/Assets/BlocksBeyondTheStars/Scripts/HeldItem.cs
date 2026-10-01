@@ -214,6 +214,40 @@ namespace BlocksBeyondTheStars.Client
             return holder;
         }
 
+        /// <summary>The world position of a held model's tip — the front face of its foremost part (the barrel of a gun,
+        /// the emitter of a gadget, the bit of a drill). Effects start here instead of at the screen centre (#2151).
+        /// False when <paramref name="held"/> has no parts.</summary>
+        public static bool MuzzleOf(GameObject held, out Vector3 world)
+        {
+            world = default;
+            if (held == null || !held.activeInHierarchy)
+            {
+                return false;
+            }
+
+            var root = held.transform;
+            Transform best = null;
+            float bestZ = float.MinValue;
+            for (int i = 0; i < root.childCount; i++)
+            {
+                var c = root.GetChild(i);
+                float front = c.localPosition.z + c.localScale.z * 0.5f;
+                if (front > bestZ)
+                {
+                    bestZ = front;
+                    best = c;
+                }
+            }
+
+            if (best == null)
+            {
+                return false;
+            }
+
+            world = root.TransformPoint(new Vector3(best.localPosition.x, best.localPosition.y, bestZ + 0.01f));
+            return true;
+        }
+
         // Cached hand-paint atlas: the hand rebuilds on every hotbar change, and baking a texture each
         // time would leak one per switch. Keyed by payload + base colour; the stale one is destroyed.
         private static Texture2D _handAtlas;

@@ -307,6 +307,46 @@ separate unlock; admins can still disable it through server world rules.
 - With the far view on, the haze reaches farther: worlds with thin air show a long, clear horizon, airless moons are
   crisp to the edge, dense atmospheres still close in — and fog, sandstorms and ash storms still pull the view in hard.
 
+### Effects you can read (and the comfort settings for them)
+
+- **Every tool and weapon looks like itself.**
+  - The scrap pistol fires a glowing brass slug.
+  - The gauss pistol charges and leaves rings along its rail.
+  - The laser draws a red beam with a glowing hot spot.
+  - The plasma blaster throws a wobbling violet ball that lights up a cave as it flies.
+  - Blades sweep a slash ribbon.
+  - Shots leave the barrel of the gun you hold.
+- **Hits and defeats.**
+  - A creature or robot you hit flashes white.
+  - When something hurts you, a red marker around the crosshair points toward the closest threat.
+  - Beaten creatures break apart into sparkles, robots fall to parts, and bandits beam away.
+- **Mining.**
+  - Cracks spread over the block as it weakens.
+  - Chips in the block's own colour fly off the face you work.
+  - The block splits into little cubes, and the resource flies to you as a glowing gem.
+  - Each drill has its own sparks; the mining beam is a real beam that makes the block glow white-hot.
+- **Scanning.**
+  - The terrain scanner sends a wave rolling over the ground. Ores light up as glowing ghost cubes *through the
+    rock* when the wave reaches them.
+  - The hand scanner draws a holographic box around its target.
+  - The binoculars show the distance to what you look at.
+- **In flight.**
+  - Each ship weapon has its own look.
+  - Your shield appears as a hexagon bubble where it is hit, and shatters when it breaks.
+  - A damaged ship smokes, and destroyed enemies and asteroids burst apart.
+  - Space dust streaks past with your speed.
+  - The hyperjump is a tunnel of light.
+  - Landing builds a glow of heat around the ship.
+- **Other players** see your shots, swings, drilling and scans, and you see theirs. Gadgets (medkit, stasis, blaster,
+  terrain scanner) only show their effect once the game has accepted the use.
+- **Comfort settings:**
+  - **Settings → Controls → Screen shake** (0–100 %) sets how hard hits, weapon kicks and explosions rattle the view.
+    **Camera motion** off still stops all of it.
+  - **Settings → Comfort → Reduce flashes** turns big full-screen flashes into a soft wash, for light-sensitive eyes.
+  - **Settings → Comfort → Reduced effects** draws fewer particles and calmer screen effects; some of it applies from
+    the next world start.
+  - Lower graphics presets use fewer particles automatically.
+
 ### Arcade (minigames)
 - The **DataQubes Arcade** holds 20 built-in minigames. Locked cabinets unlock through data cubes you find
   in the world; beating your **best score** on a completed run pays **+5/+10/+15 knowledge** by rating.

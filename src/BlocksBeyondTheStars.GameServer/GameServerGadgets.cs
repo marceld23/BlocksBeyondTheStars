@@ -82,6 +82,7 @@ public sealed partial class GameServer
 
         var target = new Vector3f(intent.X, intent.Y, intent.Z);
         double cooldown;
+        bool happened = true; // false = the use is spent, but nothing came of it to show (a refused vehicle deploy)
         switch (intent.GadgetKey)
         {
             case "field_medkit":
@@ -118,7 +119,7 @@ public sealed partial class GameServer
                 break;
             case "speeder":
             case "boat":
-                DeployVehicle(session, item.Key); // unfolds a hover speeder / launches a boat ahead (consumes the item, #1215)
+                happened = DeployVehicle(session, item.Key); // unfolds a hover speeder / launches a boat ahead (consumes the item, #1215)
                 cooldown = SpeederDeployCooldown;
                 break;
             case RailRules.LinkerItemKey: // #2113: the linker couples two pylons (first pick, second pick)
@@ -155,6 +156,10 @@ public sealed partial class GameServer
         p.SuitEnergy = System.Math.Max(0f, p.SuitEnergy - item.Tool.EnergyPerUse);
         _gadgetReadyAt[cdKey] = _uptime + cooldown;
         SendPlayerState(session);
+        if (happened)
+        {
+            BroadcastGadgetOutcome(session, intent.GadgetKey, target); // #2158: the user's client plays the effect on this
+        }
     }
 
     /// <summary>Heals the user and every other on-foot player within <see cref="MedkitRadius"/> in the same

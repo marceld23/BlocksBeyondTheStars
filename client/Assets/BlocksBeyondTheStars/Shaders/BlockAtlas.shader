@@ -41,6 +41,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "FxCommon.hlsl" // VFX overhaul (#2152): FX lights + scan wave globals
 
             TEXTURE2D(_MainTex);   SAMPLER(sampler_MainTex);
             TEXTURE2D(_NormalTex); SAMPLER(sampler_NormalTex);
@@ -319,6 +320,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     col += albedo * _Sc_LampColor.rgb * cone * atten * atten * ndl2;
                 }
 
+                // VFX overhaul (#2152): muzzle flashes, plasma bolts and explosions light the terrain (8 FX lights).
+                col += BbtsFxLights(i.wp, N, albedo);
+
                 // Explicit distance haze toward the sky colour (Unity's MixFog path doesn't engage on this
                 // unlit shader). Driven by _Sc_Fog (x=start, y=end, z=max already faded indoors, w=on). Blends in
                 // shader space so it only tints distant terrain — it never darkens the frame like a full-screen pass.
@@ -335,6 +339,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     // still reads as a light at the edge of the view.
                     col += albedo * i.mat.a * (3.0 * lavaGlow) * haze * 0.5;
                 }
+
+                // #2153: the scanner's wave rolls over the terrain after the haze, so it reads at any distance.
+                col += BbtsScanWave(i.wp);
 
                 half4 outc = half4(col, 1);
                 outc.rgb = MixFog(outc.rgb, i.fog);

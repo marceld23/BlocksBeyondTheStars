@@ -69,6 +69,16 @@ namespace BlocksBeyondTheStars.Client
                 if (tr.Engine != null)
                 {
                     tr.Engine.intensity = 2.5f * near;
+
+                    // #2157: visible engine fire under every ship — the voxel ship used to land with no flame at all
+                    // (only the fallback silhouette had a flame cube): a downward stream of glow + a ground glow.
+                    var nozzle = tr.Engine.transform.position;
+                    int n = Mathf.RoundToInt(3f * near * FxKit.Density) + (near > 0.2f ? 1 : 0);
+                    for (int k = 0; k < n; k++)
+                    {
+                        FxKit.Emit(FxKit.Kind.Glow, nozzle + Random.insideUnitSphere * 0.3f, Vector3.down * Random.Range(6f, 12f),
+                            Random.Range(0.4f, 0.8f), Random.Range(0.12f, 0.22f), Color.Lerp(new Color(1f, 0.6f, 0.25f), new Color(1f, 0.9f, 0.6f), Random.value));
+                    }
                 }
 
                 // Pad dust: a ground burst right at touchdown (landing) / at lift-off (launch start).
@@ -76,57 +86,23 @@ namespace BlocksBeyondTheStars.Client
                 if (!tr.Dusted && dustMoment)
                 {
                     tr.Dusted = true;
-                    DustBurst(new Vector3(tr.Root.position.x, tr.GroundY + 0.6f, tr.Root.position.z));
+                    var ground = new Vector3(tr.Root.position.x, tr.GroundY + 0.6f, tr.Root.position.z);
+                    DustBurst(ground);
+                    FxKit.Ring(ground, Vector3.up, new Color(1f, 0.75f, 0.45f), 0.6f, 7f, 0.6f, thickness: 0.12f, fill: 0.06f, intensity: 1.6f);
                 }
             }
         }
 
-        private static Material _dustMat;
-
-        /// <summary>A radial pad-dust burst kicked up by the thrusters (8 expanding, fading puffs).</summary>
+        /// <summary>A radial pad-dust burst kicked up by the thrusters (#2157: soft particle puffs racing outward along
+        /// the ground — was 8 opaque cubes).</summary>
         private static void DustBurst(Vector3 pos)
         {
-            _dustMat ??= new Material(Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque"))
+            int n = FxKit.Scaled(24);
+            for (int i = 0; i < n; i++)
             {
-                color = ShaderColor.Srgb(new Color(0.55f, 0.50f, 0.42f)),
-            };
-
-            for (int i = 0; i < 8; i++)
-            {
-                var p = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                var col = p.GetComponent<Collider>();
-                if (col != null)
-                {
-                    Destroy(col);
-                }
-
-                p.transform.position = pos;
-                p.transform.localScale = Vector3.one * 0.35f;
-                p.GetComponent<Renderer>().sharedMaterial = _dustMat;
-                float a = i / 8f * Mathf.PI * 2f;
-                p.AddComponent<DustBit>().Vel = new Vector3(Mathf.Cos(a) * 5f, 1.6f, Mathf.Sin(a) * 5f);
-            }
-        }
-
-        /// <summary>A dust puff: drifts outward, expands while fading down, self-destroys.</summary>
-        private sealed class DustBit : MonoBehaviour
-        {
-            public Vector3 Vel;
-
-            private const float Life = 0.8f;
-            private float _t;
-
-            private void Update()
-            {
-                _t += Time.deltaTime;
-                Vel += Vector3.down * 4f * Time.deltaTime;
-                transform.position += Vel * Time.deltaTime;
-                float k = _t / Life;
-                transform.localScale = Vector3.one * (0.35f * (1f + k * 1.2f) * Mathf.Max(0f, 1f - k));
-                if (_t >= Life)
-                {
-                    Destroy(gameObject);
-                }
+                float a = i / (float)n * Mathf.PI * 2f;
+                var dir = new Vector3(Mathf.Cos(a), 0.15f, Mathf.Sin(a));
+                FxKit.Emit(FxKit.Kind.Dust, pos, dir * Random.Range(4f, 8f), Random.Range(0.5f, 1f), Random.Range(0.8f, 1.4f), new Color(0.62f, 0.57f, 0.5f, 0.8f));
             }
         }
 
@@ -189,6 +165,7 @@ namespace BlocksBeyondTheStars.Client
             lightGo.transform.SetParent(parent, false);
             lightGo.transform.localPosition = new Vector3(0f, -1.4f, -1.8f);
             var engine = lightGo.AddComponent<Light>();
+            FxLightBridge.Mirror(engine); // #2151: URP additional lights are off — light the pad through the FX lights
             engine.type = LightType.Point;
             engine.color = new Color(1f, 0.65f, 0.3f);
             engine.range = 14f;

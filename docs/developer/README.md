@@ -55,6 +55,8 @@ refreshed 2026-08-08.
 - [PROFESSIONAL_LOOK_IMPLEMENTATION.md](PROFESSIONAL_LOOK_IMPLEMENTATION.md) — the professional-look pass (WP-1…16).
 - [PROFESSIONAL_LOOK_GAP_ANALYSIS.md](PROFESSIONAL_LOOK_GAP_ANALYSIS.md) — gap analysis (closed vs. still open).
 - [ART_BIBLE.md](ART_BIBLE.md) — **normative** visual style reference (palette, materials, room identity).
+- [VFX.md](VFX.md) — the effect system (FxKit, FX lights, scan wave, data-driven `fx` looks) and the catalogue of
+  weapon, mining, scanner, gadget, defeat and flight effects; budgets, accessibility, multiplayer relay (#2159).
 
 ## Gameplay systems
 

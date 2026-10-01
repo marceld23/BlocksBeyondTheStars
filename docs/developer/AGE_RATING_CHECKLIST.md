@@ -18,8 +18,9 @@ Quest, Epic; Steam runs its own content survey) — can be filed in an afternoon
 ## Questionnaire answers, prepared
 
 **Violence**
-- Combat targets: wildlife creatures, robots/drones, cartoon "bandits" (humanoid). Bandits flee below a
-  health floor — they are chased away, never killed (`GameServerBandits`); creatures break apart, no
+- Combat targets: wildlife creatures, robots/drones, cartoon "bandits" (humanoid). A beaten bandit beams away
+  in a teleport column — chased away, never killed (`GameServerBandits` reports it as "fled"; the client's
+  beam-out, #2154); creatures break apart into sparkles, robots into parts (`FxDefeat`), no
   corpses persist, no blood or gore anywhere, no violence against realistic humans.
 - Player combat: hand weapons exist in every world (the never-enforced per-world `WeaponMode` switch was removed
   2026-09 — whether a world has weapons is not configurable); planet robots (`PlanetEnemies`), bandits,

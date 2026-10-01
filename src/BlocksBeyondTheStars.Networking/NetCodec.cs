@@ -555,6 +555,12 @@ public static class NetCodec
         // #2140: the ship's planet scanner — "which resources does this planet have?".
         Register(276, typeof(PlanetScanIntent));             // Client -> Server
         Register(277, typeof(PlanetScanResult));             // Server -> Client
+
+        // #2158/#2154 VFX overhaul (cosmetic, no protocol bump — older peers drop unknown tags): other players'
+        // tool actions, server-confirmed gadget outcomes, and a creature's defeat (vs. a plain despawn).
+        Register(278, typeof(FxIntent));                     // Client -> Server
+        Register(279, typeof(ActionFx));                     // Server -> Client
+        Register(280, typeof(CreatureDefeated));             // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

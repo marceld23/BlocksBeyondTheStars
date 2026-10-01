@@ -186,7 +186,8 @@ namespace BlocksBeyondTheStars.Client
                 n.ScanResultReceived += _ => Play2D(_blip);
                 n.ShipCombatStatusChanged += OnShip;
                 n.PlayerStateUpdated += OnPlayerHealth;
-                n.SpaceEntityDestroyed += _ => Cue("asteroid_break");
+                // #2151: the destruction sound is played by the flight view, which still knows WHAT was destroyed
+                // (an asteroid breaks, a ship explodes) — every SpaceEntityDestroyed used to crunch like rock.
                 n.SpaceClosed += m => { if (m.ShipDisabled) Cue("space_death"); };
                 n.WorldEnvironmentReceived += OnEnvironment;
                 n.StationBoardedReceived += _ => Cue("station_board");
@@ -711,14 +712,39 @@ namespace BlocksBeyondTheStars.Client
                 : new Vector3(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f);
             if (newId.Value == 0)
             {
-                // Mined → a random material variant for variety (material-accurate later).
-                string[] v = { "mine_stone", "mine_metal", "mine_crystal", "mine_dirt" };
-                At(v[_rng.Next(v.Length)], at);
+                // Mined → the material's own break sound (#2151: it used to be a random pick of the four).
+                At(MineCue(oldKey), at, 0.92f + (float)_rng.NextDouble() * 0.16f);
             }
             else
             {
                 At("place_block", at);
             }
+        }
+
+        /// <summary>The break sound of a mined block by its material (key heuristic, like the footsteps): crystals and
+        /// glass ring, ores and metal clank, soft ground thuds, everything else is stone.</summary>
+        public static string MineCue(string blockKey)
+        {
+            string k = blockKey ?? string.Empty;
+            if (k.Contains("crystal") || k.Contains("glass") || k.Contains("gem") || k.Contains("ice") || k.Contains("quartz"))
+            {
+                return "mine_crystal";
+            }
+
+            if (k.Contains("ore") || k.Contains("metal") || k.Contains("iron") || k.Contains("steel") || k.Contains("titanium")
+                || k.Contains("copper") || k.Contains("gold") || k.Contains("hull") || k.Contains("panel") || k.Contains("machine"))
+            {
+                return "mine_metal";
+            }
+
+            if (k.Contains("dirt") || k.Contains("sand") || k.Contains("grass") || k.Contains("soil") || k.Contains("mud")
+                || k.Contains("snow") || k.Contains("clay") || k.Contains("gravel") || k.Contains("leaf") || k.Contains("leaves")
+                || k.Contains("moss") || k.Contains("ash") || k.Contains("peat") || k.Contains("plant") || k.Contains("flower"))
+            {
+                return "mine_dirt";
+            }
+
+            return "mine_stone";
         }
 
         private void OnShip(ShipCombatStatus s)

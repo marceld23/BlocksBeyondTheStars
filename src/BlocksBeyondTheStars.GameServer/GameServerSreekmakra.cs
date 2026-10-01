@@ -236,10 +236,13 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>Every creature death with its killer (null for sentries and fire): the shapeshifter's own death, or a
-    /// player killing an animal of the shape it currently wears.</summary>
+    /// <summary>Every creature death with its killer (null for sentries and fire): tells the world the animal was
+    /// defeated (#2154 — it breaks apart instead of just vanishing), then the shapeshifter's own death, or a player
+    /// killing an animal of the shape it currently wears.</summary>
     private void OnCreatureKilled(CombatEntity dead, PlayerSession? killer)
     {
+        BroadcastCreatureDefeated(dead);
+
         var state = Sreek;
         if (state.CreatureId.Length == 0)
         {

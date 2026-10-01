@@ -109,6 +109,9 @@ namespace BlocksBeyondTheStars.Client
             RefreshOverlayText();
         }
 
+        private float _nextRange;
+        private float _range = -1f; // metres to whatever the reticle rests on; < 0 = nothing within reach
+
         private void Update()
         {
             if (!Raised)
@@ -122,6 +125,17 @@ namespace BlocksBeyondTheStars.Client
             {
                 Lower();
                 return;
+            }
+
+            // #2153: a rangefinder in the reticle, refreshed ten times a second.
+            if (Time.unscaledTime >= _nextRange)
+            {
+                _nextRange = Time.unscaledTime + 0.1f;
+                var cam = Camera.main;
+                _range = cam != null && Physics.Raycast(cam.transform.position, cam.transform.forward, out var hit, 600f, ~0, QueryTriggerInteraction.Ignore)
+                    ? hit.distance
+                    : -1f;
+                RefreshOverlayText();
             }
 
             if (InputMap.Down(InputAction.ToggleThermal))
@@ -147,7 +161,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _magText.text = Raised ? "×" + Magnification.ToString("0.#") : string.Empty;
+            _magText.text = Raised
+                ? "×" + Magnification.ToString("0.#") + (_range > 0f ? "   " + Mathf.RoundToInt(_range) + " m" : "   — m")
+                : string.Empty;
 
             string hint = string.Empty;
             if (Raised && _thermalCapable && !_thermalOn)
@@ -192,7 +208,7 @@ namespace BlocksBeyondTheStars.Client
             AddReticleBar(2f, 26f);
             AddReticleBar(26f, 2f);
 
-            _magText = UiKit.AddText(_root.transform, 0f, 0f, 200f, 26f, string.Empty, 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _magText = UiKit.AddText(_root.transform, 0f, 0f, 280f, 26f, string.Empty, 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold); // room for the range (#2153)
             CentreBottom(_magText.rectTransform, 128f);
             _hintText = UiKit.AddText(_root.transform, 0f, 0f, 420f, 22f, string.Empty, 15, new Color(0.75f, 0.85f, 0.9f, 0.9f), TextAnchor.MiddleCenter);
             CentreBottom(_hintText.rectTransform, 100f);

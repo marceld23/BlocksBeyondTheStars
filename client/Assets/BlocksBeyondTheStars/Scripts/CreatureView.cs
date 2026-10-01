@@ -47,6 +47,8 @@ namespace BlocksBeyondTheStars.Client
             public string PrevSpecies; // to detect a shapeshifter taking another shape (2026-09, Valuma)
             public bool PrevAlerting; // to detect a companion's growl flip (#1210) — one growl per alert, not per frame
             public float PrevHull;   // to detect a hull drop (hurt)
+            public int Tint;         // body colour (0xRRGGBB) — the sparkles of the defeat break-apart (#2154)
+            public float HullMax;    // > 0 = a creature that CAN be beaten (a last hull of 0 then means defeated)
             public Vector3 Settled;  // smoothed position (the lunge is added on top for display)
             public Vector3 PrevSettled; // last frame's smoothed position → velocity for facing
             public Vector3 FaceDir;     // smoothed heading the body turns to face (so it doesn't moonwalk)
@@ -116,11 +118,56 @@ namespace BlocksBeyondTheStars.Client
         private readonly HashSet<string> _seenScratch = new HashSet<string>();
         private readonly List<string> _staleScratch = new List<string>();
 
+        // #2154: creatures the server reported DEFEATED (not merely despawned), with when — the next list that drops them
+        // breaks them apart instead of letting them vanish.
+        private readonly Dictionary<string, float> _defeated = new Dictionary<string, float>();
+        private bool _defeatSubscribed;
+        private static CreatureView _instance;
+
+        /// <summary>The world-space bounds of a creature's body (the hand scanner's holo box), false if it is not drawn.</summary>
+        public static bool TryBounds(string id, out Bounds bounds)
+        {
+            bounds = default;
+            if (_instance == null || id == null || !_instance._creatures.TryGetValue(id, out var e) || e.Root == null)
+            {
+                return false;
+            }
+
+            var rs = e.Root.GetComponentsInChildren<Renderer>(false);
+            if (rs.Length == 0)
+            {
+                return false;
+            }
+
+            bounds = rs[0].bounds;
+            for (int i = 1; i < rs.Length; i++)
+            {
+                bounds.Encapsulate(rs[i].bounds);
+            }
+
+            return true;
+        }
+
+        private void OnCreatureDefeated(BlocksBeyondTheStars.Networking.Messages.CreatureDefeated m)
+        {
+            if (m != null && !string.IsNullOrEmpty(m.Id))
+            {
+                _defeated[m.Id] = Time.time;
+            }
+        }
+
         private void Update()
         {
             if (Game == null)
             {
                 return;
+            }
+
+            _instance = this;
+            if (!_defeatSubscribed && Game.Network != null)
+            {
+                Game.Network.CreatureDefeatedReceived += OnCreatureDefeated;
+                _defeatSubscribed = true;
             }
 
             // World time, not frame time (#908). While the server holds the world for the pause menu both are
@@ -178,6 +225,8 @@ namespace BlocksBeyondTheStars.Client
                         PrevSpecies = c.SpeciesId,
                         PrevAlerting = c.Alerting,
                         PrevHull = c.Hull,
+                        Tint = c.ColorRgb,
+                        HullMax = c.HullMax,
                         Animator = root.GetComponent<CreatureAnimator>(),
                     };
                     _creatures[c.Id] = entry;
@@ -386,6 +435,11 @@ namespace BlocksBeyondTheStars.Client
                 // The combat cues carry the species' own timbre too (#903). Before this they came straight
                 // out of a 6-slot bank (size × hostility), so every large hostile creature in every world
                 // screamed from the same five files — the loudest and most repetitive sound in the game.
+                if (c.Hull < entry.PrevHull - 0.5f && c.Hull > 0f)
+                {
+                    FxDefeat.HitFlash(entry.Root, 1f); // #2154: a hit reads on the body, not only in the ears
+                }
+
                 var audio = ClientAudio.Instance;
                 if (audio != null)
                 {
@@ -485,7 +539,20 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var id in stale)
                 {
                     var e = _creatures[id];
-                    PlayCue(e, "_die", 0.9f);
+                    // #2154: a DEFEATED creature (the server said so, or its last hull read empty) breaks apart into
+                    // sparkles with its death call; one that merely left the view (despawn, out of range, tamed away)
+                    // just goes, silently — both used to share this path and the death call.
+                    bool defeated = (_defeated.TryGetValue(id, out float at) && Time.time - at < 10f)
+                                    || (e.HullMax > 0f && e.PrevHull <= 0f);
+                    _defeated.Remove(id);
+                    if (defeated)
+                    {
+                        PlayCue(e, "_die", 0.9f);
+                        if (e.Stasis != null) Destroy(e.Stasis);
+                        var tint = new Color(((e.Tint >> 16) & 0xFF) / 255f, ((e.Tint >> 8) & 0xFF) / 255f, (e.Tint & 0xFF) / 255f);
+                        FxDefeat.BreakApart(e.Root, Color.Lerp(tint, new Color(1f, 0.95f, 0.75f), 0.5f), robot: false);
+                    }
+
                     if (e.Nameplate != null) Destroy(e.Nameplate); // parented to the game root, not e.Root → free it too
                     if (e.Zzz != null) Destroy(e.Zzz);             // sleep label is under the game root too
                     Destroy(e.Root);
@@ -1138,25 +1205,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A brief red "claw slash" burst at the player so a creature's attack reads clearly.</summary>
         private void SpawnAttackFx(Vector3 at)
         {
-            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            var mat = new Material(shader) { color = ShaderColor.Srgb(new Color(1f, 0.2f, 0.15f)) };
-            for (int i = 0; i < 3; i++)
-            {
-                var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                go.name = "ClawFx";
-                var col = go.GetComponent<Collider>();
-                if (col != null)
-                {
-                    Destroy(col);
-                }
-
-                go.transform.SetParent(transform, true); // under the game root (no leak)
-                go.transform.position = at + new Vector3(Random.Range(-0.4f, 0.4f), Random.Range(-0.3f, 0.3f), Random.Range(-0.4f, 0.4f));
-                go.transform.rotation = Quaternion.Euler(Random.Range(0f, 360f), Random.Range(0f, 360f), Random.Range(-40f, 40f));
-                go.transform.localScale = new Vector3(0.06f, 0.5f, 0.06f); // a thin slash mark
-                go.GetComponent<Renderer>().sharedMaterial = mat;
-                Destroy(go, 0.22f);
-            }
+            // #2151/#2154: a quick red claw swipe through the shared effect kit — it used to build three cubes and a NEW
+            // Material on every bite (never destroyed).
+            var cam = Camera.main;
+            var forward = cam != null ? (at - cam.transform.position) : Vector3.forward;
+            forward = forward.sqrMagnitude > 1e-4f ? -forward.normalized : Vector3.forward;
+            var claw = new FxLook("slash", new Color(1f, 0.28f, 0.2f), new Color(1f, 0.8f, 0.75f), 0f, 0.55f, 0f);
+            FxShots.Swing(claw, at - forward * 0.3f, forward, Vector3.up, false, at, local: false);
         }
     }
 }

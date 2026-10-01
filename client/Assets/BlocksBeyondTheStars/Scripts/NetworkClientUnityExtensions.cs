@@ -32,5 +32,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Deploys a hover speeder in front of the player.</summary>
         public static void SendDeploySpeeder(this NetworkClient client, Vector3 at)
             => client.SendDeploySpeeder(ToVec3f(at));
+
+        /// <summary>Mirrors one of the player's tool/weapon actions to nearby players (#2158, cosmetic): a
+        /// <see cref="BlocksBeyondTheStars.Shared.Definitions.FxActionKinds"/> kind, the item (or ship module) key and
+        /// where it went. Positions are in the sender's current frame (the scene on a world, the flight instance in space).</summary>
+        public static void SendFx(this NetworkClient client, byte kind, string itemKey, Vector3 from, Vector3 to, bool hit)
+            => client.SendFx(kind, itemKey ?? string.Empty, ToVec3f(from), ToVec3f(to), hit);
     }
 }

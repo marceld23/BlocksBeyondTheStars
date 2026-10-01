@@ -381,9 +381,9 @@ namespace BlocksBeyondTheStars.Client
         private Vector3 _boatLastWetPos;  // last pose with water under the hull — a beached boat eases back to it
         private bool _boatHasWetPos;
 
-        // Camera feel (first-person head-bob, FOV kick, landing shake).
+        // Camera feel (first-person head-bob, FOV kick; shakes, kicks and punches live in FxCamera since #2152).
         private float _bobPhase;
-        private float _camShake;
+        private float _fovEased; // the eased FOV without the FxCamera punch (the punch is added on top each frame)
 
         /// <summary>#1998: a push from a stomp or a sandworm strike (horizontal, blocks/s), easing off.</summary>
         private Vector3 _knock;
@@ -392,9 +392,10 @@ namespace BlocksBeyondTheStars.Client
         /// ignores the giants' colliders — they block the capsule, but nobody should "stand" on a foot or snap onto a leg.</summary>
         private static int WorldRayMask => ~(1 << CreatureView.GiantLayer);
 
-        /// <summary>#1998: shakes the camera (0..1), e.g. a giant's footfall or a sandworm breaching nearby. The camera-
-        /// motion comfort setting still scales it away.</summary>
-        public void AddCameraShake(float amount) => _camShake = Mathf.Max(_camShake, Mathf.Clamp01(amount));
+        /// <summary>#1998: shakes the camera (0..1), e.g. a giant's footfall or a sandworm breaching nearby. Since #2152 it
+        /// adds trauma to <see cref="FxCamera"/> (trauma² rotational shake); the Camera-motion comfort setting and the
+        /// Screen-shake slider still scale it away.</summary>
+        public void AddCameraShake(float amount) => FxCamera.AddTrauma(Mathf.Clamp01(amount) * 0.85f);
 
         /// <summary>#1998: knocks the player away (a stomp, a strike): an upward pop plus a horizontal push that eases off.</summary>
         public void ApplyKnock(Vector3 impulse)
@@ -960,30 +961,84 @@ namespace BlocksBeyondTheStars.Client
 
             if (Weapons != null && Camera != null)
             {
-                var from = ct.position + ct.forward * 0.4f - ct.up * 0.15f;
-                var col = WeaponColor();
+                // #2154: the held item's own look (data-driven fx), leaving the real barrel (#2151) — not the screen
+                // centre. The swing/shot is mirrored to nearby players as a cosmetic FxIntent (#2158).
+                string heldKey = Game.ItemInSlot(Game.SelectedHotbarSlot);
+                var look = FxLook.ForItem(Game.Content, heldKey);
+                var from = Muzzle(ct);
                 if (kind == WeaponFxKind.Melee)
                 {
                     // A melee slash sweeps whether or not it connects (whiff still reads).
-                    Weapons.MeleeArc(from, ct.forward, ct.up, col);
+                    var center = ct.position + ct.forward * 0.35f - ct.up * 0.18f;
+                    var hitPoint = targetId != null ? targetPos + Vector3.up * 0.6f : center + ct.forward;
+                    Weapons.Swing(look, center, ct.forward, ct.up, targetId != null, hitPoint, local: true);
+                    if (targetId != null)
+                    {
+                        ClientAudio.Instance?.At("melee_hit", hitPoint); // the shipped-but-unused hit cue (#2151)
+                    }
+
+                    SendFx(BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Melee, heldKey, center, hitPoint, targetId != null);
                 }
                 else
                 {
                     // A hit flies to the body; a miss still leaves the muzzle and dies on the terrain
                     // (or at max range) — with manual aiming, "wide" has to read as wide.
+                    bool terrain = targetId == null && terrainDist < reach - 0.01f;
                     var target = targetId != null
                         ? targetPos + Vector3.up * 0.4f
                         : ct.position + ct.forward * Mathf.Min(reach, terrainDist);
-                    if (kind == WeaponFxKind.Projectile)
-                    {
-                        Weapons.Projectile(from, target, col); // kinetic bolt that flies + bursts
-                    }
-                    else
-                    {
-                        Weapons.Shoot(from, target, col); // instant energy beam/tracer
-                    }
+                    var normal = terrain ? FaceNormal(target, ct.forward) : -ct.forward;
+                    Weapons.Fire(look, from, target, targetId != null || terrain, normal, local: true);
+                    SendFx(BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Shot, heldKey, from, target, targetId != null || terrain);
                 }
             }
+        }
+
+        /// <summary>Where the held weapon/tool's effects start: the tip of the first-person viewmodel, the avatar's hand
+        /// in third person, else just below the crosshair (#2151).</summary>
+        private Vector3 Muzzle(Transform ct)
+        {
+            if (!ThirdPerson && _viewmodel != null && _viewmodel.TryMuzzle(out var tip))
+            {
+                return tip;
+            }
+
+            if (ThirdPerson && Avatar != null && Avatar.TryMuzzle(out var hand))
+            {
+                return hand;
+            }
+
+            return ct.position + ct.forward * 0.4f - ct.up * 0.15f;
+        }
+
+        /// <summary>The outward face normal of the voxel a ray along <paramref name="dir"/> struck at
+        /// <paramref name="point"/> — the axis the point sits furthest out on, facing back toward the shooter.</summary>
+        private static Vector3 FaceNormal(Vector3 point, Vector3 dir)
+        {
+            var probe = point + dir * 0.02f; // just inside the struck block
+            var local = probe - new Vector3(Mathf.Floor(probe.x) + 0.5f, Mathf.Floor(probe.y) + 0.5f, Mathf.Floor(probe.z) + 0.5f);
+            var a = new Vector3(Mathf.Abs(local.x), Mathf.Abs(local.y), Mathf.Abs(local.z));
+            if (a.x >= a.y && a.x >= a.z)
+            {
+                return new Vector3(Mathf.Sign(local.x), 0f, 0f);
+            }
+
+            return a.y >= a.z ? new Vector3(0f, Mathf.Sign(local.y), 0f) : new Vector3(0f, 0f, Mathf.Sign(local.z));
+        }
+
+        private float _nextFxSend;
+
+        /// <summary>Mirrors one of the player's own tool actions to nearby players (#2158) — cosmetic only, rate-limited
+        /// here as well as on the server.</summary>
+        private void SendFx(byte kind, string itemKey, Vector3 from, Vector3 to, bool hit)
+        {
+            if (Game?.Network == null || Time.time < _nextFxSend)
+            {
+                return;
+            }
+
+            _nextFxSend = Time.time + 0.1f;
+            Game.Network.SendFx(kind, itemKey ?? string.Empty, from, to, hit);
         }
 
         /// <summary>Finds the enemy/creature under the crosshair (#693): an analytic ray-vs-sphere sweep over
@@ -1190,34 +1245,18 @@ namespace BlocksBeyondTheStars.Client
 
         private enum WeaponFxKind { Beam, Projectile, Melee }
 
-        /// <summary>Classifies the held weapon's effect: kinetic guns fire a flying bolt, energy guns an
-        /// instant beam, and short-range weapons (or bare fists) a melee slash arc.</summary>
+        /// <summary>Classifies the held weapon: melee looks swing (and aim with the wider melee cone), travelling looks
+        /// fire a flying bolt, everything else an instant beam. Since #2152 it reads the item's data-driven
+        /// <c>fx</c> style (<see cref="FxLook"/>) instead of guessing from the item key.</summary>
         private WeaponFxKind HeldWeaponFx()
         {
-            string key = Game.ItemInSlot(Game.SelectedHotbarSlot) ?? string.Empty;
-            if (key.Contains("gauss") || key.Contains("rail") || key.Contains("slug") || key.Contains("scrap"))
+            var look = FxLook.ForItem(Game.Content, Game.ItemInSlot(Game.SelectedHotbarSlot));
+            return look.Style switch
             {
-                return WeaponFxKind.Projectile; // kinetic slug-throwers fire a flying bolt (the scrap pistol included)
-            }
-
-            if (key.Contains("laser") || key.Contains("blaster") || key.Contains("beam"))
-            {
-                return WeaponFxKind.Beam;
-            }
-
-            float range = Game.Content?.GetItem(key)?.Tool?.Range ?? 0f;
-            return range > 6f ? WeaponFxKind.Beam : WeaponFxKind.Melee;
-        }
-
-        /// <summary>The beam/spark colour for the held weapon (energy types tint their bolts).</summary>
-        private Color WeaponColor()
-        {
-            string held = Game.ItemInSlot(Game.SelectedHotbarSlot) ?? string.Empty;
-            if (held.Contains("plasma")) return new Color(0.92f, 0.45f, 1f);
-            if (held.Contains("laser")) return new Color(1f, 0.42f, 0.36f);
-            if (held.Contains("gauss")) return new Color(0.5f, 0.9f, 1f);
-            if (held.Contains("scrap")) return new Color(0.95f, 0.82f, 0.5f); // dull brass muzzle spark — a cheap kinetic round
-            return new Color(1f, 0.95f, 0.8f); // melee / default
+                "slug" or "plasma" => WeaponFxKind.Projectile,
+                "laser" or "rail" or "mining_beam" => WeaponFxKind.Beam,
+                _ => WeaponFxKind.Melee, // blades, fists — and a drill or gadget swung at something
+            };
         }
 
         private void LootNearestContainer()
@@ -1419,11 +1458,18 @@ namespace BlocksBeyondTheStars.Client
             // test the doors first. One the ray reaches before any solid cell is the target, and it comes out by
             // hand (the server hands the item back), so the hand-mineable gate below does not apply to it.
             bool doorAimed = TryAimDoor(out var hitCell);
+            var face = Camera != null ? -Camera.transform.forward : Vector3.up; // the struck face's normal (#2155)
             if (!doorAimed)
             {
-                if (!AimTarget(out hitCell, out _, out var aimedShip, HeldToolFluidAim()) || aimedShip != null)
+                if (!AimTarget(out hitCell, out var placeCell, out var aimedShip, HeldToolFluidAim()) || aimedShip != null)
                 {
                     return;
+                }
+
+                var toPlace = placeCell - hitCell;
+                if (toPlace.sqrMagnitude == 1)
+                {
+                    face = toPlace;
                 }
 
                 // By hand, only soft hand-mineable blocks keep digging; hard blocks reject without a drill, so don't
@@ -1435,20 +1481,19 @@ namespace BlocksBeyondTheStars.Client
             }
 
             TriggerSwing(); // keep the mining chop going while held
-            var center = new Vector3(hitCell.x + 0.5f, hitCell.y + 0.5f, hitCell.z + 0.5f);
             if (drill)
             {
                 ClientAudio.Instance?.DrillTick();
-                if (Weapons != null && Time.time >= _nextDrillSpark)
-                {
-                    _nextDrillSpark = Time.time + 0.07f;
-                    Weapons.Sparks(center, new Color(1f, 0.85f, 0.5f), 3);
-                }
             }
-            else if (Weapons != null && Time.time >= _nextDrillSpark)
+
+            // #2155: chips, sparks, dust or the mining beam come off the STRUCK FACE in the block's own colour and the
+            // drill's own look (data-driven fx) — they used to burst out of the middle of the solid block.
+            string heldKey = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            if (Time.time >= _nextDrillSpark && Camera != null)
             {
-                _nextDrillSpark = Time.time + 0.09f;
-                Weapons.Dust(center); // bare-hand digging kicks up dust instead of drill sparks
+                _nextDrillSpark = Time.time + (drill ? 0.07f : 0.09f);
+                var look = drill ? FxLook.ForItem(Game.Content, heldKey) : new FxLook("hand", new Color(0.62f, 0.57f, 0.47f), Color.white, 0f, 1f, 0f);
+                MiningFx.Instance?.DrillTick(look, hitCell, face, Muzzle(Camera.transform), drill);
             }
 
             // Hard blocks need several hits — keep sending mine attempts while held (the server accumulates
@@ -1456,6 +1501,11 @@ namespace BlocksBeyondTheStars.Client
             if (Time.time >= _nextDrillMine)
             {
                 SendMineHit(hitCell, drill);
+                var faceCenter = new Vector3(hitCell.x + 0.5f, hitCell.y + 0.5f, hitCell.z + 0.5f) + face * 0.5f;
+                if (Camera != null)
+                {
+                    SendFx(BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Mine, drill ? heldKey : string.Empty, Muzzle(Camera.transform), faceCenter, true);
+                }
             }
         }
 
@@ -1746,7 +1796,16 @@ namespace BlocksBeyondTheStars.Client
             if (TryFindScanTarget(out string kind, out string key, out var at))
             {
                 Game.Network.SendScan(kind, key, kind == "creature" ? _scanEntityId : null);
-                Weapons?.Pulse(at, new Color(0.4f, 0.85f, 1f));
+                // #2153: a light fan, a holographic bracket box with a sweeping scan plane, data motes streaming back
+                // and a short local wave — the scanner's own look instead of the shared ring of cubes.
+                string heldKey = Game.ItemInSlot(Game.SelectedHotbarSlot);
+                var look = FxLook.ForItem(Game.Content, heldKey);
+                var bounds = kind == "creature" && CreatureView.TryBounds(_scanEntityId, out var cb)
+                    ? cb
+                    : new Bounds(at, Vector3.one * 1.02f);
+                var device = Camera != null ? Muzzle(Camera.transform) : transform.position + Vector3.up;
+                FxGadgets.HandScan(look, device, bounds, look.Is("scan_pro"));
+                SendFx(BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Scan, heldKey, device, bounds.center, true);
                 return;
             }
 
@@ -1819,27 +1878,11 @@ namespace BlocksBeyondTheStars.Client
 
             Game.Network.SendUseGadget(key, target);
 
-            var self = transform.position + Vector3.up;
-            switch (key)
-            {
-                case "field_medkit":
-                    Weapons?.Pulse(self, new Color(0.35f, 1f, 0.5f)); // a green first-aid pulse around you
-                    ClientAudio.Instance?.Cue("medkit_heal");
-                    break;
-                case "stasis_projector":
-                    Weapons?.Pulse(target, new Color(0.4f, 0.8f, 1f)); // a cyan stasis burst at the aim point
-                    ClientAudio.Instance?.At("stasis_activate", target);
-                    break;
-                case "terrain_blaster":
-                    Weapons?.Flash(target, new Color(1f, 0.6f, 0.2f), 1.3f);  // an orange detonation flash
-                    Weapons?.Sparks(target, new Color(1f, 0.5f, 0.2f), 18);   // flying rubble/debris
-                    ClientAudio.Instance?.At("terrain_blast", target);
-                    break;
-                case "terrain_scanner":
-                    Weapons?.Pulse(self, new Color(1f, 0.8f, 0.25f)); // an amber prospecting pulse around you
-                    ClientAudio.Instance?.Cue("terrain_scan");        // the sonar sweep (Feature 40)
-                    break;
-            }
+            // #2151: only the device's own charge glow plays right away. The heal / freeze / blast / scan wave itself is
+            // drawn when the server CONFIRMS the use (ActionFx with the outcome flag, see FxRemote) — a refused use
+            // (no energy, cooling down) used to show the full effect anyway.
+            var device = Muzzle(Camera.transform);
+            FxGadgets.Intent(FxLook.ForItem(Game.Content, key), device);
         }
 
         /// <summary>R at the cockpit or the ship console while the repair panel is up: asks the server for the
@@ -3624,7 +3667,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 ClientAudio.Instance?.Cue("land", 0.6f);
                 Weapons?.Dust(transform.position);
-                _camShake = Mathf.Max(_camShake, Mathf.Clamp01(-prevVy / 12f) * 0.7f); // impact kick
+                FxCamera.AddTrauma(Mathf.Clamp01(-prevVy / 12f) * 0.55f); // impact kick
 
                 // A hard landing hurts: report the impact speed so the server (which owns health) applies
                 // fall damage. Small drops/jumps stay below the safe threshold and do nothing. Deep water breaks
@@ -3890,11 +3933,24 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float dt = Time.deltaTime;
-            _camShake = Mathf.MoveTowards(_camShake, 0f, dt * 1.8f);
+            // #2152: trauma shake, weapon kick and FOV punch (scaled by Screen shake / Camera motion inside FxCamera).
+            // The flight view samples it itself while it owns the camera.
+            var feel = Vector3.zero;
+            float fovPunch = 0f;
+            if (Game == null || !Game.SpaceViewActive)
+            {
+                FxCamera.Sample(dt, out feel, out fovPunch);
+            }
+
+            if (_fovEased <= 0f)
+            {
+                _fovEased = Camera.fieldOfView;
+            }
 
             if (ThirdPerson)
             {
-                Camera.fieldOfView = Mathf.MoveTowards(Camera.fieldOfView, _baseFov, dt * 30f);
+                _fovEased = Mathf.MoveTowards(_fovEased, _baseFov, dt * 30f);
+                Camera.fieldOfView = _fovEased + fovPunch * 0.25f;
                 // Spring arm: the boom used to be a fixed offset, so with your back to any wall within 3.5 m the
                 // camera sat inside the block and the world showed through the culled back faces (#1460).
                 Camera.transform.position = ResolveCameraBoom(
@@ -3920,13 +3976,13 @@ namespace BlocksBeyondTheStars.Client
             // A big jump (raising, stepping or dropping the optic) travels fast so it feels like a click; the
             // small walking kick keeps its original gentle 40°/s drift.
             float targetFov = zoomed ? _optic.TargetFov(_baseFov) : _baseFov + (_moving ? 4f * motion : 0f);
-            float fovRate = Mathf.Abs(Camera.fieldOfView - targetFov) > 6f ? 160f : 40f;
-            Camera.fieldOfView = Mathf.MoveTowards(Camera.fieldOfView, targetFov, dt * fovRate);
+            float fovRate = Mathf.Abs(_fovEased - targetFov) > 6f ? 160f : 40f;
+            _fovEased = Mathf.MoveTowards(_fovEased, targetFov, dt * fovRate);
+            Camera.fieldOfView = _fovEased + (zoomed ? 0f : fovPunch * 0.25f);
 
-            float s = _camShake * motion;
-            float sp = Mathf.Sin(Time.time * 80f) * s * 3f;
-            float sr = Mathf.Cos(Time.time * 67f) * s * 2.5f;
-            Camera.transform.localEulerAngles = new Vector3(_pitch + sp, 0f, sr);
+            // A magnified view would magnify the shake too — damp it like the bob.
+            float damp = zoomed ? _optic.MotionScale : 1f;
+            Camera.transform.localEulerAngles = new Vector3(_pitch + feel.x * damp, feel.y * damp, feel.z * damp);
         }
 
         /// <summary>Picks the footstep clip from the block under the player's feet (key heuristic).</summary>
@@ -3957,12 +4013,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            switch (Game.ItemInSlot(Game.SelectedHotbarSlot))
+            // #2152: by the item's data-driven look, so a new gun with a known style sounds right without code.
+            switch (FxLook.ForItem(Game.Content, Game.ItemInSlot(Game.SelectedHotbarSlot)).Style)
             {
-                case "scrap_pistol": audio.Cue("weapon_scrap"); break;
-                case "gauss_pistol": audio.Cue("weapon_gauss"); break;
-                case "laser_pistol": audio.Cue("weapon_laser"); break;
-                case "plasma_blaster": audio.Cue("weapon_plasma"); break;
+                case "slug": audio.Cue("weapon_scrap"); break;
+                case "rail": audio.Cue("weapon_gauss"); break;
+                case "laser": audio.Cue("weapon_laser"); break;
+                case "plasma": audio.Cue("weapon_plasma"); break;
                 default: audio.Cue("melee_swing"); break; // melee weapons, tools, fists
             }
         }

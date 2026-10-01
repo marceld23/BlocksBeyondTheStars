@@ -66,6 +66,15 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#1998: a thump, stomp, breach or strike at a spot — dust, a camera shake, maybe a push.</summary>
         public event Action<WorldFx>? WorldFxReceived;
+
+        /// <summary>#2158: another player's shot / swing / drill / scan / gadget / placement to draw with its item's fx
+        /// style — or, with <see cref="ActionFx.Outcome"/> set, the server's confirmation of a gadget use (also for my
+        /// own uses). Cosmetic; never echoes my own <see cref="SendFx"/>.</summary>
+        public event Action<ActionFx>? ActionFxReceived;
+
+        /// <summary>#2154: a creature was defeated (not despawned) — break it apart before the next creature list
+        /// drops it.</summary>
+        public event Action<CreatureDefeated>? CreatureDefeatedReceived;
         public event Action<ContainerList>? ContainersReceived;
 
         /// <summary>Ground drop packets on this body (#853) — the bundles a full inventory left lying around.
@@ -707,6 +716,24 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2140: survey a body of the current star system with the ship's planet scanner ("" = where the ship is).</summary>
         public void SendPlanetScan(string bodyId) => Send(new PlanetScanIntent { BodyId = bodyId ?? string.Empty });
 
+        /// <summary>#2158: tells the others what I just did so they can draw it — <paramref name="kind"/> is one of
+        /// <c>FxActionKinds</c>, <paramref name="itemKey"/> the held item (or the ship module in space; "" = bare hands),
+        /// <paramref name="from"/>/<paramref name="to"/> world positions (muzzle → impact) in my current world's frame.
+        /// Cosmetic and best-effort (unreliable): the server rate-limits it (~12/s) and drops anything implausible.</summary>
+        public void SendFx(byte kind, string itemKey, Vector3f from, Vector3f to, bool hit)
+            => Send(new FxIntent
+            {
+                Kind = kind,
+                ItemKey = itemKey ?? string.Empty,
+                FromX = from.X,
+                FromY = from.Y,
+                FromZ = from.Z,
+                ToX = to.X,
+                ToY = to.Y,
+                ToZ = to.Z,
+                Hit = hit,
+            }, DeliveryMode.Unreliable);
+
         public void SendLootContainer(string containerId) => Send(new LootContainerIntent { ContainerId = containerId });
 
         public void SendDepositContainer(string containerId) => Send(new DepositContainerIntent { ContainerId = containerId });
@@ -1055,6 +1082,8 @@ namespace BlocksBeyondTheStars.Client
                 case SentryShot m: SentryShotReceived?.Invoke(m); break;
                 case CreatureList m: CreaturesReceived?.Invoke(m); break;
                 case WorldFx m: WorldFxReceived?.Invoke(m); break;
+                case ActionFx m: ActionFxReceived?.Invoke(m); break;                     // #2158
+                case CreatureDefeated m: CreatureDefeatedReceived?.Invoke(m); break;     // #2154
                 case ContainerList m: ContainersReceived?.Invoke(m); break;
                 case DropPacketList m: DropPacketsReceived?.Invoke(m); break;
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;

@@ -323,6 +323,9 @@ public sealed class NetCodecTests
         [275] = typeof(StowTrainIntent),
         [276] = typeof(PlanetScanIntent),
         [277] = typeof(PlanetScanResult),
+        [278] = typeof(FxIntent),
+        [279] = typeof(ActionFx),
+        [280] = typeof(CreatureDefeated),
 
     };
 
@@ -386,6 +389,43 @@ public sealed class NetCodecTests
         Assert.Null(NetCodec.Decode(JsonFrame("{\"tag\":70000,\"body\":{}}")));
         Assert.Null(NetCodec.Decode(JsonFrame("{\"tag\":254,\"body\":{}}")));
         Assert.Null(NetCodec.Decode(JsonFrame("{\"tag\":255,\"body\":{}}")));
+    }
+
+    [Fact]
+    public void VfxMessages_RoundTripOnBothPaths_AsExtendedIds()
+    {
+        // #2158/#2154: cosmetic messages on extended ids — an older peer reads them as an unknown id and drops them
+        // (see UnknownOrMalformedExtendedFrames_AreDropped), so they needed no protocol bump.
+        var intent = new FxIntent { Kind = 1, ItemKey = "laser_pistol", FromX = 1.5f, FromY = 65f, FromZ = -2f, ToX = 20f, ToY = 66f, ToZ = 4f, Hit = true };
+        var relay = new ActionFx { PlayerId = "Alice", Kind = 5, ItemKey = "field_medkit", FromX = 3f, ToZ = 9f, Hit = true, Outcome = true };
+        var defeat = new CreatureDefeated { Id = "c42", X = 10f, Y = 64f, Z = -7.5f };
+
+        var nativeIntent = WithMessagePack(() => NetCodec.Encode(intent));
+        Assert.Equal(NetCodec.ExtendedTag, nativeIntent[0]);
+        Assert.Equal(278, nativeIntent[1] | (nativeIntent[2] << 8));
+
+        foreach (var payload in new[] { nativeIntent, NetCodec.EncodeJson(intent) })
+        {
+            var back = Assert.IsType<FxIntent>(NetCodec.Decode(payload));
+            Assert.Equal(1, back.Kind);
+            Assert.Equal("laser_pistol", back.ItemKey);
+            Assert.Equal((1.5f, 65f, -2f, 20f, 66f, 4f), (back.FromX, back.FromY, back.FromZ, back.ToX, back.ToY, back.ToZ));
+            Assert.True(back.Hit);
+        }
+
+        foreach (var payload in new[] { WithMessagePack(() => NetCodec.Encode(relay)), NetCodec.EncodeJson(relay) })
+        {
+            var back = Assert.IsType<ActionFx>(NetCodec.Decode(payload));
+            Assert.Equal(("Alice", (byte)5, "field_medkit", 3f, 9f), (back.PlayerId, back.Kind, back.ItemKey, back.FromX, back.ToZ));
+            Assert.True(back.Hit);
+            Assert.True(back.Outcome);
+        }
+
+        foreach (var payload in new[] { WithMessagePack(() => NetCodec.Encode(defeat)), NetCodec.EncodeJson(defeat) })
+        {
+            var back = Assert.IsType<CreatureDefeated>(NetCodec.Decode(payload));
+            Assert.Equal(("c42", 10f, 64f, -7.5f), (back.Id, back.X, back.Y, back.Z));
+        }
     }
 
     [Theory]

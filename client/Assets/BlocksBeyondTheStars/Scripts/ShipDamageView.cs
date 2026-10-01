@@ -91,6 +91,7 @@ namespace BlocksBeyondTheStars.Client
             var go = new GameObject("EmergencyLight");
             go.transform.SetParent(transform, false);
             _emergency = go.AddComponent<Light>();
+            FxLightBridge.Mirror(_emergency, flicker: true); // #2151: the red emergency lamp finally lights the cabin
             _emergency.type = LightType.Point;
             _emergency.color = new Color(1f, 0.12f, 0.08f);
             _emergency.range = 9f;

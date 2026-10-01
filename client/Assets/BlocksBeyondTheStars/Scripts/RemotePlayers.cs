@@ -55,6 +55,19 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly Dictionary<string, Remote> _remotes = new Dictionary<string, Remote>();
 
+        /// <summary>The drawn avatar of another player (#2158: their shots and tools start at its hand), if any.</summary>
+        public bool TryGetAvatar(string playerId, out PlayerAvatar avatar)
+        {
+            avatar = null;
+            if (playerId != null && _remotes.TryGetValue(playerId, out var r) && r.Avatar != null)
+            {
+                avatar = r.Avatar;
+                return true;
+            }
+
+            return false;
+        }
+
         /// <summary>Custom pixel faces by player id. Kept separately so a face that arrives before the player's
         /// first presence (or after their avatar is rebuilt) is still applied.</summary>
         private readonly Dictionary<string, string> _faces = new Dictionary<string, string>();

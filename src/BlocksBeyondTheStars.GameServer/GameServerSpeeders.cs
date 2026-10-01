@@ -110,28 +110,29 @@ public sealed partial class GameServer
     /// <c>boat</c> items — the item's <see cref="Shared.Definitions.VehicleProperties"/> says which kind). Consumes
     /// the item; refused in space. A ground vehicle appears a couple of metres ahead at the player's height; a
     /// water vehicle needs a water column ahead and is set onto its waterline (#1215). The record is persisted so
-    /// the vehicle survives a reload, and reconciliation keeps it live while the owner is on this body.</summary>
-    private void DeployVehicle(PlayerSession session, string itemKey)
+    /// the vehicle survives a reload, and reconciliation keeps it live while the owner is on this body. Returns whether
+    /// the vehicle was deployed (false = refused, with the reason already sent).</summary>
+    private bool DeployVehicle(PlayerSession session, string itemKey)
     {
         var p = session.State;
         var vehicle = _content.GetItem(itemKey)?.Vehicle;
         if (vehicle is null)
         {
             Reject(session, "gadget", "@srv.gadget.unknown");
-            return;
+            return false;
         }
 
         bool boat = vehicle.Kind == "boat";
         if (InSpace(p.PlayerId))
         {
             Reject(session, "speeder", boat ? "@srv.boat.surface_only" : "@srv.speeder.surface_only");
-            return;
+            return false;
         }
 
         if (!p.Inventory.Has(itemKey, 1))
         {
             Reject(session, "speeder", boat ? "@srv.boat.none" : "@srv.speeder.none");
-            return;
+            return false;
         }
 
         float x, y, z;
@@ -140,7 +141,7 @@ public sealed partial class GameServer
             if (!TryFindBoatLaunch(p, out var launch))
             {
                 Reject(session, "speeder", "@srv.boat.need_water");
-                return;
+                return false;
             }
 
             (x, y, z) = (launch.X, launch.Y, launch.Z);
@@ -166,7 +167,7 @@ public sealed partial class GameServer
             if (IsWaterCell(new Vector3i(cx, feetY, cz)) || IsWaterCell(new Vector3i(cx, feetY - 1, cz)) || IsWaterCell(new Vector3i(cx, feetY - 2, cz)))
             {
                 Reject(session, "speeder", "@srv.speeder.need_land");
-                return;
+                return false;
             }
 
             y = feetY;
@@ -200,6 +201,7 @@ public sealed partial class GameServer
         BroadcastSpeeders();
         BroadcastToWorld(new SpeederFx { X = x, Y = y, Z = z, Kind = boat ? "splash" : "deploy" });
         Send(session, new ServerMessage { Text = boat ? "@srv.boat.deployed" : "@srv.speeder.deployed" });
+        return true;
     }
 
     /// <summary>Packs a deployed speeder back into the item (owner only, within reach, not being driven by anyone

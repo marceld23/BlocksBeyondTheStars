@@ -283,7 +283,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<string> _entityRemove = new List<string>();
 
         // Other players sharing this space instance, drawn as a ship or a floating EVA suit (R2 visibility).
-        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; public int HullRgb = -1; public string Name = string.Empty; public double LastSeen; }
+        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; public int HullRgb = -1; public string Name = string.Empty; public double LastSeen; public ParticleSystem Plume; }
         private readonly Dictionary<string, RemoteAvatar> _remotePlayers = new Dictionary<string, RemoteAvatar>();
         private readonly HashSet<string> _remoteSeen = new HashSet<string>();
         private readonly List<string> _remoteRemove = new List<string>();
@@ -354,6 +354,26 @@ namespace BlocksBeyondTheStars.Client
         private float _moveSendTimer;     // throttles authoritative position reports
         private float _hitFlash;          // red damage flash on a collision/hit
         private float _shake;             // camera shake on a hit
+
+        // VFX overhaul (#2156/#2157): the shield bubble, one plume per engine nozzle, the engine glow light, the
+        // ship's velocity for the space dust, the low-hull smoke, destroyed-entity kinds and the planet-scan sweep.
+        private FxShield _shield;
+        private readonly List<ParticleSystem> _extraThrusters = new List<ParticleSystem>();
+        private readonly List<Vector3> _nozzles = new List<Vector3>(); // ship-local plume positions
+        private int _engineLight;
+        private Vector3 _lastShipWorld;
+        private bool _hasLastShipWorld;
+        private float _flightFov;
+        private float _smokeTimer;
+        private float _trailAcc;
+        private float _prevThrottle;
+        private Bounds _shipBounds;
+        private GameObject _shipBoundsFor;
+        private int _seenPlanetScan = -1;
+        private MeshRenderer _reentry;
+        private readonly Dictionary<string, string> _entityKinds = new Dictionary<string, string>();
+        private readonly Dictionary<string, float> _entityHull = new Dictionary<string, float>(); // hull drops → hit flash
+        private readonly Dictionary<string, Transform> _bodySpheres = new Dictionary<string, Transform>();
         private float _lastHull = -1f, _lastShield = -1f;
         private bool _combatSubscribed;
         private bool _hyperjumpSubscribed;
@@ -443,6 +463,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.StructureMiningProgressReceived += OnStructureMiningProgress; // #685
                 Game.Network.SpaceShipDesignReceived += OnStructureDesign;
                 Game.Network.SpaceEntityDestroyed += OnStructEntityDestroyed;
+                Game.Network.SpaceEntityDestroyed += OnEntityDestroyedFx; // #2156: explosions instead of vanishing
                 _structSubscribed = true;
             }
 
@@ -607,12 +628,367 @@ namespace BlocksBeyondTheStars.Client
                 em.rateOverTime = firing ? Mathf.Lerp(20f, 130f, throttle) : 0f;
                 var main = _thruster.main;
                 main.startSpeed = 5f + throttle * 9f;
+                foreach (var extra in _extraThrusters)
+                {
+                    if (extra != null)
+                    {
+                        var xem = extra.emission;
+                        xem.rateOverTime = em.rateOverTime;
+                        var xmain = extra.main;
+                        xmain.startSpeed = main.startSpeed;
+                    }
+                }
+            }
+
+            UpdateFlightFx(throttle);
+        }
+
+        /// <summary>The per-frame flight effects (#2157): the ship's velocity feeds the space dust and the flight motion
+        /// blur (#2151: its driver was never called), the engines leave a world-space trail and light the hull, a
+        /// throttle surge punches the FOV, a badly damaged hull smokes, and a fresh planet-scanner report sweeps its body.</summary>
+        private void UpdateFlightFx(float throttle)
+        {
+            if (_ship == null)
+            {
+                return;
+            }
+
+            var shipWorld = _ship.transform.position;
+            Sky.SpaceSunDir = _hasStar && _root != null
+                ? _root.transform.TransformPoint(_starLocal) - shipWorld // the hull is lit from the system's star
+                : Vector3.zero;
+            var vel = _hasLastShipWorld && Time.deltaTime > 1e-4f ? (shipWorld - _lastShipWorld) / Time.deltaTime : Vector3.zero;
+            if (vel.sqrMagnitude > 400f * 400f)
+            {
+                vel = Vector3.zero; // a teleport (resume, jump) is not speed
+            }
+
+            _lastShipWorld = shipWorld;
+            _hasLastShipWorld = true;
+            bool cruising = _phase == Phase.Cruise && !_eva;
+            FxSpaceDust.Velocity = cruising ? vel : Vector3.zero;
+            UrpScenePost.Instance?.SetMotion(cruising ? Mathf.Clamp01(vel.magnitude / 45f) : 0f);
+
+            // A throttle surge punches the view out a little.
+            if (cruising && throttle > 0.85f && _prevThrottle < 0.5f)
+            {
+                FxCamera.FovPunch(3.5f);
+            }
+
+            _prevThrottle = throttle;
+
+            // Engine trail: weightless glow motes left behind at each nozzle while thrusting.
+            if (cruising && throttle > 0.05f)
+            {
+                _trailAcc += Time.deltaTime * (12f + 40f * throttle) * FxKit.Density;
+                while (_trailAcc >= 1f)
+                {
+                    _trailAcc -= 1f;
+                    var local = _nozzles.Count > 0 ? _nozzles[Random.Range(0, _nozzles.Count)] : (_exhaust != null ? _exhaust.localPosition : Vector3.zero);
+                    var at = _ship.transform.TransformPoint(local);
+                    FxKit.Emit(FxKit.Kind.Motes, at, -_ship.transform.forward * (2f + 6f * throttle) + Random.insideUnitSphere * 0.5f,
+                        Random.Range(0.12f, 0.24f), Random.Range(0.5f, 0.9f), Color.Lerp(new Color(0.5f, 0.75f, 1f), Color.white, Random.value * 0.4f));
+                }
+            }
+
+            if (_engineLight != 0 && _phase != Phase.Landing)
+            {
+                FxLights.Set(_engineLight, new Color(0.55f, 0.8f, 1f), cruising ? 0.6f + 1.6f * throttle : 0.25f);
+            }
+
+            // Below half hull the ship smokes and sparks from somewhere on its skin.
+            float hullFrac = Game.ShipCombat != null && Game.ShipCombat.HullMax > 0f ? Game.ShipCombat.Hull / Game.ShipCombat.HullMax : 1f;
+            if (hullFrac < 0.5f && _phase == Phase.Cruise)
+            {
+                _smokeTimer -= Time.deltaTime;
+                if (_smokeTimer <= 0f)
+                {
+                    _smokeTimer = Mathf.Lerp(0.05f, 0.3f, hullFrac * 2f) / Mathf.Max(0.35f, FxKit.Density);
+                    var b = ShipLocalBounds();
+                    var local = b.center + Vector3.Scale(Random.insideUnitSphere, b.extents);
+                    var at = _ship.transform.TransformPoint(local);
+                    FxKit.Emit(FxKit.Kind.Smoke, at, -_ship.transform.forward * 2f + Random.insideUnitSphere * 0.6f,
+                        Random.Range(0.5f, 1f), Random.Range(1f, 1.8f), new Color(0.32f, 0.31f, 0.33f));
+                    if (Random.value < 0.35f)
+                    {
+                        FxKit.Burst(FxKit.Kind.Motes, at, 3, Vector3.zero, 0f, 2f, 5f, 0.06f, 0.1f, 0.2f, 0.4f, new Color(1f, 0.7f, 0.3f));
+                    }
+                }
+            }
+
+            // The planet scanner (#2153): a fresh report sweeps the scanned body and lights its resources on the globe.
+            if (Game.PlanetScanVersion != _seenPlanetScan)
+            {
+                bool first = _seenPlanetScan < 0;
+                _seenPlanetScan = Game.PlanetScanVersion;
+                var scan = Game.LastPlanetScan;
+                if (!first && scan != null && _bodySpheres.TryGetValue(scan.BodyId ?? string.Empty, out var body) && body != null)
+                {
+                    var ores = new List<Color>();
+                    foreach (var ore in scan.Ores ?? System.Array.Empty<BlocksBeyondTheStars.Networking.Messages.NetPlanetOre>())
+                    {
+                        ores.Add(OreTint(ore.Block));
+                        if (ores.Count >= 4)
+                        {
+                            break;
+                        }
+                    }
+
+                    var look = FxLook.ForModule(Game.Content, "planet_scanner");
+                    SpaceFx.PlanetScan(_ship.transform, body, body.lossyScale.x * 0.5f, look.Color, ores, (scan.BodyId ?? string.Empty).GetHashCode());
+                    ClientAudio.Instance?.Cue("terrain_scan", 0.7f);
+                }
             }
         }
 
-        private float _exhaustSpawnTimer;
-        private Material _exhaustBitMat;
-        private Material _hitSparkMat;
+        /// <summary>The colour a resource glows in on the scanned globe (the terrain scanner's ore tints).</summary>
+        private static Color OreTint(string key)
+        {
+            key ??= string.Empty;
+            if (key.Contains("gold")) return new Color(1f, 0.84f, 0.2f);
+            if (key.Contains("copper")) return new Color(1f, 0.55f, 0.25f);
+            if (key.Contains("iron")) return new Color(0.95f, 0.45f, 0.35f);
+            if (key.Contains("titanium")) return new Color(0.8f, 0.85f, 0.95f);
+            if (key.Contains("crystal")) return new Color(0.45f, 0.95f, 1f);
+            return new Color(1f, 0.75f, 0.3f);
+        }
+
+        /// <summary>The ship's bounds in its own local space (cached per ship model) — muzzles, the shield, smoke.</summary>
+        private Bounds ShipLocalBounds()
+        {
+            if (_ship == null)
+            {
+                return new Bounds(Vector3.zero, Vector3.one * 4f);
+            }
+
+            if (_shipBoundsFor == _ship)
+            {
+                return _shipBounds;
+            }
+
+            bool any = false;
+            var b = new Bounds(Vector3.zero, Vector3.one);
+            foreach (var mf in _ship.GetComponentsInChildren<MeshFilter>(false))
+            {
+                if (mf.sharedMesh == null || mf.GetComponent<MeshRenderer>() == null || mf.GetComponent<FxShield>() != null)
+                {
+                    continue;
+                }
+
+                var mb = mf.sharedMesh.bounds;
+                var m = _ship.transform.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                for (int i = 0; i < 8; i++)
+                {
+                    var corner = mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                    var lp = m.MultiplyPoint3x4(corner);
+                    if (!any)
+                    {
+                        b = new Bounds(lp, Vector3.zero);
+                        any = true;
+                    }
+                    else
+                    {
+                        b.Encapsulate(lp);
+                    }
+                }
+            }
+
+            _shipBounds = any ? b : new Bounds(Vector3.zero, Vector3.one * 4f);
+            _shipBoundsFor = _ship;
+            return _shipBounds;
+        }
+
+        /// <summary>Hangs the per-ship effects on a freshly built hull: the shield bubble and the engine glow light.</summary>
+        private void AttachShipFx()
+        {
+            if (_ship == null)
+            {
+                return;
+            }
+
+            _shipBoundsFor = null;
+            var bounds = ShipLocalBounds();
+            _shield = FxShield.Attach(_ship.transform, bounds);
+            if (_engineLight != 0)
+            {
+                FxLights.Remove(_engineLight);
+            }
+
+            var rear = _nozzles.Count > 0 ? _nozzles[0] : new Vector3(bounds.center.x, bounds.center.y, bounds.min.z - 0.5f);
+            _engineLight = FxLights.Attach(_ship.transform, rear, new Color(0.55f, 0.8f, 1f), 0.6f, 9f, flicker: true);
+        }
+
+        /// <summary>One plume per engine nozzle (#2157): the nozzle blocks whose rear (-Z) neighbour is open get a
+        /// thruster each (max 6); the default centred plume moves onto the first. Ships without nozzle blocks keep
+        /// the single centred plume.</summary>
+        private void BuildNozzlePlumes(Transform ship, Dictionary<Vector3i, BlockId> cells)
+        {
+            _nozzles.Clear();
+            _extraThrusters.Clear();
+            if (cells == null || Game?.Content == null)
+            {
+                return;
+            }
+
+            foreach (var kv in cells)
+            {
+                string key = Game.Content.BlockById(kv.Value)?.Key ?? string.Empty;
+                if (key != "engine_nozzle" && key != "ship_engine")
+                {
+                    continue;
+                }
+
+                var behind = new Vector3i(kv.Key.X, kv.Key.Y, kv.Key.Z - 1);
+                if (cells.ContainsKey(behind))
+                {
+                    continue; // buried inside the hull — no exhaust there
+                }
+
+                var local = new Vector3(kv.Key.X + 0.5f, kv.Key.Y + 0.5f, kv.Key.Z - 0.1f) - _shipCentre;
+                bool near = false;
+                foreach (var n in _nozzles)
+                {
+                    if ((n - local).sqrMagnitude < 1.2f)
+                    {
+                        near = true;
+                        break;
+                    }
+                }
+
+                if (!near)
+                {
+                    _nozzles.Add(local);
+                }
+
+                if (_nozzles.Count >= 6)
+                {
+                    break;
+                }
+            }
+
+            if (_nozzles.Count == 0)
+            {
+                return;
+            }
+
+            if (_thruster != null)
+            {
+                _thruster.transform.localPosition = _nozzles[0];
+            }
+
+            if (_exhaust != null)
+            {
+                _exhaust.localPosition = _nozzles[0];
+            }
+
+            for (int i = 1; i < _nozzles.Count; i++)
+            {
+                var keep = _thruster;
+                BuildThruster(ship, _nozzles[i]);
+                if (_thruster != null && _thruster != keep)
+                {
+                    _extraThrusters.Add(_thruster);
+                }
+
+                _thruster = keep;
+            }
+        }
+
+        /// <summary>The stern centre of a hull in its own local space (the plume of a remote voxel ship).</summary>
+        private static Vector3 SternOf(GameObject hull)
+        {
+            float minZ = float.MaxValue;
+            var sum = Vector3.zero;
+            int n = 0;
+            foreach (var mf in hull.GetComponentsInChildren<MeshFilter>(false))
+            {
+                if (mf.sharedMesh == null)
+                {
+                    continue;
+                }
+
+                var b = mf.sharedMesh.bounds;
+                var m = hull.transform.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                for (int i = 0; i < 8; i++)
+                {
+                    var corner = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                    var lp = m.MultiplyPoint3x4(corner);
+                    minZ = Mathf.Min(minZ, lp.z);
+                    sum += lp;
+                    n++;
+                }
+            }
+
+            if (n == 0)
+            {
+                return new Vector3(0f, 0f, -2f);
+            }
+
+            var c = sum / n;
+            return new Vector3(c.x, c.y, minZ - 0.2f);
+        }
+
+        /// <summary>Engine plumes on the hostile ship models at their engine glow parts (#2157).</summary>
+        private static void AttachHostilePlumes(GameObject model, string kind)
+        {
+            if (kind != "BanditShip" && kind != "Cruiser")
+            {
+                return; // drones and UFOs hover on repulsors
+            }
+
+            var color = kind == "Cruiser" ? new Color(1f, 0.55f, 0.35f) : new Color(1f, 0.35f, 0.25f);
+            foreach (Transform child in model.transform)
+            {
+                if (child.name == "EngineL" || child.name == "EngineR")
+                {
+                    SpaceFx.EnginePlume(model.transform, child.localPosition + Vector3.back * (child.localScale.z * 0.5f + 0.1f), kind == "Cruiser" ? 1.3f : 0.8f, color);
+                }
+            }
+        }
+
+        /// <summary>Another pilot fired a ship weapon in this flight instance (#2158): the same look as our own shots,
+        /// from their hull to the target point (both in the instance frame).</summary>
+        private void OnRemoteShipFx(BlocksBeyondTheStars.Networking.Messages.ActionFx m)
+        {
+            if (!_active || _root == null || m == null || m.Outcome || m.PlayerId == Game.LocalPlayerId
+                || m.Kind != BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Shot
+                || !_remotePlayers.TryGetValue(m.PlayerId, out var av) || av.Root == null)
+            {
+                return;
+            }
+
+            var look = FxLook.ForModule(Game.Content, m.ItemKey);
+            var target = _root.transform.TransformPoint(new Vector3(m.ToX, m.ToY, m.ToZ));
+            SpaceFx.Fire(look, av.Root.transform, new Bounds(Vector3.zero, new Vector3(2.4f, 1.2f, 4f)), target, look.Is("drill_beam"));
+        }
+
+        /// <summary>A space entity was destroyed (#2156): hostiles explode, salvage drops just go (the tractor shows
+        /// those). Asteroid bodies break up in <see cref="OnStructEntityDestroyed"/>.</summary>
+        private void OnEntityDestroyedFx(BlocksBeyondTheStars.Networking.Messages.SpaceEntityDestroyed m)
+        {
+            if (!_active || m == null || !_entities.TryGetValue(m.Id, out var go) || go == null)
+            {
+                return;
+            }
+
+            _entityKinds.TryGetValue(m.Id, out var kind);
+            float scale = kind switch
+            {
+                "Cruiser" => 2.2f,
+                "BanditShip" => 1.5f,
+                "Ufo" => 1.2f,
+                "Drone" => 0.9f,
+                _ => 0f,
+            };
+            if (scale <= 0f)
+            {
+                return;
+            }
+
+            SpaceFx.Explosion(go.transform.position, scale, go, kind == "BanditShip" ? new Color(0.55f, 0.75f, 1f) : new Color(1f, 0.4f, 0.3f));
+            go.SetActive(false); // what is left of the model goes with the next entity sync
+        }
+
 
         /// <summary>An orange spark burst at the ship when a hit lands (paired with the screen flash).</summary>
         private void SpawnHitSparks(float mag)
@@ -622,37 +998,15 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _hitSparkMat ??= Unlit(new Color(1f, 0.62f, 0.18f));
+            // #2156: weightless glowing sparks off the hull plus a flash (was a handful of opaque cubes).
             Vector3 at = _ship != null ? _ship.transform.position : Camera.transform.position + Camera.transform.forward * 6f;
-            int count = 4 + Mathf.RoundToInt(mag * 6f);
-            for (int i = 0; i < count; i++)
+            if (_ship != null)
             {
-                var p = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                StripCollider(p);
-                p.transform.position = at + Random.insideUnitSphere * 1.2f;
-                p.transform.localScale = Vector3.one * 0.14f;
-                p.GetComponent<Renderer>().sharedMaterial = _hitSparkMat;
-                p.AddComponent<ExhaustBit>().Vel = Random.onUnitSphere * (6f + mag * 6f);
-            }
-        }
-
-        /// <summary>One exhaust bit: spawned at the flame tip, flying backwards with jitter, fading fast.</summary>
-        private void SpawnExhaustBit(float throttle)
-        {
-            if (_exhaust == null)
-            {
-                return;
+                var b = ShipLocalBounds();
+                at = _ship.transform.TransformPoint(b.center + Vector3.Scale(Random.onUnitSphere, b.extents));
             }
 
-            _exhaustBitMat ??= Unlit(new Color(0.65f, 0.88f, 1f));
-            var back = _exhaust.parent != null ? -_exhaust.parent.forward : -_exhaust.forward;
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            StripCollider(go);
-            go.transform.position = _exhaust.position + back * (_exhaust.localScale.z * 0.5f);
-            go.transform.localScale = Vector3.one * 0.18f;
-            go.GetComponent<Renderer>().sharedMaterial = _exhaustBitMat;
-            var bit = go.AddComponent<ExhaustBit>();
-            bit.Vel = back * (14f + throttle * 10f) + Random.insideUnitSphere * 1.6f;
+            HullHit(at, mag);
         }
 
         /// <summary>Builds the real engine-flame thruster: a backward cone of additive blue-white particles that
@@ -748,28 +1102,6 @@ namespace BlocksBeyondTheStars.Client
             tex.Apply();
             _thrusterDot = tex;
             return tex;
-        }
-
-        /// <summary>A short-lived debris/exhaust cube: flies along <see cref="Vel"/>, shrinks, self-destroys.
-        /// Defaults match the exhaust/hit-spark look; the ship-destruction burst overrides life + size.</summary>
-        private sealed class ExhaustBit : MonoBehaviour
-        {
-            public Vector3 Vel;
-            public float LifeSpan = 0.35f;
-            public float Size = 0.18f;
-
-            private float _t;
-
-            private void Update()
-            {
-                _t += Time.deltaTime;
-                transform.position += Vel * Time.deltaTime;
-                transform.localScale = Vector3.one * Size * Mathf.Max(0f, 1f - _t / LifeSpan);
-                if (_t >= LifeSpan)
-                {
-                    Destroy(gameObject);
-                }
-            }
         }
 
         /// <summary>A big debris + fireball burst at <paramref name="at"/> when the ship is destroyed in flight —
@@ -891,39 +1223,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Trader positions are instance-local (the same space remote poses use), so map through _root.
                 var at = _root.transform.TransformPoint(new Vector3(fx.X, fx.Y, fx.Z));
-                SpawnWarpFlash(at, fx.Arriving);
+                // #2157: a stretched light streak + flash + ring (was a burst of cubes).
+                var dir = Camera != null ? (at - Camera.transform.position) : Vector3.forward;
+                dir = Vector3.Cross(dir.sqrMagnitude > 1e-4f ? dir.normalized : Vector3.forward, Vector3.up);
+                SpaceFx.WarpZip(at, dir.sqrMagnitude > 1e-4f ? dir : Vector3.right, fx.Arriving);
             }
 
             pending.Clear();
-        }
-
-        /// <summary>A short cyan-white hyperspace burst — streaks rush inward on arrival, burst outward on
-        /// departure. Pure cosmetic FX (mirrors the ship-explosion particle pattern).</summary>
-        private void SpawnWarpFlash(Vector3 at, bool arriving)
-        {
-            var streak = Unlit(new Color(0.55f, 0.8f, 1f));  // cyan-white hyperspace streaks
-            var core = Unlit(new Color(0.95f, 0.98f, 1f));   // bright flash core
-            Transform parent = _root != null ? _root.transform : null;
-            int count = arriving ? 26 : 20;
-            for (int i = 0; i < count; i++)
-            {
-                bool bright = i % 5 == 0;
-                var p = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                StripCollider(p);
-                if (parent != null)
-                {
-                    p.transform.SetParent(parent, false);
-                }
-
-                p.transform.position = at + Random.insideUnitSphere * 1.3f;
-                float size = bright ? 0.5f : 0.24f;
-                p.transform.localScale = Vector3.one * size;
-                p.GetComponent<Renderer>().sharedMaterial = bright ? core : streak;
-                var bit = p.AddComponent<ExhaustBit>();
-                bit.Vel = Random.onUnitSphere * Random.Range(6f, 16f) * (arriving ? -1f : 1f);
-                bit.LifeSpan = Random.Range(0.45f, 0.8f);
-                bit.Size = size;
-            }
         }
 
         /// <summary>Snapshots the descent: the ship flies off toward the body it's landing on (the one ahead of
@@ -1006,6 +1312,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
+                UpdateReentry(lt);
                 if (_seq >= LandDuration)
                 {
                     Exit();
@@ -1013,6 +1320,8 @@ namespace BlocksBeyondTheStars.Client
 
                 return;
             }
+
+            LaunchClouds(Mathf.Clamp01(_seq / SeqDuration));
 
             // Launch: rise off the pad with an ease-out, level and centred.
             float t = Mathf.Clamp01(_seq / SeqDuration);
@@ -1039,6 +1348,80 @@ namespace BlocksBeyondTheStars.Client
 
                 _phase = Phase.Cruise;
             }
+        }
+
+        /// <summary>Atmosphere entry on the landing descent (#2157): a plasma sheath builds around the ship, hottest on its
+        /// leading face, streaks of glow stream back off it, a heat light and a gentle rattle.</summary>
+        private void UpdateReentry(float progress)
+        {
+            if (_ship == null)
+            {
+                return;
+            }
+
+            if (_reentry == null)
+            {
+                var mat = FxKit.Cached("BlocksBeyondTheStars/FxShell", "reentry", m =>
+                {
+                    m.SetFloat("_Plasma", 1f);
+                    m.SetFloat("_RimPower", 1.6f);
+                    m.SetFloat("_Hex", 0f);
+                    m.SetFloat("_Fill", 0.05f);
+                });
+                if (mat == null)
+                {
+                    return;
+                }
+
+                var go = new GameObject("Reentry");
+                go.transform.SetParent(_ship.transform, false);
+                var bounds = ShipLocalBounds();
+                go.transform.localPosition = bounds.center + Vector3.forward * bounds.extents.z * 0.2f;
+                go.transform.localScale = Vector3.Max(bounds.size * 1.4f, Vector3.one * 2f);
+                go.AddComponent<MeshFilter>().sharedMesh = FxKit.SphereMesh;
+                _reentry = go.AddComponent<MeshRenderer>();
+                _reentry.sharedMaterial = mat;
+                _reentry.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+
+            float air = Game.Environment != null ? Mathf.Clamp01(Game.Environment.AtmosphereDensity * 1.5f + 0.2f) : 0.6f;
+            float heat = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((progress - 0.15f) / 0.5f)) * air;
+            var block = FxKit.Block;
+            block.Clear();
+            block.SetColor("_Color", FxKit.Lin(Color.Lerp(new Color(1f, 0.55f, 0.25f), new Color(1f, 0.45f, 0.7f), progress)) * new Color(1f, 1f, 1f, heat));
+            block.SetFloat("_Intensity", 1.8f);
+            _reentry.SetPropertyBlock(block);
+            if (heat > 0.05f)
+            {
+                var b = ShipLocalBounds();
+                var front = _ship.transform.TransformPoint(b.center + Vector3.forward * b.extents.z);
+                FxKit.Emit(FxKit.Kind.Motes, front + Random.insideUnitSphere * 0.8f, -_ship.transform.forward * 18f + Random.insideUnitSphere * 2f,
+                    Random.Range(0.15f, 0.3f), 0.35f, new Color(1f, 0.7f, 0.4f));
+                FxCamera.AddTrauma(0.02f * heat);
+                if (_engineLight != 0)
+                {
+                    FxLights.Set(_engineLight, new Color(1f, 0.55f, 0.3f), 2.5f * heat);
+                }
+            }
+        }
+
+        /// <summary>The launch rise (#2157): cloud wisps rush down past the camera while the ship climbs out of the air.</summary>
+        private void LaunchClouds(float progress)
+        {
+            if (Camera == null || progress > 0.75f || Random.value > 0.6f * FxKit.Density)
+            {
+                return;
+            }
+
+            float air = Game.Environment != null ? Game.Environment.AtmosphereDensity : 0.4f;
+            if (air < 0.05f)
+            {
+                return; // an airless body has no clouds to break through
+            }
+
+            var cam = Camera.transform;
+            var at = cam.position + cam.forward * Random.Range(6f, 20f) + cam.right * Random.Range(-12f, 12f) + Vector3.up * Random.Range(4f, 10f);
+            FxKit.Emit(FxKit.Kind.Smoke, at, Vector3.down * Random.Range(22f, 34f), Random.Range(2.5f, 5f), 0.9f, new Color(0.92f, 0.94f, 0.98f));
         }
 
         // VEGA autopilot (Mk2+ AI core): hands-off cruise toward the nearest station / landable body.
@@ -1796,7 +2179,7 @@ namespace BlocksBeyondTheStars.Client
             Vector3 to = target != null
                 ? new Vector3(target.X, target.Y, target.Z)               // beam to the actual drop
                 : from + _ship.transform.localRotation * Vector3.forward * 12f; // nothing locked: a short sweep
-            SpawnLaserBeam(from, to, new Color(0.4f, 0.85f, 1f));
+            SpaceFx.Tractor(_root.transform.TransformPoint(from), _root.transform.TransformPoint(to), FxLook.ForModule(Game.Content, "tractor_beam").Color);
             ClientAudio.Instance?.Cue("scan_ping");
         }
 
@@ -1882,24 +2265,14 @@ namespace BlocksBeyondTheStars.Client
             bool mining = target.Kind == "Asteroid" || target.Kind == "Wreck"; // salvaging a derelict is mining (#1664)
             Color col = mining ? new Color(1f, 0.7f, 0.25f) : new Color(0.45f, 1f, 1f);
 
-            Vector3 muzzle = _ship.transform.localPosition + _ship.transform.localRotation * new Vector3(0f, 0f, 2.2f);
-            Vector3 hit = new Vector3(target.X, target.Y, target.Z);
-            SpawnLaserBeam(muzzle, hit, col);
+            // #2156: every module its own look (data-driven fx) — they all drew the same 0.16-unit cube.
+            _ = col;
+            Vector3 hit = _root.transform.TransformPoint(new Vector3(target.X, target.Y, target.Z));
+            SpaceFx.Fire(FxLook.ForModule(Game.Content, weaponKey), _ship.transform, ShipLocalBounds(), hit, mining);
             ClientAudio.Instance?.Cue(mining ? "ship_mine" : "ship_laser");
-        }
-
-        /// <summary>A bright laser bolt from the ship to the target plus an impact flash, both fading fast.</summary>
-        private void SpawnLaserBeam(Vector3 from, Vector3 to, Color color)
-        {
-            var beam = Cube("LaserBolt", _root.transform, Vector3.zero, Vector3.one, Unlit(color));
-            float len = Vector3.Distance(from, to);
-            beam.transform.localPosition = (from + to) * 0.5f;
-            beam.transform.localRotation = len > 0.001f ? Quaternion.LookRotation(to - from) : Quaternion.identity;
-            beam.transform.localScale = new Vector3(0.16f, 0.16f, len);
-            _beams.Add(new TractorBeam { Go = beam, Life = 0.1f, Max = 0.1f });
-
-            var flash = Cube("LaserImpact", _root.transform, to, Vector3.one * 1.4f, Unlit(color));
-            _beams.Add(new TractorBeam { Go = flash, Life = 0.14f, Max = 0.14f });
+            // #2158: the other pilots in this flight instance see the shot too (cosmetic, instance-frame positions).
+            Game.Network?.SendFx(BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Shot, weaponKey,
+                _ship.transform.localPosition, new Vector3(target.X, target.Y, target.Z), true);
         }
 
         /// <summary>Server reports the player is now on an EVA (stepped out the ship's airlock): set up the
@@ -2397,12 +2770,54 @@ namespace BlocksBeyondTheStars.Client
             _evaMineProgressCell = new Vector3Int(m.X, m.Y, m.Z);
             _evaMineProgressFraction = Mathf.Clamp01(m.Fraction);
             _evaMineProgressAt = Time.time;
+
+            // #2155: chips fly off the struck block on an EVA too (planet mining had them, space had nothing).
+            if (_active && StructCellWorld(m.StructureId, new Vector3i(m.X, m.Y, m.Z), out var at, out var block))
+            {
+                var colors = MiningFx.Instance != null ? MiningFx.Instance.BlockColors(block) : new[] { new Color(0.5f, 0.45f, 0.4f) };
+                var toEye = _root != null ? (_root.transform.TransformPoint(_evaPos) - at).normalized : Vector3.up;
+                FxKit.Burst(FxKit.Kind.DebrisFloat, at + toEye * 0.5f, 3, toEye, 70f, 1f, 3f, 0.05f, 0.1f, 0.8f, 1.3f, colors[0], colors[colors.Length - 1]);
+                FxKit.Burst(FxKit.Kind.Motes, at + toEye * 0.5f, 3, toEye, 60f, 1.5f, 4f, 0.04f, 0.07f, 0.2f, 0.4f, new Color(1f, 0.8f, 0.5f));
+            }
+        }
+
+        /// <summary>World position + current block of a cell of the own ship or a voxel structure (asteroid, wreck).</summary>
+        private bool StructCellWorld(string structureId, Vector3i cell, out Vector3 world, out BlockId block)
+        {
+            world = default;
+            block = BlockId.Air;
+            var local = new Vector3(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
+            if (structureId == _shipStructureId && _shipCells != null && _ship != null)
+            {
+                _shipCells.TryGetValue(cell, out block);
+                world = _ship.transform.TransformPoint(local - _shipCentre);
+                return true;
+            }
+
+            if (_structs.TryGetValue(structureId, out var vs) && vs.Cells != null && vs.Root != null)
+            {
+                vs.Cells.TryGetValue(cell, out block);
+                world = vs.Root.transform.TransformPoint(local - vs.Centre);
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>Applies a server structure edit to the local voxel grid (ship or asteroid) + re-meshes.</summary>
         private void OnStructureBlockChanged(BlocksBeyondTheStars.Networking.Messages.StructureBlockChanged m)
         {
             var key = new Vector3i(m.X, m.Y, m.Z);
+
+            // #2155: a mined-out cell breaks into weightless chunks in its colours (before the grid forgets it).
+            if (m.Block == 0 && _active && StructCellWorld(m.StructureId, key, out var at, out var old) && old.Value != 0)
+            {
+                var colors = MiningFx.Instance != null ? MiningFx.Instance.BlockColors(old) : new[] { new Color(0.5f, 0.45f, 0.4f) };
+                float s = m.StructureId == _shipStructureId ? FlightShipScale : 1f;
+                FxKit.Burst(FxKit.Kind.DebrisFloat, at, 6, Vector3.zero, 0f, 0.8f, 2.6f, 0.2f * s, 0.34f * s, 1f, 1.6f, colors[0], colors[colors.Length - 1]);
+                FxKit.Burst(FxKit.Kind.Smoke, at, 2, Vector3.zero, 0f, 0.2f, 0.8f, 0.4f * s, 0.7f * s, 0.8f, 1.2f, Color.Lerp(colors[0], Color.white, 0.3f));
+                FxKit.Flash(at, Color.Lerp(colors[0], Color.white, 0.6f), 1.1f * s, 0.12f);
+            }
             if (m.StructureId == _shipStructureId && _shipCells != null)
             {
                 if (m.Block == 0) { _shipCells.Remove(key); }
@@ -2522,9 +2937,25 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A space entity was destroyed — if it was a voxel asteroid body, drop its mesh (item 20 S3).</summary>
         private void OnStructEntityDestroyed(BlocksBeyondTheStars.Networking.Messages.SpaceEntityDestroyed m)
         {
-            if (_structs.ContainsKey(m.Id))
+            if (_structs.TryGetValue(m.Id, out var vs))
             {
                 _structRemove.Add(m.Id);
+
+                // #2156: an asteroid (or a salvaged-out wreck) breaks up instead of vanishing.
+                if (_active && vs.Root != null)
+                {
+                    var rs = vs.Root.GetComponentsInChildren<Renderer>(false);
+                    if (rs.Length > 0)
+                    {
+                        var b = rs[0].bounds;
+                        for (int i = 1; i < rs.Length; i++)
+                        {
+                            b.Encapsulate(rs[i].bounds);
+                        }
+
+                        SpaceFx.AsteroidBreak(b.center, b.size.magnitude * 0.5f, new Color(0.5f, 0.44f, 0.38f));
+                    }
+                }
             }
         }
 
@@ -2858,7 +3289,22 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Places the flight camera, then adds the shared camera feel (#2152): trauma shake, kick and FOV punch.</summary>
         private void PlaceCamera()
+        {
+            PlaceCameraBase();
+            FxCamera.Sample(Time.deltaTime, out var feel, out float fovPunch);
+            if (Camera != null && _ship != null)
+            {
+                Camera.transform.localRotation *= Quaternion.Euler(feel);
+                if (_flightFov > 1f)
+                {
+                    Camera.fieldOfView = _flightFov + fovPunch;
+                }
+            }
+        }
+
+        private void PlaceCameraBase()
         {
             if (_ship == null)
             {
@@ -2948,6 +3394,10 @@ namespace BlocksBeyondTheStars.Client
             ResolveShipFlight();
             BuildScene();
             _sceneInstance = Game.Space != null ? Game.Space.InstanceId : null; // what this scene depicts (#1677)
+            _flightFov = Camera.fieldOfView;
+            _hasLastShipWorld = false;
+            _seenPlanetScan = -1;
+            FxSpaceDust.Show(Camera.transform); // #2157: the speed cue
 
             // #2118: a flight that resumes (the helm again from inside, out through the airlock, undocked back to an
             // EVA) starts where the ship was left floating and pointing — not at the launch point, whose first move
@@ -2965,6 +3415,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.ShipCombatStatusChanged += OnShipCombat;
                 Game.Network.SpaceClosed += OnSpaceClosedFx;
+                Game.Network.ActionFxReceived += OnRemoteShipFx; // #2158: other pilots' shots
                 _combatSubscribed = true;
             }
 
@@ -3015,6 +3466,27 @@ namespace BlocksBeyondTheStars.Client
             // overlay with live click-to-land raycast targets. Tear it down with the view.
             CancelLandChooser();
             _landDestBody = null; // descent finished — don't let a stale target steer a later recovery landing
+            FxSpaceDust.Hide();
+            Sky.SpaceSunDir = Vector3.zero;
+            UrpScenePost.Instance?.SetMotion(0f);
+            if (_flightFov > 1f)
+            {
+                Camera.fieldOfView = _flightFov;
+            }
+
+            if (_engineLight != 0)
+            {
+                FxLights.Remove(_engineLight);
+                _engineLight = 0;
+            }
+
+            _shield = null;
+            _reentry = null;
+            _extraThrusters.Clear();
+            _nozzles.Clear();
+            _bodySpheres.Clear();
+            _entityKinds.Clear();
+            _entityHull.Clear();
             Camera.transform.SetParent(_camPrevParent, false);
             Camera.transform.localPosition = _camPrevLocalPos;
             Camera.transform.localRotation = _camPrevLocalRot;
@@ -3041,6 +3513,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.ShipCombatStatusChanged -= OnShipCombat;
                 Game.Network.SpaceClosed -= OnSpaceClosedFx;
+                Game.Network.ActionFxReceived -= OnRemoteShipFx;
                 _combatSubscribed = false;
             }
 
@@ -3094,8 +3567,16 @@ namespace BlocksBeyondTheStars.Client
             {
                 float mag = Mathf.Clamp01(drop / 8f); // a full jolt only for a big single hit (~8 dmg)
                 _hitFlash = Mathf.Max(_hitFlash, 0.2f + 0.6f * mag);
-                _shake = Mathf.Max(_shake, 0.08f + 0.6f * mag);
-                SpawnHitSparks(mag); // visible damage at the hull, not just a screen tint
+                FxCamera.AddTrauma(0.1f + 0.45f * mag); // #2152: rotational trauma shake (was a positional jitter)
+                if (hullDrop > 0.05f)
+                {
+                    SpawnHitSparks(mag); // visible damage at the hull, not just a screen tint
+                }
+            }
+
+            if (_active && _lastShield > 0.5f && s.Shield <= 0.01f)
+            {
+                _shield?.Shatter(); // #2156: the shield breaks — the bubble bursts into hex sparkles
             }
 
             _lastHull = s.Hull;
@@ -3116,8 +3597,9 @@ namespace BlocksBeyondTheStars.Client
                 ? _ship.transform.position
                 : (Camera != null ? Camera.transform.position + Camera.transform.forward * 6f : SceneOrigin);
             SpawnShipExplosion(at); // the boom + screen flash are already played by ClientAudio / DeathFx
+            SpaceFx.Explosion(at, 1.6f, null, new Color(1f, 0.5f, 0.3f)); // #2156: shockwave ring, fireball glows, light
             _hitFlash = Mathf.Max(_hitFlash, 0.9f);
-            _shake = Mathf.Max(_shake, 0.7f);
+            FxCamera.AddTrauma(0.8f);
             _shipDestroyed = true; // once the player confirms the death screen, tear down at once (no recovery descent)
 
             // Hide the doomed hull so the player sees the debris, not an intact ship flying the recovery descent.
@@ -3185,6 +3667,7 @@ namespace BlocksBeyondTheStars.Client
             BuildSystemBodies();
 
             _ship = BuildShip(_root.transform);
+            AttachShipFx();
         }
 
         /// <summary>Places the other bodies of the current star system at their (scaled) system coordinates,
@@ -3478,6 +3961,10 @@ namespace BlocksBeyondTheStars.Client
             StripCollider(sphere);
             sphere.transform.SetParent(_root.transform, false);
             sphere.transform.localPosition = pos;
+            if (!string.IsNullOrEmpty(bodyId))
+            {
+                _bodySpheres[bodyId] = sphere.transform; // #2153: the planet scanner sweeps this sphere
+            }
             sphere.transform.localScale = Vector3.one * diameter;
 
             // World-space direction from this body to the system star → its sun-lit phase. The star sits at
@@ -3640,6 +4127,7 @@ namespace BlocksBeyondTheStars.Client
             var ex = Cube("Exhaust", ship.transform, new Vector3(0f, 0f, rearZ - 0.6f), new Vector3(0.6f, 0.6f, 1f), Unlit(new Color(0.6f, 0.85f, 1f)));
             _exhaust = ex.transform;
             BuildThruster(ship.transform, ex.transform.localPosition);
+            BuildNozzlePlumes(ship.transform, cells); // #2157: one plume per real engine nozzle
 
             // Cap the rear hatch opening with a powered energy door so the ship isn't a hole at the stern (you
             // used to see straight into the hull). The field drops (hides) on an EVA so you can still board.
@@ -3896,9 +4384,11 @@ namespace BlocksBeyondTheStars.Client
             _hullMat = null;
             _appliedHullRgb = -1;
             _shipVox = null;      // destroyed with the old ship; BuildShip makes a fresh one
+            _extraThrusters.Clear();
             _ship = BuildShip(_root.transform);
             _ship.transform.localPosition = pos;
             _ship.transform.localRotation = rot;
+            AttachShipFx();
         }
 
         /// <summary>Lit material textured with a bundled block texture (white-ish tint so the texture reads).</summary>
@@ -4231,6 +4721,7 @@ namespace BlocksBeyondTheStars.Client
                             Destroy(av.Ship);
                             vox.transform.localScale = Vector3.one * FlightShipScale; // same compact flight scale as the own ship
                             av.Ship = vox;
+                            av.Plume = SpaceFx.EnginePlume(vox.transform, SternOf(vox), 1f, new Color(0.6f, 0.82f, 1f)); // #2157
                             av.HullMat = null; // a voxel ship carries its real block textures — paint is meshed in
                             av.Voxel = true;
                             av.HullRgb = hullRgb;
@@ -4288,7 +4779,9 @@ namespace BlocksBeyondTheStars.Client
 
             var suit = Cube("Suit", root.transform, Vector3.zero, new Vector3(0.55f, 0.9f, 0.55f), Unlit(new Color(1f, 0.8f, 0.45f)));
             suit.SetActive(false);
-            return new RemoteAvatar { Root = root, Ship = ship, Suit = suit, HullMat = hullMat };
+            // #2157: other ships have engines too (they used to glide without any exhaust).
+            var plume = SpaceFx.EnginePlume(ship.transform, new Vector3(0f, 0f, -1.9f), 0.8f, new Color(0.6f, 0.82f, 1f));
+            return new RemoteAvatar { Root = root, Ship = ship, Suit = suit, HullMat = hullMat, Plume = plume };
         }
 
         private void SyncEntities()
@@ -4352,6 +4845,8 @@ namespace BlocksBeyondTheStars.Client
                         }
 
                         _entities[e.Id] = go;
+                        _entityKinds[e.Id] = e.Kind;
+                        AttachHostilePlumes(go, e.Kind);
                     }
 
                     // Stations (and the derelict wreck, #1664) are static scenery — everything else the server
@@ -4388,6 +4883,17 @@ namespace BlocksBeyondTheStars.Client
                     {
                         _dropIds.Add(e.Id);
                     }
+
+                    // #2156: a hit target flashes white for a moment (the server's hull drop is the confirmation).
+                    if (fresh)
+                    {
+                        if (_entityHull.TryGetValue(e.Id, out float prevHull) && e.Hull < prevHull - 0.05f)
+                        {
+                            FxDefeat.HitFlash(go, 0.8f);
+                        }
+
+                        _entityHull[e.Id] = e.Hull;
+                    }
                 }
             }
 
@@ -4418,6 +4924,8 @@ namespace BlocksBeyondTheStars.Client
 
                     Destroy(_entities[id]);
                     _entities.Remove(id);
+                    _entityKinds.Remove(id);
+                    _entityHull.Remove(id);
                     _entityLerp.Remove(id);
                     EnemyHealthBars.Forget(id);
                 }
@@ -4425,22 +4933,13 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private void SpawnTractorBeam(Vector3 from, Vector3 to)
-        {
-            var go = Cube("TractorBeam", _root.transform, Vector3.zero, Vector3.one, Unlit(new Color(0.4f, 0.85f, 1f)));
-            var mid = (from + to) * 0.5f;
-            float len = Vector3.Distance(from, to);
-            go.transform.localPosition = mid;
-            go.transform.localRotation = len > 0.001f ? Quaternion.LookRotation(to - from) : Quaternion.identity;
-            go.transform.localScale = new Vector3(0.18f, 0.18f, len);
-            _beams.Add(new TractorBeam { Go = go, Life = 0.35f, Max = 0.35f });
-        }
+            => SpaceFx.Tractor(_root.transform.TransformPoint(from), _root.transform.TransformPoint(to), FxLook.ForModule(Game.Content, "tractor_beam").Color);
 
         // Incoming hostile fire is an invisible damage "aura" server-side (no projectile entity), so the player
         // never saw enemy shots. Mirror it visually: each in-range hostile flashes a red laser bolt at the ship.
         private const float HostileFireRange = 70f; // matches the server's ShipEngageRange
         private readonly Dictionary<string, float> _hostileFireCd = new Dictionary<string, float>();
         private readonly List<string> _hostileFireStale = new List<string>();
-        private Material _hostileShotMat;
 
         /// <summary>Draws each in-range hostile firing red laser bolts at the ship (purely visual — damage stays
         /// server-authoritative). Per-hostile cadence so a pack reads as several attackers, not a strobe.</summary>
@@ -4492,14 +4991,50 @@ namespace BlocksBeyondTheStars.Client
 
         private void SpawnHostileShot(Vector3 from, Vector3 to)
         {
-            _hostileShotMat ??= Unlit(new Color(1f, 0.2f, 0.12f)); // angry red bolt
-            var go = Cube("EnemyShot", _root.transform, Vector3.zero, Vector3.one, _hostileShotMat);
-            var mid = (from + to) * 0.5f;
-            float len = Vector3.Distance(from, to);
-            go.transform.localPosition = mid;
-            go.transform.localRotation = len > 0.001f ? Quaternion.LookRotation(to - from) : Quaternion.identity;
-            go.transform.localScale = new Vector3(0.16f, 0.16f, len);
-            _beams.Add(new TractorBeam { Go = go, Life = 0.16f, Max = 0.16f }); // a quick lance, not a sustained beam
+            // #2156: a glowing red bolt (was a lance cube). Where it lands on the shield bubble the hex shield ripples;
+            // with the shield down the hull sparks instead. Purely visual — the server's aura owns the damage.
+            if (_ship == null)
+            {
+                return;
+            }
+
+            _ = to;
+            var wFrom = _root.transform.TransformPoint(from);
+            var b = ShipLocalBounds();
+            var toShip = (_ship.transform.position - wFrom).normalized;
+            var hitLocal = b.center - _ship.transform.InverseTransformDirection(toShip) * b.extents.magnitude * 0.6f
+                           + Random.insideUnitSphere * 0.5f;
+            var wTo = _ship.transform.TransformPoint(hitLocal);
+            var ship = _ship;
+            SpaceFx.HostileBolt(wFrom, wTo, new Color(1f, 0.25f, 0.15f), () =>
+            {
+                if (ship == null)
+                {
+                    return;
+                }
+
+                var status = Game.ShipCombat;
+                float shieldFrac = status != null && status.ShieldMax > 0f ? status.Shield / status.ShieldMax : 0f;
+                if (_shield != null && shieldFrac > 0.01f)
+                {
+                    _shield.Hit(wTo, shieldFrac);
+                }
+                else
+                {
+                    HullHit(wTo, 0.4f);
+                }
+            });
+        }
+
+        /// <summary>Sparks, a flash and a few bits off the hull where a hit landed (shield down).</summary>
+        private void HullHit(Vector3 at, float mag)
+        {
+            FxKit.Flash(at, new Color(1f, 0.75f, 0.35f), 1f + mag, 0.12f);
+            FxKit.Burst(FxKit.Kind.Motes, at, 6 + Mathf.RoundToInt(mag * 10f), Vector3.zero, 0f, 3f, 9f, 0.06f, 0.12f, 0.25f, 0.5f,
+                new Color(1f, 0.62f, 0.2f), Color.white);
+            FxKit.Burst(FxKit.Kind.DebrisFloat, at, 2 + Mathf.RoundToInt(mag * 4f), Vector3.zero, 0f, 1.5f, 4f, 0.08f, 0.16f, 0.8f, 1.2f,
+                new Color(0.4f, 0.42f, 0.46f));
+            FxLights.Flash(at, new Color(1f, 0.6f, 0.25f), 1.2f + mag, 7f, 0.18f);
         }
 
         private void UpdateBeams(float dt)
@@ -4893,7 +5428,7 @@ namespace BlocksBeyondTheStars.Client
             _shake = Mathf.Max(0f, _shake - Time.deltaTime * 2.5f);
             _hitFlash = Mathf.Max(0f, _hitFlash - Time.deltaTime * 2f);
             _cargoFlash = Mathf.Max(0f, _cargoFlash - Time.deltaTime * 1.5f);
-            _hit.color = new Color(1f, 0.2f, 0.2f, _hitFlash * 0.35f);
+            _hit.color = new Color(1f, 0.2f, 0.2f, _hitFlash * 0.35f * (FxKit.ReduceFlashes ? 0.4f : 1f));
 
             // The vitals panel under us sheds its ship rows the moment we take the helm, so re-park the
             // status block every frame rather than only on entry (#915).

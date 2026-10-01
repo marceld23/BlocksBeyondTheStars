@@ -105,6 +105,11 @@ system (`BlockTextureAtlas.VariantKeys` whitelist is natural blocks only).
 - Dynamic vignette is reserved for meaning: blue pulse = low oxygen, red kick = damage; chroma/
   grain bursts only for events (damaged visor, EMP) via `UrpScenePost.Burst`.
 - Night is never pitch black (0.20 brightness floor); interiors get the `_Sc_Indoor` fill.
+- Effects never spawn Unity `Light`s (URP additional lights are off): a flash that should light the room goes through
+  the shader-global **FX lights** (`FxLights`, max 8, preset-scaled), an existing light through `FxLightBridge`.
+- Effect glow is HDR colour + bloom, but every effect must still read on Low/Potato (LDR, no bloom): a bright core
+  plus a soft additive halo. Large full-screen flashes honour **Reduce flashes**; camera motion honours **Screen
+  shake** + **Camera motion** ([VFX.md](VFX.md)).
 
 ## 7. Feedback ("juice") rules
 
@@ -113,7 +118,10 @@ mining = crack tint → debris → final-hit flash → tile flies to the hotbar;
 crafting/unlock = card pulse + floating label + fanfare; menus fade/rise in 0.14 s;
 hotbar selection ticks; hits spark; low resources pulse. New features must wire into these
 channels (`MiningFx`, `UrpScenePost`, `UiKit.TransitionIn`, `ClientAudio`/`ProceduralAudio`)
-instead of inventing parallel ones.
+instead of inventing parallel ones. Effects are built from **`FxKit`** (shared emitters, cached materials, pooled
+beams/rings/shells/holograms, density scaling) — never a per-spawn GameObject/Material — and a device's look comes
+from its data-driven `fx` object (`data/items.json`, `data/ship_modules.json`); see [VFX.md](VFX.md). Defeat stays
+kid-friendly: creatures break apart into sparkles, robots into parts, bandits beam away.
 
 ## 8. Quality checklist (every important object)
 
@@ -122,4 +130,5 @@ instead of inventing parallel ones.
 - [ ] one small glowing detail (emission feeds bloom)
 - [ ] a function the design communicates (warning stripes mean hazard, cyan means interface)
 - [ ] localized name (DE+EN), icon resolvable via `IconResolver`
-- [ ] effects preset-gated / comfort-toggle aware
+- [ ] effects preset-gated / comfort-toggle aware (`FxKit.Scaled`, `FlashScale`, `FxCamera`)
+- [ ] a tool/weapon/module carries an `fx` look with a known style

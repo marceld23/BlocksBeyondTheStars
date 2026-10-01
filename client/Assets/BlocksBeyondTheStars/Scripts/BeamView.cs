@@ -136,6 +136,7 @@ namespace BlocksBeyondTheStars.Client
             var lightGo = new GameObject("Glow");
             lightGo.transform.SetParent(go.transform, false);
             var light = lightGo.AddComponent<Light>();
+            FxLightBridge.Mirror(light); // #2151: URP additional lights are off — light the world through the FX lights
             light.type = LightType.Point;
             light.range = 7f;
             light.intensity = 1.5f;
@@ -216,12 +217,16 @@ namespace BlocksBeyondTheStars.Client
             var lightGo = new GameObject("Flash");
             lightGo.transform.SetParent(go.transform, false);
             var light = lightGo.AddComponent<Light>();
+            FxLightBridge.Mirror(light); // #2151: URP additional lights are off — light the world through the FX lights
             light.type = LightType.Point;
             light.range = 9f;
             light.intensity = 3f;
             light.color = Cyan;
 
             go.AddComponent<BeamFlashFade>();
+
+            // #2153: the jump itself — a light pillar with rings running up it and rising motes at both pads.
+            FxGadgets.Teleport(padTopBase + Vector3.up, 2.4f, Cyan, Color.white);
         }
 
         private static Material GlowMaterial()
@@ -311,6 +316,15 @@ namespace BlocksBeyondTheStars.Client
             if (_light != null) _light.intensity = _baseIntensity * k;
             transform.localScale = new Vector3(0.5f + (1f - k) * 0.6f, transform.localScale.y, 0.5f + (1f - k) * 0.6f);
             if (_age >= _life) Destroy(gameObject);
+        }
+
+        // #2151: the flash owns its material (BeamView.GlowMaterial makes one per flash) — free it with the column.
+        private void OnDestroy()
+        {
+            if (_mat != null)
+            {
+                Destroy(_mat);
+            }
         }
     }
 }

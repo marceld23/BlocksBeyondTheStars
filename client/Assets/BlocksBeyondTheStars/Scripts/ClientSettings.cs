@@ -426,6 +426,14 @@ namespace BlocksBeyondTheStars.Client
         /// stylised visor look; off = a clean, flat HUD overlay (better readability). Default on but subtle.</summary>
         public bool VisorEffects = true;
 
+        /// <summary>Screen-shake strength 0..1 (#2152): weapon kicks, hits, explosions, giants' footfalls. 0 = none; the
+        /// <see cref="CameraMotion"/> toggle still silences every camera motion. Default a gentle 70 %.</summary>
+        public float ScreenShake = 0.7f;
+
+        /// <summary>Reduce flashes (#2152, photosensitivity — XAG 118 / WCAG 2.3.1): full-screen and large flashes
+        /// (damage, death, ship destruction, the hyperjump, explosions, the photo shutter) are clamped to a soft wash.</summary>
+        public bool ReduceFlashes = false;
+
         // Avatar appearance (M23b). Per-part colours; later armor overrides the matching part.
         public Color SkinColor = new Color(0.85f, 0.68f, 0.55f);
         public Color TorsoColor = new Color(0.20f, 0.45f, 0.80f);
@@ -1078,6 +1086,7 @@ namespace BlocksBeyondTheStars.Client
             AudioListener.volume = Mathf.Clamp01(MasterVolume); // master bus (M26)
             UiKit.ReducedMotion = ReducedEffects; // UI transitions snap instantly for reduced-effects users
             UiKit.SetUserScale(UiScale);          // HUD canvases + the IMGUI leftovers follow the UI-scale setting
+            FxKit.Configure(Preset, ReducedEffects, ScreenShake, ReduceFlashes, CameraMotion); // #2152: effect density + comfort
 
             int levels = QualitySettings.names != null ? QualitySettings.names.Length : 0;
             if (levels > 0)

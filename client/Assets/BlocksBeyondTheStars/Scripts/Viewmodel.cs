@@ -88,8 +88,15 @@ namespace BlocksBeyondTheStars.Client
                 mesh.transform.localScale = Vector3.one * ItemScale;
             }
 
+            _mesh = mesh;
             ApplyVisible();
         }
+
+        private GameObject _mesh;
+
+        /// <summary>The tip of the held item on screen (gun barrel / tool bit) in world space, so shots and beams leave
+        /// the weapon and not the screen centre (#2151). False while the viewmodel is hidden or empty.</summary>
+        public bool TryMuzzle(out Vector3 world) => HeldItem.MuzzleOf(_mesh, out world);
 
         public GameBootstrap Game; // to hide the hand viewmodel while the space view owns the camera
         private bool _hiddenForSpace;

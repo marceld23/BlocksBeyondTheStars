@@ -343,6 +343,7 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.SetParent(body.transform, false);
                 go.transform.localPosition = new Vector3(0f, bodyY, 0f);
                 _glow = go.AddComponent<Light>();
+                FxLightBridge.Mirror(_glow); // #2151: a glowing creature lights its surroundings
                 _glow.type = LightType.Point;
                 _glow.range = unit * 6f;
                 _glow.intensity = 1.1f;
@@ -485,6 +486,7 @@ namespace BlocksBeyondTheStars.Client
                 var go = new GameObject("Glow");
                 go.transform.SetParent(bell.transform, false);
                 _glow = go.AddComponent<Light>();
+                FxLightBridge.Mirror(_glow); // #2151: a glowing creature lights its surroundings
                 _glow.type = LightType.Point;
                 _glow.range = unit * 6f;
                 _glow.intensity = 1.1f;
@@ -653,6 +655,7 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.SetParent(body.transform, false);
                 go.transform.localPosition = new Vector3(0f, bodyY, 0f);
                 _glow = go.AddComponent<Light>();
+                FxLightBridge.Mirror(_glow); // #2151: a glowing creature lights its surroundings
                 _glow.type = LightType.Point;
                 _glow.range = unit * 6f;
                 _glow.intensity = 1.1f;
@@ -790,6 +793,7 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.SetParent(body.transform, false);
                 go.transform.localPosition = new Vector3(0f, bodyY, 0f);
                 _glow = go.AddComponent<Light>();
+                FxLightBridge.Mirror(_glow); // #2151: a glowing creature lights its surroundings
                 _glow.type = LightType.Point;
                 _glow.range = unit * 6f;
                 _glow.intensity = 1.1f;
@@ -917,6 +921,7 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.SetParent(body.transform, false);
                 go.transform.localPosition = new Vector3(0f, torsoY, 0f);
                 _glow = go.AddComponent<Light>();
+                FxLightBridge.Mirror(_glow); // #2151: a glowing creature lights its surroundings
                 _glow.type = LightType.Point;
                 _glow.range = s * 4f;
                 _glow.intensity = 1.0f;
@@ -1006,6 +1011,7 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.SetParent(body.transform, false);
                 go.transform.localPosition = new Vector3(0f, bodyY, 0f);
                 _glow = go.AddComponent<Light>();
+                FxLightBridge.Mirror(_glow); // #2151: a glowing creature lights its surroundings
                 _glow.type = LightType.Point;
                 _glow.range = unit * 4f;
                 _glow.intensity = 1.0f;
@@ -1211,6 +1217,7 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.SetParent(body.transform, false);
                 go.transform.localPosition = new Vector3(0f, bodyY, 0f);
                 _glow = go.AddComponent<Light>();
+                FxLightBridge.Mirror(_glow); // #2151: a glowing creature lights its surroundings
                 _glow.type = LightType.Point;
                 _glow.range = unit * 6f;
                 _glow.intensity = 1.1f;
@@ -1557,6 +1564,7 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.SetParent(rig.transform, false);
                 go.transform.localPosition = new Vector3(0f, body.TorsoY, 0f);
                 _glow = go.AddComponent<Light>();
+                FxLightBridge.Mirror(_glow); // #2151: a glowing creature lights its surroundings
                 _glow.type = LightType.Point;
                 _glow.range = body.Top * 0.8f;
                 _glow.intensity = 1.2f;

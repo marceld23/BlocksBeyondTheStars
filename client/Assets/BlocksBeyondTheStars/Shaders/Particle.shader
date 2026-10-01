@@ -8,6 +8,9 @@ Shader "BlocksBeyondTheStars/Particle"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        // VFX overhaul (#2152): an HDR multiplier so sparks, flashes and glow cards can cross the bloom threshold
+        // (vertex colours top out at 1). Default 1 keeps every existing user unchanged.
+        _Intensity ("HDR intensity", Range(0, 8)) = 1
     }
 
     // ---------------- URP ----------------
@@ -30,6 +33,7 @@ Shader "BlocksBeyondTheStars/Particle"
             // SRP Batcher (#573): per-MATERIAL properties in UnityPerMaterial (texture handles stay outside).
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
+                float _Intensity;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; };
@@ -47,7 +51,7 @@ Shader "BlocksBeyondTheStars/Particle"
             half4 frag(Varyings i) : SV_Target
             {
                 half4 t = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
-                return half4(i.color.rgb * t.rgb, i.color.a * t.a);
+                return half4(i.color.rgb * t.rgb * _Intensity, i.color.a * t.a);
             }
             ENDHLSL
         }
@@ -70,6 +74,7 @@ Shader "BlocksBeyondTheStars/Particle"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float _Intensity;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; fixed4 color : COLOR; };
             struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; fixed4 color : COLOR; };
@@ -86,7 +91,7 @@ Shader "BlocksBeyondTheStars/Particle"
             fixed4 frag(v2f i) : SV_Target
             {
                 fixed4 t = tex2D(_MainTex, i.uv);
-                return fixed4(i.color.rgb * t.rgb, i.color.a * t.a);
+                return half4(i.color.rgb * t.rgb * _Intensity, i.color.a * t.a);
             }
             ENDCG
         }

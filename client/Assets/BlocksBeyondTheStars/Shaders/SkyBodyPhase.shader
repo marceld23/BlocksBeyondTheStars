@@ -38,6 +38,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "FxCommon.hlsl" // #2153: hash for the planet-scanner resource dots
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
 
@@ -55,6 +56,50 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             CBUFFER_END
 
             float4 _Sc_Sky; // global: current sky colour (linear, set by Sky.cs) — daytime atmosphere wash
+
+            // #2153: the ship's planet scanner sweeps the body it scans (globals set by FxPlanetScan in the flight view).
+            float4 _Sc_BodyScan;      // xyz world centre of the scanned body, w its radius (0 = no scan running)
+            float4 _Sc_BodyScanP;     // x band height (+1 north pole → -1 south pole), y sweep strength, z resource-dot strength, w seed
+            float4 _Sc_BodyScanCol;   // rgb sweep colour
+            float4 _Sc_BodyScanOre[4]; // rgb colours of the found resources, a = 1 when the slot is used
+
+            float BodyScanHash(float3 c) { return BbtsHash21(c.xy + c.z * 7.13); }
+
+            // The sweep band, the scanned-area grid and the glowing resource points — 0 on every other body.
+            float3 BodyScan(float3 wp)
+            {
+                float3 rel = wp - _Sc_BodyScan.xyz;
+                float rl = length(rel);
+                if (_Sc_BodyScan.w <= 0.0 || abs(rl - _Sc_BodyScan.w) > _Sc_BodyScan.w * 0.1)
+                {
+                    return float3(0, 0, 0);
+                }
+
+                float3 d = rel / max(rl, 1e-4);
+                float off = (d.y - _Sc_BodyScanP.x) / 0.07;
+                float band = exp(-off * off);
+                float scanned = saturate((d.y - _Sc_BodyScanP.x) * 6.0); // the part the band has already passed
+                float meridians = pow(abs(sin(atan2(d.z, d.x) * 9.0)), 60.0) + pow(abs(sin(d.y * 14.0)), 60.0);
+                float3 col = _Sc_BodyScanCol.rgb * (band * 1.8 + meridians * 0.22 * scanned) * _Sc_BodyScanP.y;
+
+                if (_Sc_BodyScanP.z > 0.0)
+                {
+                    float3 q = d * 7.0 + _Sc_BodyScanP.w;
+                    float3 cell = floor(q);
+                    float h = BodyScanHash(cell);
+                    float h2 = BodyScanHash(cell + 11.0);
+                    int k = (int)floor(h2 * 4.0);
+                    float4 ore = k == 0 ? _Sc_BodyScanOre[0] : k == 1 ? _Sc_BodyScanOre[1] : k == 2 ? _Sc_BodyScanOre[2] : _Sc_BodyScanOre[3];
+                    if (ore.a > 0.5 && h < 0.4)
+                    {
+                        float spot = 1.0 - smoothstep(0.06, 0.2, length(frac(q) - 0.5));
+                        float pulse = 0.75 + 0.25 * sin(_Time.y * 4.0 + h * 40.0);
+                        col += ore.rgb * spot * pulse * 2.2 * _Sc_BodyScanP.z * scanned;
+                    }
+                }
+
+                return col;
+            }
 
             struct Attributes { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
             struct Varyings { float4 positionCS : SV_POSITION; float3 wn : TEXCOORD0; float2 uv : TEXCOORD1; float3 wp : TEXCOORD2; };
@@ -98,6 +143,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
                 // the night sky get no wash, and gated by _DayLight so the space view (0) is untouched.
                 float skyLum = dot(_Sc_Sky.rgb, float3(0.299, 0.587, 0.114));
                 col = lerp(col, _Sc_Sky.rgb * 1.05, _DayLight * 0.55 * saturate(skyLum * 4.0));
+                col += BodyScan(i.wp);
                 return half4(col, 1);
             }
             ENDHLSL

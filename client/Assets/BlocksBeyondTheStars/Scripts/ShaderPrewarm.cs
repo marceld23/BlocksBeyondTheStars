@@ -28,6 +28,23 @@ namespace BlocksBeyondTheStars.Client
             "BlocksBeyondTheStars/VertexColorOpaque",
         };
 
+        /// <summary>The effect shaders of the VFX overhaul (#2152). They declare no keywords, so one variant each — but
+        /// without warming, the FIRST shot, scan or explosion of a session compiled its shader mid-action (a visible
+        /// hitch exactly when the effect should pop).</summary>
+        private static readonly string[] FxShaders =
+        {
+            "BlocksBeyondTheStars/Particle",
+            "BlocksBeyondTheStars/ParticleAlpha",
+            "BlocksBeyondTheStars/FxBeam",
+            "BlocksBeyondTheStars/FxRing",
+            "BlocksBeyondTheStars/FxShell",
+            "BlocksBeyondTheStars/FxHolo",
+            "BlocksBeyondTheStars/FxDebris",
+            "BlocksBeyondTheStars/FxCrack",
+            "BlocksBeyondTheStars/FxSpaceDust",
+            "BlocksBeyondTheStars/FxTunnel",
+        };
+
         // Keyword axes as declared by the shaders' multi_compile lines (only the modes the game actually sets:
         // Sky uses linear fog, WeatherFx3D switches to exponential-squared; screen-space shadows are unused).
         private static readonly string[] FogKeywords = { null, "FOG_LINEAR", "FOG_EXP2" };
@@ -69,6 +86,15 @@ namespace BlocksBeyondTheStars.Client
                         }
 
                 if (TryAdd(collection, shader, PassType.ShadowCaster, System.Array.Empty<string>()))
+                {
+                    added++;
+                }
+            }
+
+            foreach (var name in FxShaders)
+            {
+                var shader = Shader.Find(name);
+                if (shader != null && TryAdd(collection, shader, PassType.ScriptableRenderPipeline, System.Array.Empty<string>()))
                 {
                     added++;
                 }

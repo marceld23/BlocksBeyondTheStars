@@ -36,6 +36,11 @@ public sealed class ToolProperties
     /// (laser/plasma) do; kinetic ones (scrap/gauss) don't. A shot that hits no entity then carries its
     /// impact cell to the server, which ignites it if the block burns and isn't protected.</summary>
     public bool Ignites { get; set; }
+
+    /// <summary>The look of this tool's action effect (#2152): the shot, the swing, the drill sparks, the scanner or
+    /// gadget pulse — the <c>"fx"</c> object in <c>data/items.json</c>. Cosmetic only; null = the client's heuristics
+    /// by item key and tool kind.</summary>
+    public FxDefinition? Fx { get; set; }
 }
 
 /// <summary>
