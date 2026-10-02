@@ -648,6 +648,13 @@ namespace BlocksBeyondTheStars.Client
             return img;
         }
 
+        /// <summary>Sort order of the shell's own modal dialogs on their OWN canvas over the main menu — "What's
+        /// new?" and the update notice (#2163, #2164). Every shell screen (menu, settings, credits, save select,
+        /// loading) is a <see cref="CreateCanvas"/> at the default 0, and between equal sort orders Unity draws AND
+        /// raycasts in creation order: a menu rebuilt while such a dialog was open (the browser's late content
+        /// load, #377) landed on top of it. Below the content-error overlay (90) and the on-screen keyboard (5000).</summary>
+        public const int ShellModalSortingOrder = 20;
+
         /// <summary>A full-screen dark scrim for modal overlays: dims the menu/scene behind a dialog so the
         /// foreground panel reads clearly, and swallows clicks meant for the panel (raycast target on). Add it to
         /// the canvas root right before the dialog panel so the panel draws on top; parent the panel under the

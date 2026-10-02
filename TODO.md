@@ -45,6 +45,32 @@ no tickets, no ID cards, no vending machines).
   §"Abandoned stations", WORLD_GENERATION §36, FACTORIES_RUINS_AND_CLAIMING.md, USER_MANUAL.md.
 - **Open:** playtest on a fresh generation-20 world (`/tp railruin`).
 
+### 🗞️ Browser: "What's new?" rendered behind the main menu (#2163–#2165, 2026-10-02, branch fix/whatsnew-modal-stacking)
+
+Marcel's browser playtest of v2026.10.1 found the auto-opened "What's new?" dialog sitting **behind** the main menu. The
+logo covered its title, and the name panel, buttons and info panels covered the notes. The scrim dimmed nothing, and clicks
+reached the menu. This is not a 10.1 regression; it has been latent since #543.
+
+Menu and dialog were both `CreateCanvas` at sort order 0, so creation order decided the stacking. On WebGL the menu shows
+before the content cache is done. The small release-notes JSON lands first and auto-opens the dialog, then `LoadLocalizer()`
+rebuilds the menu (#377). The rebuilt menu is the newest canvas, so it lands on top. The #1368 name-prompt re-arm had the
+same flaw.
+
+1. ✅ **#2163 What's new on top** — `WhatsNewUI` sits at the new `UiKit.ShellModalSortingOrder` (20). That is above every
+   shell screen and below the content-error overlay (90) and the on-screen keyboard (5000).
+2. ✅ **#2164 update notice too** — `UpdateNoticeUI` uses the same constant. No rebuild path hits it today, but it has the
+   same pattern.
+3. ✅ **#2165 pad stays in the modal** — `AppShell` suspends the main menu's `UiNavFocus` while either modal is open. The
+   suspension is re-applied every frame because a rebuilt menu comes back unsuspended. The pad can no longer select a menu
+   control hidden behind the scrim.
+
+Tests: `ShellModalStackingEditModeTests` (2).
+
+⚠ Open: a browser check after the next release (throttled network, skipped intro, older last-seen version) and a pad pass
+over the open dialog.
+
+---
+
 ### 🎆 VFX overhaul — weapons, scanners, mining and gadgets, on foot and in flight (#2159: #2151–#2158, 2026-10-01, branch feat/vfx-overhaul) — ✅ done (released in v2026.10.1; ⚠ playtest open)
 
 **Analysis (2026-10-01).** The effects were functional but basic. On foot, nearly everything was a short-lived opaque

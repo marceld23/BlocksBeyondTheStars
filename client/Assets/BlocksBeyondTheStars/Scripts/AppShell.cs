@@ -1728,6 +1728,15 @@ namespace BlocksBeyondTheStars.Client
                 _uiMenu = null;
             }
 
+            // A shell modal over the menu owns the pad (#2165): the menu's own pad focus is suspended while one is
+            // up, so it neither races the modal for an empty selection nor keeps one on a control hidden behind
+            // the scrim. Re-applied every frame — a rebuilt menu (late content load, #1368 re-arm) comes back with
+            // a fresh, unsuspended UiNavFocus. A no-op while nothing changes.
+            if (_uiMenu != null)
+            {
+                UiNav.SetSuspended(_uiMenu, _uiWhatsNew != null || _uiUpdateNotice != null);
+            }
+
             if (Phase == ShellPhase.Loading && _uiLoading == null)
             {
                 _uiLoading = UiLoading.Build(this);
