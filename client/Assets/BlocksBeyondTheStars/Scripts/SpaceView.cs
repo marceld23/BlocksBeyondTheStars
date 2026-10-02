@@ -814,118 +814,56 @@ namespace BlocksBeyondTheStars.Client
                 FxLights.Remove(_engineLight);
             }
 
-            var rear = _nozzles.Count > 0 ? _nozzles[0] : new Vector3(bounds.center.x, bounds.center.y, bounds.min.z - 0.5f);
-            _engineLight = FxLights.Attach(_ship.transform, rear, new Color(0.55f, 0.8f, 1f), 0.6f, 9f, flicker: true);
+            _engineLight = FxLights.Attach(_ship.transform, EngineLightPoint(bounds), new Color(0.55f, 0.8f, 1f), 0.6f, 9f, flicker: true);
         }
 
-        /// <summary>One plume per engine nozzle (#2157): the nozzle blocks whose rear (-Z) neighbour is open get a
-        /// thruster each (max 6); the default centred plume moves onto the first. Ships without nozzle blocks keep
-        /// the single centred plume.</summary>
+        /// <summary>One plume per ENGINE (#2157, #2162): the hull's engine blocks, grouped into engines by
+        /// <c>ShipMeshBuilder.ExhaustPoints</c>, each get a thruster sized by the engine (a 2×2 engine block flames twice as wide as a single nozzle). The biggest one
+        /// is the throttle-driven <see cref="_thruster"/>, the rest follow it. The stock ships' engines used to be
+        /// plain hull blocks, so this found none and the one centred plume sat on the rear door; a hull without any
+        /// engine now flames from its lower rear corners instead.</summary>
         private void BuildNozzlePlumes(Transform ship, Dictionary<Vector3i, BlockId> cells)
         {
             _nozzles.Clear();
             _extraThrusters.Clear();
-            if (cells == null || Game?.Content == null)
+            _thruster = null;
+            _exhaust = null; // the engine blocks glow themselves — no stand-in exhaust cube on the voxel ship
+            foreach (var (local, size) in ShipMeshBuilder.ExhaustPoints(Game?.Content, cells, _shipCentre))
             {
-                return;
-            }
-
-            foreach (var kv in cells)
-            {
-                string key = Game.Content.BlockById(kv.Value)?.Key ?? string.Empty;
-                if (key != "engine_nozzle" && key != "ship_engine")
+                var ps = BuildThruster(ship, local, size);
+                _nozzles.Add(local);
+                if (ps == null)
                 {
                     continue;
                 }
 
-                var behind = new Vector3i(kv.Key.X, kv.Key.Y, kv.Key.Z - 1);
-                if (cells.ContainsKey(behind))
+                if (_thruster == null)
                 {
-                    continue; // buried inside the hull — no exhaust there
+                    _thruster = ps;
                 }
-
-                var local = new Vector3(kv.Key.X + 0.5f, kv.Key.Y + 0.5f, kv.Key.Z - 0.1f) - _shipCentre;
-                bool near = false;
-                foreach (var n in _nozzles)
+                else
                 {
-                    if ((n - local).sqrMagnitude < 1.2f)
-                    {
-                        near = true;
-                        break;
-                    }
+                    _extraThrusters.Add(ps);
                 }
-
-                if (!near)
-                {
-                    _nozzles.Add(local);
-                }
-
-                if (_nozzles.Count >= 6)
-                {
-                    break;
-                }
-            }
-
-            if (_nozzles.Count == 0)
-            {
-                return;
-            }
-
-            if (_thruster != null)
-            {
-                _thruster.transform.localPosition = _nozzles[0];
-            }
-
-            if (_exhaust != null)
-            {
-                _exhaust.localPosition = _nozzles[0];
-            }
-
-            for (int i = 1; i < _nozzles.Count; i++)
-            {
-                var keep = _thruster;
-                BuildThruster(ship, _nozzles[i]);
-                if (_thruster != null && _thruster != keep)
-                {
-                    _extraThrusters.Add(_thruster);
-                }
-
-                _thruster = keep;
             }
         }
 
-        /// <summary>The stern centre of a hull in its own local space (the plume of a remote voxel ship).</summary>
-        private static Vector3 SternOf(GameObject hull)
+        /// <summary>The ship-local point the engine light hangs at: the middle of the exhausts (#2162); the stand-in
+        /// model's exhaust cube, or else behind the lower stern, when there are none.</summary>
+        private Vector3 EngineLightPoint(Bounds bounds)
         {
-            float minZ = float.MaxValue;
+            if (_nozzles.Count == 0)
+            {
+                return _exhaust != null ? _exhaust.localPosition : new Vector3(bounds.center.x, bounds.min.y + 0.5f, bounds.min.z - 0.5f);
+            }
+
             var sum = Vector3.zero;
-            int n = 0;
-            foreach (var mf in hull.GetComponentsInChildren<MeshFilter>(false))
+            foreach (var n in _nozzles)
             {
-                if (mf.sharedMesh == null)
-                {
-                    continue;
-                }
-
-                var b = mf.sharedMesh.bounds;
-                var m = hull.transform.worldToLocalMatrix * mf.transform.localToWorldMatrix;
-                for (int i = 0; i < 8; i++)
-                {
-                    var corner = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
-                    var lp = m.MultiplyPoint3x4(corner);
-                    minZ = Mathf.Min(minZ, lp.z);
-                    sum += lp;
-                    n++;
-                }
+                sum += n;
             }
 
-            if (n == 0)
-            {
-                return new Vector3(0f, 0f, -2f);
-            }
-
-            var c = sum / n;
-            return new Vector3(c.x, c.y, minZ - 0.2f);
+            return sum / _nozzles.Count + Vector3.back * 0.4f;
         }
 
         /// <summary>Engine plumes on the hostile ship models at their engine glow parts (#2157).</summary>
@@ -1011,13 +949,14 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Builds the real engine-flame thruster: a backward cone of additive blue-white particles that
         /// fade + shrink, parented at the ship's exhaust vent. Emission + jet speed are driven each frame in
-        /// LateUpdate from the throttle. Replaces the old stretched cube + Unlit cube exhaust bits.</summary>
-        private void BuildThruster(Transform ship, Vector3 localPos)
+        /// LateUpdate from the throttle. Replaces the old stretched cube + Unlit cube exhaust bits. <paramref name="size"/>
+        /// widens and lengthens the jet for a bigger engine (#2162: a 2×2 engine block = 2). Null without the shader.</summary>
+        private static ParticleSystem BuildThruster(Transform ship, Vector3 localPos, float size = 1f)
         {
             var shader = Shader.Find("BlocksBeyondTheStars/Particle");
             if (shader == null)
             {
-                return;
+                return null;
             }
 
             var go = new GameObject("Thruster");
@@ -1029,9 +968,9 @@ namespace BlocksBeyondTheStars.Client
             ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
             var main = ps.main;
-            main.startLifetime = 0.35f;
+            main.startLifetime = 0.35f * (0.6f + 0.4f * size);
             main.startSpeed = 7f;
-            main.startSize = new ParticleSystem.MinMaxCurve(0.18f, 0.42f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.18f * size, 0.42f * size);
             main.startColor = new Color(0.6f, 0.85f, 1f, 1f);
             main.maxParticles = 240;
             main.simulationSpace = ParticleSystemSimulationSpace.Local; // the flame stays attached to the engine
@@ -1043,7 +982,7 @@ namespace BlocksBeyondTheStars.Client
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Cone;
             shape.angle = 11f;
-            shape.radius = 0.22f;
+            shape.radius = 0.22f * size;
 
             var col = ps.colorOverLifetime;
             col.enabled = true;
@@ -1070,7 +1009,7 @@ namespace BlocksBeyondTheStars.Client
             r.sortMode = ParticleSystemSortMode.None;
 
             ps.Play();
-            _thruster = ps;
+            return ps;
         }
 
         private static Texture2D _thrusterDot;
@@ -4072,7 +4011,7 @@ namespace BlocksBeyondTheStars.Client
             // Glowing thruster exhaust (stretches with throttle in Update).
             var ex = Cube("Exhaust", ship.transform, new Vector3(0f, 0f, -2.4f), new Vector3(0.6f, 0.6f, 1f), Unlit(new Color(0.6f, 0.85f, 1f)));
             _exhaust = ex.transform;
-            BuildThruster(ship.transform, ex.transform.localPosition);
+            _thruster = BuildThruster(ship.transform, ex.transform.localPosition);
             return ship;
         }
 
@@ -4118,16 +4057,13 @@ namespace BlocksBeyondTheStars.Client
             _shipVox.SetParent(ship.transform, false);
             RebuildShipVoxels();
 
-            // Tail FX, placed just behind the hull's rear (-Z) face so the EVA hatch pulse + throttle exhaust
-            // still read on the voxel ship. Local Z of the rear face after centring:
+            // Tail FX, placed just behind the hull's rear (-Z) face so the EVA hatch pulse still reads on the voxel
+            // ship. Local Z of the rear face after centring:
             float rearZ = minZ - _shipCentre.z;
             float lowY = minY - _shipCentre.y + 0.5f;
             _hatchMat = Unlit(new Color(0.2f, 0.85f, 1f));
             Cube("Hatch", ship.transform, new Vector3(0f, lowY, rearZ + 0.1f), new Vector3(1.0f, 0.6f, 0.25f), _hatchMat);
-            var ex = Cube("Exhaust", ship.transform, new Vector3(0f, 0f, rearZ - 0.6f), new Vector3(0.6f, 0.6f, 1f), Unlit(new Color(0.6f, 0.85f, 1f)));
-            _exhaust = ex.transform;
-            BuildThruster(ship.transform, ex.transform.localPosition);
-            BuildNozzlePlumes(ship.transform, cells); // #2157: one plume per real engine nozzle
+            BuildNozzlePlumes(ship.transform, cells); // #2157/#2162: one plume per real engine, none on the door
 
             // Cap the rear hatch opening with a powered energy door so the ship isn't a hole at the stern (you
             // used to see straight into the hull). The field drops (hides) on an EVA so you can still board.
@@ -4721,7 +4657,16 @@ namespace BlocksBeyondTheStars.Client
                             Destroy(av.Ship);
                             vox.transform.localScale = Vector3.one * FlightShipScale; // same compact flight scale as the own ship
                             av.Ship = vox;
-                            av.Plume = SpaceFx.EnginePlume(vox.transform, SternOf(vox), 1f, new Color(0.6f, 0.82f, 1f)); // #2157
+                            // #2157/#2162: a plume on each of their engines (it used to sit on their rear door).
+                            av.Plume = null;
+                            foreach (var (exLocal, exSize) in ShipMeshBuilder.ExhaustPoints(Game.Content, rd))
+                            {
+                                var exPlume = SpaceFx.EnginePlume(vox.transform, exLocal, exSize, new Color(0.6f, 0.82f, 1f));
+                                if (av.Plume == null)
+                                {
+                                    av.Plume = exPlume;
+                                }
+                            }
                             av.HullMat = null; // a voxel ship carries its real block textures — paint is meshed in
                             av.Voxel = true;
                             av.HullRgb = hullRgb;

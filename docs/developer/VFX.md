@@ -177,11 +177,15 @@ Gadget outcomes play on the server's confirmation (`ActionFx.Outcome`). A refuse
 - **Destruction:**
   - Hostiles explode: flash, fireball glows, shockwave ring, their cube parts tumbling away, light, distance-scaled trauma and sound.
   - Asteroids break up into floating rock chunks with ore glints.
-- **Engines:**
-  - One plume per real `engine_nozzle`/`ship_engine` stern block (max 6).
-  - A world-space glow trail.
-  - An engine FX light that follows throttle.
-  - Other players' ships and hostile cruisers/bandit ships have plumes too.
+- **Engines** (placement fixed in #2162):
+  - The plumes sit on the hull's real engines. An engine is a group of touching `engine_nozzle`/`ship_engine` blocks with open space behind them (−Z).
+    - `ShipExhausts` (Client.Core, unit-tested) groups the blocks into engines. `ShipMeshBuilder.ExhaustPoints` turns them into ship-local points.
+    - Each engine gets one plume at the middle of its open rear faces (max 6, biggest first). The plume grows with the engine: a 2×2 engine block flames twice as wide as a single nozzle.
+  - The server stamps the stock ships' engines as `engine_nozzle`: a ship layout's `engine` element and the starter box ship's two rear corner nozzles. Before #2162 they were plain `carbon`, the client found no engine, and the one centred plume sat on the rear door.
+  - A hull with no engine block (a bare custom build) flames from its lower rear corners, never from the middle of the stern, where the boarding door is.
+  - A world-space glow trail streams from the engines.
+  - An engine FX light sits between the engines and follows the throttle.
+  - Other players' ships get the same per-engine plumes in flight (from their design). So does their landing or launch seen from the surface (`ShipTransitView`). Hostile cruisers and bandit ships have plumes too.
   - A throttle surge punches the FOV.
 - **Speed and lighting:** `FxSpaceDust` turns velocity into streaks. Flight motion blur finally follows speed (`UrpScenePost.SetMotion` had no caller). The hull is lit from the system's star (`Sky.SpaceSunDir`).
 - **Hyperjump** (`HyperspaceWarp`): an `FxTunnel` around the camera, the dust stretched into star lines, FOV punch at the flash; the 2D overlay remains as a faint wash.

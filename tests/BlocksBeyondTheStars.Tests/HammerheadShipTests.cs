@@ -86,6 +86,31 @@ public sealed class HammerheadShipTests : IDisposable
     }
 
     [Fact]
+    public void HammerheadStructure_EnginesAreNozzleBlocks_AndTheShipNeedsNoRepair()
+    {
+        // #2162: a layout's "engine" element stamps as the real nozzle block (it was carbon, so the client parked every
+        // exhaust plume on the rear door). Every engine cell of the layout — the two 2×2 blocks and the single nozzles
+        // at the stern — must carry it, and the fresh ship must not read as needing repair.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var content = ContentLoader.LoadFromDirectory(_dataDir);
+            var nozzle = content.GetBlock("engine_nozzle")!.NumericId!.Value;
+            var layout = content.GetShipLayout("ship_hammerhead")!;
+            var engines = layout.Cells.Where(c => c.Id == "engine").ToList();
+            Assert.NotEmpty(engines);
+
+            var s = server.BuildShipStructureForTest("Host");
+            foreach (var cell in engines)
+            {
+                Assert.Equal(nozzle, s.Get(new Vector3i(cell.X, cell.Y, cell.Z)).Value);
+            }
+
+            Assert.Equal(0, server.ShipRepairMissingCellsForTest("Host"));
+        }
+    }
+
+    [Fact]
     public void HammerheadStructure_RegistersFourDoors_AndAllRoomStations()
     {
         var server = Started(out var repo);

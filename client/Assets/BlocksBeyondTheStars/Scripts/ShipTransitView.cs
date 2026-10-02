@@ -24,6 +24,7 @@ namespace BlocksBeyondTheStars.Client
         {
             public Transform Root;
             public Light Engine;
+            public List<(Vector3 Local, float Size)> Exhausts; // #2162: the voxel ship's engines (root-local); empty → the light's spot
             public float T;
             public bool Landing;
             public float GroundY;
@@ -72,12 +73,22 @@ namespace BlocksBeyondTheStars.Client
 
                     // #2157: visible engine fire under every ship — the voxel ship used to land with no flame at all
                     // (only the fallback silhouette had a flame cube): a downward stream of glow + a ground glow.
-                    var nozzle = tr.Engine.transform.position;
-                    int n = Mathf.RoundToInt(3f * near * FxKit.Density) + (near > 0.2f ? 1 : 0);
+                    // #2162: out of the ship's real engines, bigger engines breathing bigger glow.
+                    int engines = tr.Exhausts?.Count ?? 0;
+                    int n = Mathf.RoundToInt(3f * near * FxKit.Density * Mathf.Sqrt(Mathf.Max(1, engines))) + (near > 0.2f ? 1 : 0);
                     for (int k = 0; k < n; k++)
                     {
-                        FxKit.Emit(FxKit.Kind.Glow, nozzle + Random.insideUnitSphere * 0.3f, Vector3.down * Random.Range(6f, 12f),
-                            Random.Range(0.4f, 0.8f), Random.Range(0.12f, 0.22f), Color.Lerp(new Color(1f, 0.6f, 0.25f), new Color(1f, 0.9f, 0.6f), Random.value));
+                        var nozzle = tr.Engine.transform.position;
+                        float size = 1f;
+                        if (engines > 0)
+                        {
+                            var ex = tr.Exhausts[Random.Range(0, engines)];
+                            nozzle = tr.Root.TransformPoint(ex.Local);
+                            size = ex.Size;
+                        }
+
+                        FxKit.Emit(FxKit.Kind.Glow, nozzle + Random.insideUnitSphere * 0.3f * size, Vector3.down * Random.Range(6f, 12f),
+                            Random.Range(0.4f, 0.8f) * size, Random.Range(0.12f, 0.22f), Color.Lerp(new Color(1f, 0.6f, 0.25f), new Color(1f, 0.9f, 0.6f), Random.value));
                     }
                 }
 
@@ -133,6 +144,7 @@ namespace BlocksBeyondTheStars.Client
             var hull = new Color(((hullRgb >> 16) & 0xFF) / 255f, ((hullRgb >> 8) & 0xFF) / 255f, (hullRgb & 0xFF) / 255f);
             GameObject root = null;
             Light engine = null;
+            List<(Vector3 Local, float Size)> exhausts = null;
             var design = Game.RemoteShipDesignFor(fx.PlayerId);
             if (ShipMeshBuilder.HasDesign(design))
             {
@@ -140,7 +152,9 @@ namespace BlocksBeyondTheStars.Client
                 root.transform.position = pos;
                 if (ShipMeshBuilder.BuildVoxelShip(Game, root.transform, design, out _, hull) != null)
                 {
-                    engine = AddEngineGlow(root.transform);
+                    // #2162: fire + glow at the ship's engines (the voxel ship sits unscaled at the root's origin).
+                    exhausts = ShipMeshBuilder.ExhaustPoints(Game.Content, design);
+                    engine = AddEngineGlow(root.transform, GlowPoint(exhausts));
                 }
                 else
                 {
@@ -154,16 +168,37 @@ namespace BlocksBeyondTheStars.Client
                 root = BuildShip(pos, hull, out engine);
             }
 
-            _active.Add(new Transit { Root = root.transform, Engine = engine, T = 0f, Landing = fx.Landing, GroundY = fx.Y });
+            _active.Add(new Transit { Root = root.transform, Engine = engine, Exhausts = exhausts, T = 0f, Landing = fx.Landing, GroundY = fx.Y });
             ClientAudio.Instance?.Cue("ship_launch"); // thruster roar (same cue your own launch uses)
         }
 
-        /// <summary>The warm under-hull thruster glow shared by both the voxel and the fallback ship.</summary>
-        private static Light AddEngineGlow(Transform parent)
+        /// <summary>The fallback silhouette's under-hull glow spot.</summary>
+        private static readonly Vector3 SilhouetteGlow = new Vector3(0f, -1.4f, -1.8f);
+
+        /// <summary>Where the thruster glow light hangs for a voxel ship: a little below the middle of its engines
+        /// (#2162), so it lights the pad under the stern.</summary>
+        private static Vector3 GlowPoint(List<(Vector3 Local, float Size)> exhausts)
+        {
+            if (exhausts == null || exhausts.Count == 0)
+            {
+                return SilhouetteGlow;
+            }
+
+            var sum = Vector3.zero;
+            foreach (var (local, _) in exhausts)
+            {
+                sum += local;
+            }
+
+            return sum / exhausts.Count + Vector3.down;
+        }
+
+        /// <summary>The warm thruster glow shared by both the voxel and the fallback ship.</summary>
+        private static Light AddEngineGlow(Transform parent, Vector3 localPos)
         {
             var lightGo = new GameObject("EngineGlow");
             lightGo.transform.SetParent(parent, false);
-            lightGo.transform.localPosition = new Vector3(0f, -1.4f, -1.8f);
+            lightGo.transform.localPosition = localPos;
             var engine = lightGo.AddComponent<Light>();
             FxLightBridge.Mirror(engine); // #2151: URP additional lights are off — light the pad through the FX lights
             engine.type = LightType.Point;
@@ -193,7 +228,7 @@ namespace BlocksBeyondTheStars.Client
             var flameMat = new Material(Shader.Find("Unlit/Color") ?? shader) { color = ShaderColor.Srgb(new Color(1f, 0.6f, 0.2f)) };
             Cube("Flame", root.transform, new Vector3(0f, -0.9f, -1.8f), new Vector3(0.9f, 1.4f, 0.9f), flameMat);
 
-            engine = AddEngineGlow(root.transform);
+            engine = AddEngineGlow(root.transform, SilhouetteGlow);
             return root;
         }
 

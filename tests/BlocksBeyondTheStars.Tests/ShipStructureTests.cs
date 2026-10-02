@@ -299,6 +299,24 @@ public sealed class ShipStructureTests : IDisposable
     }
 
     [Fact]
+    public void BoxShip_RearNozzles_AreEngineNozzleBlocks_AndTheShipNeedsNoRepair()
+    {
+        // #2162: the box (starter) ship's two rear corner nozzles stamped as plain carbon, so the client found no engine
+        // and parked its exhaust plume on the rear door. They are the real nozzle block now — and swapping the block
+        // must not make an untouched ship look damaged to the repair panel.
+        var server = Started(placeShip: true, out var repo);
+        using (repo)
+        {
+            var nozzle = _content.GetBlock("engine_nozzle")!.NumericId!.Value;
+            var s = server.BuildShipStructureForTest("Host");
+
+            Assert.Equal(nozzle, s.Get(new Vector3i(0, 1, -1)).Value);
+            Assert.Equal(nozzle, s.Get(new Vector3i(s.Width - 1, 1, -1)).Value);
+            Assert.Equal(0, server.ShipRepairMissingCellsForTest("Host"));
+        }
+    }
+
+    [Fact]
     public void ShipStructure_IsSeededFromTheShipDesign()
     {
         // item 20 S1: entering space carries the player's ship as a voxel structure (its own sparse block grid)
