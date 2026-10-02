@@ -242,6 +242,11 @@ namespace BlocksBeyondTheStars.Client
             _loading = new LoadingScreen(this);
             _intro = new IntroCinematic(this);
 
+            // The launcher scene has no camera, and the backdrop's camera needs the content — in the browser that is
+            // a whole download away. Until then nothing cleared the frame and every shell canvas left a ghost image
+            // (#2185); this one clears while no other camera draws and steps aside for every real one.
+            ShellClearCamera.Create();
+
             GlitchIntegration.InstallIfConfigured();
             if (ContentReady)
             {
@@ -927,6 +932,28 @@ namespace BlocksBeyondTheStars.Client
             // worldgen blocks the (single) thread.
             yield return null;
             yield return null;
+
+            // The browser menu is usable before the game data has arrived, and after every update the whole data set
+            // downloads again. Started without it, the in-process server threw in its constructor and the player got
+            // "could not be started in this browser" (#2186). Hold here instead, behind the loading screen — it shows
+            // the download meanwhile; a failed download belongs to the content-error overlay and its Retry.
+            while (!ContentReady)
+            {
+                if (Phase != ShellPhase.Loading)
+                {
+                    BrowserWorldBooting = false;
+                    yield break; // the shell moved on while the data was still loading
+                }
+
+                if (!string.IsNullOrEmpty(ContentLoadError))
+                {
+                    BrowserWorldBooting = false;
+                    ReturnToMenu();
+                    yield break;
+                }
+
+                yield return null;
+            }
 
             if (BrowserServer == null)
             {

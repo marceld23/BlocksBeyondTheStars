@@ -136,6 +136,22 @@ menu opens a one-time "What is your name?" modal (`AppShell.BrowserNamePromptPen
 prefills from the same peek when the settings hold no name. On a bare `/play/` (no `server_host`, no glitch
 `install_id`) Singleplayer leads and the Play button is not built at all — it could only dial 127.0.0.1.
 
+**The menu before the game data (#2185–#2187).** The browser menu is up before `StreamingAssetsCache` has fetched
+`StreamingAssets/data` and `LoadLocalizer` has parsed it: the bootstrap localizer (#831) localizes the shell from
+the two locale tables alone. The cache is stamped with `Application.version`, so the first visit after every
+release fetches the whole set again — 56 files, ~20 MB of JSON (2026-10). Three rules keep that window harmless:
+- **Something always clears the screen.** `Launcher.unity` holds no camera, and the backdrop's camera
+  (`MenuBackground`) needs the content. `ShellClearCamera` (created by `AppShell.Awake`) paints the frame black
+  while no other camera renders to the screen; without it every shell canvas left ghost images (#2185).
+- **Browser singleplayer waits for the content.** `BootBrowserSingleplayer` holds behind the loading screen until
+  `ContentReady`; the loading screen meanwhile shows "Loading game data… n/56" with the download as its bar. A
+  failed download hands over to the content-error overlay and its Retry. Started without content, the in-process
+  `GameServer` used to throw and the player saw "could not be started in this browser" (#2186).
+- **The data travels compressed.** Caddy's `encode zstd gzip` on the WorldHost site
+  (`deploy/worldhost/docker-compose.yml`) shrinks the JSON ~10–35× on the wire. Caddy's default type list leaves the
+  Unity build files alone: they are Brotli-packed already (`*.unityweb`) and go out as `application/octet-stream`.
+  A self-hosted portal without Caddy should compress `/play/StreamingAssets/` itself (#2187).
+
 ## Bottom line
 
 Treat the browser client as a **hosted Lite** path, not a replacement for the native desktop build. The largest

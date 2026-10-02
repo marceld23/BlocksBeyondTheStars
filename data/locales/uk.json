@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "Не вдалось дістатися стрічки новин — показую нотатки, що йдуть з цією версією.",
   "ui.whatsnew.empty": "Поки немає нотаток випуску.",
   "ui.loading.title": "Завантаження…",
+  "ui.loading.data": "Завантаження даних гри…",
   "ui.menu.system_check": "// СИСТЕМНА ПЕРЕВІРКА",
   "ui.sys.engines": "ДВИГУНИ",
   "ui.sys.shields": "ЩИТИ",

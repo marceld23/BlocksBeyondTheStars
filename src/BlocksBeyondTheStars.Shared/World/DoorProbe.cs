@@ -118,9 +118,9 @@ public static class DoorProbe
 
     /// <summary>
     /// Whether a world block is a jamb for a door a PLAYER places (#2146): a wall you would bump into. Fluids,
-    /// small flora (a flower, a grass tuft, a bush), torches, lanterns, ladders, fire and the walk-through energy
-    /// gate are none — the same blocks the client meshes without a collider. On a flower world a blossom in front
-    /// of the doorway used to count as a jamb, which put jambs on both axes and turned the door crosswise.
+    /// small flora (a flower, a grass tuft, a bush), tree crowns (#2184), torches, lanterns, ladders, fire and the
+    /// walk-through energy gate are none — the same blocks the client meshes without a collider. On a flower world a
+    /// blossom in front of the doorway used to count as a jamb, which put jambs on both axes and turned the door crosswise.
     /// </summary>
     public static bool IsJamb(BlockDefinition? def)
     {
@@ -142,7 +142,7 @@ public static class DoorProbe
                 return false;
         }
 
-        if (def.Key.StartsWith("flora_", StringComparison.Ordinal))
+        if (def.Key.StartsWith("flora_", StringComparison.Ordinal) || TreeFoliage.IsKey(def.Key))
         {
             return false;
         }

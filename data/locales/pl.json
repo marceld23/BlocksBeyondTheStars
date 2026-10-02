@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "Nie udało się połączyć z kanałem wiadomości — pokazuję notatki dołączone do tej wersji.",
   "ui.whatsnew.empty": "Brak notatek o wydaniu.",
   "ui.loading.title": "Ładowanie…",
+  "ui.loading.data": "Ładowanie danych gry…",
   "ui.menu.system_check": "// KONTROLA SYSTEMU",
   "ui.sys.engines": "SILNIKI",
   "ui.sys.shields": "TARCZE",

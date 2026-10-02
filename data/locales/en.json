@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "Couldn't reach the news feed — showing the notes bundled with this version.",
   "ui.whatsnew.empty": "No release notes available yet.",
   "ui.loading.title": "Loading…",
+  "ui.loading.data": "Loading game data…",
   "ui.menu.system_check": "// SYSTEM CHECK",
   "ui.sys.engines": "ENGINES",
   "ui.sys.shields": "SHIELDS",

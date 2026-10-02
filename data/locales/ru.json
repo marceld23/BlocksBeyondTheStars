@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "Не удалось связаться с лентой новостей — показываем заметки, идущие с этой версией.",
   "ui.whatsnew.empty": "Пока нет заметок к релизу.",
   "ui.loading.title": "Загрузка…",
+  "ui.loading.data": "Загрузка данных игры…",
   "ui.menu.system_check": "// ПРОВЕРКА СИСТЕМЫ",
   "ui.sys.engines": "ДВИГАТЕЛИ",
   "ui.sys.shields": "ЩИТЫ",

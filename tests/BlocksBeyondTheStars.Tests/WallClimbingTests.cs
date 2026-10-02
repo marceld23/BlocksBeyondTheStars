@@ -72,6 +72,7 @@ public sealed class WallClimbingTests : IDisposable
         Assert.Equal(ClimbSurface.None, ClimbSurfaces.Of(_content.GetBlock("water")));
         Assert.Equal(ClimbSurface.None, ClimbSurfaces.Of(_content.GetBlock("lava")));
         Assert.Equal(ClimbSurface.None, ClimbSurfaces.Of(null));
+        Assert.All(TreeFoliage.Keys, k => Assert.Equal(ClimbSurface.None, ClimbSurfaces.Of(_content.GetBlock(k)))); // walked through (#2184)
         Assert.All(_content.Blocks.Values.Where(b => b.Category == "door" || b.Liquid || b.Key.StartsWith("flora_", StringComparison.Ordinal)),
             b => Assert.Equal(ClimbSurface.None, ClimbSurfaces.Of(b)));
     }

@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "Haber akışına ulaşılamadı — bu sürümle gelen notlar gösteriliyor.",
   "ui.whatsnew.empty": "Henüz sürüm notu yok.",
   "ui.loading.title": "Yükleniyor…",
+  "ui.loading.data": "Oyun verileri yükleniyor…",
   "ui.menu.system_check": "// SİSTEM KONTROLÜ",
   "ui.sys.engines": "MOTORLAR",
   "ui.sys.shields": "KALKANLAR",

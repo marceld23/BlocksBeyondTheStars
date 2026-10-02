@@ -723,7 +723,8 @@ namespace BlocksBeyondTheStars.Client
                 // in) fire. Lava DOES collide: you stand on its surface (and take contact damage from the cell
                 // below) rather than dropping straight through it into a cave/void — you must not fall through
                 // lava. The energy gate is a walk-through membrane: players (and server-side NPCs) pass it,
-                // only fauna are held back by the server's fence check.
+                // only fauna are held back by the server's fence check. Tree crowns (#2184) are walked through
+                // like the plants below them.
                 bool collidable = (tf & TraitCollidable) != 0;
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
@@ -1793,8 +1794,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // #2085: the Fifi plant's yellow leaves are a cutout crown too — but no flora block, so they keep their colour.
-            return key == "tree_leaves" || key == "pine_needles" || key == "palm_frond" || key == "giant_leaves"
-                || BlocksBeyondTheStars.Shared.Definitions.FifiPlant.IsAuthoredFoliage(key)
+            return BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsKey(key)
                 || (key.StartsWith("flora_", System.StringComparison.Ordinal) && !SolidFlora.Contains(key));
         }
 
@@ -2265,7 +2265,10 @@ namespace BlocksBeyondTheStars.Client
                     if (IsClearGlassSlow(content, id)) f |= TraitClearGlass;
                     if (IsWoodBlockSlow(content, id)) f |= TraitWood;
                     bool liquid = content.BlockById(id)?.Liquid ?? false; // #2106: oil — you sink into it like water
-                    if (key != "water" && key != "fire" && key != "energy_gate" && !liquid) f |= TraitCollidable;
+                    // #2184: a tree crown is walked through like a plant — drawn as before, but no collider (the trunk
+                    // beside it keeps its own: foliage never seals a neighbour's face, so that face is still emitted).
+                    bool crown = BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsKey(key);
+                    if (key != "water" && key != "fire" && key != "energy_gate" && !liquid && !crown) f |= TraitCollidable;
                     if (key != null && key.StartsWith("flora_", System.StringComparison.Ordinal)) f |= TraitFloraPrefix;
                     if (key != null && TallFlora.Contains(key)) f |= TraitTallFlora;
                     if (key != null && SolidFlora.Contains(key)) f |= TraitSolidFlora;

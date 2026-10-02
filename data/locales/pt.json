@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "Não foi possível acessar o feed de novidades — mostrando as notas incluídas com esta versão.",
   "ui.whatsnew.empty": "Nenhuma nota de versão disponível ainda.",
   "ui.loading.title": "Carregando…",
+  "ui.loading.data": "Carregando os dados do jogo…",
   "ui.menu.system_check": "// VERIFICAÇÃO DO SISTEMA",
   "ui.sys.engines": "MOTORES",
   "ui.sys.shields": "ESCUDOS",

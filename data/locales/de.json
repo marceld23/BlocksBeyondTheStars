@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "News-Feed nicht erreichbar — gezeigt werden die Notizen dieser Version.",
   "ui.whatsnew.empty": "Noch keine Release-Notizen verfügbar.",
   "ui.loading.title": "Lädt…",
+  "ui.loading.data": "Spieldaten werden geladen…",
   "ui.menu.system_check": "// SYSTEMCHECK",
   "ui.sys.engines": "TRIEBWERKE",
   "ui.sys.shields": "SCHILDE",

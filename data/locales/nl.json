@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "Kon de nieuwsfeed niet bereiken — de meegeleverde notities van deze versie worden getoond.",
   "ui.whatsnew.empty": "Nog geen release-opmerkingen beschikbaar.",
   "ui.loading.title": "Laden…",
+  "ui.loading.data": "Spelgegevens laden…",
   "ui.menu.system_check": "// SYSTEEMCONTROLE",
   "ui.sys.engines": "MOTOREN",
   "ui.sys.shields": "SCHILDEN",

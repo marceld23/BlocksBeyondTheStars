@@ -8,7 +8,7 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// <summary>How a wall block holds a climber (#2191). Ordered from no hold to the full hold.</summary>
 public enum ClimbSurface : byte
 {
-    /// <summary>No hold: air, liquids, plants, doors, glass — and ice for a climber without claws.</summary>
+    /// <summary>No hold: air, liquids, plants, tree crowns, doors, glass — and ice for a climber without claws.</summary>
     None = 0,
 
     /// <summary>Holds only a climber wearing climbing claws (ice).</summary>
@@ -47,7 +47,8 @@ public static class ClimbSurfaces
         if (def is null || !def.Solid || def.Liquid
             || def.Key is "air" or "lava" or "water" or "ladder"
             || def.Category == "door"
-            || def.Key.StartsWith("flora_", StringComparison.Ordinal))
+            || def.Key.StartsWith("flora_", StringComparison.Ordinal)
+            || TreeFoliage.IsKey(def.Key)) // #2184: a crown is walked through, so it gives no hold (the trunk does)
         {
             return ClimbSurface.None;
         }

@@ -838,7 +838,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 string key = def.Key;
-                if (key == "water" || key == "lava" || key == "tree_leaves" || key == "giant_leaves"
+                if (key == "water" || key == "lava" || TreeFoliage.IsKey(key)
                     || key.StartsWith("flora_", System.StringComparison.Ordinal))
                 {
                     continue; // stand on the bed, not on the surface, and not on a leaf

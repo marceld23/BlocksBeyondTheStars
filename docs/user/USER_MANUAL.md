@@ -1235,6 +1235,9 @@ effort.
   Leaves, needles and fronds drop as blocks now, so you can build and shape a canopy by hand — and a sapling
   planted on the dirt floor of a sealed station hall grows just like one on a planet, so an arboretum in orbit
   is a matter of dirt, saplings and headroom. A sapling you pick up stays a sapling.
+- **You walk through tree crowns** — leaves, needles and fronds — just like through grass and ferns; only the
+  trunk stops you. So you can't stand on top of a tree: you drop through the crown to the ground (or onto the
+  trunk). A hedge you build from leaves is decoration, not a wall. Crowns still hide you from view.
 
 ### Ruins & treasure chests
 - **Ruins** are the collapsed remains of fallen settlements — mostly surviving ground walls, one

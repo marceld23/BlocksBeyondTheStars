@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "Impossible d'accéder au fil d'actualités — affichage des notes incluses avec cette version.",
   "ui.whatsnew.empty": "Aucune note de version disponible pour l'instant.",
   "ui.loading.title": "Chargement…",
+  "ui.loading.data": "Chargement des données du jeu…",
   "ui.menu.system_check": "// CONTRÔLE SYSTÈME",
   "ui.sys.engines": "MOTEURS",
   "ui.sys.shields": "BOUCLIERS",

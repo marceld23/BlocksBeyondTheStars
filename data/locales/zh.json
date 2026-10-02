@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "无法获取新闻订阅 — 显示此版本随附的说明。",
   "ui.whatsnew.empty": "暂时没有发行说明。",
   "ui.loading.title": "加载中…",
+  "ui.loading.data": "正在加载游戏数据…",
   "ui.menu.system_check": "// 系统检查",
   "ui.sys.engines": "引擎",
   "ui.sys.shields": "护盾",
