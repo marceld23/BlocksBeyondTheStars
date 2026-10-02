@@ -161,6 +161,7 @@ namespace BlocksBeyondTheStars.Client
         public static GameObject Build(AppShell shell)
         {
             var canvas = UiKit.CreateCanvas("WhatsNewUI");
+            canvas.sortingOrder = UiKit.ShellModalSortingOrder; // above the menu even when it is rebuilt later (#2163)
             var root = canvas.transform;
             UiNav.Enable(canvas.gameObject);
 

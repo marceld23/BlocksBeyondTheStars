@@ -140,7 +140,10 @@ Three rules the component enforces so it never does harm off-screen:
   (the crafting pane rebuilds all three panels on every pick).
 
 `UiNav.SetSuspended(root, true)` hands the sticks to a screen's 3D viewport and clears the selection — used by
-the ship and face editors, where **Menu** (Start) swaps between panel and viewport focus. `WantsFocus`, `FocusTarget()`
+the ship and face editors, where **Menu** (Start) swaps between panel and viewport focus. `AppShell` uses the same
+switch to park the **main menu** while a shell modal on its own canvas ("What's new?", the update notice) is open
+over it, re-applied every frame because a rebuilt menu comes back unsuspended (#2165). Those modals also sit at
+`UiKit.ShellModalSortingOrder`, so a menu rebuilt behind them cannot draw or raycast over them (#2163). `WantsFocus`, `FocusTarget()`
 and `NoteSelection()` are the seams `UiNavEditModeTests` checks, since CI has no pad.
 
 Beyond claiming the selection, `UiNavFocus` supplies the three things a mouse pointer gives a menu for free

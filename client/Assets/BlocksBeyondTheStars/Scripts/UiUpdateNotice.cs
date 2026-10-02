@@ -19,6 +19,7 @@ namespace BlocksBeyondTheStars.Client
         public static GameObject Build(AppShell shell)
         {
             var canvas = UiKit.CreateCanvas("UpdateNoticeUI");
+            canvas.sortingOrder = UiKit.ShellModalSortingOrder; // above the menu by rule, not by creation order (#2164)
             var root = canvas.transform;
             UiNav.Enable(canvas.gameObject); // gamepad can answer the dialog too
 
