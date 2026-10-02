@@ -271,15 +271,19 @@ public sealed partial class GameServer
 
     private static (double X, double Z) CentreOf(SettlementInstance s) => ((s.Min.X + s.Max.X) * 0.5, (s.Min.Z + s.Max.Z) * 0.5);
 
-    /// <summary>The world's roll for its line, uniform in [0, 1): the seed and the body id through a SplitMix64 finaliser —
-    /// a lane of its own. (The first draw of a <see cref="Random"/> seeded with <c>seed ^ hash</c> is not uniform across
-    /// small world seeds: those seeds differ only in their low bits, and the legacy generator's first value follows the
-    /// seed almost linearly — every probed test seed rolled the same side of 0.6.)</summary>
-    internal static double IntercityRoll(long worldSeed, string locationId)
+    /// <summary>The world's roll for its line (see <see cref="LaneRoll"/>).</summary>
+    internal static double IntercityRoll(long worldSeed, string locationId) => LaneRoll(worldSeed, "intercity:" + locationId);
+
+    /// <summary>A world's roll on a lane of its own, uniform in [0, 1): the seed and the lane name (the feature and the body
+    /// id) through a SplitMix64 finaliser. (The first draw of a <see cref="Random"/> seeded with <c>seed ^ hash</c> is not
+    /// uniform across small world seeds: those seeds differ only in their low bits, and the legacy generator's first value
+    /// follows the seed almost linearly — every probed test seed rolled the same side of 0.6.) The intercity line (#2125)
+    /// and the abandoned station (#2166) each roll on their own lane.</summary>
+    internal static double LaneRoll(long worldSeed, string lane)
     {
         unchecked
         {
-            ulong z = (ulong)(worldSeed ^ WorldGenerator.StableHash("intercity:" + locationId));
+            ulong z = (ulong)(worldSeed ^ WorldGenerator.StableHash(lane));
             z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
             z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
             z ^= z >> 31;

@@ -2242,3 +2242,26 @@ clear corridor, and a public train you can ride whenever it is there and waiting
 
 The stations, the corridor carve, protection, the public train and the map markers are described in
 [MONORAIL.md](MONORAIL.md) §"The intercity line". Tests: `IntercityRailTests`.
+
+## 36. Generation 20 — the abandoned monorail stations (#2166, 2026-10-02, Justus' idea)
+
+**The ruin of an old station on some worlds.** Justus' original "abandoned train stations", built a generation after the
+working line: a fallen station hall out in the open country — the working station's ground plan with a caved-in roof,
+dark lamps and edges, a derelict wagon on the track bed, the dead line beyond, salvage and station notices. Marcel's rail
+rules hold (no tickets, no ID cards, no vending machines).
+
+- **The gate.** `WorldDescription.RailRuinGeneration` = 20 (`CurrentTerrainGeneration` 19 → 20). Like the intercity line it
+  is a server-side stamp, so every chunk of every generation stays bit-identical and no golden moves; the gate only keeps
+  a ruin from ever growing into a world created before it.
+- **Which worlds and the roll.** Not void, not a gas world, not airless, no structure whitelist. At most one per world:
+  `ServerConfig.RailRuinChance` (0.35) times the structures-frequency factor (clamped to 0..2), rolled once with
+  `LaneRoll(seed, "railruin:" + body)` — its own lane, so no other stream moves.
+- **Reserved, pinned, stamped once.** `StampRailRuins` runs directly after `StampRuins` and keeps clear of the pads, the
+  wreck site, every settlement, the intercity line and the ruins of the same load (`LoadedWorld.RuinFootprints`); every
+  later stamper keeps clear of it (bandit camps, factories, monuments via `AppendRailRuinReservations`; the wreck, vaults,
+  data cubes, chests and unique sites via `OverlapsAnySettlement`). The decision is pinned in the placement records
+  (`rail_ruin`/0, `Template` = `heading=N`, a skip when the roll says no), the voxels are written once (feature
+  `railruins`) and, like every ruin, are not protected.
+
+The hall, the wagon, the dead line, the salvage and the station notices are described in [MONORAIL.md](MONORAIL.md)
+§"Abandoned stations". Tests: `RailRuinTests`.

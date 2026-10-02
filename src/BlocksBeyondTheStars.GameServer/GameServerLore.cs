@@ -82,8 +82,9 @@ public sealed partial class GameServer
         string rest = containerId.Substring("loot_".Length);
 
         // The one-of-a-kind sites (#1129) OWN their lore voice — checked before the generic terminal
-        // sniff so the observatory's survey terminal speaks as the observatory, not as "a terminal".
-        foreach (var kind in new[] { "alien_shrine", "observatory", "derelict", "sps_lab" })
+        // sniff so the observatory's survey terminal speaks as the observatory, not as "a terminal". The abandoned
+        // monorail station (#2166) speaks in station notices — and must be caught before the generic "ruin".
+        foreach (var kind in new[] { "alien_shrine", "observatory", "derelict", "sps_lab", "rail_ruin" })
         {
             if (rest.StartsWith(kind + "_", System.StringComparison.Ordinal))
             {

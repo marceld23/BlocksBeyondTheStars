@@ -643,6 +643,15 @@ public sealed partial class GameServer
             }
         }
 
+        for (int i = 0; i < _railRuins.Count; i++)
+        {
+            var c = _railRuins[i].Centre;
+            if (WrapDistSq(flat, new Vector3f(c.X, 0f, c.Z)) <= near2)
+            {
+                add("ruin_near", Localize(session.Locale, "poi.rail_ruin"), "rail_ruin:" + i); // #2166
+            }
+        }
+
         foreach (var f in _factories)
         {
             if (WrapDistSq(flat, new Vector3f(f.TerminalPos.X, 0f, f.TerminalPos.Z)) <= near2)

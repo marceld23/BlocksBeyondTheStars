@@ -101,6 +101,7 @@ public sealed class FactoryStructureTests : IDisposable
             PlaceStarterShip = false,
             PlaceSettlements = false,
             PlaceRuins = false,
+            PlaceRailRuins = false, // #2166
             PlaceChests = false,
             PlaceWrecks = false,
             PlaceVaults = false,

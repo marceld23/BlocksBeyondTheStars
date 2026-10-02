@@ -43,6 +43,7 @@ public sealed class StructureInteractionTests : IDisposable
             PlaceWrecks = wrecks,
             // These tests assert on the wreck's containers specifically — keep standalone loot sources out.
             PlaceRuins = false,
+            PlaceRailRuins = false, // #2166
             PlaceChests = false,
             PlaceVaults = false,
             PlaceFactories = false,

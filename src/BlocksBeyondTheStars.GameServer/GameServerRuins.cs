@@ -141,8 +141,10 @@ public sealed partial class GameServer
                 Seat = seat,
                 Rng = ir,
             });
-            reserved.Add((origin.X + structure.Width / 2, origin.Z + structure.Length / 2,
-                structure.Width / 2 + 1, structure.Length / 2 + 1));
+            var footprint = (origin.X + structure.Width / 2, origin.Z + structure.Length / 2,
+                structure.Width / 2 + 1, structure.Length / 2 + 1);
+            reserved.Add(footprint);
+            _worlds.Active.RuinFootprints.Add(footprint); // #2166: the abandoned station decided next keeps clear of it
         }
 
         ReportStamp("ruin", count, placed.Count);

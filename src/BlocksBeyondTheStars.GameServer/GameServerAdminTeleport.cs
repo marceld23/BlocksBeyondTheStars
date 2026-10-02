@@ -41,7 +41,7 @@ public sealed partial class GameServer
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
     {
-        "ship", "pad", "city", "village", "ruin", "vault", "wreck", "factory", "camp", "monument", "treasure",
+        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "wreck", "factory", "camp", "monument", "treasure",
         "base", "beacon", "beam", "station",
     };
 
@@ -56,6 +56,7 @@ public sealed partial class GameServer
         "cities" or "town" or "towns" or "stadt" or "städte" or "staedte" => "city",
         "settlement" or "settlements" or "villages" or "dorf" or "dörfer" or "doerfer" or "siedlung" or "siedlungen" => "village",
         "ruins" or "settlement_ruin" => "ruin",
+        "railruins" or "rail_ruin" or "bahnhofsruine" => "railruin", // #2166: the abandoned monorail station
         "vaults" or "vault_ruin" => "vault",
         "wrecks" => "wreck",
         "factories" => "factory",
@@ -105,6 +106,11 @@ public sealed partial class GameServer
             };
             list.Add(new TeleportTarget(kind, number, Named(kind, number, s.Name),
                 InteriorSpot(s.Markers, s.Min, s.Max)));
+        }
+
+        for (int i = 0; i < _railRuins.Count; i++)
+        {
+            list.Add(new TeleportTarget("railruin", i + 1, $"railruin{i + 1}", RailRuinSpot(_railRuins[i]))); // #2166
         }
 
         for (int i = 0; i < _vaultEntrances.Count; i++)

@@ -766,6 +766,11 @@ public sealed partial class GameServer
 
                     if (!restricted)
                     {
+                        BootDetail("rail ruins", StampRailRuins); // #2166 (generation 20): an abandoned monorail station on some worlds — after the ruins, before every later structure
+                    }
+
+                    if (!restricted)
+                    {
                         BootDetail("bandit camps", StampBanditCamps); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
                     }
 

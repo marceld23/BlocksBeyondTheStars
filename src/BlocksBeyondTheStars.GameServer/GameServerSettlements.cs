@@ -1535,7 +1535,8 @@ public sealed partial class GameServer
             }
         }
 
-        return OverlapsIntercityRail(x, z, halfExtent); // #2125: the stations and the route belong to the towns
+        return OverlapsIntercityRail(x, z, halfExtent) // #2125: the stations and the route belong to the towns
+            || OverlapsRailRuin(x, z, halfExtent);     // #2166: the abandoned monorail station
     }
 
     // --- count + balance model ----------------------------------------------------------------------------

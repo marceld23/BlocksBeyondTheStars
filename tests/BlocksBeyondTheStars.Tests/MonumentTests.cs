@@ -44,6 +44,7 @@ public sealed class MonumentTests : IDisposable
             PlaceStarterShip = false,
             PlaceSettlements = false,
             PlaceRuins = false,
+            PlaceRailRuins = false, // #2166
             PlaceChests = false,
             PlaceWrecks = false,
             PlaceVaults = false,

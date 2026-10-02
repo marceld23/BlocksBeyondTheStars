@@ -41,6 +41,7 @@ public sealed class NpcHintTests : IDisposable
         PlaceWrecks = wrecks,
         PlaceChests = chests,
         PlaceRuins = false,
+        PlaceRailRuins = false, // #2166
         PlaceVaults = false,
         PlaceDataCubes = false,
     };
