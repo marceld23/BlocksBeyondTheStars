@@ -89,6 +89,7 @@ namespace BlocksBeyondTheStars.Client
         private static bool _loading;
         private static string _dataDir;
         private static int _remoteFileCount;
+        private static int _remoteFileTotal;
 
         [Serializable]
         private sealed class Manifest
@@ -99,6 +100,10 @@ namespace BlocksBeyondTheStars.Client
         public static bool UsesRemoteStreamingAssets => IsHttpUrl(Application.streamingAssetsPath);
         public static bool IsReady => _ready;
         public static int RemoteFileCount => _remoteFileCount;
+
+        /// <summary>How many files the remote download fetches in total (0 until the manifest is read) — with
+        /// <see cref="RemoteFileCount"/> the progress the browser loading screen shows while it waits (#2186).</summary>
+        public static int RemoteFileTotal => _remoteFileTotal;
 
         /// <summary>The built-in file list, for the build-time staleness check in <c>BuildScript</c>.</summary>
         public static IReadOnlyList<string> FallbackManifestFiles => FallbackManifest;
@@ -274,8 +279,10 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            _remoteFileTotal = wanted.Count;
+
             // The content only changes with a new build, so a cache that already matches this build is
-            // reused as-is. Before that every startup deleted and re-downloaded the whole ~1.6 MB tree.
+            // reused as-is. Before that every startup deleted and re-downloaded the whole tree.
             string stamp = BuildStamp(manifestText, wanted);
             if (CacheMatches(cacheDir, stamp, wanted))
             {

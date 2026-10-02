@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "뉴스 피드에 연결할 수 없습니다 — 이 버전과 함께 제공된 노트를 표시합니다.",
   "ui.whatsnew.empty": "릴리스 노트가 없습니다.",
   "ui.loading.title": "불러오는 중…",
+  "ui.loading.data": "게임 데이터를 불러오는 중…",
   "ui.menu.system_check": "// 시스템 점검",
   "ui.sys.engines": "엔진",
   "ui.sys.shields": "실드",
