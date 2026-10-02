@@ -231,6 +231,18 @@ All cues are 3D at the device cell. See [CRYSTAL_NET.md](CRYSTAL_NET.md).
 Sixteen new ElevenLabs clips in total (`tools/ai-assets/gen_sound.py`, logged in `NOTICES.md`); the melody
 notes are the only new procedural cue. The lamp swap makes no sound.
 
+## 13. Wall climbing (#2193) — *ElevenLabs clips + the step set*
+
+Local, non-positional cues from `PlayerController` (see [CLIMBING.md](CLIMBING.md)). The grip has no HUD bar, so
+the breath is one of the ways the player feels it tiring.
+
+| Sound | Trigger | Files | Source |
+|---|---|---|---|
+| grab | a wall is grabbed, a pull-up starts | `climb_grab` | EL |
+| hand over hand | every ~0.55 s while moving on the wall (slower as the grip tires) | the wall's `step_*` clip | EL (existing) |
+| strained breath | every 2.2 → 1.3 s while the grip is below 25 % | `climb_strain` | EL |
+| slide | every 0.9 s while a spent grip slides down | `climb_slide` | EL |
+
 ---
 
 ## Totals & rollout

@@ -270,6 +270,16 @@
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 5 } ]
   },
   {
+    "key": "climbing_gloves", "nameKey": "blueprint.climbing_gloves.name", "descriptionKey": "blueprint.climbing_gloves.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 8,
+    "unlockCost": [ { "item": "plant_fiber", "count": 6 }, { "item": "iron_plate", "count": 2 } ]
+  },
+  {
+    "key": "climbing_claws", "nameKey": "blueprint.climbing_claws.name", "descriptionKey": "blueprint.climbing_claws.desc",
+    "category": "Suit", "prerequisites": [ "climbing_gloves" ], "knowledgeCost": 30,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 3 } ]
+  },
+  {
     "key": "helmet", "nameKey": "blueprint.helmet.name", "descriptionKey": "blueprint.helmet.desc",
     "category": "Suit", "prerequisites": [], "knowledgeCost": 14,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 8 }, { "item": "glass", "count": 3 } ]

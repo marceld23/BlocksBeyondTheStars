@@ -477,8 +477,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Hyperjump into a (possibly unvisited) star system, arriving in flight mode there.</summary>
         public void SendHyperjumpSystem(string systemId) => Send(new HyperjumpSystemIntent { SystemId = systemId });
 
-        public void SendMove(Vector3f pos, float yaw, float pitch)
-            => Send(new MoveIntent { X = pos.X, Y = pos.Y, Z = pos.Z, Yaw = yaw, Pitch = pitch }, DeliveryMode.Unreliable);
+        public void SendMove(Vector3f pos, float yaw, float pitch, bool climbing = false)
+            => Send(new MoveIntent { X = pos.X, Y = pos.Y, Z = pos.Z, Yaw = yaw, Pitch = pitch, Climbing = climbing }, DeliveryMode.Unreliable);
 
         public void SendMine(int x, int y, int z) => Send(new MineBlockIntent { X = x, Y = y, Z = z });
 

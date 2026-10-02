@@ -16,7 +16,7 @@ also keeps the generator scripts from painting over it.
 
 *(none yet)*
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (224 files, incl. the splash intro, the
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (262 files, incl. the splash intro, the
 `terrain_scan` prospecting pulse (Feature 40), the boat's outboard loop `boat_engine_loop` + `boat_splash`
 (#1215, `gen_sound.py`), the
 `jumave_sting` studio-splash whoosh-tada, the door SFX `door_slide_open`/`door_slide_close`/`door_hinge`
@@ -45,7 +45,8 @@ synthesised in code), and Toxica-Maxima's three clips (#2071: the poisoned-world
 two clips (#2079: the black-dunes ambience `amb_black_dunes`, the worm's `sandworm_swallow` — same `gen_sound.py`,
 2026-09-27), the drill laser's cut `drill_laser_zap` (#2108, same `gen_sound.py`, 2026-09-27), and the leviathan's four
 clips `leviathan_breach`, `leviathan_strike`, `leviathan_dive`, `leviathan_wake` (#2111, same `gen_sound.py`, 2026-09-27), and
-the gas giant's `amb_gas_giant` bed and `sky_giant_call` (#2112, same `gen_sound.py`, 2026-09-27))
+the gas giant's `amb_gas_giant` bed and `sky_giant_call` (#2112, same `gen_sound.py`, 2026-09-27), and the wall climber's
+three clips `climb_grab`, `climb_strain`, `climb_slide` (#2193, same `gen_sound.py`, 2026-10-03))
 are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/developer/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio
@@ -78,7 +79,7 @@ VEGA ship-AI set `item_ai_memory_fragment`/`item_ai_core_mk2`/`item_ai_core_mk3`
 set `item_creature_translator`/`item_forage_bait`/`item_meat_bait`/`item_nectar_lure`, and the
 material-variety tier `item_diamond`/`item_diamond_drill`/`item_polymer`/`item_biofuel`/`item_bronze_gear`/`item_brass_fitting`,
 the algae-tank food `item_algae_ration`, the fruit set (#2038: `item_fruit_round`/`item_fruit_long`/`item_fruit_grape`/`item_fruit_banana` and their `item_toxic_fruit_*` twins), the player-designed-form pair
-`item_shape_tool`/`item_shape_stencil`, the boat `item_boat` (#1215), the farmed cereal `item_grain` (#1204), the campfire meals `item_hearty_stew`/`item_algae_soup`/`item_mushroom_skewer` (#1203), the sandworm thumper `item_thumper` (#2002), and the Crystal Net's 24 device icons (#2045/#2058/#2092: `item_crystal_conduit`, `item_crystal_switch`, `item_crystal_button`, `item_step_plate`, `item_proximity_sensor`, `item_daylight_sensor`, `item_storage_sensor`, `item_watcher`, `item_logic_block`, `item_timer_block`, `item_alarm_siren`, `item_chime`, `item_horn`, `item_melody_block`, `item_announcer`, `item_fabricator`, `item_caller`, `item_clone_tank`, `item_auto_drill_1`/`_2`/`_3`, `item_matter_sender`, `item_matter_receiver`, `item_device_eye`), the contaminated meat `item_toxic_meat` (#2066) and the decontaminator ship module `item_decontaminator` (#2067), and the oil package's `item_fluid_pump` + `item_lubricant` (#2106/#2107), the suit boots `item_boots` (#2110) and the monorail's `item_rail_linker`, `item_rail_cab`, `item_wagon_seats`, `item_wagon_sleeper`, `item_wagon_bar` (#2113), and the planet scanner ship module `item_planet_scanner` (#2140)) are
+`item_shape_tool`/`item_shape_stencil`, the boat `item_boat` (#1215), the farmed cereal `item_grain` (#1204), the campfire meals `item_hearty_stew`/`item_algae_soup`/`item_mushroom_skewer` (#1203), the sandworm thumper `item_thumper` (#2002), and the Crystal Net's 24 device icons (#2045/#2058/#2092: `item_crystal_conduit`, `item_crystal_switch`, `item_crystal_button`, `item_step_plate`, `item_proximity_sensor`, `item_daylight_sensor`, `item_storage_sensor`, `item_watcher`, `item_logic_block`, `item_timer_block`, `item_alarm_siren`, `item_chime`, `item_horn`, `item_melody_block`, `item_announcer`, `item_fabricator`, `item_caller`, `item_clone_tank`, `item_auto_drill_1`/`_2`/`_3`, `item_matter_sender`, `item_matter_receiver`, `item_device_eye`), the contaminated meat `item_toxic_meat` (#2066) and the decontaminator ship module `item_decontaminator` (#2067), and the oil package's `item_fluid_pump` + `item_lubricant` (#2106/#2107), the suit boots `item_boots` (#2110) and the monorail's `item_rail_linker`, `item_rail_cab`, `item_wagon_seats`, `item_wagon_sleeper`, `item_wagon_bar` (#2113), and the planet scanner ship module `item_planet_scanner` (#2140), and the climbing gear `item_climbing_gloves` + `item_climbing_claws` (#2192)) are
 **AI-generated** with the same **OpenAI** image API
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.

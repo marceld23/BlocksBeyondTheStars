@@ -54,6 +54,10 @@ public sealed class MoveIntent
     /// (<c>RailRules.FrameId</c>: train and wagon) and X/Y/Z are then the wagon-local offset; the server derives the world
     /// position from the wagon pose it drives. Empty = a world pose, as always. Additive: an older client never sends it.</summary>
     public string FrameId { get; set; } = string.Empty;
+
+    /// <summary>#2193: the player hangs on a wall or a ladder — other clients pose the avatar climbing. Pure pose state
+    /// (on-foot movement is the client's); additive, an older client never sends it.</summary>
+    public bool Climbing { get; set; }
 }
 
 public sealed class MineBlockIntent
@@ -2400,7 +2404,11 @@ public sealed class PlayerPresence
     /// <summary>Sitting on a chair-shaped cell (#806) — other clients pose the avatar seated.</summary>
     public bool Seated { get; set; }
 
-    /// <summary>Equipped-gear bitmask shown on the avatar: 1=helmet, 2=chest, 4=legs, 8=pack, 16=lamp.</summary>
+    /// <summary>Hanging on a wall or a ladder (#2193) — other clients pose the avatar climbing, facing the wall.</summary>
+    public bool Climbing { get; set; }
+
+    /// <summary>Equipped-gear bitmask shown on the avatar: 1=helmet, 2=chest, 4=legs, 8=pack, 16=lamp, 32=boots, 64=tank,
+    /// 128=climbing gloves, 256=climbing claws.</summary>
     public int Gear { get; set; }
 
     /// <summary>Item key currently held (selected hotbar slot), shown in the avatar's hand; empty if none.</summary>

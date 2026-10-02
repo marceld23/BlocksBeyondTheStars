@@ -583,6 +583,10 @@ namespace BlocksBeyondTheStars.Client
         /// progress, so it lives here rather than in a server milestone.</summary>
         public bool ChartWaypointHintShown;
 
+        /// <summary>#2194: whether VEGA has told the player how to climb a wall (jump at it and hold on) — said once,
+        /// the first time they stand in front of a tall wall. A client-side one-shot lesson like the chart hint.</summary>
+        public bool ClimbHintShown;
+
         /// <summary>Show floating health bars over enemies and creatures in combat (#692) — planet surface
         /// and space flight alike. Purely cosmetic (the values are replicated either way); off hides them.</summary>
         public bool ShowEnemyHealthBars = true;

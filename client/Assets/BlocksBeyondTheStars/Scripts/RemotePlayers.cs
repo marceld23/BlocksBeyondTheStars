@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using UnityEngine;
 
@@ -34,6 +35,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Jetpacking;        // show a thrust flame under the avatar while firing
             public ParticleSystem Thrust;  // the persistent flame emitter (#1511), created on first use; dies with Go
             public bool Seated;            // sit pose (#806) — avatar lowered onto the chair seat
+            public bool Climbing;          // #2193: on a wall or a ladder — climb pose, turned to face the wall
             public Vector3f Reported;      // #2122: the newest reported world position (the seat check reads it)
             public string Frame = string.Empty; // #2113: aboard a train — the wagon frame and the offset in it
             public Vector3 Local;
@@ -214,7 +216,9 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     r.Go.transform.position = scene;
-                    r.Go.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+                    // #2193: a climber faces the wall they hang on, not where they look.
+                    float facing = r.Climbing && TryWallYaw(pos, yaw, out float wallYaw) ? wallYaw : yaw;
+                    r.Go.transform.rotation = Quaternion.Euler(0f, facing, 0f);
                 }
 
                 // Thrust flame under a jetpacking avatar: one persistent looping emitter per remote (#1511),
@@ -227,6 +231,46 @@ namespace BlocksBeyondTheStars.Client
 
                 WeaponFx.SetThrust(r.Thrust, thrust);
             }
+        }
+
+        private static readonly (int X, int Z)[] WallDirs = { (1, 0), (-1, 0), (0, 1), (0, -1) };
+
+        /// <summary>#2193: the heading that faces the wall a remote climber hangs on — the solid neighbour at hand height
+        /// in THIS client's copy of the world, the one closest to the reported look (a corner has two). No extra wire
+        /// field: the presence only says "climbing". False when no wall is found (a free-standing ladder pole).</summary>
+        private bool TryWallYaw(Vector3f pos, float lookYaw, out float wallYaw)
+        {
+            wallYaw = lookYaw;
+            var world = Game?.World;
+            var content = Game?.Content;
+            if (world == null || content == null)
+            {
+                return false;
+            }
+
+            bool found = false;
+            float best = float.MaxValue;
+            int y = Mathf.FloorToInt(pos.Y + ClimbProbe.HandHeight);
+            foreach (var (dx, dz) in WallDirs)
+            {
+                var def = content.BlockById(world.GetBlock(
+                    Mathf.FloorToInt(pos.X + (dx * ClimbProbe.WallReach)), y, Mathf.FloorToInt(pos.Z + (dz * ClimbProbe.WallReach))));
+                if (def == null || !PlayerController.IsCollidingKey(def.Key))
+                {
+                    continue;
+                }
+
+                float yaw = new WallHold(dx, dz, ClimbSurface.Normal).FacingYaw;
+                float off = Mathf.Abs(Mathf.DeltaAngle(lookYaw, yaw));
+                if (off < best)
+                {
+                    best = off;
+                    wallYaw = yaw;
+                    found = true;
+                }
+            }
+
+            return found;
         }
 
         private void OnPresence(PlayerPresence m)
@@ -298,6 +342,12 @@ namespace BlocksBeyondTheStars.Client
                 r.Avatar.SetSeated(m.Seated);
             }
 
+            if (m.Climbing != r.Climbing)
+            {
+                r.Climbing = m.Climbing;
+                r.Avatar.SetClimbing(m.Climbing);
+            }
+
             // Stealth field active, or the player is up in SPACE (the server stealth-marks orbiters so
             // no frozen ghost avatar keeps standing at the pad they launched from): hide avatar + plate.
             if (m.Stealthed != r.Hidden)
@@ -311,7 +361,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 r.Gear = m.Gear;
                 r.Avatar.SetGear((m.Gear & 1) != 0, (m.Gear & 2) != 0, (m.Gear & 4) != 0, (m.Gear & 8) != 0, (m.Gear & 16) != 0,
-                    (m.Gear & 32) != 0, (m.Gear & 64) != 0); // #2110: boots, tank
+                    (m.Gear & 32) != 0, (m.Gear & 64) != 0, // #2110: boots, tank
+                    (m.Gear & 128) != 0, (m.Gear & 256) != 0); // #2192: climbing gloves, claws
             }
 
             // Held tool/weapon/block shown in the remote avatar's hand.

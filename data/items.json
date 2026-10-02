@@ -80,6 +80,8 @@
   { "key": "armor_legs",      "nameKey": "item.armor_legs.name",      "category": "component", "equipSlot": "legs",  "maxStack": 1,    "descriptionKey": "item.armor_legs.desc", "armorResistance": 0.15, "thermalInsulation": 0.1 },
   { "key": "helmet",          "nameKey": "item.helmet.name",          "category": "component", "equipSlot": "head",  "maxStack": 1,    "descriptionKey": "item.helmet.desc", "armorResistance": 0.15, "thermalInsulation": 0.1 },
   { "key": "boots",           "nameKey": "item.boots.name",           "category": "component", "equipSlot": "feet", "maxStack": 1,    "descriptionKey": "item.boots.desc", "armorResistance": 0.1, "thermalInsulation": 0.1, "fallProtection": 0.35 },
+  { "key": "climbing_gloves", "nameKey": "item.climbing_gloves.name", "category": "component", "equipSlot": "module", "maxStack": 1,    "descriptionKey": "item.climbing_gloves.desc", "climbGrip": 0.4 },
+  { "key": "climbing_claws",  "nameKey": "item.climbing_claws.name",  "category": "component", "equipSlot": "module", "maxStack": 1,    "descriptionKey": "item.climbing_claws.desc", "climbGrip": 0.6, "climbIce": true },
   { "key": "oxygen_tank_2",   "nameKey": "item.oxygen_tank_2.name",   "category": "component", "equipSlot": "tank",  "maxStack": 1,    "descriptionKey": "item.oxygen_tank_2.desc", "oxygenBonus": 100 },
   { "key": "oxygen_tank_3",   "nameKey": "item.oxygen_tank_3.name",   "category": "component", "equipSlot": "tank",  "maxStack": 1,    "descriptionKey": "item.oxygen_tank_3.desc", "oxygenBonus": 200 },
   { "key": "suit_liner_1",    "nameKey": "item.suit_liner_1.name",    "category": "component", "equipSlot": "liner",  "maxStack": 1,    "descriptionKey": "item.suit_liner_1.desc", "thermalInsulation": 0.4, "corrosionResistance": 0.25 },

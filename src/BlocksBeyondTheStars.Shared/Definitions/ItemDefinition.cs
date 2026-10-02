@@ -142,6 +142,14 @@ public sealed class ItemDefinition
     /// absorbs before the fall damage is computed (summed, capped).</summary>
     public float FallProtection { get; set; }
 
+    /// <summary>Climbing grip 0..1 (#2192, the climbing gloves and claws): the share of a wall climber's grip drain the
+    /// worn gear takes away. Only the best worn piece counts (tiers, no stacking).</summary>
+    public float ClimbGrip { get; set; }
+
+    /// <summary>Whether the worn gear holds on icy walls and makes slippery ones grip like any other (#2192, the climbing
+    /// claws).</summary>
+    public bool ClimbIce { get; set; }
+
     /// <summary>What the item looks like in the hand (#1962): the boxes of its model. Null = the model every item
     /// of its kind has (a basic drill, a plain gun …). Data, so a content pack can give a new tool its own look
     /// and so a player's own tool looks (#1963) and the official ones are the same kind of thing.</summary>

@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 
@@ -682,6 +683,7 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null && !string.IsNullOrEmpty(Game.InSpeeder))
             {
                 UpdateJetpack(false);
+                EndClimb();
                 DriveSpeeder();
                 SendMovement();
                 Game.PlayerPosition = transform.position;
@@ -695,6 +697,7 @@ namespace BlocksBeyondTheStars.Client
             if (UpdateTrainFrame())
             {
                 UpdateJetpack(false);
+                EndClimb(); // no wall climbing aboard a moving wagon
                 if (Game.TrainSeat >= 0)
                 {
                     HoldTrainSeat();
@@ -736,6 +739,7 @@ namespace BlocksBeyondTheStars.Client
             if (_seatCell is { } seat)
             {
                 UpdateJetpack(false);
+                EndClimb();
                 LookAround();
                 if (Camera != null && !ThirdPerson)
                 {
@@ -1299,7 +1303,7 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private bool _gearHelmet, _gearChest, _gearLegs, _gearPack, _gearLamp, _gearBoots, _gearTank;
+        private bool _gearHelmet, _gearChest, _gearLegs, _gearPack, _gearLamp, _gearBoots, _gearTank, _gearGloves, _gearClaws;
         private float _gearTimer;
 
         /// <summary>Mirrors the player's WORN gear (#2110) onto the third-person avatar (helmet/chest/legs/pack/lamp/
@@ -1313,6 +1317,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _gearTimer = 0.5f;
+
+            // #2192: the worn climbing gear — one formula with the item data (best piece counts).
+            if (Game.Content != null)
+            {
+                _climbGearGrip = SuitEquipment.ClimbGrip(Game.Content.Items.Values, HasItem);
+                _climbGearIce = SuitEquipment.ClimbIce(Game.Content.Items.Values, HasItem);
+            }
+
             bool helmet = HasItem("helmet");
             bool chest = HasItem("armor_chest") || HasItem("stealth_suit");
             bool legs = HasItem("armor_legs");
@@ -1320,9 +1332,11 @@ namespace BlocksBeyondTheStars.Client
             bool lamp = HasItem("suit_lamp");
             bool boots = HasItem("boots");
             bool tank = HasItem("oxygen_tank_1") || HasItem("oxygen_tank_2") || HasItem("oxygen_tank_3");
+            bool gloves = HasItem("climbing_gloves");
+            bool claws = HasItem("climbing_claws");
 
             if (helmet != _gearHelmet || chest != _gearChest || legs != _gearLegs || pack != _gearPack || lamp != _gearLamp
-                || boots != _gearBoots || tank != _gearTank)
+                || boots != _gearBoots || tank != _gearTank || gloves != _gearGloves || claws != _gearClaws)
             {
                 _gearHelmet = helmet;
                 _gearChest = chest;
@@ -1331,7 +1345,9 @@ namespace BlocksBeyondTheStars.Client
                 _gearLamp = lamp;
                 _gearBoots = boots;
                 _gearTank = tank;
-                Avatar.SetGear(helmet, chest, legs, pack, lamp, boots, tank);
+                _gearGloves = gloves;
+                _gearClaws = claws;
+                Avatar.SetGear(helmet, chest, legs, pack, lamp, boots, tank, gloves, claws);
             }
         }
 
@@ -2369,6 +2385,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Teleports the player (CharacterController toggled so the move isn't blocked) and zeroes fall speed.</summary>
         private void SnapTo(Vector3 pos)
         {
+            EndClimb(); // #2188: a teleport, respawn or rescue never leaves us hanging on a wall that is no longer there
+            _grip.Reset();
             _controller.enabled = false;
             transform.position = pos;
             _controller.enabled = true;
@@ -2810,6 +2828,12 @@ namespace BlocksBeyondTheStars.Client
             // the "pause" failed to look like one. The vertical velocity is left untouched, so resuming carries
             // the fall on from exactly where it stopped instead of restarting it.
             if (Game != null && Game.WorldPaused)
+            {
+                return;
+            }
+
+            // #2188: a climber who opens a menu keeps holding the wall (no grip spent) instead of dropping off it.
+            if (_climbing || _pullingUp)
             {
                 return;
             }
@@ -3475,6 +3499,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #2190: a pull-up over a ledge owns the body until it stands on top (the controller is off meanwhile).
+            if (StepPullUp())
+            {
+                return;
+            }
+
             if (!_controller.enabled)
             {
                 // Left observer mode (or a capture snap): the controller owns collision again from here.
@@ -3489,20 +3519,32 @@ namespace BlocksBeyondTheStars.Client
             bool inWater = IsSubmerged();
             bool onLadder = !inWater && OnLadder();
             UpdateFloorWait(grounded);
-            _moving = (inWater || grounded || onLadder) && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
 
             // Crouch/sneak: shrink the capsule + slow the walk while held on the ground.
-            UpdateCrouch(grounded, inWater, onLadder);
+            UpdateCrouch(grounded, inWater, onLadder || _climbing);
             if (_crouched)
             {
                 move *= CrouchSpeedMul;
             }
 
-            UpdateFlight(grounded, inWater, onLadder);
+            UpdateFlight(grounded, inWater, onLadder || _climbing);
             if (_flying)
             {
                 move *= FlyHorizontalMul;
             }
+
+            // #2188–#2190: wall climbing — after water, ladder and flight are known (they all win), before the
+            // vertical branches below, which a climb replaces. A pull-up started here owns the next frames.
+            bool climbing = UpdateWallClimb(grounded, inWater, onLadder, h, v, ref move);
+            if (_pullingUp)
+            {
+                UpdateJetpack(false);
+                UpdateClimbPose(onLadder && !grounded);
+                return;
+            }
+
+            UpdateClimbPose(onLadder && !grounded); // a ladder counts once the feet leave the ground
+            _moving = (inWater || grounded || onLadder || climbing) && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
 
             bool jetpacking = false;
             if (inWater)
@@ -3541,6 +3583,12 @@ namespace BlocksBeyondTheStars.Client
                 bool up = InputMap.JumpHeld() || v > 0.1f;
                 bool down = InputMap.CrouchHeld() || v < -0.1f;
                 _verticalVelocity = up ? ClimbSpeed : (down ? -ClimbSpeed : -1f);
+            }
+            else if (climbing)
+            {
+                // #2188: hanging on a wall — no gravity, no jetpack; UpdateWallClimb already steered the move along the
+                // wall and picked the vertical speed (up, down, hold, or the slow slide of a spent grip).
+                _verticalVelocity = _climbVy;
             }
             else if (_flying)
             {
@@ -3638,6 +3686,10 @@ namespace BlocksBeyondTheStars.Client
             // Cap the auto-step to the headroom above the head before moving, so a 2-block-high opening stays
             // walkable instead of wedging the capsule (see UpdateStepOffset).
             UpdateStepOffset(move);
+            if (climbing)
+            {
+                _controller.stepOffset = 0f; // #2188: no auto-step hop at the wall's lip — the pull-up does that properly
+            }
 
             _controller.Move(move * Time.deltaTime);
 
@@ -3735,6 +3787,453 @@ namespace BlocksBeyondTheStars.Client
         private bool OnLadder() =>
             BlockKeyAt(transform.position + Vector3.up * 0.3f) == "ladder"
             || BlockKeyAt(transform.position + Vector3.up * 1.1f) == "ladder";
+
+        // ---------------------------------------------------------------------------------------------------------
+        // #2188–#2193: wall climbing on planets, moons and asteroids
+        // ---------------------------------------------------------------------------------------------------------
+        //
+        // Jump at a wall and push towards it: you hold on. On the wall you climb up (push in or hold Jump), down (pull
+        // away), sideways (along it), and let go with crouch; at the top you pull yourself over the edge. The grip tires
+        // (ClimbGrip) but is never drawn on the HUD — you feel it: slower, then a tremble and a breath, then a slow slide.
+        // Ladders keep their own rules and win; water, flight, space, stations and the ship interior have no climbing.
+        // All of it is on-foot movement, which the client owns; other players only learn the pose (MoveIntent.Climbing).
+
+        /// <summary>How hard a climber leans into the wall, m/s — keeps the capsule touching it.</summary>
+        private const float WallPress = 1f;
+
+        /// <summary>The little shove off the wall when letting go, m/s.</summary>
+        private const float LetGoPush = 2.5f;
+
+        private readonly ClimbGrip _grip = new ClimbGrip();
+        private ClimbProbe _climbProbe;
+        private ClientWorld _climbProbeWorld;
+        private BlocksBeyondTheStars.Shared.Content.GameContent _climbProbeContent;
+        private ClimbSurface[] _climbHoldById = System.Array.Empty<ClimbSurface>();
+        private bool[] _climbSolidById = System.Array.Empty<bool>();
+        private bool _climbing;
+        private WallHold _wall;
+        private float _climbVy;
+        private float _regrabAt;
+        private bool _pullingUp;
+        private Vector3 _pullFrom, _pullTo;
+        private float _pullT;
+        private float _climbGearGrip;   // worn gear: share of the grip drain taken away (#2192)
+        private bool _climbGearIce;     // worn gear: icy walls hold (#2192)
+        private bool _climbSliding;     // the grip is spent — sliding down slowly
+        private float _climbStrain;     // eased 0..1 — the camera tremble and the avatar's shake
+        private bool _climbPose;        // climbing a wall or a ladder: the avatar pose + the flag the server mirrors
+        private bool _avatarTurned;     // the third-person avatar is turned to face the wall
+        private float _climbTapTimer, _climbBreathTimer, _climbSlideTimer, _climbHintTimer;
+
+        /// <summary>True while the player hangs on a wall or pulls up over its edge (not on a ladder).</summary>
+        public bool ClimbingWall => _climbing || _pullingUp;
+
+        /// <summary>The climbing probe for the current world + content: block data and "has a collider" folded into one
+        /// table per block id, rebuilt only when the world or the content changes.</summary>
+        private ClimbProbe ClimbProbeNow()
+        {
+            var world = Game?.World;
+            var content = Game?.Content;
+            if (world == null || content == null)
+            {
+                return null;
+            }
+
+            if (_climbProbe != null && ReferenceEquals(world, _climbProbeWorld) && ReferenceEquals(content, _climbProbeContent))
+            {
+                return _climbProbe;
+            }
+
+            int max = 0;
+            foreach (var def in content.Blocks.Values)
+            {
+                max = Mathf.Max(max, def.NumericId.Value);
+            }
+
+            _climbHoldById = new ClimbSurface[max + 1];
+            _climbSolidById = new bool[max + 1];
+            foreach (var def in content.Blocks.Values)
+            {
+                // A hold needs a collider too: props, plants and (once they are walk-through) tree crowns have none.
+                bool collides = IsCollidingKey(def.Key);
+                _climbSolidById[def.NumericId.Value] = collides;
+                _climbHoldById[def.NumericId.Value] = collides ? ClimbSurfaces.Of(def) : ClimbSurface.None;
+            }
+
+            _climbProbeWorld = world;
+            _climbProbeContent = content;
+            _climbProbe = new ClimbProbe(ClimbHoldAt, ClimbSolidAt);
+            return _climbProbe;
+        }
+
+        private ClimbSurface ClimbHoldAt(int x, int y, int z)
+        {
+            int id = _climbProbeWorld.GetBlock(x, y, z).Value;
+            return id < _climbHoldById.Length ? ClimbSurfaces.ForClimber(_climbHoldById[id], _climbGearIce) : ClimbSurface.None;
+        }
+
+        private bool ClimbSolidAt(int x, int y, int z)
+        {
+            int id = _climbProbeWorld.GetBlock(x, y, z).Value;
+            return id < _climbSolidById.Length && _climbSolidById[id];
+        }
+
+        /// <summary>Where climbing exists at all: on foot under gravity on a planet, moon or asteroid — not above the
+        /// atmosphere, not in a station or the ship, not swimming, flying, sneaking, riding or seated.</summary>
+        private bool ClimbAllowedHere(bool inWater, bool onLadder)
+            => Game != null && !inWater && !onLadder && !_flying && !_crouched
+               && !Game.OnFootInSpace && !Game.StationZeroG && !Game.InEva && !Game.Aboard
+               && string.IsNullOrEmpty(Game.CurrentStationId) && _trainFrame == null && _seatCell is null;
+
+        /// <summary>
+        /// The wall-climbing step (#2188–#2190): grabs a wall, climbs it, lets go, or starts a pull-up. Returns true
+        /// while the player hangs on a wall this frame — <paramref name="move"/> then carries the sideways move and the
+        /// lean into the wall, and <see cref="_climbVy"/> the vertical speed. Also refills the grip on the ground and on
+        /// a ladder.
+        /// </summary>
+        private bool UpdateWallClimb(bool grounded, bool inWater, bool onLadder, float h, float v, ref Vector3 move)
+        {
+            float dt = Time.deltaTime;
+            if (!_climbing && (grounded || onLadder))
+            {
+                _grip.Refill(dt); // standing — on the ground or a ladder rung — the hands recover
+            }
+
+            var probe = ClimbProbeNow();
+            if (probe == null || !ClimbAllowedHere(inWater, onLadder))
+            {
+                if (_climbing)
+                {
+                    LetGo(push: false);
+                }
+
+                _climbStrain = Mathf.MoveTowards(_climbStrain, 0f, dt * 2f);
+                return false;
+            }
+
+            var pos = transform.position;
+            Vector3 wish = (transform.right * h) + (transform.forward * v);
+
+            if (!_climbing)
+            {
+                _climbStrain = Mathf.MoveTowards(_climbStrain, 0f, dt * 2f);
+                if (grounded)
+                {
+                    MaybeShowClimbHint(probe, pos, wish);
+                    return false;
+                }
+
+                // Grabbing is deliberate: in the air, pushing at the wall, not letting go, and not flying the jetpack —
+                // holding Jump with a jetpack keeps you flying; an empty tank at a cliff lets you grab it instead.
+                if (wish.sqrMagnitude < 0.09f || InputMap.CrouchHeld() || (InputMap.JumpHeld() && CanJetpack()))
+                {
+                    return false;
+                }
+
+                // A jump that falls just short of a ledge pulls you over it — what makes a two-block wall crossable.
+                if (_verticalVelocity <= 0.5f
+                    && probe.TryFindLedgeAhead(pos.x, pos.y, pos.z, wish.x, wish.z, ClimbProbe.StepHeight,
+                        out var ledge, out float lx, out float ly, out float lz))
+                {
+                    _wall = ledge;
+                    StartPullUp(new Vector3(lx, ly, lz));
+                    return false;
+                }
+
+                if (Time.time < _regrabAt || !_grip.CanGrab
+                    || !probe.TryFindWall(pos.x, pos.y, pos.z, wish.x, wish.z, out var hold))
+                {
+                    return false;
+                }
+
+                _climbing = true;
+                _wall = hold;
+                _climbVy = 0f;
+                _verticalVelocity = 0f; // the grab IS the landing — no fall is reported
+                _climbTapTimer = 0.3f;
+                ClientAudio.Instance?.Cue("climb_grab", 0.5f);
+                Weapons?.Dust(pos + (new Vector3(hold.DirX, 0f, hold.DirZ) * 0.45f) + (Vector3.up * 1.2f));
+            }
+
+            // Let go on purpose (crouch), or because there is nothing left to hold.
+            if (InputMap.CrouchHeld())
+            {
+                LetGo(push: true);
+                return false;
+            }
+
+            var ahead = probe.Ahead(pos.x, pos.y, pos.z, _wall, out var surface);
+            if (ahead == WallAhead.Lost)
+            {
+                LetGo(push: false);
+                return false;
+            }
+
+            // Steering is relative to the wall, so it reads the same wherever you look: push into it = up, pull away =
+            // down, along it = sideways. Jump held climbs up too, the ladder's muscle memory.
+            var into = new Vector3(_wall.DirX, 0f, _wall.DirZ);
+            var along = new Vector3(_wall.DirZ, 0f, -_wall.DirX);
+            float push = Vector3.Dot(wish, into);
+            float side = Vector3.Dot(wish, along);
+            bool up = InputMap.JumpHeld() || push > 0.3f;
+            bool down = !up && push < -0.3f;
+            float sideDir = Mathf.Abs(side) > 0.3f ? Mathf.Sign(side) : 0f;
+
+            float vy = 0f;
+            float lateral;
+            var motion = ClimbMotion.Hang;
+            _climbSliding = _grip.Exhausted;
+            if (_climbSliding)
+            {
+                // Spent: a slow slide (far below the safe-landing speed) instead of a fall — steering still works.
+                vy = -ClimbGrip.SlideSpeed;
+                lateral = sideDir * ClimbGrip.SideSpeed * 0.5f;
+            }
+            else
+            {
+                float pace = _grip.SpeedFactor; // a tiring grip climbs slower
+                if (up)
+                {
+                    if (ahead == WallAhead.Ledge)
+                    {
+                        // The hands are at the top edge: pull over it if there is room to stand.
+                        if (probe.TryFindLedge(pos.x, pos.y, pos.z, _wall, 0.05f, out float tx, out float ty, out float tz))
+                        {
+                            StartPullUp(new Vector3(tx, ty, tz));
+                            return false;
+                        }
+                    }
+                    else if (!probe.BlockedAbove(pos.x, pos.y, pos.z))
+                    {
+                        vy = ClimbGrip.UpSpeed * pace;
+                        motion = ClimbMotion.Up;
+                    }
+                }
+                else if (down)
+                {
+                    vy = -ClimbGrip.DownSpeed * pace;
+                    motion = ClimbMotion.Down;
+                }
+
+                lateral = sideDir * ClimbGrip.SideSpeed * pace;
+                if (lateral != 0f && motion == ClimbMotion.Hang)
+                {
+                    motion = ClimbMotion.Side;
+                }
+            }
+
+            // Stop at the wall's side edge instead of hanging on to thin air.
+            if (lateral != 0f)
+            {
+                var step = along * (lateral * dt);
+                if (!probe.WallContinues(pos.x, pos.y, pos.z, _wall, step.x, step.z))
+                {
+                    lateral = 0f;
+                }
+            }
+
+            if (!_climbSliding)
+            {
+                _grip.Drain(dt, motion, _gFactor, surface, _climbGearGrip);
+            }
+
+            // Back on the ground while not climbing up: walk from here.
+            if (grounded && vy <= 0f)
+            {
+                EndClimb();
+                return false;
+            }
+
+            _climbVy = vy;
+            move = (along * lateral) + (into * WallPress);
+            _climbStrain = Mathf.MoveTowards(_climbStrain, _grip.Strain, dt * 2f);
+            ClimbFeedback(dt, moving: lateral != 0f || vy != 0f, pos);
+            return true;
+        }
+
+        /// <summary>Sounds of the climb, all from the shipped set or the three climbing clips: the wall's own step
+        /// sound per hand-over-hand, a breath while the grip strains, a scrape while sliding.</summary>
+        private void ClimbFeedback(float dt, bool moving, Vector3 pos)
+        {
+            var audio = ClientAudio.Instance;
+            if (audio == null)
+            {
+                return;
+            }
+
+            if (_climbSliding)
+            {
+                _climbSlideTimer -= dt;
+                if (_climbSlideTimer <= 0f)
+                {
+                    _climbSlideTimer = 0.9f;
+                    audio.Cue("climb_slide", 0.4f);
+                }
+            }
+            else if (moving)
+            {
+                _climbTapTimer -= dt;
+                if (_climbTapTimer <= 0f)
+                {
+                    _climbTapTimer = 0.55f / Mathf.Max(0.5f, _grip.SpeedFactor);
+                    var wallCell = pos + (new Vector3(_wall.DirX, 0f, _wall.DirZ) * ClimbProbe.WallReach) + (Vector3.up * ClimbProbe.HandHeight);
+                    audio.Cue(StepCueFor(BlockKeyAt(wallCell)), 0.3f);
+                }
+            }
+
+            if (_grip.Strain > 0f)
+            {
+                _climbBreathTimer -= dt;
+                if (_climbBreathTimer <= 0f)
+                {
+                    _climbBreathTimer = Mathf.Lerp(2.2f, 1.3f, _grip.Strain);
+                    audio.Cue("climb_strain", 0.3f + (0.3f * _grip.Strain));
+                }
+            }
+            else
+            {
+                _climbBreathTimer = 0.4f;
+            }
+        }
+
+        /// <summary>Lets go of the wall: a short cooldown before the next grab, and a small shove off it when the
+        /// player chose to (crouch).</summary>
+        private void LetGo(bool push)
+        {
+            _climbing = false;
+            _climbSliding = false;
+            _regrabAt = Time.time + ClimbGrip.RegrabCooldown;
+            _verticalVelocity = Mathf.Min(_climbVy, 0f);
+            if (push)
+            {
+                _knock = new Vector3(-_wall.DirX, 0f, -_wall.DirZ) * LetGoPush;
+            }
+        }
+
+        /// <summary>Ends any climb at once (feet on the ground, a teleport, a vehicle, a seat) and stands the avatar
+        /// straight again.</summary>
+        private void EndClimb()
+        {
+            if (_pullingUp && _controller != null)
+            {
+                _controller.enabled = true;
+            }
+
+            _climbing = false;
+            _pullingUp = false;
+            _climbSliding = false;
+            _climbStrain = 0f;
+            if (_climbPose || _avatarTurned)
+            {
+                _climbPose = false;
+                Avatar?.SetClimbing(false);
+                ResetAvatarTurn();
+            }
+        }
+
+        private void StartPullUp(Vector3 target)
+        {
+            _climbing = false;
+            _climbSliding = false;
+            _pullingUp = true;
+            _pullFrom = transform.position;
+            _pullTo = target;
+            _pullT = 0f;
+            _verticalVelocity = 0f;
+            ClientAudio.Instance?.Cue("climb_grab", 0.45f);
+        }
+
+        /// <summary>Drives a running pull-up (#2190): the body rises in its own column first, then swings over the
+        /// edge onto the top. The probe has already checked both paths for room, so the controller can stay off for
+        /// these few frames. Returns true while the pull-up owns the body.</summary>
+        private bool StepPullUp()
+        {
+            if (!_pullingUp)
+            {
+                return false;
+            }
+
+            _pullT += Time.deltaTime / ClimbGrip.PullUpSeconds;
+            float t = Mathf.Clamp01(_pullT);
+            float rise = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.6f));
+            float over = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - 0.4f) / 0.6f));
+            _controller.enabled = false;
+            transform.position = new Vector3(
+                Mathf.Lerp(_pullFrom.x, _pullTo.x, over),
+                Mathf.Lerp(_pullFrom.y, _pullTo.y + 0.02f, rise),
+                Mathf.Lerp(_pullFrom.z, _pullTo.z, over));
+            _moving = true;
+            UpdateJetpack(false);
+            UpdateClimbPose(onLadder: false);
+            if (t >= 1f)
+            {
+                _pullingUp = false;
+                _controller.enabled = true;
+                _verticalVelocity = -1f;
+                _wasGrounded = true; // standing up on the ledge is no landing
+            }
+
+            return true;
+        }
+
+        /// <summary>The avatar's climb pose (local third person; the presence flag tells everyone else), turned to
+        /// face the wall while on it.</summary>
+        private void UpdateClimbPose(bool onLadder)
+        {
+            bool onWall = _climbing || _pullingUp;
+            _climbPose = onWall || onLadder;
+            if (Avatar == null)
+            {
+                return;
+            }
+
+            Avatar.SetClimbing(_climbPose, _climbStrain, _climbSliding, _pullingUp);
+            if (onWall)
+            {
+                Avatar.transform.localRotation = Quaternion.Euler(0f, Mathf.DeltaAngle(transform.eulerAngles.y, _wall.FacingYaw), 0f);
+                _avatarTurned = true;
+            }
+            else
+            {
+                ResetAvatarTurn();
+            }
+        }
+
+        private void ResetAvatarTurn()
+        {
+            if (_avatarTurned && Avatar != null)
+            {
+                Avatar.transform.localRotation = Quaternion.identity;
+            }
+
+            _avatarTurned = false;
+        }
+
+        /// <summary>The first time a player stands in front of a tall climbable wall without ever having climbed, VEGA
+        /// says how (#2194) — once, remembered in the client settings like the other one-shot lessons.</summary>
+        private void MaybeShowClimbHint(ClimbProbe probe, Vector3 pos, Vector3 wish)
+        {
+            var settings = Game?.Settings;
+            if (settings == null || settings.ClimbHintShown || wish.sqrMagnitude < 0.09f)
+            {
+                return;
+            }
+
+            _climbHintTimer -= Time.deltaTime;
+            if (_climbHintTimer > 0f)
+            {
+                return;
+            }
+
+            _climbHintTimer = 0.5f;
+            if (probe.TryFindWall(pos.x, pos.y, pos.z, wish.x, wish.z, out var hold)
+                && probe.HoldAt(pos.x, pos.y, pos.z, hold.DirX, hold.DirZ, 2.4f) != ClimbSurface.None)
+            {
+                settings.ClimbHintShown = true;
+                settings.Save();
+                VegaPanel.Instance?.SayLocal("vega.hint.climb");
+            }
+        }
 
         /// <summary>The content key of the block at a world position (null if the world/content isn't ready).</summary>
         private string BlockKeyAt(Vector3 world)
@@ -3966,9 +4465,19 @@ namespace BlocksBeyondTheStars.Client
             // view amplifies the bob just like it amplifies the mouse, so damp it by the same factor.
             float motion = (CameraMotion ? 1f : 0f) * (zoomed ? _optic.MotionScale : 1f);
             float amt = (_moving ? 1f : 0f) * motion;
-            _bobPhase += dt * (_moving ? 9f : 0f) * motion;
-            float bobY = Mathf.Sin(_bobPhase * 2f) * 0.035f * amt;
+            // #2188: on a wall the bob is the slower, deeper hand-over-hand reach instead of the stride.
+            bool onWall = _climbing || _pullingUp;
+            _bobPhase += dt * (_moving ? (onWall ? 6f : 9f) : 0f) * motion;
+            float bobY = Mathf.Sin(_bobPhase * 2f) * (onWall ? 0.05f : 0.035f) * amt;
             float bobX = Mathf.Cos(_bobPhase) * 0.025f * amt;
+
+            // #2189: a tiring grip is felt, never shown — the view trembles a little (the comfort switch flattens it).
+            if (_climbStrain > 0.01f)
+            {
+                float tremble = _climbStrain * motion;
+                bobX += Mathf.Sin(Time.time * 37f) * 0.012f * tremble;
+                bobY += Mathf.Sin((Time.time * 29f) + 1.3f) * 0.010f * tremble;
+            }
             // Ease the eye down toward the crouch height (_crouchT set in UpdateCrouch) as the baseline the bob rides on.
             Vector3 eye = Vector3.Lerp(FirstPersonEye, CrouchEye, _crouchT);
             Camera.transform.localPosition = eye + new Vector3(bobX, bobY, 0f);
@@ -3996,7 +4505,14 @@ namespace BlocksBeyondTheStars.Client
             var p = transform.position;
             var def = Game.Content.BlockById(Game.World.GetBlock(
                 Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y - 0.5f), Mathf.FloorToInt(p.z)));
-            string k = def?.Key ?? string.Empty;
+            return StepCueFor(def?.Key);
+        }
+
+        /// <summary>The footstep clip for a block key (key heuristic) — the floor underfoot, or the wall a climber's
+        /// hands and boots touch (#2188).</summary>
+        private static string StepCueFor(string key)
+        {
+            string k = key ?? string.Empty;
             if (k.Contains("iron") || k.Contains("metal") || k.Contains("steel")) return "step_metal";
             if (k.Contains("sand")) return "step_sand";
             if (k.Contains("grass")) return "step_grass";
@@ -4973,7 +5489,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Game.Network.SendMove(transform.position, transform.eulerAngles.y, _pitch);
+            Game.Network.SendMove(transform.position, transform.eulerAngles.y, _pitch, _climbPose); // #2193: others see us climb
         }
 
         // ---------------------------------------------------------------------------------------------------------

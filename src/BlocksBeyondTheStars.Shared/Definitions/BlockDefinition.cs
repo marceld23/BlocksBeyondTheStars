@@ -134,6 +134,14 @@ public sealed class BlockDefinition
     public bool Granular { get; set; }
 
     /// <summary>
+    /// How this block holds a wall climber (#2191): <c>"none"</c> gives no hold at all (glass), <c>"icy"</c> only holds
+    /// a climber wearing climbing claws (ice), <c>"slippery"</c> holds but tires the grip twice as fast. Null = the
+    /// default from <see cref="ClimbSurfaces.Of"/> (granular blocks are slippery, every other solid block holds
+    /// normally). Set in <c>data/blocks.json</c>.
+    /// </summary>
+    public string? Climb { get; set; }
+
+    /// <summary>
     /// Whether this block holds air as a wall of a sealed base room (#794). Airtight blocks are what the
     /// base's sealed-room life-support fill stops against; everything else leaks. Defaults are derived by
     /// the content registry from the category — terrain/building/ore/machine/light seal (natural rock

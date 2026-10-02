@@ -107,9 +107,9 @@ Last updated: 2026-08-26.
 |---|---|
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
-| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot of the Inventory's Worn row); **in water: swim up / surface** |
+| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot of the Inventory's Worn row); **in water: swim up / surface**; **jump at a wall while pushing towards it to grab it and climb** — on the wall, hold Space to climb up (see §5 → Climbing walls) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
-| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; descend in zero-g |
+| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; **let go of a wall you are climbing**; descend in zero-g |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected) |
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** selected it opens the destination picker — back to ship / to an ally, see §5) |
 | **Mouse wheel** | Cycle hotbar slot |
@@ -155,7 +155,7 @@ buttons — retuning is tracked in issue #195):
 | **D-pad ◄ ►** | Cycle hotbar slot |
 | **D-pad ▲** | Open the chat (with the on-screen keyboard) |
 | **D-pad ▼** | Turn the building block you are holding |
-| **(A)** | Jump (hold in air = jetpack; in water = swim up) |
+| **(A)** | Jump (hold in air = jetpack; in water = swim up; jump at a wall and push the stick towards it to grab it — **(B)** lets go, see §5 → Climbing walls) |
 | **(X)** | Use / board / interact |
 | **(Y)** | Toggle first / third-person camera |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
@@ -232,7 +232,7 @@ buttons swap with what you're doing:
 | **ACT** (beside ◄) | **Actions** — a list of everything you can do right now: rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair a wreck, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, … Tap an entry to do it. Shown only when something applies |
 | **NEXT ▶** (top-centre) | **VEGA: continue** — advance or dismiss the ship AI's line; also opens the folded VEGA tab; shown only while a line is up |
 | **≡** (top-right) | Open / close the gameplay menu |
-| *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump · mine · place · use/board · descend · open chat · camera · planet map |
+| *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump (at a wall, with the stick pushed towards it: grab and climb) · mine · place · use/board · descend (on a wall: let go) · open chat · camera · planet map |
 | *On foot, when it applies:* **ROTATE · ATTACK · FEED** | Rotate the held block's placement (appears while a rotatable block is selected) · swing / fire the held weapon (hold on the Guardian core to breach it) · throw one piece of the held food to a begging herd (appears while you hold food and an animal begs nearby) |
 | *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · MAP · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · system chart · camera · dock/board · float up/down |
 | *EVA (spacewalk):* **FIRE (hold) · PLACE · DEPLOY · VIEW · USE · UP · DOWN** | Mine · place the selected block · deploy a station core · camera · board · float up/down |
@@ -564,6 +564,34 @@ separate unlock; admins can still disable it through server world rules.
   still hides what is on the far side of it — nothing notices you across open water, and you cannot snipe
   through it either.
 
+### Climbing walls
+On planets, moons and asteroids you can **climb any solid wall** — a cliff, a canyon wall, a tree trunk, the side
+of a house. Ladders work as before (walk into one and you go straight up); climbing a wall is slower and takes
+effort.
+
+- **Grab:** jump at the wall and keep pushing towards it (**W**, the left stick, or the touch stick). You hold on.
+  Walking along a wall never sticks you to it — you have to be in the air — and a one-block step is still simply
+  jumped onto. A grab also catches a fall: no fall damage. **With a jetpack**, holding Space keeps you flying; let
+  go of Space while you push at the cliff (or run out of suit energy) and you grab it instead of falling.
+- **On the wall:** push towards the wall or **hold Space** to climb up, pull away from it to climb down, and move
+  along it sideways. **Crouch lets go** (Ctrl/C, pad **(B)**, touch **DOWN**). Climbing down onto the ground puts
+  you back on your feet. You stop at the side edge of a wall and under an overhang — there is no climbing along a
+  ceiling. Mining, building and tools keep working while you hang there, so a vein of ore in a cliff is in reach.
+- **At the top** you pull yourself over the edge by yourself. That also gets you over a **two-block wall**: run,
+  jump and keep pushing.
+- **Your grip tires** — there is no bar for it, you feel it: after a while you climb slower, then your view
+  trembles and you breathe hard, and when it is gone you **slide down slowly** (never fast enough to hurt).
+  Standing on the ground — or on a ladder rung — refills it in a moment. How far you get depends on the world's
+  gravity: about 20 blocks up on a normal planet, roughly twice that on an asteroid, less on a heavy world.
+- **Surfaces:** rock, earth, wood and building blocks hold you. **Glass** is too smooth. **Ice** holds only with
+  climbing claws. **Sand, snow and ash** crumble under your hands — your grip tires twice as fast.
+- **Gear:** the **climbing gloves** (Suit research, crafted at the workshop) make your hands tire much more
+  slowly; the **climbing claws** (made from the gloves) last longer still and let you climb ice, sand and snow
+  like rock. Wear them in a **module** slot; other players see them on your hands.
+- There is no climbing in space, in zero-g, in water, in your ship or on a station.
+- Other players see you climb — on walls and on ladders — facing the wall. The first time you stand in front of
+  a tall wall, VEGA tells you how it works.
+
 ### Mining & tools
 - Tools have a **kind** (drill/scanner/…) and **tier** (1–5). A block has a **hardness** and may require a
   minimum tool tier; mining accumulates the tool's power until it exceeds the hardness, then the block
@@ -614,7 +642,7 @@ separate unlock; admins can still disable it through server world rules.
   Inventory tab shows a **Worn** row of nine slots above the backpack: **head** (helmet), **chest** (chest
   armour *or* the stealth suit), **legs**, **feet** (the new **boots**: a softer landing, a little warmth),
   **back** (the jetpack), **tank** (one oxygen tank), **liner** (one suit liner) and **two modules** (lamp,
-  extractor, a radio, the radar scanner). **Click a piece, then click its slot** — the slot wears it and hands
+  extractor, a radio, the radar scanner, the climbing gloves or claws). **Click a piece, then click its slot** — the slot wears it and hands
   back whatever was worn there; click a worn piece, then a backpack slot, to take it off (or use the
   **Wear / Take off** button in the detail pane). Two backpack clicks move or swap. The same works by touch and
   with a gamepad (A picks and places). Worn gear **stays with you** when you stow, stash or die. The status

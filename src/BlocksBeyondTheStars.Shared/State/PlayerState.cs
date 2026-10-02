@@ -190,6 +190,10 @@ public sealed class PlayerState
     /// presence broadcast so other players see a seated avatar. Not persisted.</summary>
     public bool Seated { get; set; }
 
+    /// <summary>Hanging on a wall or a ladder (#2193, client-driven) — pure pose state mirrored into the presence
+    /// broadcast so other players see a climbing avatar. Not persisted.</summary>
+    public bool Climbing { get; set; }
+
     /// <summary>The seat cell (canonical) this player sits on (#2122), so no NPC and no second player sits down into
     /// them. Null while standing, on a train seat, and for a seated older client that sent no cell. Not persisted.</summary>
     public Vector3i? SeatCell { get; set; }

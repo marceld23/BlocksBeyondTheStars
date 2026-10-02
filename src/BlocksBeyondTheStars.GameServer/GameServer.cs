@@ -4543,6 +4543,7 @@ public sealed partial class GameServer
             session.State.Position = reported;
             session.State.Yaw = move.Yaw;
             session.State.Pitch = move.Pitch;
+            session.State.Climbing = move.Climbing; // #2193: pose only — the climb itself is on-foot movement, the client's
             UpdateDrivingSpeeder(session); // if driving a speeder, slave it to this pose + drain its energy cell
             if (onSurface)
             {

@@ -24,6 +24,48 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧗 Wall climbing on planets, moons and asteroids — grab, grip, pull-up, climbing gear (#2195: #2188–#2194, 2026-10-03, branch feat/wall-climbing) — ✅ done (⚠ playtest open)
+
+**Request (Marcel, 2026-10-03).** You should be able to climb vertical walls on planets, moons and asteroids (not in
+space), not only ladders, which stay as they are (walk in, go straight up). Climbing should feel *different*.
+Decisions: start by **jumping at the wall and pushing towards it**; grip **without any HUD bar** (felt: slower, tremble +
+breath, then a slow slide instead of a fall); only on world surfaces (no ship, station, zero-g); **everyone climbs from
+the start**, gloves are an upgrade; 2-block walls can be crossed with a jump + pull-up; mining/building while hanging.
+
+**Analysis (verified in code).** On-foot movement is client-authoritative (`GameServer.HandleMove` trusts the reported
+position), like the ladder (#126), swimming and the jetpack's thrust, so a client-side climb breaks no golden rule. There
+was no stamina system and no climb pose: ladder climbers showed the jump tuck to everyone else. The jetpack fires in the
+first airborne frame while Jump is held, so a grab must yield to it. Auto-step lifts 0.6 m and a jump about 1.2 blocks,
+so a 2-block wall was impassable without a jetpack or building.
+
+- **✅ Grab · climb · let go (#2188):** `PlayerController` climbing branch between ladder and creative flight. A grab
+  needs the player airborne, pushing within 60° at a wall with a hold at knees AND hands, and no jetpack firing.
+  Steering is relative to the wall (push in or hold Jump = up, pull away = down, along = sideways); crouch lets go.
+  The climber stops at side edges and under overhangs. Pure rules in `Client.Core/ClimbProbe`.
+- **✅ Grip you feel (#2189):** `Client.Core/ClimbGrip`: ~10 s / 20 blocks up at 1 g, × the world's gravity, slippery
+  ×2, gear −40 % / −60 %. Refills on the ground and on ladders, never in the air. Slows below 40 %, camera tremble +
+  `climb_strain` breath below 25 %, 2.5 m/s slide at 0. No HUD element.
+- **✅ Pull-up (#2190):** over a ledge with room to stand (0.35 s, controller off, both paths checked first); a jump
+  that falls short of a ledge pulls over too (2-block walls).
+- **✅ Surfaces from data (#2191):** block field `climb` (`none`: glass, glass_clear; `icy`: ice) + granular =
+  slippery, via `Shared/Definitions/ClimbSurfaces`; the client also needs a collider (props, plants, walk-through
+  crowns give no hold).
+- **✅ Gear (#2192):** `climbing_gloves` (climbGrip 0.4) and `climbing_claws` (0.6 + `climbIce`, crafted from the
+  gloves), module slots, Suit blueprints (knowledge 8 / 30), workshop recipes; OpenAI icons
+  (`gen_item_icons.py --only`); gloves/claws drawn on the avatar's hands (presence gear bits 128/256).
+- **✅ Animation (#2193):** `PlayerAvatar.PoseClimb`: hand-over-hand climb, hang, strain tremble, slide, pull-up. Ladders
+  use it too. `MoveIntent.Climbing` → `PlayerState` → `PlayerPresence.Climbing` (fields only, no protocol bump);
+  remotes turn to the wall themselves. ElevenLabs sounds `climb_grab`, `climb_strain`, `climb_slide`.
+- **✅ Docs + texts (#2194):** USER_MANUAL §5 "Climbing walls" + control tables, Codex article `climbing`, a one-shot VEGA
+  hint (`vega.hint.climb`, `ClientSettings.ClimbHintShown`), new developer doc `docs/developer/CLIMBING.md`; 9 keys in
+  all 14 languages (machine pass + hand QA).
+- **Tests:** `ClimbProbeTests` (11), `ClimbGripTests` (8), `WallClimbingTests` (11).
+- **⚠ Open:** playtest the feel (speeds, pull-up timing, poses, sounds) on a planet, a moon and an asteroid with
+  keyboard, gamepad and touch (WebGL). Possible follow-ups: climbing around corners, a wall jump / climb leap, rain
+  making walls slippery, grabbing a cliff straight out of the water.
+
+---
+
 ### 📖 Codex texts hold in-game information only — no credit lines, the Rainbow Planet's islands float on the sea (#2182, 2026-10-02, branch fix/codex-ingame-only) — ✅ done
 
 **Request (Marcel, 2026-10-02).** Found while writing the devblog post "Ein Monat Schul-AG". The Rainbow Planet's description

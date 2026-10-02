@@ -31,7 +31,7 @@ namespace BlocksBeyondTheStars.Client
         private Material _skin, _torso, _arms, _legs;
 
         private Transform _head, _armL, _armR, _legL, _legR;
-        private Transform _elbowL, _elbowR, _kneeL, _kneeR, _handR;
+        private Transform _elbowL, _elbowR, _kneeL, _kneeR, _handL, _handR;
         private readonly List<GameObject> _gear = new List<GameObject>();
         private GameObject _held;
         private bool _visible = true;
@@ -104,6 +104,14 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _seated;     // sit pose (#806): thighs forward, knees bent — set from the presence flag
         private bool _lying;      // #1869: asleep in bed — limbs straight and still (the caller lays the root flat)
+
+        // #2193: climbing a wall or a ladder — the caller turns the root to face the wall. Strain (0..1), the slide and
+        // the pull-up are known for the local player only; a remote climber shows the plain climb.
+        private bool _climbing;
+        private float _climbStrain;
+        private bool _climbSliding;
+        private bool _climbPullUp;
+        private float _climbPhase;
 
         private float _phase;     // per-instance offset so avatars don't move in lockstep
         private Vector3 _lastPos;
@@ -202,7 +210,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Jointed arms (shoulder → elbow → hand) and legs (hip → knee → foot).
-            _armL = AddArm("ArmLeft", -0.32f, out _elbowL, out _);
+            _armL = AddArm("ArmLeft", -0.32f, out _elbowL, out _handL);
             _armR = AddArm("ArmRight", 0.32f, out _elbowR, out _handR);
             _legL = AddLeg("LegLeft", -0.13f, out _kneeL);
             _legR = AddLeg("LegRight", 0.13f, out _kneeR);
@@ -462,6 +470,11 @@ namespace BlocksBeyondTheStars.Client
                 headYaw = 0f;
                 _swingTimer = 0f;
             }
+            else if (_climbing)
+            {
+                PoseClimb(dt, vy, speed, t, out armL, out armR, out elbowL, out elbowR, out legL, out legR, out kneeL, out kneeR);
+                headYaw = 0f;
+            }
             else if (_seated)
             {
                 // Sitting on a chair (#806): thighs forward, knees bent, hands resting toward the lap,
@@ -518,6 +531,83 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Poses the avatar seated (#806) — thighs forward, knees bent. Driven from the presence
         /// broadcast for remotes; the caller also lowers the avatar so the pelvis meets the seat.</summary>
         public void SetSeated(bool seated) => _seated = seated;
+
+        /// <summary>Poses the avatar climbing (#2193) — on a wall or a ladder, facing it (the caller turns the root).
+        /// <paramref name="strain"/> (0..1) makes the limbs tremble, <paramref name="sliding"/> is the spent grip's
+        /// slide, <paramref name="pullUp"/> the swing over a ledge; remotes only ever get the plain climb.</summary>
+        public void SetClimbing(bool climbing, float strain = 0f, bool sliding = false, bool pullUp = false)
+        {
+            _climbing = climbing;
+            _climbStrain = climbing ? Mathf.Clamp01(strain) : 0f;
+            _climbSliding = climbing && sliding;
+            _climbPullUp = climbing && pullUp;
+        }
+
+        /// <summary>
+        /// The climb poses (#2193), in the same joint angles as the walk (negative shoulder/hip = forward and up):
+        /// <list type="bullet">
+        /// <item><b>Climb</b> — hand over hand: the arms reach up in turn while the opposite knee comes up and pushes,
+        /// the rhythm following the climb (vertical plus sideways speed).</item>
+        /// <item><b>Hang</b> — both hands high on the wall, knees a little bent, a slow breath in the arms.</item>
+        /// <item><b>Strain</b> — the limbs shake and the reach shortens as the grip tires.</item>
+        /// <item><b>Slide</b> — arms straight up, legs straight, a jitter from the scraping wall.</item>
+        /// <item><b>Pull-up</b> — the arms press down on the edge while one knee swings up over it.</item>
+        /// </list>
+        /// </summary>
+        private void PoseClimb(float dt, float vy, float speed, float t,
+            out float armL, out float armR, out float elbowL, out float elbowR,
+            out float legL, out float legR, out float kneeL, out float kneeR)
+        {
+            if (_climbPullUp)
+            {
+                armL = armR = -55f;
+                elbowL = elbowR = 75f;
+                legL = -95f;
+                kneeL = 100f;
+                legR = -15f;
+                kneeR = 25f;
+                return;
+            }
+
+            if (_climbSliding)
+            {
+                float jitter = Mathf.Sin(Time.time * 41f) * 3f;
+                armL = -168f + jitter;
+                armR = -168f - jitter;
+                elbowL = elbowR = 6f;
+                legL = legR = -6f;
+                kneeL = kneeR = 12f;
+                return;
+            }
+
+            float travel = Mathf.Abs(vy) + speed; // vertical and sideways both move the hands
+            float active = Mathf.Clamp01(travel / 1.2f);
+            _climbPhase += dt * travel * 3.2f;
+            float s = Mathf.Sin(_climbPhase);
+            float reach = Mathf.Lerp(28f, 16f, _climbStrain);        // a tired climber reaches shorter
+            float breath = Mathf.Sin((t * 1.4f)) * 2.5f * (1f - active);
+
+            // Hands high on the wall; in motion they take turns reaching up while the other pulls down.
+            armL = -140f - (s * reach * active) + breath;
+            armR = -140f + (s * reach * active) - breath;
+            elbowL = 30f + (Mathf.Max(0f, s) * 35f * active);
+            elbowR = 30f + (Mathf.Max(0f, -s) * 35f * active);
+
+            // The knee opposite the reaching hand comes up and pushes.
+            legL = -22f + (s * 30f * active);
+            legR = -22f - (s * 30f * active);
+            kneeL = 35f + (Mathf.Max(0f, -s) * 45f * active);
+            kneeR = 35f + (Mathf.Max(0f, s) * 45f * active);
+
+            if (_climbStrain > 0.01f)
+            {
+                float shake = _climbStrain * 4f;
+                armL += Mathf.Sin(Time.time * 33f) * shake;
+                armR += Mathf.Sin((Time.time * 37f) + 1f) * shake;
+                legL += Mathf.Sin((Time.time * 29f) + 2f) * shake * 0.6f;
+                legR += Mathf.Sin((Time.time * 31f) + 3f) * shake * 0.6f;
+            }
+        }
 
         /// <summary>Poses the avatar lying asleep (#1869) — limbs straight and still. The caller rotates the root onto
         /// its back along the bed and lifts it onto the mattress.</summary>
@@ -591,7 +681,8 @@ namespace BlocksBeyondTheStars.Client
         /// Layers equipped gear over the body: a helmet shell, a chest plate, leg plates, a back
         /// pack/tank and a helmet lamp. Rebuilds the gear set from the flags (cheap; only on change).
         /// </summary>
-        public void SetGear(bool helmet, bool chest, bool legs, bool pack, bool lamp = false, bool boots = false, bool tank = false)
+        public void SetGear(bool helmet, bool chest, bool legs, bool pack, bool lamp = false, bool boots = false, bool tank = false,
+            bool gloves = false, bool claws = false)
         {
             if (_head == null)
             {
@@ -650,6 +741,27 @@ namespace BlocksBeyondTheStars.Client
                 // #2110: boots — a wider, darker sole block on each foot, outside the leg plates.
                 _gear.Add(AddCube("GearBootL", _legL, new Vector3(0f, -0.50f, 0.03f), new Vector3(0.30f, 0.14f, 0.36f), packMat));
                 _gear.Add(AddCube("GearBootR", _legR, new Vector3(0f, -0.50f, 0.03f), new Vector3(0.30f, 0.14f, 0.36f), packMat));
+            }
+
+            if ((gloves || claws) && _handL != null && _handR != null)
+            {
+                // #2192: climbing gloves — a dark cuff with an orange grip pad over each glove; the claws add three pale
+                // spikes past the fingertips.
+                var cuffMat = Lit(new Color(0.22f, 0.24f, 0.28f), _armorTex);
+                var padMat = Lit(new Color(0.95f, 0.50f, 0.15f), null);
+                var clawMat = Lit(new Color(0.80f, 0.88f, 0.95f), null);
+                foreach (var hand in new[] { _handL, _handR })
+                {
+                    _gear.Add(AddCube("GearGloveCuff", hand, new Vector3(0f, 0.02f, 0f), new Vector3(0.23f, 0.08f, 0.23f), cuffMat));
+                    _gear.Add(AddCube("GearGlovePad", hand, new Vector3(0f, -0.08f, 0.095f), new Vector3(0.16f, 0.10f, 0.03f), padMat));
+                    if (claws)
+                    {
+                        for (int i = -1; i <= 1; i++)
+                        {
+                            _gear.Add(AddCube("GearClaw", hand, new Vector3(i * 0.06f, -0.18f, 0.07f), new Vector3(0.025f, 0.08f, 0.025f), clawMat));
+                        }
+                    }
+                }
             }
 
             // The armor pack (or the tank) replaces the suit's life-support pack (they occupy the same spot on the back).

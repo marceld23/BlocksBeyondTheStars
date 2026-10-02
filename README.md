@@ -493,7 +493,8 @@ worlds that wrap east–west (walk around the planet, seam-free) with a real day
 30 planet types including exotic ones (skylands, fungal, corrupted, ocean, salt flats, ash seas, …) with their
 own flora and fauna, **per-position weather and seasons** (episodic fronts that drift across the
 world — rain, fog, blizzards, acid rain, ember fall, spore blooms, ion storms, meteor showers — with
-gameplay consequences and a weather scanner), swimming/diving, a survival **temperature/climate
+gameplay consequences and a weather scanner), swimming/diving, **wall climbing** (jump at a cliff and hold on —
+further on asteroids, with climbing gloves and claws to research), a survival **temperature/climate
 system**, **fire** you can start and put out (vegetation-only — nothing built ever burns), creature
 taming with energy-fence pens, a craftable hover speeder, mining → crafting → blueprints (with
 **tiered gear upgrades** that consume their predecessor) → ship building (**lay a keel, build the

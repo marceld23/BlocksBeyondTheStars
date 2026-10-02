@@ -36,10 +36,43 @@ public static class SuitEquipment
         return Math.Min(MaxFallProtection, sum);
     }
 
+    /// <summary>Climbing gear never makes the grip endless.</summary>
+    public const float MaxClimbGrip = 0.8f;
+
+    /// <summary>The share of a wall climber's grip drain the worn gear takes away (#2192, 0..0.8) — the best worn piece
+    /// counts, gloves and claws do not stack.</summary>
+    public static float ClimbGrip(IEnumerable<ItemDefinition> items, Func<string, bool> worn)
+    {
+        float best = 0f;
+        foreach (var item in items)
+        {
+            if (item.ClimbGrip > best && worn(item.Key))
+            {
+                best = item.ClimbGrip;
+            }
+        }
+
+        return Math.Min(MaxClimbGrip, best);
+    }
+
+    /// <summary>Whether the worn gear holds on icy walls (#2192, the climbing claws).</summary>
+    public static bool ClimbIce(IEnumerable<ItemDefinition> items, Func<string, bool> worn)
+    {
+        foreach (var item in items)
+        {
+            if (item.ClimbIce && worn(item.Key))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>A rank for "the best piece for a slot" — what the one-time migration and a full backpack pick by.</summary>
     public static float Rank(ItemDefinition def)
         => def.OxygenBonus * 10f + def.ThermalInsulation * 100f + def.CorrosionResistance * 100f
-           + def.ArmorResistance * 100f + def.FallProtection * 100f + 1f;
+           + def.ArmorResistance * 100f + def.FallProtection * 100f + def.ClimbGrip * 100f + 1f;
 
     /// <summary>The one-time migration of a save written before the slots existed (#2110): for every empty slot, the
     /// best wearable piece in the backpack moves into it (one of each — a second helmet stays in the pack). Deterministic,

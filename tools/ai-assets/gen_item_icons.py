@@ -187,6 +187,9 @@ ITEMS = [
     ("lubricant", "a small dark metal can of amber machine lubricant oil with a long thin spout and a drip of oil"),
     # #2110 the feet slot: the suit boots.
     ("boots", "a pair of sturdy sci-fi space-suit boots, dark grey armoured with thick rubber soles and small cyan ankle lights"),
+    # #2192 wall climbing (2026-10-03): the two climbing modules.
+    ("climbing_gloves", "a pair of sturdy sci-fi space-suit climbing gloves, dark grey with bright orange rubber grip pads on the palms and fingertips and a small cyan wrist-strap light"),
+    ("climbing_claws", "a pair of armoured sci-fi space-suit climbing gloves with short curved steel claw spikes on every fingertip, dark gunmetal with orange grip pads and icy pale-blue glints on the claw tips"),
     # #2113 the monorail (2026-09-27): the linker gadget, the cab and the three wagons as packable items.
     ("rail_linker", "a handheld sci-fi rail linker tool, a dark metal grip with two glowing cyan prongs and a small holographic link readout"),
     ("rail_cab", "a sleek sci-fi monorail cab wagon, pale silver-blue with a wide curved cyan windscreen, hovering slightly, side view"),

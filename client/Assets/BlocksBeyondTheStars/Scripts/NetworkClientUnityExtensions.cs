@@ -18,8 +18,8 @@ namespace BlocksBeyondTheStars.Client
         private static Vector3f ToVec3f(Vector3 v) => new Vector3f(v.x, v.y, v.z);
 
         /// <summary>Reports the player's continuous position (unreliable position stream).</summary>
-        public static void SendMove(this NetworkClient client, Vector3 pos, float yaw, float pitch)
-            => client.SendMove(ToVec3f(pos), yaw, pitch);
+        public static void SendMove(this NetworkClient client, Vector3 pos, float yaw, float pitch, bool climbing = false)
+            => client.SendMove(ToVec3f(pos), yaw, pitch, climbing);
 
         /// <summary>Uses a gadget aimed at a world point (e.g. deploy/translator/beacon).</summary>
         public static void SendUseGadget(this NetworkClient client, string gadgetKey, Vector3 target)
