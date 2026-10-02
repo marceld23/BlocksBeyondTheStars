@@ -86,6 +86,10 @@ Menu "Codex"/"DataQubes" button
 - `data/minigames/catalog.json` — the game catalogue (order is authoritative; see below).
 - `data/wiki/articles.json` — the Wiki articles.
 - Bilingual via the existing locale files (`data/locales/{en,de}.json`, also synced).
+- **In-game information only.** The Wiki articles and the `*.desc` texts the Codex shows (planets, blocks, items,
+  blueprints) describe a thing as the player meets it in the game. Who had the idea is credited in the Credits
+  screen (`ui.credits.body`), the README, the changelog and the devblog, never in a description (#2182, guarded by
+  `ContentTests.Descriptions_HoldInGameInformationOnly_NoCreditLines`).
 
 ### Generated assets (via `tools/ai-assets`, committed to the project)
 - `Resources/props/data_cube.png` (OpenAI) — cube texture.

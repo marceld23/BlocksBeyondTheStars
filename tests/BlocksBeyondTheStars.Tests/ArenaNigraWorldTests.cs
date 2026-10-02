@@ -148,8 +148,9 @@ public sealed class ArenaNigraWorldTests
             Assert.Contains("\"vega.hint.world.arena_nigra\"", text);
         }
 
-        Assert.Contains("Theo", en.Get("planet.arena_nigra.desc"));
-        Assert.Contains("Theo", de.Get("planet.arena_nigra.desc"));
+        // The Codex text is in-game information only; Theo is credited in the credits (#2182).
+        Assert.DoesNotContain("Theo", en.Get("planet.arena_nigra.desc"), StringComparison.Ordinal);
+        Assert.DoesNotContain("Theo", de.Get("planet.arena_nigra.desc"), StringComparison.Ordinal);
 
         // Every other type keeps the generation-17 no-op default.
         foreach (var other in Content.Planets.Values.Where(t => t.Key != Key))

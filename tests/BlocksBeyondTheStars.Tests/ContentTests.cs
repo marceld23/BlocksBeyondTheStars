@@ -455,4 +455,25 @@ public class ContentTests
             planet.AuthoredCreatures.Remove("no_such_creature");
         }
     }
+
+    [Fact]
+    public void Descriptions_HoldInGameInformationOnly_NoCreditLines()
+    {
+        // #2182: a description (Codex, tech tree, tooltip) says what a thing is in the game. Whose idea it was
+        // belongs in the credits (ui.credits.body), the README, the changelog and the devblog.
+        string[] creditPhrases =
+        [
+            "Dreamed up by", "school club", "Justus' idea", "Justus asked",
+            "Ausgedacht von", "Schul-AG", "Justus' Idee", "Justus hat gefragt",
+        ];
+        foreach (string code in new[] { "en", "de" })
+        {
+            var offenders = TestLocales.Load(code)
+                .Where(kv => kv.Key.EndsWith(".desc", StringComparison.Ordinal))
+                .Where(kv => creditPhrases.Any(p => kv.Value.Contains(p, StringComparison.OrdinalIgnoreCase)))
+                .Select(kv => kv.Key)
+                .ToList();
+            Assert.True(offenders.Count == 0, $"{code}.json: credit line in {string.Join(", ", offenders)}");
+        }
+    }
 }

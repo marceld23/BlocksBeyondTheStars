@@ -24,6 +24,25 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📖 Codex texts hold in-game information only — no credit lines, the Rainbow Planet's islands float on the sea (#2182, 2026-10-02, branch fix/codex-ingame-only) — ✅ done
+
+**Request (Marcel, 2026-10-02).** Found while writing the devblog post "Ein Monat Schul-AG". The Rainbow Planet's description
+still said its islands float in the sky, but since #1768 they float on the sea. Marcel's rule for the in-game Codex:
+**in-game information only**. Whose idea something was belongs in the credits, not in a description.
+
+- **✅ Credit sentences removed (all 14 locales).** The last sentence of 9 planet descriptions (rainbow sea, flower
+  fields, gaming planet, Arena Nigra, Ember Reach, Titas, Valuma, Toxica-Maxima, gas giant), of the 4 Fifi plant
+  blocks and of the monorail blueprint named who came up with it ("Dreamed up by …", "Justus' idea.", "Justus asked
+  'where are the gases?'"). Removed with a raw-text edit per value, each removed fragment checked by hand. The
+  Ukrainian monorail text never carried one. `ui.credits.body` keeps every name.
+- **✅ Rainbow Planet (all 14 locales):** "there is hardly any land: islands float on the sea with kelp hanging from
+  their undersides into the water".
+- **✅ Guard:** `ContentTests.Descriptions_HoldInGameInformationOnly_NoCreditLines` (en/de `*.desc`);
+  `ArenaNigraWorldTests` no longer demands "Theo" in the description, it forbids it. The rule is written down in
+  `docs/developer/MINIGAMES_AND_WIKI.md` (§Content).
+
+---
+
 ### 🌦️ Planets from orbit match the real worlds — live weather from space and on the landing map (#2179: #2170–#2178, 2026-10-02, branch feat/planet-weather) — ✅ done (released in v2026.10.2; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-02).** Analyse how the flight view draws the planets and on what data. Make them match the real
