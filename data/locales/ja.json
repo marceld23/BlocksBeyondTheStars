@@ -2430,6 +2430,7 @@
   "ui.whatsnew.offline": "ニュースフィードに接続できませんでした — このバージョンに同梱されたノートを表示します。",
   "ui.whatsnew.empty": "リリースノートはまだありません。",
   "ui.loading.title": "読み込み中…",
+  "ui.loading.data": "ゲームデータを読み込み中…",
   "ui.menu.system_check": "// システムチェック",
   "ui.sys.engines": "エンジン",
   "ui.sys.shields": "シールド",

@@ -97,6 +97,10 @@ services:
       # each instance container.
       caddy: ${BBS_WH_BASE_DOMAIN:?set in /opt/bbs/worldhost/.env}
       caddy.reverse_proxy: "{{upstreams 31417}}"
+      # Compress on the fly (#2187): /play's game data is ~20 MB of JSON (gzip: ~1-2 MB), and every release
+      # makes each browser download it again. Caddy's default type list skips the Unity build files: they are
+      # Brotli-packed already and go out as application/octet-stream.
+      caddy.encode: zstd gzip
 
 networks:
   bbs-hosted:

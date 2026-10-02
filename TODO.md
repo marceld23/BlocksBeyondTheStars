@@ -47,6 +47,52 @@ branches, should trees ever get them) stays solid.
 
 ---
 
+### 🌐 Browser: the menu works before the game data has loaded — ghost images, "the world could not be started" (#2185 #2186 #2187, 2026-10-02, branch fix/webgl-menu-before-content) — ✅ done (A+B ship with the next release; C live with the next `worldhost` deploy)
+
+**Report (Marcel, 2026-10-02, v2026.10.2 on `/play`).** After the update, "What's new?" auto-opened. After it was closed it
+stayed visible, and menu, loading screen and the "New world?" dialog showed on top of each other (black background, smeared
+logo and texts). "New world" → "Delete and start over" did nothing for a long time, then the menu said "The world could not
+be started in this browser". After Ctrl+F5 everything worked.
+
+**Cause: one root, three effects.** In the browser the game data (`data/*.json`) is downloaded and parsed after the splash
+screens, and the menu is built before that finishes. After every update the whole download starts over, because the cache
+stamp includes the version. It is now **56 files / 20.1 MB, served uncompressed** (measured live). `settlement_templates.json`
+alone is 6.8 MB, and gzip makes it 194 KB. So on the first visit after an update the
+menu was usable for a long time without any content:
+1. **Ghost images.** The launcher scene has no camera. The only camera in the menu phases is the animated `MenuBackground`, and
+   `EnsureMenuBackground` waits for `ContentReady`. Until then nothing clears the screen and every UI frame stays on it: the
+   closed What's-new dialog, the loading screen, the hidden "New world?" dialog, and the boot fade-in of logo and texts
+   smeared over each other. The black background means the backdrop did not exist yet.
+2. **"The world could not be started".** `BootBrowserSingleplayer` does not wait for content. It calls
+   `BrowserLocalServer.StartServer(Content = null, …)`, the `GameServer` constructor throws on `_content.GetPlanet`, and the
+   menu shows `ui.sp.browser_failed`. Native builds are not affected: they load content synchronously in `Awake`.
+3. **"Nothing happens for a long time."** While content is missing the loading screen holds at 0 % (`LoadingScreen.Update`
+   returns early), and the menu gives no sign that data is still loading.
+
+Ctrl+F5 only seemed to fix it: the first visit had finished the download in the meantime, and the reload reused that cache.
+
+**Built** (Marcel chose A, B and C; D — a menu hint — was dropped as the loading screen now says it):
+- ✅ **#2185 Shell clear camera.** `ShellClearCamera` (new, created in `AppShell.Awake`): solid black, culling mask 0,
+  depth -100. In `LateUpdate` it enables itself only while no other enabled camera renders to the screen; cameras
+  rendering into a texture (avatar/ship preview rigs) do not count. The backdrop, the intro, the editors and the world rig
+  take over as before, so it costs nothing outside the window it exists for.
+- ✅ **#2186 Browser singleplayer waits for the content.** `BootBrowserSingleplayer` holds behind the loading screen until
+  `ContentReady`. If the shell leaves the loading phase, it stops; a failed download returns to the menu, where the
+  content-error overlay (Retry) takes over. Meanwhile the loading screen shows "Loading game data…  n/56"
+  (`ui.loading.data`, all 14 languages by hand; the count is plain digits) and its bar follows the download
+  (`StreamingAssetsCache.RemoteFileTotal`, new).
+- ✅ **#2187 Compressed data download.** `caddy.encode: zstd gzip` on the WorldHost site in
+  `deploy/worldhost/docker-compose.yml`. Caddy's default type list leaves the Unity build files alone (Brotli-packed
+  `*.unityweb`, sent as `application/octet-stream`). It takes effect with the next `worldhost` deploy (`deploy.yml`);
+  verify with `curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip' …/play/StreamingAssets/data/settlement_templates.json`
+  (expects `Content-Encoding`), the same on `…/play/Build/player-webgl.data.unityweb` (expects none), and one browser load.
+- **Tests:** `ShellClearCameraEditModeTests` (7: the camera rule, Create, Refresh hand-over, the data line).
+- **Docs:** `docs/developer/WEBCLIENT_FEASIBILITY.md` §"The menu before the game data".
+- **⚠ Open:** deploy `worldhost` for C; a browser check after the next release (throttled network, older last-seen
+  version, New world before the data is in).
+
+---
+
 ### 📖 Codex texts hold in-game information only — no credit lines, the Rainbow Planet's islands float on the sea (#2182, 2026-10-02, branch fix/codex-ingame-only) — ✅ done
 
 **Request (Marcel, 2026-10-02).** Found while writing the devblog post "Ein Monat Schul-AG". The Rainbow Planet's description

@@ -9,8 +9,9 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The uGUI loading screen (M27 UI rework): the same sci-fi chrome as the menu plus a progress
     /// bar, a TIP panel and a status row, over the animated <see cref="MenuBackground"/>. A small
-    /// updater drives the bar from the shell's (time-based) load progress. AppShell spawns it on the
-    /// Loading phase and destroys it on leaving. (Flavour strings are English for now — localised next.)
+    /// updater drives the bar from the shell's (time-based) load progress — or, while a browser world
+    /// waits for the game data, from that download (#2186). AppShell spawns it on the Loading phase and
+    /// destroys it on leaving. (Flavour strings are English for now — localised next.)
     /// </summary>
     public static class UiLoading
     {
@@ -37,7 +38,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Progress bar.
             UiKit.AddPanel(root, 80f, 760f, 1100f, 120f, UiKit.PanelFill);
-            UiKit.AddText(root, 110f, 776f, 760f, 32f, shell.L("ui.loading.title"), 26, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var title = UiKit.AddText(root, 110f, 776f, 760f, 32f, shell.L("ui.loading.title"), 26, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddImage(root, 110f, 824f, 880f, 30f, UiKit.SolidSprite, new Color(0.04f, 0.10f, 0.18f, 0.9f));
             var fill = UiKit.AddImage(root, 110f, 824f, 880f, 30f, UiKit.SolidSprite, UiKit.Cyan);
             fill.type = Image.Type.Filled;
@@ -57,17 +58,28 @@ namespace BlocksBeyondTheStars.Client
 
             var updater = canvas.gameObject.AddComponent<LoadingUpdater>();
             updater.Shell = shell;
+            updater.Title = title;
             updater.Fill = fill;
             updater.Percent = percent;
             return canvas.gameObject;
         }
 
-        /// <summary>Drives the progress bar + percentage from the shell's load progress each frame.</summary>
+        /// <summary>The data-download line on the loading screen: the localized words plus "done/total" once the
+        /// manifest is known. The count is plain digits, so the key holds the words only (#2186).</summary>
+        public static string DataLine(string words, int done, int total)
+            => total > 0 ? words + "  " + Mathf.Clamp(done, 0, total) + "/" + total : words;
+
+        /// <summary>Drives the progress bar + percentage from the shell's load progress each frame. While the
+        /// browser still downloads the game data, the title says so and the bar follows the download instead of
+        /// sitting at 0 % (#2186) — the world cannot start before that data is in.</summary>
         private sealed class LoadingUpdater : MonoBehaviour
         {
             public AppShell Shell;
+            public Text Title;
             public Image Fill;
             public Text Percent;
+
+            private int _shownDone = -1, _shownTotal = -1; // the data line last written, so a still frame allocates nothing
 
             private void Update()
             {
@@ -76,7 +88,29 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                float p = Shell.LoadingProgress;
+                float p;
+                if (!Shell.ContentReady && StreamingAssetsCache.UsesRemoteStreamingAssets)
+                {
+                    int total = StreamingAssetsCache.RemoteFileTotal;
+                    int done = Mathf.Min(StreamingAssetsCache.RemoteFileCount, total);
+                    p = total > 0 ? (float)done / total : 0f;
+                    if (Title != null && (done != _shownDone || total != _shownTotal))
+                    {
+                        _shownDone = done;
+                        _shownTotal = total;
+                        Title.text = DataLine(Shell.L("ui.loading.data"), done, total);
+                    }
+                }
+                else
+                {
+                    p = Shell.LoadingProgress;
+                    if (_shownTotal >= 0 && Title != null)
+                    {
+                        _shownDone = _shownTotal = -1;
+                        Title.text = Shell.L("ui.loading.title");
+                    }
+                }
+
                 if (Fill != null)
                 {
                     Fill.fillAmount = p;
