@@ -11,6 +11,86 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.3] — 2026-10-03
+
+The climbing release. Until now, a cliff was the end of the road unless you had a ladder, a jetpack or a stack of
+blocks with you. Now **you can climb any solid wall** on planets, moons and asteroids (#2195): jump at it, keep
+pushing, and climb up, down and sideways. Your grip tires, and you feel it rather than read it off a bar. Climbing
+gloves and claws take you further. Tree crowns no longer stop you either: you **walk through leaves, needles and
+fronds** the way you walk through grass, while the trunks stay solid. And in the browser, the first start after an
+update is calm again: no more ghost images, and a new world waits for the game data instead of failing.
+
+ℹ️ **Compatibility:** the network protocol stays at version 8 and the terrain generation stays at 20, so saves and
+worlds carry over as they are. You can climb on every world, old and new. An older game version can still join a
+2026.10.3 world, but it can neither climb nor walk through tree crowns, so update anyway. The desktop game updates
+itself on start, and the browser version is always current.
+
+### 🧗 Climbing walls (#2188 #2189 #2190 #2191 #2193)
+
+- On planets, moons and asteroids you can climb **any solid wall**: a cliff, a canyon wall, a tree trunk or the side
+  of a house. Ladders work exactly as before.
+- **Grab:** jump at the wall and keep pushing towards it. Walking along a wall never sticks you to it, and a
+  one-block step is still simply jumped onto. A grab also catches a fall, so you take no fall damage.
+- **On the wall:** push towards it or hold Jump to climb up, pull away from it to climb down, and move sideways along
+  it. **Crouch lets go** (Ctrl/C, pad (B), touch DOWN). You stop at the side edge of a wall and under an overhang.
+- **At the top** you pull yourself over the edge on your own. That also gets you over a **two-block wall**: run, jump
+  and keep pushing.
+- **Your grip tires**, and there is no bar for it: first you climb slower, then your view trembles and you breathe
+  hard, and when it is gone you **slide down slowly**, never fast enough to hurt. Standing on the ground or on a
+  ladder refills it in a moment.
+- On a normal planet you get about 20 blocks up, on an asteroid about twice as far, and on a heavy world less.
+- Rock, earth, wood and building blocks hold you. **Glass** is too smooth, **ice** needs claws, and **sand, snow and
+  ash** tire your grip twice as fast.
+- Mining, building and tools keep working while you hang on the wall, so a vein of ore in a cliff is in reach now.
+- With a jetpack, holding Jump keeps you flying. Let go of Jump while you push at a cliff and you grab it instead of
+  falling.
+- There is no climbing in space, in zero-g, in water, in your ship or on a station.
+- Other players see you climb hand over hand, facing the wall. Ladder climbers now climb for everyone else too,
+  instead of showing a jump pose. Grabbing, straining and sliding have their own sounds.
+- The first time you stand in front of a tall wall, VEGA tells you how it works, and the Codex has a new article on
+  climbing.
+
+### 🧤 Climbing gloves and claws (#2192)
+
+- The **climbing gloves** (Suit research, crafted at the workshop) make your hands tire much more slowly.
+- The **climbing claws** are made from the gloves. Your grip lasts more than twice as long, and ice, sand and snow
+  hold you like rock.
+- Wear them in a **module** slot. Other players see them on your hands.
+
+### 🌳 Walk through tree crowns (#2184)
+
+- You now walk, jump and fall **through tree crowns**: leaves, pine needles, palm fronds, the giant trees' leaves and
+  the Fifi plant's leaves, just like through grass and ferns.
+- **Trunks stay solid**, and so do the giant trees' branches. You can still climb a trunk.
+- Crowns still look the same, and you can still hide in one.
+- Birds and other flyers now weave through every kind of crown. Before, they bounced off pines and palms.
+- Mining and placing leaves work as before.
+- One side effect: the giant cactus of the very first worlds is built from leaves, so you can walk through it too.
+
+### 🌐 A calm browser start after an update (#2185 #2186 #2187)
+
+- After an update, the browser downloads the game data again. During that time the menu could leave **ghost
+  images**: a closed "What's new?" window, the loading screen and dialogs drawn on top of each other on a black
+  background. That is gone.
+- Starting a **new world** before the data was in ended, after a long wait, in "The world could not be started in
+  this browser". The game now waits behind the loading screen, which reads "Loading game data…" with a count and a
+  bar that follows the download.
+- The game data now travels **compressed**, so the download after an update is much smaller and faster.
+
+### 📖 Codex (#2182)
+
+- The Codex holds in-game information only now. The lines naming whose idea a planet, a plant or the monorail was
+  are gone from the descriptions. Every name is still in the credits.
+- The Rainbow Planet's description said its islands float in the sky. They float on the sea, and the Codex says so
+  now.
+
+### 🌍 Translations
+
+- Every new text is in all 14 languages: climbing, the gloves and claws, VEGA's climbing hint and the loading line
+  (#2194 #2186).
+
+Full details of every change are in the pull requests: #2183, #2196, #2197 and #2198.
+
 ## [2026.10.2] — 2026-10-02
 
 The forecast release. Until now, the planets you saw from your ship were painted guesses: most of them had no clouds at
@@ -6563,7 +6643,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.2...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.3...HEAD
+[2026.10.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.2...v2026.10.3
 [2026.10.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.1...v2026.10.2
 [2026.10.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.20...v2026.10.1
 [2026.9.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.19...v2026.9.20

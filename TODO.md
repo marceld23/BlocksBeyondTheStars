@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧗 Wall climbing on planets, moons and asteroids — grab, grip, pull-up, climbing gear (#2195: #2188–#2194, 2026-10-03, branch feat/wall-climbing) — ✅ done (⚠ playtest open)
+### 🧗 Wall climbing on planets, moons and asteroids — grab, grip, pull-up, climbing gear (#2195: #2188–#2194, 2026-10-03, branch feat/wall-climbing) — ✅ done (released in v2026.10.3; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-03).** You should be able to climb vertical walls on planets, moons and asteroids (not in
 space), not only ladders, which stay as they are (walk in, go straight up). Climbing should feel *different*.
@@ -64,9 +64,11 @@ so a 2-block wall was impassable without a jetpack or building.
   keyboard, gamepad and touch (WebGL). Possible follow-ups: climbing around corners, a wall jump / climb leap, rain
   making walls slippery, grabbing a cliff straight out of the water.
 
+**Released** in **v2026.10.3** "the climbing release" (2026-10-03).
+
 ---
 
-### 🌳 Walk through tree foliage like through plants — leaves, needles and fronds, not the trunks (#2184, 2026-10-03, branch feat/walk-through-tree-foliage) — ✅ done (⚠ playtest open)
+### 🌳 Walk through tree foliage like through plants — leaves, needles and fronds, not the trunks (#2184, 2026-10-03, branch feat/walk-through-tree-foliage) — ✅ done (released in v2026.10.3; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-02).** Tree foliage should be walked through the way grass and ferns are — the trunk (and
 branches, should trees ever get them) stays solid.
@@ -87,9 +89,11 @@ branches, should trees ever get them) stays solid.
 - **✅ Tests:** `TreeFoliageTests` (content, cutout look, jamb rule, never entombed inside a crown), `DoorwayTests`,
   EditMode `ChunkMesherTreeFoliageEditModeTests` (no crown collider; a trunk inside its crown keeps all six faces).
 
+**Released** in **v2026.10.3** "the climbing release" (2026-10-03).
+
 ---
 
-### 🌐 Browser: the menu works before the game data has loaded — ghost images, "the world could not be started" (#2185 #2186 #2187, 2026-10-02, branch fix/webgl-menu-before-content) — ✅ done (A+B ship with the next release; C live with the next `worldhost` deploy)
+### 🌐 Browser: the menu works before the game data has loaded — ghost images, "the world could not be started" (#2185 #2186 #2187, 2026-10-02, branch fix/webgl-menu-before-content) — ✅ done (released in v2026.10.3; C goes live with its `worldhost` deploy; ⚠ browser check open)
 
 **Report (Marcel, 2026-10-02, v2026.10.2 on `/play`).** After the update, "What's new?" auto-opened. After it was closed it
 stayed visible, and menu, loading screen and the "New world?" dialog showed on top of each other (black background, smeared
@@ -133,9 +137,11 @@ Ctrl+F5 only seemed to fix it: the first visit had finished the download in the 
 - **⚠ Open:** deploy `worldhost` for C; a browser check after the next release (throttled network, older last-seen
   version, New world before the data is in).
 
+**Released** in **v2026.10.3** "the climbing release" (2026-10-03).
+
 ---
 
-### 📖 Codex texts hold in-game information only — no credit lines, the Rainbow Planet's islands float on the sea (#2182, 2026-10-02, branch fix/codex-ingame-only) — ✅ done
+### 📖 Codex texts hold in-game information only — no credit lines, the Rainbow Planet's islands float on the sea (#2182, 2026-10-02, branch fix/codex-ingame-only) — ✅ done (released in v2026.10.3)
 
 **Request (Marcel, 2026-10-02).** Found while writing the devblog post "Ein Monat Schul-AG". The Rainbow Planet's description
 still said its islands float in the sky, but since #1768 they float on the sea. Marcel's rule for the in-game Codex:
@@ -151,6 +157,8 @@ still said its islands float in the sky, but since #1768 they float on the sea. 
 - **✅ Guard:** `ContentTests.Descriptions_HoldInGameInformationOnly_NoCreditLines` (en/de `*.desc`);
   `ArenaNigraWorldTests` no longer demands "Theo" in the description, it forbids it. The rule is written down in
   `docs/developer/MINIGAMES_AND_WIKI.md` (§Content).
+
+**Released** in **v2026.10.3** "the climbing release" (2026-10-03).
 
 ---
 
