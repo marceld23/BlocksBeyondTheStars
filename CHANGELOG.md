@@ -11,6 +11,102 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.2] — 2026-10-02
+
+The forecast release. Until now, the planets you saw from your ship were painted guesses: most of them had no clouds at
+all, and what you saw had little to do with the world below. Now **the planets in the flight view are the worlds you
+land on**, with their real ground and their **live weather** (#2179). A storm is a dark cloud mass you can spot from
+orbit, lightning flickers in it, and when you land there, you land in that storm. The landing map tells you the
+weather at every pad, so you can pick a sunny one. On some new worlds you can also stumble on the **ruin of an old
+monorail station**, with a wagon to sit in and salvage for a line of your own. And the engine plumes finally come out
+of the engines, not out of the rear door.
+
+ℹ️ **Compatibility:** the network protocol stays at version 8, so saves carry over as they are. The terrain generation
+rises to **20**: worlds created from now on can have an abandoned station, while existing worlds keep their terrain and
+never grow one. Your ships pick up their real engine nozzles on their own when they load, and they need no repair for
+it. An older game version can still join a 2026.10.2 world, but it shows no weather from space or on the maps, so
+update anyway. The desktop game updates itself on start, and the browser version is always current.
+
+### 🌦️ Weather you can see from space (#2173 #2174 #2175 #2177)
+
+- Every planet and moon of your star system keeps its **weather running** while you fly. It no longer starts fresh
+  when you arrive, so the weather you see from orbit is the weather you land in.
+- A **storm** is a dark cloud mass over the region where it rages, and lightning flickers in it on the planet you are
+  close to. A **front** is a band of cloud.
+- A **blizzard** is white, **acid rain** sickly green and **ash** dark. Sandstorms and spore clouds take the colours of
+  the ground and the plants below.
+- An **ion storm** makes the rim of the atmosphere shimmer, **meteor showers** draw streaks, and fog and heatwaves
+  change the haze around the planet.
+- The lit side of a planet is its **real day side**, so a pad on the dark side means you land at night.
+- Lightning from orbit follows **Settings → Comfort → Reduce flashes**.
+
+### 🗺️ Weather on every map (#2176 #2178)
+
+- The **landing map** (L in flight) shows the planet's live weather, with drifting fronts marked "◀ front ▶". Every pad
+  says the weather waiting there, for example "⚡ Storm" or "☀ Clear". **☁ Weather: on/off** switches the layer, and the
+  game remembers your choice.
+- The **system chart** (M in flight) and the system view of the travel screen show a small weather glyph on every
+  planet of the system you are in (☁ ☂ ⚡ ❄ …).
+- The **planet map** (M on foot) has a weather layer (☁ button, remembered) with the fronts crossing your area, plus
+  the weather where you stand.
+
+### 🪐 Planets that look like the worlds below (#2170 #2171 #2172)
+
+- From orbit, a planet shows its **real ground**: each region's own soil, snow and ice on cold peaks and frozen seas,
+  the world's own water colour and its own plant colours. Airless moons show their craters.
+- **33 of the 51 planet kinds** had no clouds from space at all, and an airless crystal world had a cloud cover. Every
+  world's clouds now come from the world itself.
+- Your home planet's plants had a different colour from orbit than on the ground. They match now, and the haze around
+  every planet takes the colour of its own sky.
+- The day and night band on the landing map showed the wrong time of day for a planet another player was already on.
+  It shows that planet's real time now.
+- With players on several worlds at once, the planets circled their star too fast. They keep one steady pace now.
+- The planet maps are painted in the background, so flying up to a planet no longer makes the game stutter. A planet
+  shows its plain colour for a moment until its map is ready.
+
+### 🚉 Abandoned monorail stations (#2166)
+
+Justus' first idea for the trains was "Verlassene Bahnhöfe!" ("abandoned stations!"). It became the working intercity
+line back then. Now the abandoned version is here too:
+
+- On some new worlds, the **ruin of an old monorail station** stands out in the open country. The roof has partly
+  caved in, the skylight is broken, the lamps are dark, and plants push through the cracked platforms.
+- On the track bed sits an **old wagon** with broken windows and a bush growing on its roof. Its benches are still
+  inside, and you can sit on them.
+- Beyond the hall, the dead line runs on with one standing pylon stump and one toppled across the old embankment.
+- Look for the **salvage** in the wagon and on a platform: old line parts, and sometimes salvaged **rail pylons** or a
+  **rail stop**, enough to start a line of your own.
+- **Station notices** tell a little of the station's story: a timetable, a lost-and-found tag and the driver's last log.
+- VEGA mentions an abandoned station when you are near one. It is not on the map, so you have to find it yourself.
+- Like every ruin, it is not protected: mine whatever you like. There is at most one per world, and never on gas,
+  airless or void worlds.
+
+### 🚀 Engine plumes on the engines (#2162)
+
+- The engine plumes from the last update came out of the middle of the stern, which on most ships is the **rear
+  door**. Now every engine has its own plume, and bigger engines have bigger ones.
+- The starter ship's rear nozzles are real **engine nozzles** now, with a dark housing and a glowing ring, and so are
+  the engines of every other ship layout. Ships you already have get them on their own.
+- Other players' ships show their plumes at their engines too, in flight and when they land or take off.
+
+### 🗞️ "What's new?" in front of the menu (#2163 #2164 #2165)
+
+- In the browser, the **"What's new?"** window that opens after an update could end up **behind** the main menu: the
+  logo covered its title, the buttons covered the text, and clicks went to the menu. It now always opens in front, and
+  so does the update notice.
+- With a **gamepad**, the selection stays inside the open window and no longer wanders off to menu buttons hidden
+  behind it.
+
+### 🌍 Translations
+
+- Every new text is in all 14 languages: the weather layers and the abandoned station with its notices (#2166 #2176).
+
+### 🙏 Thanks
+
+To **Justus**, whose "abandoned stations!" finally got their ruins (#2166).
+
+Full details of every change are in the pull requests: #2167, #2168, #2169 and #2180.
+
 ## [2026.10.1] — 2026-10-02
 
 The sparks release. Until now, almost every shot, scan and drill hit looked the same: a little cube that blinked and
@@ -6467,7 +6563,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.1...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.2...HEAD
+[2026.10.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.1...v2026.10.2
 [2026.10.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.20...v2026.10.1
 [2026.9.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.19...v2026.9.20
 [2026.9.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.18...v2026.9.19

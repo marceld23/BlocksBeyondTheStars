@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🌦️ Planets from orbit match the real worlds — live weather from space and on the landing map (#2179: #2170–#2178, 2026-10-02, branch feat/planet-weather) — ✅ done (⚠ playtest open)
+### 🌦️ Planets from orbit match the real worlds — live weather from space and on the landing map (#2179: #2170–#2178, 2026-10-02, branch feat/planet-weather) — ✅ done (released in v2026.10.2; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-02).** Analyse how the flight view draws the planets and on what data. Make them match the real
 worlds. Show the weather from space and on the landing-pad map, with performance in mind. Decisions: you land in the weather
@@ -83,9 +83,11 @@ you saw; fronts are drawn wider than their true band; spheres turn with their ti
 - WebGL check of the time-sliced bake.
 - Look and feel of the shell tints and the lightning density.
 
+**Released** in **v2026.10.2** "the forecast release" (2026-10-02).
+
 ---
 
-### 🚉 Abandoned monorail stations — station ruins on some worlds (#2166, 2026-10-02, branch feat/rail-ruins, terrain generation 20) — ✅ done (⚠ playtest open)
+### 🚉 Abandoned monorail stations — station ruins on some worlds (#2166, 2026-10-02, branch feat/rail-ruins, terrain generation 20) — ✅ done (released in v2026.10.2; ⚠ playtest open)
 
 Justus' original "Verlassene Bahnhöfe!" (2026-09-27), which had become the working intercity line (#2125). Now, on some
 generation-20 worlds, the **ruin of an old station hall** stands out in the open country (Marcel's rail rules still hold:
@@ -106,9 +108,11 @@ no tickets, no ID cards, no vending machines).
   §"Abandoned stations", WORLD_GENERATION §36, FACTORIES_RUINS_AND_CLAIMING.md, USER_MANUAL.md.
 - **Open:** playtest on a fresh generation-20 world (`/tp railruin`).
 
+**Released** in **v2026.10.2** "the forecast release" (2026-10-02).
+
 ---
 
-### 🚀 Engine plumes sit on the engines, not on the rear door (#2162, 2026-10-02, branch fix/engine-plume-placement) — ✅ done (⚠ playtest open)
+### 🚀 Engine plumes sit on the engines, not on the rear door (#2162, 2026-10-02, branch fix/engine-plume-placement) — ✅ done (released in v2026.10.2; ⚠ playtest open)
 
 **Report (Marcel, 2026-10-02).** On every ship the engine effect sat on the rear entrance door. The starter ship and the
 Hammerhead each have two engines at the stern, and that is where the plumes belong.
@@ -133,9 +137,11 @@ and their landing/launch seen from the surface used the same stern centre.
 - Tests: server (starter + Hammerhead engines are `engine_nozzle`, no repair needed) and Client.Core (`ShipExhaustsTests`: the
   Hammerhead's four engines, no exhaust on any authored ship's rear door, starter box, buried engines, cap/order).
 
+**Released** in **v2026.10.2** "the forecast release" (2026-10-02).
+
 ---
 
-### 🗞️ Browser: "What's new?" rendered behind the main menu (#2163–#2165, 2026-10-02, branch fix/whatsnew-modal-stacking)
+### 🗞️ Browser: "What's new?" rendered behind the main menu (#2163–#2165, 2026-10-02, branch fix/whatsnew-modal-stacking) — ✅ done (released in v2026.10.2; ⚠ browser + pad check open)
 
 Marcel's browser playtest of v2026.10.1 found the auto-opened "What's new?" dialog sitting **behind** the main menu. The
 logo covered its title, and the name panel, buttons and info panels covered the notes. The scrim dimmed nothing, and clicks
@@ -158,6 +164,7 @@ Tests: `ShellModalStackingEditModeTests` (2).
 
 ⚠ Open: a browser check after the next release (throttled network, skipped intro, older last-seen version) and a pad pass
 over the open dialog.
+**Released** in **v2026.10.2** "the forecast release" (2026-10-02).
 
 ---
 
