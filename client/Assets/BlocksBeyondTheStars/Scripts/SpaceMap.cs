@@ -475,6 +475,14 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     Label(_chart, p + new Vector2(0f, -size * 0.5f - 12f), label);
+
+                    // #2178: the body's live weather beside its disc (the warning colour for violent/exotic weather).
+                    string weatherGlyph = PlanetWeatherVisuals.GlyphMarkup(Game, nb?.Id);
+                    if (weatherGlyph.Length > 0)
+                    {
+                        Label(_chart, p + new Vector2(size * 0.5f + 16f, 0f), weatherGlyph);
+                    }
+
                     _targets.Add((string.IsNullOrEmpty(b.Id) ? SpaceView.HomeWaypointId : b.Id, p, b.Name));
                 }
             }

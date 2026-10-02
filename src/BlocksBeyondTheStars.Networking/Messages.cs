@@ -903,6 +903,11 @@ public sealed class JoinAccepted
     /// must apply the same generation as the server, like <see cref="TerrainContinents"/>. Contractless
     /// MessagePack: an older client ignores it, an older server leaves it 0 (the classic generators).</summary>
     public int TerrainGeneration { get; set; }
+
+    /// <summary>Whether this save was created with lava-core volcanoes (#1631) — the planet map previews (#2172) must
+    /// apply it like <see cref="TerrainContinents"/> or volcanic worlds would show the wrong relief. Appended
+    /// contractless field: an older server leaves it false.</summary>
+    public bool TerrainLavaCoreVolcanoes { get; set; }
 }
 
 public sealed class JoinRejected

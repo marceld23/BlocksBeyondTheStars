@@ -2409,31 +2409,9 @@ namespace BlocksBeyondTheStars.Client
                 return string.Empty;
             }
 
-            string icon = state switch
-            {
-                "clouds" => "☁",
-                "rain" or "drizzle" => "☂",
-                "storm" => "⚡",
-                "blizzard" or "gale" => "❄",
-                "fog" or "ground_fog" => "≈",
-                "heatwave" => "☀",
-                "acid_rain" => "☣",
-                "toxic_storm" => "☣", // #2064
-                "ion_storm" => "⚡",
-                "meteor_shower" => "★",
-                "ember_fall" => "▲",
-                "spore_bloom" => "❋",
-                _ => "•",
-            };
-
-            // Violent and exotic weather is worth a warning colour; the mild states stay plain.
-            string colour = env.WeatherFamily switch
-            {
-                "violent" => "#ff7439",
-                "exotic" => "#c58bff",
-                "obscuring" => "#9fb4c8",
-                _ => null,
-            };
+            // #2174: the shared weather look — the maps show the same glyphs and warning colours.
+            string icon = WeatherLook.Glyph(state);
+            string colour = WeatherLook.FamilyColorHex(env.WeatherFamily);
 
             string label = $"{icon} {loc.Get("weather." + state)}";
             return "  " + (colour is null ? label : $"<color={colour}>{label}</color>");

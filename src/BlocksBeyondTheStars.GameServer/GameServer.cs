@@ -12,6 +12,7 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Weather;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -1066,6 +1067,7 @@ public sealed partial class GameServer
         BroadcastLandingPads(session); // the arrival claimed a pad — everyone's map must show it (#1020)
         SendContainers(session);
         SendStarMap(session);
+        SendSystemWeather(session); // #2173: the live weather of the system's bodies (sky bodies, maps)
         SendShipRepairStatus(session); // the repair panel follows the ship, not the last console press (#1561)
         SyncAppearance(session); // faces + body paintings both ways — appearance is per-world state (#982)
         Send(session, new ServerMessage
@@ -1675,6 +1677,9 @@ public sealed partial class GameServer
             EndTickTiming(deltaSeconds);
             return;
         }
+        // The shared orbital clock advances once per server tick — not once per occupied world, which ran it twice
+        // as fast with two worlds loaded (#2173: the biome weather offsets the maps mirror rotate on it).
+        _systemTimeDays += deltaSeconds / SystemDaySeconds;
         Guard("TickSpace", deltaSeconds, TickSpace); // space instances are keyed by location and handle their own players
 
         // Tick each occupied world with the Active cursor set to it, so its environment/fauna/fluids/
@@ -1690,6 +1695,10 @@ public sealed partial class GameServer
         {
             ticking.Add(_worlds.Active.LocationId);
         }
+
+        // #2173: the worlds whose TickWeather runs this tick — the ambient weather leaves exactly these alone.
+        _weatherTicked.Clear();
+        _weatherTicked.UnionWith(ticking);
 
         // Decide once per tick whether this is a chunk-sweep tick (throttled), then run the eviction per active
         // world inside the loop so each world's anchors are its own players. See SweepFarChunks.
@@ -1759,6 +1768,7 @@ public sealed partial class GameServer
             }
         }
 
+        Guard("TickAmbientWeather", deltaSeconds, TickAmbientWeather); // #2173: the weather of every body in an occupied system
         Guard("SampleHistories", deltaSeconds, SampleHistories); // also advances _uptime
         Guard("SilentSessions", SweepSilentSessions); // release names/slots held by dead clients (#964)
         Guard("SweepExpiredLandedTraders", SweepExpiredLandedTraders); // P3: free pads of traders whose dwell ended on bodies nobody is on
@@ -3977,6 +3987,7 @@ public sealed partial class GameServer
             CumulativePlaytimeSeconds = _meta.CumulativePlaytimeSeconds,
             TerrainContinents = _meta.Description.TerrainContinents,
             TerrainGeneration = _meta.Description.TerrainGeneration, // #1644
+            TerrainLavaCoreVolcanoes = _meta.Description.LavaCoreVolcanoes, // #2172: the planet map previews need it too
         });
         session.AnnouncedWorldId = WorldIdOf(state.CurrentLocationId); // #2117
         SendInventory(session);

@@ -96,6 +96,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<BeamFx>? BeamFxReceived; // beam column VFX at both pads, shown to everyone on the world
         public event Action<BaseList>? BasesReceived; // player-founded planet bases (Grundstein) on the current world
         public event Action<LandingPadList>? LandingPadsReceived;
+        public event Action<SystemWeather>? SystemWeatherReceived; // #2173: the live weather of the system's bodies
         public event Action<ShipTransitFx>? ShipTransitReceived;
         public event Action<ChatMessage>? ChatReceived;
         public event Action<VoiceFrame>? VoiceReceived; // a relayed voice frame from another player (Opus bytes)
@@ -1100,6 +1101,7 @@ namespace BlocksBeyondTheStars.Client
                 case BeamFx m: BeamFxReceived?.Invoke(m); break;
                 case BaseList m: BasesReceived?.Invoke(m); break;
                 case LandingPadList m: LandingPadsReceived?.Invoke(m); break;
+                case SystemWeather m: SystemWeatherReceived?.Invoke(m); break;
                 case ShipTransitFx m: ShipTransitReceived?.Invoke(m); break;
                 case ChatMessage m: ChatReceived?.Invoke(m); break;
                 case VoiceFrame m: VoiceReceived?.Invoke(m); break;

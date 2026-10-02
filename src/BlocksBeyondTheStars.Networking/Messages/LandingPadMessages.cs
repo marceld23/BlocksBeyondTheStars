@@ -44,6 +44,14 @@ public sealed class NetLandingPad
     /// shows it red and the server only parks a ship there when no other pad is free. Appended contractless field:
     /// an older peer reads false.</summary>
     public bool Lava { get; set; }
+
+    /// <summary>The weather at the pad right now (#2173) — the state key the surface would report there, computed by
+    /// the server with the shared per-position formula on the body's live (ambient) weather. Empty from an older
+    /// server (appended contractless field).</summary>
+    public string Weather { get; set; } = string.Empty;
+
+    /// <summary>What falls at the pad ("none", "rain", "snow", …) — temperature-resolved like the surface.</summary>
+    public string Precipitation { get; set; } = string.Empty;
 }
 
 /// <summary>A body's fixed landing pads + occupancy (server → client): drives the land chooser in the flight

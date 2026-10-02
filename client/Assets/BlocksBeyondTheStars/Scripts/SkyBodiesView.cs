@@ -40,6 +40,10 @@ namespace BlocksBeyondTheStars.Client
             public float Peak;           // max elevation of its daily arc (deg) — never the zenith, so paths spread
             public float Sweep;          // azimuth travel across the visible arc (deg) — an east→up→west drift
             public float Size;           // world-space sphere scale at the fixed sky distance
+            public string BodyId;        // #2177: keys the body's live weather snapshot (its time of day)
+            public Transform Ring;       // the ring disc, held still while the sphere turns
+            public Quaternion RingBase;
+            public BlocksBeyondTheStars.Shared.Definitions.PlanetType Planet;
         }
 
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_SunDir");
@@ -189,6 +193,16 @@ namespace BlocksBeyondTheStars.Client
                 // now just an overall dim: bodies dominate the dark night sky and wash out toward day, fading at
                 // the horizon. (The lit/unlit split across the disc is the phase, handled in the shader.)
                 b.Mat.SetVector(PhaseSunDirId, sunDir);
+                // #2177: the disc turns to the body's own time of day — its day side faces the sun, as in orbit.
+                if (Game.SystemWeather.TryGet(b.BodyId, out var bodyWeather))
+                {
+                    PlanetWeatherVisuals.Spin(b.Go.transform, PlanetWeatherVisuals.TimeOfDay(Game, bodyWeather, b.Planet),
+                        transform.InverseTransformDirection(sunDir));
+                    if (b.Ring != null)
+                    {
+                        b.Ring.localRotation = Quaternion.Inverse(b.Go.transform.localRotation) * b.RingBase;
+                    }
+                }
                 // Daytime the sun and every visible body share the upper sky, so the pure sun-lit phase only shows
                 // the body's unlit far side ("new moon") — a black silhouette against the bright day sky. Ramp the
                 // shader from its true phase (night) toward a fully front-lit disc (day) so bodies stay a visible
@@ -347,35 +361,41 @@ namespace BlocksBeyondTheStars.Client
                 var shader = Shader.Find("BlocksBeyondTheStars/SkyBodyPhase")
                     ?? Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
 
-                // Match the orbit/space view: a known planet type gets its REAL generated world map baked as a
-                // texture (seas/ground/this world's vegetation), washed a touch toward the system star's hue, so
-                // the same body reads the same from the surface as from orbit. Bake is cached + keyed identically
-                // to the space view, so it's shared (no extra cost), and mipmaps collapse a tiny disc to its
-                // average colour anyway. An unknown type falls back to the data-driven flat GroundColor.
+                // Match the orbit/space view: a known planet type gets its REAL generated world map as a texture
+                // (seas/ground/this world's vegetation), washed a touch toward the system star's hue, so the same body
+                // reads the same from the surface as from orbit. The bake is keyed identically to the space view (so
+                // it is shared) and runs off the main thread (#2172): the disc starts in the data-driven flat colour
+                // and takes the map when it is ready.
                 string locationKey = PlanetOrbitLook.LocationKeyFor(system.Name, body.Name);
                 Color sunHue = SunHue();
                 var planet = Game.Content?.GetPlanet(body.PlanetType ?? string.Empty);
-                Color tint;
-                Texture2D baked = null;
+                Color ground = PlanetOrbitLook.GroundColor(
+                    Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType, TintFor(body.PlanetType));
+                Color tint = Color.Lerp(ground, ground * sunHue, 0.35f);
+                var mat = new Material(shader) { color = ShaderColor.Srgb(tint) };
+                Color washTint = Color.Lerp(Color.white, sunHue, 0.35f); // light star-hue wash over the real map
                 if (planet != null)
                 {
-                    baked = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType, bodyCirc, 96, 48,
-                        bodyId: body.Id, continents: Game.TerrainContinents, generation: Game.TerrainGeneration);
-                    tint = Color.Lerp(Color.white, sunHue, 0.35f); // light star-hue wash over the real map
-                }
-                else
-                {
-                    // Data-driven flat colour (surface block + per-planet flora hue + water/lava blend), star-hue washed.
-                    Color ground = PlanetOrbitLook.GroundColor(
-                        Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType, TintFor(body.PlanetType));
-                    tint = Color.Lerp(ground, ground * sunHue, 0.35f);
-                }
+                    bool cratered = body.Kind == "Moon" && planet.IsAirless; // the server's rule for airless moons
+                    var request = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType,
+                        bodyCirc, 96, 48, body.Id, Game.TerrainContinents, Game.TerrainGeneration, cratered, Game.TerrainLavaCoreVolcanoes);
+                    WorldMinimap.Request(request, (tex, _) =>
+                    {
+                        if (mat == null)
+                        {
+                            return;
+                        }
 
-                var mat = new Material(shader) { color = ShaderColor.Srgb(tint) };
-                if (baked != null)
-                {
-                    mat.mainTexture = baked;
-                    mat.mainTextureScale = Vector2.one;
+                        mat.mainTexture = tex;
+                        mat.mainTextureScale = Vector2.one;
+                        foreach (var sb in _bodies)
+                        {
+                            if (sb.Mat == mat)
+                            {
+                                sb.Tint = washTint; // the per-frame brightness multiplies this
+                            }
+                        }
+                    });
                 }
 
                 var mr = go.GetComponent<MeshRenderer>();
@@ -405,9 +425,11 @@ namespace BlocksBeyondTheStars.Client
                 // position/scale. Only above ~14 units apparent size; a smaller disc mips the bands to mush.
                 Material ringMat = null;
                 Color ringTint = Color.clear;
+                Transform ringTf = null;
                 if (body.RingSeed != 0 && apparent >= 14f)
                 {
-                    PlanetRings.Attach(go.transform, body.RingSeed, sunHue, 0.6f, 3001, out ringMat);
+                    var ringGo = PlanetRings.Attach(go.transform, body.RingSeed, sunHue, 0.6f, 3001, out ringMat);
+                    ringTf = ringGo != null ? ringGo.transform : null;
                     ringTint = PlanetRings.TintFor(body.RingSeed, sunHue);
                 }
 
@@ -431,9 +453,11 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Go = go,
                     Mat = mat,
-                    Tint = tint,
+                    Tint = mat.mainTexture != null ? washTint : tint, // a cached map arrives before this body is listed
                     RingMat = ringMat,
                     RingTint = ringTint,
+                    Ring = ringTf,
+                    RingBase = ringTf != null ? ringTf.localRotation : Quaternion.identity,
                     // Initial rise-time offset spreads the bodies across the day; the authoritative per-system
                     // orbital period (signed) then drifts each one relative to the sun → its phase waxes/wanes.
                     Phase = (h >> 7) % 1000 / 1000f,
@@ -442,6 +466,8 @@ namespace BlocksBeyondTheStars.Client
                     Peak = 28f + (h % 47),          // 28..74° — well below the zenith, so arcs spread out
                     Sweep = 150f + (h % 5) * 12f,   // 150..198° east→up→west drift across the sky
                     Size = apparent,
+                    BodyId = body.Id,
+                    Planet = planet,
                 });
             }
         }

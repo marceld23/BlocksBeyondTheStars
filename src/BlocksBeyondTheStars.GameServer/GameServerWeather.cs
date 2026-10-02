@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Weather;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -198,28 +200,29 @@ public sealed partial class GameServer
         _atmosphereHeight = planet?.AtmosphereHeight ?? 0.0;
         // Per-world air thickness (drives fog density + fog-weather chance): airless bodies are clear-vacuum (0);
         // otherwise the planet's explicit value, or a seeded 0.2..0.8 so worlds range from crisp to hazy.
-        _atmosphereDensity = airless ? 0.0
-            : planet?.AtmosphereDensity is { } ad ? System.Math.Clamp(ad, 0.0, 1.0)
-            : 0.2 + ((((uint)StableStringHash(_world.LocationId) ^ (uint)_meta.Seed) & 0xFFFFu) / 65535.0) * 0.6;
+        _atmosphereDensity = AtmosphereDensityFor(planet, airless, _world.LocationId);
 
-        // #900: the weather RNG is salted with the LOCATION, like AtmosphereDensity/SkyHue/CloudTint/gravity
-        // above. It used to be seeded from the save seed alone, so every world in a save ran the same stream
-        // in lockstep — two worlds with the same storm chance had literally the same weather, and a restart
-        // replayed it. Volatility, the season phase and the wind seed all come out of this stream.
-        _worlds.Active.Weather = new WeatherSim(
-            unchecked((ulong)(uint)StableStringHash(_world.LocationId) << 32 | (uint)_meta.Seed) ^ 0x7EA7BEEFUL);
-        _sim.SeasonAmplitude = planet?.SeasonAmplitude ?? 0.35;
-        _worlds.Active.WeatherEventWeights = planet?.WeatherEvents;
-        if (planet?.WeatherVolatility is { } vol && vol > 0)
+        // #2173: a body of an occupied system already carries its AMBIENT weather — the world ADOPTS that sim
+        // (the same object: this world ticks it while loaded, the ambient table while not), so the storm seen
+        // from orbit is the storm you land in. Otherwise a fresh sim, seeded and configured exactly as before.
+        bool adopted = false;
+        if (_planetWeatherMode == "dynamic" && planet is not null
+            && _bodyWeather.TryGetValue(_world.LocationId, out var ambient)
+            && string.Equals(ambient.Planet.Key, planet.Key, System.StringComparison.Ordinal))
         {
-            _sim.Volatility = System.Math.Clamp(vol, 0.3, 2.5);
+            _worlds.Active.Weather = ambient.Sim;
+            adopted = true;
         }
+        else
+        {
+            _worlds.Active.Weather = NewWeatherSim(_world.LocationId, planet, airless);
+        }
+
+        _worlds.Active.WeatherEventWeights = planet?.WeatherEvents;
 
         // Mountain tops sit one ladder step wetter than the valley floor (#900). The line is the planet's
         // own relief — base height plus its amplitude — so a flat world effectively has none.
-        _worlds.Active.CloudLineY = planet is null
-            ? double.MaxValue
-            : planet.BaseHeight + planet.Amplitude * 1.15 + 10;
+        _worlds.Active.CloudLineY = WeatherProjection.CloudLineY(planet);
 
         _dayFraction = InitialDayFraction;
         _sinceEnvBroadcast = 0;
@@ -238,45 +241,84 @@ public sealed partial class GameServer
             toxicWater: ActiveTraits.ToxicWater);
         _waterTint = waterRgb;
         _waterTintMode = (int)waterMode;
-        // One seeded daytime sky hue per WORLD (blue → green → yellow → red, blue-dominant), so worlds with an
-        // atmosphere don't all share the same blue sky. Seeded from LocationId ^ Seed (like AtmosphereDensity) so
-        // two same-type worlds differ. Airless bodies (space sky) carry a value but the client ignores it.
-        // #2063: a type may name its sky (Toxica-Maxima's light green); 0 = the seeded hue every classic type keeps.
-        _skyColor = planet is { SkyColor: > 0 }
-            ? planet.SkyColor
-            : SkyHue(unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed)));
-        // One seeded cloud tint per WORLD (not just per planet type), the colour analogue of the per-world sky
-        // hue: the planet-type base colour gets a small per-world jitter so two same-type worlds differ, then a
-        // contrast guarantee pushes it apart in brightness if it drifted too close to this world's sky — clouds
-        // must always read clearly against the sky. Seeded from LocationId ^ Seed with a salt so it doesn't
-        // track the sky hue. Airless bodies carry a value but show no clouds.
-        _cloudColor = CloudTint(
-            planet?.CloudColor ?? 0xEDEFF2,
-            _skyColor,
-            unchecked((uint)((StableStringHash(_world.LocationId) ^ (int)_meta.Seed) ^ 0x5F356495)));
+        // One seeded daytime sky hue per WORLD (blue → green → yellow → red, blue-dominant), and one seeded cloud
+        // tint kept distinct from it — moved to Shared (#2170) so the orbit view paints every body's rim and
+        // cloud shell in exactly these colours. A type may name its sky (#2063, Toxica-Maxima's light green).
+        _skyColor = AtmosphereTints.SkyRgb(_meta.Seed, _world.LocationId, planet);
+        _cloudColor = AtmosphereTints.CloudRgb(_meta.Seed, _world.LocationId, planet, _skyColor);
         // One seeded gravity multiplier per WORLD: the body's size class sets the band (asteroids feather-light,
         // moons low, planets full + occasionally heavy) and the seed picks within it, so two same-size worlds
         // still differ. The client scales jump/walk/jetpack/fall from it (a ≥1-block jump is always preserved).
         _gravityFactor = GravityFor(_worlds.Active.SizeClass, unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed)));
 
-        // The planet's authored mode becomes a BAND on the ladder rather than a freeze: "overcast" raises
-        // the floor to clouds, airless bodies drop the ceiling to clear (events still run).
-        // #2063: "stormy" pins the FLOOR to the storm itself (Toxica-Maxima's permanent thunderstorm); events still roll.
-        _sim.LadderFloor = airless ? 0
-            : string.Equals(planet?.Weather, "stormy", System.StringComparison.OrdinalIgnoreCase) ? WeatherCatalog.MaxSeverity
-            : string.Equals(planet?.Weather, "overcast", System.StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-        _sim.LadderCeiling = airless || string.Equals(planet?.Weather, "clear", System.StringComparison.OrdinalIgnoreCase)
-            ? 0
-            : WeatherCatalog.MaxSeverity;
+        if (adopted)
+        {
+            return; // mid-episode already — no restart
+        }
 
         if (_planetWeatherMode == "dynamic")
         {
             _sim.Start(WeatherCtx());
+            RegisterLoadedBodyWeather(planet!, airless);
         }
         else
         {
             _sim.Force("clear"); // void worlds: a ship cabin has no sky at all
         }
+    }
+
+    /// <summary>A fresh weather sim for a world, seeded and configured exactly as a world load does it. The RNG is
+    /// salted with the LOCATION (#900) — seeding it from the save seed alone ran every world in lockstep. The
+    /// planet's authored mode becomes a BAND on the ladder rather than a freeze: "overcast" raises the floor to
+    /// clouds, "stormy" pins it to the storm (#2063), airless bodies and "clear" types drop the ceiling to clear
+    /// (events still run).</summary>
+    private WeatherSim NewWeatherSim(string locationId, PlanetType? planet, bool airless)
+    {
+        var sim = new WeatherSim(unchecked((ulong)(uint)StableStringHash(locationId) << 32 | (uint)_meta.Seed) ^ 0x7EA7BEEFUL)
+        {
+            SeasonAmplitude = planet?.SeasonAmplitude ?? 0.35,
+        };
+        if (planet?.WeatherVolatility is { } vol && vol > 0)
+        {
+            sim.Volatility = System.Math.Clamp(vol, 0.3, 2.5);
+        }
+
+        sim.LadderFloor = airless ? 0
+            : string.Equals(planet?.Weather, "stormy", System.StringComparison.OrdinalIgnoreCase) ? WeatherCatalog.MaxSeverity
+            : string.Equals(planet?.Weather, "overcast", System.StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        sim.LadderCeiling = airless || string.Equals(planet?.Weather, "clear", System.StringComparison.OrdinalIgnoreCase)
+            ? 0
+            : WeatherCatalog.MaxSeverity;
+        return sim;
+    }
+
+    /// <summary>Per-world air thickness 0..1: 0 airless, else the type's value or a seeded 0.2..0.8.</summary>
+    private double AtmosphereDensityFor(PlanetType? planet, bool airless, string locationId)
+        => airless ? 0.0
+            : planet?.AtmosphereDensity is { } ad ? System.Math.Clamp(ad, 0.0, 1.0)
+            : 0.2 + ((((uint)StableStringHash(locationId) ^ (uint)_meta.Seed) & 0xFFFFu) / 65535.0) * 0.6;
+
+    /// <summary>#2173: a freshly loaded galaxy body enters the ambient table with its world's sim, so its weather
+    /// keeps running (and stays visible from orbit) after the last player leaves.</summary>
+    private void RegisterLoadedBodyWeather(PlanetType planet, bool airless)
+    {
+        var body = _galaxy?.FindBody(_world.LocationId);
+        if (body is null)
+        {
+            return;
+        }
+
+        _bodyWeather[body.Id] = new BodyWeather
+        {
+            BodyId = body.Id,
+            SystemId = body.SystemId,
+            Planet = planet,
+            Circumference = _world.Circumference,
+            Sim = _sim,
+            AtmosphereDensity = _atmosphereDensity,
+            Airless = airless,
+            Toxic = !airless && !string.Equals(planet.Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase),
+        };
     }
 
     /// <summary>The per-tick inputs the weather model needs from this world.</summary>
@@ -307,9 +349,6 @@ public sealed partial class GameServer
         {
             _dayFraction = (_dayFraction + dt / _dayLength) % 1.0;
         }
-
-        // Advance the monotonic orbital clock (fixed reference day, so it's independent of this world's rotation).
-        _systemTimeDays += dt / SystemDaySeconds;
 
         // The model owns the episode schedule, the intensity envelope, the wind and the fronts (#900).
         float before = _weatherIntensity;
@@ -412,6 +451,15 @@ public sealed partial class GameServer
             return 22f; // a ship / station cabin is climate-controlled
         }
 
+        return TemperatureAt(planet, _sim, weather, timeOfDay, _breathable, pos);
+    }
+
+    /// <summary>The temperature formula of <see cref="CurrentTemperature"/> with explicit inputs, so the landing-pad
+    /// weather (#2173) can read it for a body that is not the active world (the shared generator must be set to that
+    /// body). <paramref name="pos"/> = default reads at the reference altitude.</summary>
+    private float TemperatureAt(PlanetType? planet, WeatherSim sim, string weather, double timeOfDay, bool breathable,
+        BlocksBeyondTheStars.Shared.Geometry.Vector3f pos)
+    {
         // The static part comes from the SAME per-world calibration worldgen uses (base + variation −
         // lapse·altitude). Empty position (world-level broadcasts) reads at the reference altitude.
         // Airless space-sky bodies (asteroids) report their physical base temperature too (#668) — the
@@ -423,9 +471,9 @@ public sealed partial class GameServer
         // The state's own offset, scaled by how far the episode has actually swelled — a storm that is
         // still building doesn't yet bite like one at full strength (#900).
         var wdef = WeatherCatalog.Find(weather);
-        double envelope = _sim.Peak > 0.0001f ? System.Math.Clamp(_sim.Intensity / _sim.Peak, 0f, 1f) : 1f;
+        double envelope = sim.Peak > 0.0001f ? System.Math.Clamp(sim.Intensity / sim.Peak, 0f, 1f) : 1f;
         double weatherDelta = wdef is null ? 2.0 : wdef.TempDelta * (wdef.Key == "clear" ? 1.0 : envelope);
-        double swing = _breathable ? 6.0 : 16.0; // airless worlds swing hard between day and night
+        double swing = breathable ? 6.0 : 16.0; // airless worlds swing hard between day and night
         double dayNight = System.Math.Cos((timeOfDay - 0.5) * 2.0 * System.Math.PI) * swing;
         double t = baseT + weatherDelta + dayNight;
 
@@ -466,79 +514,27 @@ public sealed partial class GameServer
     /// raining/storming, then snow/hail when cold, ash (fire-rain) when very hot, else rain. (Sandstorm —
     /// stage 2 — keys off a dry/sand surface.)</summary>
     private string PrecipitationFor(string weather, float temp)
-    {
-        var def = WeatherCatalog.Find(weather);
-        if (def is null || def.Precip.Length == 0)
-        {
-            return "none";
-        }
-
-        // Events carry their own form (acid, embers, meteors, spores, blown dust) — temperature has no
-        // say over what an ion-charged sky throws at you.
-        if (!def.IsLadder && def.Key != "blizzard" && def.Key != "drizzle")
-        {
-            return _sim.Precip == "none" ? def.Precip[0] : _sim.Precip;
-        }
-
-        // #2063: a type may name what its ladder rain falls as (Toxica-Maxima: acid) — before the climate has its say.
-        var typed = _content.GetPlanet(_worlds.Active.PlanetType);
-        if (typed is { Precipitation.Length: > 0 })
-        {
-            return typed.Precipitation;
-        }
-
-        // Ladder rain (and the two wet events) still resolves by climate, position-dependent: the snow
-        // line has to agree with where worldgen actually freezes water.
-        if (typed?.SurfaceBlock == "sand") return "sandstorm"; // dry worlds blow sand
-        if (temp >= 55f) return "ash";   // fire-rain / ash on very hot (lava) worlds
-        if (temp <= -15f) return "hail"; // very cold → hail
-        if (temp <= 2f) return "snow";   // cold → snow
-        if (temp <= 5f) return "sleet";  // the wet-snow band between snow and rain
-        // Within the rain band the episode's own roll decides whether it's a downpour or a drizzle, so
-        // a temperate world stops seeing exactly one kind of rain forever.
-        return _sim.Precip is "drizzle" or "rain" ? _sim.Precip : "rain";
-    }
+        => WeatherProjection.Precipitation(weather, _content.GetPlanet(_worlds.Active.PlanetType), temp, _sim.Precip);
 
     /// <summary>The weather in the biome at a position: the world's weather level shifted by a persistent
     /// per-biome offset (some biomes are always wetter/drier). Fixed-weather planets don't vary by biome.</summary>
     private (string State, float Intensity) BiomeWeatherAt(BlocksBeyondTheStars.Shared.Geometry.Vector3f pos)
     {
-        if (_planetWeatherMode != "dynamic")
-        {
-            return (_weatherState, _weatherIntensity);
-        }
-
-        // An EVENT (fog, gale, blizzard, ion storm, …) blankets the whole world: it is not on the ladder,
-        // so no biome/front/altitude arithmetic touches it. That separation is the whole point of the
-        // two-layer model — appending a state used to silently rebalance every biome (#900).
-        var current = WeatherCatalog.Find(_weatherState);
-        if (current is not null && !current.IsLadder)
-        {
-            return (_weatherState, _weatherIntensity);
-        }
-
+        // #2174: ONE formula with the orbit view and the maps (Shared.Weather.WeatherProjection). Only the inputs are
+        // gathered here — and only when they can matter: events and fixed worlds ignore every positional shift.
+        bool dynamic = _planetWeatherMode == "dynamic";
         bool hasPos = pos.X != 0f || pos.Y != 0f || pos.Z != 0f;
-        int level = _sim.LadderSeverity;
-        if (hasPos)
+        int offset = 0, boost = 0;
+        bool summit = false;
+        if (dynamic && hasPos && (WeatherCatalog.Find(_weatherState)?.IsLadder ?? true))
         {
             int biomeIdx = _generator.BiomeIndexAt(_world.Planet, (int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Z));
-            level += BiomeWeatherOffset(biomeIdx);
-            level += _sim.FrontBoostAt(pos.X, _world.Circumference);
-            if (pos.Y > _worlds.Active.CloudLineY)
-            {
-                level += 1; // summits sit in the cloud/snow while the valley below stays clear
-            }
+            offset = WeatherProjection.BiomeOffset(_meta.Seed, biomeIdx, _systemTimeDays);
+            boost = _sim.FrontBoostAt(pos.X, _world.Circumference);
+            summit = pos.Y > _worlds.Active.CloudLineY; // summits sit in the cloud/snow while the valley stays clear
         }
 
-        // Clamp into THIS world's band, not the raw 0..3: an overcast world never reads clear and an
-        // airless one never reads rain, no matter what the biome/front/altitude shifts add up to.
-        level = _sim.ClampSeverity(level);
-        var def = WeatherCatalog.Ladder[level];
-        // Keep the world episode's own envelope shape, but scale it to this position's severity, so a
-        // wetter biome inside a rain episode still swells and fades with the same rhythm.
-        float envelope = _sim.Peak > 0.0001f ? _sim.Intensity / _sim.Peak : 0f;
-        float peak = level == _sim.LadderSeverity ? _sim.Peak : WeatherCatalog.MidPeak(def);
-        return (def.Key, System.Math.Clamp(envelope * peak, 0f, 1f));
+        return WeatherProjection.At(EpisodeOf(_sim, dynamic), offset, boost, summit, hasPos);
     }
 
     /// <summary>Test hook: forces this world's weather (and unlocks dynamic mode so the per-biome shift
@@ -559,16 +555,6 @@ public sealed partial class GameServer
             Drift = 0,
             Life = 1e6,
         });
-
-    /// <summary>Persistent per-biome weather offset (-1 drier .. +2 wetter), deterministic per world, and
-    /// slowly rotating over the shared clock so the wet biome isn't the wet one forever (#900).</summary>
-    private int BiomeWeatherOffset(int biomeIdx)
-    {
-        // One rotation step per ~6 system-days; the sequence itself stays deterministic per world.
-        long era = (long)(_systemTimeDays / 6.0);
-        long h = _meta.Seed ^ ((biomeIdx + era) * 2654435761L) ^ 0xB10;
-        return (int)((ulong)(h < 0 ? -h : h) % 4UL) - 1; // 0..3 → -1..+2
-    }
 
     private void SendEnvironment(PlayerSession session)
     {
@@ -601,16 +587,7 @@ public sealed partial class GameServer
         }
     }
 
-    private static int StableStringHash(string s)
-    {
-        int h = 17;
-        foreach (char c in s ?? string.Empty)
-        {
-            h = h * 31 + c;
-        }
-
-        return h;
-    }
+    private static int StableStringHash(string s) => AtmosphereTints.StableHash(s);
 
     /// <summary>A deterministic, continuously-varying star colour for a system: the system's hash picks a
     /// weighted anchor on the hot→cool stellar ramp and a second hash blends it toward a neighbour, so colours
@@ -660,83 +637,6 @@ public sealed partial class GameServer
         return (r << 16) | (g << 8) | bl;
     }
 
-    // The world's flora base hue moved to Shared.World.FloraTints.ForWorld (#1716).
-
-    private static int Clamp8b(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
-
-    // Per-world daytime sky/atmosphere base hue: blue-dominant (most worlds read earth-like), with rarer green /
-    // yellow / orange / red and an exotic violet. Pastel / mid-bright on purpose — the client feeds this straight
-    // into the sky base, distance fog, ambient and reflections, so a too-saturated value would tint the whole world.
-    private static readonly (int Rgb, int Weight)[] SkyPalette =
-    {
-        (0x8CBFF2, 30), // blue (earth-like default)
-        (0x9FD0E8, 14), // pale cyan
-        (0x8FD0B0, 10), // teal-green
-        (0xB8D89A, 8),  // yellow-green
-        (0xE8D89A, 10), // amber / sandy
-        (0xE8B488, 8),  // orange haze
-        (0xE0A0A0, 6),  // rust / red
-        (0xC8A8E0, 4),  // violet (exotic)
-    };
-
-    /// <summary>A deterministic per-world daytime sky hue: a weighted pick from a blue-dominant palette (with
-    /// rarer green / yellow / orange / red and an exotic violet) plus a small per-channel jitter, so most worlds
-    /// have a blue sky but some read strikingly alien. Only worlds with an atmosphere actually show it.</summary>
-    private static int SkyHue(uint h)
-    {
-        int total = 0;
-        foreach (var (_, w) in SkyPalette)
-        {
-            total += w;
-        }
-
-        int roll = (int)(h % (uint)total);
-        int i = 0;
-        for (; i < SkyPalette.Length; i++)
-        {
-            roll -= SkyPalette[i].Weight;
-            if (roll < 0)
-            {
-                break;
-            }
-        }
-
-        if (i >= SkyPalette.Length)
-        {
-            i = SkyPalette.Length - 1;
-        }
-
-        int anchor = SkyPalette[i].Rgb;
-        int r = (anchor >> 16) & 0xFF, g = (anchor >> 8) & 0xFF, b = anchor & 0xFF;
-        int Jit(int shift) => (int)((h >> shift) & 0x1F) - 16; // -16..+15
-        return (Clamp8b(r + Jit(3)) << 16) | (Clamp8b(g + Jit(8)) << 8) | Clamp8b(b + Jit(13));
-    }
-
-    /// <summary>A deterministic per-world cloud tint: the planet-type base colour plus a small per-world
-    /// jitter (so two same-type worlds differ), then a contrast guarantee — if the tint ended up too close to
-    /// <paramref name="skyRgb"/>, its brightness is pushed apart (lighter over a dark sky, greyer under a bright
-    /// one) so clouds always stand out from the sky, both in luminance and hue.</summary>
-    private static int CloudTint(int baseRgb, int skyRgb, uint h)
-    {
-        int r = (baseRgb >> 16) & 0xFF, g = (baseRgb >> 8) & 0xFF, b = baseRgb & 0xFF;
-        // Modest jitter: keeps the type's character (storm-grey ash, sandy desert) but makes each world unique.
-        int Jit(int shift) => (int)((h >> shift) & 0xF) - 8; // -8..+7
-        r = Clamp8b(r + Jit(2));
-        g = Clamp8b(g + Jit(7));
-        b = Clamp8b(b + Jit(12));
-
-        // Contrast guarantee: if cloud and sky are within ~64 units in RGB, separate them in brightness.
-        int sr = (skyRgb >> 16) & 0xFF, sg = (skyRgb >> 8) & 0xFF, sb = skyRgb & 0xFF;
-        int dr = r - sr, dg = g - sg, db = b - sb;
-        if (dr * dr + dg * dg + db * db < 64 * 64)
-        {
-            int skyLum = (sr * 299 + sg * 587 + sb * 114) / 1000;
-            int push = skyLum > 140 ? -60 : 60; // bright sky → darker (grey) cloud, dark sky → brighter cloud
-            r = Clamp8b(r + push);
-            g = Clamp8b(g + push);
-            b = Clamp8b(b + push);
-        }
-
-        return (r << 16) | (g << 8) | b;
-    }
+    // The world's flora base hue moved to Shared.World.FloraTints.ForWorld (#1716); the sky hue and the cloud
+    // tint moved to Shared.World.AtmosphereTints (#2170).
 }

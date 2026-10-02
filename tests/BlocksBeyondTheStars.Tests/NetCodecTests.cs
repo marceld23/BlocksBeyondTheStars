@@ -326,6 +326,7 @@ public sealed class NetCodecTests
         [278] = typeof(FxIntent),
         [279] = typeof(ActionFx),
         [280] = typeof(CreatureDefeated),
+        [281] = typeof(SystemWeather),
 
     };
 

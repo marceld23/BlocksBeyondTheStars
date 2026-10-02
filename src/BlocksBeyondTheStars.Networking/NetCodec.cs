@@ -561,6 +561,10 @@ public static class NetCodec
         Register(278, typeof(FxIntent));                     // Client -> Server
         Register(279, typeof(ActionFx));                     // Server -> Client
         Register(280, typeof(CreatureDefeated));             // Server -> Client
+
+        // #2173: the live weather of every body in the system (orbit view + map layers). No protocol bump — older
+        // peers drop the unknown tag.
+        Register(281, typeof(SystemWeather));                // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

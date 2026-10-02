@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using BlocksBeyondTheStars.Shared.World;
@@ -19,6 +20,19 @@ namespace BlocksBeyondTheStars.Client
 
         private Canvas _canvas;
         private RectTransform _mapRt;   // the terrain RawImage (markers anchor inside it)
+
+        // #2178: the weather layer over the shown region — the shared projection on the body's planet map (baked once,
+        // off the main thread), refreshed when the server's weather snapshot changes.
+        private const string WeatherLayerName = "WeatherLayer";
+        private const int WeatherCells = 64;
+        private RawImage _weatherRaw;
+        private Texture2D _weatherTex;
+        private Color32[] _weatherBuf;
+        private PlanetMapData _bodyMap;
+        private string _bodyId;
+        private int _weatherSeen = -1;
+        private float _mapSize;
+        private readonly List<GameObject> _frontMarks = new List<GameObject>();
         private Text _info;
         private bool _open;
         private int _radius = 180;      // half-side of the shown square, in blocks (zoomable)
@@ -67,6 +81,11 @@ namespace BlocksBeyondTheStars.Client
             // Not while the death/ship-destruction prompt is up — confirming it would otherwise reveal a
             // still-open map (#413 N6). The toggle is the rebindable PlanetMap action (default M) so the
             // touch MAP button and the context-actions list reach it as well (#1042).
+            if (_open && _weatherRaw != null && Game.SystemWeather.Version != _weatherSeen)
+            {
+                RefreshWeatherLayer(); // #2178: a new weather snapshot arrived while the map is open
+            }
+
             if (InputMap.Down(InputAction.PlanetMap) && !Game.ChatTyping && !Game.AwaitingRespawnConfirm)
             {
                 if (_open)
@@ -104,6 +123,8 @@ namespace BlocksBeyondTheStars.Client
         private void Close()
         {
             _open = false;
+            _weatherRaw = null;
+            _frontMarks.Clear();
             Game.SetMenuOwner(this, false); // arbiter re-locks only once NO other panel is open (#413)
             if (_canvas != null)
             {
@@ -137,11 +158,35 @@ namespace BlocksBeyondTheStars.Client
             var raw = go.AddComponent<RawImage>();
             raw.texture = tex;
             _mapRt = go.GetComponent<RectTransform>();
+            _mapSize = A;
+
+            // #2178: the weather layer — the map's FIRST child, so every marker added by Refresh draws above it
+            // (Refresh keeps it when it clears the markers).
+            var wgo = new GameObject(WeatherLayerName, typeof(RectTransform));
+            wgo.transform.SetParent(go.transform, false);
+            UiKit.Place(wgo, 0, 0, A, A);
+            _weatherRaw = wgo.AddComponent<RawImage>();
+            _weatherRaw.raycastTarget = false;
+            _weatherRaw.enabled = false;
+            _frontMarks.Clear();
+            _weatherSeen = -1;
+            RequestBodyMap();
 
             // Info / legend panel on the right.
             UiKit.AddPanel(root, 980, 100, 900, 900, UiKit.Panel);
             float ix = 1010f, iy = 130f;
             UiKit.AddText(root, ix, iy, 840, 28, L("ui.map.legend"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            Button weatherBtn = null;
+            weatherBtn = UiKit.AddButton(root, ix + 640, iy - 4, 200, 36, WeatherToggleLabel(), () =>
+            {
+                MapWeatherLayer.On = !MapWeatherLayer.On; // #2178: the same remembered switch as the landing map
+                if (weatherBtn != null && weatherBtn.GetComponentInChildren<Text>() is { } t)
+                {
+                    t.text = WeatherToggleLabel();
+                }
+
+                RefreshWeatherLayer();
+            });
             iy += 40f;
             // Truncate (not Overflow): a long POI/beacon list must not run through the legend and buttons
             // below — the last visible line simply cuts off (#592; the layout-overflow class of bug).
@@ -356,9 +401,14 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Clear old markers (children of the map).
+            // Clear old markers (children of the map) — the weather layer stays (#2178).
             for (int i = _mapRt.childCount - 1; i >= 0; i--)
             {
+                if (_mapRt.GetChild(i).name == WeatherLayerName)
+                {
+                    continue;
+                }
+
                 Destroy(_mapRt.GetChild(i).gameObject);
             }
 
@@ -521,10 +571,176 @@ namespace BlocksBeyondTheStars.Client
             if (_info != null)
             {
                 string pois = poiLines.Length > 0 ? $"\n\n{L("ui.map.pois")}:{poiLines}" : string.Empty;
+                // #2178: the weather where you stand (the server's own reading for your position).
+                var env = Game.Environment;
+                string weatherHere = env != null && !env.SpaceSky && !string.IsNullOrEmpty(env.Weather)
+                    ? $"\n{L("ui.map.weather_here")}: {WeatherLook.Glyph(env.Weather)} {L("weather." + env.Weather)}"
+                    : string.Empty;
                 _info.text =
                     $"{L("ui.map.you")}: X {Mathf.RoundToInt(Game.PlayerPosition.x)}  Z {Mathf.RoundToInt(Game.PlayerPosition.z)}\n" +
-                    $"{L("ui.map.scale")}: ±{_radius} m\n" +
+                    $"{L("ui.map.scale")}: ±{_radius} m{weatherHere}\n" +
                     $"{L("ui.map.click_hint")}{wp}{pois}";
+            }
+        }
+
+        private string WeatherToggleLabel()
+            => "☁ " + (MapWeatherLayer.On ? L("ui.map.weather_on") : L("ui.map.weather_off"));
+
+        /// <summary>Asks for the body's planet map (shared with the landing-pad map's bake, off the main thread) — the
+        /// biome and height per region the weather layer projects onto (#2178).</summary>
+        private void RequestBodyMap()
+        {
+            _bodyMap = null;
+            _bodyId = null;
+            var map = Game.StarMap;
+            var env = Game.Environment;
+            if (map?.Systems == null || env == null || Game.Content == null)
+            {
+                return;
+            }
+
+            foreach (var sys in map.Systems)
+            {
+                foreach (var body in sys.Bodies)
+                {
+                    if (body.Id != map.ActiveLocationId)
+                    {
+                        continue;
+                    }
+
+                    var planet = Game.Content.GetPlanet(body.PlanetType ?? string.Empty);
+                    if (planet == null || planet.Void)
+                    {
+                        return; // a station deck or ship cabin has no weather to map
+                    }
+
+                    var cls = WorldConstants.IsAsteroidType(body.PlanetType) ? WorldConstants.WorldSizeClass.Asteroid
+                        : body.Kind == "Moon" ? WorldConstants.WorldSizeClass.Moon : WorldConstants.WorldSizeClass.Planet;
+                    int circ = WorldConstants.CircumferenceFor(body.Id, cls, body.SizeBias);
+                    var request = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed,
+                        PlanetOrbitLook.LocationKeyFor(sys.Name, body.Name), body.PlanetType, circ, 256, 128, body.Id,
+                        Game.TerrainContinents, Game.TerrainGeneration, body.Kind == "Moon" && planet.IsAirless,
+                        Game.TerrainLavaCoreVolcanoes);
+                    string id = body.Id;
+                    _bodyId = id;
+                    WorldMinimap.Request(request, (_, data) =>
+                    {
+                        if (_bodyId != id)
+                        {
+                            return;
+                        }
+
+                        _bodyMap = data;
+                        _weatherSeen = -1;
+                        if (_open)
+                        {
+                            RefreshWeatherLayer();
+                        }
+                    }, priority: 15);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Paints the weather layer over the shown region: each cell runs the shared per-position formula
+        /// (the world episode + the biome's offset + fronts at their TRUE width + the summit rule) on the body map's
+        /// biome and height — the same weather the server reports there. Front centres crossing the region get a
+        /// drift arrow at the top edge.</summary>
+        private void RefreshWeatherLayer()
+        {
+            if (_weatherRaw == null || Game == null)
+            {
+                return;
+            }
+
+            _weatherSeen = Game.SystemWeather.Version;
+            bool on = MapWeatherLayer.On;
+            foreach (var mark in _frontMarks)
+            {
+                if (mark != null)
+                {
+                    Destroy(mark);
+                }
+            }
+
+            _frontMarks.Clear();
+            var bodyMap = _bodyMap;
+            if (bodyMap == null || !PlanetWeatherVisuals.TryBodyWeather(Game, _bodyId, out var bw))
+            {
+                _weatherRaw.enabled = false;
+                return;
+            }
+
+            var planet = Game.Content?.GetPlanet(Game.Environment?.Biome ?? string.Empty);
+            double now = Time.realtimeSinceStartupAsDouble;
+            var fronts = Game.SystemWeather.Fronts(bw, now, bodyMap.Circumference);
+            var episode = SystemWeatherState.Episode(bw);
+            double days = Game.SystemWeather.SystemTimeDays(now);
+            double cloudLine = BlocksBeyondTheStars.Shared.Weather.WeatherProjection.CloudLineY(planet);
+            bool ladder = BlocksBeyondTheStars.Shared.Weather.WeatherCatalog.Find(episode.State)?.IsLadder ?? true;
+            var atm = OrbitLook.For(planet, Game.WorldSeed, _bodyId);
+            var noise = PlanetWeatherVisuals.Noise(_bodyId.GetHashCode());
+
+            const int n = WeatherCells;
+            if (_weatherTex == null)
+            {
+                _weatherTex = new Texture2D(n, n, TextureFormat.RGBA32, false)
+                {
+                    filterMode = FilterMode.Bilinear,
+                    wrapMode = TextureWrapMode.Clamp,
+                    name = "WorldMapWeather",
+                };
+                _weatherBuf = new Color32[n * n];
+            }
+
+            int circ = Mathf.Max(1, bodyMap.Circumference), latP = Mathf.Max(1, bodyMap.LatitudePeriod);
+            for (int cy = 0; cy < n; cy++)
+            {
+                float wz = _oz + (cy + 0.5f) / n * _side;
+                float lat = Mathf.Repeat(wz + latP * 0.5f, latP) / latP;
+                int my = Mathf.Clamp((int)(lat * bodyMap.Height), 0, bodyMap.Height - 1);
+                for (int cx = 0; cx < n; cx++)
+                {
+                    float wx = Mathf.Repeat(_ox + (cx + 0.5f) / n * _side, circ);
+                    int mx = Mathf.Clamp((int)(wx / circ * bodyMap.Width), 0, bodyMap.Width - 1);
+                    int mi = my * bodyMap.Width + mx;
+                    int offset = ladder ? BlocksBeyondTheStars.Shared.Weather.WeatherProjection.BiomeOffset(Game.WorldSeed, bodyMap.Biomes[mi], days) : 0;
+                    int boost = ladder ? BlocksBeyondTheStars.Shared.Weather.WeatherProjection.FrontBoost(fronts, wx, circ) : 0;
+                    bool summit = ladder && bodyMap.Heights[mi] + 1 > cloudLine;
+                    var (state, _) = BlocksBeyondTheStars.Shared.Weather.WeatherProjection.At(episode, offset, boost, summit);
+                    var tint = PlanetWeatherVisuals.Rgb32(WeatherLook.OrbitTint(state, bw.Precip, atm.CloudRgb, bodyMap.GroundRgb, bodyMap.FloraRgb));
+                    float nz = noise[(cy % PlanetWeatherVisuals.ShellH) * PlanetWeatherVisuals.ShellW + (cx * 2) % PlanetWeatherVisuals.ShellW];
+                    float a = PlanetWeatherVisuals.MapSeverity(state) * (0.55f + 0.45f * nz) * 0.8f;
+                    tint.a = (byte)Mathf.Clamp(Mathf.RoundToInt(a * 255f), 0, 255);
+                    _weatherBuf[cy * n + cx] = tint;
+                }
+            }
+
+            _weatherTex.SetPixels32(_weatherBuf);
+            _weatherTex.Apply(false);
+            _weatherRaw.texture = _weatherTex;
+            _weatherRaw.enabled = on;
+
+            if (!on)
+            {
+                return;
+            }
+
+            string frontWord = L("ui.map.weather_front");
+            foreach (var f in fronts)
+            {
+                float rel = Mathf.Repeat((float)f.CenterX - _ox, circ);
+                if (rel > _side)
+                {
+                    continue; // this front's centre is elsewhere on the planet
+                }
+
+                float x = rel / _side * _mapSize;
+                string text = f.Drift < 0 ? $"◀ {frontWord}" : $"{frontWord} ▶";
+                var t = UiKit.AddText(_weatherRaw.transform, Mathf.Clamp(x - 60f, 0f, _mapSize - 120f), 4f, 120f, 22f, text, 15,
+                    new Color(1f, 1f, 1f, 0.92f), TextAnchor.UpperCenter, FontStyle.Bold);
+                t.raycastTarget = false;
+                _frontMarks.Add(t.gameObject);
             }
         }
 

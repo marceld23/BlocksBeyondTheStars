@@ -5062,7 +5062,10 @@ namespace BlocksBeyondTheStars.Client
                 _systemMap = SystemMapWidget.Create(_detail, 40, y, 500, 380);
                 string sel = !string.IsNullOrEmpty(_selected) && _selected.StartsWith("body:", System.StringComparison.Ordinal)
                     ? _selected.Substring(5) : string.Empty;
-                _systemMap.Show(sys.Bodies, map.ActiveLocationId, sel, MarkerColorOf);
+                // #2178: live weather glyphs only for the system you are in (no other system has live data).
+                bool inThisSystem = Game != null && Game.SystemWeather.SystemId == sys.Id;
+                _systemMap.Show(sys.Bodies, map.ActiveLocationId, sel, MarkerColorOf,
+                    inThisSystem ? id => PlanetWeatherVisuals.GlyphMarkup(Game, id) : null);
                 y += 396f;
             }
 

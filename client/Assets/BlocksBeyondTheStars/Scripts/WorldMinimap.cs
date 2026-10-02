@@ -1,145 +1,280 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using BlocksBeyondTheStars.Shared.Content;
-using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.World;
-using BlocksBeyondTheStars.WorldGeneration;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
+using Object = UnityEngine.Object;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Bakes a small equirect map (full circumference × full latitude band) of a body's REAL
-    /// generated world — the generator ships with the client and is deterministic from
-    /// (seed, planet type, circumference), so this is the actual terrain the player will land on:
-    /// seas and lava seas with depth shading, upland ponds/lakes, height-shaded ground in the
-    /// true surface-block colour, and a vegetation wash in this world's own flora hue.
-    /// Used by the landing-pad chooser (pads drawn at their true longitudes) and as the orbital
-    /// planet-sphere texture, so the planet you see IS the world you get. Cached per body+size.
+    /// The planet map previews (#2172): an equirect map (full circumference × full latitude band) of a body's REAL
+    /// generated world, baked by <see cref="PlanetMapBakeJob"/> — the generator ships with the client and is
+    /// deterministic, so the map is the terrain you will land on. Used as the orbit sphere texture, by the bodies in
+    /// the surface sky and by the landing-pad map; the per-pixel terrain facts it keeps (height, biome, temperature)
+    /// are what the weather layers project onto.
+    /// <para><b>Never on the main thread in one go.</b> A whole system took seconds on Mono when every body baked
+    /// synchronously. On desktop each bake runs on a worker thread; in the browser, where managed threads do not run,
+    /// it is time-sliced into rows under a per-frame budget. Callers <see cref="Request"/> a map and get a callback
+    /// once it exists; until then they show the flat data-driven colour. Cached per body + size, textures destroyed on
+    /// world exit (#966).</para>
     /// </summary>
     public static class WorldMinimap
     {
-        private static readonly Dictionary<string, Texture2D> _cache = new();
-
-        /// <param name="bodyId">The body's true location id (e.g. <c>sys0-p1</c>) — the SERVER salts the
-        /// terrain seed with it (#478), so the preview must use the same id or it would show a different
-        /// world. <paramref name="locationName"/> stays the name-derived key the flora-tint rolls use.</param>
-        public static Texture2D Bake(GameContent content, BlockTextureAtlas atlas, long worldSeed,
-            string locationName, string planetTypeKey, int circumference, int texW, int texH,
-            string bodyId = null, bool continents = false, int generation = 0)
+        private sealed class Entry
         {
-            string key = $"{worldSeed}|{locationName}|{bodyId}|{planetTypeKey}|{circumference}|{texW}x{texH}|{continents}|{generation}";
-            if (_cache.TryGetValue(key, out var cached) && cached != null)
+            public PlanetMapRequest Request = null!;
+            public PlanetMapBakeJob Job = null!;
+            public System.Threading.Tasks.Task Task;
+            public Texture2D Texture;
+            public PlanetMapData Data;
+            public bool Failed;
+            public int Priority;
+            public readonly List<Action<Texture2D, PlanetMapData>> Waiters = new List<Action<Texture2D, PlanetMapData>>();
+        }
+
+        private static readonly Dictionary<string, Entry> _cache = new Dictionary<string, Entry>();
+        private static readonly List<Entry> _pending = new List<Entry>();
+
+        /// <summary>Worker bakes running at once on desktop.</summary>
+        private const int MaxConcurrentBakes = 2;
+
+        /// <summary>Main-thread budget per frame for time-sliced bakes (browser).</summary>
+        private const double SliceBudgetMs = 4.0;
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        private static readonly bool Threaded = false;
+#else
+        private static readonly bool Threaded = true;
+#endif
+
+        /// <summary>Builds a bake request on the main thread: reads the ground colours this planet type can show from
+        /// the block atlas (a Unity texture — the worker must not touch it).</summary>
+        public static PlanetMapRequest MakeRequest(GameContent content, BlockTextureAtlas atlas, long worldSeed,
+            string floraKey, string planetTypeKey, int circumference, int texW, int texH,
+            string bodyId, bool continents, int generation, bool cratered, bool lavaCoreVolcanoes)
+        {
+            var colors = new Dictionary<ushort, int>();
+            if (content != null && atlas != null)
             {
-                return cached;
-            }
-
-            var planet = content?.GetPlanet(planetTypeKey ?? string.Empty);
-            var tex = new Texture2D(texW, texH, TextureFormat.RGBA32, mipChain: true)
-            {
-                wrapMode = TextureWrapMode.Repeat,     // longitude wraps; the sphere/strips tile seamlessly
-                filterMode = FilterMode.Bilinear,
-            };
-
-            if (planet == null || content == null)
-            {
-                var flat = new Color[texW * texH];
-                for (int i = 0; i < flat.Length; i++) { flat[i] = new Color(0.45f, 0.44f, 0.42f); }
-                tex.SetPixels(flat); tex.Apply(true);
-                _cache[key] = tex;
-                return tex;
-            }
-
-            var gen = new WorldGenerator(worldSeed, content);
-            // Local preview generator: wrap size + the BODY identity (#478 — the body id salts the
-            // terrain seed, so the preview must carry it or it would show a different world's terrain).
-            gen.SetWorldMode(circumference, cratered: false, landingPads: null, bodyId);
-            gen.SetContinentsEnabled(continents); // #704: same creation-time gate as the server
-            gen.SetTerrainGeneration(generation); // #1644: same landform generation as the server
-            int latPeriod = WorldConstants.LatitudePeriodFor(circumference);
-            int sea = gen.SeaLevel(planet);
-
-            // Which fluid fills the sea (mirrors the generator's water-vs-lava rule).
-            bool hasAir = !planet.IsAirless;
-            bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
-            double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
-            bool lavaSea = waterAb <= 0.0 && (planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0)) > 0.0;
-            bool gasSea = planet.IsGasWorld; // #2112: the gas giant's sea of gas
-
-            Color ground = atlas != null && content.GetBlock(planet.SurfaceBlock) is { } sb
-                ? atlas.AverageColor(sb.NumericId.Value)
-                : new Color(0.45f, 0.44f, 0.42f);
-
-            // Vegetation wash in this world's OWN flora colour (the same per-planet FloraTints roll).
-            float floraW = Mathf.Min(0.5f, Mathf.Clamp01((float)planet.FloraDensity) * 0.9f);
-            var (fr, fg, fb) = FloraTints.For(worldSeed, locationName ?? string.Empty,
-                planet.SurfaceBlock == "mycelium" ? "mushroom_cap" : "tree_leaves");
-            var floraCol = new Color(fr, fg, fb);
-
-            var shallow = gasSea ? new Color(0.88f, 0.72f, 0.52f) : lavaSea ? new Color(0.95f, 0.45f, 0.15f) : new Color(0.30f, 0.55f, 0.78f);
-            var deep = gasSea ? new Color(0.62f, 0.42f, 0.40f) : lavaSea ? new Color(0.55f, 0.15f, 0.05f) : new Color(0.10f, 0.22f, 0.45f);
-
-            var px = new Color[texW * texH];
-            for (int y = 0; y < texH; y++)
-            {
-                int wz = (int)(((y + 0.5) / texH - 0.5) * latPeriod);
-                for (int x = 0; x < texW; x++)
+                foreach (ushort id in PlanetMapBakeJob.GroundBlockIds(content, planetTypeKey))
                 {
-                    int wx = (int)((x + 0.5) / texW * circumference);
-                    int h = gen.SurfaceHeight(planet, wx, wz);
-
-                    Color c;
-                    if (sea != int.MinValue && h <= sea)
-                    {
-                        c = Color.Lerp(shallow, deep, Mathf.Clamp01((sea - h) / 14f)); // depth-shaded sea
-                    }
-                    else if (!lavaSea && gen.SurfacePondDepth(planet, wx, wz) > 0)
-                    {
-                        c = shallow; // an upland pond/lake flush with the terrain
-                    }
-                    else
-                    {
-                        float baseY = sea != int.MinValue ? sea : planet.BaseHeight - planet.Amplitude;
-                        float rel = Mathf.Clamp01((h - baseY) / Mathf.Max(1f, planet.Amplitude * 2f));
-                        c = ground * Mathf.Lerp(0.7f, 1.2f, rel); // height-shaded ground
-                        if (floraW > 0.01f)
-                        {
-                            c = Color.Lerp(c, floraCol * Mathf.Lerp(0.75f, 1.1f, rel), floraW);
-                        }
-                    }
-
-                    c.a = 1f;
-                    px[y * texW + x] = c;
+                    var c = atlas.AverageColor(id);
+                    colors[id] = (Mathf.Clamp(Mathf.RoundToInt(c.r * 255f), 0, 255) << 16)
+                        | (Mathf.Clamp(Mathf.RoundToInt(c.g * 255f), 0, 255) << 8)
+                        | Mathf.Clamp(Mathf.RoundToInt(c.b * 255f), 0, 255);
                 }
             }
 
-            tex.SetPixels(px);
+            return new PlanetMapRequest
+            {
+                Content = content,
+                WorldSeed = worldSeed,
+                BodyId = bodyId ?? string.Empty,
+                FloraKey = floraKey ?? string.Empty,
+                PlanetTypeKey = planetTypeKey ?? string.Empty,
+                Circumference = circumference,
+                Width = texW,
+                Height = texH,
+                Continents = continents,
+                Generation = generation,
+                Cratered = cratered,
+                LavaCoreVolcanoes = lavaCoreVolcanoes,
+                GroundColors = colors,
+            };
+        }
+
+        /// <summary>The finished map of a request, if it has been baked.</summary>
+        public static bool TryGet(PlanetMapRequest request, out Texture2D texture, out PlanetMapData data)
+        {
+            if (request != null && _cache.TryGetValue(request.Key, out var e) && e.Texture != null)
+            {
+                texture = e.Texture;
+                data = e.Data;
+                return true;
+            }
+
+            texture = null;
+            data = null;
+            return false;
+        }
+
+        /// <summary>Asks for a map: <paramref name="onReady"/> runs on the main thread once it exists (at once when it
+        /// is cached). <paramref name="priority"/> orders the queue (higher first — the planet below you, the landing
+        /// map). A failed bake never calls back; the caller keeps its flat look.</summary>
+        public static void Request(PlanetMapRequest request, Action<Texture2D, PlanetMapData> onReady, int priority = 0)
+        {
+            if (request == null)
+            {
+                return;
+            }
+
+            if (_cache.TryGetValue(request.Key, out var e))
+            {
+                if (e.Texture != null)
+                {
+                    onReady?.Invoke(e.Texture, e.Data);
+                    return;
+                }
+
+                if (onReady != null && !e.Failed)
+                {
+                    e.Waiters.Add(onReady);
+                }
+
+                e.Priority = Math.Max(e.Priority, priority);
+                return;
+            }
+
+            e = new Entry { Request = request, Job = new PlanetMapBakeJob(request), Priority = priority };
+            if (onReady != null)
+            {
+                e.Waiters.Add(onReady);
+            }
+
+            _cache[request.Key] = e;
+            _pending.Add(e);
+        }
+
+        /// <summary>Drives the queue — call once per frame (GameBootstrap does). Starts worker bakes on desktop,
+        /// time-slices them in the browser, and turns finished maps into textures.</summary>
+        public static void Pump()
+        {
+            if (_pending.Count == 0)
+            {
+                return;
+            }
+
+            _pending.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+            if (Threaded)
+            {
+                int running = 0;
+                for (int i = _pending.Count - 1; i >= 0; i--)
+                {
+                    var e = _pending[i];
+                    if (e.Task == null)
+                    {
+                        continue;
+                    }
+
+                    if (!e.Task.IsCompleted)
+                    {
+                        running++;
+                        continue;
+                    }
+
+                    _pending.RemoveAt(i);
+                    if (e.Task.IsFaulted)
+                    {
+                        Fail(e, e.Task.Exception?.GetBaseException());
+                    }
+                    else
+                    {
+                        Finish(e);
+                    }
+                }
+
+                for (int i = 0; i < _pending.Count && running < MaxConcurrentBakes; i++)
+                {
+                    var e = _pending[i];
+                    if (e.Task == null)
+                    {
+                        var job = e.Job;
+                        e.Task = System.Threading.Tasks.Task.Run(() => job.Run());
+                        running++;
+                    }
+                }
+
+                return;
+            }
+
+            // Browser: bake rows of the most urgent map until the frame's budget is spent.
+            var sw = Stopwatch.StartNew();
+            while (_pending.Count > 0 && sw.Elapsed.TotalMilliseconds < SliceBudgetMs)
+            {
+                var e = _pending[0];
+                bool done;
+                try
+                {
+                    done = e.Job.Step(4);
+                }
+                catch (Exception ex)
+                {
+                    _pending.RemoveAt(0);
+                    Fail(e, ex);
+                    continue;
+                }
+
+                if (done)
+                {
+                    _pending.RemoveAt(0);
+                    Finish(e);
+                }
+            }
+        }
+
+        private static void Finish(Entry e)
+        {
+            if (!_cache.TryGetValue(e.Request.Key, out var live) || !ReferenceEquals(live, e))
+            {
+                return; // the cache was cleared (world exit) while the bake ran
+            }
+
+            var data = e.Job.Data;
+            var tex = new Texture2D(data.Width, data.Height, TextureFormat.RGBA32, mipChain: true)
+            {
+                wrapMode = TextureWrapMode.Repeat, // longitude wraps; the sphere/strips tile seamlessly
+                filterMode = FilterMode.Bilinear,
+                name = "PlanetMap_" + e.Request.BodyId,
+            };
+            tex.SetPixelData(data.Rgba, 0);
             tex.Apply(true);
-            _cache[key] = tex;
-            return tex;
+            e.Texture = tex;
+            e.Data = data;
+            var waiters = e.Waiters.ToArray();
+            e.Waiters.Clear();
+            foreach (var w in waiters)
+            {
+                try
+                {
+                    w(tex, data);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                }
+            }
+        }
+
+        private static void Fail(Entry e, Exception ex)
+        {
+            e.Failed = true;
+            e.Waiters.Clear();
+            Debug.LogWarning($"[PlanetMap] Bake of {e.Request.BodyId} ({e.Request.PlanetTypeKey}) failed: {ex?.Message}");
         }
 
         /// <summary>Number of baked previews currently held (diagnostics).</summary>
         public static int CachedCount => _cache.Count;
 
-        /// <summary>Destroys every cached preview and empties the cache (#966). The cache is static, so it
-        /// used to outlive the world that filled it: each mip-mapped RGBA preview is a few hundred KB, one
-        /// per body AND per requested size, and returning to the menu never freed any of them. Clearing the
-        /// dictionary alone would NOT do it — an unreferenced Texture2D is not garbage-collected by Unity,
-        /// it has to be destroyed explicitly (same pattern as SampleKit.ClearCache).</summary>
+        /// <summary>Destroys every cached preview and empties the cache (#966). The cache is static, so it used to
+        /// outlive the world that filled it, and an unreferenced Texture2D is not garbage-collected by Unity — it has to
+        /// be destroyed explicitly. A bake still running finishes into the void (its entry is gone).</summary>
         public static void ClearCache()
         {
-            foreach (var tex in _cache.Values)
+            foreach (var e in _cache.Values)
             {
-                if (tex != null)
+                if (e.Texture != null)
                 {
-                    Object.Destroy(tex);
+                    Object.Destroy(e.Texture);
                 }
             }
 
             _cache.Clear();
+            _pending.Clear();
         }
     }
 }

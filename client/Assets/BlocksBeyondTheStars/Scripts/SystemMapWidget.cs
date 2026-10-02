@@ -50,7 +50,7 @@ namespace BlocksBeyondTheStars.Client
         /// glance — the thing a player asked for ("Planeten im Weltraum markieren, mit verschiedenen Farben").
         /// </para></summary>
         public void Show(IReadOnlyList<NetBody> bodies, string activeBodyId, string selectedBodyId,
-                         System.Func<string, int> markerColorOf = null)
+                         System.Func<string, int> markerColorOf = null, System.Func<string, string> weatherGlyphOf = null)
         {
             for (int i = transform.childCount - 1; i >= 0; i--)
             {
@@ -96,6 +96,15 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var dot = AddDot(centre, dotSize, col);
+                // #2178: the body's live weather rides beside its dot (only for the system you are in).
+                string glyph = weatherGlyphOf?.Invoke(bodies[i].Id) ?? string.Empty;
+                if (glyph.Length > 0)
+                {
+                    var t = UiKit.AddText(dot, dotSize + 2f, dotSize * 0.5f - 9f, 30f, 18f, glyph, 13, Color.white, TextAnchor.MiddleLeft);
+                    t.raycastTarget = false;
+                    t.supportRichText = true;
+                }
+
                 _orbiters.Add(dot);
                 _radius.Add(r);
                 _phase.Add(((bodies[i].Id?.GetHashCode() ?? i) & 0x3FF) * 0.00614f); // a stable starting angle per body

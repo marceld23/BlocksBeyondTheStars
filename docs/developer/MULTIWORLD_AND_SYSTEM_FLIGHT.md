@@ -18,6 +18,10 @@ them**; between systems you hyperjump. This combines two originally separate ide
   leaves (the caller checks `OccupiedLocations()` before unloading), so memory scales with *occupied*
   locations, not the whole universe. The class header still describes the original single-world seam;
   the multi-world dictionary, tick and unload are now live on top of it.
+- **Weather outlives residency (#2173).** Every body of an occupied system carries an ambient `WeatherSim`
+  (`GameServerAmbientWeather`): a loading world ADOPTS its body's sim instead of starting fresh, and an unloading
+  world leaves it in the ambient table, where it keeps advancing at 1 Hz. So the weather seen from orbit is the
+  weather you land in. See [PLANET_VIEW_AND_WEATHER.md](PLANET_VIEW_AND_WEATHER.md).
 - **An Active cursor, not parallel execution.** GameServer reaches per-world state through forwarding
   members that all read `_worlds.Active.*` (e.g. `_world => _worlds.Active.World`, `_creatures`,
   `_fluidLevel`). The Tick loop walks `OccupiedLocations()` and calls `SetActiveWorld(locId)` before

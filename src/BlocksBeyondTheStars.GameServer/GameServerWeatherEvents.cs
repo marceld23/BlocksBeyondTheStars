@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.Weather;
 
 namespace BlocksBeyondTheStars.GameServer;
 

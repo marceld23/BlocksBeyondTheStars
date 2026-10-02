@@ -24,6 +24,67 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌦️ Planets from orbit match the real worlds — live weather from space and on the landing map (#2179: #2170–#2178, 2026-10-02, branch feat/planet-weather) — ✅ done (⚠ playtest open)
+
+**Request (Marcel, 2026-10-02).** Analyse how the flight view draws the planets and on what data. Make them match the real
+worlds. Show the weather from space and on the landing-pad map, with performance in mind. Decisions: you land in the weather
+you saw; fronts are drawn wider than their true band; spheres turn with their time of day; everything in one PR.
+
+**Fix-before-feature findings (#2170, #2171):**
+- The orbit cloud shells came from a hard-coded 15-key table: **33 of 51 planet types** flew past without clouds, and the
+  airless crystal world wore a cloud shell. They now come from the planet data.
+- The home planet's vegetation hue was keyed on the bare body name instead of "System · Body".
+- Airless moons were baked without craters.
+- Every sea was painted classic blue.
+- Sky and cloud tints existed only on the server; they moved to `Shared.World.AtmosphereTints` (bit-identical).
+- The landing-pad map drew the day/night band from the default clock for a body another player held.
+- The shared orbital clock ran once per occupied world instead of once per tick.
+
+**Built:**
+- **Planet map bake (#2172):** `PlanetMapBakeJob` in Client.Core.
+  - It runs on worker threads on desktop and time-sliced (≤ 4 ms per frame) in the browser.
+  - Bodies show their flat colour until the map is ready.
+  - The map shows the biome's own ground, snow and ice above the snow line, frozen seas, per-biome vegetation, the
+    world's water tint and craters on airless moons (new read-only `WorldGenerator.SummarizeSurface`; goldens untouched).
+  - `JoinAccepted` now carries the save's lava-core volcano option for the previews.
+- **Ambient weather (#2173):** every body of an occupied system keeps a live `WeatherSim`.
+  - A loading world adopts it (no restart); an unloading world hands it back.
+  - The new `SystemWeather` snapshot (tag 281, no protocol bump) is sent on join, on entering space, with the pad list and
+    as a 10 s heartbeat.
+  - `NetLandingPad.Weather`/`Precipitation` is computed on the body's own levelled terrain.
+- **One formula (#2174):** `Shared.Weather` holds the catalogue plus `WeatherProjection`: biome offset, fronts, summit and
+  band, precipitation. The server's `BiomeWeatherAt` calls it. `WeatherLook` (Client.Core) is the one table for the sky,
+  the HUD and the maps.
+- **From orbit (#2175):** cloud shells are composed on the CPU from the projected weather (128×64, no new shader).
+  - Storms dark, snow white, acid green, ash dark, sand, spores.
+  - Fronts feathered out to ≥ 4 % of the planet.
+  - The shells drift with the wind.
+  - Lightning on the nearest planet (respects "reduce flashes"), meteor streaks, ion-storm rim, fog and heatwave haze.
+  - The haze rim takes the world's sky colour.
+- **Landing map (#2176):** a switchable weather layer (remembered), front drift arrows, and a glyph + weather name under
+  every pad.
+- **Spin (#2177):** spheres (orbit + surface sky) turn so the noon meridian faces the star — the map's day/night rule.
+- **Other maps (#2178):** weather glyphs on the flight chart and the travel orrery (current system), and a weather layer
+  plus "weather here" on the M map.
+- **Texts and docs:** 5 new keys in all 14 languages ("front" hand-fixed — the machine pass read it as "in front"). User
+  manual updated; new `docs/developer/PLANET_VIEW_AND_WEATHER.md`.
+- **Tests:**
+  - `PlanetWeatherServerTests`: ambient sims, adoption, snapshot, pad weather == surface after landing, held-body clock,
+    once-per-tick clock, shared tints.
+  - `WeatherProjectionTests`.
+  - `PlanetWeatherClientTests`: orbit look over all types, look table, spin, extrapolation, bake slices, biomes/snow/craters,
+    projector, and end to end — the client's projection of the snapshot == the server's weather pixel by pixel.
+
+**Measured (.NET 10, Release, before the change):** calibration ~90 ms per body (once per session), 96×48 bake ~40 ms,
+256×128 ~100 ms — all of it used to run synchronously on the main thread.
+
+**⚠ Open:**
+- Playtest: a storm seen from orbit is the storm you land in; a pad on the dark band lands at night.
+- WebGL check of the time-sliced bake.
+- Look and feel of the shell tints and the lightning density.
+
+---
+
 ### 🚀 Engine plumes sit on the engines, not on the rear door (#2162, 2026-10-02, branch fix/engine-plume-placement) — ✅ done (⚠ playtest open)
 
 **Report (Marcel, 2026-10-02).** On every ship the engine effect sat on the rear entrance door. The starter ship and the

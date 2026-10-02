@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
+using BlocksBeyondTheStars.Shared.Weather;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;

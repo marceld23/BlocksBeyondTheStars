@@ -57,6 +57,9 @@ refreshed 2026-08-08.
 - [ART_BIBLE.md](ART_BIBLE.md) — **normative** visual style reference (palette, materials, room identity).
 - [VFX.md](VFX.md) — the effect system (FxKit, FX lights, scan wave, data-driven `fx` looks) and the catalogue of
   weapon, mining, scanner, gadget, defeat and flight effects; budgets, accessibility, multiplayer relay (#2159).
+- [PLANET_VIEW_AND_WEATHER.md](PLANET_VIEW_AND_WEATHER.md) — planets from orbit as the worlds you land on: the planet
+  map bake (off the main thread), the atmosphere from data, server ambient weather + the `SystemWeather` snapshot, the
+  shared per-position weather formula, cloud shells, landing/M-map weather layers and the time-of-day spin (#2179).
 
 ## Gameplay systems
 

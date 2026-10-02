@@ -260,11 +260,11 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **Mouse** | Yaw + pitch (turn). Sensitivity scales with the ship's **handling** stat |
 | **V** | Toggle cockpit / third-person camera |
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
-| **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens a confirmation (**Enter** = yes, **Esc** = no) |
+| **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens the **landing map**: the planet's real terrain, the day/night band and — switchable with **☁ Weather: on/off** (remembered) — its **live weather**, with drifting fronts marked "◀ front ▶". Every pad says the weather waiting there (e.g. "⚡ Storm", "☀ Clear"), so you can pick a sunny pad. Click a free pad (or its number key) to land; **Esc** cancels |
 | **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) |
 | **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual |
 | **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
-| **M** | **System chart**: a top-down map of the current system. Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart** |
+| **M** | **System chart**: a top-down map of the current system — every planet shows its current weather as a small glyph (☁ ☂ ⚡ ❄ …). Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart** |
 | **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
 
 Ship classes differ in **speed** and **handling** (`data/ships.json`): e.g. the scout is fast and agile,
@@ -1599,6 +1599,17 @@ separate unlock; admins can still disable it through server world rules.
 - **…and opportunities** — an **ion storm charges an exposed suit**, a **spore bloom** fattens what you
   harvest. Sometimes the right move is to walk into the bad weather. Craft the **weather scanner** to
   read what is coming before you set out.
+- **Weather from space** — the planets of the flight view are the worlds you land on: their real ground
+  (each region's own soil, snow and ice on cold peaks and seas, the world's own water and plant colours) and
+  their **live weather**. A storm reads as a dark cloud mass over the region where it rages (lightning flickers in
+  it on the planet you are close to), a front as a band of cloud, a blizzard white, acid rain sickly green, ash
+  dark; an ion storm makes the atmosphere's rim shimmer. The lit side of a planet is its real day side. And it is
+  the **same weather you land in**: every planet keeps its weather running while you fly, it does not start fresh
+  when you arrive.
+- **Weather on the maps** — the **landing map** shows it per pad (see *Space-flight controls*, **L**), the
+  **system chart** (M in flight) and the travel screen's system view show a glyph per planet, and the **planet map**
+  (M on foot) has a **weather layer** (☁ button, remembered) with the fronts crossing your area, plus the weather
+  where you stand.
 - **Multiplayer:** players can be on **different planets / star systems at once**, each with their own ship
   and start point. The star map (Tab → Map) shows where everyone is ("◈ Alice, Bob").
 

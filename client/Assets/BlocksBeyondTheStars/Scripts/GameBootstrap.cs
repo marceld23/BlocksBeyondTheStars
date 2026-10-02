@@ -182,6 +182,10 @@ namespace BlocksBeyondTheStars.Client
         /// OTHER bodies seen from orbit (FloraTints is a pure function of seed + location + species).</summary>
         public long WorldSeed => _worldSeed;
 
+        /// <summary>The live weather of every body in the current star system (#2173) — what the orbit cloud shells,
+        /// the landing-pad map and the other maps project onto their planets.</summary>
+        public SystemWeatherState SystemWeather { get; } = new SystemWeatherState();
+
         /// <summary>Whether this save was created with continents (#704, from JoinAccepted) — the local
         /// preview generators (minimap/orbit bakes) must apply the same gate as the server.</summary>
         public bool TerrainContinents { get; private set; }
@@ -189,6 +193,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The terrain generation this save was created with (#1644, from JoinAccepted) — the local
         /// preview generators apply it like <see cref="TerrainContinents"/>.</summary>
         public int TerrainGeneration { get; private set; }
+
+        /// <summary>Whether this save has lava-core volcanoes (#1631, from JoinAccepted) — the planet map previews apply
+        /// it like <see cref="TerrainContinents"/> (#2172).</summary>
+        public bool TerrainLavaCoreVolcanoes { get; private set; }
         private System.Collections.Generic.Dictionary<ushort, Color> _floraTintByBlock;
 
         /// <summary>Total seconds this world has been played (from JoinAccepted, server-accumulated). The live
@@ -2256,6 +2264,7 @@ namespace BlocksBeyondTheStars.Client
                 _worldSeed = m.WorldSeed;
                 TerrainContinents = m.TerrainContinents; // #704: previews must match the server's gate
                 TerrainGeneration = m.TerrainGeneration; // #1644: same for the landform generation
+                TerrainLavaCoreVolcanoes = m.TerrainLavaCoreVolcanoes; // #2172: and the save's volcanoes
                 CumulativePlaytimeSeconds = m.CumulativePlaytimeSeconds; // saved world total; session ticks on top
                 if (_sessionStartRealtime < 0f)
                 {
@@ -2435,6 +2444,7 @@ namespace BlocksBeyondTheStars.Client
             Network.BasesReceived += m => Bases = m.Bases ?? System.Array.Empty<NetBase>();
             Network.FactoriesReceived += m => Factories = m.Factories ?? System.Array.Empty<NetFactory>();
             Network.LandingPadsReceived += m => { LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>(); LandingPadsBody = m.BodyId ?? string.Empty; LandingPadsTimeOfDay = m.TimeOfDay; };
+            Network.SystemWeatherReceived += m => SystemWeather.Apply(m, Time.realtimeSinceStartupAsDouble); // #2173
             Network.StarMapReceived += m => { StarMap = m; RebuildWikiState(); };
             Network.ExploredMapReceived += m => { if (!string.IsNullOrEmpty(m.BodyId)) ExploredMaps[m.BodyId] = m; };
             Network.DataCubesReceived += m => DataCubes = m.Cubes ?? System.Array.Empty<NetDataCube>();
@@ -2862,6 +2872,7 @@ namespace BlocksBeyondTheStars.Client
             Network?.Poll();
             _worldClock.Advance(Time.deltaTime); // after Poll, so a PauseState that just landed takes effect now
             TickWeatherSmoothing();
+            WorldMinimap.Pump(); // #2172: planet map bakes — worker threads on desktop, time slices in the browser
 
             _skyScanTimer -= Time.deltaTime;
             if (_skyScanTimer <= 0f)
@@ -4215,6 +4226,7 @@ namespace BlocksBeyondTheStars.Client
             SampleKit.ClearCache();
             CreatureVoiceBank.Clear();
             WorldMinimap.ClearCache(); // baked body previews — same static-cache trap (#966)
+            SystemWeather.Clear();     // #2173: the old system's weather must not paint the next world's planets
 
             if (ChunkMaterial != null)
             {

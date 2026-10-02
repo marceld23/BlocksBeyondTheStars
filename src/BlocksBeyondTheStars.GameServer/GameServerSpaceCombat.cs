@@ -656,6 +656,7 @@ public sealed partial class GameServer
             // from the map the moment it sees the space state, so a map arriving after it (a big message, a
             // late packet) had the view build the DEPARTURE system and offer its planets to land on.
             SendStarMap(session); // the space view needs the system's bodies to render + land on them
+            SendSystemWeather(session); // #2173: …and their live weather, before the view builds its cloud shells
             SendSpaceState(session, instance, skipLaunch, hyperjump, resume);
             SendShipCombatStatus(session);
 

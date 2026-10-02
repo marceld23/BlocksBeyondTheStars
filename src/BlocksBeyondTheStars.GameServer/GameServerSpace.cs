@@ -168,6 +168,14 @@ public sealed partial class GameServer
         // chunk generates — ComputeLandingPads only needs noise queries, so it is safe this early.
         var flats = _world.LandingPadFlats;
         flats.Clear();
+        flats.AddRange(PadFlats(pads));
+    }
+
+    /// <summary>The worldgen levelling of a pad set — shared by the world load and the pad-weather queries (#2173),
+    /// so a pad's weather is read on exactly the terrain the loaded world will have.</summary>
+    private static List<BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten> PadFlats(IEnumerable<LandingPad> pads)
+    {
+        var flats = new List<BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten>();
         foreach (var pad in pads)
         {
             flats.Add(pad.Classic
@@ -175,6 +183,8 @@ public sealed partial class GameServer
                 : new BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten(pad.CenterX, pad.CenterZ, pad.CenterY, pad.Radius, pad.Islet, IsletPlateauRadius, IsletRadius,
                     molten: pad.LavaIslet, deck: pad.Deck));
         }
+
+        return flats;
     }
 
     /// <summary>The single source of truth for a body's landing pads — usable for ANY body, loaded or not, so
@@ -1194,9 +1204,7 @@ public sealed partial class GameServer
     /// if it's the active body, else the activation default every world resets to. Lets the pad chooser draw the
     /// day/night terminator exactly where the surface will be on touchdown.</summary>
     private float BodyArrivalTimeOfDay(string bodyId)
-        => string.Equals(bodyId, _world?.LocationId, System.StringComparison.Ordinal)
-            ? (float)_dayFraction
-            : (float)InitialDayFraction;
+        => (float)(_worlds.Find(bodyId)?.DayFraction ?? InitialDayFraction); // #2171: any loaded body, not only the active one
 
     /// <summary>Tells the players already on a body that another player's ship is arriving/departing at a pad, so
     /// they see a landing/launch animation (item 38). Sent only to the others on that body (not the mover, not
@@ -1263,6 +1271,15 @@ public sealed partial class GameServer
             pads[i].Lava = p.Molten; // a pad standing in lava (old saves) — red, and only taken when nothing else is free
         }
 
+        // #2173: the weather at each pad (the chooser shows it) and the system's weather (the map's weather layer).
+        var padPlanet = _content.GetPlanet(body.PlanetType ?? string.Empty);
+        if (padPlanet is not null)
+        {
+            int padCirc = WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, body.PlanetType ?? string.Empty), body.SizeBias);
+            FillPadWeather(body, padPlanet, padCirc, computed, pads);
+        }
+
+        SendSystemWeather(session);
         Send(session, new LandingPadList { BodyId = requestedId, Pads = pads, TimeOfDay = BodyArrivalTimeOfDay(body.Id) });
     }
 

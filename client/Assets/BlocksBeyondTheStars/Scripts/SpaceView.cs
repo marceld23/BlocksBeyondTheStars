@@ -297,7 +297,43 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<string, RemoteEntityInterpolator> _remoteLerp = new Dictionary<string, RemoteEntityInterpolator>();
         private object _lastEntitySnapshot, _lastPlayersSnapshot;
         private const int SpaceNoWrap = int.MaxValue;
-        private readonly List<Transform> _cloudShells = new List<Transform>();
+        // #2175: the bodies of the flight scene with their live look — the planet map baked off the main thread, the
+        // weather-driven cloud shell, the haze rim in the world's own sky colour and the spin to its time of day.
+        private sealed class OrbitBody
+        {
+            public string BodyId = string.Empty;
+            public string Key = string.Empty;
+            public BlocksBeyondTheStars.Shared.Definitions.PlanetType Planet;
+            public OrbitAtmosphere Atmosphere;
+            public Transform Sphere;
+            public Vector3 Pos;
+            public float Diameter;
+            public Vector3 SunLocal;
+            public Transform Ring;          // the planetary ring disc — held still while the sphere turns (#2177)
+            public Quaternion RingBase;
+            public Transform Shell;
+            public Material ShellMat;
+            public Texture2D ShellTex;
+            public Color32[] ShellBuffer;
+            public float[] Noise;
+            public float ShellPhaseDeg;
+            public Material HazeMat;
+            public Color HazeColor;
+            public string HazeState = string.Empty;
+            public PlanetMapData Map;
+            public WeatherMapPixels Pixels;
+            public readonly List<int> StormPixels = new List<int>();
+            public string State = "clear";
+            public int SeenVersion = -1;
+            public int SpunVersion = -1;
+            public double NextCompose;
+        }
+
+        private readonly List<OrbitBody> _orbitBodies = new List<OrbitBody>();
+        private readonly List<Object> _orbitOwned = new List<Object>(); // materials + textures the bodies created (destroyed on Exit)
+        private float _nextLightning;
+        private float _nextMeteor;
+        private LandMapWeather _landWeather; // #2176: the weather layer of the open pad chooser
 
         // #1663: the system's landable asteroid bodies (sphere + its true orbit diameter). Their real size is
         // 11–15 units, which at belt distances (500–1300 units) is an 8–20 px speck nobody can find — so each
@@ -467,15 +503,6 @@ namespace BlocksBeyondTheStars.Client
                 _structSubscribed = true;
             }
 
-            // Drift the cloud cover slowly so planets look alive from space.
-            for (int i = 0; i < _cloudShells.Count; i++)
-            {
-                if (_cloudShells[i] != null)
-                {
-                    _cloudShells[i].Rotate(0f, Time.deltaTime * (2.5f + i * 1.5f), 0f, Space.Self);
-                }
-            }
-
             if (Game.InSpace && !_active)
             {
                 Enter();
@@ -485,6 +512,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 return;
             }
+
+            UpdateOrbitBodies(); // #2175/#2177: weather-driven cloud shells, spin to the time of day, lightning
 
             // #1677: a hyperjump made IN FLIGHT never turns the flag off for a frame we get to see — the server
             // sends SpaceClosed, SpaceState and the new star map in one tick, and the client pump applies all
@@ -1507,6 +1536,7 @@ namespace BlocksBeyondTheStars.Client
                     // Show the planet map with the landing pads on it; the player clicks a free pad to touch down
                     // there. Number keys 1–9 mirror clicking, for keyboard players.
                     ShowLandMap(pads);
+                    RefreshLandWeather(force: false); // #2176: the weather layer follows the server's snapshots
                     for (int i = 0; i < pads.Length && i < 9; i++)
                     {
                         // #999: key N selects the pad LABELLED N (Index + 1), not array slot N — today the
@@ -1869,10 +1899,65 @@ namespace BlocksBeyondTheStars.Client
             mapGo.transform.SetParent(panel.transform, false);
             UiKit.Place(mapGo, pad, mapTop, mapW, mapH);
             var raw = mapGo.AddComponent<UnityEngine.UI.RawImage>();
-            raw.texture = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locName, typeKey, circ, 256, 128,
-                bodyId: !string.IsNullOrEmpty(_choosePadBody) ? _choosePadBody : Game?.LocationName ?? "home",
-                continents: Game?.TerrainContinents ?? false, generation: Game?.TerrainGeneration ?? 0);
+            raw.color = new Color(0.10f, 0.13f, 0.18f, 1f); // dark until the map is baked (#2172: off the main thread)
             raw.raycastTarget = true;
+            string padBodyId = !string.IsNullOrEmpty(_choosePadBody) ? _choosePadBody : Game?.LocationName ?? "home";
+            var mapLoading = UiKit.AddText(mapGo.transform, 0, 0, mapW, mapH, Loc("ui.map.mapping_surface", "Mapping the surface…"),
+                16, UiKit.CyanDim, TextAnchor.MiddleCenter);
+
+            // The weather layer (#2176): over the terrain, under the day/night band and the pad markers. The pads' own
+            // weather comes from the server (exact); the layer is the shared projection, fronts drawn wider.
+            var weatherGo = new GameObject("WeatherLayer", typeof(RectTransform));
+            weatherGo.transform.SetParent(mapGo.transform, false);
+            UiKit.Place(weatherGo, 0, 0, mapW, mapH);
+            var weatherRaw = weatherGo.AddComponent<UnityEngine.UI.RawImage>();
+            weatherRaw.raycastTarget = false;
+            weatherRaw.enabled = false;
+            var padPlanet = Game?.Content?.GetPlanet(typeKey ?? string.Empty);
+            var lw = new LandMapWeather
+            {
+                Raw = weatherRaw,
+                BodyId = padBodyId,
+                Planet = padPlanet,
+                MapW = mapW,
+                MapH = mapH,
+                Atmosphere = OrbitLook.For(padPlanet, Game?.WorldSeed ?? 0L, padBodyId),
+                Seed = CloudShellSeed(padBodyId),
+            };
+            _landWeather = lw;
+            var mapRequest = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed, locName, typeKey, circ, 256, 128,
+                padBodyId, Game.TerrainContinents, Game.TerrainGeneration, body?.Kind == "Moon" && padPlanet is { IsAirless: true },
+                Game.TerrainLavaCoreVolcanoes);
+            WorldMinimap.Request(mapRequest, (tex, data) =>
+            {
+                if (raw == null)
+                {
+                    return; // the chooser closed while the map baked
+                }
+
+                raw.texture = tex;
+                raw.color = Color.white;
+                if (mapLoading != null)
+                {
+                    Destroy(mapLoading.gameObject);
+                }
+
+                lw.Map = data;
+                lw.SeenVersion = -1;
+            }, priority: 20);
+
+            // Weather layer toggle (remembered — the same switch as the M map's layer).
+            Button weatherBtn = null;
+            weatherBtn = UiKit.AddButton(panel.transform, pw - 24 - 170, 18, 170, 30, WeatherToggleLabel(), () =>
+            {
+                MapWeatherLayer.On = !MapWeatherLayer.On;
+                if (weatherBtn != null && weatherBtn.GetComponentInChildren<Text>() is { } t)
+                {
+                    t.text = WeatherToggleLabel();
+                }
+
+                RefreshLandWeather(force: true);
+            });
 
             // Day/night terminator: shade the night half of the strip + mark dawn/dusk, so you can see which pads
             // sit in daylight vs darkness right now. Local time at longitude u is (arrivalTime + u); landing puts
@@ -1940,6 +2025,13 @@ namespace BlocksBeyondTheStars.Client
                         UiKit.AddText(panel.transform, mx - 50, captionY, marker + 100, 18, wetCaption,
                             12, new Color(0.55f, 0.75f, 1f), TextAnchor.UpperCenter);
                     }
+
+                    if (p.Lava || p.Wet)
+                    {
+                        captionY += 16;
+                    }
+
+                    AddPadWeatherCaption(panel.transform, mx, captionY, marker, p.Weather);
                 }
                 else
                 {
@@ -1948,6 +2040,7 @@ namespace BlocksBeyondTheStars.Client
                     UiKit.AddText(occ.transform, 0, 0, marker, marker, label, 18, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
                     string who = string.IsNullOrEmpty(p.Occupant) ? "—" : p.Occupant;
                     UiKit.AddText(panel.transform, mx - 30, my + marker, marker + 60, 18, who, 12, new Color(1f, 0.6f, 0.55f), TextAnchor.UpperCenter);
+                    AddPadWeatherCaption(panel.transform, mx, my + marker + 16, marker, p.Weather);
                 }
             }
 
@@ -2021,6 +2114,119 @@ namespace BlocksBeyondTheStars.Client
             return null;
         }
 
+        /// <summary>The weather layer state of the open pad chooser (#2176).</summary>
+        private sealed class LandMapWeather
+        {
+            public RawImage Raw;
+            public string BodyId = string.Empty;
+            public BlocksBeyondTheStars.Shared.Definitions.PlanetType Planet;
+            public OrbitAtmosphere Atmosphere;
+            public PlanetMapData Map;
+            public WeatherMapPixels Pixels;
+            public Texture2D Tex;
+            public Color32[] Buffer;
+            public float MapW;
+            public float MapH;
+            public int Seed;
+            public int SeenVersion = -1;
+            public double NextRefresh;
+            public readonly List<GameObject> FrontMarks = new List<GameObject>();
+        }
+
+        private string WeatherToggleLabel()
+            => "☁ " + (MapWeatherLayer.On ? Loc("ui.map.weather_on", "Weather: on") : Loc("ui.map.weather_off", "Weather: off"));
+
+        /// <summary>A pad's weather caption: glyph + name, in the HUD's warning colour for violent/exotic weather.</summary>
+        private void AddPadWeatherCaption(Transform parent, float mx, float y, float marker, string state)
+        {
+            if (string.IsNullOrEmpty(state))
+            {
+                return; // an older server sends no pad weather
+            }
+
+            string family = WeatherLook.Family(state);
+            Color col = WeatherLook.FamilyColorHex(family) is { } hex && ColorUtility.TryParseHtmlString(hex, out var c)
+                ? c
+                : new Color(0.85f, 0.92f, 1f);
+            UiKit.AddText(parent, mx - 50, y, marker + 100, 18, $"{WeatherLook.Glyph(state)} {Loc("weather." + state, state)}",
+                12, col, TextAnchor.UpperCenter);
+        }
+
+        /// <summary>Re-projects the chooser's weather layer when a snapshot arrived (and every 2 s as fronts drift).</summary>
+        private void RefreshLandWeather(bool force)
+        {
+            var lw = _landWeather;
+            if (lw == null || lw.Raw == null || Game == null)
+            {
+                return;
+            }
+
+            bool on = MapWeatherLayer.On;
+            foreach (var mark in lw.FrontMarks)
+            {
+                if (mark != null)
+                {
+                    mark.SetActive(on);
+                }
+            }
+
+            if (lw.Map == null || !PlanetWeatherVisuals.TryBodyWeather(Game, lw.BodyId, out var bw))
+            {
+                lw.Raw.enabled = false;
+                return;
+            }
+
+            double now = Time.realtimeSinceStartupAsDouble;
+            int version = Game.SystemWeather.Version;
+            if (!force && lw.SeenVersion == version && now < lw.NextRefresh)
+            {
+                lw.Raw.enabled = on && lw.Tex != null;
+                return;
+            }
+
+            lw.Pixels ??= new WeatherMapPixels();
+            PlanetWeatherVisuals.Project(Game, bw, lw.Map, lw.Planet, lw.Atmosphere.CloudDensity, lw.Pixels);
+            if (lw.Tex == null)
+            {
+                lw.Tex = new Texture2D(lw.Map.Width, lw.Map.Height, TextureFormat.RGBA32, false)
+                {
+                    wrapMode = TextureWrapMode.Repeat,
+                    filterMode = FilterMode.Bilinear,
+                    name = "LandMapWeather",
+                };
+                lw.Buffer = new Color32[lw.Map.Width * lw.Map.Height];
+            }
+
+            PlanetWeatherVisuals.ComposeMapLayer(lw.Tex, lw.Buffer, lw.Map, lw.Pixels, PlanetWeatherVisuals.Noise(lw.Seed), lw.Atmosphere.CloudRgb);
+            lw.Raw.texture = lw.Tex;
+            lw.Raw.enabled = on;
+
+            // Fronts: a drift arrow at the top of each band ("◀ front" moving west, "front ▶" moving east).
+            foreach (var mark in lw.FrontMarks)
+            {
+                if (mark != null)
+                {
+                    Destroy(mark);
+                }
+            }
+
+            lw.FrontMarks.Clear();
+            string frontWord = Loc("ui.map.weather_front", "front");
+            foreach (var f in Game.SystemWeather.Fronts(bw, now, lw.Map.Circumference))
+            {
+                float x = (float)(f.CenterX / lw.Map.Circumference) * lw.MapW;
+                string text = f.Drift < 0 ? $"◀ {frontWord}" : $"{frontWord} ▶";
+                var t = UiKit.AddText(lw.Raw.transform, Mathf.Clamp(x - 50f, 0f, lw.MapW - 100f), 2f, 100f, 18f, text, 12,
+                    new Color(1f, 1f, 1f, 0.9f), TextAnchor.UpperCenter, FontStyle.Bold);
+                t.raycastTarget = false;
+                t.gameObject.SetActive(on);
+                lw.FrontMarks.Add(t.gameObject);
+            }
+
+            lw.SeenVersion = version;
+            lw.NextRefresh = now + 2.0;
+        }
+
         /// <summary>Tears down the landing-pad map + releases its cursor ownership (the arbiter re-locks
         /// for flight only once no other panel is open, #413).</summary>
         private void HideLandMap()
@@ -2030,6 +2236,13 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_landMapGo);
                 _landMapGo = null;
             }
+
+            if (_landWeather?.Tex != null)
+            {
+                Destroy(_landWeather.Tex);
+            }
+
+            _landWeather = null;
 
             _landMapBody = null;
             Game?.SetCursorOwner(this, false);
@@ -3424,6 +3637,16 @@ namespace BlocksBeyondTheStars.Client
             _extraThrusters.Clear();
             _nozzles.Clear();
             _bodySpheres.Clear();
+            _orbitBodies.Clear();
+            foreach (var owned in _orbitOwned)
+            {
+                if (owned != null)
+                {
+                    Destroy(owned);
+                }
+            }
+
+            _orbitOwned.Clear();
             _entityKinds.Clear();
             _entityHull.Clear();
             Camera.transform.SetParent(_camPrevParent, false);
@@ -3593,7 +3816,6 @@ namespace BlocksBeyondTheStars.Client
         {
             _root = new GameObject("SpaceScene");
             _root.transform.position = SceneOrigin;
-            _cloudShells.Clear();
             _keepOut.Clear();
 
             // Background stars are drawn by the shared Starfield dome (soft round dots, varied colours, a
@@ -3662,7 +3884,10 @@ namespace BlocksBeyondTheStars.Client
             // in-flight hyperjump it still named the DEPARTURE planet, so the alien anchor world was drawn and
             // land-prompted as "Crossway Reach · Seana" (#1565).
             string homeName = !string.IsNullOrEmpty(current?.Name) ? current.Name : (Game?.LocationName ?? "home");
-            SpawnBody("HomePlanet", current?.Id, current?.Kind, homeName, homePos, homeDiameter, homeType, homeBias, current?.RingSeed ?? 0);
+            // #2170: the flora key is "System · Body" like every other body — the bare name rolled a different
+            // vegetation hue than the plants on the ground you just left.
+            string homeFloraKey = current != null ? PlanetOrbitLook.LocationKeyFor(system?.Name, homeName) : homeName;
+            SpawnBody("HomePlanet", current?.Id, current?.Kind, homeFloraKey, homePos, homeDiameter, homeType, homeBias, current?.RingSeed ?? 0);
             _landables.Add((string.Empty, homeName, homePos, homeDiameter * 0.5f));
             _keepOut.Add((homePos, homeDiameter * 0.5f + KeepOutMargin));
             float maxDist = homePos.magnitude;
@@ -3883,11 +4108,13 @@ namespace BlocksBeyondTheStars.Client
              : kind == "Moon" ? WorldConstants.WorldSizeClass.Moon
              : WorldConstants.WorldSizeClass.Planet;
 
-        /// <summary>Spawns one real celestial body: a sphere textured with its REAL generated world map
-        /// (seas, ground, this world's vegetation hue — what you see from orbit IS the world you land on),
-        /// plus a per-type cloud shell and an atmosphere haze rim scaled by atmosphere density.
-        /// <paramref name="bodyId"/> keys the body's true circumference; <paramref name="locationName"/>
-        /// seeds the per-planet flora hue.</summary>
+        /// <summary>Spawns one real celestial body: a sphere textured with its REAL generated world map (seas, the
+        /// biomes' ground, snow and ice, this world's water and vegetation colours — what you see from orbit IS the world
+        /// you land on), plus a cloud shell and an atmosphere haze rim from the planet's DATA (#2170). The map is baked
+        /// off the main thread (#2172): the sphere starts in the flat data-driven colour and swaps the map in when it is
+        /// ready. The cloud shell follows the body's live weather (#2175) and the sphere turns to its time of day (#2177)
+        /// — both in <see cref="UpdateOrbitBodies"/>. <paramref name="bodyId"/> keys the body's true circumference;
+        /// <paramref name="locationName"/> ("System · Body") seeds the per-world flora hue.</summary>
         private GameObject SpawnBody(string name, string bodyId, string kind, string locationName, Vector3 pos, float diameter, string planetType, float sizeBias = 0f, int ringSeed = 0)
         {
             // B37 rest: planets + cloud shells in the orbit view are lit by THIS system's star, so under a
@@ -3908,60 +4135,100 @@ namespace BlocksBeyondTheStars.Client
 
             // World-space direction from this body to the system star → its sun-lit phase. The star sits at
             // _starLocal in the scene; without a star map fall back to the stylised fixed sun direction.
-            Vector3 sunDir = _hasStar
-                ? _root.transform.TransformDirection(_starLocal - pos)
-                : _root.transform.TransformDirection(SunDir);
+            Vector3 sunLocal = _hasStar ? _starLocal - pos : SunDir;
+            Vector3 sunDir = _root.transform.TransformDirection(sunLocal);
 
             var planet = Game?.Content?.GetPlanet(planetType ?? string.Empty);
+            string key = string.IsNullOrEmpty(bodyId) ? (locationName ?? "home") : bodyId;
+            var ob = new OrbitBody
+            {
+                BodyId = bodyId ?? string.Empty,
+                Key = key,
+                Planet = planet,
+                Sphere = sphere.transform,
+                Pos = pos,
+                Diameter = diameter,
+                SunLocal = sunLocal,
+            };
+
+            // The flat data-driven look first (ground + this world's flora + water/lava) — the real map swaps in once
+            // its bake finishes off the main thread, so building a whole system no longer freezes the frame.
+            var look = PlanetLookFor(planetType, locationName);
+            Color bodyTint = Color.Lerp(look.tint, look.tint * sunHue, 0.35f);
+            var flatTex = LoadTex(look.tex);
+            var mat = LitPhase(bodyTint, sunDir, flatTex, new Vector2(3f, 2f));
+            sphere.GetComponent<Renderer>().sharedMaterial = mat;
+            _orbitOwned.Add(mat);
+            if (flatTex != null)
+            {
+                _orbitOwned.Add(flatTex); // replaced by the baked map later — destroyed with the scene, not leaked
+            }
             if (planet != null && Game != null)
             {
-                int circ = WorldConstants.CircumferenceFor(
-                    string.IsNullOrEmpty(bodyId) ? locationName ?? "home" : bodyId, ClassOf(kind, planetType), sizeBias);
-                var baked = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locationName, planetType, circ, 96, 48,
-                    bodyId: string.IsNullOrEmpty(bodyId) ? locationName ?? "home" : bodyId,
-                    continents: Game.TerrainContinents, generation: Game.TerrainGeneration);
+                int circ = WorldConstants.CircumferenceFor(key, ClassOf(kind, planetType), sizeBias);
+                // Airless moons carry craters, as the server generates them (#2170).
+                bool cratered = kind == "Moon" && planet.IsAirless;
+                var request = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed, locationName, planetType, circ, 96, 48,
+                    key, Game.TerrainContinents, Game.TerrainGeneration, cratered, Game.TerrainLavaCoreVolcanoes);
                 Color washTint = Color.Lerp(Color.white, sunHue, 0.35f);
-                sphere.GetComponent<Renderer>().sharedMaterial = LitPhase(washTint, sunDir, baked, new Vector2(1f, 1f));
-            }
-            else
-            {
-                var look = PlanetLookFor(planetType, locationName);
-                Color bodyTint = Color.Lerp(look.tint, look.tint * sunHue, 0.35f);
-                sphere.GetComponent<Renderer>().sharedMaterial = LitPhase(bodyTint, sunDir, LoadTex(look.tex), new Vector2(3f, 2f));
+                WorldMinimap.Request(request, (tex, data) =>
+                {
+                    if (mat == null || ob.Sphere == null)
+                    {
+                        return; // the scene was torn down while the map baked
+                    }
+
+                    mat.mainTexture = tex;
+                    mat.mainTextureScale = Vector2.one;
+                    mat.color = ShaderColor.Srgb(washTint);
+                    ob.Map = data;
+                    ob.SeenVersion = -1; // project the weather onto the fresh map
+                }, priority: name == "HomePlanet" ? 10 : 1);
             }
 
-            var (cloudCol, cloudDen) = PlanetCloudLook(planetType);
-            int shellSeed = CloudShellSeed(string.IsNullOrEmpty(bodyId) ? (locationName ?? "home") : bodyId);
-            cloudCol = JitterCloudColor(cloudCol, shellSeed); // per-body variation (mirrors the per-world surface tint)
-            AddCloudShell(sphere.transform, Color.Lerp(cloudCol, cloudCol * sunHue, 0.35f), cloudDen, shellSeed, sunDir);
-
-            // Atmosphere haze: a thin translucent shell over everything — a breathable atmosphere reads
-            // as a denser, bluer glow than a toxic one; airless bodies stay crisp bare rock.
-            if (planet != null && !planet.IsAirless)
+            // Atmosphere from DATA (#2170): no clouds on airless bodies, the type's cloud cover otherwise, the world's
+            // own cloud and sky tints — the hard-coded table left 33 of 51 types cloudless from orbit.
+            ob.Atmosphere = OrbitLook.For(planet, Game?.WorldSeed ?? 0L, key);
+            if (ob.Atmosphere.HasClouds)
             {
-                float atm = string.Equals(planet.Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase) ? 1f : 0.7f;
+                AddCloudShell(ob, sunHue, sunDir, CloudShellSeed(key));
+            }
+
+            // Atmosphere haze: a thin translucent shell in the world's own sky colour — a breathable atmosphere reads
+            // as a denser glow than a toxic one; airless bodies stay crisp bare rock.
+            if (ob.Atmosphere.HasAir)
+            {
+                float atm = ob.Atmosphere.Breathable ? 1f : 0.7f;
                 var haze = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 haze.name = "Atmosphere";
                 StripCollider(haze);
                 haze.transform.SetParent(sphere.transform, false);
                 haze.transform.localScale = Vector3.one * 1.06f;
                 var hShader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
-                var hCol = Color.Lerp(new Color(0.55f, 0.75f, 1f), sunHue, 0.25f);
+                var sky = PlanetWeatherVisuals.Rgb(ob.Atmosphere.SkyRgb);
+                var hCol = Color.Lerp(Color.Lerp(sky, Color.white, 0.25f), sunHue, 0.25f);
+                hCol.a = 0.08f + 0.08f * atm;
                 var hMat = new Material(hShader) { mainTexture = Texture2D.whiteTexture, renderQueue = 2999 };
-                hMat.SetColor("_Color", ShaderColor.Srgb(new Color(hCol.r, hCol.g, hCol.b, 0.08f + 0.08f * atm)));
+                hMat.SetColor("_Color", ShaderColor.Srgb(hCol));
                 var hMr = haze.GetComponent<Renderer>();
                 hMr.sharedMaterial = hMat;
                 hMr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 hMr.receiveShadows = false;
+                ob.HazeMat = hMat;
+                ob.HazeColor = hCol;
+                _orbitOwned.Add(hMat);
             }
 
             // Planetary rings (#596): a seeded, tilted band disc — queue 3001 so it draws after the
             // haze (2999) and cloud shell (3000); the opaque planet sphere occludes the far half.
             if (ringSeed != 0)
             {
-                PlanetRings.Attach(sphere.transform, ringSeed, sunHue, 0.55f, 3001, out _);
+                var ring = PlanetRings.Attach(sphere.transform, ringSeed, sunHue, 0.55f, 3001, out _);
+                ob.Ring = ring != null ? ring.transform : null;
+                ob.RingBase = ring != null ? ring.transform.localRotation : Quaternion.identity;
             }
 
+            _orbitBodies.Add(ob);
             return sphere;
         }
 
@@ -6158,57 +6425,26 @@ namespace BlocksBeyondTheStars.Client
                 0.40f + 0.45f * (float)rng.NextDouble());
         }
 
-        /// <summary>Per planet-type cloud cover seen from space (mirrors data/planets.json).</summary>
-        private static (Color color, float density) PlanetCloudLook(string key)
+        /// <summary>Adds a semi-transparent cloud shell over a planet sphere (#2170/#2175). It starts at the planet's base
+        /// cover and takes the live weather once the map and the system's weather are known; its texture's colour channel
+        /// carries the weather tint (storm-dark, snow-white, acid, ash, sand, spores), the material only the star's light
+        /// and the night-side shade, so the day/night terminator matches the planet's own.</summary>
+        private void AddCloudShell(OrbitBody ob, Color sunHue, Vector3 sunDir, int seed)
         {
-            switch ((key ?? string.Empty).ToLowerInvariant())
-            {
-                case "jungle":
-                case "forest": return (Rgb(0xF2F4F6), 0.6f);
-                case "desert": return (Rgb(0xE8D9B0), 0.3f);
-                case "ice":
-                case "frozen": return (Rgb(0xDCEAF5), 0.5f);
-                case "lava":
-                case "volcanic": return (Rgb(0x5A4A44), 0.7f);
-                case "swamp": return (Rgb(0xC8CBC0), 0.75f);
-                case "crystal": return (Rgb(0xE6D6F0), 0.4f);
-                case "rocky":
-                case "rock": return (Rgb(0xEDEFF2), 0.35f);
-                case "toxic_world": return (Rgb(0xA9B061), 0.65f);    // #2032: the sickly haze of the toxic class
-                case "toxica_maxima": return (Rgb(0x2E4A2B), 0.9f);   // #2063: Toxica-Maxima's dark-green storm shell
-                case "arena_nigra": return (Rgb(0x1C1416), 0.55f);    // #2078: Arena Nigra's black ash clouds
-                case "gas_giant": return (Rgb(0xC8956C), 0.85f);      // #2112: the gas giant's amber storm shell
-                default: return (Rgb(0xEDEFF2), 0f); // barren/asteroid → no clouds
-            }
-        }
-
-        /// <summary>Adds a slowly-spinning, semi-transparent cloud shell over a planet sphere (the clouds
-        /// you see from space). Density drives how much of the planet the cover hides; <paramref name="seed"/>
-        /// gives every body its own cloud pattern, and <paramref name="sunDir"/> lights the shell so its day
-        /// side reads bright and its night side dark (matching the planet's own terminator).</summary>
-        private void AddCloudShell(Transform planet, Color color, float density, int seed, Vector3 sunDir)
-        {
-            if (density <= 0.001f)
-            {
-                return;
-            }
-
             var shell = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             shell.name = "CloudShell";
             StripCollider(shell);
-            shell.transform.SetParent(planet, false);
+            shell.transform.SetParent(ob.Sphere, false);
             shell.transform.localPosition = Vector3.zero;
             shell.transform.localScale = Vector3.one * 1.035f; // just above the surface
 
+            var tex = PlanetWeatherVisuals.NewShellTexture("CloudShell_" + ob.Key);
             var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
-            var mat = new Material(shader) { mainTexture = CloudCoverTexture(density, seed) };
-            mat.renderQueue = 3000;
-            var c = color;
-            c.a = Mathf.Clamp01(0.55f + density * 0.4f);
-            mat.SetColor(Shader.PropertyToID("_Color"), ShaderColor.Srgb(c));
-            // Day/night terminator: the shell uses its real sphere normal (not the billboard UV bulge).
-            var shade = color * 0.25f;
-            shade.a = c.a;
+            var mat = new Material(shader) { mainTexture = tex, renderQueue = 3000 };
+            var lit = Color.Lerp(Color.white, sunHue, 0.35f);
+            lit.a = 0.9f;
+            mat.SetColor(Shader.PropertyToID("_Color"), ShaderColor.Srgb(lit));
+            var shade = new Color(0.22f, 0.23f, 0.27f, lit.a);
             mat.SetColor(Shader.PropertyToID("_ShadeColor"), ShaderColor.Srgb(shade));
             mat.SetVector(Shader.PropertyToID("_CloudSunDir"), sunDir.sqrMagnitude > 1e-4f ? sunDir.normalized : Vector3.up);
             mat.SetFloat(Shader.PropertyToID("_SunShade"), 1f);
@@ -6218,50 +6454,159 @@ namespace BlocksBeyondTheStars.Client
             mr.sharedMaterial = mat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
-            _cloudShells.Add(shell.transform);
+
+            ob.Shell = shell.transform;
+            ob.ShellMat = mat;
+            ob.ShellTex = tex;
+            ob.ShellBuffer = new Color32[PlanetWeatherVisuals.ShellW * PlanetWeatherVisuals.ShellH];
+            ob.Noise = PlanetWeatherVisuals.Noise(seed);
+            ob.ShellPhaseDeg = Mathf.Repeat(seed * 0.37f, 360f); // every planet's pattern starts elsewhere
+            _orbitOwned.Add(mat);
+            _orbitOwned.Add(tex);
+            PlanetWeatherVisuals.ComposeShell(tex, ob.ShellBuffer, ob.Noise, null, null, ob.Atmosphere.CloudDensity,
+                ob.Atmosphere.CloudRgb, ob.Atmosphere.CloudRgb, ob.Atmosphere.CloudRgb, 0f);
         }
 
-        /// <summary>A wrapping cloud-cover tile: fractal (fBm) patches with alpha gaps, coverage set by density,
-        /// pattern set by <paramref name="seed"/>. Seamless because the noise lattice wraps per octave.</summary>
-        private static Texture2D CloudCoverTexture(float density, int seed)
+        /// <summary>Per-frame upkeep of the scene's bodies (#2175/#2177). Cheap per frame (a rotation each); the weather
+        /// projection and the shell texture are recomposed only when a weather snapshot arrives, and between snapshots
+        /// every few seconds (1.5 s for a planet you are near, 6 s for the rest) as fronts drift and the shell turns.
+        /// The nearest planet's storms flicker with lightning; a meteor shower streaks into its atmosphere.</summary>
+        private void UpdateOrbitBodies()
         {
-            const int n = 128;
-            var tex = new Texture2D(n, n, TextureFormat.RGBA32, true)
+            if (Game == null || _orbitBodies.Count == 0 || Camera == null)
             {
-                wrapMode = TextureWrapMode.Repeat,
-                filterMode = FilterMode.Bilinear,
-            };
-
-            float threshold = Mathf.Lerp(0.72f, 0.28f, Mathf.Clamp01(density));
-            var px = new Color[n * n];
-            for (int y = 0; y < n; y++)
-            {
-                for (int x = 0; x < n; x++)
-                {
-                    float u = x / (float)n, v = y / (float)n;
-                    float f = TiledFbm(u, v, 3, seed);
-                    float a = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((f - threshold) * 3.5f));
-                    px[y * n + x] = new Color(1f, 1f, 1f, a);
-                }
+                return;
             }
 
-            tex.SetPixels(px);
-            tex.Apply(true);
-            return tex;
+            double now = Time.realtimeSinceStartupAsDouble;
+            int version = Game.SystemWeather.Version;
+            Vector3 cam = Camera.transform.localPosition; // the flight camera lives in the scene-root frame, like the bodies
+            OrbitBody nearest = null;
+            float nearestGap = float.MaxValue;
+            foreach (var ob in _orbitBodies)
+            {
+                if (ob.Sphere == null)
+                {
+                    continue;
+                }
+
+                float radius = ob.Sphere.localScale.x * 0.5f;
+                float gap = (ob.Pos - cam).magnitude - radius;
+                if (gap < nearestGap)
+                {
+                    nearestGap = gap;
+                    nearest = ob;
+                }
+
+                bool hasWeather = PlanetWeatherVisuals.TryBodyWeather(Game, ob.BodyId, out var bw);
+
+                // #2177: the lit side is the day side — the noon meridian faces the star. A running clock turns the
+                // sphere continuously; a body nobody stands on waits at its arrival hour.
+                if (hasWeather && (ob.SpunVersion != version || bw.ClockRunning))
+                {
+                    PlanetWeatherVisuals.Spin(ob.Sphere, PlanetWeatherVisuals.TimeOfDay(Game, bw, ob.Planet), ob.SunLocal);
+                    ob.SpunVersion = version;
+                    if (ob.Ring != null)
+                    {
+                        ob.Ring.localRotation = Quaternion.Inverse(ob.Sphere.localRotation) * ob.RingBase; // rings don't spin with the day
+                    }
+                }
+
+                // The cloud pattern drifts with the wind, slowly, relative to the ground — the weather regions are
+                // recomposed against that drift, so a storm stays over the land it sits on.
+                if (ob.Shell != null)
+                {
+                    float wind = hasWeather ? bw.WindSpeed : 0.2f;
+                    ob.ShellPhaseDeg = Mathf.Repeat(ob.ShellPhaseDeg + Time.deltaTime * (0.2f + 0.8f * wind), 360f);
+                    ob.Shell.localRotation = Quaternion.Euler(0f, ob.ShellPhaseDeg, 0f);
+                }
+
+                if (!hasWeather || ob.Map == null || (ob.SeenVersion == version && now < ob.NextCompose))
+                {
+                    continue;
+                }
+
+                bool near = gap < radius * 6f;
+                ob.Pixels ??= new WeatherMapPixels();
+                PlanetWeatherVisuals.Project(Game, bw, ob.Map, ob.Planet, ob.Atmosphere.CloudDensity, ob.Pixels);
+                if (ob.Shell != null)
+                {
+                    PlanetWeatherVisuals.ComposeShell(ob.ShellTex, ob.ShellBuffer, ob.Noise, ob.Map, ob.Pixels, ob.Atmosphere.CloudDensity,
+                        ob.Atmosphere.CloudRgb, ob.Map.GroundRgb, ob.Map.FloraRgb, ob.ShellPhaseDeg / 360f);
+                }
+
+                PlanetWeatherVisuals.CollectStormPixels(ob.Pixels, ob.StormPixels);
+                ob.State = bw.State ?? "clear";
+                ob.SeenVersion = version;
+                ob.NextCompose = now + (near ? 1.5 : 6.0);
+                UpdateHaze(ob);
+            }
+
+            if (nearest != null && nearest.HazeMat != null && nearest.State == "ion_storm")
+            {
+                // An ion storm makes the nearest world's rim shimmer cyan ↔ violet.
+                float k = 0.5f + 0.5f * Mathf.Sin(Time.time * 2.2f);
+                var c = Color.Lerp(new Color(0.45f, 0.95f, 1f), new Color(0.75f, 0.5f, 1f), k);
+                c.a = nearest.HazeColor.a + 0.08f;
+                nearest.HazeMat.SetColor("_Color", ShaderColor.Srgb(c));
+                nearest.HazeState = string.Empty; // re-applied by UpdateHaze once the storm ends
+            }
+
+            if (nearest != null && nearestGap < nearest.Sphere.localScale.x * 4f)
+            {
+                StormFx(nearest);
+            }
         }
 
-        /// <summary>A small per-body cloud-shell colour jitter so two same-type planets read differently in
-        /// orbit (the colour analogue of the per-world surface cloud tint). Kept subtle and light so the shell
-        /// still stands out over the planet.</summary>
-        private static Color JitterCloudColor(Color c, int seed)
+        /// <summary>The haze rim under the body's world-level weather: fog thickens it, a heatwave warms it.</summary>
+        private static void UpdateHaze(OrbitBody ob)
         {
-            var rng = new System.Random(seed);
-            float J() => ((float)rng.NextDouble() - 0.5f) * 0.12f; // ~+-0.06
-            return new Color(
-                Mathf.Clamp01(c.r + J()),
-                Mathf.Clamp01(c.g + J()),
-                Mathf.Clamp01(c.b + J()),
-                c.a);
+            if (ob.HazeMat == null || ob.HazeState == ob.State)
+            {
+                return;
+            }
+
+            ob.HazeState = ob.State;
+            var c = ob.HazeColor;
+            switch (ob.State)
+            {
+                case "fog":
+                case "ground_fog":
+                    c = Color.Lerp(c, new Color(0.92f, 0.94f, 0.97f, c.a), 0.5f);
+                    c.a += 0.07f;
+                    break;
+                case "heatwave":
+                    c = Color.Lerp(c, new Color(1f, 0.72f, 0.42f, c.a), 0.45f);
+                    break;
+            }
+
+            ob.HazeMat.SetColor("_Color", ShaderColor.Srgb(c));
+        }
+
+        /// <summary>Lightning in the storm regions of the planet you are near (a few pooled glow flashes — fewer and
+        /// softer with "reduce flashes"), and meteor streaks during a meteor shower.</summary>
+        private void StormFx(OrbitBody ob)
+        {
+            float radius = ob.Sphere.lossyScale.x * 0.5f;
+            if (ob.StormPixels.Count > 0 && ob.Map != null && Time.time >= _nextLightning)
+            {
+                int i = ob.StormPixels[Random.Range(0, ob.StormPixels.Count)];
+                int px = i % ob.Map.Width, py = i / ob.Map.Width;
+                var local = PlanetWeatherVisuals.LocalPoint((px + Random.value) / ob.Map.Width, (py + Random.value) / ob.Map.Height) * 1.05f;
+                var at = ob.Sphere.TransformPoint(local);
+                FxKit.Flash(at, new Color(0.82f, 0.88f, 1f) * FxKit.FlashScale, radius * 0.09f, 0.12f);
+                _nextLightning = Time.time + Random.Range(0.35f, 1.6f) * (FxKit.ReduceFlashes ? 3f : 1f);
+            }
+
+            if (ob.State == "meteor_shower" && Time.time >= _nextMeteor)
+            {
+                Vector3 center = ob.Sphere.position;
+                Vector3 from = center + Random.onUnitSphere * radius * 1.7f;
+                Vector3 to = center + (from - center).normalized * radius * 1.02f + Random.insideUnitSphere * radius * 0.2f;
+                const float life = 0.6f;
+                FxKit.Emit(FxKit.Kind.Sparks, from, (to - from) / life, radius * 0.03f, life, new Color(1f, 0.8f, 0.55f));
+                _nextMeteor = Time.time + Random.Range(0.4f, 1.2f);
+            }
         }
 
         /// <summary>Stable per-body seed from its id/name so each planet's cloud shell pattern differs.</summary>
@@ -6274,43 +6619,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return h;
-        }
-
-        // --- Seamless (wrapping) value-noise fBm for the cloud-cover shell texture ---
-        private static float TiledFbm(float u, float v, int baseFreq, int seed)
-        {
-            float sum = 0f, amp = 0.5f;
-            int freq = baseFreq;
-            for (int o = 0; o < 4; o++)
-            {
-                sum += amp * TiledNoise(u * freq, v * freq, freq, seed + o * 97);
-                freq *= 2;
-                amp *= 0.5f;
-            }
-
-            return sum;
-        }
-
-        private static float TiledNoise(float x, float y, int period, int seed)
-        {
-            int xi = Mathf.FloorToInt(x), yi = Mathf.FloorToInt(y);
-            float xf = x - xi, yf = y - yi;
-            float u = xf * xf * (3f - 2f * xf), v = yf * yf * (3f - 2f * yf);
-            int x0 = ((xi % period) + period) % period, x1 = (x0 + 1) % period;
-            int y0 = ((yi % period) + period) % period, y1 = (y0 + 1) % period;
-            float v00 = Hash01(x0, y0, seed), v10 = Hash01(x1, y0, seed);
-            float v01 = Hash01(x0, y1, seed), v11 = Hash01(x1, y1, seed);
-            return Mathf.Lerp(Mathf.Lerp(v00, v10, u), Mathf.Lerp(v01, v11, u), v);
-        }
-
-        private static float Hash01(int x, int y, int seed)
-        {
-            unchecked
-            {
-                int h = x * 374761393 + y * 668265263 + seed * 982451653;
-                h = (h ^ (h >> 13)) * 1274126177;
-                return ((h ^ (h >> 16)) & 0xFFFF) / 65535f;
-            }
         }
 
         private static Color Rgb(int rgb)
