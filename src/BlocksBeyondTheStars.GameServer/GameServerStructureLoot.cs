@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Persistence;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -114,6 +115,19 @@ public sealed partial class GameServer
                 if (rng.NextDouble() < 0.12 && _content.GetItem("access_code") is not null)
                 {
                     items.Add(new ItemStack("access_code", 1)); // the Service's own codes
+                }
+
+                break;
+            case RailRuinGenerator.CacheMarker: // an abandoned monorail station (#2166): parts of the old line
+                AddRandom(new[] { "cable", "copper_wire", "iron_plate", "energy_cell_1", "circuit_board" }, 3, 1, 3);
+                if (rng.NextDouble() < 0.5 && _content.GetItem(RailRules.PylonBlockKey) is not null)
+                {
+                    items.Add(new ItemStack(RailRules.PylonBlockKey, 2 + rng.Next(3))); // salvaged pylons — enough to start a line
+                }
+
+                if (rng.NextDouble() < 0.25 && _content.GetItem(RailRules.StopBlockKey) is not null)
+                {
+                    items.Add(new ItemStack(RailRules.StopBlockKey, 1));
                 }
 
                 break;

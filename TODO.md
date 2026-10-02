@@ -24,6 +24,27 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚉 Abandoned monorail stations — station ruins on some worlds (#2166, 2026-10-02, branch feat/rail-ruins, terrain generation 20) — ✅ done (⚠ playtest open)
+
+Justus' original "Verlassene Bahnhöfe!" (2026-09-27), which had become the working intercity line (#2125). Now, on some
+generation-20 worlds, the **ruin of an old station hall** stands out in the open country (Marcel's rail rules still hold:
+no tickets, no ID cards, no vending machines).
+- **Generator** (`RailRuinGenerator`, 32 × 11 × 7): the working station's ground plan (`RailStationGenerator.LayHall`,
+  extracted — the intact station's output is byte-identical, checked cell by cell) run through a decay pass — a caved-in
+  roof stretch, holes, a broken skylight, snapped posts, dark lamps and edges, missing benches, a cracked floor, rubble and
+  the biome's plants; a **derelict wagon** of blocks on the track bed (broken windows, a bush on the roof, sittable benches);
+  the dead line with a standing and a toppled pylon stump. No glowing or working rail block survives.
+- **Server** (`GameServerRailRuins.cs`): at most one per world, `RailRuinChance` 0.35 × structures frequency on its own
+  lane (`LaneRoll`, shared with the intercity roll), not on void, gas, airless or restricted worlds; pinned (`rail_ruin`/0,
+  heading in the template), stamped once (`railruins`), unprotected like every ruin; right after `StampRuins`, clear of
+  pads, wreck, settlements, the intercity line and this load's ruins, and every later stamper keeps clear of it.
+- **Salvage + lore:** two `rail_cache` containers (line parts, sometimes 2–4 `rail_pylon` or a `rail_stop`); the lore site
+  `rail_ruin` ("Station notice") with three new texts. VEGA's "ruins nearby" tip names it; admins `/tp railruin`.
+- **Texts in all 14 languages** (`poi.rail_ruin`, `ui.lore.site.rail_ruin`, three `lore.site.rail_*`), hand-translated.
+- Tests `RailRuinTests` (6); tests that switch the ruins off now switch the station ruins off too. Docs: MONORAIL.md
+  §"Abandoned stations", WORLD_GENERATION §36, FACTORIES_RUINS_AND_CLAIMING.md, USER_MANUAL.md.
+- **Open:** playtest on a fresh generation-20 world (`/tp railruin`).
+
 ### 🎆 VFX overhaul — weapons, scanners, mining and gadgets, on foot and in flight (#2159: #2151–#2158, 2026-10-01, branch feat/vfx-overhaul) — ✅ done (released in v2026.10.1; ⚠ playtest open)
 
 **Analysis (2026-10-01).** The effects were functional but basic. On foot, nearly everything was a short-lived opaque

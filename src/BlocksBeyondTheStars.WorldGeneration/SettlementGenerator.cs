@@ -268,6 +268,19 @@ public static class SettlementGenerator
         return new SettlementStructure(w, h, l, t.Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings), mods, shapes);
     }
 
+    /// <summary>The flora species a biome's surface grows in gardens and overgrowth: cacti on sand, frost flowers on ice,
+    /// mushrooms on mud, ferns on grass, ember blooms on basalt, the generic plant everywhere else. Also used by the
+    /// abandoned monorail station (#2166) for what pushes through its floor.</summary>
+    internal static string BiomeFloraKey(string biomeSurfaceBlock) => biomeSurfaceBlock switch
+    {
+        "sand" => "flora_cactus",
+        "ice" => "flora_frostflower",
+        "mud" => "flora_mushroom",
+        "grass" => "flora_fern",
+        "basalt" => "flora_emberbloom",
+        _ => "flora_plant",
+    };
+
     /// <summary>
     /// Builds a procedural settlement. <paramref name="modules"/> (#1827) are the authored building modules the
     /// world allows (pack / planet filtered by the caller); with <paramref name="moduleChance"/> per plot, a
@@ -322,15 +335,7 @@ public static class SettlementGenerator
         ushort glass = B("glass");
         ushort ladder = B("ladder");
         // Gardens use the biome's own flora species (alien settlements keep their crystal growths).
-        string biomeFloraKey = biomeSurfaceBlock switch
-        {
-            "sand" => "flora_cactus",
-            "ice" => "flora_frostflower",
-            "mud" => "flora_mushroom",
-            "grass" => "flora_fern",
-            "basalt" => "flora_emberbloom",
-            _ => "flora_plant",
-        };
+        string biomeFloraKey = BiomeFloraKey(biomeSurfaceBlock);
         ushort flora = alien ? B("flora_crystal", B("flora_plant")) : B(biomeFloraKey, B("flora_plant"));
         // Paths take on the ground material of the biome (sandy tracks, icy lanes, …).
         ushort path = materials.Path;

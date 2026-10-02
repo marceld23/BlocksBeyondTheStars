@@ -44,6 +44,7 @@ public sealed class ContainerLootTests : IDisposable
             PlaceSettlements = false,
             PlaceWrecks = false,
             PlaceRuins = false,
+            PlaceRailRuins = false, // #2166
             PlaceChests = false,
             PlaceFactories = false,
             Rules = new GameRules { DeathPenalty = DeathPenalty.Normal, KeepInventoryOnDeath = false },

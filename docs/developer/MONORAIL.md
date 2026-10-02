@@ -102,9 +102,10 @@ TrainLocalX/Y/Z` (never a persisted bond: a join clears it).
 
 ## The intercity line (#2125, terrain generation 19)
 
-Justus suggested abandoned train stations; Marcel's decision instead: **no tickets, no ID cards, no vending machines** —
+Justus suggested abandoned train stations; Marcel's decision first: **no tickets, no ID cards, no vending machines** —
 if a world has at least two towns, then with a certain probability a working train line connects two of them, the
-station is considered when the towns are generated, and you can ride the train when it is there and waiting.
+station is considered when the towns are generated, and you can ride the train when it is there and waiting. (The
+abandoned stations followed a generation later as ruins — see the next section.)
 
 - **When.** Worlds of `WorldDescription.IntercityRailGeneration` (19) or newer, with at least two **eligible** settlements
   (inhabited, tier `town` or `city`, on the ground — villages, hamlets, ruins and sky-island towns do not count), roll
@@ -153,6 +154,51 @@ Tests: `IntercityRailTests` (the line between two towns with both stops on it, a
 the map; the public train shuttling and waiting 30 s at each station, a stranger riding it, every control refused, the
 pylons and the station protected; the same line for the same seed and everything back after a restart; no line on
 generation 18, at chance 0, on an airless, a restricted or the city world; the station layout).
+
+## Abandoned stations (#2166, terrain generation 20)
+
+Justus' original idea, built as a ruin: on some worlds the hall of an old station stands out in the open country, long
+after the power died. Marcel's rail rules still hold — no tickets, no ID cards, no vending machines.
+
+- **What it is** (`RailRuinGenerator`, 32 × 11 × 7, a `SettlementStructure`). The working station's ground plan —
+  `RailStationGenerator.LayHall` is shared, so both halls are one design — run through a decay pass: a stretch of the
+  roof caved in across the whole width (always beyond the wagon), more holes, most of the skylight broken, the rest half
+  rusted; some posts snapped (the broken piece lies beside them); the lamps down (scrap under some of them); the
+  platform edges dark; some benches gone; a cracked floor (moss stone, bare ground); rubble under the gaps and the
+  biome's plants pushing through (`SettlementGenerator.BiomeFloraKey`). On the track bed sits a **derelict wagon** built
+  of blocks — the wagon the client draws (`TrainView.WagonCells`) one row up: floor, sill, two rows of mostly broken
+  windows, a holed roof with a bush on it, open door gaps and ends, two benches by the windows on each side. Beyond the
+  exit the old embankment runs on for 12 blocks with two **pylon stumps**, one standing with a dead head
+  (`broken_machine`), one toppled across the bed. Nothing glows and nothing is a working rail part: no lamp, strip
+  light, `rail_pylon` or `rail_stop` survives (the pylon heads are `broken_machine`, the stop plate rusted over), so no
+  linker mistakes the ruin for a line.
+- **When.** Worlds of `WorldDescription.RailRuinGeneration` (20) or newer that could once have had towns: not void, not
+  a gas world, not airless, no structure whitelist. At most one per world: `ServerConfig.RailRuinChance` (0.35) scaled
+  by the structures-frequency option, rolled once on a lane of its own (`LaneRoll(seed, "railruin:" + body)` — the
+  same SplitMix finaliser as the intercity line's roll, which now calls it too). `ServerConfig.PlaceRailRuins` switches
+  new decisions off.
+- **Where** (`GameServerRailRuins.cs`, `StampRailRuins`, in the stamp chain right after `StampRuins`). The heading is
+  drawn from the instance seed, the spot by the guaranteed search with the factory seat policy (dry land, no stilts, no
+  lava), clear of the pads, the wreck site, every settlement, the intercity line and the ruins stamped during the same
+  load (`LoadedWorld.RuinFootprints`). Every later stamper keeps clear of it (`AppendRailRuinReservations` in the bandit
+  camps, factories and monuments; `OverlapsRailRuin` inside `OverlapsAnySettlement` for the wreck, vaults, data cubes,
+  chests and unique sites).
+- **Pinned and stamped once.** `rail_ruin`/0 (placed or a skip; `Template` = `heading=N`); feature `railruins`. Like
+  every ruin it is **not protected** — plain terrain once stamped, freely mineable, a mined wall stays mined.
+- **Salvage and lore.** Two `rail_cache` markers (one in the wagon's aisle, one on a platform beside a stack of crates)
+  become one-time `salvage` containers (`SpawnStructureLoot("rail_ruin", …)`): cable, copper wire, iron plates,
+  energy cells, circuit boards — half the time 2–4 salvaged `rail_pylon`s, a quarter of the time a `rail_stop`, enough
+  to start a line of one's own. Their ids (`loot_rail_ruin_…`) make them the lore site `rail_ruin` ("Station notice"):
+  a faded timetable, a lost-and-found tag, the driver's last log (`data/stories/vega_protocol/lore_sites.json`).
+- **Finding it.** Not on the map — discovery content like the ruins. VEGA's "ruins nearby" tip names it within 120
+  blocks (`poi.rail_ruin`, "Abandoned station" / "Verlassener Bahnhof"), and an admin jumps there with `/tp railruin`
+  (a platform spot in the middle of the hall).
+
+Tests: `RailRuinTests` (the generator deterministic per seed and heading, the caved-in roof, the wagon, the dead line,
+no glowing or working rail block, two caches on standable cells; one station on a generation-20 world — recorded,
+stamped, two caches with the station's lore voice, clear of the settlements, reachable with `/tp railruin`, mineable,
+the same for the same seed and back after a restart without a second stamp; none on generation 19, at chance 0, when
+switched off, on airless, gas or restricted worlds; the roll uniform and on its own lane; the texts in all 14 locales).
 
 ## Not in this package (honest scope)
 

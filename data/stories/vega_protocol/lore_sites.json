@@ -24,6 +24,10 @@
   { "key": "ruin_shelter",     "site": "ruin",          "textKey": "lore.site.ruin_shelter",     "minKnowledge": 1, "weight": 2 },
   { "key": "ruin_left_behind", "site": "ruin",          "textKey": "lore.site.ruin_left_behind", "minKnowledge": 2, "weight": 1 },
 
+  { "key": "rail_timetable",   "site": "rail_ruin",     "textKey": "lore.site.rail_timetable",   "minKnowledge": 0, "weight": 3 },
+  { "key": "rail_lost_found",  "site": "rail_ruin",     "textKey": "lore.site.rail_lost_found",  "minKnowledge": 0, "weight": 3 },
+  { "key": "rail_last_ride",   "site": "rail_ruin",     "textKey": "lore.site.rail_last_ride",   "minKnowledge": 1, "weight": 2 },
+
   { "key": "vault_plaque",     "site": "vault",         "textKey": "lore.site.vault_plaque",     "minKnowledge": 0, "weight": 3 },
   { "key": "vault_inventory",  "site": "vault",         "textKey": "lore.site.vault_inventory",  "minKnowledge": 1, "weight": 2 },
   { "key": "vault_sealed",     "site": "vault",         "textKey": "lore.site.vault_sealed",     "minKnowledge": 2, "weight": 1 },

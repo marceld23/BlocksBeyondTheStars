@@ -43,6 +43,7 @@ public sealed class AdminNamedTeleportTests : IDisposable
         PlaceWrecks = false,
         PlaceChests = false,
         PlaceRuins = false,
+        PlaceRailRuins = false, // #2166
         PlaceVaults = false,
         PlaceDataCubes = false,
         PlaceBanditCamps = false,

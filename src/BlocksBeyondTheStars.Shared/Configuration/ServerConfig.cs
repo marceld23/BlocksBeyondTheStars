@@ -343,6 +343,21 @@ public sealed class ServerConfig
     public double IntercityRailChance { get; set; } = 0.6;
 
     /// <summary>
+    /// Whether the server may stamp the ruin of an <b>abandoned monorail station</b> (#2166) on a new world (terrain
+    /// generation 20+) — a fallen station hall with a derelict wagon, the dead line beyond it, salvage and station notices.
+    /// Like the other ruins its blocks are NOT protected. Only decides for worlds that have not decided yet; a ruin a world
+    /// already has stays. Deterministic from the world seed.
+    /// </summary>
+    public bool PlaceRailRuins { get; set; } = true;
+
+    /// <summary>
+    /// The chance (0..1) that a world which could carry one gets its abandoned monorail station (#2166) — 0.35 by default,
+    /// scaled by the world's structures frequency. Rolled once per world, deterministically from the seed and the body id,
+    /// on a lane of its own; tests pin 1.0 to get a ruin wherever one fits.
+    /// </summary>
+    public double RailRuinChance { get; set; } = 0.35;
+
+    /// <summary>
     /// Singleplayer/admin convenience: guarantee one data cube right next to the start world's landing pad, so
     /// a solo player can always reach a minigame near spawn. Set only by the bundled singleplayer launcher;
     /// left off on shared/dedicated servers (where the random scatter applies as normal).

@@ -80,6 +80,7 @@ public sealed class RuinsAndChestsTests : IDisposable
             PlaceStarterShip = false,
             PlaceSettlements = settlements,
             PlaceRuins = ruins,
+            PlaceRailRuins = false, // #2166
             PlaceChests = chests,
             PlaceWrecks = false,
             PlaceVaults = false,

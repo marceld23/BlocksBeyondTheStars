@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
@@ -82,20 +83,7 @@ public static class RailStationGenerator
         var shapes = new Dictionary<int, int>();
         var markers = new List<SettlementMarker>();
 
-        ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
-        ushort stone = B("stone");
-        ushort floor = B("concrete", stone);
-        ushort bed = B("steel_floor", floor);
-        ushort edge = B("strip_light_warm", bed);
-        ushort post = B("iron_wall", B("metal_panel", stone));
-        ushort roof = B("metal_panel", post);
-        ushort sky = B("glass", roof);
-        ushort lamp = B("light_white", 0);
-        ushort seat = B("steel_floor", post);
-        ushort pylon = B(RailRules.PylonBlockKey, post);
-        ushort stop = B(RailRules.StopBlockKey, edge);
-
-        void Set(int u, int y, int v, ushort id, int shape = 0)
+        void Set(int u, int y, int v, ushort id, int shape)
         {
             var (x, z) = ToStructure(heading, u, v);
             if (x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= l)
@@ -114,6 +102,44 @@ public static class RailStationGenerator
                 shapes.Remove(idx);
             }
         }
+
+        LayHall(heading, content, Set);
+
+        // The line's markers: the end pylon, the exit pylon and the stop plate.
+        var (ex, ez) = ToStructure(heading, EndPylonU, TrackV);
+        var (xx, xz) = ToStructure(heading, ExitPylonU, TrackV);
+        var (sx, sz) = ToStructure(heading, StopU, StopV);
+        markers.Add(new SettlementMarker(EndPylonMarker, new Vector3i(ex, 0, ez)));
+        markers.Add(new SettlementMarker(ExitPylonMarker, new Vector3i(xx, 0, xz)));
+        markers.Add(new SettlementMarker(StopMarker, new Vector3i(sx, 0, sz)));
+
+        return new SettlementStructure(w, h, l, Tier, ruined: false, inhabitant: string.Empty,
+            blocks, markers, buildingCount: 1, mods: null, shapes: shapes);
+    }
+
+    /// <summary>
+    /// Lays the station's whole ground plan in station-local coordinates through <paramref name="set"/> (u, y, v, block id,
+    /// shape code): the floor, the posts, the roof with its skylight, the lamps, the benches (their backrests toward the
+    /// outer wall of <paramref name="heading"/>), both pylons and the stop plate. Shared by the working station and the
+    /// abandoned one (<see cref="RailRuinGenerator"/>, #2166), so the ruin is the same hall, only fallen.
+    /// </summary>
+    internal static void LayHall(int heading, GameContent content, Action<int, int, int, ushort, int> set)
+    {
+        int h = Height;
+        ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
+        ushort stone = B("stone");
+        ushort floor = B("concrete", stone);
+        ushort bed = B("steel_floor", floor);
+        ushort edge = B("strip_light_warm", bed);
+        ushort post = B("iron_wall", B("metal_panel", stone));
+        ushort roof = B("metal_panel", post);
+        ushort sky = B("glass", roof);
+        ushort lamp = B("light_white", 0);
+        ushort seat = B("steel_floor", post);
+        ushort pylon = B(RailRules.PylonBlockKey, post);
+        ushort stop = B(RailRules.StopBlockKey, edge);
+
+        void Set(int u, int y, int v, ushort id, int shape = 0) => set(u, y, v, id, shape);
 
         // The floor: concrete platforms, a steel track bed under the wagon, glowing platform edges.
         for (int u = 0; u < Length; u++)
@@ -169,14 +195,5 @@ public static class RailStationGenerator
         Set(EndPylonU, 0, TrackV, pylon);
         Set(ExitPylonU, 0, TrackV, pylon);
         Set(StopU, 0, StopV, stop);
-        var (ex, ez) = ToStructure(heading, EndPylonU, TrackV);
-        var (xx, xz) = ToStructure(heading, ExitPylonU, TrackV);
-        var (sx, sz) = ToStructure(heading, StopU, StopV);
-        markers.Add(new SettlementMarker(EndPylonMarker, new Vector3i(ex, 0, ez)));
-        markers.Add(new SettlementMarker(ExitPylonMarker, new Vector3i(xx, 0, xz)));
-        markers.Add(new SettlementMarker(StopMarker, new Vector3i(sx, 0, sz)));
-
-        return new SettlementStructure(w, h, l, Tier, ruined: false, inhabitant: string.Empty,
-            blocks, markers, buildingCount: 1, mods: null, shapes: shapes);
     }
 }

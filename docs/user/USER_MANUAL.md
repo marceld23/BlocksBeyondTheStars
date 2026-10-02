@@ -1213,6 +1213,13 @@ separate unlock; admins can still disable it through server world rules.
   half-standing tower, and rubble overgrown by flora. Unlike bases and stations they are **not protected**:
   every block is **freely mineable**, and what you clear stays cleared. VEGA may hint at *"structural
   echoes nearby — ruins or wreckage"*; bring a scanner, there's often something worth digging out.
+- **Abandoned stations.** On some newer worlds you may come across the ruin of an old **monorail station** out in
+  the open: the roof has partly caved in, the lamps are dark, plants push through the cracked platforms, and on the
+  track bed sits an **old wagon** that sank down when the power died — broken windows, a bush growing on its roof, its
+  benches still inside (you can sit on them). Beyond the hall the dead line runs on with two broken pylon stumps. Look
+  for the **salvage** in the wagon and on a platform: old line parts, and sometimes salvaged **rail pylons** or a
+  **stop block** — enough to start a line of your own. VEGA mentions an abandoned station when you are near one.
+  Like every ruin it is not protected — mine whatever you like.
 - **Field records:** ruins, wrecks, buried vaults and data terminals carry **readable texts** — logs,
   notes and plaques that surface while you scavenge them. Each opens in a reader panel, is kept in the
   Story tab (*Field records*) and the Codex **Lore** chapter, and some only appear once the story has
@@ -1806,6 +1813,8 @@ separate unlock; admins can still disable it through server world rules.
   Walk up to a wagon and press **E** to board (E beside a seat sits down, **F** leaves), then enjoy the ride. The train
   belongs to everyone: nobody needs a ticket, and nobody can drive, stop, pack up or add wagons to it. The stations and
   the line's pylons can't be mined.
+- **Abandoned stations.** Some newer worlds have the ruin of an old station instead — no working line, but an old
+  wagon and salvage to scavenge (see *Ruins & treasure chests*).
 
 ### Craftable block shapes
 - Any held **building material** can be re-formed into a non-cube **shape** — **slab, pyramid, dome (half-sphere),
@@ -2244,6 +2253,7 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 | `pad` | A landing pad |
 | `city` | A city or town — the G.D.S. metropolis too (`stadt` also works) |
 | `village` / `ruin` | An inhabited village or hamlet / a ruined settlement (`settlement`, `dorf`, `siedlung` also work) |
+| `railruin` | An abandoned monorail station (`bahnhofsruine` also works) |
 | `vault` | A buried vault's surface pillar ring |
 | `wreck` | The crashed ship — even before an NPC has pointed you at it |
 | `factory` | A factory's production terminal |

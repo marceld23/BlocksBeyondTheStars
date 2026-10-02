@@ -108,6 +108,23 @@ internal sealed class SpsLabInstance
     public Vector3f Center { get; set; }
 }
 
+/// <summary>An abandoned monorail station on the active world (#2166) — re-derived every load from its placement record.</summary>
+internal sealed class RailRuinInstance
+{
+    /// <summary>Structure-local (0, 0, 0) in world space; Y is the floor row.</summary>
+    public Vector3i Origin { get; set; }
+    public int Heading { get; set; }
+    public int Width { get; set; }
+    public int Length { get; set; }
+    public string Seat { get; set; } = "flat";
+
+    /// <summary>The footprint as later stampers reserve it (centre and half extents, one block of margin).</summary>
+    public (int Cx, int Cz, int Hw, int Hl) Rect => (Origin.X + Width / 2, Origin.Z + Length / 2, Width / 2 + 1, Length / 2 + 1);
+
+    /// <summary>The footprint's centre, one block over the floor.</summary>
+    public Vector3f Centre => new(Origin.X + Width * 0.5f, Origin.Y + 1f, Origin.Z + Length * 0.5f);
+}
+
 /// <summary>A door a stamped structure asks for, measured on the structure's layout (#1994): the wall axis, the
 /// width of the opening and the world position of its centre — everything the door registry would otherwise
 /// have to re-measure against the world's blocks.</summary>
@@ -265,6 +282,13 @@ internal sealed class LoadedWorld
     // and then live on as persisted block edits; they are NOT re-stamped on reload (that would resurrect
     // blocks the player has cleared). Ruins are not tracked as structures (just terrain + loot).
     public bool RuinsStamped { get; set; }
+
+    // The footprints of the ruins stamped during THIS load (#2166), so the abandoned monorail station that is decided
+    // right after them keeps clear of them. Empty on every later load — the station's own spot is pinned by then.
+    public List<(int Cx, int Cz, int Hw, int Hl)> RuinFootprints { get; } = new();
+
+    // The abandoned monorail station of this world (#2166): 0 or 1, re-derived every load from its placement record.
+    public List<RailRuinInstance> RailRuins { get; } = new();
 
     // Stamped factories on this world. Like settlements, they re-derive deterministically from the seed each
     // session (so the list is rebuilt on load) and are protected, so re-stamping their blocks is idempotent.
