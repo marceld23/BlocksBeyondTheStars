@@ -85,6 +85,100 @@ namespace BlocksBeyondTheStars.Client
             return ship;
         }
 
+        /// <summary>Where a design's engine plumes go (#2162), in the centred ship-local frame <c>BuildVoxelShip</c>
+        /// meshes in: one point per engine (see <see cref="ShipExhausts"/>) just behind its rear face, with its plume
+        /// size. Empty when there is no design.</summary>
+        public static List<(Vector3 Local, float Size)> ExhaustPoints(GameContent content,
+            BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign d)
+        {
+            if (content == null || !HasDesign(d))
+            {
+                return new List<(Vector3 Local, float Size)>();
+            }
+
+            var cells = new Dictionary<Vector3i, BlockId>(d.Block.Length);
+            int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
+            int maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
+            for (int i = 0; i < d.Block.Length; i++)
+            {
+                int bx = d.X[i], by = d.Y[i], bz = d.Z[i];
+                cells[new Vector3i(bx, by, bz)] = new BlockId(d.Block[i]);
+                if (bx < minX) minX = bx; if (by < minY) minY = by; if (bz < minZ) minZ = bz;
+                if (bx > maxX) maxX = bx; if (by > maxY) maxY = by; if (bz > maxZ) maxZ = bz;
+            }
+
+            var centre = new Vector3((minX + maxX + 1) * 0.5f, (minY + maxY + 1) * 0.5f, (minZ + maxZ + 1) * 0.5f);
+            return ExhaustPoints(content, cells, centre);
+        }
+
+        /// <summary>The exhaust points of an already indexed hull (the flight view's own ship), centred on
+        /// <paramref name="centre"/>. A hull without any open engine nozzle (a bare custom build) gets plumes at its
+        /// lower rear corners, where the stock ships carry theirs — never the middle of the stern, which is where the
+        /// boarding door sits.</summary>
+        public static List<(Vector3 Local, float Size)> ExhaustPoints(GameContent content,
+            Dictionary<Vector3i, BlockId> cells, Vector3 centre)
+        {
+            var points = new List<(Vector3 Local, float Size)>();
+            if (content == null || cells == null || cells.Count == 0)
+            {
+                return points;
+            }
+
+            var engines = new List<(int X, int Y, int Z)>();
+            int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
+            int maxX = int.MinValue, maxY = int.MinValue;
+            foreach (var kv in cells)
+            {
+                var p = kv.Key;
+                if (p.X < minX) minX = p.X; if (p.Y < minY) minY = p.Y; if (p.Z < minZ) minZ = p.Z;
+                if (p.X > maxX) maxX = p.X; if (p.Y > maxY) maxY = p.Y;
+                if (ShipExhausts.IsEngineBlock(content.BlockById(kv.Value)?.Key))
+                {
+                    engines.Add((p.X, p.Y, p.Z));
+                }
+            }
+
+            foreach (var e in ShipExhausts.Find(engines, (x, y, z) => cells.ContainsKey(new Vector3i(x, y, z))))
+            {
+                points.Add((new Vector3(e.X, e.Y, e.Z - 0.1f) - centre, e.Size));
+            }
+
+            if (points.Count > 0)
+            {
+                return points;
+            }
+
+            int y0 = Mathf.Min(minY + 1, maxY);
+            if (maxX - minX >= 2)
+            {
+                points.Add((new Vector3(minX + 0.5f, y0 + 0.5f, RearZ(cells, minX, y0, minZ) - 0.1f) - centre, 1f));
+                points.Add((new Vector3(maxX + 0.5f, y0 + 0.5f, RearZ(cells, maxX, y0, minZ) - 0.1f) - centre, 1f));
+            }
+            else
+            {
+                int x = (minX + maxX) / 2;
+                points.Add((new Vector3((minX + maxX + 1) * 0.5f, minY + 0.5f, RearZ(cells, x, minY, minZ) - 0.1f) - centre, 1f));
+            }
+
+            return points;
+        }
+
+        /// <summary>The rear face (lowest z) of the hull's (x, y) column, or <paramref name="fallback"/> if the column
+        /// is empty.</summary>
+        private static int RearZ(Dictionary<Vector3i, BlockId> cells, int x, int y, int fallback)
+        {
+            int best = int.MaxValue;
+            foreach (var p in cells.Keys)
+            {
+                if (p.X == x && p.Y == y && p.Z < best)
+                {
+                    best = p.Z;
+                }
+            }
+
+            return best == int.MaxValue ? fallback : best;
+        }
+
         /// <summary>Every light-emitting cell of a sparse ship/structure grid, as the mesher's light-source
         /// list. Ship hulls are meshed one 16³ chunk at a time, and without this list <see cref="ChunkMesher"/>
         /// falls back to scanning only the chunk it is currently meshing — so a lamp stopped dead at whatever

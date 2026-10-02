@@ -148,6 +148,10 @@ public sealed class SpaceStructure
 
 public sealed partial class GameServer
 {
+    /// <summary>#2162: the block a ship layout's <c>engine</c> element and the box ship's rear nozzles stamp as — the
+    /// client's exhaust plumes are placed on it (they all sat on the rear door while engines stamped as carbon).</summary>
+    internal const string EngineNozzleBlock = "engine_nozzle";
+
     /// <summary>S5: how close the suit must be to a static structure (asteroid/station) to mine/build on it —
     /// a coarse anti-grief range so you can't edit a body across the flight zone.</summary>
     private const float StructureEditRange = 40f;
@@ -187,6 +191,10 @@ public sealed partial class GameServer
         var glass = _content.GetBlock("glass")?.NumericId ?? wall;
         var glassClear = _content.GetBlock("glass_clear")?.NumericId ?? glass; // the cockpit's front screen (#1283)
         var dark = _content.GetBlock("carbon")?.NumericId ?? _content.GetBlock("basalt")?.NumericId ?? wall;
+
+        // #2162: engines are the real nozzle block (dark housing, glowing throat ring), not plain dark hull — the client
+        // finds its exhaust plumes by it, and with carbon there it found none and parked every plume on the rear door.
+        var nozzle = _content.GetBlock(EngineNozzleBlock)?.NumericId ?? dark;
         var lightW = _content.GetBlock("light_white")?.NumericId ?? glass;
         var lightR = _content.GetBlock("light_red")?.NumericId ?? lightW;
         var lightG = _content.GetBlock("light_green")?.NumericId ?? lightW;
@@ -233,7 +241,7 @@ public sealed partial class GameServer
                     case "headlight": s.Set(p, lightW); continue;
                     case "light_red": s.Set(p, lightR); continue;
                     case "light_green": s.Set(p, lightG); continue;
-                    case "engine": s.Set(p, dark); continue;
+                    case "engine": s.Set(p, nozzle); continue;
                 }
 
                 // Any block key (iron_wall, carbon cargo, …) renders as that block; unknown ids fall back to hull.
@@ -381,11 +389,11 @@ public sealed partial class GameServer
                 }
             }
 
-            // Rear engine nozzles (dark), just behind the rear wall at the TRUE corners (x=0 / x=2·halfX).
+            // Rear engine nozzles, just behind the rear wall at the TRUE corners (x=0 / x=2·halfX).
             // They must stay clear of the 3-wide rear hatch gap (x = halfX-1 .. halfX+1): at halfX∓1 they sat
             // inside the doorway on a 5-wide hull, pinching the exit to a single centre lane the player had to
-            // hit exactly or jump (#181, #211).
-            s.Set(new Vector3i(sgn < 0 ? 0 : halfX * 2, 1, -1), dark);
+            // hit exactly or jump (#181, #211). The real nozzle block (#2162), so the plumes sit on them.
+            s.Set(new Vector3i(sgn < 0 ? 0 : halfX * 2, 1, -1), nozzle);
 
             // Wingtip nav lights: red to port (-X), green to starboard (+X).
             s.Set(new Vector3i(sgn < 0 ? -2 : halfX * 2 + 2, wingY, halfZ), sgn < 0 ? lightR : lightG);

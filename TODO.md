@@ -45,6 +45,33 @@ no tickets, no ID cards, no vending machines).
   §"Abandoned stations", WORLD_GENERATION §36, FACTORIES_RUINS_AND_CLAIMING.md, USER_MANUAL.md.
 - **Open:** playtest on a fresh generation-20 world (`/tp railruin`).
 
+### 🚀 Engine plumes sit on the engines, not on the rear door (#2162, 2026-10-02, branch fix/engine-plume-placement) — ✅ done (⚠ playtest open)
+
+**Report (Marcel, 2026-10-02).** On every ship the engine effect sat on the rear entrance door. The starter ship and the
+Hammerhead each have two engines at the stern, and that is where the plumes belong.
+
+**Cause.** The server stamped every ship layout's `engine` element and the starter box ship's two rear nozzles as plain
+`carbon`. The client's per-nozzle plumes (#2157) look for `engine_nozzle`/`ship_engine` blocks, found none, and fell back to
+the one centred plume plus a glowing exhaust cube — the middle of the stern, which is the door. Other players' ships in flight
+and their landing/launch seen from the surface used the same stern centre.
+
+**Fix.**
+- Server: the layout `engine` element and the box ship's rear nozzles are the real `engine_nozzle` block (dark housing,
+  glowing throat ring). Old saves get it on their own: a ship is rebuilt from its layout on every load, with the player's
+  edits on top. Repairs only count missing cells, so an untouched ship needs no repair.
+- Client.Core: `ShipExhausts` groups touching engine blocks with open space behind them into engines: one exhaust per
+  engine, sized by it.
+- Client:
+  - One plume per engine, the Hammerhead's 2×2 engines flaming twice as wide.
+  - The engine light and trail follow the engines.
+  - The stand-in exhaust cube is gone from voxel ships.
+  - A hull without engines flames from its lower rear corners.
+  - Other players' ships in flight and their landings/launches seen from the surface use the same engines.
+- Tests: server (starter + Hammerhead engines are `engine_nozzle`, no repair needed) and Client.Core (`ShipExhaustsTests`: the
+  Hammerhead's four engines, no exhaust on any authored ship's rear door, starter box, buried engines, cap/order).
+
+---
+
 ### 🗞️ Browser: "What's new?" rendered behind the main menu (#2163–#2165, 2026-10-02, branch fix/whatsnew-modal-stacking)
 
 Marcel's browser playtest of v2026.10.1 found the auto-opened "What's new?" dialog sitting **behind** the main menu. The
