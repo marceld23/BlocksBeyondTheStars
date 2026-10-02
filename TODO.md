@@ -24,6 +24,29 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌳 Walk through tree foliage like through plants — leaves, needles and fronds, not the trunks (#2184, 2026-10-03, branch feat/walk-through-tree-foliage) — ✅ done (⚠ playtest open)
+
+**Request (Marcel, 2026-10-02).** Tree foliage should be walked through the way grass and ferns are — the trunk (and
+branches, should trees ever get them) stays solid.
+
+- **✅ One crown list:** `Shared/Definitions/TreeFoliage` (`tree_leaves`, `pine_needles`, `palm_frond`, `giant_leaves`,
+  `fifi_leaf`). The list used to be hand-copied into seven places that had drifted — the server's flyer rule and the
+  client's creature/critter probes only knew the oak and giant crowns, so a bird bounced off a pine.
+- **✅ Mesher:** crown cells keep their look but emit no collider (`TraitCollidable`). The trunk's faces toward its
+  leaves are still drawn, so the trunk keeps a full collider.
+- **✅ Player:** a crown gives no footing (`PlayerController.IsSolidKey`, so `IsCollidingKey` too) — you drop through a
+  crown, stand up inside one, the sneak edge-stop no longer reads a crown below a ledge as ground, and placing leaves
+  into your own cell no longer lifts you out.
+- **✅ Rules that follow:** a crown is no door jamb (`DoorProbe.IsJamb`); flying creatures weave through every crown kind.
+- **Deliberately unchanged:** the `Solid` flag (crowns still block sight and light); ground NPCs and animals still treat
+  crowns as solid (the server's `IsCollidingBlock` also decides where sand stops and drop packets land); the Paul
+  flower's opaque leaf slabs. Side effect: the generation-1 giant cactus is made of `tree_leaves` and is walked through
+  too — giving it its own stem block would need a terrain-generation bump.
+- **✅ Tests:** `TreeFoliageTests` (content, cutout look, jamb rule, never entombed inside a crown), `DoorwayTests`,
+  EditMode `ChunkMesherTreeFoliageEditModeTests` (no crown collider; a trunk inside its crown keeps all six faces).
+
+---
+
 ### 📖 Codex texts hold in-game information only — no credit lines, the Rainbow Planet's islands float on the sea (#2182, 2026-10-02, branch fix/codex-ingame-only) — ✅ done
 
 **Request (Marcel, 2026-10-02).** Found while writing the devblog post "Ein Monat Schul-AG". The Rainbow Planet's description

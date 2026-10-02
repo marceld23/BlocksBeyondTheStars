@@ -1391,8 +1391,9 @@ radial branches at 55–76 % height each ending in a leaf ball, a domed hollow c
 the lower tiers; jungle 30–50 high on buttress roots, 5–6 long high branches, a wide flat hollow canopy radius
 9–15. Branches and leaves only fill air; the crown is a shell (`GiantCrownShell`) so the grove floor keeps its
 light and the mesher does not carry thousands of hidden cubes. Own blocks `giant_log` (drops two `wood_log`)
-and `giant_leaves` (foliage: the mesher's leaf cutout, the per-world leaf hue, the flier canopy rule, the
-walk-through rule, the settlement vegetation clear, the leaf-alpha bake) and an own species
+and `giant_leaves` (foliage, one of the `TreeFoliage` crown keys: the mesher's leaf cutout, the per-world leaf hue,
+the flier canopy rule, the walk-through rule — no collider since #2184, so the player walks through every crown
+while the `giant_log` trunk and branches stay solid — the settlement vegetation clear, the leaf-alpha bake) and an own species
 `TreeGenerator.GenerateGiant` (`tr1`, own salt) the scanner reaches through `TreeSpeciesForBlock`, which is a
 per-block map now. Tests: `GiantTreeTests`.
 

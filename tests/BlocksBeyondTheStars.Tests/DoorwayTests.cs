@@ -157,8 +157,9 @@ public sealed class DoorwayTests : IDisposable
         Assert.True(Jamb("stone"));
         Assert.True(Jamb("iron_wall"));
         Assert.True(Jamb("glass"));
-        Assert.True(Jamb("tree_leaves")); // a hedge is a wall you bump into
+        Assert.True(Jamb("wood_log")); // a trunk is a wall you bump into
 
+        Assert.False(Jamb("tree_leaves")); // #2184: a crown (or a hedge of leaves) is walked through like a plant
         Assert.False(Jamb("flora_flower"));
         Assert.False(Jamb("flora_bush"));
         Assert.False(Jamb("torch"));

@@ -653,11 +653,14 @@ public sealed partial class GameServer
 
     /// <summary>Blocks that are solid on paper but have <b>no collider</b> in the mesher, so bodies pass through
     /// them (mirrors the client's <c>PlayerController.IsCollidingKey</c>). <paramref name="foliagePasses"/> adds
-    /// tree canopies for FLYING creatures — a winged animal weaves through a crown rather than bouncing off it.</summary>
+    /// tree canopies for FLYING creatures — a winged animal weaves through a crown rather than bouncing off it.
+    /// The player walks through crowns too since #2184, but ground NPCs and animals deliberately do not: this
+    /// predicate also decides where they stand, where falling sand stops and where a supply drop may land, and a
+    /// crown hangs above their heads anyway.</summary>
     private static bool IsWalkThroughProp(string key, bool foliagePasses)
         => key.StartsWith("flora_", System.StringComparison.Ordinal)
             || key is "torch" or "lantern" or "ladder"
-            || (foliagePasses && (key == "tree_leaves" || key == BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLeavesKey));
+            || (foliagePasses && BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsKey(key)); // every crown kind (it used to miss needles, fronds and the Fifi leaves)
 
     // NOTE: BroadcastNpcs runs on the 0.2 s position-sync cadence — per-receiver standings (#1118) must
     // NOT ride on it; they go out via SendNpcs (world entry) and explicitly when a relationship changes.

@@ -3775,16 +3775,19 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A block key that gives solid footing to stand on (anything placed, but not air or a fluid you'd
-        /// sink through — water, lava, or a still liquid such as oil).</summary>
+        /// sink through — water, lava, or a still liquid such as oil). Nor a tree crown (#2184): leaves, needles and
+        /// fronds are walked through like plants, so you drop through a crown, stand up inside one, and the sneak
+        /// edge-stop does not mistake a crown below a ledge for ground.</summary>
         private static bool IsSolidKey(string key)
-            => !string.IsNullOrEmpty(key) && key != "air" && key != "water" && key != "lava" && !LiquidKeys.Contains(key);
+            => !string.IsNullOrEmpty(key) && key != "air" && key != "water" && key != "lava" && !LiquidKeys.Contains(key)
+               && !TreeFoliage.IsKey(key);
 
         /// <summary>
         /// A block that actually has a COLLIDER — i.e. one the capsule can be blocked by or stuck inside.
         /// Cross-billboard props (small flora and the torch) are meshed without a collider on purpose, so the
         /// player walks straight through them; treating them as solid would make the out-of-world guard think a
         /// player standing in a grass tuft (or next to a wall torch) was embedded in geometry, and would make a
-        /// torch overhead cancel the auto-step.
+        /// torch overhead cancel the auto-step. Tree crowns (#2184) are excluded already by <see cref="IsSolidKey"/>.
         /// </summary>
         internal static bool IsCollidingKey(string key)
             => IsSolidKey(key)
