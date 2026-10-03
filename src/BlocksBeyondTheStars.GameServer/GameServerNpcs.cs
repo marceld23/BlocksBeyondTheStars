@@ -538,14 +538,24 @@ public sealed partial class GameServer
     /// bite (or keep chasing) a target it can't see. Sampled in the target's unwrapped frame so it stays correct
     /// across the longitude seam; <see cref="IsSolidCell"/> canonicalises each cell, so raw coords are fine.</summary>
     private bool HasLineOfSight(Vector3f from, Vector3f to)
+        => HasLineOfSight(from, to, SightEyeHeight, SightEyeHeight, skipToCell: false);
+
+    /// <summary>How far above the feet a body's sight starts (both ends of <see cref="HasLineOfSight(Vector3f, Vector3f)"/>).</summary>
+    private const float SightEyeHeight = 1.5f;
+
+    /// <summary>The sightline with its own lift per end. <paramref name="skipToCell"/> ignores the cell the
+    /// <paramref name="to"/> end sits in — for a sentry post (#2236) whose ray starts at its own block: lifting the
+    /// post's end by an eye height put the last samples in the cell ABOVE the post, so a roof block (or a second
+    /// post stacked on top) blinded it against everything standing on its own floor.</summary>
+    private bool HasLineOfSight(Vector3f from, Vector3f to, float fromLift, float toLift, bool skipToCell)
     {
-        const float eye = 1.5f; // sight originates near the head, not the feet, on both ends
         var dst = Unwrapped(from, to);
-        float ax = from.X, ay = from.Y + eye, az = from.Z;
-        float dx = dst.X - ax, dy = (dst.Y + eye) - ay, dz = dst.Z - az;
+        float ax = from.X, ay = from.Y + fromLift, az = from.Z;
+        float dx = dst.X - ax, dy = (dst.Y + toLift) - ay, dz = dst.Z - az;
         float dist = (float)System.Math.Sqrt(dx * dx + dy * dy + dz * dz);
         int steps = System.Math.Max(1, (int)System.Math.Ceiling(dist / 0.25f));
         int px = int.MinValue, py = int.MinValue, pz = int.MinValue;
+        int tx = (int)System.Math.Floor(dst.X), ty = (int)System.Math.Floor(dst.Y + toLift), tz = (int)System.Math.Floor(dst.Z);
         int fluidCells = 0;
         for (int s = 1; s < steps; s++) // skip both endpoints — the bodies themselves aren't occluders
         {
@@ -561,6 +571,11 @@ public sealed partial class GameServer
             px = x;
             py = y;
             pz = z;
+            if (skipToCell && x == tx && y == ty && z == tz)
+            {
+                continue; // the post's own block is the shooter, not cover
+            }
+
             var id = _world.GetBlock(new Vector3i(x, y, z)); // #1530: one read for both tests below
             if (IsSolidBlock(id))
             {

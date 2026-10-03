@@ -540,6 +540,50 @@ public sealed partial class GameServer
 
     // ---------------- Enter / leave space ----------------
 
+    /// <summary>Why the current ship (<c>_ship</c>, point it with <see cref="Serve"/> first) cannot fly right now —
+    /// a wrecked hull, or a self-built ship that is not (or no longer) commissioned or flight-worthy (#950: the gate
+    /// re-runs on every launch, since commissioning can be edited away again) — else null.</summary>
+    private string? ShipLaunchProblem()
+    {
+        if (_ship.Downed)
+        {
+            return "@srv.space.wrecked";
+        }
+
+        if (_ship.IsCustom)
+        {
+            if (!_ship.Commissioned)
+            {
+                return "@srv.ship.not_commissioned";
+            }
+
+            return CustomShipLaunchProblem(_ship);
+        }
+
+        return null;
+    }
+
+    /// <summary>Every gate <see cref="EnterSpace"/> applies before it moves anyone (#2233): space flight allowed,
+    /// the pilot aboard, the ship able to fly. Callers that leave another world first — the ship interior's helm and
+    /// hatch — ask this BEFORE they leave, so a refusal keeps the pilot where they are instead of stranding them on
+    /// the body below. <paramref name="requireAboard"/> is off for the interior: a pilot stepping out through the
+    /// hatch already stands outside the hull (not "aboard"), and the return puts them back aboard itself.
+    /// Null = good to go.</summary>
+    private string? SpaceLaunchProblem(PlayerSession session, bool requireAboard = true)
+    {
+        if (!Rules.FreeSpaceFlight)
+        {
+            return "@srv.space.flight_disabled";
+        }
+
+        if (requireAboard && !session.State.AboardShip)
+        {
+            return "@srv.space.board_first";
+        }
+
+        return ShipLaunchProblem();
+    }
+
     /// <summary>Launches the player into a space instance around the ship's location. <paramref name="resume"/>
     /// (#2118) puts the ship back where it floated before the player left the flight view without landing (the
     /// ship interior, a station boarded from an EVA) — the flight view is told that pose, instead of drawing the
@@ -565,27 +609,10 @@ public sealed partial class GameServer
             return; // already in space
         }
 
-        if (_ship.Downed)
+        if (ShipLaunchProblem() is { } problem)
         {
-            RejectSpace(session, "@srv.space.wrecked");
+            RejectSpace(session, problem);
             return;
-        }
-
-        // A self-built ship must (still) be flight-worthy: commissioning can be edited away again on foot,
-        // so the same validation gate re-runs on every launch (#950).
-        if (_ship.IsCustom)
-        {
-            if (!_ship.Commissioned)
-            {
-                RejectSpace(session, "@srv.ship.not_commissioned");
-                return;
-            }
-
-            if (CustomShipLaunchProblem(_ship) is { } problem)
-            {
-                RejectSpace(session, problem);
-                return;
-            }
         }
 
         // #1584: the flight instance is keyed by the body the PILOT launches from, not by the body the ship

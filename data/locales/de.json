@@ -5524,5 +5524,6 @@
   "srv.join.content_mismatch": "Dieser Server läuft mit einer anderen Version des Spiels. Bitte aktualisiere dein Spiel. Wenn es dein eigener Server ist, aktualisiere auch ihn.",
   "ui.sp.save_too_new": "Diese Welt wurde mit einer neueren Version des Spiels gespeichert. Bitte aktualisiere das Spiel, um sie zu öffnen. Die Welt wurde nicht verändert.",
   "ui.bio.washed": "Vom Entgifter gewaschen",
-  "ui.bio.unwashed": "Nicht gewaschen"
+  "ui.bio.unwashed": "Nicht gewaschen",
+  "srv.ship.stay_aboard_repair": "Du bleibst an Bord — repariere das Schiff zuerst von innen, dann übernimm wieder das Steuer."
 }

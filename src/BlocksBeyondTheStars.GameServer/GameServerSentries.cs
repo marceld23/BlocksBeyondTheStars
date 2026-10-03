@@ -247,7 +247,7 @@ public sealed partial class GameServer
             }
 
             double d = WrapDistSq(e.Position, muzzle);
-            if (d <= bestDistSq && HasLineOfSight(e.Position, muzzle))
+            if (d <= bestDistSq && SentrySees(e.Position, muzzle))
             {
                 best = e;
                 bestDistSq = d;
@@ -262,7 +262,7 @@ public sealed partial class GameServer
             }
 
             double d = WrapDistSq(b.Position, muzzle);
-            if (d <= bestDistSq && HasLineOfSight(b.Position, muzzle))
+            if (d <= bestDistSq && SentrySees(b.Position, muzzle))
             {
                 best = b;
                 bestDistSq = d;
@@ -277,7 +277,7 @@ public sealed partial class GameServer
             }
 
             double d = WrapDistSq(c.Position, muzzle);
-            if (d <= bestDistSq && HasLineOfSight(c.Position, muzzle))
+            if (d <= bestDistSq && SentrySees(c.Position, muzzle))
             {
                 best = c;
                 bestDistSq = d;
@@ -286,6 +286,12 @@ public sealed partial class GameServer
 
         return best;
     }
+
+    /// <summary>A sentry's sightline (#2236): from the target's eye height to the post's own block centre — not to
+    /// an eye height above the post, where a roof block or a second post stacked on top counted as cover against
+    /// everything standing on the post's floor. The post's own cell is the shooter and is skipped.</summary>
+    private bool SentrySees(Vector3f target, Vector3f muzzle)
+        => HasLineOfSight(target, muzzle, SightEyeHeight, 0f, skipToCell: true);
 
     /// <summary>An animal the sentry is allowed to shoot (#1699): one that is actually a threat — a hostile
     /// species, or any creature the player has provoked into hunting them — and never a tamed companion.

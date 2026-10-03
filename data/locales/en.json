@@ -5524,5 +5524,6 @@
   "srv.join.content_mismatch": "This server runs a different version of the game. Please update your game. If it is your own server, update it too.",
   "ui.sp.save_too_new": "This world was saved with a newer version of the game. Please update the game to open it. The world was not changed.",
   "ui.bio.washed": "Washed by the detoxifier",
-  "ui.bio.unwashed": "Not washed"
+  "ui.bio.unwashed": "Not washed",
+  "srv.ship.stay_aboard_repair": "You stay aboard — repair the ship from inside first, then take the helm again."
 }

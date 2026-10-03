@@ -65,10 +65,18 @@ public sealed partial class GameServer
             _spaceInstances.Remove(instanceId); // ShipPosition is saved above; restored on return
         }
 
-        // Load the ship interior as its own void world and park the ship structure OBJECT in it
-        // (ship-as-object: the same structure the flight view renders — design + persisted edits —
-        // so interior furnishing and EVA hull edits are one and the same grid everywhere).
-        string shipLoc = "shipint:" + playerId;
+        Send(session, new SpaceClosed { Reason = "@srv.misc.stepped_inside", ShipDisabled = false });
+        LoadShipInteriorFor(session);
+        _log.Info($"Player '{session.State.Name}' stepped inside their ship (world 'shipint:{playerId}').");
+    }
+
+    /// <summary>Loads the pilot's ship interior as its own void world and puts them inside it, at the heal tank:
+    /// the ship structure OBJECT is parked in it (ship-as-object: the same structure the flight view renders —
+    /// design + persisted edits — so interior furnishing and EVA hull edits are one and the same grid everywhere).
+    /// The caller has already recorded the way back in <see cref="_inShipInterior"/>.</summary>
+    private void LoadShipInteriorFor(PlayerSession session)
+    {
+        string shipLoc = "shipint:" + session.State.PlayerId;
         LoadWorld(ShipInteriorType, shipLoc);
         SetCurrent(session);
         PlaceLandedShip();
@@ -79,7 +87,6 @@ public sealed partial class GameServer
         session.State.InEva = false;     // entering from an EVA ends the spacewalk
         session.SentChunks.Clear();
 
-        Send(session, new SpaceClosed { Reason = "@srv.misc.stepped_inside", ShipDisabled = false });
         Send(session, new WorldReset { PlanetType = ShipInteriorType, PlanetName = string.Empty, SystemName = string.Empty, Hyperjump = false });
         SendLandedShips(session); // the ship object itself — the world is void apart from it — BEFORE the position (#1450)
         SendPlayerState(session);
@@ -88,7 +95,34 @@ public sealed partial class GameServer
         SendInventory(session);
         SendShipStations(session);
         SendDoors(session);
-        _log.Info($"Player '{session.State.Name}' stepped inside their ship (world '{shipLoc}').");
+    }
+
+    /// <summary>When the pilot was last told that their ship can't fly (#2233) — the hatch route runs every tick
+    /// while they stand outside the hull, so the reason is repeated at most every few seconds.</summary>
+    private readonly Dictionary<string, double> _unflyableNoticeAt = new();
+
+    private const double UnflyableNoticeSeconds = 4.0;
+
+    /// <summary>The ship can't fly (#2233): the pilot stays inside, where it can be repaired. Through the helm that
+    /// is just the reason; through the hatch (or a hole in the hull) they are put back on board — otherwise the
+    /// next tick would try the airlock again, and there is no space outside to float in.</summary>
+    private void KeepPilotInsideUnflyableShip(PlayerSession session, string problem, bool eva)
+    {
+        string playerId = session.State.PlayerId;
+        if (!_unflyableNoticeAt.TryGetValue(playerId, out var last) || _uptime - last >= UnflyableNoticeSeconds)
+        {
+            _unflyableNoticeAt[playerId] = _uptime;
+            RejectSpace(session, problem);
+            Send(session, new ServerMessage { Text = "@srv.ship.stay_aboard_repair" });
+        }
+
+        if (eva && _shipPlaced)
+        {
+            session.State.Position = _healTank;
+            session.State.InEva = false;
+            SendPlayerState(session);
+            Send(session, new RespawnNotice { X = _healTank.X, Y = _healTank.Y, Z = _healTank.Z, Reason = "@srv.ship.stay_aboard_repair" });
+        }
     }
 
     /// <summary>Take the helm again: leave the ship interior straight back into the flight view, the ship
@@ -104,6 +138,17 @@ public sealed partial class GameServer
         var session = FindSessionByPlayerId(playerId);
         if (session is null || !_inShipInterior.TryGetValue(playerId, out var ret))
         {
+            return;
+        }
+
+        // #2233: every launch gate BEFORE the interior is left. This used to load the body's world and send the reset
+        // first and only then let EnterSpace refuse a ship that lost its engine, door or airtightness — the pilot then
+        // stood on the planet at the interior's coordinates, in no instance, with the ship gone from that world (so it
+        // could not even be repaired there), and the hatch route had already flagged them as on an EVA there.
+        Serve(session); // the interior world + THIS pilot's ship
+        if (SpaceLaunchProblem(session, requireAboard: false) is { } problem)
+        {
+            KeepPilotInsideUnflyableShip(session, problem, eva);
             return;
         }
 
@@ -123,13 +168,19 @@ public sealed partial class GameServer
         // Back into the flight view, the ship exactly where it was parked and heading where it pointed (#2118) —
         // the flight view is told that pose. Skip the take-off sequence: you never landed, you just stepped out.
         EnterSpace(playerId, skipLaunch: true, resume: ret.Ship);
-        if (eva && _playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
+        if (!_playerInstance.TryGetValue(playerId, out var iid) || !_spaceInstances.TryGetValue(iid, out var inst))
         {
-            inst.PlayerPoses[playerId] = ret.Ship with { Eva = true };
+            // Safety net (#2233): EnterSpace refused for a reason the gate above does not know. Back aboard rather
+            // than stranded on the body below; InEva is only ever set once the pilot really is in an instance.
+            _log.Warn($"Player '{session.State.Name}' could not return to flight — put back inside the ship.");
+            _inShipInterior[playerId] = ret;
+            LoadShipInteriorFor(session);
+            return;
         }
 
         if (eva)
         {
+            inst.PlayerPoses[playerId] = ret.Ship with { Eva = true };
             session.State.InEva = true; // stepping out the airlock starts the spacewalk → oxygen drains
             SendPlayerState(session);   // tell the client it is now floating in EVA next to the ship
         }

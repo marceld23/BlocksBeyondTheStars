@@ -414,6 +414,68 @@ public sealed class CustomShipTests : IDisposable
         }
     }
 
+    /// <summary>Commissions the hull, flies it into space, steps inside and mines the only engine — the ship can no
+    /// longer fly while the pilot is still walking around in it (#2233).</summary>
+    private BlocksBeyondTheStars.GameServer.PlayerSession InsideAShipThatLostItsEngine(SvGameServer server)
+    {
+        var pilot = server.AddLocalPlayer("Pilot");
+        var core = LayKeel(server, pilot);
+        var helm = BuildValidHull(server);
+        pilot.State.Position = new Vector3f(core.X + helm.X + 0.5f, core.Y + helm.Y, core.Z + helm.Z + 0.5f);
+        server.CommissionShipForTest("Pilot");
+        server.EnterSpace("Pilot");
+        Assert.True(server.InSpace("Pilot"));
+
+        server.EnterShipInterior("Pilot");
+        Assert.True(server.InShipInterior("Pilot"));
+        server.HandleStructureEditForTest("Pilot", new StructureEditIntent { StructureId = "ship:Pilot", X = 1, Y = 1, Z = 1, Mine = true });
+        Assert.DoesNotContain("1:1:1", CustomShipOf(pilot).BuiltCells.Split(';').Select(c => c.Substring(0, c.LastIndexOf(':'))));
+        return pilot;
+    }
+
+    [Fact]
+    public void TakingTheHelm_OfAShipThatCannotFly_KeepsThePilotInside()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = InsideAShipThatLostItsEngine(server);
+            string inside = pilot.CurrentLocationId;
+
+            server.ExitShipToFlight("Pilot");
+
+            // #2233: the gate runs before the interior is left — not on the planet below, not in space, same place.
+            Assert.True(server.InShipInterior("Pilot"));
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Equal(inside, pilot.CurrentLocationId);
+            Assert.True(pilot.State.AboardShip);
+        }
+    }
+
+    [Fact]
+    public void LeavingThroughTheHatch_OfAShipThatCannotFly_PutsThePilotBackAboard_WithoutAnEva()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = InsideAShipThatLostItsEngine(server);
+            string inside = pilot.CurrentLocationId;
+
+            server.StartEvaFromShip("Pilot"); // what the tick does every tick while the pilot stands outside the hull
+
+            Assert.True(server.InShipInterior("Pilot"));
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Equal(inside, pilot.CurrentLocationId);
+            Assert.False(pilot.State.InEva); // #2233: an EVA flag on a planet meant no life support — oxygen drained
+
+            // Repaired, the hatch works as before.
+            Edit(server, "ship:Pilot", 1, 1, 1, "ship_engine");
+            server.StartEvaFromShip("Pilot");
+            Assert.True(server.InSpace("Pilot"));
+            Assert.True(pilot.State.InEva);
+        }
+    }
+
     public void Dispose()
     {
         try

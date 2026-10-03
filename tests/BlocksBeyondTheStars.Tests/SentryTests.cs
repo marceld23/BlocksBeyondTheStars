@@ -142,6 +142,58 @@ public sealed class SentryTests : IDisposable
         }
     }
 
+    [Fact]
+    public void ASentry_UnderARoofBlock_StillShootsAHostileOnItsOwnFloor()
+    {
+        // #2236: the sightline was lifted by an eye height at the post's end too, so its last samples fell into the
+        // cell ABOVE the post — a roof block (or a second post stacked on top) silenced it against everything
+        // standing on its own floor.
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            FoundBaseWithSentry(server, owner, out var sentry);
+            server.World.SetBlock(new Vector3i(sentry.X, sentry.Y + 1, sentry.Z), _content.GetBlock("stone")!.NumericId, 0, 0, 0, owner.State.Name);
+
+            server.SpawnPlanetEnemyAtForTest(new Vector3f(sentry.X + 4.5f, sentry.Y, sentry.Z + 0.5f)); // feet on the post's floor
+            var enemy = server.PlanetEnemies.Single();
+            float full = enemy.Hull;
+
+            server.TickSentriesForTest();
+
+            Assert.True(enemy.Hull < full, "a roofed post must still see what stands in front of it");
+        }
+    }
+
+    [Fact]
+    public void ASentry_StillCannotShootThroughAWall()
+    {
+        // The #2236 fix moved the post's end of the ray, not the rule: a wall between post and target is still cover.
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            FoundBaseWithSentry(server, owner, out var sentry);
+            var stone = _content.GetBlock("stone")!.NumericId;
+            for (int dy = -1; dy <= 3; dy++)
+            {
+                for (int dz = -2; dz <= 2; dz++)
+                {
+                    server.World.SetBlock(new Vector3i(sentry.X + 2, sentry.Y + dy, sentry.Z + dz), stone, 0, 0, 0, owner.State.Name);
+                }
+            }
+
+            server.SpawnPlanetEnemyAtForTest(new Vector3f(sentry.X + 4.5f, sentry.Y, sentry.Z + 0.5f));
+            float full = server.PlanetEnemies.Single().Hull;
+
+            server.TickSentriesForTest();
+
+            Assert.Equal(full, server.PlanetEnemies.Single().Hull);
+        }
+    }
+
     // ---------------- a kill is credited to the owner (#1292) ----------------
 
     [Fact]

@@ -24,6 +24,24 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛰️ Space package — ship scanner, planet overview, scanner tiers, visible pods and anomalies, wormholes (+ fixes) (#2243: #2233 #2235 #2236 #2237–#2242, 2026-10-04, branch feat/space-scanner-wormholes) — 🚧 in progress
+
+**Request (Marcel, 2026-10-04).** Every ship gets a scanner in the flight hotbar (like weapon / tractor) with a cool effect,
+icon and sounds; the scanner also scans planets for an overview of what awaits there; it can be upgraded (blueprint, recipe,
+icons); life pods and anomalies get a real look instead of the red cube; rare two-way wormholes between star systems, usable
+without a jump drive, never into the story system. Three server bugs go first. All in one branch and one PR.
+
+- **✅ Sentry under a roof (#2236):** the sightline was lifted by an eye height at the post's end too, so a solid block (or a
+  second post) directly above blinded it against everything on its own floor. `SentrySees` now runs from the target's eye
+  to the post's own block centre and skips the post's cell; walls still block. Tests: roof + wall cases in `SentryTests`.
+- **✅ Leaving the interior of a ship that cannot fly (#2233):** `ReturnToFlight` asks the launch gate
+  (`SpaceLaunchProblem` / `ShipLaunchProblem`, shared with `EnterSpace`) **before** it leaves the interior. A ship without
+  engine, door or airtightness keeps the pilot aboard with the reason (repeated at most every 4 s); through the hatch they
+  are put back at the heal tank. `InEva` is only set once the pilot really is in a space instance; if `EnterSpace` still
+  refuses, the pilot goes back into the interior instead of the planet. Tests: helm + hatch cases in `CustomShipTests`.
+
+---
+
 ### 🔧 Bio lab fix round — everything a code read of the merged feature found (#2225: #2214–#2224, #2226, 2026-10-03, branch fix/bio-lab-playtest) — ✅ done (unreleased; ⚠ playtest open)
 
 **Why.** Before the first playtest of the bio lab (#2213) ten agents read the merged code and checked every claim a
