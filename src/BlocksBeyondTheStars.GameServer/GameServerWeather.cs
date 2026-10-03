@@ -111,11 +111,105 @@ public sealed partial class GameServer
 
     /// <summary>Test seam (#1865): pins the WORLD clock so the LOCAL clock at longitude <paramref name="x"/> reads
     /// <paramref name="fraction"/> — tests place things at arbitrary X and must not depend on the world clock.</summary>
-    public void SetLocalDayFractionForTest(double fraction, float x)
+    public void SetLocalDayFractionForTest(double fraction, float x) => SetLocalDayFraction(fraction, x);
+
+    /// <summary>Sets the WORLD clock so that the LOCAL clock at longitude <paramref name="x"/> reads
+    /// <paramref name="fraction"/> — the inverse of <see cref="LocalDayFraction"/>.</summary>
+    private void SetLocalDayFraction(double fraction, float x)
     {
         double shift = _world.Planet?.Void == true || _world.Circumference <= 0 ? 0.0 : x / (double)_world.Circumference;
         _dayFraction = (((fraction - shift) % 1.0) + 1.0) % 1.0;
     }
+
+    /// <summary>The words <c>/settime</c> understands and the local day fraction each one means (#2220). The sky draws
+    /// sunrise at 0.25 and sunset at 0.75 (<see cref="IsNightAt"/>): "day" is the late morning every world starts at,
+    /// "night" lies past the dusk band (<see cref="IsDawnOrDuskAt"/>) with most of the night still ahead.</summary>
+    private static readonly (string Word, double Fraction)[] TimeWords =
+    {
+        ("midnight", 0.0),
+        ("dawn", 0.25),
+        ("day", InitialDayFraction),
+        ("noon", 0.5),
+        ("dusk", 0.75),
+        ("night", 0.85),
+    };
+
+    /// <summary>Reads a <c>/settime</c> argument (#2220): one of the <see cref="TimeWords"/>, a clock time ("18:30",
+    /// "6:05", "0:30"; "24:00" is midnight), an hour of the day (1 to 24 — "6.5" is half past six, "24" midnight) or
+    /// a day fraction below 1 ("0.5" is noon, "0" midnight). A comma counts as the decimal point, the way a German
+    /// keyboard types it. Returns the local day fraction and the name the answer line shows (the word, or the clock
+    /// time "18:30" — which the command takes back as it is); null for anything else.</summary>
+    internal static (double Fraction, string Label)? ParseTimeOfDay(string? arg)
+    {
+        string text = (arg ?? string.Empty).Trim().ToLowerInvariant();
+        foreach (var (word, fraction) in TimeWords)
+        {
+            if (text == word)
+            {
+                return (fraction, word);
+            }
+        }
+
+        var invariant = System.Globalization.CultureInfo.InvariantCulture;
+        int colon = text.IndexOf(':');
+        if (colon >= 0)
+        {
+            // One or two digits for the hour, exactly two for the minute — digits only, so "7:5", "-1:30" and
+            // "1:2:3" are no clock times.
+            if (colon is not (1 or 2) || text.Length - colon - 1 != 2
+                || !int.TryParse(text.Substring(0, colon), System.Globalization.NumberStyles.None, invariant, out int hour)
+                || !int.TryParse(text.Substring(colon + 1), System.Globalization.NumberStyles.None, invariant, out int minute)
+                || hour > 24 || minute > 59 || (hour == 24 && minute != 0))
+            {
+                return null;
+            }
+
+            int ofDay = ((hour * 60) + minute) % (24 * 60);
+            return (ofDay / (24.0 * 60.0), ClockLabel(ofDay));
+        }
+
+        // The range test is written so that "nan" (which the parser accepts) fails it too.
+        if (!double.TryParse(text.Replace(',', '.'), System.Globalization.NumberStyles.AllowDecimalPoint, invariant, out double value)
+            || !(value >= 0.0 && value <= 24.0))
+        {
+            return null;
+        }
+
+        double local = value < 1.0 ? value : (value / 24.0) % 1.0;
+        return (local, ClockLabel((int)System.Math.Round(local * 24.0 * 60.0) % (24 * 60)));
+    }
+
+    /// <summary>A minute of the day as the clock shows it: 1110 → "18:30".</summary>
+    private static string ClockLabel(int minuteOfDay) => $"{minuteOfDay / 60:00}:{minuteOfDay % 60:00}";
+
+    /// <summary>Admin <c>/settime</c> (#2220): really sets the active world's clock. The command used to write a field
+    /// nothing read and still answered "time set". The value is the LOCAL time where the admin stands — the sky is
+    /// drawn from the world clock plus the longitude (<see cref="LocalDayFraction"/>), so "night" has to mean night
+    /// HERE, not on the far side of the world. Everyone in this world gets the new environment at once instead of
+    /// with the next heartbeat. Returns null when the clock was set (<paramref name="label"/> is what the answer line
+    /// names), otherwise the line that says why not — and nothing changed: the argument is no time, or the admin is
+    /// out in space (in flight or on a spacewalk), where the session is still served in the body it left or arrived
+    /// at and its position is no longitude of that world.</summary>
+    private string? AdminSetTime(PlayerSession session, string? arg, out string label)
+    {
+        label = string.Empty;
+        if (InSpace(session.State.PlayerId))
+        {
+            return "@srv.admin.time_not_in_space";
+        }
+
+        if (ParseTimeOfDay(arg) is not { } time)
+        {
+            return "@srv.admin.time_unknown";
+        }
+
+        label = time.Label;
+        SetLocalDayFraction(time.Fraction, session.State.Position.X);
+        _sinceEnvBroadcast = 0;
+        BroadcastEnvironment();
+        return null;
+    }
+
     public string Weather => _weatherState;
     public int SunColor => _sunColor;
 

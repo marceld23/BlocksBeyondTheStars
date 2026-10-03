@@ -180,7 +180,6 @@ public sealed partial class GameServer
     // Ctrl-C handler) hand the save off to the run loop instead of saving concurrently with a live Tick().
     private volatile bool _runLoopActive;
     private readonly System.Threading.ManualResetEventSlim _stopped = new(true);
-    private string _timeOfDay = "day";
 
     public GameServer(
         ServerConfig config,
@@ -6421,9 +6420,19 @@ public sealed partial class GameServer
                     // Resolve the TARGET's own ship, not the admin's cursor ship (`_ship`): a give to an
                     // aboard-ship target must spill into that player's cargo, not the admin's.
                     var targetShip = target.Ships.TryGetValue(target.ActiveShipId, out var ts) ? ts : _noShip;
-                    new MaterialPool(_content, target.State, targetShip).Add(cmd.StringArg!, amount);
+                    // #2220: Add returns what found no room. That used to be dropped without a word — and a give
+                    // that worked said nothing either. The admin is told what arrived and what did not fit.
+                    int given = amount - new MaterialPool(_content, target.State, targetShip).Add(cmd.StringArg!, amount);
                     SendInventory(target);
-                    CheatLog(p, $"gave {amount} {cmd.StringArg} to {target.State.Name}");
+                    Send(session, new ServerMessage
+                    {
+                        Text = Localize(session.Locale, given == amount ? "srv.admin.gave" : "srv.admin.gave_partial")
+                            .Replace("{count}", amount.ToString())
+                            .Replace("{given}", given.ToString())
+                            .Replace("{item}", ItemDisplayName(session, cmd.StringArg!))
+                            .Replace("{player}", target.State.Name),
+                    });
+                    CheatLog(p, $"gave {given} of {amount} {cmd.StringArg} to {target.State.Name}");
                     break;
                 }
 
@@ -6480,15 +6489,27 @@ public sealed partial class GameServer
                 }
 
             case "set_time":
-                _timeOfDay = cmd.StringArg ?? _timeOfDay;
-                Broadcast(new ServerMessage { Text = "@srv.admin.time_set:" + _timeOfDay });
-                CheatLog(p, $"set time to {_timeOfDay}");
+                // #2220: the command used to write a field nothing read and still answered "time set". It sets this
+                // world's clock now (a word, a clock time, an hour or a day fraction — the local time where the admin
+                // stands) and refuses anything else. The clock is this world's alone, so the line goes to the players
+                // whose sky changed — not to those on another body.
+                if (AdminSetTime(session, cmd.StringArg, out string timeLabel) is { } timeRefusal)
+                {
+                    Send(session, new ServerMessage { Text = timeRefusal });
+                }
+                else
+                {
+                    BroadcastToWorld(new ServerMessage { Text = "@srv.admin.time_set:" + timeLabel });
+                    CheatLog(p, $"set time to {timeLabel}");
+                }
+
                 break;
 
             case "set_weather":
                 // #2065: the command used to write a field nothing read. It forces the simulation's state now (a ladder
-                // state or an event of the catalogue) and refuses anything the catalogue does not know.
-                if (cmd.StringArg is { Length: > 0 } weatherKey && WeatherCatalog.Find(weatherKey) is { } weatherDef)
+                // state or an event of the catalogue) and refuses anything the catalogue does not know. #2220: the name
+                // is read the way it is typed — any letter case, and "cloudy" for "clouds".
+                if (WeatherCatalog.FindByName(cmd.StringArg) is { } weatherDef)
                 {
                     _planetWeatherMode = "dynamic";
                     _sim.Force(weatherDef.Key);

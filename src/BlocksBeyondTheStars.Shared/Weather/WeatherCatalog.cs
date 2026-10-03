@@ -217,9 +217,25 @@ public static class WeatherCatalog
         return map;
     }
 
+    /// <summary>Words a player types for a state that are not its wire key (#2220): the admin command advertised
+    /// "cloudy" while the key is "clouds". Only <see cref="FindByName"/> reads them — the wire, the planet data and
+    /// <see cref="AllKeys"/> keep the exact keys.</summary>
+    private static readonly Dictionary<string, string> Aliases = new(StringComparer.Ordinal)
+    {
+        ["cloudy"] = "clouds",
+    };
+
     /// <summary>Looks a state up by its wire key; null for an unknown key.</summary>
     public static WeatherDef? Find(string? key)
         => key is not null && ByKey.TryGetValue(key, out var d) ? d : null;
+
+    /// <summary>Looks a state up the way a player types it (<c>/setweather</c>, #2220): the exact key, the key in
+    /// another letter case or with blanks around it, or an alias ("cloudy"). Null for an unknown name.</summary>
+    public static WeatherDef? FindByName(string? name)
+    {
+        string key = (name ?? string.Empty).Trim().ToLowerInvariant();
+        return Find(Aliases.TryGetValue(key, out var aliased) ? aliased : key);
+    }
 
     /// <summary>Every valid state key (ladder + events) — used by the protocol tests.</summary>
     public static IEnumerable<string> AllKeys => ByKey.Keys;
