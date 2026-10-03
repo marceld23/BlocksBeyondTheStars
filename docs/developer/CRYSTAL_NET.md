@@ -309,14 +309,16 @@ network (before #2092 a blocked machine latched its own control line ON).
   bait path is free in a free game mode; a finished cross waits while the owner's sample case has no room.
   `LoadCrystalNet` registers tanks that are growing or have clones before all other rows, so the tank over
   the cap is not one that is in use.
-- **Not in a ship (#2219).** A Crystal Net block is a cell of the world grid. Every kind with
-  `CrystalNetRules.NeedsRow` (all devices and the port blocks: radio beacon, beam pad, sentry post, thumper,
-  water spout, energy gate, hydro tray) is refused as a ship cell — landed ship, ship interior in space, hull
-  on a spacewalk, keel site, commissioned self-built ship — with `srv.ship.block_needs_ground`; the item is
-  not used up. Conduits and lamps stay allowed. On a station spacewalk `NeedsWorldPlaceHandler` refuses
+- **In a ship: decoration (#2219).** A Crystal Net block is a cell of the world grid. Built into a ship —
+  landed ship, ship interior in space, hull on a spacewalk, keel site, commissioned self-built ship — every kind
+  with `CrystalNetRules.NeedsRow` (all devices and the port blocks: radio beacon, beam pad, sentry post,
+  thumper, water spout, energy gate, hydro tray) and the bio lab is accepted like any block and does nothing
+  there. `NoteShipDecor` (GameServerSpaceStructure.cs) tells the player once, after the payment:
+  `ShipAiHintOnce(session, "ship_decor")` (milestone `vega:hint:ship_decor`, line `vega.hint.ship_decor`).
+  Conduits and lamps send nothing. On a station spacewalk `NeedsWorldPlaceHandler` still refuses
   every kind the world place handler has to register (`srv.station.block_needs_deck`); lamps, the sentry
   post, the energy gate and the hydro tray are read from the grid and stay allowed. A new kind is refused
-  there by default (`ShipFunctionBlockTests.TheRefusedLists_CoverEveryCrystalNetBlockOfTheContent`).
+  there by default (`ShipFunctionBlockTests.TheLists_CoverEveryCrystalNetBlockOfTheContent`).
 - **Existing ports** (#2053) reach their own code: a beam pad beams everyone standing on it to `pair=` (owner /
   ally check as with a hand beam) and pulses the far pad's status ("someone arrived"); a hydro tray harvests the
   crop into the adjacent crate and schedules the regrow; a thumper starts its run; the sentry's firing pass goes

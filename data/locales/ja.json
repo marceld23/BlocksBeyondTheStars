@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "この苗には種が入っていません。バイオラボで植物サンプルから育ててください。",
   "srv.bio.prep_empty": "この調合は空です — 有効成分が入っていません。",
   "srv.catalog.needs_content": "サンプル、苗、調合はカタログにありません。サンプルは世界で集め、残りはバイオラボで作ってください。",
-  "srv.ship.block_needs_ground": "このブロックは船の外でしか機能しません。地面か拠点の中に設置してください。",
+  "vega.hint.ship_decor": "船の中では、このブロックは飾りにしかなりません。船の外で機能します。",
   "srv.station.block_needs_deck": "このブロックはステーションの中に設置してください — 船外活動で外から付けても機能しません。乗り込んでから置いてください。",
   "srv.admin.gave": "{player} に {count} × {item} を渡しました。",
   "srv.admin.gave_partial": "{player} はもうこれ以上入らないため、{count} × {item} のうち {given} だけ渡しました。残りは渡されませんでした。",

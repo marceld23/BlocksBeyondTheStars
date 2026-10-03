@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "Bu fide hiçbir tür taşımıyor. Biyo laboratuvarda bir bitki numunesinden bir tane yetiştir.",
   "srv.bio.prep_empty": "Bu preparat boş — içinde madde yok.",
   "srv.catalog.needs_content": "Numuneler, fideler ve preparatlar katalogda yok. Numuneleri dünyada topla, gerisini bir biyo laboratuvarda yap.",
-  "srv.ship.block_needs_ground": "Bu blok sadece geminin dışında çalışır. Onu yere veya üssüne kur.",
+  "vega.hint.ship_decor": "Bir geminin içinde bu blok yalnızca süstür. İşini geminin dışında yapar.",
   "srv.station.block_needs_deck": "Bu bloğu istasyonun içine kur — uzay yürüyüşünde kurulursa hiçbir şey yapmaz. İstasyona gir ve oraya yerleştir.",
   "srv.admin.gave": "{player} adlı oyuncuya {count} × {item} verildi.",
   "srv.admin.gave_partial": "{count} × {item} içinden sadece {given} tanesi sığdı — {player} adlı oyuncunun daha fazla yeri yok. Kalanı verilmedi.",

@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "Esta muda não carrega nenhuma espécie. Crie uma a partir de uma amostra de planta no laboratório biológico.",
   "srv.bio.prep_empty": "Esta preparação está vazia — não há substância nela.",
   "srv.catalog.needs_content": "Amostras, mudas e preparações não estão no catálogo. Colete amostras no mundo e faça o resto em um laboratório biológico.",
-  "srv.ship.block_needs_ground": "Este bloco só funciona fora da nave. Construa-o no solo ou na sua base.",
+  "vega.hint.ship_decor": "A bordo de uma nave este bloco é só decoração. Ele faz seu trabalho fora da nave.",
   "srv.station.block_needs_deck": "Construa este bloco dentro da estação — se construído numa caminhada espacial, não faria nada. Entre a bordo e coloque-o lá.",
   "srv.admin.gave": "{count} × {item} dado(s) para {player}.",
   "srv.admin.gave_partial": "Só couberam {given} de {count} × {item} — {player} não tem mais espaço. O restante não foi dado.",

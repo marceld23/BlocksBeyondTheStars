@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "Deze zaailing draagt geen soort. Kweek er een uit een plantenmonster in het bio-lab.",
   "srv.bio.prep_empty": "Dit preparaat is leeg — er zit geen stof in.",
   "srv.catalog.needs_content": "Monsters, zaailingen en preparaten staan niet in de catalogus. Verzamel monsters in de wereld en maak de rest in een bio-lab.",
-  "srv.ship.block_needs_ground": "Dit blok werkt alleen buiten het schip. Bouw het op de grond of in je basis.",
+  "vega.hint.ship_decor": "Aan boord van een schip is dit blok alleen decoratie. Zijn werk doet het buiten het schip.",
   "srv.station.block_needs_deck": "Bouw dit blok binnen in het station — als je het tijdens een ruimtewandeling plaatst doet het niets. Ga aan boord en plaats het daar.",
   "srv.admin.gave": "{count} × {item} aan {player} gegeven.",
   "srv.admin.gave_partial": "Maar {given} van {count} × {item} pasten — {player} heeft geen ruimte meer. De rest is niet gegeven.",

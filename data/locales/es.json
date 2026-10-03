@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "Este plantón no lleva ninguna especie. Cría uno a partir de una muestra de planta en el laboratorio biológico.",
   "srv.bio.prep_empty": "Este preparado está vacío: no hay ninguna sustancia en él.",
   "srv.catalog.needs_content": "Las muestras, los plantones y los preparados no están en el catálogo. Recoge muestras en el mundo y haz lo demás en un laboratorio biológico.",
-  "srv.ship.block_needs_ground": "Este bloque solo funciona fuera de la nave. Colócalo en el suelo o en tu base.",
+  "vega.hint.ship_decor": "A bordo de una nave este bloque es solo decoración. Hace su trabajo fuera de la nave.",
   "srv.station.block_needs_deck": "Construye este bloque dentro de la estación: colocado en una caminata espacial no haría nada. Entra a bordo y colócalo allí.",
   "srv.admin.gave": "Se entregaron {count} × {item} a {player}.",
   "srv.admin.gave_partial": "Solo cupieron {given} de {count} × {item}: {player} no tiene más espacio. El resto no se entregó.",

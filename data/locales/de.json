@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "Dieser Setzling trägt keine Art. Zieh einen im Biolabor aus einer Pflanzenprobe.",
   "srv.bio.prep_empty": "Dieses Präparat ist leer — es ist kein Wirkstoff darin.",
   "srv.catalog.needs_content": "Proben, Setzlinge und Präparate gibt es nicht im Katalog. Sammle Proben in der Welt und stelle den Rest im Biolabor her.",
-  "srv.ship.block_needs_ground": "Dieser Block funktioniert nur außerhalb des Schiffs. Baue ihn auf dem Boden oder in deiner Basis.",
+  "vega.hint.ship_decor": "Im Schiff ist dieser Block nur Deko. Seine Arbeit macht er außerhalb des Schiffs.",
   "srv.station.block_needs_deck": "Baue diesen Block in der Station — vom Weltraumspaziergang aus gebaut würde er nichts tun. Geh an Bord und setze ihn dort.",
   "srv.admin.gave": "{count} × {item} an {player} gegeben.",
   "srv.admin.gave_partial": "Nur {given} von {count} × {item} haben gepasst — {player} hat keinen Platz mehr. Der Rest wurde nicht gegeben.",

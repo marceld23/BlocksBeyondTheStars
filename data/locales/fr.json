@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "Cette plantule ne porte aucune espèce. Élèves-en une à partir d'un échantillon de plante au labo bio.",
   "srv.bio.prep_empty": "Cette préparation est vide — il n'y a aucune substance dedans.",
   "srv.catalog.needs_content": "Les échantillons, les plantules et les préparations ne sont pas dans le catalogue. Récolte des échantillons dans le monde et fabrique le reste au labo bio.",
-  "srv.ship.block_needs_ground": "Ce bloc ne fonctionne qu'à l'extérieur du vaisseau. Construis-le sur le sol ou dans ta base.",
+  "vega.hint.ship_decor": "À bord d'un vaisseau, ce bloc n'est que de la décoration. Il fait son travail hors du vaisseau.",
   "srv.station.block_needs_deck": "Construis ce bloc à l'intérieur de la station — posé pendant une sortie dans l'espace, il ne ferait rien. Monte à bord et place-le là.",
   "srv.admin.gave": "{count} × {item} donné(s) à {player}.",
   "srv.admin.gave_partial": "Seulement {given} sur {count} × {item} ont tenu — {player} n'a plus de place. Le reste n'a pas été donné.",

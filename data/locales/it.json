@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "Questa piantina non porta nessuna specie. Coltivane una da un campione di pianta nel laboratorio bio.",
   "srv.bio.prep_empty": "Questo preparato è vuoto — non contiene alcuna sostanza.",
   "srv.catalog.needs_content": "Campioni, piantine e preparati non sono nel catalogo. Raccogli i campioni nel mondo e crea il resto in un laboratorio bio.",
-  "srv.ship.block_needs_ground": "Questo blocco funziona solo fuori dalla nave. Costruiscilo a terra o nella tua base.",
+  "vega.hint.ship_decor": "A bordo di una nave questo blocco è solo decorazione. Fa il suo lavoro fuori dalla nave.",
   "srv.station.block_needs_deck": "Costruisci questo blocco all'interno della stazione — montato durante una passeggiata spaziale non farebbe nulla. Entra a bordo e posizionalo lì.",
   "srv.admin.gave": "Dati {count} × {item} a {player}.",
   "srv.admin.gave_partial": "Ci stavano solo {given} di {count} × {item} — {player} non ha più spazio. Il resto non è stato dato.",

@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "이 묘목에는 종이 들어 있지 않아요. 생물 연구대에서 식물 샘플로 키우세요.",
   "srv.bio.prep_empty": "이 조제물은 비어 있어요 — 안에 물질이 없어요.",
   "srv.catalog.needs_content": "샘플, 묘목, 조제물은 카탈로그에 없어요. 샘플은 세계에서 모으고 나머지는 생물 연구대에서 만드세요.",
-  "srv.ship.block_needs_ground": "이 블록은 우주선 밖에서만 작동해요. 지면이나 기지에 설치하세요.",
+  "vega.hint.ship_decor": "우주선 안에서는 이 블록이 장식일 뿐이에요. 우주선 밖에서 제 역할을 해요.",
   "srv.station.block_needs_deck": "이 블록은 스테이션 안에 설치하세요 — 우주 유영 중에 설치하면 아무 일도 하지 않아요. 스테이션에 탑승해서 배치하세요.",
   "srv.admin.gave": "{player}에게 {count} × {item}을(를) 주었습니다.",
   "srv.admin.gave_partial": "{count} × {item} 중 {given}만 들어갔습니다 — {player}에게 더 넣을 공간이 없습니다. 나머지는 주어지지 않았습니다.",

@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "Ta sadzonka nie niesie żadnego gatunku. Wyhoduj ją z próbki rośliny w laboratorium biologicznym.",
   "srv.bio.prep_empty": "Ten preparat jest pusty — nie ma w nim żadnej substancji.",
   "srv.catalog.needs_content": "Próbek, sadzonek i preparatów nie ma w katalogu. Zbieraj próbki w świecie, a resztę zrób w laboratorium biologicznym.",
-  "srv.ship.block_needs_ground": "Ten blok działa tylko poza statkiem. Postaw go na ziemi lub w swojej bazie.",
+  "vega.hint.ship_decor": "Na pokładzie statku ten blok jest tylko dekoracją. Działa poza statkiem.",
   "srv.station.block_needs_deck": "Postaw ten blok wewnątrz stacji — postawiony podczas spaceru kosmicznego nic by nie robił. Wejdź na pokład i umieść go tam.",
   "srv.admin.gave": "Dano {count} × {item} graczowi {player}.",
   "srv.admin.gave_partial": "Zmieściło się tylko {given} z {count} × {item} — {player} nie ma więcej miejsca. Reszta nie została dana.",

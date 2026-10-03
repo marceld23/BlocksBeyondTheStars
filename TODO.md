@@ -48,11 +48,11 @@ read by a second agent, and corrected.
 - **✅ Sampler and giants (#2217):** a giant needs no stasis — its long reach is the hurdle.
 - **✅ Effect temperature (#2218):** heat- and cold-sensitive effects and the wards read the air the player is really
   in: the cabin (22 °C) aboard a ship or a station, the real outside temperature everywhere else, in every mode.
-- **✅ No dead function blocks in a ship (#2219):** the bio lab, every Crystal Net device and the port blocks (radio
-  beacon, beam pad, sentry post, thumper, water spout, energy gate, hydro tray) are refused as ship cells with a
-  clear line, and nothing is used up; conduits and lamps stay. A station built from a spacewalk refuses what the
-  world place handler has to register. ⚠ Behaviour change: a hydro tray or an energy gate can no longer be built
-  into a ship as decoration.
+- **✅ Function blocks in a ship are decoration, and the player is told (#2219):** a first version refused the bio
+  lab, the Crystal Net devices and the port blocks as ship cells; Marcel decided against forbidding decoration.
+  A ship takes every block as before, and the first time a player builds one of these into a ship VEGA says once
+  that it is only decoration there (`vega.hint.ship_decor`). A station built from a spacewalk still refuses what
+  the world place handler has to register, because the same block placed aboard works.
 - **✅ Admin commands (#2220):** `/settime` really sets the local time of the admin's world (words, clock time, hour,
   day part); `/setweather` takes every key and `cloudy`, and speaks to its world only; `/give` says what was given
   and what did not fit; the manual says what `/instant` does.

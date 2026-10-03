@@ -1194,11 +1194,11 @@ effort.
   see § The bio lab.
 - **Where it works.** On planets, moons, asteroids and **your own space stations** — not aboard ships. And
   only **while you are on that world**: nothing ticks while you are away, your base wakes up with you. A
-  drill does not dig while you are off exploring. A **ship refuses** these blocks ("This block only works
-  outside the ship") and the item stays in your backpack: every Crystal Net device, the radio beacon, beam pad,
-  sentry post, thumper, water spout, energy gate and hydro tray — and the bio lab. Conduits and lamps can still
-  be built into a ship as decoration. On a station, build them **aboard on the deck**; from a spacewalk the
-  station takes ordinary blocks, lamps, the sentry post, the energy gate, the hydro tray and the bio lab only.
+  drill does not dig while you are off exploring. **Built into a ship, these blocks are decoration only**: every
+  Crystal Net device, the radio beacon, beam pad, sentry post, thumper, water spout, energy gate and hydro tray
+  — and the bio lab. You can build them in like any block, they just do nothing there, and VEGA tells you so the
+  first time. On a station, build devices **aboard on the deck**, where they work; from a spacewalk the station
+  takes ordinary blocks, lamps, the sentry post, the energy gate, the hydro tray and the bio lab only.
 - **Limits, in plain words.** A network can hold 256 blocks, a world 64 networks and 32 sensors, 8 sound
   devices can play at once, and each player gets 4 auto-drills, 4 matter senders, 4 fabricators, 2 clone
   tanks and 6 living clones. Place something beyond a limit and it simply does nothing — VEGA tells you, and
@@ -1828,9 +1828,9 @@ look up: what a mix does follows from what goes in, and the same things always g
   The same animal gives a sample only every five minutes. A **companion** also
   brings a sample of its species along with its regular gift.
 - **The bio lab block** (`bio_lab`, workshop; blueprint **Bio Lab** in the tech tree after Bio-Refining). Place it
-  **outside the ship** — on the ground, in your base or on your own station; no ship has one built in and a ship
-  refuses the block. **One lab is enough**: stand within 3 blocks of it (not inside the ship) and use
-  **Interact** on it. It has three pages:
+  **outside the ship** — on the ground, in your base or on your own station; no ship has one built in, and a lab
+  built into a ship is only decoration (VEGA says so once). **One lab is enough**: stand within 3 blocks of it
+  (not inside the ship) and use **Interact** on it. It has three pages:
   - **Analyse.** Uses up one sample (in Sandbox nothing is used up, but a sample of the species must still be in
     your case) and shows what the species carries: its **substance** with one **effect**, a
     **strength** from I to XV, a **rarity** (common → legendary), how long it lasts, whether it has a **catch**

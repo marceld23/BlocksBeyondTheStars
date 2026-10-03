@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "这株幼苗不含任何物种。到生物实验台用植物样本培养一株。",
   "srv.bio.prep_empty": "这份制剂是空的——里面没有任何物质。",
   "srv.catalog.needs_content": "样本、幼苗和制剂不在目录中。在世界中收集样本，其余的在生物实验台制作。",
-  "srv.ship.block_needs_ground": "这个方块只在飞船外有效。把它建在地面或你的基地内。",
+  "vega.hint.ship_decor": "在飞船里，这个方块只是装饰。它在飞船外才起作用。",
   "srv.station.block_needs_deck": "把这个方块建在空间站内——太空行走时从外面放置不会起作用。进入空间站再放置。",
   "srv.admin.gave": "已给予 {player} {count} × {item}。",
   "srv.admin.gave_partial": "{count} × {item} 中只放得下 {given} 个——{player} 没有更多空间。其余没有给予。",

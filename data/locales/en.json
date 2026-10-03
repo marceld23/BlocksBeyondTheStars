@@ -5515,7 +5515,7 @@
   "srv.bio.seedling_empty": "This seedling carries no species. Raise one from a plant sample in the bio lab.",
   "srv.bio.prep_empty": "This preparation is empty — there is no substance in it.",
   "srv.catalog.needs_content": "Samples, seedlings and preparations are not in the catalog. Collect samples in the world and make the rest at a bio lab.",
-  "srv.ship.block_needs_ground": "This block only works outside the ship. Build it on the ground or in your base.",
+  "vega.hint.ship_decor": "Aboard a ship this block is only decoration. It does its job outside the ship.",
   "srv.station.block_needs_deck": "Build this block inside the station — built on a spacewalk it would do nothing. Go aboard and place it there.",
   "srv.admin.gave": "Gave {count} × {item} to {player}.",
   "srv.admin.gave_partial": "Only {given} of {count} × {item} fit — {player} has no more room. The rest was not given.",

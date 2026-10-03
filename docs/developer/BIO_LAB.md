@@ -145,9 +145,10 @@ Material without an origin (an ingot, an alloy, forge-made ore) acts with exactl
 
 The player must stand at a placed **bio lab** block (`NearStationBlock`: within 3 blocks horizontally and 2
 vertically, in the world block grid) and must not be inside the ship. One block serves every action. The lab is
-a block of the world grid only: a ship refuses it as a ship cell (`srv.ship.block_needs_ground`, see
-[CRYSTAL_NET.md](CRYSTAL_NET.md) §7 for the same rule on Crystal Net devices); a player's own station takes it,
-because a station is stamped into a world grid. Actions:
+a block of the world grid only: built into a ship it is an ordinary cell without function — decoration — and
+the server tells the player once (`ShipAiHintOnce "ship_decor"`, see [CRYSTAL_NET.md](CRYSTAL_NET.md) §7 for the
+same rule on Crystal Net devices); a player's own station takes a working one, because a station is stamped
+into a world grid. Actions:
 
 | Action | Needs | Costs | Gives |
 |---|---|---|---|
@@ -347,7 +348,7 @@ locale keys — and the place in the server where it acts.
   as a form.
 - The fix round: `BioTankFixTests.cs` (the tank with samples, guest clones, the sampler), `BioLabFixTests.cs` (the
   wash, blanks, payload validation, the effect temperature), `BioFixFollowUpTests.cs`, `ShipFunctionBlockTests.cs`
-  (no dead function blocks in a ship).
+  (function blocks in a ship are decoration, with a one-time notice; the station spacewalk rule).
 - `NetCodecTests` — the three new messages in the golden list.
 
 ## 16. Client notes
