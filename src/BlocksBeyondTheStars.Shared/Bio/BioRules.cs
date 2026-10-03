@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Globalization;
 
 namespace BlocksBeyondTheStars.Shared.Bio;
 
@@ -48,6 +49,40 @@ public static class BioRules
     /// always yields one, after that one cell in this many (decided by a hash of the cell, so placing and mining the same
     /// block never yields twice).</summary>
     public const int MineralSampleEvery = 8;
+
+    // --- What a key may name ---
+
+    // An item key is text a player never types, but a cheat, an edited save or a newer version can put any number into
+    // it. These tables say which numbers this version knows; they follow the enums, so an appended member is known at once.
+    private static readonly bool[] KnownEffects = KnownNumbers(typeof(BioEffect));
+    private static readonly bool[] KnownSideEffects = KnownNumbers(typeof(BioSideEffect));
+    private static readonly bool[] KnownThermals = KnownNumbers(typeof(BioThermal));
+    private static readonly bool[] KnownStats = KnownNumbers(typeof(ModStat));
+
+    /// <summary>One flag per number 0..255 (all four enums are bytes): true where the enum has a member.</summary>
+    private static bool[] KnownNumbers(Type enumType)
+    {
+        var table = new bool[byte.MaxValue + 1];
+        foreach (object value in Enum.GetValues(enumType))
+        {
+            table[Convert.ToInt32(value, CultureInfo.InvariantCulture)] = true;
+        }
+
+        return table;
+    }
+
+    /// <summary>Whether a number read from an item key is an effect this version knows (<see cref="BioEffect.None"/> is one:
+    /// "no effect").</summary>
+    public static bool IsKnown(BioEffect effect) => KnownEffects[(byte)effect];
+
+    /// <summary>Whether a number read from an item key is a side effect this version knows.</summary>
+    public static bool IsKnown(BioSideEffect side) => KnownSideEffects[(byte)side];
+
+    /// <summary>Whether a number read from an item key is a way of taking the weather this version knows.</summary>
+    public static bool IsKnown(BioThermal thermal) => KnownThermals[(byte)thermal];
+
+    /// <summary>Whether a number read from an item key is a value of a tool or a piece of gear this version knows.</summary>
+    public static bool IsKnown(ModStat stat) => KnownStats[(byte)stat];
 
     // --- The strength curve ---
 

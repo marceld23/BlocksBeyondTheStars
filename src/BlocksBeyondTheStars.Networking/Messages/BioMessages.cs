@@ -75,7 +75,7 @@ public sealed class BioBook
     public NetBioSpecies[] Species { get; set; } = System.Array.Empty<NetBioSpecies>();
 
     /// <summary>Signatures of the mixes this player has run (<c>Synthesis.Signature</c>): for these the lab shows the
-    /// result before mixing.</summary>
+    /// result before mixing. A mix a detoxifier washed is its own entry (the signature ends in <c>/w</c>).</summary>
     public string[] Reactions { get; set; } = System.Array.Empty<string>();
 
     /// <summary>Item keys of the tools and gear this player has changed, as "base key|payload" — the Materials chapter.</summary>
@@ -134,6 +134,10 @@ public sealed class BioLabResult
     /// <summary>A mix: its stability 0..100 and whether it fell apart.</summary>
     public int Stability { get; set; }
     public bool Failed { get; set; }
+
+    /// <summary>A mix: true when a detoxifier washed its toxic sample(s) — the result (and the entry in the research book,
+    /// <see cref="BioBook.Reactions"/>) is that of the washed mix. An older server never sets it.</summary>
+    public bool Washed { get; set; }
 
     /// <summary>Knowledge gained by a first analysis.</summary>
     public int Knowledge { get; set; }

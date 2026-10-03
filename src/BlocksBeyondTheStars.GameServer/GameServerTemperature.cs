@@ -134,15 +134,33 @@ public sealed partial class GameServer
     private float ComputeTemperatureSeverity(PlayerSession session)
     {
         var p = session.State;
+        float t = OutsideTemperature(p, out bool vacuum);
+        session.EffectiveTemperatureC = t;
+        NoteAmbientTemperature(session, t); // #2218: the status effects feel the same air — one reading serves both
 
+        // Vacuum has no roof (an EVA position is space-instance coordinates).
+        float severity = TemperatureSeverityFor(t);
+        if (!vacuum && severity > 0f && RoofedAt(p.Position))
+        {
+            severity *= ShelterSeverityFactor;
+        }
+
+        return severity;
+    }
+
+    /// <summary>The temperature (°C) where the player stands outside a cabin: the vacuum reading, or the positional
+    /// climate with its local sources. A pure reading — no hazard state is touched, so the status effects can ask for it
+    /// where the hazard itself is switched off (#2218). Bounded like the hazard scan: one block probe of loaded chunks.</summary>
+    private float OutsideTemperature(Shared.State.PlayerState p, out bool vacuum)
+    {
         // Vacuum exposure (EVA spacewalk, or on foot above the atmosphere line): sun-dependent hull
         // temperature; no block probe (an EVA position is space-instance coordinates) and no roof.
         // A station boarder floating past the gravity box (#1485) is AboveAtmosphere too, but the station's
         // void world is not a sun-exposed orbit — hull work from outside the deck stays heat-free (#1568).
-        if (p.InEva || (p.AboveAtmosphere && !InStation(p.PlayerId)))
+        vacuum = p.InEva || (p.AboveAtmosphere && !InStation(p.PlayerId));
+        if (vacuum)
         {
-            session.EffectiveTemperatureC = VacuumTemperature(_dayFraction);
-            return TemperatureSeverityFor(session.EffectiveTemperatureC);
+            return VacuumTemperature(_dayFraction);
         }
 
         var (weather, _) = BiomeWeatherAt(p.Position);
@@ -158,16 +176,48 @@ public sealed partial class GameServer
             t = CityComfortC; // #1793: under a roof inside the walls the G.D.S. city is cool, whatever the desert does
         }
 
-        session.EffectiveTemperatureC = t;
+        return t;
+    }
 
-        float severity = TemperatureSeverityFor(t);
-        if (severity > 0f && RoofedAt(p.Position))
+    // --- The temperature the status effects feel (#2218) ---
+
+    /// <summary>The air of a cabin: aboard the ship, inside its hull, on a station — the same reading a void world (a ship
+    /// interior, a station deck) gives.</summary>
+    private const float CabinComfortC = 22f;
+
+    /// <summary>How old the effects' temperature reading may get before they take their own. Longer than
+    /// <see cref="TemperatureScanInterval"/> on purpose: where the hazard scan runs it renews the reading every second
+    /// and the effects never probe a second time; where it does not run, the effects probe every 1.5 s.</summary>
+    private const double AmbientTemperatureMaxAge = TemperatureScanInterval * 1.5;
+
+    /// <summary>
+    /// The temperature (°C) a player's status effects feel (#2218) — what makes a heat- or cold-sensitive effect run out
+    /// faster and what a Heat or Cold Ward counts against. It is the air the player is really in: the cabin's comfort
+    /// aboard the ship, inside its hull or on a station; everywhere else the real temperature outside, whatever the
+    /// hazard setting, god mode or the game mode say (the hazard scan is skipped in all of these, and its cached value
+    /// would be stale). Ask only for a player with a thermal effect or a ward: the reading is cached on the session and
+    /// renewed at most once a second, so nobody else costs a block probe.
+    /// </summary>
+    private float AmbientTemperature(PlayerSession session)
+    {
+        if (_uptime - session.AmbientTemperatureReadAt >= AmbientTemperatureMaxAge)
         {
-            severity *= ShelterSeverityFactor;
+            var p = session.State;
+            bool cabin = !p.InEva && (p.AboardShip || ShipInteriorContains(p.Position) || InStation(p.PlayerId));
+            NoteAmbientTemperature(session, cabin ? CabinComfortC : OutsideTemperature(p, out _));
         }
 
-        return severity;
+        return session.AmbientTemperatureC;
     }
+
+    private void NoteAmbientTemperature(PlayerSession session, float temperatureC)
+    {
+        session.AmbientTemperatureC = temperatureC;
+        session.AmbientTemperatureReadAt = _uptime;
+    }
+
+    /// <summary>Test seam (#2218): the temperature a player's status effects feel right now.</summary>
+    public float AmbientTemperatureForTest(PlayerSession session) => AmbientTemperature(session);
 
     // --- Exposure meter (2026-09, Titas: "outside, the cold kills you after 40 minutes, the heat after 30") ---
 

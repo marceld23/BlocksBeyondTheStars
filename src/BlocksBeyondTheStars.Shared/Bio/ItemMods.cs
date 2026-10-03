@@ -54,7 +54,9 @@ public readonly struct ItemMods : IEquatable<ItemMods>
     /// <summary>The drawback level of a stat.</summary>
     public int Loss(ModStat stat) => Drawback == stat ? DrawbackLevel : 0;
 
-    /// <summary>The changes an item key carries (empty for a plain item or a malformed payload).</summary>
+    /// <summary>The changes an item key carries (empty for a plain item or a malformed payload). A payload that names a
+    /// value this version does not know — a hand-typed key, a key of a newer version — is empty as a whole: the item then
+    /// acts as the plain one, never as half a change.</summary>
     public static ItemMods Of(string? itemKey)
     {
         string payload = ItemKey.GetTag(itemKey, Tag);
@@ -64,10 +66,15 @@ public readonly struct ItemMods : IEquatable<ItemMods>
             return default;
         }
 
-        return new ItemMods(
-            (ModStat)((v >> 20) & 0xF), (v >> 16) & 0xF,
-            (ModStat)((v >> 12) & 0xF), (v >> 8) & 0xF,
-            (ModStat)((v >> 4) & 0xF), v & 0xF);
+        var first = (ModStat)((v >> 20) & 0xF);
+        var second = (ModStat)((v >> 12) & 0xF);
+        var drawback = (ModStat)((v >> 4) & 0xF);
+        if (!BioRules.IsKnown(first) || !BioRules.IsKnown(second) || !BioRules.IsKnown(drawback))
+        {
+            return default;
+        }
+
+        return new ItemMods(first, (v >> 16) & 0xF, second, (v >> 8) & 0xF, drawback, v & 0xF);
     }
 
     /// <summary>The item key with these changes (the plain base key for an empty set).</summary>

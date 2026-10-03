@@ -49,7 +49,14 @@ public sealed class Compound
             + (SecondaryLevel & 0xF).ToString("x1", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>Reads a key payload back; null for a malformed one (a hand-edited save, a key of a newer version).</summary>
+    /// <summary>
+    /// Reads a key payload back; null for one that is no compound of this version — a malformed one, a hand-typed key (a
+    /// cheat, an edited save), a key of a newer version. Whatever <see cref="Synthesis.Compute"/> makes reads back exactly
+    /// as it was made. What the lab could never make is refused: an effect, a side effect or a thermal value this version
+    /// does not know, a level outside 1..<see cref="BioRules.MaxLevel"/>, a second effect without a level (or a level
+    /// without one). A duration beyond the lab's limits is not refused but cut back to them, the stealth limit included —
+    /// so no key ever lasts longer than the best mix.
+    /// </summary>
     public static Compound? FromPayload(BioForm form, string? payload)
     {
         if (payload is null || payload.Length != PayloadLength
@@ -59,20 +66,40 @@ public sealed class Compound
         }
 
         int nibble4 = (int)((v >> 20) & 0xF);
-        var compound = new Compound
+        var effect = (BioEffect)((v >> 32) & 0xFF);
+        int level = (int)((v >> 28) & 0xF);
+        var side = (BioSideEffect)((v >> 24) & 0xF);
+        var thermal = (BioThermal)((nibble4 >> 2) & 0x3);
+        var secondary = (BioEffect)((v >> 4) & 0xFF);
+        int secondaryLevel = (int)(v & 0xF);
+
+        bool secondaryValid = secondary == BioEffect.None
+            ? secondaryLevel == 0
+            : BioRules.IsKnown(secondary) && secondaryLevel >= 1 && secondaryLevel <= BioRules.MaxLevel;
+        if (effect == BioEffect.None || !BioRules.IsKnown(effect) || level < 1 || level > BioRules.MaxLevel
+            || !BioRules.IsKnown(side) || !BioRules.IsKnown(thermal) || !secondaryValid)
+        {
+            return null;
+        }
+
+        int duration = Math.Clamp((int)((v >> 12) & 0xFF) * BioRules.DurationUnit, BioRules.MinDuration, BioRules.MaxDuration);
+        if (effect == BioEffect.Stealth || secondary == BioEffect.Stealth)
+        {
+            duration = Math.Min(duration, BioRules.StealthMaxDuration);
+        }
+
+        return new Compound
         {
             Form = form,
-            Effect = (BioEffect)((v >> 32) & 0xFF),
-            Level = (int)((v >> 28) & 0xF),
-            Side = (BioSideEffect)((v >> 24) & 0xF),
-            SideLevel = nibble4 & 0x3,
-            Thermal = (BioThermal)((nibble4 >> 2) & 0x3),
-            DurationSeconds = (int)((v >> 12) & 0xFF) * BioRules.DurationUnit,
-            Secondary = (BioEffect)((v >> 4) & 0xFF),
-            SecondaryLevel = (int)(v & 0xF),
+            Effect = effect,
+            Level = level,
+            Side = side,
+            SideLevel = nibble4 & 0x3, // two bits: always 0..3
+            Thermal = thermal,
+            DurationSeconds = duration,
+            Secondary = secondary,
+            SecondaryLevel = secondaryLevel,
         };
-
-        return compound.Effect == BioEffect.None || compound.Level <= 0 ? null : compound;
     }
 
     private ulong Signature()
@@ -231,11 +258,18 @@ public static class Synthesis
     /// <summary>
     /// The key of an experiment in a player's research book: what went into the mixer. Known signatures are shown with
     /// their result <i>before</i> mixing; an unknown one reads "reaction unknown".
+    /// <para>
+    /// <paramref name="washed"/> is part of what went in (#2216): a detoxifier that washed a toxic sample gives another
+    /// result than the same samples unwashed, so the washed mix is its own experiment — the same string with a
+    /// <c>/w</c> at its end. Only a mix that really was washed carries it; a mix without a toxic sample never does.
+    /// </para>
     /// </summary>
-    public static string Signature(uint activeSeed, BioForm form, uint stabiliserSeed, string? stabiliserItem, uint modifierSeed)
+    public static string Signature(uint activeSeed, BioForm form, uint stabiliserSeed, string? stabiliserItem, uint modifierSeed,
+        bool washed = false)
         => activeSeed.ToString("x8", CultureInfo.InvariantCulture) + "/" + (int)form
            + "/" + (stabiliserItem ?? string.Empty) + ":" + stabiliserSeed.ToString("x8", CultureInfo.InvariantCulture)
-           + "/" + modifierSeed.ToString("x8", CultureInfo.InvariantCulture);
+           + "/" + modifierSeed.ToString("x8", CultureInfo.InvariantCulture)
+           + (washed ? "/w" : string.Empty);
 
     private static int CeilDiv(int a, int b) => (a + b - 1) / b;
 }

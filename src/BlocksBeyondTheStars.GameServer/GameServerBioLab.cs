@@ -30,7 +30,7 @@ public sealed partial class GameServer
         => !Rules.CraftingCostsMaterialsFor(p.ModeOverride) || p.UnlockedBlueprints.Contains(blueprint);
 
     private void LabResult(PlayerSession session, int action, bool success, string messageKey, string itemKey = "",
-        int stability = 0, bool failed = false, int knowledge = 0)
+        int stability = 0, bool failed = false, int knowledge = 0, bool washed = false)
         => Send(session, new BioLabResult
         {
             Action = action,
@@ -40,6 +40,7 @@ public sealed partial class GameServer
             Stability = stability,
             Failed = failed,
             Knowledge = knowledge,
+            Washed = washed,
         });
 
     private void LabSound(PlayerSession session, string soundId)
@@ -170,7 +171,9 @@ public sealed partial class GameServer
             return;
         }
 
-        // A toxic sample is washed as part of the mix when a detoxifier stands by and carbon is at hand.
+        // A toxic sample is washed as part of the mix when a detoxifier stands by and carbon is at hand. The wash is part
+        // of what goes in (#2216): the washed mix is another experiment than the unwashed one, with its own result and
+        // its own entry in the research book — so the same inputs, washed the same way, always give the same result.
         bool toxic = activeProfile.Toxicity > 0 || (modifierProfile?.Toxicity ?? 0) > 0;
         var carbon = new[] { new ItemAmount("carbon", 1) };
         bool washed = toxic && StationAvailable(p, CraftingStation.Detoxifier) && (free || pool.Has(carbon));
@@ -203,7 +206,7 @@ public sealed partial class GameServer
         }
 
         var research = ResearchOf(p.PlayerId);
-        string signature = Synthesis.Signature(active.Seed, form, stabiliser?.Seed ?? 0, stabiliserItem, modifier?.Seed ?? 0);
+        string signature = Synthesis.Signature(active.Seed, form, stabiliser?.Seed ?? 0, stabiliserItem, modifier?.Seed ?? 0, washed);
         if (research.Reactions.Count < BioRules.MaxResearchEntries && research.Reactions.Add(signature))
         {
             SaveResearch(p.PlayerId);
@@ -214,14 +217,14 @@ public sealed partial class GameServer
         {
             SendInventory(session);
             LabSound(session, "bio_lab_fail");
-            LabResult(session, intent.Action, false, "srv.bio.mix_failed", stability: compound.Stability, failed: true);
+            LabResult(session, intent.Action, false, "srv.bio.mix_failed", stability: compound.Stability, failed: true, washed: washed);
             return;
         }
 
         pool.Add(output, 1);
         SendInventory(session);
         LabSound(session, "bio_lab_mix");
-        LabResult(session, intent.Action, true, "srv.bio.mixed", output, compound.Stability);
+        LabResult(session, intent.Action, true, "srv.bio.mixed", output, compound.Stability, washed: washed);
     }
 
     /// <summary>
@@ -423,12 +426,20 @@ public sealed partial class GameServer
     // ---------------- Preparations and status effects (#2202) ----------------
 
     /// <summary>Takes a preparation: starts its effect. A weaker repeat and a fourth effect are refused and nothing is
-    /// used up. Returns false when the key is no preparation (the caller eats it as ordinary food).</summary>
+    /// used up. Returns false when the key is no preparation item at all (the caller eats it as ordinary food). A
+    /// preparation item that carries no compound (#2216: a blank from a cheat, a key this version cannot read) is handled
+    /// here too — refused and kept, never eaten as food.</summary>
     private bool TryTakePreparation(PlayerSession session, string itemKey)
     {
-        if (BioItems.CompoundOf(itemKey) is not { } compound)
+        if (BioItems.FormOf(ItemKey.Base(itemKey)) is null)
         {
             return false;
+        }
+
+        if (BioItems.CompoundOf(itemKey) is not { } compound)
+        {
+            Reject(session, "consume", "@srv.bio.prep_empty");
+            return true;
         }
 
         var p = session.State;
@@ -501,7 +512,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>One tick of a player's effects: count down (faster for a heat- or cold-sensitive one in the wrong
-    /// weather), heal and recharge. Tells the client when an effect ended.</summary>
+    /// weather), heal and recharge. Tells the client when an effect ended. Runs before the god-mode exit of the vitals
+    /// loop and whatever the hazard rules say, so the weather it reads is its own (<see cref="AmbientTemperature"/>, #2218)
+    /// — and only looked up when a running effect is thermal at all.</summary>
     private void TickBioEffects(PlayerSession session, double dt)
     {
         var p = session.State;
@@ -522,7 +535,8 @@ public sealed partial class GameServer
             p.SuitEnergy = Math.Min(100f, p.SuitEnergy + (float)(dt * energy));
         }
 
-        if (PlayerEffects.Tick(p.Effects, (float)dt, session.EffectiveTemperatureC))
+        float temperature = PlayerEffects.AnyThermal(p.Effects) ? AmbientTemperature(session) : CabinComfortC;
+        if (PlayerEffects.Tick(p.Effects, (float)dt, temperature))
         {
             if (PlayerEffects.Of(p.Effects, BioEffect.Shield) <= 0f)
             {
@@ -577,4 +591,7 @@ public sealed partial class GameServer
     public void StartEffectForTest(PlayerSession session, BioEffect effect, int level, float seconds,
         BioSideEffect side = BioSideEffect.None, int sideLevel = 0, BioThermal thermal = BioThermal.Stable)
         => StartEffect(session.State, new ActiveEffect { Effect = effect, Level = level, SecondsLeft = seconds, Side = side, SideLevel = sideLevel, Thermal = thermal });
+
+    /// <summary>Test seam: the mix signatures in a player's research book.</summary>
+    public IReadOnlyCollection<string> BioReactionsForTest(string playerId) => ResearchOf(playerId).Reactions;
 }

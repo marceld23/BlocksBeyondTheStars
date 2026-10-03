@@ -57,6 +57,28 @@ public static class BioItems
             ? Compound.FromPayload(form, ItemKey.GetTag(itemKey, ItemKey.SeedTag))
             : null;
 
+    /// <summary>
+    /// Whether an item key is a lab item that is nothing without what it carries (#2216): a sample, a mineral sample or a
+    /// seedling without a species seed, a preparation without a compound <see cref="Compound.FromPayload"/> accepts. Such
+    /// a blank does nothing anywhere — it is no sample for the case, cannot be planted, has no effect — so it is never
+    /// handed out (the Sandbox catalog leaves it out) and never taken. False for every other item.
+    /// </summary>
+    public static bool NeedsPayload(string? itemKey)
+    {
+        if (string.IsNullOrEmpty(itemKey))
+        {
+            return false;
+        }
+
+        string baseKey = ItemKey.Base(itemKey!);
+        if (CarriesSpecies(baseKey))
+        {
+            return ItemKey.Seed(itemKey) == 0;
+        }
+
+        return FormOf(baseKey) is not null && CompoundOf(itemKey) is null;
+    }
+
     /// <summary>The form an item makes as a carrier in the mixer (its <c>labCarrier</c>), or null when it is none.</summary>
     public static BioForm? CarrierForm(ItemDefinition? item)
         => item?.LabCarrier is { Length: > 0 } carrier && Enum.TryParse<BioForm>(carrier, ignoreCase: true, out var form) ? form : null;
