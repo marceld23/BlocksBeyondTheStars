@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
@@ -19,16 +20,20 @@ using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// A block that only works in a world's block grid cannot be built into a ship (#2219). The bio lab is found by
-/// scanning the chunk grid around the player and a Crystal Net device registers its cell on a world place; built into
-/// the own ship — a structure object — either one was accepted, used up its item and then did nothing, without a word.
-/// Every path that turns a placed item into a ship cell refuses them now and keeps the item; the ground, a base and a
-/// station's deck take them as before. A station built from OUTSIDE, on a spacewalk, turns away what the world place
-/// handler has to register (a conduit, a device, a beacon …): stamped into the deck it stood there and did nothing.
+/// A block that only works in a world's block grid is decoration in a ship (#2219). The bio lab is found by scanning
+/// the chunk grid around the player and a Crystal Net device registers its cell on a world place; built into the own
+/// ship — a structure object — either one stands there and does nothing. Players furnish their ships with exactly
+/// these blocks, so every path that turns a placed item into a ship cell takes them like any other block, and VEGA
+/// tells the builder once — once per player, not once per block — that the block does its job outside. The ground, a
+/// base and a station's deck take them as working blocks. A station built from OUTSIDE, on a spacewalk, turns away
+/// what the world place handler has to register (a conduit, a device, a beacon …): stamped into the deck it stood
+/// there and did nothing, while the same block placed aboard works.
 /// </summary>
 public sealed class ShipFunctionBlockTests : IDisposable
 {
-    private const string Refusal = "@srv.ship.block_needs_ground";
+    /// <summary>VEGA's line "aboard a ship this block is only decoration", and the once-flag it leaves on the player.</summary>
+    private const string DecorNotice = "vega.hint.ship_decor";
+    private const string DecorMilestone = "vega:hint:ship_decor";
     private const string StationRefusal = "@srv.station.block_needs_deck";
 
     /// <summary>The Crystal Net devices: every block that is a device by itself.</summary>
@@ -47,8 +52,8 @@ public sealed class ShipFunctionBlockTests : IDisposable
         "radio_beacon", "beam_block", "sentry_post", "thumper", "water_spout", "energy_gate", "hydro_tray",
     };
 
-    /// <summary>What a ship refuses: the bio lab and everything the Crystal Net keeps a device row for — not a
-    /// conduit, not a lamp.</summary>
+    /// <summary>What is only decoration in a ship, and what VEGA says so about: the bio lab and everything the Crystal
+    /// Net keeps a device row for — not a conduit, not a lamp.</summary>
     private static readonly string[] WorldOnly = new[] { "bio_lab" }.Concat(CrystalDevices).Concat(PortBlocks).ToArray();
 
     /// <summary>What a station refuses on a spacewalk: the blocks the world place handler has to register — a conduit,
@@ -117,19 +122,75 @@ public sealed class ShipFunctionBlockTests : IDisposable
     /// <summary>One build into a structure, and what came back to the builder: the refusal, or nothing.</summary>
     private static string? Build(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who, string structureId,
         Vector3i cell, string item)
+        => Edit(server, t, who, new StructureEditIntent { StructureId = structureId, X = cell.X, Y = cell.Y, Z = cell.Z, ItemKey = item });
+
+    /// <summary>Takes the block at a cell out of a structure again; what came back is the refusal, or nothing.</summary>
+    private static string? TakeOut(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who, string structureId,
+        Vector3i cell)
+        => Edit(server, t, who, new StructureEditIntent { StructureId = structureId, X = cell.X, Y = cell.Y, Z = cell.Z, Mine = true });
+
+    private static string? Edit(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who, StructureEditIntent intent)
     {
         int before = t.Sent.Count;
-        server.HandleStructureEditForTest(who.State.PlayerId,
-            new StructureEditIntent { StructureId = structureId, X = cell.X, Y = cell.Y, Z = cell.Z, ItemKey = item });
+        server.HandleStructureEditForTest(who.State.PlayerId, intent);
         return t.Sent.Skip(before).Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg)
             .OfType<ActionRejected>().LastOrDefault()?.Reason;
     }
 
-    /// <summary>Tries every world-only block at one cell of a ship, in a survival pack that holds exactly that one
-    /// item: each is refused with the line that says where it works, and each is still in the pack afterwards.</summary>
-    private static void AssertAllRefusedAndKept(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who,
-        string structureId, Vector3i cell)
-        => AssertRefusedAndKept(server, t, who, structureId, cell, WorldOnly, Refusal);
+    /// <summary>How often VEGA has told this player that a block is only decoration aboard a ship.</summary>
+    private static int DecorNotices(NpcLifeWorld.RecordingTransport t, PlayerSession who)
+        => t.Sent.Count(s => s.Conn == who.ConnectionId && s.Msg is ShipAiLine { LineKey: DecorNotice });
+
+    /// <summary>An ordinary block at one cell of a ship, for a player who has not heard the notice yet: it is built and
+    /// paid for, and VEGA has nothing to say about it. It is taken out again, so the cell is free afterwards.</summary>
+    private void AssertAnOrdinaryBlockIsBuiltWithoutANotice(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who,
+        string structureId, Vector3i cell, Func<Vector3i, BlockId> blockAt)
+    {
+        who.State.InstantBuild = false; // survival rules: an accepted block is taken out of the pack
+        Give(who, "iron_wall");
+        Assert.Null(Build(server, t, who, structureId, cell, "iron_wall"));
+        Assert.Equal(Block("iron_wall"), blockAt(cell));
+        Assert.Equal(0, who.State.Inventory.CountOf("iron_wall"));
+
+        Assert.Equal(0, DecorNotices(t, who));
+        Assert.DoesNotContain(DecorMilestone, who.State.Milestones);
+
+        Assert.Null(TakeOut(server, t, who, structureId, cell));
+        Assert.True(blockAt(cell).IsAir);
+        EmptyPack(who);
+    }
+
+    /// <summary>Builds every world-only block at one cell of a ship, in a survival pack that holds exactly that one
+    /// item: each is accepted, stands in the cell and is used up — and comes out again like any block the owner built.
+    /// VEGA's notice is there once after the first of them (or was there before, from another ship path), and no later
+    /// block of any kind adds a second one.</summary>
+    private void AssertAllBuiltAsDecor(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who,
+        string structureId, Vector3i cell, Func<Vector3i, BlockId> blockAt)
+    {
+        who.State.InstantBuild = false; // survival rules: an accepted block is taken out of the pack
+        foreach (string item in WorldOnly)
+        {
+            Give(who, item);
+            Assert.Null(Build(server, t, who, structureId, cell, item));
+            Assert.Equal(Block(item), blockAt(cell));
+            Assert.Equal(0, who.State.Inventory.CountOf(item));
+
+            Assert.Equal(1, DecorNotices(t, who));
+            Assert.Contains(DecorMilestone, who.State.Milestones);
+
+            Assert.Null(TakeOut(server, t, who, structureId, cell));
+            Assert.True(blockAt(cell).IsAir);
+            EmptyPack(who); // the block's drop
+        }
+    }
+
+    /// <summary>The block a self-built ship's persisted design ("x:y:z:blockId;…") holds at a cell, or air.</summary>
+    private static BlockId DesignCell(string builtCells, Vector3i cell)
+    {
+        string prefix = $"{cell.X}:{cell.Y}:{cell.Z}:";
+        string? entry = builtCells.Split(';').FirstOrDefault(e => e.StartsWith(prefix, StringComparison.Ordinal));
+        return entry is null ? BlockId.Air : new BlockId(ushort.Parse(entry[prefix.Length..], CultureInfo.InvariantCulture));
+    }
 
     private static void AssertRefusedAndKept(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who,
         string structureId, Vector3i cell, string[] items, string refusal)
@@ -145,10 +206,11 @@ public sealed class ShipFunctionBlockTests : IDisposable
     }
 
     [Fact]
-    public void TheRefusedLists_CoverEveryCrystalNetBlockOfTheContent()
+    public void TheLists_CoverEveryCrystalNetBlockOfTheContent()
     {
         // A block added to the Crystal Net later must not slip past these tests: every block the net knows is either
-        // a conduit, a lamp or one of the keys the lists above name.
+        // a conduit, a lamp or one of the keys the lists above name — so it is classified as "decoration in a ship,
+        // with VEGA's notice" or not, and as "built aboard a station only" or not.
         var netBlocks = _content.Blocks.Values
             .Where(b => CrystalNetRules.KindOf(b) is not (CrystalDeviceKind.None or CrystalDeviceKind.Light or CrystalDeviceKind.Conduit))
             .Select(b => b.Key).OrderBy(k => k, StringComparer.Ordinal).ToArray();
@@ -157,56 +219,54 @@ public sealed class ShipFunctionBlockTests : IDisposable
         Assert.All(DeckOnly.Concat(SpacewalkParts), key => Assert.NotEqual(CrystalDeviceKind.None, CrystalNetRules.KindOf(_content.GetBlock(key))));
     }
 
-    /// <summary>The starter ship's pilot standing just inside the rear hatch — parked on the planet, or in the walkable
+    /// <summary>A starter ship's pilot standing just inside the rear hatch — parked on the planet, or in the walkable
     /// interior out in space — and a free cabin cell beside them.</summary>
-    private static (PlayerSession Pilot, Vector3i Cell) InTheCabin(SvGameServer server, bool inSpace)
+    private static (PlayerSession Pilot, Vector3i Cell) InTheCabin(SvGameServer server, bool inSpace, string name = "Pilot")
     {
-        var pilot = server.AddLocalPlayer("Pilot");
+        var pilot = server.AddLocalPlayer(name);
         EmptyPack(pilot);
         if (inSpace)
         {
-            server.EnterSpace("Pilot");
-            server.EnterShipInterior("Pilot");
-            Assert.True(server.InShipInterior("Pilot"));
+            server.EnterSpace(name);
+            server.EnterShipInterior(name);
+            Assert.True(server.InShipInterior(name));
         }
 
-        var hatch = server.BuildShipStructureForTest("Pilot").DoorCells.Single(c => c.Z == 0); // the rear-wall hatch
-        var (origin, _) = server.LandedShipBoundsForTest("Pilot");
+        var hatch = server.BuildShipStructureForTest(name).DoorCells.Single(c => c.Z == 0); // the rear-wall hatch
+        var (origin, _) = server.LandedShipBoundsForTest(name);
         pilot.State.Position = new Vector3f(origin.X + hatch.X + 0.5f, origin.Y + 1f, origin.Z + 1.5f);
         return (pilot, new Vector3i(hatch.X, hatch.Y, hatch.Z + 2));
     }
 
-    // ---------------- The ship refuses them ----------------
+    // ---------------- The ship takes them as decoration, and VEGA says so once ----------------
 
     /// <summary>The landed-ship edit on the planet and the same edit in the ship interior out in space.</summary>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void InTheCabin_ALabOrACrystalDevice_IsRefused_AndStaysInThePack(bool inSpace)
+    public void InTheCabin_ALabOrACrystalDevice_IsBuiltAndPaidFor_AndVegaSaysOnceItIsDecoration(bool inSpace)
     {
         var t = new NpcLifeWorld.RecordingTransport();
         var server = NewServer(inSpace ? "shipfn_cabin_space" : "shipfn_cabin", t, out var repo, starterShip: true);
         using (repo)
         {
             var (pilot, cell) = InTheCabin(server, inSpace);
+            BlockId InTheShip(Vector3i c) => server.BuildShipStructureForTest("Pilot").Get(c); // the design plus the stored edits
 
-            AssertAllRefusedAndKept(server, t, pilot, "ship:Pilot", cell);
-            Assert.True(server.BuildShipStructureForTest("Pilot").Get(cell).IsAir);
+            AssertAnOrdinaryBlockIsBuiltWithoutANotice(server, t, pilot, "ship:Pilot", cell, InTheShip);
+            AssertAllBuiltAsDecor(server, t, pilot, "ship:Pilot", cell, InTheShip);
 
-            // The same cell takes an ordinary block: the refusal was about the block, not about the place.
-            Give(pilot, "iron_wall");
-            Assert.Null(Build(server, t, pilot, "ship:Pilot", cell, "iron_wall"));
-            Assert.Equal(Block("iron_wall"), server.BuildShipStructureForTest("Pilot").Get(cell));
-            Assert.Equal(0, pilot.State.Inventory.CountOf("iron_wall"));
+            // The once-flag is saved with the player: a restart does not bring the notice back.
+            Assert.Contains(DecorMilestone, repo.LoadPlayer("Pilot")!.Milestones);
         }
     }
 
     /// <summary>A conduit and a lamp are furnishing — a conduit does nothing by itself anywhere, a lamp shines in a cabin
-    /// too — and a ship takes them as it always did.</summary>
+    /// too — so a ship takes them without a word.</summary>
     [Theory]
     [InlineData("crystal_conduit")]
     [InlineData("light_white")]
-    public void InTheCabin_AConduitAndALamp_AreStillBuilt(string item)
+    public void InTheCabin_AConduitAndALamp_AreBuilt_WithoutANotice(string item)
     {
         var t = new NpcLifeWorld.RecordingTransport();
         var server = NewServer("shipfn_furnish_" + item, t, out var repo, starterShip: true);
@@ -219,11 +279,13 @@ public sealed class ShipFunctionBlockTests : IDisposable
 
             Assert.Equal(Block(item), server.BuildShipStructureForTest("Pilot").Get(cell));
             Assert.Equal(0, pilot.State.Inventory.CountOf(item));
+            Assert.Equal(0, DecorNotices(t, pilot));
+            Assert.DoesNotContain(DecorMilestone, pilot.State.Milestones);
         }
     }
 
     [Fact]
-    public void OnASpacewalk_TheOwnShipsHull_RefusesThemToo()
+    public void OnASpacewalk_TheOwnShipsHull_TakesThemToo()
     {
         var t = new NpcLifeWorld.RecordingTransport();
         var server = NewServer("shipfn_eva", t, out var repo, starterShip: true);
@@ -238,19 +300,53 @@ public sealed class ShipFunctionBlockTests : IDisposable
             server.Tick(0.1);
             Assert.True(pilot.State.InEva);
             var cell = new Vector3i(hatchX, 1, -2);
+            BlockId OnTheHull(Vector3i c) => new(server.StructureBlockForTest("Pilot", c.X, c.Y, c.Z));
 
-            AssertAllRefusedAndKept(server, t, pilot, "ship:Pilot", cell);
-            Assert.Equal((ushort)0, server.StructureBlockForTest("Pilot", cell.X, cell.Y, cell.Z));
+            AssertAnOrdinaryBlockIsBuiltWithoutANotice(server, t, pilot, "ship:Pilot", cell, OnTheHull);
+            AssertAllBuiltAsDecor(server, t, pilot, "ship:Pilot", cell, OnTheHull);
+        }
+    }
 
-            Give(pilot, "iron_wall");
-            Assert.Null(Build(server, t, pilot, "ship:Pilot", cell, "iron_wall"));
-            Assert.Equal(Block("iron_wall").Value, server.StructureBlockForTest("Pilot", cell.X, cell.Y, cell.Z));
+    /// <summary>The notice is once per PLAYER: a second pilot hears it for their own first such block, whatever the
+    /// first pilot has built — and neither hears it for the other's.</summary>
+    [Fact]
+    public void TheNotice_IsToldToEachPlayerOnce()
+    {
+        var t = new NpcLifeWorld.RecordingTransport();
+        var server = NewServer("shipfn_two_pilots", t, out var repo, starterShip: true);
+        using (repo)
+        {
+            var (pilot, cell) = InTheCabin(server, inSpace: false);
+            var (mate, mateCell) = InTheCabin(server, inSpace: false, name: "Mate");
+            pilot.State.InstantBuild = false;
+            mate.State.InstantBuild = false;
+
+            Give(pilot, "bio_lab");
+            Assert.Null(Build(server, t, pilot, "ship:Pilot", cell, "bio_lab"));
+            Assert.Equal(1, DecorNotices(t, pilot));
+            Assert.Equal(0, DecorNotices(t, mate));
+            Assert.DoesNotContain(DecorMilestone, mate.State.Milestones);
+
+            Give(mate, "crystal_switch");
+            Assert.Null(Build(server, t, mate, "ship:Mate", mateCell, "crystal_switch"));
+            Assert.Equal(Block("crystal_switch"), server.BuildShipStructureForTest("Mate").Get(mateCell));
+            Assert.Equal(1, DecorNotices(t, mate));
+            Assert.Equal(1, DecorNotices(t, pilot));
+
+            // A second block of another kind, for either of them: nothing more.
+            Give(pilot, "radio_beacon");
+            Assert.Null(Build(server, t, pilot, "ship:Pilot", new Vector3i(cell.X, cell.Y + 1, cell.Z), "radio_beacon"));
+            Give(mate, "bio_lab");
+            Assert.Null(Build(server, t, mate, "ship:Mate", new Vector3i(mateCell.X, mateCell.Y + 1, mateCell.Z), "bio_lab"));
+            Assert.Equal(0, pilot.State.Inventory.CountOf("radio_beacon") + mate.State.Inventory.CountOf("bio_lab"));
+            Assert.Equal(1, DecorNotices(t, pilot));
+            Assert.Equal(1, DecorNotices(t, mate));
         }
     }
 
     /// <summary>The keel's construction site, and the same hull once it is commissioned and parked.</summary>
     [Fact]
-    public void ASelfBuiltShip_RefusesThem_OnTheSiteAndOnceCommissioned()
+    public void ASelfBuiltShip_TakesThem_OnTheSiteAndOnceCommissioned_AndTheNoticeIsNotRepeated()
     {
         var t = new NpcLifeWorld.RecordingTransport();
         // The keel goes down at a fixed column, which the newer relief may flood or bury — the classic generation
@@ -275,10 +371,14 @@ public sealed class ShipFunctionBlockTests : IDisposable
             server.PlaceShipCoreForTest("Pilot", keel.X, keel.Y, keel.Z);
             var ship = pilot.Ships.Values.Single(s => s.IsCustom);
             string keelOnly = ship.BuiltCells;
+            BlockId InTheDesign(Vector3i c) => DesignCell(ship.BuiltCells, c); // the persisted hull, site and ship alike
 
-            // The construction site: nothing joins the hull, nothing leaves the pack.
-            AssertAllRefusedAndKept(server, t, pilot, Yard, new Vector3i(1, 0, 0));
-            Assert.Equal(keelOnly, ship.BuiltCells);
+            // The construction site: each one joins the hull beside the keel and leaves the pack — and VEGA says once
+            // that it is decoration there.
+            var beside = new Vector3i(1, 0, 0);
+            AssertAnOrdinaryBlockIsBuiltWithoutANotice(server, t, pilot, Yard, beside, InTheDesign);
+            AssertAllBuiltAsDecor(server, t, pilot, Yard, beside, InTheDesign);
+            Assert.Equal(keelOnly, ship.BuiltCells); // every one of them came out again
 
             // A valid 5 × 4 × 5 hull around the keel: floor, wall ring with a door, roof, a helm and an engine.
             pilot.State.InstantBuild = true;
@@ -324,16 +424,20 @@ public sealed class ShipFunctionBlockTests : IDisposable
             server.CommissionShipForTest("Pilot");
             Assert.True(ship.Commissioned);
 
-            // The commissioned ship: a free cabin cell on the floor takes none of them either.
-            string commissioned = ship.BuiltCells;
+            // The commissioned ship: a free cabin cell on the floor takes each of them as well, as a change of the
+            // design — and the builder, who heard the notice on the site, does not hear it again.
+            EmptyPack(pilot);
             var cabin = new Vector3i(3, 1, 3);
-            AssertAllRefusedAndKept(server, t, pilot, "ship:Pilot", cabin);
-            Assert.Equal(commissioned, ship.BuiltCells);
+            Assert.True(InTheDesign(cabin).IsAir);
+            AssertAllBuiltAsDecor(server, t, pilot, "ship:Pilot", cabin, InTheDesign);
 
-            Give(pilot, "iron_wall");
-            Assert.Null(Build(server, t, pilot, "ship:Pilot", cabin, "iron_wall"));
-            Assert.NotEqual(commissioned, ship.BuiltCells);
-            Assert.Equal(0, pilot.State.Inventory.CountOf("iron_wall"));
+            // One of them stays aboard: the ship keeps it, and is still the commissioned ship it was.
+            Give(pilot, "bio_lab");
+            Assert.Null(Build(server, t, pilot, "ship:Pilot", cabin, "bio_lab"));
+            Assert.Equal(Block("bio_lab"), InTheDesign(cabin));
+            Assert.Equal(0, pilot.State.Inventory.CountOf("bio_lab"));
+            Assert.True(ship.Commissioned);
+            Assert.Equal(1, DecorNotices(t, pilot));
         }
     }
 
@@ -508,6 +612,29 @@ public sealed class ShipFunctionBlockTests : IDisposable
                 Assert.Equal(before + 2, server.CrystalCellCount); // the conduit, and the block beneath it as its port
                 Assert.NotNull(server.CrystalLevelAt(block));
             }
+        }
+    }
+
+    /// <summary>A station is no ship: what it takes on a spacewalk works on its deck, so VEGA's "only decoration aboard
+    /// a ship" would be wrong there and is not sent — not for the lab, not for a block the Crystal Net has a row for.</summary>
+    [Fact]
+    public void OnASpacewalk_TheOwnStation_IsNoShip_AndGetsNoDecorationNotice()
+    {
+        var t = new NpcLifeWorld.RecordingTransport();
+        var server = NewServer("shipfn_station_notice", t, out var repo);
+        using (repo)
+        {
+            var (owner, id) = OnASpacewalkAtTheOwnStation(server, t);
+            string[] built = new[] { "bio_lab" }.Concat(SpacewalkParts).ToArray();
+            for (int i = 0; i < built.Length; i++)
+            {
+                Give(owner, built[i]);
+                Assert.Null(Build(server, t, owner, id, new Vector3i(1 + (2 * i), 1, 0), built[i]));
+                Assert.Equal(Block(built[i]).Value, server.StructureCellForTest(id, 1 + (2 * i), 1, 0));
+            }
+
+            Assert.Equal(0, DecorNotices(t, owner));
+            Assert.DoesNotContain(DecorMilestone, owner.State.Milestones);
         }
     }
 

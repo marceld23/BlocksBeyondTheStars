@@ -651,26 +651,25 @@ public sealed partial class GameServer
     /// world place handler or from the world it stands in: a device registers its net cell there, a radio beacon and
     /// a beam pad their named entry, a water spout and a thumper are started there, a sentry post fires only for the
     /// base that powers it, an energy gate holds back the animals of a world and a hydro tray is the bed a crop grows
-    /// on. A ship is a structure OBJECT whose cells sit in no world grid, so such a block stood there without a
-    /// prompt, a menu or a function — and had used up its item. A conduit and a lamp stay furnishing: a conduit does
+    /// on. A ship is a structure OBJECT whose cells sit in no world grid, so aboard such a block stands there without
+    /// a prompt, a menu or a function: it is decoration. A conduit and a lamp are not named here: a conduit does
     /// nothing by itself anywhere, and a lamp shines in a cabin as it does on the ground.</summary>
     private static bool NeedsWorldGrid(BlockDefinition def)
         => def.Key == BioItems.Lab || CrystalNetRules.NeedsRow(CrystalNetRules.KindOf(def));
 
-    /// <summary>Refuses a block that would be dead in a ship (#2219, see <see cref="NeedsWorldGrid"/>) with a line
-    /// that says where it works. Every path that turns a placed item into a SHIP cell asks this before anything is
-    /// consumed: the landed ship and its walkable interior, the spacewalk, and the keel's construction site. A
-    /// station has its own, narrower rule (<see cref="RefusedOnStationSpacewalk"/>): it becomes a world when it is
-    /// boarded.</summary>
-    private bool RefusedAsShipCell(PlayerSession session, BlockDefinition def)
+    /// <summary>Tells the builder that the block just built into a SHIP is only decoration there (#2219, see
+    /// <see cref="NeedsWorldGrid"/>). Players furnish their ships with exactly these blocks, so a ship takes them
+    /// like any other block — the cell is written and the item is used — and VEGA says once where the block does
+    /// its job: once per player, not once per block kind. Every path that turns a placed item into a ship cell
+    /// calls this once the block is accepted and paid for: the landed ship and its walkable interior, the spacewalk
+    /// on the own hull, the keel's construction site and the commissioned self-built ship. A station is no ship: it
+    /// becomes a world when it is boarded and has its own rule (<see cref="RefusedOnStationSpacewalk"/>).</summary>
+    private void NoteShipDecor(PlayerSession session, BlockDefinition def)
     {
-        if (!NeedsWorldGrid(def))
+        if (NeedsWorldGrid(def))
         {
-            return false;
+            ShipAiHintOnce(session, "ship_decor");
         }
-
-        Reject(session, "structure", "@srv.ship.block_needs_ground");
-        return true;
     }
 
     /// <summary>#2219: a block the world place handler has to REGISTER before it does anything — a conduit and every
@@ -933,10 +932,10 @@ public sealed partial class GameServer
             return;
         }
 
-        // #2219: nothing that would be dead where it ends up. A ship's hull takes no lab and no Crystal Net device at
-        // all; a station becomes a world when it is boarded, so it only turns away what the world place handler has
-        // to register (a conduit, a device, a beacon …) — that is built aboard.
-        if (s.Kind == "ship" ? RefusedAsShipCell(session, blockDef) : s.Kind == "station" && RefusedOnStationSpacewalk(session, blockDef))
+        // #2219: a station becomes a world when it is boarded, so it turns away what the world place handler has to
+        // register (a conduit, a device, a beacon …) — that is built aboard, where it works. A ship's hull takes
+        // every block: what only works in a world's grid is decoration there, and the builder is told so below.
+        if (s.Kind == "station" && RefusedOnStationSpacewalk(session, blockDef))
         {
             return;
         }
@@ -953,6 +952,11 @@ public sealed partial class GameServer
 
             buildPool.Remove(new[] { new ItemAmount(intent.ItemKey, 1) });
             SendInventory(session);
+        }
+
+        if (s.Kind == "ship")
+        {
+            NoteShipDecor(session, blockDef); // #2219: a lab or a Crystal Net device on the hull is decoration
         }
 
         // #2119: a door built onto the ship on a spacewalk is a real door — a doorway with the door hung in it, drawn
@@ -1155,13 +1159,6 @@ public sealed partial class GameServer
             return;
         }
 
-        // #2219: a block that only works in a world's block grid would be dead in the cabin — refused before any
-        // material is consumed (an authored ship and a commissioned self-built one alike).
-        if (RefusedAsShipCell(session, blockDef))
-        {
-            return;
-        }
-
         // A self-built ship keeps exactly one helm (the unambiguous commissioning/cockpit anchor, #950) —
         // checked before any material is consumed.
         if (_ship.IsCustom && blockDef.Key == ShipHelmBlock
@@ -1184,6 +1181,10 @@ public sealed partial class GameServer
             buildPool.Remove(new[] { new ItemAmount(intent.ItemKey, 1) });
             SendInventory(session);
         }
+
+        // #2219: a block that only works in a world's block grid is decoration in the cabin — built like any other
+        // block (an authored ship and a commissioned self-built one alike), and the builder is told so once.
+        NoteShipDecor(session, blockDef);
 
         // A self-built ship's on-foot placement is a DESIGN change: it goes into the persisted cell blob
         // (doors become door cells, engines change the derived stats), not into the damage-delta store.
