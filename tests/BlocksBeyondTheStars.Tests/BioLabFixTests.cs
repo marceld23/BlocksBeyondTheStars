@@ -13,6 +13,8 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
+using SvEntityKind = BlocksBeyondTheStars.GameServer.CombatEntityKind;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 using SvSession = BlocksBeyondTheStars.GameServer.PlayerSession;
 
@@ -21,8 +23,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// The fixes of the first code read of the bio lab (#2216, #2218): the wash is part of an experiment's signature, a
 /// blank sample / seedling / preparation is never handed out and never taken, an item key is only read when the lab
-/// could have made it, and the status effects feel the air the player is really in — also where the temperature hazard
-/// never looks (aboard the ship, god mode, the Creative game mode, hazards off).
+/// could have made it (and one it cannot read is still washed off), and the status effects feel the air the player is
+/// really in — also where the temperature hazard never looks (aboard the ship, inside its hull, on a station, god mode,
+/// the Creative game mode, hazards off).
 /// </summary>
 public sealed class BioLabFixTests : IDisposable
 {
@@ -285,6 +288,129 @@ public sealed class BioLabFixTests : IDisposable
         Assert.False(result.Washed);
         Assert.Equal(5, p.State.Inventory.CountOf("carbon"));
         Assert.Equal(new[] { Synthesis.Signature(seed, BioForm.Injector, 0, string.Empty, 0) }, server.BioReactionsForTest("Chemist"));
+    }
+
+    private static int Samples(SvSession p, uint seed) => p.State.SampleCase.CountOf(ItemKey.WithSeed(BioItems.Sample, seed));
+
+    [Fact]
+    public void InSandbox_TheWashCostsNoCarbon_AndIsStillItsOwnExperiment()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("freewash", tune: c => c.Rules.GameMode = GameMode.Creative, transport: transport);
+        var p = Player(server, "Builder", AtTheLab); // an empty backpack: no carbon anywhere
+        server.World.SetBlock(new Vector3i(2, 200, 0), Block(BioItems.Lab));
+        uint seed = server.GiveCreatureSampleForTest(p, Species("venom", CreatureDropKind.Poison, 4242), 3);
+        var profile = server.BioProfileForTest(seed)!;
+        Assert.True(profile.Toxicity > 0, "the test needs a toxic sample");
+        var mix = new BioLabIntent { Action = BioLabIntent.Mix, Sample = seed };
+        string plainSignature = Synthesis.Signature(seed, BioForm.Injector, 0, string.Empty, 0);
+        string washedSignature = Synthesis.Signature(seed, BioForm.Injector, 0, string.Empty, 0, washed: true);
+
+        // Sandbox gives the carbon for free, not the detoxifier: without one in reach nothing is washed.
+        server.BioLabForTest(p, mix);
+        Assert.False(SentTo<BioLabResult>(transport, p).Last().Washed);
+        Assert.Equal(new[] { plainSignature }, server.BioReactionsForTest("Builder"));
+
+        // With one the mix is washed although no carbon is at hand — and it is the washed experiment, as in survival.
+        server.World.SetBlock(new Vector3i(-2, 200, 0), Block("detoxifier"));
+        server.BioLabForTest(p, mix);
+        var result = SentTo<BioLabResult>(transport, p).Last();
+        Assert.True(result.Washed);
+        Assert.Equal(
+            Outcome(Synthesis.Compute(new SynthesisInput { Active = profile, ActiveCleaned = true, Form = BioForm.Injector })),
+            (result.Failed, result.ItemKey));
+        Assert.Equal(new[] { plainSignature, washedSignature }, server.BioReactionsForTest("Builder").OrderBy(s => s.Length));
+        Assert.Contains(SentTo<BioBook>(transport, p), book => book.Reactions.Contains(washedSignature));
+
+        // Sandbox uses nothing up: the samples are all still there, and no carbon appeared or went.
+        Assert.Equal(3, Samples(p, seed));
+        Assert.Equal(0, p.State.Inventory.CountOf("carbon"));
+    }
+
+    /// <summary>Two toxic species of the world whose substances inhibit each other — the reaction that unsettles a mix
+    /// most. Two samples of each end up in the player's case. Which species these are follows from the seeds alone.</summary>
+    private static (uint Active, uint Modifier) InhibitingPair(SvGameServer server, SvSession p)
+    {
+        var seen = new List<(uint Seed, int Group)>();
+        for (int i = 1; i <= 20; i++)
+        {
+            string id = string.Create(CultureInfo.InvariantCulture, $"venom{i}");
+            uint seed = server.GiveCreatureSampleForTest(p, Species(id, CreatureDropKind.Poison, 9000 + i), 2);
+            int group = server.BioProfileForTest(seed)!.Group;
+            foreach (var (other, otherGroup) in seen)
+            {
+                if (BioRules.Reaction(otherGroup, group) == BioReaction.Inhibit)
+                {
+                    return (other, seed);
+                }
+            }
+
+            seen.Add((seed, group));
+        }
+
+        Assert.Fail("no two of twenty species inhibit each other — the test needs such a pair");
+        return default;
+    }
+
+    [Fact]
+    public void AWashedMixThatFallsApart_IsAnsweredAndRememberedAsTheWashedOne()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("washfail", transport: transport);
+        var p = Player(server, "Chemist", AtTheLab);
+        p.State.UnlockedBlueprints.Add(BioItems.SynthesisBlueprint); // a second sample and a stabiliser are the full mixer
+        server.World.SetBlock(new Vector3i(2, 200, 0), Block(BioItems.Lab));
+        server.World.SetBlock(new Vector3i(-2, 200, 0), Block("detoxifier"));
+        Assert.Equal(0, p.State.Inventory.Add("carbon", 5, 1024));
+        Assert.Equal(0, p.State.Inventory.Add("uranium", 2, 1024));
+        Assert.Equal(0, p.State.Inventory.Add("plant_fiber", 2, 1024));
+
+        // A mix that falls apart although it is washed: two substances that inhibit each other, on an unstable
+        // material, in a form the active sample does not take to.
+        var (active, modifier) = InhibitingPair(server, p);
+        var activeProfile = server.BioProfileForTest(active)!;
+        var modifierProfile = server.BioProfileForTest(modifier)!;
+        Assert.True(activeProfile.Toxicity > 0, "the test needs a toxic sample");
+        var form = BioRules.PreferredForm(activeProfile.Carrier) == BioForm.Injector ? BioForm.Gel : BioForm.Injector;
+        var expected = Synthesis.Compute(new SynthesisInput
+        {
+            Active = activeProfile,
+            ActiveCleaned = true,
+            Form = form,
+            Stabiliser = MaterialProfiles.Synthetic(MaterialProfiles.BaseLevels(Content.GetItem("uranium")!.LabTraits)),
+            Modifier = modifierProfile,
+            ModifierCleaned = true,
+        });
+        Assert.True(expected.Failed, $"the washed mix must fall apart for this test (stability {expected.Stability})");
+
+        server.BioLabForTest(p, new BioLabIntent
+        {
+            Action = BioLabIntent.Mix,
+            Sample = active,
+            Modifier = modifier,
+            MaterialItem = "uranium",
+            Carrier = form == BioForm.Gel ? "plant_fiber" : string.Empty,
+        });
+
+        // The answer says both: it fell apart, and it was the washed mix that did.
+        var result = SentTo<BioLabResult>(transport, p).Last();
+        Assert.False(result.Success);
+        Assert.True(result.Failed);
+        Assert.True(result.Washed);
+        Assert.Equal("srv.bio.mix_failed", result.MessageKey);
+        Assert.Equal(expected.Stability, result.Stability);
+        Assert.Equal(string.Empty, result.ItemKey);
+        Assert.False(Holds(p, BioItems.PreparationKey(form)));
+
+        // The book remembers the failed experiment under the washed signature — the unwashed one is still unknown.
+        Assert.Equal(new[] { Synthesis.Signature(active, form, 0, "uranium", modifier, washed: true) }, server.BioReactionsForTest("Chemist"));
+
+        // The inputs are used up whether the mix holds or falls apart — the carbon of the wash with them.
+        Assert.Equal(4, p.State.Inventory.CountOf("carbon"));
+        Assert.Equal(1, p.State.Inventory.CountOf("uranium"));
+        Assert.Equal(form == BioForm.Gel ? 1 : 2, p.State.Inventory.CountOf("plant_fiber"));
+        Assert.Equal(1, Samples(p, active));
+        Assert.Equal(1, Samples(p, modifier));
     }
 
     // ---------------- 2. The Sandbox catalog ----------------
@@ -700,6 +826,50 @@ public sealed class BioLabFixTests : IDisposable
         }
     }
 
+    [Fact]
+    public void AChangeThisVersionCannotRead_IsStillWashedOff_SoTheItemIsNeverStuckWithItsKey()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("washoff", transport: transport);
+        const string Unreadable = "titanium_drill#uf30000";       // value 15: no version knows it
+        const string Malformed = "basic_drill#u12";               // too short to be a change at all
+        const string Tinted = "diamond_drill#t112233uf30000";     // another tag in front of the unreadable change
+        var p = Player(server, "Tinker", AtTheLab, Unreadable, Malformed, Tinted, "titanium_drill");
+        server.World.SetBlock(new Vector3i(2, 200, 0), Block(BioItems.Lab));
+        foreach (string key in new[] { Unreadable, Malformed, Tinted })
+        {
+            Assert.True(ItemMods.Of(key).IsEmpty, key); // each acts as the plain item already
+        }
+
+        BioLabResult WashOff(string key)
+        {
+            server.BioLabForTest(p, new BioLabIntent { Action = BioLabIntent.WashOff, TargetItem = key });
+            return SentTo<BioLabResult>(transport, p).Last();
+        }
+
+        // The wash takes the change off the key, readable or not, in place — and leaves every other tag alone.
+        foreach (var (key, plain, slot) in new[] { (Unreadable, "titanium_drill", 0), (Malformed, "basic_drill", 1), (Tinted, "diamond_drill#t112233", 2) })
+        {
+            var washed = WashOff(key);
+            Assert.True(washed.Success, key);
+            Assert.Equal("srv.bio.washed", washed.MessageKey);
+            Assert.Equal(plain, washed.ItemKey);
+            Assert.Equal(plain, p.State.Inventory.Slots[slot]!.Item);
+            Assert.Equal(0, p.State.Inventory.CountOf(key));
+        }
+
+        // A plain item has nothing to wash off, with or without another tag — and neither has one that is not there.
+        foreach (string key in new[] { "titanium_drill", "diamond_drill#t112233", "basic_drill#uf30000" })
+        {
+            var refused = WashOff(key);
+            Assert.False(refused.Success, key);
+            Assert.Equal("srv.bio.no_target", refused.MessageKey);
+        }
+
+        Assert.Equal(2, p.State.Inventory.CountOf("titanium_drill")); // the washed one and the one that always was plain
+        Assert.Equal(1, p.State.Inventory.CountOf("diamond_drill#t112233"));
+    }
+
     // ---------------- 5. The temperature the effects feel (#2218) ----------------
 
     [Fact]
@@ -746,25 +916,29 @@ public sealed class BioLabFixTests : IDisposable
     public void InTheRealHeat_AHeatSensitiveEffectRunsOutTwiceAsFast_AlsoInSandbox()
     {
         var server = NewServer("hot", "lava", c => c.Rules.GameMode = GameMode.Creative);
-        var p = Player(server, "Walker", Outside);
-
-        // Just above the ground: the air thins and cools with altitude, and high up even a lava world is mild.
-        int ground = 149;
-        while (ground > 1 && server.World.GetBlock(new Vector3i(500, ground, 500)).IsAir)
-        {
-            ground--;
-        }
-
-        p.State.Position = new Vector3f(500.5f, ground + 3f, 500.5f);
+        var p = Player(server, "Walker", JustAboveTheGround(server));
         server.StartEffectForTest(p, BioEffect.Speed, 5, 100, thermal: BioThermal.HeatSensitive);
         server.StartEffectForTest(p, BioEffect.Jump, 5, 100, thermal: BioThermal.ColdSensitive);
 
         Ticks(server, 100);
 
         Assert.False(p.State.AboveAtmosphere);
-        Assert.True(server.AmbientTemperatureForTest(p) > BioRules.HotAbove, $"a lava world is hot at the ground (read {server.AmbientTemperatureForTest(p)} °C at y {ground + 3})");
+        Assert.True(server.AmbientTemperatureForTest(p) > BioRules.HotAbove, $"a lava world is hot at the ground (read {server.AmbientTemperatureForTest(p)} °C at y {p.State.Position.Y})");
         Assert.InRange(Left(p, BioEffect.Speed), 79.5f, 80.5f);
         Assert.InRange(Left(p, BioEffect.Jump), 89.5f, 90.5f);
+    }
+
+    /// <summary>Three blocks above the ground of the open spot: the air thins and cools with altitude, and high up even a
+    /// lava world is mild — its heat is at the ground.</summary>
+    private static Vector3f JustAboveTheGround(SvGameServer server)
+    {
+        int ground = 149;
+        while (ground > 1 && server.World.GetBlock(new Vector3i(500, ground, 500)).IsAir)
+        {
+            ground--;
+        }
+
+        return new Vector3f(500.5f, ground + 3f, 500.5f);
     }
 
     [Fact]
@@ -793,6 +967,101 @@ public sealed class BioLabFixTests : IDisposable
         before = Left(p, BioEffect.Speed);
         Ticks(server, 100);
         Assert.InRange(before - Left(p, BioEffect.Speed), 19.5f, 20.5f);
+    }
+
+    [Fact]
+    public void InsideALandedShipsHull_TheEffectsFeelTheCabin_WithOrWithoutTheAboardFlag()
+    {
+        // A real ship on its pad, on an ice world.
+        var server = NewServer("hull", "ice", c => c.PlaceStarterShip = true);
+        var p = server.AddLocalPlayer("Pilot");
+        Assert.True(server.HasShip);
+        var medbay = server.HealTank.ToBlock();
+        Assert.True(server.ShipInteriorContainsCellForTest(medbay.X, medbay.Y, medbay.Z), "the medbay lies inside the hull");
+        p.State.Position = new Vector3f(medbay.X + 0.5f, medbay.Y + 0.5f, medbay.Z + 0.5f);
+
+        // The hull itself is the cabin: a visitor in somebody else's parked ship has no aboard flag of their own.
+        p.State.AboardShip = false;
+        Assert.Equal(22f, server.AmbientTemperatureForTest(p));
+
+        // Through the real tick: in there a cold-sensitive effect runs at plain speed …
+        server.StartEffectForTest(p, BioEffect.Speed, 5, 300, thermal: BioThermal.ColdSensitive);
+        Ticks(server, 100);
+        Assert.InRange(300f - Left(p, BioEffect.Speed), 9.5f, 10.5f);
+        Assert.Equal(22f, server.AmbientTemperatureForTest(p));
+
+        // … and at double speed out in the ice, away from the hull.
+        p.State.Position = Outside;
+        Ticks(server, 20);
+        Assert.False(p.State.AboardShip);
+        float before = Left(p, BioEffect.Speed);
+        Ticks(server, 100);
+        Assert.True(server.AmbientTemperatureForTest(p) < BioRules.ColdBelow);
+        Assert.InRange(before - Left(p, BioEffect.Speed), 19.5f, 20.5f);
+    }
+
+    [Fact]
+    public void OnAStation_TheEffectsFeelTheCabin_EvenWithIceAllAround()
+    {
+        var server = NewServer("deck", tune: c =>
+        {
+            c.PlaceSettlements = false;
+            c.PlaceWrecks = false;
+            c.World = new WorldDescription { SpaceStations = Frequency.Frequent };
+            c.Rules.FreeSpaceFlight = true;
+        });
+        var p = server.AddLocalPlayer("Pilot");
+        server.EnterSpace("Pilot");
+        var station = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == SvEntityKind.SpaceStation);
+        server.ShipMove("Pilot", station.Position.X, station.Position.Y, station.Position.Z - 8f); // into docking range
+        server.BoardStation("Pilot", station.Id);
+        Assert.True(server.InStation("Pilot"));
+        Assert.False(p.State.AboardShip); // on foot on the deck: no flag, the station itself is the cabin
+
+        // Two walls of ice beside the player. Anywhere outside that is a cold place — the temperature reading says so.
+        var at = p.State.Position;
+        int x = (int)MathF.Floor(at.X), y = (int)MathF.Floor(at.Y + 1f), z = (int)MathF.Floor(at.Z);
+        for (int dy = -1; dy <= 1; dy++)
+        {
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                server.World.SetBlock(new Vector3i(x + 2, y + dy, z + dz), Block("ice"));
+                server.World.SetBlock(new Vector3i(x - 2, y + dy, z + dz), Block("ice"));
+            }
+        }
+
+        Assert.True(server.ApplyLocalSourcesForTest(at, 22f) < BioRules.ColdBelow, "ice all around reads as cold");
+
+        // The station's life support keeps its deck comfortable all the same.
+        Assert.Equal(22f, server.AmbientTemperatureForTest(p));
+        server.StartEffectForTest(p, BioEffect.Speed, 5, 300, thermal: BioThermal.ColdSensitive);
+        Ticks(server, 100);
+        Assert.True(server.InStation("Pilot"));
+        Assert.InRange(300f - Left(p, BioEffect.Speed), 9.5f, 10.5f); // plain speed
+        Assert.Equal(22f, server.AmbientTemperatureForTest(p));
+    }
+
+    [Fact]
+    public void OnASpacewalk_TheEffectsFeelTheVacuum_WhateverTheAboardFlagSays()
+    {
+        // Sandbox: no hazard scan runs, so the reading is the effects' own look.
+        var server = NewServer("eva", tune: c => c.Rules.GameMode = GameMode.Creative);
+        var p = Player(server, "Walker", Outside);
+        p.State.AboardShip = true; // the flag of the ship the walker left through the airlock
+        p.State.InEva = true;
+        server.SetDayFractionForTest(0.5); // noon: the sun side of the hull
+
+        // A mild world below, a comfortable cabin behind: out here it is neither.
+        Assert.Equal(SvGameServer.VacuumTemperature(0.5), server.AmbientTemperatureForTest(p));
+        Assert.True(server.AmbientTemperatureForTest(p) > BioRules.HotAbove);
+
+        server.StartEffectForTest(p, BioEffect.Speed, 5, 100, thermal: BioThermal.HeatSensitive);
+        server.StartEffectForTest(p, BioEffect.Jump, 5, 100, thermal: BioThermal.ColdSensitive);
+        Ticks(server, 100);
+
+        Assert.True(p.State.InEva);
+        Assert.InRange(Left(p, BioEffect.Speed), 79.5f, 80.5f); // the sun burns the heat-sensitive one away twice as fast
+        Assert.InRange(Left(p, BioEffect.Jump), 89.5f, 90.5f);
     }
 
     [Fact]
@@ -836,6 +1105,33 @@ public sealed class BioLabFixTests : IDisposable
         float insulation = BioRules.Magnitude(BioEffect.ColdWard, BioRules.MaxLevel);
         Assert.InRange(coldDrain, nakedDrain * (1f - insulation) * 0.97f, nakedDrain * (1f - insulation) * 1.03f);
         Assert.InRange(heatDrain, nakedDrain * 0.97f, nakedDrain * 1.03f);
+    }
+
+    [Fact]
+    public void AHeatWard_CountsInTheRealHeat_AColdWardDoesNot()
+    {
+        var server = NewServer("heatward", "lava");
+        var at = JustAboveTheGround(server);
+
+        // A roof overhead: it halves the heat for all three alike, and it keeps a fall of embers off their suits — the
+        // weather would drain all three by the same amount and blur what the ward does.
+        server.World.SetBlock(new Vector3i(500, (int)at.Y + 6, 500), Block("stone"));
+        var naked = Player(server, "Naked", at);
+        var heat = Player(server, "HeatWard", at);
+        var cold = Player(server, "ColdWard", at);
+        server.StartEffectForTest(heat, BioEffect.HeatWard, BioRules.MaxLevel, 600);
+        server.StartEffectForTest(cold, BioEffect.ColdWard, BioRules.MaxLevel, 600);
+
+        Ticks(server, 200); // twenty seconds
+
+        Assert.True(server.AmbientTemperatureForTest(heat) > BioRules.HotAbove, "a lava world is hot at the ground");
+        float nakedDrain = 100f - naked.State.SuitEnergy;
+        float heatDrain = 100f - heat.State.SuitEnergy;
+        float coldDrain = 100f - cold.State.SuitEnergy;
+        Assert.True(nakedDrain > 0.5f, $"a lava world must drain the suit (drained {nakedDrain})");
+        float insulation = BioRules.Magnitude(BioEffect.HeatWard, BioRules.MaxLevel);
+        Assert.InRange(heatDrain, nakedDrain * (1f - insulation) * 0.97f, nakedDrain * (1f - insulation) * 1.03f);
+        Assert.InRange(coldDrain, nakedDrain * 0.97f, nakedDrain * 1.03f);
     }
 
     [Fact]

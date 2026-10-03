@@ -354,13 +354,17 @@ public sealed partial class GameServer
     {
         var p = session.State;
         int slot = SlotOf(p.Inventory, intent.TargetItem);
-        if (slot < 0 || ItemMods.Of(intent.TargetItem).IsEmpty)
+
+        // There is something to wash off when the key carries a change at all — also one this version cannot read (a
+        // hand-typed key, a key of a newer version). Such an item acts as the plain one (ItemMods.Of), and washing is
+        // how it becomes the plain one again; asking for readable changes here would leave it stuck with its key.
+        string plain = slot < 0 ? string.Empty : default(ItemMods).ApplyTo(intent.TargetItem);
+        if (slot < 0 || plain == intent.TargetItem)
         {
             LabResult(session, intent.Action, false, "srv.bio.no_target");
             return;
         }
 
-        string plain = default(ItemMods).ApplyTo(intent.TargetItem);
         p.Inventory.SetSlot(slot, new ItemStack(plain, 1));
         SendInventory(session);
         LabResult(session, intent.Action, true, "srv.bio.washed", plain);
