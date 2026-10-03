@@ -782,6 +782,7 @@ public sealed partial class GameServer
         if (isCreature)
         {
             BioOnCreatureDefeated(session, target); // #2201: a sample of its species, with the loot
+            ForgetClone(target); // #2214: a defeated clone does not come back beside its tank
         }
 
         SendInventory(session);

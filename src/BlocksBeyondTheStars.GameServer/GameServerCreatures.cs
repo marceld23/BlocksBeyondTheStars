@@ -222,7 +222,11 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_speciesRoster.Length == 0)
+        // #2215: a world with no roster has no life of its own — but an animal that IS there (a guest clone from a
+        // sample on an airless moon, a companion tamed from one) must still move, sleep and be synced. A truly empty
+        // world still leaves here at once; its giants tick by their own rules and do not count.
+        bool rosterless = _speciesRoster.Length == 0;
+        if (rosterless && !AnyOrdinaryCreature())
         {
             return; // barren world — no life
         }
@@ -261,7 +265,7 @@ public sealed partial class GameServer
         // Fill faster while the world is far below its cap (a freshly visited world comes alive quickly),
         // then ease to the slow trickle near the cap.
         double interval = wild < cap / 2 ? 1.5 : CreatureSpawnInterval;
-        if (_creatureSpawnTimer >= interval && wild < cap)
+        if (_creatureSpawnTimer >= interval && wild < cap && !rosterless) // no roster, nothing to spawn (#2215)
         {
             _creatureSpawnTimer = 0;
             // #1720: the player who gets the next spawn rotates on the WILD population — companions used to
@@ -371,6 +375,21 @@ public sealed partial class GameServer
                 }
             }
         }
+    }
+
+    /// <summary>Whether any animal other than a giant lives on the active world (a plain loop; the list is empty on a
+    /// barren world and holds a giant or two at most where only giants live).</summary>
+    private bool AnyOrdinaryCreature()
+    {
+        foreach (var c in _creatures)
+        {
+            if (!c.IsGiant)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // #470 (decision #4): a SAFETY ceiling only — the real population comes from WorldCreatureCap. The old
