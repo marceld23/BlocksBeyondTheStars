@@ -51,9 +51,9 @@ about 3.3 MB, bundled into every build and prefetched by the browser client befo
 - **✅ All twelve language files:** `data-online/whatsnew/<code>.json` for fr, es, it, pt, nl, pl, tr, ru, uk, ja, ko and
   zh, each with all 67 release posts in the feed (0.7.5 … 2026.10.3, 230–410 KB per language; a player downloads only
   their own). They come from the devblog translation of 2026-10-03: all 146 devblog posts now exist in the twelve
-  website languages as linked, backdated posts. French was translated and the release posts' sensitive ones reviewed;
-  the other languages were translated with a second model pass and the 25 sensitive posts per language (children,
-  school club, licence, child safety, story) reviewed by a native-level editor pass. New release posts follow with
+  website languages as linked, backdated posts. Every language was machine-translated by Claude with the game locale
+  as glossary, and the 25 sensitive posts per language (children, school club, licence, child safety, story) got a
+  second, native-level editor pass that fixed real errors (gender, address form, meaning). New release posts follow with
   `export_whatsnew.py --languages-only` once they are translated for the blog.
 - **✅ Tests:** `WhatsNewContentTests` checks every language file (a game language other than de/en, versions exist in
   the feed, no empty text, unique and newest first; no completeness check on purpose). Edit-mode
