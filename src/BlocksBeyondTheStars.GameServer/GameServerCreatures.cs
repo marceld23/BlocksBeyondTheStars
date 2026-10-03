@@ -63,6 +63,11 @@ public sealed partial class GameServer
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly List<PlayerSession> _creatureTargets = new(); // reused per tick (no per-tick LINQ alloc)
     private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
+
+    // #2214: the body whose roster _speciesById holds. The table is the server's, not a world's — with two worlds
+    // resident it belongs to the one whose fauna was set up last — and the rolled ids ("sp0", "sp1", …) repeat from
+    // world to world. Whoever reads a STORED native id (a clone tank's list) asks this first.
+    private string _speciesTableBodyId = string.Empty;
     private readonly Dictionary<string, LocomotionProfile> _locoProfiles = new(); // per-species movement tuning
     private List<CombatEntity> _creatures => _worlds.Active.Creatures;
     private double _creatureSpawnTimer { get => _worlds.Active.CreatureSpawnTimer; set => _worlds.Active.CreatureSpawnTimer = value; }
@@ -144,6 +149,7 @@ public sealed partial class GameServer
             : CreatureGenerator.GenerateRoster(planet, rosterSeed, _meta.Description.TerrainGeneration, _content.AuthoredCreaturesFor(planet)).ToArray();
 
         _speciesById.Clear();
+        _speciesTableBodyId = _world.LocationId;
         _locoProfiles.Clear();
         foreach (var sp in _speciesRoster)
         {

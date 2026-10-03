@@ -29,7 +29,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// species list follows the sample case, a finished cross waits for room, the habitat rule reads every block, a tank
 /// over the cap refuses a start, a growing tank starts its wait over after a reload, the free game mode is free on
 /// both paths, a tank remembers the species of every living clone, a guest clone moves on a world without a roster,
-/// the sampler takes a giant without stasis and names a full register, and an empty seedling says so.
+/// the sampler takes a giant without stasis and names a full register, and an empty seedling says so. After the review
+/// of those fixes: a clone that cannot be brought back this time keeps its place in the list, a plant cross waits
+/// until both its samples fit, a growing tank releases what it was started on and keeps its place inside the cap.
 /// </summary>
 public sealed class BioTankFixTests : IDisposable
 {
@@ -272,6 +274,24 @@ public sealed class BioTankFixTests : IDisposable
         Assert.Contains(LastTankSent(t)!.Choices, c => c.StartsWith(sp.Id + "|", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void TheSpeciesList_IsNotSentAgain_ForAScanThatIsNoAnimal()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer(transport: t);
+        var p = TankOwner(server);
+        Ticks(server, 1.5, 0.1);
+
+        // A block and a plant: discoveries for the Codex, and nothing a tank could offer.
+        t.Sent.Clear();
+        int known = p.State.ScannedWhere.Count;
+        server.ScanSubject("Keeper", "block", "dirt");
+        server.ScanSubject("Keeper", "block", "flora_bush");
+        Assert.Equal(known + 2, p.State.ScannedWhere.Count); // both went into the first-scan ledger
+        Ticks(server, 2.0, 0.1);
+        Assert.DoesNotContain(t.Sent, x => x.Msg is CrystalDeviceList);
+    }
+
     // ---------------- 2. A finished cross waits for room ----------------
 
     [Fact]
@@ -288,8 +308,15 @@ public sealed class BioTankFixTests : IDisposable
         FillSampleCase(p); // two parent stacks that stay, and 22 other kinds: no slot for a new species
 
         Configure(server, p, Tank, "sp=" + parents[0].Id + ";x=" + parents[1].Id);
+        Ticks(server, 1.0, 0.1);
+        t.Sent.Clear();
         Start(server, p, Tank);
         Assert.True(server.CrystalDeviceOutput(Tank));
+
+        // 8. The start of the job goes out with the device list. (The server sent one here and at the finish before
+        // the fix, too — through the tank's light; these lines hold that in place for the menu that follows it.)
+        Ticks(server, 0.5, 0.1);
+        Assert.Contains("growing=1", LastTankSent(t)?.Config ?? string.Empty);
         Ticks(server, CrystalNetRules.CloneGrowSeconds + 20.0);
 
         // Done growing — and waiting: no animal without its sample, the light stays on, the owner heard it once.
@@ -309,7 +336,7 @@ public sealed class BioTankFixTests : IDisposable
         Assert.Equal("0", ConfigValue(server, Tank, "growing"));
         Assert.Single(t.Sent, x => x.Conn == p.ConnectionId && x.Msg is ServerMessage { Text: "@srv.crystal.clone_case_full" });
 
-        // 8. The finished job went out with the device list: the tank's new state, its new species and the new choice.
+        // 8. And so does the finished job: the tank's new state, its new species and the new choice.
         var sent = LastTankSent(t);
         Assert.NotNull(sent);
         Assert.Contains("growing=0", sent!.Config);
@@ -338,6 +365,59 @@ public sealed class BioTankFixTests : IDisposable
         FreeOneSlot(p);
         Ticks(server, 3.0);
         Assert.Equal(2, Samples(p, child));
+        Assert.Equal("0", ConfigValue(server, Tank, "growing"));
+    }
+
+    [Theory]
+    [InlineData(1)] // one of the two samples would fit: the tank must not hand out half of what it made
+    [InlineData(0)] // a full stack
+    public void AFinishedPlantCross_WaitsForRoomInTheStackOfItsSpecies(int room)
+    {
+        var t = new RecordingTransport();
+        var server = NewServer(transport: t);
+        var p = TankOwner(server);
+        p.State.UnlockedBlueprints.Add(BioItems.CrossingBlueprint);
+        uint bush = server.GiveFloraSampleForTest(p, "flora_bush", 2);
+        uint fern = server.GiveFloraSampleForTest(p, "flora_fern", 2);
+        uint child = server.CrossForTest(bush, fern)!.Seed;
+        int held = BioRules.SampleStack - room;
+        Assert.True(server.GiveSampleForTest(p, child, held)); // the owner crossed this pair before, many times
+
+        Configure(server, p, Tank, "sp=" + Choice(bush) + ";x=" + Choice(fern));
+        Start(server, p, Tank);
+        Assert.True(server.CrystalDeviceOutput(Tank));
+        Ticks(server, CrystalNetRules.CloneGrowSeconds + 5.0);
+
+        // The two samples are all a plant cross makes: they wait in the tank until both fit.
+        Assert.Equal(held, Samples(p, child));
+        Assert.Equal("1", ConfigValue(server, Tank, "growing"));
+        Assert.Single(t.Sent, x => x.Conn == p.ConnectionId && x.Msg is ServerMessage { Text: "@srv.crystal.clone_case_full" });
+
+        Assert.True(p.State.SampleCase.Remove(ItemKey.WithSeed(BioItems.Sample, child), 2 - room));
+        Ticks(server, 3.0);
+        Assert.Equal(BioRules.SampleStack, Samples(p, child));
+        Assert.Equal("0", ConfigValue(server, Tank, "growing"));
+    }
+
+    [Fact]
+    public void AFinishedAnimalCross_ComesOut_WhenTheOwnerHoldsAFullStackOfTheNewSpecies()
+    {
+        var server = NewServer();
+        var p = TankOwner(server);
+        p.State.UnlockedBlueprints.Add(BioItems.CrossingBlueprint);
+        var parents = LandSpecies(server);
+        uint a = server.GiveCreatureSampleForTest(p, parents[0], 2);
+        uint b = server.GiveCreatureSampleForTest(p, parents[1], 2);
+        uint child = server.CrossForTest(a, b)!.Seed;
+        Assert.True(server.GiveSampleForTest(p, child, BioRules.SampleStack));
+
+        Configure(server, p, Tank, "sp=" + parents[0].Id + ";x=" + parents[1].Id);
+        Start(server, p, Tank);
+        Ticks(server, CrystalNetRules.CloneGrowSeconds + 2.0);
+
+        // The animal is what the tank made; the sample that comes with it is missing from nobody who holds twenty.
+        Assert.StartsWith("gx", Assert.Single(Clones(server)).SpeciesId);
+        Assert.Equal(BioRules.SampleStack, Samples(p, child));
         Assert.Equal("0", ConfigValue(server, Tank, "growing"));
     }
 
@@ -438,6 +518,42 @@ public sealed class BioTankFixTests : IDisposable
         }
     }
 
+    [Fact]
+    public void AGrowingTank_KeepsItsPlaceInsideTheCap_AfterAReload()
+    {
+        // Which tank of an owner is over the cap follows the order the tanks register in. Placed, that is the order
+        // of placing; loaded, it is the store's order — by coordinate. The spare tank is placed LAST and sorts FIRST.
+        var growing = new Vector3i(1, 200, 2);
+        var spare = new Vector3i(1, 200, -2);
+        {
+            var server = NewServer(world: "cap");
+            var p = Player(server, "Keeper");
+            Assert.Equal(0, p.State.Inventory.Add("clone_tank", 3, 64));
+            Assert.Equal(0, p.State.Inventory.Add("matter_dust", 64, 1024));
+            server.PlaceBlock("Keeper", Tank.X, Tank.Y, Tank.Z, "clone_tank");
+            server.PlaceBlock("Keeper", growing.X, growing.Y, growing.Z, "clone_tank");
+            server.PlaceBlock("Keeper", spare.X, spare.Y, spare.Z, "clone_tank"); // over the cap of two: inert
+            uint seed = server.RegisterForeignCreatureForTest(LandSpecies(server)[0], "elsewhere");
+            Assert.True(server.GiveSampleForTest(p, seed));
+            Configure(server, p, growing, "sp=" + Choice(seed));
+            Start(server, p, growing);
+            Assert.True(server.CrystalDeviceOutput(growing));
+            Ticks(server, 10.0);
+            server.SaveAllForTest();
+            server.Stop();
+        }
+
+        {
+            var server = NewServer(world: "cap");
+            server.AddLocalPlayer("Keeper");
+            Ticks(server, CrystalNetRules.CloneGrowSeconds + 2.0);
+
+            // The job that was paid for finishes: the tank that grows is not the one left out.
+            Assert.Single(Clones(server));
+            Assert.Equal("0", ConfigValue(server, growing, "growing"));
+        }
+    }
+
     // ---------------- 6. A free game mode ----------------
 
     [Fact]
@@ -458,6 +574,41 @@ public sealed class BioTankFixTests : IDisposable
         Assert.True(server.CrystalDeviceOutput(Tank));
         Ticks(server, CrystalNetRules.CloneGrowSeconds + 1.0);
         Assert.Equal(sp.Id, Assert.Single(Clones(server)).SpeciesId);
+    }
+
+    [Fact]
+    public void TheSpeciesSetting_ChangedWhileTheTankGrows_NeitherSwapsTheAnimalNorLosesTheJob()
+    {
+        var server = NewServer();
+        var p = Player(server, "Keeper", "clone_tank");
+        server.PlaceBlock("Keeper", Tank.X, Tank.Y, Tank.Z, "clone_tank");
+        var species = LandSpecies(server);
+        p.State.ScannedCreatureSites.Add(server.ActiveLocationId + ":" + species[0].Id); // only the first is scanned
+        p.State.ModeOverride = PlayerModeOverride.Creative;
+        uint sample = server.RegisterForeignCreatureForTest(species[1], "elsewhere");
+        Assert.True(server.GiveSampleForTest(p, sample));
+
+        // Another native species is picked while the tank grows — one the owner never scanned.
+        Configure(server, p, Tank, "sp=" + species[0].Id);
+        Start(server, p, Tank);
+        Assert.True(server.CrystalDeviceOutput(Tank));
+        Ticks(server, 10.0);
+        Configure(server, p, Tank, "sp=" + species[1].Id);
+        Ticks(server, CrystalNetRules.CloneGrowSeconds);
+        Assert.Equal(species[0].Id, Assert.Single(Clones(server)).SpeciesId); // what was started, not what is set
+        Assert.Equal(species[1].Id, ConfigValue(server, Tank, "sp"));        // the setting itself is the player's
+        Assert.True(string.IsNullOrEmpty(ConfigValue(server, Tank, "grow")));
+
+        // A sample is picked while the tank grows: the job still ends with its animal.
+        Configure(server, p, Tank, "sp=" + species[0].Id);
+        Start(server, p, Tank);
+        Assert.True(server.CrystalDeviceOutput(Tank));
+        Ticks(server, 10.0);
+        Configure(server, p, Tank, "sp=" + Choice(sample));
+        Ticks(server, CrystalNetRules.CloneGrowSeconds);
+        Assert.Equal(2, Clones(server).Count);
+        Assert.All(Clones(server), c => Assert.Equal(species[0].Id, c.SpeciesId));
+        Assert.Equal("0", ConfigValue(server, Tank, "growing"));
     }
 
     // ---------------- 7. The tank remembers every living clone ----------------
@@ -620,6 +771,183 @@ public sealed class BioTankFixTests : IDisposable
             Assert.Equal(2, Clones(server).Count);
             Assert.All(Clones(server), c => Assert.Equal(speciesId, c.SpeciesId));
             Assert.Equal(speciesId + "," + speciesId, ConfigValue(server, Tank, "cl")); // and from now on it has the list
+        }
+    }
+
+    [Fact]
+    public void ClonesWhoseSpeciesCannotBeNamedNow_KeepTheirPlaceInTheList_AndComeBackOnTheNextLoad()
+    {
+        string home;
+        string[] natives;
+        List<string> homeRoster;
+        uint guest;
+        {
+            var server = NewServer(world: "twin", configure: c => c.Rules.FreeSpaceFlight = true);
+            var p = Player(server, "Keeper", "clone_tank");
+            server.PlaceBlock("Keeper", Tank.X, Tank.Y, Tank.Z, "clone_tank");
+            home = server.ActiveLocationId;
+            homeRoster = server.SpeciesRoster.Select(s => s.Name).ToList();
+            natives = LandSpecies(server).Select(s => s.Id).ToArray();
+            p.State.ModeOverride = PlayerModeOverride.Creative; // a free game mode: no bait, no matter dust
+            foreach (string id in natives)
+            {
+                p.State.ScannedCreatureSites.Add(home + ":" + id);
+                Configure(server, p, Tank, "sp=" + id);
+                Start(server, p, Tank);
+                Ticks(server, CrystalNetRules.CloneGrowSeconds + 1.0);
+            }
+
+            Assert.Equal(natives[0] + "," + natives[1], ConfigValue(server, Tank, "cl"));
+            server.SaveAllForTest();
+            server.Stop();
+        }
+
+        {
+            // Two worlds resident at once. The species table is the server's, not a world's: it holds the roster of the
+            // world whose fauna was set up last — the visitor's. The home world's clones are due on its first beat, and
+            // their ids ("sp0", …) name other animals now, or none.
+            var server = NewServer(world: "twin", configure: c => c.Rules.FreeSpaceFlight = true);
+            var keeper = server.AddLocalPlayer("Keeper");
+            server.AddLocalPlayer("Visitor");
+            var homeBody = server.Galaxy.FindBody(home)!;
+            var other = server.Galaxy.AllBodies().First(b => b.Id != home && b.SystemId == homeBody.SystemId
+                && b.Kind is CelestialKind.Planet or CelestialKind.Moon && !string.IsNullOrEmpty(b.PlanetType));
+            server.Travel("Visitor", other.Id);
+            Assert.NotEqual(homeRoster, server.SpeciesRoster.Select(s => s.Name).ToList());
+
+            // The world the server looks at is the one it ticked last; a travel "to where the Keeper already is" is
+            // refused, and points it at the Keeper's world again.
+            void AtHome() => server.Travel("Keeper", home);
+
+            Ticks(server, 1.0);
+            AtHome();
+            Assert.Equal(home, server.ActiveLocationId);
+            Assert.Empty(Clones(server)); // no animal of the other world stands in for them
+            Assert.Equal(natives[0] + "," + natives[1], ConfigValue(server, Tank, "cl")); // and none is forgotten
+            Assert.Equal("2", ConfigValue(server, Tank, "clones"));
+
+            // A clone grown in this very residency joins the list; it does not push the waiting ones out.
+            var visitor = CreatureGenerator.GenerateRoster(_content.GetPlanet("jungle")!, 4711)
+                .First(s => !s.Hostile && !s.IsGiant && s.Habitat == CreatureHabitat.Land);
+            guest = server.RegisterForeignCreatureForTest(visitor, "elsewhere");
+            Assert.True(server.GiveSampleForTest(keeper, guest));
+            keeper.State.AboardShip = false;
+            keeper.State.Position = new Vector3f(0, 200, 0);
+            keeper.State.ModeOverride = PlayerModeOverride.Creative;
+            Configure(server, keeper, Tank, "sp=" + Choice(guest));
+            Start(server, keeper, Tank);
+            Assert.True(server.CrystalDeviceOutput(Tank), "the tank did not start");
+            Ticks(server, CrystalNetRules.CloneGrowSeconds + 1.0);
+            AtHome();
+            Assert.Equal("gx" + Choice(guest).Substring(2), Assert.Single(Clones(server)).SpeciesId);
+            Assert.Equal(Choice(guest) + "," + natives[0] + "," + natives[1], ConfigValue(server, Tank, "cl"));
+            Assert.Equal("3", ConfigValue(server, Tank, "clones"));
+            server.SaveAllForTest();
+            server.Stop();
+        }
+
+        {
+            // The next load is an ordinary one: every clone stands beside the tank, each as its own species.
+            var server = NewServer(world: "twin", configure: c => c.Rules.FreeSpaceFlight = true);
+            server.AddLocalPlayer("Keeper");
+            Ticks(server, 1.0);
+            var back = Clones(server).Select(c => c.SpeciesId).OrderBy(id => id, StringComparer.Ordinal).ToList();
+            var expected = new[] { natives[0], natives[1], "gx" + Choice(guest).Substring(2) }.OrderBy(id => id, StringComparer.Ordinal).ToList();
+            Assert.Equal(expected, back);
+        }
+    }
+
+    [Fact]
+    public void ClonesThatAreNotBackYet_CountAgainstTheCap()
+    {
+        string location, native;
+        {
+            var server = NewServer(world: "count");
+            TankOwner(server);
+            location = server.ActiveLocationId;
+            native = LandSpecies(server)[0].Id;
+            server.SaveAllForTest();
+            server.Stop();
+        }
+
+        int cap = CrystalNetRules.MaxLivingClonesPerOwner;
+        using (var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "count")))
+        {
+            repo.Initialize();
+            repo.SaveCrystalCell(new StoredCrystalCell
+            {
+                Planet = location,
+                X = Tank.X,
+                Y = Tank.Y,
+                Z = Tank.Z,
+                Kind = nameof(CrystalDeviceKind.CloneTank),
+                OwnerId = "Keeper",
+                Config = "sp=" + native + ";growing=0;clones=" + cap + ";cl=" + string.Join(",", Enumerable.Repeat(native, cap)),
+            });
+            repo.Flush();
+        }
+
+        {
+            var t = new RecordingTransport();
+            var server = NewServer(world: "count", transport: t);
+            var p = server.AddLocalPlayer("Keeper");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 200, 0);
+            p.State.ModeOverride = PlayerModeOverride.Creative;
+            p.State.ScannedCreatureSites.Add(location + ":" + native);
+
+            // Start is pressed before the world's first beat: the tank's clones wait in its list, none stands beside
+            // it yet — and they are the owner's clones all the same.
+            Assert.Empty(Clones(server));
+            Start(server, p, Tank);
+            Assert.False(server.CrystalDeviceOutput(Tank));
+            Assert.Contains("@srv.crystal.clone_cap", RejectionsTo(t, p));
+
+            Ticks(server, 1.0);
+            Assert.Equal(cap, Clones(server).Count);
+        }
+    }
+
+    [Fact]
+    public void AnEntryThatCanNeverBeAnAnimalAgain_LeavesTheList_AndTheOthersComeBack()
+    {
+        string location, native;
+        uint plant;
+        {
+            var server = NewServer(world: "gone");
+            var p = TankOwner(server);
+            location = server.ActiveLocationId;
+            native = LandSpecies(server)[0].Id;
+            plant = server.GiveFloraSampleForTest(p, "flora_bush"); // in the save's register — and no animal
+            server.SaveAllForTest();
+            server.Stop();
+        }
+
+        // A list with one animal of this world, a plant, a species the register does not know and an id this world's
+        // roster never had.
+        using (var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "gone")))
+        {
+            repo.Initialize();
+            repo.SaveCrystalCell(new StoredCrystalCell
+            {
+                Planet = location,
+                X = Tank.X,
+                Y = Tank.Y,
+                Z = Tank.Z,
+                Kind = nameof(CrystalDeviceKind.CloneTank),
+                OwnerId = "Keeper",
+                Config = "sp=" + native + ";growing=0;clones=4;cl=" + Choice(plant) + ",g:deadbeef," + native + ",au_nowhere",
+            });
+            repo.Flush();
+        }
+
+        {
+            var server = NewServer(world: "gone");
+            server.AddLocalPlayer("Keeper");
+            Ticks(server, 1.0);
+            Assert.Equal(native, Assert.Single(Clones(server)).SpeciesId);
+            Assert.Equal(native, ConfigValue(server, Tank, "cl"));
+            Assert.Equal("1", ConfigValue(server, Tank, "clones"));
         }
     }
 

@@ -36,6 +36,9 @@ public sealed partial class GameServer
     /// <summary>How far around a tank the habitat rule looks for water or lava.</summary>
     private const int TankHabitatReach = 8;
 
+    /// <summary>Samples of the new species a finished plant cross hands out — they are all the tank makes of it.</summary>
+    private const int PlantCrossSamples = 2;
+
     private const string TankPartnerKey = "x";
     private const string TankGrowKey = "grow";
     private const string TankSamplePrefix = "g:";
@@ -137,8 +140,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>A cheap signature of what a tank's owner may pick (#2214): which species lie in the sample case, and
-    /// how much has been scanned and tamed. 0 while the owner is away — nothing to pick. It allocates nothing: the
-    /// Crystal Net compares it on every sensor beat for every tank (see <c>WatchCloneTank</c>).</summary>
+    /// how many animal species have been scanned and tamed. 0 while the owner is away — nothing to pick. It allocates
+    /// nothing: the Crystal Net compares it on every sensor beat for every tank (see <c>WatchCloneTank</c>).</summary>
     private int CloneChoiceStamp(string ownerId)
     {
         var owner = FindSessionByPlayerId(ownerId);
@@ -159,22 +162,35 @@ public sealed partial class GameServer
             }
         }
 
-        // The scan and tame ledgers only ever grow, so their sizes say whether a native species joined the list.
+        // The animal scans and the tames only ever grow, so their sizes say whether a native species joined the list.
+        // Every animal scan lands in ScannedCreatureSites; the first-scan ledger (ScannedWhere) is left out on purpose —
+        // it grows with every block, plant and body scanned, none of which a tank can offer.
         h = unchecked((h * 31) + (uint)p.ScannedCreatureSites.Count);
-        h = unchecked((h * 31) + (uint)p.ScannedWhere.Count);
         h = unchecked((h * 31) + (uint)p.TamedSpecies.Count);
         return h == 0 ? 1 : unchecked((int)h);
     }
 
-    private int LivingClonesInWorld() => _creatures.Count(c => c.CloneOf.Length > 0);
-
-    /// <summary>Whether a sample of a species can enter a player's case: the case already holds the species, or it has
-    /// a free slot for a new one. (A full stack of the species takes nothing more, but nothing is missing either.)</summary>
-    private static bool SampleCaseTakes(PlayerState p, BioSpeciesEntry entry)
+    /// <summary>The clones of this world, whoever owns their tanks: the animals that live, and (#2214) those a tank's
+    /// list names that are not beside it in this residency.</summary>
+    private int LivingClonesInWorld()
     {
-        if (SampleCount(p, entry) > 0)
+        int n = _creatures.Count(c => c.CloneOf.Length > 0);
+        foreach (var c in CrystalNet.Cells.Values)
         {
-            return true;
+            n += c.CloneWaiting?.Count ?? 0;
+        }
+
+        return n;
+    }
+
+    /// <summary>How many more samples of a species a player's case takes: the rest of the species' stack — or, for a
+    /// species the case does not hold yet, a whole stack when a slot is free and nothing when every slot is taken.</summary>
+    private static int SampleRoom(PlayerState p, BioSpeciesEntry entry)
+    {
+        int held = SampleCount(p, entry);
+        if (held > 0)
+        {
+            return Math.Max(0, BioRules.SampleStack - held);
         }
 
         var slots = p.SampleCase.Slots;
@@ -182,12 +198,21 @@ public sealed partial class GameServer
         {
             if (slots[i] is null)
             {
-                return true;
+                return BioRules.SampleStack;
             }
         }
 
-        return false;
+        return 0;
     }
+
+    /// <summary>Whether what a finished cross hands out fits into its owner's sample case. An animal comes with one
+    /// sample of the new species: an owner who holds the species already misses nothing when that stack is full, so
+    /// only a case without a slot for a NEW species holds the tank. The two samples of a plant cross are all the tank
+    /// made — both have to fit.</summary>
+    private static bool CrossResultFits(PlayerState p, BioSpeciesEntry entry)
+        => entry.Kind == BioKind.Animal
+            ? SampleCount(p, entry) > 0 || SampleRoom(p, entry) > 0
+            : SampleRoom(p, entry) >= PlantCrossSamples;
 
     /// <summary>A water animal needs water near the tank, a lava animal lava.</summary>
     private bool HabitatNear(CreatureSpecies sp, Vector3i tank)
@@ -353,7 +378,8 @@ public sealed partial class GameServer
     /// <summary>What a tank that was started on a sample hands out when it is done: the animal (and, for a cross, a
     /// sample of the new species so it can be cloned and crossed again), or two samples of a new plant. Returns false
     /// while the samples cannot be handed over yet — the owner is away, or (#2214) the owner's sample case has no room
-    /// for the new species. Nothing is handed out then: the animal of a cross and its sample come together.</summary>
+    /// for them (see <see cref="CrossResultFits"/>). Nothing is handed out then: the animal of a cross and its sample
+    /// come together, and so do the two samples of a plant.</summary>
     private bool BioTankFinish(ServerCrystalCell tank, string grow)
     {
         var entry = TankEntry(grow);
@@ -371,7 +397,7 @@ public sealed partial class GameServer
                 return false;
             }
 
-            if (!SampleCaseTakes(owner.State, entry))
+            if (!CrossResultFits(owner.State, entry))
             {
                 // The result waits in the tank, as it does while the owner is away — and the owner hears it once.
                 if (!tank.WaitTold)
@@ -398,7 +424,7 @@ public sealed partial class GameServer
         }
         else if (owner is not null)
         {
-            GiveSample(owner, entry, 2);
+            GiveSample(owner, entry, PlantCrossSamples);
             SendInventory(owner);
         }
 
@@ -410,19 +436,6 @@ public sealed partial class GameServer
 
         tank.Config = CrystalConfigWith(tank.Config, TankGrowKey, string.Empty);
         return true;
-    }
-
-    /// <summary>The species a tank's <c>sp</c> names — a native one or a guest from a sample.</summary>
-    private CreatureSpecies? TankSpecies(string? choice)
-    {
-        if (string.IsNullOrEmpty(choice))
-        {
-            return null;
-        }
-
-        return choice!.StartsWith(TankSamplePrefix, StringComparison.Ordinal)
-            ? GuestSpeciesOf(TankEntry(choice))
-            : _speciesById.TryGetValue(choice, out var sp) ? sp : null;
     }
 
     // ---------------- Crossing ----------------

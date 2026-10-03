@@ -94,7 +94,8 @@ public sealed partial class GameServer
         public double Progress;         // machines: seconds into the current job
         public int Cursor;              // auto-drill: the next cell index of its volume
         public string CloneTag = string.Empty; // clone tank: the tag its clones carry (CombatEntity.CloneOf)
-        public int CloneCount;          // clone tank: the living clones its config lists (#2214)
+        public int CloneCount;          // clone tank: its clones that live, as last counted (#2214)
+        public List<string>? CloneWaiting; // clone tank: clones its row lists that are not beside it now — not brought back yet, or not nameable in this residency (#2214)
         public int ChoiceStamp;         // clone tank: a signature of what its owner may pick, as the sensor beat last saw it (#2214)
         public bool WaitTold;           // clone tank: the owner was told that the result waits for room (once per wait)
 
@@ -486,7 +487,11 @@ public sealed partial class GameServer
             state.NextDeviceId = 1;
         }
 
-        var rows = _repo.ListCrystalCells(_world.LocationId);
+        // #2214: which machine of an owner is over a cap follows the order the cells register in — and the rows come
+        // back in the store's order (by coordinate), not in the order they were placed. A clone tank with a job
+        // running or with clones in its list goes first, so a reload never gives its place inside the cap to an idle
+        // tank and leaves the job hanging. The sort is stable: every other row keeps its place.
+        var rows = _repo.ListCrystalCells(_world.LocationId).OrderByDescending(CloneTankRowInUse);
         foreach (var row in rows)
         {
             if (!Enum.TryParse<CrystalDeviceKind>(row.Kind, out var kind) || kind == CrystalDeviceKind.None)
@@ -510,6 +515,11 @@ public sealed partial class GameServer
         state.NextLogicBeat = _uptime;
         state.NextSensorBeat = _uptime;
     }
+
+    /// <summary>Whether a stored row is a clone tank that is growing or has clones in its list.</summary>
+    private static bool CloneTankRowInUse(StoredCrystalCell row)
+        => row.Kind == nameof(CrystalDeviceKind.CloneTank)
+           && (CrystalConfigValue(row.Config, "growing") == "1" || TankClones(row.Config).Count > 0);
 
     /// <summary>The block key a kind places when the row carries none (old rows, the single-key kinds).</summary>
     private static string KeyForKind(CrystalDeviceKind kind) => kind switch
