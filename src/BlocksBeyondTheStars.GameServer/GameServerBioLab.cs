@@ -34,14 +34,25 @@ public sealed partial class GameServer
     /// <para>
     /// The aboard flag only says "in the cabin" where the player's ship stands: in a world without a placed ship
     /// it keeps its default (true) and is never updated, so there it must not count — or the lab would be refused
-    /// everywhere. A pilot in flight is in the cabin whatever the flag and the stale on-foot position say.
+    /// everywhere.
+    /// </para>
+    /// <para>
+    /// A pilot in space never stands at a lab, in the cockpit or on a spacewalk (#2216): there is no world grid out
+    /// there. The launch leaves the on-foot position where it was and the planet stays the pilot's world, so the
+    /// reach would be measured from a spot on the ground below — and the spacewalk exemption of the cabin test used
+    /// to let exactly that spot decide: a lab beside the launch site answered from orbit, its wash reading the
+    /// ship's detoxifier module.
     /// </para>
     /// </summary>
     private bool AtBioLab(PlayerState p)
     {
+        if (InSpace(p.PlayerId))
+        {
+            return false;
+        }
+
         bool cabin = (p.AboardShip && _worlds.Active.LandedFor(p.PlayerId).Placed)
-            || ShipInteriorContains(p.Position)
-            || InSpace(p.PlayerId);
+            || ShipInteriorContains(p.Position);
         return !(cabin && !p.InEva) && NearStationBlock(p, BioItems.Lab);
     }
 
