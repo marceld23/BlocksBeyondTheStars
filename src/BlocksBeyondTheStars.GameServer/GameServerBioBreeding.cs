@@ -82,6 +82,13 @@ public sealed partial class GameServer
             sp.BiomeExclusive = false;
             sp.SocialGroupSize = 1;
             _speciesById[id] = sp;
+        }
+
+        // The profile is asked for on its own: a tamed clone's companion snapshot can have put the id into the table
+        // first (on a freshly loaded world the owner's pets come before the tanks' clones), and it brings no profile —
+        // every wild clone of that species then ran on the all-zero default and stood still.
+        if (!_locoProfiles.ContainsKey(id))
+        {
             _locoProfiles[id] = LocomotionController.ForSpecies(sp);
         }
 

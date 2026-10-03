@@ -370,6 +370,14 @@ internal sealed class LoadedWorld
     public double NextCompanionPayoffAt { get; set; }  // companions growl, stall robbers, drop produce (1 Hz)
     public double NextCompanionScoutAt { get; set; }   // a deeply bonded companion shares a landmark
 
+    // #2226: and two more gates of that kind. With one field each, only the world that is ticked first ever burned its
+    // animals, robbers and machines or fired its sentry posts — it took every 2 Hz turn, base or no base.
+    public double NextBurnAt { get; set; }             // lava, fire and the gas sea burn everybody (2 Hz)
+    public double LastBurnAt { get; set; }             // …the uptime of this world's last burn pass (the step's real dt)
+    public bool BurnPrimed { get; set; }               // …false until this world's first pass, which burns nothing
+    public double NextSentryFireAt { get; set; }       // the base sentry posts of this world fire (2 Hz)
+    public double NextSentryRescanAt { get; set; }     // …and re-derive their cells from the blocks (every 10 s)
+
     /// <summary>#2226: the feed-tames this world's creature tick queued for its next one (the meal is eaten inside the
     /// creature loop, the tame edits the list). One queue for the whole server was emptied by whichever world ticked
     /// next — it did not know the animal, so the tame was dropped and the meals were gone.</summary>

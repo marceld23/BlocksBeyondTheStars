@@ -26,7 +26,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// The species tables are a world's, not the server's (#2226). Every test here keeps TWO worlds resident — two players
 /// on two bodies, or one on a planet and one aboard a station or inside a ship in space — and reads what each world's
 /// animals, spawner, clone tank and plants see while the other world is loaded and ticked. The rolled species ids
-/// ("sp0", "sp1", …) repeat from world to world, so every case is also the id collision case.
+/// ("sp0", "sp1", …) repeat from world to world, so every case is also the id collision case. The last section holds
+/// the same rule for what was gated on the server's uptime with one field for all worlds — the burn pass, the sentry
+/// posts — and for the Crystal Net's sent levels, keyed by net ids that repeat from world to world as well.
 /// </summary>
 public sealed class PerWorldSpeciesTests : IDisposable
 {
@@ -590,5 +592,207 @@ public sealed class PerWorldSpeciesTests : IDisposable
         Assert.Equal(0, server.FavouriteMealsForTest("Paul", MmpId));
         Assert.True(server.ActivateWorldForTest(other));
         Assert.Empty(server.CompanionEntitiesForTest("Paul")); // and nothing of it on the other world
+    }
+
+    // ---------------- The uptime gates of a world: burning, sentry posts, the Crystal Net's sent levels ----------------
+    //
+    // Every case below drives the real server tick. The …ForTest hooks of these systems reset the gates, which is
+    // exactly what hid the fault: the uptime stands still inside one server tick, so one gate for the whole server is
+    // taken by the world that is ticked first — here always the home world, whose player joined first.
+
+    /// <summary>A pool of lava high in the air of a world, an animal of that world standing in it that cannot walk
+    /// out, and the player beside it — so the animal is inside the range the server simulates.</summary>
+    private CombatEntity AnimalInLava(SvGameServer server, string location, SvSession beside, out Vector3f at)
+    {
+        At(server, location);
+        var world = server.WorldAt(location)!;
+        var lava = _content.GetBlock("lava")!.NumericId;
+        var stone = _content.GetBlock("stone")!.NumericId;
+        const int y = 300;
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                world.SetBlock(new Vector3i(dx, y - 1, dz), stone);
+                world.SetBlock(new Vector3i(dx, y, dz), lava);
+            }
+        }
+
+        at = new Vector3f(0.5f, y + 0.5f, 0.5f);
+        beside.State.Position = new Vector3f(3.5f, y + 1, 0.5f);
+        var species = server.SpeciesRoster.First(s => !s.IsGiant && s.Habitat != CreatureHabitat.Lava);
+        string id = server.SpawnCreatureAtForTest(at, species.Id);
+        var beast = server.Creatures.First(c => c.Id == id);
+        beast.HullMax = 100_000f; // it outlives the test: what is measured is the health it loses
+        beast.Hull = beast.HullMax;
+        return beast;
+    }
+
+    /// <summary>Real server ticks with the animal held in its pool (the creature tick would walk it out).</summary>
+    private static void TicksInLava(SvGameServer server, CombatEntity beast, Vector3f at, double seconds)
+    {
+        for (double t = 0; t < seconds; t += 0.1)
+        {
+            beast.Position = at;
+            beast.FrozenTimer = 1e9;
+            server.TickForTest(0.1);
+        }
+    }
+
+    [Fact]
+    public void LavaBurnsTheAnimalsOfAWorld_WhileAnotherWorldIsTickedBeforeIt()
+    {
+        var server = NewServer("burn");
+        OnFoot(server, "Keeper"); // the home world: ticked first, on every server tick
+        string home = server.ActiveLocationId;
+        var visitor = LandOnAnotherWorld(server, home, "Visitor", out string other);
+        var beast = AnimalInLava(server, other, visitor, out var at);
+        float full = beast.Hull;
+
+        TicksInLava(server, beast, at, 2.0);
+
+        At(server, other);
+        Assert.Contains(beast, server.Creatures);
+        Assert.True(beast.Hull < full, "the animal stands in lava on the second world and loses nothing");
+    }
+
+    [Fact]
+    public void AWorldThatWasNotTickedForAWhile_DoesNotBurnTheWholeGapInOnePass()
+    {
+        var server = NewServer("burngap");
+        var keeper = OnFoot(server, "Keeper");
+        string home = server.ActiveLocationId;
+        var beast = AnimalInLava(server, home, keeper, out var at);
+        float full = beast.Hull;
+        var beside = keeper.State.Position;
+        LandOnAnotherWorld(server, home, "Visitor", out _);
+
+        TicksInLava(server, beast, at, 2.0);
+        float warm = beast.Hull;
+        Assert.True(warm < full, "the animal does not burn at all");
+
+        // The Keeper logs off. The home body stays resident — it is the server's default body — and is not ticked
+        // while its only player is away; the other world goes on for a minute.
+        server.DisconnectLocalPlayerForTest("Keeper");
+        Ticks(server, 60.0);
+        At(server, home);
+        Assert.Contains(beast, server.Creatures);
+        Assert.Equal(warm, beast.Hull); // nothing happened on a world nobody ticked
+
+        // Back again: the first burn pass of the home world. The animal did not stand in the lava for that minute.
+        OnFoot(server, "Keeper").State.Position = beside;
+        TicksInLava(server, beast, at, 0.1);
+        At(server, home);
+        Assert.Contains(beast, server.Creatures);
+        float lost = warm - beast.Hull;
+        Assert.InRange(lost, 1f, 20f); // one pass's worth at most (a second in lava costs 15) — not the minute's 900
+    }
+
+    [Fact]
+    public void TheSentryPostsOfAWorld_Fire_WhileAnotherWorldIsTickedBeforeIt()
+    {
+        var server = NewServer("sentries");
+        OnFoot(server, "Keeper"); // the home world: ticked first, and it has no base at all
+        string home = server.ActiveLocationId;
+        var visitor = LandOnAnotherWorld(server, home, "Visitor", out string other);
+
+        // The visitor's base on the other world: a core in the air beside them, a sentry post next to it, and a hostile
+        // machine four blocks from the post.
+        At(server, other);
+        var feet = visitor.State.Position;
+        var core = new Vector3i((int)Math.Floor(feet.X) + 3, (int)Math.Floor(feet.Y) + 4, (int)Math.Floor(feet.Z));
+        server.PlaceBaseForTest(visitor, core);
+        int baseId = server.BaseSnapshots.Single(b => b.OwnerId == visitor.State.PlayerId).Id;
+        var post = new Vector3i(core.X + 1, core.Y, core.Z);
+        server.WorldAt(other)!.SetBlock(post, _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, visitor.State.Name);
+        At(server, other);
+        Assert.Equal(1, server.SentryCountForTest(baseId));
+        var target = new Vector3f(post.X + 4.5f, post.Y + 0.5f, post.Z + 0.5f);
+        server.SpawnPlanetEnemyAtForTest(target);
+        var machine = server.PlanetEnemies[^1];
+        machine.HullMax = 100_000f; // it outlives the test: what is measured is the hits it takes
+        machine.Hull = machine.HullMax;
+        int scans = server.SentryRescansForTest;
+
+        for (int i = 0; i < 30; i++)
+        {
+            machine.Position = target; // it does not get to walk out of the post's reach
+            server.TickForTest(0.1);
+        }
+
+        At(server, other);
+        Assert.Contains(machine, server.PlanetEnemies);
+        Assert.True(machine.Hull < machine.HullMax, "the sentry post on the second world never fired");
+
+        // And the home world's pass left this base's cached cells alone: they were derived once in these three
+        // seconds, on the first pass — not again on every pass because the other world had thrown them away.
+        Assert.Equal(scans + 1, server.SentryRescansForTest);
+    }
+
+    /// <summary>A player in the air of their own world with a switch and a conduit beside them: one network, OFF.</summary>
+    private static Vector3i SwitchAndConduit(SvGameServer server, SvSession p, string location)
+    {
+        At(server, location);
+        p.State.AboardShip = false;
+        p.State.Position = new Vector3f(0, 200, 0);
+        p.State.SuitEnergy = 100f;
+        p.State.ModeOverride = PlayerModeOverride.Creative;
+        foreach (string key in new[] { "crystal_switch", "crystal_conduit" })
+        {
+            Assert.Equal(0, p.State.Inventory.Add(key, 4, 64));
+        }
+
+        var lever = new Vector3i(1, 200, 0);
+        server.PlaceBlock(p.State.PlayerId, lever.X, lever.Y, lever.Z, "crystal_switch");
+        server.PlaceBlock(p.State.PlayerId, 2, 200, 0, "crystal_conduit");
+        At(server, location);
+        Assert.Single(server.CrystalNetSnapshots);
+        return lever;
+    }
+
+    private static List<CrystalNetList> NetListsSentTo(RecordingTransport t, SvSession who)
+        => t.Sent.Where(x => x.Conn == who.ConnectionId && x.Msg is CrystalNetList).Select(x => (CrystalNetList)x.Msg).ToList();
+
+    [Fact]
+    public void TheCrystalNetOfAWorld_TellsItsPlayersOfALevelChange_WhileAnotherWorldsNetHasTheSameId()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("levels", t);
+        var keeper = server.AddLocalPlayer("Keeper");
+        string home = server.ActiveLocationId;
+        var homeLever = SwitchAndConduit(server, keeper, home);
+        int netId = server.CrystalNetSnapshots[0].Id;
+
+        var visitor = LandOnAnotherWorld(server, home, "Visitor", out string other);
+        var otherLever = SwitchAndConduit(server, visitor, other);
+        Assert.Equal(netId, server.CrystalNetSnapshots[0].Id); // net ids start over on every world: one id, two networks
+
+        // The other world's network goes ON, the home world's stays OFF.
+        At(server, other);
+        server.SetCrystalDeviceForTest(visitor, otherLever, action: 0);
+        Ticks(server, 1.0, 0.1);
+        At(server, other);
+        Assert.True(server.CrystalLevelAt(otherLever));
+        At(server, home);
+        Assert.False(server.CrystalLevelAt(homeLever));
+
+        // Nothing changes: nothing is sent. With one table of sent levels for the whole server each world found the
+        // other's level behind its own net id and sent its whole list again, beat after beat.
+        t.Sent.Clear();
+        Ticks(server, 2.0, 0.1);
+        Assert.Empty(NetListsSentTo(t, keeper));
+        Assert.Empty(NetListsSentTo(t, visitor));
+
+        // The Keeper flips the home lever: the home world's player is told that its network is ON now — although the
+        // other world's network with the same id has been ON all along.
+        At(server, home);
+        server.SetCrystalDeviceForTest(keeper, homeLever, action: 0);
+        Ticks(server, 1.0, 0.1);
+        At(server, home);
+        Assert.True(server.CrystalLevelAt(homeLever));
+        var told = NetListsSentTo(t, keeper).LastOrDefault();
+        Assert.NotNull(told);
+        Assert.True(Assert.Single(told!.Nets).On);
+        Assert.Empty(NetListsSentTo(t, visitor)); // and nobody on the other world hears of it
     }
 }

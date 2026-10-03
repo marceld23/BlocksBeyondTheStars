@@ -44,10 +44,14 @@ public sealed partial class GameServer
     /// and the walk is the same O(r³) zone scan the settler stage uses.</summary>
     private const double SentryRescanInterval = 10.0;
 
-    private double _nextSentryFireAt;
-    private double _nextSentryRescanAt;
+    // #2226: both gates are per world (see LoadedWorld). They were the server's: every occupied world is ticked in the
+    // same server tick, in which the uptime stands still, so the world that came first took every firing pass — base
+    // or no base — and the posts on every other world never fired.
+    private double _nextSentryFireAt { get => _worlds.Active.NextSentryFireAt; set => _worlds.Active.NextSentryFireAt = value; }
+    private double _nextSentryRescanAt { get => _worlds.Active.NextSentryRescanAt; set => _worlds.Active.NextSentryRescanAt = value; }
 
-    /// <summary>Cached sentry block cells per base id, refreshed on the rescan beat.</summary>
+    /// <summary>Cached sentry block cells per base id, refreshed on the rescan beat of the base's own world. One table
+    /// for the server: base ids are unique across bodies.</summary>
     private readonly Dictionary<int, List<Vector3i>> _sentryCells = new();
 
     /// <summary>Whether sentries do anything at all on this world — the same gate the machines themselves
@@ -73,7 +77,15 @@ public sealed partial class GameServer
         bool creaturesChanged = false;
         foreach (var b in _bases)
         {
-            if (b.Planet != _world.LocationId || !OwnerIsHome(b))
+            if (b.Planet != _world.LocationId)
+            {
+                // #2226: another world's base. Its cache is that world's pass to keep or drop — dropping it from here
+                // made two occupied worlds throw each other's cells away twice a second, each then re-walking its
+                // bases (the O(r³) zone scan, relay hops included) on every firing pass instead of every ten seconds.
+                continue;
+            }
+
+            if (!OwnerIsHome(b))
             {
                 _sentryCells.Remove(b.Id); // nobody home: drop the cache rather than keep it warm
                 continue;
@@ -82,6 +94,7 @@ public sealed partial class GameServer
             if (rescan || !_sentryCells.ContainsKey(b.Id))
             {
                 _sentryCells[b.Id] = FindSentryCells(b);
+                _sentryRescansForTest++;
             }
 
             foreach (var cell in _sentryCells[b.Id])
@@ -390,6 +403,12 @@ public sealed partial class GameServer
         _nextSentryRescanAt = 0;
         TickSentries();
     }
+
+    private int _sentryRescansForTest;
+
+    /// <summary>Test-only: how many times the firing pass has re-derived a base's sentry cells since start — once per
+    /// home base per rescan beat, and not on the passes in between (#2226).</summary>
+    public int SentryRescansForTest => _sentryRescansForTest;
 
     /// <summary>Test/inspection: how many sentry blocks the given base currently has.</summary>
     public int SentryCountForTest(int baseId)

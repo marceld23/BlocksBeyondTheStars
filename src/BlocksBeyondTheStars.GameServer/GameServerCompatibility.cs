@@ -28,8 +28,10 @@ public sealed partial class GameServer
     /// can tell "update the game" apart from "the server could not start".</summary>
     public const int SaveTooNewExitCode = 3;
 
-    /// <summary>What the log line of that refusal starts with — the same signal for a launcher that reads the
-    /// server's output instead of its exit code, and for a host that runs the server in its own process.</summary>
+    /// <summary>What the log MESSAGE of that refusal starts with — the same signal for a launcher that reads the
+    /// server's output instead of its exit code, and for a host that runs the server in its own process. The
+    /// message, not the line: the console logger puts the time and the level in front
+    /// (<c>… [ERROR] [fatal] save-too-new: …</c>), so a reader looks for the marker inside the line, not at its start.</summary>
     public const string SaveTooNewMarker = "[fatal] save-too-new";
 
     /// <summary>

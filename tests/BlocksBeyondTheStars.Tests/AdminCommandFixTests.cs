@@ -96,6 +96,13 @@ public sealed class AdminCommandFixTests : IDisposable
     private static List<string> LinesTo(List<(int Conn, object Msg)> sent, PlayerSession who)
         => sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ServerMessage>().Select(m => m.Text).ToList();
 
+    /// <summary>The refusals one player got for a command they typed: an <see cref="ActionRejected"/> with the action
+    /// "admin". That is the form the client's chat resolves into the scrollback, where the command was typed — an
+    /// "@srv." token in a plain <see cref="ServerMessage"/> only reaches the HUD toast.</summary>
+    private static List<string> RefusalsTo(List<(int Conn, object Msg)> sent, PlayerSession who)
+        => sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ActionRejected>()
+            .Where(r => r.Action == "admin").Select(r => r.Reason).ToList();
+
     /// <summary>The lines everyone got (a server-wide broadcast).</summary>
     private static List<string> LinesToAll(List<(int Conn, object Msg)> sent)
         => sent.Where(s => s.Conn == int.MinValue).Select(s => s.Msg).OfType<ServerMessage>().Select(m => m.Text).ToList();
@@ -262,7 +269,8 @@ public sealed class AdminCommandFixTests : IDisposable
             var sent = Run(server, t, admin, "set_time", "night");
 
             Assert.Equal(before, server.TimeOfDay);
-            Assert.Equal("@srv.admin.time_not_in_space", Assert.Single(LinesTo(sent, admin)));
+            Assert.Equal("@srv.admin.time_not_in_space", Assert.Single(RefusalsTo(sent, admin)));
+            Assert.Empty(LinesTo(sent, admin)); // no bare token in a plain line: the chat skips those
             Assert.DoesNotContain(sent, s => s.Msg is WorldEnvironment);
             Assert.DoesNotContain(sent, s => s.Msg is ServerMessage m && m.Text.StartsWith("@srv.admin.time_set", StringComparison.Ordinal));
         }
@@ -296,7 +304,8 @@ public sealed class AdminCommandFixTests : IDisposable
             var sent = Run(server, t, admin, "set_time", typed);
 
             Assert.Equal(before, server.TimeOfDay);
-            Assert.Equal("@srv.admin.time_unknown", Assert.Single(LinesTo(sent, admin)));
+            Assert.Equal("@srv.admin.time_unknown", Assert.Single(RefusalsTo(sent, admin)));
+            Assert.Empty(LinesTo(sent, admin)); // no bare token in a plain line: the chat skips those
             Assert.Empty(LinesToAll(sent)); // nobody is told the time was set
             Assert.DoesNotContain(sent, s => s.Msg is WorldEnvironment);
         }
@@ -353,12 +362,15 @@ public sealed class AdminCommandFixTests : IDisposable
                 Assert.Equal(key, server.WeatherSimForTest.State);
             }
 
+            // Anything else is refused with the line that names every key — "?" too, the word the usage line gives
+            // for exactly that list.
             Run(server, t, admin, "set_weather", "rain");
-            foreach (string? unknown in new[] { "hurricane", "cloud y", string.Empty, null })
+            foreach (string? unknown in new[] { "hurricane", "cloud y", "?", string.Empty, null })
             {
                 var sent = Run(server, t, admin, "set_weather", unknown);
                 Assert.Equal("rain", server.WeatherSimForTest.State);
-                Assert.Equal("@srv.admin.weather_unknown", Assert.Single(LinesTo(sent, admin)));
+                Assert.Equal("@srv.admin.weather_unknown", Assert.Single(RefusalsTo(sent, admin)));
+                Assert.Empty(LinesTo(sent, admin)); // no bare token in a plain line: the chat skips those
                 Assert.Empty(LinesToAll(sent));
             }
         }

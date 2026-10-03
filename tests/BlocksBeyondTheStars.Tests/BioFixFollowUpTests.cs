@@ -676,6 +676,50 @@ public sealed class BioFixFollowUpTests : IDisposable
         Assert.True(server.BioAnalysedForTest(p.State.PlayerId, seed));
     }
 
+    /// <summary>A pilot in space never reaches a lab — in the cockpit or on a spacewalk. A launch leaves the on-foot
+    /// position where it was (here: just inside the hull, three cells from a lab on the ground), the planet stays the
+    /// pilot's world, and a spacewalk used to cancel the cabin test: the lab on the world below answered from orbit.</summary>
+    [Fact]
+    public void TheLab_IsNotUsedFromSpace_AlsoNotOnASpacewalk()
+    {
+        var t = new NpcLifeWorld.RecordingTransport();
+        var server = NewServer("lab_orbit", tune: c =>
+        {
+            c.PlaceStarterShip = true;
+            c.Rules.FreeSpaceFlight = true;
+        }, transport: t);
+        var p = server.AddLocalPlayer("Pilot");
+        Assert.True(server.HasShip);
+        Empty(p.State.Inventory);
+        Assert.Equal(0, p.State.Inventory.Add("carbon", 5, 1024));
+
+        // The lab stands against the hull, outside; the pilot just inside the wall, aboard — the lab is in reach.
+        var (origin, size) = server.LandedShipBoundsForTest("Pilot");
+        int y = origin.Y + 1, z = origin.Z + (size.Z / 2);
+        server.World.SetBlock(new Vector3i(origin.X - 2, y, z), Block(BioItems.Lab));
+        p.State.Position = new Vector3f(origin.X + 1.5f, y, z + 0.5f);
+        p.State.AboardShip = true;
+        uint seed = server.GiveCreatureSampleForTest(p, Venomous(), 4);
+        string sample = ItemKey.WithSeed(BioItems.Sample, seed);
+
+        server.EnterSpace("Pilot");
+        Assert.True(server.InSpace("Pilot"));
+        foreach (bool spacewalk in new[] { false, true })
+        {
+            p.State.InEva = spacewalk;
+            server.BioLabForTest(p, new BioLabIntent { Action = BioLabIntent.Mix, Sample = seed });
+            server.BioLabForTest(p, new BioLabIntent { Action = BioLabIntent.Analyse, Sample = seed });
+        }
+
+        var refused = SentTo<BioLabResult>(t, p).ToList();
+        Assert.Equal(4, refused.Count);
+        Assert.All(refused, r => Assert.True(r is { Success: false, MessageKey: "srv.bio.need_lab" }, r.MessageKey));
+        Assert.Equal(4, p.State.SampleCase.CountOf(sample));
+        Assert.Equal(5, p.State.Inventory.CountOf("carbon"));
+        Assert.Empty(server.BioReactionsForTest(p.State.PlayerId));
+        Assert.False(server.BioAnalysedForTest(p.State.PlayerId, seed));
+    }
+
     // ---------------- 8. The air of a void world ----------------
 
     /// <summary>A station deck is a void world: the temperature its environment reports and the temperature the status

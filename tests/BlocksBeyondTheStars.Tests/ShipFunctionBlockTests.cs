@@ -137,9 +137,16 @@ public sealed class ShipFunctionBlockTests : IDisposable
             .OfType<ActionRejected>().LastOrDefault()?.Reason;
     }
 
-    /// <summary>How often VEGA has told this player that a block is only decoration aboard a ship.</summary>
+    /// <summary>How often VEGA has told this player that a block is only decoration aboard a ship — every time as a
+    /// system line (<see cref="ShipAiLine.Kind"/> 3). An advisor hint (kind 1) is muted for a player who switched VEGA's
+    /// hints off, and the notice's once-flag would be used up without the player ever reading it.</summary>
     private static int DecorNotices(NpcLifeWorld.RecordingTransport t, PlayerSession who)
-        => t.Sent.Count(s => s.Conn == who.ConnectionId && s.Msg is ShipAiLine { LineKey: DecorNotice });
+    {
+        var notices = t.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ShipAiLine>()
+            .Where(line => line.LineKey == DecorNotice).ToList();
+        Assert.All(notices, line => Assert.Equal(3, line.Kind));
+        return notices.Count;
+    }
 
     /// <summary>An ordinary block at one cell of a ship, for a player who has not heard the notice yet: it is built and
     /// paid for, and VEGA has nothing to say about it. It is taken out again, so the cell is free afterwards.</summary>

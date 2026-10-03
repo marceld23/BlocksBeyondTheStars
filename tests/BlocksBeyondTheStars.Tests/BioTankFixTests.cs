@@ -32,7 +32,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// the sampler takes a giant without stasis and names a full register, and an empty seedling says so. After the review
 /// of those fixes: a tank's clones come back as their own world's animals while another world is resident (#2226: the
 /// species tables are per world), the clones that are not back yet count against the cap, a plant cross waits until
-/// both its samples fit, a growing tank releases what it was started on and keeps its place inside the cap.
+/// both its samples fit, a growing tank releases what it was started on and keeps its place inside the cap. After the
+/// review of the per-world tables: a tamed guest clone and its wild sibling keep their movement profile when their world
+/// is loaded again.
 /// </summary>
 public sealed class BioTankFixTests : IDisposable
 {
@@ -714,6 +716,97 @@ public sealed class BioTankFixTests : IDisposable
         Assert.Empty(Clones(server));
         Assert.Equal(string.Empty, ConfigValue(server, Tank, "cl"));
         Assert.Equal("0", ConfigValue(server, Tank, "clones"));
+    }
+
+    [Fact]
+    public void ATamedGuestClone_AndItsWildSibling_StillMove_AfterTheirWorldWasLoadedAgain()
+    {
+        // A floor high above the terrain, so the animals and their owner share one level: 33 × 33 around the tank.
+        const int floorY = 199;
+        string guestId;
+        {
+            var server = NewServer(world: "petwalk");
+            var p = TankOwner(server);
+            var stone = Block("stone");
+            for (int x = -16; x <= 16; x++)
+            {
+                for (int z = -16; z <= 16; z++)
+                {
+                    server.World.SetBlock(new Vector3i(x, floorY, z), stone);
+                }
+            }
+
+            Assert.Equal(0, p.State.Inventory.Add("creature_translator", 1, 1));
+            foreach (string bait in new[] { "forage_bait", "meat_bait", "nectar_lure" })
+            {
+                Assert.Equal(0, p.State.Inventory.Add(bait, 50, 64));
+            }
+
+            // A land animal of another jungle world that is awake by day (the test world's clock stands in the morning),
+            // and a forgiving one, so the taming ritual is deterministic.
+            var foreign = CreatureGenerator.GenerateRoster(_content.GetPlanet("jungle")!, 4711)
+                .First(s => !s.Hostile && !s.IsGiant && s.Habitat == CreatureHabitat.Land && s.Activity is CreatureActivity.Cathemeral or CreatureActivity.Diurnal);
+            foreign.Temperament = CreatureTemperament.Passive;
+            uint seed = server.RegisterForeignCreatureForTest(foreign, "elsewhere");
+            Assert.True(server.GiveSampleForTest(p, seed, 2));
+            guestId = GrowClone(server, p, seed).SpeciesId;
+            GrowClone(server, p, seed);
+            Assert.StartsWith("gx", guestId);
+            Assert.True(server.LocomotionProfileForTest(guestId).CruiseSpeed > 0f); // grown here: the tank registered all of it
+
+            // One of the two becomes a companion; its sibling stays the tank's clone.
+            p.State.Position = Clones(server)[0].Position;
+            server.TameDecodeForTest("Keeper");
+            for (int i = 0; i < 30 && server.TameCurrentNeedForTest("Keeper") is { Length: > 0 } need; i++)
+            {
+                server.TameRespondForTest("Keeper", need);
+            }
+
+            Assert.Equal(guestId, Assert.Single(server.TamedCreaturesForTest("Keeper")).SpeciesId);
+            Assert.Equal(guestId, Assert.Single(Clones(server)).SpeciesId);
+            p.State.Position = new Vector3f(0.5f, floorY + 1, 0.5f);
+            server.SaveAllForTest();
+            server.Stop();
+        }
+
+        {
+            // The world is loaded again: its species table holds the roster and nothing of the guest. The owner's pet
+            // is put beside them first (on a join, or by the creature tick) — before the world's first Crystal Net beat
+            // brings the tank's clone back.
+            var server = NewServer(world: "petwalk");
+            var p = server.AddLocalPlayer("Keeper");
+            p.State.AboardShip = false;
+            p.State.GodMode = true;
+            server.ReconcileCompanionsForTest();
+            var pet = Assert.Single(server.CompanionEntitiesForTest("Keeper"));
+            Assert.Equal(guestId, pet.SpeciesId);
+            Assert.Empty(Clones(server));
+            Assert.True(server.LocomotionProfileForTest(guestId).CruiseSpeed > 0f, "the pet's species came without a movement profile");
+
+            Ticks(server, 1.0, 0.1);
+            Assert.Same(pet, Assert.Single(server.CompanionEntitiesForTest("Keeper")));
+            var wild = Assert.Single(Clones(server));
+            Assert.Equal(guestId, wild.SpeciesId);
+
+            // Both are stepped with a real movement profile, not the all-zero default of an id the world has none for.
+            var profile = server.LocomotionProfileForTest(guestId);
+            Assert.True(profile.CruiseSpeed > 0f, "the guest species has no movement profile on the reloaded world");
+            Assert.True(profile.BurstSpeed > 0f);
+
+            // And they really move. The owner walks ten blocks along the floor (inside the 24-block leash, which would
+            // only snap the pet along): the pet comes after them, and the wild clone wanders off its spot.
+            p.State.Position = new Vector3f(pet.Position.X < 0 ? pet.Position.X + 10f : pet.Position.X - 10f, pet.Position.Y, pet.Position.Z);
+            static double FlatDistance(Vector3f a, Vector3f b) => Math.Sqrt(((a.X - b.X) * (a.X - b.X)) + ((a.Z - b.Z) * (a.Z - b.Z)));
+            double gap = FlatDistance(pet.Position, p.State.Position);
+            var wildAt = wild.Position;
+            Ticks(server, 30.0, 0.1);
+
+            Assert.Same(pet, Assert.Single(server.CompanionEntitiesForTest("Keeper")));
+            Assert.True(FlatDistance(pet.Position, p.State.Position) < gap - 3.0,
+                $"the pet did not follow its owner: {gap:0.0} blocks apart before, {FlatDistance(pet.Position, p.State.Position):0.0} after");
+            Assert.Same(wild, Assert.Single(Clones(server)));
+            Assert.True(FlatDistance(wild.Position, wildAt) > 0.5, "the wild clone did not leave its spot");
+        }
     }
 
     [Fact]

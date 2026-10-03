@@ -41,9 +41,18 @@ public sealed partial class GameServer
     /// the pass walks every live entity — it stays off the hot path.</summary>
     private const double BurnInterval = 0.5;
 
-    private double _nextBurnAt;
-    private double _lastBurnAt;
-    private bool _burnPrimed;
+    /// <summary>The longest time one burn pass may account for. A slow tick still burns its real time up to here; what
+    /// lies beyond is no slow tick but a world that was not ticked at all (#2226) — a resident world nobody stands on
+    /// (the home body while its players are elsewhere or offline) keeps its animals where they were, and none of them
+    /// stood in the fire for those minutes.</summary>
+    private const double MaxBurnStep = 2 * BurnInterval;
+
+    // #2226: the gate and its clock are per world (see LoadedWorld). They were the server's: every occupied world is
+    // ticked in the same server tick, in which the uptime stands still, so the world that came first took every pass
+    // and nothing burned on the others.
+    private double _nextBurnAt { get => _worlds.Active.NextBurnAt; set => _worlds.Active.NextBurnAt = value; }
+    private double _lastBurnAt { get => _worlds.Active.LastBurnAt; set => _worlds.Active.LastBurnAt = value; }
+    private bool _burnPrimed { get => _worlds.Active.BurnPrimed; set => _worlds.Active.BurnPrimed = value; }
 
     /// <summary>Whether the world burns NPCs at all: the same gate that spares the player on a Creative world
     /// or one with environmental hazards switched off.</summary>
@@ -58,9 +67,11 @@ public sealed partial class GameServer
             return;
         }
 
-        // Real elapsed time, not the nominal interval: a stalled or slow tick must not silently change the
-        // burn rate. The very first pass after a start or a resume burns nothing — it has no interval yet.
-        float dt = _burnPrimed ? (float)(_uptime - _lastBurnAt) : 0f;
+        // Real elapsed time, not the nominal interval: a slow tick must not silently change the burn rate. The
+        // very first pass after a start or a resume burns nothing — it has no interval yet. It is the time since
+        // THIS world's last pass (#2226), up to MaxBurnStep: a world that was not ticked for a while must not
+        // burn the whole gap in its first pass back.
+        float dt = _burnPrimed ? (float)System.Math.Min(_uptime - _lastBurnAt, MaxBurnStep) : 0f;
         _burnPrimed = true;
         _lastBurnAt = _uptime;
         _nextBurnAt = _uptime + BurnInterval;
