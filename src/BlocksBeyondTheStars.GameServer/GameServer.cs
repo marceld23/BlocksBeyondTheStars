@@ -7878,15 +7878,22 @@ public sealed partial class GameServer
     }
 
     /// <summary>Points the Active cursor at the resident world for a body. True if it is the current world
-    /// or a cached one; false if not loaded (an occupied world is always loaded, so it normally succeeds).</summary>
+    /// or a cached one; false if not loaded (an occupied world is always loaded, so it normally succeeds).
+    /// <para>#2226: the shared generator follows the cursor. It keeps the mode — size, cratering, landing pads, the
+    /// body's own salt, the ore boost — of whichever world configured it last (a world load, a chunk generated
+    /// inline), while the systems of the world under the cursor ask it directly: the creature spawner, the giants,
+    /// the ground-height fallback. With two worlds resident they read the other body's terrain. The mode is applied
+    /// on every call, also when the cursor already points here — another world's chunk generation moves the
+    /// generator without moving the cursor — and an unchanged mode costs a comparison.</para></summary>
     private bool SetActiveWorld(string locationId)
     {
-        if (_worlds.Active != null && _worlds.Active.LocationId == locationId)
+        if ((_worlds.Active == null || _worlds.Active.LocationId != locationId) && !_worlds.SetActive(locationId))
         {
-            return true;
+            return false;
         }
 
-        return _worlds.SetActive(locationId);
+        _worlds.Active!.World.ApplyGeneratorMode();
+        return true;
     }
 
     /// <summary>The distinct bodies that currently have at least one joined player (the worlds to tick).</summary>
