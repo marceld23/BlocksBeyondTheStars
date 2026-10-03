@@ -20,29 +20,49 @@ public sealed partial class GameServer
     private const string StealthItem = "stealth_suit";
     private const float StealthDrainPerSecond = 3f; // suit energy spent while cloaked
 
+    // Since #2206 a worn piece may carry changes from the bio lab in its key, and since #2202 a preparation may add to a
+    // stat for a while. Both join the gear formula of their stat and share ITS cap: neither ever lifts a player above
+    // what the best gear allows.
+
     /// <summary>Total physical-damage resistance (0..0.75) from carried armor pieces.</summary>
     private float ArmorResistance(PlayerState p)
-        => SuitEquipment.ArmorResistance(_content.Items.Values, key => p.Equipment.Has(key, 1));
+        => System.Math.Min(SuitEquipment.MaxArmorResistance,
+            SuitEquipment.ArmorResistance(_content.Items.Values, key => Wears(p, key))
+            + Shared.Bio.GearMods.Bonus(WornKeys(p), Shared.Bio.ModStat.Armor));
 
     /// <summary>Maximum suit oxygen — base 100 plus the best carried tank's bonus (tiers do not stack).</summary>
     private float MaxOxygen(PlayerState p)
-        => SuitEquipment.MaxOxygen(_content.Items.Values, key => p.Equipment.Has(key, 1));
+        => SuitEquipment.MaxOxygen(_content.Items.Values, key => Wears(p, key))
+           + Shared.Bio.GearMods.Bonus(WornKeys(p), Shared.Bio.ModStat.Oxygen);
 
-    /// <summary>Best carried thermal insulation 0..0.9 (#669); only the BEST piece counts.</summary>
+    /// <summary>Best carried thermal insulation 0..0.9 (#669); only the BEST piece counts. A heat ward counts in the heat,
+    /// a cold ward in the cold (#2202).</summary>
     private float ThermalInsulation(PlayerState p)
-        => SuitEquipment.ThermalInsulation(_content.Items.Values, key => p.Equipment.Has(key, 1));
+    {
+        float temperature = FindSessionByPlayerId(p.PlayerId)?.EffectiveTemperatureC ?? 15f;
+        float ward = temperature > Shared.Bio.BioRules.HotAbove ? Shared.Bio.PlayerEffects.ThermalBonus(p.Effects, hot: true)
+            : temperature < Shared.Bio.BioRules.ColdBelow ? Shared.Bio.PlayerEffects.ThermalBonus(p.Effects, hot: false)
+            : 0f;
+        return System.Math.Min(SuitEquipment.MaxThermalInsulation,
+            SuitEquipment.ThermalInsulation(_content.Items.Values, key => Wears(p, key))
+            + Shared.Bio.GearMods.Bonus(WornKeys(p), Shared.Bio.ModStat.Insulation) + ward);
+    }
 
     /// <summary>Best carried corrosion resistance 0..0.8 (#2026, the suit liners); only the BEST piece counts.</summary>
     private float CorrosionResistance(PlayerState p)
-        => SuitEquipment.CorrosionResistance(_content.Items.Values, key => p.Equipment.Has(key, 1));
+        => System.Math.Min(SuitEquipment.MaxCorrosionResistance,
+            SuitEquipment.CorrosionResistance(_content.Items.Values, key => Wears(p, key))
+            + Shared.Bio.GearMods.Bonus(WornKeys(p), Shared.Bio.ModStat.Corrosion)
+            + Shared.Bio.PlayerEffects.Of(p.Effects, Shared.Bio.BioEffect.ToxinWard));
 
     /// <summary>Best scanner knowledge multiplier from carried scanners (1 = no bonus).</summary>
     /// <summary>The scanner bonus comes from a TOOL in the pack (the advanced scanner is held, not worn) — or from worn gear.</summary>
     private float ScanMultiplier(PlayerState p)
-        => SuitEquipment.ScanMultiplier(_content.Items.Values, key => p.Inventory.Has(key, 1) || p.Equipment.Has(key, 1));
+        => SuitEquipment.ScanMultiplier(_content.Items.Values, key => p.Inventory.Has(key, 1) || Wears(p, key));
 
-    /// <summary>Applies armor resistance to an incoming physical-damage amount.</summary>
-    private float Mitigate(PlayerState p, float damage) => damage * (1f - ArmorResistance(p));
+    /// <summary>Applies armor resistance to an incoming physical-damage amount. What is left hits the shield cushion of a
+    /// preparation first (#2202) — the return value is what reaches the health.</summary>
+    private float Mitigate(PlayerState p, float damage) => AbsorbWithShield(p, damage * (1f - ArmorResistance(p)));
 
     /// <summary>Toggles the stealth field on/off if the player carries a stealth suit and has energy.</summary>
     public void ToggleStealth(string playerId)
@@ -124,11 +144,27 @@ public sealed partial class GameServer
     // ---------------- Equipment slots (#2110) ----------------
 
     /// <summary>True while the gear is WORN in one of the suit's slots — the only place gear works since #2110.</summary>
-    private static bool Wears(PlayerState p, string key) => p.Equipment.Has(key, 1);
+    /// A piece the bio lab changed (#2206) carries its changes in its key and is still the same piece: the base key decides.
+    private static bool Wears(PlayerState p, string key)
+    {
+        foreach (var stack in p.Equipment.Slots)
+        {
+            if (stack is { IsEmpty: false } && (stack.Item == key || ItemKey.Base(stack.Item) == key))
+            {
+                return true;
+            }
+        }
 
-    /// <summary>Total fall protection (0..0.75) of the worn gear — the boots.</summary>
+        return false;
+    }
+
+    /// <summary>Total fall protection (0..0.75) of the worn gear — the boots; a changed piece and a feather-fall
+    /// preparation add to it under the same cap.</summary>
     private float FallProtection(PlayerState p)
-        => SuitEquipment.FallProtection(_content.Items.Values, key => p.Equipment.Has(key, 1));
+        => System.Math.Min(SuitEquipment.MaxFallProtection,
+            SuitEquipment.FallProtection(_content.Items.Values, key => Wears(p, key))
+            + Shared.Bio.GearMods.Bonus(WornKeys(p), Shared.Bio.ModStat.Fall)
+            + Shared.Bio.PlayerEffects.Of(p.Effects, Shared.Bio.BioEffect.FeatherFall));
 
     /// <summary>The one-time migration of a save written before the slots existed: the best wearable piece of every kind
     /// moves from the backpack into its slot, so nobody loses an active effect on the day the slots arrive.</summary>

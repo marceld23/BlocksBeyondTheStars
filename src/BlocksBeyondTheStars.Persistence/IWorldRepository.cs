@@ -566,6 +566,14 @@ public interface IWorldRepository : IDisposable
     /// <summary>Lists every persisted story-pack state (restored once at server start).</summary>
     IReadOnlyList<StoredStoryState> ListStoryStates();
 
+    /// <summary>Stores (inserts or replaces) a small named JSON document (#2201): data that belongs to the save or to one
+    /// player or world but must not ride in a record that is rewritten on every autosave — the bio lab's species
+    /// register, a player's research book, a world's bred plants. The caller owns the JSON; written only on change.</summary>
+    void SaveNamedBlob(string key, string json);
+
+    /// <summary>The named JSON document stored under <paramref name="key"/>, or null when there is none.</summary>
+    string? LoadNamedBlob(string key);
+
     /// <summary>Stores (inserts or replaces) a player-built space station (item 20 S4).</summary>
     void SaveSpaceStructure(StoredSpaceStructure structure);
 

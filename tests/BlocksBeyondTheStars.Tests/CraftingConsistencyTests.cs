@@ -184,6 +184,10 @@ public sealed class CraftingConsistencyTests
             "basic_drill", "scrap_pistol", // starter hotbar kit
             "ai_memory_fragment",          // VEGA data-terminal structure loot
             "toxic_berries",               // runtime poison variant of a toxic flora's berries
+            // The bio lab (#2201–#2209): samples come with a harvest, everything else is made in the lab, which
+            // computes its results from the samples and has no recipes.
+            "bio_sample", "mineral_sample", "seedling",
+            "prep_injector", "prep_gel", "prep_bar", "prep_capsule", "prep_coating",
         };
 
         var obtainable = Obtainable();

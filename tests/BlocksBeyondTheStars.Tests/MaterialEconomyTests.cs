@@ -201,6 +201,8 @@ public sealed class MaterialEconomyTests
             "armor_legs", "helmet", "oxygen_tank_3", "suit_liner_3", "suit_lamp", "jetpack", "radar_scanner", "galaxy_radio",
             "boots", // #2110: the feet slot's piece
             "climbing_claws", // #2192: the top climbing module (the gloves go into it)
+            // #2201/#2204/#2206: used up in the bio lab, which computes its results and has no recipes to list them in.
+            "bio_sample", "mineral_sample", "prep_coating",
         };
         var unconsumedComponents = _c.Items.Values
             .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))

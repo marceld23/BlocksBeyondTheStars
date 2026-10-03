@@ -331,6 +331,12 @@ namespace BlocksBeyondTheStars.Client
                     ? FloraTints.ToRgb24(FloraTints.RainbowAt(pos.X, pos.Y, pos.Z), strength)
                     : 0;
             }, ids);
+
+            // #2209: a bred plant keeps its packed form in the cell's glow channel — the index must read that as
+            // the form (a light only when the form glows), never as a light colour.
+            World.SetFormBlocks(Content.GetBlock(BlocksBeyondTheStars.Shared.Bio.FloraForm.BlockKey) is { } bred
+                ? new[] { bred.NumericId.Value }
+                : null);
         }
 
         /// <summary>The mesher's tint lookup: a flora block's per-world colour, black (= "use the global
@@ -1118,6 +1124,13 @@ namespace BlocksBeyondTheStars.Client
         /// ("reconnect shortly") apart from an unexpected connection loss.</summary>
         public bool MaintenanceRestartPending;
 
+        /// <summary>The bio lab on the client (#2201-#2206): the sample case, the running effects, the research book.</summary>
+        public BioClientState Bio { get; } = new BioClientState();
+
+        /// <summary>What the bio lab last answered, and a counter that goes up with every answer (the lab panel shows it once).</summary>
+        public BioLabResult LastBioLabResult { get; private set; }
+        public int BioLabResultCount { get; private set; }
+
         // Latest authoritative inventory (personal + ship cargo) for the UI.
         public NetItemStack[] Personal { get; private set; } = System.Array.Empty<NetItemStack>();
 
@@ -1164,7 +1177,20 @@ namespace BlocksBeyondTheStars.Client
         {
             SuitOxygenMax = Content == null
                 ? BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseOxygen
-                : BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxOxygen(Content.Items.Values, Wears); // #2110: worn, not carried
+                : BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxOxygen(Content.Items.Values, Wears) // #2110: worn, not carried
+                  + BlocksBeyondTheStars.Shared.Bio.GearMods.Bonus(WornKeys(), BlocksBeyondTheStars.Shared.Bio.ModStat.Oxygen); // #2206: what the lab changed on a worn piece
+        }
+
+        /// <summary>The item keys of the worn gear — what the lab changed on a piece rides in its key (#2206).</summary>
+        public IEnumerable<string> WornKeys()
+        {
+            foreach (var s in Equipment)
+            {
+                if (s.Count > 0)
+                {
+                    yield return s.Item;
+                }
+            }
         }
         public NetItemStack[] Cargo { get; private set; } = System.Array.Empty<NetItemStack>();
 
@@ -2344,6 +2370,7 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.BlockChanged += OnBlockChanged;
             Network.PlayerStateUpdated += OnPlayerState;
+            Network.InventoryUpdated += Bio.OnInventory; // #2201: the sample case rides the inventory update
             Network.InventoryUpdated += m =>
             {
                 // Pickup feed (#745): surface what this update ADDED. The first update after a join is
@@ -2439,6 +2466,8 @@ namespace BlocksBeyondTheStars.Client
             Network.BeamsReceived += m => Beams = m.Beams ?? System.Array.Empty<NetBeam>();
             Network.CrystalNetsReceived += m => CrystalNets = m.Nets ?? System.Array.Empty<NetCrystalNet>();
             Network.CrystalDevicesReceived += m => CrystalDevices = m.Devices ?? System.Array.Empty<NetCrystalDevice>();
+            Network.BioBookReceived += Bio.OnBook; // #2203: the research book
+            Network.BioLabResultReceived += m => { LastBioLabResult = m; BioLabResultCount++; };
             Network.SoundFxReceived += m => ClientAudio.Instance?.Fx(m, ScenePos(m.X, m.Y, m.Z)); // #2052
             Network.BeamTeleportedReceived += m => RespawnTarget = new Vector3(m.X, m.Y, m.Z); // snap the body onto the destination pad
             Network.BasesReceived += m => Bases = m.Bases ?? System.Array.Empty<NetBase>();
@@ -2871,6 +2900,8 @@ namespace BlocksBeyondTheStars.Client
         {
             Network?.Poll();
             _worldClock.Advance(Time.deltaTime); // after Poll, so a PauseState that just landed takes effect now
+            Bio.Tick(Time.deltaTime); // #2202: the effect seconds run between two server updates
+            BioSenses.Ensure(this);   // #2202: night sight and perception — the component arrives with the first such effect
             TickWeatherSmoothing();
             WorldMinimap.Pump(); // #2172: planet map bakes — worker threads on desktop, time slices in the browser
 
@@ -3613,6 +3644,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            Bio.OnPlayerState(m); // #2202: the running status effects and the shield cushion
             Health = m.Health;
             Oxygen = m.Oxygen;
             SuitEnergy = m.SuitEnergy;

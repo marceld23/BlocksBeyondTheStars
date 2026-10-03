@@ -113,6 +113,14 @@ public sealed partial class GameServer
                 UseCreatureTranslator(session, target);
                 cooldown = TranslatorCooldown;
                 break;
+            case BlocksBeyondTheStars.Shared.Bio.BioItems.Sampler: // #2201: a sample from a living animal, without harm
+                if (!UseBioSampler(session, target))
+                {
+                    return; // nothing in reach, a hostile one, too soon: costs neither energy nor cooldown
+                }
+
+                cooldown = TranslatorCooldown;
+                break;
             case "weather_scanner":
                 SendWeatherForecast(session);
                 cooldown = WeatherScannerCooldown;

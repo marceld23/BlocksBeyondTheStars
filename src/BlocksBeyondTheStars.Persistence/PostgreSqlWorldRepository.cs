@@ -107,6 +107,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS crew_member (
                 crew_id TEXT NOT NULL, player_id TEXT NOT NULL, joined TEXT NOT NULL, PRIMARY KEY (crew_id, player_id));
             CREATE TABLE IF NOT EXISTS story_state (story_id TEXT PRIMARY KEY, json TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS named_blob (key TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS location_status (id TEXT PRIMARY KEY, status TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS mission (id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS space_structure (
@@ -1876,6 +1877,32 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         return result;
     }
 
+    // --- Named blobs (#2201: the bio lab's register, research books, bred plants) ---
+
+    public void SaveNamedBlob(string key, string json)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO named_blob (key, json) VALUES (@key, @json) " +
+                              "ON CONFLICT(key) DO UPDATE SET json = excluded.json;";
+            cmd.Parameters.AddWithValue("@key", key);
+            cmd.Parameters.AddWithValue("@json", json);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public string? LoadNamedBlob(string key)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT json FROM named_blob WHERE key = @key;";
+            cmd.Parameters.AddWithValue("@key", key);
+            return cmd.ExecuteScalar() as string;
+        }
+    }
+
     // --- Location status ---
 
     public void SetLocationStatus(string locationId, string status)
@@ -2028,7 +2055,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
     private static readonly string[] BackupTables =
     {
         "world_meta", "block_edit", "player", "player_ref", "ship", "container", "door", "beacon", "beam",
-        "base_claim", "alliance", "story_state", "location_status", "mission",
+        "base_claim", "alliance", "story_state", "named_blob", "location_status", "mission",
         "space_structure", "structure_edit", "flora_regrow", "fluid_cell", "fire_cell",
     };
 

@@ -24,7 +24,8 @@ public static class ItemNames
     /// name — the client passes its <c>CustomShapeRegistry</c> lookup; callers without one (or an id the
     /// save no longer knows) fall back to the generic form suffix, never to a raw key.
     /// </summary>
-    public static string Display(Localizer localizer, string itemKey, System.Func<int, string?>? customFormName = null)
+    public static string Display(Localizer localizer, string itemKey, System.Func<int, string?>? customFormName = null,
+        System.Func<uint, string?>? speciesName = null)
     {
         if (localizer is null || string.IsNullOrEmpty(itemKey))
         {
@@ -33,6 +34,28 @@ public static class ItemNames
 
         var (baseKey, tint, glow) = ItemKey.Parse(itemKey);
         string name = localizer.Get($"item.{baseKey}.name");
+
+        // The bio lab's keys (#2201, #2204, #2206): a sample names its species, a preparation what it does, a changed
+        // tool or piece of gear says that it was changed. <paramref name="speciesName"/> is the caller's species lookup
+        // (the client's research book); without one a sample is just a sample.
+        if (Bio.BioItems.FormOf(baseKey) is { } form)
+        {
+            return Bio.Compound.FromPayload(form, ItemKey.GetTag(itemKey, ItemKey.SeedTag)) is { } compound
+                ? name + " · " + Bio.BioItems.EffectLabel(localizer, compound.Effect, compound.Level)
+                : name;
+        }
+
+        if (Bio.BioItems.CarriesSpecies(baseKey))
+        {
+            uint seed = ItemKey.Seed(itemKey);
+            string? species = seed == 0 ? null : speciesName?.Invoke(seed);
+            return string.IsNullOrEmpty(species) ? name : name + " · " + species;
+        }
+
+        if (!Bio.ItemMods.Of(itemKey).IsEmpty)
+        {
+            name += " · " + localizer.Get("ui.bio.changed");
+        }
 
         if (glow != 0)
         {

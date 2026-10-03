@@ -178,6 +178,8 @@ TEXTURES = [
     ("fabricator", "a sci-fi automatic workbench block, dark metal machine with a small robotic arm over a work surface and a violet crystal status window, front view"),
     ("caller", "a sci-fi animal caller block, dark metal post with a brass whistle and a violet crystal tuning fork, front view"),
     ("clone_tank", "a sci-fi cloning tank block, dark metal frame around a glass cylinder of glowing teal fluid with rising bubbles, front view"),
+    # #2210 the bio lab (2026-10-03): the front of the lab block.
+    ("bio_lab", "a sci-fi biology lab bench block, dark metal machine front with a round glass sample chamber of glowing green fluid, a small teal status screen and a row of sample vials, front view"),
     ("auto_drill_1", "a sci-fi auto-drill mk1 block, compact dark metal rig with a single steel drill bit pointing down and one violet crystal light, front view"),
     ("auto_drill_2", "a sci-fi auto-drill mk2 block, heavier dark metal rig with twin steel drill bits pointing down, carbide edges and two violet crystal lights, front view"),
     ("auto_drill_3", "a sci-fi auto-drill mk3 block, massive dark metal rig with a wide diamond-tipped drill head pointing down and three glowing violet crystal lights, front view"),

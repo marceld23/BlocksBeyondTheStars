@@ -188,6 +188,10 @@ internal sealed class LoadedWorld
     public List<(string Type, Vector3f Pos)> WreckMarkers { get; } = new();
     public Dictionary<Vector3i, (ushort FloraId, double Timer, int Tint)> FloraRegrow { get; } = new();
 
+    /// <summary>#2209: the species seed of every bred plant on this world, by cell — so a harvest yields its sample and the
+    /// regrowth puts the same plant back. Persisted as one named blob per world.</summary>
+    public Dictionary<Vector3i, uint> BredPlants { get; } = new();
+
     /// <summary>#1507: the far-column streaming band per chunk column (see <c>GameServer.FarColumnBand</c>). The
     /// band is a pure function of the column's terrain surface and the world's sea level, so it is computed once
     /// per column instead of once per player per tick (a SurfaceHeight call = a full noise chain each).</summary>

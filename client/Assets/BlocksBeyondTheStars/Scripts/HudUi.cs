@@ -111,6 +111,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Warn, Init;
             public Color BaseColor;
             public string LastLabel;
+            public string Suffix;          // shown after the value (#2202: the shield cushion on the health row)
             public int LastValue, LastMax;
             public bool LabelDirty;
             public float TargetFrac, ShownFrac, GhostFrac, TargetValue, ShownValue; // motion state (AnimateVitals)
@@ -119,6 +120,25 @@ namespace BlocksBeyondTheStars.Client
         private const float VitalBarW = 178f;
         private VitalRow[] _vitals;
         private float _lowVitalBeepTimer; // shared low-vitals alarm cadence (#753)
+
+        // Running effects of the bio lab's preparations (#2202): one small row per effect inside the vitals panel,
+        // under its last bar — a dot in the effect's colour, "Speed III", the time left as m:ss, and the catch in
+        // amber to the right of the panel. Pooled like the pickup feed; the panel grows by the rows it shows.
+        private sealed class EffectRow
+        {
+            public GameObject Go;
+            public Image Dot, SideMark;
+            public TMP_Text Label, Left, Side;
+            public int Effect = -1, Level = -1, Seconds = -1, SideEffect = -1; // what the row shows (written on change only)
+            public float Y = -1f;
+            public object Loc;
+        }
+
+        private readonly System.Collections.Generic.List<EffectRow> _effectRows = new System.Collections.Generic.List<EffectRow>();
+        private const float EffectRowH = 20f;
+        private int _shieldShown;      // the shield cushion the health row shows (rounded up)
+        private string _shieldSuffix;
+        private object _shieldLoc;
 
         private UiKit.QuickSlot[] _hotbar;
         private GameObject _hotbarRoot; // backplate + cells + rings, toggled together when flying
@@ -155,6 +175,7 @@ namespace BlocksBeyondTheStars.Client
 
         private int _lastSelSlot = -1; // hotbar selection tick state
         private System.Func<int, string> _customFormName; // cached resolver for ItemNames.Display (per-frame path)
+        private System.Func<uint, string> _speciesName;   // …and the species lookup of a sample's or seedling's name (#2201)
 
         // Pickup feed (#745): a short right-aligned column just above the hotbar's right end, one row per
         // collected item ("icon  +n name"). Repeat pickups of the same item merge and count up instead of
@@ -993,8 +1014,16 @@ namespace BlocksBeyondTheStars.Client
             _locTitle.text = loc.Get("ui.hud.location").ToUpperInvariant();
             _locPlace.text = place;
 
-            // Vitals.
-            SetVital(0, loc.Get("ui.hud.health"), Game.Health, Game.Health / 100f, Health, true);
+            // Vitals. #2202: a shield preparation's cushion rides on top of the 100 — "+12 Shield" after the health value.
+            int shield = Mathf.CeilToInt(Game.Bio.Shield);
+            if (shield != _shieldShown || !ReferenceEquals(loc, _shieldLoc))
+            {
+                _shieldShown = shield;
+                _shieldLoc = loc;
+                _shieldSuffix = shield > 0 ? "  +" + shield + " " + loc.Get("ui.bio.shield") : null;
+            }
+
+            SetVital(0, loc.Get("ui.hud.health"), Game.Health, Game.Health / 100f, Health, true, 0f, _shieldSuffix);
             // Base life-support field (#782): a founded base's zone (the shared radius cube around its
             // base_core) always breathes. Client-side mirror of the server's check, HUD feedback only —
             // announced once on entry and spelled out on the O2 bar, but only where it matters (worlds
@@ -1075,6 +1104,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float vitalsHeight = (ship ? 196f : 116f) + (exposure ? 24f : 0f);
+
+            // #2202: the running effects, as rows under the last bar; the panel grows by what they need, and
+            // VitalsBottomY with it (the flight overlay parks its readout below that edge).
+            float effectsTop = 8f + (4 + (ship ? 2 : 0) + (exposure ? 1 : 0)) * 24f;
+            int effectRows = RefreshEffects(loc, effectsTop);
+            if (effectRows > 0)
+            {
+                vitalsHeight = Mathf.Max(vitalsHeight, effectsTop + effectRows * EffectRowH + 10f);
+            }
+
             _vitalsPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(226, vitalsHeight);
             VitalsBottomY = VitalsPanelY + vitalsHeight;
 
@@ -1178,7 +1217,10 @@ namespace BlocksBeyondTheStars.Client
                 else if (!string.IsNullOrEmpty(Game.AimedStationBlock))
                 {
                     // #1073: "Workbench — crafting: menu (Tab) → Crafting" — the block names the tab it powers.
-                    prompt = loc.Get("ui.station.block." + Game.AimedStationBlock);
+                    // #2203: the bio lab has a panel of its own, so its prompt names the Interact glyph instead.
+                    prompt = Game.AimedStationBlock == BlocksBeyondTheStars.Shared.Bio.BioItems.Lab
+                        ? string.Format(loc.Get("ui.bio.prompt"), InteractGlyph(loc))
+                        : loc.Get("ui.station.block." + Game.AimedStationBlock);
                 }
                 else if (Game.AimedCrystalDevice is { } crystalDev)
                 {
@@ -1427,7 +1469,7 @@ namespace BlocksBeyondTheStars.Client
             return new VitalRow { Fill = fill, Ghost = ghost, Label = label, Go = go, ShownFrac = -1f };
         }
 
-        private void SetVital(int i, string label, float value, float frac, Color color, bool active, float max = 0f)
+        private void SetVital(int i, string label, float value, float frac, Color color, bool active, float max = 0f, string suffix = null)
         {
             var v = _vitals[i];
             if (v.Go.activeSelf != active) v.Go.SetActive(active);
@@ -1457,13 +1499,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int shownMax = max > 0f ? Mathf.RoundToInt(max) : 0; // 0 = no "/ max" suffix (#1585)
-            if (shownMax != v.LastMax || !ReferenceEquals(label, v.LastLabel))
+            if (shownMax != v.LastMax || !ReferenceEquals(label, v.LastLabel) || !ReferenceEquals(suffix, v.Suffix))
             {
                 v.LabelDirty = true;
             }
 
             v.LastMax = shownMax;
             v.LastLabel = label;
+            v.Suffix = suffix;
             UpdateVitalText(ref v);
             _vitals[i] = v;
         }
@@ -1480,7 +1523,96 @@ namespace BlocksBeyondTheStars.Client
 
             v.LastValue = shown;
             v.LabelDirty = false;
-            v.Label.text = v.LastMax > 0 ? $"{v.LastLabel}  {shown} / {v.LastMax}" : $"{v.LastLabel}  {shown}";
+            v.Label.text = v.LastMax > 0 ? $"{v.LastLabel}  {shown} / {v.LastMax}" : $"{v.LastLabel}  {shown}{v.Suffix}";
+        }
+
+        // --- running effects (#2202) ---
+
+        /// <summary>Shows the running effects as rows inside the vitals panel, the first at <paramref name="top"/>;
+        /// returns how many rows are up. A label is only written when what it shows changed — the seconds tick once
+        /// a second, this runs at the refresh's 10 Hz.</summary>
+        private int RefreshEffects(BlocksBeyondTheStars.Shared.Localization.Localizer loc, float top)
+        {
+            var effects = Game.Bio.Effects;
+            int count = effects.Count;
+            for (int i = 0; i < count; i++)
+            {
+                if (i >= _effectRows.Count)
+                {
+                    _effectRows.Add(MakeEffectRow());
+                }
+
+                var row = _effectRows[i];
+                var e = effects[i];
+                if (!row.Go.activeSelf)
+                {
+                    row.Go.SetActive(true);
+                }
+
+                float y = top + i * EffectRowH;
+                if (!Mathf.Approximately(y, row.Y))
+                {
+                    row.Y = y;
+                    UiKit.Place(row.Go, 10f, y, 206f, EffectRowH);
+                }
+
+                bool relabel = !ReferenceEquals(loc, row.Loc); // the language changed under the HUD
+                row.Loc = loc;
+                if (relabel || (int)e.Effect != row.Effect || e.Level != row.Level)
+                {
+                    row.Effect = (int)e.Effect;
+                    row.Level = e.Level;
+                    row.Dot.color = BioLabUi.EffectColor(e.Effect);
+                    row.Label.text = BlocksBeyondTheStars.Shared.Bio.BioItems.EffectLabel(loc, e.Effect, e.Level);
+                }
+
+                int seconds = Mathf.Max(0, Mathf.CeilToInt(e.SecondsLeft));
+                if (seconds != row.Seconds)
+                {
+                    row.Seconds = seconds;
+                    row.Left.text = (seconds / 60) + ":" + (seconds % 60).ToString("00");
+                }
+
+                int side = e.SideLevel > 0 ? (int)e.Side : 0;
+                if (relabel || side != row.SideEffect)
+                {
+                    row.SideEffect = side;
+                    row.SideMark.enabled = side != 0;
+                    row.Side.text = side != 0 ? loc.Get("bio.side." + e.Side.ToString().ToLowerInvariant()) : string.Empty;
+                }
+            }
+
+            for (int i = count; i < _effectRows.Count; i++)
+            {
+                if (_effectRows[i].Go.activeSelf)
+                {
+                    _effectRows[i].Go.SetActive(false);
+                }
+            }
+
+            return count;
+        }
+
+        /// <summary>One effect row: the colour dot, the name with its level, the time left — and, to the right of the
+        /// panel, the catch behind a down triangle (drawn: the HUD's SDF font carries no ▼ glyph).</summary>
+        private EffectRow MakeEffectRow()
+        {
+            var go = new GameObject("effect_row", typeof(RectTransform));
+            go.transform.SetParent(_vitalsPanel.transform, false);
+            UiKit.Place(go, 10f, 0f, 206f, EffectRowH);
+
+            var dot = UiKit.AddImage(go.transform, 5f, 5f, 10f, 10f, UiKit.DiscSprite, Color.white);
+            var label = UiText.Add(go.transform, 22f, 1f, 134f, 18f, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
+            var left = UiText.Add(go.transform, 158f, 1f, 42f, 18f, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Normal, UiText.Look.Outline);
+
+            var mark = UiKit.AddImage(go.transform, 224f, 6f, 9f, 9f, UiKit.TriangleSprite, UiKit.Warn);
+            var markRt = mark.rectTransform; // turned upside down around its own centre
+            markRt.pivot = new Vector2(0.5f, 0.5f);
+            markRt.anchoredPosition = new Vector2(228.5f, -10.5f);
+            markRt.localRotation = Quaternion.Euler(0f, 0f, 180f);
+            var side = UiText.Add(go.transform, 238f, 1f, 170f, 18f, string.Empty, 12, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
+
+            return new EffectRow { Go = go, Dot = dot, SideMark = mark, Label = label, Left = left, Side = side };
         }
 
         /// <summary>Motion layer for the vitals (per frame): the fill eases to its target, a dim ghost trails
@@ -1700,7 +1832,8 @@ namespace BlocksBeyondTheStars.Client
                 // glance. Resolved through the shared helper — a dyed/shaped/painted stack carries its
                 // modifier in the key, and a raw item.{key}.name lookup renders as the bracketed key (#927).
                 string name = BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(loc, item,
-                    _customFormName ??= idx => Game.CustomShapes?.NameOf(idx));
+                    _customFormName ??= idx => Game.CustomShapes?.NameOf(idx),
+                    _speciesName ??= seed => Game.Bio.SpeciesName(seed)); // #2201: a seedling names its species
                 s.Name.text = sel ? name : (name.Length > 10 ? name.Substring(0, 9) + "…" : name);
                 s.Name.color = sel ? UiKit.Cyan : UiKit.TextCol;
             }
@@ -1806,7 +1939,8 @@ namespace BlocksBeyondTheStars.Client
                 // Same #927 rule as the hotbar caption: mined dyed/shaped/painted drops arrive with a
                 // composite key, which must never reach the locale table raw.
                 row.Label.text = $"+{row.Count} " + BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(
-                    Game.Localizer, item, _customFormName ??= idx => Game.CustomShapes?.NameOf(idx));
+                    Game.Localizer, item, _customFormName ??= idx => Game.CustomShapes?.NameOf(idx),
+                    _speciesName ??= seed => Game.Bio.SpeciesName(seed));
                 changed = true;
             }
 

@@ -24,6 +24,60 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧪 The bio lab — samples with seeds, preparations with status effects, changed tools and gear, cloning and crossing (#2212: #2200–#2211, 2026-10-03, branch feat/bio-lab) — ✅ done (unreleased; ⚠ playtest open)
+
+**Request (Marcel, 2026-10-03).** Harvested things — raw materials, plants and animals — should carry the seed of
+their source; a clone bench makes clones, crosses and new creatures and plants from them; a lab mixes flora and fauna
+products into substances with status effects; and a lab bench combines materials and bio products with tools to give
+them extra properties. Rule from the design note: **generate properties, compute reactions — no recipe list**; what a
+species carries follows planet → biome → species; materials keep fixed traits (copper conducts everywhere) and get
+origin values per world. Decisions: samples in a sample case (no seeded stacks); one bio lab block + the existing clone
+tank; a fixed reaction table; mild side effects; a shield cushion instead of more health; non-lethal sampling;
+school-club species clone and cross like any other; animals may be grown on other worlds; bred plants get new forms and
+grow anywhere with non-corrosive air and clean ground, also on a hydro tray and in a flower pot; material origin acts
+in the lab only; experiments may fail; everything in one go.
+
+- **✅ Seeds and profiles (#2200):** `Shared/Bio/`: `BioHash` (integer hashing, seeds folded from existing data — no
+  new random draws, no terrain-generation bump), `BioContexts` (planet / biome / species → tags + scarcity points),
+  `BioProfiles.Derive` (19 effects, strength I–XV on a flattening curve, rarity from real scarcity, mild side effects,
+  substance groups). Profiles are derived on server and client alike and never stored. Item keys carry the seed
+  behind the tag `x`.
+- **✅ Samples and the sample case (#2201):** `PlayerState.SampleCase` (24 × 20). One sample per harvest of a plant,
+  a natural tree, a defeated animal, a companion's gift; a mineral sample from the first block of a deposit and one
+  natural block in eight after that (a placed block yields none). The **sampler** gadget samples a living animal
+  without harm. The save's species register and each player's research book live in the new `named_blob` table, out
+  of the autosaved player record.
+- **✅ Status effects (#2202):** at most three at once, each inside the gear formula it joins and under that
+  formula's cap; a 30-point shield cushion; stealth capped at 60 s; heat- and cold-sensitive substances. Movement
+  effects (speed, jump, grip) on the client, everything else on the server.
+- **✅ The bio lab block, analysis, handbook (#2203):** `bio_lab` (workshop, blueprint after Bio-Refining). Analysing
+  uses one sample, reveals the species' profile and pays knowledge once. The scanner shows "substance unknown /
+  analysed". Codex chapters for substances, compounds and materials.
+- **✅ Synthesis (#2204):** sample + carrier (form: injector, gel, bar, capsule, coating) + stabiliser + second sample;
+  an 8×8 reaction table (amplify, inhibit, couple, transmute), stability, failed mixes, a detox wash. The result rides
+  in the preparation's key, so equal preparations stack. Known mixes show their result beforehand.
+- **✅ Material profiles (#2205):** `labTraits` on 47 materials (fixed), plus purity, one shifted trait and a trace
+  trait per deposit. The origin acts in the lab only; ordinary recipes are untouched.
+- **✅ Changed tools and gear (#2206):** material + coating → two gains and a drawback in the item key (tag `u`).
+  Never the tier, the mining radius or ignition; no wear; wash-off. Upgrade recipes accept a changed item.
+- **✅ Clone tank on samples (#2207):** animals from samples, also on other worlds (guest species from the register);
+  habitat rule for water and lava animals; 16 living clones per world.
+- **✅ Crossing animals (#2208):** blueprint Crossing; deterministic child (body of one parent, colours of the other,
+  mixed size and speed, sometimes a new trait), never hostile, up to three generations.
+- **✅ Breeding plants (#2209):** a plant cross has a new form; one block `flora_hybrid` whose voxel carries colour and
+  packed form; seedlings from the lab; regrowth of the same plant; 256 per world.
+- **✅ Assets (#2210):** ten OpenAI item icons, the `bio_lab` block texture, six ElevenLabs sounds (logged in
+  NOTICES.md and SOUND_DESIGN.md §14).
+- **✅ Docs + texts (#2211):** USER_MANUAL § "The bio lab" (+ scanning, crafting, greenhouses, clone tank), new
+  developer doc `docs/developer/BIO_LAB.md`, CRYSTAL_NET.md, Codex article `bio-lab` (+ knowledge, farming, taming,
+  crystal-net), VEGA hints; all new keys in all 14 languages (machine pass + hand QA).
+- **Tests:** `BioRulesTests` (28), `BioLabTests` (23), `BredPlantLightTests`; `NetCodecTests` golden list.
+- **⚠ Open:** playtest the whole loop (sample → analyse → mix → take → change a drill → clone on another world →
+  cross → plant a seedling), the balance of the caps and the lab UI with gamepad and touch (WebGL). Possible
+  follow-ups: a ration-store slot for preparations, companion bonuses from crosses, trading rare samples.
+
+---
+
 ### 🧗 Wall climbing on planets, moons and asteroids — grab, grip, pull-up, climbing gear (#2195: #2188–#2194, 2026-10-03, branch feat/wall-climbing) — ✅ done (released in v2026.10.3; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-03).** You should be able to climb vertical walls on planets, moons and asteroids (not in

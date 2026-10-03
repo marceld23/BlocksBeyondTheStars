@@ -565,6 +565,12 @@ public static class NetCodec
         // #2173: the live weather of every body in the system (orbit view + map layers). No protocol bump — older
         // peers drop the unknown tag.
         Register(281, typeof(SystemWeather));                // Server -> Client
+
+        // #2201-#2206 the bio lab: the research book, what a player does at a lab, and what the lab answers. No protocol
+        // bump — older peers drop the unknown tags.
+        Register(282, typeof(BioBook));                      // Server -> Client
+        Register(283, typeof(BioLabIntent));                 // Client -> Server
+        Register(284, typeof(BioLabResult));                 // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

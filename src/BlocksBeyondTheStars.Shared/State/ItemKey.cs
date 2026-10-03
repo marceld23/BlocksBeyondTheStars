@@ -152,6 +152,95 @@ public static class ItemKey
         return sb.ToString();
     }
 
+    // --- Free-form tags (the bio lab): a tag letter followed by lowercase hex digits. The species seed of a sample
+    // rides after 'x', what the lab changed on a tool or a piece of gear after 'u'. Like every tag these must not be
+    // hex digits and must not be one of t / g / s / p. ---
+
+    /// <summary>The tag of a species seed (eight hex digits) and of a preparation's compound (ten).</summary>
+    public const char SeedTag = 'x';
+
+    /// <summary>The hex digits that follow <paramref name="tag"/> in the key, or an empty string when the key has no such
+    /// tag. Allocation-free for a plain key.</summary>
+    public static string GetTag(string? key, char tag)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return string.Empty;
+        }
+
+        int hash = key!.IndexOf(Separator);
+        if (hash < 0)
+        {
+            return string.Empty;
+        }
+
+        int at = key.IndexOf(tag, hash + 1);
+        if (at < 0)
+        {
+            return string.Empty;
+        }
+
+        int end = at + 1;
+        while (end < key.Length && IsHexDigit(key[end]))
+        {
+            end++;
+        }
+
+        return key.Substring(at + 1, end - at - 1);
+    }
+
+    /// <summary>The key with <paramref name="tag"/> set to <paramref name="hex"/> (an empty value removes the tag). Every
+    /// other part of the key stays as it is; a key left without any tag is the plain base key.</summary>
+    public static string SetTag(string key, char tag, string hex)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return key;
+        }
+
+        int hash = key.IndexOf(Separator);
+        string root = hash < 0 ? key : key.Substring(0, hash);
+        var sb = new System.Text.StringBuilder(key.Length + hex.Length + 2);
+        if (hash >= 0)
+        {
+            // Copy every other tag with its digits.
+            int i = hash + 1;
+            while (i < key.Length)
+            {
+                int start = i++;
+                while (i < key.Length && IsHexDigit(key[i]))
+                {
+                    i++;
+                }
+
+                if (key[start] != tag)
+                {
+                    sb.Append(key, start, i - start);
+                }
+            }
+        }
+
+        if (hex.Length > 0)
+        {
+            sb.Append(tag).Append(hex);
+        }
+
+        return sb.Length == 0 ? root : root + Separator + sb;
+    }
+
+    /// <summary>The species seed a sample or a seedling carries, or 0 for none.</summary>
+    public static uint Seed(string? key)
+    {
+        string hex = GetTag(key, SeedTag);
+        return hex.Length == 8 && uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint seed) ? seed : 0u;
+    }
+
+    /// <summary>The key of <paramref name="baseKey"/> carrying a species seed.</summary>
+    public static string WithSeed(string baseKey, uint seed)
+        => SetTag(Base(baseKey), SeedTag, seed.ToString("x8", CultureInfo.InvariantCulture));
+
+    private static bool IsHexDigit(char c) => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+
     private static int Field(string key, char tag)
     {
         if (string.IsNullOrEmpty(key))

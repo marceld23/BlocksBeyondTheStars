@@ -97,6 +97,8 @@ wire field (`NetCreature.Alerting`):
   an approaching robber away.
 - **Produce:** every 600 s a present companion spills its species' `DropItem` at its feet (fetch picks it up; a
   penned pet stockpiles).
+  Since #2201 the gift also puts one **sample** of the companion's species into the owner's sample case
+  (`BioOnCompanionGift`) — the way to a sample without harming anything; see [BIO_LAB.md](BIO_LAB.md).
 - Tests: `CompanionPayoffTests`.
 
 **Feed & bond (#1225, `GameServerCompanionBond.cs`):** `FeedCompanionIntent` (NetCodec 228) spends any of the

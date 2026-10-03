@@ -81,7 +81,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Fill any cue that has no bundled recording with a code-synthesized version, so the whole
             // game is audible even with no recorded assets (recordings, when present, take priority).
-            foreach (var id in ProceduralAudio.KnownIds.Concat(ProceduralAudio.CrystalIds).Concat(ProceduralAudio.NoteIds))
+            foreach (var id in ProceduralAudio.KnownIds.Concat(ProceduralAudio.CrystalIds).Concat(ProceduralAudio.NoteIds).Concat(ProceduralAudio.BioIds))
             {
                 if (!_clips.ContainsKey(id))
                 {

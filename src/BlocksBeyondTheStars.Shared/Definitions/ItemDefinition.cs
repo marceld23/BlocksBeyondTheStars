@@ -150,6 +150,15 @@ public sealed class ItemDefinition
     /// claws).</summary>
     public bool ClimbIce { get; set; }
 
+    /// <summary>What this material <i>is</i>, wherever it was mined (#2205): trait name → level 1..3, e.g.
+    /// <c>{ "conductive": 3, "heavy": 1 }</c> (<see cref="Bio.MatTrait"/>). The bio lab reads it for stabilisers and for
+    /// changing tools and gear; a deposit's origin only moves these levels by one. Null = no lab traits.</summary>
+    public Dictionary<string, int>? LabTraits { get; set; }
+
+    /// <summary>The form this item makes as a carrier in the bio lab's mixer (#2204): "injector", "gel", "bar",
+    /// "capsule" or "coating" (<see cref="Bio.BioForm"/>). Null = not a carrier.</summary>
+    public string? LabCarrier { get; set; }
+
     /// <summary>What the item looks like in the hand (#1962): the boxes of its model. Null = the model every item
     /// of its kind has (a basic drill, a plain gun …). Data, so a content pack can give a new tool its own look
     /// and so a player's own tool looks (#1963) and the official ones are the same kind of thing.</summary>

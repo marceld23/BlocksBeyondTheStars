@@ -100,6 +100,13 @@ namespace BlocksBeyondTheStars.Client
             "fabricator_craft" => Clang("fabricator_craft", 520f, 0.35f, 0.35f),
             "clone_tank_bubble" => Loop("clone_tank_bubble", 2.0f, t => (Mathf.Sin(t * 37f) * Mathf.Sin(t * 5.3f) > 0.85f ? 0.5f : 0f) * Mathf.Sin(t * 2200f) * 0.25f),
             "auto_drill_loop" => Loop("auto_drill_loop", 1.5f, t => (Mathf.Sin(t * 620f) * 0.35f + Mathf.Sin(t * 47f) * 0.15f) * 0.5f),
+            // #2210 bio lab cues — code-synthesized fallbacks; the bundled recordings of the same names take priority.
+            "bio_lab_analyse" => Sweep("bio_lab_analyse", 620f, 1480f, 0.45f, 0.22f),
+            "bio_lab_mix" => Bubbles("bio_lab_mix", 0.7f, 0.3f),
+            "bio_lab_fail" => Fizzle("bio_lab_fail", 0.5f, 0.3f),
+            "bio_effect_start" => SoftChime("bio_effect_start", rising: true),
+            "bio_effect_end" => SoftChime("bio_effect_end", rising: false),
+            "bio_sample_take" => NoiseHit("bio_sample_take", 0.14f, 0.35f, 2400f, 34f), // the sampler's short pneumatic snip
             var note when note.StartsWith("note_", System.StringComparison.Ordinal) => Note(note),
             _ => null,
         };
@@ -211,6 +218,89 @@ namespace BlocksBeyondTheStars.Client
             "note_3_6",
             "note_3_7",
         };
+
+        // --- Bio lab helpers (#2210) ---
+
+        /// <summary>The bio lab's cue ids the synthesizer can stand in for: the lab at work (analyse, mix, a mix
+        /// that failed), a preparation's effect setting in and wearing off, and the sampler taking a sample.</summary>
+        public static readonly string[] BioIds =
+        {
+            "bio_lab_analyse", "bio_lab_mix", "bio_lab_fail", "bio_effect_start", "bio_effect_end", "bio_sample_take",
+        };
+
+        /// <summary>A soft scan sweep: one tone gliding from <paramref name="lo"/> to <paramref name="hi"/> under
+        /// a swell, with a faint octave on top.</summary>
+        private static AudioClip Sweep(string name, float lo, float hi, float dur, float vol) => Buf(name, dur, d =>
+        {
+            float phase = 0f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float p = i / (float)d.Length;
+                phase += 2f * Mathf.PI * Mathf.Lerp(lo, hi, p) / Rate; // the frequency is integrated, so the glide is even
+                d[i] = (Mathf.Sin(phase) + 0.25f * Mathf.Sin(phase * 2f)) * Mathf.Sin(Mathf.PI * p) * vol;
+            }
+        });
+
+        /// <summary>A short bubbling: a handful of small "blub"s at uneven moments, each a quick chirp upward.</summary>
+        private static AudioClip Bubbles(string name, float dur, float vol) => Buf(name, dur, d =>
+        {
+            const int count = 7;
+            const float blub = 0.085f;
+            var rng = new System.Random(StableHash(name));
+            for (int b = 0; b < count; b++)
+            {
+                float start = (b + (float)rng.NextDouble() * 0.6f) / count * (dur - blub);
+                float hz = 320f + (float)rng.NextDouble() * 420f;
+                float amp = vol * (0.6f + (float)rng.NextDouble() * 0.4f);
+                int first = (int)(start * Rate), len = (int)(blub * Rate);
+                for (int i = 0; i < len && first + i < d.Length; i++)
+                {
+                    float t = i / (float)Rate;
+                    float p = i / (float)len;
+                    // the pitch rises as the bubble closes; the sine window keeps every blub free of clicks
+                    d[first + i] += Mathf.Sin(2f * Mathf.PI * hz * (1f + 0.9f * p) * t) * Mathf.Sin(Mathf.PI * p) * amp;
+                }
+            }
+        });
+
+        /// <summary>A short fizzle: a hiss that thins out fast over a tone sagging away — the mix that failed.</summary>
+        private static AudioClip Fizzle(string name, float dur, float vol) => Buf(name, dur, d =>
+        {
+            var rng = new System.Random(StableHash(name));
+            float lp = 0f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float noise = (float)(rng.NextDouble() * 2 - 1);
+                lp += (noise - lp) * 0.35f;
+                float hiss = (noise - lp) * Mathf.Exp(-t * 7f); // what the low-pass leaves out: the bright part of the noise
+                float sag = Mathf.Sin(2f * Mathf.PI * (260f - 240f * t) * t) * Mathf.Exp(-t * 9f) * 0.5f;
+                d[i] = (hiss * 0.7f + sag) * Mathf.Min(1f, t * 200f) * vol;
+            }
+        });
+
+        /// <summary>A gentle three-note chime whose soft bell notes ring into each other — rising when an effect
+        /// sets in, falling when it wears off.</summary>
+        private static AudioClip SoftChime(string name, bool rising) => Buf(name, 1f, d =>
+        {
+            float[] notes = rising ? new[] { 659.25f, 880f, 1108.73f } : new[] { 1108.73f, 880f, 659.25f }; // E5, A5, C#6
+            for (int n = 0; n < notes.Length; n++)
+            {
+                int first = (int)(n * 0.16f * Rate);
+                for (int i = first; i < d.Length; i++)
+                {
+                    float t = (i - first) / (float)Rate;
+                    float bell = Mathf.Sin(2f * Mathf.PI * notes[n] * t) + 0.2f * Mathf.Sin(2f * Mathf.PI * notes[n] * 2f * t);
+                    d[i] += bell * Mathf.Min(1f, t * 150f) * Mathf.Exp(-t * 5.5f) * 0.16f;
+                }
+            }
+
+            int fade = Rate / 20; // the last ring is still sounding at the end of the clip — let it out without a click
+            for (int i = 0; i < fade; i++)
+            {
+                d[d.Length - 1 - i] *= i / (float)fade;
+            }
+        });
 
         private static AudioClip Buf(string name, float seconds, System.Action<float[]> fill)
         {

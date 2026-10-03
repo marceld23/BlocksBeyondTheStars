@@ -675,6 +675,20 @@ public sealed partial class GameServer
                     fresh = CrystalConfigWith(fresh, "key", cell.BlockKey); // nor is the drill's tier
                 }
 
+                if (cell.Kind == CrystalDeviceKind.CloneTank)
+                {
+                    // #2207: what a tank is growing and how many clones it holds is the server's to say — a client
+                    // that set it could release a species it never paid for.
+                    foreach (string owned in new[] { "growing", "clones", TankGrowKey })
+                    {
+                        string? kept = CrystalConfigValue(cell.Config, owned);
+                        if (kept is not null || CrystalConfigValue(fresh, owned) is not null)
+                        {
+                            fresh = CrystalConfigWith(fresh, owned, kept ?? string.Empty);
+                        }
+                    }
+                }
+
                 cell.Config = fresh;
                 if (intent.Label is { Length: > 0 })
                 {
@@ -1546,7 +1560,9 @@ public sealed partial class GameServer
         }
 
         var crate = AdjacentCrystalCrate(c.Cell, out _);
-        if (crate is null || !NpcDepositToContainer(crate, def.Drops))
+        // #2209: a bred plant yields what its body parent's form yields, not the bred-plant block's own drops.
+        uint bredSeed = IsBredPlant(id.Value) ? BredSeedAt(above) : 0;
+        if (crate is null || !NpcDepositToContainer(crate, bredSeed != 0 ? BredYield(bredSeed) : def.Drops))
         {
             return; // no crate, or no room: the crop stays standing
         }

@@ -3006,6 +3006,12 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2202: a preparation from the bio lab starts its effect instead of being eaten like food.
+        if (TryTakePreparation(session, itemKey))
+        {
+            return;
+        }
+
         var p = session.State;
         var item = _content.GetItem(itemKey);
         if (item is null || item.Category != ItemCategory.Consumable)

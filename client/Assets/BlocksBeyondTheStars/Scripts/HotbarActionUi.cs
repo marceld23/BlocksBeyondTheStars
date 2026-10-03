@@ -201,7 +201,11 @@ namespace BlocksBeyondTheStars.Client
             // Swap is always available (an empty slot can still receive something from the backpack);
             // Close always works. Positive z-rotation is counter-clockwise: +90° = left, -90° = right.
             var top = AddWedge(t, 0f, L("ui.hotbar_action.swap"), true, () => Rebuild(BuildSwap));
-            var left = AddWedge(t, 90f, L("ui.hotbar_action.colour"), tintable, () => Rebuild(BuildColour));
+            // #2202: a preparation is taken, never dyed — its left wedge is "Take" (the right-click, for a pad or a
+            // tablet too). The full key goes out: the compound rides in it and the server finds the stack by it.
+            var left = TakesAsPreparation(_item)
+                ? AddWedge(t, 90f, L("ui.bio.use"), true, TakePreparation)
+                : AddWedge(t, 90f, L("ui.hotbar_action.colour"), tintable, () => Rebuild(BuildColour));
             var right = AddWedge(t, -90f, L("ui.hotbar_action.form"), shapeable, () => Rebuild(BuildForm));
             var bottom = AddWedge(t, 180f, L("ui.hotbar_action.close"), true, Close);
             WireRing(top, right, bottom, left);
@@ -604,6 +608,20 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>A preparation of the bio lab that is taken (injector, gel, bar, capsule) — not the coating,
+        /// which goes onto a tool in the lab.</summary>
+        private static bool TakesAsPreparation(string item)
+            => !string.IsNullOrEmpty(item)
+               && BlocksBeyondTheStars.Shared.Bio.BioItems.FormOf(ItemKey.Base(item)) is { } form
+               && form != BlocksBeyondTheStars.Shared.Bio.BioForm.Coating;
+
+        private void TakePreparation()
+        {
+            Game.Network?.SendConsume(_item);
+            ClientAudio.Instance?.Cue("eat");
+            Close();
+        }
+
         private BlocksBeyondTheStars.Shared.Definitions.BlockDefinition HeldBlockDef()
         {
             if (string.IsNullOrEmpty(_item) || Game.Content == null)
@@ -758,9 +776,11 @@ namespace BlocksBeyondTheStars.Client
         // item.{key}.name lookup would render the bracketed key — the bug this panel shipped with.
         private string ItemName(string item)
             => BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(Game.Localizer, item,
-                _customFormName ??= idx => Game.CustomShapes?.NameOf(idx));
+                _customFormName ??= idx => Game.CustomShapes?.NameOf(idx),
+                _speciesName ??= seed => Game.Bio.SpeciesName(seed)); // #2201: a seedling names its species
 
         private System.Func<int, string> _customFormName;
+        private System.Func<uint, string> _speciesName;
 
         private string ShortName(string item)
         {

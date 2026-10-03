@@ -34,6 +34,9 @@ namespace BlocksBeyondTheStars.Client
         private string _label = string.Empty;
 
         private const float W = 980f, H = 760f;
+        private const float TankH = 960f; // #2208: the clone tank lists a species AND a partner — a taller panel fits both
+
+        private float PanelH => KindOf(_dev) == CrystalDeviceKind.CloneTank ? TankH : H;
 
         private void Awake() => Instance = this;
 
@@ -105,7 +108,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void Build()
         {
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (1920f - W) * 0.5f, (1080f - H) * 0.5f, W, H);
+            float h = PanelH;
+            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (1920f - W) * 0.5f, (1080f - h) * 0.5f, W, h);
             _overlay = overlay;
             _panel = panel;
             var kind = KindOf(_dev);
@@ -154,8 +158,17 @@ namespace BlocksBeyondTheStars.Client
                     y = ListRows(panel, y, L("ui.crystal.recipe"), RecipeOptions(), "recipe");
                     break;
                 case CrystalDeviceKind.CloneTank:
-                    y = ListRows(panel, y, L("ui.crystal.species"), SpeciesOptions(), "sp");
+                {
+                    // #2207/#2208: the species to grow and, to cross it, a second one — two lists that share what is
+                    // left of the panel. "Nothing" as the partner is a plain clone.
+                    float each = (h - 90f - y - 2f * 36f - 12f) * 0.5f;
+                    var species = SpeciesOptions();
+                    var partners = new List<(string Value, string Text)> { (string.Empty, L("ui.crystal.partner_none")) };
+                    partners.AddRange(species);
+                    y = ListRows(panel, y, L("ui.crystal.species"), species, "sp", each) + 12f;
+                    y = ListRows(panel, y, L("ui.crystal.partner"), partners, "x", each);
                     break;
+                }
             }
 
             _ = y;
@@ -164,14 +177,14 @@ namespace BlocksBeyondTheStars.Client
                 or CrystalDeviceKind.DrillLaser;
             if (machine)
             {
-                UiKit.AddButton(panel, 32f, H - 72f, 300f, 48f, L("ui.crystal.start"), () =>
+                UiKit.AddButton(panel, 32f, h - 72f, 300f, 48f, L("ui.crystal.start"), () =>
                 {
                     Game?.Network?.SendSetCrystalDevice(_dev.X, _dev.Y, _dev.Z, 1);
                     ClientAudio.Instance?.Cue("ui_confirm");
                 });
             }
 
-            UiKit.AddButton(panel, W - 32f - 220f, H - 72f, 220f, 48f, L("ui.crystal.close"), () =>
+            UiKit.AddButton(panel, W - 32f - 220f, h - 72f, 220f, 48f, L("ui.crystal.close"), () =>
             {
                 Game?.MarkMenuInputHandled();
                 Close();
@@ -255,12 +268,13 @@ namespace BlocksBeyondTheStars.Client
             return y + 120f;
         }
 
-        /// <summary>A scrollable list of options for the pairing kinds; the chosen one is lit.</summary>
-        private float ListRows(Transform panel, float y, string title, List<(string Value, string Text)> options, string key)
+        /// <summary>A scrollable list of options for the pairing kinds; the chosen one is lit. It takes what is left of
+        /// the panel unless <paramref name="height"/> says how tall it is (the clone tank stacks two).</summary>
+        private float ListRows(Transform panel, float y, string title, List<(string Value, string Text)> options, string key, float height = 0f)
         {
             UiKit.AddText(panel, 32f, y, W - 64f, 30f, title, 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
             y += 36f;
-            float listH = Mathf.Max(120f, H - 90f - y);
+            float listH = height > 0f ? height : Mathf.Max(120f, PanelH - 90f - y);
             var list = UiKit.ScrollList(panel, 32f, y, W - 64f, listH, 6f);
             string current = ConfigValue(key) ?? string.Empty;
             if (options.Count == 0)
@@ -347,7 +361,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#2097: the species the server allows this tank's owner to clone here — scanned or tamed on this world,
-        /// never a hostile one — as "id|coined name" in the device's <c>Choices</c>. Empty → nothing to pick yet.</summary>
+        /// never a hostile one — as "id|coined name" in the device's <c>Choices</c>. Empty → nothing to pick yet.
+        /// #2207: an id that starts with "g:" is a sample from the owner's sample case (a species of any world); its
+        /// label says so.</summary>
         private List<(string, string)> SpeciesOptions()
         {
             var result = new List<(string, string)>();
@@ -356,8 +372,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 int bar = choice.IndexOf('|');
                 if (bar <= 0) continue;
+                string id = choice.Substring(0, bar);
                 string name = choice.Substring(bar + 1);
-                result.Add((choice.Substring(0, bar), string.IsNullOrEmpty(name) ? L("ui.crystal.unnamed") : name));
+                if (string.IsNullOrEmpty(name)) name = L("ui.crystal.unnamed");
+                if (id.StartsWith("g:", System.StringComparison.Ordinal)) name += " (" + L("ui.crystal.sample") + ")";
+                result.Add((id, name));
             }
 
             result.Sort((a, b) => string.CompareOrdinal(a.Item2, b.Item2));

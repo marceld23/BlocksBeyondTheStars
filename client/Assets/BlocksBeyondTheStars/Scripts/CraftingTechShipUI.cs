@@ -330,6 +330,8 @@ namespace BlocksBeyondTheStars.Client
                     // Notes (#1844): count + the server-answer counter only — never the note text, or every
                     // keystroke echoed by the server would rebuild the editor under the player's cursor.
                     + (Game.Notes?.Length ?? 0) * 1511 + Game.NotesVersion * 1523
+                    // #2201: the sample case and the research book (a sample taken, a species analysed) — the Samples page.
+                    + Game.Bio.Revision * 1613
                     // #2140: a planet-scanner report arrived, or a module was built / removed (the scan button's gate).
                     + Game.PlanetScanVersion * 1601 + (Game.ShipCombat?.Modules?.Length ?? 0) * 1607
                     // The local custom pixel face + body paintings: applying one in the editor must rebuild the
@@ -1052,6 +1054,7 @@ namespace BlocksBeyondTheStars.Client
                     list.Add(("personal", L("ui.inventory.backpack"), "cat_inventory"));
                     list.Add(("suit", L("ui.inventory.suit"), "cat_suit")); // the backpack filtered to suit gear + its effects (#1270/#1271)
                     list.Add(("cargo", L("ui.cargo.title"), "cat_cargo"));
+                    list.Add(("samples", L("ui.inventory.samples"), "cat_medicine")); // #2201: the sample case of the bio lab
                     if (CatalogAvailable())
                     {
                         list.Add(("catalog", L("ui.inventory.catalog"), "cat_all")); // Sandbox: every item, nothing to craft (#1930)
@@ -1930,6 +1933,11 @@ namespace BlocksBeyondTheStars.Client
                 return BuildInventoryGrid(); // #2110: the nine-wide slot grid with the worn row
             }
 
+            if (_category == "samples")
+            {
+                return BuildSampleList(); // #2201: the sample case
+            }
+
             var items = _category == "cargo" ? Game.Cargo : Game.Personal;
             if (_category == "suit" && items != null)
             {
@@ -1982,6 +1990,42 @@ namespace BlocksBeyondTheStars.Client
             {
                 AddCard(y, ItemName(s.Item), IconFor(s.Item), "×" + s.Count, UiKit.CyanDim, "inv:" + s.Item, () => { _selected = "inv:" + s.Item; RebuildDetail(); }, contentKey: s.Item);
                 y += 88f;
+            }
+
+            return y;
+        }
+
+        /// <summary>#2201: the sample case as cards — what was taken from plants, animals and deposits, one stack per
+        /// species. Samples never lie in the backpack; the bio lab works with them, and a card's detail shows what an
+        /// analysed one holds.</summary>
+        private float BuildSampleList()
+        {
+            float y = 0f;
+            foreach (var s in Game.Bio.Samples)
+            {
+                if (s == null || s.Count <= 0 || string.IsNullOrEmpty(s.Item))
+                {
+                    continue;
+                }
+
+                string key = s.Item;
+                string origin = Game.Bio.Species.TryGetValue(ItemKey.Seed(key), out var species) ? species.OriginBodyName : string.Empty;
+                string status = "×" + s.Count + (string.IsNullOrEmpty(origin) ? string.Empty : "  ·  " + origin);
+                if (Game.Bio.Analysed(ItemKey.Seed(key)))
+                {
+                    status += "  ·  " + L("ui.bio.analysed");
+                }
+
+                AddCard(y, BioLabUi.SampleName(Game, key), "cat_medicine", status, UiKit.CyanDim, "smp:" + key,
+                    () => { _selected = "smp:" + key; RebuildDetail(); }, contentKey: key);
+                y += 88f;
+            }
+
+            if (y <= 0f)
+            {
+                var empty = UiKit.AddText(_listContent, 8, 8, 752, 60, L("ui.bio.empty_case"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                empty.horizontalOverflow = HorizontalWrapMode.Wrap;
+                return 76f;
             }
 
             return y;
@@ -2321,9 +2365,17 @@ namespace BlocksBeyondTheStars.Client
             var defs = Game.Content.Items.Values;
             bool Carried(string key) => Game.Wears(key); // #2110: worn, not carried
 
-            int armor = Mathf.RoundToInt(BlocksBeyondTheStars.Shared.State.SuitEquipment.ArmorResistance(defs, Carried) * 100f);
-            int oxygen = Mathf.RoundToInt(BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxOxygen(defs, Carried));
-            int insulation = Mathf.RoundToInt(BlocksBeyondTheStars.Shared.State.SuitEquipment.ThermalInsulation(defs, Carried) * 100f);
+            // #2206: what the bio lab changed on a worn piece joins the formula of its stat, under that formula's cap —
+            // the server's sums, so the line shows the numbers the suit really has.
+            var worn = Game.WornKeys();
+            int armor = Mathf.RoundToInt(Mathf.Min(BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxArmorResistance,
+                BlocksBeyondTheStars.Shared.State.SuitEquipment.ArmorResistance(defs, Carried)
+                + BlocksBeyondTheStars.Shared.Bio.GearMods.Bonus(worn, BlocksBeyondTheStars.Shared.Bio.ModStat.Armor)) * 100f);
+            int oxygen = Mathf.RoundToInt(BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxOxygen(defs, Carried)
+                + BlocksBeyondTheStars.Shared.Bio.GearMods.Bonus(worn, BlocksBeyondTheStars.Shared.Bio.ModStat.Oxygen));
+            int insulation = Mathf.RoundToInt(Mathf.Min(BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxThermalInsulation,
+                BlocksBeyondTheStars.Shared.State.SuitEquipment.ThermalInsulation(defs, Carried)
+                + BlocksBeyondTheStars.Shared.Bio.GearMods.Bonus(worn, BlocksBeyondTheStars.Shared.Bio.ModStat.Insulation)) * 100f);
             string line = L("ui.suit.status_armor").Replace("{value}", armor.ToString())
                 + "   ·   " + L("ui.suit.status_oxygen").Replace("{value}", oxygen.ToString())
                 + "   ·   " + L("ui.suit.status_insulation").Replace("{value}", insulation.ToString());
@@ -4402,7 +4454,11 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Crafting: y = DetailCrafting(); break;
                 case Mode.Tech: y = DetailTech(); break;
                 case Mode.Ship: y = DetailShip(); break;
-                case Mode.Inventory: y = _selected.StartsWith("cat:", System.StringComparison.Ordinal) ? DetailCatalog() : DetailInventory(); break;
+                case Mode.Inventory:
+                    y = _selected.StartsWith("cat:", System.StringComparison.Ordinal) ? DetailCatalog()
+                        : _selected.StartsWith("smp:", System.StringComparison.Ordinal) ? DetailSample()
+                        : DetailInventory();
+                    break;
                 case Mode.Missions: y = DetailMissions(); break;
             }
 
@@ -4829,13 +4885,85 @@ namespace BlocksBeyondTheStars.Client
             return -1;
         }
 
+        // ---------------- #2201–#2206: the bio lab's items, readable without the lab ----------------
+
+        /// <summary>A sample's card: what it is, where it is from and — once analysed in a bio lab — what it holds.</summary>
+        private float DetailSample()
+        {
+            string key = _selected.Substring(4);
+            uint seed = ItemKey.Seed(key);
+            Game.Bio.Species.TryGetValue(seed, out var species);
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 40, BioLabUi.SampleName(Game, key), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 48f;
+            UiKit.AddText(_detail, 8, y, 620, 28, BioLabUi.SampleOrigin(Game, key), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+            y += 38f;
+
+            bool analysed = Game.Bio.Analysed(seed);
+            bool mineral = ItemKey.Base(key) == BlocksBeyondTheStars.Shared.Bio.BioItems.MineralSample;
+            var profile = analysed && !mineral ? Game.Bio.ProfileOf(seed) : null;
+            var material = analysed && mineral ? BioLabUi.MaterialOf(Game, seed) : null;
+            if (profile != null)
+            {
+                y = AddEffectHeadline(y, profile.Effect, profile.Level);
+                return AddDetailPara(y, BioLabUi.ProfileText(Game, profile, species), UiKit.TextCol);
+            }
+
+            if (material != null)
+            {
+                return AddDetailPara(y, BioLabUi.MaterialText(Game, material, "\n"), UiKit.TextCol);
+            }
+
+            return AddDetailPara(y, L("ui.bio.unknown_substance"), UiKit.CyanDim);
+        }
+
+        /// <summary>What a backpack item of the bio lab carries in its key: a preparation's effect, catch and duration,
+        /// or what the lab changed on a tool or a piece of gear. Nothing for any other item.</summary>
+        private float AddBioItemInfo(string item, float y)
+        {
+            if (BlocksBeyondTheStars.Shared.Bio.BioItems.CompoundOf(item) is { } compound)
+            {
+                y = AddEffectHeadline(y, compound.Effect, compound.Level);
+                return AddDetailPara(y, BioLabUi.CompoundText(Game, compound, true), UiKit.TextCol) + 8f;
+            }
+
+            var mods = BlocksBeyondTheStars.Shared.Bio.ItemMods.Of(item);
+            if (!mods.IsEmpty)
+            {
+                UiKit.AddText(_detail, 8, y, 620, 26, L("ui.bio.changed"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+                y += 30f;
+                return AddDetailPara(y, BioLabUi.ModsText(Game, mods, true, "\n"), UiKit.TextCol) + 8f;
+            }
+
+            return y;
+        }
+
+        /// <summary>An effect's colour as a small square (there are no effect icons) and its name with the level.</summary>
+        private float AddEffectHeadline(float y, BlocksBeyondTheStars.Shared.Bio.BioEffect effect, int level)
+        {
+            UiKit.AddImage(_detail, 8, y + 6, 18, 18, UiKit.SolidSprite, BioLabUi.EffectColor(effect));
+            UiKit.AddText(_detail, 36, y, 592, 30, BioLabUi.EffectLabel(Game, effect, level), 22, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            return y + 36f;
+        }
+
+        /// <summary>A wrapped block of rich text in the detail pane; returns the y under it.</summary>
+        private float AddDetailPara(float y, string text, Color color)
+        {
+            var t = UiKit.AddText(_detail, 8, y, 620, 40, text, 18, color, TextAnchor.UpperLeft);
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            float h = t.preferredHeight;
+            t.rectTransform.sizeDelta = new Vector2(620, h + 6f);
+            return y + h + 8f;
+        }
+
         private float DetailInventory()
         {
             string item = _selected.Substring(4);
             float y = 0f;
             UiKit.AddText(_detail, 8, y, 620, 40, ItemName(item), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 48f;
-            string desc = Desc($"item.{item}.desc");
+            // The description hangs on the BASE key — a preparation, a seedling or a changed tool carries a payload.
+            string desc = Desc($"item.{BlocksBeyondTheStars.Shared.State.ItemKey.Base(item)}.desc");
             if (!string.IsNullOrEmpty(desc))
             {
                 var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
@@ -4843,8 +4971,24 @@ namespace BlocksBeyondTheStars.Client
                 y += 84f;
             }
 
+            y = AddBioItemInfo(item, y);
+
             UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.craft.source")}: {Owned(item)}", 20, UiKit.Cyan, TextAnchor.UpperLeft);
             y += 40f;
+
+            // #2202: a preparation is taken from here too (the right-click of the held one, as a button). The full key
+            // goes out — the compound rides in it and the server finds the stack by it. Not from the hold, and not the
+            // coating (that goes onto a tool in the lab).
+            if (_category != "cargo" && BlocksBeyondTheStars.Shared.Bio.BioItems.CompoundOf(item) is { } preparation
+                && preparation.Form != BlocksBeyondTheStars.Shared.Bio.BioForm.Coating && SlotOfItem(item, false) >= 0)
+            {
+                UiKit.AddButton(_detail, 8, y, 320, 46, L("ui.bio.use"), () =>
+                {
+                    Game.Network?.SendConsume(item);
+                    ClientAudio.Instance?.Cue("eat");
+                });
+                y += 54f;
+            }
 
             // #2110: wear / take off. A wearable piece in the backpack gets "Wear" (its own slot; a module the first free
             // module slot); a worn piece gets "Take off" (into the first free backpack slot).
@@ -6304,9 +6448,11 @@ namespace BlocksBeyondTheStars.Client
         // names player-designed forms after their creator's label instead of the generic "own form".
         private string ItemName(string item)
             => BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(Game.Localizer, item,
-                _customFormName ??= idx => Game.CustomShapes?.NameOf(idx));
+                _customFormName ??= idx => Game.CustomShapes?.NameOf(idx),
+                _speciesName ??= seed => Game.Bio.SpeciesName(seed)); // #2201: a sample or a seedling names its species
 
         private System.Func<int, string> _customFormName;
+        private System.Func<uint, string> _speciesName;
         private string Desc(string key)
         {
             // Localizer.Get returns "[key]" (never the bare key) on a miss, so comparing against the key

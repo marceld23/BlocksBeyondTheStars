@@ -924,7 +924,7 @@ namespace BlocksBeyondTheStars.Client
             // Reach follows the equipped weapon: a ranged weapon must let you hit at its full range, not the bare
             // melee reach — otherwise a "gun" only ever fires point-blank (where the enemy's own bite already
             // reaches you). Melee weapons / fists stay at the default 6-block reach.
-            var heldTool = Game.Content?.GetItem(Game.ItemInSlot(Game.SelectedHotbarSlot))?.Tool;
+            var heldTool = HeldTool();
             float reach = heldTool != null && heldTool.Kind == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Weapon
                 ? Mathf.Max(6f, heldTool.Range)
                 : 6f;
@@ -1240,11 +1240,21 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var heldTool = Game.Content?.GetItem(Game.ItemInSlot(Game.SelectedHotbarSlot))?.Tool;
+            var heldTool = HeldTool();
             float reach = heldTool != null && heldTool.Kind == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Weapon
                 ? Mathf.Max(6f, heldTool.Range)
                 : 6f;
             Game.AimedEnemyId = AimEnemy(reach, out var id, out _, out _) ? id : null;
+        }
+
+        /// <summary>#2206: the values of the tool in hand. What the bio lab changed on a tool rides in its item key, so
+        /// every read of a held tool's range, cooldown or energy goes through here — the call the server makes too.</summary>
+        private BlocksBeyondTheStars.Shared.Definitions.ToolProperties HeldTool()
+        {
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            return string.IsNullOrEmpty(held)
+                ? null
+                : BlocksBeyondTheStars.Shared.Bio.ToolMods.Effective(Game.Content?.GetItem(held), held);
         }
 
         private enum WeaponFxKind { Beam, Projectile, Melee }
@@ -1305,6 +1315,7 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _gearHelmet, _gearChest, _gearLegs, _gearPack, _gearLamp, _gearBoots, _gearTank, _gearGloves, _gearClaws;
         private float _gearTimer;
+        private float _gearWeight; // #2206: the slow-down of worn gear the bio lab made heavier (0 = none)
 
         /// <summary>Mirrors the player's WORN gear (#2110) onto the third-person avatar (helmet/chest/legs/pack/lamp/
         /// boots/tank), refreshed a couple of times a second so it tracks a change of clothes without polling hard.</summary>
@@ -1324,6 +1335,14 @@ namespace BlocksBeyondTheStars.Client
                 _climbGearGrip = SuitEquipment.ClimbGrip(Game.Content.Items.Values, HasItem);
                 _climbGearIce = SuitEquipment.ClimbIce(Game.Content.Items.Values, HasItem);
             }
+
+            // #2202/#2206: a grip preparation and what the lab changed on the worn gear join the same formula, under
+            // its cap; gear the lab made heavier slows the walk (read in Move).
+            _climbGearGrip = Mathf.Clamp(
+                _climbGearGrip + Game.Bio.GripBonus
+                + BlocksBeyondTheStars.Shared.Bio.GearMods.Bonus(Game.WornKeys(), BlocksBeyondTheStars.Shared.Bio.ModStat.Grip),
+                0f, SuitEquipment.MaxClimbGrip);
+            _gearWeight = BlocksBeyondTheStars.Shared.Bio.GearMods.Bonus(Game.WornKeys(), BlocksBeyondTheStars.Shared.Bio.ModStat.Weight);
 
             bool helmet = HasItem("helmet");
             bool chest = HasItem("armor_chest") || HasItem("stealth_suit");
@@ -1681,11 +1700,11 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            var tool = Game.Content?.GetItem(Game.ItemInSlot(Game.SelectedHotbarSlot))?.Tool;
+            var tool = HeldTool();
             float cd = tool == null ? 0f
                 : tool.CooldownSeconds > 0f ? tool.CooldownSeconds
                 : tool.EnergyPerUse <= 0f ? DefaultMeleeCooldown : 0f;
-            _nextWeaponSwing = Time.time + cd;
+            _nextWeaponSwing = Time.time + cd * Game.Bio.CooldownFactor; // #2202: a reflex preparation shortens it, like on the server
             return true;
         }
 
@@ -1978,6 +1997,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Game.AimedStationBlock = aimedKey;
                 }
+                else if (aimedKey == BlocksBeyondTheStars.Shared.Bio.BioItems.Lab && BioLabInReach(aimHit))
+                {
+                    Game.AimedStationBlock = aimedKey; // #2203: the HUD reads "E: Bio lab" (its own prompt key)
+                }
             }
 
             // The scanner's prompt only shows when it would actually read something (#1458).
@@ -2068,6 +2091,15 @@ namespace BlocksBeyondTheStars.Client
                     CrystalDeviceUi.Instance?.Open(crystalDev);
                     return;
                 }
+            }
+
+            // #2203: a bio lab you're aiming at, from where the server lets you use it → its panel (analyse, mix, change).
+            if (AimBlock(out var labHit, out _)
+                && Game.Content?.BlockById(Game.World.GetBlock(labHit.x, labHit.y, labHit.z))?.Key == BlocksBeyondTheStars.Shared.Bio.BioItems.Lab
+                && BioLabInReach(labHit))
+            {
+                BioLabUi.Instance?.Open();
+                return;
             }
 
             // A heal tank — or its low-tech precursor, the bed (#804) — you're aiming at → make it your
@@ -2229,6 +2261,17 @@ namespace BlocksBeyondTheStars.Client
                     Game.Network?.SendUseStation(Game.NearbyStation);
                     break; // medbay, quarters
             }
+        }
+
+        /// <summary>#2203: whether a bio lab cell is close enough for the server to take a lab intent — it looks for a lab
+        /// three cells around the feet and two up or down. The prompt and E use the same reach, so the panel never opens
+        /// on a lab that would then refuse everything.</summary>
+        private bool BioLabInReach(Vector3Int cell)
+        {
+            var feet = transform.position;
+            return Mathf.Abs(cell.x - Mathf.FloorToInt(feet.x)) <= 3
+                && Mathf.Abs(cell.y - Mathf.FloorToInt(feet.y)) <= 2
+                && Mathf.Abs(cell.z - Mathf.FloorToInt(feet.z)) <= 3;
         }
 
         /// <summary>E at a vendor NPC: ask "trade or talk?" — a vendor is a market station, so E used to open the market
@@ -3485,6 +3528,10 @@ namespace BlocksBeyondTheStars.Client
             _effSafeFallSpeed = SafeFallSpeed * Mathf.Sqrt(f);
         }
 
+        /// <summary>#2202: what a jump preparation (or its leaden catch) does to the jump impulse. Jump HEIGHT grows with
+        /// the square of the impulse, so a 40 % higher jump is the root of 1.4 on the impulse.</summary>
+        private float BioJumpImpulse() => Game != null ? Mathf.Sqrt(Mathf.Max(0f, Game.Bio.JumpFactor)) : 1f;
+
         private void Move()
         {
             float h = _captureWalk ? _captureH : InputMap.MoveX();
@@ -3512,7 +3559,10 @@ namespace BlocksBeyondTheStars.Client
                 _verticalVelocity = 0f;
             }
 
-            Vector3 move = (transform.right * h + transform.forward * v) * _effMoveSpeed;
+            // #2202/#2206: a speed preparation, its sluggish catch and heavy changed gear scale the walk. Applied here
+            // and not in RecomputeGravity, which only runs when the world's gravity changes.
+            float bioMove = Game != null ? Game.Bio.MoveFactor(_gearWeight) : 1f;
+            Vector3 move = (transform.right * h + transform.forward * v) * (_effMoveSpeed * bioMove);
 
             float prevVy = _verticalVelocity; // captured before the grounded reset (for landing shake)
             bool grounded = _controller.isGrounded;
@@ -3564,7 +3614,7 @@ namespace BlocksBeyondTheStars.Client
                 bool climbingOut = pushing && atSurface && (InputMap.JumpHeld() || LedgeAhead(move));
                 if (climbingOut)
                 {
-                    _verticalVelocity = _effJumpSpeed; // real hop out of the water (full forward speed kept below)
+                    _verticalVelocity = _effJumpSpeed * BioJumpImpulse(); // real hop out of the water (full forward speed kept below)
                 }
                 else
                 {
@@ -3604,7 +3654,7 @@ namespace BlocksBeyondTheStars.Client
                     ClientAudio.Instance?.Cue("jump", 0.6f);
                 }
 
-                _verticalVelocity = InputMap.JumpHeld() ? _effJumpSpeed : -1f;
+                _verticalVelocity = InputMap.JumpHeld() ? _effJumpSpeed * BioJumpImpulse() : -1f;
             }
             else if (Game != null && Game.OnFootInSpace)
             {
@@ -4592,6 +4642,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
                 var hdef = string.IsNullOrEmpty(held) ? null : Game.Content?.GetItem(held);
+                // #2202: a preparation of the bio lab is taken the same way. The FULL key goes out — its compound rides
+                // in the key and the server finds the stack by it. (The coating is no consumable: it goes onto a tool.)
                 if (hdef != null && hdef.Category.ToString() == "Consumable")
                 {
                     Game.Network?.SendConsume(held);

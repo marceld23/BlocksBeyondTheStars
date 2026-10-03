@@ -90,6 +90,9 @@ public sealed class MemoryWorldSnapshot
     public List<StoredCrew> Crews { get; set; } = new();
     public List<StoredCrewMember> CrewMembers { get; set; } = new();
     public List<StoredStoryState> StoryStates { get; set; } = new();
+
+    /// <summary>Named JSON documents (#2201). Additive: a snapshot written before them reads back as an empty map.</summary>
+    public Dictionary<string, string> NamedBlobs { get; set; } = new();
     public List<StoredSpaceStructure> SpaceStructures { get; set; } = new();
     public List<StructureEditRow> StructureEdits { get; set; } = new();
     public Dictionary<string, string> LocationStatuses { get; set; } = new();
@@ -137,6 +140,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<string, StoredCrew> _crews = new();
     private readonly Dictionary<(string Crew, string Player), StoredCrewMember> _crewMembers = new();
     private readonly Dictionary<string, string> _storyStates = new();   // storyId → JSON
+    private readonly Dictionary<string, string> _namedBlobs = new();    // key → JSON (#2201)
     private readonly Dictionary<string, string> _spaceStructures = new(); // id → JSON
     private readonly Dictionary<(string StructureId, int X, int Y, int Z), (ushort Block, int Shape)> _structureEdits = new();
     private readonly Dictionary<string, string> _locationStatuses = new();
@@ -229,6 +233,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
             Crews = _crews.Values.Select(CloneCrew).ToList(),
             CrewMembers = _crewMembers.Values.Select(CloneCrewMember).ToList(),
             StoryStates = _storyStates.Values.Select(json => JsonSerializer.Deserialize<StoredStoryState>(json, JsonOptions)!).ToList(),
+            NamedBlobs = new Dictionary<string, string>(_namedBlobs),
             SpaceStructures = _spaceStructures.Values.Select(json => JsonSerializer.Deserialize<StoredSpaceStructure>(json, JsonOptions)!).ToList(),
             LocationStatuses = new Dictionary<string, string>(_locationStatuses),
             Missions = _missions.Values.Select(json => JsonSerializer.Deserialize<MissionDefinition>(json, JsonOptions)!).ToList(),
@@ -314,6 +319,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
         _crews.Clear();
         _crewMembers.Clear();
         _storyStates.Clear();
+        _namedBlobs.Clear();
         _spaceStructures.Clear();
         _structureEdits.Clear();
         _locationStatuses.Clear();
@@ -423,6 +429,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var state in snapshot.StoryStates)
         {
             _storyStates[state.StoryId] = JsonSerializer.Serialize(state, JsonOptions);
+        }
+
+        foreach (var blob in snapshot.NamedBlobs ?? new Dictionary<string, string>())
+        {
+            _namedBlobs[blob.Key] = blob.Value;
         }
 
         foreach (var structure in snapshot.SpaceStructures)
@@ -1393,6 +1404,23 @@ public sealed class MemoryWorldRepository : IWorldRepository
         lock (_gate)
         {
             return _storyStates.Values.Select(json => JsonSerializer.Deserialize<StoredStoryState>(json, JsonOptions)!).ToList();
+        }
+    }
+
+    public void SaveNamedBlob(string key, string json)
+    {
+        lock (_gate)
+        {
+            _dirty = true;
+            _namedBlobs[key] = json;
+        }
+    }
+
+    public string? LoadNamedBlob(string key)
+    {
+        lock (_gate)
+        {
+            return _namedBlobs.TryGetValue(key, out var json) ? json : null;
         }
     }
 

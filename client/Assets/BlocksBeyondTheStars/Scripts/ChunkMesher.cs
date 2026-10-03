@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
@@ -114,9 +115,18 @@ namespace BlocksBeyondTheStars.Client
         [System.ThreadStatic] private static bool[] _colliderMaskScratch;
 
         // Throwaway collider sinks for the ladder (#803): its shaped visual must NOT collide — climbing
-        // requires standing inside the cell — so AddShapedBlock writes its collider tris into these.
+        // requires standing inside the cell — so AddShapedBlock writes its collider tris into these. The solid
+        // crown of a bred plant (#2209) is decoration on top of the plant and goes the same way.
         [System.ThreadStatic] private static List<int> _ladderColliderTrisDump;
         [System.ThreadStatic] private static List<Vector3> _ladderColliderVertsDump;
+
+        // #2209: the forms of the bred plants met in this build (packed form → its resolved tiles and look).
+        [System.ThreadStatic] private static Dictionary<int, BredLook> _bredLookScratch;
+
+        /// <summary>A bred plant in a flower pot (#2209) stands in the cell above the pot: drawn this much lower and
+        /// at this scale it sits in the pot, where the pot's own decorative flower would be.</summary>
+        private const float BredPotDrop = 0.6f;
+        private const float BredPotScale = 0.6f;
 
         /// <summary>Builds the render mesh (opaque + see-through submeshes) and a separate collision mesh that
         /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
@@ -640,6 +650,10 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // #2209: a bred plant's form is resolved once per distinct form per build (the scratch is taken and
+            // cleared at the first one — most chunks hold none).
+            Dictionary<int, BredLook> bredLooks = null;
+
             for (int x = 0; x < n; x++)
             for (int y = 0; y < n; y++)
             for (int z = 0; z < n; z++)
@@ -704,7 +718,10 @@ namespace BlocksBeyondTheStars.Client
                 // surroundings it shines itself — its surface takes the light colour (a dye on the same cell still
                 // wins) and an opaque cell glows like a fixture. See-through cells only take the colour: the
                 // transparent shader reads emission as an energy field and would drop the frosted pane.
-                if (modGlow != 0 && atlas != null && !transparent)
+                // Not the bred plant (#2209): its glow channel holds its packed form, and whether it glows is one
+                // field of that form (see its branch below).
+                bool bred = (tf & TraitBredPlant) != 0;
+                if (modGlow != 0 && atlas != null && !transparent && !bred)
                 {
                     emission = Mathf.Max(emission, GlowCellEmission);
                 }
@@ -815,6 +832,120 @@ namespace BlocksBeyondTheStars.Client
                 if (atlas != null && (tf & (TraitFloraPrefix | TraitSlimProp)) != 0 && WetProp(wx, wy, wz))
                 {
                     EmitWetCellWater(x, y, z, wx, wy, wz);
+                }
+
+                // The bred plant (#2209): the one block of every plant the bio lab grows. Its colour rides in the
+                // cell's tint channel and its form — the two species it is drawn from, a layout, a size class and a
+                // glow level — packed in the glow channel (FloraForm). A clone is its wild species again (body =
+                // crown, plain layout); a cross puts the tiles of two species together into a plant that looks like
+                // neither parent. Render-only like every cross plant, except a solid body, which collides like its
+                // wild species. A cell that carries no form falls through to the plain cross plant below (own tile).
+                if (atlas != null && bred && FloraForm.IsForm(modGlow))
+                {
+                    if (bredLooks == null)
+                    {
+                        bredLooks = _bredLookScratch ??= new Dictionary<int, BredLook>();
+                        bredLooks.Clear();
+                    }
+
+                    if (!bredLooks.TryGetValue(modGlow, out var look))
+                    {
+                        look = ResolveBredLook(modGlow, id, content, atlas, traits, floraTint);
+                        bredLooks[modGlow] = look;
+                    }
+
+                    var body = look.Body;
+                    var crown = look.Crown;
+                    // The plant's own colour is drawn in the dye mode (3): the very recolour the flora mode (1) does,
+                    // but not switched off together with the planet's flora hue — so a bred plant keeps its colour
+                    // in a base, aboard a ship and on a station. The value is converted like the per-species tints
+                    // and takes their per-column wobble (#675), so a clone matches its wild original. No colour of
+                    // its own = each part in the colour (and the mode) of the species it is drawn from.
+                    if (modTint != 0)
+                    {
+                        float tintJit = CrossPlantScale(wx, 0, wz, 0x9, 0.08f);
+                        var own = SrgbTint(modTint);
+                        own = new Color(Mathf.Clamp01(own.r * tintJit), Mathf.Clamp01(own.g * tintJit), Mathf.Clamp01(own.b * tintJit));
+                        body.Tint = crown.Tint = own;
+                        body.TintMode = crown.TintMode = 3f;
+                    }
+
+                    // A glowing form shines itself (the light it casts is the light index's business); a part drawn
+                    // from a species that glows by nature keeps at least that glow.
+                    body.Emission = Mathf.Max(body.Emission, look.Glow);
+                    crown.Emission = Mathf.Max(crown.Emission, look.Glow);
+
+                    // In a flower pot the plant stands in the cell above the pot: smaller, lowered into it, dead centre.
+                    bool potted = traits.Has(worldBlock(wx, wy - 1, wz), TraitFlowerPot);
+                    float potScale = potted ? BredPotScale : 1f;
+                    var bredCell = new Vector3(x, potted ? y - BredPotDrop : y, z);
+                    float bredSky = Skylight(wx, wy + 1, wz);
+                    Vector3 bredBl = BlockLightAt(wx, wy, wz);
+                    Vector3 bredBlDir = BlockLightDirAt(wx, wy, wz);
+
+                    // The size class sets the height (0.65 … 1.9 of a plain plant — a giant rises above its cell like
+                    // the tall wild plants do) and the width follows it; a small per-plant wobble keeps a bed of
+                    // clones from standing like a row of stamps. Lean, offset and spin are the wild plants' own
+                    // deterministic rolls; a solid body stands on the cell centre like every solid plant.
+                    float bredH = Mathf.Clamp(look.Height * FloraScale(wx, wy, wz, 0x1, 0.12f), 0.45f, 2.1f) * potScale;
+                    float bredW = Mathf.Clamp(look.Height * FloraScale(wx, wy, wz, 0x2, 0.10f), 0.55f, 1.2f) * potScale;
+                    var bredLean = new Vector2(
+                        (CrossPlantScale(wx, wy, wz, 0x4, 1f) - 1f) * 0.12f,
+                        (CrossPlantScale(wx, wy, wz, 0x8, 1f) - 1f) * 0.12f) * potScale;
+                    var bredOffset = potted || body.SolidShape >= 0 ? Vector2.zero : new Vector2(
+                        (CrossPlantScale(wx, 0, wz, 0x10, 1f) - 1f) * 0.13f,
+                        (CrossPlantScale(wx, 0, wz, 0x20, 1f) - 1f) * 0.13f);
+                    float bredSpin = (CrossPlantScale(wx, 0, wz, 0x40, 1f) - 1f) * 30f;
+
+                    if (body.SolidShape >= 0)
+                    {
+                        // A solid body (cactus, cap, crystal …) is its 3D form with its collider, like the solid
+                        // flora below; every layout but the plain one sets the crown on top of it.
+                        float bodyTop = AddBredPart(data, body, bredCell, bredH, bredW, bredSky, bredBl, bredBlDir,
+                            Vector2.zero, bredOffset, bredSpin, collide: true);
+                        if (look.Layout != FloraForm.LayoutPlain)
+                        {
+                            AddBredPart(data, crown, bredCell + new Vector3(0f, bodyTop, 0f), bredH * 0.45f, bredW * 0.6f,
+                                bredSky, bredBl, bredBlDir, bredLean, bredOffset, bredSpin, collide: false);
+                        }
+                    }
+                    else if (look.Layout == FloraForm.LayoutStar)
+                    {
+                        // Star: the body twice — the second rosette turned by half a plane spacing and a little
+                        // wider, so six planes ring the stem.
+                        AddBredPart(data, body, bredCell, bredH, bredW, bredSky, bredBl, bredBlDir,
+                            bredLean, bredOffset, bredSpin, collide: false);
+                        AddBredPart(data, body, bredCell, bredH, bredW * 1.15f, bredSky, bredBl, bredBlDir,
+                            bredLean, bredOffset, bredSpin + 30f, collide: false);
+                    }
+                    else if (look.Layout == FloraForm.LayoutTiered)
+                    {
+                        // Tiered: the body fills the lower two thirds, the crown stands narrower on its tip (the
+                        // tip of a leaning body sits off the root by exactly its lean).
+                        float bodyTop = AddBredPart(data, body, bredCell, bredH * 0.65f, bredW, bredSky, bredBl, bredBlDir,
+                            bredLean, bredOffset, bredSpin, collide: false);
+                        AddBredPart(data, crown, bredCell + new Vector3(0f, bodyTop, 0f), bredH * 0.35f, bredW * 0.6f,
+                            bredSky, bredBl, bredBlDir, bredLean * 0.5f, bredOffset + bredLean, bredSpin + 30f, collide: false);
+                    }
+                    else if (look.Layout == FloraForm.LayoutFan)
+                    {
+                        // Fan: the body twice, leaning apart, and a small crown in the gap between the two.
+                        float fanRad = bredSpin * Mathf.Deg2Rad;
+                        var fan = new Vector2(Mathf.Cos(fanRad), Mathf.Sin(fanRad)) * Mathf.Min(0.3f * bredH, 0.4f);
+                        AddBredPart(data, body, bredCell, bredH * 0.9f, bredW, bredSky, bredBl, bredBlDir,
+                            bredLean + fan, bredOffset, bredSpin, collide: false);
+                        AddBredPart(data, body, bredCell, bredH * 0.9f, bredW, bredSky, bredBl, bredBlDir,
+                            bredLean - fan, bredOffset, bredSpin + 30f, collide: false);
+                        AddBredPart(data, crown, bredCell, bredH * 0.55f, bredW * 0.5f, bredSky, bredBl, bredBlDir,
+                            bredLean, bredOffset, bredSpin + 15f, collide: false);
+                    }
+                    else
+                    {
+                        AddBredPart(data, body, bredCell, bredH, bredW, bredSky, bredBl, bredBlDir,
+                            bredLean, bredOffset, bredSpin, collide: false);
+                    }
+
+                    continue;
                 }
 
                 // Graphics quick-win: small leafy plants render as classic CROSS BILLBOARDS (two crossed
@@ -984,7 +1115,9 @@ namespace BlocksBeyondTheStars.Client
 
                     // Flower pot (#809): a small cross-billboard flower sits on the shaped planter, tinted
                     // like wild flora on this world (per-world species hue). Purely visual — no collider.
-                    if ((tf & TraitFlowerPot) != 0 && content.GetBlock("flora_flower") is { } potFlower
+                    // A bred plant planted in the pot (#2209 — the cell above) takes the flower's place.
+                    if ((tf & TraitFlowerPot) != 0 && !traits.Has(worldBlock(wx, wy + 1, wz), TraitBredPlant)
+                        && content.GetBlock("flora_flower") is { } potFlower
                         && potFlower.NumericId.Value != 0)
                     {
                         var flowerUv = atlas.TileUv(potFlower.NumericId.Value);
@@ -1978,11 +2111,126 @@ namespace BlocksBeyondTheStars.Client
         private static Color RgbToColor(int rgb)
             => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
 
+        /// <summary>A 0xRRGGBB colour as the tint value the block shader multiplies: converted like
+        /// <c>ShaderColor.Srgb</c> converts the per-species flora tints (by hand, like <see cref="RainbowTint"/>, so it
+        /// is safe off the main thread) — a bred plant in its species' colour then looks like the wild one (#2209).</summary>
+        private static Color SrgbTint(int rgb)
+        {
+            var c = RgbToColor(rgb);
+            return LinearColorSpace ? new Color(SrgbToLinear(c.r), SrgbToLinear(c.g), SrgbToLinear(c.b)) : c;
+        }
+
+        /// <summary>How one part (body or crown) of a bred plant (#2209) is drawn: the tile and the look of the
+        /// species it is taken from.</summary>
+        private struct BredPart
+        {
+            public Rect Uv;         // the species' atlas tile
+            public float Anim;      // …and that tile's animation code (#1957)
+            public Vector2 Mat;     // gloss, metal
+            public float Emission;  // the species' own self-glow
+            public Color Tint;      // the species' colour on this world — used while the plant has no colour of its own
+            public float TintMode;  // 1 flora; 0 for a species that keeps its authored colour (#1716)
+            public int SolidShape;  // the BlockShape of a solid species (cactus, cap, crystal …); -1 = a leafy cross plant
+        }
+
+        /// <summary>What one packed form (<see cref="FloraForm"/>) of a bred plant resolves to in a content set.</summary>
+        private struct BredLook
+        {
+            public BredPart Body, Crown;
+            public int Layout;      // FloraForm.LayoutPlain / Star / Tiered / Fan
+            public float Height;    // FloraForm.HeightOf(size): 0.65 … 1.9 of a plain plant
+            public float Glow;      // the emission its glow level gives the whole plant (0 = it does not glow)
+        }
+
+        /// <summary>Resolves a bred plant's packed form (#2209) to the tiles it is drawn from. A species this content
+        /// set does not hold (an older client, a retired block) is drawn from the bred plant's <paramref name="own"/>
+        /// tile, so the cell never comes out empty.</summary>
+        private static BredLook ResolveBredLook(int packed, BlockId own, GameContent content, BlockTextureAtlas atlas,
+            BlockTraits traits, System.Func<BlockId, Color> floraTint)
+        {
+            BredPart Part(string key)
+            {
+                var def = content.GetBlock(key);
+                BlockId id = def != null && !def.NumericId.IsAir ? def.NumericId : own;
+                uint flags = traits.FlagsOf(id);
+                bool ownColour = (flags & TraitCultivated) != 0;
+                bool solid = (flags & TraitSolidFlora) != 0;
+                Rect uv = atlas.TileUv(id.Value);
+                // A hanging species (#1759) is painted root-up. A bred plant stands on its soil, so its tile is
+                // turned over: the root end goes to the ground, the tip points up.
+                if (!solid && (flags & TraitHangingFlora) != 0)
+                {
+                    uv = new Rect(uv.x, uv.yMax, uv.width, -uv.height);
+                }
+
+                return new BredPart
+                {
+                    Uv = uv,
+                    Anim = atlas.AnimationCode(id.Value),
+                    Mat = traits.MaterialOf(id),
+                    Emission = traits.EmissionOf(id),
+                    Tint = floraTint != null && !ownColour ? floraTint(id) : Color.black,
+                    TintMode = ownColour ? 0f : 1f,
+                    SolidShape = solid ? traits.SolidFloraShapeOf(id) : -1,
+                };
+            }
+
+            return new BredLook
+            {
+                Body = Part(FloraForm.BodyBlock(packed)),
+                Crown = Part(FloraForm.CrownBlock(packed)),
+                Layout = FloraForm.Layout(packed),
+                Height = FloraForm.HeightOf(FloraForm.Size(packed)),
+                Glow = FloraForm.Glow(packed) switch { 1 => 0.6f, 2 => 0.75f, 3 => GlowCellEmission, _ => 0f },
+            };
+        }
+
+        /// <summary>One part of a bred plant (#2209), standing on the floor of <paramref name="cell"/> and shifted
+        /// off its centre by <paramref name="offset"/>: a leafy species as a cross-billboard rosette, a solid one
+        /// (cactus, cap, crystal …) as its 3D form — its tile has no cutout mask to make a billboard of. Only a
+        /// solid part can collide. Returns how high the part reaches above that floor.</summary>
+        private static float AddBredPart(ChunkMeshData data, BredPart part, Vector3 cell, float height, float width,
+            float sky, Vector3 bl, Vector3 blDir, Vector2 lean, Vector2 offset, float spinDeg, bool collide)
+        {
+            if (part.SolidShape < 0)
+            {
+                AddCrossPlant(data.Verts, data.OpaqueTris, data.Colors, data.Uvs, data.Tangents, data.SkyUv, data.LeafUv, data.BlockLight, data.BlockLightDir,
+                    cell, new Color(part.Mat.x, part.Mat.y, 0.9f, part.Emission), part.Uv, sky, part.Tint, bl, blDir,
+                    lean, offset, spinDeg, height, width, part.TintMode + part.Anim);
+                return height;
+            }
+
+            var colliderTris = data.ColliderTris;
+            var colliderVerts = data.ColliderVerts;
+            if (!collide)
+            {
+                colliderTris = _ladderColliderTrisDump ??= new List<int>();
+                colliderVerts = _ladderColliderVertsDump ??= new List<Vector3>();
+                colliderTris.Clear();
+                colliderVerts.Clear();
+            }
+
+            // 0.82 of the asked size is where the wild solid plants sit on average (see the solid flora branch).
+            float sizeY = height * 0.82f;
+            float sizeXZ = Mathf.Clamp(width * 0.82f, 0.25f, 1f);
+            AddShapedBlock(data.Verts, data.OpaqueTris, colliderTris, colliderVerts, data.Colors, data.Uvs, data.Tangents, data.SkyUv, data.LeafUv, data.BlockLight, data.BlockLightDir,
+                part.SolidShape, 0, ShapeCode.UpPlusY, cell + new Vector3(offset.x, 0f, offset.y), part.Uv,
+                part.Mat.x, part.Mat.y, part.Emission, part.Tint, part.TintMode, sky, bl, blDir, sizeXZ, sizeY, animCode: part.Anim);
+            return sizeY;
+        }
+
         /// <summary>Light colour with the full modifier priority from #1126: glow > dye-on-a-light-source >
         /// natural. ClientWorld applies the same rule for planet chunks; this overload brings ships, landed
         /// ships and stations in line (#1159 — a red-dyed lamp aboard flooded its corridor white).</summary>
         public static int BlockLightColor(GameContent content, BlockId id, int glowMod, int tintMod)
         {
+            // A bred plant (#2209) keeps its packed form in the glow channel — that is no light colour. It lights
+            // only when the form glows, in its own colour (the one rule, shared with ClientWorld's light index).
+            if (content != null && TraitsFor(content).Has(id, TraitBredPlant))
+            {
+                return ClientWorld.FormLight(tintMod, glowMod);
+            }
+
             if (glowMod != 0)
             {
                 return glowMod & 0xFFFFFF;
@@ -2228,6 +2476,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitRainbowFlora = 1u << 22;      // generation 11: every plant its own colour (FloraTints.RainbowAt)
         private const uint TraitGas = 1u << 23;               // #2128: the gas sea — shaded as a haze (TEXCOORD2.x = 5), not as water
         private const uint TraitDenseGas = 1u << 24;          // #2134: the dense gas under the gas sea (also TraitGas) — TEXCOORD2.x = 6
+        private const uint TraitBredPlant = 1u << 25;         // #2209: the bred plant — its look rides on the cell's tint + glow channels (FloraForm)
 
         private sealed class BlockTraits
         {
@@ -2285,6 +2534,7 @@ namespace BlocksBeyondTheStars.Client
                     if (key == "ladder") f |= TraitLadder;
                     if (key == "iron_wall") f |= TraitIronWall;
                     if (key == "flower_pot") f |= TraitFlowerPot;
+                    if (key == FloraForm.BlockKey) f |= TraitBredPlant;
                     if ((f & (TraitTransparent | TraitFlora | TraitFoliage | TraitSlimProp)) != 0) f |= TraitExposesOpaqueFace;
                     _flags[i] = f;
                     _emission[i] = BlockEmissionSlow(content, id);

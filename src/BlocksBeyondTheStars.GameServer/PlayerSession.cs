@@ -532,6 +532,11 @@ public sealed class PlayerSession
     public long SentBlueprintsSignature { get; set; }
     public bool SentBlueprintsOnce { get; set; }
 
+    // #2201: the same for the sample case, and the species this client already has in its research book.
+    public long SentSamplesSignature { get; set; }
+    public bool SentSamplesOnce { get; set; }
+    public HashSet<uint> BioBookSeeds { get; } = new();
+
     public PlayerSession(int connectionId, PlayerState state)
     {
         ConnectionId = connectionId;

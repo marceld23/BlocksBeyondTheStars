@@ -599,6 +599,7 @@ public sealed partial class GameServer
             }
         }
 
+        AppendSampleChoices(p, result); // #2207: and whatever the owner holds a sample of — species of other worlds too
         return result;
     }
 
@@ -610,6 +611,15 @@ public sealed partial class GameServer
         }
 
         string? spId = CrystalConfigValue(tank.Config, "sp");
+
+        // #2207/#2208: a sample as the species, or a second species as the partner of a cross, is the samples' path.
+        string? partner = CrystalConfigValue(tank.Config, TankPartnerKey);
+        if (spId is not null && (spId.StartsWith(TankSamplePrefix, StringComparison.Ordinal) || !string.IsNullOrEmpty(partner)))
+        {
+            BioTankStart(tank, by, spId, partner);
+            return;
+        }
+
         if (spId is null || !_speciesById.TryGetValue(spId, out var sp) || sp.Hostile)
         {
             SetCrystalBlocked(tank, false);
@@ -626,6 +636,17 @@ public sealed partial class GameServer
             if (by is not null)
             {
                 Reject(by, "crystal", "@srv.crystal.clone_cap");
+            }
+
+            return;
+        }
+
+        // #2207: and a cap for the whole world, whoever owns the tanks — clones are never pruned while their tank stands.
+        if (LivingClonesInWorld() >= CrystalNetRules.MaxLivingClonesPerWorld)
+        {
+            if (by is not null)
+            {
+                Reject(by, "crystal", "@srv.crystal.clone_world_cap");
             }
 
             return;
@@ -664,10 +685,22 @@ public sealed partial class GameServer
             return; // "release on signal": wait for the level
         }
 
-        string? spId = CrystalConfigValue(tank.Config, "sp");
-        if (spId is not null && _speciesById.TryGetValue(spId, out var sp) && !sp.Hostile)
+        string? grow = CrystalConfigValue(tank.Config, TankGrowKey);
+        if (!string.IsNullOrEmpty(grow))
         {
-            ReleaseClone(tank, sp);
+            // #2207/#2208: started on a sample — a guest clone, or a cross and a sample of the new species.
+            if (!BioTankFinish(tank, grow!))
+            {
+                return; // the owner is away: what the tank made waits in it
+            }
+        }
+        else
+        {
+            string? spId = CrystalConfigValue(tank.Config, "sp");
+            if (spId is not null && _speciesById.TryGetValue(spId, out var sp) && !sp.Hostile)
+            {
+                ReleaseClone(tank, sp);
+            }
         }
 
         tank.Config = CrystalConfigWith(tank.Config, "growing", "0");
@@ -716,7 +749,7 @@ public sealed partial class GameServer
 
             string? spId = CrystalConfigValue(tank.Config, "sp");
             int count = Math.Min(CrystalNetRules.MaxLivingClonesPerOwner, CrystalConfigInt(tank.Config, "clones", 0));
-            if (spId is null || count <= 0 || !_speciesById.TryGetValue(spId, out var sp) || sp.Hostile)
+            if (spId is null || count <= 0 || TankSpecies(spId) is not { Hostile: false } sp) // #2207: a native species or a guest from a sample
             {
                 continue;
             }

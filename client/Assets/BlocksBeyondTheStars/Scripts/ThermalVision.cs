@@ -26,9 +26,15 @@ namespace BlocksBeyondTheStars.Client
     /// Contacts further away than <see cref="MarkerRange"/> are pinned at that distance along their true bearing
     /// (their tag still reports the real range): a marker parked kilometres away would be clipped by the far
     /// plane and shimmer with float error, and "off-scale contact" is what a real scope shows anyway.
+    ///
+    /// The contact layer has a second user: the bio lab's perception effect (<see cref="SenseRange"/>, #2202) marks
+    /// the living things close by with the same blobs — without the optic and without the grade.
     /// </summary>
     public sealed class ThermalVision : MonoBehaviour
     {
+        /// <summary>The overlay of the running world rig (null outside a world).</summary>
+        public static ThermalVision Instance { get; private set; }
+
         public GameBootstrap Game;
         public Camera Camera;
 
@@ -37,6 +43,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Optional multiplayer presence source, for other players' heat signatures.</summary>
         public RemotePlayers Remotes;
+
+        /// <summary>The perception effect (#2202): while above 0, living things within this many blocks are marked
+        /// through terrain with the contact blobs and their range tags — no optic needed, no full-screen grade,
+        /// and neither structures nor lava. Set every frame by <see cref="BioSenses"/>; 0 = off.</summary>
+        public float SenseRange;
 
         private const float MarkerRange = 220f;   // metres a marker may sit at before it is pinned to the bearing
         private const float LabelRange = 900f;    // beyond this a contact gets no range tag at all
@@ -47,12 +58,15 @@ namespace BlocksBeyondTheStars.Client
         private const int LavaScanStep = 3;       // sample every Nth block — a lava lake is never one cell wide
         private const int LavaCellSize = 6;       // merge hits into cells this big so a lake is a few blobs
         private const int MaxLavaBlobs = 90;
+        private const float SenseFade = 3f;       // blocks over which a perceived contact fades in at the edge of the range
 
         private static readonly int ThermalAmtId = Shader.PropertyToID("_ThermalAmt");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
 
         private bool _active;
         private float _amt;               // eased 0..1 so the mode fades in instead of snapping
+        private float _senseAmt;          // the same ease for the perception effect
+        private float _senseRange;        // the last range set — what the marks fade out with when the effect ends
         private Transform _quad;          // full-screen grade
         private Transform _root;          // parent for the contact blobs
         private Shader _markerShader;
@@ -77,6 +91,7 @@ namespace BlocksBeyondTheStars.Client
             public Vector2 Size;    // blob width/height in metres
             public Color Tint;
             public string Label;    // empty = no range tag
+            public float Strength;  // 0..1: the optic's ease, or the perception effect's inside its range
         }
 
         /// <summary>Whether infrared mode is running. Set by <see cref="BinocularOptic"/>.</summary>
@@ -101,26 +116,52 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _opaqueHeld;
 
+        private void Awake()
+        {
+            Instance = this;
+        }
+
         private void OnDestroy()
         {
             ClientSettings.RequestOpaqueTexture(false, ref _opaqueHeld);
+            if (Instance == this)
+            {
+                Instance = null;
+            }
         }
 
         private void Update()
         {
-            float target = _active && Game != null && Camera != null && !Game.SpaceViewActive ? 1f : 0f;
+            bool ready = Game != null && Camera != null && !Game.SpaceViewActive;
+            float target = _active && ready ? 1f : 0f;
             _amt = Mathf.MoveTowards(_amt, target, Time.deltaTime * 4f);
             Shader.SetGlobalFloat(ThermalAmtId, ReducedEffects ? 0f : _amt);
 
+            // Perception (#2202) eases like the optic. It never touches the grade: _ThermalAmt stays the optic's.
+            if (SenseRange > 0f)
+            {
+                _senseRange = SenseRange;
+            }
+
+            _senseAmt = Mathf.MoveTowards(_senseAmt, SenseRange > 0f && ready ? 1f : 0f, Time.deltaTime * 4f);
+
             // Also bail while the rig is being torn down (world switch): the contact pass dereferences both.
-            if (_amt <= 0.001f || Game == null || Camera == null)
+            if ((_amt <= 0.001f && _senseAmt <= 0.001f) || Game == null || Camera == null)
             {
                 ShowQuad(false);
                 ReleaseMarkers();
                 return;
             }
 
-            UpdateGradeQuad();
+            if (_amt > 0.001f)
+            {
+                UpdateGradeQuad();
+            }
+            else
+            {
+                ShowQuad(false); // perception alone: the contacts, over a frame that keeps its colours
+            }
+
             CollectContacts();
             DrawContacts();
         }
@@ -208,7 +249,7 @@ namespace BlocksBeyondTheStars.Client
                 string name = !string.IsNullOrEmpty(c.CustomName) ? c.CustomName
                     : !string.IsNullOrEmpty(c.Name) ? c.Name
                     : loc?.Get(c.NameKey) ?? string.Empty;
-                Add(new Vector3(c.X, c.Y, c.Z), new Vector2(s, s), tint, name);
+                Add(new Vector3(c.X, c.Y, c.Z), new Vector2(s, s), tint, name, living: true);
             }
 
             // Micro-fauna (#757): the ambient critters are client-local (no server list exists), so they
@@ -222,23 +263,25 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var (world, key, glow) in _critterScratch)
                 {
                     var tint = glow ? new Color(0.55f, 1f, 0.75f) : new Color(0.85f, 0.75f, 0.35f);
-                    Add(world, new Vector2(0.45f, 0.45f), tint, loc?.Get("ui.scan.subject." + key) ?? key);
+                    Add(world, new Vector2(0.45f, 0.45f), tint, loc?.Get("ui.scan.subject." + key) ?? key, living: true);
                 }
             }
 
             // Bandits, raiders and scan drones — the things you actually want to see before they see you.
+            // A drone is a machine: the optic sees its heat, the perception effect senses nothing alive in it.
             foreach (var e in Game.PlanetEnemies)
             {
                 var tint = e.Hostile ? new Color(1f, 0.30f, 0.12f) : new Color(1f, 0.62f, 0.30f);
                 float s = Mathf.Max(1.2f, e.Scale * 1.8f);
-                Add(new Vector3(e.X, e.Y, e.Z), new Vector2(s, s * 1.2f), tint, e.Name);
+                Add(new Vector3(e.X, e.Y, e.Z), new Vector2(s, s * 1.2f), tint, e.Name,
+                    living: e.Kind != "ScanDrone" && e.Kind != "Drone");
             }
 
             // Settlement + station inhabitants.
             foreach (var n in Game.Npcs)
             {
                 string name = !string.IsNullOrEmpty(n.Name) ? n.Name : loc?.Get(n.NameKey) ?? string.Empty;
-                Add(new Vector3(n.X, n.Y, n.Z), new Vector2(1.2f, 1.8f), new Color(0.62f, 0.95f, 1f), name);
+                Add(new Vector3(n.X, n.Y, n.Z), new Vector2(1.2f, 1.8f), new Color(0.62f, 0.95f, 1f), name, living: true);
             }
 
             // Other players (multiplayer). Presence is the one contact class the server limits by distance, so
@@ -247,8 +290,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var (name, scene) in Remotes.Contacts())
                 {
-                    AddScene(scene, new Vector2(1.3f, 2f), Color.white, name);
+                    AddScene(scene, new Vector2(1.3f, 2f), Color.white, name, living: true);
                 }
+            }
+
+            // Everything below is no living thing — the optic's business alone, never the perception effect's
+            // (which also spares it the lava sweep).
+            if (_amt <= 0.001f)
+            {
+                return;
             }
 
             // Structures: villages, factories, ruins, the wreck, revealed caches. The POI list is planet-wide
@@ -290,21 +340,36 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Adds a contact from a canonical WORLD position (the wrap is resolved once, here, so the
         /// per-frame sort and draw never call back into the world mapping).</summary>
-        private void Add(Vector3 world, Vector2 size, Color tint, string label)
-            => AddScene(Game.ScenePos(world.x, world.y, world.z), size, tint, label);
+        private void Add(Vector3 world, Vector2 size, Color tint, string label, bool living = false)
+            => AddScene(Game.ScenePos(world.x, world.y, world.z), size, tint, label, living);
 
         /// <summary>Adds a contact already expressed in scene space (remote avatars are placed by their own
-        /// renderer, so re-deriving a world position for them would only add drift).</summary>
-        private void AddScene(Vector3 scene, Vector2 size, Color tint, string label)
+        /// renderer, so re-deriving a world position for them would only add drift). The optic shows every
+        /// contact; the perception effect (#2202) only a <paramref name="living"/> one inside its range, fading
+        /// in over the last few blocks so nothing pops at the edge.</summary>
+        private void AddScene(Vector3 scene, Vector2 size, Color tint, string label, bool living = false)
         {
             var rel = scene - Camera.transform.position;
+            float dist = rel.magnitude;
+            float strength = _amt;
+            if (living && _senseAmt > 0.001f)
+            {
+                strength = Mathf.Max(strength, _senseAmt * Mathf.Clamp01((_senseRange - dist) / SenseFade));
+            }
+
+            if (strength <= 0.001f)
+            {
+                return;
+            }
+
             _contacts.Add(new Contact
             {
                 Rel = rel,
-                Dist = rel.magnitude,
+                Dist = dist,
                 Size = size,
                 Tint = tint,
                 Label = label ?? string.Empty,
+                Strength = strength,
             });
         }
 
@@ -387,13 +452,13 @@ namespace BlocksBeyondTheStars.Client
                     Mathf.Max(c.Size.x * shrink, c.Size.x * 0.25f),
                     Mathf.Max(c.Size.y * shrink, c.Size.y * 0.25f),
                     1f);
-                m.Mat.SetColor(ColorId, ShaderColor.Srgb(c.Tint * _amt));
+                m.Mat.SetColor(ColorId, ShaderColor.Srgb(c.Tint * c.Strength));
 
                 if (labels != null && labelled < MaxLabels && dist <= LabelRange && !string.IsNullOrEmpty(c.Label))
                 {
                     labelled++;
                     labels.World(Camera, pos, $"{c.Label} · {Mathf.RoundToInt(dist)} m",
-                        new Color(c.Tint.r, c.Tint.g, c.Tint.b, _amt));
+                        new Color(c.Tint.r, c.Tint.g, c.Tint.b, c.Strength));
                 }
             }
 
@@ -467,6 +532,7 @@ namespace BlocksBeyondTheStars.Client
         {
             Shader.SetGlobalFloat(ThermalAmtId, 0f); // never leave the world graded when we stop driving it
             _amt = 0f;
+            _senseAmt = 0f;
             _active = false;
             ShowQuad(false);
             ReleaseMarkers();

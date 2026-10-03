@@ -77,6 +77,9 @@ refreshed 2026-08-08.
 - [CREATURE_RIG.md](CREATURE_RIG.md) — how a blocky animal is built and animated: the gait, jointed
   limbs, fins, foot planting on real blocks, and the distance LOD tiers.
 - [CREATURE_TAMING.md](CREATURE_TAMING.md) — taming wild creatures into companions.
+- [BIO_LAB.md](BIO_LAB.md) — the bio lab (#2212): species seeds and samples, derived substance and material
+  profiles, the lab (analyse, mix, change tools and gear), status effects, cloning from samples, crosses and bred
+  plants; the register and research blobs, the wire, limits, and how to add an effect or a lab material.
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
 - [NPC_ROUTINES.md](NPC_ROUTINES.md) — living NPCs: base residents, the daily routine, pathfinding with doors,
   jobs with yield, and the station night.

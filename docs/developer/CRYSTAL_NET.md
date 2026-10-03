@@ -197,7 +197,7 @@ drives its own network (#2092).
 | `announcer` | Announcer | edge listener | rising edge | — | — | mode 0–5 preset line; label = own line |
 | `fabricator` | Fabricator | machine (edge) | rising edge / held | — | ON = blocked | config `recipe=<key>` |
 | `caller` | Caller | machine (edge, planet-only) | rising edge | — | — | — |
-| `clone_tank` | CloneTank | machine (edge, planet-only) | start / held | — | ON while growing, then a 0.5 s "ready" pulse | mode 0 release automatically / 1 on signal; config `sp=`, `growing=`, `clones=` |
+| `clone_tank` | CloneTank | machine (edge, planet-only) | start / held | — | ON while growing, then a 0.5 s "ready" pulse | mode 0 release automatically / 1 on signal; config `sp=`, `growing=`, `clones=`, and with samples `x=` (cross partner), `grow=` (#2207) |
 | `auto_drill_1/2/3` | AutoDrill | machine (edge) | rising edge / held | — | ON = crate full / pit done | mode = `AutoDrillMode` (only ore / everything) |
 | `drill_laser` | DrillLaser | machine (edge) | rising edge / held | — | ON = halted (water / lava / bedrock / protected / crate full / 128 deep) | mode = `AutoDrillMode`; config `depth=<blocks cut>` (#2108) |
 | `matter_sender` | MatterSender | machine (edge) | rising edge / held | — | ON = blocked (cannot send) | config `pair=<receiver device id>` |
@@ -285,6 +285,14 @@ network (before #2092 a blocked machine latched its own control line ON).
   network, it really waits for a signal. The tank's config counts its `clones=`; clones are never persisted as
   entities — `RespawnCrystalClones` re-spawns them beside their tank on activation, and a mined tank clears the
   tag so they join the ordinary wild population. `MaxLivingClonesPerOwner` (6) is checked at start.
+  **Samples and crosses (#2207–#2209).** With the bio lab the list also offers the animal and plant samples in the
+  owner's sample case (`AppendSampleChoices`, choice `g:<seed hex>`); such a start goes through `BioTankStart`
+  instead: it costs one sample per parent and matter dust (2 for a clone, 4 for a cross) and no bait. A species
+  from another world is registered as a guest species from the save's species register, so the clone works on any
+  world (a water or lava animal needs its fluid within 8 blocks). A second choice in the config (`x=`) names a
+  cross partner (blueprint `bio_crossing`); `grow=` holds what the tank is growing. `sp`, `x`, `grow`, `growing`
+  and `clones` are server-owned — a client `configure` cannot overwrite them. `MaxLivingClonesPerWorld` (16) is
+  checked for every start. See [BIO_LAB.md](BIO_LAB.md) §11.
 - **Existing ports** (#2053) reach their own code: a beam pad beams everyone standing on it to `pair=` (owner /
   ally check as with a hand beam) and pulses the far pad's status ("someone arrived"); a hydro tray harvests the
   crop into the adjacent crate and schedules the regrow; a thumper starts its run; the sentry's firing pass goes
@@ -306,6 +314,7 @@ network (before #2092 a blocked machine latched its own control line ON).
 | auto-drills / matter senders / fabricators per owner | 4 / 4 / 4 | `OverCrystalCap` |
 | clone tanks per owner | 2 | `OverCrystalCap` |
 | living clones per owner | 6 | `CloneTankStart` |
+| living clones per world | 16 | `CloneTankStart` / `BioTankStart` |
 | mined blocks per tick (all drills) | 2 | `AutoDrillStep` |
 
 Gates (logic block, timer block, Device Eye) never open a network and do not count against the network cap;

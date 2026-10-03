@@ -667,7 +667,8 @@ public sealed partial class GameServer
         // Ranged energy weapons without a cooldown are still rate-limited by their suit-energy cost.
         if (isWeapon)
         {
-            double cd = tool.CooldownSeconds > 0f ? tool.CooldownSeconds : (tool.EnergyPerUse <= 0f ? MeleeCooldown : 0.0);
+            double cd = (tool.CooldownSeconds > 0f ? tool.CooldownSeconds : (tool.EnergyPerUse <= 0f ? MeleeCooldown : 0.0))
+                * Shared.Bio.PlayerEffects.CooldownFactor(p.Effects); // #2202: a reflex preparation shortens it
             if (cd > 0.0)
             {
                 if (_meleeReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt)
@@ -727,6 +728,11 @@ public sealed partial class GameServer
         float damage = isWeapon
             ? (tool.Damage > 0f ? tool.Damage : 20f + tool.Tier * 15f)
             : 15f + tool.Tier * 10f;
+        if (!isWeapon || tool.Range <= 6f)
+        {
+            damage *= Shared.Bio.PlayerEffects.MeleeFactor(p.Effects); // #2202: strength is in the arm, not in a gun
+        }
+
         target.Hull -= damage;
 
         // 2026-09 (Valuma): a hit turns the shapeshifter on its attacker; at zero its disguise breaks instead of it dying.
@@ -773,6 +779,11 @@ public sealed partial class GameServer
         // The kill already happened, so the loot cannot be refused — a full inventory drops it at the fallen
         // enemy's feet instead of losing it (#853).
         BankLoot(session, pool, target.Loot, spillAt: target.Position.ToBlock(), creatureLoot: isCreature);
+        if (isCreature)
+        {
+            BioOnCreatureDefeated(session, target); // #2201: a sample of its species, with the loot
+        }
+
         SendInventory(session);
         OnAchievementDefeat(session);
         if (isCreature)

@@ -94,6 +94,14 @@ public sealed partial class GameServer
             _saplingLeafId = _content.GetBlock("tree_leaves")?.NumericId.Value ?? 0;
         }
 
+        // #2209: the bred plant — flora for harvest, regrowth and the hull rule, but no catalog species: what stands in
+        // a cell is the player's own species (GameServerBioBreeding), and its soil rule is its own (BredHostValid).
+        _hybridId = _content.GetBlock(BlocksBeyondTheStars.Shared.Bio.FloraForm.BlockKey)?.NumericId.Value ?? 0;
+        if (_hybridId != 0)
+        {
+            _floraIds.Add(_hybridId);
+        }
+
         // Per-BODY flora roster (#478): each archetype block gets this world's coined name + edible/toxic
         // trait, surfaced when the player scans the plant. The seed is salted with the body's location id —
         // the SAME formula as WorldGenerator.RosterSeed, or the scanned names would disagree with what
@@ -321,6 +329,11 @@ public sealed partial class GameServer
     /// species, #1759, the block ABOVE).</summary>
     private bool IsValidFloraHost(ushort floraId, Vector3i pos)
     {
+        if (IsBredPlant(floraId))
+        {
+            return BredHostValid(pos) && BredAirOk(pos); // #2209
+        }
+
         if (!_floraHostIds.TryGetValue(floraId, out var hosts))
         {
             return false;
@@ -462,7 +475,9 @@ public sealed partial class GameServer
     {
         // #2038: a fruit takes longer to ripen again than a tuft of grass, and it comes back in the colour its tree kind
         // rolled — the cell's tint, read by the harvest before the cell was cleared and persisted with the timer.
-        double seconds = _fruitIds.Contains(floraId) ? BlocksBeyondTheStars.WorldGeneration.FruitRules.RegrowSeconds : FloraRegrowSeconds;
+        // #2209: a bred plant grows back more slowly than a wild one — its samples must not come faster than a wild plant's.
+        double seconds = _fruitIds.Contains(floraId) ? BlocksBeyondTheStars.WorldGeneration.FruitRules.RegrowSeconds
+            : IsBredPlant(floraId) ? BredRegrowSeconds : FloraRegrowSeconds;
         _floraRegrow[pos] = (floraId, seconds, tint);
         _repo.SaveFloraRegrow(_world.LocationId, pos, floraId, seconds, tint);
 
@@ -545,14 +560,27 @@ public sealed partial class GameServer
             // valid ground for it (so flora never grows up through the ship hull/interior). On a void world
             // (#628) the cell must additionally be sealed inside a hull — a plant regrowing in an open cell
             // out there would show the void through its billboard and let the player walk off into space.
+            bool bred = IsBredPlant(floraId);
             if (!ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z)) && _world.GetBlock(pos).IsAir
-                && IsValidFloraHost(floraId, pos) && IsFloraEnclosedForVoidWorld(pos))
+                && IsValidFloraHost(floraId, pos) && IsFloraEnclosedForVoidWorld(pos)
+                && (!bred || BredSeedAt(pos) != 0))
             {
-                _world.SetBlock(pos, new BlockId(floraId), tint); // a fruit in its tree kind's colour (#2038), everything else plain
+                // #2209: a bred plant comes back as the species that stood here — colour and form from its genome.
+                int glow = 0;
+                if (bred)
+                {
+                    (tint, glow) = BredStamp(BredSeedAt(pos));
+                }
+
+                _world.SetBlock(pos, new BlockId(floraId), tint, glow); // a fruit in its tree kind's colour (#2038), everything else plain
                 // #1857: the harvest wrote Air into the station's cell grid (see WriteBackStationCell in the mine
                 // path); the regrowth puts the plant back there too, so the hull seen from outside keeps its garden.
                 MirrorStationCellDeferred(pos, new BlockId(floraId));
-                BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = floraId, Tint = tint });
+                BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = floraId, Tint = tint, Glow = glow });
+            }
+            else if (bred)
+            {
+                ForgetBredPlant(pos); // its soil or its air is gone: the plant does not come back
             }
         }
 

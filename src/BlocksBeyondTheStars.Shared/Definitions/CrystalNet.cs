@@ -170,6 +170,10 @@ public static class CrystalNetRules
     public const int MaxCloneTanksPerOwner = 2;
     public const int MaxLivingClonesPerOwner = 6;
 
+    /// <summary>Living clones on one world, whoever owns them (#2207): a world full of tanks must never crowd out its own
+    /// wildlife or the tick.</summary>
+    public const int MaxLivingClonesPerWorld = 16;
+
     /// <summary>Mined blocks per world per tick across every auto-drill and drill laser (a wake-set style budget).</summary>
     public const int MaxDrillBlocksPerTick = 2;
 

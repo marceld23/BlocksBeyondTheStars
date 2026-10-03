@@ -221,6 +221,10 @@ namespace BlocksBeyondTheStars.Client
             var crystalUi = root.AddComponent<CrystalDeviceUi>();
             crystalUi.Game = boot;
 
+            // #2203: the bio lab's panel (analyse a sample, mix a preparation, change a tool) — opens on E at the lab block.
+            var bioLabUi = root.AddComponent<BioLabUi>();
+            bioLabUi.Game = boot;
+
             // #2113: the monorail cab's panel (speed, halt, autopilot, pack up).
             var cabUi = root.AddComponent<TrainCabUi>();
             cabUi.Game = boot;

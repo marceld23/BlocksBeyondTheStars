@@ -739,6 +739,9 @@ effort.
   the fabricator, and the jump generator and asteroid breaker modules need it. Polymer now also seals the beam
   block, the sentry post and the matter sender/receiver. The starter tier (basic and titanium drill, the base core,
   the first machines) stays oil-free, so you can always reach a living world first.
+- **The bio lab is a station without recipes:** it analyses samples, mixes them into preparations and changes
+  tools and gear — what comes out is computed from what goes in. Four blueprints open it up step by step: **Bio
+  Lab** (after Bio-Refining), **Synthesis**, **Lab Tuning** and **Crossing** (needs the clone tank). See § The bio lab.
 - **Interior decor is craftable:** the lights, light strips, force field, medbay/lab/cargo/engine panels, engine
   nozzle, factory terminal, pipe and machine housing that ship interiors, stations and factories are built from all
   have workshop recipes (lights: crystal in a glass housing — no power needed; the force field needs the energy-door
@@ -1179,7 +1182,9 @@ effort.
   tank or your own pocket), wait a minute, and the animal walks out beside the tank — at once, or when its
   network is ON if you set it to release on a signal. Its amber light is on while the clone grows and flashes
   once when it is ready. Clones stay with their tank across reloads; mine the tank and they are simply free.
-  Two tanks and six living clones per player.
+  Two tanks and six living clones per player, sixteen clones per world. With a **bio lab** the tank also grows
+  animals from the **samples** in your sample case — from any world — and **crosses** two species into a new one:
+  see § The bio lab.
 - **Where it works.** On planets, moons, asteroids and **your own space stations** — not aboard ships. And
   only **while you are on that world**: nothing ticks while you are away, your base wakes up with you. A
   drill does not dig while you are off exploring.
@@ -1235,6 +1240,9 @@ effort.
   Leaves, needles and fronds drop as blocks now, so you can build and shape a canopy by hand — and a sapling
   planted on the dirt floor of a sealed station hall grows just like one on a planet, so an arboretum in orbit
   is a matter of dirt, saplings and headroom. A sapling you pick up stays a sapling.
+- **Bred plants and seedlings.** A **bio lab** raises a **seedling** from any plant sample — also from a plant you
+  crossed yourself. It grows on natural plant ground, on a hydroponic tray or in a flower pot, on any world whose
+  air is not corrosive: see § The bio lab.
 - **You walk through tree crowns** — leaves, needles and fronds — just like through grass and ferns; only the
   trunk stops you. So you can't stand on top of a tree: you drop through the crown to the ground (or onto the
   trunk). A hedge you build from leaves is decoration, not a wall. Crowns still hide you from view.
@@ -1475,6 +1483,8 @@ effort.
 - **Plants and trees scan as named species.** A scanned plant (flora) or tree reads as this world's coined
   species name with an **edible/toxic** classification, not just a block. A tree's trunk and its leaves are
   the same species, so scanning either one counts as a single discovery.
+- **What it carries.** A scanned plant, tree or creature also gets a line about its **substance**: unknown until
+  you have analysed a sample of that species in a **bio lab** (§ The bio lab) — afterwards the scan says so.
 - **Micro-fauna scans too.** Stand near a butterfly, firefly, wisp or any other ambient critter with the
   scanner selected and left-click (when no larger creature is in reach): the kind enters the Codex's
   **Micro-fauna** discoveries chapter and awards a little knowledge. Thermal vision (see §5 → Binoculars)
@@ -1789,6 +1799,97 @@ effort.
   workshop — 2 metal panels + 1 energy cell + 1 circuit board) as the entrance: you and settlement folk
   walk straight through its membrane while fauna bounce off; there is nothing to open or close. Only
   flying creatures glide over a normal-height fence.
+
+### The bio lab (samples, preparations, changed gear, breeding)
+Every plant, every animal and every ore vein carries something of its own — and it depends on **where and how it
+lives**. What survives beside a lava lake tends to protect from heat, what climbs tends to help you climb, what
+lives in water tends to help you breathe. The bio lab lets you find out, and use it. There are **no recipes** to
+look up: what a mix does follows from what goes in, and the same things always give the same result.
+
+- **Samples.** Whenever you harvest a plant, fell a tree, mine ore, crystal, salt or sulfur, or defeat an animal,
+  you get what you always got — **plus one sample** of that species (for ore: of that world's deposit; always from
+  the first block, afterwards from about one block in eight). Samples go into your **sample case**, a separate
+  compartment of the inventory (24 kinds, 20 of each), so they never clutter your backpack. A block you placed
+  yourself gives no sample. If the case is full the harvest still works — you just get no sample.
+- **The sampler** (`bio_sampler`, workshop, comes with the bio lab blueprint): a **right-click** gadget that takes
+  a sample from a **living** animal without hurting it — 6 blocks reach, far more for a giant. A hostile animal
+  must be held in stasis first, and the same animal gives a sample only every five minutes. A **companion** also
+  brings a sample of its species along with its regular gift.
+- **The bio lab block** (`bio_lab`, workshop; blueprint **Bio Lab** in the tech tree after Bio-Refining). Place it
+  and use **Interact** on it. It has three pages:
+  - **Analyse.** Uses up one sample and shows what the species carries: its **substance** with one **effect**, a
+    **strength** from I to XV, a **rarity** (common → legendary), how long it lasts, whether it has a **catch**
+    (a side effect), whether it is **toxic** and whether it is **heat- or cold-sensitive**. The first analysis of a
+    species pays **knowledge**. Until then the scanner only says "substance: unknown". For a mineral sample you see
+    the material's **fixed traits** (copper conducts on every world) and the **origin values** of this world's
+    deposit: its purity and what is a little stronger, weaker or extra here.
+  - **Mix.** Put in a sample and get a **preparation**. A plain extract needs nothing else. With the
+    **Synthesis** blueprint you add up to three more things:
+    - a **carrier**, which decides the form: water → **injector** (full strength, short), plant fibre or polymer →
+      **gel** (weak, lasts very long), berries, grain or fruit → **bar** (half strength, long, and it feeds you),
+      salt → **capsule** (in between), oil or lubricant → **coating** (not for you — for your tools, see below);
+    - a **stabiliser** — a mineral sample or any ingot: it steadies the mix, and the *right* material takes the
+      catch away for a bit of strength (the lab shows which trait it wants);
+    - a **second sample** that reacts with the first: it can **amplify** it, **weaken** it, **add its own effect**
+      as a second one, or **turn** the effect into a related one. Which groups do what to each other is the same in
+      every world — once you know that group A amplifies group B, that holds forever.
+
+    The lab shows the **stability** of a mix. A shaky mix can **fail**: everything you put in is gone and you get
+    nothing — but your handbook remembers it, and a mix you have tried once is shown with its result *before* you
+    mix it again. Toxic samples make a mix shaky; with a **detoxifier** nearby and one carbon the lab washes them.
+  - **Change.** With the **Lab Tuning** blueprint: put in a **drill, a weapon or a piece of suit gear**, a material
+    (mineral sample or ingot) and optionally a **coating**. The material's traits decide *what* changes — hard
+    makes a drill hit harder or armour tougher, conductive saves energy, light speeds a tool up, magnetic adds
+    reach or grip — and the purity of the deposit and the coating decide *how much*. A big change always has a
+    **price**: the tool gets a bit slower or hungrier, gear gets a bit heavier (unless the material is light). The
+    lab never changes a tool's **tier** or its mining radius. Nothing wears off; you can change the item again or
+    **wash it off** for free. A changed item carries "changed" in its name and shows its new values in the tooltip.
+- **Taking a preparation.** Like food: hold it and **right-click**, pick **Take** in the hotbar slot actions, or
+  press **Take** on its card in the inventory. Every running effect is listed in the vitals panel under your bars
+  with its strength, the time it has left and its catch; a shield shows as "+n Shield" behind your health. You can
+  run **three effects at once**; taking the same effect again refreshes it, and a weaker one is refused (and not
+  used up). In a list a preparation reads like "Injector · Speed III". The effects:
+
+  | Effect | What it does (at most) |
+  |---|---|
+  | Speed · Jump | walk up to 25 % faster · jump up to 40 % higher |
+  | Feather Fall · Grip | fall protection · tire more slowly when climbing — both join your boots and gloves |
+  | Shield | up to 30 extra points that take a hit before your health does |
+  | Regeneration · Energy | heals up to 1.5 health per second · recharges the suit |
+  | Strength · Mining · Reflex | up to 30 % more melee damage · mining power · up to 25 % shorter cooldowns |
+  | Breath · Satiety | up to 40 % less oxygen · hunger use |
+  | Heat Ward · Cold Ward · Toxin Ward | protection that joins your suit's insulation and corrosion resistance |
+  | Night Sight · Perception | the dark gets brighter · living things are marked through walls |
+  | Stealth | hostile creatures ignore you — a minute at most |
+  | Gathering | plants you harvest give one or two extra |
+
+  Effects never go past what the suit formulas allow — a preparation helps a lot early on and a little on top of
+  the best gear. A **catch** is always mild: more hunger or oxygen use, a little slower, a lower jump, slower
+  healing or cooldowns — never damage. A heat-sensitive effect runs out twice as fast in great heat, a
+  cold-sensitive one in great cold.
+- **Your handbook** is in the Codex: the chapters **Substances** (every species you analysed), **Compounds** (every
+  mix you tried, also the failed ones) and **Materials** (every deposit you analysed and every item you changed).
+  In the lab, the sample case is on the left; a click on a sample puts it into the fitting slot of the open page.
+- **Rarity is found, not rolled.** Common worlds and easy animals give common substances (strength I–III). The
+  strong ones live where it is hard to get: rare planet types, caves, lava, dangerous animals, giants (always
+  legendary). So travel pays — the best heat ward is not in your back garden.
+- **Cloning from samples** (clone tank, see § Crystal Net). The tank's list now also offers every **animal sample**
+  in your sample case — so you can grow an animal **on another world** than the one it comes from. It costs one
+  sample and two matter dust instead of bait. Water animals need water near the tank, lava animals lava. Hostile
+  animals and giants are never grown. A world holds at most 16 clones (six per player, as before).
+- **Crossing** (blueprint **Crossing**, needs the clone tank). Pick a **partner** in the tank's menu: two
+  animal species become a **new species** — the body of one parent, the colours and ornaments of the other, size
+  and speed in between, and now and then a trait neither parent had. The same two parents always give the same
+  child. A cross is never hostile. It costs one sample of each parent and four matter dust; you get the animal
+  **and a sample of the new species**, so you can clone it, analyse it and cross it again (up to three generations).
+  The child's substance comes from one parent and is usually about as strong as the stronger one — a little
+  stronger when the parents come from **different worlds**. The animals from the school club cross like any other.
+- **Breeding plants.** Two **plant samples** in the tank give a new plant species with a **new form** — the stem of
+  one parent, the crown of the other, its own colour, sometimes glowing. You get two samples of it. At the bio lab
+  the **Analyse** page turns any plant sample into a **seedling**. Plant it on any natural plant ground, on a
+  **hydro tray** or in a **flower pot** — on any world whose air is not corrosive, in your base or on a station;
+  tainted ground does not work. A harvested bred plant grows back after a minute and a half and gives its sample
+  again. A world holds up to 256 bred plants.
 
 ### Hover speeder (surface vehicle)
 - Craft a **hover speeder** (`speeder`, blueprint-gated workshop recipe: titanium_plate ×8, cable ×10,

@@ -623,7 +623,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void SetKnowledgeMax() => Game.Network.SendTradeKnowledge(Game.Trade.MyKnowledgeMax);
 
-        private static string ItemName(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string itemKey)
-            => loc.Get($"item.{BlocksBeyondTheStars.Shared.State.ItemKey.Base(itemKey)}.name");
+        // The shared display-name helper (#927), so a traded item reads as it does in the backpack: a preparation of the
+        // bio lab names what it does, a seedling its species, a changed tool says that it was changed (#2201–#2206).
+        private string ItemName(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string itemKey)
+            => BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(loc, itemKey, null,
+                _speciesName ??= seed => Game.Bio.SpeciesName(seed));
+
+        private System.Func<uint, string> _speciesName;
     }
 }

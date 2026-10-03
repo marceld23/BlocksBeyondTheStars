@@ -327,6 +327,15 @@ public sealed partial class GameServer
         // decides whether only discoveries count (FirstOnly). Fed from the readout, so no scan path knows missions.
         OnMissionScan(session, readout.Kind, readout.SubjectKey, readout.ThreatKey == "ui.scan.threat.hostile", firstTime);
 
+        // #2203: a living thing carries a substance — unknown until the bio lab has analysed its species.
+        uint substanceSeed = readout.Kind == "creature" && _speciesById.TryGetValue(readout.SubjectKey, out var scannedSpecies)
+            ? BioSeedOfCreature(scannedSpecies)
+            : readout.Kind is "flora" or "tree" ? BioSeedOfPlantBlock(readout.SubjectKey) : 0;
+        if (substanceSeed != 0)
+        {
+            readout.TraitKeys = readout.TraitKeys.Concat(new[] { SubstanceTrait(p, substanceSeed) }).ToArray();
+        }
+
         var result = new ScanResult
         {
             Subject = readout.Display,

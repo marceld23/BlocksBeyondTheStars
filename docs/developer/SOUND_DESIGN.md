@@ -245,6 +245,22 @@ the breath is one of the ways the player feels it tiring.
 
 ---
 
+## 14. The bio lab (#2210) — *ElevenLabs clips*
+
+Positional one-shots the server sends as `SoundFx` at the player (the sampler's at the animal); see
+[BIO_LAB.md](BIO_LAB.md). `ProceduralAudio` holds a synthesised stand-in for each id.
+
+| Sound | Trigger | Files | Source |
+|---|---|---|---|
+| analysis | a sample is analysed, a seedling is raised | `bio_lab_analyse` | EL |
+| mix | a mix holds, a tool or a piece of gear is changed | `bio_lab_mix` | EL |
+| failed mix | a mix falls apart | `bio_lab_fail` | EL |
+| effect starts | a preparation is taken | `bio_effect_start` | EL |
+| effect ends | a status effect runs out | `bio_effect_end` | EL |
+| sample taken | the sampler takes a sample from a living animal | `bio_sample_take` | EL |
+
+---
+
 ## Totals & rollout
 
 The planned rollout has largely landed. Current state:

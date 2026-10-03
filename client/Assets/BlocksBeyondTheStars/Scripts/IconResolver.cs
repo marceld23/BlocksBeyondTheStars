@@ -18,6 +18,7 @@ namespace BlocksBeyondTheStars.Client
     {
         private static readonly Dictionary<string, Sprite> _sprites = new Dictionary<string, Sprite>();
         private static readonly Dictionary<string, Texture2D> _itemTex = new Dictionary<string, Texture2D>();
+        private static readonly Dictionary<string, Color> _effectTints = new Dictionary<string, Color>();
 
         /// <summary>Drops every cached sprite/texture. Called from <see cref="GameBootstrap"/>'s teardown:
         /// the sprites wrap THAT session's atlas texture, so keeping them across sessions would pin the
@@ -28,6 +29,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _sprites.Clear();
             _itemTex.Clear();
+            _effectTints.Clear();
         }
 
         /// <summary>The best icon sprite for an item / ship-module / blueprint key, or null if none.</summary>
@@ -54,7 +56,8 @@ namespace BlocksBeyondTheStars.Client
 
             // 1) A generated content icon sits in Resources/icons under an item_ prefix.
             // 2) Otherwise surface the block's atlas tile (materials/blocks reuse their in-game texture).
-            var sprite = UiKit.Icon("item_" + key) ?? BlockTileSprite(key, game);
+            string iconKey = IconKey(key);
+            var sprite = UiKit.Icon("item_" + iconKey) ?? BlockTileSprite(iconKey, game);
             if (sprite != null)
             {
                 _sprites[key] = sprite; // cache only hits — the atlas may not be ready on an early call
@@ -79,16 +82,40 @@ namespace BlocksBeyondTheStars.Client
 
             // The player's local texture pack may replace an icon (#1952); it must win on BOTH entry points
             // (this one feeds the hotbar, Resolve feeds the menus) or the two would show different art.
-            var tex = TexturePackFolder.IconOverride("item_" + key) ?? Resources.Load<Texture2D>("icons/item_" + key);
+            string iconKey = IconKey(key);
+            var tex = TexturePackFolder.IconOverride("item_" + iconKey) ?? Resources.Load<Texture2D>("icons/item_" + iconKey);
             _itemTex[key] = tex;
             return tex;
         }
 
+        /// <summary>The key an item's icon is filed under. The bio lab's keys (#2201–#2206) carry a species seed, a
+        /// compound or a tool's changes after the <c>#</c>: the same item with the same art, so those look up their
+        /// base key. A dyed or shaped block keeps its full key — its look comes from the modifiers, as before.</summary>
+        private static string IconKey(string key)
+        {
+            if (key.IndexOf(BlocksBeyondTheStars.Shared.State.ItemKey.Separator) < 0)
+            {
+                return key;
+            }
+
+            string baseKey = BlocksBeyondTheStars.Shared.State.ItemKey.Base(key);
+            bool lab = BlocksBeyondTheStars.Shared.Bio.BioItems.CarriesSpecies(baseKey)
+                       || BlocksBeyondTheStars.Shared.Bio.BioItems.FormOf(baseKey) != null
+                       || !BlocksBeyondTheStars.Shared.Bio.ItemMods.Of(key).IsEmpty;
+            return lab ? baseKey : key;
+        }
+
         /// <summary>Tints the icon: a dyed/glowing item shows its colour (so coloured stacks read at a
-        /// glance), toxic consumables (negative consume-health) read green, everything else neutral white.
+        /// glance), a preparation of the bio lab the colour of its effect (two injectors in the hotbar are told
+        /// apart), toxic consumables (negative consume-health) read green, everything else neutral white.
         /// Applied as the icon image colour (multiplied over the sprite).</summary>
         public static Color Tint(string key, GameBootstrap game)
         {
+            if (PreparationTint(key, out var effectTint))
+            {
+                return effectTint;
+            }
+
             int tintRgb = BlocksBeyondTheStars.Shared.State.ItemKey.Tint(key);
             int glowRgb = BlocksBeyondTheStars.Shared.State.ItemKey.Glow(key);
             if (tintRgb != 0 || glowRgb != 0)
@@ -99,6 +126,29 @@ namespace BlocksBeyondTheStars.Client
 
             var def = game?.Content?.GetItem(key);
             return def != null && def.ConsumeHealth < 0f ? new Color(0.45f, 1f, 0.4f) : Color.white;
+        }
+
+        /// <summary>The effect colour of a preparation's key (#2202); false for every other key. The hotbar asks for
+        /// its tints ten times a second, so the answer is kept per key instead of decoding the compound each time.</summary>
+        private static bool PreparationTint(string key, out Color tint)
+        {
+            tint = Color.white;
+            if (string.IsNullOrEmpty(key) || key.IndexOf(BlocksBeyondTheStars.Shared.State.ItemKey.Separator) < 0)
+            {
+                return false; // a plain key carries no compound
+            }
+
+            if (!_effectTints.TryGetValue(key, out var known))
+            {
+                // Alpha 0 stands for "no preparation" (a dyed block, a sample, a changed tool).
+                known = BlocksBeyondTheStars.Shared.Bio.BioItems.CompoundOf(key) is { } compound
+                    ? BioLabUi.EffectColor(compound.Effect)
+                    : Color.clear;
+                _effectTints[key] = known;
+            }
+
+            tint = known;
+            return known.a > 0f;
         }
 
         /// <summary>Builds a form-silhouette sprite for a shaped block key (e.g. <c>"stone#s04"</c>); null when

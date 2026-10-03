@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -52,10 +53,39 @@ namespace BlocksBeyondTheStars.Client
         public void SetCellLightResolver(System.Func<ushort, Vector3i, int>? resolver, IEnumerable<ushort>? ids)
         {
             _cellLightColor = resolver;
-            if (resolver == null || ids == null)
+            _cellLightIds = resolver == null ? null : IdFlags(ids);
+        }
+
+        // Bred plants (#2209): the glow channel of such a cell holds the plant's packed form (FloraForm), not a
+        // light colour — whether and how brightly it lights is one field of that form, its colour is the cell's tint.
+        private bool[]? _formIds;
+
+        /// <summary>Registers the blocks whose glow channel is a packed <see cref="FloraForm"/> (the bred plant); null
+        /// clears it. Such a cell is a light only when its form glows — see <see cref="FormLight"/>. Set it before a
+        /// world's chunks are stored, like <see cref="SetCellLightResolver"/>.</summary>
+        public void SetFormBlocks(IEnumerable<ushort>? ids) => _formIds = IdFlags(ids);
+
+        /// <summary>The light a bred plant casts as 0xRRGGBB (0 = none): its colour, dimmed to the share its glow level
+        /// casts (<see cref="FloraForm.LightOf"/>) — a dim colour is a short reach in the mesher's flood fill. A plant
+        /// without a colour of its own glows white. Shared with the mesher's own light scan (ships, stations).</summary>
+        public static int FormLight(int tint, int packedForm)
+        {
+            float share = FloraForm.IsForm(packedForm) ? FloraForm.LightOf(FloraForm.Glow(packedForm)) : 0f;
+            if (share <= 0f)
             {
-                _cellLightIds = null;
-                return;
+                return 0;
+            }
+
+            int rgb = (tint & 0xFFFFFF) != 0 ? tint : 0xFFFFFF;
+            return FloraTints.ToRgb24((((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f), share);
+        }
+
+        /// <summary>A lookup table "is this block id in the set" (null for an empty or missing set).</summary>
+        private static bool[]? IdFlags(IEnumerable<ushort>? ids)
+        {
+            if (ids == null)
+            {
+                return null;
             }
 
             int size = 0;
@@ -70,7 +100,7 @@ namespace BlocksBeyondTheStars.Client
                 flags[id] = true;
             }
 
-            _cellLightIds = size > 0 ? flags : null;
+            return size > 0 ? flags : null;
         }
 
         /// <summary>The inherent light colour of a block at a canonical cell (0 = no light source): the block's own
@@ -84,6 +114,21 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return rgb;
+        }
+
+        /// <summary>The light a cell casts (0 = none). Colour priority (#1126): an explicit glow always wins; otherwise
+        /// a block that IS a light source (base colour non-zero) casts its DYE colour when dyed — a red-dyed lamp
+        /// floods red — and its natural colour when plain. A dye on a non-source block never turns it into a lamp.
+        /// A bred plant (#2209) is the exception: its glow channel is its form, read by <see cref="FormLight"/>.</summary>
+        private int CellLight(ushort block, Vector3i pos, int tint, int glow)
+        {
+            if (_formIds is { } forms && block < forms.Length && forms[block])
+            {
+                return FormLight(tint, glow);
+            }
+
+            int baseRgb = block != BlockId.AirValue ? InherentLightAt(block, pos) : 0;
+            return glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
         }
 
         // Round worlds: chunks are cached by canonical chunk coordinate (a chunk a lap away — east OR
@@ -212,11 +257,7 @@ namespace BlocksBeyondTheStars.Client
             chunk.SetModifier(local.X, local.Y, local.Z, tint, glow);
             chunk.SetShape(local.X, local.Y, local.Z, shape);
 
-            // Light colour priority (#1126): an explicit glow always wins; otherwise a block that IS a light
-            // source (base colour non-zero) casts its DYE colour when dyed — a red-dyed lamp floods red — and
-            // its natural colour when plain. A dye on a non-source block never turns it into a lamp.
-            int baseRgb = block != BlockId.AirValue ? InherentLightAt(block, pos) : 0;
-            int rgb = glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
+            int rgb = CellLight(block, pos, tint, glow);
             if (rgb != 0)
             {
                 if (!_lightSources.TryGetValue(affected, out var bucket))
@@ -316,14 +357,14 @@ namespace BlocksBeyondTheStars.Client
                             continue;
                         }
 
-                        // Same priority as ApplyBlockChange (#1126): glow > dye-on-a-light-source > natural.
+                        // Same rule as ApplyBlockChange (CellLight): glow > dye-on-a-light-source > natural.
                         var (tint, glow) = chunk.GetModifier(x, y, z);
-                        int baseRgb = InherentLightAt(id.Value, new Vector3i(origin.X + x, origin.Y + y, origin.Z + z));
-                        int rgb = glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
+                        var pos = new Vector3i(origin.X + x, origin.Y + y, origin.Z + z);
+                        int rgb = CellLight(id.Value, pos, tint, glow);
                         if (rgb != 0)
                         {
                             bucket ??= new Dictionary<Vector3i, int>();
-                            bucket[new Vector3i(origin.X + x, origin.Y + y, origin.Z + z)] = rgb;
+                            bucket[pos] = rgb;
                         }
                     }
 

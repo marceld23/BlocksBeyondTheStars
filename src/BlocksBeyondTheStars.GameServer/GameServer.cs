@@ -329,6 +329,7 @@ public sealed partial class GameServer
             LoadAllAlliances();   // restore the player alliance graph server-wide (shared station/base access)
             LoadAllCrews();       // restore the crews (#1216) — membership implies alliance while it lasts
             LoadStoryState();     // restore the per-save story progress + active story pack (server-wide, P0)
+            LoadBioRegister();    // #2201: the species the save has sampled — what cloning and crossing read
 
             // Ships are per-player now: each player loads/creates their own on join (no global ship at start).
             BuildMissions();
@@ -823,6 +824,7 @@ public sealed partial class GameServer
         LoadBeacons();     // placed radio beacons restore their label/owner entities (the blocks come back via edits)
         LoadBeams();       // placed beam blocks restore their name/owner entities (the blocks come back via edits)
         LoadCrystalNet();  // #2046: conduits + devices rebuild their networks from their rows
+        LoadBredPlants();  // #2209: which species stands in which cell of this world
         LoadRails();       // #2113: the monorail's pylons, links and trains from the metadata
 
         MarkBodyVisited(locationId); // #1856: resolves a station world's `station:` id to its body, so stations chart too
@@ -1867,6 +1869,7 @@ public sealed partial class GameServer
 
     private void TickEnvironment(double dt)
     {
+        FlushBioRegister(force: false); // #2201: a changed species register is written a little later, once
         if (ReconcileSpeeders()) // materialise present owners' speeders / despawn departed owners' (hover vehicles)
         {
             BroadcastSpeeders();
@@ -1925,6 +1928,8 @@ public sealed partial class GameServer
 
                 continue;
             }
+
+            TickBioEffects(session, dt); // #2202: count the status effects down, heal and recharge
 
             float maxOxygen = MaxOxygen(p);
             if (p.GodMode)
@@ -1989,7 +1994,8 @@ public sealed partial class GameServer
                 p.Oxygen = System.Math.Min(maxOxygen, p.Oxygen + (float)(dt * 25));
                 if (p.Health > 0f && session.ToxicWaterSeconds <= ToxicWaterGraceSeconds && p.Exposure < 1f) // 2026-09: toxic water and a full exposure meter stop the regen
                 {
-                    p.Health = System.Math.Min(100f, p.Health + (float)(dt * 2));
+                    // #2202: a "tired" side effect takes natural healing away for as long as it lasts.
+                    p.Health = System.Math.Min(100f, p.Health + (float)(dt * 2) * Shared.Bio.PlayerEffects.NaturalHealingFactor(p.Effects));
                 }
 
                 // Aboard the ship the suit recharges (powers the jetpack / stealth / suit tools); outside it
@@ -2002,7 +2008,7 @@ public sealed partial class GameServer
             else
             {
                 // Outside without breathable air (toxic / airless) or submerged underwater: drain the tank.
-                float drain = (float)(dt * Rules.OxygenDrainPerSecond);
+                float drain = (float)(dt * Rules.OxygenDrainPerSecond) * Shared.Bio.PlayerEffects.OxygenDrainFactor(p.Effects); // #2202
                 if (!submerged && !p.InEva && !p.AboveAtmosphere && _oxygenExtractability > 0 && Wears(p, "oxygen_extractor"))
                 {
                     // The suit extracts some oxygen from a toxic atmosphere — reduces (never refills)
@@ -2059,7 +2065,7 @@ public sealed partial class GameServer
             }
             else
             {
-                p.Hunger = System.Math.Max(0f, p.Hunger - (float)(dt * Rules.HungerDrainPerSecond));
+                p.Hunger = System.Math.Max(0f, p.Hunger - (float)(dt * Rules.HungerDrainPerSecond) * Shared.Bio.PlayerEffects.HungerDrainFactor(p.Effects)); // #2202
                 if (p.Hunger <= EmergencyRationThreshold)
                 {
                     TryAutoEatRation(session); // suit auto-feeds a stored ration before starvation
@@ -3676,6 +3682,7 @@ public sealed partial class GameServer
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
             case ThrowFoodIntent throwFood: HandleThrowFood(session, throwFood); break; // #2018: the Feed action
             case UseGadgetIntent gadget: HandleUseGadget(session, gadget); break;
+            case BioLabIntent bioLab: HandleBioLab(session, bioLab); break; // #2203
             case TameRespondIntent tameResp: HandleTameRespond(session, tameResp); break;
             case BanditResponseIntent banditResp: HandleBanditResponse(session, banditResp); break;
             case RequestCompanionsIntent: HandleRequestCompanions(session); break;
@@ -3872,6 +3879,7 @@ public sealed partial class GameServer
             state.TrainSeat = -1;
             ClampInventory(state.Equipment, $"player '{name}' equipment");
             ClampInventory(state.RationStore, $"player '{name}' ration store");
+            ClampInventory(state.SampleCase, $"player '{name}' sample case");
         }
         catch (InvalidDataException ex)
         {
@@ -4035,6 +4043,7 @@ public sealed partial class GameServer
         BackfillPlaceDiscoveries(session); // pre-#1113 saves: mirror already-landed bodies into "Places" first
         BackfillScanSites(session); // pre-#1843 saves: derive WHERE for place/monument keys from the body id
         SendDiscoveryLog(session); // the first-scan ledger, for the Codex "Discoveries" chapter (#484)
+        SendBioBook(session);      // #2203: the research book — species held or analysed, mixes tried
 
         // Achievements: settle anything that came due while a reward had nowhere to go, retro-award entries that
         // were added to the data file since this save was made, and send the list with live progress.
@@ -4280,6 +4289,7 @@ public sealed partial class GameServer
             state.TrainSeat = -1;
             ClampInventory(state.Equipment, $"player '{name}' equipment");
             ClampInventory(state.RationStore, $"player '{name}' ration store");
+            ClampInventory(state.SampleCase, $"player '{name}' sample case");
         }
         catch (InvalidDataException ex)
         {
@@ -4770,7 +4780,8 @@ public sealed partial class GameServer
         // Harder blocks need more drill effort; stronger drills apply more per hit. Soft blocks
         // (mud/dirt) break in one hit; hard ones (stone/metal/ore) take several. Accumulate until break.
         float hardness = System.Math.Max(0.2f, def.Hardness);
-        float power = tool.MiningPower > 0f ? tool.MiningPower : 1f;
+        float power = (tool.MiningPower > 0f ? tool.MiningPower : 1f)
+            * Shared.Bio.PlayerEffects.MiningFactor(session.State.Effects); // #2202: a mining preparation bites harder
         // Only keep prior progress if it was for THIS same block (else a replaced block starts fresh — B52).
         float prior = _miningProgress.TryGetValue(pos, out var prev) && prev.Block == current.Value ? prev.Progress : 0f;
         float progress = prior + power;
@@ -4847,7 +4858,9 @@ public sealed partial class GameServer
         var yield = new List<ItemAmount>();
         bool toxicFloraDrop = IsFlora(current.Value)
             && _floraSpeciesByBlock.TryGetValue(current.Value, out var toxSp) && toxSp.Toxic;
-        foreach (var drop in def.Drops)
+        // #2209: a bred plant yields what its body parent's form yields (its own toxic twin already applied).
+        uint bredSeed = IsBredPlant(current.Value) ? BredSeedAt(pos) : 0;
+        foreach (var drop in bredSeed != 0 ? BredYield(bredSeed) : def.Drops)
         {
             string item = toxicFloraDrop ? ToxicCounterpart(drop.Item) : drop.Item;
             if ((dropTint != 0 || dropGlow != 0 || dropShape != 0 || dropDesign != 0) && _content.GetItem(item)?.PlacesBlock == def.Key)
@@ -4874,6 +4887,11 @@ public sealed partial class GameServer
 
         // Attribution (issue #490): removing a block is an edit like any other, and it is the one that grief
         // reports are actually about ("someone tore my house down") — so the remover is recorded as the owner.
+        // #2201: a mineral sample comes only from a deposit as the world made it — asked before the break itself
+        // becomes an edit of this cell. A block a player set here (crystal, salt, a log) is no deposit and no tree.
+        bool naturalDeposit = session is not null && !IsFlora(current.Value)
+            && (_treeSpeciesByBlock.ContainsKey(current.Value) || def.Drops.Any(d => MaterialOfDrop(d.Item).Length > 0))
+            && !_repo.HasPlayerBlockEdits(_world.LocationId, pos, pos);
         _world.SetBlock(pos, BlockId.Air, owner: ownerId);
         _miningProgress.Remove(pos);
         OnCrystalBlockRemoved(pos, def); // #2046: a mined conduit or device leaves the Crystal Net
@@ -4909,9 +4927,20 @@ public sealed partial class GameServer
         bool floraHarvest = IsFlora(current.Value);
         // #900: a spore bloom fattens the harvest — the reason to head out INTO the strange weather.
         int bloomBonus = floraHarvest ? WeatherHarvestBonus() : 0;
+        if (floraHarvest && session is not null)
+        {
+            bloomBonus += (int)Shared.Bio.PlayerEffects.Of(session.State.Effects, Shared.Bio.BioEffect.Gathering); // #2202
+        }
+
         foreach (var drop in yield.Take(fixedDrops))
         {
             if (pool is not null) { pool.Add(drop.Item, drop.Count + bloomBonus); } else { bank?.Invoke(drop.Item, drop.Count + bloomBonus); }
+        }
+
+        // #2201: what a player breaks also yields a sample of its species (a plant, a tree) or of its deposit (an ore).
+        if (session is not null)
+        {
+            BioOnBlockBroken(session, pos, def, current.Value, bredSeed, naturalDeposit);
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
@@ -5315,7 +5344,17 @@ public sealed partial class GameServer
         // Seeds / flora only take on a suitable host block (mud, grass, crystal, ...).
         if (IsFlora(blockDef.NumericId.Value))
         {
-            if (!IsValidFloraHost(blockDef.NumericId.Value, pos))
+            // #2209: a seedling has its own rules — any clean plant soil (or a hydro tray, a flower pot) and air.
+            if (IsBredPlant(blockDef.NumericId.Value))
+            {
+                if (BredPlantRefusal(place.ItemKey, pos) is { } refusal)
+                {
+                    Reject(session, "place", refusal);
+                    ShipAiHintOnce(session, "plant_refused");
+                    return;
+                }
+            }
+            else if (!IsValidFloraHost(blockDef.NumericId.Value, pos))
             {
                 Reject(session, "place", "@srv.place.plant_ground");
                 return;
@@ -5416,6 +5455,13 @@ public sealed partial class GameServer
             placeGlow = ItemKey.Glow(place.ItemKey);
         }
 
+        // #2209: a bred plant's look rides on its voxel — its colour in the tint, its form in the glow channel.
+        uint plantedSeed = IsBredPlant(blockDef.NumericId.Value) ? ItemKey.Seed(place.ItemKey) : 0;
+        if (plantedSeed != 0)
+        {
+            (placeTint, placeGlow) = BredStamp(plantedSeed);
+        }
+
         // A shaped block carries its FORM in the item key; the placement ORIENTATION is derived from the
         // player's facing (yaw quantized to one of the four cardinal directions). Together they pack into the
         // per-voxel shape descriptor. Only shapeable building materials honour a shape.
@@ -5510,6 +5556,11 @@ public sealed partial class GameServer
         if (IsSapling(blockDef.NumericId.Value))
         {
             ScheduleSaplingGrowth(pos); // #1774: a planted sapling starts its clock
+        }
+
+        if (plantedSeed != 0)
+        {
+            RememberBredPlant(pos, plantedSeed); // #2209: which species stands here
         }
 
         if (IsContainerBlock(blockDef.Key))
@@ -6695,9 +6746,10 @@ public sealed partial class GameServer
         if (slot >= 0 && slot < player.Inventory.SlotCount && player.Inventory.Slots[slot] is { } stack && !stack.IsEmpty)
         {
             var def = _content.GetItem(stack.Item);
-            if (def is { Category: ItemCategory.Tool, Tool: { } tool })
+            if (def is { Category: ItemCategory.Tool, Tool: not null })
             {
-                return tool;
+                // #2206: the values of THIS tool — what the bio lab changed on it rides in its item key.
+                return Shared.Bio.ToolMods.Effective(def, stack.Item)!;
             }
         }
 
@@ -6832,6 +6884,7 @@ public sealed partial class GameServer
             }
 
             CheckpointLootPackets(); // #1367: expiring drop packets carry their exact age across a shutdown
+            FlushBioRegister(force: true); // #2201: the species register rides with every save
             _repo.SaveMetadata(_meta);
         });
     }
@@ -7110,6 +7163,8 @@ public sealed partial class GameServer
             // /fly keeps working as the per-player admin cheat.
             CanFly = Rules.CreativeFlightFor(p.ModeOverride) || p.Fly,
             StationZeroG = session.StationZeroG, // #1842: chosen float on a player station (session-only)
+            Effects = DumpEffects(p), // #2202
+            Shield = p.Shield,
         });
     }
 
@@ -7507,8 +7562,22 @@ public sealed partial class GameServer
         bool unchanged = session.SentBlueprintsOnce && session.SentBlueprintsSignature == signature;
         session.SentBlueprintsOnce = true;
         session.SentBlueprintsSignature = signature;
+
+        // #2201: the sample case rides the same way — only when it changed since this session's last update.
+        long sampleSignature = 17;
+        foreach (var stack in session.State.SampleCase.Slots)
+        {
+            sampleSignature = unchecked(sampleSignature * 31
+                + (stack is { IsEmpty: false } ? StringComparer.Ordinal.GetHashCode(stack.Item) * 397 + stack.Count : 0));
+        }
+
+        bool samplesUnchanged = session.SentSamplesOnce && session.SentSamplesSignature == sampleSignature;
+        session.SentSamplesOnce = true;
+        session.SentSamplesSignature = sampleSignature;
         Send(session, new InventoryUpdate
         {
+            Samples = samplesUnchanged ? Array.Empty<NetItemStack>() : DumpInventory(session.State.SampleCase),
+            SamplesUnchanged = samplesUnchanged,
             Personal = DumpInventory(session.State.Inventory),
             PersonalSlotCount = session.State.Inventory.SlotCount,   // #2110
             Equipment = DumpInventory(session.State.Equipment),      // #2110
@@ -7619,9 +7688,9 @@ public sealed partial class GameServer
 
     /// <summary>Whether a player can transmit on comms at all (holds any radio tier).</summary>
     private static bool HasAnyRadio(PlayerSession s)
-        => s.State.Equipment.Has("comm_radio", 1)      // #2110: a radio works only while worn (a module slot)
-        || s.State.Equipment.Has("system_radio", 1)
-        || s.State.Equipment.Has("galaxy_radio", 1);
+        => Wears(s.State, "comm_radio")      // #2110: a radio works only while worn (a module slot)
+        || Wears(s.State, "system_radio")
+        || Wears(s.State, "galaxy_radio");
 
     /// <summary>The players who can hear <paramref name="sender"/>'s comms, by the widest radio tier they hold
     /// (the tiers stack as upgrades). <c>galaxy_radio</c> = everyone joined; <c>system_radio</c> = everyone on a

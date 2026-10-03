@@ -212,7 +212,8 @@ public sealed class PlayerState
     /// <summary>Hostiles (machines, bandits, aggressive fauna) treat this player as not there: god mode,
     /// cloak — or a per-player Creative override (#1121), mirroring a creative world, where they never
     /// spawn at all.</summary>
-    public bool IgnoredByHostiles => GodMode || Stealthed || ModeOverride == Configuration.PlayerModeOverride.Creative;
+    public bool IgnoredByHostiles => GodMode || Stealthed || ModeOverride == Configuration.PlayerModeOverride.Creative
+        || Bio.PlayerEffects.Of(Effects, Bio.BioEffect.Stealth) > 0f; // #2202: a stealth preparation, for as long as it lasts
 
     public bool IsAdmin => Role is PlayerRole.Admin or PlayerRole.WorldAdmin;
 
@@ -261,6 +262,18 @@ public sealed class PlayerState
     /// <summary>#2097: every creature species scanned, per world — <c>"&lt;locationId&gt;:&lt;speciesId&gt;"</c>. Species ids
     /// repeat across planets and <see cref="Scanned"/> is global, so the clone tank asks this set. Persisted.</summary>
     public HashSet<string> ScannedCreatureSites { get; set; } = new();
+
+    /// <summary>The sample case (#2201): every harvest also yields a sample that carries its species seed, kept here so the
+    /// backpack stays free and no recipe has to tell one plant fibre from another. Persisted.</summary>
+    public Inventory SampleCase { get; set; } = new(Bio.BioRules.SampleCaseSlots);
+
+    /// <summary>The status effects the player is under (#2202), counted down by the server. Persisted, so logging out wastes
+    /// nothing.</summary>
+    public List<Bio.ActiveEffect> Effects { get; set; } = new();
+
+    /// <summary>What is left of the shield cushion (#2202): extra health on top of the 100 that damage takes first. It is
+    /// gone when its effect ends. Persisted with the effect.</summary>
+    public float Shield { get; set; }
 
     /// <summary>Hover speeders this player has deployed into the world — packable single-seat vehicles bound to
     /// the body they were deployed on (like <see cref="TamedCreatures"/>). They materialise as live entities only

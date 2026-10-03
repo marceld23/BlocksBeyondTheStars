@@ -28,7 +28,53 @@ public sealed class MaterialPool
         _equipment = player.Equipment; // #2110: an upgrade (tank II ← tank I) may consume the piece being worn
     }
 
-    public int Count(string item) => _personal.CountOf(item) + (_cargo?.CountOf(item) ?? 0) + _equipment.CountOf(item);
+    public int Count(string item) => _personal.CountOf(item) + (_cargo?.CountOf(item) ?? 0) + _equipment.CountOf(item)
+        + CountChanged(_personal, item) + CountChanged(_cargo, item) + CountChanged(_equipment, item);
+
+    // #2206: a tool or a piece of gear the bio lab changed carries the change in its key and is still that tool — an
+    // upgrade recipe (tank II from tank I) takes it like a plain one. Only the lab's change tag is "soft" like this: a
+    // dyed, shaped or painted block stays its own item, or a recipe would eat the painted wall.
+
+    /// <summary>True when a stack is <paramref name="item"/> with nothing but a lab change on it.</summary>
+    private static bool IsChangedVariant(string stackItem, string item)
+        => stackItem.Length > item.Length + 1 && stackItem[item.Length] == ItemKey.Separator
+           && stackItem.StartsWith(item, System.StringComparison.Ordinal)
+           && ItemKey.SetTag(stackItem, Shared.Bio.ItemMods.Tag, string.Empty) == item;
+
+    private static int CountChanged(Inventory? inventory, string item)
+    {
+        if (inventory is null)
+        {
+            return 0;
+        }
+
+        int total = 0;
+        foreach (var stack in inventory.Slots)
+        {
+            if (stack is { IsEmpty: false } && IsChangedVariant(stack.Item, item))
+            {
+                total += stack.Count;
+            }
+        }
+
+        return total;
+    }
+
+    /// <summary>Takes up to <paramref name="count"/> changed variants of an item out of an inventory; returns what is still missing.</summary>
+    private static int RemoveChanged(Inventory? inventory, string item, int count)
+    {
+        for (int i = 0; inventory is not null && i < inventory.SlotCount && count > 0; i++)
+        {
+            if (inventory.Slots[i] is { IsEmpty: false } stack && IsChangedVariant(stack.Item, item))
+            {
+                int taken = System.Math.Min(stack.Count, count);
+                inventory.Remove(stack.Item, taken);
+                count -= taken;
+            }
+        }
+
+        return count;
+    }
 
     public bool Has(IEnumerable<ItemAmount> items)
     {
@@ -68,8 +114,15 @@ public sealed class MaterialPool
 
             if (remaining > 0)
             {
-                _equipment.Remove(need.Item, remaining); // #2110: the worn piece goes last
+                int fromWorn = System.Math.Min(remaining, _equipment.CountOf(need.Item));
+                _equipment.Remove(need.Item, fromWorn); // #2110: the worn piece goes last
+                remaining -= fromWorn;
             }
+
+            // #2206: plain pieces first, then one the lab changed — backpack, hold, worn.
+            remaining = RemoveChanged(_personal, need.Item, remaining);
+            remaining = RemoveChanged(_cargo, need.Item, remaining);
+            RemoveChanged(_equipment, need.Item, remaining);
         }
     }
 

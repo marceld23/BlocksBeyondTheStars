@@ -327,6 +327,9 @@ public sealed class NetCodecTests
         [279] = typeof(ActionFx),
         [280] = typeof(CreatureDefeated),
         [281] = typeof(SystemWeather),
+        [282] = typeof(BioBook),
+        [283] = typeof(BioLabIntent),
+        [284] = typeof(BioLabResult),
 
     };
 

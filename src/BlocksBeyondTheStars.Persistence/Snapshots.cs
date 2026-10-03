@@ -122,6 +122,12 @@ public sealed class PlayerSnapshot
     /// <summary>#2097: creature species scanned per world ("&lt;location&gt;:&lt;species&gt;"). Absent in older saves.</summary>
     public List<string> ScannedCreatureSites { get; set; } = new();
 
+    /// <summary>The bio lab (#2201, #2202): the sample case, the running effects and what is left of the shield cushion.
+    /// Absent in older saves ⇒ empty.</summary>
+    public List<InventorySlotDto> SampleCase { get; set; } = new();
+    public List<BlocksBeyondTheStars.Shared.Bio.ActiveEffect> Effects { get; set; } = new();
+    public float Shield { get; set; }
+
     /// <summary>Deployed hover speeders (packable surface vehicles) — bound to their home body, restored on reload.</summary>
     public List<DeployedSpeeder> DeployedSpeeders { get; set; } = new();
 
@@ -254,6 +260,9 @@ public static class StateMapper
         TamedCreatures = p.TamedCreatures.Select(CloneTamed).ToList(),
         TamedSpecies = p.TamedSpecies.ToList(),
         ScannedCreatureSites = p.ScannedCreatureSites.ToList(),
+        SampleCase = DumpInventory(p.SampleCase),
+        Effects = p.Effects.Select(e => e.Clone()).ToList(),
+        Shield = p.Shield,
         DeployedSpeeders = p.DeployedSpeeders.Select(CloneSpeeder).ToList(),
         Markers = p.Markers.Select(CloneMarker).ToList(),
         Notes = p.Notes.Select(CloneNote).ToList(),
@@ -488,6 +497,9 @@ public static class StateMapper
         TamedCreatures = (s.TamedCreatures ?? new List<TamedCreature>()).Select(CloneTamed).ToList(),
         TamedSpecies = new HashSet<string>(s.TamedSpecies ?? new List<string>()),
         ScannedCreatureSites = new HashSet<string>(s.ScannedCreatureSites ?? new List<string>()),
+        SampleCase = RestoreInventory(BlocksBeyondTheStars.Shared.Bio.BioRules.SampleCaseSlots, s.SampleCase ?? new List<InventorySlotDto>()),
+        Effects = (s.Effects ?? new List<BlocksBeyondTheStars.Shared.Bio.ActiveEffect>()).Where(e => e is not null).Select(e => e.Clone()).ToList(),
+        Shield = s.Shield,
         DeployedSpeeders = (s.DeployedSpeeders ?? new List<DeployedSpeeder>()).Select(CloneSpeeder).ToList(),
         Markers = (s.Markers ?? new List<PlayerMarker>()).Select(CloneMarker).ToList(),
         Notes = (s.Notes ?? new List<PlayerNote>()).Select(CloneNote).ToList(),

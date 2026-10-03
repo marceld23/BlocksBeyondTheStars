@@ -218,7 +218,7 @@ namespace BlocksBeyondTheStars.Client
 
         private string ShortName(string item)
         {
-            string name = BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(Game.Localizer, item, null);
+            string name = BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(Game.Localizer, item, null, seed => Game.Bio.SpeciesName(seed));
             return name.Length > 12 ? name.Substring(0, 11) + "…" : name;
         }
 

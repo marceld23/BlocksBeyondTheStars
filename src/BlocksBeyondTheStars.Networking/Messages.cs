@@ -1117,6 +1117,11 @@ public sealed class InventoryUpdate
     /// <summary>Total slots in the ship's cargo hold (capacity, grows with cargo modules), so the cargo tab can
     /// show "used/total". 0 when not aboard (the cargo list is empty then anyway).</summary>
     public int CargoSlotCount { get; set; }
+
+    /// <summary>The sample case (#2201): samples with their species seed in the key, by slot. Omitted (with
+    /// <see cref="SamplesUnchanged"/> set) when nothing changed since this session's last update, like the blueprints.</summary>
+    public NetItemStack[] Samples { get; set; } = System.Array.Empty<NetItemStack>();
+    public bool SamplesUnchanged { get; set; }
 }
 
 public sealed class PlayerStateUpdate
@@ -1196,6 +1201,13 @@ public sealed class PlayerStateUpdate
     /// float is chosen, not a drift over the edge — the HUD words its hints and badge accordingly. New field on
     /// an existing contractless MessagePack message: an older client ignores it, an older server leaves it false.</summary>
     public bool StationZeroG { get; set; }
+
+    /// <summary>The status effects this player is under (#2202) — sent whole each time, the client counts the seconds
+    /// down between updates. New field on an existing contractless MessagePack message: an older client ignores it.</summary>
+    public NetEffect[] Effects { get; set; } = System.Array.Empty<NetEffect>();
+
+    /// <summary>What is left of the shield cushion (#2202): extra health on top of the 100, drawn beside the health bar.</summary>
+    public float Shield { get; set; }
 }
 
 public sealed class CraftResult

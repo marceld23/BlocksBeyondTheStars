@@ -202,6 +202,17 @@ ITEMS = [
     ("camera", "a compact retro-futuristic handheld camera, dark rounded metal body with a large glassy cyan-tinted lens, a small shutter button on top and a glowing status light"),
     ("binoculars", "a pair of rugged sci-fi field binoculars seen from the front, dark gunmetal twin barrels with big glassy cyan-tinted lenses, a knurled focus wheel between them and a worn strap lug"),
     ("thermal_binoculars", "a pair of advanced sci-fi thermal binoculars seen from the front, dark armoured twin barrels with deep amber-orange infrared lenses, a small glowing red sensor module on top and orange status lights"),
+    # #2210 the bio lab (2026-10-03): samples, the sampler, the seedling and the five preparation forms.
+    ("bio_lab", "a sci-fi biology lab bench machine, dark metal body with a glass sample chamber of glowing green fluid, a small microscope arm and a teal status screen"),
+    ("bio_sample", "a small sealed glass sample vial with a green leaf fragment floating in clear fluid, a teal metal cap and a tiny label"),
+    ("mineral_sample", "a small sealed glass sample vial holding glittering grey-and-orange ore grains, a teal metal cap and a tiny label"),
+    ("bio_sampler", "a handheld sci-fi sampling tool, a dark metal pistol grip with a thin needle probe, a small glass vial of green fluid on top and a teal status light"),
+    ("seedling", "a small green plant seedling with two round leaves growing from a clump of dark soil in a tiny clear sci-fi pod"),
+    ("prep_injector", "a small sci-fi medical injector pen, white and teal body with a glass window of glowing green fluid and a short needle tip"),
+    ("prep_gel", "a small squeezable metal tube of glowing green gel with a teal screw cap and a blob of gel at the nozzle"),
+    ("prep_bar", "a wrapped sci-fi energy bar, half unwrapped from silver foil, pressed green-brown plant bar with seeds"),
+    ("prep_capsule", "two glossy medicine capsules, half teal and half white, lying side by side"),
+    ("prep_coating", "a small round metal tin, open, filled with shimmering teal-green protective coating paste and a small brush"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

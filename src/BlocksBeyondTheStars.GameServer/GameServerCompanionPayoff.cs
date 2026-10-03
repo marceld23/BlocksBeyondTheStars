@@ -244,6 +244,7 @@ public sealed partial class GameServer
 
         var feet = new Vector3i((int)System.Math.Floor(c.Position.X), (int)System.Math.Floor(c.Position.Y), (int)System.Math.Floor(c.Position.Z));
         SpillToGround(feet, sp.DropItem, 1);
+        BioOnCompanionGift(owner, sp); // #2201: the gift comes with a sample of its species
         _ = owner; // the packet reaches the owner through the ordinary sweep (fetch synergy) — no toast spam
     }
 
