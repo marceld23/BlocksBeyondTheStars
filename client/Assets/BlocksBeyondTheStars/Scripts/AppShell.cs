@@ -1683,7 +1683,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 _uiMenu = UiMainMenu.Build(this);
                 UiKit.BootScreen(_uiMenu); // the HUD's boot-up feel for the shell screens too (#1796)
-                WhatsNew.BeginFetch(this); // one-per-session background load of the release notes (#543)
+                // One-per-session background load of the release notes (#543), with the player's language.
+                WhatsNew.BeginFetch(this, GameLocaleExtensions.Parse(Settings.Language).Code());
 
                 // Land the bombastic intro sting on the first menu reveal (logo + full UI), rather
                 // than during the mandatory black Unity engine splash that precedes it.
