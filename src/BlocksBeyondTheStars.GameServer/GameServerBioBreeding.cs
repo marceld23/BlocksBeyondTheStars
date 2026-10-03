@@ -36,6 +36,9 @@ public sealed partial class GameServer
     /// <summary>How far around a tank the habitat rule looks for water or lava.</summary>
     private const int TankHabitatReach = 8;
 
+    /// <summary>Samples of the new species a finished plant cross hands out — they are all the tank makes of it.</summary>
+    private const int PlantCrossSamples = 2;
+
     private const string TankPartnerKey = "x";
     private const string TankGrowKey = "grow";
     private const string TankSamplePrefix = "g:";
@@ -136,7 +139,80 @@ public sealed partial class GameServer
         }
     }
 
-    private int LivingClonesInWorld() => _creatures.Count(c => c.CloneOf.Length > 0);
+    /// <summary>A cheap signature of what a tank's owner may pick (#2214): which species lie in the sample case, and
+    /// how many animal species have been scanned and tamed. 0 while the owner is away — nothing to pick. It allocates
+    /// nothing: the Crystal Net compares it on every sensor beat for every tank (see <c>WatchCloneTank</c>).</summary>
+    private int CloneChoiceStamp(string ownerId)
+    {
+        var owner = FindSessionByPlayerId(ownerId);
+        if (owner is null)
+        {
+            return 0;
+        }
+
+        var p = owner.State;
+        uint h = 1;
+        var slots = p.SampleCase.Slots;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            // A sum: the order of the slots does not matter, and neither does a count — only which species are there.
+            if (slots[i] is { IsEmpty: false } stack && stack.Item.StartsWith(BioItems.Sample, StringComparison.Ordinal))
+            {
+                h = unchecked(h + ((uint)StringComparer.Ordinal.GetHashCode(stack.Item) * 2654435761u));
+            }
+        }
+
+        // The animal scans and the tames only ever grow, so their sizes say whether a native species joined the list.
+        // Every animal scan lands in ScannedCreatureSites; the first-scan ledger (ScannedWhere) is left out on purpose —
+        // it grows with every block, plant and body scanned, none of which a tank can offer.
+        h = unchecked((h * 31) + (uint)p.ScannedCreatureSites.Count);
+        h = unchecked((h * 31) + (uint)p.TamedSpecies.Count);
+        return h == 0 ? 1 : unchecked((int)h);
+    }
+
+    /// <summary>The clones of this world, whoever owns their tanks: the animals that live, and (#2214) those a tank's
+    /// list names that are not beside it in this residency.</summary>
+    private int LivingClonesInWorld()
+    {
+        int n = _creatures.Count(c => c.CloneOf.Length > 0);
+        foreach (var c in CrystalNet.Cells.Values)
+        {
+            n += c.CloneWaiting?.Count ?? 0;
+        }
+
+        return n;
+    }
+
+    /// <summary>How many more samples of a species a player's case takes: the rest of the species' stack — or, for a
+    /// species the case does not hold yet, a whole stack when a slot is free and nothing when every slot is taken.</summary>
+    private static int SampleRoom(PlayerState p, BioSpeciesEntry entry)
+    {
+        int held = SampleCount(p, entry);
+        if (held > 0)
+        {
+            return Math.Max(0, BioRules.SampleStack - held);
+        }
+
+        var slots = p.SampleCase.Slots;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (slots[i] is null)
+            {
+                return BioRules.SampleStack;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>Whether what a finished cross hands out fits into its owner's sample case. An animal comes with one
+    /// sample of the new species: an owner who holds the species already misses nothing when that stack is full, so
+    /// only a case without a slot for a NEW species holds the tank. The two samples of a plant cross are all the tank
+    /// made — both have to fit.</summary>
+    private static bool CrossResultFits(PlayerState p, BioSpeciesEntry entry)
+        => entry.Kind == BioKind.Animal
+            ? SampleCount(p, entry) > 0 || SampleRoom(p, entry) > 0
+            : SampleRoom(p, entry) >= PlantCrossSamples;
 
     /// <summary>A water animal needs water near the tank, a lava animal lava.</summary>
     private bool HabitatNear(CreatureSpecies sp, Vector3i tank)
@@ -152,10 +228,12 @@ public sealed partial class GameServer
             return true;
         }
 
+        // Every cell (#2214): a step of two never read the tank's direct neighbours and missed a one-block pool. It runs
+        // once per start of a swimmer or a lava dweller — 17 × 17 × 9 block reads.
         ushort id = _content.GetBlock(fluid)?.NumericId.Value ?? 0;
-        for (int dx = -TankHabitatReach; dx <= TankHabitatReach; dx += 2)
+        for (int dx = -TankHabitatReach; dx <= TankHabitatReach; dx++)
         {
-            for (int dz = -TankHabitatReach; dz <= TankHabitatReach; dz += 2)
+            for (int dz = -TankHabitatReach; dz <= TankHabitatReach; dz++)
             {
                 for (int dy = -6; dy <= 2; dy++)
                 {
@@ -293,16 +371,15 @@ public sealed partial class GameServer
             SendInventory(owner);
         }
 
-        tank.Config = CrystalConfigWith(CrystalConfigWith(tank.Config, "growing", "1"), TankGrowKey, TankChoice(grown.Seed));
-        tank.NextBeat = _uptime + CrystalNetRules.CloneGrowSeconds;
-        SaveCrystalCell(tank);
-        SetCrystalBlocked(tank, true); // ON while growing
-        BroadcastToWorld(new SoundFx { SoundId = "clone_tank_bubble", X = tank.Cell.X + 0.5f, Y = tank.Cell.Y + 1f, Z = tank.Cell.Z + 0.5f, Loop = true, SourceId = tank.Id });
+        tank.Config = CrystalConfigWith(tank.Config, TankGrowKey, TankChoice(grown.Seed));
+        StartCloneGrowth(tank);
     }
 
     /// <summary>What a tank that was started on a sample hands out when it is done: the animal (and, for a cross, a
     /// sample of the new species so it can be cloned and crossed again), or two samples of a new plant. Returns false
-    /// while the owner is away and the samples cannot be handed over yet.</summary>
+    /// while the samples cannot be handed over yet — the owner is away, or (#2214) the owner's sample case has no room
+    /// for them (see <see cref="CrossResultFits"/>). Nothing is handed out then: the animal of a cross and its sample
+    /// come together, and so do the two samples of a plant.</summary>
     private bool BioTankFinish(ServerCrystalCell tank, string grow)
     {
         var entry = TankEntry(grow);
@@ -312,9 +389,25 @@ public sealed partial class GameServer
         }
 
         var owner = FindSessionByPlayerId(tank.OwnerId);
-        if (entry.IsCross && owner is null)
+        if (entry.IsCross)
         {
-            return false;
+            if (owner is null)
+            {
+                tank.WaitTold = false; // an owner who comes back is told once more
+                return false;
+            }
+
+            if (!CrossResultFits(owner.State, entry))
+            {
+                // The result waits in the tank, as it does while the owner is away — and the owner hears it once.
+                if (!tank.WaitTold)
+                {
+                    tank.WaitTold = true;
+                    Send(owner, new ServerMessage { Text = "@srv.crystal.clone_case_full" });
+                }
+
+                return false;
+            }
         }
 
         if (entry.Kind == BioKind.Animal)
@@ -331,7 +424,7 @@ public sealed partial class GameServer
         }
         else if (owner is not null)
         {
-            GiveSample(owner, entry, 2);
+            GiveSample(owner, entry, PlantCrossSamples);
             SendInventory(owner);
         }
 
@@ -343,19 +436,6 @@ public sealed partial class GameServer
 
         tank.Config = CrystalConfigWith(tank.Config, TankGrowKey, string.Empty);
         return true;
-    }
-
-    /// <summary>The species a tank's <c>sp</c> names — a native one or a guest from a sample.</summary>
-    private CreatureSpecies? TankSpecies(string? choice)
-    {
-        if (string.IsNullOrEmpty(choice))
-        {
-            return null;
-        }
-
-        return choice!.StartsWith(TankSamplePrefix, StringComparison.Ordinal)
-            ? GuestSpeciesOf(TankEntry(choice))
-            : _speciesById.TryGetValue(choice, out var sp) ? sp : null;
     }
 
     // ---------------- Crossing ----------------
@@ -559,7 +639,14 @@ public sealed partial class GameServer
     /// <summary>Why a seedling cannot be planted in a cell, or null when it can.</summary>
     private string? BredPlantRefusal(string seedlingKey, Vector3i pos)
     {
-        if (BioEntry(ItemKey.Seed(seedlingKey))?.Flora is null)
+        // A seedling item that carries no species (taken from an item list, or its seed is unknown to this save) is an
+        // empty one — the "tree" line below is for a real species that is no single plant.
+        if (BioEntry(ItemKey.Seed(seedlingKey)) is not { } entry)
+        {
+            return "@srv.bio.seedling_empty";
+        }
+
+        if (entry.Flora is null)
         {
             return "@srv.bio.not_plantable";
         }

@@ -560,7 +560,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>The sampler (#2201): takes a sample from a living animal and leaves it unharmed. A hostile animal has to
-    /// be held in stasis first; the same animal gives a sample only every few minutes.</summary>
+    /// be held in stasis first; the same animal gives a sample only every few minutes. #2217: a giant needs no stasis —
+    /// the stasis projector cannot hold one, and the long reach is the hurdle there.</summary>
     private bool UseBioSampler(PlayerSession session, Vector3f target)
     {
         var p = session.State;
@@ -571,7 +572,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (sp.Hostile && creature.FrozenTimer <= 0)
+        if (sp.Hostile && !creature.IsGiant && creature.FrozenTimer <= 0)
         {
             Reject(session, "gadget", "@srv.bio.sampler_hostile");
             return false;
@@ -583,7 +584,15 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (!GiveSample(session, RegisterCreatureSpecies(sp)))
+        // Two different refusals: a save whose species register is full cannot take a NEW species at all; a sample
+        // case without room is the player's to empty.
+        if (RegisterCreatureSpecies(sp) is not { } entry)
+        {
+            Reject(session, "gadget", "@srv.bio.register_full");
+            return false;
+        }
+
+        if (!GiveSample(session, entry))
         {
             Reject(session, "gadget", "@srv.bio.sample_case_full");
             return false;

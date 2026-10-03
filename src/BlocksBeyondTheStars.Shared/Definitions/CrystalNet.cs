@@ -192,6 +192,10 @@ public static class CrystalNetRules
     /// <summary>Seconds a clone takes to grow (#2057).</summary>
     public const double CloneGrowSeconds = 60.0;
 
+    /// <summary>Seconds between two tries of a clone tank whose result cannot be handed over yet (#2214): its owner is
+    /// away, or the owner's sample case has no slot for the sample of the new species.</summary>
+    public const double CloneHandOverRetrySeconds = 1.0;
+
     /// <summary>A beacon's "owner near" port radius.</summary>
     public const float BeaconOwnerRange = 12f;
 

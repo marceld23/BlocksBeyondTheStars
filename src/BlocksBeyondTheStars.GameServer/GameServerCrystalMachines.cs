@@ -605,7 +605,24 @@ public sealed partial class GameServer
 
     private void CloneTankStart(ServerCrystalCell tank, PlayerSession? by)
     {
-        if (_world.Planet.Void || CrystalConfigValue(tank.Config, "growing") == "1")
+        if (_world.Planet.Void)
+        {
+            return;
+        }
+
+        if (tank.Inert)
+        {
+            // #2214: a tank over the cap exists and does nothing — it takes no price and starts no job. Whoever
+            // presses start hears the line the tank got when it was placed.
+            if (by is not null)
+            {
+                SendVegaLine(by, "vega.sys.crystal_cap", 3);
+            }
+
+            return;
+        }
+
+        if (CrystalConfigValue(tank.Config, "growing") == "1")
         {
             return;
         }
@@ -653,23 +670,41 @@ public sealed partial class GameServer
         }
 
         // The price: one bait of the species' preference and two matter dust, from the crate beside the tank or
-        // from the pocket of whoever pressed start.
-        string bait = PreferredBait(spId);
-        var price = new[] { new ItemAmount(bait, 1), new ItemAmount("matter_dust", 2) };
-        if (!TakeFromCrateOrPocket(tank, by, price))
+        // from the pocket of whoever pressed start. #2214: nothing at all in a free game mode — the owner's mode
+        // counts, exactly as on the samples' path.
+        var owner = FindSessionByPlayerId(tank.OwnerId);
+        if (owner is null || Rules.CraftingCostsMaterialsFor(owner.State.ModeOverride))
         {
-            if (by is not null)
+            string bait = PreferredBait(spId);
+            var price = new[] { new ItemAmount(bait, 1), new ItemAmount("matter_dust", 2) };
+            if (!TakeFromCrateOrPocket(tank, by, price))
             {
-                Reject(by, "crystal", "@srv.crystal.clone_price." + bait); // #2096: one line per bait, no raw item key
-            }
+                if (by is not null)
+                {
+                    Reject(by, "crystal", "@srv.crystal.clone_price." + bait); // #2096: one line per bait, no raw item key
+                }
 
-            return;
+                return;
+            }
         }
 
+        // #2214: the tank remembers what it was started on, as it does on the samples' path. The species setting stays
+        // the player's to change while the tank grows — the animal that was paid for comes out all the same.
+        tank.Config = CrystalConfigWith(tank.Config, TankGrowKey, spId);
+        StartCloneGrowth(tank);
+    }
+
+    /// <summary>The tank starts growing: the wait, the light, the bubbling. #2214: the device list goes out with the
+    /// new state, so a menu that is open on the tank can follow — marked outright here, not only through the light's
+    /// change (which marked it before, too).</summary>
+    private void StartCloneGrowth(ServerCrystalCell tank)
+    {
         tank.Config = CrystalConfigWith(tank.Config, "growing", "1");
         tank.NextBeat = _uptime + CrystalNetRules.CloneGrowSeconds;
+        tank.WaitTold = false;
         SaveCrystalCell(tank);
         SetCrystalBlocked(tank, true); // ON while growing
+        CrystalNet.DeviceListDirty = true;
         BroadcastToWorld(new SoundFx { SoundId = "clone_tank_bubble", X = tank.Cell.X + 0.5f, Y = tank.Cell.Y + 1f, Z = tank.Cell.Z + 0.5f, Loop = true, SourceId = tank.Id });
     }
 
@@ -686,27 +721,40 @@ public sealed partial class GameServer
         }
 
         string? grow = CrystalConfigValue(tank.Config, TankGrowKey);
-        if (!string.IsNullOrEmpty(grow))
+        if (!string.IsNullOrEmpty(grow) && grow!.StartsWith(TankSamplePrefix, StringComparison.Ordinal))
         {
             // #2207/#2208: started on a sample — a guest clone, or a cross and a sample of the new species.
             if (!BioTankFinish(tank, grow!))
             {
-                return; // the owner is away: what the tank made waits in it
+                // The owner is away, or the owner's sample case has no room (#2214): what the tank made waits in it.
+                tank.NextBeat = _uptime + CrystalNetRules.CloneHandOverRetrySeconds;
+                return;
             }
         }
         else
         {
-            string? spId = CrystalConfigValue(tank.Config, "sp");
+            // A native species: the one the tank was STARTED on (#2214), not what its setting names by now — a player
+            // who picks another species while it grows must neither swap the animal nor lose the job. A job that an
+            // older build started carries no "grow" and reads the setting, as it always did.
+            bool started = !string.IsNullOrEmpty(grow);
+            string? spId = started ? grow : CrystalConfigValue(tank.Config, "sp");
             if (spId is not null && _speciesById.TryGetValue(spId, out var sp) && !sp.Hostile)
             {
                 ReleaseClone(tank, sp);
             }
+
+            if (started)
+            {
+                tank.Config = CrystalConfigWith(tank.Config, TankGrowKey, string.Empty);
+            }
         }
 
         tank.Config = CrystalConfigWith(tank.Config, "growing", "0");
+        tank.WaitTold = false;
         SaveCrystalCell(tank);
         SetCrystalBlocked(tank, false);
         PulseCrystalCell(tank); // "clone ready" — one pulse for a chime or a door
+        CrystalNet.DeviceListDirty = true; // #2214: what the tank holds and clones now goes out — an open menu can follow
         BroadcastToWorld(new SoundFx { SoundId = "clone_tank_bubble", X = tank.Cell.X + 0.5f, Y = tank.Cell.Y + 1f, Z = tank.Cell.Z + 0.5f, Stop = true, SourceId = tank.Id });
     }
 
@@ -718,21 +766,198 @@ public sealed partial class GameServer
         SpawnCreature(sp, spot);
         var clone = _creatures[^1];
         clone.CloneOf = CloneTankKey(tank.Cell);
-        int count = CrystalConfigInt(tank.Config, "clones", 0) + 1;
-        tank.Config = CrystalConfigWith(tank.Config, "clones", count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        RefreshTankClones(tank); // #2214: the tank remembers every living clone with its species; the caller saves the row
         CrystalNet.CreatureListDirtyHint = true;
     }
 
     private static string CloneTankKey(Vector3i cell) => cell.X + "," + cell.Y + "," + cell.Z;
 
+    /// <summary>The clones an owner's tanks hold on this world: the animals that live, and (#2214) the clones a tank's
+    /// list names that are not beside it in this residency — they come back, so they count against the cap.</summary>
     private int LivingClonesOf(string ownerId)
     {
-        var tanks = new HashSet<string>(CrystalNet.Cells.Values.Where(c => c.Kind == CrystalDeviceKind.CloneTank && c.OwnerId == ownerId).Select(c => CloneTankKey(c.Cell)));
-        return _creatures.Count(c => c.CloneOf.Length > 0 && tanks.Contains(c.CloneOf));
+        var tanks = new HashSet<string>();
+        int waiting = 0;
+        foreach (var c in CrystalNet.Cells.Values)
+        {
+            if (c.Kind == CrystalDeviceKind.CloneTank && c.OwnerId == ownerId)
+            {
+                tanks.Add(CloneTankKey(c.Cell));
+                waiting += c.CloneWaiting?.Count ?? 0;
+            }
+        }
+
+        return waiting + _creatures.Count(c => c.CloneOf.Length > 0 && tanks.Contains(c.CloneOf));
+    }
+
+    // ---- The tank's clone list (#2214) ----
+    // A clone is never persisted as an entity: its tank's config lists it. One entry per clone, each with its own
+    // species, so a tank that grew a wolf, then a cross, then a plant brings back exactly the animals that were
+    // alive — whatever its species setting names by then. An entry leaves the list when its animal is gone (defeated,
+    // tamed, burnt) or can never be an animal again — never because it merely could not be brought back this time:
+    // such a clone WAITS in the list (ServerCrystalCell.CloneWaiting) and is tried again on the next load.
+
+    /// <summary>The config key of a tank's clone list: the species of every clone, separated by commas — a native
+    /// species id, or <c>g:&lt;seed&gt;</c> for a guest from a sample. The living ones come first, in the order they
+    /// were released; the ones that wait follow.</summary>
+    private const string TankClonesKey = "cl";
+
+    /// <summary>The keys of a tank's config that are the server's to write: what it grows and which clones it holds.
+    /// A client <c>configure</c> can neither set nor drop them.</summary>
+    private static readonly string[] TankOwnedKeys = { "growing", "clones", TankGrowKey, TankClonesKey };
+
+    /// <summary>The clones a tank's config lists, one entry per clone. A row written before the list existed carries
+    /// a counter and one species (<c>clones=N;sp=X</c>) — that reads as N clones of X.</summary>
+    private static List<string> TankClones(string config)
+    {
+        var result = new List<string>();
+        if (CrystalConfigValue(config, TankClonesKey) is { } list)
+        {
+            foreach (string token in list.Split(','))
+            {
+                if (token.Length > 0)
+                {
+                    result.Add(token);
+                }
+            }
+
+            return result;
+        }
+
+        string? sp = CrystalConfigValue(config, "sp");
+        int count = Math.Min(CrystalNetRules.MaxLivingClonesPerOwner, CrystalConfigInt(config, "clones", 0));
+        for (int i = 0; i < count && !string.IsNullOrEmpty(sp); i++)
+        {
+            result.Add(sp!);
+        }
+
+        return result;
+    }
+
+    /// <summary>How a clone's species stands in its tank's list: a guest by its sample choice, a native by its id.</summary>
+    private static string CloneToken(string speciesId)
+        => GuestSeed(speciesId) is { } seed ? TankChoice(seed) : speciesId;
+
+    /// <summary>A tank as it is registered — placed, or rebuilt from its row. An older row gets its list (see
+    /// <see cref="TankClones"/>); the clones a row lists all wait until <see cref="RespawnCrystalClones"/> brings them
+    /// back. A tank that was growing when its world was left starts its wait over: the deadline is runtime state, and
+    /// "growing" alone would release at once on the first beat after the return.</summary>
+    private void InitCloneTank(ServerCrystalCell tank)
+    {
+        tank.CloneTag = CloneTankKey(tank.Cell);
+        var clones = TankClones(tank.Config);
+        tank.CloneCount = 0;
+        tank.CloneWaiting = clones.Count > 0 ? clones : null;
+        if (clones.Count > 0 && CrystalConfigValue(tank.Config, TankClonesKey) is null)
+        {
+            tank.Config = CrystalConfigWith(
+                CrystalConfigWith(tank.Config, TankClonesKey, string.Join(",", clones)),
+                "clones", clones.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (!tank.Inert && CrystalConfigValue(tank.Config, "growing") == "1")
+        {
+            tank.NextBeat = _uptime + CrystalNetRules.CloneGrowSeconds;
+            tank.Output = true; // ON while growing, as when it was started
+        }
+    }
+
+    /// <summary>Brings a tank's list in line with its clones: those that live, then those that wait (see
+    /// <see cref="ServerCrystalCell.CloneWaiting"/>). Returns whether the config changed (the caller saves the row).</summary>
+    private bool RefreshTankClones(ServerCrystalCell tank)
+    {
+        var listed = new List<string>();
+        foreach (var c in _creatures)
+        {
+            if (c.CloneOf.Length > 0 && c.CloneOf == tank.CloneTag)
+            {
+                listed.Add(CloneToken(c.SpeciesId));
+            }
+        }
+
+        tank.CloneCount = listed.Count;
+        if (tank.CloneWaiting is { } waiting)
+        {
+            listed.AddRange(waiting); // not here in this residency, but still this tank's clones
+        }
+
+        string list = string.Join(",", listed);
+        if ((CrystalConfigValue(tank.Config, TankClonesKey) ?? string.Empty) == list)
+        {
+            return false;
+        }
+
+        tank.Config = CrystalConfigWith(
+            CrystalConfigWith(tank.Config, TankClonesKey, list),
+            "clones", listed.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)); // the counter older builds read
+        return true;
+    }
+
+    private void SyncTankClones(ServerCrystalCell tank)
+    {
+        if (RefreshTankClones(tank))
+        {
+            SaveCrystalCell(tank);
+        }
+    }
+
+    /// <summary>A clone left the world for good — it was defeated, or tamed and is a companion now: its tank forgets
+    /// it, so it does not stand beside the tank again after the next reload. Called once the animal has left the
+    /// creature list; a no-op for anything that is no clone.</summary>
+    private void ForgetClone(CombatEntity creature)
+    {
+        if (creature.CloneOf.Length == 0)
+        {
+            return;
+        }
+
+        foreach (var tank in CrystalNet.Cells.Values)
+        {
+            if (tank.Kind == CrystalDeviceKind.CloneTank && tank.CloneTag == creature.CloneOf)
+            {
+                SyncTankClones(tank);
+                break;
+            }
+        }
+    }
+
+    /// <summary>The sensor beat's look at one clone tank — two comparisons, nothing allocated while nothing changed:
+    /// <list type="bullet">
+    /// <item><b>What its owner may pick.</b> The choices ride in the device list, and that only goes out when the net
+    /// is marked dirty. A sample gained or spent (a harvest, the sampler, the lab, this tank) or a new scan marks
+    /// nothing — so the tank compares a signature of its owner's choices with the one it last saw.</item>
+    /// <item><b>Which of its clones live.</b> A clone lost in a way that passes <see cref="ForgetClone"/> by (fire,
+    /// a sentry post, a pen built around a sleeper) leaves the list all the same. The clones that wait are no part of
+    /// this count: they were never beside the tank in this residency, so nothing here can have lost them.</item>
+    /// </list></summary>
+    private void WatchCloneTank(ServerCrystalCell tank)
+    {
+        int stamp = CloneChoiceStamp(tank.OwnerId);
+        if (stamp != tank.ChoiceStamp)
+        {
+            tank.ChoiceStamp = stamp;
+            CrystalNet.DeviceListDirty = true;
+        }
+
+        int living = 0;
+        foreach (var c in _creatures)
+        {
+            if (c.CloneOf.Length > 0 && c.CloneOf == tank.CloneTag)
+            {
+                living++;
+            }
+        }
+
+        if (living != tank.CloneCount)
+        {
+            SyncTankClones(tank);
+        }
     }
 
     /// <summary>On world activation the tanks' clones come back as wild animals beside their tank (#2057): they are
-    /// counted in the tank's config, never persisted as entities. Called after <c>LoadCrystalNet</c> once the roster exists.</summary>
+    /// listed in the tank's config, never persisted as entities. #2214: each comes back as the species it was grown
+    /// as; one that cannot be named right now keeps its place in the list. Called after <c>LoadCrystalNet</c> once
+    /// the roster exists.</summary>
     private void RespawnCrystalClones()
     {
         if (_world.Planet.Void)
@@ -740,29 +965,76 @@ public sealed partial class GameServer
             return;
         }
 
+        // A native species id names an animal of THIS world only while the server's species table holds this world's
+        // roster (see _speciesTableBodyId) — otherwise "sp2" is another world's animal, or nothing at all.
+        bool ownTable = _speciesTableBodyId == _world.LocationId;
         foreach (var tank in CrystalNet.Cells.Values)
         {
-            if (tank.Kind != CrystalDeviceKind.CloneTank)
-            {
-                continue;
-            }
-
-            string? spId = CrystalConfigValue(tank.Config, "sp");
-            int count = Math.Min(CrystalNetRules.MaxLivingClonesPerOwner, CrystalConfigInt(tank.Config, "clones", 0));
-            if (spId is null || count <= 0 || TankSpecies(spId) is not { Hostile: false } sp) // #2207: a native species or a guest from a sample
+            if (tank.Kind != CrystalDeviceKind.CloneTank || tank.CloneWaiting is not { Count: > 0 } listed)
             {
                 continue;
             }
 
             string key = CloneTankKey(tank.Cell);
-            int alive = _creatures.Count(c => c.CloneOf == key);
-            for (int i = alive; i < count; i++)
+            var alive = _creatures.Where(c => c.CloneOf == key).Select(c => CloneToken(c.SpeciesId)).ToList();
+            var at = new Vector3f(tank.Cell.X + 0.5f, tank.Cell.Y + 1f, tank.Cell.Z + 0.5f);
+            var waiting = new List<string>();
+            int kept = 0;
+            foreach (string token in listed)
             {
-                var at = new Vector3f(tank.Cell.X + 0.5f, tank.Cell.Y + 1f, tank.Cell.Z + 0.5f);
-                SpawnCreature(sp, CompanionSpotNear(sp, NextEntityId(), at));
-                _creatures[^1].CloneOf = key;
+                if (kept >= CrystalNetRules.MaxLivingClonesPerOwner)
+                {
+                    break;
+                }
+
+                if (alive.Remove(token))
+                {
+                    kept++; // already beside its tank
+                    continue;
+                }
+
+                if (ReturningClone(token, ownTable, out bool gone) is { } sp)
+                {
+                    SpawnCreature(sp, CompanionSpotNear(sp, NextEntityId(), at));
+                    _creatures[^1].CloneOf = key;
+                    kept++;
+                }
+                else if (!gone)
+                {
+                    waiting.Add(token); // not now: it stays in the row and is tried again on the next load
+                    kept++;
+                }
             }
+
+            tank.CloneWaiting = waiting.Count > 0 ? waiting : null;
+            SyncTankClones(tank);
         }
+    }
+
+    /// <summary>The animal a listed clone comes back as, or null. <paramref name="gone"/> says why there is none: true
+    /// for an entry that can never be an animal again — the register lost its species, it names a plant (an older
+    /// row whose species setting was a plant), it is hostile, or this world's own roster does not know the id — and
+    /// false for one that only cannot be named NOW, because the species table holds another world's roster. The
+    /// first leaves the list; the second must not, or a clone would be forgotten for a state that passes.</summary>
+    private CreatureSpecies? ReturningClone(string token, bool ownTable, out bool gone)
+    {
+        gone = false;
+        CreatureSpecies? sp;
+        if (token.StartsWith(TankSamplePrefix, StringComparison.Ordinal))
+        {
+            sp = GuestSpeciesOf(TankEntry(token)); // a guest lives in the save's register, whatever roster is loaded
+        }
+        else if (!ownTable)
+        {
+            return null;
+        }
+        else
+        {
+            _speciesById.TryGetValue(token, out sp);
+        }
+
+        gone = sp is null || sp.Hostile;
+        return gone ? null : sp;
     }
 
     /// <summary>A mined tank releases its clones into the normal wild population (they lose their tag).</summary>

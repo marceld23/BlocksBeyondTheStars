@@ -63,6 +63,11 @@ public sealed partial class GameServer
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly List<PlayerSession> _creatureTargets = new(); // reused per tick (no per-tick LINQ alloc)
     private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
+
+    // #2214: the body whose roster _speciesById holds. The table is the server's, not a world's — with two worlds
+    // resident it belongs to the one whose fauna was set up last — and the rolled ids ("sp0", "sp1", …) repeat from
+    // world to world. Whoever reads a STORED native id (a clone tank's list) asks this first.
+    private string _speciesTableBodyId = string.Empty;
     private readonly Dictionary<string, LocomotionProfile> _locoProfiles = new(); // per-species movement tuning
     private List<CombatEntity> _creatures => _worlds.Active.Creatures;
     private double _creatureSpawnTimer { get => _worlds.Active.CreatureSpawnTimer; set => _worlds.Active.CreatureSpawnTimer = value; }
@@ -144,6 +149,7 @@ public sealed partial class GameServer
             : CreatureGenerator.GenerateRoster(planet, rosterSeed, _meta.Description.TerrainGeneration, _content.AuthoredCreaturesFor(planet)).ToArray();
 
         _speciesById.Clear();
+        _speciesTableBodyId = _world.LocationId;
         _locoProfiles.Clear();
         foreach (var sp in _speciesRoster)
         {
@@ -222,7 +228,11 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_speciesRoster.Length == 0)
+        // #2215: a world with no roster has no life of its own — but an animal that IS there (a guest clone from a
+        // sample on an airless moon, a companion tamed from one) must still move, sleep and be synced. A truly empty
+        // world still leaves here at once; its giants tick by their own rules and do not count.
+        bool rosterless = _speciesRoster.Length == 0;
+        if (rosterless && !AnyOrdinaryCreature())
         {
             return; // barren world — no life
         }
@@ -261,7 +271,7 @@ public sealed partial class GameServer
         // Fill faster while the world is far below its cap (a freshly visited world comes alive quickly),
         // then ease to the slow trickle near the cap.
         double interval = wild < cap / 2 ? 1.5 : CreatureSpawnInterval;
-        if (_creatureSpawnTimer >= interval && wild < cap)
+        if (_creatureSpawnTimer >= interval && wild < cap && !rosterless) // no roster, nothing to spawn (#2215)
         {
             _creatureSpawnTimer = 0;
             // #1720: the player who gets the next spawn rotates on the WILD population — companions used to
@@ -371,6 +381,21 @@ public sealed partial class GameServer
                 }
             }
         }
+    }
+
+    /// <summary>Whether any animal other than a giant lives on the active world (a plain loop; the list is empty on a
+    /// barren world and holds a giant or two at most where only giants live).</summary>
+    private bool AnyOrdinaryCreature()
+    {
+        foreach (var c in _creatures)
+        {
+            if (!c.IsGiant)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // #470 (decision #4): a SAFETY ceiling only — the real population comes from WorldCreatureCap. The old

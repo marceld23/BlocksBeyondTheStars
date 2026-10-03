@@ -250,6 +250,7 @@ public sealed partial class GameServer
 
         // The wild animal becomes the companion in place.
         _creatures.Remove(creature);
+        ForgetClone(creature); // #2214: a tamed clone is a companion now — its tank lists it no longer
         SpawnCompanionEntity(p.PlayerId, tc, creature.Position);
         _tameAttempts.Remove(p.PlayerId);
         OnAchievementTame(session);          // "Beast Friend" / "Tamer" (#1102)
