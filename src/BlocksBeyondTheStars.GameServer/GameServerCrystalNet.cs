@@ -36,6 +36,13 @@ public sealed partial class GameServer
         public double NextLogicBeat { get; set; }
         public double NextSensorBeat { get; set; }
         public bool NetListDirty { get; set; }
+
+        /// <summary>The level of every network as this world's players were last told it — the logic beat sends the
+        /// list again when a level differs. #2226: it is this world's own. It was one table for the server, keyed by
+        /// net ids that start at 1 on every world: two occupied worlds read each other's levels, sent their whole
+        /// list on every beat when the levels differed, and missed a real change when they happened to agree.</summary>
+        public Dictionary<int, bool> LastSentLevel { get; } = new();
+
         public bool DeviceListDirty { get; set; }
         public bool Subscribed { get; set; }
         public bool ClonesRespawned { get; set; }
@@ -1006,7 +1013,7 @@ public sealed partial class GameServer
         // The list goes out when a level differs from what the clients were last told.
         foreach (var net in state.Nets.Values)
         {
-            if (net.Level != _crystalLastSentLevel.GetValueOrDefault(net.Id))
+            if (net.Level != state.LastSentLevel.GetValueOrDefault(net.Id))
             {
                 anyLevelChanged = true;
             }
@@ -1025,8 +1032,6 @@ public sealed partial class GameServer
 
     /// <summary>#2092: the shortest gap between two actions of one edge device (a 0.1 s flicker must not double-fire).</summary>
     private const double CrystalEdgeMinIntervalSeconds = 0.2;
-
-    private readonly Dictionary<int, bool> _crystalLastSentLevel = new();
 
     /// <summary>#2092: the Device Eye reads the status of the Crystal Net device in front of it (blocked, arrived, owner
     /// near, has a target, ripe, growing, ready, done — whatever that device reports), or whether a door in front of it
@@ -1673,7 +1678,7 @@ public sealed partial class GameServer
     {
         var state = CrystalNet;
         var nets = new List<NetCrystalNet>(state.Nets.Count);
-        _crystalLastSentLevel.Clear();
+        state.LastSentLevel.Clear();
         foreach (var net in state.Nets.Values)
         {
             var cells = new int[net.Cells.Count * 3];
@@ -1686,7 +1691,7 @@ public sealed partial class GameServer
             }
 
             nets.Add(new NetCrystalNet { Id = net.Id, On = net.Level, Cells = cells });
-            _crystalLastSentLevel[net.Id] = net.Level;
+            state.LastSentLevel[net.Id] = net.Level;
         }
 
         return new CrystalNetList { Nets = nets.ToArray() };
