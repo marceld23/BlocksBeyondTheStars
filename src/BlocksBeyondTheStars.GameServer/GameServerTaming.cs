@@ -571,6 +571,15 @@ public sealed partial class GameServer
         }
 
         var sp = _speciesById[tc.SpeciesId];
+
+        // …and for the movement itself: a species that is no part of this world's roster — a guest or cross clone
+        // ("gx…"), an admin-summoned kind after its world was loaded again — has no movement profile on a freshly
+        // loaded world, and the all-zero default is speed 0: the pet stood still and only snapped along on the leash.
+        if (!_locoProfiles.ContainsKey(tc.SpeciesId))
+        {
+            _locoProfiles[tc.SpeciesId] = LocomotionController.ForSpecies(sp);
+        }
+
         var pos = CompanionSpotNear(sp, tc.Id, near);
 
         _creatures.Add(new CombatEntity

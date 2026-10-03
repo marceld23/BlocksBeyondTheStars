@@ -2298,6 +2298,10 @@ public sealed partial class GameServer
     /// pin the wire's motion flags (airborne / perched / glide) to the simulated state (#1368).</summary>
     public NetCreature NetCreatureForTest(string id) => ToNetCreature(_creatures.First(x => x.Id == id));
 
+    /// <summary>Test-only: the movement profile the active world's creature tick steps a species with — the all-zero
+    /// default (speed 0: the animal stands still) when the world has none for the id.</summary>
+    public LocomotionProfile LocomotionProfileForTest(string speciesId) => ProfileFor(speciesId);
+
     /// <summary>Test-only: puts a creature's locomotion controller into a roam PAUSE for <paramref name="seconds"/>
     /// (as if it had rolled one), so a test can trigger the behaviour a pause drives — a flier landing to
     /// rest (#1332) — without waiting for the seeded roll.</summary>
