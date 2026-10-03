@@ -6530,10 +6530,12 @@ public sealed partial class GameServer
                 // #2220: the command used to write a field nothing read and still answered "time set". It sets this
                 // world's clock now (a word, a clock time, an hour or a day fraction — the local time where the admin
                 // stands) and refuses anything else. The clock is this world's alone, so the line goes to the players
-                // whose sky changed — not to those on another body.
+                // whose sky changed — not to those on another body. A refusal goes out as an admin rejection, like every
+                // other refused command: the client's chat puts those into the scrollback, where the command was typed,
+                // while an "@srv." token in a plain message only flashes past as a toast.
                 if (AdminSetTime(session, cmd.StringArg, out string timeLabel) is { } timeRefusal)
                 {
-                    Send(session, new ServerMessage { Text = timeRefusal });
+                    Reject(session, "admin", timeRefusal);
                 }
                 else
                 {
@@ -6558,7 +6560,9 @@ public sealed partial class GameServer
                 }
                 else
                 {
-                    Send(session, new ServerMessage { Text = "@srv.admin.weather_unknown" });
+                    // An admin rejection, so the answer stays readable in the chat: it is the line that names every
+                    // weather key, and the usage line points to it ("/setweather ?" lists all).
+                    Reject(session, "admin", "@srv.admin.weather_unknown");
                 }
 
                 break;
