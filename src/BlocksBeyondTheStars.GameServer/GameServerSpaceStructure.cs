@@ -647,26 +647,21 @@ public sealed partial class GameServer
     }
 
     /// <summary>#2219: a block that only works in a WORLD's block grid. The bio lab is found by scanning the chunk
-    /// grid around the player, and a Crystal Net device registers its cell when it is placed into a world; a ship is
-    /// a structure OBJECT whose cells sit in no world grid, so such a block stood there without a prompt, a menu or
-    /// a function — and had used up its item. A conduit, a lamp and the older blocks that merely gained a port
-    /// (beacon, beam pad, sentry post, thumper, water spout, energy gate, hydro tray) are ordinary blocks until a
-    /// conduit meets them, so they stay furnishing.</summary>
+    /// grid around the player, and everything the Crystal Net keeps a device row for gets its function from the
+    /// world place handler or from the world it stands in: a device registers its net cell there, a radio beacon and
+    /// a beam pad their named entry, a water spout and a thumper are started there, a sentry post fires only for the
+    /// base that powers it, an energy gate holds back the animals of a world and a hydro tray is the bed a crop grows
+    /// on. A ship is a structure OBJECT whose cells sit in no world grid, so such a block stood there without a
+    /// prompt, a menu or a function — and had used up its item. A conduit and a lamp stay furnishing: a conduit does
+    /// nothing by itself anywhere, and a lamp shines in a cabin as it does on the ground.</summary>
     private static bool NeedsWorldGrid(BlockDefinition def)
-    {
-        if (def.Key == BioItems.Lab)
-        {
-            return true;
-        }
-
-        var kind = CrystalNetRules.KindOf(def);
-        return CrystalNetRules.NeedsRow(kind) && !IsPassiveKind(kind);
-    }
+        => def.Key == BioItems.Lab || CrystalNetRules.NeedsRow(CrystalNetRules.KindOf(def));
 
     /// <summary>Refuses a block that would be dead in a ship (#2219, see <see cref="NeedsWorldGrid"/>) with a line
     /// that says where it works. Every path that turns a placed item into a SHIP cell asks this before anything is
     /// consumed: the landed ship and its walkable interior, the spacewalk, and the keel's construction site. A
-    /// station is not asked — its build is stamped into a world grid when it is boarded, where the block works.</summary>
+    /// station has its own, narrower rule (<see cref="RefusedOnStationSpacewalk"/>): it becomes a world when it is
+    /// boarded.</summary>
     private bool RefusedAsShipCell(PlayerSession session, BlockDefinition def)
     {
         if (!NeedsWorldGrid(def))
@@ -675,6 +670,33 @@ public sealed partial class GameServer
         }
 
         Reject(session, "structure", "@srv.ship.block_needs_ground");
+        return true;
+    }
+
+    /// <summary>#2219: a block the world place handler has to REGISTER before it does anything — a conduit and every
+    /// Crystal Net device (their net cell), a radio beacon and a beam pad (their named entry), a water spout and a
+    /// thumper (their start). A station's spacewalk build is stamped into the deck block by block when the station
+    /// is boarded, without that handler, so such a block stood on the deck and did nothing: a conduit did not
+    /// conduct (and a conduit laid beside it later did not pick it up), a switch had no menu, a beacon was no
+    /// waypoint. A lamp, a sentry post, an energy gate and a hydro tray are read from the block grid wherever they
+    /// stand, and a conduit laid beside them finds them as ports, so they are built on a spacewalk as before — and
+    /// so is the bio lab, which the deck's grid scan finds.</summary>
+    private static bool NeedsWorldPlaceHandler(BlockDefinition def)
+        => CrystalNetRules.KindOf(def) is not (CrystalDeviceKind.None or CrystalDeviceKind.Light or CrystalDeviceKind.Sentry
+            or CrystalDeviceKind.EnergyGate or CrystalDeviceKind.HydroTray);
+
+    /// <summary>Refuses a block that would be dead on the deck when it is built onto a station from OUTSIDE (#2219,
+    /// see <see cref="NeedsWorldPlaceHandler"/>), before anything is consumed, with a line that says to build it
+    /// aboard — there the world place handler takes it, and tells the builder when a block (the caller, the clone
+    /// tank) needs a planet under it.</summary>
+    private bool RefusedOnStationSpacewalk(PlayerSession session, BlockDefinition def)
+    {
+        if (!NeedsWorldPlaceHandler(def))
+        {
+            return false;
+        }
+
+        Reject(session, "structure", "@srv.station.block_needs_deck");
         return true;
     }
 
@@ -911,8 +933,10 @@ public sealed partial class GameServer
             return;
         }
 
-        // #2219: no lab and no Crystal Net device onto the ship's hull — a station takes them (it becomes a world).
-        if (s.Kind == "ship" && RefusedAsShipCell(session, blockDef))
+        // #2219: nothing that would be dead where it ends up. A ship's hull takes no lab and no Crystal Net device at
+        // all; a station becomes a world when it is boarded, so it only turns away what the world place handler has
+        // to register (a conduit, a device, a beacon …) — that is built aboard.
+        if (s.Kind == "ship" ? RefusedAsShipCell(session, blockDef) : s.Kind == "station" && RefusedOnStationSpacewalk(session, blockDef))
         {
             return;
         }

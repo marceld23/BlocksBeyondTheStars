@@ -10,6 +10,7 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using Xunit;
@@ -22,21 +23,42 @@ namespace BlocksBeyondTheStars.Tests;
 /// scanning the chunk grid around the player and a Crystal Net device registers its cell on a world place; built into
 /// the own ship — a structure object — either one was accepted, used up its item and then did nothing, without a word.
 /// Every path that turns a placed item into a ship cell refuses them now and keeps the item; the ground, a base and a
-/// station take them as before.
+/// station's deck take them as before. A station built from OUTSIDE, on a spacewalk, turns away what the world place
+/// handler has to register (a conduit, a device, a beacon …): stamped into the deck it stood there and did nothing.
 /// </summary>
 public sealed class ShipFunctionBlockTests : IDisposable
 {
     private const string Refusal = "@srv.ship.block_needs_ground";
+    private const string StationRefusal = "@srv.station.block_needs_deck";
 
-    /// <summary>The bio lab and every block that is a Crystal Net device by itself (not a conduit, not a lamp and not
-    /// one of the older blocks that merely gained a port).</summary>
-    private static readonly string[] WorldOnly =
+    /// <summary>The Crystal Net devices: every block that is a device by itself.</summary>
+    private static readonly string[] CrystalDevices =
     {
-        "bio_lab", "clone_tank", "caller", "crystal_switch", "crystal_button", "step_plate", "proximity_sensor",
+        "clone_tank", "caller", "crystal_switch", "crystal_button", "step_plate", "proximity_sensor",
         "daylight_sensor", "storage_sensor", "watcher", "logic_block", "timer_block", "alarm_siren", "chime", "horn",
         "melody_block", "announcer", "fabricator", "auto_drill_1", "auto_drill_2", "auto_drill_3", "matter_sender",
         "matter_receiver", "drill_laser", "rail_stop", "device_eye",
     };
+
+    /// <summary>The older blocks that gained a Crystal Net port. Each has a function of its own that needs a world: a
+    /// waypoint, a teleporter pad, a guard, a call for a giant, a waterfall, a pen's door, a crop bed.</summary>
+    private static readonly string[] PortBlocks =
+    {
+        "radio_beacon", "beam_block", "sentry_post", "thumper", "water_spout", "energy_gate", "hydro_tray",
+    };
+
+    /// <summary>What a ship refuses: the bio lab and everything the Crystal Net keeps a device row for — not a
+    /// conduit, not a lamp.</summary>
+    private static readonly string[] WorldOnly = new[] { "bio_lab" }.Concat(CrystalDevices).Concat(PortBlocks).ToArray();
+
+    /// <summary>What a station refuses on a spacewalk: the blocks the world place handler has to register — a conduit,
+    /// the devices, and the port blocks with a named entry or a start of their own.</summary>
+    private static readonly string[] DeckOnly = new[] { "crystal_conduit", "radio_beacon", "beam_block", "thumper", "water_spout" }
+        .Concat(CrystalDevices).ToArray();
+
+    /// <summary>What a station still takes on a spacewalk besides ordinary blocks: the bio lab and the Crystal Net
+    /// blocks that are read from the block grid wherever they stand.</summary>
+    private static readonly string[] SpacewalkParts = { "light_white", "sentry_post", "energy_gate", "hydro_tray" };
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "bbts_shipfn_" + Guid.NewGuid().ToString("N"));
     private readonly GameContent _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
@@ -103,19 +125,36 @@ public sealed class ShipFunctionBlockTests : IDisposable
             .OfType<ActionRejected>().LastOrDefault()?.Reason;
     }
 
-    /// <summary>Tries every world-only block at one cell of a structure, in a survival pack that holds exactly that one
+    /// <summary>Tries every world-only block at one cell of a ship, in a survival pack that holds exactly that one
     /// item: each is refused with the line that says where it works, and each is still in the pack afterwards.</summary>
     private static void AssertAllRefusedAndKept(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who,
         string structureId, Vector3i cell)
+        => AssertRefusedAndKept(server, t, who, structureId, cell, WorldOnly, Refusal);
+
+    private static void AssertRefusedAndKept(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who,
+        string structureId, Vector3i cell, string[] items, string refusal)
     {
         who.State.InstantBuild = false; // survival rules: an accepted block would be taken out of the pack
-        foreach (string item in WorldOnly)
+        foreach (string item in items)
         {
             Give(who, item);
-            Assert.Equal(Refusal, Build(server, t, who, structureId, cell, item));
+            Assert.Equal(refusal, Build(server, t, who, structureId, cell, item));
             Assert.Equal(1, who.State.Inventory.CountOf(item));
             who.State.Inventory.Remove(item, 1);
         }
+    }
+
+    [Fact]
+    public void TheRefusedLists_CoverEveryCrystalNetBlockOfTheContent()
+    {
+        // A block added to the Crystal Net later must not slip past these tests: every block the net knows is either
+        // a conduit, a lamp or one of the keys the lists above name.
+        var netBlocks = _content.Blocks.Values
+            .Where(b => CrystalNetRules.KindOf(b) is not (CrystalDeviceKind.None or CrystalDeviceKind.Light or CrystalDeviceKind.Conduit))
+            .Select(b => b.Key).OrderBy(k => k, StringComparer.Ordinal).ToArray();
+
+        Assert.Equal(CrystalDevices.Concat(PortBlocks).OrderBy(k => k, StringComparer.Ordinal).ToArray(), netBlocks);
+        Assert.All(DeckOnly.Concat(SpacewalkParts), key => Assert.NotEqual(CrystalDeviceKind.None, CrystalNetRules.KindOf(_content.GetBlock(key))));
     }
 
     /// <summary>The starter ship's pilot standing just inside the rear hatch — parked on the planet, or in the walkable
@@ -162,13 +201,12 @@ public sealed class ShipFunctionBlockTests : IDisposable
         }
     }
 
-    /// <summary>A conduit and a lamp are furnishing, and so are the older blocks that only gained a port (here the hydro
-    /// tray): they are ordinary blocks until a conduit meets them, and a ship takes them as it always did.</summary>
+    /// <summary>A conduit and a lamp are furnishing — a conduit does nothing by itself anywhere, a lamp shines in a cabin
+    /// too — and a ship takes them as it always did.</summary>
     [Theory]
     [InlineData("crystal_conduit")]
     [InlineData("light_white")]
-    [InlineData("hydro_tray")]
-    public void InTheCabin_AConduitALampAndAPortBlock_AreStillBuilt(string item)
+    public void InTheCabin_AConduitAndALamp_AreStillBuilt(string item)
     {
         var t = new NpcLifeWorld.RecordingTransport();
         var server = NewServer("shipfn_furnish_" + item, t, out var repo, starterShip: true);
@@ -347,6 +385,37 @@ public sealed class ShipFunctionBlockTests : IDisposable
         }
     }
 
+    /// <summary>The owner on a spacewalk at their own commissioned station: a core, a small hull along +X and an
+    /// airlock door.</summary>
+    private static (PlayerSession Owner, string StationId) OnASpacewalkAtTheOwnStation(SvGameServer server, NpcLifeWorld.RecordingTransport t)
+    {
+        var owner = server.AddLocalPlayer("Owner");
+        EmptyPack(owner);
+        server.EnterSpace("Owner");
+        owner.State.InEva = true;
+        owner.State.InstantBuild = true;
+        server.DeployStationCoreForTest("Owner");
+        string id = server.OwnedStationIdForTest("Owner")!;
+        for (int i = 1; i <= 11; i++)
+        {
+            Build(server, t, owner, id, new Vector3i(i, 0, 0), "iron_wall");
+        }
+
+        Build(server, t, owner, id, new Vector3i(0, 1, 0), "door_slide");
+        Assert.True(server.StationIsBoardableForTest(id));
+        owner.State.InstantBuild = false; // from here on a block is paid for like any other
+        return (owner, id);
+    }
+
+    /// <summary>Docks at the station and steps aboard: its build is stamped into the deck's world grid.</summary>
+    private static void Board(SvGameServer server, string stationId)
+    {
+        var contact = server.SpaceEntitiesFor("Owner").First(e => e.Id == stationId);
+        server.ShipMove("Owner", contact.Position.X, contact.Position.Y, contact.Position.Z - 6f);
+        server.BoardStation("Owner", stationId);
+        Assert.True(server.InStation("Owner"));
+    }
+
     /// <summary>A station's build is stamped into a world grid when it is boarded, so a lab built onto the own station
     /// on a spacewalk is a working lab on its deck — and the deck itself takes a lab and a device like any ground.</summary>
     [Fact]
@@ -356,35 +425,16 @@ public sealed class ShipFunctionBlockTests : IDisposable
         var server = NewServer("shipfn_station", t, out var repo);
         using (repo)
         {
-            var owner = server.AddLocalPlayer("Owner");
-            EmptyPack(owner);
-            server.EnterSpace("Owner");
-            owner.State.InEva = true;
-            owner.State.InstantBuild = true;
-            server.DeployStationCoreForTest("Owner");
-            string id = server.OwnedStationIdForTest("Owner")!;
-
-            // A small hull along +X and an airlock door, so the station commissions.
-            for (int i = 1; i <= 11; i++)
-            {
-                Build(server, t, owner, id, new Vector3i(i, 0, 0), "iron_wall");
-            }
-
-            Build(server, t, owner, id, new Vector3i(0, 1, 0), "door_slide");
-            Assert.True(server.StationIsBoardableForTest(id));
+            var (owner, id) = OnASpacewalkAtTheOwnStation(server, t);
 
             // The lab goes onto the station on the spacewalk — accepted, and paid for like any block.
-            owner.State.InstantBuild = false;
             Give(owner, "bio_lab");
             Assert.Null(Build(server, t, owner, id, new Vector3i(1, 1, 0), "bio_lab"));
             Assert.Equal(Block("bio_lab").Value, server.StructureCellForTest(id, 1, 1, 0));
             Assert.Equal(0, owner.State.Inventory.CountOf("bio_lab"));
 
             // Aboard, it stands in the deck's world grid and works.
-            var contact = server.SpaceEntitiesFor("Owner").First(e => e.Id == id);
-            server.ShipMove("Owner", contact.Position.X, contact.Position.Y, contact.Position.Z - 6f);
-            server.BoardStation("Owner", id);
-            Assert.True(server.InStation("Owner"));
+            Board(server, id);
             var lab = FindBlock(server, owner.State.Position, Block("bio_lab"));
             owner.State.Position = new Vector3f(lab.X + 0.5f, lab.Y, lab.Z + 1.5f);
             AssertTheLabAnalyses(server, owner);
@@ -395,6 +445,69 @@ public sealed class ShipFunctionBlockTests : IDisposable
             server.PlaceBlock("Owner", lever.X, lever.Y, lever.Z, "crystal_switch");
             Assert.Equal(Block("crystal_switch"), server.World.GetBlock(lever));
             Assert.NotNull(server.CrystalDeviceOutput(lever));
+        }
+    }
+
+    /// <summary>The spacewalk build is stamped into the deck without the world place handler, so what that handler has
+    /// to register would stand there dead — a conduit that does not conduct, a switch without a menu, a beacon that is
+    /// no waypoint. The station turns those away before the item is used and says to build them aboard.</summary>
+    [Fact]
+    public void OnASpacewalk_TheOwnStation_RefusesWhatOnlyTheDeckCanRegister_AndKeepsTheItem()
+    {
+        var t = new NpcLifeWorld.RecordingTransport();
+        var server = NewServer("shipfn_station_eva", t, out var repo);
+        using (repo)
+        {
+            var (owner, id) = OnASpacewalkAtTheOwnStation(server, t);
+            var cell = new Vector3i(1, 1, 0);
+
+            AssertRefusedAndKept(server, t, owner, id, cell, DeckOnly, StationRefusal);
+            Assert.Equal((ushort)0, server.StructureCellForTest(id, cell.X, cell.Y, cell.Z));
+
+            // The same cell takes an ordinary block: the refusal was about the block, not about the place.
+            Give(owner, "iron_wall");
+            Assert.Null(Build(server, t, owner, id, cell, "iron_wall"));
+            Assert.Equal(Block("iron_wall").Value, server.StructureCellForTest(id, cell.X, cell.Y, cell.Z));
+            Assert.Equal(0, owner.State.Inventory.CountOf("iron_wall"));
+        }
+    }
+
+    /// <summary>A lamp, a sentry post, an energy gate and a hydro tray are read from the block grid wherever they stand:
+    /// the station takes them on a spacewalk as before, and aboard a conduit laid on each one finds it as a port — and
+    /// joins a conduit laid beside it, which a conduit stamped from the spacewalk never did.</summary>
+    [Fact]
+    public void OnASpacewalk_TheOwnStation_StillTakesTheBlocksTheGridIsReadFor_AndTheDeckWiresThem()
+    {
+        var t = new NpcLifeWorld.RecordingTransport();
+        var server = NewServer("shipfn_station_parts", t, out var repo);
+        using (repo)
+        {
+            var (owner, id) = OnASpacewalkAtTheOwnStation(server, t);
+            for (int i = 0; i < SpacewalkParts.Length; i++)
+            {
+                Give(owner, SpacewalkParts[i]);
+                Assert.Null(Build(server, t, owner, id, new Vector3i(2 + (2 * i), 1, 0), SpacewalkParts[i]));
+                Assert.Equal(Block(SpacewalkParts[i]).Value, server.StructureCellForTest(id, 2 + (2 * i), 1, 0));
+                Assert.Equal(0, owner.State.Inventory.CountOf(SpacewalkParts[i]));
+            }
+
+            Board(server, id);
+            Assert.Equal(0, server.CrystalCellCount); // stamped blocks are no net cells yet
+
+            foreach (string part in SpacewalkParts)
+            {
+                var block = FindBlock(server, owner.State.Position, Block(part));
+                var above = new Vector3i(block.X, block.Y + 1, block.Z);
+                Assert.True(server.World.GetBlock(above).IsAir);
+                owner.State.Position = new Vector3f(block.X + 0.5f, block.Y + 1f, block.Z + 1.5f);
+                int before = server.CrystalCellCount;
+                Give(owner, "crystal_conduit");
+                server.PlaceBlock("Owner", above.X, above.Y, above.Z, "crystal_conduit");
+
+                Assert.Equal(Block("crystal_conduit"), server.World.GetBlock(above));
+                Assert.Equal(before + 2, server.CrystalCellCount); // the conduit, and the block beneath it as its port
+                Assert.NotNull(server.CrystalLevelAt(block));
+            }
         }
     }
 

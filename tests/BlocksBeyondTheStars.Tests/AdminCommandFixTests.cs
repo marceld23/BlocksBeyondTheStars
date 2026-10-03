@@ -48,7 +48,8 @@ public sealed class AdminCommandFixTests : IDisposable
         }
     }
 
-    private SvGameServer NewServer(string name, NpcLifeWorld.RecordingTransport transport, out SqliteWorldRepository repo)
+    private SvGameServer NewServer(string name, NpcLifeWorld.RecordingTransport transport, out SqliteWorldRepository repo,
+        Action<ServerConfig>? configure = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var config = new ServerConfig
@@ -61,6 +62,7 @@ public sealed class AdminCommandFixTests : IDisposable
             PlaceSettlements = false,
             Rules = new GameRules { AdminCheats = true, AllowCheatsInSurvival = true }, // the cheat commands' world option
         };
+        configure?.Invoke(config);
         var server = new SvGameServer(config, _content, transport, repo);
         server.Start();
         return server;
@@ -121,6 +123,10 @@ public sealed class AdminCommandFixTests : IDisposable
     [InlineData("0", 0.0, "00:00")]
     [InlineData("0.5", 0.5, "12:00")]         // below 1: a fraction of the day
     [InlineData("0,75", 0.75, "18:00")]       // a German keyboard's decimal comma
+    [InlineData("18:30", 18.5 / 24.0, "18:30")] // a clock time — the way the answer line names a number
+    [InlineData("6:05", 365.0 / 1440.0, "06:05")]
+    [InlineData("0:30", 0.5 / 24.0, "00:30")] // between midnight and one o'clock
+    [InlineData("24:00", 0.0, "00:00")]
     public void SetTime_SetsTheLocalClockWhereTheAdminStands_AndNamesIt(string typed, double expected, string named)
     {
         var t = new NpcLifeWorld.RecordingTransport();
@@ -139,8 +145,31 @@ public sealed class AdminCommandFixTests : IDisposable
             Assert.InRange(ClockDistance(server.TimeOfDay + shift, expected), 0.0, 1e-4);
             Assert.True(shift > 1e-3);
 
-            Assert.Equal("@srv.admin.time_set:" + named, Assert.Single(LinesToAll(sent)));
+            Assert.Equal("@srv.admin.time_set:" + named, Assert.Single(LinesTo(sent, admin)));
         }
+    }
+
+    /// <summary>What the answer line names is a time the command takes back: the same clock again.</summary>
+    [Theory]
+    [InlineData("night")]
+    [InlineData("18.5")]
+    [InlineData("0.01")]
+    [InlineData("23:59")]
+    public void SetTime_TakesBackTheTimeItNamed(string typed)
+    {
+        var first = Parsed(typed);
+
+        var again = Parsed(first.Label);
+
+        Assert.Equal(first.Label, again.Label);
+        Assert.InRange(ClockDistance(first.Fraction, again.Fraction), 0.0, 0.5 / 1440.0); // within the minute it names
+    }
+
+    private static (double Fraction, string Label) Parsed(string typed)
+    {
+        var time = SvGameServer.ParseTimeOfDay(typed);
+        Assert.True(time.HasValue, $"'{typed}' must be a time the command takes");
+        return time.GetValueOrDefault();
     }
 
     [Fact]
@@ -192,6 +221,53 @@ public sealed class AdminCommandFixTests : IDisposable
         }
     }
 
+    /// <summary>The clock is one world's: the players under that sky read the line, a player on another body — whose
+    /// sky did not change — reads nothing and gets no new environment.</summary>
+    [Fact]
+    public void SetTime_TellsThePlayersOfThatWorld_NotThoseOnAnotherBody()
+    {
+        var t = new NpcLifeWorld.RecordingTransport();
+        var server = NewServer("settime_worlds", t, out var repo);
+        using (repo)
+        {
+            var admin = OnFoot(server, "Admin", admin: true);
+            var guest = OnFoot(server, "Guest", admin: false);
+            var away = OnFoot(server, "Away", admin: false);
+            away.CurrentLocationId = server.Galaxy.AllBodies().First(b => b.Id != admin.CurrentLocationId).Id;
+
+            var sent = Run(server, t, admin, "set_time", "night");
+
+            Assert.Equal("@srv.admin.time_set:night", Assert.Single(LinesTo(sent, admin)));
+            Assert.Equal("@srv.admin.time_set:night", Assert.Single(LinesTo(sent, guest)));
+            Assert.DoesNotContain(sent, s => s.Conn == away.ConnectionId);
+            Assert.Empty(LinesToAll(sent)); // nothing server-wide
+        }
+    }
+
+    /// <summary>Out in space the admin stands on no world: the session is still served in the body it left, and its
+    /// position is no longitude there. The command says so and leaves that body's clock alone.</summary>
+    [Fact]
+    public void SetTime_OutInSpace_IsRefused_AndLeavesTheClockAlone()
+    {
+        var t = new NpcLifeWorld.RecordingTransport();
+        var server = NewServer("settime_space", t, out var repo, c => c.Rules.FreeSpaceFlight = true);
+        using (repo)
+        {
+            var admin = OnFoot(server, "Admin", admin: true);
+            admin.State.AboardShip = true; // a launch starts at the helm
+            server.EnterSpace("Admin");
+            Assert.True(server.InSpace("Admin"));
+            float before = server.TimeOfDay;
+
+            var sent = Run(server, t, admin, "set_time", "night");
+
+            Assert.Equal(before, server.TimeOfDay);
+            Assert.Equal("@srv.admin.time_not_in_space", Assert.Single(LinesTo(sent, admin)));
+            Assert.DoesNotContain(sent, s => s.Msg is WorldEnvironment);
+            Assert.DoesNotContain(sent, s => s.Msg is ServerMessage m && m.Text.StartsWith("@srv.admin.time_set", StringComparison.Ordinal));
+        }
+    }
+
     [Theory]
     [InlineData("teatime")]
     [InlineData("25")]
@@ -200,6 +276,14 @@ public sealed class AdminCommandFixTests : IDisposable
     [InlineData("nan")]
     [InlineData("")]
     [InlineData(null)]
+    [InlineData("24:30")]   // past midnight
+    [InlineData("12:60")]
+    [InlineData("7:5")]     // a minute has two digits
+    [InlineData(":30")]
+    [InlineData("12:")]
+    [InlineData("1:2:3")]
+    [InlineData("-1:30")]
+    [InlineData("18:3o")]
     public void SetTime_RefusesWhatIsNoTime_AndLeavesTheClockAlone(string? typed)
     {
         var t = new NpcLifeWorld.RecordingTransport();
@@ -334,6 +418,23 @@ public sealed class AdminCommandFixTests : IDisposable
             .Replace("{player}", player);
     }
 
+    /// <summary>What a give line has to carry whatever its wording: no placeholder the server left unfilled (a
+    /// template that names one the server does not know), and — once the key is in the locale table — every fact
+    /// itself: the numbers, the item's name and the player. Comparing with <see cref="GiveLine"/> alone cannot see
+    /// either, because both sides fill the same template the same way.</summary>
+    private void AssertGiveLineCarries(string key, string line, string item, string player, params int[] numbers)
+    {
+        Assert.DoesNotContain("{", line, StringComparison.Ordinal);
+        if (!TestLocales.Load("en").ContainsKey(key))
+        {
+            return; // the key is not in the table yet: the line is the bracketed key and carries nothing to check
+        }
+
+        Assert.Contains(_content.CreateLocalizer(GameLocale.English).Get(_content.GetItem(item)!.NameKey), line, StringComparison.Ordinal);
+        Assert.Contains(player, line, StringComparison.Ordinal);
+        Assert.All(numbers, n => Assert.Contains(n.ToString(System.Globalization.CultureInfo.InvariantCulture), line, StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Give_SaysWhatWasGiven()
     {
@@ -349,7 +450,7 @@ public sealed class AdminCommandFixTests : IDisposable
             string line = Assert.Single(LinesTo(sent, admin));
             Assert.Equal(GiveLine("srv.admin.gave", 5, 5, "titanium_plate", "Admin"), line);
             Assert.NotEqual(GiveLine("srv.admin.gave_partial", 5, 5, "titanium_plate", "Admin"), line);
-            Assert.DoesNotContain("{", line, StringComparison.Ordinal); // every placeholder was filled
+            AssertGiveLineCarries("srv.admin.gave", line, "titanium_plate", "Admin", 5);
         }
     }
 
@@ -367,7 +468,9 @@ public sealed class AdminCommandFixTests : IDisposable
 
             Assert.Equal(3, guest.State.Inventory.CountOf("titanium_plate"));
             Assert.Equal(0, admin.State.Inventory.CountOf("titanium_plate"));
-            Assert.Equal(GiveLine("srv.admin.gave", 3, 3, "titanium_plate", "Guest"), Assert.Single(LinesTo(sent, admin)));
+            string line = Assert.Single(LinesTo(sent, admin));
+            Assert.Equal(GiveLine("srv.admin.gave", 3, 3, "titanium_plate", "Guest"), line);
+            AssertGiveLineCarries("srv.admin.gave", line, "titanium_plate", "Guest", 3);
         }
     }
 
@@ -393,6 +496,7 @@ public sealed class AdminCommandFixTests : IDisposable
             string line = Assert.Single(LinesTo(sent, admin));
             Assert.Equal(GiveLine("srv.admin.gave_partial", stack, stack + 7, "titanium_plate", "Admin"), line);
             Assert.NotEqual(GiveLine("srv.admin.gave", stack, stack + 7, "titanium_plate", "Admin"), line);
+            AssertGiveLineCarries("srv.admin.gave_partial", line, "titanium_plate", "Admin", stack, stack + 7);
         }
     }
 
@@ -412,7 +516,9 @@ public sealed class AdminCommandFixTests : IDisposable
             var sent = Run(server, t, admin, "give_item", "titanium_plate", count: 3);
 
             Assert.Equal(0, admin.State.Inventory.CountOf("titanium_plate"));
-            Assert.Equal(GiveLine("srv.admin.gave_partial", 0, 3, "titanium_plate", "Admin"), Assert.Single(LinesTo(sent, admin)));
+            string line = Assert.Single(LinesTo(sent, admin));
+            Assert.Equal(GiveLine("srv.admin.gave_partial", 0, 3, "titanium_plate", "Admin"), line);
+            AssertGiveLineCarries("srv.admin.gave_partial", line, "titanium_plate", "Admin", 0, 3);
         }
     }
 

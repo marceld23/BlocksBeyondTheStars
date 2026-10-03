@@ -6490,16 +6490,17 @@ public sealed partial class GameServer
 
             case "set_time":
                 // #2220: the command used to write a field nothing read and still answered "time set". It sets this
-                // world's clock now (a word, an hour or a day fraction — the local time where the admin stands) and
-                // refuses anything else.
-                if (AdminSetTime(session, cmd.StringArg, out string timeLabel))
+                // world's clock now (a word, a clock time, an hour or a day fraction — the local time where the admin
+                // stands) and refuses anything else. The clock is this world's alone, so the line goes to the players
+                // whose sky changed — not to those on another body.
+                if (AdminSetTime(session, cmd.StringArg, out string timeLabel) is { } timeRefusal)
                 {
-                    Broadcast(new ServerMessage { Text = "@srv.admin.time_set:" + timeLabel });
-                    CheatLog(p, $"set time to {timeLabel}");
+                    Send(session, new ServerMessage { Text = timeRefusal });
                 }
                 else
                 {
-                    Send(session, new ServerMessage { Text = "@srv.admin.time_unknown" });
+                    BroadcastToWorld(new ServerMessage { Text = "@srv.admin.time_set:" + timeLabel });
+                    CheatLog(p, $"set time to {timeLabel}");
                 }
 
                 break;
