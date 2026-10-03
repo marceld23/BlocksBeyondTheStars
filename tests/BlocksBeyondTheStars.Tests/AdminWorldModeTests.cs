@@ -63,7 +63,7 @@ public sealed class AdminWorldModeTests : IDisposable
         var server = new SvGameServer(new BlocksBeyondTheStars.Shared.Configuration.ServerConfig { WorldName = "modes", Seed = 1, AutoSaveIntervalMinutes = 9999 }, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Justus" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Justus" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
         var self = server.Sessions[1].State;
@@ -104,7 +104,7 @@ public sealed class AdminWorldModeTests : IDisposable
             var server = new SvGameServer(new BlocksBeyondTheStars.Shared.Configuration.ServerConfig { WorldName = "keep", Seed = 1, AutoSaveIntervalMinutes = 9999 }, _content, st, repo);
             server.Start();
             client.Connect("loopback", 0);
-            client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Justus" }), DeliveryMode.ReliableOrdered);
+            client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Justus" }), DeliveryMode.ReliableOrdered);
             server.Tick(0.1);
             Command(client, server, "sandbox");
             server.Stop();
@@ -128,7 +128,7 @@ public sealed class AdminWorldModeTests : IDisposable
         var server = new SvGameServer(new BlocksBeyondTheStars.Shared.Configuration.ServerConfig { WorldName = "guest", Seed = 1, AutoSaveIntervalMinutes = 9999 }, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Guest" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Guest" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         server.Sessions[1].State.Role = PlayerRole.Player;
 

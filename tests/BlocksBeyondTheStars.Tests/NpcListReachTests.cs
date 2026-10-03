@@ -66,7 +66,7 @@ public sealed class NpcListReachTests : IDisposable
                     }
                 };
                 client.Connect("loopback", 0);
-                client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Walker" }), DeliveryMode.ReliableOrdered);
+                client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Walker" }), DeliveryMode.ReliableOrdered);
                 server.Tick(0.1);
                 client.Poll();
                 var session = server.Sessions.Values.Single();

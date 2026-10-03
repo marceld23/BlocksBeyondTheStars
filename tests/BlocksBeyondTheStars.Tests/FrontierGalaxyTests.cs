@@ -96,7 +96,7 @@ public sealed class FrontierGalaxyTests : IDisposable
             var server = new SvGameServer(config, _content, st, repo);
             server.Start();
             client.Connect("loopback", 0);
-            client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Scout" }), DeliveryMode.ReliableOrdered);
+            client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Scout" }), DeliveryMode.ReliableOrdered);
             server.Tick(0.1);
 
             int before = server.Galaxy.Systems.Count;
@@ -144,7 +144,7 @@ public sealed class FrontierGalaxyTests : IDisposable
         var server = new SvGameServer(new ServerConfig { WorldName = "fixed", Seed = 42, AutoSaveIntervalMinutes = 9999 }, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Scout" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Scout" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         int before = server.Galaxy.Systems.Count;
@@ -173,7 +173,7 @@ public sealed class FrontierGalaxyTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Scout" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Scout" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         string edge = server.Galaxy.Systems.First(s => server.IsEdgeSystemForTest(s.Id)).Id;
@@ -254,7 +254,7 @@ public sealed class FrontierGalaxyTests : IDisposable
         var server = new SvGameServer(new ServerConfig { WorldName = "rule", Seed = 1, AutoSaveIntervalMinutes = 9999 }, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Admin" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Admin" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
         Assert.False(rules!.FrontierDanger);

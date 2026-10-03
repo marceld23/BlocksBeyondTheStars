@@ -50,14 +50,15 @@ public sealed class ProtocolV4Tests : IDisposable
         };
 
     [Fact]
-    public void Version_IsEight()
+    public void Version_IsNine()
     {
         // v4 = LZ4 + BlueprintsUnchanged (this file); v5 = the second LiteNetLib channel + WorldId (ProtocolV5Tests);
         // v6 = the far-terrain tile request/answer (#1821, FarTerrainTileTests); v7 = the Crystal Net lists, device
         // intent and sounds plus NetDoor.Mode (#2045, CrystalNetTests); v8 = the monorail's rail/train lists and
-        // intents plus the moving frame on MoveIntent / PlayerPresence / PlayerStateUpdate (#2113, RailTests).
-        Assert.Equal(8, Protocol.Version);
-        Assert.Equal(8, new JoinRequest().ProtocolVersion);
+        // intents plus the moving frame on MoveIntent / PlayerPresence / PlayerStateUpdate (#2113, RailTests);
+        // v9 = the bio lab's blocks and the content fingerprint in the join (#2222, ContentFingerprintTests).
+        Assert.Equal(9, Protocol.Version);
+        Assert.Equal(9, new JoinRequest().ProtocolVersion);
     }
 
     [Fact]

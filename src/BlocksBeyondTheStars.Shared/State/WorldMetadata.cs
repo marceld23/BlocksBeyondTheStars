@@ -22,7 +22,20 @@ public sealed class WorldMetadata
     /// <summary>Logical id of the currently active planet/location.</summary>
     public string ActiveLocationId { get; set; } = "rocky";
 
-    /// <summary>Schema/content version for future migrations.</summary>
+    /// <summary>
+    /// The save version this build writes (#2223). A build stamps every world it opens with it and refuses to open
+    /// a world whose stored version is HIGHER: such a save was written by a newer build, and opening it here would
+    /// rewrite it for good — block keys this build does not know are remapped to air on the first load.
+    /// <para>Bump it whenever a build starts writing something an older build would misread or destroy: new blocks
+    /// (the palette remap drops unknown keys), a changed record format, a re-used field. Lower or missing versions
+    /// always load.</para>
+    /// <para>1 = every save before the check existed. 2 = the bio lab's blocks (<c>bio_lab</c>,
+    /// <c>flora_hybrid</c>) and the remap of a self-built ship's hull (#2221).</para>
+    /// </summary>
+    public const int CurrentSaveVersion = 2;
+
+    /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
+    /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>
     public int SaveVersion { get; set; } = 1;
 
     /// <summary>Total wall-clock seconds this world has been actively played (accumulated server-side only

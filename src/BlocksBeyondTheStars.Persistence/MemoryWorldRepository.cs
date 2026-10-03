@@ -480,6 +480,22 @@ public sealed class MemoryWorldRepository : IWorldRepository
         }
     }
 
+    public bool BlockPaletteNeedsRemap(IReadOnlyDictionary<ushort, string> currentPalette)
+    {
+        lock (_gate)
+        {
+            return _palette.Count > 0 && BlockPaletteMigration.BuildRemap(_palette, currentPalette).Count > 0;
+        }
+    }
+
+    public IReadOnlyDictionary<ushort, string> LoadBlockPalette()
+    {
+        lock (_gate)
+        {
+            return new Dictionary<ushort, string>(_palette);
+        }
+    }
+
     private void WritePaletteLocked(IReadOnlyDictionary<ushort, string> palette)
     {
         _palette.Clear();
@@ -535,6 +551,18 @@ public sealed class MemoryWorldRepository : IWorldRepository
             {
                 structure.Blocks = remapped;
                 _spaceStructures[id] = JsonSerializer.Serialize(structure, JsonOptions);
+            }
+        }
+
+        // #2221: the hull of a self-built ship lives inside its row (BuiltCells, "x:y:z:block" like a station).
+        foreach (var id in _ships.Keys.ToList())
+        {
+            var ship = JsonSerializer.Deserialize<ShipSnapshot>(_ships[id], JsonOptions)!;
+            string remapped = BlockPaletteMigration.RemapCellString(ship.BuiltCells, remap);
+            if (remapped != ship.BuiltCells)
+            {
+                ship.BuiltCells = remapped;
+                _ships[id] = JsonSerializer.Serialize(ship, JsonOptions);
             }
         }
     }
@@ -1549,6 +1577,12 @@ public sealed class MemoryWorldRepository : IWorldRepository
         File.WriteAllBytes(path, blob);
         return path;
     }
+
+    /// <summary>False: this save is a blob the host stores (IndexedDB / cloud) — there is no folder to rotate
+    /// copies in, and the browser has no background thread to write them on (#2223).</summary>
+    public bool SupportsAutomaticBackups => false;
+
+    public string? CreateBackgroundBackup(string label) => null;
 
     // Test-only hooks: inject/inspect a raw player row to exercise the corruption contract.
     internal void SetRawPlayerJson(string playerId, string json)

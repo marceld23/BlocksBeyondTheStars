@@ -50,7 +50,7 @@ public sealed class TravelTests : IDisposable
         server.Start();
         client.Connect("loopback", 0);
         client.Send(
-            NetCodec.Encode(new JoinRequest { PlayerName = "Pilot" }),
+            NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Pilot" }),
             DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 

@@ -77,7 +77,7 @@ public sealed class ReconnectAndGhostTests : IDisposable
     }
 
     private static void Join(SvGameServer server, int connectionId, string name, string token)
-        => server.HandlePayloadForTest(connectionId, NetCodec.Encode(new JoinRequest { PlayerName = name, Token = token }));
+        => server.HandlePayloadForTest(connectionId, NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = name, Token = token }));
 
     // ---------------- #964: reconnect ----------------
 

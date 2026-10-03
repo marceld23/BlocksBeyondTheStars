@@ -116,7 +116,7 @@ public sealed class MaxPlayersTests : IDisposable
         };
 
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "P13" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "P13" }), DeliveryMode.ReliableOrdered);
         for (int i = 0; i < 25 && accepted is null && rejected is null; i++)
         {
             server.Tick(0.1);

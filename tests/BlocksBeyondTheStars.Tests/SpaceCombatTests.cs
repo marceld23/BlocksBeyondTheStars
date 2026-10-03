@@ -973,7 +973,7 @@ public sealed class SpaceCombatTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Builder" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Builder" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         var state = server.Sessions[1].State;
@@ -1003,7 +1003,7 @@ public sealed class SpaceCombatTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Builder" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Builder" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         float before = server.ShipRadarRange;
@@ -1037,7 +1037,7 @@ public sealed class SpaceCombatTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Builder" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Builder" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         // Exactly both build costs: mk2 (4 df, 12 cable, 2 ec, 4 glass) + mk3 (8 df, 12 ti, 6 ec, 20 cable).

@@ -80,7 +80,7 @@ public sealed class StoryResolutionTests : IDisposable
         var server = new SvGameServer(Config(), _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Pilot" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Pilot" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         WinTheFinale(server, server.Sessions[1], "Pilot");
@@ -130,7 +130,7 @@ public sealed class StoryResolutionTests : IDisposable
         var server = new SvGameServer(Config(), _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = name }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = name }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
         repo.Flush();
@@ -150,7 +150,7 @@ public sealed class StoryResolutionTests : IDisposable
         var server = new SvGameServer(Config(), _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Pilot" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Pilot" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         // Unresolved story: the request must stay silent (the button cannot spoil anything).

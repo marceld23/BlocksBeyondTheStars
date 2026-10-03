@@ -161,7 +161,7 @@ public sealed class PlanetScannerTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Pilot" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Pilot" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         server.Sessions[1].State.AboardShip = true;
         server.Ship.Modules.Add("planet_scanner");

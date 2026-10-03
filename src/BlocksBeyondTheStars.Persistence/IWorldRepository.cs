@@ -365,11 +365,21 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Records the current block-id palette (numeric id → block key) and, if a stored palette from an
     /// earlier content set is present and differs, remaps every persisted numeric block id (block edits,
-    /// structure edits, flora regrowth, stored space structures) to the current assignment BEFORE any world
-    /// loads. Call once at startup after <see cref="Initialize"/>. This is what stops a content update that
+    /// structure edits, flora regrowth, weather deposits, stored space structures and the hulls of self-built
+    /// ships) to the current assignment BEFORE any world loads. Call once at startup after
+    /// <see cref="Initialize"/>. This is what stops a content update that
     /// inserts a block — which shifts the sort-order-assigned ids — from silently decoding every existing
     /// save's edits to the wrong blocks. A block key no longer in content maps to air (0).</summary>
     void EnsureBlockPalette(IReadOnlyDictionary<ushort, string> currentPalette);
+
+    /// <summary>True when <see cref="EnsureBlockPalette"/> would REWRITE stored block ids for this palette
+    /// (#2223): the save recorded a palette and at least one of its ids now belongs to another key. False for a
+    /// fresh save and for an unchanged block set. Lets the server take a backup before the remap, and only then.</summary>
+    bool BlockPaletteNeedsRemap(IReadOnlyDictionary<ushort, string> currentPalette);
+
+    /// <summary>The palette the save has on record (numeric id → block key) — the block set of the build that
+    /// wrote it last; empty for a fresh save. Lets the server name the block keys a remap is about to drop.</summary>
+    IReadOnlyDictionary<ushort, string> LoadBlockPalette();
 
     WorldMetadata? LoadMetadata();
     void SaveMetadata(WorldMetadata metadata);
@@ -658,6 +668,18 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Creates a consistent backup copy of the world and returns its path.</summary>
     string CreateBackup(string label);
+
+    /// <summary>Whether the server may take backups of this save by itself (#2223): the copy before a block-id
+    /// remap and the rotating ones while it runs. False for the in-memory repository of the browser
+    /// singleplayer — its save is a blob the host stores, with no folder to rotate copies in and no background
+    /// thread to write them on.</summary>
+    bool SupportsAutomaticBackups { get; }
+
+    /// <summary>Like <see cref="CreateBackup"/>, but safe to call from a background thread WHILE the tick thread
+    /// keeps reading and writing (#2223): the copy runs on a connection of its own and sees the last committed
+    /// state, so the tick never waits for it. Returns the path, or null when
+    /// <see cref="SupportsAutomaticBackups"/> is false.</summary>
+    string? CreateBackgroundBackup(string label);
 }
 
 /// <summary>A Crystal Net cell (#2046): a crystal conduit or a device block, persisted by its world cell. The voxel

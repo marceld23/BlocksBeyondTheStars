@@ -56,7 +56,7 @@ public sealed class WebSocketTransportTests : IDisposable
 
         try
         {
-            await ws.SendAsync(NetCodec.EncodeJson(new JoinRequest { PlayerName = "BrowserPilot", ViewDistanceChunks = 1 }),
+            await ws.SendAsync(NetCodec.EncodeJson(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "BrowserPilot", ViewDistanceChunks = 1 }),
                 WebSocketMessageType.Binary, true, CancellationToken.None);
 
             bool joined = false;

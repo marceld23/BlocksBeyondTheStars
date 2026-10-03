@@ -48,7 +48,28 @@ public sealed class ServerConfig
     public List<string> FleetAdminPlayers { get; set; } = new();
 
     public int AutoSaveIntervalMinutes { get; set; } = 5;
+
+    /// <summary>Minutes between two rotating backups of the running world (#2223); 0 = off. A backup is a
+    /// consistent copy of the save in its <c>backups/</c> folder (<c>auto_&lt;UTC time&gt;</c>), written on a
+    /// background thread so the tick never waits for it, and only when a player was online since the last one —
+    /// an idle server does not rotate its good copies away. CLI <c>--backup-interval-minutes</c>, env
+    /// <c>BBS_BACKUP_INTERVAL_MINUTES</c>.</summary>
     public int BackupIntervalMinutes { get; set; } = 60;
+
+    /// <summary>How many rotating backups are kept (#2223): once more exist, the oldest are deleted, so the
+    /// folder holds at most this many copies of the save per kind (<c>auto_</c> and <c>pre-remap_</c>). Clamped
+    /// to 1..<see cref="BackupKeepCountCeiling"/>. Backups made by hand (admin UI, tools) are never deleted.
+    /// CLI <c>--backup-keep</c>, env <c>BBS_BACKUP_KEEP</c>.</summary>
+    public int BackupKeepCount
+    {
+        get => _backupKeepCount;
+        set => _backupKeepCount = Math.Clamp(value, 1, BackupKeepCountCeiling);
+    }
+
+    private int _backupKeepCount = 5;
+
+    /// <summary>Upper bound for <see cref="BackupKeepCount"/> — the disk a save's backups may take stays bounded.</summary>
+    public const int BackupKeepCountCeiling = 50;
 
     public int ViewDistanceChunks { get; set; } = 4;
 
@@ -516,6 +537,12 @@ public sealed class ServerConfig
                 case "chunk-gen-workers":
                     if (int.TryParse(value, out var cgw) && cgw >= 0) { ChunkGenWorkers = cgw; applied.Add("chunk-gen-workers"); }
                     break;
+                case "backup-interval-minutes":
+                    if (int.TryParse(value, out var bim) && bim >= 0) { BackupIntervalMinutes = bim; applied.Add("backup-interval-minutes"); }
+                    break;
+                case "backup-keep":
+                    if (int.TryParse(value, out var bk) && bk >= 1) { BackupKeepCount = bk; applied.Add("backup-keep"); }
+                    break;
                 case "free-flight":
                     if (bool.TryParse(value, out var ff)) { Rules.FreeSpaceFlight = ff; applied.Add("free-flight"); }
                     break;
@@ -835,6 +862,8 @@ public sealed class ServerConfig
         if (Env("BBS_CHUNK_STREAM_PER_TICK") is { } csptStr && int.TryParse(csptStr, out var cspt) && cspt >= 1) { ChunkStreamPerTick = cspt; applied.Add("BBS_CHUNK_STREAM_PER_TICK"); }
         if (Env("BBS_CHUNK_STREAM_BUDGET_MS") is { } csbStr && double.TryParse(csbStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var csb) && csb >= 0) { ChunkStreamBudgetMs = csb; applied.Add("BBS_CHUNK_STREAM_BUDGET_MS"); }
         if (Env("BBS_CHUNK_GEN_WORKERS") is { } cgwStr && int.TryParse(cgwStr, out var cgw) && cgw >= 0) { ChunkGenWorkers = cgw; applied.Add("BBS_CHUNK_GEN_WORKERS"); }
+        if (Env("BBS_BACKUP_INTERVAL_MINUTES") is { } bimStr && int.TryParse(bimStr, out var bim) && bim >= 0) { BackupIntervalMinutes = bim; applied.Add("BBS_BACKUP_INTERVAL_MINUTES"); }
+        if (Env("BBS_BACKUP_KEEP") is { } bkStr && int.TryParse(bkStr, out var bk) && bk >= 1) { BackupKeepCount = bk; applied.Add("BBS_BACKUP_KEEP"); }
         if (Env("BBS_TICK_TIMING_LOG_SECONDS") is { } ttlStr && double.TryParse(ttlStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ttl) && ttl >= 0) { TickTimingLogSeconds = ttl; applied.Add("BBS_TICK_TIMING_LOG_SECONDS"); }
         if (Env("BBS_FREE_FLIGHT") is { } ffStr && bool.TryParse(ffStr, out var ff)) { Rules.FreeSpaceFlight = ff; applied.Add("BBS_FREE_FLIGHT"); }
         if (Env("BBS_SPACE_COMBAT") is { } scStr && Enum.TryParse<SpaceCombatMode>(scStr, ignoreCase: true, out var sc)) { Rules.SpaceCombat = sc; applied.Add("BBS_SPACE_COMBAT"); }

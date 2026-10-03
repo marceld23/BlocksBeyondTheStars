@@ -52,7 +52,7 @@ public sealed class SpawnAdoptGateTests : IDisposable
         var server = new SvGameServer(Config(), _content, serverTransport, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Fresh" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Fresh" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
 
@@ -97,7 +97,7 @@ public sealed class SpawnAdoptGateTests : IDisposable
         var server = new SvGameServer(config, _content, serverTransport, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Settler" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Settler" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
 

@@ -76,4 +76,52 @@ internal static class BlockPaletteMigration
 
         return changed ? string.Join(";", cells) : blocks;
     }
+
+#if NET10_0_OR_GREATER
+    // Only the database repositories rewrite a raw row; the in-memory one (the netstandard2.1 flavor's only
+    // repository) holds typed snapshots and remaps the hull string through them.
+
+    /// <summary>Remaps the hull of a self-built ship inside its persisted JSON row (#2221). The hull is not a
+    /// column: <see cref="ShipSnapshot.BuiltCells"/> holds it as "x:y:z:block" cells, the format a player station
+    /// uses, so it needs the same translation — without it an old save decodes the hull with shifted ids (helm,
+    /// engine and core are no longer recognised). Only that one property is rewritten; everything else in the row
+    /// stays as it was written, fields this build does not know included. Returns the SAME string instance when
+    /// nothing changed (a content ship has no hull string) so callers can skip a no-op write; a row that is not
+    /// readable JSON is left alone for the normal load path to report.</summary>
+    public static string RemapShipJson(string json, IReadOnlyDictionary<ushort, ushort> remap)
+    {
+        if (string.IsNullOrEmpty(json) || remap.Count == 0)
+        {
+            return json;
+        }
+
+        System.Text.Json.Nodes.JsonNode? root;
+        try
+        {
+            root = System.Text.Json.Nodes.JsonNode.Parse(json);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return json;
+        }
+
+        if (root is not System.Text.Json.Nodes.JsonObject ship
+            || ship[nameof(ShipSnapshot.BuiltCells)] is not System.Text.Json.Nodes.JsonValue value
+            || !value.TryGetValue(out string? cells)
+            || cells is null
+            || cells.Length == 0)
+        {
+            return json;
+        }
+
+        string remapped = RemapCellString(cells, remap);
+        if (ReferenceEquals(remapped, cells))
+        {
+            return json;
+        }
+
+        ship[nameof(ShipSnapshot.BuiltCells)] = remapped;
+        return ship.ToJsonString();
+    }
+#endif
 }

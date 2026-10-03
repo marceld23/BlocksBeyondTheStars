@@ -59,7 +59,7 @@ public sealed class ShipAiTests : IDisposable
     private static void JoinAndDrain(SvGameServer server, LoopbackClientTransport client, string name)
     {
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = name }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = name }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
     }

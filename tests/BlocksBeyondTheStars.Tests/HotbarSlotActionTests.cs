@@ -58,7 +58,7 @@ public sealed class HotbarSlotActionTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Justus" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Justus" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         server.Sessions[1].State.AboardShip = false; // craft from the personal inventory only, not a ship hold
         return (server, client, repo);

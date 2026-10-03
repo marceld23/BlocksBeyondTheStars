@@ -81,7 +81,7 @@ public sealed class NetCodecServerHardeningTests : IDisposable
     private static void Join(DrivenTransport transport, int connectionId, string playerName = "Pilot")
     {
         transport.Connect(connectionId);
-        transport.Receive(connectionId, new JoinRequest { ProtocolVersion = Protocol.Version, PlayerName = playerName });
+        transport.Receive(connectionId, new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, ProtocolVersion = Protocol.Version, PlayerName = playerName });
     }
 
     // -------------------------------------------------------------------------
@@ -273,7 +273,7 @@ public sealed class NetCodecServerHardeningTests : IDisposable
             Assert.Single(transport.Sent.Where(entry => entry.Conn == 1 && entry.Msg is JoinAccepted));
             transport.Sent.Clear();
 
-            transport.Receive(1, new JoinRequest { ProtocolVersion = Protocol.Version, PlayerName = "Pilot" });
+            transport.Receive(1, new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, ProtocolVersion = Protocol.Version, PlayerName = "Pilot" });
             Assert.Empty(transport.Sent);
 
             transport.Receive(1, new RequestStarMap());

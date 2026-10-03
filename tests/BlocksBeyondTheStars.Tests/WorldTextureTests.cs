@@ -123,7 +123,7 @@ public sealed class WorldTextureTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Painter" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Painter" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         server.Sessions[1].State.Role = admin ? PlayerRole.Admin : PlayerRole.Player;
         client.Poll();
@@ -331,7 +331,7 @@ public sealed class WorldTextureTests : IDisposable
         var inbox = new List<object>();
         client2.PayloadReceived += payload => { if (NetCodec.Decode(payload) is { } m) { inbox.Add(m); } };
         client2.Connect("loopback", 0);
-        client2.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Newcomer" }), DeliveryMode.ReliableOrdered);
+        client2.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Newcomer" }), DeliveryMode.ReliableOrdered);
         for (int i = 0; i < 4; i++)
         {
             server2.Tick(0.1);

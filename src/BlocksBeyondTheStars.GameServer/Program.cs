@@ -213,7 +213,18 @@ if (Array.IndexOf(args, "--stdin-stop") >= 0)
     stdinWatcher.Start();
 }
 
-server.Start();
+try
+{
+    server.Start();
+}
+catch (SaveVersionTooNewException ex)
+{
+    // #2223: the world was saved by a newer build. Opening it here would rewrite it for good (block keys this
+    // build does not know become air), so the server refused and left it untouched. Its own exit code and a
+    // marker line, so a launcher can tell "update the game" apart from "the server could not start".
+    logger.Error($"{GameServer.SaveTooNewMarker}: {ex.Message}");
+    return GameServer.SaveTooNewExitCode;
+}
 
 // Automatic crash upload — opt-in. When config supplies an endpoint + key, the server sends queued reports
 // to the website: once now (catching crashes the previous run couldn't send, e.g. a fatal exit) and then

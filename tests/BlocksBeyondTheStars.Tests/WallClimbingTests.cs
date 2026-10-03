@@ -159,7 +159,7 @@ public sealed class WallClimbingTests : IDisposable
         var server = new SvGameServer(Config("climb_move"), _content, serverTransport, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Climber" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Climber" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
 
