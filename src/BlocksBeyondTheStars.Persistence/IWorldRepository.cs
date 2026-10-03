@@ -666,13 +666,16 @@ public interface IWorldRepository : IDisposable
     /// <summary>Flushes any pending writes durably to disk.</summary>
     void Flush();
 
-    /// <summary>Creates a consistent backup copy of the world and returns its path.</summary>
+    /// <summary>Creates a consistent backup copy of the world and returns its path. A label of one of the
+    /// server's own kinds (<see cref="BackupRotation.IsRotationLabel"/>) is the file's name, extension aside —
+    /// the rotation finds its copies by that prefix. Also what the server takes before a block-id remap (#2223),
+    /// in every repository.</summary>
     string CreateBackup(string label);
 
-    /// <summary>Whether the server may take backups of this save by itself (#2223): the copy before a block-id
-    /// remap and the rotating ones while it runs. False for the in-memory repository of the browser
-    /// singleplayer — its save is a blob the host stores, with no folder to rotate copies in and no background
-    /// thread to write them on.</summary>
+    /// <summary>Whether the server may take ROTATING backups of this save while it runs (#2223). False for the
+    /// in-memory repository of the browser singleplayer — its save is a blob the host stores, and the browser
+    /// has no background thread to write copies on. The one copy before a block-id remap does not depend on
+    /// this: it goes through <see cref="CreateBackup"/> on the calling thread.</summary>
     bool SupportsAutomaticBackups { get; }
 
     /// <summary>Like <see cref="CreateBackup"/>, but safe to call from a background thread WHILE the tick thread

@@ -49,16 +49,18 @@ public sealed class ServerConfig
 
     public int AutoSaveIntervalMinutes { get; set; } = 5;
 
-    /// <summary>Minutes between two rotating backups of the running world (#2223); 0 = off. A backup is a
-    /// consistent copy of the save in its <c>backups/</c> folder (<c>auto_&lt;UTC time&gt;</c>), written on a
-    /// background thread so the tick never waits for it, and only when a player was online since the last one —
-    /// an idle server does not rotate its good copies away. CLI <c>--backup-interval-minutes</c>, env
-    /// <c>BBS_BACKUP_INTERVAL_MINUTES</c>.</summary>
+    /// <summary>Minutes of play between two rotating backups of the world (#2223); 0 = off. Play is real time
+    /// with at least one player online, and the count is saved with the world — it carries across server
+    /// restarts, so short sessions add up, and an idle server does not rotate its good copies away. A backup is
+    /// a consistent copy of the save in its <c>backups/</c> folder (<c>auto_&lt;UTC time&gt;</c>), taken right
+    /// after a full save and written on a background thread so the tick never waits for it. CLI
+    /// <c>--backup-interval-minutes</c>, env <c>BBS_BACKUP_INTERVAL_MINUTES</c>.</summary>
     public int BackupIntervalMinutes { get; set; } = 60;
 
     /// <summary>How many rotating backups are kept (#2223): once more exist, the oldest are deleted, so the
     /// folder holds at most this many copies of the save per kind (<c>auto_</c> and <c>pre-remap_</c>). Clamped
-    /// to 1..<see cref="BackupKeepCountCeiling"/>. Backups made by hand (admin UI, tools) are never deleted.
+    /// to 1..<see cref="BackupKeepCountCeiling"/>. Backups made by hand (admin UI, tools) are never deleted. A
+    /// browser save keeps one <c>pre-remap_</c> copy whatever this says — it lives in the browser's storage.
     /// CLI <c>--backup-keep</c>, env <c>BBS_BACKUP_KEEP</c>.</summary>
     public int BackupKeepCount
     {

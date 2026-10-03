@@ -141,4 +141,47 @@ public sealed class ContentFingerprintClientTests
         Assert.Equal(0, messages);
         Assert.Equal(0, client.PendingPayloads);
     }
+
+    [Fact]
+    public void AfterRefusingAServer_NothingItStillDelivers_ReachesTheHost_UntilTheNextConnect()
+    {
+        var transport = new RecordingClientTransport();
+        using var client = new NetworkClient(transport) { ContentFingerprint = "palette-a" };
+        var accepted = new List<JoinAccepted>();
+        int chunks = 0;
+        int messages = 0;
+        int inventories = 0;
+        client.JoinAccepted += accepted.Add;
+        client.ChunkReceived += _ => chunks++;
+        client.ServerMessageReceived += _ => messages++;
+        client.InventoryUpdated += _ => inventories++;
+        client.Connect("scripted", 0);
+
+        // The join burst arrives in two halves: the refusal happens in the first poll …
+        transport.Deliver(new JoinAccepted { WorldId = 1, PlayerId = "Pilot", ContentFingerprint = "palette-b" });
+        client.Poll();
+        Assert.Equal(1, transport.Disconnects);
+
+        // … and the transport still hands over the second half afterwards.
+        transport.Deliver(new InventoryUpdate());
+        transport.Deliver(new ServerMessage { Text = "welcome" });
+        transport.Deliver(new ChunkDataMessage { Cx = 2, WorldId = 1, Blocks = new ushort[WorldConstants.BlocksPerChunk] });
+        client.Poll();
+        client.Poll();
+
+        Assert.Equal(0, inventories);
+        Assert.Equal(0, messages);
+        Assert.Equal(0, chunks);
+        Assert.Equal(0, client.PendingPayloads);
+        Assert.Empty(accepted);
+
+        // A new connection is judged afresh: a server with the right palette is joined as usual.
+        client.Connect("scripted", 0);
+        transport.Deliver(new JoinAccepted { WorldId = 1, PlayerId = "Pilot", ContentFingerprint = "palette-a" });
+        transport.Deliver(new ServerMessage { Text = "welcome" });
+        client.Poll();
+
+        Assert.Single(accepted);
+        Assert.Equal(1, messages);
+    }
 }

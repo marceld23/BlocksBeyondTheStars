@@ -27,10 +27,16 @@ public static class BackupRotation
     public static string Label(string prefix, DateTime utcNow)
         => prefix + utcNow.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
 
+    /// <summary>True for a label of one of the server's own kinds. A repository must write such a backup under
+    /// exactly that name (plus its extension), or <see cref="Prune"/> would never find it again.</summary>
+    public static bool IsRotationLabel(string label)
+        => label.StartsWith(AutoPrefix, StringComparison.Ordinal) || label.StartsWith(PreRemapPrefix, StringComparison.Ordinal);
+
     /// <summary>
     /// Deletes the oldest backups of one kind until at most <paramref name="keep"/> remain, and any unfinished
     /// copy of that kind a crash left behind. Returns how many finished backups were deleted. A file that cannot
-    /// be deleted (locked, read-only) is skipped — pruning never fails the backup that triggered it.
+    /// be deleted (locked, read-only) is skipped, and so is a folder that cannot be listed — pruning never fails
+    /// the backup that triggered it.
     /// </summary>
     public static int Prune(string directory, string prefix, int keep)
     {
@@ -39,8 +45,22 @@ public static class BackupRotation
             return 0;
         }
 
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(directory, prefix + "*");
+        }
+        catch (IOException)
+        {
+            return 0;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return 0;
+        }
+
         var finished = new List<string>();
-        foreach (var file in Directory.GetFiles(directory, prefix + "*"))
+        foreach (var file in files)
         {
             if (file.EndsWith(TempSuffix, StringComparison.OrdinalIgnoreCase))
             {

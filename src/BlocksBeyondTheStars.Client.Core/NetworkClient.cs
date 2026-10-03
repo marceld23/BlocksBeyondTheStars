@@ -248,7 +248,11 @@ namespace BlocksBeyondTheStars.Client
         public NetworkClient(IClientTransport? transport = null)
         {
             _transport = transport ?? new LiteNetLibClientTransport();
-            _transport.Connected += () => Connected = true;
+            _transport.Connected += () =>
+            {
+                Connected = true;
+                _refusedServer = false; // #2222: a connection that comes up (again) is judged afresh
+            };
             _transport.Disconnected += () =>
             {
                 bool wasConnected = Connected;
@@ -403,7 +407,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void EnqueueMessage(object message) => _inbox.Enqueue(message);
 
-        public void Connect(string host, int port) => _transport.Connect(host, port);
+        public void Connect(string host, int port)
+        {
+            _refusedServer = false; // a new connection is a new server to judge
+            _transport.Connect(host, port);
+        }
 
         /// <summary>
         /// The fingerprint of the block palette this client decodes chunks with (#2222,
@@ -423,11 +431,17 @@ namespace BlocksBeyondTheStars.Client
         public void Join(string playerName, string? password = null, string locale = "en", string? token = null, int viewDistanceChunks = 0, string? hostedToken = null, string? installId = null)
             => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token, ViewDistanceChunks = viewDistanceChunks, HostedToken = hostedToken, InstallId = installId, ContentFingerprint = EffectiveContentFingerprint });
 
+        /// <summary>#2222: set once this client refused the server it is connected to. Until the next
+        /// <see cref="Connect"/>, <see cref="Poll"/> hands nothing on — a transport may still deliver what was on
+        /// the way (the rest of the join burst) after the hang-up.</summary>
+        private bool _refusedServer;
+
         /// <summary>#2222: the server accepted the join but its block palette is not ours (or it named none) — tell the
         /// host through the same event a server refusal uses, with the same reason, and hang up. Nothing of that
-        /// world is dispatched: what is still queued is dropped.</summary>
+        /// world is dispatched: what is still queued is dropped, and so is whatever arrives later.</summary>
         private void RefuseMismatchedServer()
         {
+            _refusedServer = true;
             _inbox.Clear();
             _heldBeforeJoin.Clear();
             JoinRejected?.Invoke(new JoinRejected { Reason = Protocol.ContentMismatchReason });
@@ -1031,6 +1045,12 @@ namespace BlocksBeyondTheStars.Client
         public void Poll()
         {
             _transport.Poll(); // fills _inbox via EnqueuePayload
+
+            if (_refusedServer)
+            {
+                _inbox.Clear(); // #2222: nothing of a server this client refused reaches the host
+                return;
+            }
 
             int dispatched = 0, chunks = 0;
             while (_inbox.Count > 0 && dispatched < MaxDispatchPerPoll)

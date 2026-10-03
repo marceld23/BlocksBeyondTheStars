@@ -422,7 +422,7 @@ public sealed class SaveCompatibilityTests : IDisposable
             Assert.Equal(WorldMetadata.CurrentSaveVersion, refusal.SupportedVersion);
             Assert.Contains("'tomorrow'", refusal.Message); // names the world …
             Assert.Contains("update", refusal.Message, StringComparison.OrdinalIgnoreCase); // … and what to do
-            Assert.Contains(_log.Lines, l => l == "ERROR " + refusal.Message); // and the log carries the same line
+            Assert.Single(_log.Lines, l => l == $"ERROR {SvGameServer.SaveTooNewMarker}: {refusal.Message}"); // logged once, behind the marker
         }
 
         // Untouched: the version, the palette and the block are what the newer build wrote; no backup was needed.
@@ -446,12 +446,62 @@ public sealed class SaveCompatibilityTests : IDisposable
     }
 
     [Fact]
-    public void TheHostsRefusalSignal_IsItsOwnExitCodeAndMarker()
+    public void HostStart_AnswersANewerSave_WithItsOwnExitCode_AndOneMarkedLogLine()
     {
-        // What a launcher keys on to say "update the game" instead of "the server could not start".
-        Assert.Equal(3, SvGameServer.SaveTooNewExitCode);
-        Assert.NotEqual(0, SvGameServer.SaveTooNewExitCode);
+        // What the console host does with the refusal — and what a launcher keys on to say "update the game"
+        // instead of "the server could not start": the exit code, or the marker in the server's output.
+        using (var repo = OpenRepo("host_newer"))
+        {
+            repo.SaveMetadata(new WorldMetadata { WorldName = "host_newer", Seed = 7, DefaultPlanetType = "rocky", SaveVersion = WorldMetadata.CurrentSaveVersion + 1 });
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("host_newer")))
+        {
+            Assert.Equal(SvGameServer.SaveTooNewExitCode, NewServer("host_newer", repo).StartForHost());
+        }
+
+        Assert.Equal(3, SvGameServer.SaveTooNewExitCode); // launchers key on the number: it must not drift
         Assert.Equal("[fatal] save-too-new", SvGameServer.SaveTooNewMarker);
+        string line = Assert.Single(_log.Lines, l => l.Contains("save-too-new"));
+        Assert.StartsWith("ERROR " + SvGameServer.SaveTooNewMarker + ": ", line);
+        Assert.Contains("'host_newer'", line);
+    }
+
+    [Fact]
+    public void HostStart_AnswersAWorldItCanOpen_WithZero()
+    {
+        using var repo = new SqliteWorldRepository(Paths("host_ok"));
+        var server = NewServer("host_ok", repo);
+
+        Assert.Equal(0, server.StartForHost());
+
+        Assert.Equal(WorldMetadata.CurrentSaveVersion, server.Metadata.SaveVersion); // it really is up
+        Assert.DoesNotContain(_log.Lines, l => l.Contains("save-too-new"));
+        server.Stop();
+    }
+
+    /// <summary>
+    /// The block set each save version stands for (<see cref="GameContent.BlockFingerprint"/>). An older build maps
+    /// the blocks it does not know to air for good when it opens a newer save, and only a HIGHER save version stops
+    /// it — so a change of the block set needs a new version, and this table is where that is written down.
+    /// </summary>
+    private static readonly Dictionary<int, string> BlockSetOfSaveVersion = new()
+    {
+        [2] = "f7f844cfbd21f315", // the bio lab: bio_lab, flora_hybrid
+    };
+
+    [Fact]
+    public void ChangedBlockSet_NeedsANewSaveVersion()
+    {
+        int version = WorldMetadata.CurrentSaveVersion;
+        Assert.True(BlockSetOfSaveVersion.TryGetValue(version, out string? pinned),
+            $"WorldMetadata.CurrentSaveVersion is {version}, but BlockSetOfSaveVersion has no row for it — add [{version}] = \"{_content.BlockFingerprint}\".");
+        Assert.True(pinned == _content.BlockFingerprint,
+            $"The block set changed (fingerprint {pinned} -> {_content.BlockFingerprint}) while the save version is still {version}. " +
+            "A build with the old block set opens a save of this one and turns the new blocks to air for good — only a higher save " +
+            $"version stops it. Raise WorldMetadata.CurrentSaveVersion to {version + 1}, say why in its doc comment, and add " +
+            $"[{version + 1}] = \"{_content.BlockFingerprint}\" to BlockSetOfSaveVersion (leave the rows of released versions as they are).");
+        Assert.Equal(BlockSetOfSaveVersion.Keys.Max(), version); // the newest row is the version this build writes
     }
 
     // ---------------- #2223: rotating backups ----------------
@@ -515,27 +565,29 @@ public sealed class SaveCompatibilityTests : IDisposable
     }
 
     [Fact]
-    public void Interval_StartsABackup_OnlyWhenItIsDue_AndAPlayerWasOnline()
+    public void Interval_CountsPlayOnly_AndStartsABackupWhenItIsFull()
     {
         using var repo = new SqliteWorldRepository(Paths("interval"));
         var server = NewServer("interval", repo, c => c.BackupIntervalMinutes = 1);
         server.Start();
 
-        // Due, but nobody was online since the server started: nothing new to keep.
+        // Time passes, but nobody is online: no play, nothing new to keep.
         server.AdvanceBackupClockForTest(61);
         server.TickForTest(0.1);
         Assert.Null(server.WaitForBackupForTest());
         Assert.Empty(Backups("interval", BackupRotation.AutoPrefix));
+        Assert.Equal(0.0, server.Metadata.PlaySecondsSinceBackup);
 
-        // A player is online, but the interval has only just restarted.
+        // A player is online: the count starts with them, and half an interval is not enough.
         server.AddLocalPlayer("Pilot");
         server.TickForTest(0.1);
         server.AdvanceBackupClockForTest(30);
         server.TickForTest(0.1);
         Assert.Null(server.WaitForBackupForTest());
         Assert.Empty(Backups("interval", BackupRotation.AutoPrefix));
+        Assert.InRange(server.Metadata.PlaySecondsSinceBackup, 30.0, 59.0);
 
-        // Due and somebody played: one copy, written off the tick thread.
+        // A full interval of play: one copy, written off the tick thread.
         server.AdvanceBackupClockForTest(31);
         server.TickForTest(0.1);
         string? path = server.WaitForBackupForTest();
@@ -544,11 +596,161 @@ public sealed class SaveCompatibilityTests : IDisposable
         Assert.StartsWith(BackupRotation.AutoPrefix, Path.GetFileName(path));
         Assert.Single(Backups("interval", BackupRotation.AutoPrefix));
 
-        // The clock starts over: the very next tick does not write another one.
+        // The count starts over: the very next tick does not write another one.
         server.TickForTest(0.1);
         Assert.Null(server.WaitForBackupForTest());
         Assert.Single(Backups("interval", BackupRotation.AutoPrefix));
+        Assert.InRange(server.Metadata.PlaySecondsSinceBackup, 0.0, 29.0);
         server.Stop();
+    }
+
+    [Fact]
+    public void ShortSessions_AddUp_AcrossServerRuns()
+    {
+        // The bundled singleplayer host starts one server per play session, and a hosted world stops itself when
+        // it is idle. Two sessions of 40 minutes are 80 minutes of play — the hourly backup must not wait for a
+        // single session that is long enough.
+        using (var repo = new SqliteWorldRepository(Paths("sessions")))
+        {
+            var server = NewServer("sessions", repo, c => c.BackupIntervalMinutes = 60);
+            server.Start();
+            server.AddLocalPlayer("Pilot");
+            server.TickForTest(0.1);
+            server.AdvanceBackupClockForTest(40 * 60);
+            server.TickForTest(0.1);
+            Assert.Null(server.WaitForBackupForTest());
+            server.Stop(); // the count is saved with the world
+        }
+
+        Assert.Empty(Backups("sessions", BackupRotation.AutoPrefix));
+        using (var reopened = OpenRepo("sessions"))
+        {
+            Assert.InRange(reopened.LoadMetadata()!.PlaySecondsSinceBackup, 40 * 60, 41 * 60);
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("sessions")))
+        {
+            var server = NewServer("sessions", repo, c => c.BackupIntervalMinutes = 60);
+            server.Start();
+            server.AddLocalPlayer("Pilot");
+            server.TickForTest(0.1);
+            server.AdvanceBackupClockForTest(15 * 60); // 55 minutes of play so far
+            server.TickForTest(0.1);
+            Assert.Null(server.WaitForBackupForTest());
+
+            server.AdvanceBackupClockForTest(6 * 60); // 61
+            server.TickForTest(0.1);
+            string? path = server.WaitForBackupForTest();
+            Assert.NotNull(path);
+            Assert.True(File.Exists(path));
+            server.Stop();
+        }
+
+        Assert.Single(Backups("sessions", BackupRotation.AutoPrefix));
+        using var after = OpenRepo("sessions");
+        Assert.InRange(after.LoadMetadata()!.PlaySecondsSinceBackup, 0.0, 60.0); // a new interval began with the copy
+    }
+
+    [Fact]
+    public void RotatingBackup_IsTakenRightAfterASave_SoItHoldsPlayersAndBlocksOfTheSameMoment()
+    {
+        using var repo = new SqliteWorldRepository(Paths("aligned"));
+        var server = NewServer("aligned", repo, c => c.BackupIntervalMinutes = 1);
+        server.Start();
+        var pilot = server.AddLocalPlayer("Pilot");
+        server.TickForTest(0.1);
+
+        // Since the last save: a block edit (written as it happens) and a change to the player (written only by a save).
+        repo.SetBlock("rocky", new Vector3i(7, 7, 7), _content.GetBlock("stone")!.NumericId.Value);
+        pilot.State.KnowledgePoints = 4711;
+        Assert.True(repo.LoadPlayer(pilot.State.PlayerId)?.KnowledgePoints != 4711); // not saved yet
+
+        server.AdvanceBackupClockForTest(61);
+        server.TickForTest(0.1);
+        string? path = server.WaitForBackupForTest();
+        Assert.NotNull(path);
+
+        // Restore the copy the way an operator would: as the world.db of a save folder.
+        var restored = new SaveGamePaths(Path.Combine(_root, "restored"), "aligned");
+        Directory.CreateDirectory(restored.WorldDirectory);
+        File.Copy(path!, restored.DatabaseFile);
+        using (var copy = new SqliteWorldRepository(restored))
+        {
+            copy.Initialize();
+            Assert.Equal(4711, copy.LoadPlayer(pilot.State.PlayerId)!.KnowledgePoints); // the player as of the copy …
+            Assert.Single(copy.LoadChunkEdits("rocky", new ChunkCoord(0, 0, 0)), e => e.WorldPosition == new Vector3i(7, 7, 7)); // … with the block
+            Assert.Equal(0.0, copy.LoadMetadata()!.PlaySecondsSinceBackup); // and a restored copy starts a fresh interval
+        }
+
+        server.Stop();
+    }
+
+    // ---------------- #2223: when the copy before a remap cannot be written ----------------
+
+    /// <summary>Makes the copy before a remap fail: a FOLDER sits where the copy's temp file must go.</summary>
+    private void BlockPreRemapBackup(SvGameServer server, string world)
+    {
+        var at = new DateTime(2026, 10, 3, 9, 0, 0, DateTimeKind.Utc);
+        server.SetBackupTimeForTest(at);
+        Directory.CreateDirectory(Path.Combine(Paths(world).BackupsDirectory, BackupRotation.Label(BackupRotation.PreRemapPrefix, at) + ".db" + BackupRotation.TempSuffix));
+    }
+
+    [Fact]
+    public void FailedCopy_StopsARemapThatWouldDropBlocks_AndLeavesTheSaveUntouched()
+    {
+        // A world that knows a block this build does not (a save version nobody raised), and a backups folder
+        // that cannot take the copy: without the copy there is no way back, so the world is not opened.
+        var stored = new Dictionary<ushort, string>(_content.BlockPalette());
+        ushort free = (ushort)(stored.Keys.Max() + 1);
+        stored[free] = "zz_block_of_a_newer_build";
+        using (var repo = OpenRepo("nocopy_drop"))
+        {
+            repo.SetBlock("rocky", new Vector3i(2, 2, 2), free);
+            repo.EnsureBlockPalette(stored);
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("nocopy_drop")))
+        {
+            var server = NewServer("nocopy_drop", repo);
+            BlockPreRemapBackup(server, "nocopy_drop");
+
+            var refusal = Assert.Throws<IOException>(server.Start);
+            Assert.Contains("'nocopy_drop'", refusal.Message);
+            Assert.Contains("zz_block_of_a_newer_build", refusal.Message);
+            Assert.Contains("was not changed", refusal.Message);
+            Assert.Contains(_log.Lines, l => l == "ERROR " + refusal.Message);
+        }
+
+        using var reopened = OpenRepo("nocopy_drop");
+        Assert.Contains("zz_block_of_a_newer_build", reopened.LoadBlockPalette().Values); // the palette was not rewritten
+        Assert.Equal(free, Assert.Single(reopened.LoadChunkEdits("rocky", new ChunkCoord(0, 0, 0))).Block); // nor the block
+        Assert.Empty(Backups("nocopy_drop", string.Empty)); // and no half-written copy pretends to be one
+    }
+
+    [Fact]
+    public void FailedCopy_DoesNotStopARemapThatOnlyMovesIds()
+    {
+        // The ordinary update: new blocks, nothing removed. A full or read-only backups folder must not keep the
+        // server from starting — the remap is one transaction and loses nothing.
+        var oldPalette = PaletteWithout("bio_lab", "flora_hybrid");
+        using (var repo = OpenRepo("nocopy_move"))
+        {
+            repo.SetBlock("rocky", new Vector3i(1, 2, 3), IdOf(oldPalette, "ship_helm"));
+            repo.EnsureBlockPalette(oldPalette);
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("nocopy_move")))
+        {
+            var server = NewServer("nocopy_move", repo);
+            BlockPreRemapBackup(server, "nocopy_move");
+
+            server.Start();
+
+            var edit = Assert.Single(repo.LoadChunkEdits("rocky", new ChunkCoord(0, 0, 0)), e => e.WorldPosition == new Vector3i(1, 2, 3));
+            Assert.Equal("ship_helm", _content.BlockById(new BlockId(edit.Block))?.Key);
+            Assert.Contains(_log.Lines, l => l.StartsWith("WARN ", StringComparison.Ordinal) && l.Contains("continues without it"));
+            server.Stop();
+        }
     }
 
     [Fact]
@@ -567,7 +769,7 @@ public sealed class SaveCompatibilityTests : IDisposable
     }
 
     [Fact]
-    public void BrowserSave_TakesNoBackups()
+    public void BrowserSave_TakesNoRotatingBackups()
     {
         var repo = new MemoryWorldRepository(Paths("mem"));
         Assert.False(repo.SupportsAutomaticBackups);
@@ -581,6 +783,46 @@ public sealed class SaveCompatibilityTests : IDisposable
 
         Assert.Null(server.WaitForBackupForTest());
         Assert.Empty(Backups("mem", string.Empty));
+        Assert.Equal(0.0, server.Metadata.PlaySecondsSinceBackup); // nothing counts towards a copy that is never taken
+        server.Stop();
+    }
+
+    [Fact]
+    public void BrowserSave_IsCopiedBeforeARemap_AsTheBlobThatWasImported()
+    {
+        // The browser's save is one blob, and the host overwrites its only copy on the next save. Before the ids
+        // in it are rewritten, the blob is put aside as it came in — one copy, in the save's own storage.
+        var oldPalette = PaletteWithout("bio_lab", "flora_hybrid");
+        var first = new MemoryWorldRepository(Paths("mem_remap"));
+        first.Initialize();
+        first.SaveMetadata(new WorldMetadata { WorldName = "mem_remap", Seed = 5, DefaultPlanetType = "rocky" });
+        first.SetBlock("rocky", new Vector3i(1, 2, 3), IdOf(oldPalette, "ship_helm"));
+        first.EnsureBlockPalette(oldPalette);
+        byte[] blob = first.ExportSnapshotBlob();
+
+        // A copy from an earlier update is still there: the browser keeps one, the newest.
+        string stale = Path.Combine(Paths("mem_remap").BackupsDirectory, "pre-remap_20200101_000000.world.json.gz");
+        File.WriteAllText(stale, "older copy");
+
+        var repo = new MemoryWorldRepository(Paths("mem_remap"));
+        repo.ImportSnapshotBlob(blob);
+        var server = NewServer("mem_remap", repo);
+        server.Start();
+
+        string backup = Assert.Single(Backups("mem_remap", BackupRotation.PreRemapPrefix));
+        Assert.EndsWith(".world.json.gz", backup);
+        Assert.False(File.Exists(stale));
+        string backupFile = Path.Combine(Paths("mem_remap").BackupsDirectory, backup);
+        Assert.Equal(blob, File.ReadAllBytes(backupFile)); // byte for byte what the host handed in
+        Assert.Contains(_log.Lines, l => l.StartsWith("INFO ", StringComparison.Ordinal) && l.Contains(backupFile));
+
+        // The running world is remapped; the copy still reads as the world from before.
+        var edit = Assert.Single(repo.LoadChunkEdits("rocky", new ChunkCoord(0, 0, 0)), e => e.WorldPosition == new Vector3i(1, 2, 3));
+        Assert.Equal("ship_helm", _content.BlockById(new BlockId(edit.Block))?.Key);
+        var restored = new MemoryWorldRepository(Paths("mem_restored"));
+        restored.ImportSnapshotBlob(File.ReadAllBytes(backupFile));
+        Assert.DoesNotContain("bio_lab", restored.LoadBlockPalette().Values);
+        Assert.Equal(IdOf(oldPalette, "ship_helm"), Assert.Single(restored.LoadChunkEdits("rocky", new ChunkCoord(0, 0, 0))).Block);
         server.Stop();
     }
 

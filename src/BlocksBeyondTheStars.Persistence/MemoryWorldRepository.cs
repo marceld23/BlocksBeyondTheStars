@@ -1569,17 +1569,43 @@ public sealed class MemoryWorldRepository : IWorldRepository
 
     public string CreateBackup(string label)
     {
+        // Right after an import nothing is dirty, so this is the imported blob itself, byte for byte — which is
+        // what the copy before a block-id remap wants (#2223), at no cost.
         byte[] blob = ExportSnapshotBlob();
         Directory.CreateDirectory(_paths.BackupsDirectory);
-        string safe = string.Concat(label.Where(char.IsLetterOrDigit));
-        string path = Path.Combine(_paths.BackupsDirectory,
-            $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{(safe.Length > 0 ? safe : "backup")}.world.json.gz");
-        File.WriteAllBytes(path, blob);
+
+        // One of the server's own copies keeps its label as the file name, so the rotation finds it by its
+        // prefix; any other label gets the time in front, as before.
+        string name;
+        if (BackupRotation.IsRotationLabel(label))
+        {
+            name = label;
+            foreach (var c in Path.GetInvalidFileNameChars())
+            {
+                name = name.Replace(c, '_');
+            }
+        }
+        else
+        {
+            string safe = string.Concat(label.Where(char.IsLetterOrDigit));
+            name = $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{(safe.Length > 0 ? safe : "backup")}";
+        }
+
+        string path = Path.Combine(_paths.BackupsDirectory, name + ".world.json.gz");
+        string temp = path + BackupRotation.TempSuffix;
+        File.WriteAllBytes(temp, blob);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+
+        File.Move(temp, path); // written beside the target and swapped in: a copy cut short never looks like a backup
         return path;
     }
 
-    /// <summary>False: this save is a blob the host stores (IndexedDB / cloud) — there is no folder to rotate
-    /// copies in, and the browser has no background thread to write them on (#2223).</summary>
+    /// <summary>False: no rotating backups (#2223) — this save is a blob the host stores (IndexedDB / cloud), and
+    /// the browser has no background thread to write copies on. The one copy before a block-id remap needs
+    /// neither and is taken through <see cref="CreateBackup"/> like everywhere else.</summary>
     public bool SupportsAutomaticBackups => false;
 
     public string? CreateBackgroundBackup(string label) => null;

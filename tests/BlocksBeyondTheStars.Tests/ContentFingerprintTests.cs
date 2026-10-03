@@ -234,6 +234,64 @@ public sealed class ContentFingerprintTests : IDisposable
         }
     }
 
+    // ---------------- What the player reads, and what a test author runs into ----------------
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("de")]
+    public void RefusalReason_IsALocaleKey_WithATextInEnglishAndGerman(string locale)
+    {
+        // Both refusals (the server's and the client's own) carry this token; the client shows the text behind
+        // it. Without the key the player reads "[srv.join.content_mismatch]" instead of "please update".
+        Assert.StartsWith("@", Protocol.ContentMismatchReason);
+        string key = Protocol.ContentMismatchReason.Substring(1);
+
+        using var table = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(TestPaths.DataDir(), "locales", locale + ".json")));
+        Assert.True(
+            table.RootElement.TryGetProperty(key, out var text) && !string.IsNullOrWhiteSpace(text.GetString()),
+            $"data/locales/{locale}.json has no text for '{key}' — a player refused for a different game version would read the bare key.");
+    }
+
+    [Fact]
+    public void EveryJoinATestBuildsByHand_NamesAFingerprint()
+    {
+        // A JoinRequest without a fingerprint is refused, and the test that sent it then fails somewhere else
+        // (no session, a null player). This names the line instead. Exempt: files that build a JoinRequest
+        // without sending it to a server (the codec and transport tests), and this one, which sends bad joins
+        // on purpose.
+        string[] exempt = { "NetCodecTests.cs", "NetworkingTests.cs", "ProtocolV4Tests.cs", "ContentFingerprintTests.cs" };
+        const string marker = "new JoinRequest";
+        var missing = new List<string>();
+        foreach (string project in new[] { "BlocksBeyondTheStars.Tests", "BlocksBeyondTheStars.Client.Tests" })
+        {
+            foreach (string file in Directory.GetFiles(Path.Combine(TestPaths.RepoRoot(), "tests", project), "*.cs"))
+            {
+                if (exempt.Contains(Path.GetFileName(file)))
+                {
+                    continue;
+                }
+
+                string source = File.ReadAllText(file);
+                for (int at = source.IndexOf(marker, StringComparison.Ordinal); at >= 0; at = source.IndexOf(marker, at + marker.Length, StringComparison.Ordinal))
+                {
+                    int end = source.IndexOf(';', at);
+                    string statement = end < 0 ? source.Substring(at) : source.Substring(at, end - at);
+                    if (!statement.Contains("ContentFingerprint", StringComparison.Ordinal))
+                    {
+                        int line = source.Take(at).Count(c => c == '\n') + 1;
+                        missing.Add($"{project}/{Path.GetFileName(file)}:{line}");
+                    }
+                }
+            }
+        }
+
+        Assert.True(
+            missing.Count == 0,
+            "These hand-built joins carry no content fingerprint and are refused by the server (#2222) — add " +
+            "'ContentFingerprint = TestJoin.Fingerprint' (or the BlockFingerprint of the content the test's server runs on): " +
+            string.Join(", ", missing));
+    }
+
     [Fact]
     public void Join_WithAnotherProtocolVersion_IsRefusedByTheVersionCheck_BeforeTheFingerprint()
     {
