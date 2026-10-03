@@ -542,7 +542,7 @@ public sealed partial class GameServer
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
         if (planet?.Void == true)
         {
-            return 22f; // a ship / station cabin is climate-controlled
+            return CabinComfortC; // a ship / station cabin is climate-controlled — the one reading of a cabin (#2218)
         }
 
         return TemperatureAt(planet, _sim, weather, timeOfDay, _breathable, pos);

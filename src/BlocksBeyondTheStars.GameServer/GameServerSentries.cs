@@ -308,6 +308,7 @@ public sealed partial class GameServer
         if (isCreature)
         {
             OnCreatureKilled(target, null); // 2026-09: a sentry may bring down the shapeshifter too
+            ForgetClone(target); // #2214: a clone the turret brought down leaves its tank's list at once
             BroadcastCreatures();
             _log.Info($"Sentry at {sentryCell.X},{sentryCell.Y},{sentryCell.Z} brought down '{target.Name}' ({target.Id}).");
             return;

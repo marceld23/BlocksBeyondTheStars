@@ -2236,10 +2236,11 @@ public sealed partial class GameServer
     {
         var p = session.State;
 
-        // 1) The ration dispenser — eat the first stored food (any consumable that sates hunger).
+        // 1) The ration dispenser — eat the first stored food (any consumable that sates hunger). #2216: never a
+        //    preparation (a bar that an older build let in): the suit would hand out its hunger and lose its effect.
         for (int i = 0; i < p.RationStore.SlotCount; i++)
         {
-            if (p.RationStore.Slots[i] is { } stack && !stack.IsEmpty
+            if (p.RationStore.Slots[i] is { } stack && !stack.IsEmpty && !IsPreparation(stack.Item)
                 && _content.GetItem(stack.Item) is { Category: ItemCategory.Consumable } food && food.ConsumeHunger > 0f)
             {
                 p.RationStore.Remove(stack.Item, 1);
@@ -2259,6 +2260,12 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Whether an item is a bio lab preparation — a real one or a blank (#2216). A preparation is not plain
+    /// food, whatever it feeds (a bar sates hunger too): its effect is only ever started by taking it deliberately,
+    /// so the ration dispenser neither stores nor dispenses one.</summary>
+    private static bool IsPreparation(string itemKey)
+        => Shared.Bio.BioItems.FormOf(ItemKey.Base(itemKey)) is not null;
+
     /// <summary>Loads food from the player's inventory into the suit ration dispenser (food only, up to capacity).</summary>
     public void LoadRation(string playerId, string itemKey, int count)
     {
@@ -2269,7 +2276,7 @@ public sealed partial class GameServer
         }
 
         var def = _content.GetItem(itemKey);
-        if (def is not { Category: ItemCategory.Consumable } || def.ConsumeHunger <= 0f)
+        if (def is not { Category: ItemCategory.Consumable } || def.ConsumeHunger <= 0f || IsPreparation(itemKey))
         {
             Reject(session, "ration", "@srv.ration.food_only");
             return;
@@ -5362,7 +5369,16 @@ public sealed partial class GameServer
                 if (BredPlantRefusal(place.ItemKey, pos) is { } refusal)
                 {
                     Reject(session, "place", refusal);
-                    ShipAiHintOnce(session, "plant_refused");
+
+                    // VEGA's hint is about the place (clean soil, air, a tray or a pot inside a base), so it is
+                    // for a real seedling that found none — the soil, the air, the world's cap. A seedling that
+                    // carries no species, or a species that is no single plant, gets its own line and no hint:
+                    // no other place would take it, and the hint is said only once.
+                    if (refusal is "@srv.bio.plant_soil" or "@srv.bio.plant_air" or "@srv.bio.plant_cap")
+                    {
+                        ShipAiHintOnce(session, "plant_refused");
+                    }
+
                     return;
                 }
             }
@@ -6428,6 +6444,15 @@ public sealed partial class GameServer
                         return;
                     }
 
+                    // #2216: a sample, a seedling or a preparation is nothing without what its key carries (a
+                    // species, a compound) — the rule of the Sandbox catalog. A blank one is dead weight in the
+                    // pack, so it is not given; the same key with its payload is an item like any other.
+                    if (Shared.Bio.BioItems.NeedsPayload(cmd.StringArg))
+                    {
+                        Reject(session, "admin", "@srv.catalog.needs_content");
+                        return;
+                    }
+
                     var target = FindSessionByName(cmd.TargetPlayer) ?? session;
                     int amount = System.Math.Max(1, cmd.IntArg);
                     // Resolve the TARGET's own ship, not the admin's cursor ship (`_ship`): a give to an
@@ -6521,12 +6546,14 @@ public sealed partial class GameServer
             case "set_weather":
                 // #2065: the command used to write a field nothing read. It forces the simulation's state now (a ladder
                 // state or an event of the catalogue) and refuses anything the catalogue does not know. #2220: the name
-                // is read the way it is typed — any letter case, and "cloudy" for "clouds".
+                // is read the way it is typed — any letter case, and "cloudy" for "clouds". The forced weather is
+                // this world's alone, so — like the clock above — the line goes to the players under this sky, not
+                // to those on another body.
                 if (WeatherCatalog.FindByName(cmd.StringArg) is { } weatherDef)
                 {
                     _planetWeatherMode = "dynamic";
                     _sim.Force(weatherDef.Key);
-                    Broadcast(new ServerMessage { Text = "@srv.admin.weather_set:" + weatherDef.Key });
+                    BroadcastToWorld(new ServerMessage { Text = "@srv.admin.weather_set:" + weatherDef.Key });
                     CheatLog(p, $"set weather to {weatherDef.Key}");
                 }
                 else
