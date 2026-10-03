@@ -232,7 +232,7 @@ public sealed class BumpTests : IDisposable
         var server = new SvGameServer(config, _content, _st, _repo);
         server.Start();
         _client.Connect("loopback", 0);
-        _client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Tester" }), DeliveryMode.ReliableOrdered);
+        _client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Tester" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         // Resolve the directory exactly as the server does, so the test works whether it lands in the repo's

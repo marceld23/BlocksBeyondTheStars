@@ -40,6 +40,11 @@ public sealed class JoinRequest
     /// therefore the only thing that makes their <c>/report</c> actionable for an operator (#1222). Additive
     /// field on a contractless codec: older clients simply leave it empty. Never shown to other players.</summary>
     public string? InstallId { get; set; }
+
+    /// <summary>The fingerprint of the client's block palette (#2222, v9 — <c>GameContent.BlockFingerprint</c>).
+    /// Chunks travel as raw numeric block ids, so the server refuses a join whose fingerprint is missing or
+    /// differs from its own: the client would draw the wrong blocks. Empty = none sent.</summary>
+    public string ContentFingerprint { get; set; } = string.Empty;
 }
 
 public sealed class MoveIntent
@@ -912,6 +917,10 @@ public sealed class JoinAccepted
     /// apply it like <see cref="TerrainContinents"/> or volcanic worlds would show the wrong relief. Appended
     /// contractless field: an older server leaves it false.</summary>
     public bool TerrainLavaCoreVolcanoes { get; set; }
+
+    /// <summary>The fingerprint of the server's block palette (#2222, v9) — the client compares it with its own and
+    /// leaves when it is missing or different, the mirror of the server's check on <see cref="JoinRequest"/>.</summary>
+    public string ContentFingerprint { get; set; } = string.Empty;
 }
 
 public sealed class JoinRejected

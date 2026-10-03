@@ -229,7 +229,7 @@ public sealed class DockingTests : IDisposable
 
         // Alice joins over the (networked) loopback transport; Bob is a local session.
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Alice" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Alice" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         server.AddLocalPlayer("Bob");
         // Per-player ships: give each joined player's own ship a docking module.

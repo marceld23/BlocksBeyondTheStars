@@ -393,7 +393,7 @@ public sealed class ScanningTests : IDisposable
     private static void JoinAndDrain(SvGameServer server, LoopbackClientTransport client, string name)
     {
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = name }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = name }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
     }
@@ -620,7 +620,7 @@ public sealed class ScanningTests : IDisposable
                 }
             };
             client.Connect("loopback", 0);
-            client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Scout" }), DeliveryMode.ReliableOrdered);
+            client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Scout" }), DeliveryMode.ReliableOrdered);
             server.Tick(0.1);
             client.Poll();
             results.Clear(); // ignore anything the join itself pushed

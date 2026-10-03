@@ -220,7 +220,7 @@ public sealed class NotesTests : IDisposable
         using (repo)
         {
             const int conn = 7;
-            server.HandlePayloadForTest(conn, NetCodec.Encode(new JoinRequest { PlayerName = "Bob", Token = "tok-bob" }));
+            server.HandlePayloadForTest(conn, NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Bob", Token = "tok-bob" }));
             Assert.Contains(transport.Sent, x => x.Conn == conn && x.Msg is JoinAccepted);
             var onJoin = transport.Sent.Where(s => s.Conn == conn).Select(s => s.Msg).OfType<NoteList>().ToList();
             Assert.NotEmpty(onJoin);

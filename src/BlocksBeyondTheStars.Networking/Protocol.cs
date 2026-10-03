@@ -28,8 +28,19 @@ public static class Protocol
     /// v8 (#2113): the monorail — RailList / TrainList / EnterTrainIntent / ExitTrainIntent / SetTrainIntent /
     /// StowTrainIntent, MoveIntent and PlayerPresence carry a moving frame (train + local offset) and
     /// PlayerStateUpdate the ridden train; a v7 client drops every rail line and train and would draw a rider at
-    /// the wagon's origin instead of inside it.</summary>
-    public const int Version = 8;
+    /// the wagon's origin instead of inside it.
+    /// v9 (#2222): the bio lab added blocks. Chunks carry raw numeric block ids and the ids follow the sorted
+    /// block keys, so a v8 client would draw every block behind the new keys as its neighbour. From v9 on the join
+    /// carries a content fingerprint (JoinRequest / JoinAccepted.ContentFingerprint — the hash of the block
+    /// palette) that both sides compare, so a later block addition needs no bump of its own; this bump keeps the
+    /// clients released before the fingerprint off newer servers through the version check they already have.</summary>
+    public const int Version = 9;
+
+    /// <summary>The join refusal both sides use when the content fingerprints differ or one is missing (#2222):
+    /// the server sends it as the <c>JoinRejected</c> reason, the client raises the same reason itself when the
+    /// server's fingerprint does not match its own. A locale-key token — the client shows the text in the
+    /// player's language ("please update").</summary>
+    public const string ContentMismatchReason = "@srv.join.content_mismatch";
 
     public const int DefaultGameplayPort = 31415;
     public const int DefaultAdminPort = 31416;

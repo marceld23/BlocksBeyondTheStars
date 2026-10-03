@@ -34,7 +34,7 @@ public sealed class AdminCheatTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Creator" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Creator" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         return (server, client);
     }

@@ -92,7 +92,7 @@ public sealed class TeleportTests : IDisposable
             var server = new SvGameServer(config, _content, st, repo);
             server.Start();
             client.Connect("loopback", 0);
-            client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Spacer" }), DeliveryMode.ReliableOrdered);
+            client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Spacer" }), DeliveryMode.ReliableOrdered);
             server.Tick(0.1);
 
             var p = server.Sessions[1];

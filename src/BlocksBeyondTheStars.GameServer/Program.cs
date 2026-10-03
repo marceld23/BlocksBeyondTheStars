@@ -213,7 +213,14 @@ if (Array.IndexOf(args, "--stdin-stop") >= 0)
     stdinWatcher.Start();
 }
 
-server.Start();
+// #2223: a world saved by a newer build is refused and left untouched — opening it here would rewrite it for
+// good (block keys this build does not know become air). The server logged it behind its marker; the exit code
+// lets a launcher tell "update the game" apart from "the server could not start".
+int startExitCode = server.StartForHost();
+if (startExitCode != 0)
+{
+    return startExitCode;
+}
 
 // Automatic crash upload — opt-in. When config supplies an endpoint + key, the server sends queued reports
 // to the website: once now (catching crashes the previous run couldn't send, e.g. a fatal exit) and then

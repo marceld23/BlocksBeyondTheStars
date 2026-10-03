@@ -276,8 +276,28 @@ public sealed class SqliteWorldRepository : IWorldRepository
             RemapBlockColumn("flora_regrow", remap);
             RemapBlockColumn("weather_deposit", remap);
             RemapSpaceStructureBlocks(remap);
+            RemapShipHulls(remap);
             WriteBlockPaletteLocked(currentPalette);
         });
+    }
+
+    public bool BlockPaletteNeedsRemap(IReadOnlyDictionary<ushort, string> currentPalette)
+    {
+        Dictionary<ushort, string> stored;
+        lock (_gate)
+        {
+            stored = ReadBlockPalette(); // Initialize created the table
+        }
+
+        return stored.Count > 0 && BlockPaletteMigration.BuildRemap(stored, currentPalette).Count > 0;
+    }
+
+    public IReadOnlyDictionary<ushort, string> LoadBlockPalette()
+    {
+        lock (_gate)
+        {
+            return ReadBlockPalette();
+        }
     }
 
     private Dictionary<ushort, string> ReadBlockPalette()
@@ -373,6 +393,42 @@ public sealed class SqliteWorldRepository : IWorldRepository
             using var upd = Connection.CreateCommand();
             upd.CommandText = "UPDATE space_structure SET blocks = $b WHERE id = $id;";
             upd.Parameters.AddWithValue("$b", remapped);
+            upd.Parameters.AddWithValue("$id", id);
+            upd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Remaps the hull of every self-built ship (#2221). Its cells are not a column: they live inside
+    /// the ship's JSON row (<c>BuiltCells</c>, "x:y:z:block"), which no block column covers.</summary>
+    private void RemapShipHulls(IReadOnlyDictionary<ushort, ushort> remap)
+    {
+        if (remap.Count == 0)
+        {
+            return;
+        }
+
+        var rows = new List<(string Id, string Json)>();
+        using (var read = Connection.CreateCommand())
+        {
+            read.CommandText = "SELECT id, json FROM ship;";
+            using var reader = read.ExecuteReader();
+            while (reader.Read())
+            {
+                rows.Add((reader.GetString(0), reader.GetString(1)));
+            }
+        }
+
+        foreach (var (id, json) in rows)
+        {
+            string remapped = BlockPaletteMigration.RemapShipJson(json, remap);
+            if (ReferenceEquals(remapped, json))
+            {
+                continue;
+            }
+
+            using var upd = Connection.CreateCommand();
+            upd.CommandText = "UPDATE ship SET json = $j WHERE id = $id;";
+            upd.Parameters.AddWithValue("$j", remapped);
             upd.Parameters.AddWithValue("$id", id);
             upd.ExecuteNonQuery();
         }
@@ -2157,24 +2213,64 @@ public sealed class SqliteWorldRepository : IWorldRepository
         lock (_gate)
         {
             Flush();
-            foreach (var c in Path.GetInvalidFileNameChars())
-            {
-                label = label.Replace(c, '_');
-            }
-
-            var target = Path.Combine(_paths.BackupsDirectory, label + ".db");
-            if (File.Exists(target))
-            {
-                File.Delete(target);
-            }
-
-            // VACUUM INTO produces a transactionally consistent standalone copy.
-            using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "VACUUM INTO $target;";
-            cmd.Parameters.AddWithValue("$target", target);
-            cmd.ExecuteNonQuery();
+            var target = BackupTarget(label);
+            VacuumInto(Connection, target);
             return target;
         }
+    }
+
+    public bool SupportsAutomaticBackups => true;
+
+    public string? CreateBackgroundBackup(string label)
+    {
+        var target = BackupTarget(label);
+
+        // A connection of its own, never _gate: in WAL mode a second connection reads a consistent snapshot of the
+        // last commit while the tick thread keeps writing on the main one, so the copy costs the tick nothing.
+        // Unpooled, so the file handle is released the moment the copy is done.
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = _paths.DatabaseFile,
+            Mode = SqliteOpenMode.ReadWrite,
+            Cache = SqliteCacheMode.Private,
+            Pooling = false,
+        }.ToString();
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+        VacuumInto(connection, target);
+        return target;
+    }
+
+    private string BackupTarget(string label)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars())
+        {
+            label = label.Replace(c, '_');
+        }
+
+        Directory.CreateDirectory(_paths.BackupsDirectory);
+        return Path.Combine(_paths.BackupsDirectory, label + ".db");
+    }
+
+    /// <summary>VACUUM INTO produces a transactionally consistent standalone copy. It is written beside the
+    /// target and swapped in when complete, so a copy that was cut short never looks like a backup.</summary>
+    private static void VacuumInto(SqliteConnection connection, string target)
+    {
+        string temp = target + BackupRotation.TempSuffix;
+        if (File.Exists(temp))
+        {
+            File.Delete(temp);
+        }
+
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.CommandText = "VACUUM INTO $target;";
+            cmd.Parameters.AddWithValue("$target", temp);
+            cmd.ExecuteNonQuery();
+        }
+
+        File.Move(temp, target, overwrite: true);
     }
 
     private void Execute(string sql)

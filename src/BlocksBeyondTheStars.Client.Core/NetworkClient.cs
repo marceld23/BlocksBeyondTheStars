@@ -248,7 +248,11 @@ namespace BlocksBeyondTheStars.Client
         public NetworkClient(IClientTransport? transport = null)
         {
             _transport = transport ?? new LiteNetLibClientTransport();
-            _transport.Connected += () => Connected = true;
+            _transport.Connected += () =>
+            {
+                Connected = true;
+                _refusedServer = false; // #2222: a connection that comes up (again) is judged afresh
+            };
             _transport.Disconnected += () =>
             {
                 bool wasConnected = Connected;
@@ -403,10 +407,46 @@ namespace BlocksBeyondTheStars.Client
 
         private void EnqueueMessage(object message) => _inbox.Enqueue(message);
 
-        public void Connect(string host, int port) => _transport.Connect(host, port);
+        public void Connect(string host, int port)
+        {
+            _refusedServer = false; // a new connection is a new server to judge
+            _transport.Connect(host, port);
+        }
+
+        /// <summary>
+        /// The fingerprint of the block palette this client decodes chunks with (#2222,
+        /// <c>GameContent.BlockFingerprint</c>). It travels with <see cref="Join"/>, and the server's own fingerprint in
+        /// <see cref="Networking.Messages.JoinAccepted"/> must equal it — otherwise the client refuses the world and hangs
+        /// up, because every block would be drawn as another one. Left unset, the fingerprint of the content this
+        /// process built last is used (<c>GameContent.LastBuiltBlockFingerprint</c>): the game loads exactly one content
+        /// set, so its client needs no extra wiring. A host with several content sets (tests) sets it explicitly.
+        /// </summary>
+        public string? ContentFingerprint { get; set; }
+
+        private string EffectiveContentFingerprint
+            => !string.IsNullOrEmpty(ContentFingerprint)
+                ? ContentFingerprint!
+                : BlocksBeyondTheStars.Shared.Content.GameContent.LastBuiltBlockFingerprint ?? string.Empty;
 
         public void Join(string playerName, string? password = null, string locale = "en", string? token = null, int viewDistanceChunks = 0, string? hostedToken = null, string? installId = null)
-            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token, ViewDistanceChunks = viewDistanceChunks, HostedToken = hostedToken, InstallId = installId });
+            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token, ViewDistanceChunks = viewDistanceChunks, HostedToken = hostedToken, InstallId = installId, ContentFingerprint = EffectiveContentFingerprint });
+
+        /// <summary>#2222: set once this client refused the server it is connected to. Until the next
+        /// <see cref="Connect"/>, <see cref="Poll"/> hands nothing on — a transport may still deliver what was on
+        /// the way (the rest of the join burst) after the hang-up.</summary>
+        private bool _refusedServer;
+
+        /// <summary>#2222: the server accepted the join but its block palette is not ours (or it named none) — tell the
+        /// host through the same event a server refusal uses, with the same reason, and hang up. Nothing of that
+        /// world is dispatched: what is still queued is dropped, and so is whatever arrives later.</summary>
+        private void RefuseMismatchedServer()
+        {
+            _refusedServer = true;
+            _inbox.Clear();
+            _heldBeforeJoin.Clear();
+            JoinRejected?.Invoke(new JoinRejected { Reason = Protocol.ContentMismatchReason });
+            _transport.Disconnect();
+        }
 
         /// <summary>Asks the server for the greeting line of the nearby NPC of this role ("vendor"/"quartermaster")
         /// when opening its interaction (item 15). The server gates on proximity and replies with an NpcGreeting.</summary>
@@ -1006,6 +1046,12 @@ namespace BlocksBeyondTheStars.Client
         {
             _transport.Poll(); // fills _inbox via EnqueuePayload
 
+            if (_refusedServer)
+            {
+                _inbox.Clear(); // #2222: nothing of a server this client refused reaches the host
+                return;
+            }
+
             int dispatched = 0, chunks = 0;
             while (_inbox.Count > 0 && dispatched < MaxDispatchPerPoll)
             {
@@ -1052,6 +1098,13 @@ namespace BlocksBeyondTheStars.Client
             switch (message)
             {
                 case JoinAccepted m:
+                    string ours = EffectiveContentFingerprint;
+                    if (ours.Length == 0 || !string.Equals(m.ContentFingerprint, ours, StringComparison.Ordinal))
+                    {
+                        RefuseMismatchedServer(); // #2222: missing or different — never draw a world with the wrong palette
+                        break;
+                    }
+
                     _joined = true;
                     AdoptWorld(m.WorldId);
                     JoinAccepted?.Invoke(m);

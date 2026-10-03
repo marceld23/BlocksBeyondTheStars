@@ -90,7 +90,7 @@ public sealed class PlayerModeOverrideTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Papa" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Papa" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         var kid = server.AddLocalPlayer("Kid Junior"); // names contain spaces (#980)
@@ -149,7 +149,7 @@ public sealed class PlayerModeOverrideTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Papa" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Papa" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
 
@@ -196,7 +196,7 @@ public sealed class PlayerModeOverrideTests : IDisposable
             var server = new SvGameServer(new ServerConfig { WorldName = "keep", Seed = 1, AutoSaveIntervalMinutes = 9999 }, _content, st, repo);
             server.Start();
             client.Connect("loopback", 0);
-            client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Papa" }), DeliveryMode.ReliableOrdered);
+            client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Papa" }), DeliveryMode.ReliableOrdered);
             server.Tick(0.1);
             client.Send(NetCodec.Encode(new AdminCommandIntent
             {
@@ -216,7 +216,7 @@ public sealed class PlayerModeOverrideTests : IDisposable
             var server = new SvGameServer(new ServerConfig { WorldName = "keep", Seed = 1, AutoSaveIntervalMinutes = 9999 }, _content, st, repo);
             server.Start();
             client.Connect("loopback", 0);
-            client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Papa" }), DeliveryMode.ReliableOrdered);
+            client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Papa" }), DeliveryMode.ReliableOrdered);
             server.Tick(0.1);
 
             Assert.Equal(PlayerModeOverride.Creative, server.Sessions[1].State.ModeOverride);

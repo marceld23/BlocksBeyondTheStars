@@ -15,6 +15,9 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// left, parked for a world not announced yet.</summary>
 public sealed class ProtocolV5ClientOrderingTests
 {
+    // #2222: the client only accepts a world whose block palette is its own — client and JoinAccepted name the same one.
+    private const string Palette = "test-palette";
+
     /// <summary>An in-memory client transport: the test hands it server payloads in any order it likes.</summary>
     private sealed class ScriptedClientTransport : IClientTransport
     {
@@ -48,7 +51,7 @@ public sealed class ProtocolV5ClientOrderingTests
     public void WorldStream_ArrivingBeforeJoinAccepted_IsReplayedAfterIt()
     {
         var transport = new ScriptedClientTransport();
-        var client = new NetworkClient(transport);
+        var client = new NetworkClient(transport) { ContentFingerprint = Palette };
         var order = new List<string>();
         client.JoinAccepted += _ => order.Add("join");
         client.ChunkReceived += c => order.Add("chunk" + c.Cx);
@@ -59,7 +62,7 @@ public sealed class ProtocolV5ClientOrderingTests
         client.Poll();
         Assert.Empty(order); // held: nothing dispatched before the join
 
-        transport.Deliver(new JoinAccepted { WorldId = 1 });
+        transport.Deliver(new JoinAccepted { WorldId = 1, ContentFingerprint = Palette });
         client.Poll();
 
         Assert.Equal(new[] { "join", "chunk7", "block3" }, order);
@@ -70,11 +73,11 @@ public sealed class ProtocolV5ClientOrderingTests
     public void WorldStream_OfTheWorldJustLeft_IsDropped()
     {
         var transport = new ScriptedClientTransport();
-        var client = new NetworkClient(transport);
+        var client = new NetworkClient(transport) { ContentFingerprint = Palette };
         var chunks = new List<int>();
         client.ChunkReceived += c => chunks.Add(c.Cx);
 
-        transport.Deliver(new JoinAccepted { WorldId = 1 });
+        transport.Deliver(new JoinAccepted { WorldId = 1, ContentFingerprint = Palette });
         transport.Deliver(Chunk(1, 1));
         transport.Deliver(new WorldReset { WorldId = 2 });
         transport.Deliver(Chunk(1, 99)); // a straggler from world 1, still draining on its channel
@@ -90,13 +93,13 @@ public sealed class ProtocolV5ClientOrderingTests
     public void WorldStream_OfAnUnannouncedWorld_WaitsForItsWorldReset()
     {
         var transport = new ScriptedClientTransport();
-        var client = new NetworkClient(transport);
+        var client = new NetworkClient(transport) { ContentFingerprint = Palette };
         var order = new List<string>();
         client.ChunkReceived += c => order.Add("chunk" + c.Cx);
         client.BlockChanged += b => order.Add("block" + b.X);
         client.WorldResetReceived += _ => order.Add("reset");
 
-        transport.Deliver(new JoinAccepted { WorldId = 1 });
+        transport.Deliver(new JoinAccepted { WorldId = 1, ContentFingerprint = Palette });
         transport.Deliver(Chunk(2, 5));                       // the new world's stream overtook its WorldReset
         transport.Deliver(new BlockChanged { X = 9, WorldId = 2 });
         client.Poll();
@@ -114,11 +117,11 @@ public sealed class ProtocolV5ClientOrderingTests
     public void WorldStream_WithoutAWorldId_IsAcceptedAsBefore()
     {
         var transport = new ScriptedClientTransport();
-        var client = new NetworkClient(transport);
+        var client = new NetworkClient(transport) { ContentFingerprint = Palette };
         var chunks = new List<int>();
         client.ChunkReceived += c => chunks.Add(c.Cx);
 
-        transport.Deliver(new JoinAccepted { WorldId = 3 });
+        transport.Deliver(new JoinAccepted { WorldId = 3, ContentFingerprint = Palette });
         transport.Deliver(Chunk(worldId: 0, cx: 4)); // e.g. a path that does not number worlds
         client.Poll();
 
@@ -129,12 +132,12 @@ public sealed class ProtocolV5ClientOrderingTests
     public void Disconnect_ResetsTheOrderingState()
     {
         var transport = new ScriptedClientTransport();
-        var client = new NetworkClient(transport);
+        var client = new NetworkClient(transport) { ContentFingerprint = Palette };
         var chunks = new List<int>();
         client.ChunkReceived += c => chunks.Add(c.Cx);
 
         transport.Connect("x", 1);
-        transport.Deliver(new JoinAccepted { WorldId = 1 });
+        transport.Deliver(new JoinAccepted { WorldId = 1, ContentFingerprint = Palette });
         client.Poll();
         transport.Disconnect();
         Assert.Equal(0, client.CurrentWorldId);

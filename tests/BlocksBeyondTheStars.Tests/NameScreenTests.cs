@@ -192,7 +192,7 @@ public sealed class NameScreenTests : IDisposable
         client.PayloadReceived += capture;
 
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = name, Token = "install-" + name }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = name, Token = "install-" + name }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
 

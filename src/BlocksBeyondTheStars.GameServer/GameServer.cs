@@ -246,6 +246,7 @@ public sealed partial class GameServer
 
         var launchRules = _config.Rules.Clone();
         _meta = _repo.LoadMetadata() ?? CreateInitialMetadata();
+        _meta.SaveVersion = WorldMetadata.CurrentSaveVersion; // #2223: this build wrote it from here on (a newer save was refused above)
 
         // World options: once created, the WORLD owns its rules — the save's override replaces the launch
         // config's rules (singleplayer passes creation options only once; dedicated restarts keep the set).
@@ -396,9 +397,12 @@ public sealed partial class GameServer
             throw;
         }
 
+        EnsureSaveVersionSupported(); // #2223: a save a newer build wrote is refused before anything is rewritten
+
         // Record the current block-id palette and remap any save written under a different block set BEFORE
         // world load. Block ids are assigned by key sort order, so adding a block shifts them; without this a
         // content update would silently decode every stored edit to the wrong block.
+        BackupBeforePaletteRemap(); // #2223: a copy of the save before its ids are rewritten
         _repo.EnsureBlockPalette(_content.BlockPalette());
     }
 
@@ -1452,6 +1456,7 @@ public sealed partial class GameServer
     private void Shutdown()
     {
         SaveAll();
+        FinishBackups(); // #2223: a backup still being written gets a moment to complete (it reads; the flush below wants no reader)
         _repo.Flush();
         _chunkGenPool?.Dispose(); // #1817: release the worker threads
         _transport.Stop();
@@ -1801,6 +1806,8 @@ public sealed partial class GameServer
                 _log.Info("Autosave complete.");
             }
         }
+
+        Guard("Backups", TickBackups); // #2223: rotating backups, written off the tick thread
 
         EndTickTiming(deltaSeconds);
     }
@@ -3798,6 +3805,11 @@ public sealed partial class GameServer
             return;
         }
 
+        if (RefuseContentMismatch(connectionId, join)) // #2222: another block set — the client would draw the wrong blocks
+        {
+            return;
+        }
+
         if (!string.IsNullOrEmpty(_config.ServerPassword)
             && !Shared.Security.SecretCompare.FixedTimeEquals(join.Password, _config.ServerPassword))
         {
@@ -4000,6 +4012,7 @@ public sealed partial class GameServer
             TerrainContinents = _meta.Description.TerrainContinents,
             TerrainGeneration = _meta.Description.TerrainGeneration, // #1644
             TerrainLavaCoreVolcanoes = _meta.Description.LavaCoreVolcanoes, // #2172: the planet map previews need it too
+            ContentFingerprint = _content.BlockFingerprint, // #2222: the client checks it against its own
         });
         session.AnnouncedWorldId = WorldIdOf(state.CurrentLocationId); // #2117
         SendInventory(session);

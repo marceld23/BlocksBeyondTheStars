@@ -16,8 +16,10 @@ namespace BlocksBeyondTheStars.Shared.Content;
 /// by client and server so their game rules cannot drift apart.
 ///
 /// Block numeric ids are assigned deterministically (sorted by key, air = 0) so a given
-/// content set always yields the same palette. NOTE: adding blocks shifts ids; a future
-/// version will persist the palette into the savegame to stay save-compatible.
+/// content set always yields the same palette. NOTE: adding blocks shifts ids. A save records
+/// its palette and is remapped by key on the first load under another block set
+/// (<see cref="BlockPalette"/>); a client and a server compare <see cref="BlockFingerprint"/>
+/// in the join and refuse each other when their block sets differ.
 /// </summary>
 public sealed class GameContent
 {
@@ -569,6 +571,55 @@ public sealed class GameContent
         {
             _blocksById[b.NumericId.Value] = b;
         }
+
+        BlockFingerprint = ComputeBlockFingerprint();
+        _lastBuiltBlockFingerprint = BlockFingerprint;
+    }
+
+    /// <summary>
+    /// A stable fingerprint of the block palette (#2222): the block keys in numeric-id order, joined with '\n',
+    /// hashed with FNV-1a (64 bit) and written as 16 lowercase hex digits. Chunks travel as raw numeric ids and the
+    /// ids follow the sorted keys, so two builds whose block sets differ draw each other's blocks as their
+    /// neighbours — the join compares this value on both sides and refuses a mismatch. Integer arithmetic over
+    /// UTF-8 bytes only: the same on every platform and runtime, computed once.
+    /// </summary>
+    public string BlockFingerprint { get; }
+
+    private static volatile string? _lastBuiltBlockFingerprint;
+
+    /// <summary>The <see cref="BlockFingerprint"/> of the content this process built last, or null before any was
+    /// built (#2222). The game client loads one content set per process; a network client that was not handed a
+    /// fingerprint explicitly falls back to this one. A process that holds several different content sets (the
+    /// test suite) must hand the fingerprint over explicitly instead.</summary>
+    public static string? LastBuiltBlockFingerprint => _lastBuiltBlockFingerprint;
+
+    private string ComputeBlockFingerprint()
+    {
+        const ulong offsetBasis = 14695981039346656037UL;
+        const ulong prime = 1099511628211UL;
+
+        ulong hash = offsetBasis;
+        bool first = true;
+        foreach (var block in _blocksById)
+        {
+            if (block is null)
+            {
+                continue;
+            }
+
+            if (!first)
+            {
+                hash = (hash ^ (byte)'\n') * prime;
+            }
+
+            first = false;
+            foreach (byte b in System.Text.Encoding.UTF8.GetBytes(block.Key))
+            {
+                hash = (hash ^ b) * prime;
+            }
+        }
+
+        return hash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private readonly Dictionary<string, AuthoredCreature> _authoredCreatures;

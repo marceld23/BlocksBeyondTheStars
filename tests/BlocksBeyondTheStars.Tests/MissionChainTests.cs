@@ -649,7 +649,7 @@ public sealed class MissionChainTests : IDisposable
                 }
             };
             client.Connect("loopback", 0);
-            client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Hero" }), DeliveryMode.ReliableOrdered);
+            client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Hero" }), DeliveryMode.ReliableOrdered);
             server.Tick(0.1);
             client.Poll();
             var p = server.Sessions[1];

@@ -299,7 +299,7 @@ public sealed class BanNoticeTests : IDisposable
         client.Disconnected += () => disconnected = true;
 
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Troll" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Troll" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
         Assert.Empty(rejections); // the join itself was fine

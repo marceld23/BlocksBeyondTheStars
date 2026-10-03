@@ -86,7 +86,7 @@ public sealed class TemperatureHazardTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Frosty" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Frosty" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         return server;
     }

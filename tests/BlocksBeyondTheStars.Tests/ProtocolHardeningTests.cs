@@ -92,12 +92,12 @@ public sealed class ProtocolHardeningTests : IDisposable
         var server = NewServer("s8_rejoin", transport);
 
         transport.Connect(1);
-        transport.Receive(1, new JoinRequest { ProtocolVersion = Protocol.Version, PlayerName = "Pilot" });
+        transport.Receive(1, new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, ProtocolVersion = Protocol.Version, PlayerName = "Pilot" });
         Assert.Single(transport.Sent.Where(x => x.Msg is JoinAccepted));
 
         // The re-join must neither re-run the join burst (amplifier) nor answer at all (an answer feeds it).
         transport.Sent.Clear();
-        transport.Receive(1, new JoinRequest { ProtocolVersion = Protocol.Version, PlayerName = "Pilot" });
+        transport.Receive(1, new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, ProtocolVersion = Protocol.Version, PlayerName = "Pilot" });
         Assert.Empty(transport.Sent);
 
         server.Stop();
@@ -114,7 +114,7 @@ public sealed class ProtocolHardeningTests : IDisposable
         transport.Connect(2);
         for (int i = 0; i < 20; i++)
         {
-            transport.Receive(2, new JoinRequest { ProtocolVersion = Protocol.Version + 999, PlayerName = "Flood" });
+            transport.Receive(2, new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, ProtocolVersion = Protocol.Version + 999, PlayerName = "Flood" });
         }
 
         int rejected = transport.Sent.Count(x => x.Conn == 2 && x.Msg is JoinRejected);
@@ -125,7 +125,7 @@ public sealed class ProtocolHardeningTests : IDisposable
         transport.Disconnect(2);
         transport.Connect(2);
         transport.Sent.Clear();
-        transport.Receive(2, new JoinRequest { ProtocolVersion = Protocol.Version + 999, PlayerName = "Flood" });
+        transport.Receive(2, new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, ProtocolVersion = Protocol.Version + 999, PlayerName = "Flood" });
         Assert.Single(transport.Sent.Where(x => x.Conn == 2 && x.Msg is JoinRejected));
 
         server.Stop();
@@ -166,7 +166,7 @@ public sealed class ProtocolHardeningTests : IDisposable
     public void Decode_NormalJoinRequest_StillRoundTrips()
     {
         // Regression guard: the security limits must not reject legitimate traffic.
-        var encoded = NetCodec.Encode(new JoinRequest { ProtocolVersion = Protocol.Version, PlayerName = "Pilot" });
+        var encoded = NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, ProtocolVersion = Protocol.Version, PlayerName = "Pilot" });
         var decoded = Assert.IsType<JoinRequest>(NetCodec.Decode(encoded));
         Assert.Equal("Pilot", decoded.PlayerName);
     }

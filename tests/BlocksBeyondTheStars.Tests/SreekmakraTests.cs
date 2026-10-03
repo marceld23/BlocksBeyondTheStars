@@ -41,7 +41,7 @@ public sealed class SreekmakraTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Justus" }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Justus" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         return server;
     }

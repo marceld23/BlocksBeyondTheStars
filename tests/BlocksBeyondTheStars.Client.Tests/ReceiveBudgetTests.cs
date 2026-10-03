@@ -19,6 +19,9 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// </summary>
 public sealed class ReceiveBudgetTests
 {
+    // #2222: the client only accepts a world whose block palette is its own — client and JoinAccepted name the same one.
+    private const string Palette = "test-palette";
+
     /// <summary>Transport stub that hands the client a pre-loaded batch of payloads on Poll, the way a real
     /// transport drains its whole event queue in one call.</summary>
     private sealed class BatchTransport : IClientTransport
@@ -48,13 +51,13 @@ public sealed class ReceiveBudgetTests
     private static byte[] Message(string text) => NetCodec.Encode(new ServerMessage { Text = text });
 
     // #1534 (v5): the world stream is held back until the JoinAccepted has been dispatched.
-    private static byte[] Join() => NetCodec.Encode(new JoinAccepted { WorldId = 1 });
+    private static byte[] Join() => NetCodec.Encode(new JoinAccepted { WorldId = 1, ContentFingerprint = Palette });
 
     [Fact]
     public void ChunkBacklog_IsPacedAcrossFrames_AndNothingIsLost()
     {
         var transport = new BatchTransport();
-        using var client = new NetworkClient(transport);
+        using var client = new NetworkClient(transport) { ContentFingerprint = Palette };
 
         int received = 0;
         client.ChunkReceived += _ => received++;
@@ -86,7 +89,7 @@ public sealed class ReceiveBudgetTests
         // The chunk cap must not starve everything else: with only light messages queued they all go through
         // in one frame (up to the overall dispatch budget).
         var transport = new BatchTransport();
-        using var client = new NetworkClient(transport);
+        using var client = new NetworkClient(transport) { ContentFingerprint = Palette };
 
         int messages = 0;
         client.ServerMessageReceived += _ => messages++;
@@ -106,7 +109,7 @@ public sealed class ReceiveBudgetTests
         // A block edit must never overtake the chunk it patches, so hitting the chunk cap ends the frame
         // instead of skipping ahead to cheaper payloads.
         var transport = new BatchTransport();
-        using var client = new NetworkClient(transport) { MaxChunksPerPoll = 2 };
+        using var client = new NetworkClient(transport) { MaxChunksPerPoll = 2, ContentFingerprint = Palette };
 
         var order = new List<string>();
         client.ChunkReceived += m => order.Add("chunk" + m.Cx);
@@ -131,7 +134,7 @@ public sealed class ReceiveBudgetTests
         // Guard rail for the budget's core invariant: a cap at or below the server's per-tick chunk budget
         // would not pace a backlog, it would manufacture one — the client could never catch up while
         // terrain kept streaming, and the gap would grow without bound.
-        using var client = new NetworkClient(new BatchTransport());
+        using var client = new NetworkClient(new BatchTransport()) { ContentFingerprint = Palette };
         Assert.True(client.MaxChunksPerPoll > new ServerConfig().ChunkStreamPerTick,
             "the per-frame chunk cap must stay above ServerConfig.ChunkStreamPerTick");
         Assert.True(client.MaxDispatchPerPoll > client.MaxChunksPerPoll);
@@ -150,7 +153,7 @@ public sealed class ReceiveBudgetTests
         cfg.ChunkStreamPerTick = 0; // nonsense low values clamp up to a working minimum
         Assert.Equal(1, cfg.ChunkStreamPerTick);
 
-        using var client = new NetworkClient(new BatchTransport());
+        using var client = new NetworkClient(new BatchTransport()) { ContentFingerprint = Palette };
         Assert.True(client.MaxChunksPerPoll > ServerConfig.ChunkStreamPerTickCeiling,
             "the per-frame chunk cap must stay above the config ceiling, not just the default");
     }

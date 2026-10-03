@@ -71,7 +71,9 @@ public sealed class ClientServerHarness : IDisposable
         Server = new SvGameServer(config, content, new LoopbackServerTransport(_link), _repo);
         Server.Start();
 
-        Client = new NetworkClient(new LoopbackClientTransport(_link));
+        // #2222: the client names the block palette it decodes chunks with — here the server's own content. Set
+        // explicitly: a test process holds several content sets, so "the content built last" is not a given.
+        Client = new NetworkClient(new LoopbackClientTransport(_link)) { ContentFingerprint = content.BlockFingerprint };
         WireCapture();
     }
 

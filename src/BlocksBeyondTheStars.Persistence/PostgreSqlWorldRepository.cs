@@ -221,8 +221,28 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             RemapBlockColumn("flora_regrow", remap);
             RemapBlockColumn("weather_deposit", remap);
             RemapSpaceStructureBlocks(remap);
+            RemapShipHulls(remap);
             WriteBlockPaletteLocked(currentPalette);
         });
+    }
+
+    public bool BlockPaletteNeedsRemap(IReadOnlyDictionary<ushort, string> currentPalette)
+    {
+        Dictionary<ushort, string> stored;
+        lock (_gate)
+        {
+            stored = ReadBlockPalette(); // Initialize created the table
+        }
+
+        return stored.Count > 0 && BlockPaletteMigration.BuildRemap(stored, currentPalette).Count > 0;
+    }
+
+    public IReadOnlyDictionary<ushort, string> LoadBlockPalette()
+    {
+        lock (_gate)
+        {
+            return ReadBlockPalette();
+        }
     }
 
     private Dictionary<ushort, string> ReadBlockPalette()
@@ -318,6 +338,42 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             using var upd = Connection.CreateCommand();
             upd.CommandText = "UPDATE space_structure SET blocks = @b WHERE id = @id;";
             upd.Parameters.AddWithValue("@b", remapped);
+            upd.Parameters.AddWithValue("@id", id);
+            upd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Remaps the hull of every self-built ship (#2221) — see the SQLite twin: the cells live inside the
+    /// ship's JSON row (<c>BuiltCells</c>, "x:y:z:block"), which no block column covers.</summary>
+    private void RemapShipHulls(IReadOnlyDictionary<ushort, ushort> remap)
+    {
+        if (remap.Count == 0)
+        {
+            return;
+        }
+
+        var rows = new List<(string Id, string Json)>();
+        using (var read = Connection.CreateCommand())
+        {
+            read.CommandText = "SELECT id, json FROM ship;";
+            using var reader = read.ExecuteReader();
+            while (reader.Read())
+            {
+                rows.Add((reader.GetString(0), reader.GetString(1)));
+            }
+        }
+
+        foreach (var (id, json) in rows)
+        {
+            string remapped = BlockPaletteMigration.RemapShipJson(json, remap);
+            if (ReferenceEquals(remapped, json))
+            {
+                continue;
+            }
+
+            using var upd = Connection.CreateCommand();
+            upd.CommandText = "UPDATE ship SET json = @j WHERE id = @id;";
+            upd.Parameters.AddWithValue("@j", remapped);
             upd.Parameters.AddWithValue("@id", id);
             upd.ExecuteNonQuery();
         }
@@ -2030,53 +2086,110 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             Flush();
-            foreach (var c in Path.GetInvalidFileNameChars())
-            {
-                label = label.Replace(c, '_');
-            }
-
-            var target = Path.Combine(_paths.BackupsDirectory, label + ".postgresql.json");
-            if (File.Exists(target))
-            {
-                File.Delete(target);
-            }
-
-            var dump = new Dictionary<string, List<Dictionary<string, object?>>>();
-            foreach (string table in BackupTables)
-            {
-                dump[table] = ReadTableForBackup(table);
-            }
-
-            File.WriteAllText(target, JsonSerializer.Serialize(dump, JsonOptions));
+            var target = BackupTarget(label);
+            DumpTables(Connection, target);
             return target;
         }
     }
 
-    private static readonly string[] BackupTables =
-    {
-        "world_meta", "block_edit", "player", "player_ref", "ship", "container", "door", "beacon", "beam",
-        "base_claim", "alliance", "story_state", "named_blob", "location_status", "mission",
-        "space_structure", "structure_edit", "flora_regrow", "fluid_cell", "fire_cell",
-    };
+    public bool SupportsAutomaticBackups => true;
 
-    private List<Dictionary<string, object?>> ReadTableForBackup(string table)
+    public string? CreateBackgroundBackup(string label)
     {
-        var rows = new List<Dictionary<string, object?>>();
-        using var cmd = Connection.CreateCommand();
-        cmd.CommandText = $"SELECT * FROM {QuoteIdentifier(table)};";
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read())
+        var target = BackupTarget(label);
+
+        // A connection of its own, never _gate: the dump reads while the tick thread keeps writing on the main
+        // connection. One REPEATABLE READ transaction pins every table to the same moment, so the copy is
+        // consistent across tables although it is read table by table.
+        using var connection = new NpgsqlConnection(_connectionString);
+        connection.Open();
+        using (var path = connection.CreateCommand())
         {
-            var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-            for (int i = 0; i < reader.FieldCount; i++)
-            {
-                row[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
-            }
-
-            rows.Add(row);
+            path.CommandText = $"SET search_path TO {QuoteIdentifier(_schemaName)};";
+            path.ExecuteNonQuery();
         }
 
-        return rows;
+        using var snapshot = connection.BeginTransaction(System.Data.IsolationLevel.RepeatableRead);
+        DumpTables(connection, target);
+        snapshot.Commit();
+        return target;
+    }
+
+    private string BackupTarget(string label)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars())
+        {
+            label = label.Replace(c, '_');
+        }
+
+        Directory.CreateDirectory(_paths.BackupsDirectory);
+        return Path.Combine(_paths.BackupsDirectory, label + ".postgresql.json");
+    }
+
+    // Every table Initialize creates: a backup that leaves one out cannot bring the world back. block_palette
+    // matters most — without it the numeric block ids of a restored dump could not be read.
+    private static readonly string[] BackupTables =
+    {
+        "world_meta", "block_palette", "block_edit", "player", "player_ref", "ship", "container", "door", "beacon",
+        "beam", "crystal_cell", "base_claim", "alliance", "crew", "crew_member", "story_state", "named_blob",
+        "location_status", "mission", "space_structure", "structure_edit", "flora_regrow", "weather_deposit",
+        "fluid_cell", "fire_cell", "paint_design", "paint_report", "custom_shape", "world_texture",
+    };
+
+    /// <summary>Rows written before the JSON writer hands its buffer to the file — the dump streams, so a large
+    /// world is never held in memory as a whole.</summary>
+    private const int BackupFlushEveryRows = 2000;
+
+    /// <summary>Writes every table as <c>{ "table": [ { column: value, … }, … ], … }</c>. The file is written
+    /// beside the target and swapped in when complete, so a dump that was cut short never looks like a backup.</summary>
+    private static void DumpTables(NpgsqlConnection connection, string target)
+    {
+        string temp = target + BackupRotation.TempSuffix;
+        using (var stream = File.Create(temp))
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            foreach (string table in BackupTables)
+            {
+                writer.WritePropertyName(table);
+                writer.WriteStartArray();
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = $"SELECT * FROM {QuoteIdentifier(table)};";
+                    using var reader = cmd.ExecuteReader();
+                    int rows = 0;
+                    while (reader.Read())
+                    {
+                        writer.WriteStartObject();
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            writer.WritePropertyName(reader.GetName(i));
+                            if (reader.IsDBNull(i))
+                            {
+                                writer.WriteNullValue();
+                            }
+                            else
+                            {
+                                JsonSerializer.Serialize(writer, reader.GetValue(i), JsonOptions);
+                            }
+                        }
+
+                        writer.WriteEndObject();
+                        if (++rows % BackupFlushEveryRows == 0)
+                        {
+                            writer.Flush();
+                        }
+                    }
+                }
+
+                writer.WriteEndArray();
+                writer.Flush();
+            }
+
+            writer.WriteEndObject();
+        }
+
+        File.Move(temp, target, overwrite: true);
     }
 
     private static string NormalizeSchemaSegment(string value)

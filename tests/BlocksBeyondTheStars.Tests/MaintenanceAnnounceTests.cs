@@ -66,7 +66,7 @@ public sealed class MaintenanceAnnounceTests : IDisposable
         };
 
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = name }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = name }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
         return (client, notices);
@@ -201,7 +201,7 @@ public sealed class MaintenanceAnnounceTests : IDisposable
         var guest = new LoopbackClientTransport(link);
         guest.PayloadReceived += pl => { if (NetCodec.Decode(pl) is ActionRejected r) { rejected = r; } };
         guest.Connect("loopback", 0);
-        guest.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Guest" }), DeliveryMode.ReliableOrdered);
+        guest.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Guest" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         guest.Send(NetCodec.Encode(new AdminCommandIntent { Command = "announce", StringArg = "pwned" }),

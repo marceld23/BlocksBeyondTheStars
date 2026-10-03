@@ -219,7 +219,7 @@ public sealed class HostedWorldsFoundationTests : IDisposable
         var link = new LoopbackLink();
         var (server, _) = NewServer("tok_missing", link, c => c.JoinTokenSecret = Secret);
 
-        var (accepted, rejected) = TryJoin(server, link, new JoinRequest { PlayerName = "Pilot" });
+        var (accepted, rejected) = TryJoin(server, link, new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Pilot" });
 
         Assert.Null(accepted);
         Assert.NotNull(rejected);
@@ -234,6 +234,7 @@ public sealed class HostedWorldsFoundationTests : IDisposable
 
         var (accepted, rejected) = TryJoin(server, link, new JoinRequest
         {
+            ContentFingerprint = TestJoin.Fingerprint,
             PlayerName = "Pilot",
             HostedToken = HostedJoinToken.Create(Secret, "tok_valid", "acc-1", "Pilot", FutureExpiry),
         });
@@ -251,6 +252,7 @@ public sealed class HostedWorldsFoundationTests : IDisposable
 
         var (accepted, rejected) = TryJoin(server, link, new JoinRequest
         {
+            ContentFingerprint = TestJoin.Fingerprint,
             PlayerName = "Impostor",
             HostedToken = HostedJoinToken.Create(Secret, "tok_name", "acc-1", "Pilot", FutureExpiry),
         });
@@ -266,7 +268,7 @@ public sealed class HostedWorldsFoundationTests : IDisposable
         var link = new LoopbackLink();
         var (server, _) = NewServer("tok_off", link);
 
-        var (accepted, rejected) = TryJoin(server, link, new JoinRequest { PlayerName = "Pilot" });
+        var (accepted, rejected) = TryJoin(server, link, new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Pilot" });
 
         Assert.Null(rejected);
         Assert.NotNull(accepted);
@@ -292,6 +294,7 @@ public sealed class HostedWorldsFoundationTests : IDisposable
 
         var (accepted, rejected) = TryJoin(server, link, new JoinRequest
         {
+            ContentFingerprint = TestJoin.Fingerprint,
             PlayerName = "Owner",
             HostedToken = HostedJoinToken.Create(Secret, "owner_boot", "acc-owner", "Owner", FutureExpiry),
         });
@@ -316,6 +319,7 @@ public sealed class HostedWorldsFoundationTests : IDisposable
 
         var (accepted, _) = TryJoin(server, link, new JoinRequest
         {
+            ContentFingerprint = TestJoin.Fingerprint,
             PlayerName = "Guest",
             HostedToken = HostedJoinToken.Create(Secret, "owner_other", "acc-guest", "Guest", FutureExpiry),
         });
