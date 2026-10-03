@@ -26,6 +26,7 @@ namespace BlocksBeyondTheStars.Client
         private const float MinUploadIntervalSeconds = 120f;
 
         private static int _lastVersion;
+        private static int _versionBeforeFetch = -1; // what was synced before the boot's fetch delivered a cloud blob; -1 = it delivered none
         private static bool _blocked;         // guest / banned / relay off — stop trying this session
         private static bool _uploadInFlight;
         private static float _lastUploadTime = float.NegativeInfinity;
@@ -70,6 +71,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _blocked = false;
             _lastVersion = LoadMeta();
+            _versionBeforeFetch = -1;
 
             // A pending "New world" reset (#1181): the player just threw the old world away — restoring
             // the cloud copy here would undo that. Skip the fetch; the fresh world's first durable save
@@ -142,6 +144,7 @@ namespace BlocksBeyondTheStars.Client
 
                 if (blob != null && markSeen)
                 {
+                    _versionBeforeFetch = _lastVersion; // see ForgetFetched
                     _lastVersion = response.version;
                     SaveMeta(_lastVersion);
                     Debug.Log($"[CloudSave] Continuing from cloud version {response.version} ({blob.Length} B).");
@@ -153,6 +156,25 @@ namespace BlocksBeyondTheStars.Client
 
                 done?.Invoke(blob);
             }
+        }
+
+        /// <summary>The world the boot's fetch delivered was refused because a newer version of the game saved it
+        /// (#2223): takes back the "synced" mark that fetch set (<see cref="CloudSaveVersions.SyncedAfterBoot"/>).
+        /// With the mark left in place the next start took the cloud copy for known, booted the older local world
+        /// without a notice, and that world's first upload replaced the newer one in the cloud. Does nothing when
+        /// the fetch delivered no cloud blob (the LOCAL world was the newer one). A cloud blob refused for another
+        /// reason keeps its mark, so the next start falls back to the local world as before.</summary>
+        public static void ForgetFetched()
+        {
+            if (_versionBeforeFetch < 0)
+            {
+                return;
+            }
+
+            _lastVersion = CloudSaveVersions.SyncedAfterBoot(_versionBeforeFetch, _lastVersion, refusedAsTooNew: true);
+            SaveMeta(_lastVersion);
+            _versionBeforeFetch = -1;
+            Debug.Log($"[CloudSave] The cloud world needs a newer version of the game — still counted as not synced (version {_lastVersion}).");
         }
 
         /// <summary>Hooks the host's durable saves: every persisted blob is queued for upload (throttled;

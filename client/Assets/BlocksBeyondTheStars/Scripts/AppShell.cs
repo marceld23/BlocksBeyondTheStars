@@ -988,6 +988,13 @@ namespace BlocksBeyondTheStars.Client
                 ReturnToMenu();
                 // #2223: a world saved by a newer build was refused and left as it is — "update", not "reload the page".
                 MenuNotice = L(BrowserServer.SaveTooNew ? "ui.sp.save_too_new" : "ui.sp.browser_failed");
+                if (BrowserServer.SaveTooNew)
+                {
+                    // If that world came from the cloud, it must not count as synced: the next start would boot the
+                    // older local world and upload it over the newer one.
+                    GlitchCloudSaves.ForgetFetched();
+                }
+
                 yield break;
             }
 

@@ -144,10 +144,13 @@ Material without an origin (an ingot, an alloy, forge-made ore) acts with exactl
 ## 8. The lab (`BioLabIntent` → `BioLabResult`)
 
 The player must stand at a placed **bio lab** block (`NearStationBlock`: within 3 blocks horizontally and 2
-vertically, in the world block grid) and must not be inside the ship. One block serves every action. The lab is
+vertically, in the world block grid) and must not be inside the ship or out in space — in flight and on a
+spacewalk alike, because the position a pilot left behind on the world is not where they are. One block serves
+every action. The lab is
 a block of the world grid only: built into a ship it is an ordinary cell without function — decoration — and
-the server tells the player once (`ShipAiHintOnce "ship_decor"`, see [CRYSTAL_NET.md](CRYSTAL_NET.md) §7 for the
-same rule on Crystal Net devices); a player's own station takes a working one, because a station is stamped
+the server tells the player once (`NoteShipDecor`: the once-flag `vega:hint:ship_decor` and the line
+`vega.hint.ship_decor`, sent as a system line that muted VEGA hints do not hide; see
+[CRYSTAL_NET.md](CRYSTAL_NET.md) §7 for the same rule on Crystal Net devices); a player's own station takes a working one, because a station is stamped
 into a world grid. Actions:
 
 | Action | Needs | Costs | Gives |

@@ -56,4 +56,46 @@ public sealed class CloudSaveVersionsTests
         Assert.True(peek);
         Assert.True(boot);
     }
+
+    /// <summary>Models two starts in a build that is older than the world waiting in the cloud (#2223): the
+    /// boot's fetch delivers the cloud world and records its version, the start refuses the world as saved by
+    /// a newer version of the game, and the player presses Play again.</summary>
+    private static bool SecondBootGetsTheCloudWorld(bool refusalTakesTheMarkBack)
+    {
+        const int cloudVersion = 4;
+        int synced = 3; // another device saved version 4 with a newer build
+        const bool localExists = true;
+
+        Assert.True(CloudSaveVersions.CloudWins(cloudVersion, synced, localExists));
+        int before = synced;
+        synced = cloudVersion; // what FetchLatest(markSeen: true) records before the world is started
+
+        // The start refuses the world (SaveVersionTooNewException) and leaves the local blob as it was.
+        synced = CloudSaveVersions.SyncedAfterBoot(before, synced, refusedAsTooNew: refusalTakesTheMarkBack);
+
+        return CloudSaveVersions.CloudWins(cloudVersion, synced, localExists);
+    }
+
+    [Fact]
+    public void ARefusedCloudWorld_ThatStaysMarkedAsSynced_LetsTheOlderLocalWorldBoot()
+    {
+        // The bug: the older local world starts without a notice, and its first upload carries the cloud's own
+        // version as its base — no conflict, the newer world in the cloud is replaced.
+        Assert.False(SecondBootGetsTheCloudWorld(refusalTakesTheMarkBack: false));
+    }
+
+    [Fact]
+    public void ARefusedCloudWorld_IsNotCountedAsSynced_SoTheNextStartMeetsItAgain()
+    {
+        Assert.True(SecondBootGetsTheCloudWorld(refusalTakesTheMarkBack: true));
+    }
+
+    [Theory]
+    [InlineData(3, 4, true, 3)]   // refused as too new → what was synced before the fetch
+    [InlineData(3, 4, false, 4)]  // started (or refused for another reason) → the fetched version stays recorded
+    [InlineData(0, 1, true, 0)]   // a browser that had never synced stays at "nothing synced"
+    public void SyncedAfterBoot_TakesTheMarkBack_OnlyForAWorldRefusedAsTooNew(int before, int fetched, bool refused, int expected)
+    {
+        Assert.Equal(expected, CloudSaveVersions.SyncedAfterBoot(before, fetched, refused));
+    }
 }

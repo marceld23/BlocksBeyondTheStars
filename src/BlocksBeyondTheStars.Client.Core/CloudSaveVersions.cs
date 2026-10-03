@@ -17,5 +17,14 @@ namespace BlocksBeyondTheStars.Client
         /// browser, cleared site data — then even an already-seen version beats an empty world).</summary>
         public static bool CloudWins(int cloudVersion, int lastSyncedVersion, bool localExists)
             => cloudVersion > lastSyncedVersion || !localExists;
+
+        /// <summary>The version this browser counts as synced once the boot is over. The boot's fetch records
+        /// the cloud version BEFORE the world it delivered is started; when the start then refuses that world
+        /// because a newer version of the game saved it (#2223), the record goes back to what it was. Left in
+        /// place it made the next boot judge the cloud copy as already known: the older local world started
+        /// without a notice, and its first upload — sent with the newer version as its base, so without a
+        /// conflict — replaced the newer world in the cloud slot.</summary>
+        public static int SyncedAfterBoot(int syncedBeforeFetch, int fetchedVersion, bool refusedAsTooNew)
+            => refusedAsTooNew ? syncedBeforeFetch : fetchedVersion;
     }
 }

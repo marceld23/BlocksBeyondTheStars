@@ -2392,8 +2392,9 @@ short player help (`/report`, `/bump`) so a normal player is not buried under co
 **Singleplayer & hosting from the game:** cheats are enabled out of the box (`--admin-cheats true` is
 passed by the bundled host) — as the world creator you can use all of these immediately. Friends who
 join your hosted world still cannot: they are not admins. On a **dedicated** server the rule stays off
-unless the operator starts it with `--admin-cheats true`. Command replies (target lists, results,
-rejections) appear in the **chat scrollback**, not just the brief HUD toast.
+unless the operator starts it with `--admin-cheats true`. Command replies that carry information (target lists,
+what `/give` handed out, refusals such as an unknown time or weather) appear in the **chat scrollback**; a plain
+confirmation is the brief HUD toast.
 
 | Command | Effect |
 |---|---|

@@ -231,7 +231,8 @@ See §9 for distributing the client this way.
   block types from the world and that copy cannot be written, the server refuses to start and leaves the
   world unchanged; an update that only moves ids starts with a warning.
 - **A save from a newer build is not opened by an older one**: the server exits with code `3` and one log
-  line starting with `[fatal] save-too-new`; the save is untouched. Update the server.
+  line containing `[fatal] save-too-new` (the logger puts the UTC time and `[ERROR]` in front); the save is
+  untouched. Update the server.
 - **Client and server must have the same block set.** The join carries a content fingerprint; a mismatch is
   refused in both directions with "This server runs a different version of the game". During a fleet roll a
   world still running the old image refuses clients of the new build until it restarts on the matching image.

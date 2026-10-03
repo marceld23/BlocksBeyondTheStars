@@ -102,14 +102,17 @@ namespace BlocksBeyondTheStars.Client
         /// #2216: the lab is not used from inside a ship. The server refuses every lab intent while the player is
         /// aboard — its own flag, which it derives from where the player stands in their ship (the landed cabin, the
         /// floating interior, a sealed extension) — or stands in the hull of any ship parked on this world (a visitor
-        /// has no aboard flag of their own); a spacewalk is neither. The prompt, E and the panel follow the same
+        /// has no aboard flag of their own). The prompt, E and the panel follow the same
         /// rule, so nothing is offered that would then be refused. The aboard flag only counts where the player's
         /// ship stands (the server sent its placement): in a world without a placed ship the flag keeps its default
-        /// and would refuse the lab everywhere. A pilot in flight is in the cabin whatever the flag says.
+        /// and would refuse the lab everywhere. Out in space there is no lab at all — in flight and on a spacewalk
+        /// alike: the lab is a block of a world grid, and the position the pilot left behind on it is not where
+        /// they are.
         /// </summary>
         public static bool RefusedAboard(GameBootstrap game)
-            => game != null && !game.InEva
-               && ((game.Aboard && game.ShipPosition.HasValue) || game.InSpace || InLandedHull(game, game.PlayerPosition));
+            => game != null
+               && (game.InSpace
+                   || (!game.InEva && ((game.Aboard && game.ShipPosition.HasValue) || InLandedHull(game, game.PlayerPosition))));
 
         /// <summary>Whether a position lies in the hull of a ship parked on this world. An open construction frame is
         /// no hull (the server does not count it as a ship interior either).</summary>
@@ -241,7 +244,7 @@ namespace BlocksBeyondTheStars.Client
         private int DataSig()
         {
             int sig = Game.Bio.Revision * 31 + Game.UnlockedBlueprints.Count;
-            unchecked { sig = sig * 31 + (_detoxNear ? 1 : 0) + (FreeMode() ? 2 : 0); }
+            unchecked { sig = sig * 31 + (_detoxNear ? 1 : 0) + (FreeMode() ? 2 : 0) + (InCargo("carbon") ? 4 : 0); }
             if (Game.Personal != null)
             {
                 foreach (var s in Game.Personal)
@@ -395,6 +398,20 @@ namespace BlocksBeyondTheStars.Client
             foreach (var s in Game.Personal)
             {
                 if (s.Item == key && (single ? s.Count == 1 : s.Count > 0)) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Whether the ship's hold has this item where the server would take it from there: its material
+        /// pool counts the hold while the player's aboard flag is set — which, at a lab, is only the world without
+        /// a placed ship (anywhere else the lab is refused aboard).</summary>
+        private bool InCargo(string key)
+        {
+            if (!Game.Aboard || Game.Cargo == null) return false;
+            foreach (var s in Game.Cargo)
+            {
+                if (s != null && s.Item == key && s.Count > 0) return true;
             }
 
             return false;
@@ -637,7 +654,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2216: whether the server would wash this mix — a toxic sample in it, a detoxifier standing by, and
         /// one carbon at hand (which a free game mode does not ask for).</summary>
-        private bool WouldWash(bool toxic) => toxic && _detoxNear && (FreeMode() || InBackpack("carbon", false));
+        private bool WouldWash(bool toxic)
+            => toxic && _detoxNear && (FreeMode() || InBackpack("carbon", false) || InCargo("carbon"));
 
         /// <summary>
         /// Whether a detoxifier stands by, as the server's station check sees it. Outside a free game mode that is

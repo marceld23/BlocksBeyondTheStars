@@ -121,7 +121,11 @@ login keeps it across updates and devices (#1178). **"New world…" (#1181):** t
 `world.reset` marker (`BrowserWorldReset`, Client.Core, unit-tested), syncs IDBFS and boots a fresh world;
 while the marker is pending, `LoadLocalBlob` skips the deployment adoption and `GlitchCloudSaves.FetchLatest`
 skips the cloud copy (the fresh world's first upload replaces it), and `PersistBlob` clears the marker once
-the new world is on disk. AI level is forced Off in-browser (template texts — the LLM backend is
+the new world is on disk. **A cloud world from a newer build (#2223):** the boot's fetch records the cloud
+version before the world is started; when the start refuses it as saved by a newer version of the game, the
+menu says so and `GlitchCloudSaves.ForgetFetched` takes the record back
+(`CloudSaveVersions.SyncedAfterBoot`, Client.Core, unit-tested) — otherwise the next start would boot the
+older local world and upload it over the newer one. AI level is forced Off in-browser (template texts — the LLM backend is
 internal-only). Menu: the WebGL main menu grew a Singleplayer button (+ "New world…"). Perf note: initial worldgen
 runs synchronously behind the loading screen; chunk generation is on-demand thereafter.
 
