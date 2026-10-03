@@ -663,6 +663,29 @@ public sealed class PerWorldSpeciesTests : IDisposable
     }
 
     [Fact]
+    public void TheFirstBurnPassOfAWorld_BurnsNothing_AlsoWhenAnotherWorldHasBurnedBefore()
+    {
+        var server = NewServer("burnfirst");
+        OnFoot(server, "Keeper");
+        string home = server.ActiveLocationId;
+        Ticks(server, 3.0, 0.1); // the home world has had its burn passes, the uptime is well past one burn step
+        var visitor = LandOnAnotherWorld(server, home, "Visitor", out string other);
+        var beast = AnimalInLava(server, other, visitor, out var at);
+        float full = beast.Hull;
+
+        // The other world's first pass has no interval yet: it only starts the clock. With one "primed" flag for the
+        // server the home world had set it long ago, and this pass burned a full step measured from uptime zero.
+        TicksInLava(server, beast, at, 0.1);
+        At(server, other);
+        Assert.Contains(beast, server.Creatures);
+        Assert.Equal(full, beast.Hull);
+
+        TicksInLava(server, beast, at, 2.0); // and from then on it burns
+        At(server, other);
+        Assert.True(beast.Hull < full, "the animal stands in lava on the second world and loses nothing");
+    }
+
+    [Fact]
     public void AWorldThatWasNotTickedForAWhile_DoesNotBurnTheWholeGapInOnePass()
     {
         var server = NewServer("burngap");
