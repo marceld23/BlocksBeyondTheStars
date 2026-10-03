@@ -64,10 +64,15 @@ Last updated: 2026-08-26.
 - **Window mode** (Settings tab): the **"Window mode" / "Fenstermodus"** option cycles **Windowed → Borderless →
   Exclusive** and applies immediately. The default is **Windowed** (a normal movable, maximizable window);
   Borderless fills whichever monitor the window currently sits on; Exclusive is classic full-screen.
-- **Language** (Settings tab): switch the whole game between **English, German, French and Spanish**.
-  Further languages appear in the picker automatically once their community translation clears **45 %
-  coverage** (Italian is underway — want to help? See `docs/developer/TRANSLATION_GUIDE.md` in the
+- **Language** (Settings tab): switch the whole game between **14 languages** — English, German, French,
+  Spanish, Italian, Portuguese, Dutch, Polish, Turkish, Russian, Ukrainian, Chinese, Japanese and Korean.
+  A language appears in the picker once its translation clears **45 % coverage**; a text a language does
+  not have yet is shown in English (want to help? See `docs/developer/TRANSLATION_GUIDE.md` in the
   repository).
+- **What's new?** (main menu, bottom bar): the release notes of every version, newest first. The dialog
+  also opens by itself once after an update. The notes are shown in your language as soon as a release
+  has been translated; until then — and while you are offline — they are in English (in German when the
+  game is set to German).
 - On the **very first start** a short (~28 s) **intro cinematic** plays between the title splash and the
   menu — any key skips it, and the Credits screen's **"Watch intro"** button replays it any time.
 - On a **new world**, the ship AI **VEGA** boots up and walks you through the first hour (see §5 →

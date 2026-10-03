@@ -24,6 +24,41 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🗞️ "What's new?" in all 14 languages — one language file per language, fetched online (#2227, 2026-10-03, branch feat/whatsnew-all-languages) — ✅ done (unreleased; ⚠ playtest open, translations arrive language by language)
+
+**Request (Marcel, 2026-10-03).** The devblog is being translated into the twelve other website languages; the
+in-game release notes should be extended the same way, "so that there are all languages in-game".
+
+**Before.** `data/whatsnew.json` carries German and English. The client also knew `*_fr` / `*_es` fields that no
+entry ever had — the exporter rewrites the file from the German and English posts at every release, so a hand-added
+field would not have survived, while the translation guide still asked for exactly that. A French player saw a French
+dialog frame around English notes. Putting twelve more languages into the one file would have grown it from 475 KB to
+about 3.3 MB, bundled into every build and prefetched by the browser client before the first frame.
+
+- **✅ Language files outside the bundle:** `data-online/whatsnew/<code>.json` (`{language, entries: [{version, title,
+  body}]}`), tracked, never copied into StreamingAssets (`data-online/README.md` explains the folder). The feed stays
+  the list of releases; a language file only supplies texts for versions the feed has.
+- **✅ Client (`UiWhatsNew.cs`):** `WhatsNew.BeginFetch` takes the player's language; after the feed it fetches that
+  language's file and only then publishes the entries, so the first paint and the auto-open after an update are
+  already in the player's language. `WhatsNew.Title/Body(entry, code)` lay the language text over the feed by
+  version; a missing file (HTTP 404), a release without a translation, a half-filled entry and the offline case all
+  read English. A language switched in the settings mid-session is fetched when the dialog opens (the refresher asks
+  once, on the shell so the request survives closing the dialog). The unused `*_fr` / `*_es` fields are gone.
+- **✅ Export (`tools/devblog/export_whatsnew.py`):** reads the devblog translation store (one file per translated
+  post: `version`, `title`, `markdown`) and writes the language files, merged into what is committed (never shrunk).
+  `--languages-only` takes the versions from the committed feed, needs no private drafts and is not a release step.
+  The store is git-ignored (`tools/devblog/i18n/`).
+- **✅ First language file:** `data-online/whatsnew/fr.json` with the 2026.10.3 notes — the French pilot of the devblog
+  translation. The other releases and languages follow as the blog posts are translated.
+- **✅ Tests:** `WhatsNewContentTests` checks every language file (a game language other than de/en, versions exist in
+  the feed, no empty text, unique and newest first; no completeness check on purpose). Edit-mode
+  `WhatsNewLanguageEditModeTests` pins the fallback rules.
+- **Docs:** `data-online/README.md` (new), the What's-new parts of `docs/developer/TRANSLATION_GUIDE.md`, the layout
+  and release section of `AGENTS.md`.
+- **Open:** playtest with the game set to French (the 2026.10.3 entry reads French, older ones English; switch the
+  language in the settings and reopen the dialog; start once without a connection). An offline copy of the language
+  files is not planned — offline the bundled German/English feed is shown, as before.
+
 ### 🧪 The bio lab — samples with seeds, preparations with status effects, changed tools and gear, cloning and crossing (#2212: #2200–#2211, 2026-10-03, branch feat/bio-lab) — ✅ done (unreleased; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-03).** Harvested things — raw materials, plants and animals — should carry the seed of

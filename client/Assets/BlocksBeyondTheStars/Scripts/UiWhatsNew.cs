@@ -13,9 +13,10 @@ using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
-    /// <summary>One release post of the in-game "What's new?" feed — the devblog release post in both
-    /// languages, exported by <c>tools/devblog/export_whatsnew.py</c> into <c>data/whatsnew.json</c>.
-    /// Field names mirror the JSON (JsonUtility maps by name).</summary>
+    /// <summary>One release post of the in-game "What's new?" feed — the devblog release post in German
+    /// and English, exported by <c>tools/devblog/export_whatsnew.py</c> into <c>data/whatsnew.json</c>.
+    /// Field names mirror the JSON (JsonUtility maps by name). Every other language comes from its own
+    /// language file — ask <see cref="WhatsNew.Title"/> / <see cref="WhatsNew.Body"/> for display text.</summary>
     [Serializable]
     public sealed class WhatsNewEntry
     {
@@ -25,29 +26,17 @@ namespace BlocksBeyondTheStars.Client
         public string title_en = "";
         public string body_de = "";
         public string body_en = "";
-        // Optional community-language fields; entries without them fall back to English per entry
-        // (JsonUtility leaves absent fields at "" — the backlog is not retro-translated).
-        public string title_fr = "";
-        public string body_fr = "";
-        public string title_es = "";
-        public string body_es = "";
 
-        /// <summary>Title for a locale code, falling back to English when the entry has no text
-        /// in that language (and to German for the odd entry authored DE-only).</summary>
-        public string Title(string code) => Pick(code, title_en, title_de, title_fr, title_es);
+        /// <summary>Title from the feed itself: German for "de", English for every other code (and German
+        /// for the odd entry authored DE-only).</summary>
+        public string BaseTitle(string code) => Pick(code, title_en, title_de);
 
-        /// <summary>Body for a locale code, same fallback rule as <see cref="Title"/>.</summary>
-        public string Body(string code) => Pick(code, body_en, body_de, body_fr, body_es);
+        /// <summary>Body from the feed itself, same rule as <see cref="BaseTitle"/>.</summary>
+        public string BaseBody(string code) => Pick(code, body_en, body_de);
 
-        private static string Pick(string code, string en, string de, string fr, string es)
+        private static string Pick(string code, string en, string de)
         {
-            string chosen = code switch
-            {
-                "de" => de,
-                "fr" => fr,
-                "es" => es,
-                _ => en,
-            };
+            string chosen = code == "de" ? de : en;
             if (!string.IsNullOrEmpty(chosen))
             {
                 return chosen;
@@ -64,17 +53,52 @@ namespace BlocksBeyondTheStars.Client
         public List<WhatsNewEntry> entries = new List<WhatsNewEntry>();
     }
 
+    /// <summary>One release post in ONE community language — an entry of
+    /// <c>data-online/whatsnew/&lt;code&gt;.json</c>, matched to the feed by <see cref="version"/>.</summary>
+    [Serializable]
+    public sealed class WhatsNewLanguageEntry
+    {
+        public string version = "";
+        public string title = "";
+        public string body = "";
+    }
+
+    /// <summary>JsonUtility wrapper for a per-language file.</summary>
+    [Serializable]
+    public sealed class WhatsNewLanguageFile
+    {
+        public string language = "";
+        public List<WhatsNewLanguageEntry> entries = new List<WhatsNewLanguageEntry>();
+    }
+
     /// <summary>
     /// Loads the "What's new?" feed once per session: the committed <c>data/whatsnew.json</c> fetched
     /// raw from the repository's main branch (so the feed can be NEWER than the installed build —
     /// the interesting case next to the update notice #543), falling back to the copy bundled into
     /// StreamingAssets by the data/ sync when offline. Presentation-only data, same trust model as
     /// the rest of the bundled content.
+    /// <para>
+    /// The feed carries German and English. The other twelve languages live in one file each under
+    /// <c>data-online/whatsnew/</c>, which is deliberately NOT bundled (twelve more copies of the notes
+    /// would be megabytes in every download and in the browser's eager data prefetch): the player's
+    /// language file is fetched online and laid over the feed by version. A language without a file, an
+    /// entry the file does not have yet, or no connection all read English — as they always did.
+    /// </para>
     /// </summary>
     public static class WhatsNew
     {
         private const string OnlineUrl =
             "https://raw.githubusercontent.com/marceld23/BlocksBeyondTheStars/main/data/whatsnew.json";
+
+        private const string LanguageUrlFormat =
+            "https://raw.githubusercontent.com/marceld23/BlocksBeyondTheStars/main/data-online/whatsnew/{0}.json";
+
+        // Language code -> (version -> text). A code is present once its file was asked for, with an
+        // empty map when the file is missing or failed, so no language is fetched twice per session.
+        private static readonly Dictionary<string, Dictionary<string, WhatsNewLanguageEntry>> LanguageTexts =
+            new Dictionary<string, Dictionary<string, WhatsNewLanguageEntry>>();
+
+        private static readonly HashSet<string> LanguagesLoading = new HashSet<string>();
 
         /// <summary>Loaded entries, newest first; null while no load has finished yet. An empty list
         /// means both the online fetch and the bundled fallback came up dry.</summary>
@@ -87,8 +111,10 @@ namespace BlocksBeyondTheStars.Client
         private static bool _started;
 
         /// <summary>Starts the one-per-session background load (no-op on repeat calls). Called when the
-        /// main menu first builds, so the data is usually in before anyone opens the dialog.</summary>
-        public static void BeginFetch(MonoBehaviour runner)
+        /// main menu first builds, so the data is usually in before anyone opens the dialog.
+        /// <paramref name="languageCode"/> is the player's language at that moment; its language file is
+        /// loaded along with the feed.</summary>
+        public static void BeginFetch(MonoBehaviour runner, string languageCode)
         {
             if (_started)
             {
@@ -96,19 +122,116 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _started = true;
-            runner.StartCoroutine(Fetch());
+            runner.StartCoroutine(Fetch(languageCode));
         }
 
-        private static IEnumerator Fetch()
+        /// <summary>True for every language that is not in the feed itself, i.e. all but German and English.</summary>
+        public static bool HasLanguageFile(string code)
+            => !string.IsNullOrEmpty(code) && code != "de" && code != "en";
+
+        /// <summary>Whether the texts for <paramref name="code"/> are settled: German and English always
+        /// are, another language once its file was fetched (or found missing), and every language while
+        /// the feed is the bundled offline copy — there is nothing to fetch then.</summary>
+        public static bool LanguageReady(string code)
+            => !HasLanguageFile(code) || FromBundled || LanguageTexts.ContainsKey(code);
+
+        /// <summary>Asks for the language file of <paramref name="code"/> if this session has not done so
+        /// yet — the player can switch language after the startup load. Safe to call every frame.</summary>
+        public static void EnsureLanguage(MonoBehaviour runner, string code)
         {
+            if (Entries == null || LanguageReady(code) || LanguagesLoading.Contains(code))
+            {
+                return;
+            }
+
+            runner.StartCoroutine(FetchLanguage(code));
+        }
+
+        /// <summary>Title of a release post for a locale code: the language file's text when it has this
+        /// version, otherwise the feed's English (German for "de").</summary>
+        public static string Title(WhatsNewEntry entry, string code)
+            => Localized(entry, code)?.title ?? entry.BaseTitle(code);
+
+        /// <summary>Body of a release post for a locale code, same rule as <see cref="Title"/>.</summary>
+        public static string Body(WhatsNewEntry entry, string code)
+            => Localized(entry, code)?.body ?? entry.BaseBody(code);
+
+        private static WhatsNewLanguageEntry Localized(WhatsNewEntry entry, string code)
+            => code != null
+               && LanguageTexts.TryGetValue(code, out var texts)
+               && texts.TryGetValue(entry.version, out var text)
+                ? text
+                : null;
+
+        /// <summary>Stores the texts of one language (null = forget the language, so it is fetched again).
+        /// The loader's own sink, and the seam the edit-mode tests use.</summary>
+        public static void SetLanguageTexts(string code, Dictionary<string, WhatsNewLanguageEntry> texts)
+        {
+            if (texts == null)
+            {
+                LanguageTexts.Remove(code);
+            }
+            else
+            {
+                LanguageTexts[code] = texts;
+            }
+        }
+
+        /// <summary>Parses a per-language file into version -> text. Entries without a version, title or
+        /// body are dropped (they would only blank out the English fallback). Null when the JSON is unusable.</summary>
+        public static Dictionary<string, WhatsNewLanguageEntry> ParseLanguageFile(string json)
+        {
+            try
+            {
+                var file = JsonUtility.FromJson<WhatsNewLanguageFile>(json);
+                if (file?.entries == null)
+                {
+                    return null;
+                }
+
+                var texts = new Dictionary<string, WhatsNewLanguageEntry>();
+                foreach (var e in file.entries)
+                {
+                    if (e != null && !string.IsNullOrEmpty(e.version)
+                        && !string.IsNullOrEmpty(e.title) && !string.IsNullOrEmpty(e.body))
+                    {
+                        texts[e.version] = e;
+                    }
+                }
+
+                return texts;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"What's-new language file parse failed: {e.Message}");
+                return null;
+            }
+        }
+
+        private static IEnumerator Fetch(string languageCode)
+        {
+            List<WhatsNewEntry> entries = null;
             using (var req = UnityWebRequest.Get(OnlineUrl))
             {
                 req.timeout = 8;
                 yield return req.SendWebRequest();
-                if (req.result == UnityWebRequest.Result.Success && TryParse(req.downloadHandler.text))
+                if (req.result == UnityWebRequest.Result.Success)
                 {
-                    yield break;
+                    entries = Parse(req.downloadHandler.text);
                 }
+            }
+
+            if (entries != null)
+            {
+                // The player's language first, the entries second: the first paint — and the auto-open
+                // after an update — is then already in that language instead of flipping from English.
+                if (HasLanguageFile(languageCode))
+                {
+                    yield return FetchLanguage(languageCode);
+                }
+
+                Entries = entries;
+                yield break;
             }
 
             // Offline / rate-limited / malformed: fall back to the copy bundled with this build. By the
@@ -117,42 +240,54 @@ namespace BlocksBeyondTheStars.Client
             try
             {
                 string path = Path.Combine(StreamingAssetsCache.DataDir, "whatsnew.json");
-                if (!File.Exists(path) || !TryParse(File.ReadAllText(path)))
-                {
-                    Entries = new List<WhatsNewEntry>();
-                }
+                entries = File.Exists(path) ? Parse(File.ReadAllText(path)) : null;
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"What's-new bundled fallback failed: {e.Message}");
-                Entries = new List<WhatsNewEntry>();
             }
+
+            Entries = entries ?? new List<WhatsNewEntry>();
         }
 
-        private static bool TryParse(string json)
+        private static IEnumerator FetchLanguage(string code)
+        {
+            LanguagesLoading.Add(code);
+            Dictionary<string, WhatsNewLanguageEntry> texts = null;
+            using (var req = UnityWebRequest.Get(string.Format(LanguageUrlFormat, code)))
+            {
+                req.timeout = 8;
+                yield return req.SendWebRequest();
+                if (req.result == UnityWebRequest.Result.Success)
+                {
+                    texts = ParseLanguageFile(req.downloadHandler.text);
+                }
+            }
+
+            // No file for this language yet (HTTP 404), no connection, or unusable JSON: remember the
+            // empty result. The language then reads English and is not asked for again this session.
+            SetLanguageTexts(code, texts ?? new Dictionary<string, WhatsNewLanguageEntry>());
+            LanguagesLoading.Remove(code);
+        }
+
+        private static List<WhatsNewEntry> Parse(string json)
         {
             try
             {
                 var file = JsonUtility.FromJson<WhatsNewFile>(json);
-                if (file?.entries == null || file.entries.Count == 0)
-                {
-                    return false;
-                }
-
-                Entries = file.entries;
-                return true;
+                return file?.entries == null || file.entries.Count == 0 ? null : file.entries;
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"What's-new parse failed: {e.Message}");
-                return false;
+                return null;
             }
         }
     }
 
     /// <summary>
-    /// The "What's new?" dialog over the main menu: the devblog release posts, localized DE/EN,
-    /// newest first in a scrollable list. Opened from the menu's bottom-bar button, and automatically
+    /// The "What's new?" dialog over the main menu: the devblog release posts in the player's language
+    /// (English where a post has no translation yet), newest first in a scrollable list. Opened from the menu's bottom-bar button, and automatically
     /// ONCE after an update (AppShell tracks <see cref="ClientSettings.LastSeenVersion"/> and queues
     /// the auto-open behind the update notice #543). AppShell spawns/destroys it with the MainMenu phase.
     /// </summary>
@@ -176,17 +311,25 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddVerticalScrollbar(dlg, scroll, 1366f, 92f, 16f, 740f);
             Populate(shell, content, hint);
 
-            // Opened before the background load finished (or it is still falling back): a tiny refresher
-            // fills the list in as soon as the data lands, then removes itself.
-            if (WhatsNew.Entries == null)
+            // Opened before the background load finished (or it is still falling back), or in a language
+            // the player switched to after it: a tiny refresher fills the list in as soon as the data
+            // lands, then removes itself.
+            string code = LanguageCode(shell);
+            if (WhatsNew.Entries == null || !WhatsNew.LanguageReady(code))
             {
                 var refresher = canvas.gameObject.AddComponent<WhatsNewRefresher>();
+                refresher.Runner = shell; // outlives the dialog, so a fetch survives closing it
+                refresher.Code = code;
                 refresher.OnReady = () => { if (content != null) { Populate(shell, content, hint); } };
             }
 
             UiKit.AddButton(dlg, 570f, 846f, 260f, 52f, shell.L("ui.menu.back"), shell.CloseWhatsNew, "btn_exit");
             return canvas.gameObject;
         }
+
+        /// <summary>The player's locale code ("en" for a shell that has no settings yet).</summary>
+        private static string LanguageCode(AppShell shell)
+            => GameLocaleExtensions.Parse(shell.Settings?.Language).Code();
 
         /// <summary>Row width inside the scroll content: viewport 1320 minus text margins and the
         /// scrollbar lane on the right.</summary>
@@ -248,11 +391,11 @@ namespace BlocksBeyondTheStars.Client
             else
             {
                 hint.text = WhatsNew.FromBundled ? shell.L("ui.whatsnew.offline") : "";
-                string code = GameLocaleExtensions.Parse(shell.Settings.Language).Code();
+                string code = LanguageCode(shell);
                 foreach (var e in entries)
                 {
-                    AddRow(content, ref y, $"Version {e.version} — {e.Title(code)}", 22, UiKit.Cyan, FontStyle.Bold);
-                    AddRow(content, ref y, MarkdownToRich(e.Body(code)), 17, UiKit.TextCol, FontStyle.Normal);
+                    AddRow(content, ref y, $"Version {e.version} — {WhatsNew.Title(e, code)}", 22, UiKit.Cyan, FontStyle.Bold);
+                    AddRow(content, ref y, MarkdownToRich(WhatsNew.Body(e, code)), 17, UiKit.TextCol, FontStyle.Normal);
                     y += 18f; // breathing room between releases
                 }
             }
@@ -311,18 +454,29 @@ namespace BlocksBeyondTheStars.Client
             return s.Trim();
         }
 
-        /// <summary>Fills the list in once the background load lands, then removes itself.</summary>
+        /// <summary>Fills the list in once the feed AND the player's language have landed, then removes
+        /// itself. Asks for the language file itself when nobody has yet (a language switched mid-session).</summary>
         private sealed class WhatsNewRefresher : MonoBehaviour
         {
             public System.Action OnReady;
+            public MonoBehaviour Runner;
+            public string Code = "en";
 
             private void Update()
             {
-                if (WhatsNew.Entries != null)
+                if (WhatsNew.Entries == null)
                 {
-                    OnReady?.Invoke();
-                    Destroy(this);
+                    return;
                 }
+
+                if (!WhatsNew.LanguageReady(Code))
+                {
+                    WhatsNew.EnsureLanguage(Runner != null ? Runner : this, Code);
+                    return;
+                }
+
+                OnReady?.Invoke();
+                Destroy(this);
             }
         }
     }

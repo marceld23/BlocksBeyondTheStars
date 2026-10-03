@@ -117,6 +117,9 @@ client/Assets/BlocksBeyondTheStars/Scripts/GlitchIntegrationSecrets.Generated.cs
 # Wix devblog publishing — website-internal content, state and API dumps (never committed)
 tools/devblog/*.json
 tools/devblog/devblog-artikel*.md
+# The devblog translation store (one file per translated post and language) — private working data
+# like the drafts; only the per-language "What's new?" files extracted from it are committed.
+tools/devblog/i18n/
 
 # Wix i18n audit/import — website content dumps and translations (never committed)
 tools/wix-i18n/out/

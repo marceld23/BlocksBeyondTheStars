@@ -15,7 +15,7 @@ The settings screen offers a language automatically once its coverage clears the
 | Main locale table | `data/locales/<code>.json` | flat `"key": "text"` JSON | All UI, HUD, menus, editors, minigames (`minigame.*`, `ui.minigame.*`), server messages (`srv.*`), block/item/planet/ship/blueprint names + descriptions, achievements (`achv.*`), missions |
 | Story packs | `data/stories/<id>/locales/<code>.json` | same flat JSON | Story beats, VEGA prologue |
 | Codex wiki | `data/wiki/articles.json` | per-article `{"en": …, "de": …, "fr": …, "es": …}` maps | Guide chapters (untranslated articles fall back to English) |
-| What's New | `data/whatsnew.json` | `title_<code>` / `body_<code>` per entry | In-game changelog (translate new entries going forward; the backlog stays EN/DE) |
+| What's New | `data/whatsnew.json` (German + English) · `data-online/whatsnew/<code>.json` (every other language) | generated — do not edit | In-game changelog. The language files are exported from the devblog translations; a release without a translation reads English |
 | AI backend | `ai-backend/app/llm.py` `_LANGUAGE_NAMES` | code → language name | LLM-generated NPC lines, VEGA banter, mission flavour |
 | Web portal | `src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json` | flat `"key": "text"` JSON, embedded in the assembly | play.blocksbeyondthestars.de (landing, My Worlds, rules, page chrome, API error texts) + the in-game community-rules screen through `GET /api/terms` |
 | Browser-play shell | `client/Assets/WebGLTemplates/BlocksBeyondTheStars/index.html` | `BBS_SHELL_TEXT` map | The two words shown while the WebGL build loads ("Loading", "Fullscreen") |
@@ -91,7 +91,11 @@ The picker, coverage gating, launcher splash and everything key-driven need **no
 
 - **Wiki**: add your language to each article's `title`/`body` map in
   `data/wiki/articles.json`; high-traffic articles first. Untranslated ones fall back to EN.
-- **What's New**: add `title_<code>`/`body_<code>` to NEW entries in `data/whatsnew.json`.
+- **What's New**: nothing to translate by hand. The release notes are the devblog release posts;
+  once a post is translated for the blog, `tools/devblog/export_whatsnew.py --languages-only` writes it
+  into `data-online/whatsnew/<code>.json`, which the game fetches online for the player's language
+  (see [data-online/README.md](../../data-online/README.md)). Do not add fields to
+  `data/whatsnew.json` — the export rewrites that file at every release.
 - **Web portal**: `src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json` — same flat JSON as
   the game locales, translated the same way (`translate_locale.py`, see Step 6). It also feeds
   the in-game community-rules screen. `{rules}`/`{worlds}` are substitution slots and `%s` a
@@ -126,7 +130,8 @@ PRs then improve a playable language instead of starting from zero.
 - [ ] `data/locales/<code>.json` at 100 % (`locale_report.py`)
 - [ ] `data/stories/*/locales/<code>.json` complete
 - [ ] Wiki articles translated (or accepted EN fallback)
-- [ ] What's New: new entries carry the language
+- [ ] What's New: `data-online/whatsnew/<code>.json` exists (exported from the devblog translations; optional —
+      missing releases read English)
 - [ ] AI backend maps the language name
 - [ ] Portal + community rules translated (`src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json`
       — `PortalLocalizationTests` fails on a gap, so this one is not optional)

@@ -55,6 +55,8 @@ ai-backend/                     optional Python LLM service (missions, NPC/ship-
 tools/                          editor-export merge tools + AI asset generation (tools/ai-assets)
 data/                           data-driven JSON definitions (blocks, items, recipes, ...)
 data/locales/                   localization resource files (mandatory en.json + de.json, community locales fr/es/it)
+data-online/                    tracked content the client fetches on demand from the repository — never bundled
+                                (the "What's new?" release notes in the twelve community languages, #2227)
 docs/user/                      player-facing manual (USER_MANUAL.md)
 docs/developer/                 ARCHITECTURE.md + design/how-it-works docs + ADRs (docs/developer/adr/); see docs/developer/README.md index
 scripts/                        build-client.ps1 + publish scripts
@@ -210,6 +212,20 @@ file's shape). The script reads the devblog drafts `tools/devblog/devblog-artike
 `devblog-artikel-en.md` (EN) — those are **git-ignored on purpose (private drafts) and must stay
 git-ignored**; only the extracted JSON is committed. A version is exported only when the release post
 exists in BOTH languages.
+
+`data/whatsnew.json` carries German and English, and only those two gate a release. The other twelve
+languages live in [data-online/whatsnew/](data-online/README.md)`<code>.json` (#2227): the client fetches
+the player's language file online and lays it over the feed by version, and anything missing reads
+English. Those files follow the devblog translations and are **never release-blocking** — refresh them
+whenever translated release posts exist:
+
+```bash
+python tools/devblog/export_whatsnew.py --languages-only --translations <translation store>
+```
+
+(needs no private drafts; it merges into the committed files and never shrinks them). The translation
+store is git-ignored working data like the drafts. Do not hand-edit the language files, and do not add
+`title_<code>` fields to `data/whatsnew.json` — the export overwrites that file at every release.
 
 That triggers three jobs: a GameCI Linux Docker job cross-builds the `StandaloneWindows64` player (Mono
 backend), then a `windows-latest` job builds the launcher and runs `scripts/publish-client-installer.ps1 -Msi`
