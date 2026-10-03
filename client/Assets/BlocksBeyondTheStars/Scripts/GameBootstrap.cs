@@ -2253,6 +2253,7 @@ namespace BlocksBeyondTheStars.Client
                 // In-process singleplayer: the server lives in THIS process (BrowserLocalServer) — the
                 // in-memory loopback pair replaces every socket, on WebGL and in the editor alike.
                 Network = new NetworkClient(new BlocksBeyondTheStars.Networking.Transport.LoopbackClientTransport(Loopback));
+                Network.ContentFingerprint = Content.BlockFingerprint; // #2222: the block set this client decodes chunks with
             }
             else if (string.Equals(Host, AppShell.BrowserLoopbackHost, System.StringComparison.OrdinalIgnoreCase))
             {
@@ -2275,6 +2276,9 @@ namespace BlocksBeyondTheStars.Client
 #else
                 Network = new NetworkClient();
 #endif
+                // #2222: the fingerprint of the block set this client decodes chunks with travels in the join; a server
+                // with another block set refuses the join, and this client refuses a server that answers with another.
+                Network.ContentFingerprint = Content.BlockFingerprint;
             }
             Network.JoinAccepted += m =>
             {

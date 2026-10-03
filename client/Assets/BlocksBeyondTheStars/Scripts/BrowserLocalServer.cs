@@ -48,6 +48,11 @@ namespace BlocksBeyondTheStars.Client
 
         public bool Running => _server != null;
 
+        /// <summary>True when the last <see cref="StartServer"/> failed because the world was saved by a newer
+        /// version of the game (#2223). The server refused it before anything was rewritten and the saved blob was
+        /// left as it is — the menu then says "update the game" instead of "could not be started".</summary>
+        public bool SaveTooNew { get; private set; }
+
         /// <summary>Raised after each durable local save with the fresh snapshot blob — the Glitch cloud
         /// sync uploads exactly these bytes, so cloud and IndexedDB can never diverge.</summary>
         public event Action<byte[]> BlobPersisted;
@@ -116,6 +121,7 @@ namespace BlocksBeyondTheStars.Client
         /// worldgen runs inline, so call this behind the loading screen. False = failed (logged).</summary>
         public bool StartServer(GameContent content, byte[] saveBlob, long freshSeed)
         {
+            SaveTooNew = false;
             try
             {
                 var paths = new SaveGamePaths(SaveDirectory, WorldName);
@@ -172,6 +178,16 @@ namespace BlocksBeyondTheStars.Client
                 _stepSeconds = 1.0 / Math.Max(1, config.TickRate);
                 Debug.Log($"[BrowserSP] In-process world up (seed {freshSeed}, save blob: {(saveBlob is { Length: > 0 } ? saveBlob.Length + " B" : "fresh world")}).");
                 return true;
+            }
+            catch (SaveVersionTooNewException ex)
+            {
+                // #2223: the blob (local or from the cloud) was written by a newer build. The server refused it
+                // before anything was rewritten; the host is dropped WITHOUT saving — nothing was flushed, so the
+                // stored blob stays byte for byte what it was and opens again once the game is updated.
+                Debug.LogError($"[BrowserSP] {ex.Message}");
+                SaveTooNew = true;
+                StopAndSave(save: false);
+                return false;
             }
             catch (Exception ex)
             {

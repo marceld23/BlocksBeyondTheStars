@@ -280,8 +280,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The mixes this player has tried: "active substance + form (+ stabiliser, + modifier) → result", with
-        /// the stability — or the note that the mix fell apart. A mix whose species the book no longer holds is left
-        /// out: nothing could be said about it.</summary>
+        /// the stability — or the note that the mix fell apart. A mix a detoxifier washed is its own entry (#2216): it
+        /// is recomputed as washed and says so. A mix whose species the book no longer holds is left out: nothing
+        /// could be said about it — and so is a signature this version cannot read (there is no text for it).</summary>
         private string BuildCompounds()
         {
             var sb = new StringBuilder();
@@ -292,8 +293,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (string signature in Game.Bio.Reactions)
                 {
-                    if (!TryParseMix(signature, out uint active, out var form, out string stabiliserItem, out uint stabiliserSeed, out uint modifier)
-                        || !(BioLabUi.ComputeMix(Game, active, form, stabiliserSeed, stabiliserItem, modifier) is { } compound))
+                    if (!TryParseMix(signature, out uint active, out var form, out string stabiliserItem, out uint stabiliserSeed, out uint modifier, out bool washed)
+                        || !(BioLabUi.ComputeMix(Game, active, form, stabiliserSeed, stabiliserItem, modifier, washed) is { } compound))
                     {
                         continue;
                     }
@@ -326,6 +327,11 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     line.Append("  (").Append(L("ui.bio.stability")).Append(' ').Append(compound.Stability).Append(" %)");
+                    if (washed)
+                    {
+                        line.Append("  ·  <color=#9fb4c8>").Append(L("ui.bio.washed")).Append("</color>");
+                    }
+
                     lines.Add((name, line.ToString()));
                 }
             }
@@ -433,9 +439,10 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Reads a mix signature back: "active/form/stabiliser item:stabiliser seed/modifier", the seeds as
-        /// eight hex digits (<see cref="Synthesis.Signature"/>). False for anything else — an entry of a newer version.</summary>
+        /// eight hex digits, and "/w" at the end of a mix a detoxifier washed (<see cref="Synthesis.Signature"/>).
+        /// False for anything else — an entry of a newer version.</summary>
         private static bool TryParseMix(string signature, out uint active, out BioForm form, out string stabiliserItem,
-            out uint stabiliserSeed, out uint modifier)
+            out uint stabiliserSeed, out uint modifier, out bool washed)
         {
             active = 0;
             form = BioForm.Injector;
@@ -444,7 +451,8 @@ namespace BlocksBeyondTheStars.Client
             modifier = 0;
 
             string[] parts = (signature ?? string.Empty).Split('/');
-            if (parts.Length != 4)
+            washed = parts.Length == 5 && parts[4] == "w";
+            if (parts.Length != 4 && !washed)
             {
                 return false;
             }

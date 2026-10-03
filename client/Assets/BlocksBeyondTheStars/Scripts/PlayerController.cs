@@ -2265,9 +2265,16 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2203: whether a bio lab cell is close enough for the server to take a lab intent — it looks for a lab
         /// three cells around the feet and two up or down. The prompt and E use the same reach, so the panel never opens
-        /// on a lab that would then refuse everything.</summary>
+        /// on a lab that would then refuse everything. #2216: never from inside a ship — the server refuses the lab
+        /// while the player is aboard or stands in a parked hull (<see cref="BioLabUi.RefusedAboard"/>), so a lab seen
+        /// through the hull has no prompt and E does not open it.</summary>
         private bool BioLabInReach(Vector3Int cell)
         {
+            if (BioLabUi.RefusedAboard(Game))
+            {
+                return false;
+            }
+
             var feet = transform.position;
             return Mathf.Abs(cell.x - Mathf.FloorToInt(feet.x)) <= 3
                 && Mathf.Abs(cell.y - Mathf.FloorToInt(feet.y)) <= 2

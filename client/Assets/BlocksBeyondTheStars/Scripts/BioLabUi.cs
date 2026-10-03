@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -61,6 +62,12 @@ namespace BlocksBeyondTheStars.Client
         private string _status = string.Empty;
         private bool _statusOk;
 
+        // #2216: whether a detoxifier stands by (the server's station check, mirrored) — looked up when the panel
+        // opens and again on a slow beat, never per frame; a change rebuilds the panel through DataSig.
+        private bool _detoxNear;
+        private float _detoxCheckedAt;
+        private const float DetoxCheckSeconds = 0.5f; // the cadence of the server's own station scan
+
         // Analyse: the sample of the case the card shows (its item key).
         private string _selKey = string.Empty;
 
@@ -91,15 +98,54 @@ namespace BlocksBeyondTheStars.Client
 
         public bool IsOpen => _open;
 
+        /// <summary>
+        /// #2216: the lab is not used from inside a ship. The server refuses every lab intent while the player is
+        /// aboard — its own flag, which it derives from where the player stands in their ship (the landed cabin, the
+        /// floating interior, a sealed extension) — or stands in the hull of any ship parked on this world (a visitor
+        /// has no aboard flag of their own); a spacewalk is neither. The prompt, E and the panel follow the same
+        /// rule, so nothing is offered that would then be refused.
+        /// </summary>
+        public static bool RefusedAboard(GameBootstrap game)
+            => game != null && !game.InEva && (game.Aboard || InLandedHull(game, game.PlayerPosition));
+
+        /// <summary>Whether a position lies in the hull of a ship parked on this world. An open construction frame is
+        /// no hull (the server does not count it as a ship interior either).</summary>
+        private static bool InLandedHull(GameBootstrap game, Vector3 p)
+        {
+            foreach (var ship in game.LandedShips.Values)
+            {
+                if (!ship.StructureId.StartsWith("shipyard:", System.StringComparison.Ordinal)
+                    && InHullBox(p.x, p.y, p.z, ship.Origin.X, ship.Origin.Y, ship.Origin.Z, ship.Width, ship.Height, ship.Length, game.Circumference))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>The server's box test for a parked ship (<c>LandedBoundsContain</c>): the design box from its
+        /// origin, with one cell of headroom on top; east–west the short way round the world.</summary>
+        public static bool InHullBox(double x, double y, double z, int originX, int originY, int originZ,
+            int width, int height, int length, int circumference)
+        {
+            double dx = WorldConstants.WrapDeltaX(x - originX, circumference);
+            return dx >= 0 && dx <= width
+                && y >= originY && y <= originY + height + 1
+                && z >= originZ && z <= originZ + length;
+        }
+
         public void Open()
         {
-            if (Game == null || _open) return;
+            if (Game == null || _open || RefusedAboard(Game)) return;
             EnsureCanvas();
             _open = true;
             _openFrame = Time.frameCount;
             _pick = Pick.None;
             _status = string.Empty;
             _resultSeen = Game.BioLabResultCount; // an answer from before this visit is not shown again
+            _detoxNear = DetoxifierInReach();
+            _detoxCheckedAt = Time.unscaledTime;
             _dataSig = DataSig();
             _caseScroll = 0f;
             _canvas.gameObject.SetActive(true);
@@ -128,8 +174,20 @@ namespace BlocksBeyondTheStars.Client
 
             if (Game == null) return;
 
+            if (RefusedAboard(Game))
+            {
+                Close(); // carried into a ship with the panel open (a recall, a teleport): the lab is out of use there
+                return;
+            }
+
+            if (Time.unscaledTime - _detoxCheckedAt >= DetoxCheckSeconds)
+            {
+                _detoxCheckedAt = Time.unscaledTime;
+                _detoxNear = DetoxifierInReach();
+            }
+
             // The server's answer, and anything that moved under the panel (a sample used up, a tool changed, a
-            // blueprint researched): show it and rebuild once.
+            // blueprint researched, a detoxifier placed beside the lab): show it and rebuild once.
             bool rebuild = false;
             if (Game.BioLabResultCount != _resultSeen)
             {
@@ -175,10 +233,12 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>What the panel shows, as one number: the research book and sample case (their revision), the
-        /// backpack and the researched blueprints. A change of any of them rebuilds the open panel.</summary>
+        /// backpack, the researched blueprints, the game mode and whether a detoxifier stands by. A change of any
+        /// of them rebuilds the open panel.</summary>
         private int DataSig()
         {
             int sig = Game.Bio.Revision * 31 + Game.UnlockedBlueprints.Count;
+            unchecked { sig = sig * 31 + (_detoxNear ? 1 : 0) + (FreeMode() ? 2 : 0); }
             if (Game.Personal != null)
             {
                 foreach (var s in Game.Personal)
@@ -203,6 +263,10 @@ namespace BlocksBeyondTheStars.Client
             if (result.Action == BioLabIntent.Mix && (result.Success || result.Failed))
             {
                 _status += "  (" + L("ui.bio.stability") + " " + result.Stability + " %)";
+                if (result.Washed)
+                {
+                    _status += "  ·  " + L("ui.bio.washed"); // #2216: the detoxifier washed a toxic sample of this mix
+                }
             }
 
             // A changed or washed item has a new key: keep it in the slot, so the next step works on the same item.
@@ -496,8 +560,7 @@ namespace BlocksBeyondTheStars.Client
             y = SlotRow(panel, y, "ui.bio.slot.modifier", SeedLabel(_mixModifier, false), Pick.Modifier);
             if (!Unlocked(BioItems.SynthesisBlueprint))
             {
-                // The three extra slots stay usable — in a creative world they work without the blueprint, and
-                // elsewhere the server says so.
+                // The three extra slots stay usable; the server says so when they are used without the blueprint.
                 y += Para(panel, PaneX, y, PaneW, L("ui.bio.locked.synthesis"), 16, UiKit.Warn) + 10f;
             }
 
@@ -523,7 +586,11 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The result before mixing — only for what the research book knows: a mix that was tried before
-        /// (its signature), or the plain extract of an analysed sample. Everything else stays an experiment.</summary>
+        /// (its signature), or the plain extract of an analysed sample. Everything else stays an experiment.
+        /// #2216: a toxic sample is washed as part of the mix when a detoxifier stands by. The washed mix is another
+        /// experiment than the unwashed one — its own signature, its own result — so the preview asks for the one
+        /// the server would run now, and a line under it says which that is. The line stands under every mix with
+        /// a toxic sample, analysed or not: the wash takes a carbon, and the player is told before the click.</summary>
         private void MixPreview(Transform panel, float y)
         {
             var form = BioItems.CarrierForm(Game.Content?.GetItem(_mixCarrier)) ?? BioForm.Injector;
@@ -532,27 +599,84 @@ namespace BlocksBeyondTheStars.Client
                 ? (Game.Bio.Species.TryGetValue(_mixStabSeed, out var deposit) ? deposit.MaterialItem : string.Empty)
                 : _mixStabItem;
             bool plain = _mixCarrier.Length == 0 && _mixStabSeed == 0 && _mixStabItem.Length == 0 && _mixModifier == 0;
-            bool known = Game.Bio.Knows(Synthesis.Signature(_mixActive, form, _mixStabSeed, stabiliserItem, _mixModifier))
+            bool toxic = (Game.Bio.ProfileOf(_mixActive)?.Toxicity ?? 0) > 0
+                         || (_mixModifier != 0 && (Game.Bio.ProfileOf(_mixModifier)?.Toxicity ?? 0) > 0);
+            bool washed = WouldWash(toxic);
+            bool known = Game.Bio.Knows(Synthesis.Signature(_mixActive, form, _mixStabSeed, stabiliserItem, _mixModifier, washed))
                          || (plain && Game.Bio.Analysed(_mixActive));
-            var compound = known ? ComputeMix(Game, _mixActive, form, _mixStabSeed, _mixStabItem, _mixModifier) : null;
+            var compound = known ? ComputeMix(Game, _mixActive, form, _mixStabSeed, _mixStabItem, _mixModifier, washed) : null;
             if (compound == null)
             {
-                Para(panel, PaneX, y, PaneW, L("ui.bio.reaction_unknown"), 18, UiKit.CyanDim);
-                return;
+                y += Para(panel, PaneX, y, PaneW, L("ui.bio.reaction_unknown"), 18, UiKit.CyanDim) + 8f;
             }
-
-            string tail = L("ui.bio.stability") + ": " + compound.Stability + " %\n"
-                          + L("ui.bio.reaction") + ": " + L("bio.reaction." + compound.Reaction.ToString().ToLowerInvariant());
-            if (compound.Failed)
+            else
             {
-                y += Para(panel, PaneX, y, PaneW, L("ui.bio.will_fail"), 20, UiKit.Warn) + 8f;
-                Para(panel, PaneX, y, PaneW, tail, 18, UiKit.TextCol);
-                return;
+                string tail = L("ui.bio.stability") + ": " + compound.Stability + " %\n"
+                              + L("ui.bio.reaction") + ": " + L("bio.reaction." + compound.Reaction.ToString().ToLowerInvariant());
+                if (compound.Failed)
+                {
+                    y += Para(panel, PaneX, y, PaneW, L("ui.bio.will_fail"), 20, UiKit.Warn) + 8f;
+                    y += Para(panel, PaneX, y, PaneW, tail, 18, UiKit.TextCol) + 8f;
+                }
+                else
+                {
+                    y += EffectHeadline(panel, y,
+                        L("item." + BioItems.PreparationKey(form) + ".name") + " · " + EffectLabel(Game, compound.Effect, compound.Level), compound.Effect);
+                    y += Para(panel, PaneX, y, PaneW, CompoundText(Game, compound, false) + "\n" + tail, 18, UiKit.TextCol) + 8f;
+                }
             }
 
-            y += EffectHeadline(panel, y,
-                L("item." + BioItems.PreparationKey(form) + ".name") + " · " + EffectLabel(Game, compound.Effect, compound.Level), compound.Effect);
-            Para(panel, PaneX, y, PaneW, CompoundText(Game, compound, false) + "\n" + tail, 18, UiKit.TextCol);
+            if (toxic)
+            {
+                Para(panel, PaneX, y, PaneW, L(washed ? "ui.bio.washed" : "ui.bio.unwashed"), 16, washed ? UiKit.Ok : UiKit.Warn);
+            }
+        }
+
+        /// <summary>#2216: whether the server would wash this mix — a toxic sample in it, a detoxifier standing by, and
+        /// one carbon at hand (which a free game mode does not ask for).</summary>
+        private bool WouldWash(bool toxic) => toxic && _detoxNear && (FreeMode() || InBackpack("carbon", false));
+
+        /// <summary>
+        /// Whether a detoxifier stands by, as the server's station check sees it. Outside a free game mode that is
+        /// the server's own answer — the station set the crafting menu gates its recipes on. In a free mode that set
+        /// names every station (nothing is gated there) while the wash still asks for a real detoxifier, so the
+        /// server's rule is mirrored instead: aboard the ship its detoxifier module, on foot a detoxifier block
+        /// within three cells around the feet and two up or down.
+        /// </summary>
+        private bool DetoxifierInReach()
+        {
+            const string detoxifier = "detoxifier"; // the station's key, its ship module and its block share the name
+            if (Game.StationsKnown && !FreeMode())
+            {
+                return Game.StationsAvailable.Contains(detoxifier);
+            }
+
+            if (Game.Aboard)
+            {
+                var modules = Game.ShipCombat?.Modules;
+                return modules != null && System.Array.IndexOf(modules, detoxifier) >= 0;
+            }
+
+            if (Game.World == null || !(Game.Content?.GetBlock(detoxifier) is { } def) || def.NumericId.Value == 0)
+            {
+                return false;
+            }
+
+            ushort id = def.NumericId.Value;
+            var feet = Game.PlayerPosition;
+            int px = Mathf.FloorToInt(feet.x), py = Mathf.FloorToInt(feet.y), pz = Mathf.FloorToInt(feet.z);
+            for (int dx = -3; dx <= 3; dx++)
+            {
+                for (int dy = -2; dy <= 2; dy++)
+                {
+                    for (int dz = -3; dz <= 3; dz++)
+                    {
+                        if (Game.World.GetBlock(px + dx, py + dy, pz + dz).Value == id) return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         // ---------------- Change ----------------
@@ -606,7 +730,11 @@ namespace BlocksBeyondTheStars.Client
                 CoatingItem = _chCoating,
             }));
             Enable(change, ready);
-            if (!carried.IsEmpty)
+
+            // Washing takes off whatever change the key carries — also one this version cannot read (a hand-typed key,
+            // a key of a newer version), which shows as no change above. The server's rule (#2216): there is something
+            // to wash off whenever taking the change tag away gives another key.
+            if (_chTarget.Length > 0 && default(ItemMods).ApplyTo(_chTarget) != _chTarget)
             {
                 UiKit.AddButton(panel, PaneX + 352f, ActionY, 300f, 48f, L("ui.bio.wash"),
                     () => Send(new BioLabIntent { Action = BioLabIntent.WashOff, TargetItem = _chTarget }));
@@ -847,7 +975,13 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private bool Unlocked(string blueprint) => Game.UnlockedBlueprints.Contains(blueprint);
+        /// <summary>Whether this player plays a free game mode — Sandbox, or their own Creative override. The rules
+        /// the server sends are the player's effective ones (the inventory's "All items" page asks the same way).</summary>
+        private bool FreeMode() => Game?.Rules != null && Game.Rules.GameMode == "Creative";
+
+        /// <summary>A lab function this player may use — the server's rule: always in a free game mode, otherwise
+        /// once its blueprint is researched. The "research …" lines show only where the server would refuse.</summary>
+        private bool Unlocked(string blueprint) => FreeMode() || Game.UnlockedBlueprints.Contains(blueprint);
 
         private static bool IsMineral(string key) => ItemKey.Base(key) == BioItems.MineralSample;
 
@@ -950,9 +1084,10 @@ namespace BlocksBeyondTheStars.Client
                 : null;
 
         /// <summary>What a mix makes, computed as the server computes it. Null when the research book lacks a species
-        /// the mix needs. Samples count as not washed — only the server knows whether a detoxifier stands by.</summary>
+        /// the mix needs. <paramref name="washed"/> says whether a detoxifier washed the toxic samples of the mix
+        /// (#2216) — the washed and the unwashed mix of the same inputs are two experiments with two results.</summary>
         public static Compound ComputeMix(GameBootstrap game, uint activeSeed, BioForm form, uint stabiliserSeed,
-            string stabiliserItem, uint modifierSeed)
+            string stabiliserItem, uint modifierSeed, bool washed = false)
         {
             var active = game?.Bio.ProfileOf(activeSeed);
             if (active == null) return null;
@@ -976,7 +1111,15 @@ namespace BlocksBeyondTheStars.Client
                 if (modifier == null) return null;
             }
 
-            return Synthesis.Compute(new SynthesisInput { Active = active, Form = form, Stabiliser = stabiliser, Modifier = modifier });
+            return Synthesis.Compute(new SynthesisInput
+            {
+                Active = active,
+                ActiveCleaned = washed,
+                Form = form,
+                Stabiliser = stabiliser,
+                Modifier = modifier,
+                ModifierCleaned = washed,
+            });
         }
 
         /// <summary>The catch of a substance as rich text — amber, one arrow per level, its name — or "no side effect".</summary>
