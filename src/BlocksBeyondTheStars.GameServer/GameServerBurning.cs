@@ -124,6 +124,7 @@ public sealed partial class GameServer
             if (creatures)
             {
                 OnCreatureKilled(e, null); // 2026-09: the shapeshifter can burn
+                ForgetClone(e); // #2214: a burnt clone leaves its tank's list at once
             }
 
             if (!creatures)

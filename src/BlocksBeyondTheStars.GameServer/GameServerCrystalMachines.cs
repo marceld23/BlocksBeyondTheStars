@@ -704,6 +704,11 @@ public sealed partial class GameServer
         tank.WaitTold = false;
         SaveCrystalCell(tank);
         SetCrystalBlocked(tank, true); // ON while growing
+
+        // #2214: a start inside the "clone ready" pulse of the job before finds the light already on, so the line
+        // above changes nothing — and the pulse, still armed, would switch the light off half a second later, for
+        // the whole new job. The light is the job's now: the pulse of the last one is over.
+        tank.PulseUntil = 0;
         CrystalNet.DeviceListDirty = true;
         BroadcastToWorld(new SoundFx { SoundId = "clone_tank_bubble", X = tank.Cell.X + 0.5f, Y = tank.Cell.Y + 1f, Z = tank.Cell.Z + 0.5f, Loop = true, SourceId = tank.Id });
     }

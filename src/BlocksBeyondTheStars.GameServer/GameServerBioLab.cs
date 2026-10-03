@@ -23,7 +23,20 @@ public sealed partial class GameServer
     /// <summary>Knowledge a first analysis pays: a base, plus more for a rarer species or a purer deposit.</summary>
     private const int KnowledgeAnalysisBase = 2;
 
-    private bool AtBioLab(PlayerState p) => NearStationBlock(p, BioItems.Lab);
+    /// <summary>
+    /// Whether a player stands at a bio lab: a lab block of the world within reach — and the player not inside a ship
+    /// (#2216). The reach is a box around the player and reads through a hull, so a lab standing against the parked
+    /// ship used to answer a player inside it; the wash then asked for the detoxifier the way the cabin does (the
+    /// ship's MODULE) and never saw the detoxifier block beside the lab. The lab is used from outside the ship.
+    /// "Inside a ship" is the cabin of the temperature the effects feel (see <c>AmbientTemperature</c>) without the
+    /// station: aboard the ship, or inside a landed ship's hull — anyone's, a visitor has no aboard flag of their
+    /// own. A station deck is no ship: a lab on a station works for whoever stands on that deck.
+    /// </summary>
+    private bool AtBioLab(PlayerState p)
+    {
+        bool insideShip = !p.InEva && (p.AboardShip || ShipInteriorContains(p.Position));
+        return !insideShip && NearStationBlock(p, BioItems.Lab);
+    }
 
     /// <summary>A lab function a player may use: always in a creative world, otherwise once its blueprint is researched.</summary>
     private bool BioUnlocked(PlayerState p, string blueprint)

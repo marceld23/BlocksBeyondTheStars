@@ -100,13 +100,20 @@ public sealed partial class GameServer
     private bool IsBlockId(BlockId block, string key)
         => _content.GetBlock(key) is { } def && def.NumericId.Value == block.Value;
 
-    /// <summary>Extents of a cell map (min/max corners). False when empty.</summary>
-    private static bool CellBounds(Dictionary<Vector3i, BlockId> cells, out Vector3i min, out Vector3i max)
+    /// <summary>Extents of a cell map (min/max corners). False when empty. With <paramref name="hullOnly"/> the
+    /// air entries (see <see cref="HullCellCount"/>) are left out — the extents of the hull that is really there;
+    /// without it they count, which is what keeps the blob's coordinate frame where it was.</summary>
+    private static bool CellBounds(Dictionary<Vector3i, BlockId> cells, out Vector3i min, out Vector3i max, bool hullOnly = false)
     {
         min = max = default;
         bool any = false;
-        foreach (var c in cells.Keys)
+        foreach (var (c, block) in cells)
         {
+            if (hullOnly && block.IsAir)
+            {
+                continue;
+            }
+
             if (!any)
             {
                 min = max = c;
@@ -119,6 +126,25 @@ public sealed partial class GameServer
         }
 
         return any;
+    }
+
+    /// <summary>How many cells of a cell map are hull — everything but its air entries (#2221). A cell whose block
+    /// was removed from the game stays in the blob as air after the save's block-id remap, on purpose: it keeps the
+    /// coordinate frame (the anchor and the design box stay where they were). It is a hole, not a block, so nothing
+    /// that measures the hull — its hit points, its mass, its size — may count it. A door entry IS hull here: the
+    /// caller decides what a door counts as.</summary>
+    private static int HullCellCount(Dictionary<Vector3i, BlockId> cells)
+    {
+        int count = 0;
+        foreach (var block in cells.Values)
+        {
+            if (!block.IsAir)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     /// <summary>Re-anchors a cell map so its minimum corner is (0,0,0) and shifts the world origin by the
@@ -234,7 +260,7 @@ public sealed partial class GameServer
 
         var cells = ParseCustomCells(blob);
         int engines = cells.Values.Count(b => IsBlockId(b, ShipEngineBlock));
-        var stats = CustomShipStats(cells.Count, engines);
+        var stats = CustomShipStats(HullCellCount(cells), engines); // #2221: a hole left by a removed block is no hull
         _customStatsCache.AddOrUpdate(blob, new CustomStatsBox { Stats = stats });
         CustomShipStatsParsesForTest++;
         return stats;
@@ -648,14 +674,16 @@ public sealed partial class GameServer
     /// was edited back into an invalid state is grounded again with the same message).</summary>
     private string? CustomShipLaunchProblem(ShipState ship)
     {
+        // #2221: size and extents are those of the hull that is really there — an air entry (a cell whose block was
+        // removed from the game) is a hole in it, not one of its blocks.
         var cells = ParseCustomCells(ship.BuiltCells);
-        int solid = cells.Count(kv => !IsDoorBlockId(kv.Value));
+        int solid = cells.Count(kv => !kv.Value.IsAir && !IsDoorBlockId(kv.Value));
         if (solid < CustomShipMinBlocks)
         {
             return "@srv.ship.too_small:" + CustomShipMinBlocks;
         }
 
-        if (!CellBounds(cells, out var min, out var max)
+        if (!CellBounds(cells, out var min, out var max, hullOnly: true)
             || max.X - min.X + 1 > CustomShipMaxFootprint
             || max.Z - min.Z + 1 > CustomShipMaxFootprint
             || max.Y - min.Y + 1 > CustomShipMaxHeight)

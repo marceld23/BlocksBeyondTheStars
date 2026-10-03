@@ -332,7 +332,10 @@ public sealed class AdminCommandFixTests : IDisposable
             var sent = Run(server, t, admin, "set_weather", typed);
 
             Assert.Equal(key, server.WeatherSimForTest.State);
-            Assert.Equal("@srv.admin.weather_set:" + key, Assert.Single(LinesToAll(sent)));
+
+            // The forced weather is this world's: the line goes to the players under this sky, not server-wide.
+            Assert.Equal("@srv.admin.weather_set:" + key, Assert.Single(LinesTo(sent, admin)));
+            Assert.Empty(LinesToAll(sent));
         }
     }
 
