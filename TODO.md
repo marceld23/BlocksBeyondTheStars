@@ -107,6 +107,15 @@ read by a second agent, and corrected.
 
 ---
 
+### 🇫🇷 French game texts: one name per thing (2026-10-03, branch fix/fr-locale-consistency) — ✅ done (unreleased)
+
+Found by the reviewers of the French devblog translation (#2227): the game's `fr.json` named the same things two ways.
+Now: the flowerling is **fleurisson** everywhere (was also "florentin"), the helmet visor is **visière** (was "viseur",
+a gun sight), the sandworm is **ver des sables** (Arena Nigra said "ver de sable"), the gaming items are found on the
+**Planète Gamer** (was "planète gaming"), and the jump hints use plain verbs — "saute pour monter, accroupis-toi pour
+descendre", "Maintiens la touche de saut" — instead of "Saut"/"Accroupir" as if they were key names (the touch button
+says SAUTER, the pad hint "(A) sauter"). 11 values, no new keys.
+
 ### 🗞️ "What's new?" in all 14 languages — one language file per language, fetched online (#2227, 2026-10-03, branch feat/whatsnew-all-languages, PR #2228 → c768b41e; texts: branch feat/whatsnew-translations) — ✅ done (unreleased; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-03).** The devblog is being translated into the twelve other website languages; the
