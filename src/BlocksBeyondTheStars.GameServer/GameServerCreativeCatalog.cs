@@ -30,6 +30,16 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2216: a sample, a seedling or a preparation is nothing without what its key carries (a species, a compound) —
+        // a blank one is no sample for the case, cannot be planted and has no effect. The catalog never hands one out;
+        // these come from the world and from the bio lab, in Sandbox too. (The client's page leaves them out by the
+        // same rule; this is the answer to a client that asks anyway.)
+        if (Shared.Bio.BioItems.NeedsPayload(item))
+        {
+            Reject(session, "catalog", "@srv.catalog.needs_content");
+            return;
+        }
+
         int count = System.Math.Clamp(intent.Count, 1, System.Math.Max(1, _content.MaxStackOf(item)));
         Serve(session);
         var pool = new MaterialPool(_content, p, _ship);

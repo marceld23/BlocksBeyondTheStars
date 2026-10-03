@@ -475,6 +475,18 @@ public sealed class PlayerSession
     /// overheat hint pick) WHICH extreme is stressing the suit.</summary>
     public float EffectiveTemperatureC { get; set; } = 15f;
 
+    /// <summary>The temperature (°C) the player's status effects feel (#2218): the cabin's comfort aboard a ship or on a
+    /// station, the real temperature outside everywhere else — also where the hazard scan above never runs (hazards
+    /// off, god mode, the Creative game mode). Read through <c>GameServer.AmbientTemperature</c>, which renews it.</summary>
+    public float AmbientTemperatureC { get; set; } = 15f;
+
+    /// <summary>Server uptime of that reading — by the hazard scan or by the effects' own look. Never read yet = −∞.</summary>
+    public double AmbientTemperatureReadAt { get; set; } = double.NegativeInfinity;
+
+    /// <summary>Countdown to the next correction of the client's effect countdown while an effect runs out faster in the
+    /// heat or the cold (#2218) — the client counts at plain speed between two updates.</summary>
+    public double EffectSyncIn { get; set; }
+
     // --- Exposure meter (2026-09, Titas): scanned at ~1 Hz with the temperature, applied every tick ---
 
     /// <summary>True while the meter runs (on foot outside on a timed-exposure type) — sent to the HUD.</summary>

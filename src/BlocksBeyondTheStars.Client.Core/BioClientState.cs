@@ -36,7 +36,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Every species the player holds a sample of or has analysed.</summary>
         public IReadOnlyDictionary<uint, NetBioSpecies> Species => _species;
 
-        /// <summary>Signatures of the mixes the player has tried (<see cref="Synthesis.Signature"/>).</summary>
+        /// <summary>Signatures of the mixes the player has tried (<see cref="Synthesis.Signature"/>). A mix a detoxifier
+        /// washed is its own entry — its signature is the one built with <c>washed: true</c>.</summary>
         public IReadOnlyCollection<string> Reactions => _reactions;
 
         /// <summary>The tools and gear the player has changed, as "base key|payload".</summary>
@@ -164,7 +165,9 @@ namespace BlocksBeyondTheStars.Client
 
         public bool Analysed(uint seed) => _species.TryGetValue(seed, out var s) && s.Analysed;
 
-        /// <summary>Whether a mix with this signature has been tried — then the lab may show its result before mixing.</summary>
+        /// <summary>Whether a mix with this signature has been tried — then the lab may show its result before mixing.
+        /// The washed and the unwashed mix of the same inputs are two signatures with two results: ask for the one
+        /// whose result is about to be shown.</summary>
         public bool Knows(string signature) => _reactions.Contains(signature);
 
         /// <summary>The register entry of a species as far as the client knows it (no animal snapshot, no plant genome).</summary>

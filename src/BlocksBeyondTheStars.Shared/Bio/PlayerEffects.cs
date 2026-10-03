@@ -100,18 +100,54 @@ public static class PlayerEffects
     public static float ThermalBonus(IReadOnlyList<ActiveEffect>? effects, bool hot)
         => Of(effects, hot ? BioEffect.HeatWard : BioEffect.ColdWard);
 
+    /// <summary>Whether a running effect takes the weather — a heat- or a cold-sensitive one. Only then does
+    /// <see cref="Tick"/> read its temperature at all, so the server looks the temperature up for these players only
+    /// (#2218).</summary>
+    public static bool AnyThermal(IReadOnlyList<ActiveEffect>? effects)
+    {
+        // By index: this is asked every tick for every player under an effect, and must not cost an enumerator.
+        for (int i = 0; effects is not null && i < effects.Count; i++)
+        {
+            if (effects[i].Thermal != BioThermal.Stable && effects[i].SecondsLeft > 0f)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a running effect runs out faster at this temperature right now — a heat-sensitive one in the heat,
+    /// a cold-sensitive one in the cold. While that lasts a client that counts the seconds down by itself drifts, so the
+    /// server tells it the true time now and then.</summary>
+    public static bool AnyStressed(IReadOnlyList<ActiveEffect>? effects, float temperatureC)
+    {
+        for (int i = 0; effects is not null && i < effects.Count; i++)
+        {
+            if (effects[i].SecondsLeft > 0f && Stressed(effects[i], temperatureC))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool Stressed(ActiveEffect e, float temperatureC)
+        => (e.Thermal == BioThermal.HeatSensitive && temperatureC > BioRules.HotAbove)
+           || (e.Thermal == BioThermal.ColdSensitive && temperatureC < BioRules.ColdBelow);
+
     /// <summary>Drops the effects whose time is up and counts the rest down. A heat-sensitive effect runs out
     /// <see cref="BioRules.ThermalDecay"/> times as fast in the heat, a cold-sensitive one in the cold. Returns true when
-    /// an effect ended (the set changed).</summary>
+    /// an effect ended (the set changed). <paramref name="temperatureC"/> is the air the player is really in — the cabin's
+    /// aboard a ship, the world's outside (#2218); it is not read when no effect is thermal (<see cref="AnyThermal"/>).</summary>
     public static bool Tick(List<ActiveEffect> effects, float dt, float temperatureC)
     {
         bool ended = false;
         for (int i = effects.Count - 1; i >= 0; i--)
         {
             var e = effects[i];
-            bool stressed = (e.Thermal == BioThermal.HeatSensitive && temperatureC > BioRules.HotAbove)
-                || (e.Thermal == BioThermal.ColdSensitive && temperatureC < BioRules.ColdBelow);
-            e.SecondsLeft -= stressed ? dt * BioRules.ThermalDecay : dt;
+            e.SecondsLeft -= Stressed(e, temperatureC) ? dt * BioRules.ThermalDecay : dt;
             if (e.SecondsLeft <= 0f)
             {
                 effects.RemoveAt(i);

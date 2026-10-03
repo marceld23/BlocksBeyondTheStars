@@ -36,13 +36,21 @@ public sealed partial class GameServer
            + Shared.Bio.GearMods.Bonus(WornKeys(p), Shared.Bio.ModStat.Oxygen);
 
     /// <summary>Best carried thermal insulation 0..0.9 (#669); only the BEST piece counts. A heat ward counts in the heat,
-    /// a cold ward in the cold (#2202).</summary>
+    /// a cold ward in the cold (#2202) — judged by the air the player is really in (#2218), and looked up only for a
+    /// player who has a ward running.</summary>
     private float ThermalInsulation(PlayerState p)
     {
-        float temperature = FindSessionByPlayerId(p.PlayerId)?.EffectiveTemperatureC ?? 15f;
-        float ward = temperature > Shared.Bio.BioRules.HotAbove ? Shared.Bio.PlayerEffects.ThermalBonus(p.Effects, hot: true)
-            : temperature < Shared.Bio.BioRules.ColdBelow ? Shared.Bio.PlayerEffects.ThermalBonus(p.Effects, hot: false)
-            : 0f;
+        float heatWard = Shared.Bio.PlayerEffects.ThermalBonus(p.Effects, hot: true);
+        float coldWard = Shared.Bio.PlayerEffects.ThermalBonus(p.Effects, hot: false);
+        float ward = 0f;
+        if ((heatWard > 0f || coldWard > 0f) && FindSessionByPlayerId(p.PlayerId) is { } session)
+        {
+            float temperature = AmbientTemperature(session);
+            ward = temperature > Shared.Bio.BioRules.HotAbove ? heatWard
+                : temperature < Shared.Bio.BioRules.ColdBelow ? coldWard
+                : 0f;
+        }
+
         return System.Math.Min(SuitEquipment.MaxThermalInsulation,
             SuitEquipment.ThermalInsulation(_content.Items.Values, key => Wears(p, key))
             + Shared.Bio.GearMods.Bonus(WornKeys(p), Shared.Bio.ModStat.Insulation) + ward);
