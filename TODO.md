@@ -102,8 +102,9 @@ read by a second agent, and corrected.
 - **⚠ Open (found, not fixed here):** crates, the base core, rail pylons and crafting-station blocks do nothing
   when built into a ship and get no notice; which auto-drill or sender is over a cap after a reload follows the
   store's row order; `/give` of a blank sample answers with the catalog's wording; #2233 (leaving the interior
-  of a self-built ship that can no longer fly strands the pilot — older code, found by the final review). And
-  the playtest of #2213 itself.
+  of a self-built ship that can no longer fly strands the pilot — older code, found by the final review); #2235
+  (the station staff timer is still server-wide; one world generator per loaded world would close the last gap
+  inside a tick). And the playtest of #2213 itself.
 
 ---
 
