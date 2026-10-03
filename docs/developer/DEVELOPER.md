@@ -230,9 +230,11 @@ One command produces a fully self-contained singleplayer/multiplayer client:
 It runs these steps:
 
 1. **Sync shared libs + content** (`scripts/sync-client-libs.ps1`) — `dotnet publish`es
-   `BlocksBeyondTheStars.Shared`, `.WorldGeneration`, `.Networking` and `.Client.Core` (netstandard2.1) with
-   their NuGet dependencies (MessagePack, LiteNetLib, …) and copies the DLLs into
-   `client/Assets/Plugins/`. It also copies `data/*` (blocks, items, recipes, locales, …)
+   `BlocksBeyondTheStars.Shared`, `.WorldGeneration`, `.Networking` and `.Client.Core` (netstandard2.1) and the
+   netstandard2.1 flavour of `.Persistence` and `.GameServer` (the browser build runs the real server
+   in-process) with their NuGet dependencies (MessagePack, LiteNetLib, …) and copies the DLLs into
+   `client/Assets/Plugins/`. On a checkout whose `Plugins/` has no `Velopack.dll` yet it then runs
+   `scripts/sync-velopack-libs.ps1` once (the in-app updater's runtime). It also copies `data/*` (blocks, items, recipes, locales, …)
    into `client/Assets/StreamingAssets/data/`, and the background-music library `client/Music/*.mp3`
    into `client/Assets/StreamingAssets/music/` (kept outside `Assets/` and streamed on demand by
    `ClientMusic`, so the WebGL player data file no longer carries 164 MB of songs — #1167).

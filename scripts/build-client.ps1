@@ -4,9 +4,9 @@
 
 .DESCRIPTION
   Runs the bundled BuildScript.BuildWindows editor method headless. It generates the launcher
-  scene if needed and writes the player to the output folder. The two prerequisites — syncing the
-  shared libs/content and publishing the bundled server — now run automatically, so a
-  self-contained singleplayer .exe is a single command:
+  scene if needed and writes the player to the output folder. The prerequisites — syncing the
+  shared libs/content, vendoring the Velopack runtime when it is missing, and publishing the
+  bundled server — run automatically, so a self-contained singleplayer .exe is a single command:
 
       ./scripts/build-client.ps1
 
@@ -37,6 +37,11 @@ $project = Join-Path $repo 'client'
 if (-not $SkipPrereqs) {
     Write-Host "Prerequisites: syncing shared libs/content + publishing the bundled server..." -ForegroundColor Cyan
     & (Join-Path $PSScriptRoot 'sync-client-libs.ps1')
+    # The in-app updater needs the Velopack runtime in Plugins (git-ignored). The step only adds what is
+    # missing, so it runs once per checkout or worktree — after the shared libs, which own the System.* facades.
+    if (-not (Test-Path (Join-Path $project 'Assets/Plugins/Velopack.dll'))) {
+        & (Join-Path $PSScriptRoot 'sync-velopack-libs.ps1')
+    }
     & (Join-Path $PSScriptRoot 'publish-local-server.ps1')
 }
 

@@ -20,8 +20,10 @@ and copy the data-driven content into `StreamingAssets`:
 ```
 
 This places `BlocksBeyondTheStars.Shared.dll`, `BlocksBeyondTheStars.WorldGeneration.dll`,
-`BlocksBeyondTheStars.Networking.dll` (and their dependencies) into `Assets/Plugins/`, and the
-`data/` content (definitions + `locales/`) into `Assets/StreamingAssets/data/`.
+`BlocksBeyondTheStars.Networking.dll`, `BlocksBeyondTheStars.Client.Core.dll` and the netstandard2.1
+flavour of `BlocksBeyondTheStars.Persistence.dll` and `BlocksBeyondTheStars.GameServer.dll` (and their
+dependencies) into `Assets/Plugins/`, and the `data/` content (definitions + `locales/`) into
+`Assets/StreamingAssets/data/`.
 
 > If Unity reports a duplicate of a `System.*` assembly it already ships, delete that one
 > DLL from `Assets/Plugins/`.
@@ -29,7 +31,8 @@ This places `BlocksBeyondTheStars.Shared.dll`, `BlocksBeyondTheStars.WorldGenera
 ### Singleplayer hosting (optional but recommended)
 
 "Singleplayer" launches the bundled dedicated server as a child process bound to loopback
-(Option A — `GameServer`/`Persistence` are net10.0 + native SQLite and can't run inside Unity).
+(Option A — the desktop server is the net10.0 build with native SQLite; the netstandard2.1 flavour in
+`Plugins/` is what the browser build runs in-process).
 Publish the server into the client once:
 
 ```powershell
