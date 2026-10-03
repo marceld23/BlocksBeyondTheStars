@@ -456,9 +456,10 @@ public sealed partial class GameServer
 
         if (intent.Mine)
         {
-            if (!cells.TryGetValue(pos, out var existing) || IsDoorBlockId(existing))
+            if (!cells.TryGetValue(pos, out var existing) || existing.IsAir || IsDoorBlockId(existing))
             {
-                // Door cells are air in the structure; the aim ray can't target them anyway.
+                // Door cells are air in the structure; the aim ray can't target them anyway. A hole a removed
+                // block type left behind (#2221) is nothing to mine either.
                 Reject(session, "structure", "@srv.structure.nothing");
                 return;
             }
@@ -471,9 +472,10 @@ public sealed partial class GameServer
                 SendInventory(session);
             }
 
-            if (cells.Count == 0)
+            if (HullCellCount(cells) == 0)
             {
-                // The last block came out: the construction is dismantled and the fleet entry goes with it
+                // The last block came out (holes of removed block types do not count, #2221): the construction is
+                // dismantled and the fleet entry goes with it
                 // (the persisted ship row is orphaned — RestoreFleet only loads ids in the fleet index).
                 session.Ships.Remove(uc.Id);
                 PersistFleet(session);
@@ -502,7 +504,10 @@ public sealed partial class GameServer
             return;
         }
 
-        if (cells.ContainsKey(pos))
+        // A hole a removed block type left behind (#2221) is free space and nothing to attach to.
+        bool Built(Vector3i c) => cells.TryGetValue(c, out var b) && !b.IsAir;
+
+        if (Built(pos))
         {
             Reject(session, "structure", "@srv.place.not_empty");
             return;
@@ -517,12 +522,12 @@ public sealed partial class GameServer
 
         // Attached to the existing build (6-neighbourhood over the blob, doors included — a lintel above a
         // door opening is legal), so no floating shards.
-        bool attached = cells.ContainsKey(new Vector3i(pos.X + 1, pos.Y, pos.Z))
-            || cells.ContainsKey(new Vector3i(pos.X - 1, pos.Y, pos.Z))
-            || cells.ContainsKey(new Vector3i(pos.X, pos.Y + 1, pos.Z))
-            || cells.ContainsKey(new Vector3i(pos.X, pos.Y - 1, pos.Z))
-            || cells.ContainsKey(new Vector3i(pos.X, pos.Y, pos.Z + 1))
-            || cells.ContainsKey(new Vector3i(pos.X, pos.Y, pos.Z - 1));
+        bool attached = Built(new Vector3i(pos.X + 1, pos.Y, pos.Z))
+            || Built(new Vector3i(pos.X - 1, pos.Y, pos.Z))
+            || Built(new Vector3i(pos.X, pos.Y + 1, pos.Z))
+            || Built(new Vector3i(pos.X, pos.Y - 1, pos.Z))
+            || Built(new Vector3i(pos.X, pos.Y, pos.Z + 1))
+            || Built(new Vector3i(pos.X, pos.Y, pos.Z - 1));
         if (!attached)
         {
             Reject(session, "structure", "@srv.structure.no_anchor");
@@ -641,13 +646,13 @@ public sealed partial class GameServer
     {
         var ship = _ship;
         var cells = ParseCustomCells(ship.BuiltCells);
-        if (!cells.TryGetValue(pos, out var existing))
+        if (!cells.TryGetValue(pos, out var existing) || existing.IsAir)
         {
             Reject(session, "structure", "@srv.structure.nothing");
             return;
         }
 
-        if (cells.Count <= 1)
+        if (HullCellCount(cells) <= 1)
         {
             Reject(session, "structure", "@srv.structure.hull_protected");
             return;

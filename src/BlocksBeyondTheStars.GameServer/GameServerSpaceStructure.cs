@@ -666,11 +666,22 @@ public sealed partial class GameServer
     /// becomes a world when it is boarded and has its own rule (<see cref="RefusedOnStationSpacewalk"/>).</summary>
     private void NoteShipDecor(PlayerSession session, BlockDefinition def)
     {
-        if (NeedsWorldGrid(def))
+        if (!NeedsWorldGrid(def))
         {
-            ShipAiHintOnce(session, "ship_decor");
+            return;
+        }
+
+        // The once-flag of a VEGA hint, but sent as a system line (kind 3): a player who switched VEGA's hints off
+        // still has to learn why the block does nothing — a muted hint would burn the flag unseen.
+        var p = session.State;
+        if (p.Milestones.Add(ShipDecorMilestone))
+        {
+            _repo.SavePlayer(p);
+            SendVegaLine(session, "vega.hint.ship_decor", 3);
         }
     }
+
+    private const string ShipDecorMilestone = "vega:hint:ship_decor";
 
     /// <summary>#2219: a block the world place handler has to REGISTER before it does anything — a conduit and every
     /// Crystal Net device (their net cell), a radio beacon and a beam pad (their named entry), a water spout and a

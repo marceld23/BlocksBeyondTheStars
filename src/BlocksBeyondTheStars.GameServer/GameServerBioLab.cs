@@ -31,11 +31,18 @@ public sealed partial class GameServer
     /// "Inside a ship" is the cabin of the temperature the effects feel (see <c>AmbientTemperature</c>) without the
     /// station: aboard the ship, or inside a landed ship's hull — anyone's, a visitor has no aboard flag of their
     /// own. A station deck is no ship: a lab on a station works for whoever stands on that deck.
+    /// <para>
+    /// The aboard flag only says "in the cabin" where the player's ship stands: in a world without a placed ship
+    /// it keeps its default (true) and is never updated, so there it must not count — or the lab would be refused
+    /// everywhere. A pilot in flight is in the cabin whatever the flag and the stale on-foot position say.
+    /// </para>
     /// </summary>
     private bool AtBioLab(PlayerState p)
     {
-        bool insideShip = !p.InEva && (p.AboardShip || ShipInteriorContains(p.Position));
-        return !insideShip && NearStationBlock(p, BioItems.Lab);
+        bool cabin = (p.AboardShip && _worlds.Active.LandedFor(p.PlayerId).Placed)
+            || ShipInteriorContains(p.Position)
+            || InSpace(p.PlayerId);
+        return !(cabin && !p.InEva) && NearStationBlock(p, BioItems.Lab);
     }
 
     /// <summary>A lab function a player may use: always in a creative world, otherwise once its blueprint is researched.</summary>

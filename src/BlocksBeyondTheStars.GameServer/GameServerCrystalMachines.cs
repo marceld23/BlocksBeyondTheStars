@@ -906,7 +906,8 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>A clone left the world for good — it was defeated, or tamed and is a companion now: its tank forgets
+    /// <summary>A clone left the world for good — it was defeated, burnt, brought down by a sentry post, or tamed and
+    /// is a companion now: its tank forgets
     /// it, so it does not stand beside the tank again after the next reload. Called once the animal has left the
     /// creature list; a no-op for anything that is no clone.</summary>
     private void ForgetClone(CombatEntity creature)
@@ -931,8 +932,8 @@ public sealed partial class GameServer
     /// <item><b>What its owner may pick.</b> The choices ride in the device list, and that only goes out when the net
     /// is marked dirty. A sample gained or spent (a harvest, the sampler, the lab, this tank) or a new scan marks
     /// nothing — so the tank compares a signature of its owner's choices with the one it last saw.</item>
-    /// <item><b>Which of its clones live.</b> A clone lost in a way that passes <see cref="ForgetClone"/> by (fire,
-    /// a sentry post, a pen built around a sleeper) leaves the list all the same. The clones that wait are no part of
+    /// <item><b>Which of its clones live.</b> A clone lost in a way that passes <see cref="ForgetClone"/> by (a pen
+    /// built around a sleeper, any removal without its own hook) leaves the list all the same. The clones that wait are no part of
     /// this count: they were never beside the tank in this residency, so nothing here can have lost them.</item>
     /// </list></summary>
     private void WatchCloneTank(ServerCrystalCell tank)

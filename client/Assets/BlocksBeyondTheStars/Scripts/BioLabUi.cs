@@ -103,10 +103,13 @@ namespace BlocksBeyondTheStars.Client
         /// aboard — its own flag, which it derives from where the player stands in their ship (the landed cabin, the
         /// floating interior, a sealed extension) — or stands in the hull of any ship parked on this world (a visitor
         /// has no aboard flag of their own); a spacewalk is neither. The prompt, E and the panel follow the same
-        /// rule, so nothing is offered that would then be refused.
+        /// rule, so nothing is offered that would then be refused. The aboard flag only counts where the player's
+        /// ship stands (the server sent its placement): in a world without a placed ship the flag keeps its default
+        /// and would refuse the lab everywhere. A pilot in flight is in the cabin whatever the flag says.
         /// </summary>
         public static bool RefusedAboard(GameBootstrap game)
-            => game != null && !game.InEva && (game.Aboard || InLandedHull(game, game.PlayerPosition));
+            => game != null && !game.InEva
+               && ((game.Aboard && game.ShipPosition.HasValue) || game.InSpace || InLandedHull(game, game.PlayerPosition));
 
         /// <summary>Whether a position lies in the hull of a ship parked on this world. An open construction frame is
         /// no hull (the server does not count it as a ship interior either).</summary>

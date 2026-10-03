@@ -653,6 +653,29 @@ public sealed class BioFixFollowUpTests : IDisposable
             server.BioReactionsForTest(p.State.PlayerId));
     }
 
+    /// <summary>In a world without a placed ship the aboard flag keeps its default (true) and is never updated. It
+    /// must not count there, or the lab would be refused everywhere on such a server.</summary>
+    [Fact]
+    public void InAWorldWithoutAPlacedShip_TheLabAnswers_WhateverTheAboardFlagSays()
+    {
+        var t = new NpcLifeWorld.RecordingTransport();
+        var server = NewServer("lab_shipless", transport: t);
+        Assert.False(server.HasShip);
+        var p = server.AddLocalPlayer("Walker");
+        Assert.True(p.State.AboardShip); // the default nobody clears here
+
+        var at = new Vector3f(40.5f, 200f, 40.5f);
+        p.State.Position = at;
+        server.World.SetBlock(new Vector3i(42, 200, 40), Block(BioItems.Lab));
+        uint seed = server.GiveCreatureSampleForTest(p, Venomous(), 2);
+
+        server.BioLabForTest(p, new BioLabIntent { Action = BioLabIntent.Analyse, Sample = seed });
+
+        var result = SentTo<BioLabResult>(t, p).Last();
+        Assert.True(result.Success, result.MessageKey);
+        Assert.True(server.BioAnalysedForTest(p.State.PlayerId, seed));
+    }
+
     // ---------------- 8. The air of a void world ----------------
 
     /// <summary>A station deck is a void world: the temperature its environment reports and the temperature the status
