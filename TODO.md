@@ -77,7 +77,7 @@ read by a second agent, and corrected.
   `AdminCommandFixTests`, `SaveCompatibilityTests`, `ContentFingerprintTests` (+ a client test); the PostgreSQL
   tests ran once locally against postgres:16.
 - **⚠ Open (found, not fixed here):** the species tables (`_speciesRoster`, `_speciesById`) are server-wide, not per
-  world — with two resident worlds the first world's wildlife runs on the other world's roster (follow-up issue);
+  world — with two resident worlds the first world's wildlife runs on the other world's roster (#2226);
   crates, the base core, rail pylons and crafting-station blocks are still accepted as dead ship cells; which
   auto-drill or sender is over a cap after a reload follows the store's row order. And the playtest of #2213 itself.
 
