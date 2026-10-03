@@ -55,6 +55,10 @@ about 3.3 MB, bundled into every build and prefetched by the browser client befo
   as glossary, and the 25 sensitive posts per language (children, school club, licence, child safety, story) got a
   second, native-level editor pass that fixed real errors (gender, address form, meaning). New release posts follow with
   `export_whatsnew.py --languages-only` once they are translated for the blog.
+- **✅ Routine documented:** AGENTS.md (release section) describes how a new release post reaches the twelve other
+  languages — the git-ignored blog-sync tooling (`sync.py plan → prep → workflow → finish --apply --whatsnew-repo`)
+  translates and publishes it on the blog and writes the language files for a PR; TRANSLATION_GUIDE.md and
+  data-online/README.md point there. `export_whatsnew.py` now defaults to that tooling's store.
 - **✅ Tests:** `WhatsNewContentTests` checks every language file (a game language other than de/en, versions exist in
   the feed, no empty text, unique and newest first; no completeness check on purpose). Edit-mode
   `WhatsNewLanguageEditModeTests` pins the fallback rules.

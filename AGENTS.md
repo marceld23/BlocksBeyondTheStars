@@ -216,16 +216,26 @@ exists in BOTH languages.
 `data/whatsnew.json` carries German and English, and only those two gate a release. The other twelve
 languages live in [data-online/whatsnew/](data-online/README.md)`<code>.json` (#2227): the client fetches
 the player's language file online and lays it over the feed by version, and anything missing reads
-English. Those files follow the devblog translations and are **never release-blocking** — refresh them
-whenever translated release posts exist:
+English. Those texts are the devblog posts in the twelve other website languages, so they come from
+the **devblog translation** and are **never release-blocking**. After the DE+EN release post is live on
+the blog (same session, after the tag is fine), bring it into the other languages:
 
-```bash
-python tools/devblog/export_whatsnew.py --languages-only --translations <translation store>
-```
+1. In the main checkout, `cd analysis/devblog-mehrsprachig-2026-10-03` — the translation tooling and its
+   state. It is **git-ignored on purpose** (website-internal data, Wix credentials via `tools/devblog/.env`)
+   and exists only on the maintainer's machine; its `README.md` has the details.
+2. `uv run sync.py plan`, then `uv run sync.py prep` — prints a JSON line.
+3. Run the Workflow `analysis/devblog-mehrsprachig-2026-10-03/sync.workflow.js` with that JSON as args
+   (Sonnet translates with the game's `data/locales/<code>.json` as glossary; posts about children, the
+   school club, licences, child safety or the story get a second reviewer pass).
+4. `uv run sync.py finish --apply --whatsnew-repo <worktree on a fresh branch from main>` — publishes the
+   twelve blog posts with the German post's date and writes `data-online/whatsnew/<code>.json` into that
+   worktree; commit them through a PR (`feat(whatsnew): …`).
 
-(needs no private drafts; it merges into the committed files and never shrinks them). The translation
-store is git-ignored working data like the drafts. Do not hand-edit the language files, and do not add
-`title_<code>` fields to `data/whatsnew.json` — the export overwrites that file at every release.
+`plan` also reports DE/EN posts edited after they were translated (`prep --stale` re-translates them).
+Without the tooling, `python tools/devblog/export_whatsnew.py --languages-only --translations <store>`
+rebuilds the language files from any translation store (it merges into the committed files and never
+shrinks them). Do not hand-edit the language files, and do not add `title_<code>` fields to
+`data/whatsnew.json` — the export overwrites that file at every release.
 
 That triggers three jobs: a GameCI Linux Docker job cross-builds the `StandaloneWindows64` player (Mono
 backend), then a `windows-latest` job builds the launcher and runs `scripts/publish-client-installer.ps1 -Msi`

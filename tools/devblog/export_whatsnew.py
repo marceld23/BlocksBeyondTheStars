@@ -16,8 +16,9 @@ The other twelve languages
 German and English live in data/whatsnew.json. Every other language gets one file,
 data-online/whatsnew/<code>.json, which the client fetches online for the player's language and
 lays over the feed by version (see data-online/README.md — that folder is deliberately not bundled).
-The texts come from the devblog translation store: one JSON file per translated post in
-<translations>/<code>/, carrying at least
+The texts come from the devblog translation store — by default the built posts of the git-ignored
+blog-sync tooling, analysis/devblog-mehrsprachig-2026-10-03/out/<code>/ in the main checkout (see the
+release section of AGENTS.md) — one JSON file per translated post, carrying at least
 
     {"version": "2026.10.3", "title": "Version 2026.10.3 – …", "markdown": "…post body…"}
 
@@ -158,7 +159,8 @@ def main() -> int:
     ap.add_argument("--source-dir", type=Path, default=script_dir,
                     help="directory holding devblog-artikel.md + devblog-artikel-en.md")
     ap.add_argument("--out", type=Path, default=repo / "data" / "whatsnew.json")
-    ap.add_argument("--translations", type=Path, default=script_dir / "i18n",
+    ap.add_argument("--translations", type=Path,
+                    default=repo / "analysis" / "devblog-mehrsprachig-2026-10-03" / "out",
                     help="devblog translation store: <dir>/<code>/*.json (git-ignored working data)")
     ap.add_argument("--languages-out", type=Path, default=repo / "data-online" / "whatsnew",
                     help="directory of the per-language files")
