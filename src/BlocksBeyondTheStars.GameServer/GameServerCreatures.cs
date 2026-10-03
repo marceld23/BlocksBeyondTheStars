@@ -2339,6 +2339,11 @@ public sealed partial class GameServer
     /// so a test can size a large build above the terrain without streaming a hundred chunk columns first.</summary>
     public int SurfaceHeightForTest(int x, int z) => _generator.SurfaceHeight(_world.Planet, x, z);
 
+    /// <summary>Test seam (#2226): a fresh generator with this server's seed and galaxy-wide settings and no world
+    /// mode. A test configures it for one body and compares it with what the server's shared generator answers
+    /// while that body's world is the active one.</summary>
+    public BlocksBeyondTheStars.WorldGeneration.WorldGenerator FreshGeneratorForTest() => _generator.CreateSibling();
+
     /// <summary>The spawner's full reject list for the first roster species at a spot (#1314 seam).</summary>
     public bool SpawnSpotClearForTest(Vector3f at)
     {

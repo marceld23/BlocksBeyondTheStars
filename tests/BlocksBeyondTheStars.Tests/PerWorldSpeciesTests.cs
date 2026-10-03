@@ -28,7 +28,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// animals, spawner, clone tank and plants see while the other world is loaded and ticked. The rolled species ids
 /// ("sp0", "sp1", …) repeat from world to world, so every case is also the id collision case. The last section holds
 /// the same rule for what was gated on the server's uptime with one field for all worlds — the burn pass, the sentry
-/// posts — and for the Crystal Net's sent levels, keyed by net ids that repeat from world to world as well.
+/// posts — and for the Crystal Net's sent levels, keyed by net ids that repeat from world to world as well; the last
+/// case for the one terrain generator all worlds share, which has to be configured for the world the server looks at.
 /// </summary>
 public sealed class PerWorldSpeciesTests : IDisposable
 {
@@ -794,5 +795,46 @@ public sealed class PerWorldSpeciesTests : IDisposable
         Assert.NotNull(told);
         Assert.True(Assert.Single(told!.Nets).On);
         Assert.Empty(NetListsSentTo(t, visitor)); // and nobody on the other world hears of it
+    }
+
+    // ---------------- The terrain a world's systems read ----------------
+
+    /// <summary>A generator of its own for one resident world: the server's seed and galaxy settings, that world's mode.</summary>
+    private static WorldGenerator GeneratorFor(SvGameServer server, ServerWorld world)
+    {
+        var generator = server.FreshGeneratorForTest();
+        generator.SetWorldMode(world.Circumference, world.Cratered, world.LandingPadFlats, world.LocationId, world.FrontierOreBoost);
+        return generator;
+    }
+
+    /// <summary>The server has ONE generator for every resident world, and it keeps the mode (size, cratering, landing
+    /// pads, the body's own salt) of whichever world configured it last. The creature spawner, the giants and the
+    /// ground-height fallback ask it directly — so it has to follow the cursor, or a world reads another body's terrain.</summary>
+    [Fact]
+    public void TheTerrainQueriesOfAWorld_ReadThatWorldsTerrain_AfterAnotherWorldWasLoaded()
+    {
+        var server = NewServer("terrain");
+        OnFoot(server, "Keeper");
+        string home = server.ActiveLocationId;
+        LandOnAnotherWorld(server, home, "Visitor", out string other); // the generator was configured for this world last
+        var homeWorld = server.WorldAt(home)!;
+        var otherWorld = server.WorldAt(other)!;
+        var forHome = GeneratorFor(server, homeWorld);
+        var forOther = GeneratorFor(server, otherWorld);
+        var columns = new[] { (X: 40, Z: 40), (X: -300, Z: 120), (X: 1000, Z: -200), (X: 2500, Z: 77), (X: -1700, Z: -450), (X: 3333, Z: 600) };
+
+        // The two bodies are different ground: the home world's columns read in the other world's mode come out wrong.
+        Assert.Contains(columns, c => forHome.SurfaceHeight(homeWorld.Planet, c.X, c.Z) != forOther.SurfaceHeight(homeWorld.Planet, c.X, c.Z));
+
+        At(server, home);
+        Assert.All(columns, c => Assert.Equal(forHome.SurfaceHeight(homeWorld.Planet, c.X, c.Z), server.SurfaceHeightForTest(c.X, c.Z)));
+        At(server, other);
+        Assert.All(columns, c => Assert.Equal(forOther.SurfaceHeight(otherWorld.Planet, c.X, c.Z), server.SurfaceHeightForTest(c.X, c.Z)));
+
+        // And through the tick, which sets the cursor the same way: both worlds tick, turn and turn about, the other
+        // world's chunk streaming configures the generator again and again — the home world still reads its own ground.
+        Ticks(server, 2.0, 0.1);
+        At(server, home);
+        Assert.All(columns, c => Assert.Equal(forHome.SurfaceHeight(homeWorld.Planet, c.X, c.Z), server.SurfaceHeightForTest(c.X, c.Z)));
     }
 }

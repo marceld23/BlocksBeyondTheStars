@@ -99,9 +99,18 @@ public sealed class ServerWorld
         // Fully re-configure the SHARED generator for THIS world before generating (#424 S13): size,
         // airless-moon cratering, pad flattening AND the body identity (#478) together — a partial set
         // here previously left stale state of whatever world was configured last.
-        _generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost);
+        ApplyGeneratorMode();
         return Store(coord, _generator.Generate(Planet, coord));
     }
+
+    /// <summary>Configures the SHARED generator for this world: size, airless-moon cratering, pad flattening, the
+    /// body identity and the frontier ore boost, all together. Before every chunk this world generates — and
+    /// whenever the server points its cursor at this world (#2226), so that the terrain queries its systems make
+    /// directly (the creature spawner, the giants, the ground-height fallback) read this world's ground and not
+    /// that of whichever world configured the generator last. Applying the mode the generator already has is a
+    /// comparison and nothing else (#1816).</summary>
+    public void ApplyGeneratorMode()
+        => _generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost);
 
     /// <summary>#1817: takes a chunk a worker generated for this world (with this world's mode) into the cache —
     /// persisted edits are applied here, on the tick thread, exactly as <see cref="GetOrLoadChunk"/> does. A chunk
