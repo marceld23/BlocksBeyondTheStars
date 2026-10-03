@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Text.RegularExpressions;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
@@ -260,7 +261,9 @@ public sealed class ContentFingerprintTests : IDisposable
         // without sending it to a server (the codec and transport tests), and this one, which sends bad joins
         // on purpose.
         string[] exempt = { "NetCodecTests.cs", "NetworkingTests.cs", "ProtocolV4Tests.cs", "ContentFingerprintTests.cs" };
-        const string marker = "new JoinRequest";
+        // Also the namespace-qualified spelling ("new BlocksBeyondTheStars.Networking.Messages.JoinRequest"),
+        // which a plain text search for "new JoinRequest" walks past.
+        var marker = new Regex(@"new\s+(?:[\w.]+\.)?JoinRequest\b", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(5));
         var missing = new List<string>();
         foreach (string project in new[] { "BlocksBeyondTheStars.Tests", "BlocksBeyondTheStars.Client.Tests" })
         {
@@ -272,8 +275,9 @@ public sealed class ContentFingerprintTests : IDisposable
                 }
 
                 string source = File.ReadAllText(file);
-                for (int at = source.IndexOf(marker, StringComparison.Ordinal); at >= 0; at = source.IndexOf(marker, at + marker.Length, StringComparison.Ordinal))
+                foreach (Match match in marker.Matches(source))
                 {
+                    int at = match.Index;
                     int end = source.IndexOf(';', at);
                     string statement = end < 0 ? source.Substring(at) : source.Substring(at, end - at);
                     if (!statement.Contains("ContentFingerprint", StringComparison.Ordinal))
