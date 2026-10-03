@@ -476,6 +476,12 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2219: a block that only works in a world's block grid would be dead in the hull being built.
+        if (RefusedAsShipCell(session, blockDef))
+        {
+            return;
+        }
+
         if (cells.ContainsKey(pos))
         {
             Reject(session, "structure", "@srv.place.not_empty");

@@ -111,11 +111,78 @@ public sealed partial class GameServer
 
     /// <summary>Test seam (#1865): pins the WORLD clock so the LOCAL clock at longitude <paramref name="x"/> reads
     /// <paramref name="fraction"/> — tests place things at arbitrary X and must not depend on the world clock.</summary>
-    public void SetLocalDayFractionForTest(double fraction, float x)
+    public void SetLocalDayFractionForTest(double fraction, float x) => SetLocalDayFraction(fraction, x);
+
+    /// <summary>Sets the WORLD clock so that the LOCAL clock at longitude <paramref name="x"/> reads
+    /// <paramref name="fraction"/> — the inverse of <see cref="LocalDayFraction"/>.</summary>
+    private void SetLocalDayFraction(double fraction, float x)
     {
         double shift = _world.Planet?.Void == true || _world.Circumference <= 0 ? 0.0 : x / (double)_world.Circumference;
         _dayFraction = (((fraction - shift) % 1.0) + 1.0) % 1.0;
     }
+
+    /// <summary>The words <c>/settime</c> understands and the local day fraction each one means (#2220). The sky draws
+    /// sunrise at 0.25 and sunset at 0.75 (<see cref="IsNightAt"/>): "day" is the late morning every world starts at,
+    /// "night" lies past the dusk band (<see cref="IsDawnOrDuskAt"/>) with most of the night still ahead.</summary>
+    private static readonly (string Word, double Fraction)[] TimeWords =
+    {
+        ("midnight", 0.0),
+        ("dawn", 0.25),
+        ("day", InitialDayFraction),
+        ("noon", 0.5),
+        ("dusk", 0.75),
+        ("night", 0.85),
+    };
+
+    /// <summary>Reads a <c>/settime</c> argument (#2220): one of the <see cref="TimeWords"/>, an hour of the day
+    /// (1 to 24 — "6.5" is half past six, "24" midnight) or a day fraction below 1 ("0.5" is noon, "0" midnight).
+    /// A comma counts as the decimal point, the way a German keyboard types it. Returns the local day fraction and
+    /// the name the answer line shows (the word, or the clock time "18:30"); null for anything else.</summary>
+    internal static (double Fraction, string Label)? ParseTimeOfDay(string? arg)
+    {
+        string text = (arg ?? string.Empty).Trim().ToLowerInvariant();
+        foreach (var (word, fraction) in TimeWords)
+        {
+            if (text == word)
+            {
+                return (fraction, word);
+            }
+        }
+
+        // The range test is written so that "nan" (which the parser accepts) fails it too.
+        if (!double.TryParse(text.Replace(',', '.'), System.Globalization.NumberStyles.AllowDecimalPoint,
+                System.Globalization.CultureInfo.InvariantCulture, out double value)
+            || !(value >= 0.0 && value <= 24.0))
+        {
+            return null;
+        }
+
+        double local = value < 1.0 ? value : (value / 24.0) % 1.0;
+        int minutes = (int)System.Math.Round(local * 24.0 * 60.0) % (24 * 60);
+        return (local, $"{minutes / 60:00}:{minutes % 60:00}");
+    }
+
+    /// <summary>Admin <c>/settime</c> (#2220): really sets the active world's clock. The command used to write a field
+    /// nothing read and still answered "time set". The value is the LOCAL time where the admin stands — the sky is
+    /// drawn from the world clock plus the longitude (<see cref="LocalDayFraction"/>), so "night" has to mean night
+    /// HERE, not on the far side of the world. Everyone in this world gets the new environment at once instead of
+    /// with the next heartbeat. False (and nothing changed) when the argument is no time; <paramref name="label"/>
+    /// is what the answer line names.</summary>
+    private bool AdminSetTime(PlayerSession session, string? arg, out string label)
+    {
+        if (ParseTimeOfDay(arg) is not { } time)
+        {
+            label = string.Empty;
+            return false;
+        }
+
+        label = time.Label;
+        SetLocalDayFraction(time.Fraction, session.State.Position.X);
+        _sinceEnvBroadcast = 0;
+        BroadcastEnvironment();
+        return true;
+    }
+
     public string Weather => _weatherState;
     public int SunColor => _sunColor;
 
