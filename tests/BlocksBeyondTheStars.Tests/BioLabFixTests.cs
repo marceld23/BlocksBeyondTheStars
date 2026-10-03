@@ -796,6 +796,28 @@ public sealed class BioLabFixTests : IDisposable
     }
 
     [Fact]
+    public void WhileAnEffectRunsOutFaster_TheClientIsToldTheTrueTime_AlsoWhereNoVitalMoves()
+    {
+        // Sandbox: no vital ever moves, so no update would correct the client's own countdown.
+        var transport = new RecordingTransport();
+        var server = NewServer("sync", "ice", c => c.Rules.GameMode = GameMode.Creative, transport);
+        var calm = Player(server, "Calm", Outside);
+        var hurried = Player(server, "Hurried", Outside);
+        Ticks(server, 30); // whatever a fresh player is told at first has been told
+        server.StartEffectForTest(calm, BioEffect.Speed, 5, 100);                                        // does not mind the cold
+        server.StartEffectForTest(hurried, BioEffect.Speed, 5, 100, thermal: BioThermal.ColdSensitive); // runs out twice as fast
+        transport.Sent.Clear();
+
+        Ticks(server, 100); // ten seconds
+
+        var updates = SentTo<PlayerStateUpdate>(transport, hurried).ToList();
+        Assert.InRange(updates.Count, 4, 6); // one every two seconds
+        float told = Assert.Single(updates[^1].Effects).SecondsLeft;
+        Assert.InRange(told - Left(hurried, BioEffect.Speed), 0f, 2.2f * BioRules.ThermalDecay); // the HUD is never far off
+        Assert.Empty(SentTo<PlayerStateUpdate>(transport, calm)); // nobody else gets an extra message
+    }
+
+    [Fact]
     public void AColdWard_CountsInTheRealCold_AHeatWardDoesNot()
     {
         var server = NewServer("ward", "ice");

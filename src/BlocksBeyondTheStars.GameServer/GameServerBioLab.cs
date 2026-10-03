@@ -512,9 +512,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>One tick of a player's effects: count down (faster for a heat- or cold-sensitive one in the wrong
-    /// weather), heal and recharge. Tells the client when an effect ended. Runs before the god-mode exit of the vitals
-    /// loop and whatever the hazard rules say, so the weather it reads is its own (<see cref="AmbientTemperature"/>, #2218)
-    /// — and only looked up when a running effect is thermal at all.</summary>
+    /// weather), heal and recharge. Tells the client when an effect ended, and every couple of seconds while one runs out
+    /// faster than the client counts. Runs before the god-mode exit of the vitals loop and whatever the hazard rules
+    /// say, so the weather it reads is its own (<see cref="AmbientTemperature"/>, #2218) — and only looked up when a
+    /// running effect is thermal at all.</summary>
     private void TickBioEffects(PlayerSession session, double dt)
     {
         var p = session.State;
@@ -535,7 +536,9 @@ public sealed partial class GameServer
             p.SuitEnergy = Math.Min(100f, p.SuitEnergy + (float)(dt * energy));
         }
 
-        float temperature = PlayerEffects.AnyThermal(p.Effects) ? AmbientTemperature(session) : CabinComfortC;
+        bool thermal = PlayerEffects.AnyThermal(p.Effects);
+        float temperature = thermal ? AmbientTemperature(session) : CabinComfortC;
+        bool stressed = thermal && PlayerEffects.AnyStressed(p.Effects, temperature);
         if (PlayerEffects.Tick(p.Effects, (float)dt, temperature))
         {
             if (PlayerEffects.Of(p.Effects, BioEffect.Shield) <= 0f)
@@ -545,8 +548,26 @@ public sealed partial class GameServer
 
             LabSound(session, "bio_effect_end");
             SendPlayerState(session);
+            session.EffectSyncIn = EffectSyncSeconds;
+        }
+        else if (stressed)
+        {
+            // The client counts an effect down at plain speed between two updates. One that runs out faster in this
+            // weather drifts on its HUD — and where no vital moves (Sandbox, god mode, hazards off) no update would
+            // ever correct it, so the effect would vanish with half its time still showing. Tell the client the true
+            // time now and then while that lasts (#2218); nobody else gets an extra message.
+            session.EffectSyncIn -= dt;
+            if (session.EffectSyncIn <= 0)
+            {
+                session.EffectSyncIn = EffectSyncSeconds;
+                SendPlayerState(session);
+            }
         }
     }
+
+    /// <summary>Seconds between two corrections of the client's effect countdown while an effect runs out faster in the
+    /// heat or the cold — the HUD is never more than this far off.</summary>
+    private const double EffectSyncSeconds = 2.0;
 
     /// <summary>The shield cushion takes a hit before the health does. Returns what is left for the health.</summary>
     private static float AbsorbWithShield(PlayerState p, float damage)
