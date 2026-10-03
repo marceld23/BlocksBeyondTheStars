@@ -30,7 +30,9 @@ English. Every other game language has one file here:
 - `title` is the part after `Version X.Y.Z – ` (the dialog prints the version itself); `body` uses the
   same small markdown subset as the feed (`**bold**`, `*italic*`, `- ` bullets, `###` headings).
 
-**Do not edit these files by hand.** `tools/devblog/export_whatsnew.py` writes them from the devblog
-translations (`--languages-only` updates them without touching the feed) and merges into what is
-committed, so nothing is lost when a machine has only part of the translations.
-`WhatsNewContentTests` guards their shape.
+**Do not edit these files by hand.** They are the devblog release posts in the other website
+languages: the maintainer's blog-sync tooling translates every new DE+EN post, publishes it on the
+blog and writes these files (`sync.py finish --whatsnew-repo …`, see the release section of
+[AGENTS.md](../AGENTS.md)). `tools/devblog/export_whatsnew.py --languages-only` can rebuild them from a
+translation store; it merges into what is committed, so nothing is lost when a machine has only part of
+the translations. `WhatsNewContentTests` guards their shape.

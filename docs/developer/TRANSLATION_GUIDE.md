@@ -91,11 +91,13 @@ The picker, coverage gating, launcher splash and everything key-driven need **no
 
 - **Wiki**: add your language to each article's `title`/`body` map in
   `data/wiki/articles.json`; high-traffic articles first. Untranslated ones fall back to EN.
-- **What's New**: nothing to translate by hand. The release notes are the devblog release posts;
-  once a post is translated for the blog, `tools/devblog/export_whatsnew.py --languages-only` writes it
-  into `data-online/whatsnew/<code>.json`, which the game fetches online for the player's language
-  (see [data-online/README.md](../../data-online/README.md)). Do not add fields to
-  `data/whatsnew.json` — the export rewrites that file at every release.
+- **What's New**: nothing to translate by hand. The release notes are the devblog release posts, and
+  the devblog is translated into all twelve other website languages by the maintainer's (git-ignored)
+  blog-sync tooling, which also writes `data-online/whatsnew/<code>.json` — the files the game fetches
+  online for the player's language (routine: AGENTS.md, release section; format:
+  [data-online/README.md](../../data-online/README.md)). A new game language therefore needs the
+  website language first. Improving a translation: fix the blog post, and the next sync carries it
+  over. Do not add fields to `data/whatsnew.json` — the export rewrites that file at every release.
 - **Web portal**: `src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json` — same flat JSON as
   the game locales, translated the same way (`translate_locale.py`, see Step 6). It also feeds
   the in-game community-rules screen. `{rules}`/`{worlds}` are substitution slots and `%s` a

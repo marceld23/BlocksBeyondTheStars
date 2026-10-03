@@ -88,7 +88,7 @@ read by a second agent, and corrected.
 
 ---
 
-### 🗞️ "What's new?" in all 14 languages — one language file per language, fetched online (#2227, 2026-10-03, branch feat/whatsnew-all-languages) — ✅ done (unreleased; ⚠ playtest open, translations arrive language by language)
+### 🗞️ "What's new?" in all 14 languages — one language file per language, fetched online (#2227, 2026-10-03, branch feat/whatsnew-all-languages, PR #2228 → c768b41e; texts: branch feat/whatsnew-translations) — ✅ done (unreleased; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-03).** The devblog is being translated into the twelve other website languages; the
 in-game release notes should be extended the same way, "so that there are all languages in-game".
@@ -112,15 +112,29 @@ about 3.3 MB, bundled into every build and prefetched by the browser client befo
   post: `version`, `title`, `markdown`) and writes the language files, merged into what is committed (never shrunk).
   `--languages-only` takes the versions from the committed feed, needs no private drafts and is not a release step.
   The store is git-ignored (`tools/devblog/i18n/`).
-- **✅ First language file:** `data-online/whatsnew/fr.json` with the 2026.10.3 notes — the French pilot of the devblog
-  translation. The other releases and languages follow as the blog posts are translated.
+- **✅ All twelve language files:** `data-online/whatsnew/<code>.json` for fr, es, it, pt, nl, pl, tr, ru, uk, ja, ko and
+  zh, each with all 67 release posts in the feed (0.7.5 … 2026.10.3, 230–410 KB per language; a player downloads only
+  their own). They come from the devblog translation of 2026-10-03: all 146 devblog posts now exist in the twelve
+  website languages as linked, backdated posts. Every language was machine-translated by Claude with the game locale
+  as glossary, and the 25 sensitive posts per language (children, school club, licence, child safety, story) got a
+  second, native-level editor pass that fixed real errors (gender, address form, meaning). New release posts follow with
+  `export_whatsnew.py --languages-only` once they are translated for the blog.
+- **✅ Lyxette is male (Marcel, 2026-10-03):** the 2026.9.9 release post called him "ihr/her" (settler, fortress, wreck)
+  while 8.22 and 9.1 said "sein/his"; fixed in the DE/EN blog post and drafts, `data/whatsnew.json`, and every
+  translated mention of him in the twelve blog languages + `data-online/whatsnew/` (20 paragraphs in pt, nl, pl, ru,
+  uk, ja, zh). `export_whatsnew.py` now writes `data/whatsnew.json` with LF line endings on Windows too.
+- **✅ Routine documented:** AGENTS.md (release section) describes how a new release post reaches the twelve other
+  languages — the git-ignored blog-sync tooling (`sync.py plan → prep → workflow → finish --apply --whatsnew-repo`)
+  translates and publishes it on the blog and writes the language files for a PR; TRANSLATION_GUIDE.md and
+  data-online/README.md point there. `export_whatsnew.py` now defaults to that tooling's store.
 - **✅ Tests:** `WhatsNewContentTests` checks every language file (a game language other than de/en, versions exist in
   the feed, no empty text, unique and newest first; no completeness check on purpose). Edit-mode
   `WhatsNewLanguageEditModeTests` pins the fallback rules.
 - **Docs:** `data-online/README.md` (new), the What's-new parts of `docs/developer/TRANSLATION_GUIDE.md`, the layout
   and release section of `AGENTS.md`.
-- **Open:** playtest with the game set to French (the 2026.10.3 entry reads French, older ones English; switch the
-  language in the settings and reopen the dialog; start once without a connection). An offline copy of the language
+- **Open:** playtest with the game set to another language, e.g. French or Japanese (every release reads in that
+  language; switch the language in the settings and reopen the dialog; start once without a connection — then the
+  bundled German/English feed is shown). An offline copy of the language
   files is not planned — offline the bundled German/English feed is shown, as before.
 
 ### 🧪 The bio lab — samples with seeds, preparations with status effects, changed tools and gear, cloning and crossing (#2212: #2200–#2211, 2026-10-03, branch feat/bio-lab) — ✅ done (unreleased; ⚠ playtest open)
