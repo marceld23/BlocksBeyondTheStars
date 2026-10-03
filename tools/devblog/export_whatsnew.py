@@ -204,7 +204,7 @@ def main() -> int:
     } for v in both]
 
     args.out.write_text(json.dumps({"entries": entries}, ensure_ascii=False, indent=2) + "\n",
-                        encoding="utf-8")
+                        encoding="utf-8", newline="\n")  # LF like the rest of the repo, also on Windows
     print(f"Wrote {len(entries)} release posts ({both[-1]} … {both[0]}) to {args.out}")
     export_languages(args.translations, args.languages_out, both)
     return 0

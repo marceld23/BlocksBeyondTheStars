@@ -55,6 +55,10 @@ about 3.3 MB, bundled into every build and prefetched by the browser client befo
   as glossary, and the 25 sensitive posts per language (children, school club, licence, child safety, story) got a
   second, native-level editor pass that fixed real errors (gender, address form, meaning). New release posts follow with
   `export_whatsnew.py --languages-only` once they are translated for the blog.
+- **✅ Lyxette is male (Marcel, 2026-10-03):** the 2026.9.9 release post called him "ihr/her" (settler, fortress, wreck)
+  while 8.22 and 9.1 said "sein/his"; fixed in the DE/EN blog post and drafts, `data/whatsnew.json`, and every
+  translated mention of him in the twelve blog languages + `data-online/whatsnew/` (20 paragraphs in pt, nl, pl, ru,
+  uk, ja, zh). `export_whatsnew.py` now writes `data/whatsnew.json` with LF line endings on Windows too.
 - **✅ Routine documented:** AGENTS.md (release section) describes how a new release post reaches the twelve other
   languages — the git-ignored blog-sync tooling (`sync.py plan → prep → workflow → finish --apply --whatsnew-repo`)
   translates and publishes it on the blog and writes the language files for a PR; TRANSLATION_GUIDE.md and
