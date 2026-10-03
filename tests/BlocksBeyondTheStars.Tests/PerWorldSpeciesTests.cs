@@ -65,12 +65,17 @@ public sealed class PerWorldSpeciesTests : IDisposable
 
         public List<(int Conn, object Msg)> Sent { get; } = new();
 
+        /// <summary>Called on every per-connection send, before it is recorded. The server sends from inside its
+        /// tick, so this is where a test reads what the server's state is in the middle of one.</summary>
+        public Action<int, object>? OnSend { get; set; }
+
         public void Start(int port) { }
 
         public void Send(int connectionId, byte[] payload, DeliveryMode mode)
         {
             if (NetCodec.Decode(payload) is { } m)
             {
+                OnSend?.Invoke(connectionId, m);
                 Sent.Add((connectionId, m));
             }
         }
@@ -658,6 +663,29 @@ public sealed class PerWorldSpeciesTests : IDisposable
     }
 
     [Fact]
+    public void TheFirstBurnPassOfAWorld_BurnsNothing_AlsoWhenAnotherWorldHasBurnedBefore()
+    {
+        var server = NewServer("burnfirst");
+        OnFoot(server, "Keeper");
+        string home = server.ActiveLocationId;
+        Ticks(server, 3.0, 0.1); // the home world has had its burn passes, the uptime is well past one burn step
+        var visitor = LandOnAnotherWorld(server, home, "Visitor", out string other);
+        var beast = AnimalInLava(server, other, visitor, out var at);
+        float full = beast.Hull;
+
+        // The other world's first pass has no interval yet: it only starts the clock. With one "primed" flag for the
+        // server the home world had set it long ago, and this pass burned a full step measured from uptime zero.
+        TicksInLava(server, beast, at, 0.1);
+        At(server, other);
+        Assert.Contains(beast, server.Creatures);
+        Assert.Equal(full, beast.Hull);
+
+        TicksInLava(server, beast, at, 2.0); // and from then on it burns
+        At(server, other);
+        Assert.True(beast.Hull < full, "the animal stands in lava on the second world and loses nothing");
+    }
+
+    [Fact]
     public void AWorldThatWasNotTickedForAWhile_DoesNotBurnTheWholeGapInOnePass()
     {
         var server = NewServer("burngap");
@@ -692,7 +720,8 @@ public sealed class PerWorldSpeciesTests : IDisposable
     [Fact]
     public void TheSentryPostsOfAWorld_Fire_WhileAnotherWorldIsTickedBeforeIt()
     {
-        var server = NewServer("sentries");
+        var t = new RecordingTransport();
+        var server = NewServer("sentries", t);
         OnFoot(server, "Keeper"); // the home world: ticked first, and it has no base at all
         string home = server.ActiveLocationId;
         var visitor = LandOnAnotherWorld(server, home, "Visitor", out string other);
@@ -705,7 +734,8 @@ public sealed class PerWorldSpeciesTests : IDisposable
         server.PlaceBaseForTest(visitor, core);
         int baseId = server.BaseSnapshots.Single(b => b.OwnerId == visitor.State.PlayerId).Id;
         var post = new Vector3i(core.X + 1, core.Y, core.Z);
-        server.WorldAt(other)!.SetBlock(post, _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, visitor.State.Name);
+        var sentry = _content.GetBlock("sentry_post")!.NumericId;
+        server.WorldAt(other)!.SetBlock(post, sentry, 0, 0, 0, visitor.State.Name);
         At(server, other);
         Assert.Equal(1, server.SentryCountForTest(baseId));
         var target = new Vector3f(post.X + 4.5f, post.Y + 0.5f, post.Z + 0.5f);
@@ -715,11 +745,16 @@ public sealed class PerWorldSpeciesTests : IDisposable
         machine.Hull = machine.HullMax;
         int scans = server.SentryRescansForTest;
 
-        for (int i = 0; i < 30; i++)
+        void TicksWithTheMachineHeld(int ticks)
         {
-            machine.Position = target; // it does not get to walk out of the post's reach
-            server.TickForTest(0.1);
+            for (int i = 0; i < ticks; i++)
+            {
+                machine.Position = target; // it does not get to walk out of the posts' reach
+                server.TickForTest(0.1);
+            }
         }
+
+        TicksWithTheMachineHeld(30);
 
         At(server, other);
         Assert.Contains(machine, server.PlanetEnemies);
@@ -728,6 +763,24 @@ public sealed class PerWorldSpeciesTests : IDisposable
         // And the home world's pass left this base's cached cells alone: they were derived once in these three
         // seconds, on the first pass — not again on every pass because the other world had thrown them away.
         Assert.Equal(scans + 1, server.SentryRescansForTest);
+
+        // The rescan beat is the world's own as well. A second post goes up beside the first. The cached cells do
+        // not know it: a base is walked again ten seconds after its last walk, and nothing else adds a cell. With one
+        // rescan gate for the server the home world — ticked first — took that beat exactly as it took the firing
+        // beat, so a post built after the first walk stayed silent until its owner left the body and came back.
+        var second = new Vector3i(post.X, post.Y, post.Z + 1);
+        server.WorldAt(other)!.SetBlock(second, sentry, 0, 0, 0, visitor.State.Name);
+        At(server, other);
+        Assert.Equal(2, server.SentryCountForTest(baseId));
+        t.Sent.Clear();
+
+        TicksWithTheMachineHeld(110); // eleven seconds: past this world's next rescan beat, well short of the one after
+
+        At(server, other);
+        Assert.Contains(machine, server.PlanetEnemies);
+        var shots = t.Sent.Where(x => x.Conn == visitor.ConnectionId && x.Msg is SentryShot).Select(x => (SentryShot)x.Msg).ToList();
+        Assert.Contains(shots, s => new Vector3f(s.X, s.Y, s.Z).ToBlock().Equals(second)); // the new post fires
+        Assert.Equal(scans + 2, server.SentryRescansForTest); // after one more walk — not none, and not one per pass
     }
 
     /// <summary>A player in the air of their own world with a switch and a conduit beside them: one network, OFF.</summary>
@@ -809,12 +862,15 @@ public sealed class PerWorldSpeciesTests : IDisposable
 
     /// <summary>The server has ONE generator for every resident world, and it keeps the mode (size, cratering, landing
     /// pads, the body's own salt) of whichever world configured it last. The creature spawner, the giants and the
-    /// ground-height fallback ask it directly — so it has to follow the cursor, or a world reads another body's terrain.</summary>
+    /// ground-height fallback ask it directly — so it has to follow the cursor, or a world reads another body's terrain.
+    /// Three ways to get there: the cursor moves, the cursor stays while another world's chunk moved the generator,
+    /// and the tick itself turning from one world to the next.</summary>
     [Fact]
     public void TheTerrainQueriesOfAWorld_ReadThatWorldsTerrain_AfterAnotherWorldWasLoaded()
     {
-        var server = NewServer("terrain");
-        OnFoot(server, "Keeper");
+        var t = new RecordingTransport();
+        var server = NewServer("terrain", t);
+        var keeper = OnFoot(server, "Keeper");
         string home = server.ActiveLocationId;
         LandOnAnotherWorld(server, home, "Visitor", out string other); // the generator was configured for this world last
         var homeWorld = server.WorldAt(home)!;
@@ -822,19 +878,49 @@ public sealed class PerWorldSpeciesTests : IDisposable
         var forHome = GeneratorFor(server, homeWorld);
         var forOther = GeneratorFor(server, otherWorld);
         var columns = new[] { (X: 40, Z: 40), (X: -300, Z: 120), (X: 1000, Z: -200), (X: 2500, Z: 77), (X: -1700, Z: -450), (X: 3333, Z: 600) };
+        int[] homeGround = columns.Select(c => forHome.SurfaceHeight(homeWorld.Planet, c.X, c.Z)).ToArray();
+        int[] otherGround = columns.Select(c => forOther.SurfaceHeight(otherWorld.Planet, c.X, c.Z)).ToArray();
+        int[] ServerReads() => columns.Select(c => server.SurfaceHeightForTest(c.X, c.Z)).ToArray();
 
         // The two bodies are different ground: the home world's columns read in the other world's mode come out wrong.
-        Assert.Contains(columns, c => forHome.SurfaceHeight(homeWorld.Planet, c.X, c.Z) != forOther.SurfaceHeight(homeWorld.Planet, c.X, c.Z));
+        Assert.NotEqual(homeGround, columns.Select(c => forOther.SurfaceHeight(homeWorld.Planet, c.X, c.Z)).ToArray());
 
+        // The cursor moves: the generator moves with it.
         At(server, home);
-        Assert.All(columns, c => Assert.Equal(forHome.SurfaceHeight(homeWorld.Planet, c.X, c.Z), server.SurfaceHeightForTest(c.X, c.Z)));
+        Assert.Equal(homeGround, ServerReads());
         At(server, other);
-        Assert.All(columns, c => Assert.Equal(forOther.SurfaceHeight(otherWorld.Planet, c.X, c.Z), server.SurfaceHeightForTest(c.X, c.Z)));
+        Assert.Equal(otherGround, ServerReads());
 
-        // And through the tick, which sets the cursor the same way: both worlds tick, turn and turn about, the other
-        // world's chunk streaming configures the generator again and again — the home world still reads its own ground.
-        Ticks(server, 2.0, 0.1);
+        // The cursor stays and the generator moves all the same: a chunk generated for the other world configures it
+        // for that world. The server then turns to the home world again — the cursor already points there, nothing
+        // moves — and the home world's mode has to be applied once more.
         At(server, home);
-        Assert.All(columns, c => Assert.Equal(forHome.SurfaceHeight(homeWorld.Planet, c.X, c.Z), server.SurfaceHeightForTest(c.X, c.Z)));
+        var unseen = new ChunkCoord(otherWorld.Circumference / WorldConstants.ChunkSize / 2, 4, 0); // the far side of that body
+        Assert.False(otherWorld.IsChunkLoaded(unseen));
+        otherWorld.GetOrLoadChunk(unseen);
+        Assert.Equal(home, server.ActiveLocationId);
+        Assert.NotEqual(homeGround, ServerReads()); // the generator is the other world's now, the cursor is not
+        At(server, home);
+        Assert.Equal(homeGround, ServerReads());
+
+        // And inside the real tick, which sets the cursor the same way. Whatever the server sends the Keeper while it
+        // works on the home world leaves in the middle of that world's pass, so the generator is read right there —
+        // not after another At(), which would set it right before anything is read. (The tick contains what a system
+        // throws, an assert in here would be swallowed: the wrong reads are counted and checked afterwards.)
+        At(server, other);
+        int reads = 0;
+        int wrong = 0;
+        t.OnSend = (conn, _) =>
+        {
+            if (conn == keeper.ConnectionId && server.ActiveLocationId == home)
+            {
+                reads++;
+                wrong += ServerReads().SequenceEqual(homeGround) ? 0 : 1;
+            }
+        };
+        Ticks(server, 2.0, 0.1);
+        t.OnSend = null;
+        Assert.True(reads > 0, "nothing was sent to the home world's player from inside that world's pass");
+        Assert.Equal(0, wrong);
     }
 }
