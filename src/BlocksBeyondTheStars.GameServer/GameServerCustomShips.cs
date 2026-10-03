@@ -476,12 +476,6 @@ public sealed partial class GameServer
             return;
         }
 
-        // #2219: a block that only works in a world's block grid would be dead in the hull being built.
-        if (RefusedAsShipCell(session, blockDef))
-        {
-            return;
-        }
-
         if (cells.ContainsKey(pos))
         {
             Reject(session, "structure", "@srv.place.not_empty");
@@ -540,6 +534,9 @@ public sealed partial class GameServer
             buildPool.Remove(new[] { new ItemAmount(intent.ItemKey, 1) });
             SendInventory(session);
         }
+
+        // #2219: a block that only works in a world's block grid is decoration in the hull being built.
+        NoteShipDecor(session, blockDef);
 
         cells[pos] = blockDef.NumericId;
         CommitCustomShipCells(session, uc.Ship, rec, commissioned: false, cells, pos,
