@@ -95,7 +95,7 @@ public sealed partial class GameServer
         public int Cursor;              // auto-drill: the next cell index of its volume
         public string CloneTag = string.Empty; // clone tank: the tag its clones carry (CombatEntity.CloneOf)
         public int CloneCount;          // clone tank: its clones that live, as last counted (#2214)
-        public List<string>? CloneWaiting; // clone tank: clones its row lists that are not beside it now — not brought back yet, or not nameable in this residency (#2214)
+        public List<string>? CloneWaiting; // clone tank: clones its row lists that are not beside it yet — from the row's load to the world's first beat (#2214, #2226)
         public int ChoiceStamp;         // clone tank: a signature of what its owner may pick, as the sensor beat last saw it (#2214)
         public bool WaitTold;           // clone tank: the owner was told that the result waits for room (once per wait)
 

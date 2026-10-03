@@ -32,12 +32,16 @@ public sealed partial class GameServer
 
     private readonly HashSet<ushort> _floraIds = new();
     private readonly Dictionary<ushort, HashSet<ushort>> _floraHostIds = new();
-    private readonly Dictionary<ushort, BlocksBeyondTheStars.Shared.Definitions.FloraSpecies> _floraSpeciesByBlock = new();
+
+    // #2226: this world's flora species by block id — the active WORLD's table (see LoadedWorld.FloraSpeciesByBlock).
+    // It was the server's once: with two worlds resident a harvest, a scan or a sample on one world read the name and
+    // the edible/toxic trait the other world had rolled. The id sets around it are the content's and the same everywhere.
+    private Dictionary<ushort, BlocksBeyondTheStars.Shared.Definitions.FloraSpecies> _floraSpeciesByBlock => _worlds.Active.FloraSpeciesByBlock;
 
     // This world's tree species by block id: the trunk + leaves of the ordinary trees share one coined,
     // edible/toxic tree, the giant trees' blocks (#1783, generation 6) a second one — so a scan of a trunk or
-    // a leaf reads as the tree it belongs to (built in InitFlora; see TreeSpeciesForBlock).
-    private readonly Dictionary<ushort, BlocksBeyondTheStars.Shared.Definitions.TreeSpecies> _treeSpeciesByBlock = new();
+    // a leaf reads as the tree it belongs to (built in InitFlora; see TreeSpeciesForBlock). Per world, like the flora (#2226).
+    private Dictionary<ushort, BlocksBeyondTheStars.Shared.Definitions.TreeSpecies> _treeSpeciesByBlock => _worlds.Active.TreeSpeciesByBlock;
     private Dictionary<Vector3i, (ushort FloraId, double Timer, int Tint)> _floraRegrow => _worlds.Active.FloraRegrow;
 
     private readonly HashSet<ushort> _floraHangingIds = new(); // #1759: species whose host is the block above
@@ -49,14 +53,16 @@ public sealed partial class GameServer
     private ushort _saplingLeafId;
 
     // #2038: the fruit shapes (they regrow slowly and in their colour), this world's active ones in catalog order and
-    // the roster seed FruitRules rolls the per-kind shape and colour from — the same seed worldgen used.
+    // the roster seed FruitRules rolls the per-kind shape and colour from — the same seed worldgen used. #2226: the
+    // active ones, the guaranteed fruit and the seed are the active WORLD's (a sapling grown on one world bore the
+    // other world's fruit); the shape ids are the content's.
     private readonly HashSet<ushort> _fruitIds = new();
-    private readonly List<string> _activeFruitKeys = new();
+    private List<string> _activeFruitKeys => _worlds.Active.ActiveFruitKeys;
 
     /// <summary>#2084: the fruit this world is sure to grow on its palms and jungle trees (the type's guaranteed fruit on a
     /// generation-16 world), or null.</summary>
-    private string? _guaranteedFruit;
-    private long _fruitRosterSeed;
+    private string? _guaranteedFruit { get => _worlds.Active.GuaranteedFruit; set => _worlds.Active.GuaranteedFruit = value; }
+    private long _fruitRosterSeed { get => _worlds.Active.FruitRosterSeed; set => _worlds.Active.FruitRosterSeed = value; }
 
     private void InitFlora()
     {
@@ -499,7 +505,8 @@ public sealed partial class GameServer
     /// noise evaluations per second for nothing. Regrowth lands at most one second later than before.</summary>
     private const double FloraStepSeconds = 1.0;
 
-    private double _sinceFloraStep;
+    // #2226: per world — the tick runs once per occupied world, and a world with nothing to regrow resets the count.
+    private double _sinceFloraStep { get => _worlds.Active.SinceFloraStep; set => _worlds.Active.SinceFloraStep = value; }
 
     private void TickFlora(double dt)
     {

@@ -299,9 +299,10 @@ network (before #2092 a blocked machine latched its own control line ON).
   id or `g:<seed hex>`), and the finish releases from it, so changing `sp` while the tank grows changes
   nothing. `cl=` lists one entry per clone, comma-separated — the living ones, then the waiting ones;
   `clones=` mirrors the count, and an older row (`clones=N;sp=X`) is read as N clones of X. At load every
-  listed clone waits (`ServerCrystalCell.CloneWaiting`); `RespawnCrystalClones` brings each one back as its
-  own species, drops an entry that can never be an animal again, and keeps a native id waiting while the
-  server's species table holds another world's roster. Waiting clones count against both caps. The list
+  listed clone waits (`ServerCrystalCell.CloneWaiting`) until the world's first beat; `RespawnCrystalClones`
+  brings each one back as its own species and drops an entry that can never be an animal again. A native id
+  is read from this world's own species table — the tables are per world since #2226, see
+  `LoadedWorld.SpeciesById`. Waiting clones count against both caps. The list
   follows the living clones on release, on defeat and on taming (`ForgetClone`), and the sensor beat
   (`WatchCloneTank`) reconciles every other removal; the same beat compares `CloneChoiceStamp(owner)` and
   re-sends the device list when the owner's samples, animal scans or tames changed. A row that says

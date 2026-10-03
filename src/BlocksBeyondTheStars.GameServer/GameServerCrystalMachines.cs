@@ -778,7 +778,7 @@ public sealed partial class GameServer
     private static string CloneTankKey(Vector3i cell) => cell.X + "," + cell.Y + "," + cell.Z;
 
     /// <summary>The clones an owner's tanks hold on this world: the animals that live, and (#2214) the clones a tank's
-    /// list names that are not beside it in this residency — they come back, so they count against the cap.</summary>
+    /// list names that are not beside it yet — they come back on the world's first beat, so they count against the cap.</summary>
     private int LivingClonesOf(string ownerId)
     {
         var tanks = new HashSet<string>();
@@ -799,8 +799,10 @@ public sealed partial class GameServer
     // A clone is never persisted as an entity: its tank's config lists it. One entry per clone, each with its own
     // species, so a tank that grew a wolf, then a cross, then a plant brings back exactly the animals that were
     // alive — whatever its species setting names by then. An entry leaves the list when its animal is gone (defeated,
-    // tamed, burnt) or can never be an animal again — never because it merely could not be brought back this time:
-    // such a clone WAITS in the list (ServerCrystalCell.CloneWaiting) and is tried again on the next load.
+    // tamed, burnt) or can never be an animal again. Between the load of a tank's row and the first beat of its world
+    // the listed clones WAIT (ServerCrystalCell.CloneWaiting): they are not beside the tank yet, and they are its
+    // clones all the same — they count against the caps and stay in the row. Nothing waits longer than that (#2226:
+    // every world reads its own species table, so a native id can always be named on its own world).
 
     /// <summary>The config key of a tank's clone list: the species of every clone, separated by commas — a native
     /// species id, or <c>g:&lt;seed&gt;</c> for a guest from a sample. The living ones come first, in the order they
@@ -883,7 +885,7 @@ public sealed partial class GameServer
         tank.CloneCount = listed.Count;
         if (tank.CloneWaiting is { } waiting)
         {
-            listed.AddRange(waiting); // not here in this residency, but still this tank's clones
+            listed.AddRange(waiting); // not beside the tank yet, but still this tank's clones
         }
 
         string list = string.Join(",", listed);
@@ -933,8 +935,9 @@ public sealed partial class GameServer
     /// is marked dirty. A sample gained or spent (a harvest, the sampler, the lab, this tank) or a new scan marks
     /// nothing — so the tank compares a signature of its owner's choices with the one it last saw.</item>
     /// <item><b>Which of its clones live.</b> A clone lost in a way that passes <see cref="ForgetClone"/> by (a pen
-    /// built around a sleeper, any removal without its own hook) leaves the list all the same. The clones that wait are no part of
-    /// this count: they were never beside the tank in this residency, so nothing here can have lost them.</item>
+    /// built around a sleeper, any removal without its own hook) leaves the list all the same. The clones that wait
+    /// are no part of this count: they have not been beside the tank in this residency yet, so nothing here can have
+    /// lost them.</item>
     /// </list></summary>
     private void WatchCloneTank(ServerCrystalCell tank)
     {
@@ -962,8 +965,8 @@ public sealed partial class GameServer
 
     /// <summary>On world activation the tanks' clones come back as wild animals beside their tank (#2057): they are
     /// listed in the tank's config, never persisted as entities. #2214: each comes back as the species it was grown
-    /// as; one that cannot be named right now keeps its place in the list. Called after <c>LoadCrystalNet</c> once
-    /// the roster exists.</summary>
+    /// as. #2226: the species table is this world's own, so every entry either names an animal or never will again —
+    /// none waits past this call. Called after <c>LoadCrystalNet</c> once the roster exists.</summary>
     private void RespawnCrystalClones()
     {
         if (_world.Planet.Void)
@@ -971,9 +974,6 @@ public sealed partial class GameServer
             return;
         }
 
-        // A native species id names an animal of THIS world only while the server's species table holds this world's
-        // roster (see _speciesTableBodyId) — otherwise "sp2" is another world's animal, or nothing at all.
-        bool ownTable = _speciesTableBodyId == _world.LocationId;
         foreach (var tank in CrystalNet.Cells.Values)
         {
             if (tank.Kind != CrystalDeviceKind.CloneTank || tank.CloneWaiting is not { Count: > 0 } listed)
@@ -984,7 +984,6 @@ public sealed partial class GameServer
             string key = CloneTankKey(tank.Cell);
             var alive = _creatures.Where(c => c.CloneOf == key).Select(c => CloneToken(c.SpeciesId)).ToList();
             var at = new Vector3f(tank.Cell.X + 0.5f, tank.Cell.Y + 1f, tank.Cell.Z + 0.5f);
-            var waiting = new List<string>();
             int kept = 0;
             foreach (string token in listed)
             {
@@ -999,48 +998,36 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (ReturningClone(token, ownTable, out bool gone) is { } sp)
+                if (ReturningClone(token) is { } sp)
                 {
                     SpawnCreature(sp, CompanionSpotNear(sp, NextEntityId(), at));
                     _creatures[^1].CloneOf = key;
                     kept++;
                 }
-                else if (!gone)
-                {
-                    waiting.Add(token); // not now: it stays in the row and is tried again on the next load
-                    kept++;
-                }
             }
 
-            tank.CloneWaiting = waiting.Count > 0 ? waiting : null;
+            tank.CloneWaiting = null; // every listed clone is beside its tank now, or has left the list
             SyncTankClones(tank);
         }
     }
 
-    /// <summary>The animal a listed clone comes back as, or null. <paramref name="gone"/> says why there is none: true
-    /// for an entry that can never be an animal again — the register lost its species, it names a plant (an older
-    /// row whose species setting was a plant), it is hostile, or this world's own roster does not know the id — and
-    /// false for one that only cannot be named NOW, because the species table holds another world's roster. The
-    /// first leaves the list; the second must not, or a clone would be forgotten for a state that passes.</summary>
-    private CreatureSpecies? ReturningClone(string token, bool ownTable, out bool gone)
+    /// <summary>The animal a listed clone comes back as, or null for an entry that can never be an animal again: the
+    /// register lost its species, it names a plant (an older row whose species setting was a plant), it is hostile, or
+    /// this world's roster does not know the id. Such an entry leaves the list. A native id is read from this world's
+    /// own table (#2226), so it never names another world's animal.</summary>
+    private CreatureSpecies? ReturningClone(string token)
     {
-        gone = false;
         CreatureSpecies? sp;
         if (token.StartsWith(TankSamplePrefix, StringComparison.Ordinal))
         {
-            sp = GuestSpeciesOf(TankEntry(token)); // a guest lives in the save's register, whatever roster is loaded
-        }
-        else if (!ownTable)
-        {
-            return null;
+            sp = GuestSpeciesOf(TankEntry(token)); // a guest lives in the save's register, whatever world this is
         }
         else
         {
             _speciesById.TryGetValue(token, out sp);
         }
 
-        gone = sp is null || sp.Hostile;
-        return gone ? null : sp;
+        return sp is null || sp.Hostile ? null : sp;
     }
 
     /// <summary>A mined tank releases its clones into the normal wild population (they lose their tag).</summary>

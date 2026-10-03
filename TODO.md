@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🔧 Bio lab fix round — everything a code read of the merged feature found (#2225: #2214–#2224, 2026-10-03, branch fix/bio-lab-playtest) — ✅ done (unreleased; ⚠ playtest open)
+### 🔧 Bio lab fix round — everything a code read of the merged feature found (#2225: #2214–#2224, #2226, 2026-10-03, branch fix/bio-lab-playtest) — ✅ done (unreleased; ⚠ playtest open)
 
 **Why.** Before the first playtest of the bio lab (#2213) ten agents read the merged code and checked every claim a
 second time. They found a dozen defects in the new code and a few older gaps that the feature's two new blocks trigger
@@ -76,10 +76,15 @@ read by a second agent, and corrected.
 - **Tests:** `BioTankFixTests`, `BioLabFixTests`, `BioFixFollowUpTests`, `ShipFunctionBlockTests`,
   `AdminCommandFixTests`, `SaveCompatibilityTests`, `ContentFingerprintTests` (+ a client test); the PostgreSQL
   tests ran once locally against postgres:16.
-- **⚠ Open (found, not fixed here):** the species tables (`_speciesRoster`, `_speciesById`) are server-wide, not per
-  world — with two resident worlds the first world's wildlife runs on the other world's roster (#2226);
-  crates, the base core, rail pylons and crafting-station blocks are still accepted as dead ship cells; which
-  auto-drill or sender is over a cap after a reload follows the store's row order. And the playtest of #2213 itself.
+- **✅ Species tables per world (#2226):** found during this round — the creature species roster, the id table and
+  the movement profiles existed once per server, so with two resident worlds one world's wildlife ran on the
+  other's species (ids such as `sp0` repeat from world to world). They live on the loaded world now, like the
+  flora and tree species by block, the fruit kinds, the regrow accumulator, the gift / companion scan gates and
+  the feed-tame queue, which had the same flaw. `PerWorldSpeciesTests` runs two resident worlds (8 of its 10
+  tests fail on the old tables).
+- **⚠ Open (found, not fixed here):** crates, the base core, rail pylons and crafting-station blocks do nothing
+  when built into a ship and get no notice; which auto-drill or sender is over a cap after a reload follows the
+  store's row order. And the playtest of #2213 itself.
 
 ---
 

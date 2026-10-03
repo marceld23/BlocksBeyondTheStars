@@ -55,7 +55,8 @@ public sealed partial class GameServer
     /// <summary>The alert/produce scans run at this cadence (the hooks are cheap but need no 15 Hz).</summary>
     private const double CompanionPayoffScanInterval = 1.0;
 
-    private double _nextCompanionPayoffAt;
+    // #2226: per world — the uptime stands still inside one tick, so one gate let only the first world's companions scan.
+    private double _nextCompanionPayoffAt { get => _worlds.Active.NextCompanionPayoffAt; set => _worlds.Active.NextCompanionPayoffAt = value; }
 
     /// <summary>The owner session of a companion entity when the owner is joined, on this world, on foot or
     /// not — null when the owner is elsewhere (a pet alone on its home world does nothing for anyone).</summary>

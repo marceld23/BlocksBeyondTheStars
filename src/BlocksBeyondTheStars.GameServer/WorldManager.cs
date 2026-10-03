@@ -155,6 +155,28 @@ internal sealed class LoadedWorld
 
     // Per-world runtime state (was scattered across the GameServer partials).
     public List<CombatEntity> Creatures { get; } = new();
+
+    /// <summary>#2226: the creature species of THIS world. The roster is what the world rolled from seed and body
+    /// (plus its type's authored species, plus what an admin summon added); the id table is what its live animals
+    /// resolve through — the roster, the giants, the guest species of clones grown from samples and the snapshots of
+    /// companions; the profiles are the movement tuning per species id. The three were the server's once, refilled
+    /// for whichever world loaded last — and the rolled ids ("sp0", "sp1", …) repeat from world to world, so with
+    /// two worlds resident one world's animals ran on the other's species. Filled once per world load
+    /// (<c>InitCreatures</c>), never refilled on activation, dropped with the world. A void world's stay empty.</summary>
+    public CreatureSpecies[] SpeciesRoster { get; set; } = System.Array.Empty<CreatureSpecies>();
+    public Dictionary<string, CreatureSpecies> SpeciesById { get; } = new();
+    public Dictionary<string, LocomotionProfile> LocoProfiles { get; } = new();
+
+    /// <summary>#2226: the plant identities of THIS world, for the same reason — the flora and tree species by block id
+    /// (the coined name and the edible/toxic trait a scan, a harvest and a sample read), the fruit kinds its trees bear
+    /// in catalog order, the type's guaranteed fruit and the roster seed the fruit shapes and colours are rolled from.
+    /// Filled once per world load (<c>InitFlora</c>).</summary>
+    public Dictionary<ushort, FloraSpecies> FloraSpeciesByBlock { get; } = new();
+    public Dictionary<ushort, TreeSpecies> TreeSpeciesByBlock { get; } = new();
+    public List<string> ActiveFruitKeys { get; } = new();
+    public string? GuaranteedFruit { get; set; }
+    public long FruitRosterSeed { get; set; }
+
     public List<CombatEntity> PlanetEnemies { get; } = new();
     public List<CombatEntity> Bandits { get; } = new();               // lone robbers + camp guards on this world
     public List<BanditCampInstance> BanditCamps { get; } = new();     // 0..N stamped bandit camps
@@ -338,6 +360,20 @@ internal sealed class LoadedWorld
     public double SincePresence { get; set; }
     public double SinceEnemySync { get; set; }
     public double SinceVoidCheck { get; set; }
+
+    // #2226: the same rule for the plants and the animals. The regrow step's accumulator was one field for the whole
+    // server — a second resident world with nothing to regrow zeroed it every tick, so the first world's plants never
+    // came back. The three scans below are gated on the uptime, which stands still inside one server tick: one field
+    // let the world that is ticked first take every turn (no gifts, no growl, no produce, no scouting on the others).
+    public double SinceFloraStep { get; set; }
+    public double NextGiftScanAt { get; set; }         // the calm-flowerling gift scan (1 Hz)
+    public double NextCompanionPayoffAt { get; set; }  // companions growl, stall robbers, drop produce (1 Hz)
+    public double NextCompanionScoutAt { get; set; }   // a deeply bonded companion shares a landmark
+
+    /// <summary>#2226: the feed-tames this world's creature tick queued for its next one (the meal is eaten inside the
+    /// creature loop, the tame edits the list). One queue for the whole server was emptied by whichever world ticked
+    /// next — it did not know the animal, so the tame was dropped and the meals were gone.</summary>
+    public List<(string ThrowerId, string CreatureId, int Meals)> PendingFeedTames { get; } = new();
     public double NpcBroadcastTimer { get; set; }
     public int NextNpcId { get; set; } = 1;
     public int NextDoorId { get; set; } = 1;

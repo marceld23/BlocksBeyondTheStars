@@ -253,7 +253,8 @@ public sealed partial class GameServer
         }
     }
 
-    private double _nextCompanionScoutAt;
+    // #2226: per world, like the payoff scan — one gate for the server gave every window to the world ticked first.
+    private double _nextCompanionScoutAt { get => _worlds.Active.NextCompanionScoutAt; set => _worlds.Active.NextCompanionScoutAt = value; }
 
     /// <summary>Wall-clock unix ms — the bond clock, like <c>TamedAtUtc</c>. Overridable for tests so decay
     /// can be exercised without waiting a day.</summary>

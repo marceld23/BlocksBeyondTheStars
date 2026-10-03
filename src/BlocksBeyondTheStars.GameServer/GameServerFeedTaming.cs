@@ -19,7 +19,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private readonly List<(string ThrowerId, string CreatureId, int Meals)> _pendingFeedTames = new();
+    // #2226: the active WORLD's queue — it is filled and emptied by that world's creature tick (see LoadedWorld.PendingFeedTames).
+    private List<(string ThrowerId, string CreatureId, int Meals)> _pendingFeedTames => _worlds.Active.PendingFeedTames;
 
     /// <summary>The winner of a squabble ate <paramref name="food"/>: counts a favourite meal toward its thrower and queues the
     /// tame when the count is reached.</summary>
@@ -63,7 +64,10 @@ public sealed partial class GameServer
         {
             var session = FindSessionByPlayerId(throwerId);
             var creature = _creatures.Find(x => x.Id == creatureId && !x.IsCompanion);
-            if (session is null || creature is null || !_speciesById.TryGetValue(creature.SpeciesId, out var sp))
+            // #2226: the queue waits for this world's next creature tick, which may be a while when nobody is on foot
+            // here — a thrower who has left for another world in the meantime gets no animal.
+            if (session is null || session.CurrentLocationId != _world.LocationId || creature is null
+                || !_speciesById.TryGetValue(creature.SpeciesId, out var sp))
             {
                 continue;
             }

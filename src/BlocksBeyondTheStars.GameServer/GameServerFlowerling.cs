@@ -38,7 +38,8 @@ public sealed partial class GameServer
     private const double GiftCooldownSeconds = 45.0;
     private const double GiftScanInterval = 1.0;
 
-    private double _nextGiftScanAt;
+    // #2226: per world — the uptime stands still inside one tick, so one gate let only the first world ever scan.
+    private double _nextGiftScanAt { get => _worlds.Active.NextGiftScanAt; set => _worlds.Active.NextGiftScanAt = value; }
 
     /// <summary>The uptime of each player's last block break, per world ("locationId|playerId").</summary>
     private readonly Dictionary<string, double> _lastBlockBreakAt = new();

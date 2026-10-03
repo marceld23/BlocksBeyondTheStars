@@ -30,8 +30,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// over the cap refuses a start, a growing tank starts its wait over after a reload, the free game mode is free on
 /// both paths, a tank remembers the species of every living clone, a guest clone moves on a world without a roster,
 /// the sampler takes a giant without stasis and names a full register, and an empty seedling says so. After the review
-/// of those fixes: a clone that cannot be brought back this time keeps its place in the list, a plant cross waits
-/// until both its samples fit, a growing tank releases what it was started on and keeps its place inside the cap.
+/// of those fixes: a tank's clones come back as their own world's animals while another world is resident (#2226: the
+/// species tables are per world), the clones that are not back yet count against the cap, a plant cross waits until
+/// both its samples fit, a growing tank releases what it was started on and keeps its place inside the cap.
 /// </summary>
 public sealed class BioTankFixTests : IDisposable
 {
@@ -775,10 +776,10 @@ public sealed class BioTankFixTests : IDisposable
     }
 
     [Fact]
-    public void ClonesWhoseSpeciesCannotBeNamedNow_KeepTheirPlaceInTheList_AndComeBackOnTheNextLoad()
+    public void TheClonesOfAWorld_ComeBackAsThatWorldsAnimals_WhileAnotherWorldIsResident()
     {
         string home;
-        string[] natives;
+        string[] natives, nativeNames;
         List<string> homeRoster;
         uint guest;
         {
@@ -788,6 +789,7 @@ public sealed class BioTankFixTests : IDisposable
             home = server.ActiveLocationId;
             homeRoster = server.SpeciesRoster.Select(s => s.Name).ToList();
             natives = LandSpecies(server).Select(s => s.Id).ToArray();
+            nativeNames = LandSpecies(server).Select(s => s.Name).ToArray();
             p.State.ModeOverride = PlayerModeOverride.Creative; // a free game mode: no bait, no matter dust
             foreach (string id in natives)
             {
@@ -803,9 +805,9 @@ public sealed class BioTankFixTests : IDisposable
         }
 
         {
-            // Two worlds resident at once. The species table is the server's, not a world's: it holds the roster of the
-            // world whose fauna was set up last — the visitor's. The home world's clones are due on its first beat, and
-            // their ids ("sp0", …) name other animals now, or none.
+            // Two worlds resident at once. Each has its own species table (#2226), and the rolled ids ("sp0", …) repeat
+            // from world to world: the visitor's world — the one whose fauna was set up last — has animals behind the
+            // very ids the home tank lists. The home world's clones are due on its first beat, as the home world's animals.
             var server = NewServer(world: "twin", configure: c => c.Rules.FreeSpaceFlight = true);
             var keeper = server.AddLocalPlayer("Keeper");
             server.AddLocalPlayer("Visitor");
@@ -814,19 +816,21 @@ public sealed class BioTankFixTests : IDisposable
                 && b.Kind is CelestialKind.Planet or CelestialKind.Moon && !string.IsNullOrEmpty(b.PlanetType));
             server.Travel("Visitor", other.Id);
             Assert.NotEqual(homeRoster, server.SpeciesRoster.Select(s => s.Name).ToList());
+            Assert.All(natives, id => Assert.Contains(server.SpeciesRoster, s => s.Id == id)); // the same ids, other animals
 
-            // The world the server looks at is the one it ticked last; a travel "to where the Keeper already is" is
-            // refused, and points it at the Keeper's world again.
-            void AtHome() => server.Travel("Keeper", home);
+            // The world the server looks at is the one it ticked last; a test that means the Keeper's world says so.
+            void AtHome() => Assert.True(server.ActivateWorldForTest(home));
 
             Ticks(server, 1.0);
             AtHome();
-            Assert.Equal(home, server.ActiveLocationId);
-            Assert.Empty(Clones(server)); // no animal of the other world stands in for them
+            Assert.Equal(homeRoster, server.SpeciesRoster.Select(s => s.Name).ToList()); // the home world reads its own table
+            var back = Clones(server);
+            Assert.Equal(natives, back.Select(c => c.SpeciesId).ToArray()); // every clone is back beside its tank
+            Assert.Equal(nativeNames, back.Select(c => server.NetCreatureForTest(c.Id).Name).ToArray()); // no animal of the other world stands in for them
             Assert.Equal(natives[0] + "," + natives[1], ConfigValue(server, Tank, "cl")); // and none is forgotten
             Assert.Equal("2", ConfigValue(server, Tank, "clones"));
 
-            // A clone grown in this very residency joins the list; it does not push the waiting ones out.
+            // A clone grown in this very residency joins the list; it does not push the others out.
             var visitor = CreatureGenerator.GenerateRoster(_content.GetPlanet("jungle")!, 4711)
                 .First(s => !s.Hostile && !s.IsGiant && s.Habitat == CreatureHabitat.Land);
             guest = server.RegisterForeignCreatureForTest(visitor, "elsewhere");
@@ -839,8 +843,8 @@ public sealed class BioTankFixTests : IDisposable
             Assert.True(server.CrystalDeviceOutput(Tank), "the tank did not start");
             Ticks(server, CrystalNetRules.CloneGrowSeconds + 1.0);
             AtHome();
-            Assert.Equal("gx" + Choice(guest).Substring(2), Assert.Single(Clones(server)).SpeciesId);
-            Assert.Equal(Choice(guest) + "," + natives[0] + "," + natives[1], ConfigValue(server, Tank, "cl"));
+            Assert.Equal(new[] { natives[0], natives[1], "gx" + Choice(guest).Substring(2) }, Clones(server).Select(c => c.SpeciesId).ToArray());
+            Assert.Equal(natives[0] + "," + natives[1] + "," + Choice(guest), ConfigValue(server, Tank, "cl"));
             Assert.Equal("3", ConfigValue(server, Tank, "clones"));
             server.SaveAllForTest();
             server.Stop();

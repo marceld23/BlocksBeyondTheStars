@@ -60,15 +60,13 @@ public sealed partial class GameServer
     // run nothing else), so one walled in by the player steps out instead of standing in the block for good.
     private const double AwakeBodyCheckInterval = 2.0;
 
-    private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
+    // #2226: the species tables are the active WORLD's (see LoadedWorld.SpeciesRoster) — the rolled ids ("sp0",
+    // "sp1", …) repeat from world to world, so one table for the whole server gave a world the animals of whichever
+    // world had loaded last. Read them where they are used: a reference kept across a world switch is the old world's.
+    private CreatureSpecies[] _speciesRoster { get => _worlds.Active.SpeciesRoster; set => _worlds.Active.SpeciesRoster = value; }
     private readonly List<PlayerSession> _creatureTargets = new(); // reused per tick (no per-tick LINQ alloc)
-    private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
-
-    // #2214: the body whose roster _speciesById holds. The table is the server's, not a world's — with two worlds
-    // resident it belongs to the one whose fauna was set up last — and the rolled ids ("sp0", "sp1", …) repeat from
-    // world to world. Whoever reads a STORED native id (a clone tank's list) asks this first.
-    private string _speciesTableBodyId = string.Empty;
-    private readonly Dictionary<string, LocomotionProfile> _locoProfiles = new(); // per-species movement tuning
+    private Dictionary<string, CreatureSpecies> _speciesById => _worlds.Active.SpeciesById;
+    private Dictionary<string, LocomotionProfile> _locoProfiles => _worlds.Active.LocoProfiles; // per-species movement tuning
     private List<CombatEntity> _creatures => _worlds.Active.Creatures;
     private double _creatureSpawnTimer { get => _worlds.Active.CreatureSpawnTimer; set => _worlds.Active.CreatureSpawnTimer = value; }
     private double _creatureClock { get => _worlds.Active.CreatureClock; set => _worlds.Active.CreatureClock = value; }
@@ -130,8 +128,14 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The procedural species this world derived from its seed + planet.</summary>
+    /// <summary>The procedural species the active world derived from its seed + planet (every resident world keeps
+    /// its own, #2226).</summary>
     public IReadOnlyList<CreatureSpecies> SpeciesRoster => _speciesRoster;
+
+    /// <summary>Test seam (#2226): points the server at a resident world, as the tick and every message handler do
+    /// before they act on one — so a test with two resident worlds reads the roster, the animals and the tanks of the
+    /// world it means. False when the body is not resident.</summary>
+    public bool ActivateWorldForTest(string locationId) => SetActiveWorld(locationId);
 
     /// <summary>#2029: the population base of a "none" world whose roster kept a few cave species (a toxic world).</summary>
     private const double CaveOnlyFaunaBase = 4.0;
@@ -149,7 +153,6 @@ public sealed partial class GameServer
             : CreatureGenerator.GenerateRoster(planet, rosterSeed, _meta.Description.TerrainGeneration, _content.AuthoredCreaturesFor(planet)).ToArray();
 
         _speciesById.Clear();
-        _speciesTableBodyId = _world.LocationId;
         _locoProfiles.Clear();
         foreach (var sp in _speciesRoster)
         {
@@ -314,6 +317,9 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2226: this world's table, read once. A bite that kills sends the player to their ship or bed — on another
+        // body that loads its world and moves the cursor, and the animals still to come in this loop are this world's.
+        var speciesById = _speciesById;
         foreach (var creature in _creatures)
         {
             if (creature.IsCompanion || creature.IsGiant)
@@ -321,7 +327,7 @@ public sealed partial class GameServer
                 continue; // a tamed companion never harms anyone; a giant stomps and strikes by its own rules (#1998)
             }
 
-            if (!_speciesById.TryGetValue(creature.SpeciesId, out var sp))
+            if (!speciesById.TryGetValue(creature.SpeciesId, out var sp))
             {
                 continue;
             }

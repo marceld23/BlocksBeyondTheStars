@@ -258,7 +258,9 @@ the owner's sample case (`AppendSampleChoices`, choice string `g:<seed hex>`).
   adopts the newer device record.
 - **Habitat:** `HabitatNear` reads every cell within 8 blocks (17 × 17 × 9).
 - **A guest clone is an animal like any other:** the creature tick runs on a world without a roster of its own
-  (an airless moon, an asteroid) as soon as an animal other than a giant exists there.
+  (an airless moon, an asteroid) as soon as an animal other than a giant exists there. The species tables are
+  per world (#2226): a guest species is registered on the world its clone stands on and stays there while
+  another world loads.
 - **Crossing** (blueprint `bio_crossing`): the tank's second choice (`x=` in its config) names the partner. Two
   animals or two plants, never a giant, at most generation 3. `EnsureCross` creates the register entry once;
   `CrossCreatures` builds the body: body plan, habitat, limbs and yield from one parent (so a cross is always a
