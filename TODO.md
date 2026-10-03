@@ -74,7 +74,8 @@ read by a second agent, and corrected.
   AGENTS.md rule 3, the Codex; `build-client.ps1` vendors the Velopack runtime when it is missing; 14 new and 4
   changed texts in all 14 languages.
 - **Tests:** `BioTankFixTests`, `BioLabFixTests`, `BioFixFollowUpTests`, `ShipFunctionBlockTests`,
-  `AdminCommandFixTests`, `SaveCompatibilityTests`, `ContentFingerprintTests` (+ a client test); the PostgreSQL
+  `AdminCommandFixTests`, `SaveCompatibilityTests`, `ContentFingerprintTests`, `PerWorldSpeciesTests` (+ client
+  tests for the fingerprint and the cloud save mark); the PostgreSQL
   tests ran once locally against postgres:16.
 - **✅ Species tables per world (#2226):** found during this round — the creature species roster, the id table and
   the movement profiles existed once per server, so with two resident worlds one world's wildlife ran on the
@@ -82,9 +83,27 @@ read by a second agent, and corrected.
   flora and tree species by block, the fruit kinds, the regrow accumulator, the gift / companion scan gates and
   the feed-tame queue, which had the same flaw. `PerWorldSpeciesTests` runs two resident worlds (8 of its 10
   tests fail on the old tables).
+- **✅ Final review before the merge (2026-10-04):** an independent read of the parts finished last (species
+  tables, the second client round, the small server follow-ups, texts and docs) confirmed 16 findings, none
+  critical. Fixed here:
+  - a tamed guest or cross clone and its wild siblings stood still after their world was loaded again (the
+    companion's species snapshot brought no movement profile);
+  - more server-wide state of the #2226 kind: the burn pass, the sentry posts' gates (and their cell cache,
+    which two occupied worlds threw away for each other) and the Crystal Net's last-sent levels are per world;
+    the shared world generator follows the world cursor, so a world's spawner and giants read their own terrain;
+  - the bio lab is never reached from space, also not on a spacewalk; the wash preview counts carbon in the
+    ship's hold where the server takes it from there;
+  - browser cloud save: a cloud world refused as saved by a newer version is no longer counted as synced (the
+    next start would have booted the older local world and uploaded it over the newer one);
+  - the refusals of `/settime` and `/setweather` are admin rejections and land in the chat; their usage lines
+    carry no angle brackets and stay under 160 characters (`/setweather ?` lists every weather);
+  - docs (decoration notice, tank keys, the save-too-new log line, which replies reach the chat) and two texts
+    (Ukrainian, Korean).
 - **⚠ Open (found, not fixed here):** crates, the base core, rail pylons and crafting-station blocks do nothing
   when built into a ship and get no notice; which auto-drill or sender is over a cap after a reload follows the
-  store's row order. And the playtest of #2213 itself.
+  store's row order; `/give` of a blank sample answers with the catalog's wording; #2233 (leaving the interior
+  of a self-built ship that can no longer fly strands the pilot — older code, found by the final review). And
+  the playtest of #2213 itself.
 
 ---
 
