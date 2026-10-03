@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -97,11 +98,42 @@ namespace BlocksBeyondTheStars.Client
 
         public bool IsOpen => _open;
 
-        /// <summary>#2216: the lab is not used from inside the ship — the server refuses every lab intent while the
-        /// player is aboard (in the landed cabin or the floating interior). The prompt, E and the panel follow the
-        /// same state, so nothing is offered that would then be refused.</summary>
+        /// <summary>
+        /// #2216: the lab is not used from inside a ship. The server refuses every lab intent while the player is
+        /// aboard — its own flag, which it derives from where the player stands in their ship (the landed cabin, the
+        /// floating interior, a sealed extension) — or stands in the hull of any ship parked on this world (a visitor
+        /// has no aboard flag of their own); a spacewalk is neither. The prompt, E and the panel follow the same
+        /// rule, so nothing is offered that would then be refused.
+        /// </summary>
         public static bool RefusedAboard(GameBootstrap game)
-            => game != null && (game.Aboard || game.LoadingPlanetType == "ship_interior");
+            => game != null && !game.InEva && (game.Aboard || InLandedHull(game, game.PlayerPosition));
+
+        /// <summary>Whether a position lies in the hull of a ship parked on this world. An open construction frame is
+        /// no hull (the server does not count it as a ship interior either).</summary>
+        private static bool InLandedHull(GameBootstrap game, Vector3 p)
+        {
+            foreach (var ship in game.LandedShips.Values)
+            {
+                if (!ship.StructureId.StartsWith("shipyard:", System.StringComparison.Ordinal)
+                    && InHullBox(p.x, p.y, p.z, ship.Origin.X, ship.Origin.Y, ship.Origin.Z, ship.Width, ship.Height, ship.Length, game.Circumference))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>The server's box test for a parked ship (<c>LandedBoundsContain</c>): the design box from its
+        /// origin, with one cell of headroom on top; east–west the short way round the world.</summary>
+        public static bool InHullBox(double x, double y, double z, int originX, int originY, int originZ,
+            int width, int height, int length, int circumference)
+        {
+            double dx = WorldConstants.WrapDeltaX(x - originX, circumference);
+            return dx >= 0 && dx <= width
+                && y >= originY && y <= originY + height + 1
+                && z >= originZ && z <= originZ + length;
+        }
 
         public void Open()
         {
@@ -144,7 +176,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (RefusedAboard(Game))
             {
-                Close(); // carried aboard with the panel open (a recall, a teleport): the lab is out of use there
+                Close(); // carried into a ship with the panel open (a recall, a teleport): the lab is out of use there
                 return;
             }
 
@@ -557,7 +589,8 @@ namespace BlocksBeyondTheStars.Client
         /// (its signature), or the plain extract of an analysed sample. Everything else stays an experiment.
         /// #2216: a toxic sample is washed as part of the mix when a detoxifier stands by. The washed mix is another
         /// experiment than the unwashed one — its own signature, its own result — so the preview asks for the one
-        /// the server would run now, and a line under it says which that is.</summary>
+        /// the server would run now, and a line under it says which that is. The line stands under every mix with
+        /// a toxic sample, analysed or not: the wash takes a carbon, and the player is told before the click.</summary>
         private void MixPreview(Transform panel, float y)
         {
             var form = BioItems.CarrierForm(Game.Content?.GetItem(_mixCarrier)) ?? BioForm.Injector;
@@ -566,18 +599,12 @@ namespace BlocksBeyondTheStars.Client
                 ? (Game.Bio.Species.TryGetValue(_mixStabSeed, out var deposit) ? deposit.MaterialItem : string.Empty)
                 : _mixStabItem;
             bool plain = _mixCarrier.Length == 0 && _mixStabSeed == 0 && _mixStabItem.Length == 0 && _mixModifier == 0;
-            bool activeToxic = (Game.Bio.ProfileOf(_mixActive)?.Toxicity ?? 0) > 0;
-            bool modifierToxic = _mixModifier != 0 && (Game.Bio.ProfileOf(_mixModifier)?.Toxicity ?? 0) > 0;
-            bool toxic = activeToxic || modifierToxic;
+            bool toxic = (Game.Bio.ProfileOf(_mixActive)?.Toxicity ?? 0) > 0
+                         || (_mixModifier != 0 && (Game.Bio.ProfileOf(_mixModifier)?.Toxicity ?? 0) > 0);
             bool washed = WouldWash(toxic);
             bool known = Game.Bio.Knows(Synthesis.Signature(_mixActive, form, _mixStabSeed, stabiliserItem, _mixModifier, washed))
                          || (plain && Game.Bio.Analysed(_mixActive));
             var compound = known ? ComputeMix(Game, _mixActive, form, _mixStabSeed, _mixStabItem, _mixModifier, washed) : null;
-
-            // The wash line belongs to what the player already knows to be toxic: a mix whose result is shown, or a
-            // sample that was analysed. An unanalysed sample keeps its secret.
-            bool washLine = toxic && (compound != null
-                || (activeToxic && Game.Bio.Analysed(_mixActive)) || (modifierToxic && Game.Bio.Analysed(_mixModifier)));
             if (compound == null)
             {
                 y += Para(panel, PaneX, y, PaneW, L("ui.bio.reaction_unknown"), 18, UiKit.CyanDim) + 8f;
@@ -599,7 +626,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (washLine)
+            if (toxic)
             {
                 Para(panel, PaneX, y, PaneW, L(washed ? "ui.bio.washed" : "ui.bio.unwashed"), 16, washed ? UiKit.Ok : UiKit.Warn);
             }
