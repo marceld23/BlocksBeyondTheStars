@@ -986,7 +986,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 BrowserWorldBooting = false;
                 ReturnToMenu();
-                MenuNotice = L("ui.sp.browser_failed");
+                // #2223: a world saved by a newer build was refused and left as it is — "update", not "reload the page".
+                MenuNotice = L(BrowserServer.SaveTooNew ? "ui.sp.save_too_new" : "ui.sp.browser_failed");
                 yield break;
             }
 
@@ -1138,8 +1139,15 @@ namespace BlocksBeyondTheStars.Client
         {
             Debug.LogError($"Local server did not report ready within {LoadingHandoffPolicy.LocalBootCeilingSeconds:0} s — returning to menu.");
             ReturnToMenu();
-            MenuNotice = L("ui.sp.server_failed");
+            MenuNotice = LocalServerFailedNotice();
         }
+
+        /// <summary>The menu notice for a bundled server that did not come up. A world that was saved by a newer
+        /// version of the game has its own text (#2223): the server refused it and left it untouched, so the player
+        /// needs "update the game" — not the antivirus-and-port hint of a server that could not start. The launcher
+        /// keeps that verdict across its stop, so this reads the same before and after <see cref="ReturnToMenu"/>.</summary>
+        private string LocalServerFailedNotice()
+            => L(_localServer.SaveTooNew ? "ui.sp.save_too_new" : "ui.sp.server_failed");
 
         // NOTE (#413 N2): Alt-Tab cursor re-lock used to live in an OnApplicationFocus handler here — with
         // hand-rolled "is anyone else holding the cursor?" checks that missed space flight. The arbiter in
@@ -1805,7 +1813,7 @@ namespace BlocksBeyondTheStars.Client
                     _serverLaunch = null;
                     Debug.LogError("Local server failed to launch or exited before the first connect — returning to menu.");
                     ReturnToMenu();
-                    MenuNotice = L("ui.sp.server_failed");
+                    MenuNotice = LocalServerFailedNotice();
                     return;
                 }
             }
@@ -1892,7 +1900,7 @@ namespace BlocksBeyondTheStars.Client
             // more helpful "server could not start" text (antivirus hint) over the generic connect error.
             if (igBoot != null && !string.IsNullOrEmpty(igBoot.ConnectFailedReason))
             {
-                MenuNotice = _hostLocal ? L("ui.sp.server_failed") : igBoot.ConnectFailedReason;
+                MenuNotice = _hostLocal ? LocalServerFailedNotice() : igBoot.ConnectFailedReason;
                 ReturnToMenu();
                 return;
             }

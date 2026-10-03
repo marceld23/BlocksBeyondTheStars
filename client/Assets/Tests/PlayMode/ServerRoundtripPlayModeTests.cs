@@ -5,6 +5,7 @@ using System.Collections;
 using System.IO;
 using BlocksBeyondTheStars.Client;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Content;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -35,6 +36,18 @@ namespace BlocksBeyondTheStars.Client.Tests.PlayMode
                 yield break;
             }
 
+            // #2222: a join carries the fingerprint of the client's block set, and the server refuses one that differs
+            // from its own. The launcher points the server at this same StreamingAssets/data, so the content loaded
+            // here is the content it runs.
+            string dataDir = Path.Combine(Application.streamingAssetsPath, "data");
+            if (!File.Exists(Path.Combine(dataDir, "blocks.json")))
+            {
+                Assert.Ignore("StreamingAssets/data not present — run scripts/sync-client-libs.ps1 first.");
+                yield break;
+            }
+
+            string fingerprint = ContentLoader.LoadFromDirectory(dataDir).BlockFingerprint;
+
             var launcher = new LocalServerLauncher();
             NetworkClient client = null;
             try
@@ -47,6 +60,7 @@ namespace BlocksBeyondTheStars.Client.Tests.PlayMode
                 JoinAccepted accepted = null;
                 int chunks = 0;
                 client = new NetworkClient();
+                client.ContentFingerprint = fingerprint;
                 client.JoinAccepted += m => accepted = m;
                 client.ChunkReceived += _ => chunks++;
 

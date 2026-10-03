@@ -2297,7 +2297,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#1930 ("please unlock everything in Sandbox — you shouldn't have to craft anything any more"): every item of
-        /// the game, tools first and raw materials last, filtered by the search box. Picking one opens the take buttons.</summary>
+        /// the game, tools first and raw materials last, filtered by the search box. Picking one opens the take buttons.
+        /// #2216: a lab item that is nothing without what it carries — a sample or a seedling without a species, a
+        /// preparation without a compound — is left out: the plain key is a blank, and the server refuses to hand it out.</summary>
         private float BuildCatalogList()
         {
             float y = 0f;
@@ -2305,6 +2307,7 @@ namespace BlocksBeyondTheStars.Client
             hint.horizontalOverflow = HorizontalWrapMode.Wrap;
             y += 60f;
             var entries = Game.Content.Items.Values
+                .Where(d => !BlocksBeyondTheStars.Shared.Bio.BioItems.NeedsPayload(d.Key))
                 .Select(d => (Def: d, Name: ItemName(d.Key)))
                 .Where(e => MatchesSearch(e.Name))
                 .OrderBy(e => CatalogRank(e.Def.Category))

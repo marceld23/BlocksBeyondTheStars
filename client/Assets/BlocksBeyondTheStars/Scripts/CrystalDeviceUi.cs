@@ -15,6 +15,9 @@ namespace BlocksBeyondTheStars.Client
     /// <b>setting rows</b> that cycle on click (radius, period, count, instrument), and for the pairing kinds a
     /// <b>list</b> (matter receivers, beam pads, recipes, animals). Every click is sent to the server at once —
     /// it validates, persists and echoes the device back through <see cref="GameBootstrap.CrystalDevices"/>.
+    /// The open menu follows that echo (#2214): a newer record of its device — a tank's species list after a new
+    /// sample, its settings after a finished job — replaces what the menu was opened with, so a click never sends
+    /// yesterday's settings back.
     /// Modal like <see cref="BeamPadUi"/>: pad-navigable, closes on Esc / pad B / the Close button, touch taps
     /// the buttons directly.
     /// </summary>
@@ -32,6 +35,17 @@ namespace BlocksBeyondTheStars.Client
         private int _mode;
         private string _config = string.Empty;
         private string _label = string.Empty;
+
+        // #2214: following the server's record while the menu is open.
+        private Text _stateText;                       // the ON/OFF line — a blinking timer changes it in place, no rebuild
+        private float _editedAt = float.NegativeInfinity; // when the last click was sent (unscaled time)
+        private readonly Dictionary<string, RectTransform> _lists = new Dictionary<string, RectTransform>(); // the lists, by config key
+        private readonly Dictionary<string, float> _scroll = new Dictionary<string, float>();                // where each was scrolled to
+
+        /// <summary>After a click the server's record is not taken over for this long: a device list that was already
+        /// on its way still carries the settings from before the click and would undo it on screen — and the next
+        /// click would then send that older state back.</summary>
+        private const float EchoGraceSeconds = 1f;
 
         private const float W = 980f, H = 760f;
         private const float TankH = 960f; // #2208: the clone tank lists a species AND a partner — a taller panel fits both
@@ -60,6 +74,9 @@ namespace BlocksBeyondTheStars.Client
             _mode = dev.Mode;
             _config = dev.Config ?? string.Empty;
             _label = dev.Label ?? string.Empty;
+            _editedAt = float.NegativeInfinity;
+            _lists.Clear();
+            _scroll.Clear(); // another visit starts at the top of every list
             _open = true;
             _openFrame = Time.frameCount;
             _canvas.gameObject.SetActive(true);
@@ -74,7 +91,119 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game?.MarkMenuInputHandled();
                 Close();
+                return;
             }
+
+            FollowServerRecord();
+        }
+
+        /// <summary>
+        /// #2214: takes over the server's newer record of the device this menu shows. Every device list replaces
+        /// <see cref="GameBootstrap.CrystalDevices"/>, and lists arrive often (any device of the world that changes
+        /// sends one), so the menu is rebuilt only when something it shows really changed:
+        /// <list type="bullet">
+        /// <item>the <b>species list</b> of a clone tank (a new sample, a new scan) — at once;</item>
+        /// <item><b>mode and settings</b> — once no click of ours can still be on its way
+        /// (<see cref="EchoGraceSeconds"/>). After a finished job the tank's species and partner are the server's
+        /// new ones, and a click the server refused falls back to what really holds;</item>
+        /// <item>the <b>name</b> — only while the player has not typed another one into the field.</item>
+        /// </list>
+        /// The ON/OFF line is rewritten in place. A device that is gone from the list keeps the menu as it is.
+        /// </summary>
+        private void FollowServerRecord()
+        {
+            var latest = Game?.CrystalDeviceAt(_dev.X, _dev.Y, _dev.Z);
+            if (latest == null)
+            {
+                return;
+            }
+
+            bool rebuild = false;
+            if (!ReferenceEquals(latest, _dev))
+            {
+                if (latest.Id != _dev.Id || latest.Kind != _dev.Kind)
+                {
+                    // Another device stands in this cell now: its record as a whole, like a fresh visit.
+                    _dev = latest;
+                    _mode = latest.Mode;
+                    _config = latest.Config ?? string.Empty;
+                    _label = latest.Label ?? string.Empty;
+                    _editedAt = float.NegativeInfinity;
+                    _lists.Clear();
+                    _scroll.Clear();
+                    Rebuild();
+                    return;
+                }
+
+                rebuild = !SameChoices(latest.Choices, _dev.Choices);
+                string was = _dev.Label ?? string.Empty, now = latest.Label ?? string.Empty;
+                if (now != was && _label == was)
+                {
+                    _label = now;
+                    rebuild = true;
+                }
+
+                if (latest.Output != _dev.Output && _stateText != null)
+                {
+                    _stateText.text = latest.Output ? L("ui.crystal.output_on") : L("ui.crystal.output_off");
+                }
+
+                _dev = latest;
+            }
+
+            string config = latest.Config ?? string.Empty;
+            if (Time.unscaledTime - _editedAt >= EchoGraceSeconds && (latest.Mode != _mode || config != _config))
+            {
+                // The same settings in another order (the server writes a tank's own keys last) are taken over
+                // silently — the next click then sends the server's form — and show nothing new.
+                rebuild |= latest.Mode != _mode || !SameConfig(config, _config);
+                _mode = latest.Mode;
+                _config = config;
+            }
+
+            if (rebuild)
+            {
+                Rebuild();
+            }
+        }
+
+        private static bool SameChoices(string[] a, string[] b)
+        {
+            int n = a?.Length ?? 0;
+            if (n != (b?.Length ?? 0)) return false;
+            for (int i = 0; i < n; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>Whether two config strings ("key=value;key=value") say the same, whatever the order of their keys.
+        /// A key without a value counts as not set — the menu reads both alike.</summary>
+        private static bool SameConfig(string a, string b)
+        {
+            var left = ConfigMap(a);
+            var right = ConfigMap(b);
+            if (left.Count != right.Count) return false;
+            foreach (var kv in left)
+            {
+                if (!right.TryGetValue(kv.Key, out string value) || value != kv.Value) return false;
+            }
+
+            return true;
+        }
+
+        private static Dictionary<string, string> ConfigMap(string config)
+        {
+            var map = new Dictionary<string, string>();
+            foreach (var part in (config ?? string.Empty).Split(';'))
+            {
+                int eq = part.IndexOf('=');
+                if (eq > 0 && eq < part.Length - 1) map[part.Substring(0, eq)] = part.Substring(eq + 1);
+            }
+
+            return map;
         }
 
         private void Close()
@@ -82,6 +211,8 @@ namespace BlocksBeyondTheStars.Client
             _open = false;
             if (_overlay != null) Destroy(_overlay);
             _overlay = null;
+            _stateText = null;
+            _lists.Clear();
             if (_canvas != null) _canvas.gameObject.SetActive(false);
             Game?.SetMenuOwner(this, false);
         }
@@ -97,12 +228,20 @@ namespace BlocksBeyondTheStars.Client
 
         private void Rebuild()
         {
+            // Keep every list where it was scrolled to (the pad's place in the menu is kept by UiNav, by position).
+            foreach (var kv in _lists)
+            {
+                if (kv.Value != null) _scroll[kv.Key] = kv.Value.anchoredPosition.y;
+            }
+
+            _lists.Clear();
             if (_overlay != null) Destroy(_overlay);
             Build();
         }
 
         private void Send()
         {
+            _editedAt = Time.unscaledTime; // the server's record is behind this click until its echo arrives
             Game?.Network?.SendSetCrystalDevice(_dev.X, _dev.Y, _dev.Z, 2, _mode, _config, _label);
         }
 
@@ -119,7 +258,7 @@ namespace BlocksBeyondTheStars.Client
             var head = UiKit.AddText(panel, 32f, 24f, W - 64f, 40f, string.Format(L("ui.crystal.title"), name), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
             string state = _dev.Output ? L("ui.crystal.output_on") : L("ui.crystal.output_off");
-            UiKit.AddText(panel, 32f, 66f, W - 64f, 26f, state, 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            _stateText = UiKit.AddText(panel, 32f, 66f, W - 64f, 26f, state, 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             float y = 104f;
             int modes = CrystalNetRules.ModeCount(kind);
@@ -300,6 +439,13 @@ namespace BlocksBeyondTheStars.Client
                         if (img != null) img.color = UiKit.Cyan;
                     }
                 });
+            }
+
+            // A rebuild (a click, a newer record from the server) leaves the list where the player had scrolled it.
+            _lists[key] = list;
+            if (_scroll.TryGetValue(key, out float at))
+            {
+                list.anchoredPosition = new Vector2(list.anchoredPosition.x, at);
             }
 
             return y + listH;

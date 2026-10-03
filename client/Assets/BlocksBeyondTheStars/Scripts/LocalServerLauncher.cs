@@ -7,6 +7,7 @@ using System.IO;
 using BlocksBeyondTheStars.Build;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
+using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -58,6 +59,39 @@ namespace BlocksBeyondTheStars.Client
 
                 int stages = _bootStages;
                 return stages > 0 ? Math.Min(1f, _bootStage / (float)stages) : -1f;
+            }
+        }
+
+        // #2223: latched when the server refused the world because a newer build saved it — its log line behind
+        // GameServer.SaveTooNewMarker (read off the same stdout reader as the ready line) or its exit code
+        // GameServer.SaveTooNewExitCode. Volatile: set from the reader thread, read on the main thread.
+        private volatile bool _saveTooNew;
+
+        /// <summary>True when the spawned server did not open the world because it was saved by a newer version of
+        /// the game — the world was left untouched, and the player needs "update the game", not "the server could
+        /// not start". Stays set after <see cref="Stop"/> (the shell reads it on its way back to the menu) until
+        /// the next launch is prepared.</summary>
+        public bool SaveTooNew
+        {
+            get
+            {
+                NoteExit(_process); // the exit code is there the moment the process is gone; the log line may still be on its way
+                return _saveTooNew;
+            }
+        }
+
+        private void NoteExit(Process process)
+        {
+            try
+            {
+                if (process != null && process.HasExited && process.ExitCode == SvGameServer.SaveTooNewExitCode)
+                {
+                    _saveTooNew = true;
+                }
+            }
+            catch
+            {
+                // No exit code to read (never started, already disposed) — the marker line is the other signal.
             }
         }
 
@@ -171,6 +205,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _ready = false; // a previous run's ready flag must not pass as this one's (the shell gates the loading screen on it)
+            _saveTooNew = false; // nor its refusal: this launch may open another world
             _bootStage = 0;
             _bootStages = 0;
 
@@ -294,6 +329,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _ready = false;
+            _saveTooNew = false;
             var proc = new Process { StartInfo = _pendingPsi, EnableRaisingEvents = true };
             proc.OutputDataReceived += (_, e) =>
             {
@@ -303,6 +339,13 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 Debug.Log($"[server] {e.Data}");
+
+                // #2223: "[fatal] save-too-new: World '…' was saved by a newer version of the game …" — the server
+                // refuses the world, leaves it untouched and exits.
+                if (e.Data.Contains(SvGameServer.SaveTooNewMarker))
+                {
+                    _saveTooNew = true;
+                }
 
                 // #1988: "[boot] 4/12 landing pads (4120 ms)" — how far the world build has come.
                 if (LoadingHandoffPolicy.TryParseBootStage(e.Data, out int stage, out int stages))
@@ -370,6 +413,7 @@ namespace BlocksBeyondTheStars.Client
             }
             finally
             {
+                NoteExit(_process); // #2223: keep "saved by a newer build" past the dispose — the exit code goes with the process
                 _process.Dispose();
                 _process = null;
                 _ready = false;
