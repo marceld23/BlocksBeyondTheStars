@@ -692,7 +692,8 @@ public sealed class PerWorldSpeciesTests : IDisposable
     [Fact]
     public void TheSentryPostsOfAWorld_Fire_WhileAnotherWorldIsTickedBeforeIt()
     {
-        var server = NewServer("sentries");
+        var t = new RecordingTransport();
+        var server = NewServer("sentries", t);
         OnFoot(server, "Keeper"); // the home world: ticked first, and it has no base at all
         string home = server.ActiveLocationId;
         var visitor = LandOnAnotherWorld(server, home, "Visitor", out string other);
@@ -705,7 +706,8 @@ public sealed class PerWorldSpeciesTests : IDisposable
         server.PlaceBaseForTest(visitor, core);
         int baseId = server.BaseSnapshots.Single(b => b.OwnerId == visitor.State.PlayerId).Id;
         var post = new Vector3i(core.X + 1, core.Y, core.Z);
-        server.WorldAt(other)!.SetBlock(post, _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, visitor.State.Name);
+        var sentry = _content.GetBlock("sentry_post")!.NumericId;
+        server.WorldAt(other)!.SetBlock(post, sentry, 0, 0, 0, visitor.State.Name);
         At(server, other);
         Assert.Equal(1, server.SentryCountForTest(baseId));
         var target = new Vector3f(post.X + 4.5f, post.Y + 0.5f, post.Z + 0.5f);
@@ -715,11 +717,16 @@ public sealed class PerWorldSpeciesTests : IDisposable
         machine.Hull = machine.HullMax;
         int scans = server.SentryRescansForTest;
 
-        for (int i = 0; i < 30; i++)
+        void TicksWithTheMachineHeld(int ticks)
         {
-            machine.Position = target; // it does not get to walk out of the post's reach
-            server.TickForTest(0.1);
+            for (int i = 0; i < ticks; i++)
+            {
+                machine.Position = target; // it does not get to walk out of the posts' reach
+                server.TickForTest(0.1);
+            }
         }
+
+        TicksWithTheMachineHeld(30);
 
         At(server, other);
         Assert.Contains(machine, server.PlanetEnemies);
@@ -728,6 +735,24 @@ public sealed class PerWorldSpeciesTests : IDisposable
         // And the home world's pass left this base's cached cells alone: they were derived once in these three
         // seconds, on the first pass — not again on every pass because the other world had thrown them away.
         Assert.Equal(scans + 1, server.SentryRescansForTest);
+
+        // The rescan beat is the world's own as well. A second post goes up beside the first. The cached cells do
+        // not know it: a base is walked again ten seconds after its last walk, and nothing else adds a cell. With one
+        // rescan gate for the server the home world — ticked first — took that beat exactly as it took the firing
+        // beat, so a post built after the first walk stayed silent until its owner left the body and came back.
+        var second = new Vector3i(post.X, post.Y, post.Z + 1);
+        server.WorldAt(other)!.SetBlock(second, sentry, 0, 0, 0, visitor.State.Name);
+        At(server, other);
+        Assert.Equal(2, server.SentryCountForTest(baseId));
+        t.Sent.Clear();
+
+        TicksWithTheMachineHeld(110); // eleven seconds: past this world's next rescan beat, well short of the one after
+
+        At(server, other);
+        Assert.Contains(machine, server.PlanetEnemies);
+        var shots = t.Sent.Where(x => x.Conn == visitor.ConnectionId && x.Msg is SentryShot).Select(x => (SentryShot)x.Msg).ToList();
+        Assert.Contains(shots, s => new Vector3f(s.X, s.Y, s.Z).ToBlock().Equals(second)); // the new post fires
+        Assert.Equal(scans + 2, server.SentryRescansForTest); // after one more walk — not none, and not one per pass
     }
 
     /// <summary>A player in the air of their own world with a switch and a conduit beside them: one network, OFF.</summary>
