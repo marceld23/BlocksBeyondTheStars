@@ -73,6 +73,13 @@ Last updated: 2026-08-26.
 - On a **new world**, the ship AI **VEGA** boots up and walks you through the first hour (see §5 →
   VEGA) — her opening narration is staged like a scene (letterbox, an orbit shot of your landed ship);
   **Esc** skips it. Veteran saves get a one-line "systems online" instead.
+- **Backups and game versions.** Every singleplayer world keeps its own safety copies in
+  `singleplayer-saves/<world>/backups/`: one after every 60 minutes of play (the newest five are kept) and one
+  right before a game update changes the world's block set. To go back, close the game and copy a backup over
+  `world.db`. A world that was last saved by a **newer** version of the game is not opened by an older one —
+  the game says so and leaves the world untouched. And a server whose game version has a different set of
+  blocks refuses the join with "This server runs a different version of the game" — update the game (or the
+  server).
 - **Portable data folder** (portable zip, USB stick, several profiles): by default the game keeps its
   settings, singleplayer saves, photos and exports in your user profile (Windows:
   `%USERPROFILE%\AppData\LocalLow\JuMaVe Games\Blocks Beyond the Stars\`). To keep them next to the game
@@ -1187,7 +1194,11 @@ effort.
   see § The bio lab.
 - **Where it works.** On planets, moons, asteroids and **your own space stations** — not aboard ships. And
   only **while you are on that world**: nothing ticks while you are away, your base wakes up with you. A
-  drill does not dig while you are off exploring.
+  drill does not dig while you are off exploring. A **ship refuses** these blocks ("This block only works
+  outside the ship") and the item stays in your backpack: every Crystal Net device, the radio beacon, beam pad,
+  sentry post, thumper, water spout, energy gate and hydro tray — and the bio lab. Conduits and lamps can still
+  be built into a ship as decoration. On a station, build them **aboard on the deck**; from a spacewalk the
+  station takes ordinary blocks, lamps, the sentry post, the energy gate, the hydro tray and the bio lab only.
 - **Limits, in plain words.** A network can hold 256 blocks, a world 64 networks and 32 sensors, 8 sound
   devices can play at once, and each player gets 4 auto-drills, 4 matter senders, 4 fabricators, 2 clone
   tanks and 6 living clones. Place something beyond a limit and it simply does nothing — VEGA tells you, and
@@ -1812,12 +1823,16 @@ look up: what a mix does follows from what goes in, and the same things always g
   compartment of the inventory (24 kinds, 20 of each), so they never clutter your backpack. A block you placed
   yourself gives no sample. If the case is full the harvest still works — you just get no sample.
 - **The sampler** (`bio_sampler`, workshop, comes with the bio lab blueprint): a **right-click** gadget that takes
-  a sample from a **living** animal without hurting it — 6 blocks reach, far more for a giant. A hostile animal
-  must be held in stasis first, and the same animal gives a sample only every five minutes. A **companion** also
+  a sample from a **living** animal without hurting it — 6 blocks reach, 48 for a giant. A hostile animal
+  must be held in stasis first — except a giant, which cannot be frozen: there the long reach is the hurdle.
+  The same animal gives a sample only every five minutes. A **companion** also
   brings a sample of its species along with its regular gift.
 - **The bio lab block** (`bio_lab`, workshop; blueprint **Bio Lab** in the tech tree after Bio-Refining). Place it
-  and use **Interact** on it. It has three pages:
-  - **Analyse.** Uses up one sample and shows what the species carries: its **substance** with one **effect**, a
+  **outside the ship** — on the ground, in your base or on your own station; no ship has one built in and a ship
+  refuses the block. **One lab is enough**: stand within 3 blocks of it (not inside the ship) and use
+  **Interact** on it. It has three pages:
+  - **Analyse.** Uses up one sample (in Sandbox nothing is used up, but a sample of the species must still be in
+    your case) and shows what the species carries: its **substance** with one **effect**, a
     **strength** from I to XV, a **rarity** (common → legendary), how long it lasts, whether it has a **catch**
     (a side effect), whether it is **toxic** and whether it is **heat- or cold-sensitive**. The first analysis of a
     species pays **knowledge**. Until then the scanner only says "substance: unknown". For a mineral sample you see
@@ -1836,7 +1851,9 @@ look up: what a mix does follows from what goes in, and the same things always g
 
     The lab shows the **stability** of a mix. A shaky mix can **fail**: everything you put in is gone and you get
     nothing — but your handbook remembers it, and a mix you have tried once is shown with its result *before* you
-    mix it again. Toxic samples make a mix shaky; with a **detoxifier** nearby and one carbon the lab washes them.
+    mix it again. Toxic samples make a mix shaky. With a **detoxifier** within 3 blocks of you and one carbon the
+    lab **washes** them as part of the mix, and it says beforehand which it will do. A washed and an unwashed
+    mix of the same things are two different experiments with two handbook entries.
   - **Change.** With the **Lab Tuning** blueprint: put in a **drill, a weapon or a piece of suit gear**, a material
     (mineral sample or ingot) and optionally a **coating**. The material's traits decide *what* changes — hard
     makes a drill hit harder or armour tougher, conductive saves energy, light speeds a tool up, magnetic adds
@@ -1844,6 +1861,8 @@ look up: what a mix does follows from what goes in, and the same things always g
     **price**: the tool gets a bit slower or hungrier, gear gets a bit heavier (unless the material is light). The
     lab never changes a tool's **tier** or its mining radius. Nothing wears off; you can change the item again or
     **wash it off** for free. A changed item carries "changed" in its name and shows its new values in the tooltip.
+    The item must lie as a single item in your **backpack**: take a suit piece off first and put it back on
+    afterwards.
 - **Taking a preparation.** Like food: hold it and **right-click**, pick **Take** in the hotbar slot actions, or
   press **Take** on its card in the inventory. Every running effect is listed in the vitals panel under your bars
   with its strength, the time it has left and its catch; a shield shows as "+n Shield" behind your health. You can
@@ -1865,18 +1884,26 @@ look up: what a mix does follows from what goes in, and the same things always g
 
   Effects never go past what the suit formulas allow — a preparation helps a lot early on and a little on top of
   the best gear. A **catch** is always mild: more hunger or oxygen use, a little slower, a lower jump, slower
-  healing or cooldowns — never damage. A heat-sensitive effect runs out twice as fast in great heat, a
-  cold-sensitive one in great cold.
+  healing or cooldowns — never damage. A heat-sensitive effect runs out twice as fast above 40 °C, a
+  cold-sensitive one below −5 °C — judged by the air you are really in: aboard your ship or a station that is a
+  comfortable 22 °C, outdoors the real temperature, in every game mode.
 - **Your handbook** is in the Codex: the chapters **Substances** (every species you analysed), **Compounds** (every
   mix you tried, also the failed ones) and **Materials** (every deposit you analysed and every item you changed).
   In the lab, the sample case is on the left; a click on a sample puts it into the fitting slot of the open page.
+- **In Sandbox** nothing is used up and no blueprint is needed — but samples still have to be collected: the
+  *All items* page offers no samples, seedlings or preparations, because those only exist with a species or a
+  substance in them.
 - **Rarity is found, not rolled.** Common worlds and easy animals give common substances (strength I–III). The
   strong ones live where it is hard to get: rare planet types, caves, lava, dangerous animals, giants (always
   legendary). So travel pays — the best heat ward is not in your back garden.
-- **Cloning from samples** (clone tank, see § Crystal Net). The tank's list now also offers every **animal sample**
-  in your sample case — so you can grow an animal **on another world** than the one it comes from. It costs one
-  sample and two matter dust instead of bait. Water animals need water near the tank, lava animals lava. Hostile
-  animals and giants are never grown. A world holds at most 16 clones (six per player, as before).
+- **Cloning from samples** (clone tank, see § Crystal Net). The tank's list also offers every **animal sample**
+  in your sample case, marked "(sample)" — so you can grow an animal **on another world** than the one it comes
+  from, also on an airless moon or an asteroid. The list follows your sample case by itself. It costs one
+  sample and two matter dust instead of bait (nothing in Sandbox). A water animal needs a block of water within
+  8 blocks of the tank, a lava animal lava. Hostile animals and giants are never grown. A world holds at most 16
+  clones (six per player, as before). When you come back to a world, every clone stands beside its tank as the
+  species it was grown as; a clone that was defeated or tamed does not come back. A tank that was still growing
+  when you left starts its minute over.
 - **Crossing** (blueprint **Crossing**, needs the clone tank). Pick a **partner** in the tank's menu: two
   animal species become a **new species** — the body of one parent, the colours and ornaments of the other, size
   and speed in between, and now and then a trait neither parent had. The same two parents always give the same
@@ -1884,10 +1911,13 @@ look up: what a mix does follows from what goes in, and the same things always g
   **and a sample of the new species**, so you can clone it, analyse it and cross it again (up to three generations).
   The child's substance comes from one parent and is usually about as strong as the stronger one — a little
   stronger when the parents come from **different worlds**. The animals from the school club cross like any other.
+  If your sample case has no room for the new species when the tank is done, the tank **waits** with its light
+  on and tells you once — make room and the result comes out.
 - **Breeding plants.** Two **plant samples** in the tank give a new plant species with a **new form** — the stem of
   one parent, the crown of the other, its own colour, sometimes glowing. You get two samples of it. At the bio lab
   the **Analyse** page turns any plant sample into a **seedling**. Plant it on any natural plant ground, on a
-  **hydro tray** or in a **flower pot** — on any world whose air is not corrosive, in your base or on a station;
+  **hydro tray** or in a **flower pot** — on any world whose air is neither toxic nor corrosive, in your base or on
+  a station;
   tainted ground does not work. A harvested bred plant grows back after a minute and a half and gives its sample
   again. A world holds up to 256 bred plants.
 
@@ -2362,19 +2392,19 @@ rejections) appear in the **chat scrollback**, not just the brief HUD toast.
 
 | Command | Effect |
 |---|---|
-| `/give Item [Count] [Player]` | Give an item to yourself or a target player |
+| `/give Item [Count] [Player]` | Give an item to yourself or a target player; the answer says what was given and what did not fit. A sample, seedling or preparation needs its content in the key (a plain one is refused) |
 | `/tp X Y Z` | Teleport to coordinates |
 | `/tp Target` | Teleport to a landmark **on the body you are standing on** — see *Named teleport targets* below |
 | `/tp` | List every named target here, with the exact word to type and its distance |
 | `/tpp Player` | Teleport to a player on the body you are on — you land **beside** them, never inside them (#1055) |
-| `/settime day\|night\|…` | Set the world time of day |
-| `/setweather clear\|storm\|…` | Set the world weather |
+| `/settime day\|night\|noon\|midnight\|dawn\|dusk\|18:30\|6.5\|0.5` | Set the local time of day of the world you stand in: a word, a clock time, an hour from 1 to 24 or a part of the day below 1. Not out in space |
+| `/setweather clear\|clouds\|rain\|storm\|fog\|blizzard\|heatwave\|…` | Set the weather of the world you stand in (every weather key works; `cloudy` is accepted for `clouds`) |
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
 | `/arachnid` | Summon this world's arachnid near you (rolls one into the world's fauna first if it has none) — for testing |
 | `/biped` | Summon a begging herd of this world's bipeds near you (Mini-Michi-Paul on a tropical world; rolls a begging biped into the world's fauna first if it has none) — for testing |
 | `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |
 | `/god` | Toggle invulnerability |
-| `/instant` | Toggle free/instant crafting |
+| `/instant` | Toggle instant building: blocks, ship and station parts are placed without materials. Crafting is only free in Sandbox |
 | `/ai Prompt` | Generate an AI mission (content tool, not a cheat; needs the optional AI backend — see §5 → *Dynamic AI text* and [SELF_HOSTING.md](../developer/SELF_HOSTING.md) §8) |
 | `/help admin` | List the admin commands in chat (`/admin` does the same) |
 

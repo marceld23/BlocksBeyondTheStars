@@ -293,6 +293,30 @@ network (before #2092 a blocked machine latched its own control line ON).
   cross partner (blueprint `bio_crossing`); `grow=` holds what the tank is growing. `sp`, `x`, `grow`, `growing`
   and `clones` are server-owned — a client `configure` cannot overwrite them. `MaxLivingClonesPerWorld` (16) is
   checked for every start. See [BIO_LAB.md](BIO_LAB.md) §11.
+  **Fix round (#2214).** The tank's config keys are `sp=`, `x=`, `growing=`, `grow=`, `clones=`, `cl=`;
+  `growing`, `clones`, `grow` and `cl` are server-owned (`TankOwnedKeys`) and are stripped from a client
+  configure before the 96-character cut. `grow=` holds what the tank was started on for both paths (a native
+  id or `g:<seed hex>`), and the finish releases from it, so changing `sp` while the tank grows changes
+  nothing. `cl=` lists one entry per clone, comma-separated — the living ones, then the waiting ones;
+  `clones=` mirrors the count, and an older row (`clones=N;sp=X`) is read as N clones of X. At load every
+  listed clone waits (`ServerCrystalCell.CloneWaiting`); `RespawnCrystalClones` brings each one back as its
+  own species, drops an entry that can never be an animal again, and keeps a native id waiting while the
+  server's species table holds another world's roster. Waiting clones count against both caps. The list
+  follows the living clones on release, on defeat and on taming (`ForgetClone`), and the sensor beat
+  (`WatchCloneTank`) reconciles every other removal; the same beat compares `CloneChoiceStamp(owner)` and
+  re-sends the device list when the owner's samples, animal scans or tames changed. A row that says
+  `growing=1` at load starts its wait over; an inert tank refuses a start with `vega.sys.crystal_cap`; the
+  bait path is free in a free game mode; a finished cross waits while the owner's sample case has no room.
+  `LoadCrystalNet` registers tanks that are growing or have clones before all other rows, so the tank over
+  the cap is not one that is in use.
+- **Not in a ship (#2219).** A Crystal Net block is a cell of the world grid. Every kind with
+  `CrystalNetRules.NeedsRow` (all devices and the port blocks: radio beacon, beam pad, sentry post, thumper,
+  water spout, energy gate, hydro tray) is refused as a ship cell — landed ship, ship interior in space, hull
+  on a spacewalk, keel site, commissioned self-built ship — with `srv.ship.block_needs_ground`; the item is
+  not used up. Conduits and lamps stay allowed. On a station spacewalk `NeedsWorldPlaceHandler` refuses
+  every kind the world place handler has to register (`srv.station.block_needs_deck`); lamps, the sentry
+  post, the energy gate and the hydro tray are read from the grid and stay allowed. A new kind is refused
+  there by default (`ShipFunctionBlockTests.TheRefusedLists_CoverEveryCrystalNetBlockOfTheContent`).
 - **Existing ports** (#2053) reach their own code: a beam pad beams everyone standing on it to `pair=` (owner /
   ally check as with a hand beam) and pulses the far pad's status ("someone arrived"); a hydro tray harvests the
   crop into the adjacent crate and schedules the regrow; a thumper starts its run; the sentry's firing pass goes

@@ -88,7 +88,11 @@ Dependency direction (no cycles): `Shared` ← everything; `WorldGeneration`,
 2. **Server is authoritative** — see the golden rule above.
 3. **Data-driven content** — blocks, items, recipes, ship modules, tech nodes,
    planets live in `data/*.json`, not hardcoded in logic. Adding content should not
-   require touching game logic.
+   require touching game logic. One exception by design: **adding or removing a block shifts the
+   numeric block ids** (they follow the key order), so such a change must raise
+   `WorldMetadata.CurrentSaveVersion` and add its row to the pinned table in `SaveCompatibilityTests`
+   — the failing test tells you what to write. See
+   [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md) § "Adding or removing a block".
 4. **World = seed + parameters + deltas.** Only persist player changes, never every
    natural block.
 5. **Lightweight server** — no rendering/physics engine on the server; keep CPU,

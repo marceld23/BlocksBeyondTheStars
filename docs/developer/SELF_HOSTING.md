@@ -54,7 +54,8 @@ Created on first run; editable directly or through the admin UI.
 | — | Allow admin cheat commands (`/tp`, `/give`, …) in every mode (CLI only: `--admin-cheats true`; the bundled singleplayer/host launcher always passes it) | `false` |
 | `adminPassword` | Required for admin API calls | `""` |
 | `autoSaveIntervalMinutes` | Autosave cadence | `5` |
-| `backupIntervalMinutes` | Backup cadence | `60` |
+| `backupIntervalMinutes` | Minutes of **play** between two rotating backups (`0` = off) — see §6 | `60` |
+| `backupKeepCount` | How many rotating backups of each kind are kept (1–50) | `5` |
 | `viewDistanceChunks` | Chunk stream radius | `4` |
 | `tickRate` | Simulation Hz (10–20 recommended) | `15` |
 | `seed` | World seed (0 = derive from world name) | `0` |
@@ -91,6 +92,7 @@ command line**, so env vars override the file but the in-game host's CLI flags s
 | `BBS_AI_LEVEL` | `aiLevel` | `BBS_AI_BACKEND_URL` | `aiBackendUrl` |
 | `BBS_CHUNK_STREAM_PER_TICK` | `chunkStreamPerTick` | `BBS_CHUNK_STREAM_BUDGET_MS` | `chunkStreamBudgetMs` |
 | `BBS_CHUNK_GEN_WORKERS` | `chunkGenWorkers` (default 2, 0 = generate inline on the tick) | `BBS_TICK_TIMING_LOG_SECONDS` | `tickTimingLogSeconds` |
+| `BBS_BACKUP_INTERVAL_MINUTES` | `backupIntervalMinutes` | `BBS_BACKUP_KEEP` | `backupKeepCount` |
 
 **Chunk generation workers** (`chunkGenWorkers`, CLI `--chunk-gen-workers`): first-visit chunks are generated on this
 many background threads, each with its own world generator (up to ~18 MB of terrain memos per thread at view distance
@@ -215,9 +217,24 @@ See §9 for distributing the client this way.
   JSON table-export snapshots (`*.postgresql.json`) for inspection/operator recovery workflows; the game does
   not yet include an importer that restores those snapshots. For production PostgreSQL operations, also use the
   provider's built-in point-in-time backups.
-- Create backups from the admin UI, the Tools CLI (`BlocksBeyondTheStars.Tools backup saves <world>`),
-  or on a schedule. The Tools CLI also honors `BBS_DATABASE_PROVIDER=postgresql` +
-  `BBS_POSTGRES_CONNECTION_STRING`.
+- Create backups from the admin UI or the Tools CLI (`BlocksBeyondTheStars.Tools backup saves <world>`).
+  The Tools CLI also honors `BBS_DATABASE_PROVIDER=postgresql` + `BBS_POSTGRES_CONNECTION_STRING`.
+- **Rotating backups** run by themselves: after every `backupIntervalMinutes` of play (real time with at
+  least one player online; the count is saved with the world and carries across restarts, an idle server
+  takes none) the world is saved and copied to `backups/auto_<UTC time>` on a background thread. The newest
+  `backupKeepCount` are kept; hand-made backups (`backup_…`) are never deleted. `0` minutes switches them off
+  (CLI `--backup-interval-minutes`, `--backup-keep`). Disk use is bounded: at most `backupKeepCount` copies of
+  the save per kind. For a large PostgreSQL world each copy is a full JSON export — operators with managed
+  point-in-time backups can set the interval to `0`.
+- **Before a game update rewrites a save** (the block ids of a save are remapped on its first open when the
+  block set changed) the server writes `backups/pre-remap_<UTC time>` first. If the update would *remove*
+  block types from the world and that copy cannot be written, the server refuses to start and leaves the
+  world unchanged; an update that only moves ids starts with a warning.
+- **A save from a newer build is not opened by an older one**: the server exits with code `3` and one log
+  line starting with `[fatal] save-too-new`; the save is untouched. Update the server.
+- **Client and server must have the same block set.** The join carries a content fingerprint; a mismatch is
+  refused in both directions with "This server runs a different version of the game". During a fleet roll a
+  world still running the old image refuses clients of the new build until it restarts on the matching image.
 - The world is `seed + parameters + player edits`: the procedural terrain is regenerated,
   only your changes are stored, keeping saves small.
 

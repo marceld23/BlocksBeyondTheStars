@@ -112,3 +112,14 @@ first-PR traps:
   `DisableParallelization`, so its classes run in the runner's sequential phase where the queue is
   empty; it costs a few seconds of serial window. Marking such a test `Slow` instead would hide
   the symptom and drop the coverage from every PR.
+
+## Joins built by hand need the content fingerprint (#2222)
+
+The server refuses a join whose content fingerprint is missing or different. A test that builds a `JoinRequest`
+itself must set `ContentFingerprint = TestJoin.Fingerprint` (or the fingerprint of the content its server uses);
+`ContentFingerprintTests.EveryJoinATestBuildsByHand_NamesAFingerprint` names every line that does not. A test that
+changes the block set fails `SaveCompatibilityTests.ChangedBlockSet_NeedsANewSaveVersion` — see DEVELOPER.md
+§ "Adding or removing a block".
+
+`PostgreSqlRepositoryTests` run only with `BBS_POSTGRES_TEST_CONNECTION_STRING` set (for example against
+`docker run -e POSTGRES_PASSWORD=… -p 55432:5432 postgres:16-alpine`); CI does not set it.

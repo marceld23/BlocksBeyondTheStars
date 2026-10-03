@@ -1,9 +1,11 @@
 # The bio lab — seeds, samples, substances, changed gear and breeding
 
-Epic #2212 (parts #2200–#2211), branch `feat/bio-lab`, 2026-10-03. Status: implemented (see
-[../../TODO.md](../../TODO.md) for the live Done/Open status). No protocol bump (three new messages and additive
-fields on existing ones, protocol stays **8**) and no terrain-generation bump (nothing here draws from the world
-generator's random stream).
+Epic #2212 (parts #2200–#2211), branch `feat/bio-lab`, 2026-10-03; fix round epic #2225 (parts #2214–#2224),
+branch `fix/bio-lab-playtest`, 2026-10-03 — everything a code read of the merged feature found. Status:
+implemented (see [../../TODO.md](../../TODO.md) for the live Done/Open status). No terrain-generation bump
+(nothing here draws from the world generator's random stream). The feature itself added three messages and
+additive fields; the fix round raised the protocol to **9**, because two new blocks shift the block ids and the
+join now carries a content fingerprint (see §17).
 
 ## 1. Goal
 
@@ -90,8 +92,14 @@ stack and different ones never mix.
   - defeating an animal → one sample with its loot (`BioOnCreatureDefeated`);
   - a companion's regular gift → one sample (`BioOnCompanionGift`);
   - the **sampler** gadget → one sample from a living animal without harm: 6 blocks reach (48 for a giant), a
-    hostile animal must be in stasis, the same animal gives one every 5 minutes (`UseBioSampler`).
+    hostile animal must be in stasis — unless it is a giant, which the stasis projector cannot freeze — and the
+    same animal gives one every 5 minutes (`UseBioSampler`). Refusals: `srv.bio.sample_case_full` for a full
+    case, `srv.bio.register_full` for a full species register.
 - A full case never holds a harvest up: the sample is simply not taken, VEGA says so once.
+- **Items that only exist with content.** A sample, a mineral sample and a seedling mean nothing without a seed,
+  a preparation nothing without a compound: `BioItems.NeedsPayload(itemKey)` is true for such a plain key. The
+  Sandbox catalog does not offer them and the server refuses to hand one out (`srv.catalog.needs_content`),
+  `/give` refuses them too; a key that carries a valid seed or compound is handed out as before.
 
 ## 6. The species register and the research book
 
@@ -135,7 +143,11 @@ Material without an origin (an ingot, an alloy, forge-made ore) acts with exactl
 
 ## 8. The lab (`BioLabIntent` → `BioLabResult`)
 
-The player must stand at a placed **bio lab** block (`NearStationBlock`). Actions:
+The player must stand at a placed **bio lab** block (`NearStationBlock`: within 3 blocks horizontally and 2
+vertically, in the world block grid) and must not be inside the ship. One block serves every action. The lab is
+a block of the world grid only: a ship refuses it as a ship cell (`srv.ship.block_needs_ground`, see
+[CRYSTAL_NET.md](CRYSTAL_NET.md) §7 for the same rule on Crystal Net devices); a player's own station takes it,
+because a station is stamped into a world grid. Actions:
 
 | Action | Needs | Costs | Gives |
 |---|---|---|---|
@@ -163,13 +175,25 @@ In a creative world everything is unlocked and free.
   cold-sensitive one.
 - **Stability** starts at 50; a matching form adds 8, toxicity costs 12 per level. Below 30 the mix **fails**
   (inputs gone, the book remembers the attempt); above 70 the side effect is one level weaker.
-- A **toxic** sample is washed as part of the mix when a detoxifier stands by and one carbon is at hand.
-- The same inputs always give the same result. The book stores the *signature* of every attempt
-  (`Synthesis.Signature`); the client shows the result of a known signature before mixing and "reaction unknown"
-  for a new one.
+- A **toxic** sample is washed as part of the mix when a detoxifier is available to the player
+  (`StationAvailable`: a detoxifier block within 3 blocks of the player) and one carbon is at hand (no carbon in
+  a free mode). A sample that is not toxic is never washed. The wash is part of the experiment: the answer
+  carries `BioLabResult.Washed`, also for a mix that failed.
+- The same inputs, washed the same way, always give the same result. The book stores the *signature* of every
+  attempt — `Synthesis.Signature(activeSeed, form, stabiliserSeed, stabiliserItem, modifierSeed, washed)` =
+  `<active:x8>/<form>/<stabiliser item>:<stabiliser:x8>/<modifier:x8>` plus `/w` for a washed mix. The client
+  mirrors the wash rule, shows the result of a known signature before mixing and "reaction unknown" for a new
+  one.
 
 The compound rides in the preparation's key (`prep_injector#x<10 hex>`): effect, level, side effect + level,
 thermal behaviour, duration (in 15 s units), second effect + level. Equal results stack.
+
+**Nothing trusts a key.** `Compound.FromPayload` returns null unless the effect is a known one other than None,
+the side effect and the thermal value are known, the levels are in range and a second effect is either absent or
+known with a level; the duration is clamped to `MinDuration`..`MaxDuration` (and to `StealthMaxDuration` for
+stealth). `ItemMods.Of` gives an empty set when a stat id is unknown. `TryTakePreparation` handles every `prep_*`
+key: one without a compound is refused with `srv.bio.prep_empty` and not used up, and the ration dispenser does
+not take preparations at all.
 
 ## 9. Status effects
 
@@ -186,6 +210,11 @@ thermal behaviour, duration (in 15 s units), second effect + level. Equal result
 - **Stealth** makes hostiles ignore the player (`PlayerState.IgnoredByHostiles`) and is the one effect capped at a
   quarter of the duration, 60 s at most.
 - A heat-sensitive effect runs out twice as fast above 40 °C, a cold-sensitive one below −5 °C (`PlayerEffects.Tick`).
+  The temperature is the one the player is really in (`GameServer.AmbientTemperature`): the cabin (22 °C,
+  `CabinComfortC`) aboard the ship, inside a landed ship's hull and on a station — not on a spacewalk — and the
+  outside reading everywhere else, whatever the hazard settings, god mode or the game mode are. The hazard scan
+  writes it where it runs; elsewhere the effects renew it after 1.5 s, and only for a player with a heat- or
+  cold-sensitive effect. While such an effect runs out faster the server syncs the player state every 2 s.
 - **Client side** (movement is the client's): walking speed, jump height and climbing grip read
   `BioClientState.MoveFactor` / `JumpFactor` / `GripBonus`; night sight and perception are drawn by `BioSenses`.
 
@@ -202,7 +231,8 @@ drawback, each a stat with a level 1–3, packed into six hex digits behind the 
   energy use, less range or less power; gear gets heavier (a slow-down capped at 15 %) — unless the material is
   light.
 - **Never touched:** the tool tier (the progression gate), the mining radius and ignition. There is no wear; a
-  change is overwritten by the next one or washed off.
+  change is overwritten by the next one or washed off. Wash-off works for any single item in the backpack whose
+  key changes when the `u` tag is removed — also for a change this version cannot read.
 - Read path: `ToolMods.Effective(def, itemKey)` (cached per key) is used wherever the server knows the item key
   (`ActiveTool`); `GearMods.Bonus(wornKeys, stat)` joins the suit formulas. Worn checks are base-aware (`Wears`),
   and `MaterialPool` accepts a changed item where a recipe asks for the plain one (an upgrade recipe takes a
@@ -218,9 +248,16 @@ the owner's sample case (`AppendSampleChoices`, choice string `g:<seed hex>`).
   from the register, id `gx<seed hex>`, at home in no biome, group size 1. It then moves, renders, scans and tames
   like any other. So an animal can be grown on another world; a water or lava animal needs water or lava within 8
   blocks of the tank.
-- Never grown: hostile species and giants.
-- **Cost:** one sample per parent and matter dust (2 for a clone, 4 for a cross). Caps: 6 living clones per owner
-  (unchanged) and 16 per world (`CrystalNetRules.MaxLivingClonesPerWorld`).
+- Never grown: hostile species and giants (a hostile species may be a cross parent — the child is never hostile).
+- **Cost:** one sample per parent and matter dust (2 for a clone, 4 for a cross); nothing in a free mode, on
+  both the sample path and the older bait path. Caps: 6 living clones per owner (unchanged) and 16 per world
+  (`CrystalNetRules.MaxLivingClonesPerWorld`).
+- **The list follows the owner.** On the sensor beat every tank compares a signature of its owner's choices
+  (sample-case species, animal scans, tames) and marks the device list dirty when it changed; the open menu
+  adopts the newer device record.
+- **Habitat:** `HabitatNear` reads every cell within 8 blocks (17 × 17 × 9).
+- **A guest clone is an animal like any other:** the creature tick runs on a world without a roster of its own
+  (an airless moon, an asteroid) as soon as an animal other than a giant exists there.
 - **Crossing** (blueprint `bio_crossing`): the tank's second choice (`x=` in its config) names the partner. Two
   animals or two plants, never a giant, at most generation 3. `EnsureCross` creates the register entry once;
   `CrossCreatures` builds the body: body plan, habitat, limbs and yield from one parent (so a cross is always a
@@ -231,7 +268,12 @@ the owner's sample case (`AppendSampleChoices`, choice string `g:<seed hex>`).
   + 1 for parents of different worlds, + 1 for different substance groups; a tier above both parents needs both to
   be at least rare and from different worlds. Toxicity is the lower of the two.
 - When the tank is done it releases the animal and hands the owner a sample of the new species; two plant samples
-  for a plant cross. From then on the tank clones what it made.
+  for a plant cross. From then on the tank clones what it made. `BioTankFinish` waits while the owner is away
+  or while the result does not fit the sample case (`CrossResultFits`: an animal cross needs the species held or
+  a free slot, a plant cross room for both samples); it retries every second and tells the owner once
+  (`srv.crystal.clone_case_full`).
+- The tank remembers every living clone by species (config key `cl`, see [CRYSTAL_NET.md](CRYSTAL_NET.md) §7), so
+  after a reload each one comes back as what it was grown as.
 
 **Bred plants.** A plant cross has a `FloraGenome` (body block, crown block, layout, size, tint, glow, toxic).
 The lab turns a plant sample into a **seedling** (`seedling#x<seed>`), which places the single block
@@ -243,8 +285,9 @@ The lab turns a plant sample into a **seedling** (`seedling#x<seed>`), which pla
 - which species stands in a cell is remembered per world (`bio:plants:<locationId>`, keyed by the canonical cell,
   capped at 256 per world), so a harvest yields the right sample and the regrowth (90 s) puts the same plant back;
 - it may be planted (`BredPlantRefusal`) on any natural plant ground that is not tainted, on a **hydro tray** or in
-  a **flower pot**, wherever the air is breathable or the world's atmosphere is not corrosive — on any world, in a
-  base, on a station;
+  a **flower pot**, wherever the air is breathable or the world's atmosphere is neither toxic nor corrosive — on
+  any such world, in a base, on a station. A seedling whose seed is 0 or unknown to the register is refused with
+  `srv.bio.seedling_empty`;
 - a harvest yields what the body parent's form yields (the poisonous twin for a toxic cross) plus one sample.
 
 ## 12. Messages
@@ -252,7 +295,7 @@ The lab turns a plant sample into a **seedling** (`seedling#x<seed>`), which pla
 | Message | Direction | Content |
 |---|---|---|
 | `BioLabIntent` (283) | client → server | `Action`, `Sample`, `SampleMineral`, `Carrier`, `Stabiliser`, `MaterialItem`, `Modifier`, `TargetItem`, `CoatingItem` |
-| `BioLabResult` (284) | server → client | `Action`, `Success`, `MessageKey`, `ItemKey`, `Stability`, `Failed`, `Knowledge` |
+| `BioLabResult` (284) | server → client | `Action`, `Success`, `MessageKey`, `ItemKey`, `Stability`, `Failed`, `Knowledge`, `Washed` |
 | `BioBook` (282) | server → client | `Full`, `Species[]` (`NetBioSpecies`), `Reactions[]`, `Changes[]` |
 | `InventoryUpdate` | server → client | + `Samples`, `SamplesUnchanged` |
 | `PlayerStateUpdate` | server → client | + `Effects` (`NetEffect[]`), `Shield` |
@@ -302,6 +345,9 @@ locale keys — and the place in the server where it acts.
   samples and on another world, crossing, seedlings and regrowth, persistence across a restart.
 - `tests/BlocksBeyondTheStars.Client.Tests/BredPlantLightTests.cs` — the client treats a bred plant's glow channel
   as a form.
+- The fix round: `BioTankFixTests.cs` (the tank with samples, guest clones, the sampler), `BioLabFixTests.cs` (the
+  wash, blanks, payload validation, the effect temperature), `BioFixFollowUpTests.cs`, `ShipFunctionBlockTests.cs`
+  (no dead function blocks in a ship).
 - `NetCodecTests` — the three new messages in the golden list.
 
 ## 16. Client notes
@@ -330,3 +376,23 @@ locale keys — and the place in the server where it acts.
   things through terrain with the thermal-vision overlay (drones are left out, micro-fauna is included).
 - **Sounds** — six bundled clips (see [SOUND_DESIGN.md](SOUND_DESIGN.md) §14), each with a synthesised stand-in in
   `ProceduralAudio`.
+
+## 17. Block ids, saves and joining (fix round)
+
+The two blocks of this feature made an older gap visible; it is closed in general, not only for the bio lab.
+
+- **Block ids follow the key order.** `GameContent.AssignBlockIds` numbers blocks in ordinal key order, so every
+  added or removed block shifts ids — appending to `data/blocks.json` does not keep them stable.
+- **Saves are remapped on first open** (`EnsureBlockPalette`): block edits, structure edits, flora regrowth, weather
+  deposits, space structures and the hull of self-built ships (`ShipState.BuiltCells`). A backup is written before
+  a remap. A hull cell whose block no longer exists stays as an air entry (it keeps the coordinate frame) and is
+  not counted in the ship's statistics.
+- **The join carries a content fingerprint** (`GameContent.BlockFingerprint`, FNV-1a 64 over the block keys in id
+  order). Server and client refuse each other when it is missing or different (`srv.join.content_mismatch`), so a
+  client with another block set can no longer draw shifted blocks.
+- **A save knows the build that wrote it** (`WorldMetadata.SaveVersion` / `CurrentSaveVersion`): a build refuses to
+  open a save from a newer one (exit code 3, log marker `[fatal] save-too-new`) instead of mapping unknown blocks
+  to air. `SaveCompatibilityTests.ChangedBlockSet_NeedsANewSaveVersion` pins the block set per save version — a
+  change that adds or removes a block must raise `CurrentSaveVersion` and add its row there.
+
+Details: [DEVELOPER.md](DEVELOPER.md) § "Adding or removing a block", [SELF_HOSTING.md](SELF_HOSTING.md) (backups).

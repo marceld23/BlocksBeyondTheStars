@@ -24,6 +24,65 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔧 Bio lab fix round — everything a code read of the merged feature found (#2225: #2214–#2224, 2026-10-03, branch fix/bio-lab-playtest) — ✅ done (unreleased; ⚠ playtest open)
+
+**Why.** Before the first playtest of the bio lab (#2213) ten agents read the merged code and checked every claim a
+second time. They found a dozen defects in the new code and a few older gaps that the feature's two new blocks trigger
+again. Marcel: fix everything in one go, one pull request. Each work package was implemented in its own worktree,
+read by a second agent, and corrected.
+
+- **✅ Clone tank with samples (#2214):** the species list follows the owner's sample case and scans by itself, and an
+  open menu adopts the newer list; a finished cross waits (light on, one notice) while the sample case has no room;
+  the habitat check reads every block; an inert third tank refuses a start and takes nothing; a tank that was growing
+  when the world unloaded starts its minute over; a free game mode is free on the bait path too; the tank remembers
+  every living clone by species (config key `cl`, old rows are read as before) and forgets one that died or was
+  tamed; the started species is what comes out; the first list is headed "Species".
+- **✅ Guest clones on worlds without wildlife (#2215):** the creature tick no longer returns on an empty roster when
+  an animal exists, so a clone from a sample moves on an airless moon or an asteroid.
+- **✅ The lab (#2216):** the wash is part of the experiment (`/w` in the mix signature, `BioLabResult.Washed`,
+  mirrored in the preview and in the Codex); the Sandbox catalog and `/give` no longer hand out a sample, seedling
+  or preparation without content, an empty preparation is refused instead of eaten, the ration dispenser takes no
+  preparations; key payloads are validated when read; wash-off also removes a change this version cannot read; the
+  lab's "research first" lines follow the same free-mode rule as the server; the sampler names a full register as
+  such; the lab cannot be used from inside the ship.
+- **✅ Sampler and giants (#2217):** a giant needs no stasis — its long reach is the hurdle.
+- **✅ Effect temperature (#2218):** heat- and cold-sensitive effects and the wards read the air the player is really
+  in: the cabin (22 °C) aboard a ship or a station, the real outside temperature everywhere else, in every mode.
+- **✅ No dead function blocks in a ship (#2219):** the bio lab, every Crystal Net device and the port blocks (radio
+  beacon, beam pad, sentry post, thumper, water spout, energy gate, hydro tray) are refused as ship cells with a
+  clear line, and nothing is used up; conduits and lamps stay. A station built from a spacewalk refuses what the
+  world place handler has to register. ⚠ Behaviour change: a hydro tray or an energy gate can no longer be built
+  into a ship as decoration.
+- **✅ Admin commands (#2220):** `/settime` really sets the local time of the admin's world (words, clock time, hour,
+  day part); `/setweather` takes every key and `cloudy`, and speaks to its world only; `/give` says what was given
+  and what did not fit; the manual says what `/instant` does.
+- **✅ Self-built ships across block-set changes (#2221):** the first-open remap of a save now covers the hull of
+  self-built ships; a hull cell of a removed block no longer counts in the ship's statistics. A sweep over every
+  persisted record found no other numeric block id outside the remap. ⚠ Not repaired: a save with a self-built ship
+  that already went through an earlier block-adding update (or was opened with main at 9da3b28b).
+- **✅ Content fingerprint, protocol 9 (#2222):** the join carries a fingerprint of the block set; server and client
+  refuse each other when it is missing or different ("This server runs a different version of the game"). Protocol
+  **9**, so clients released before the fingerprint are kept off newer servers by the check they already have.
+- **✅ Save version and backups (#2223):** a save records the build that wrote it and an older build refuses a newer
+  save (exit code 3, its own message in singleplayer) instead of mapping unknown blocks to air;
+  `SaveCompatibilityTests` pins the block set per save version. A backup is written before a block-palette remap,
+  and `backupIntervalMinutes` finally works: rotating backups after every 60 minutes of play, newest 5 kept
+  (`backupKeepCount`). ⚠ Ops: this is on by default for every host, hosted fleet worlds included —
+  `BBS_BACKUP_INTERVAL_MINUTES=0` switches it off.
+- **✅ Docs, scripts, texts (#2224):** USER_MANUAL (bio lab, Crystal Net, admin table, backups and versions),
+  BIO_LAB.md, CRYSTAL_NET.md, SELF_HOSTING.md, DEVELOPER.md § "Adding or removing a block", SERVER_TESTING.md,
+  AGENTS.md rule 3, the Codex; `build-client.ps1` vendors the Velopack runtime when it is missing; 14 new and 4
+  changed texts in all 14 languages.
+- **Tests:** `BioTankFixTests`, `BioLabFixTests`, `BioFixFollowUpTests`, `ShipFunctionBlockTests`,
+  `AdminCommandFixTests`, `SaveCompatibilityTests`, `ContentFingerprintTests` (+ a client test); the PostgreSQL
+  tests ran once locally against postgres:16.
+- **⚠ Open (found, not fixed here):** the species tables (`_speciesRoster`, `_speciesById`) are server-wide, not per
+  world — with two resident worlds the first world's wildlife runs on the other world's roster (follow-up issue);
+  crates, the base core, rail pylons and crafting-station blocks are still accepted as dead ship cells; which
+  auto-drill or sender is over a cap after a reload follows the store's row order. And the playtest of #2213 itself.
+
+---
+
 ### 🧪 The bio lab — samples with seeds, preparations with status effects, changed tools and gear, cloning and crossing (#2212: #2200–#2211, 2026-10-03, branch feat/bio-lab) — ✅ done (unreleased; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-03).** Harvested things — raw materials, plants and animals — should carry the seed of
