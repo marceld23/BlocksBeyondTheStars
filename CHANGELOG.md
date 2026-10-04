@@ -11,6 +11,110 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.4] — 2026-10-04
+
+The discovery release. Everything you harvest now carries something of its own, and the new **bio lab** finds out
+what: it turns samples of plants, animals and ore into **preparations** with real effects, changes your tools and
+gear, and grows and crosses animals and plants (#2212). Out in space, **every ship now has a scanner**: hold it on a
+planet and you see what waits down there before you land. Life pods and anomalies finally look like something, and
+rare **wormholes** link two star systems, with no jump generator needed. The "What's new?" window speaks all 14
+languages now, too.
+
+ℹ️ **Compatibility:** the network protocol goes to **version 9**, so game and server must both be on 2026.10.4. An
+older game cannot join a 2026.10.4 server, and the server says so. The terrain generation stays at 20, so worlds
+look the way they did. Saves carry over, and a save now remembers which version wrote it, so an older game refuses
+a newer save instead of breaking it. The desktop game updates itself on start, and the browser version is always
+current.
+
+### 🧪 The bio lab (#2200 #2201 #2202 #2203 #2204 #2205 #2206 #2207 #2208 #2209 #2210 #2211)
+
+- **Samples.** Harvest a plant, fell a tree, mine ore or defeat an animal and you get what you always got, **plus a
+  sample** of that species. Samples go into their own **sample case** in the inventory, so they never clutter your
+  backpack.
+- **The sampler** takes a sample from a living animal without hurting it, even from a giant.
+- **The bio lab** is a new block for your base or station. It has three pages:
+  - **Analyse** shows what a species carries: one of **19 effects** (speed, jump, shield, night sight, heat ward,
+    stealth and more), how strong it is, how rare and how long it lasts.
+  - **Mix** turns samples into **preparations**: injectors, gels, bars and capsules. A second sample can make an
+    effect stronger, weaker or turn it into another one. There are no recipes to look up. The same things always
+    give the same result, and your handbook in the Codex remembers every mix you tried.
+  - **Change** makes a drill, a weapon or a piece of suit gear better with a material and a coating. A big change
+    has a small price, and you can always wash it off.
+- **Where to look:** what a species carries follows from where it lives. What survives beside a lava lake protects
+  from heat, and the strongest things live where it is hard to get, so travel pays.
+- **Up to three effects at once**, shown under your vitals. A catch is always mild: never damage.
+- **Cloning from samples:** the clone tank grows animals from your samples, also on other worlds, even on an airless
+  moon. **Crossing** two species makes a brand-new, always friendly one, and two plant samples breed a plant with a
+  **new form** that you grow from a seedling in your base.
+
+### 🛰️ The ship scanner (#2243: #2237 #2238 #2240)
+
+- **Every ship has a scanner** now, in the last slot of the flight hotbar next to the laser and the tractor beam.
+  Point the nose at something and **hold fire**: brackets lock on, a ring fills, and the scan sweeps over the target.
+- It reads planets, moons, asteroids, stations, wrecks, life pods, raiders and Guardian machines. Every first scan
+  pays a little knowledge.
+- The asteroid survey and the relay survey missions can be finished again, now that the scanner reads what they
+  ask for.
+- **Upgrade it in two steps:** the **Deep scanner** reaches twice as far and shows which ores a world holds. The new
+  **Quantum scanner** finds rare ores and hidden data caches, and when you hold it at empty space it sweeps the whole
+  system and pins everything on your radar. Each comes with a blueprint and a new workshop part: the sensor lens
+  and the quantum sensor.
+
+### 🪐 What waits down there (#2239)
+
+- Scan a planet or moon from flight and a card opens: **air, temperature, gravity, weather, water, lava, plants,
+  animals, machines, terrain** and how dangerous it is. Now you know whether to bring heat protection before you land.
+- The same overview is in the Map tab and the Ship tab, for every ship, not only with the old planet scanner.
+
+### 🌀 Wormholes (#2242)
+
+- Some systems hold a **wormhole**: a glowing tear in space that links two star systems. Fly up to it, press **E**
+  and you come out next to the other end. It works **both ways** and needs no jump generator.
+- Where one leads stays a mystery until you fly through or scan it. Known pairs show on the galaxy chart.
+- Wormholes are rare (about one pair in a normal galaxy) and never lead into the story's special places. How many a
+  new world gets is a world option.
+
+### 🛟 Life pods and anomalies (#2241)
+
+- A **life pod** is a small orange capsule now, with a blinking beacon and someone waving behind the porthole. Fly
+  close and your tractor pulls it aboard.
+- An **anomaly** is a shimmering bubble with glitching blocks around it, and only the ship scanner can read it.
+- Both show on the radar and on the system chart, instead of the old red cube.
+
+### 🔧 Fixes (#2214 #2215 #2216 #2217 #2218 #2219 #2220 #2221 #2225 #2226 #2233 #2235 #2236)
+
+- The clone tank's list follows your sample case by itself, a finished cross waits when the case is full, and
+  clones from samples move on worlds without wildlife (#2214 #2215).
+- The bio lab: washing a toxic sample is part of the experiment and shows up front, empty preparations are refused,
+  and the lab cannot be used from inside the ship or from space (#2216). A giant needs no stasis for the sampler,
+  only courage (#2217). Heat- and cold-sensitive effects read the air you are really in (#2218).
+- A bio lab or another machine block built into a ship is allowed, as decoration, and VEGA says so once (#2219).
+- Self-built ships keep their hull when a new update adds blocks (#2221).
+- With two worlds loaded at once, each world now runs on its own animals, plants and terrain, and two boarded
+  stations no longer share one timer (#2226 #2235).
+- Leaving the inside of your own ship after you took out its engine or door no longer strands you on the planet:
+  you stay aboard and the game says what is missing (#2233).
+- A sentry post with a roof right above it no longer goes blind (#2236).
+
+### 🖥️ For server hosts (#2220 #2222 #2223)
+
+- `/settime` really sets the local time, `/setweather` takes every weather, and `/give` says what did not fit
+  (#2220).
+- The game and the server compare their block sets when you join, so a mismatched pair refuses each other instead
+  of showing wrong blocks (#2222).
+- Every host now keeps **rotating backups**: one after every 60 minutes of play, the newest five kept, plus one
+  before any block update of a save (#2223).
+
+### 🌍 Translations (#2227 #2224)
+
+- The **"What's new?"** window shows the release notes in your language, in all 14 game languages, for every
+  release so far (#2227).
+- The French texts now use one name for each thing (the flowerling, the helmet visor, the sandworm).
+- Every new text is in all 14 languages: the bio lab, the scanner, the overview card and the wormholes, plus new
+  Codex articles about the scanner and wormholes.
+
+Full details of every change are in the pull requests: #2213, #2228, #2229, #2230, #2231, #2232, #2234 and #2244.
+
 ## [2026.10.3] — 2026-10-03
 
 The climbing release. Until now, a cliff was the end of the road unless you had a ladder, a jetpack or a stack of
@@ -6643,7 +6747,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.3...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.4...HEAD
+[2026.10.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.3...v2026.10.4
 [2026.10.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.2...v2026.10.3
 [2026.10.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.1...v2026.10.2
 [2026.10.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.20...v2026.10.1

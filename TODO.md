@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛰️ Space package — ship scanner, planet overview, scanner tiers, visible pods and anomalies, wormholes (+ fixes) (#2243: #2233 #2235 #2236 #2237–#2242, 2026-10-04, branch feat/space-scanner-wormholes) — ✅ done (unreleased; ⚠ playtest open)
+### 🛰️ Space package — ship scanner, planet overview, scanner tiers, visible pods and anomalies, wormholes (+ fixes) (#2243: #2233 #2235 #2236 #2237–#2242, 2026-10-04, branch feat/space-scanner-wormholes) — ✅ done (released in v2026.10.4; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04).** Every ship gets a scanner in the flight hotbar (like weapon / tractor) with a cool effect,
 icon and sounds; the scanner also scans planets for an overview of what awaits there; it can be upgraded (blueprint, recipe,
@@ -80,9 +80,11 @@ without a jump drive, never into the story system. Three server bugs go first. A
 - ⚠ **Playtest open:** scanner feel (hold time, cone), the overview card on small screens, the rift on Low quality
   (no lensing) and in WebGL, the wormhole transit in multiplayer (the other player's burst).
 
+**Released** in **v2026.10.4** "the discovery release" (2026-10-04).
+
 ---
 
-### 🔧 Bio lab fix round — everything a code read of the merged feature found (#2225: #2214–#2224, #2226, 2026-10-03, branch fix/bio-lab-playtest) — ✅ done (unreleased; ⚠ playtest open)
+### 🔧 Bio lab fix round — everything a code read of the merged feature found (#2225: #2214–#2224, #2226, 2026-10-03, branch fix/bio-lab-playtest) — ✅ done (released in v2026.10.4; ⚠ playtest open)
 
 **Why.** Before the first playtest of the bio lab (#2213) ten agents read the merged code and checked every claim a
 second time. They found a dozen defects in the new code and a few older gaps that the feature's two new blocks trigger
@@ -164,9 +166,11 @@ read by a second agent, and corrected.
   (the station staff timer is still server-wide; one world generator per loaded world would close the last gap
   inside a tick). And the playtest of #2213 itself.
 
+**Released** in **v2026.10.4** "the discovery release" (2026-10-04).
+
 ---
 
-### 🇫🇷 French game texts: one name per thing (2026-10-03, branch fix/fr-locale-consistency) — ✅ done (unreleased)
+### 🇫🇷 French game texts: one name per thing (2026-10-03, branch fix/fr-locale-consistency) — ✅ done (released in v2026.10.4)
 
 Found by the reviewers of the French devblog translation (#2227): the game's `fr.json` named the same things two ways.
 Now: the flowerling is **fleurisson** everywhere (was also "florentin"), the helmet visor is **visière** (was "viseur",
@@ -175,7 +179,9 @@ a gun sight), the sandworm is **ver des sables** (Arena Nigra said "ver de sable
 descendre", "Maintiens la touche de saut" — instead of "Saut"/"Accroupir" as if they were key names (the touch button
 says SAUTER, the pad hint "(A) sauter"). 11 values, no new keys.
 
-### 🗞️ "What's new?" in all 14 languages — one language file per language, fetched online (#2227, 2026-10-03, branch feat/whatsnew-all-languages, PR #2228 → c768b41e; texts: branch feat/whatsnew-translations) — ✅ done (unreleased; ⚠ playtest open)
+**Released** in **v2026.10.4** "the discovery release" (2026-10-04).
+
+### 🗞️ "What's new?" in all 14 languages — one language file per language, fetched online (#2227, 2026-10-03, branch feat/whatsnew-all-languages, PR #2228 → c768b41e; texts: branch feat/whatsnew-translations) — ✅ done (released in v2026.10.4; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-03).** The devblog is being translated into the twelve other website languages; the
 in-game release notes should be extended the same way, "so that there are all languages in-game".
@@ -224,7 +230,9 @@ about 3.3 MB, bundled into every build and prefetched by the browser client befo
   bundled German/English feed is shown). An offline copy of the language
   files is not planned — offline the bundled German/English feed is shown, as before.
 
-### 🧪 The bio lab — samples with seeds, preparations with status effects, changed tools and gear, cloning and crossing (#2212: #2200–#2211, 2026-10-03, branch feat/bio-lab) — ✅ done (unreleased; ⚠ playtest open)
+**Released** in **v2026.10.4** "the discovery release" (2026-10-04).
+
+### 🧪 The bio lab — samples with seeds, preparations with status effects, changed tools and gear, cloning and crossing (#2212: #2200–#2211, 2026-10-03, branch feat/bio-lab) — ✅ done (released in v2026.10.4; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-03).** Harvested things — raw materials, plants and animals — should carry the seed of
 their source; a clone bench makes clones, crosses and new creatures and plants from them; a lab mixes flora and fauna
@@ -275,6 +283,8 @@ in the lab only; experiments may fail; everything in one go.
 - **⚠ Open:** playtest the whole loop (sample → analyse → mix → take → change a drill → clone on another world →
   cross → plant a seedling), the balance of the caps and the lab UI with gamepad and touch (WebGL). Possible
   follow-ups: a ration-store slot for preparations, companion bonuses from crosses, trading rare samples.
+
+**Released** in **v2026.10.4** "the discovery release" (2026-10-04).
 
 ---
 
