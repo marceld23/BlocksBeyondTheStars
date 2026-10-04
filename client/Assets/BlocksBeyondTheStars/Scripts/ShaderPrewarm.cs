@@ -43,6 +43,7 @@ namespace BlocksBeyondTheStars.Client
             "BlocksBeyondTheStars/FxCrack",
             "BlocksBeyondTheStars/FxSpaceDust",
             "BlocksBeyondTheStars/FxTunnel",
+            "BlocksBeyondTheStars/Wormhole", // #2242: no hitch when the first rift comes into view
         };
 
         // Keyword axes as declared by the shaders' multi_compile lines (only the modes the game actually sets:

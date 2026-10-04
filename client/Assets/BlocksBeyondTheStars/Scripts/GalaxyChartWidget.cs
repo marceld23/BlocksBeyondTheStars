@@ -43,6 +43,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly Color BackingCol = new Color(0.01f, 0.03f, 0.07f, 0.78f);
         private static readonly Color LaneCol = new Color(0.4f, 0.85f, 1f, 0.55f);
+        private static readonly Color WormholeCol = new Color(0.78f, 0.5f, 1f, 0.85f); // #2242: a known wormhole pair
         private static readonly Color FinaleCol = new Color(0.62f, 0.42f, 0.9f);
         private static readonly Color UnknownLabelCol = new Color(0.30f, 0.55f, 0.72f, 0.7f);
 
@@ -72,9 +73,10 @@ namespace BlocksBeyondTheStars.Client
             return widget;
         }
 
-        /// <summary>(Re)draws the galaxy: every star, the lanes between them, and the selection ring on
-        /// <paramref name="selectedId"/> (null for none).</summary>
-        public void Show(IReadOnlyList<Star> stars, IReadOnlyList<(string A, string B)> lanes, string selectedId)
+        /// <summary>(Re)draws the galaxy: every star, the lanes between them, the wormhole pairs the player knows
+        /// (#2242), and the selection ring on <paramref name="selectedId"/> (null for none).</summary>
+        public void Show(IReadOnlyList<Star> stars, IReadOnlyList<(string A, string B)> lanes, string selectedId,
+            IReadOnlyList<(string A, string B)> wormholes = null)
         {
             for (int i = transform.childCount - 1; i >= 0; i--)
             {
@@ -130,6 +132,30 @@ namespace BlocksBeyondTheStars.Client
                     if (byId.TryGetValue(a, out int ia) && byId.TryGetValue(b, out int ib))
                     {
                         Line(chart[ia], chart[ib], LaneCol, LaneThickness);
+                    }
+                }
+            }
+
+            // #2242: the wormhole pairs this player knows — a violet zigzag, like the crack it is, not a straight lane.
+            if (wormholes != null)
+            {
+                foreach (var (a, b) in wormholes)
+                {
+                    if (!byId.TryGetValue(a, out int wa) || !byId.TryGetValue(b, out int wb))
+                    {
+                        continue;
+                    }
+
+                    Vector2 from = chart[wa];
+                    Vector2 d = chart[wb] - from;
+                    Vector2 perp = new Vector2(-d.y, d.x).normalized * 5f;
+                    const int zigs = 8;
+                    Vector2 prev = from;
+                    for (int z = 1; z <= zigs; z++)
+                    {
+                        Vector2 next = from + d * (z / (float)zigs) + (z < zigs ? perp * (z % 2 == 0 ? 1f : -1f) : Vector2.zero);
+                        Line(prev, next, WormholeCol, LaneThickness);
+                        prev = next;
                     }
                 }
             }

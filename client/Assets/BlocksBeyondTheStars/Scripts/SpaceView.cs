@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Client
     /// entry; pressing L (or "Return to surface") flies you home with a landing sequence.
     /// On-foot control is frozen meanwhile. Presentation only; combat stays server-authoritative.
     /// </summary>
-    public sealed class SpaceView : MonoBehaviour
+    public sealed partial class SpaceView : MonoBehaviour
     {
         public GameBootstrap Game;
         public Camera Camera;
@@ -918,7 +918,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnRemoteShipFx(BlocksBeyondTheStars.Networking.Messages.ActionFx m)
         {
             if (!_active || _root == null || m == null || m.Outcome || m.PlayerId == Game.LocalPlayerId
-                || m.Kind != BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Shot
+                || (m.Kind != BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Shot && m.Kind != BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Scan)
                 || !_remotePlayers.TryGetValue(m.PlayerId, out var av) || av.Root == null)
             {
                 return;
@@ -926,6 +926,15 @@ namespace BlocksBeyondTheStars.Client
 
             var look = FxLook.ForModule(Game.Content, m.ItemKey);
             var target = _root.transform.TransformPoint(new Vector3(m.ToX, m.ToY, m.ToZ));
+            if (m.Kind == BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Scan)
+            {
+                // #2237: another pilot's ship scan — the light fan from their nose and a pulse on what they read.
+                var fan = FxKit.BeamMaterial("shipscanfan", look.Color2, coreWidth: 0.6f, noiseScale: 2.5f, noiseSpeed: 20f, intensity: 1.6f);
+                FxKit.Beam(av.Root.transform.position, target, look.Color, 0.05f, 0.35f, fan);
+                SpaceFx.ScanPulse(target, look.Color, 6f);
+                return;
+            }
+
             SpaceFx.Fire(look, av.Root.transform, new Bounds(Vector3.zero, new Vector3(2.4f, 1.2f, 4f)), target, look.Is("drill_beam"));
         }
 
@@ -1191,6 +1200,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Trader positions are instance-local (the same space remote poses use), so map through _root.
                 var at = _root.transform.TransformPoint(new Vector3(fx.X, fx.Y, fx.Z));
+                if (fx.Style == "wormhole")
+                {
+                    WormholeVisuals.FlashAt(at, fx.Arriving); // #2242: another pilot vanishing into / shooting out of a rift
+                    continue;
+                }
+
                 // #2157: a stretched light streak + flash + ring (was a burst of cubes).
                 var dir = Camera != null ? (at - Camera.transform.position) : Vector3.forward;
                 dir = Vector3.Cross(dir.sqrMagnitude > 1e-4f ? dir.normalized : Vector3.forward, Vector3.up);
@@ -1726,10 +1741,17 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // #2242: a wormhole within reach takes E before anything else (rifts open far from planets and stations).
+            UpdateNearWormhole(pos);
+            if (_nearWormholeId != null && InputMap.Down(InputAction.Interact))
+            {
+                BeginWormholeTransit();
+            }
+
             // E is the context action while flying: dock with a station you're next to, or — like docking —
             // land on a planet/moon you've flown up close to (the server flies the descent). L stays as the
             // "return to the body you launched from" shortcut.
-            if (InputMap.Down(InputAction.Interact))
+            else if (InputMap.Down(InputAction.Interact))
             {
                 // Whichever you're closest to wins: dock the station or land on the body.
                 bool stationCloser = _nearStationId != null && (_landTargetId == null || _nearStationSq <= _landTargetSq);
@@ -1753,6 +1775,7 @@ namespace BlocksBeyondTheStars.Client
             // Ship-systems quick-bar: 1–9 pick the active system, LMB uses it. The laser auto-locks the best
             // target ahead (mines asteroids + fights hostiles); the tractor beam sweeps in nearby salvage.
             RebuildSystems();
+            MaybeSayAnomalyHint(); // #2238: an unscanned anomaly nearby — VEGA points at the scanner
             for (int n = 0; n < _systems.Count && n < 9; n++)
             {
                 if (Input.GetKeyDown(KeyCode.Alpha1 + n))
@@ -1779,6 +1802,11 @@ namespace BlocksBeyondTheStars.Client
 
             _fireCd -= Time.deltaTime;
             var sys = _systems[_selectedSystem];
+            if (sys.Kind != "scanner")
+            {
+                StopScanner(); // #2237: switching away cancels a scan in progress and hides the lock brackets
+            }
+
             if (sys.Kind == "laser")
             {
                 var target = BestFireTarget(sys.WeaponKey);
@@ -1788,6 +1816,10 @@ namespace BlocksBeyondTheStars.Client
                     _fireCd = WeaponCooldownFor(sys.WeaponKey);
                     FireAt(target, sys.WeaponKey);
                 }
+            }
+            else if (sys.Kind == "scanner")
+            {
+                UpdateScanner(Time.deltaTime); // #2237: aim, hold until the ring is full, read the target
             }
             else // tractor
             {
@@ -2268,15 +2300,17 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (_systems.Count == 0)
-            {
-                _systems.Add(new ShipSystem { Label = Loc("ui.space.sys_laser", "Laser"), Kind = "laser", WeaponKey = FlightWeapon });
-            }
+            // #2237: no weapon fitted → no laser slot. The old fallback showed a "Laser" on every unarmed ship (a self-built
+            // one never has a weapon) that the server then refused with "no weapon"; the scanner below is always there.
 
             if (mods != null && System.Array.IndexOf(mods, "tractor_beam") >= 0)
             {
                 _systems.Add(new ShipSystem { Label = Loc("ui.space.sys_tractor", "Tractor"), Kind = "tractor" });
             }
+
+            // #2237: every ship's scanner — the cockpit carries tier 1 — on the LAST slot, so the weapon numbers stay.
+            var scanner = CurrentScanner();
+            _systems.Add(new ShipSystem { Label = Loc("ui.space.sys_scanner", "Scanner"), Kind = "scanner", WeaponKey = scanner.ModuleKey });
 
             _selectedSystem = Mathf.Clamp(_selectedSystem, 0, _systems.Count - 1);
         }
@@ -3576,6 +3610,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_hyperjumpSubscribed)
             {
                 Game.HyperjumpStarted += OnHyperjump;
+                Game.WormholeArrived += OnWormholeArrived; // #2242: through a rift — same teardown, the rift transit instead of the warp
                 _hyperjumpSubscribed = true;
             }
 
@@ -3618,6 +3653,8 @@ namespace BlocksBeyondTheStars.Client
             // overlay with live click-to-land raycast targets. Tear it down with the view.
             CancelLandChooser();
             _landDestBody = null; // descent finished — don't let a stale target steer a later recovery landing
+            StopScanner();          // #2237: no lock brackets or charging fan outlive the flight view
+            _nearWormholeId = null; // #2242
             FxSpaceDust.Hide();
             Sky.SpaceSunDir = Vector3.zero;
             UrpScenePost.Instance?.SetMotion(0f);
@@ -5047,6 +5084,9 @@ namespace BlocksBeyondTheStars.Client
                             "Ufo" => BuildUfoModel(_root.transform),
                             "Cruiser" => BuildCruiserModel(_root.transform),
                             "BanditShip" => BuildBanditShipModel(_root.transform),
+                            "EscapePod" => BuildEscapePodModel(_root.transform, e),   // #2241: a little lifeboat, not a red cube
+                            "Anomaly" => BuildAnomalyModel(_root.transform, e),       // #2241: the shimmering soap bubble
+                            "Wormhole" => BuildWormholeModel(_root.transform, e),     // #2242: the tear in space-time
                             _ => Cube("Entity", _root.transform, Vector3.zero, EntityScale(e.Kind), Unlit(EntityColor(e.Kind))), // ResourceDrop etc.
                         };
 
@@ -5063,7 +5103,7 @@ namespace BlocksBeyondTheStars.Client
 
                     // Stations (and the derelict wreck, #1664) are static scenery — everything else the server
                     // moves gets the snapshot buffer (#756). Rotation stays driven by Spin (no yaw on the entity wire).
-                    if (e.Kind != "SpaceStation" && e.Kind != "Wreck")
+                    if (e.Kind != "SpaceStation" && e.Kind != "Wreck" && !IsStaticEncounter(e.Kind))
                     {
                         if (fresh)
                         {
@@ -5134,6 +5174,7 @@ namespace BlocksBeyondTheStars.Client
                         }
                     }
 
+                    OnEntityGone(id); // #2241: a rescued life pod is pulled aboard on a tractor beam
                     Destroy(_entities[id]);
                     _entities.Remove(id);
                     _entityKinds.Remove(id);
@@ -5369,6 +5410,14 @@ namespace BlocksBeyondTheStars.Client
                             // The system's derelict (#1664): a chart target like a station, arrive in salvage range.
                             target = new Vector3(e.X, e.Y, e.Z);
                             arriveSq = WreckArriveRange * WreckArriveRange;
+                            return true;
+                        }
+
+                        if (IsEncounterWaypointKind(e.Kind) && e.Id == id)
+                        {
+                            // #2241/#2242: a life pod, an anomaly or a wormhole — fly up to it (the rift: into its prompt range).
+                            target = new Vector3(e.X, e.Y, e.Z);
+                            arriveSq = EncounterArriveRange * EncounterArriveRange;
                             return true;
                         }
                     }
@@ -5792,7 +5841,14 @@ namespace BlocksBeyondTheStars.Client
                     _board.text = $"{land} {_landTargetName}";
                 }
 
-                _board.gameObject.SetActive(showStation || showBody);
+                bool showWormhole = _nearWormholeId != null; // #2242: the rift wins — the same E flies through it
+                if (showWormhole)
+                {
+                    string through = loc != null ? string.Format(loc.Get("ui.space.wormhole_prompt_fmt"), useGlyph) : $"Press {useGlyph} to fly through the wormhole";
+                    _board.text = through;
+                }
+
+                _board.gameObject.SetActive(showStation || showBody || showWormhole);
 
                 string cargoLabel = loc != null ? loc.Get("ui.space.cargo") : "Cargo";
                 int cargoCount = Game.Cargo.Length;

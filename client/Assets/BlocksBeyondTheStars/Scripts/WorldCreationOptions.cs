@@ -38,6 +38,7 @@ namespace BlocksBeyondTheStars.Client
         public int Wrecks = 3;         // Normal
         public int Vaults = 3;         // Normal
         public int Stations = 3;       // Normal (server default since #1114 — most systems get a station)
+        public int Wormholes = 2;      // Rare — one pair in a standard universe (#2242)
         public int Exotic = 3;         // Normal
 
         // Galaxy & terrain layout (#1114, creation-only): all three shipped earlier behind creation-time
@@ -119,7 +120,7 @@ namespace BlocksBeyondTheStars.Client
         {
             Creatures = other.Creatures; PlanetEnemies = other.PlanetEnemies; SpaceNpcs = other.SpaceNpcs; Ufos = other.Ufos;
             Bandits = other.Bandits;
-            Flora = other.Flora; Ore = other.Ore; Settlements = other.Settlements; Wrecks = other.Wrecks;
+            Flora = other.Flora; Ore = other.Ore; Settlements = other.Settlements; Wrecks = other.Wrecks; Wormholes = other.Wormholes;
             Vaults = other.Vaults; Stations = other.Stations; Exotic = other.Exotic; UniverseSize = other.UniverseSize;
             SystemVariance = other.SystemVariance; AsteroidBelts = other.AsteroidBelts; TerrainContinents = other.TerrainContinents;
             TerrainGeneration = other.TerrainGeneration;
@@ -161,6 +162,7 @@ namespace BlocksBeyondTheStars.Client
             if (Wrecks != 3) Arg("planet-wrecks", Freq[Wrecks]);
             if (Vaults != 3) Arg("vaults", Freq[Vaults]);
             if (Stations != 3) Arg("stations", Freq[Stations]);
+            if (Wormholes != 2) Arg("wormholes", Freq[Wormholes]);
             if (Exotic != 3) Arg("exotic", Freq[Exotic]);
 
             if (!SystemVariance) Arg("variance", "false");

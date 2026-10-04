@@ -80,6 +80,11 @@ refreshed 2026-08-08.
 - [BIO_LAB.md](BIO_LAB.md) — the bio lab (#2212): species seeds and samples, derived substance and material
   profiles, the lab (analyse, mix, change tools and gear), status effects, cloning from samples, crosses and bred
   plants; the register and research blobs, the wire, limits, and how to add an effect or a lab material.
+- [SHIP_SCANNER.md](SHIP_SCANNER.md) — the ship scanner (#2243): every ship's hold-to-scan slot in the flight
+  hotbar, server-checked readouts for every space object, the planet overview card, the three data-driven tiers
+  (cockpit · Deep · Quantum) with module replacement, and the life-pod and anomaly models.
+- [WORMHOLES.md](WORMHOLES.md) — wormholes (#2242): seed-pure pair placement beyond the outer orbit, the story-system
+  lock, the world option, the transit gates and pose, the scanner reading, and the rift shader and transit effect.
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
 - [NPC_ROUTINES.md](NPC_ROUTINES.md) — living NPCs: base residents, the daily routine, pathfinding with doors,
   jobs with yield, and the station night.

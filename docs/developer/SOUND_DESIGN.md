@@ -259,6 +259,21 @@ Positional one-shots the server sends as `SoundFx` at the player (the sampler's 
 | effect ends | a status effect runs out | `bio_effect_end` | EL |
 | sample taken | the sampler takes a sample from a living animal | `bio_sample_take` | EL |
 
+## 15. Ship scanner, space encounters, wormholes (#2243) — *ElevenLabs clips*
+
+Played by the client (`ClientAudio.Cue`, loops on the encounter's own source); see [SHIP_SCANNER.md](SHIP_SCANNER.md)
+and [WORMHOLES.md](WORMHOLES.md).
+
+| Sound | Trigger | Files | Source |
+|---|---|---|---|
+| lock-on | the scanner locks a target | `ship_scan_lock` | EL |
+| charge | fire held on a target | `ship_scan_charge` | EL |
+| scan done / hostile | a scan completes (a machine or raider: the warning blip) | `ship_scan_complete`, `ship_scan_hostile` | EL |
+| planet overview | a body scan or the Quantum system sweep | `planet_scan_overview` | EL |
+| pod beacon (loop) / rescue | a life pod nearby / it is pulled aboard | `pod_beacon`, `pod_rescue` | EL |
+| anomaly hum (loop) / reaction | an anomaly nearby / it is scanned | `anomaly_hum`, `anomaly_react` | EL |
+| rift hum (loop) / enter / exit | a wormhole nearby / flying in / coming out | `wormhole_hum`, `wormhole_enter`, `wormhole_exit` | EL |
+
 ---
 
 ## Totals & rollout

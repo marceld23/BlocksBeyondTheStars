@@ -27,6 +27,11 @@ them**; between systems you hyperjump. This combines two originally separate ide
   `_fluidLevel`). The Tick loop walks `OccupiedLocations()` and calls `SetActiveWorld(locId)` before
   ticking each one, and incoming messages set the cursor to the sender's world first. So worlds are
   resident simultaneously but processed one-at-a-time via the cursor — not truly concurrent.
+  Since #2235 this also holds for the two pieces that used to be server-wide: every `ServerWorld` owns its
+  **`WorldGenerator`** (`ServerWorld.Generator`, cloned from the startup template; `GameServer._generator` reads
+  the active world's, and a temporary `_bodyGeneratorOverride` serves other-body reads such as the planet
+  overview or the ambient weather of a body nobody stands on), and the station staff check runs on
+  `LoadedWorld.SinceStationStaffCheck`, so two loaded stations no longer share one timer.
 - **Per-player location.** Each session carries a `CurrentLocationId`; mining/placing/streaming/
   presence all operate on the world resolved for that session (the cursor is pointed at it first).
   `WorldReset` is sent to the moving player only, never broadcast. `SwitchActiveWorld` still exists but
@@ -54,6 +59,9 @@ them**; between systems you hyperjump. This combines two originally separate ide
   per-system `StarColor` (#1604) — and offers the same `HyperjumpSystemIntent` from a selected star; the
   finale system is placed out past every other star (`GuardianFinaleMapPosition`, #1605) now that map
   positions are visible. Pure projection/name rules live in `Shared/World/GalaxyChartLayout.cs`.
+- **Wormholes (#2242)** are the second way between systems: a `WormholeTransitIntent` (NetCodec 285) moves just
+  that player's flight space to the twin system, next to the other rift, like a hyperjump without the module —
+  see [WORMHOLES.md](WORMHOLES.md).
 - **Scoped presence.** A player only sees remote players / NPCs / creatures in the same world (or same
   flight space). This is enforced server-side: presence/entity broadcasts filter recipients on matching
   `CurrentLocationId` (see `GameServerPresence.cs`) rather than carrying a scope-id field on the wire.

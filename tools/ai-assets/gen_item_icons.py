@@ -190,6 +190,11 @@ ITEMS = [
     # #2192 wall climbing (2026-10-03): the two climbing modules.
     ("climbing_gloves", "a pair of sturdy sci-fi space-suit climbing gloves, dark grey with bright orange rubber grip pads on the palms and fingertips and a small cyan wrist-strap light"),
     ("climbing_claws", "a pair of armoured sci-fi space-suit climbing gloves with short curved steel claw spikes on every fingertip, dark gunmetal with orange grip pads and icy pale-blue glints on the claw tips"),
+    # #2237/#2240 the ship scanner (2026-10-04): the built-in scanner's hotbar icon, tier 3 and the two workbench parts.
+    ("ship_scanner", "a sleek sci-fi spaceship sensor module: a slim white and gunmetal nose array with one glowing cyan lens, four small glowing cyan holographic corner brackets floating in front of it as if locking onto a target"),
+    ("quantum_scanner", "an advanced sci-fi spaceship sensor array: a dark gunmetal module with a ring of small glowing white-gold lenses around a bright central crystal eye, faint golden holographic scan lines fanning out from it"),
+    ("sensor_lens", "a round polished crystal sensor lens set in a thin silver metal ring, glowing faint teal-green inside"),
+    ("quantum_sensor", "a small sci-fi quantum sensor chip: a glowing white-gold crystal suspended inside a dark metal frame with fine golden circuit traces"),
     # #2113 the monorail (2026-09-27): the linker gadget, the cab and the three wagons as packable items.
     ("rail_linker", "a handheld sci-fi rail linker tool, a dark metal grip with two glowing cyan prongs and a small holographic link readout"),
     ("rail_cab", "a sleek sci-fi monorail cab wagon, pale silver-blue with a wide curved cyan windscreen, hovering slightly, side view"),

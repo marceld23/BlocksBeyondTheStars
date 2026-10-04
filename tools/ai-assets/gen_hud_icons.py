@@ -155,10 +155,93 @@ def crosshair_dot():
     save(img, "hud_dot")
 
 
+# ---- #2239: the planet overview card's row icons (air/temperature/water/structures reuse the icons above) ----
+
+def ov_gravity():
+    img, d = canvas()
+    # a ball resting on the ground with an arrow pulling it down
+    cx = W / 2
+    r = W * 0.13
+    d.ellipse((cx - r, W * 0.52 - r, cx + r, W * 0.52 + r), fill=(255, 255, 255, 255))
+    line(d, [(cx, W * 0.08), (cx, W * 0.30)])
+    line(d, [(cx - W * 0.10, W * 0.20), (cx, W * 0.30), (cx + W * 0.10, W * 0.20)])
+    line(d, [(W * 0.16, W * 0.80), (W * 0.84, W * 0.80)])
+    save(img, "ov_gravity")
+
+
+def ov_weather():
+    img, d = canvas()
+    # a cloud with three rain streaks
+    d.ellipse((W * 0.14, W * 0.30, W * 0.46, W * 0.58), fill=(255, 255, 255, 255))
+    d.ellipse((W * 0.32, W * 0.18, W * 0.70, W * 0.56), fill=(255, 255, 255, 255))
+    d.ellipse((W * 0.56, W * 0.32, W * 0.86, W * 0.58), fill=(255, 255, 255, 255))
+    d.rounded_rectangle((W * 0.22, W * 0.44, W * 0.80, W * 0.58), radius=W * 0.06, fill=(255, 255, 255, 255))
+    for x in (0.32, 0.50, 0.68):
+        line(d, [(W * x, W * 0.68), (W * (x - 0.06), W * 0.88)], width=int(STROKE * 0.8))
+    save(img, "ov_weather")
+
+
+def ov_lava():
+    img, d = canvas()
+    # a drop of molten rock with a bubble
+    cx = W / 2
+    d.polygon([(cx, W * 0.08), (cx + W * 0.26, W * 0.52), (cx - W * 0.26, W * 0.52)], fill=(255, 255, 255, 255))
+    r = W * 0.27
+    d.ellipse((cx - r, W * 0.64 - r, cx + r, W * 0.64 + r), fill=(255, 255, 255, 255))
+    rb = W * 0.07
+    d.ellipse((cx + W * 0.04 - rb, W * 0.62 - rb, cx + W * 0.04 + rb, W * 0.62 + rb), fill=(0, 0, 0, 0))
+    save(img, "ov_lava")
+
+
+def ov_plants():
+    img, d = canvas()
+    # a sprout: stem and two leaves
+    cx = W / 2
+    line(d, [(cx, W * 0.90), (cx, W * 0.40)])
+    d.ellipse((cx - W * 0.36, W * 0.30, cx - W * 0.02, W * 0.52), outline=(255, 255, 255, 255), width=STROKE)
+    d.ellipse((cx + W * 0.02, W * 0.14, cx + W * 0.36, W * 0.38), outline=(255, 255, 255, 255), width=STROKE)
+    save(img, "ov_plants")
+
+
+def ov_animals():
+    img, d = canvas()
+    # a paw print: one pad and four toes
+    d.ellipse((W * 0.28, W * 0.48, W * 0.72, W * 0.86), fill=(255, 255, 255, 255))
+    for x, y in ((0.20, 0.36), (0.38, 0.20), (0.62, 0.20), (0.80, 0.36)):
+        r = W * 0.09
+        d.ellipse((W * x - r, W * y - r, W * x + r, W * y + r), fill=(255, 255, 255, 255))
+    save(img, "ov_animals")
+
+
+def ov_machines():
+    img, d = canvas()
+    # a cog wheel
+    cx = cy = W / 2
+    for i in range(8):
+        a = i * math.pi / 4
+        x = cx + math.cos(a) * W * 0.34
+        y = cy + math.sin(a) * W * 0.34
+        d.rounded_rectangle((x - W * 0.07, y - W * 0.07, x + W * 0.07, y + W * 0.07), radius=W * 0.02, fill=(255, 255, 255, 255))
+    r = W * 0.28
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(255, 255, 255, 255), width=int(STROKE * 1.4))
+    ri = W * 0.08
+    d.ellipse((cx - ri, cy - ri, cx + ri, cy + ri), fill=(255, 255, 255, 255))
+    save(img, "ov_machines")
+
+
+def ov_terrain():
+    img, d = canvas()
+    # two mountain peaks
+    line(d, [(W * 0.08, W * 0.82), (W * 0.36, W * 0.30), (W * 0.54, W * 0.60), (W * 0.68, W * 0.40), (W * 0.92, W * 0.82)])
+    line(d, [(W * 0.08, W * 0.82), (W * 0.92, W * 0.82)])
+    save(img, "ov_terrain")
+
+
 if __name__ == "__main__":
     import sys as _sys
 
     only = set(_sys.argv[1:])  # e.g. `exposure` — regenerate just the named icons
-    for fn in (health, oxygen, energy, hunger, hull, shield, exposure, compass_n, crosshair_dot):
+    for fn in (health, oxygen, energy, hunger, hull, shield, exposure, compass_n, crosshair_dot,
+               ov_gravity, ov_weather, ov_lava, ov_plants, ov_animals, ov_machines, ov_terrain):
         if not only or fn.__name__ in only:
             fn()

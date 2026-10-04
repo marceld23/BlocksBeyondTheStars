@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛰️ Space package — ship scanner, planet overview, scanner tiers, visible pods and anomalies, wormholes (+ fixes) (#2243: #2233 #2235 #2236 #2237–#2242, 2026-10-04, branch feat/space-scanner-wormholes) — 🚧 in progress
+### 🛰️ Space package — ship scanner, planet overview, scanner tiers, visible pods and anomalies, wormholes (+ fixes) (#2243: #2233 #2235 #2236 #2237–#2242, 2026-10-04, branch feat/space-scanner-wormholes) — ✅ done (unreleased; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04).** Every ship gets a scanner in the flight hotbar (like weapon / tractor) with a cool effect,
 icon and sounds; the scanner also scans planets for an overview of what awaits there; it can be upgraded (blueprint, recipe,
@@ -49,6 +49,36 @@ without a jump drive, never into the story system. Three server bugs go first. A
   under this world's queries, and cursor switches no longer drop the column memos. Tests: `TwoBoardedStations_…` in
   `PlayerStationReportsTests`; the #2226 terrain test now expects the home world's ground right after the other world
   generated a chunk (it used to codify the bug).
+- **✅ Ship scanner in every ship (#2237):** the flight hotbar always ends with the scanner (the old fallback laser is gone).
+  Hold fire on a target: corner brackets lock, a ring fills, the scan lands with a fan of beams, a holo sweep and a scan
+  wave in the scanner's `fx` colour; other players see it through the ship-FX relay. Five ElevenLabs clips, an OpenAI icon.
+  VEGA explains it once. Code: `SpaceView.Scanner.cs`, `ShipScannerRules`.
+- **✅ Readouts for every space object (#2238):** asteroids, stations, wrecks, life pods, raiders and Guardian machines
+  answer the scanner with a sentence and traits; the server checks the scannable kind, the tier's range and a per-target
+  cooldown, and pays knowledge once (`Scanned` ledger, `SpaceState.ScannedIds`). The asteroid survey and the
+  `relay_survey` chain are completable again (`relay_survey_1` is `firstOnly`).
+- **✅ Planet overview card (#2239):** scanning a planet or moon from flight (or the Ship tab / Map tab planet scan, now
+  for every ship) opens a card with air, temperature, gravity, weather, water, lava, plants, animals, machines,
+  terrain, structures, frontier and a danger level; the first overview of a body pays knowledge. Seven new `ov_*` icons.
+- **✅ Scanner tiers (#2240):** cockpit (tier 1) → `planet_scanner`, now the **Deep scanner** (tier 2: ores, needs a
+  `sensor_lens`) → new **Quantum scanner** (tier 3: rare ores, data caches and a system sweep that pins everything on the
+  radar for a minute, needs a `quantum_sensor`). Stats are data; `ShipModuleDefinition.Replaces` makes an upgrade replace
+  the old module (50 % salvage) — also used for `ai_core_mk3` → `ai_core_mk2`. Blueprint, two workshop components, icons.
+- **✅ Life pods and anomalies get a look (#2241):** the pod is an orange capsule with a beacon and a waving passenger
+  (rescue: a tractor pull); the anomaly is a soap bubble with glitching blocks that ripples when scanned. Both have radar
+  and chart markers and their own loops; the anomaly is read by the scanner only (VEGA says so once).
+- **✅ Wormholes (#2242):** seed-pure pairs (`WormholePlacer`, own salt, run after the galaxy — no terrain-gen bump),
+  beyond the outer orbit, far apart on the map, at most one per system, never in the finale or any non-`sys*` system
+  (checked again at every transit). World option `Wormholes` (default *Rare* = one pair per 12 systems). [E] at the rift
+  flies through without a jump generator (`WormholeTransitIntent`, NetCodec 285); the destination reads ??? until flown
+  or scanned; known pairs show on the galaxy chart; achievement *Rift Rider*. A lensing rift shader, a full-screen
+  transit effect, three sounds. Docs: [docs/developer/SHIP_SCANNER.md](docs/developer/SHIP_SCANNER.md),
+  [docs/developer/WORMHOLES.md](docs/developer/WORMHOLES.md); USER_MANUAL updated.
+- **✅ All 14 languages:** 129 new keys and 6 changed ones, the twelve community languages machine-translated with a
+  term check against each locale's existing words (Guardian, life pod, jump generator, scanner names); two Codex
+  articles (`scanner`, `wormholes`).
+- ⚠ **Playtest open:** scanner feel (hold time, cone), the overview card on small screens, the rift on Low quality
+  (no lensing) and in WebGL, the wormhole transit in multiplayer (the other player's burst).
 
 ---
 

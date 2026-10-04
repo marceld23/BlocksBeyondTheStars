@@ -56,6 +56,46 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color WaypointCol = new Color(1f, 0.85f, 0.3f);
         private static readonly Color WreckCol = new Color(0.85f, 0.65f, 0.35f);          // the radar's wreck amber (#1664)
         private static readonly Color DiscCol = new Color(0.01f, 0.03f, 0.07f, 0.78f); // WorldMap's backing disc
+
+        /// <summary>#2241/#2242: the encounter kinds drawn as fixed chart markers (and waypoint targets).</summary>
+        private static bool IsEncounterMarker(string kind) => kind == "EscapePod" || kind == "Anomaly" || kind == "Wormhole";
+
+        /// <summary>The colour and label of an encounter marker — the radar's colours.</summary>
+        private (Color Col, string Label) EncounterMarker(BlocksBeyondTheStars.Networking.Messages.NetCombatEntity e) => e.Kind switch
+        {
+            "EscapePod" => (new Color(1f, 0.55f, 0.15f), "SOS · " + e.Name),
+            "Anomaly" => (new Color(0.45f, 1f, 0.85f), L("ui.scan.subject.anomaly")),
+            _ => (new Color(0.72f, 0.45f, 1f), L("ui.scan.subject.wormhole")),
+        };
+
+        /// <summary>#2242: the wormhole pairs this player knows (both system ids known), each once.</summary>
+        private List<(string A, string B)> KnownWormholePairs()
+        {
+            var pairs = new List<(string A, string B)>();
+            var list = Game?.StarMap?.Wormholes;
+            if (list == null)
+            {
+                return pairs;
+            }
+
+            var seen = new HashSet<string>();
+            foreach (var w in list)
+            {
+                if (string.IsNullOrEmpty(w.LinkedSystemId))
+                {
+                    continue; // not known yet
+                }
+
+                bool ordered = string.CompareOrdinal(w.SystemId, w.LinkedSystemId) <= 0;
+                var pair = ordered ? (w.SystemId, w.LinkedSystemId) : (w.LinkedSystemId, w.SystemId);
+                if (seen.Add(pair.Item1 + "|" + pair.Item2)) // the twin end lists the same pair
+                {
+                    pairs.Add(pair);
+                }
+            }
+
+            return pairs;
+        }
         private static readonly Color StarFallbackCol = new Color(1f, 0.94f, 0.74f);   // an older server sends no star colour
         private static readonly Color JumpCol = new Color(0.30f, 0.18f, 0.46f);        // the travel screen's hyperspace-violet button
 
@@ -343,7 +383,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var e in Game.Space.Entities)
                 {
-                    if (e.Kind == "SpaceStation" || e.Kind == "Wreck") // both are fixed chart markers
+                    if (e.Kind == "SpaceStation" || e.Kind == "Wreck" || IsEncounterMarker(e.Kind)) // fixed chart markers (#2241/#2242 too)
                     {
                         fitX.Add(e.X);
                         fitZ.Add(e.Z);
@@ -505,6 +545,25 @@ namespace BlocksBeyondTheStars.Client
                     Centered(_chart, p, new Vector2(12f, 12f), UiKit.DiscSprite, WreckCol);
                     Label(_chart, p + new Vector2(0f, -18f), $"{e.Name} · {L("ui.map.kind_wreck")}");
                     _targets.Add((e.Id, p, e.Name));
+                }
+            }
+
+            // #2241/#2242: a life pod, an anomaly and the wormhole are fixed chart markers too — a click sets the waypoint.
+            if (Game.Space != null)
+            {
+                foreach (var e in Game.Space.Entities)
+                {
+                    if (!IsEncounterMarker(e.Kind))
+                    {
+                        continue;
+                    }
+
+                    var p = Clamp(ToChart(new Vector3(e.X, e.Y, e.Z)));
+                    var (col, label) = EncounterMarker(e);
+                    Centered(_chart, p, new Vector2(20f, 20f), UiKit.DiscSprite, DiscCol);
+                    Centered(_chart, p, new Vector2(12f, 12f), UiKit.DiscSprite, col);
+                    Label(_chart, p + new Vector2(0f, -18f), label);
+                    _targets.Add((e.Id, p, label));
                 }
             }
 
@@ -732,7 +791,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddPanel(root, ax - 6, ay - 6, ChartSize + 12, ChartSize + 12, UiKit.Panel);
             _galaxy = GalaxyChartWidget.Create(root, ax, ay, ChartSize);
             var stars = BuildStars(out var lanes);
-            _galaxy.Show(stars, lanes, _selectedSystemId);
+            _galaxy.Show(stars, lanes, _selectedSystemId, KnownWormholePairs()); // #2242: the violet zigzags
 
             // Info panel on the right: the selected star, and the jump button.
             UiKit.AddPanel(root, 980, 100, 900, 900, UiKit.Panel);

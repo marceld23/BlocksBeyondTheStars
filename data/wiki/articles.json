@@ -121,6 +121,28 @@
     }
   },
   {
+    "id": "wormholes",
+    "title": {
+      "en": "Wormholes",
+      "de": "Wurmlöcher"
+    },
+    "body": {
+      "en": "<p>Very rarely a <b>wormhole</b> opens at the edge of a star system: a glowing, jagged <b>tear in space</b>, dark inside, with the stars of another system shining through. A standard galaxy has exactly one pair of them to find (the world option <b>Wormholes</b> sets how many).</p><p>Fly up to the rift and press the <b>action key</b> (the one you land and dock with): you come out at its twin in <b>another star system</b> — <b>no jump drive needed</b>. Every wormhole works <b>both ways</b>: fly back through the rift to return.</p><p>Where one leads is unknown (\"???\") until you fly through it or read it with your <span class=\"link\" data-link=\"guide:scanner\">ship scanner</span>. From then on a violet zigzag on the hyperspace chart shows the pair. Wormholes are found in ordinary systems only — never in the story's special places.</p>",
+      "de": "<p>Ganz selten öffnet sich am Rand eines Sternsystems ein <b>Wurmloch</b>: ein leuchtender, zackiger <b>Riss im All</b>, innen dunkel, durch den die Sterne eines anderen Systems scheinen. Eine normale Galaxie hat genau ein Paar davon zu finden (die Weltoption <b>Wurmlöcher</b> legt fest, wie viele).</p><p>Flieg an den Riss heran und drück die <b>Aktionstaste</b> (die, mit der du landest und andockst): Du kommst an seinem Zwilling in einem <b>anderen Sternsystem</b> heraus — <b>ganz ohne Sprungantrieb</b>. Jedes Wurmloch geht in <b>beide Richtungen</b>: Flieg durch den Riss zurück, um heimzukehren.</p><p>Wohin eines führt, ist unbekannt („???“), bis du hindurchfliegst oder es mit deinem <span class=\"link\" data-link=\"guide:scanner\">Schiffsscanner</span> ausliest. Danach zeigt eine violette Zickzacklinie auf der Hyperraum-Karte das Paar. Wurmlöcher gibt es nur in gewöhnlichen Systemen — nie an den besonderen Orten der Geschichte.</p>"
+    }
+  },
+  {
+    "id": "scanner",
+    "title": {
+      "en": "The Ship Scanner",
+      "de": "Der Schiffsscanner"
+    },
+    "body": {
+      "en": "<p>Every ship has a <b>scanner</b> — the cockpit carries it. In flight it sits on the <b>last slot</b> of the bar at the bottom, after the weapons and the tractor beam. Pick it, point the nose at something and <b>hold the fire button until the ring is full</b>: four brackets lock on, a fan of light reaches out from the nose, a hologram sweeps the target — and the readout appears.</p><p>The scanner reads <b>asteroids</b> (which resources they hold), <b>wrecks</b> (their cargo), <b>anomalies</b> (strange readings that teach you something new — every one of them), <b>life pods</b> (someone is inside — fly close to rescue them), <b>stations</b>, Guardian machines and raiders, and the <b>wormholes</b> (where they lead).</p><p>Point it at a <b>planet or moon</b> of the system and you get a <b>planet overview</b>: air, temperature, gravity, weather, water and lava, plants, animals, machines, terrain and buildings — green is harmless, yellow means take care, red is dangerous. The first overview of every world pays a little knowledge.</p><p><b>Upgrades:</b> the <b>Deep scanner</b> (blueprint, built with a <b>sensor lens</b> from the workbench) reaches twice as far, scans faster and shows a planet's <b>ores</b>. The <b>Quantum scanner</b> (built with a <b>quantum sensor</b>) reaches farthest, shows <b>rare ores</b> and hidden data caches — and holding the scan on empty space reads the <b>whole system</b>: for a minute every object out there shows on the radar.</p>",
+      "de": "<p>Jedes Schiff hat einen <b>Scanner</b> — das Cockpit trägt ihn. Im Flug liegt er auf dem <b>letzten Platz</b> der Leiste unten, hinter den Waffen und dem Traktorstrahl. Wähl ihn, richte die Nase auf etwas und <b>halte die Feuertaste, bis der Kreis voll ist</b>: Vier Klammern rasten ein, ein Lichtfächer reicht von der Nase aus, ein Hologramm tastet das Ziel ab — und die Anzeige erscheint.</p><p>Der Scanner liest <b>Asteroiden</b> (welche Rohstoffe drin sind), <b>Wracks</b> (ihre Ladung), <b>Anomalien</b> (seltsame Messwerte, die dir etwas Neues beibringen — jede einzelne), <b>Rettungskapseln</b> (da sitzt jemand drin — flieg nah heran, um ihn zu retten), <b>Stationen</b>, Wächter-Maschinen und Piraten und die <b>Wurmlöcher</b> (wohin sie führen).</p><p>Richtest du ihn auf einen <b>Planeten oder Mond</b> des Systems, bekommst du einen <b>Planeten-Steckbrief</b>: Luft, Temperatur, Schwerkraft, Wetter, Wasser und Lava, Pflanzen, Tiere, Maschinen, Gelände und Bauwerke — grün ist harmlos, gelb heißt aufpassen, rot ist gefährlich. Der erste Steckbrief jeder Welt bringt ein wenig Wissen.</p><p><b>Aufrüsten:</b> Der <b>Tiefenscanner</b> (Blaupause, gebaut mit einer <b>Sensorlinse</b> von der Werkbank) reicht doppelt so weit, scannt schneller und zeigt die <b>Erze</b> eines Planeten. Der <b>Quantenscanner</b> (gebaut mit einem <b>Quantensensor</b>) reicht am weitesten, zeigt <b>seltene Erze</b> und versteckte Datenspeicher — und hältst du den Scan ins Leere, liest er das <b>ganze System</b>: Eine Minute lang zeigt das Radar alles, was da draußen ist.</p>"
+    }
+  },
+  {
     "id": "trading",
     "title": {
       "en": "Traders & Markets",

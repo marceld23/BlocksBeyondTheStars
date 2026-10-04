@@ -2571,6 +2571,10 @@ namespace BlocksBeyondTheStars.Client
                     {
                         HyperjumpStarted?.Invoke(); // warp VFX as we arrive in flight in a new system
                     }
+                    else if (m.Wormhole)
+                    {
+                        WormholeArrived?.Invoke(); // #2242: through a rift — the rift transit instead of the warp
+                    }
                 }
 
                 // #1565: an in-flight hyperjump lands nowhere, so no WorldReset renames the HUD — the flight
@@ -2769,6 +2773,21 @@ namespace BlocksBeyondTheStars.Client
             {
                 LastPlanetScan = m;
                 PlanetScanVersion++;
+                if (!string.IsNullOrEmpty(m.BodyId))
+                {
+                    PlanetOverviews[m.BodyId] = m; // #2239: kept for the Map tab
+                }
+
+                if (m.KnowledgeGained > 0)
+                {
+                    LastMessage = string.Format(Localizer?.Get("ui.overview.knowledge_gain") ?? "+{0} knowledge", m.KnowledgeGained);
+                }
+
+                if (OpenOverviewOnNextPlanetScan)
+                {
+                    OpenOverviewOnNextPlanetScan = false;
+                    PlanetOverviewCard.Show(this, m); // #2239: the flight scanner read a planet — what awaits there
+                }
             };
             Network.ScanResultReceived += m =>
             {
@@ -3536,6 +3555,19 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Raised when a hyperspace jump to another star system begins (drives the warp VFX).</summary>
         public event System.Action HyperjumpStarted;
+
+        /// <summary>#2242: the flight state of the twin system arrived through a wormhole (the rift transit plays).</summary>
+        public event System.Action WormholeArrived;
+
+        /// <summary>#2240: until this time (Time.time) the radar pins every scannable object of the system — the Quantum
+        /// scanner's system ping.</summary>
+        public float SpaceSystemPingUntil;
+
+        /// <summary>#2239: set by the flight scanner when it reads a planet — the next planet report opens the overview card.</summary>
+        public bool OpenOverviewOnNextPlanetScan;
+
+        /// <summary>#2239: the latest overview of every body this session (the Map tab shows it beside the body).</summary>
+        public readonly System.Collections.Generic.Dictionary<string, PlanetScanResult> PlanetOverviews = new();
 
         /// <summary>Planet-type key of the world currently streaming in (e.g. "rocky", "orbital_station").
         /// Drives the loading overlay's destination label.</summary>

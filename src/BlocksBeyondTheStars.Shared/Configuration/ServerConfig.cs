@@ -705,6 +705,9 @@ public sealed class ServerConfig
                 case "stations":
                     if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var sf)) { World.SpaceStations = sf; applied.Add("stations"); }
                     break;
+                case "wormholes": // #2242: how many wormhole pairs the galaxy has
+                    if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var wh)) { World.Wormholes = wh; applied.Add("wormholes"); }
+                    break;
                 case "exotic":
                     if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var ex)) { World.ExoticWorlds = ex; applied.Add("exotic"); }
                     break;

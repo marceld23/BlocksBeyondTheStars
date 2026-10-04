@@ -86,6 +86,12 @@ The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World
   The flight chart draws grouped members as one translucent belt band (`ui.map.belt`) instead of
   stacked per-body orbit rings.
 
+- **Wormholes (#2242):** after the galaxy is built, [`WormholePlacer.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/WormholePlacer.cs)
+  links a few procedural systems in two-way pairs (world option `Wormholes`, default *Rare* = one pair per 12
+  systems). It only reads the finished systems and uses its own `"wormhole:"` salt, so it never shifts a system,
+  body or lane; the story's finale system is never a candidate, and nothing is persisted. See
+  [WORMHOLES.md](WORMHOLES.md).
+
 A `CelestialBody` stores only Id, Name, `Kind` (Planet/Moon/AsteroidField/SpaceStation/Wreck), a
 **`PlanetType` key**, and orbit data. The body's *content* is generated only when a player enters it.
 

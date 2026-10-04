@@ -65,6 +65,7 @@ All of these are URP SubShaders. The FX shaders fall back to `Particle`/`Particl
 | `FxCrack` | Procedural Voronoi crack overlay with mining-beam heat. |
 | `FxSpaceDust` | Camera-wrapped dust quads stretched along velocity, one draw call. |
 | `FxTunnel` | The hyperjump tunnel streaks. |
+| `Wormhole` | The wormhole rift (#2242): a jagged tear with a hot inner edge and a halo; on Medium+ (`_Sc_ScreenFx`) it bends the scene behind it via `SampleSceneColor`. See [WORMHOLES.md](WORMHOLES.md). |
 
 Edits to existing shaders:
 
@@ -192,6 +193,9 @@ Gadget outcomes play on the server's confirmation (`ActionFx.Outcome`). A refuse
 - **Traders** warp in and out as stretched light zips.
 - **Landing and launch:** the landing descent builds a re-entry plasma sheath (scaled by the body's atmosphere). Launch sends cloud wisps rushing past.
 - **Planet scanner:** a pulse from the ship and a beam to the body. A band then sweeps the globe pole to pole, and the found resources glow as seeded points on it.
+- **Ship scanner** (#2237, [SHIP_SCANNER.md](SHIP_SCANNER.md)): corner brackets snap onto the target and a ring fills while fire is held. The charge fans four beams from the nose to the target's corners, sweeps a holo plane over it and pulls motes back. Completion runs a scan wave over the target with a flash and a short FX light. The colour is the scanner module's `fx` look (cockpit cyan, Deep scanner teal, Quantum gold). The Quantum scanner's system sweep is a wide pulse from the ship.
+- **Life pods and anomalies** (#2241): a pod blinks its beacon and its passenger waves; a rescue plays a short tractor pull. An anomaly is a soap-bubble shell with glitching cubes orbiting it, which ripples and calms when scanned.
+- **Wormholes** (#2242): the `Wormhole` shader rift with arcs, motes and an FX light. Flying through runs `WormholeTransitFx` — a crack spreading over the screen, the rush, then an arrival flash. Other players see a burst at the rift (`SpaceWarpFx.Style = "wormhole"`).
 
 ### Multiplayer (#2158)
 

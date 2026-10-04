@@ -944,35 +944,70 @@ namespace BlocksBeyondTheStars.Client
             => Game?.ShipCombat?.Modules != null
                 && System.Array.IndexOf(Game.ShipCombat.Modules, "planet_scanner") >= 0;
 
-        /// <summary>#2140 ("Ressourcenscan"): the "Planetenscan" button for a body, and — once the server answered for
-        /// this body — the report under it. Without the module the button stays dim and says what it needs.</summary>
+        /// <summary>#2140 ("Ressourcenscan") and #2239: the "Planetenscan" button for a body, and — once the server
+        /// answered for this body — the report under it. Every ship scans now (the cockpit's tier 1: the overview); the
+        /// resources need the Deep scanner (tier 2), which the report says instead of an empty list.</summary>
         private float AddPlanetScanSection(float y, string bodyId)
         {
-            bool fitted = HasPlanetScanner();
             var btn = UiKit.AddButton(_detail, 8, y, 330, 44, L("ui.planetscan.button"), () =>
             {
                 ClientAudio.Instance?.Cue("terrain_scan");
                 Game.Network?.SendPlanetScan(bodyId);
             });
-            SetInteractable(btn, fitted && AboardShipNow());
+            SetInteractable(btn, AboardShipNow());
             y += 52f;
-            if (!fitted)
+
+            BlocksBeyondTheStars.Networking.Messages.PlanetScanResult scan = null;
+            if (!string.IsNullOrEmpty(bodyId))
             {
-                var need = UiKit.AddText(_detail, 8, y, 620, 52, L("ui.planetscan.need_module"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
-                need.horizontalOverflow = HorizontalWrapMode.Wrap;
-                return y + 56f;
+                Game.PlanetOverviews.TryGetValue(bodyId, out scan);
+            }
+            else
+            {
+                scan = Game.LastPlanetScan;
             }
 
-            var scan = Game.LastPlanetScan;
-            return scan != null && (scan.BodyId == bodyId || string.IsNullOrEmpty(bodyId)) ? AddPlanetScanReport(y, scan) : y;
+            return scan != null ? AddPlanetScanReport(y, scan) : y;
         }
 
-        /// <summary>The planet-scanner report: the world's richness, every vein (how common, from which depth, which
-        /// drill) and the extras. Colour follows abundance — common veins bright, rare ones dim.</summary>
+        /// <summary>The planet report: the overview rows (#2239), then the world's richness, every vein (how common,
+        /// from which depth, which drill) and the extras — or, below the Deep scanner's tier, a line saying so.</summary>
         private float AddPlanetScanReport(float y, BlocksBeyondTheStars.Networking.Messages.PlanetScanResult scan)
         {
             UiKit.AddText(_detail, 8, y, 620, 30, string.Format(L("ui.planetscan.title"), scan.BodyName), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 36f;
+
+            if (scan.Rows != null && scan.Rows.Length > 0)
+            {
+                var dangerCol = PlanetOverviewCard.LevelColor(scan.Danger);
+                UiKit.AddText(_detail, 8, y, 620, 26, L("ui.overview.danger_" + Mathf.Clamp(scan.Danger, 0, 2)), 19, dangerCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                y += 30f;
+                foreach (var row in scan.Rows)
+                {
+                    var col = PlanetOverviewCard.LevelColor(row.Level);
+                    var icon = UiKit.Icon(PlanetOverviewCard.TopicIcon(row.Topic));
+                    if (icon != null)
+                    {
+                        UiKit.AddIconSprite(_detail, 8, y + 2, 22, icon, col);
+                    }
+
+                    string value = L(row.ValueKey) + (string.IsNullOrEmpty(row.Extra) ? string.Empty : " (" + row.Extra + ")")
+                                   + (string.IsNullOrEmpty(row.DetailKey) ? string.Empty : " · " + L(row.DetailKey));
+                    UiKit.AddText(_detail, 38, y, 150, 26, L("ui.overview.topic." + row.Topic), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    UiKit.AddText(_detail, 190, y, 440, 26, value, 17, col, TextAnchor.UpperLeft);
+                    y += 28f;
+                }
+
+                y += 8f;
+            }
+
+            if (scan.ResourcesLocked)
+            {
+                var locked = UiKit.AddText(_detail, 8, y, 620, 52, L("ui.overview.resources_locked"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                locked.horizontalOverflow = HorizontalWrapMode.Wrap;
+                return y + 56f;
+            }
+
             UiKit.AddText(_detail, 8, y, 620, 26, $"{L("ui.planetscan.richness")}: {L("ui.planetscan.richness_" + scan.Richness)}", 19, UiKit.TextCol, TextAnchor.UpperLeft);
             y += 32f;
 

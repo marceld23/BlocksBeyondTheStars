@@ -57,7 +57,7 @@ Last updated: 2026-08-26.
 - **World options** ("Weltoptionen") at world creation: pick a preset (**Friedlich / Standard /
   Feindselig**) or tune sliders — life & threats (creatures, planet enemies, enemy ships, UFOs),
   survival (oxygen, hunger, hazards, death penalty), generated world (flora, ore, settlements,
-  wrecks, vaults, stations, exotic worlds, universe size), plus an **advanced page** with a frequency
+  wrecks, vaults, stations, wormholes, exotic worlds, universe size), plus an **advanced page** with a frequency
   slider per planet type. The world *owns* its rules from then on; the world admin can live-edit the
   creature/enemy activity later in-game (Settings tab → "Weltregeln").
 - The **Editors** submenu (main menu) holds the creation tools — see §6.
@@ -273,7 +273,8 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **V** | Toggle cockpit / third-person camera |
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens the **landing map**: the planet's real terrain, the day/night band and — switchable with **☁ Weather: on/off** (remembered) — its **live weather**, with drifting fronts marked "◀ front ▶". Every pad says the weather waiting there (e.g. "⚡ Storm", "☀ Clear"), so you can pick a sunny pad. Click a free pad (or its number key) to land; **Esc** cancels |
-| **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) |
+| **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) — or, next to a **wormhole**, fly through it (see *Wormholes* below) |
+| **Last hotbar slot → hold fire** | The **ship scanner** (every ship has one): point the nose at a planet, moon, asteroid, station, wreck, life pod, anomaly, wormhole or machine and **hold fire** until the ring fills. See *Ship scanner* in §5 |
 | **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual |
 | **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
 | **M** | **System chart**: a top-down map of the current system — every planet shows its current weather as a small glyph (☁ ☂ ⚡ ❄ …). Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart** |
@@ -800,14 +801,29 @@ effort.
   workshop — and gives back **50 %** of its parts (per part, rounded down). A cargo expansion only comes out
   while the remaining hold still fits everything stored in it. Moving a module to another ship means removing
   it here and building it there.
-- **Planet scanner** (`planet_scanner` module, 2026-09): *which resources does this planet have?* Research the
-  **Planet Scanner** blueprint (Blueprints tab — no titanium needed) and build the module in the Ship tab. Then,
-  aboard (landed, in the interior or in flight): **Map tab → pick a body of this star system → Planet scan**, or
-  **Planet scan** in the fitted module's detail pane for the body the ship is at. The report lists the world's
-  **ore richness** (lean / average / rich), every **ore vein** — how **common** it is here, from **which depth**, and
-  whether it needs a tier-2 drill — and the extras: **oil pockets**, **data caches**, **rare ore lying on the
-  surface**, **metals in deep craters**, and for a gas giant that its ore sits only in the floating islands. The
-  numbers come from the very rolls the terrain is generated with, so what it promises is really down there.
+- **Ship scanner** (every ship, 2026-10): the **last slot of the flight hotbar** is the scanner — select it like the
+  laser or the tractor beam, point the nose at something and **hold fire**. Four corner brackets lock on, a ring
+  fills, and the scan lands with a wave over the target. It reads:
+  - **planets and moons** — an **overview card** on the right: gravity, weather, lava, plants, animals, machines,
+    the terrain and an overall **danger** level, so you know what waits down there before you land. The same report
+    opens from **Map tab → pick a body → Planet scan** and from the Ship tab, for every ship;
+  - **asteroids, stations, wrecks, life pods, bandits and machines** — a short readout of what it is (a wreck lists
+    its contents, a machine says how dangerous it is);
+  - **anomalies** (only the scanner reads them — knowledge and a field record) and **wormholes** (where they lead).
+  Every first scan pays a little **knowledge**. Out of range the HUD says so; after a scan the scanner recharges briefly.
+- **Scanner upgrades** — three tiers, each one replaces the one before:
+
+  | Tier | How you get it | Reach / speed | Adds |
+  |---|---|---|---|
+  | 1 — Ship scanner | built into every cockpit | short, 1.2 s hold | overviews, objects, anomalies, wormholes |
+  | 2 — **Deep scanner** (`planet_scanner`) | blueprint *Deep Scanner* + a **sensor lens** (workshop) | twice the reach, 0.8 s | the **ores** of every world in the system |
+  | 3 — **Quantum scanner** (`quantum_scanner`) | blueprint after the Deep scanner and the radar array + a **quantum sensor** (workshop) | longest reach, 0.5 s | **rare ores** and **data caches** — and holding fire at **empty space** sweeps the whole system: for a minute the radar pins everything scannable in it |
+
+  The ore report (tier 2+) lists the world's **ore richness** (lean / average / rich), every **ore vein** — how
+  **common** it is here, from **which depth**, and whether it needs a tier-2 drill — and the extras: **oil pockets**,
+  **data caches**, **rare ore lying on the surface**, **metals in deep craters**, and for a gas giant that its ore sits
+  only in the floating islands. The numbers come from the very rolls the terrain is generated with, so what it
+  promises is really down there. Without the Deep scanner the overview says what it would take to see the ores.
 - **Reactor fuel** (uranium + lead at the refinery) is a **one-time build cost** of the big things: the three
   capital ships (Thunderbolt 2, Hammerhead 3, Deathblock 4), the heavy laser cannon and the jump generator ignite
   their reactors with it once. Nothing burns fuel while running — every device carries its own energy cell.
@@ -827,6 +843,9 @@ effort.
 - **It flies the way you built it:** hull strength grows with the hull size, speed and handling come from
   engines versus weight — more engines fly faster, a heavy brick turns slowly. You can keep editing your
   ship on foot afterwards; the launch check re-runs every start (no engine → grounded until you add one).
+- **Changed it while floating in space?** If you step inside your ship in flight and take out the engine, the
+  helm or the door, or open a gap in the hull, it can no longer fly: the helm and the hatch then keep you
+  **aboard** and say what is missing — put it back (or seal the gap) and the helm takes you out into space again.
 
 ### Repairing your own ship
 - Combat dents your ship's **hull** (it never regenerates on its own), and hull cells lost in a wreck stay missing
@@ -1011,7 +1030,8 @@ effort.
   the spot that it will not fire), it reaches
   **14 blocks**, and it only works **while you are home** on that world. Machines appear 35–50 blocks away
   from you — so a sentry is the thing that covers your back while you build, not a fence that clears the
-  neighbourhood. Scan a post to read its range and the zone it needs back. On **Creative** or **Peaceful**
+  neighbourhood. It aims from its muzzle, so a roof or block placed **right on top of the post** does not blind
+  it — only something between the muzzle and the target does. Scan a post to read its range and the zone it needs back. On **Creative** or **Peaceful**
   worlds it stays quiet, like everything else.
   A sentry's kill **counts for you**: bandit and machine bounty steps progress, a scout it finishes still
   counts towards *Guard the homestead* and the base-defended tally, and the drops land on the ground where
@@ -1310,9 +1330,19 @@ effort.
   **The Long Quiet** — a named derelict drifting in one system's space, boardable like any station and
   full of salvage and its ship's manifest. Where they stand, only a **Friend**-tier NPC will tell you
   (and mark your map); the derelict shows on the star map of its system.
-- Space holds two friendly surprises: a **life pod** sometimes drifts through a system — **fly close**
-  and you rescue the survivor (a small thank-you, a new person in *People you know*, and a radio call
-  later) — and an **anomaly** no catalogue explains: **scan** it for knowledge and a field record.
+- Space holds two friendly surprises: a **life pod** sometimes drifts through a system — a small orange capsule
+  with a blinking beacon and someone waving behind the porthole (orange on the radar). **Fly close** and your
+  tractor pulls it aboard: you rescue the survivor (a small thank-you, a new person in *People you know*, and a
+  radio call later). And an **anomaly** no catalogue explains — a shimmering bubble with glitching blocks around
+  it (violet on the radar): only the **ship scanner** reads it, for knowledge and a field record. Both sit
+  still where they were found, show on the system chart, and stay pinned at the radar's rim.
+- **Wormholes** are rare rifts in space-time — a glowing tear with a bent, shimmering edge (violet zigzag on
+  the radar). Each one is one end of a pair linking **two star systems**, and it works **both ways**: fly up to
+  it and press **E** — no jump generator needed. You come out next to the other end, which takes you straight back.
+  Where one leads reads **???** until you have flown through it or scanned it with the ship scanner; known pairs
+  show as violet zigzags on the galaxy chart. Wormholes never lead into the story's special places. How many a
+  galaxy has is a world option (**Wormholes**: off · very rare · rare (default, about one pair in a standard
+  galaxy) · normal · frequent).
 - Many systems also hold a **space wreck**: the travel screen lists it with its ship's name and "Wreck",
   it shows amber on the radar and on the system chart (**M**, click it to set a waypoint), and it is a
   **fly-to**, never a quick-travel destination. Coming close reads its manifest (a field record, and the
@@ -1491,8 +1521,8 @@ effort.
 ### Scanning & knowledge
 - **Which scanner does what:** the **hand scanner** (starter kit, quick-bar **2**) identifies the one thing you aim
   at — what a block yields and which tool it needs, a plant's species, a creature's traits; it finds no ore. The
-  **terrain scanner** (below) makes ore near you glow through the rock; the ship's **planet scanner** (§ Ship,
-  modules) tells you which ores a whole world holds.
+  **terrain scanner** (below) makes ore near you glow through the rock; the **ship scanner** (§ Ship, modules) gives
+  you an overview of a whole world from orbit — and, upgraded to the Deep scanner, which ores it holds.
 - With a scanner selected, **left-click** a creature or block to scan it. Scans award **knowledge points**
   used to unlock blueprints; the readout shows subject/info/threat/knowledge (first-time scans highlight
   the "new discovery" bonus).
@@ -1607,7 +1637,8 @@ effort.
     into but never landed in stays reachable — a locked world in another system offers the same jump in its
     detail pane (#1638).
   - **On:** quick-travel works for any world/system immediately, visited or not.
-- Jumping to **another star system** always requires a fitted **`jump_generator`** module.
+- Jumping to **another star system** requires a fitted **`jump_generator`** module — or a **wormhole**, if the
+  system has one (§ Mysteries).
 - A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you
   discover. A fitted **`radar_array`** module decodes the beacon signals and reveals all system names.
 - Your **first landing on a world** records it in the Codex under **Discoveries → Places** and pays

@@ -587,6 +587,12 @@ namespace BlocksBeyondTheStars.Client
         /// the first time they stand in front of a tall wall. A client-side one-shot lesson like the chart hint.</summary>
         public bool ClimbHintShown;
 
+        /// <summary>#2237: whether VEGA has said that every ship has a scanner in its flight hotbar — once, on an early flight.</summary>
+        public bool ShipScannerHintShown;
+
+        /// <summary>#2242: whether VEGA has explained the first wormhole the player saw (a tear in space, two ways).</summary>
+        public bool WormholeHintShown;
+
         /// <summary>Show floating health bars over enemies and creatures in combat (#692) — planet surface
         /// and space flight alike. Purely cosmetic (the values are replicated either way); off hides them.</summary>
         public bool ShowEnemyHealthBars = true;
