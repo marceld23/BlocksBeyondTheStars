@@ -358,7 +358,17 @@ namespace BlocksBeyondTheStars.Client
 
             // #2289: an open slot picker lists what the backpack and the hold carry and what is worn NOW — rebuilt on an
             // inventory change only, not on every refresh of the page behind it (that would throw the pad to its first row).
-            int pickerSig = unchecked(slotSig * 17 + (Game.Cargo?.Length ?? 0) * 13 + (AboardShipNow() ? 1 : 0));
+            // The hold by slot and item too, not just its length: a row carries its hold slot, and a stack taken while
+            // another arrived must not leave a row pointing at a slot that now holds something else.
+            int pickerSig = unchecked(slotSig * 17 + (AboardShipNow() ? 1 : 0));
+            if (Game.Cargo != null)
+            {
+                foreach (var s in Game.Cargo)
+                {
+                    unchecked { pickerSig = pickerSig * 31 + (s.Slot + 2000) * 92821 + (s.Item?.GetHashCode() ?? 0); }
+                }
+            }
+
             if (_pickerSlot >= 0 && pickerSig != _pickerSig)
             {
                 ShowSlotPicker(_pickerSlot);
@@ -2425,7 +2435,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The control of an action as the HUD names it; on a tablet the ACT list, which carries the lamp and the cloak.</summary>
         private string ActionKeyText(InputAction action)
-            => InputMap.ActiveDevice == InputDeviceKind.Touch ? L("ui.touch.actions") : HudUi.GlyphText(Game.Localizer, action);
+            => InputMap.ActiveDevice == InputDeviceKind.Touch ? L("ui.touch.actions") : HudUi.ActionGlyph(Game.Localizer, action);
 
         // ---------------- #2289: the slot picker ----------------
 

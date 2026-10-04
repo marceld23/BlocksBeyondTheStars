@@ -2995,10 +2995,14 @@ namespace BlocksBeyondTheStars.Client
             else
             {
                 _verticalVelocity -= _effGravity * Time.deltaTime;
-                if (Gliding)
+                if (Gliding && HasItem("glider"))
                 {
                     GlideSink(); // #2296: a wing open when the menu came up keeps carrying us (see the menu branch)
                     UpdateGlide(true);
+                }
+                else
+                {
+                    UpdateGlide(false); // the glider was taken off in the Suit tab mid-glide: the wing is gone
                 }
             }
 
@@ -3150,6 +3154,19 @@ namespace BlocksBeyondTheStars.Client
         private int _gliderRejectionsSeen;   // GameBootstrap.GliderRejections when last checked
         private bool _glideRefused;          // the server refused the wing: it stays folded until Jump is let go
         private bool _gliderNoAirHinted;     // "without air …" is said once per session
+
+        /// <summary>How far below the take-off height a fall must reach before a held Jump opens the wing, m — so an
+        /// ordinary hop with Jump held (pillar building, hopping along) stays a hop.</summary>
+        private const float GlideArmDrop = 1.5f;
+
+        private float _airTakeoffY;   // where the current fall left the ground (or the water, the ladder, the wall)
+        private bool _glidePressArmed; // Jump pressed again in the air: open the wing as soon as we fall
+
+        /// <summary>Whether a held Jump may open (or keep) the wing (#2296): an open wing stays open; otherwise only on the
+        /// way down, and only on a real drop — past <see cref="GlideArmDrop"/> below the take-off — or after a fresh press
+        /// in the air.</summary>
+        private bool GlideArmed()
+            => Gliding || (_verticalVelocity < 0f && (_glidePressArmed || transform.position.y < _airTakeoffY - GlideArmDrop));
 
         /// <summary>Whether the air here can carry the glider: a world with an atmosphere (an airless body reports a space
         /// sky and no air density), below its line (<c>OnFootInSpace</c> is the server's "above the atmosphere"), not on a
@@ -3866,6 +3883,13 @@ namespace BlocksBeyondTheStars.Client
 
             bool jetpacking = false;
             bool gliding = false;
+            if (grounded || inWater || onLadder || climbing || _flying)
+            {
+                // #2296: where a fall starts — the glider opens only on a real drop below it, or on a fresh press in the air.
+                _airTakeoffY = transform.position.y;
+                _glidePressArmed = false;
+            }
+
             if (inWater)
             {
                 // Buoyant swimming: drift down slowly when idle, hold Jump to rise and surface; water also
@@ -3952,6 +3976,10 @@ namespace BlocksBeyondTheStars.Client
             else
             {
                 _verticalVelocity -= _effGravity * Time.deltaTime;
+                if (InputMap.JumpDown())
+                {
+                    _glidePressArmed = true; // #2296: a second press in the air asks for the wing at once
+                }
 
                 // Jetpack: hold Jump in the air to thrust upward (needs the item + suit energy). The server
                 // drains energy on the reported state and forces it off when empty (SuitEnergy then hits 0).
@@ -3974,10 +4002,10 @@ namespace BlocksBeyondTheStars.Client
                         move.z += gust.z;
                     }
                 }
-                else if (InputMap.JumpHeld() && !_glideRefused && (_verticalVelocity < 0f || Gliding) && HasItem("glider"))
+                else if (InputMap.JumpHeld() && !_glideRefused && GlideArmed() && HasItem("glider"))
                 {
-                    // #2296: the glider — hold Jump on the way down (past the jump's top) and the wing opens, where there
-                    // is air. It shares the back slot with the jetpack, so the two never meet here.
+                    // #2296: the glider — hold Jump on the way down and the wing opens, where there is air. It shares the
+                    // back slot with the jetpack, so the two never meet here.
                     if (GlideAirHere())
                     {
                         gliding = true;

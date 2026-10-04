@@ -2091,9 +2091,9 @@ namespace BlocksBeyondTheStars.Client
             switch (key)
             {
                 case "suit_lamp":
-                    return touch ? string.Empty : GlyphText(loc, InputAction.ToggleLamp);
+                    return touch ? string.Empty : ActionGlyph(loc, InputAction.ToggleLamp);
                 case "stealth_suit":
-                    return touch ? string.Empty : GlyphText(loc, InputAction.ToggleStealth);
+                    return touch ? string.Empty : ActionGlyph(loc, InputAction.ToggleStealth);
                 default:
                     return JumpGlyph(loc);
             }
@@ -2175,6 +2175,19 @@ namespace BlocksBeyondTheStars.Client
             string glyph = InputMap.Glyph(action);
             string mouseKey = InputMap.MouseLocaleKey(InputMap.Key(action));
             return mouseKey != null && glyph == InputMap.Key(action).ToString() ? loc.Get(mouseKey) : glyph;
+        }
+
+        /// <summary>Like <see cref="GlyphText"/>, but on a gamepad an action without a pad button (the lamp, the cloak) names
+        /// the pad's Actions list it is reached through — not the keyboard letter, which on a pad is some other button
+        /// (pad B is crouch / back). Used by the gear strip and the Suit tab (#2290, #2288).</summary>
+        internal static string ActionGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc, InputAction action)
+        {
+            if (InputMap.ActiveDevice == InputDeviceKind.Gamepad && InputMap.PadGlyph(GamepadInputSource.ButtonFor(action)) == null)
+            {
+                return InputMap.PadGlyph(GamepadInputSource.ButtonFor(InputAction.ContextActions)) ?? loc.Get("ui.touch.actions");
+            }
+
+            return GlyphText(loc, action);
         }
 
         /// <summary>The jump control's name for a hint (#2290): the pad's bottom face button, the tablet's JUMP button or the
@@ -2649,11 +2662,21 @@ namespace BlocksBeyondTheStars.Client
         /// the compass — hostile ones red (robots and bandits among them), the rest green — and every other player cyan;
         /// a cloaked player stays hidden (the presence list leaves them out). A hostile newly in range pings, at most once
         /// every two seconds. Same bearing and log radius as every other blip; pooled, all hidden without the scanner.</summary>
+        private object _radarEquipment; // the Game.Equipment snapshot _radarWorn was read from
+        private bool _radarWorn;
+
         private void RefreshRadar(float radius)
         {
             int used = 0;
             _radarHostilesNow.Clear();
-            if (Game.Wears("radar_scanner"))
+            if (!ReferenceEquals(Game.Equipment, _radarEquipment))
+            {
+                // Looked up once per equipment snapshot, not per frame (Wears strips the key of every changed piece).
+                _radarEquipment = Game.Equipment;
+                _radarWorn = Game.Wears("radar_scanner");
+            }
+
+            if (_radarWorn)
             {
                 var me = Game.PlayerPosition;
                 const float rangeSq = RadarRange * RadarRange;

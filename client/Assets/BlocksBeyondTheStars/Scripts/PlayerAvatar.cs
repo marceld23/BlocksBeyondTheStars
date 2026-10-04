@@ -752,7 +752,10 @@ namespace BlocksBeyondTheStars.Client
             _springL = _springR = null;
             _wingRoot = _wingL = _wingR = null;
             _hasBattery = false;
-            EnsureGearMaterials();
+            if (mask != 0)
+            {
+                EnsureGearMaterials(); // nothing worn (a fresh NPC, most remote figures) makes none
+            }
 
             if (GearLook.Has(mask, GearLook.Helmet))
             {
@@ -1544,6 +1547,16 @@ namespace BlocksBeyondTheStars.Client
                 if (_paintTexs[part] != null)
                 {
                     Destroy(_paintTexs[part]);
+                }
+            }
+
+            // The gear materials and the cloak's glass (#2294–#2297, #2291) are this figure's own — remote figures are
+            // rebuilt on every world change and rejoin, so they must not outlive it.
+            foreach (var m in new[] { _gearPlate, _gearPackMat, _gearTitan, _gearCuff, _gearPad, _gearClaw, _gearSpring, _gearWing, _gearRib, _gearLampMat, _batteryGlow, _shimmerMat })
+            {
+                if (m != null)
+                {
+                    Destroy(m);
                 }
             }
         }

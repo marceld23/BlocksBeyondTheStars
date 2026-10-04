@@ -680,7 +680,8 @@ effort.
   - **Spring boots** (feet; blueprint after the boots): jump about 60 % higher and land 50 % softer — the coils
     under the boots stretch when you jump and squash when you land.
   - **Glider** (back, instead of the jetpack; blueprint after the jetpack): while falling, hold Jump — the
-    wings unfold and you glide forward slowly, steering where you look (forward goes a little faster, back
+    wings unfold (once you drop more than about a block and a half below where you left the ground, or at once
+    if you press Jump again in the air, so an ordinary hop with Jump held stays a hop) and you glide forward slowly, steering where you look (forward goes a little faster, back
     brakes, left/right drift sideways; strong wind carries you along), using **no** suit energy. Let go of Jump
     and the wings fold. It needs air: on airless worlds, above the atmosphere, in space and under water it stays
     folded. Landing from a glide does no fall damage, and opening a menu mid-glide keeps you gliding.
