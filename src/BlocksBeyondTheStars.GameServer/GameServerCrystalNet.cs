@@ -1739,6 +1739,56 @@ public sealed partial class GameServer
         return crate.Items.All(s => s.Count >= 64);
     }
 
+    /// <summary>#2262: every container beside a device (six faces, each once) — a machine takes from and fills any of them,
+    /// like the fabricator always did.</summary>
+    private List<StoredContainer> AdjacentCrystalCrates(Vector3i cell)
+    {
+        var result = new List<StoredContainer>(2);
+        foreach (var face in CrystalNetRules.Faces)
+        {
+            if (ContainerAt(cell + face) is { } crate && !result.Contains(crate))
+            {
+                result.Add(crate);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>#2262: the first crate beside a device that would take these items, or null.</summary>
+    private StoredContainer? AdjacentCrateWithRoom(Vector3i cell, IReadOnlyList<ItemAmount> items)
+    {
+        foreach (var crate in AdjacentCrystalCrates(cell))
+        {
+            if (NpcCrateHasRoom(crate, items))
+            {
+                return crate;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>#2262: whether a block of this key stands on one of a cell's six faces.</summary>
+    private bool BlockBesideCrystalCell(Vector3i cell, string blockKey)
+    {
+        var def = _content.GetBlock(blockKey);
+        if (def is null)
+        {
+            return false;
+        }
+
+        foreach (var face in CrystalNetRules.Faces)
+        {
+            if (_world.GetBlockIfLoaded(cell + face).Value == def.NumericId.Value)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>The first container beside a device (six faces), or null.</summary>
     private StoredContainer? AdjacentCrystalCrate(Vector3i cell, out Vector3i crateCell)
     {
@@ -2082,10 +2132,11 @@ public sealed partial class GameServer
             return;
         }
 
-        var crate = AdjacentCrystalCrate(c.Cell, out _);
         // #2209: a bred plant yields what its body parent's form yields, not the bred-plant block's own drops.
         uint bredSeed = IsBredPlant(id.Value) ? BredSeedAt(above) : 0;
-        if (crate is null || !NpcDepositToContainer(crate, bredSeed != 0 ? BredYield(bredSeed) : def.Drops))
+        var yield = bredSeed != 0 ? BredYield(bredSeed) : def.Drops;
+        var crate = AdjacentCrateWithRoom(c.Cell, yield); // #2262: any crate beside the tray or pot
+        if (crate is null || !NpcDepositToContainer(crate, yield))
         {
             return; // no crate, or no room: the crop stays standing
         }

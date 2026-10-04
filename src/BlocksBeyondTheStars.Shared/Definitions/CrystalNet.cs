@@ -624,6 +624,25 @@ public static class CrystalNetRules
     /// <summary>#2268: the ship sensor reads its ship; anywhere else it is decoration.</summary>
     public static bool IsShipOnly(CrystalDeviceKind kind) => kind == CrystalDeviceKind.ShipSensor;
 
+    /// <summary>#2262: the block that lends its recipes to a fabricator standing right beside it — the forge its refinery
+    /// recipes, a lit campfire its cooking, and so on. Workshop and hand recipes need no neighbour; market and factory
+    /// recipes never run in a fabricator (null).</summary>
+    public static string? FabricatorStationBlock(CraftingStation station) => station switch
+    {
+        CraftingStation.Refinery => "forge",
+        CraftingStation.Campfire => "campfire",
+        CraftingStation.Detoxifier => "detoxifier",
+        CraftingStation.Transmuter => "matter_forge",
+        CraftingStation.AlgaeTank => "algae_tank",
+        CraftingStation.Decontaminator => "decontaminator",
+        _ => null,
+    };
+
+    /// <summary>#2262: whether a fabricator may craft a recipe of this station at all (with the station block beside it
+    /// where one is needed).</summary>
+    public static bool FabricatorRuns(CraftingStation station)
+        => station is CraftingStation.Workshop or CraftingStation.Hand || FabricatorStationBlock(station) is not null;
+
     /// <summary>#2260: a pre-built world circuit's owner (see <see cref="WorldOwnerId"/>).</summary>
     public static bool IsWorldOwner(string? owner) => owner == WorldOwnerId;
 

@@ -272,6 +272,54 @@ public sealed class CrystalNet2Tests : IDisposable
     }
 
     // ---------------------------------------------------------------------------------------------------
+    // #2262 the fabricator runs the recipes of the station beside it; machines use every crate beside them
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void AFabricatorBesideAForge_Smelts_AndWithoutTheForge_ItIsStuck()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Player(server, "Builder", new Vector3f(2, 203, 0), "fabricator", "crate", "forge");
+            server.PlaceBlock("Builder", 1, 200, 0, "fabricator");
+            server.PlaceBlock("Builder", 0, 200, 0, "crate");
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 2, config: "recipe=titanium_plate");
+            var crate = server.Containers.Single(c => c.Position == new Vector3i(0, 200, 0));
+            crate.Items.Add(new ItemStack("titanium_ore", 4));
+
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 1); // no forge beside it: stuck
+            Assert.True(server.CrystalDeviceOutput(new Vector3i(1, 200, 0)));
+            Assert.Equal(4, crate.Items.Single(s => s.Item == "titanium_ore").Count);
+
+            server.PlaceBlock("Builder", 2, 200, 0, "forge");
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 1);
+            Assert.False(server.CrystalDeviceOutput(new Vector3i(1, 200, 0)));
+            Assert.Equal(1, crate.Items.Single(s => s.Item == "titanium_plate").Count);
+            Assert.Equal(2, crate.Items.Single(s => s.Item == "titanium_ore").Count);
+        }
+    }
+
+    [Fact]
+    public void AMatterSender_TakesFromAnyCrateBesideIt()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Player(server, "Builder", new Vector3f(3, 203, 0), "crate", "matter_sender", "matter_receiver");
+            server.PlaceBlock("Builder", 1, 200, 0, "matter_sender");
+            server.PlaceBlock("Builder", 0, 200, 0, "crate");   // empty
+            server.PlaceBlock("Builder", 1, 200, 1, "crate");   // the second crate holds the goods
+            server.PlaceBlock("Builder", 6, 200, 0, "matter_receiver", "Lager");
+            server.PlaceBlock("Builder", 7, 200, 0, "crate");
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 2, config: "pair=6,200,0");
+            server.Containers.Single(c => c.Position == new Vector3i(1, 200, 1)).Items.Add(new ItemStack("iron_ore", 10));
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 1);
+            Assert.Equal(10, server.Containers.Single(c => c.Position == new Vector3i(7, 200, 0)).Items.Single(s => s.Item == "iron_ore").Count);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------------
     // #2264 phase block, trapdoor
     // ---------------------------------------------------------------------------------------------------
 

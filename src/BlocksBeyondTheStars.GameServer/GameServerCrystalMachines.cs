@@ -131,35 +131,46 @@ public sealed partial class GameServer
             return;
         }
 
-        var from = AdjacentCrystalCrate(sender.Cell, out _);
-        var to = AdjacentCrystalCrate(receiver.Cell, out _);
-        if (from is null || to is null || from.Id == to.Id)
+        // #2262: any crate beside the sender gives, any crate beside the receiver takes.
+        var froms = AdjacentCrystalCrates(sender.Cell);
+        var tos = AdjacentCrystalCrates(receiver.Cell);
+        if (froms.Count == 0 || tos.Count == 0)
         {
             SetCrystalBlocked(sender, true);
             return;
         }
 
-        // The first stack the far crate's filter lets in, one shot's worth of it.
+        // The first stack some far crate's filter lets in and has room for, one shot's worth of it.
+        StoredContainer? from = null, to = null;
         ItemStack? stack = null;
-        foreach (var s in from.Items)
+        int count = 0;
+        foreach (var f in froms)
         {
-            if (!s.IsEmpty && s.Count > 0 && (to.Filter.Count == 0 || to.Filter.Contains(ItemKey.Base(s.Item))))
+            foreach (var s in f.Items)
             {
-                stack = s;
+                if (s.IsEmpty || s.Count <= 0)
+                {
+                    continue;
+                }
+
+                int n = Math.Min(s.Count, CrystalNetRules.MoveStackSize);
+                var target = tos.FirstOrDefault(t => t.Id != f.Id && NpcCrateHasRoom(t, new[] { new ItemAmount(s.Item, n) }));
+                if (target is not null)
+                {
+                    (from, to, stack, count) = (f, target, s, n);
+                    break;
+                }
+            }
+
+            if (stack is not null)
+            {
                 break;
             }
         }
 
-        if (stack is null)
+        if (from is null || to is null || stack is null || !NpcDepositToContainer(to, new[] { new ItemAmount(stack.Item, count) }))
         {
-            SetCrystalBlocked(sender, true);
-            return;
-        }
-
-        int count = Math.Min(stack.Count, CrystalNetRules.MoveStackSize);
-        if (!NpcDepositToContainer(to, new[] { new ItemAmount(stack.Item, count) }))
-        {
-            SetCrystalBlocked(sender, true); // no room over there
+            SetCrystalBlocked(sender, true); // nothing to send, or no room over there
             return;
         }
 
@@ -191,8 +202,11 @@ public sealed partial class GameServer
     {
         string? key = CrystalConfigValue(fab.Config, "recipe");
         var recipe = key is null ? null : _content.GetRecipe(key);
-        if (recipe is null || recipe.Station is not (CraftingStation.Workshop or CraftingStation.Hand) || recipe.MarketTheme.Length > 0)
+        if (recipe is null || !CrystalNetRules.FabricatorRuns(recipe.Station) || recipe.MarketTheme.Length > 0
+            || (CrystalNetRules.FabricatorStationBlock(recipe.Station) is { } station && !BlockBesideCrystalCell(fab.Cell, station)))
         {
+            // #2262: a station's recipe needs that station right beside the fabricator — the forge for smelting, a LIT
+            // campfire for cooking (a fire the net put out is "campfire_off" and does not count).
             SetCrystalBlocked(fab, true);
             return;
         }
@@ -294,8 +308,7 @@ public sealed partial class GameServer
             return;
         }
 
-        var crate = AdjacentCrystalCrate(drill.Cell, out _);
-        if (crate is null)
+        if (AdjacentCrystalCrates(drill.Cell).Count == 0)
         {
             SetCrystalBlocked(drill, true);
             return;
@@ -350,9 +363,10 @@ public sealed partial class GameServer
             }
 
             var drops = new List<ItemAmount>();
-            if (!NpcCrateHasRoom(crate, def.Drops))
+            var crate = AdjacentCrateWithRoom(drill.Cell, def.Drops); // #2262: any crate beside the drill
+            if (crate is null)
             {
-                drill.Cursor--; // come back to this one once the crate has room
+                drill.Cursor--; // come back to this one once a crate has room
                 SetCrystalBlocked(drill, true);
                 return;
             }
@@ -395,8 +409,7 @@ public sealed partial class GameServer
             return;
         }
 
-        var crate = AdjacentCrystalCrate(laser.Cell, out _);
-        if (crate is null)
+        if (AdjacentCrystalCrates(laser.Cell).Count == 0)
         {
             SetCrystalBlocked(laser, true);
             return;
@@ -437,7 +450,8 @@ public sealed partial class GameServer
 
             bool bank = !onlyOre || def.Category == "ore" || def.Liquid;
             var drops = new List<ItemAmount>();
-            if (bank && !NpcCrateHasRoom(crate, def.Drops))
+            var crate = bank ? AdjacentCrateWithRoom(laser.Cell, def.Drops) : AdjacentCrystalCrates(laser.Cell)[0]; // #2262
+            if (bank && crate is null)
             {
                 DrillLaserStop(laser, depth); // the crate is full: it resumes from the same cell once emptied and started again
                 return;
@@ -454,7 +468,7 @@ public sealed partial class GameServer
             depth++;
             laser.Config = CrystalConfigWith(laser.Config, "depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             SaveCrystalCell(laser);
-            if (drops.Count > 0 && !NpcDepositToContainer(crate, drops))
+            if (drops.Count > 0 && (crate is null || !NpcDepositToContainer(crate, drops)))
             {
                 SpillToGround(target, drops, creatureLoot: false); // the dry run said yes; a composed key can still refuse
             }
