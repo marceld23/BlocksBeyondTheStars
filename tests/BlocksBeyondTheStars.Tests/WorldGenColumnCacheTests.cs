@@ -192,12 +192,16 @@ public class WorldGenColumnCacheTests
             using var repo = new BlocksBeyondTheStars.Persistence.MemoryWorldRepository(
                 new BlocksBeyondTheStars.Persistence.SaveGamePaths(root, "colcache"));
             var world = new BlocksBeyondTheStars.GameServer.ServerWorld(Content, gen, repo, planet, "cache-test:server", 5472);
+            // #2235: the world generates on its own generator; the template it was made from stays cold.
+            var own = world.Generator;
+            Assert.NotSame(gen, own);
             world.GetOrLoadChunk(new ChunkCoord(2, 3, 2));
-            Assert.Equal(256, gen.CachedColumnProfiles);
+            Assert.Equal(256, own.CachedColumnProfiles);
             world.GetOrLoadChunk(new ChunkCoord(2, 4, 2)); // the chunk above: same 256 columns, no new profile
-            Assert.Equal(256, gen.CachedColumnProfiles);
+            Assert.Equal(256, own.CachedColumnProfiles);
             world.GetOrLoadChunk(new ChunkCoord(3, 4, 2)); // the neighbour column set adds its own 256
-            Assert.Equal(512, gen.CachedColumnProfiles);
+            Assert.Equal(512, own.CachedColumnProfiles);
+            Assert.Equal(0, gen.CachedColumnProfiles);
 
             // And a stacked chunk served from the memos is the chunk a cold generator makes.
             var cold = new WorldGenerator(424242, Content);

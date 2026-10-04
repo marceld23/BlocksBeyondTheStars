@@ -101,7 +101,7 @@ public sealed class FxContentTests
             .Select(f => (string)f.GetRawConstantValue()!)
             .ToList();
 
-        Assert.Equal(31, constants.Count);
+        Assert.Equal(32, constants.Count); // +ship_scan (#2237)
         Assert.Equal(constants.OrderBy(s => s, System.StringComparer.Ordinal), FxStyles.All.OrderBy(s => s, System.StringComparer.Ordinal));
         Assert.False(FxStyles.IsKnown(null));
         Assert.False(FxStyles.IsKnown(string.Empty));
