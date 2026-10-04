@@ -5816,5 +5816,7 @@
   "ui.loading.tip.1": "Tip: a switch, a line of crystal conduits and a lamp — that's your first circuit.",
   "ui.loading.tip.2": "Tip: phase blocks turn into a secret door when their wire is switched ON.",
   "ui.loading.tip.3": "Tip: put a step plate outside and a chime inside — a doorbell!",
-  "ui.loading.tip.4": "Tip: a lift stop next to a 3×3 shaft calls the lift platform to you."
+  "ui.loading.tip.4": "Tip: a lift stop next to a 3×3 shaft calls the lift platform to you.",
+  "vega.hint.world.crystal": "A crystal world! Crystal everywhere — enough for the conduits of a whole base.",
+  "vega.hint.crystal_night_light": "Your base is dark. How about a night light? A daylight sensor set to \"night\", a conduit and a lamp — it switches on by itself."
 }

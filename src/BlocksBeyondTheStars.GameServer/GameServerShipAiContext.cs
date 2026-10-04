@@ -99,6 +99,8 @@ public sealed partial class GameServer
         new("lamp_off",       VegaTipPriority.Equipment,   8,  600, 3, false),
         new("lamp_missing",   VegaTipPriority.Equipment,  10,  900, 2, false),
         new("torch_underground", VegaTipPriority.Equipment, 15, 900, 2, false),
+        // #2257: a dark base and the Crystal Net researched, but nothing of the net built yet.
+        new("crystal_night_light", VegaTipPriority.Opportunity, 10, 1800, 2, true),
         new("eat_now",        VegaTipPriority.Equipment,   5,  600, 3, false),
         new("wrong_tool",     VegaTipPriority.Equipment,   0,  600, 3, false),
         // #1686: a tool-tier gate turned a swing away. The reject toast already names the tool; VEGA adds the
@@ -485,6 +487,12 @@ public sealed partial class GameServer
             if (underground && p.Inventory.Has("torch", 1) && !probe.TorchNear)
             {
                 Add("torch_underground");
+            }
+
+            if (night && p.UnlockedBlueprints.Contains(CrystalFirstBlueprint) && InOwnBaseZone(p.PlayerId, p.Position.ToBlock())
+                && !CrystalNet.Cells.Values.Any(c => c.OwnerId == p.PlayerId && !c.IsConduit))
+            {
+                Add("crystal_night_light"); // #2257: "how about a night light for your base?" — gone once anything of the net stands
             }
 
             if (session.VegaHandMineStreak >= 8 && CarriesTool(p, ToolKind.Drill))

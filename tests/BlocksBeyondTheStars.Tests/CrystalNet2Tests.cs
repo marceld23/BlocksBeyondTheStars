@@ -261,6 +261,33 @@ public sealed class CrystalNet2Tests : IDisposable
     }
 
     [Fact]
+    public void ACrystalVaultsDoor_OpensWhenBothHiddenSwitchesAreOn_AndCountsAsASafecracker()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            // Anchor at x 10: the world wraps in x, so the test keeps every cell positive.
+            var p = Player(server, "Visitor", new Vector3f(10.5f, 200f, 0.5f));
+            server.StampCrystalVaultPuzzleForTest(ax: 10, az: 0, floorY: 200);
+            Ticks(server, 0.8);
+            Assert.Equal("phase_block", KeyAt(server, 10, 200, 4));
+
+            p.State.Position = new Vector3f(7.5f, 200f, 2.5f); // beside the west switch
+            server.SetCrystalDeviceForTest(p, new Vector3i(6, 201, 3), action: 0); // the west switch alone: not enough
+            Ticks(server, 0.8);
+            Assert.Equal("phase_block", KeyAt(server, 10, 200, 4));
+            Assert.Equal("light_white", KeyAt(server, 8, 202, 4)); // its wire's lamp shows it is ON
+
+            p.State.Position = new Vector3f(12.5f, 200f, 2.5f); // beside the east switch
+            server.SetCrystalDeviceForTest(p, new Vector3i(14, 201, 3), action: 0);
+            Ticks(server, 1.2);
+            Assert.Equal("phase_block_open", KeyAt(server, 10, 200, 4));
+            Assert.Equal("phase_block_open", KeyAt(server, 10, 201, 4));
+            Assert.True(p.State.AchievementCounters.GetValueOrDefault("crystal:vault") >= 1);
+        }
+    }
+
+    [Fact]
     public void ATemplateWithACircuit_CarriesItsDevicesAsMarkers_AndAQuarterTurnKeepsTheirSettings()
     {
         var t = new StructureTemplate { Key = "test_circuit", Width = 4, Height = 2, Length = 2 };

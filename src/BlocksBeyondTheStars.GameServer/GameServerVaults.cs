@@ -355,6 +355,11 @@ public sealed partial class GameServer
         SpawnStructureLoot("vault", "loot", new Vector3f(ax + 2, floorY, az - 3), rng);
         SpawnStructureLoot("vault", "data_terminal", new Vector3f(ax, floorY, az), rng);
 
+        if (IsCrystalVault(ax, az))
+        {
+            StampCrystalVaultPuzzle(ax, az, floorY, write); // #2260: a puzzle niche — after every roll of the shared rng
+        }
+
         _vaultEntrances.Add(new Vector3i(ax, surfaceY, az));
     }
 }

@@ -5816,5 +5816,7 @@
   "ui.loading.tip.1": "Tipp: ein Schalter, eine Reihe Kristallleiter und eine Lampe – das ist deine erste Schaltung.",
   "ui.loading.tip.2": "Tipp: Phasenblöcke werden zur Geheimtür, wenn ihr Kabel AN geschaltet wird.",
   "ui.loading.tip.3": "Tipp: eine Trittplatte nach draußen und eine Klingel nach drinnen – eine Türklingel!",
-  "ui.loading.tip.4": "Tipp: Ein Aufzugshalt neben einem 3×3-Schacht ruft die Aufzugsplattform zu dir."
+  "ui.loading.tip.4": "Tipp: Ein Aufzugshalt neben einem 3×3-Schacht ruft die Aufzugsplattform zu dir.",
+  "vega.hint.world.crystal": "Eine Kristallwelt! Überall Kristall – genug für die Leitungen einer ganzen Basis.",
+  "vega.hint.crystal_night_light": "Deine Basis ist dunkel. Wie wär's mit einem Nachtlicht? Ein Tageslichtsensor auf „Nacht“, ein Kristallleiter und eine Lampe – sie geht von selbst an."
 }

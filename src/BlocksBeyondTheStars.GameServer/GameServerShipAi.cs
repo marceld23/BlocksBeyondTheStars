@@ -461,6 +461,7 @@ public sealed partial class GameServer
             "toxica_maxima" => "toxica_maxima", // #2068: Justus' poisoned landmark
             "arena_nigra" => "arena_nigra", // #2078: Theo's black-sand landmark — the Ignivermis hunts here
             "gas_giant" => "gas_giant", // #2112: Justus' gas giant — no ground, only gas under the islands
+            "crystal" or "crystal_living" => "crystal", // #2257: crystal everywhere — enough conduit for a whole base
             _ => string.Empty,
         };
         if (id.Length > 0)

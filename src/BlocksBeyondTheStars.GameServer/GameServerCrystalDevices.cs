@@ -97,6 +97,10 @@ public sealed partial class GameServer
         if (on && c.Kind == CrystalDeviceKind.PhaseBlock)
         {
             OnCrystalCircuitEvent(c.OwnerId, Shared.Missions.CircuitEvents.PhaseOpen); // #2258: a secret door opened
+            if (CrystalNetRules.IsWorldOwner(c.OwnerId))
+            {
+                OnCrystalVaultOpened(c); // a crystal vault's door: "Safecracker" for everyone in the chamber
+            }
         }
 
         return true;
