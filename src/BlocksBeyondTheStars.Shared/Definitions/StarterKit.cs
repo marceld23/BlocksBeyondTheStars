@@ -6,8 +6,9 @@ using BlocksBeyondTheStars.Shared.State;
 namespace BlocksBeyondTheStars.Shared.Definitions;
 
 /// <summary>
-/// The gear every fresh pilot is handed on their first join, in quick-bar slot order (the server stocks it in
-/// <c>GameServer.CreatePlayer</c>).
+/// The gear every fresh pilot is handed on their first join (the server stocks it in <c>GameServer.CreateNewPlayer</c>):
+/// a wearable piece — the suit lamp — is put ON in its equipment slot (#2288), the rest fills the quick-bar in this order
+/// from slot 0, without a hole.
 ///
 /// It lives in Shared rather than in the server because both sides need the same answer: the server refuses a
 /// discard of these items (#599) and the client hides the Discard button for them. Two hand-maintained lists
@@ -19,7 +20,8 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// </summary>
 public static class StarterKit
 {
-    /// <summary>The protected starter equipment, in the slot order <c>CreatePlayer</c> stocks it.</summary>
+    /// <summary>The protected starter equipment, in the order <c>CreateNewPlayer</c> stocks it (worn pieces skipped in the
+    /// quick-bar).</summary>
     public static readonly string[] Items =
     {
         "basic_drill", "hand_scanner", "suit_lamp", "machete", "scrap_pistol",

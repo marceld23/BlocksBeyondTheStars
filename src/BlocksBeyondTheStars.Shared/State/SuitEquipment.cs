@@ -14,7 +14,8 @@ namespace BlocksBeyondTheStars.Shared.State;
 /// inventory's equipment row and sizes the HUD oxygen bar with it, so what the player reads can never drift from
 /// what the server does. Data-driven via the item definitions (<c>equipSlot</c>, <c>armorResistance</c>,
 /// <c>oxygenBonus</c>, <c>thermalInsulation</c>, <c>corrosionResistance</c>, <c>fallProtection</c>,
-/// <c>scanKnowledgeMultiplier</c>). The <c>carried</c> predicates take "is this key worn".
+/// <c>climbGrip</c>, <c>jumpBoost</c>, <c>suitEnergyBonus</c>, <c>scanKnowledgeMultiplier</c>). The <c>carried</c>
+/// predicates take "is this key worn".
 /// </summary>
 public static class SuitEquipment
 {
@@ -69,10 +70,48 @@ public static class SuitEquipment
         return false;
     }
 
+    /// <summary>Spring gear never more than doubles a jump.</summary>
+    public const float MaxJumpBoost = 1f;
+
+    /// <summary>How much higher the worn gear lets the player jump (#2295, 0..1; 0.6 = about 60 % higher) — the best worn
+    /// piece counts. The client scales its jump with it; the server keeps no jump of its own.</summary>
+    public static float JumpBoost(IEnumerable<ItemDefinition> items, Func<string, bool> worn)
+    {
+        float best = 0f;
+        foreach (var item in items)
+        {
+            if (item.JumpBoost > best && worn(item.Key))
+            {
+                best = item.JumpBoost;
+            }
+        }
+
+        return Math.Min(MaxJumpBoost, best);
+    }
+
+    /// <summary>Suit energy without a battery (#2297) — what a fresh pilot starts with.</summary>
+    public const float BaseSuitEnergy = 100f;
+
+    /// <summary>Maximum suit energy (#2297) — base 100 plus the best worn battery's bonus. Like the oxygen tanks only the
+    /// highest bonus counts; wearing several does not stack.</summary>
+    public static float MaxSuitEnergy(IEnumerable<ItemDefinition> items, Func<string, bool> worn)
+    {
+        float bonus = 0f;
+        foreach (var item in items)
+        {
+            if (item.SuitEnergyBonus > bonus && worn(item.Key))
+            {
+                bonus = item.SuitEnergyBonus;
+            }
+        }
+
+        return BaseSuitEnergy + bonus;
+    }
+
     /// <summary>A rank for "the best piece for a slot" — what the one-time migration and a full backpack pick by.</summary>
     public static float Rank(ItemDefinition def)
-        => def.OxygenBonus * 10f + def.ThermalInsulation * 100f + def.CorrosionResistance * 100f
-           + def.ArmorResistance * 100f + def.FallProtection * 100f + def.ClimbGrip * 100f + 1f;
+        => def.OxygenBonus * 10f + def.SuitEnergyBonus * 10f + def.ThermalInsulation * 100f + def.CorrosionResistance * 100f
+           + def.ArmorResistance * 100f + def.FallProtection * 100f + def.ClimbGrip * 100f + def.JumpBoost * 100f + 1f;
 
     /// <summary>The one-time migration of a save written before the slots existed (#2110): for every empty slot, the
     /// best wearable piece in the backpack moves into it (one of each — a second helmet stays in the pack). Deterministic,

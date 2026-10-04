@@ -8,7 +8,7 @@ namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>Puts suit gear ON a test player (#2110): since the equipment slots, gear works only while worn, so a test
 /// that used to drop a helmet or a radio into the backpack wears it instead — into the slot its definition names (a
-/// module into the first free module slot, else the first), replacing whatever was worn there.</summary>
+/// module into the first free of the four module slots, else the first), replacing whatever was worn there.</summary>
 public static class TestGear
 {
     private static readonly GameContent Content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
@@ -17,9 +17,9 @@ public static class TestGear
     {
         var def = Content.GetItem(key) ?? throw new System.ArgumentException("no such item: " + key, nameof(key));
         var slot = EquipSlots.Parse(def.EquipSlot) ?? throw new System.ArgumentException(key + " is not wearable", nameof(key));
-        if (slot == EquipSlot.Module1 && p.Equipment.Slots[(int)EquipSlot.Module1] is { IsEmpty: false } && p.Equipment.Slots[(int)EquipSlot.Module2] is null)
+        if (EquipSlots.IsModule(slot))
         {
-            slot = EquipSlot.Module2;
+            slot = EquipSlots.ModuleSlotFor(p.Equipment); // #2293: the first free of the four module slots
         }
 
         p.Equipment.SetSlot((int)slot, new ItemStack(key, 1));

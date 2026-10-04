@@ -103,7 +103,7 @@ public sealed partial class GameServer
                 if (!p.Stealthed && !p.Jetpacking)
                 {
                     // The one place the suit recharges off-ship. Don't recharge while actively spending it.
-                    p.SuitEnergy = System.Math.Min(100f, p.SuitEnergy + (float)(dt * HealTankEnergyPerSecond));
+                    p.SuitEnergy = System.Math.Min(MaxSuitEnergy(p), p.SuitEnergy + (float)(dt * HealTankEnergyPerSecond)); // #2297
                 }
             }
             else if (session.NearBed)

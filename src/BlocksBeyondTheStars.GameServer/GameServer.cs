@@ -2039,7 +2039,7 @@ public sealed partial class GameServer
                 // only refills at a heal-tank. Don't recharge while actively spending it.
                 if (p.AboardShip && !p.Stealthed && !p.Jetpacking)
                 {
-                    p.SuitEnergy = System.Math.Min(100f, p.SuitEnergy + (float)(dt * 20));
+                    p.SuitEnergy = System.Math.Min(MaxSuitEnergy(p), p.SuitEnergy + (float)(dt * 20)); // #2297: up to the worn battery
                 }
             }
             else
@@ -2433,9 +2433,10 @@ public sealed partial class GameServer
         var p = session.State;
         p.Health = 100f;
         p.Oxygen = MaxOxygen(p);
-        p.SuitEnergy = 100f;
+        p.SuitEnergy = MaxSuitEnergy(p); // #2297: full means the worn battery's full
         p.Hunger = 100f;
         p.Stealthed = false;
+        p.Gliding = false; // #2296: and folds the wing
         p.Seated = false; // death stands you up (#806)
         p.SeatCell = null; // and frees the chair (#2122)
         p.InEva = false; // a death ends any spacewalk
@@ -3772,6 +3773,7 @@ public sealed partial class GameServer
             case TeleportToPlayerIntent tpp: HandleTeleportToPlayer(session, tpp); break;
             case ToggleStealthIntent: HandleToggleStealth(session); break;
             case SetJetpackIntent sj: HandleSetJetpack(session, sj); break;
+            case SetGlidingIntent sg: HandleSetGliding(session, sg); break;   // #2296
             case SetLampIntent sl: HandleSetLamp(session, sl); break;
             case CopyBuildIntent cb: HandleCopyBuild(session, cb); break;    // #1117: region → share code
             case PasteBuildIntent pb: HandlePasteBuild(session, pb); break;  // #1117: share code → blocks
@@ -4201,16 +4203,31 @@ public sealed partial class GameServer
         // hostile's bite range. Blocks are placed directly — select a block item and right-click — so there
         // is no separate "block placer" tool.
         // Stocked FROM StarterKit.Items so the list the discard guard protects (#599) is the same list the
-        // player is actually handed — one array, no drift between the two.
-        for (int i = 0; i < StarterKit.Items.Length; i++)
+        // player is actually handed — one array, no drift between the two. #2288: a wearable kit piece (the suit lamp)
+        // is put ON straight away — gear works only while worn (#2110) — and the rest fills the quick-bar from slot 0
+        // without a hole where the lamp used to sit.
+        int next = 0;
+        foreach (string key in StarterKit.Items)
         {
-            state.Inventory.SetSlot(i, new ItemStack(StarterKit.Items[i], 1));
+            var slot = EquipSlots.Parse(_content.GetItem(key)?.EquipSlot);
+            if (slot is { } own)
+            {
+                var into = EquipSlots.IsModule(own) ? EquipSlots.ModuleSlotFor(state.Equipment) : own;
+                state.Equipment.SetSlot((int)into, new ItemStack(key, 1));
+            }
+            else
+            {
+                state.Inventory.SetSlot(next++, new ItemStack(key, 1));
+            }
         }
 
+        state.EquipmentInitialised = true; // the kit is worn already — nothing from before the slots to move (#2110)
+
         // Starter food so a fresh pilot can't starve before discovering the food loop: a few berries to eat by
-        // hand straight away (VEGA's "eat" lesson points here), plus emergency rations pre-loaded into the suit
-        // dispenser so the low-hunger auto-feed safety net works from the first minute, not only once they craft one.
-        state.Inventory.SetSlot(6, new ItemStack("berries", 5));
+        // hand straight away (VEGA's "eat" lesson points here) in the quick-bar slot right after the kit, plus emergency
+        // rations pre-loaded into the suit dispenser so the low-hunger auto-feed safety net works from the first minute,
+        // not only once they craft one.
+        state.Inventory.SetSlot(next, new ItemStack("berries", 5));
         state.RationStore.SetSlot(0, new ItemStack("emergency_ration", 2));
 
         // A water world (the ocean type) hands the pilot a boat as well (#1215): the shore is right there and the

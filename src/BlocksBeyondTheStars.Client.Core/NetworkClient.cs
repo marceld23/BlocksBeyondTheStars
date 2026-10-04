@@ -652,8 +652,11 @@ namespace BlocksBeyondTheStars.Client
         /// (B58 — customising the quick-bar).</summary>
         public void SendMoveItem(int fromSlot, int toSlot) => Send(new MoveItemIntent { FromSlot = fromSlot, ToSlot = toSlot });
 
-        /// <summary>Wears the gear in a backpack slot (#2110); <paramref name="slot"/> −1 = the item's own slot.</summary>
-        public void SendEquipItem(int fromSlot, int slot = -1) => Send(new EquipItemIntent { FromSlot = fromSlot, Slot = slot });
+        /// <summary>Wears the gear in a backpack slot (#2110) — or, with <paramref name="fromCargo"/>, in a slot of the ship's
+        /// cargo hold (#2289, aboard only); <paramref name="slot"/> −1 = the item's own slot (a module: the first free of
+        /// the four module slots).</summary>
+        public void SendEquipItem(int fromSlot, int slot = -1, bool fromCargo = false)
+            => Send(new EquipItemIntent { FromSlot = fromSlot, Slot = slot, FromCargo = fromCargo });
 
         /// <summary>Takes worn gear off into a backpack slot (#2110); <paramref name="toSlot"/> −1 = the first free one.</summary>
         public void SendUnequipItem(int slot, int toSlot = -1) => Send(new UnequipItemIntent { Slot = slot, ToSlot = toSlot });
@@ -749,6 +752,10 @@ namespace BlocksBeyondTheStars.Client
         public void SendToggleStealth() => Send(new ToggleStealthIntent());
 
         public void SendSetJetpack(bool active) => Send(new SetJetpackIntent { Active = active });
+
+        /// <summary>The glider opened or closed (#2296). The glide is local movement; the server checks the worn glider
+        /// (a refusal comes back as an <c>ActionRejected</c> with action <c>"glider"</c>) and shows the wing to others.</summary>
+        public void SendSetGliding(bool active) => Send(new SetGlidingIntent { Active = active });
 
         /// <summary>Suit lamp on/off (#1077) — informational, feeds VEGA's context tips only.</summary>
         public void SendSetLamp(bool on) => Send(new SetLampIntent { On = on });

@@ -64,7 +64,8 @@ public sealed class EquipmentSlotTests : IDisposable
 
         foreach (var key in new[] { "helmet", "armor_chest", "stealth_suit", "armor_legs", "boots", "jetpack", "oxygen_tank_1", "oxygen_tank_2",
                      "oxygen_tank_3", "suit_liner_1", "suit_liner_2", "suit_liner_3", "suit_lamp", "oxygen_extractor", "comm_radio", "system_radio",
-                     "galaxy_radio", "radar_scanner" })
+                     "galaxy_radio", "radar_scanner", "climbing_gloves", "climbing_claws",
+                     "titan_helmet", "titan_chest", "titan_legs", "spring_boots", "glider", "suit_battery" }) // #2294-#2297
         {
             var def = _content.GetItem(key)!;
             Assert.NotNull(EquipSlots.Parse(def.EquipSlot));
@@ -76,7 +77,10 @@ public sealed class EquipmentSlotTests : IDisposable
         Assert.Equal(EquipSlot.Feet, EquipSlots.Parse(_content.GetItem("boots")!.EquipSlot));
         Assert.Equal(EquipSlot.Tank, EquipSlots.Parse(_content.GetItem("oxygen_tank_3")!.EquipSlot));
         Assert.True(EquipSlots.Accepts(EquipSlot.Module2, "module"));
+        Assert.True(EquipSlots.Accepts(EquipSlot.Module4, "module")); // #2293: four module slots
+        Assert.False(EquipSlots.Accepts(EquipSlot.Module3, "back"));
         Assert.False(EquipSlots.Accepts(EquipSlot.Head, "chest"));
+        Assert.Equal(EquipSlot.Back, EquipSlots.Parse(_content.GetItem("glider")!.EquipSlot)); // instead of the jetpack
         Assert.Null(_content.GetItem("stone")!.EquipSlot);
         Assert.Null(_content.GetItem("suit_teleporter")!.EquipSlot); // a held gadget, not worn
         Assert.True(_content.GetItem("boots")!.FallProtection > 0f);
@@ -123,7 +127,7 @@ public sealed class EquipmentSlotTests : IDisposable
             Assert.Equal(1, inv.CountOf("armor_legs"));
             Assert.Equal(0, eq.CountOf("armor_legs"));
 
-            // The starter kit's lamp was put on at the join (the one-time migration) — take it off first.
+            // The starter kit's lamp is worn from the start (#2288) — take it off first.
             Assert.Equal("suit_lamp", eq.Slots[(int)EquipSlot.Module1]!.Item);
             server.UnequipItemForTest("Dresser", (int)EquipSlot.Module1);
             Assert.Null(eq.Slots[(int)EquipSlot.Module1]);
@@ -181,16 +185,18 @@ public sealed class EquipmentSlotTests : IDisposable
 
         int moved = SuitEquipment.MigrateIntoSlots(state.Inventory, state.Equipment, key => _content.GetItem(key));
 
-        Assert.Equal(5, moved); // helmet, the best tank, the liner, two of the three modules
+        Assert.Equal(6, moved); // helmet, the best tank, the liner, all three modules (four module slots since #2293)
         Assert.Equal("helmet", state.Equipment.Slots[(int)EquipSlot.Head]!.Item);
         Assert.Equal("oxygen_tank_3", state.Equipment.Slots[(int)EquipSlot.Tank]!.Item);
         Assert.Equal("suit_liner_2", state.Equipment.Slots[(int)EquipSlot.Liner]!.Item);
         Assert.NotNull(state.Equipment.Slots[(int)EquipSlot.Module1]);
         Assert.NotNull(state.Equipment.Slots[(int)EquipSlot.Module2]);
+        Assert.NotNull(state.Equipment.Slots[(int)EquipSlot.Module3]);
+        Assert.Null(state.Equipment.Slots[(int)EquipSlot.Module4]);
         Assert.Null(state.Equipment.Slots[(int)EquipSlot.Feet]);
         Assert.Equal(1, state.Inventory.CountOf("oxygen_tank_1")); // the lesser tank stays in the pack
         Assert.Equal(12, state.Inventory.CountOf("stone"));
-        Assert.Equal(1, state.Inventory.CountOf("suit_lamp") + state.Inventory.CountOf("comm_radio") + state.Inventory.CountOf("oxygen_extractor"));
+        Assert.Equal(0, state.Inventory.CountOf("suit_lamp") + state.Inventory.CountOf("comm_radio") + state.Inventory.CountOf("oxygen_extractor"));
 
         // Running it again moves nothing more (the tank slot is taken, the lesser tank stays).
         Assert.Equal(0, SuitEquipment.MigrateIntoSlots(state.Inventory, state.Equipment, key => _content.GetItem(key)));

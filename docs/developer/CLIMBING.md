@@ -29,7 +29,8 @@ The only thing on the wire is the pose: `MoveIntent.Climbing` → `PlayerState.C
 `PlayerPresence.Climbing`. All three are new fields on existing contractless MessagePack messages. That needs no
 `NetCodec.Register` and no protocol bump, and an older peer simply ignores them. The receiving client turns the
 avatar towards the wall itself (`RemotePlayers.TryWallYaw`: the solid neighbour at hand height closest to the
-reported look), so no facing field is sent. Gloves and claws ride the presence gear mask as bits 128 and 256.
+reported look), so no facing field is sent. Gloves and claws ride the presence gear mask as bits 128 and 256
+(`Shared/State/GearLook.cs`, the one mask server and client both build).
 
 ## The movement chain
 

@@ -199,8 +199,9 @@ public sealed class MaterialEconomyTests
         {
             "ai_memory_fragment", "access_code", "suit_teleporter", "oxygen_extractor", "stealth_suit", "armor_chest",
             "armor_legs", "helmet", "oxygen_tank_3", "suit_liner_3", "suit_lamp", "jetpack", "radar_scanner", "galaxy_radio",
-            "boots", // #2110: the feet slot's piece
             "climbing_claws", // #2192: the top climbing module (the gloves go into it)
+            // #2294-#2297 the second suit tier (the boots are no end product any more: the spring boots take them).
+            "titan_helmet", "titan_chest", "titan_legs", "spring_boots", "glider", "suit_battery",
             // #2201/#2204/#2206: used up in the bio lab, which computes its results and has no recipes to list them in.
             "bio_sample", "mineral_sample", "prep_coating",
         };

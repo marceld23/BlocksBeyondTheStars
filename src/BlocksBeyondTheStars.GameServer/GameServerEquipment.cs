@@ -8,12 +8,14 @@ using BlocksBeyondTheStars.Shared.State;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// Suit equipment effects derived from the gear a player <b>carries</b> (no separate equip slots
-/// yet): armor damage resistance, extra oxygen capacity, scanner knowledge bonus, and the stealth
-/// field. Server-authoritative — these feed the vitals/combat/scan systems. The formula itself lives in
-/// <see cref="SuitEquipment"/> (Shared) so the client's Suit tab and HUD show exactly what the server
-/// applies (#1270); data-driven via the item definitions (`ArmorResistance`, `OxygenBonus`,
-/// `ThermalInsulation`, `ScanKnowledgeMultiplier`).
+/// The suit's equipment slots (#2110) and the effects of the gear a player <b>wears</b> in them — gear in the backpack
+/// does nothing: armour damage resistance, extra oxygen and suit energy capacity (tanks, the suit battery #2297), thermal
+/// and corrosion protection, fall protection, the stealth field, the jetpack and the glider (#2296). Wearing is a swap
+/// between a backpack slot — or, aboard, a slot of the cargo hold (#2289) — and the piece's equipment slot.
+/// Server-authoritative — these feed the vitals/combat/scan systems. The formulas live in <see cref="SuitEquipment"/>
+/// (Shared) so the client's Suit tab and HUD show exactly what the server applies (#1270); data-driven via the item
+/// definitions (<c>equipSlot</c>, <c>armorResistance</c>, <c>oxygenBonus</c>, <c>suitEnergyBonus</c>,
+/// <c>thermalInsulation</c>, <c>fallProtection</c>, …).
 /// </summary>
 public sealed partial class GameServer
 {
@@ -34,6 +36,11 @@ public sealed partial class GameServer
     private float MaxOxygen(PlayerState p)
         => SuitEquipment.MaxOxygen(_content.Items.Values, key => Wears(p, key))
            + Shared.Bio.GearMods.Bonus(WornKeys(p), Shared.Bio.ModStat.Oxygen);
+
+    /// <summary>Maximum suit energy (#2297) — base 100 plus the best worn battery's bonus (tiers do not stack). Every
+    /// recharge fills up to it and every change of worn gear clamps to it.</summary>
+    private float MaxSuitEnergy(PlayerState p)
+        => SuitEquipment.MaxSuitEnergy(_content.Items.Values, key => Wears(p, key));
 
     /// <summary>Best carried thermal insulation 0..0.9 (#669); only the BEST piece counts. A heat ward counts in the heat,
     /// a cold ward in the cold (#2202) — judged by the air the player is really in (#2218), and looked up only for a
@@ -147,8 +154,39 @@ public sealed partial class GameServer
         p.Jetpacking = true;
     }
 
-    /// <summary>Mirrors the client's sit-on-chair pose (#806). Pure cosmetics — no validation beyond
-    /// "on foot": movement stays client-authoritative and the flag only feeds the presence broadcast.</summary>
+    private const string GliderItem = "glider";
+
+    /// <summary>Sets the player's glide state (#2296, client-driven). Opening the wing needs a WORN glider; it costs no
+    /// energy, and the glide itself — falling slowly forward, only where there is air — is the client's movement. The
+    /// flag feeds the presence so other players see the wing.</summary>
+    private void HandleSetGliding(PlayerSession session, SetGlidingIntent intent)
+    {
+        var p = session.State;
+        if (!intent.Active)
+        {
+            p.Gliding = false;
+            return;
+        }
+
+        if (!Wears(p, GliderItem))
+        {
+            p.Gliding = false;
+            Reject(session, "glider", "@srv.equip.no_glider");
+            return;
+        }
+
+        p.Gliding = true;
+    }
+
+    /// <summary>Test seam (#2296): the glide intent as if the client had sent it.</summary>
+    public void SetGlidingForTest(string playerId, bool active)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleSetGliding(session, new SetGlidingIntent { Active = active });
+        }
+    }
+
     // ---------------- Equipment slots (#2110) ----------------
 
     /// <summary>True while the gear is WORN in one of the suit's slots — the only place gear works since #2110.</summary>
@@ -193,14 +231,22 @@ public sealed partial class GameServer
 
     /// <summary>Wears the gear in a backpack slot: a straight swap with whatever the equipment slot held (gear stacks to
     /// one, so the backpack slot is free the moment the piece leaves it). −1 picks the item's own slot, and for a module
-    /// the first free module slot.</summary>
+    /// the first free of the four module slots (#2293). Aboard, the piece may come straight from the cargo hold (#2289):
+    /// the piece worn before then goes into the backpack — past the quick-bar first — and only when the backpack is full
+    /// back into the hold slot the new piece left.</summary>
     private void HandleEquipItem(PlayerSession session, EquipItemIntent intent)
     {
         var p = session.State;
-        var inv = p.Inventory;
+        if (intent.FromCargo && !p.AboardShip)
+        {
+            Reject(session, "equip", "@srv.misc.aboard_for_cargo");
+            return;
+        }
+
+        var source = intent.FromCargo ? _ship.Cargo : p.Inventory;
         var eq = p.Equipment;
         int from = intent.FromSlot;
-        if (from < 0 || from >= inv.SlotCount || inv.Slots[from] is not { IsEmpty: false } stack)
+        if (from < 0 || from >= source.SlotCount || source.Slots[from] is not { IsEmpty: false } stack)
         {
             return;
         }
@@ -215,11 +261,8 @@ public sealed partial class GameServer
         int slot = intent.Slot;
         if (slot < 0)
         {
-            slot = (int)EquipSlots.Parse(def.EquipSlot)!.Value;
-            if (EquipSlots.IsModule((EquipSlot)slot) && eq.Slots[slot] is { IsEmpty: false } && eq.Slots[(int)EquipSlot.Module2] is null)
-            {
-                slot = (int)EquipSlot.Module2;
-            }
+            var own = EquipSlots.Parse(def.EquipSlot)!.Value;
+            slot = (int)(EquipSlots.IsModule(own) ? EquipSlots.ModuleSlotFor(eq) : own);
         }
 
         if (slot < 0 || slot >= eq.SlotCount || !EquipSlots.Accepts((EquipSlot)slot, def.EquipSlot))
@@ -230,7 +273,31 @@ public sealed partial class GameServer
 
         var worn = eq.Slots[slot];
         eq.SetSlot(slot, stack);
-        inv.SetSlot(from, worn);
+        source.SetSlot(from, null);
+        if (worn is { IsEmpty: false })
+        {
+            // From the backpack the old piece takes the slot the new one left. From the hold it goes to the player — the
+            // backpack, past the quick-bar first — and only a full backpack sends it back into the freed hold slot.
+            int to = from;
+            var target = source;
+            if (intent.FromCargo)
+            {
+                int free = p.Inventory.FirstEmptySlot(HotbarSlots);
+                if (free < 0)
+                {
+                    free = p.Inventory.FirstEmptySlot(0);
+                }
+
+                if (free >= 0)
+                {
+                    to = free;
+                    target = p.Inventory;
+                }
+            }
+
+            target.SetSlot(to, worn);
+        }
+
         AfterEquipmentChanged(session);
     }
 
@@ -283,12 +350,14 @@ public sealed partial class GameServer
         AfterEquipmentChanged(session);
     }
 
-    /// <summary>What a change of worn gear settles at once: the oxygen never exceeds the tank now worn, a cloak or a
-    /// jetpack without its gear ends, and the client gets the inventory, the vitals and (through the presence) the body.</summary>
+    /// <summary>What a change of worn gear settles at once: the oxygen never exceeds the tank now worn nor the suit energy
+    /// the battery now worn (#2297), a cloak, a jetpack or a glide without its gear ends, and the client gets the inventory
+    /// (the hold too, aboard), the vitals and (through the presence) the body.</summary>
     private void AfterEquipmentChanged(PlayerSession session)
     {
         var p = session.State;
         p.Oxygen = System.Math.Min(p.Oxygen, MaxOxygen(p));
+        p.SuitEnergy = System.Math.Min(p.SuitEnergy, MaxSuitEnergy(p));
         if (p.Stealthed && !Wears(p, StealthItem))
         {
             p.Stealthed = false;
@@ -299,16 +368,22 @@ public sealed partial class GameServer
             p.Jetpacking = false;
         }
 
+        if (p.Gliding && !Wears(p, GliderItem))
+        {
+            p.Gliding = false;
+        }
+
         SendInventory(session);
         SendPlayerState(session);
     }
 
-    /// <summary>Test seams (#2110).</summary>
-    public void EquipItemForTest(string playerId, int fromSlot, int slot = -1)
+    /// <summary>Test seams (#2110; <paramref name="fromCargo"/> #2289).</summary>
+    public void EquipItemForTest(string playerId, int fromSlot, int slot = -1, bool fromCargo = false)
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
-            HandleEquipItem(session, new EquipItemIntent { FromSlot = fromSlot, Slot = slot });
+            Serve(session); // as the dispatch does: the hold is the sender's ship's
+            HandleEquipItem(session, new EquipItemIntent { FromSlot = fromSlot, Slot = slot, FromCargo = fromCargo });
         }
     }
 

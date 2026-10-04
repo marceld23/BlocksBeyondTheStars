@@ -36,8 +36,12 @@ public static class Protocol
     /// clients released before the fingerprint off newer servers through the version check they already have.
     /// v10 (#2251): Crystal Net 2 — LiftList (the lifts), CrystalDeviceDelta (devices sent as changes), the Crystal Net
     /// lists and the device intent carry a frame (a ship's store id, empty = the world), PlaceBlockIntent a device
-    /// direction (six ways); a v9 client could not decode the new lists and would never see a lift or a ship's net.</summary>
-    public const int Version = 10;
+    /// direction (six ways); a v9 client could not decode the new lists and would never see a lift or a ship's net.
+    /// v11 (#2289/#2293/#2296): the suit has eleven equipment slots (four module slots) — a v10 client sizes its worn row
+    /// for nine and would lose the pieces in slots 9 and 10; EquipItemIntent.FromCargo wears a piece straight from the
+    /// hold, which a v10 server would read as the backpack slot of the same index and put on the wrong item; and
+    /// SetGlidingIntent / PlayerPresence.Gliding carry the glider.</summary>
+    public const int Version = 11;
 
     /// <summary>The join refusal both sides use when the content fingerprints differ or one is missing (#2222):
     /// the server sends it as the <c>JoinRejected</c> reason, the client raises the same reason itself when the

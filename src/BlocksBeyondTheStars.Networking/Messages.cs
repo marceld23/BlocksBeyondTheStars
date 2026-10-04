@@ -190,6 +190,11 @@ public sealed class EquipItemIntent
 {
     public int FromSlot { get; set; }
     public int Slot { get; set; } = -1;
+
+    /// <summary>#2289: <see cref="FromSlot"/> is a slot of the ship's cargo hold, not of the backpack — wear a piece
+    /// straight from the hold (requires being aboard). The piece worn before goes into the backpack, or back into the
+    /// freed hold slot when the backpack is full.</summary>
+    public bool FromCargo { get; set; }
 }
 
 /// <summary>Client → server (#2110): take the gear off equipment slot <see cref="Slot"/> into backpack slot
@@ -489,6 +494,14 @@ public sealed class ToggleStealthIntent { }
 /// <summary>Client → server: the player is (or is no longer) firing the jetpack. The server drains suit
 /// energy while active and forces it off when the energy runs out (the client applies the thrust locally).</summary>
 public sealed class SetJetpackIntent
+{
+    public bool Active { get; set; }
+}
+
+/// <summary>Client → server (#2296): the player opened (or closed) the glider while falling. The glide itself is the
+/// client's (on-foot movement) and costs no energy; the server only checks that a glider is worn and mirrors the flag
+/// into the presence so other players see the wing.</summary>
+public sealed class SetGlidingIntent
 {
     public bool Active { get; set; }
 }
@@ -2472,14 +2485,19 @@ public sealed class PlayerPresence
     /// <summary>Jetpack firing — other clients show the thrust flame under the avatar.</summary>
     public bool Jetpacking { get; set; }
 
+    /// <summary>Gliding (#2296) — other clients open the glider's wing over the avatar.</summary>
+    public bool Gliding { get; set; }
+
     /// <summary>Sitting on a chair-shaped cell (#806) — other clients pose the avatar seated.</summary>
     public bool Seated { get; set; }
 
     /// <summary>Hanging on a wall or a ladder (#2193) — other clients pose the avatar climbing, facing the wall.</summary>
     public bool Climbing { get; set; }
 
-    /// <summary>Equipped-gear bitmask shown on the avatar: 1=helmet, 2=chest, 4=legs, 8=pack, 16=lamp, 32=boots, 64=tank,
-    /// 128=climbing gloves, 256=climbing claws.</summary>
+    /// <summary>Equipped-gear bitmask shown on the avatar — the bits of <c>Shared.State.GearLook</c>: 1=helmet, 2=chest,
+    /// 4=legs, 8=jetpack, 16=lamp, 32=boots, 64=tank, 128=climbing gloves, 256=climbing claws, and the tier-2 looks on top
+    /// (#2294–#2297): 512=titanium helmet, 1024=titanium chest, 2048=titanium legs, 4096=spring boots, 8192=glider,
+    /// 16384=suit battery.</summary>
     public int Gear { get; set; }
 
     /// <summary>Item key currently held (selected hotbar slot), shown in the avatar's hand; empty if none.</summary>

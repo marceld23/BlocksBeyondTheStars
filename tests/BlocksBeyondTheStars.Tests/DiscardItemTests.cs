@@ -71,18 +71,23 @@ public sealed class DiscardItemTests : IDisposable
             var p = server.AddLocalPlayer("Pilot");
             var inv = p.State.Inventory;
 
-            // A fresh pilot carries the kit in slots 0..4 — except the suit lamp, which the join puts ON (#2110: gear
-            // works only while worn, so the lamp lights from the first minute). None of it may be thrown away, or a
-            // player could strand themselves with no drill and no way to craft a replacement.
-            for (int slot = 0; slot < StarterKit.Items.Length; slot++)
+            // A fresh pilot carries the kit in the quick-bar — except the suit lamp, which is put ON from the start
+            // (#2110/#2288: gear works only while worn, so the lamp lights from the first minute). None of it may be
+            // thrown away, or a player could strand themselves with no drill and no way to craft a replacement.
+            foreach (string item in StarterKit.Items)
             {
-                if (inv.Slots[slot] is null)
+                int slot = -1;
+                for (int i = 0; i < inv.SlotCount && slot < 0; i++)
                 {
-                    Assert.Equal(1, p.State.Equipment.CountOf(StarterKit.Items[slot])); // worn, not lost
+                    slot = inv.Slots[i]?.Item == item ? i : -1;
+                }
+
+                if (slot < 0)
+                {
+                    Assert.Equal(1, p.State.Equipment.CountOf(item)); // worn, not lost
                     continue;
                 }
 
-                string item = inv.Slots[slot]!.Item;
                 server.DiscardItemForTest(p.State.PlayerId, slot);
                 Assert.Equal(item, inv.Slots[slot]?.Item);
             }
@@ -162,13 +167,26 @@ public sealed class DiscardItemTests : IDisposable
 
             // Pins the protection list to reality: if CreatePlayer ever hands out different gear, this fails
             // rather than silently leaving the new item discardable (or protecting one nobody starts with). A
-            // wearable kit item (the suit lamp) is put ON at the join (#2110) instead of sitting in its slot.
-            for (int i = 0; i < StarterKit.Items.Length; i++)
+            // wearable kit item (the suit lamp) is put ON from the start (#2288) and the rest fills the quick-bar in
+            // kit order from slot 0, without a hole; the berries follow right after.
+            int next = 0;
+            foreach (string item in StarterKit.Items)
             {
-                bool worn = state.Equipment.CountOf(StarterKit.Items[i]) > 0;
-                Assert.True(worn || StarterKit.Items[i] == inv.Slots[i]?.Item, $"kit item {StarterKit.Items[i]} in slot {i} or worn");
-                Assert.True(StarterKit.IsProtected(StarterKit.Items[i]));
+                Assert.True(StarterKit.IsProtected(item));
+                if (state.Equipment.CountOf(item) > 0)
+                {
+                    Assert.Equal(0, inv.CountOf(item)); // worn, not carried twice
+                    continue;
+                }
+
+                Assert.True(item == inv.Slots[next]?.Item, $"kit item {item} in quick-bar slot {next}");
+                next++;
             }
+
+            Assert.Equal("suit_lamp", state.Equipment.Slots[(int)EquipSlot.Module1]?.Item);
+            Assert.Equal(StarterKit.Items.Length - 1, next);
+            Assert.Equal("berries", inv.Slots[next]?.Item);
+            Assert.True(state.EquipmentInitialised);
 
             Assert.False(StarterKit.IsProtected("berries"));
             Assert.False(StarterKit.IsProtected("iron_ore"));

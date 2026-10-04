@@ -424,8 +424,8 @@ public sealed partial class GameServer
                 }
 
                 p.Health = 100f;
-                p.Oxygen = 100f;
-                p.SuitEnergy = 100f;
+                p.Oxygen = MaxOxygen(p);         // full is the worn tank's full — a flat 100 used to empty a big tank
+                p.SuitEnergy = MaxSuitEnergy(p); // #2297: and the worn battery's
                 SendPlayerState(session);
                 Send(session, new ServerMessage { Text = "@srv.station.healed" });
                 break;

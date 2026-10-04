@@ -595,7 +595,7 @@ public sealed partial class GameServer
         float energy = PlayerEffects.Of(p.Effects, BioEffect.Energy);
         if (energy > 0f)
         {
-            p.SuitEnergy = Math.Min(100f, p.SuitEnergy + (float)(dt * energy));
+            p.SuitEnergy = Math.Min(MaxSuitEnergy(p), p.SuitEnergy + (float)(dt * energy)); // #2297: up to the worn battery
         }
 
         bool thermal = PlayerEffects.AnyThermal(p.Effects);

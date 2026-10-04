@@ -134,7 +134,7 @@ public sealed class ItemDefinition
     public float ScanKnowledgeMultiplier { get; set; } = 1f;
 
     /// <summary>The suit slot this gear is worn in (#2110): "head", "chest", "legs", "feet", "back", "tank", "liner" or
-    /// "module" (either of the two module slots). Null = not wearable. Since #2110 gear works only while WORN there,
+    /// "module" (any of the four module slots, #2293). Null = not wearable. Since #2110 gear works only while WORN there,
     /// never while it merely rides in the backpack.</summary>
     public string? EquipSlot { get; set; }
 
@@ -149,6 +149,15 @@ public sealed class ItemDefinition
     /// <summary>Whether the worn gear holds on icy walls and makes slippery ones grip like any other (#2192, the climbing
     /// claws).</summary>
     public bool ClimbIce { get; set; }
+
+    /// <summary>Jump boost (#2295, the spring boots): how much higher the wearer jumps — 0.6 = about 60 % higher, 0 = no
+    /// boost. Only the best worn piece counts. The jump itself is the client's (on-foot movement); the shared formula
+    /// keeps the number in one place.</summary>
+    public float JumpBoost { get; set; }
+
+    /// <summary>Extra maximum suit energy (#2297, the suit battery) on top of the suit's own 100. Like the oxygen tanks
+    /// only the best worn piece counts — tiers, no stacking.</summary>
+    public float SuitEnergyBonus { get; set; }
 
     /// <summary>What this material <i>is</i>, wherever it was mined (#2205): trait name → level 1..3, e.g.
     /// <c>{ "conductive": 3, "heavy": 1 }</c> (<see cref="Bio.MatTrait"/>). The bio lab reads it for stabilisers and for

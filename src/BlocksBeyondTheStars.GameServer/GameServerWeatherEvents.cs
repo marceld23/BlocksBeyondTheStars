@@ -96,9 +96,10 @@ public sealed partial class GameServer
         if (state == "ion_storm")
         {
             // The one weather you WANT to be caught in: an exposed suit soaks up the charge.
-            if (!sheltered && p.SuitEnergy < 100f)
+            float max = MaxSuitEnergy(p); // #2297: a worn battery soaks up more
+            if (!sheltered && p.SuitEnergy < max)
             {
-                p.SuitEnergy = Math.Min(100f, p.SuitEnergy + (float)(dt * IonChargePerSecond * intensity));
+                p.SuitEnergy = Math.Min(max, p.SuitEnergy + (float)(dt * IonChargePerSecond * intensity));
             }
 
             return;

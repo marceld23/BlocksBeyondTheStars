@@ -385,7 +385,8 @@ public sealed partial class GameServer
         Mix((uint)p.Torso);
         Mix((uint)p.Arms);
         Mix((uint)p.Legs);
-        Mix((p.Stealthed ? 1UL : 0UL) | (p.Jetpacking ? 2UL : 0UL) | (p.Seated ? 4UL : 0UL) | (p.Climbing ? 8UL : 0UL));
+        Mix((p.Stealthed ? 1UL : 0UL) | (p.Jetpacking ? 2UL : 0UL) | (p.Seated ? 4UL : 0UL) | (p.Climbing ? 8UL : 0UL)
+            | (p.Gliding ? 16UL : 0UL));
         Mix((uint)p.Gear);
         MixText(p.Held);
         return h;
@@ -410,6 +411,7 @@ public sealed partial class GameServer
             // as a frozen ghost — mark them stealthed (clients hide stealthed avatars + nameplates).
             Stealthed = p.Stealthed || InSpace(p.PlayerId),
             Jetpacking = p.Jetpacking,
+            Gliding = p.Gliding, // #2296
             Seated = p.Seated,
             Climbing = p.Climbing && p.InTrain.Length == 0,
             Gear = GearMask(p),
@@ -421,24 +423,10 @@ public sealed partial class GameServer
         };
     }
 
-    /// <summary>Worn-gear bitmask from the equipment slots (#2110 — mirrors the local avatar gear logic): 1 helmet,
-    /// 2 chest armour or stealth suit, 4 leg armour, 8 a pack on the back (jetpack), 16 lamp, 32 boots, 64 a tank,
-    /// 128 climbing gloves, 256 climbing claws (#2192).</summary>
-    private static int GearMask(PlayerState p)
-    {
-        int g = 0;
-        var eq = p.Equipment;
-        if (eq.CountOf("helmet") > 0) g |= 1;
-        if (eq.CountOf("armor_chest") > 0 || eq.CountOf("stealth_suit") > 0) g |= 2;
-        if (eq.CountOf("armor_legs") > 0) g |= 4;
-        if (eq.CountOf("jetpack") > 0) g |= 8;
-        if (eq.CountOf("suit_lamp") > 0) g |= 16;
-        if (eq.CountOf("boots") > 0) g |= 32;
-        if (eq.CountOf("oxygen_tank_1") > 0 || eq.CountOf("oxygen_tank_2") > 0 || eq.CountOf("oxygen_tank_3") > 0) g |= 64;
-        if (eq.CountOf("climbing_gloves") > 0) g |= 128;
-        if (eq.CountOf("climbing_claws") > 0) g |= 256;
-        return g;
-    }
+    /// <summary>Worn-gear bitmask from the equipment slots (#2110) — the bits of <see cref="GearLook"/>, the same mask the
+    /// client builds for its own body, so a piece looks the same on everybody. A piece the bio lab changed still counts
+    /// as its base piece (<see cref="Wears"/>).</summary>
+    private static int GearMask(PlayerState p) => GearLook.Mask(key => Wears(p, key));
 
     /// <summary>The item in the player's selected hotbar slot (shown in the avatar's hand), or empty.</summary>
     private static string HeldItemKey(PlayerState p)

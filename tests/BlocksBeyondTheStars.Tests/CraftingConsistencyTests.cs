@@ -234,6 +234,7 @@ public sealed class CraftingConsistencyTests
             ("plasma_sword", "vibro_knife"),
             ("laser_pistol", "gauss_pistol"),
             ("plasma_blaster", "laser_pistol"),
+            ("spring_boots", "boots"), // #2295
         };
 
         foreach (var (upgrade, predecessor) in chains)

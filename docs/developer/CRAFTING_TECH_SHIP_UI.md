@@ -86,7 +86,7 @@ components, a category sidebar and blueprint state.
   and a craftable ingredient the player is short of lists the materials for the missing amount one recipe
   level deep (`IngredientRow`, #1016). A deeper "which planet? cargo? reward?" popover remains deferred.
 - Inventory (#2110): the **Backpack** page is a nine-wide slot grid — the **worn** row (one slot per
-  `EquipSlot`: head, chest, legs, feet, back, tank, liner, two modules), the backpack rows (slots 9..35) and,
+  `EquipSlot`: head, chest, legs, feet, back, tank, liner, four modules since #2293), the backpack rows (slots 9..35) and,
   under a line, the quick-bar row (0..8, numbered). Click-to-pick / click-to-place (`_pickKind`/`_pickIndex`),
   the hotbar swap's model, so mouse, touch and gamepad behave alike: two backpack clicks → `MoveItemIntent`;
   a backpack pick onto a worn slot → `EquipItemIntent` (checked client-side with `EquipSlots.Accepts` first);

@@ -285,6 +285,36 @@
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 3 } ]
   },
   {
+    "key": "titan_helmet", "nameKey": "blueprint.titan_helmet.name", "descriptionKey": "blueprint.titan_helmet.desc",
+    "category": "Suit", "prerequisites": [ "helmet" ], "knowledgeCost": 45,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 6 }, { "item": "glass", "count": 3 } ]
+  },
+  {
+    "key": "titan_chest", "nameKey": "blueprint.titan_chest.name", "descriptionKey": "blueprint.titan_chest.desc",
+    "category": "Suit", "prerequisites": [ "armor_chest" ], "knowledgeCost": 60,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 10 }, { "item": "carbon_composite", "count": 2 } ]
+  },
+  {
+    "key": "titan_legs", "nameKey": "blueprint.titan_legs.name", "descriptionKey": "blueprint.titan_legs.desc",
+    "category": "Suit", "prerequisites": [ "armor_legs" ], "knowledgeCost": 45,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 } ]
+  },
+  {
+    "key": "spring_boots", "nameKey": "blueprint.spring_boots.name", "descriptionKey": "blueprint.spring_boots.desc",
+    "category": "Suit", "prerequisites": [ "boots" ], "knowledgeCost": 40,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 4 }, { "item": "magnet", "count": 2 } ]
+  },
+  {
+    "key": "glider", "nameKey": "blueprint.glider.name", "descriptionKey": "blueprint.glider.desc",
+    "category": "Suit", "prerequisites": [ "jetpack" ], "knowledgeCost": 150,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "carbon_composite", "count": 4 }, { "item": "polymer", "count": 3 } ]
+  },
+  {
+    "key": "suit_battery", "nameKey": "blueprint.suit_battery.name", "descriptionKey": "blueprint.suit_battery.desc",
+    "category": "Suit", "prerequisites": [ "jetpack" ], "knowledgeCost": 160,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "energy_cell_1", "count": 4 }, { "item": "cable", "count": 6 } ]
+  },
+  {
     "key": "helmet", "nameKey": "blueprint.helmet.name", "descriptionKey": "blueprint.helmet.desc",
     "category": "Suit", "prerequisites": [], "knowledgeCost": 14,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 8 }, { "item": "glass", "count": 3 } ]

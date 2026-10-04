@@ -190,6 +190,10 @@ public sealed class PlayerState
     /// <summary>Jetpack firing (client-driven) — the server drains suit energy while true. Not persisted.</summary>
     public bool Jetpacking { get; set; }
 
+    /// <summary>Gliding (#2296, client-driven): the glider is open while falling — mirrored into the presence broadcast so
+    /// other players see the wing. Costs no energy. Not persisted.</summary>
+    public bool Gliding { get; set; }
+
     /// <summary>Sitting on a chair-shaped cell (#806, client-driven) — pure pose state mirrored into the
     /// presence broadcast so other players see a seated avatar. Not persisted.</summary>
     public bool Seated { get; set; }

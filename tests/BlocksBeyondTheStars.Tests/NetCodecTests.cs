@@ -333,6 +333,7 @@ public sealed class NetCodecTests
         [285] = typeof(WormholeTransitIntent),
         [286] = typeof(LiftList),            // #2266
         [287] = typeof(CrystalDeviceDelta),  // #2267
+        [288] = typeof(SetGlidingIntent),    // #2296
 
     };
 
