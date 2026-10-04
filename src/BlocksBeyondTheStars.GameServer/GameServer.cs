@@ -4455,7 +4455,7 @@ public sealed partial class GameServer
     /// <summary>Places a block from a held item for a player (test/util entrypoint). An optional label rides
     /// along for labelled blocks (a radio beacon).</summary>
     public void PlaceBlock(string playerId, int x, int y, int z, string itemKey, string? label = null,
-        int upFace = -1, int yaw = -1)
+        int upFace = -1, int yaw = -1, int deviceDir = -1)
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
@@ -4468,6 +4468,7 @@ public sealed partial class GameServer
                 Label = label ?? string.Empty,
                 UpFace = upFace,
                 Yaw = yaw,
+                DeviceDir = deviceDir,
             });
         }
     }
