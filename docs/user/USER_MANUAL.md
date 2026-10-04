@@ -317,7 +317,8 @@ your **nav waypoint** from the chart (**M**) gets an **amber arrow** with its di
   in range and roughly in front of you (within about 40°). With Auto-aim off the lock only shows the way —
   you aim yourself. The aiming dot turns **red** while the locked enemy is in your sights. The tractor beam
   pulls a locked salvage drop, and the **scanner** reads a locked object in its range without careful aiming
-  (a locked planet from anywhere).
+  (a locked planet from anywhere) — as long as nothing else is right in front of your nose: what you point at
+  is always scanned first.
 - The lock lets go when you land, dock, step inside your ship, start a spacewalk or jump.
 
 Ship classes differ in **speed** and **handling** (`data/ships.json`): e.g. the scout is fast and agile,
@@ -1010,9 +1011,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   or bandit's attack pauses. Right after that it can't be made dizzy again for a moment — you can still push it.
 - **Who flies how far:** small animals the full distance, big ones less, a titan about a block. **Giants** (the
   colossus, sandworms, the leviathan, the sky giant) are far too big to push. **Players and companions/pets are never
-  pushed.**
+  pushed.** An animal frozen by a **stasis** field stays where it is (it still gets dizzy).
 - **No cheap tricks:** a push stops at walls, ship hulls, energy fences and shut doors, and never throws anything over
-  a cliff, into lava or (a land animal) into water.
+  a cliff, into lava or (a land animal) into water. A pushed robot stops before it would bump into another player.
 - A timid animal you push runs off; an angry one comes back for you; pushing a bandit counts as saying "no" to its
   hold-up.
 - With no suit energy left the gloves do nothing (recharge aboard your ship or at a heal tank). The bio lab can change

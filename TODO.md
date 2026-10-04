@@ -103,6 +103,12 @@ space — the float above the line is made readable and survivable instead of cl
   on a slide, pressing on the ledge on the pull-up, the climbing gloves' orange pads (and claws) on both hands; leaving
   the wall brings the item back. Driven by `PlayerController.UpdateClimbPose` / `EndClimb` (`Viewmodel.SetClimbing`,
   `SetClimbGear`); hidden in third person, aboard, on EVA; holders inactive when unused. USER_MANUAL climbing section.
+- **✅ Review hardening (2026-10-05):** an attack with a NaN/infinite aim is ignored and the push direction refuses a
+  non-finite length (no NaN positions); a creature in stasis is not pushed (still dazed); a pushed machine stops before
+  a player's body (`EnemyStopRange`, #749); the client's bare hand has its own swing timer like the server's; the server
+  accepts a punch up to `MeleeRules.FistJitterToleranceSeconds` (0.1 s) early; the ship scanner prefers the nose target
+  and reads the locked one only with nothing on the nose; `BioLabTests` / `GameServerFinaleTests` pin gravity 1 for
+  their fall checks. Tests in `GloveWeaponTests` / `WeaponTests`.
 - **Open (gloves / climbing hands):** local Unity build + playtest — glove feel and the stat table with Justus (push
   distance, daze length, energy cost, the 0.5 s energy rhythm), both gloves in first person on a wide FOV and on touch /
   phone portrait (does the left glove collide with HUD or hotbar?), the avatar's gloves and punch for other players, the

@@ -19,6 +19,12 @@ public static class MeleeRules
     /// <summary>Seconds between two bare-hand punches, before the bio lab's reflex factor.</summary>
     public const float FistCooldownSeconds = 1.2f;
 
+    /// <summary>How much earlier than <see cref="FistCooldownSeconds"/> the server still accepts a punch. The client gates
+    /// its swing on the exact cooldown, but network jitter can deliver two punches closer together than they were thrown
+    /// — without this slack the second one would be dropped although the client showed it. Even punching on the very
+    /// edge of the slack stays weaker per second than the machete.</summary>
+    public const float FistJitterToleranceSeconds = 0.1f;
+
     /// <summary>True when the held "tool" is the bare hand: nothing in the slot, or an item without tool properties
     /// (a block, food, a material) — the server resolves both to <see cref="ToolKind.None"/>.</summary>
     public static bool IsBareHand(ToolProperties? tool) => tool is null || tool.Kind == ToolKind.None;

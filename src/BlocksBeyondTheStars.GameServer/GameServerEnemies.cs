@@ -628,11 +628,12 @@ public sealed partial class GameServer
 
     /// <summary>Player attacks a planet enemy or creature with the held tool/weapon. Server resolves the hit.
     /// The optional aim direction is the client's camera ray at the moment of firing (#693); a zero vector
-    /// (older client) skips the aim validation.</summary>
+    /// (older client) skips the aim validation. An aim with a NaN or infinite component is garbage no client
+    /// sends — the attack is ignored, so it can never slip past the aim check or turn a push into a NaN position.</summary>
     public void AttackEntity(string playerId, string entityId, float dirX = 0f, float dirY = 0f, float dirZ = 0f)
     {
         var session = FindSessionByPlayerId(playerId);
-        if (session is null)
+        if (session is null || !float.IsFinite(dirX) || !float.IsFinite(dirY) || !float.IsFinite(dirZ))
         {
             return;
         }
@@ -707,8 +708,10 @@ public sealed partial class GameServer
         {
             // #2280: the bare hand has its own, slower rhythm — it used to punch as fast as the player could click.
             // Its own entry, so switching to a weapon right after a punch is not held back by it (and vice versa).
+            // A punch up to MeleeRules.FistJitterToleranceSeconds early still lands: the client gates on the exact
+            // cooldown, so an early arrival is network jitter, not a faster fist.
             double cd = MeleeRules.FistCooldownSeconds * Shared.Bio.PlayerEffects.CooldownFactor(p.Effects);
-            if (_fistReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt)
+            if (_fistReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt - MeleeRules.FistJitterToleranceSeconds)
             {
                 return; // too soon — ignore the punch (no reject spam), like a weapon on cooldown
             }

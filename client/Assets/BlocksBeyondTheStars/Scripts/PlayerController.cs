@@ -1727,6 +1727,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private float _nextWeaponSwing; // Time.time when the held weapon may swing again (client-side cooldown)
+        private float _nextFistSwing;   // Time.time when the bare hand may punch again — its own timer, like the server's (#2280)
         private const float DefaultMeleeCooldown = 1.5f; // mirrors the server default for energy-free melee (B44)
 
         /// <summary>Whether the held weapon's swing cooldown has elapsed; if so, arms the next swing. Mirrors the
@@ -1734,18 +1735,30 @@ namespace BlocksBeyondTheStars.Client
         /// cooldown is actually felt, not just silently dropped server-side).</summary>
         private bool WeaponSwingReady()
         {
+            // #2280: the bare hand punches on its own shared cooldown (MeleeRules) — it used to have none here, so the
+            // swing played on every press while the server now holds the early punches back. It runs on its own timer,
+            // like the server's separate fist entry, so drawing a weapon right after a punch is not held back by it
+            // (and vice versa). #2202: a reflex preparation shortens both, like on the server.
+            var tool = HeldTool();
+            if (MeleeRules.IsBareHand(tool))
+            {
+                if (Time.time < _nextFistSwing)
+                {
+                    return false;
+                }
+
+                _nextFistSwing = Time.time + MeleeRules.FistCooldownSeconds * Game.Bio.CooldownFactor;
+                return true;
+            }
+
             if (Time.time < _nextWeaponSwing)
             {
                 return false;
             }
 
-            // #2280: the bare hand punches on its own shared cooldown (MeleeRules) — it used to have none here, so the
-            // swing played on every press while the server now holds the early punches back.
-            var tool = HeldTool();
-            float cd = MeleeRules.IsBareHand(tool) ? MeleeRules.FistCooldownSeconds
-                : tool.CooldownSeconds > 0f ? tool.CooldownSeconds
+            float cd = tool.CooldownSeconds > 0f ? tool.CooldownSeconds
                 : tool.EnergyPerUse <= 0f ? DefaultMeleeCooldown : 0f;
-            _nextWeaponSwing = Time.time + cd * Game.Bio.CooldownFactor; // #2202: a reflex preparation shortens it, like on the server
+            _nextWeaponSwing = Time.time + cd * Game.Bio.CooldownFactor;
             return true;
         }
 

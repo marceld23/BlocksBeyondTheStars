@@ -453,6 +453,95 @@ public sealed class GloveWeaponTests : IDisposable
     }
 
     [Fact]
+    public void ShockGloves_GarbageAim_NeverMakesANonFinitePosition()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var (p, feet) = Pad(server, "shock_gloves");
+            var c = Animal(server, feet, 2.5f, out _);
+            var spot = p.State.Position; // on the attacker's own spot the push follows the aim
+
+            // NaN or infinite aim components: garbage, the attack is ignored.
+            foreach (var (x, y, z) in new[]
+            {
+                (float.NaN, 0f, 0f), (float.PositiveInfinity, 0f, 0f), (0f, float.NegativeInfinity, 0f),
+                (0f, 0f, float.NaN), (float.PositiveInfinity, float.NaN, float.NegativeInfinity),
+            })
+            {
+                c.Position = spot;
+                float hull = c.Hull, energy = p.State.SuitEnergy;
+                server.AttackEntity(p.State.PlayerId, c.Id, x, y, z);
+                Assert.Equal(spot, c.Position);
+                Assert.Equal(hull, c.Hull);
+                Assert.Equal(energy, p.State.SuitEnergy);
+            }
+
+            // A finite aim so huge its length overflows gives no push direction — the hit lands, the position stays finite.
+            c.Position = spot;
+            server.AttackEntity(p.State.PlayerId, c.Id, 3e38f, 0f, 3e38f);
+            Assert.True(c.Hull < 200f, "the point-blank hit itself is honest");
+            Assert.True(float.IsFinite(c.Position.X) && float.IsFinite(c.Position.Y) && float.IsFinite(c.Position.Z),
+                $"never a NaN position ({c.Position})");
+            Assert.Equal(spot.X, c.Position.X, 3);
+            Assert.Equal(spot.Z, c.Position.Z, 3);
+        }
+    }
+
+    [Fact]
+    public void ShockGloves_CreatureInStasis_IsNotPushed_ButStillDazed()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var (p, feet) = Pad(server, "shock_gloves");
+
+            // On open ground a push would carry it five blocks (ShockGloves_PushCreatureAwayFromPlayer). A frozen creature
+            // skips its vertical step, so one shoved over a small ledge would hang in the air until the stasis ends.
+            var c = Animal(server, feet, 2.5f, out _);
+            c.FrozenTimer = 5.0; // held in a stasis field
+            var at = c.Position;
+
+            server.AttackEntity(p.State.PlayerId, c.Id);
+
+            Assert.Equal(200f - 3f, c.Hull, 3);       // the hit itself lands
+            Assert.Equal(at, c.Position);             // but a frozen creature does not move
+            Assert.False(c.Vert.Airborne, "no hop either");
+            Assert.True(server.IsStaggeredForTest(c.Id), "the daze is unchanged");
+        }
+    }
+
+    [Fact]
+    public void ShockGloves_PushedMachine_StopsBeforeAnotherPlayer()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var (p, feet) = Pad(server, "shock_gloves");
+            var friend = server.AddLocalPlayer("Ann");
+            friend.State.AboardShip = false;
+            friend.State.Position = new Vector3f(5.5f, feet, 0.5f); // right in the push path (the robot would end at 7.5)
+            server.SpawnPlanetEnemyAtForTest(new Vector3f(2.5f, feet, 0.5f), CombatEntityKind.Creature, damagePerSecond: 0f);
+            var robot = server.PlanetEnemies.Last();
+
+            server.AttackEntity(p.State.PlayerId, robot.Id);
+
+            Assert.True(robot.Position.X > 2.6f, $"it was pushed toward the friend (x {robot.Position.X:F2})");
+            float gap = (float)System.Math.Sqrt(robot.Position.DistanceSquared(friend.State.Position));
+            Assert.True(gap > 1.6f, $"never into the friend's body (gap {gap:F2})");
+            Assert.True(robot.Position.X < friend.State.Position.X, "and never through them");
+            Assert.True(server.IsStaggeredForTest(robot.Id), "the daze is unchanged");
+
+            // The attacker's own push is never cut short, even from point-blank: it always moves away from them.
+            server.Tick(1.3);
+            robot.Position = new Vector3f(1.5f, feet, 0.5f);
+            friend.State.Position = new Vector3f(-6.5f, feet, 0.5f); // out of the way
+            server.AttackEntity(p.State.PlayerId, robot.Id);
+            Assert.Equal(1.5f + 5f, robot.Position.X, 2);
+        }
+    }
+
+    [Fact]
     public void ShockGloves_NoEnergy_NoPushNoDamage()
     {
         var server = Started(out var repo);

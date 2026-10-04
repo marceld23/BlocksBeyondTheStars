@@ -336,6 +336,7 @@ public sealed class GameServerFinaleTests : IDisposable
             var pilot = server.AddLocalPlayer("Pilot");
             pilot.State.Health = 100f;
             pilot.State.Fly = true;
+            server.SetGravityFactorForTest(1f); // the safe landing speed scales with √g (#2276) — pin it at 14
             server.FallDamageForTest("Pilot", 18f); // over the safe 14 — a hard landing on foot
             Assert.Equal(100f, pilot.State.Health);
 

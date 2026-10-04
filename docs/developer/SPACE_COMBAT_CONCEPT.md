@@ -99,7 +99,8 @@ target id the client writes into the intents it already sends:
   (40° lands, 70° is refused). With `AutoAim` off the lock is display-only — the boresight rule stays honest.
 - **`TractorPullIntent.TargetEntityId`** — a locked salvage drop in reach is the one pulled.
 - **`ScanEntityIntent.EntityId` / `PlanetScanIntent`** — the scanner reads a locked object in its range (the server
-  checks only the range there anyway).
+  checks only the range there anyway), but only with nothing on the nose: a nose-aligned target always wins, so an
+  auto-lock on an attacker never steals the scan.
 
 A tampered client could always send any id; the server validates range, arc, rules, energy and cooldown exactly as
 before, so the lock adds no attack surface. The pure rules (disposition, cycle order, lock range with 10 %

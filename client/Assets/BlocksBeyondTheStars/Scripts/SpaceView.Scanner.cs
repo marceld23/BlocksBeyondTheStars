@@ -172,8 +172,10 @@ namespace BlocksBeyondTheStars.Client
         /// nose points at (any distance — planets are read from afar). A target whose apparent size covers the aim line
         /// counts too, so a big planet is easy to lock and a small rock needs the nose on it. <paramref name="keep"/> is
         /// the target of a scan in progress (#2247): it stays locked while it is still in reach and within a wider cone,
-        /// whatever else drifts into the aim line meanwhile. Next comes the flight target lock (#2277): a locked object the
-        /// scanner can read, in its range, is scanned without precise aiming — the server only checks the range.</summary>
+        /// whatever else drifts into the aim line meanwhile. The flight target lock (#2277) comes last: with nothing on the
+        /// nose, a locked object the scanner can read, in its range, is scanned without precise aiming — the server only
+        /// checks the range. The nose always wins over the lock, so an auto-lock on an attacker never takes the scanner
+        /// away from what the player is pointing at.</summary>
         private ScanTarget BestScanTarget(ShipScannerSpec scanner, string keep)
         {
             var best = new ScanTarget();
@@ -184,11 +186,6 @@ namespace BlocksBeyondTheStars.Client
             if (keep != null && TryKeepScanTarget(scanner, keep, shipPos, fwd, cone * 1.5f + 4f, out var kept))
             {
                 return kept;
-            }
-
-            if (TryLockedScanTarget(scanner, shipPos, out var locked))
-            {
-                return locked;
             }
 
             var space = Game.Space;
@@ -272,6 +269,12 @@ namespace BlocksBeyondTheStars.Client
                         Radius = body.Radius,
                     };
                 }
+            }
+
+            // Nothing on the nose: the locked object, if the scanner can read it from here.
+            if (best.Key == null && TryLockedScanTarget(scanner, shipPos, out var locked))
+            {
+                return locked;
             }
 
             return best;

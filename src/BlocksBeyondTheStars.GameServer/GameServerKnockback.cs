@@ -17,7 +17,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// hull, an energy fence, a shut door, a cliff edge over three blocks, and for land animals water and lava. Nothing ends up
 /// inside a block, and a push is never a way to throw an animal off a cliff.
 /// <para>Who is never pushed: players (there is no on-foot PvP and the parents' guide promises that friends cannot harm
-/// each other), companions and pets (<see cref="ProtectedFromPlayers"/>), and the giants — far too big. The push needs no
+/// each other), companions and pets (<see cref="ProtectedFromPlayers"/>), and the giants — far too big; a creature held in
+/// stasis stays put too (it is still dazed), and a pushed machine never ends up in a player's body. The push needs no
 /// new message: the positions travel in the creature and planet-enemy lists as always, and the daze rides on the
 /// additive <c>Staggered</c> flag of both.</para>
 /// <para>While dazed a creature neither moves nor bites (its vertical state still runs, so the little hop lands), a
@@ -100,7 +101,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>The horizontal unit direction from the attacker to the target, measured the short way round the world
-    /// seams; the attacker's aim when the two stand on the same spot. False when neither gives a direction.</summary>
+    /// seams; the attacker's aim when the two stand on the same spot. False when neither gives a direction — also for
+    /// a length that is not finite (a huge aim overflows the square), so a push never carries a NaN.</summary>
     private bool PushDirection(Vector3f attacker, Vector3f target, Vector3f aimDir, out float dirX, out float dirZ)
     {
         var from = Unwrapped(target, attacker); // the attacker in the target's local frame
@@ -113,7 +115,7 @@ public sealed partial class GameServer
             len = (float)System.Math.Sqrt((dx * dx) + (dz * dz));
         }
 
-        if (len < 1e-4f || float.IsNaN(len))
+        if (len < 1e-4f || !float.IsFinite(len))
         {
             dirX = dirZ = 0f;
             return false;
@@ -126,10 +128,12 @@ public sealed partial class GameServer
 
     /// <summary>Pushes a wild creature through every barrier its own step honours (<see cref="StepBlocked"/> with the
     /// terrain gate: ship, fence, shut doors, the swept body, rises, drops, water and lava). A one-block rise is taken
-    /// only with head room, like a ledge it would climb. A walker or crawler on the ground makes a small hop.</summary>
+    /// only with head room, like a ledge it would climb. A walker or crawler on the ground makes a small hop. A creature
+    /// held in stasis is not moved at all: its tick skips the vertical step while frozen, so one shoved over a ledge
+    /// would hang in the air until the stasis ends (the daze still applies).</summary>
     private bool KnockCreature(CombatEntity c, float dirX, float dirZ, float distance)
     {
-        if (!_speciesById.TryGetValue(c.SpeciesId, out var sp))
+        if (c.FrozenTimer > 0 || !_speciesById.TryGetValue(c.SpeciesId, out var sp))
         {
             return false;
         }
@@ -167,9 +171,9 @@ public sealed partial class GameServer
             c.NextBodyCheckAt = 0.0;      // re-validate the body on the next awake tick (#1357), just in case
         }
 
-        // The little hop that makes the shove read as one (the client integrates the arc). Not mid-air, not frozen in
-        // stasis (it would hang there until the stasis ends), and only for the ground classes.
-        if (CreatureMotion.IsGroundBound(motion) && !c.Vert.Airborne && c.FrozenTimer <= 0)
+        // The little hop that makes the shove read as one (the client integrates the arc). Not mid-air, and only for the
+        // ground classes (a frozen creature never got this far).
+        if (CreatureMotion.IsGroundBound(motion) && !c.Vert.Airborne)
         {
             VerticalMotion.Launch(ref c.Vert, VerticalMotion.ImpulseFor(VerticalMotion.Gravity(_gravityFactor), KnockbackRules.HopHeight));
             moved = true;
@@ -180,7 +184,9 @@ public sealed partial class GameServer
 
     /// <summary>Pushes a planet machine by the rules of its own walk (<see cref="MovePlanetEnemy"/>): the real ground of
     /// the next column, a step up of two blocks at most (a drone's hover clears three), a drop of three at most, no ship
-    /// hull and no energy fence. A drone keeps its hover height; machines cross water on the noise surface as always.</summary>
+    /// hull and no energy fence. A drone keeps its hover height; machines cross water on the noise surface as always. Like
+    /// its walk it never steps into a player's body (#749): the sweep stops before a step that would bring it within
+    /// <see cref="EnemyStopRange"/> of a player — the attacker's friend standing behind it, say.</summary>
     private bool KnockMachine(CombatEntity enemy, float dirX, float dirZ, float distance)
     {
         bool drone = enemy.Kind == CombatEntityKind.ScanDrone;
@@ -203,7 +209,7 @@ public sealed partial class GameServer
             }
 
             var cand = new Vector3f(nx, groundY + hover, nz);
-            if (EntityBlockedByShip(cand) || BlockedByEnergyFence(cur, cand))
+            if (EntityBlockedByShip(cand) || BlockedByEnergyFence(cur, cand) || PushIntoPlayer(cur, cand))
             {
                 break;
             }
@@ -219,6 +225,30 @@ public sealed partial class GameServer
         }
 
         return moved;
+    }
+
+    /// <summary>True when a pushed machine's step from <paramref name="from"/> to <paramref name="to"/> ends within
+    /// <see cref="EnemyStopRange"/> of a player on this world and nearer to them than before — the distance its own walk
+    /// keeps (#749). Moving away from a player it already stands close to stays allowed, so the attacker's own push
+    /// (always straight away from them) is never cut short.</summary>
+    private bool PushIntoPlayer(Vector3f from, Vector3f to)
+    {
+        const double stopSq = EnemyStopRange * EnemyStopRange;
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (InSpace(s.State.PlayerId))
+            {
+                continue;
+            }
+
+            double toSq = WrapDistSq(s.State.Position, to);
+            if (toSq <= stopSq && toSq < WrapDistSq(s.State.Position, from))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Pushes a bandit by the rules of its own walk (<see cref="MoveBandit"/>): the real ground, a drop of three

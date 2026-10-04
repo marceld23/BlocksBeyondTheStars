@@ -198,6 +198,19 @@ public sealed class WeaponTests : IDisposable
             server.AttackEntity("Boxer", creature.Id); // right away — inside the 1.2 s cooldown
             Assert.Equal(50f - MeleeRules.FistDamage, creature.Hull, 3);
 
+            server.Tick(0.5);
+            Assert.Contains(server.Creatures, c => c.Id == creature.Id);
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Boxer", creature.Id); // 0.5 s after the punch — far too early, even with jitter
+            Assert.Equal(50f - MeleeRules.FistDamage, creature.Hull, 3);
+
+            // 1.15 s after the punch: 0.05 s early, inside the server's jitter slack — it lands.
+            server.Tick(0.65);
+            Assert.Contains(server.Creatures, c => c.Id == creature.Id);
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Boxer", creature.Id);
+            Assert.Equal(50f - (2 * MeleeRules.FistDamage), creature.Hull, 3);
+
             server.Tick(MeleeRules.FistCooldownSeconds + 0.1);
             Assert.Contains(server.Creatures, c => c.Id == creature.Id);
             creature.Position = new Vector3f(0, 64, 3);
@@ -214,6 +227,11 @@ public sealed class WeaponTests : IDisposable
         float macheteCooldown = machete.CooldownSeconds > 0f ? machete.CooldownSeconds : 1.5f;
         Assert.True(MeleeRules.FistDamage / MeleeRules.FistCooldownSeconds < machete.Damage / macheteCooldown,
             "the first crafted weapon must always beat the bare hand");
+
+        // Even a client that punches on the very edge of the server's jitter slack stays below the machete.
+        float fastestFist = MeleeRules.FistCooldownSeconds - MeleeRules.FistJitterToleranceSeconds;
+        Assert.True(MeleeRules.FistDamage / fastestFist < machete.Damage / macheteCooldown,
+            "the jitter slack must not make the fist outpunch the machete");
     }
 
     // ---------------- #2281: companions and pets cannot be attacked ----------------

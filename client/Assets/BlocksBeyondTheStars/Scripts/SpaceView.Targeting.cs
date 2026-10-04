@@ -21,8 +21,9 @@ namespace BlocksBeyondTheStars.Client
     ///
     /// <b>Client presentation only.</b> The lock never reaches the server: it only chooses which target id the client
     /// writes into the intents it already sends — the weapon prefers the lock inside ±40° with AutoAim on (the server's
-    /// arc is ±60°), the tractor pulls a locked drop, the scanner reads a locked object in range. The server validates
-    /// all of them exactly as before. The pure rules (order, range, edge placement) live in <see cref="SpaceTargeting"/>.
+    /// arc is ±60°), the tractor pulls a locked drop, the scanner reads a locked object in range when nothing is on its
+    /// nose. The server validates all of them exactly as before. The pure rules (order, range, edge placement) live in
+    /// <see cref="SpaceTargeting"/>.
     /// </summary>
     public sealed partial class SpaceView
     {
@@ -696,7 +697,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The scanner reads a locked object it can scan, in its range, without precise aiming (#2277 — the
-        /// server checks only the range); a locked planet is read from anywhere, like a planet on the nose.</summary>
+        /// server checks only the range); a locked planet is read from anywhere, like a planet on the nose. Only the
+        /// fallback: whatever is on the nose comes first (<see cref="BestScanTarget"/>).</summary>
         private bool TryLockedScanTarget(ShipScannerSpec scanner, Vector3 shipPos, out ScanTarget target)
         {
             target = default;
