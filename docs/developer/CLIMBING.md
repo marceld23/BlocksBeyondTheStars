@@ -14,6 +14,7 @@ and pull up over the top. Ladders keep their own, older rules (#126): walk in an
 | Grip | `Client.Core/ClimbGrip.cs` | The hidden 0..1 grip, drain and refill, speeds and the slide |
 | Movement | `client/.../PlayerController.cs` (region "wall climbing") | The state machine inside `Move()`, the pull-up, sounds, the hint |
 | Pose | `client/.../PlayerAvatar.cs` `SetClimbing` / `PoseClimb` | Climb, hang, strain, slide and pull-up poses |
+| First person | `client/.../Viewmodel.cs` `SetClimbing` / `PoseClimbHand` (#2287) | The held item sinks away and both suit hands climb on the same signals and rhythm as `PoseClimb` (the mirrored left holder of the #2278 gloves); the climbing gear's pads from `HeldItemShapes.ClimbGear` |
 | Others | `client/.../RemotePlayers.cs` | Climb pose plus facing the wall for remote players |
 | Gear | `data/items.json` `climbGrip` / `climbIce`, `Shared/State/SuitEquipment.cs` | Climbing gloves and claws |
 

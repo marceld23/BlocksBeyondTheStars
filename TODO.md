@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏔️ Gloves & target-lock package — summits into space, fists, companions, Feed rebind, per-pilot hostiles, the flight target lock (#2276 #2280 #2281 #2282 #2285 #2277 #2283, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (⚠ local Unity build + playtest open; 12 community locales not yet topped up)
+### 🏔️ Gloves & target-lock package — summits into space, fists, companions, Feed rebind, per-pilot hostiles, the flight target lock, shock + energy gloves, remote melee, first-person climbing hands (#2276 #2280 #2281 #2282 #2285 #2277 #2283 #2278 #2279 #2287, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (⚠ local Unity build + playtest open; 12 community locales not yet topped up)
 
 **Report (Marcel, 2026-10-04, client 2026.10.4):** "I climbed a very high mountain that rose out of the atmosphere … now
 I don't know how to get back down." Since the #578 massifs a summit can rise above most planet types' atmosphere line
@@ -74,6 +74,43 @@ space — the float above the line is made readable and survivable instead of cl
   and track) on a nested targeting canvas; the amber waypoint arrow (⌖ + distance, in view just on the point); four own
   ElevenLabs cues `target_lock`, `target_lock_hostile`, `target_cycle`, `target_lost` (0.48 s each, `ProceduralAudio`
   stand-ins, NOTICES.md, SOUND_DESIGN §16, prompts in `gen_batch.py`).
+- **✅ #2278 shock gloves + energy gloves (2026-10-04):** two hotbar weapons held on BOTH hands (`"heldGrip": "gloves"`,
+  `ItemDefinition.HeldGrip` / `HeldGrips`), siblings in the Weapon research (energy needs the shock blueprint, crafting does
+  not consume the shock gloves), workshop recipes from existing materials. Shock: tier 1, 3 damage, 1.2 s, 0.5 suit
+  energy, **knockback 5, daze 1 s** (+1.5 s daze immunity); energy: tier 2, 22 damage, 0.5 s, 0.25 energy. New
+  `ToolProperties.Knockback` / `StaggerSeconds` (JSON `knockback` / `staggerSeconds`), `ToolMods.Apply` copies both and
+  scales the push with power; `KnockbackRules` (Shared: mass `clamp(2/size, 0.15, 1)`, giants 0, bandits 0.8, the heavy
+  hunter robot 0.6, 0.5-block sweep). `GameServerKnockback.cs`: creature / machine / bandit push swept through each one's
+  own collision rules (wall, hull, fence, shut door, drop > 3, water/lava for land animals — never off a cliff), a small hop
+  for walkers/crawlers; never players, companions/pets (`ProtectedFromPlayers`) or giants; dazed creatures neither move
+  nor bite, machines neither move nor hurt (aura paused), bandits neither move nor shoot; the end of a daze broadcasts at
+  once. Additive `Staggered` on `NetCreature` / `NetCombatEntity` (no protocol bump). Client: `HeldItem.Kind.Gloves`,
+  `HeldItemShapes.Mirror` / `Glove` / `ClimbGear` (Client.Core, tested), a second mirrored holder in `Viewmodel` used
+  only for gloves and climbing (idle fists, energy = alternating jabs, shock = wind-up + two-palm push with the ring
+  between the palms), the avatar wears both gloves (climbing pads hidden meanwhile) and punches (`PlayerAvatar.Punch`);
+  FX styles `shock_push` / `energy_fist` (no new shader) and `FxShots.Daze` (stars; sparks over robots) on
+  `CreatureView` / `WorldEntities`; five ElevenLabs cues `glove_whoosh`, `glove_shock_blast`, `glove_energy_hit`,
+  `glove_charge`, `glove_stagger` (+ `ProceduralAudio.GloveIds`), two icons. Tests: `GloveWeaponTests` (16),
+  `WeaponTests.Weapons_HaveExpectedToolStats`, `HeldItemShapesTests`, `FxStyleResolverTests`, `FxContentTests` (34 styles).
+  Docs: USER_MANUAL (*Glove weapons*, effects), Codex `combat`, VFX.md, SOUND_DESIGN §17, NOTICES.md.
+- **✅ #2279 other players see and hear melee (2026-10-04):** a melee `ActionFx` now swings the remote avatar's arm
+  (`Swing()` for blades, tools, fists; `Punch()` for the gloves, alternation local per avatar) and plays the swing cue in 3D
+  at them (+ the hit cue at the target); one cue rule `FxStyleResolver.MeleeSwingCue` / `MeleeHitCue` for own and remote
+  swings. No new network field.
+- **✅ #2287 first-person climbing hands (2026-10-04):** while climbing a wall or a ladder the held item sinks out of view
+  and both suit hands come up (the same mirrored second holder, suit colour + arm painting), hand over hand in the rhythm
+  of `PlayerAvatar.PoseClimb` (vertical + sideways travel), shorter reach + tremble with strain, both hands dragging down
+  on a slide, pressing on the ledge on the pull-up, the climbing gloves' orange pads (and claws) on both hands; leaving
+  the wall brings the item back. Driven by `PlayerController.UpdateClimbPose` / `EndClimb` (`Viewmodel.SetClimbing`,
+  `SetClimbGear`); hidden in third person, aboard, on EVA; holders inactive when unused. USER_MANUAL climbing section.
+- **Open (gloves / climbing hands):** local Unity build + playtest — glove feel and the stat table with Justus (push
+  distance, daze length, energy cost, the 0.5 s energy rhythm), both gloves in first person on a wide FOV and on touch /
+  phone portrait (does the left glove collide with HUD or hotbar?), the avatar's gloves and punch for other players, the
+  climbing hands on a wall and a ladder (climb, tired, slide, pull-up, with and without climbing gloves), the daze stars
+  over animals / sparks over robots; the 12 community locales for the new `item.shock_gloves.*`, `item.energy_gloves.*`,
+  `blueprint.shock_gloves.*`, `blueprint.energy_gloves.*` keys and the Codex `combat` text (en/de only). Later (phase 5
+  after the playtest): a cone push, the "push master" achievement, an arms-dealer offer, `knockback`/`staggerSeconds` in the
+  content editor, a player look for the gloves.
 - **Open (target lock):** local Unity build + playtest (mouse, pad, touch; browser on "Low"; the Guardian finale with 12
   enemies; a pirate system with a raider demanding cargo); the 12 community locales for the new `ui.space.target.*`,
   `ui.key.flight_target_*`, `ui.touch.target`, `vega.hint.target_lock` keys and the changed `ui.space.controls` /

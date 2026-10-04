@@ -156,7 +156,9 @@ public static class ToolMods
         }
     }
 
-    /// <summary>The changed values. Tier, mining radius and ignition are copied untouched.</summary>
+    /// <summary>The changed values. Tier, mining radius, ignition and the daze are copied untouched; the push of the shock
+    /// gloves (#2278) grows and shrinks with the power, like the damage. Every new field of <see cref="ToolProperties"/>
+    /// has to be listed here — a field left out is lost on every changed tool.</summary>
     public static ToolProperties Apply(ToolProperties tool, ItemMods mods)
     {
         float power = 1f + PowerPerLevel * mods.Gain(ModStat.Power) - PowerLossPerLevel * mods.Loss(ModStat.Power);
@@ -170,8 +172,10 @@ public static class ToolMods
             MiningRadius = tool.MiningRadius,
             Ignites = tool.Ignites,
             Fx = tool.Fx,
+            StaggerSeconds = tool.StaggerSeconds,
             MiningPower = tool.MiningPower * power,
             Damage = tool.Damage * power,
+            Knockback = tool.Knockback * power,
             EnergyPerUse = tool.EnergyPerUse * energy,
             CooldownSeconds = tool.CooldownSeconds * cooldown,
             Range = tool.Range * range,

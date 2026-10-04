@@ -102,7 +102,7 @@ Styles in use:
 
 | Group | Styles |
 |---|---|
-| On-foot weapons | `slug`, `rail`, `laser`, `plasma`, `slash`, `vibro`, `plasma_blade`, `fist` |
+| On-foot weapons | `slug`, `rail`, `laser`, `plasma`, `slash`, `vibro`, `plasma_blade`, `fist`, `shock_push`, `energy_fist` |
 | Drills | `drill`, `drill_hot`, `drill_crystal`, `mining_beam` |
 | Scanners | `scan`, `scan_pro` |
 | Gadgets | `blueprint`, `heal_pulse`, `stasis`, `blast`, `pump`, `terrain_scan`, `translate`, `weather_scan`, `generic` |
@@ -121,6 +121,15 @@ Shots leave the **real barrel**: the viewmodel's foremost part (`HeldItem.Muzzle
 | `laser` | Layered red beam (core, glow, flowing noise), impact glow + cooling hot spot; FX-light flashes. |
 | `plasma` | Wobbling violet plasma ball with an ember trail, lighting the walls as it flies (tracked FX light); splash ring on impact. |
 | `slash` / `vibro` / `plasma_blade` / `fist` | 110° slash ribbons. Steel with a glint; jittering blue with electric arcs; glowing pink with an afterimage and FX light; a faint whoosh. |
+| `shock_push` (shock gloves, #2278) | No ribbon — a blow. The palms glow through the 0.12 s wind-up (`fx.charge`, own push only), then a cyan ring of pushed air (`FxKit.Ring`, normal = view) leaves between the palms and runs forward, a second fainter one behind it (rich quality), a cone of air motes, a small flash + FX light, camera kick 0.6. A hit adds a small ring at the target and a dust puff at its feet. |
+| `energy_fist` (energy gloves, #2278) | A gold glow at the jabbing fist with two small `ElectricArcs` round the knuckles (rich quality), camera kick 0.4; a hit throws `Impact` sparks, three arcs and a flash. |
+
+The gloves start at the spot their blow peaks — between the palms, or in front of the jabbing fist (`Viewmodel.TryMuzzle`,
+`PlayerAvatar.TryMuzzle`) — and use only existing builders, so there is no new shader.
+
+**The daze** (#2278): while the server's `Staggered` flag is set on a creature or a planet enemy, `FxShots.Daze` draws three
+or four little gold stars circling over the head of a creature or bandit, or a fizz of cyan sparks over a robot (a few
+glow cards re-emitted per frame, no renderer of its own). `glove_stagger` plays once as it starts.
 
 Hits:
 
@@ -231,6 +240,11 @@ The server (`GameServerActionFx`) validates it cheaply:
 - finite floats;
 - `From` within 6 blocks of the sender and `To` within 64, measured across the seam (space: 24 / 128);
 - then relays it as **`ActionFx`** (tag 279) to the *other* players in the same world within 96 blocks (space: the same flight instance, 160).
+
+A melee `ActionFx` (#2279) also moves the remote avatar: `PlayerAvatar.Swing()` for blades, tools and fists,
+`PlayerAvatar.Punch(push)` for the gloves (the energy gloves alternate left and right per avatar — no sync needed), and
+plays the swing cue in 3D where the other player stands (plus the hit cue at the target). Before #2279 nobody saw
+or heard another player's melee attack at all.
 
 Successful gadget uses broadcast `ActionFx` with `Outcome = true` to everyone in range, including the user. Creature kills broadcast **`CreatureDefeated`** (tag 280) before the list drops the creature.
 

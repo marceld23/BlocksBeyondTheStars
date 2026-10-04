@@ -34,7 +34,18 @@ namespace BlocksBeyondTheStars.Client
         private Transform _elbowL, _elbowR, _kneeL, _kneeR, _handL, _handR;
         private readonly List<GameObject> _gear = new List<GameObject>();
         private GameObject _held;
+        private GameObject _heldL;     // #2278: the left glove of a pair held on both hands (null for every other item)
+        private bool _fightGloves;     // #2278: glove weapons in hand — the climbing gloves' pads hide under them
+        private readonly List<GameObject> _climbPads = new List<GameObject>(); // #2192 climbing-glove cuffs/pads/claws
         private bool _visible = true;
+
+        // #2278/#2279: a glove blow — the energy gloves' alternating jab or the shock gloves' two-handed push.
+        private const float JabDuration = 0.30f;
+        private const float PushDuration = 0.47f;
+        private float _punchTimer;
+        private float _punchDuration = JabDuration;
+        private bool _punchPush;
+        private bool _punchLeft;
 
         private bool _suit; // spacesuit mode (players); NPCs keep the civilian bare-headed look
         private readonly List<GameObject> _suitPack = new List<GameObject>(); // hidden while armor-pack gear is worn
@@ -517,6 +528,14 @@ namespace BlocksBeyondTheStars.Client
                 elbowR = 20f + 45f * Mathf.Sin(Mathf.Clamp01(c) * Mathf.PI);
             }
 
+            // #2278: a glove blow overrides the arms — one straight jab (alternating) or both arms pushing forward.
+            if (_punchTimer > 0f)
+            {
+                _punchTimer -= dt;
+                float c = 1f - Mathf.Clamp01(_punchTimer / _punchDuration);
+                PosePunch(c, ref armL, ref armR, ref elbowL, ref elbowR);
+            }
+
             _armL.localRotation = Quaternion.Euler(armL, 0f, 0f);
             _armR.localRotation = Quaternion.Euler(armR, 0f, 0f);
             _legL.localRotation = Quaternion.Euler(legL, 0f, 0f);
@@ -623,6 +642,76 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>#2278/#2279: a glove blow — <paramref name="push"/> = the shock gloves' two-handed push (a short wind-up,
+        /// then both arms drive forward), otherwise one straight jab of the energy gloves, left and right in turn. The
+        /// alternation is this avatar's own — nobody needs it in sync. Ignored while a blow plays out.</summary>
+        public void Punch(bool push)
+        {
+            if (_punchTimer > 0f)
+            {
+                return;
+            }
+
+            _punchPush = push;
+            _punchLeft = !push && !_punchLeft;
+            _punchDuration = push ? PushDuration : JabDuration;
+            _punchTimer = _punchDuration;
+        }
+
+        /// <summary>The arms of a glove blow at <paramref name="c"/> (0..1), blended over the pose underneath (walk, idle):
+        /// a jab straightens one arm to the horizontal while the other comes up into a guard; a push winds both arms up
+        /// bent, drives them out straight together and lets them sink back.</summary>
+        private void PosePunch(float c, ref float armL, ref float armR, ref float elbowL, ref float elbowR)
+        {
+            if (!_punchPush)
+            {
+                float jab = Mathf.Sin(Mathf.Clamp01(c) * Mathf.PI);
+                if (_punchLeft)
+                {
+                    armL = Mathf.Lerp(armL, -90f, jab);
+                    elbowL = Mathf.Lerp(elbowL, 0f, jab);
+                    armR = Mathf.Lerp(armR, -40f, jab * 0.7f);
+                    elbowR = Mathf.Lerp(elbowR, 75f, jab * 0.7f);
+                }
+                else
+                {
+                    armR = Mathf.Lerp(armR, -90f, jab);
+                    elbowR = Mathf.Lerp(elbowR, 0f, jab);
+                    armL = Mathf.Lerp(armL, -40f, jab * 0.7f);
+                    elbowL = Mathf.Lerp(elbowL, 75f, jab * 0.7f);
+                }
+
+                return;
+            }
+
+            const float wind = 0.12f / PushDuration, peak = 0.27f / PushDuration;
+            float k, a, e;
+            if (c < wind)
+            {
+                k = Mathf.SmoothStep(0f, 1f, c / wind);
+                a = -45f;
+                e = 80f;
+            }
+            else if (c < peak)
+            {
+                float p = Mathf.SmoothStep(0f, 1f, (c - wind) / (peak - wind));
+                k = 1f;
+                a = Mathf.Lerp(-45f, -85f, p);
+                e = Mathf.Lerp(80f, 10f, p);
+            }
+            else
+            {
+                k = 1f - Mathf.SmoothStep(0f, 1f, (c - peak) / (1f - peak));
+                a = -85f;
+                e = 10f;
+            }
+
+            armL = Mathf.Lerp(armL, a, k);
+            armR = Mathf.Lerp(armR, a, k);
+            elbowL = Mathf.Lerp(elbowL, e, k);
+            elbowR = Mathf.Lerp(elbowR, e, k);
+        }
+
         /// <summary>Shows the held tool/weapon/block in the right hand (call only when it changes).</summary>
         public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null, string itemKey = null,
             System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null)
@@ -638,9 +727,27 @@ namespace BlocksBeyondTheStars.Client
                 _held = null;
             }
 
+            if (_heldL != null)
+            {
+                Destroy(_heldL);
+                _heldL = null;
+            }
+
+            _fightGloves = kind == HeldItem.Kind.Gloves && _handL != null;
+            ApplyClimbPadsVisible(); // #2278: the climbing gloves' pads hide under the fight gloves (no z-fighting)
+
             if (kind == HeldItem.Kind.None || kind == HeldItem.Kind.Hand)
             {
                 return; // Hand (#1033) is first-person only — the avatar already has its own hand mesh.
+            }
+
+            if (_fightGloves)
+            {
+                // #2278: one glove on each hand, the left one the mirror image of the right.
+                _held = HeldItem.BuildAvatarGlove(_handR, itemKey, look, left: false);
+                _heldL = HeldItem.BuildAvatarGlove(_handL, itemKey, look, left: true);
+                ApplyHeldVisible();
+                return;
             }
 
             _held = HeldItem.Build(_handR, kind, tint, blockKey, itemKey, look); // look: this player's own look for the tool (#1963)
@@ -652,9 +759,18 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The tip of the item in this avatar's hand (gun barrel / tool bit) in world space — where third-person
-        /// and remote players' shots start (#2151/#2158). Falls back to the right hand itself.</summary>
+        /// and remote players' shots start (#2151/#2158). Falls back to the right hand itself. With the glove weapons
+        /// (#2278) it is where the blow lands in front of the chest: between both hands for the push, in front of the
+        /// jabbing fist otherwise — call it after <see cref="Punch"/>, which picks the hand.</summary>
         public bool TryMuzzle(out Vector3 world)
         {
+            if (_fightGloves)
+            {
+                float side = _punchPush ? 0f : (_punchLeft ? -0.18f : 0.18f);
+                world = transform.TransformPoint(new Vector3(side, 1.35f, 0.75f));
+                return true;
+            }
+
             if (HeldItem.MuzzleOf(_held, out world))
             {
                 return true;
@@ -666,14 +782,29 @@ namespace BlocksBeyondTheStars.Client
 
         private void ApplyHeldVisible()
         {
-            if (_held == null)
+            foreach (var held in new[] { _held, _heldL })
             {
-                return;
-            }
+                if (held == null)
+                {
+                    continue;
+                }
 
-            foreach (var r in _held.GetComponentsInChildren<Renderer>(true))
+                foreach (var r in held.GetComponentsInChildren<Renderer>(true))
+                {
+                    r.enabled = _visible;
+                }
+            }
+        }
+
+        /// <summary>#2278: the climbing gloves' cuffs, pads and claws show only while no fight gloves are held.</summary>
+        private void ApplyClimbPadsVisible()
+        {
+            foreach (var pad in _climbPads)
             {
-                r.enabled = _visible;
+                if (pad != null && pad.GetComponent<Renderer>() is { } r)
+                {
+                    r.enabled = _visible && !_fightGloves;
+                }
             }
         }
 
@@ -698,6 +829,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _gear.Clear();
+            _climbPads.Clear();
 
             var plate = Lit(new Color(0.62f, 0.66f, 0.72f), _armorTex);
             var packMat = Lit(new Color(0.30f, 0.34f, 0.40f), _armorTex);
@@ -752,16 +884,19 @@ namespace BlocksBeyondTheStars.Client
                 var clawMat = Lit(new Color(0.80f, 0.88f, 0.95f), null);
                 foreach (var hand in new[] { _handL, _handR })
                 {
-                    _gear.Add(AddCube("GearGloveCuff", hand, new Vector3(0f, 0.02f, 0f), new Vector3(0.23f, 0.08f, 0.23f), cuffMat));
-                    _gear.Add(AddCube("GearGlovePad", hand, new Vector3(0f, -0.08f, 0.095f), new Vector3(0.16f, 0.10f, 0.03f), padMat));
+                    _climbPads.Add(AddCube("GearGloveCuff", hand, new Vector3(0f, 0.02f, 0f), new Vector3(0.23f, 0.08f, 0.23f), cuffMat));
+                    _climbPads.Add(AddCube("GearGlovePad", hand, new Vector3(0f, -0.08f, 0.095f), new Vector3(0.16f, 0.10f, 0.03f), padMat));
                     if (claws)
                     {
                         for (int i = -1; i <= 1; i++)
                         {
-                            _gear.Add(AddCube("GearClaw", hand, new Vector3(i * 0.06f, -0.18f, 0.07f), new Vector3(0.025f, 0.08f, 0.025f), clawMat));
+                            _climbPads.Add(AddCube("GearClaw", hand, new Vector3(i * 0.06f, -0.18f, 0.07f), new Vector3(0.025f, 0.08f, 0.025f), clawMat));
                         }
                     }
                 }
+
+                _gear.AddRange(_climbPads);
+                ApplyClimbPadsVisible(); // hidden under fight gloves held right now (#2278)
             }
 
             // The armor pack (or the tank) replaces the suit's life-support pack (they occupy the same spot on the back).
@@ -1239,6 +1374,7 @@ namespace BlocksBeyondTheStars.Client
             ApplyHeldVisible();
             ApplyFaceVisibility(); // re-suppress stock features / show the plate when a custom face is set
             ApplySuitPackVisible(); // re-suppress the suit pack while the armor pack is worn
+            ApplyClimbPadsVisible(); // #2278: keep the climbing pads hidden under held fight gloves
         }
 
         /// <summary>Reconciles the suit life-support pack with visibility and the armor-pack gear (which

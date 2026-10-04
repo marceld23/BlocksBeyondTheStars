@@ -47,6 +47,8 @@ public static class FxStyles
     public const string Vibro = "vibro";
     public const string PlasmaBlade = "plasma_blade";
     public const string Fist = "fist";
+    public const string ShockPush = "shock_push";   // #2278: the shock gloves' two-handed push — a forward air ring
+    public const string EnergyFist = "energy_fist"; // #2278: the energy gloves' left-right punches — gold arcs
 
     // Drills.
     public const string Drill = "drill";
@@ -82,7 +84,7 @@ public static class FxStyles
 
     private static readonly HashSet<string> Known = new(System.StringComparer.Ordinal)
     {
-        Slug, Rail, Laser, Plasma, Slash, Vibro, PlasmaBlade, Fist,
+        Slug, Rail, Laser, Plasma, Slash, Vibro, PlasmaBlade, Fist, ShockPush, EnergyFist,
         Drill, DrillHot, DrillCrystal, MiningBeam,
         Scan, ScanPro,
         Blueprint, HealPulse, Stasis, Blast, Pump, TerrainScan, Translate, WeatherScan, Generic,

@@ -15,6 +15,8 @@ namespace BlocksBeyondTheStars.Client
     /// <item><c>plasma</c> — a violet wobbling plasma ball with a spark trail that lights the walls as it flies, a splash ring.</item>
     /// <item><c>slash</c> / <c>vibro</c> / <c>plasma_blade</c> / <c>fist</c> — curved slash ribbons (steel, jittering
     /// blue with electric arcs, glowing pink with an afterimage, a faint whoosh).</item>
+    /// <item><c>shock_push</c> / <c>energy_fist</c> (#2278, the gloves) — a cyan ring of pushed air leaving between the palms,
+    /// gold arcs around the jabbing fist; <see cref="Daze"/> draws the stars over a dazed target.</item>
     /// </list>
     /// Purely cosmetic (the server resolves every hit); the same code draws remote players' shots (#2158).
     /// </summary>
@@ -232,6 +234,19 @@ namespace BlocksBeyondTheStars.Client
         /// a whiff still sweeps. <paramref name="hit"/> adds the impact at <paramref name="hitPoint"/>.</summary>
         public static void Swing(FxLook look, Vector3 center, Vector3 forward, Vector3 up, bool hit, Vector3 hitPoint, bool local)
         {
+            // #2278: the gloves are blows, not cuts — no slash ribbon.
+            if (look.Is("shock_push"))
+            {
+                ShockPush(look, center, forward, up, hit, hitPoint, local);
+                return;
+            }
+
+            if (look.Is("energy_fist"))
+            {
+                EnergyFist(look, center, forward, hit, hitPoint, local);
+                return;
+            }
+
             float radius;
             float intensity;
             float roll;
@@ -289,6 +304,109 @@ namespace BlocksBeyondTheStars.Client
             else if (look.Is("slash"))
             {
                 FxKit.Emit(FxKit.Kind.Glow, hitPoint, Vector3.zero, 0.5f, 0.12f, Color.white); // the blade glint
+            }
+        }
+
+        /// <summary>#2278 <c>shock_push</c>: the palm discs brighten through the short wind-up (the player's own push only),
+        /// then a ring of pushed air leaves between the palms and runs forward, a cone of air motes with it, a small flash and
+        /// a light camera kick. A hit adds a second, smaller ring at the target and a puff of dust at its feet. Kid-friendly
+        /// on purpose: air and sparkle, nothing that hurts to look at.</summary>
+        private static void ShockPush(FxLook look, Vector3 palms, Vector3 forward, Vector3 up, bool hit, Vector3 hitPoint, bool local)
+        {
+            float charge = local ? Mathf.Clamp(look.Charge, 0f, 0.3f) : 0f;
+            if (charge > 0f)
+            {
+                FxKit.Emit(FxKit.Kind.Glow, palms, Vector3.zero, 0.22f * look.Size, charge * 1.4f, look.Color);
+                int n = FxKit.Scaled(5);
+                for (int i = 0; i < n; i++)
+                {
+                    var from = palms + (Random.onUnitSphere * 0.28f);
+                    FxKit.Emit(FxKit.Kind.Motes, from, (palms - from) / charge, 0.03f, charge, look.Color2);
+                }
+            }
+
+            FxKit.Delay(charge, () =>
+            {
+                FxKit.Ring(palms + (forward * 0.15f), forward, look.Color, 0.2f * look.Size, 1.4f * look.Size, 0.25f,
+                    thickness: 0.3f, fill: 0.1f, intensity: 2.2f);
+                if (FxKit.Rich)
+                {
+                    FxKit.Delay(0.06f, () => FxKit.Ring(palms + (forward * 0.6f), forward, look.Color2, 0.15f * look.Size,
+                        1.0f * look.Size, 0.22f, thickness: 0.22f, fill: 0f, intensity: 1.6f));
+                }
+
+                FxKit.Burst(FxKit.Kind.Motes, palms, 10, forward, 22f, 5f, 10f, 0.03f, 0.06f, 0.18f, 0.32f, look.Color, look.Color2);
+                FxKit.Flash(palms, look.Color2, 0.3f * FxKit.FlashScale, 0.08f);
+                FxLights.Flash(palms + (forward * 0.3f), look.Color, 1.2f * FxKit.FlashScale, 4.5f, 0.12f);
+                if (local)
+                {
+                    FxCamera.Kick(0.6f);
+                }
+
+                if (!hit)
+                {
+                    return;
+                }
+
+                FxKit.Ring(hitPoint, -forward, look.Color, 0.15f, 0.9f, 0.22f, thickness: 0.25f, fill: 0.05f, intensity: 1.8f);
+                FxKit.Burst(FxKit.Kind.Dust, hitPoint - (up * 0.6f), 8, Vector3.up, 70f, 0.5f, 1.6f, 0.15f, 0.3f, 0.5f, 0.9f,
+                    new Color(0.62f, 0.58f, 0.52f));
+            });
+        }
+
+        /// <summary>#2278 <c>energy_fist</c>: a glow at the jabbing fist with a crackle of small electric arcs around the
+        /// knuckles (rich quality only) and a light camera kick; a hit throws sparks, arcs and a flash off the target.</summary>
+        private static void EnergyFist(FxLook look, Vector3 fist, Vector3 forward, bool hit, Vector3 hitPoint, bool local)
+        {
+            FxKit.Emit(FxKit.Kind.Glow, fist, Vector3.zero, 0.18f * look.Size, 0.12f, look.Color);
+            if (FxKit.Rich)
+            {
+                ElectricArcs(fist, look.Color, look.Color2, 2, 0.16f);
+            }
+
+            if (local)
+            {
+                FxCamera.Kick(0.4f);
+            }
+
+            if (!hit)
+            {
+                return;
+            }
+
+            Impact(look, hitPoint, -forward, forward, 0.7f);
+            ElectricArcs(hitPoint, look.Color, look.Color2, 3, 0.2f);
+            FxKit.Flash(hitPoint, look.Color2, 0.4f * FxKit.FlashScale, 0.1f);
+        }
+
+        /// <summary>#2278: the dizzy look over a target the shock gloves dazed — called every frame while the server says
+        /// it is staggered. Animals and bandits get a few little stars circling <paramref name="above"/> its head; a robot
+        /// gets a short fizz of sparks instead. A handful of glow cards per frame, re-emitted (no renderer of its own).</summary>
+        public static void Daze(Vector3 above, float radius, bool robot, ref float nextSpark)
+        {
+            float t = Time.time;
+            if (robot)
+            {
+                if (t < nextSpark)
+                {
+                    return;
+                }
+
+                nextSpark = t + 0.12f;
+                var at = above + (Random.insideUnitSphere * radius * 0.5f);
+                FxKit.Burst(FxKit.Kind.Sparks, at, 2, Vector3.up, 70f, 1f, 3f, 0.02f, 0.035f, 0.12f, 0.25f,
+                    new Color(0.55f, 0.9f, 1f), Color.white);
+                FxKit.Emit(FxKit.Kind.Glow, at, Vector3.zero, 0.12f, 0.06f, new Color(0.55f, 0.9f, 1f));
+                return;
+            }
+
+            int stars = FxKit.Rich ? 4 : 3;
+            float life = Mathf.Clamp(Time.deltaTime * 1.6f, 0.03f, 0.08f);
+            for (int k = 0; k < stars; k++)
+            {
+                float a = (t * 3.2f) + (k * Mathf.PI * 2f / stars);
+                var pos = above + new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a * 2f) * radius * 0.15f, Mathf.Sin(a) * radius);
+                FxKit.Emit(FxKit.Kind.Glow, pos, Vector3.zero, 0.1f + (radius * 0.04f), life, new Color(1f, 0.9f, 0.45f));
             }
         }
 

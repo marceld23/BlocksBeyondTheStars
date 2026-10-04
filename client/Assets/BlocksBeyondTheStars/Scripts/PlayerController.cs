@@ -421,6 +421,7 @@ namespace BlocksBeyondTheStars.Client
 
         private Viewmodel _viewmodel;
         private string _heldKey = "\0"; // forces the first refresh
+        private bool _heldGloves, _heldShockGloves; // #2278: what TriggerSwing plays — read once per hotbar change, not per swing
 
         private void Awake() => _controller = GetComponent<CharacterController>();
 
@@ -472,10 +473,19 @@ namespace BlocksBeyondTheStars.Client
             _viewmodel?.SetVisible(!ThirdPerson);
         }
 
-        /// <summary>Plays the tool swing on both the third-person avatar and the first-person viewmodel.</summary>
+        /// <summary>Plays the tool swing on both the third-person avatar and the first-person viewmodel. The glove weapons
+        /// (#2278) punch instead: the energy gloves left and right in turn, the shock gloves with both palms.</summary>
         private void TriggerSwing()
         {
-            Avatar?.Swing();
+            if (_heldGloves)
+            {
+                Avatar?.Punch(push: _heldShockGloves);
+            }
+            else
+            {
+                Avatar?.Swing();
+            }
+
             _viewmodel?.Swing();
         }
 
@@ -494,9 +504,18 @@ namespace BlocksBeyondTheStars.Client
                 Game.HeldItemDirty = false;
             }
 
+            bool firstRefresh = _heldKey == "\0";
+            bool sameItem = key == _heldKey;
             _heldKey = key;
             _optic?.SetHeldItem(key); // swapping away from the binoculars can never strand a zoomed view
             var (kind, tint, blockKey) = HeldItem.For(Game?.Content, key);
+            _heldGloves = kind == HeldItem.Kind.Gloves;
+            _heldShockGloves = _heldGloves && FxLook.ForItem(Game?.Content, key).Is(FxStyles.ShockPush);
+            if (_heldGloves && !firstRefresh && !sameItem)
+            {
+                ClientAudio.Instance?.Cue("glove_charge", 0.5f); // #2278: the gloves hum awake as they are pulled on
+            }
+
             var look = Game?.LocalToolLook(key); // the player's own look for this tool (#1963), null = standard
             Avatar?.SetHeldItem(kind, tint, blockKey, key, look);
             _viewmodel?.SetHeldItem(kind, tint, blockKey, key, look);
@@ -855,8 +874,8 @@ namespace BlocksBeyondTheStars.Client
 
             if (InputMap.Down(InputAction.PrimaryFire) && WeaponSwingReady())
             {
+                TriggerSwing(); // first: the gloves pick the punching hand the effect starts at (#2278)
                 AttackNearestEnemy();
-                TriggerSwing();
             }
 
             if (InputMap.Down(InputAction.LootContainer))
@@ -981,13 +1000,17 @@ namespace BlocksBeyondTheStars.Client
                 var from = Muzzle(ct);
                 if (kind == WeaponFxKind.Melee)
                 {
-                    // A melee slash sweeps whether or not it connects (whiff still reads).
-                    var center = ct.position + ct.forward * 0.35f - ct.up * 0.18f;
+                    // A melee slash sweeps whether or not it connects (whiff still reads). The gloves' blow (#2278) starts
+                    // where it peaks: between the palms (the shock push) or in front of the jabbing fist (energy).
+                    bool gloves = FxStyleResolver.IsGlove(look.Style);
+                    var center = gloves ? from : ct.position + ct.forward * 0.35f - ct.up * 0.18f;
                     var hitPoint = targetId != null ? targetPos + Vector3.up * 0.6f : center + ct.forward;
                     Weapons.Swing(look, center, ct.forward, ct.up, targetId != null, hitPoint, local: true);
                     if (targetId != null)
                     {
-                        ClientAudio.Instance?.At("melee_hit", hitPoint); // the shipped-but-unused hit cue (#2151)
+                        // the shipped-but-unused hit cue (#2151); the gloves have their own (#2278), the push quieter at the target
+                        ClientAudio.Instance?.At(FxStyleResolver.MeleeHitCue(look.Style), hitPoint, 1f,
+                            look.Is(BlocksBeyondTheStars.Shared.Definitions.FxStyles.ShockPush) ? 0.5f : 1f);
                     }
 
                     SendFx(BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Melee, heldKey, center, hitPoint, targetId != null);
@@ -1382,6 +1405,7 @@ namespace BlocksBeyondTheStars.Client
                 _gearGloves = gloves;
                 _gearClaws = claws;
                 Avatar.SetGear(helmet, chest, legs, pack, lamp, boots, tank, gloves, claws);
+                _viewmodel?.SetClimbGear(gloves, claws); // #2287: the pads show on the first-person climbing hands too
             }
         }
 
@@ -4285,6 +4309,7 @@ namespace BlocksBeyondTheStars.Client
             _pullingUp = false;
             _climbSliding = false;
             _climbStrain = 0f;
+            _viewmodel?.SetClimbing(false); // #2287: the held item comes back up
             if (_climbPose || _avatarTurned)
             {
                 _climbPose = false;
@@ -4344,6 +4369,8 @@ namespace BlocksBeyondTheStars.Client
         {
             bool onWall = _climbing || _pullingUp;
             _climbPose = onWall || onLadder;
+            // #2287: the first-person hands climb on the same signals as the avatar (rhythm, strain, slide, pull-up).
+            _viewmodel?.SetClimbing(_climbPose, _climbStrain, _climbSliding, _pullingUp);
             if (Avatar == null)
             {
                 return;
@@ -4695,13 +4722,19 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // #2152: by the item's data-driven look, so a new gun with a known style sounds right without code.
-            switch (FxLook.ForItem(Game.Content, Game.ItemInSlot(Game.SelectedHotbarSlot)).Style)
+            var look = FxLook.ForItem(Game.Content, Game.ItemInSlot(Game.SelectedHotbarSlot));
+            switch (look.Style)
             {
                 case "slug": audio.Cue("weapon_scrap"); break;
                 case "rail": audio.Cue("weapon_gauss"); break;
                 case "laser": audio.Cue("weapon_laser"); break;
                 case "plasma": audio.Cue("weapon_plasma"); break;
-                default: audio.Cue("melee_swing"); break; // melee weapons, tools, fists
+                case FxStyles.ShockPush:
+                    // #2278: the gloves hum during the short wind-up, then the air blast leaves the palms.
+                    audio.Cue("glove_charge", 0.35f);
+                    FxKit.Delay(look.Charge, () => ClientAudio.Instance?.Cue("glove_shock_blast"));
+                    break;
+                default: audio.Cue(FxStyleResolver.MeleeSwingCue(look.Style)); break; // melee weapons, the energy gloves, tools, fists
             }
         }
 
@@ -4741,8 +4774,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (WeaponSwingReady())
                 {
+                    TriggerSwing(); // first: the gloves pick the punching hand the effect starts at (#2278)
                     AttackNearestEnemy();
-                    TriggerSwing();
                 }
 
                 return;

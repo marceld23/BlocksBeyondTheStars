@@ -204,6 +204,9 @@ ITEMS = [
     # #2192 wall climbing (2026-10-03): the two climbing modules.
     ("climbing_gloves", "a pair of sturdy sci-fi space-suit climbing gloves, dark grey with bright orange rubber grip pads on the palms and fingertips and a small cyan wrist-strap light"),
     ("climbing_claws", "a pair of armoured sci-fi space-suit climbing gloves with short curved steel claw spikes on every fingertip, dark gunmetal with orange grip pads and icy pale-blue glints on the claw tips"),
+    # #2278 shock + energy gloves (2026-10-04): the two glove weapons, held in both hands.
+    ("shock_gloves", "a pair of chunky sci-fi space-suit gauntlet gloves seen palm-forward, dark gunmetal plating with round glowing cyan shock emitter discs in the palms and a faint ring of cyan air ripple around them, small bright blue static sparks between the fingers"),
+    ("energy_gloves", "a pair of armoured sci-fi power gloves clenched into fists, light grey and warm gold plating with glowing amber energy coils across the knuckles and small crackling golden electric arcs around the fists"),
     # #2237/#2240 the ship scanner (2026-10-04): the built-in scanner's hotbar icon, tier 3 and the two workbench parts.
     ("ship_scanner", "a sleek sci-fi spaceship sensor module: a slim white and gunmetal nose array with one glowing cyan lens, four small glowing cyan holographic corner brackets floating in front of it as if locking onto a target"),
     ("quantum_scanner", "an advanced sci-fi spaceship sensor array: a dark gunmetal module with a ring of small glowing white-gold lenses around a bright central crystal eye, faint golden holographic scan lines fanning out from it"),

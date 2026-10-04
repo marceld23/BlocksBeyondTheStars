@@ -207,6 +207,16 @@ public sealed partial class GameServer
         {
             moved |= MovePlanetEnemy(enemy, targets, warded, dt);
 
+            if (StaggerJustEnded(enemy))
+            {
+                BroadcastPlanetEnemies(); // #2278: the dizzy look ends even for a machine that stands still
+            }
+
+            if (IsStaggered(enemy))
+            {
+                continue; // #2278: dazed by a shock-glove push — its damage aura pauses
+            }
+
             foreach (var session in targets)
             {
                 var p = session.State;
@@ -364,6 +374,11 @@ public sealed partial class GameServer
         {
             enemy.Position = ejected;
             return false;
+        }
+
+        if (IsStaggered(enemy))
+        {
+            return false; // #2278: dazed by a shock-glove push — it stands where the push left it
         }
 
         // Nearest detectable player — cloaked, god-mode and companion-warded players read as undetectable, so
@@ -789,6 +804,12 @@ public sealed partial class GameServer
             else if (target.IsBandit)
             {
                 OnBanditAttacked(session, target); // attacking a robber counts as refusing its hold-up
+            }
+
+            // #2278: the shock gloves push the survivor away and daze it (never a player, a pet or a giant).
+            if (isWeapon)
+            {
+                ApplyKnockback(session, target, tool, isCreature, aimDir);
             }
 
             if (isCreature) BroadcastCreatures(); else BroadcastPlanetEnemies();

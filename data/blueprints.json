@@ -385,6 +385,16 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 } ]
   },
   {
+    "key": "shock_gloves", "nameKey": "blueprint.shock_gloves.name", "descriptionKey": "blueprint.shock_gloves.desc",
+    "category": "Weapon", "prerequisites": [], "knowledgeCost": 10,
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "copper_wire", "count": 4 } ]
+  },
+  {
+    "key": "energy_gloves", "nameKey": "blueprint.energy_gloves.name", "descriptionKey": "blueprint.energy_gloves.desc",
+    "category": "Weapon", "prerequisites": [ "shock_gloves" ], "knowledgeCost": 40,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 3 } ]
+  },
+  {
     "key": "ai_core_mk2", "nameKey": "blueprint.ai_core_mk2.name", "descriptionKey": "blueprint.ai_core_mk2.desc",
     "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 65,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "cable", "count": 6 } ]

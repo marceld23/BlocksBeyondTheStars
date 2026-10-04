@@ -1679,6 +1679,11 @@ public sealed class NetCombatEntity
     /// <summary>Visual model scale (stations: by size tier — a colossal hull dwarfs a small one).
     /// Contractless-additive: payloads without the field leave the default 1.</summary>
     public float Scale { get; set; } = 1f;
+
+    /// <summary>#2278: dazed by a shock-glove push — a planet machine or a bandit neither moves nor attacks for a moment;
+    /// the client draws sparks (machines) or circling stars (bandits) over it. Contractless-additive like
+    /// <see cref="Scale"/>: an older client ignores it and an older server leaves it false, so no protocol bump.</summary>
+    public bool Staggered { get; set; }
 }
 
 /// <summary>Authoritative ship hull/shield, sent on join and whenever they change.</summary>
@@ -1989,6 +1994,10 @@ public sealed class NetCreature
     public bool Hostile { get; set; }
     public bool Asleep { get; set; }
     public bool Frozen { get; set; } // held in stasis (item 36) — client tints it icy blue + still
+
+    /// <summary>#2278: dazed by a shock-glove push — it neither moves nor bites for a moment; the client draws circling
+    /// stars over it. Additive: an older client ignores it and an older server leaves it false, so no protocol bump.</summary>
+    public bool Staggered { get; set; }
 
     /// <summary>Owner player id if this is a tamed companion (empty = wild fauna). The client draws owned
     /// creatures with a friendly tint + ground ring + floating <see cref="CustomName"/> nameplate.</summary>

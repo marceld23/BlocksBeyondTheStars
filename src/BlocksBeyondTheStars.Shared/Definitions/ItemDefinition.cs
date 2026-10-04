@@ -37,6 +37,17 @@ public sealed class ToolProperties
     /// impact cell to the server, which ignites it if the block burns and isn't protected.</summary>
     public bool Ignites { get; set; }
 
+    /// <summary>How far a hit pushes the target away from the attacker, in blocks (#2278, the shock gloves); 0 = no push.
+    /// The server sweeps the push through the target's own collision rules and scales it by the target's mass
+    /// (<see cref="KnockbackRules"/>) — players, companions and giants are never pushed. A bio-lab power change scales it
+    /// like the damage.</summary>
+    public float Knockback { get; set; }
+
+    /// <summary>Seconds a hit leaves the target dazed (#2278): it neither moves nor attacks. A dazed target cannot be
+    /// dazed again until <see cref="KnockbackRules.StaggerImmuneSeconds"/> after the daze ended, so nothing is held
+    /// down for good. 0 = no daze.</summary>
+    public float StaggerSeconds { get; set; }
+
     /// <summary>The look of this tool's action effect (#2152): the shot, the swing, the drill sparks, the scanner or
     /// gadget pulse — the <c>"fx"</c> object in <c>data/items.json</c>. Cosmetic only; null = the client's heuristics
     /// by item key and tool kind.</summary>
@@ -163,6 +174,21 @@ public sealed class ItemDefinition
     /// of its kind has (a basic drill, a plain gun …). Data, so a content pack can give a new tool its own look
     /// and so a player's own tool looks (#1963) and the official ones are the same kind of thing.</summary>
     public List<HeldModelPart>? HeldModel { get; set; }
+
+    /// <summary>How the item is held (#2278): <see cref="HeldGrips.Gloves"/> = worn on BOTH hands — the first-person view
+    /// shows two hands, <see cref="HeldModel"/> describes the RIGHT glove and the left one is its mirror image. Null = held
+    /// in the right hand like every other item. Cosmetic only; the server never reads it.</summary>
+    public string? HeldGrip { get; set; }
+}
+
+/// <summary>The values <see cref="ItemDefinition.HeldGrip"/> may take (#2278).</summary>
+public static class HeldGrips
+{
+    /// <summary>A pair of gloves worn on both hands (the shock and energy gloves).</summary>
+    public const string Gloves = "gloves";
+
+    /// <summary>True when <paramref name="def"/> is held on both hands.</summary>
+    public static bool IsGloves(ItemDefinition? def) => def?.HeldGrip == Gloves;
 }
 
 /// <summary>One box of a held model, in the holder's frame (metres, the tool points along +Z).</summary>

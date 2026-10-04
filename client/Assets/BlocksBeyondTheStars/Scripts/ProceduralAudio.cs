@@ -112,6 +112,12 @@ namespace BlocksBeyondTheStars.Client
             "target_lock_hostile" => TwoTone("target_lock_hostile", 1175f, 1568f, 0.26f),
             "target_cycle" => Beep("target_cycle", 1500f, 0.05f, 0.14f),
             "target_lost" => Sweep("target_lost", 1100f, 420f, 0.3f, 0.16f),
+            // #2278 glove weapon cues — stand-ins for the bundled recordings of the same names.
+            "glove_whoosh" => NoiseHit("glove_whoosh", 0.18f, 0.32f, 900f, 18f),
+            "glove_shock_blast" => Thud("glove_shock_blast", 0.32f, 0.5f),
+            "glove_energy_hit" => Zap("glove_energy_hit", 0.2f, 0.4f),
+            "glove_charge" => Sweep("glove_charge", 260f, 880f, 0.35f, 0.18f),
+            "glove_stagger" => SoftChime("glove_stagger", rising: false),
             var note when note.StartsWith("note_", System.StringComparison.Ordinal) => Note(note),
             _ => null,
         };
@@ -238,6 +244,13 @@ namespace BlocksBeyondTheStars.Client
         public static readonly string[] TargetIds =
         {
             "target_lock", "target_lock_hostile", "target_cycle", "target_lost",
+        };
+
+        /// <summary>The glove weapons' cue ids the synthesizer can stand in for (#2278): the jab's whoosh, the shock push's
+        /// air blast, the energy hit, the charge hum (wind-up and pulling them on) and the dazed target's dizzy chime.</summary>
+        public static readonly string[] GloveIds =
+        {
+            "glove_whoosh", "glove_shock_blast", "glove_energy_hit", "glove_charge", "glove_stagger",
         };
 
         /// <summary>Two short soft beeps a step apart (low, then high) — the "locked on" acknowledgement.</summary>

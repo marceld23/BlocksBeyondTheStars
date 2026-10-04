@@ -42,7 +42,8 @@ stuck, never path into ships/bases); it despawns when the player leaves. Compani
 excluded from the wild cap/prune, and capped at 6 per world. Invulnerable means against players too (#2281): every
 companion — the own, another player's, a tamer NPC's pet — is refused in `AttackCombatEntity`
 (`ProtectedFromPlayers`, reply `srv.attack.companion`), and the client's crosshair pick and melee/auto-aim cone skip
-any creature with an `OwnerId`.
+any creature with an `OwnerId`. The shock gloves' push and daze (#2278, `GameServerKnockback`) check the same rule
+again, so a pet is never shoved even by a future caller that skips the attack's own refusal.
 
 **Knowledge reward.** A **first** tame of a species pays research `KnowledgePoints` (difficulty-scaled),
 gated once per species by a `TamedSpecies` set (mirroring how scanning only pays new subjects via `Scanned`);

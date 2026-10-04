@@ -259,4 +259,50 @@ public sealed class FxStyleResolverTests
         Assert.False(FxStyleResolver.IsBeam(FxStyles.TwinPulse));
         Assert.False(FxStyleResolver.IsMelee(FxStyles.Drill));
     }
+
+    // ---------------- #2278 the glove styles ----------------
+
+    [Theory]
+    [InlineData("shock_gloves", FxStyles.ShockPush)]
+    [InlineData("energy_gloves", FxStyles.EnergyFist)]
+    public void TheGloves_AreMelee_TwoHanded_AndCarryTheirLookFromData(string key, string style)
+    {
+        var r = FxStyleResolver.ForTool(key, Content.GetItem(key)!.Tool);
+        Assert.True(r.FromData);
+        Assert.Equal(style, r.Style);
+        Assert.True(FxStyleResolver.IsMelee(style));
+        Assert.True(FxStyleResolver.IsGlove(style));
+        Assert.False(FxStyleResolver.IsTravelling(style));
+        Assert.False(FxStyleResolver.IsBeam(style));
+    }
+
+    [Fact]
+    public void TheGloveStyles_DefaultToCyanAndGold_AndOnlyTheyAreGloves()
+    {
+        var cyan = FxStyleResolver.DefaultColor(FxStyles.ShockPush);
+        Assert.True(cyan.B > cyan.R && cyan.G > cyan.R, "the shock push is cyan");
+        var gold = FxStyleResolver.DefaultColor(FxStyles.EnergyFist);
+        Assert.True(gold.R > gold.G && gold.G > gold.B, "the energy fist is gold");
+        Assert.NotEqual(FxStyleResolver.DefaultColor(FxStyles.Stasis), cyan); // not the stasis gadget's blue
+
+        Assert.All(FxStyles.All.Where(s => s is not FxStyles.ShockPush and not FxStyles.EnergyFist),
+            s => Assert.False(FxStyleResolver.IsGlove(s)));
+
+        // A glove item without fx data stays drawable — it falls back to a swing, never to nothing.
+        Assert.Equal(FxStyles.Slash, FxStyleResolver.ForTool("boxing_gloves", Tool(ToolKind.Weapon, 3f)).Style);
+    }
+
+    [Fact]
+    public void MeleeCues_FollowTheStyle_SoEveryoneHearsTheSameSwing()
+    {
+        Assert.Equal("glove_shock_blast", FxStyleResolver.MeleeSwingCue(FxStyles.ShockPush));
+        Assert.Equal("glove_whoosh", FxStyleResolver.MeleeSwingCue(FxStyles.EnergyFist));
+        Assert.Equal("glove_energy_hit", FxStyleResolver.MeleeHitCue(FxStyles.EnergyFist));
+        Assert.Equal("glove_shock_blast", FxStyleResolver.MeleeHitCue(FxStyles.ShockPush));
+        foreach (var style in new[] { FxStyles.Slash, FxStyles.Vibro, FxStyles.PlasmaBlade, FxStyles.Fist, FxStyles.Generic })
+        {
+            Assert.Equal("melee_swing", FxStyleResolver.MeleeSwingCue(style));
+            Assert.Equal("melee_hit", FxStyleResolver.MeleeHitCue(style));
+        }
+    }
 }

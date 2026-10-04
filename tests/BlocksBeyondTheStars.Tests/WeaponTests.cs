@@ -66,6 +66,22 @@ public sealed class WeaponTests : IDisposable
         Assert.Equal(ToolKind.Weapon, laser.Tool!.Kind);
         Assert.True(laser.Tool.Range >= 20f);    // ranged
         Assert.True(laser.Tool.EnergyPerUse > 0f); // energy weapon
+
+        // #2278: the glove weapons — melee reach, suit energy per hit; only the shock gloves push and daze.
+        foreach (var key in new[] { "shock_gloves", "energy_gloves" })
+        {
+            var gloves = _content.GetItem(key)!;
+            Assert.Equal(ToolKind.Weapon, gloves.Tool!.Kind);
+            Assert.True(gloves.Tool.Damage > 0f, $"{key}: damage 0 would fall back to the tier default");
+            Assert.True(gloves.Tool.Range is > 0f and < 6f, $"{key}: melee = short reach");
+            Assert.True(gloves.Tool.EnergyPerUse > 0f, $"{key}: every hit draws suit energy");
+            Assert.True(gloves.Tool.CooldownSeconds > 0f, $"{key}: a cooldown of its own");
+        }
+
+        Assert.True(_content.GetItem("shock_gloves")!.Tool!.Knockback > 0f);
+        Assert.True(_content.GetItem("shock_gloves")!.Tool!.StaggerSeconds > 0f);
+        Assert.Equal(0f, _content.GetItem("energy_gloves")!.Tool!.Knockback);
+        Assert.Equal(0f, machete.Tool.Knockback); // every other weapon stays push-free
     }
 
     [Fact]

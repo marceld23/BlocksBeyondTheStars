@@ -37,6 +37,8 @@ namespace BlocksBeyondTheStars.Client
             public bool IsDrone;          // flying scan-drone variant (hovers; no limb animation)
             public bool IsBandit;         // humanoid robber (upright gait, talks before it fights)
             public bool IsGunner;         // ranged bandit variant (tracer shots instead of claw swipes)
+            public bool PrevStaggered;    // #2278: to detect the daze starting (one dizzy cue per push)
+            public float NextDazeSpark;   // #2278: paces a dazed robot's sparks
         }
 
         private readonly Dictionary<string, Entry> _enemies = new();
@@ -144,10 +146,16 @@ namespace BlocksBeyondTheStars.Client
                         audio.At("enemy_hurt", en.Root.transform.position, en.Pitch * MachineJitter(), 0.9f);
                     }
 
+                    // #2278: a shock-glove push dazes it — a dizzy cue as it starts; meanwhile it neither shoots nor claws.
+                    if (e.Staggered && !en.PrevStaggered)
+                    {
+                        audio.At("glove_stagger", en.Root.transform.position, en.IsBandit ? Random.Range(0.95f, 1.08f) : 0.85f, 0.8f);
+                    }
+
                     // Hostile attack (throttled). Hovering drones snipe with a red laser from afar; ground
                     // robots only claw in melee range. Suppressed entirely once the player is aboard the ship —
                     // they've broken off pursuit, so no laser bolts or claw swipes follow them inside.
-                    if (e.Hostile && !playerAboard && Game.WorldTime >= en.NextAttack)
+                    if (e.Hostile && !playerAboard && !e.Staggered && Game.WorldTime >= en.NextAttack)
                     {
                         if (en.IsDrone)
                         {
@@ -178,6 +186,13 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 en.PrevHull = e.Hull;
+                en.PrevStaggered = e.Staggered;
+                if (e.Staggered)
+                {
+                    // #2278: stars circle a dazed bandit's head; a dazed machine fizzes with sparks instead.
+                    FxShots.Daze(en.Root.transform.position + (Vector3.up * (en.IsDrone ? 0.8f : 2.15f)), 0.32f,
+                        robot: !en.IsBandit, ref en.NextDazeSpark);
+                }
 
                 // Floating health bar over machines + bandits (#692); also attributes hull drops to the
                 // local player's latest shot for the crosshair hit marker. Same fade band as NPC nameplates.

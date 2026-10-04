@@ -368,9 +368,12 @@ separate unlock; admins can still disable it through server world rules.
   - The laser draws a red beam with a glowing hot spot.
   - The plasma blaster throws a wobbling violet ball that lights up a cave as it flies.
   - Blades sweep a slash ribbon.
+  - The shock gloves send a cyan ring of pushed air out between your palms; the energy gloves crackle with gold
+    sparks at the punching fist.
   - Shots leave the barrel of the gun you hold.
 - **Hits and defeats.**
   - A creature or robot you hit flashes white.
+  - Little stars circle over a creature or bandit the shock gloves made dizzy; a dizzy robot fizzes with sparks.
   - When something hurts you, a red marker around the crosshair points toward the closest threat.
   - Beaten creatures break apart into sparkles, robots fall to parts, and bandits beam away.
 - **Mining.**
@@ -390,8 +393,9 @@ separate unlock; admins can still disable it through server world rules.
   - Space dust streaks past with your speed.
   - The hyperjump is a tunnel of light.
   - Landing builds a glow of heat around the ship.
-- **Other players** see your shots, swings, drilling and scans, and you see theirs. Gadgets (medkit, stasis, blaster,
-  terrain scanner) only show their effect once the game has accepted the use.
+- **Other players** see your shots, swings, drilling and scans, and you see theirs. Their arm really swings (a
+  blade's chop, a punch, both arms for the shock gloves) and you hear the swing where they stand. Gadgets (medkit,
+  stasis, blaster, terrain scanner) only show their effect once the game has accepted the use.
 - **Comfort settings:**
   - **Settings → Controls → Screen shake** (0–100 %) sets how hard hits, weapon kicks and explosions rattle the view.
     **Camera motion** off still stops all of it.
@@ -658,6 +662,10 @@ effort.
   slowly; the **climbing claws** (made from the gloves) last longer still and let you climb ice, sand and snow
   like rock. Wear them in a **module** slot; other players see them on your hands.
 - There is no climbing in space, in zero-g, in water, in your ship or on a station.
+- **In first person you see both hands climb:** whatever you held goes down, your hands reach up hand over hand
+  in the rhythm of your climb, reach shorter and shake when you get tired, drag down the wall when your grip is gone
+  and press on the edge as you pull yourself up — with the orange pads when you wear climbing gloves. Back on your
+  feet, your tool comes back up.
 - Other players see you climb — on walls and on ladders — facing the wall. The first time you stand in front of
   a tall wall, VEGA tells you how it works.
 
@@ -746,7 +754,8 @@ effort.
   no workbench in reach, a full stack per order — and the craft panel says so instead of "Materials missing". The
   only refusal left is a full inventory.
 - **Every tool looks like itself in your hand:** the titanium and diamond drills, the mining beam, each pistol and
-  blaster, the machete, vibro knife and plasma sword and the advanced scanner all have their own model.
+  blaster, the machete, vibro knife and plasma sword and the advanced scanner all have their own model. The shock and
+  energy gloves sit on both hands.
 - **Throwing things away:** select an item in the **Inventory** or **Cargo Hold** tab and press **"Throw
   away"** — it asks once ("Really throw away?"), and the second click destroys *every* stack of that item.
   This cannot be undone and gives nothing back. Your starting equipment (drill, scanner, suit lamp, machete,
@@ -985,6 +994,30 @@ effort.
   **5 damage, at most one every 1.2 s** — even the starter machete does better, and every crafted weapon more so.
 - **Companions and pets can't be attacked** — not your own, not a friend's, not a tamer's. The crosshair and
   auto-aim pass them by (they never turn the reticle red), and a swing at one is refused with a friendly note.
+
+### Glove weapons (shock gloves and energy gloves)
+Two weapons you wear on **both hands** — hold them in the hotbar like any weapon; in first person you see both
+gloves. Research both in the **Weapon** category and craft them at the workshop; the energy gloves need the shock
+gloves' blueprint first, but crafting them does **not** use up your shock gloves — keep both.
+
+| | Shock gloves | Energy gloves |
+|---|---|---|
+| What they do | **push** creatures, robots and bandits about **5 blocks** away and leave them **dizzy for a second** | **fast punches**, left and right in turn |
+| Damage · cooldown | 3 (barely hurts) · 1.2 s | 22 · 0.5 s |
+| Suit energy per hit | 0.5 | 0.25 |
+
+- **A dizzy target** (little stars over its head; a robot fizzes with sparks) neither moves nor bites, and a robot's
+  or bandit's attack pauses. Right after that it can't be made dizzy again for a moment — you can still push it.
+- **Who flies how far:** small animals the full distance, big ones less, a titan about a block. **Giants** (the
+  colossus, sandworms, the leviathan, the sky giant) are far too big to push. **Players and companions/pets are never
+  pushed.**
+- **No cheap tricks:** a push stops at walls, ship hulls, energy fences and shut doors, and never throws anything over
+  a cliff, into lava or (a land animal) into water.
+- A timid animal you push runs off; an angry one comes back for you; pushing a bandit counts as saying "no" to its
+  hold-up.
+- With no suit energy left the gloves do nothing (recharge aboard your ship or at a heal tank). The bio lab can change
+  them like any weapon — more power also pushes farther.
+- Wearing **climbing gloves** too? Their pads hide under the fight gloves while you hold them.
 
 ### Asteroid belts
 - In worlds created with belts (the default for new worlds), a system's landable asteroids orbit

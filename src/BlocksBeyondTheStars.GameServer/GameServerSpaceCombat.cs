@@ -99,6 +99,15 @@ public sealed class CombatEntity
     /// can be scanned safely. Decays each tick; networked as <c>NetCreature.Frozen</c> for the blue tint.</summary>
     public double FrozenTimer { get; set; }
 
+    /// <summary>#2278: server uptime until which this creature, machine or bandit is dazed by a shock-glove push — it
+    /// neither moves nor attacks (a machine's damage aura pauses, a bandit holds its fire). Networked as
+    /// <c>Staggered</c> for the dizzy look. Server-only runtime state, never persisted.</summary>
+    public double StaggerUntil { get; set; }
+
+    /// <summary>#2278: uptime before which no new daze may start (<see cref="KnockbackRules.StaggerImmuneSeconds"/> after
+    /// the last one ended) — the target can still be pushed. Server-only.</summary>
+    public double StaggerImmuneUntil { get; set; }
+
     /// <summary>Seconds a creature roused from its off-phase rest stays awake (a player came too close, or it was
     /// hit). While &gt; 0 it ignores the day/night sleep gate and behaves per its temperament (flee/hunt/roam);
     /// decays each tick, after which it settles back to sleep. Server-only.</summary>
@@ -2390,7 +2399,7 @@ public sealed partial class GameServer
     public int FloatingSalvageParkedForTest(string instanceId)
         => _floatingSalvage.TryGetValue(instanceId, out var drops) ? drops.Count : 0;
 
-    private static NetCombatEntity ToNet(CombatEntity e) => new()
+    private NetCombatEntity ToNet(CombatEntity e) => new()
     {
         Id = e.Id,
         Kind = e.Kind.ToString(),
@@ -2402,6 +2411,7 @@ public sealed partial class GameServer
         Y = e.Position.Y,
         Z = e.Position.Z,
         Scale = e.Scale,
+        Staggered = IsStaggered(e), // #2278: a pushed machine or bandit is dazed for a moment
     };
 
     private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false, bool hyperjump = false,

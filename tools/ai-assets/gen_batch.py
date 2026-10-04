@@ -97,6 +97,16 @@ def build_catalogue() -> list[tuple[str, str, float, bool]]:
         ("target_lock_hostile", "short slightly sharper sci-fi target lock beep, two quick bright tones, attentive but friendly, kid-friendly game sound, no siren, no alarm", 0.5, False),
     ]
 
+    # --- Glove weapons (#2278): air, crackle and a cartoon boing — never a blow that sounds like it hurts. Generated one
+    # by one with gen_sound.py --influence 0.5 on 2026-10-04 (glove_whoosh came back at the 0.5 s API minimum). ---
+    s += [
+        ("glove_whoosh",      "short fast whoosh of a padded sci-fi glove punching through air, light and snappy, no impact", 0.5, False),
+        ("glove_shock_blast", "short soft sci-fi shockwave push, a deep airy whump with a crackle of static electricity, like a burst of compressed air, not an explosion, friendly", 1.0, False),
+        ("glove_energy_hit",  "short bright electric zap impact of an energy-charged glove punch hitting a target, crackling sparks, punchy but not violent", 0.7, False),
+        ("glove_charge",      "very short rising electric hum of sci-fi gloves charging up, static crackle building, ends abruptly", 0.6, False),
+        ("glove_stagger",     "short cartoonish dizzy wobble sound, a soft springy boing with little twinkling chimes, playful", 0.8, False),
+    ]
+
     # --- Creatures: 6 voice banks (size x disposition) x 5 states; pitch-shifted per creature in game ---
     sizes = [("small", "small"), ("medium", "medium-sized"), ("large", "huge hulking")]
     disps = [("calm", "docile gentle"), ("hostile", "vicious aggressive")]
