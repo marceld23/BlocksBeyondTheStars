@@ -24,4 +24,11 @@ public sealed class BlueprintDefinition
 
     /// <summary>Knowledge points (earned by scanning new things) additionally required to unlock.</summary>
     public int KnowledgeCost { get; set; }
+
+    /// <summary>
+    /// #2250: locale keys of what this blueprint opens that no recipe, module or follow-up blueprint shows — functions
+    /// gated in code (the bio lab's mixer extras, its Change tab, crossing in the clone tank). The research screen lists
+    /// them under "Unlocks" next to the recipes and modules it finds in the data by itself. Optional.
+    /// </summary>
+    public List<string> Features { get; set; } = new();
 }

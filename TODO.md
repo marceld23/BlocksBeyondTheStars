@@ -74,6 +74,41 @@ textures, sounds and effects generated with the repo scripts. One worktree, one 
 - **Open (follow-ups):** optional synth fallbacks for the new sounds (the clips ship, so nothing is silent today); lifts,
   pistons and bridges aboard ships stay decoration by design.
 
+### 🔭 Scanner results you can see + the bio lab earlier and aboard (#2247 #2248 #2249 #2250, 2026-10-04, branch feat/scanner-ux-biolab-access) — ✅ done (⚠ playtest open)
+
+**Request (Marcel, 2026-10-04, after the v2026.10.4 playtest).** "I scan in space and see no result anywhere" (Windows:
+an old surface scan stuck bottom left under VEGA's objective chip; browser: nothing) — and "where is improving items from
+the update?". Analysis showed the scanner works when HELD (nothing said so), the "improve" feature is the bio lab's
+**Change** tab behind the fifth blueprint of a chain, and the lab cannot be used aboard. Decisions: all ship readouts on
+the right, hold stays but is made obvious, the lab becomes a root blueprint, a bio lab ship module opened at the
+workshop, the tab name "Change" stays (texts tie *improve* / *Change* / *Lab Tuning* together), the research screen
+shows what a blueprint unlocks.
+
+- **✅ Ship scanner (#2247):** the hand scanner's HUD panel is hidden in the space view and never replays a ship readout
+  (its "scanner in hand" test read the frozen on-foot hotbar); every ship readout opens in the right-hand card
+  (`PlanetOverviewCard.ShowReadout`, words shared via `ScanReadoutText`); the on-foot controls line is hidden in the space
+  view; the lock shows an empty ring and "Hold {fire}: scan", an early release says "keep holding" (+ VEGA once); the
+  target stays locked while the ring fills; the "every ship has a scanner" tip runs on the first flight; the first planet
+  card gets a VEGA line. Client only — no protocol change.
+- **✅ Bio lab earlier and aboard (#2248):** `bio_lab` is a root blueprint (40 KP, 2 data fragments); `bio_synthesis`
+  (55) and `bio_tuning` (60, no lubricant any more) follow it directly. New `bio_lab` ship module (same blueprint): with
+  it fitted, Interact at the ship's workshop asks "Workshop (E) / Bio lab", landed and in the interior in space — not
+  from the pilot seat, a spacewalk or another player's ship (`ShipLabAboard`, server + client mirror). Saves keep every
+  blueprint; no save-version change (no block added).
+- **✅ Guidance (#2249):** VEGA once-hints for researching Bio Lab / Lab Tuning, the first "material does nothing" and
+  the first lab visit (tabs); a bio-lab block in a hull names the module; the Change page labels the coating optional,
+  asks to take worn gear off, and lists the materials you carry that work on the piece; `srv.bio.no_material`; new
+  Codex article *Improving Items*, bio-lab and scanner articles updated; blueprint texts name the tab.
+- **✅ Research "Unlocks" (#2250):** the blueprint detail pane lists items, ship modules, follow-up blueprints and the
+  code-gated functions declared in the new `features` field (`BlueprintUnlocks`, Shared); long descriptions no longer
+  overlap the status line.
+- **✅ Texts:** 27 new + 4 changed keys in all 14 languages (machine pass + term QA against each locale's own tab,
+  blueprint and station names).
+- **Tests:** `BioLabAccessTests` (chain, module wiring, cabin / interior / pilot seat / spacewalk / visitor, hints,
+  missing material, unlocks, feature texts); `ShipFunctionBlockTests` counts the bio-lab wording of the decor notice.
+- **⚠ Playtest open:** scanner hold line + card on small screens and in the browser; workshop → bio lab choice aboard
+  (landed and in space); the Change page's material list; the research "Unlocks" block on long lists.
+
 ### 🛰️ Space package — ship scanner, planet overview, scanner tiers, visible pods and anomalies, wormholes (+ fixes) (#2243: #2233 #2235 #2236 #2237–#2242, 2026-10-04, branch feat/space-scanner-wormholes) — ✅ done (released in v2026.10.4; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04).** Every ship gets a scanner in the flight hotbar (like weapon / tractor) with a cool effect,

@@ -159,11 +159,12 @@ public sealed class ShipFunctionBlockTests : IDisposable
 
     /// <summary>How often VEGA has told this player that a block is only decoration aboard a ship — every time as a
     /// system line (<see cref="ShipAiLine.Kind"/> 3). An advisor hint (kind 1) is muted for a player who switched VEGA's
-    /// hints off, and the notice's once-flag would be used up without the player ever reading it.</summary>
+    /// hints off, and the notice's once-flag would be used up without the player ever reading it. #2248: a bio lab
+    /// gets its own wording of the same once-notice (it names the ship's bio lab module).</summary>
     private static int DecorNotices(NpcLifeWorld.RecordingTransport t, PlayerSession who)
     {
         var notices = t.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ShipAiLine>()
-            .Where(line => line.LineKey == DecorNotice).ToList();
+            .Where(line => line.LineKey == DecorNotice || line.LineKey == DecorNotice + "_bio_lab").ToList();
         Assert.All(notices, line => Assert.Equal(3, line.Kind));
         return notices.Count;
     }

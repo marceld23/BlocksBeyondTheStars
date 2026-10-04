@@ -755,8 +755,9 @@ effort.
   block, the sentry post and the matter sender/receiver. The starter tier (basic and titanium drill, the base core,
   the first machines) stays oil-free, so you can always reach a living world first.
 - **The bio lab is a station without recipes:** it analyses samples, mixes them into preparations and changes
-  tools and gear — what comes out is computed from what goes in. Four blueprints open it up step by step: **Bio
-  Lab** (after Bio-Refining), **Synthesis**, **Lab Tuning** and **Crossing** (needs the clone tank). See § The bio lab.
+  tools and gear — what comes out is computed from what goes in. Four blueprints open it up: **Bio Lab** (a starting
+  blueprint — no other one needed, 40 knowledge), then **Synthesis** and **Lab Tuning** side by side right after it,
+  and **Crossing** (needs the clone tank). See § The bio lab.
 - **Interior decor is craftable:** the lights, light strips, force field, medbay/lab/cargo/engine panels, engine
   nozzle, factory terminal, pipe and machine housing that ship interiors, stations and factories are built from all
   have workshop recipes (lights: crystal in a glass housing — no power needed; the force field needs the energy-door
@@ -774,7 +775,9 @@ effort.
 - **Blueprints** form **chains**: most advanced nodes build on a cheaper one (the stasis projector on the field
   medkit, the beam pad on the energy door, the suit teleporter on the jump generator, …), so the Blueprints tab
   reads as a tree rather than a flat list — a node lights up once its prerequisite is researched, and it is
-  never cheaper than what it builds on. Anything you had already unlocked stays unlocked.
+  never cheaper than what it builds on. Anything you had already unlocked stays unlocked. A blueprint's detail pane
+  shows both directions: its **prerequisites**, and under **Unlocks** what researching it opens — the items you can
+  then build, the ship modules, the blueprints it leads to, and functions such as the bio lab's Change tab.
 - **Blueprints** gate advanced recipes — research them at your ship's **cockpit** (Blueprints tab; the helm counts
   while flying) with **knowledge points** (earned by scanning) plus
   research materials; some require prerequisite blueprints.
@@ -804,15 +807,21 @@ effort.
   while the remaining hold still fits everything stored in it. Moving a module to another ship means removing
   it here and building it there.
 - **Ship scanner** (every ship, 2026-10): the **last slot of the flight hotbar** is the scanner — select it like the
-  laser or the tractor beam, point the nose at something and **hold fire**. Four corner brackets lock on, a ring
-  fills, and the scan lands with a wave over the target. It reads:
-  - **planets and moons** — an **overview card** on the right: gravity, weather, lava, plants, animals, machines,
-    the terrain and an overall **danger** level, so you know what waits down there before you land. The same report
-    opens from **Map tab → pick a body → Planet scan** and from the Ship tab, for every ship;
+  laser or the tractor beam, point the nose at something and **hold fire until the ring is full**. Four corner
+  brackets lock on, an empty ring appears and the line under the target says what to hold (*Hold LMB: scan*, RB on a
+  pad, FIRE on touch). Holding fills the ring, and the scan lands with a wave over the target. **Let go early and
+  nothing is scanned** — the line then says *Keep holding until the ring is full* (and VEGA explains it once). While
+  the ring fills, the target stays locked even if something else drifts through the reticle. Every result opens as a
+  **card on the right** (about 18 s):
+  - **planets and moons** — the **overview card**: gravity, weather, lava, plants, animals, machines, the terrain
+    and an overall **danger** level, so you know what waits down there before you land. The same report opens from
+    **Map tab → pick a body → Planet scan** and from the Ship tab, for every ship; VEGA explains the colours once;
   - **asteroids, stations, wrecks, life pods, bandits and machines** — a short readout of what it is (a wreck lists
-    its contents, a machine says how dangerous it is);
+    its contents, a machine says how dangerous it is), its threat and the knowledge it paid;
   - **anomalies** (only the scanner reads them — knowledge and a field record) and **wormholes** (where they lead).
-  Every first scan pays a little **knowledge**. Out of range the HUD says so; after a scan the scanner recharges briefly.
+  Every first scan pays a little **knowledge**. Out of range or while the scanner recharges, the card says so briefly.
+  The hand scanner's panel at the bottom left belongs to walking around: it is hidden in flight and never shows an
+  old surface scan there.
 - **Scanner upgrades** — three tiers, each one replaces the one before:
 
   | Tier | How you get it | Reach / speed | Adds |
@@ -1259,8 +1268,9 @@ effort.
   **ship sensor** work in your own ship — and the ship's own doors follow its wires. The ship's circuits run while
   the ship is parked (landed, or with you inside out in space) and rest in flight. Everything else — drills,
   machines, bridges, pistons, lifts, the radio beacon, beam pad, sentry post, thumper, water spout, energy gate,
-  hydro tray and the bio lab — is **decoration only** in a ship: you can build it in, it just does nothing there,
-  and VEGA tells you so the first time. On a station, build devices **aboard on the deck**, where they work; from a spacewalk the station
+  hydro tray and the bio lab block — is **decoration only** in a ship: you can build it in, it just does nothing
+  there, and VEGA tells you so the first time. (Aboard, the bio lab is the **Bio Lab ship module** instead — see
+  § The bio lab.) On a station, build devices **aboard on the deck**, where they work; from a spacewalk the station
   takes ordinary blocks, lamps, the sentry post, the energy gate, the hydro tray and the bio lab only.
 - **Limits, in plain words.** A network can hold 256 blocks, a world 64 networks and 32 sensors — and one player
   may use half of each, so nobody gets locked out — 8 sound devices can play at once, and each player gets 4
@@ -1902,10 +1912,14 @@ look up: what a mix does follows from what goes in, and the same things always g
   must be held in stasis first — except a giant, which cannot be frozen: there the long reach is the hurdle.
   The same animal gives a sample only every five minutes. A **companion** also
   brings a sample of its species along with its regular gift.
-- **The bio lab block** (`bio_lab`, workshop; blueprint **Bio Lab** in the tech tree after Bio-Refining). Place it
-  **outside the ship** — on the ground, in your base or on your own station; no ship has one built in, and a lab
-  built into a ship is only decoration (VEGA says so once). **One lab is enough**: stand within 3 blocks of it
-  (not inside the ship) and use **Interact** on it. It has three pages:
+- **The bio lab block** (`bio_lab`, workshop; blueprint **Bio Lab** — a starting blueprint, no other one needed).
+  Place it on the ground, in your base or on your own station. **One lab is enough**: stand within 3 blocks of it
+  and use **Interact** on it.
+- **The bio lab aboard** (`bio_lab` ship module, built in the **Ship tab** with the same Bio Lab blueprint): with the
+  module fitted, **Interact at your ship's workshop station** asks *Workshop or Bio lab?* (E keeps crafting one key
+  press away) — in the parked ship and in its interior while it floats in space. It never works from the pilot seat,
+  on a spacewalk or in somebody else's ship, and heat- or cold-sensitive effects feel the cabin air there. A lab
+  **block** built into a ship stays decoration; VEGA says so once and names the module. The lab has three pages:
   - **Analyse.** Uses up one sample (in Sandbox nothing is used up, but a sample of the species must still be in
     your case) and shows what the species carries: its **substance** with one **effect**, a
     **strength** from I to XV, a **rarity** (common → legendary), how long it lasts, whether it has a **catch**
@@ -1929,8 +1943,13 @@ look up: what a mix does follows from what goes in, and the same things always g
     mix it again. Toxic samples make a mix shaky. With a **detoxifier** within 3 blocks of you and one carbon the
     lab **washes** them as part of the mix, and it says beforehand which it will do. A washed and an unwashed
     mix of the same things are two different experiments with two handbook entries.
-  - **Change.** With the **Lab Tuning** blueprint: put in a **drill, a weapon or a piece of suit gear**, a material
-    (mineral sample or ingot) and optionally a **coating**. The material's traits decide *what* changes — hard
+  - **Change** — this is where you **improve** tools and gear (the Codex article *Improving Items* explains it step
+    by step). With the **Lab Tuning** blueprint (right after Bio Lab; VEGA announces the tab once it is researched):
+    put in a **drill, a weapon or a piece of suit gear**, a **material** (needed: a mineral sample, an ore, an ingot,
+    steel, a crystal …) and optionally a **coating** (the slot reads *None — optional*). Once a piece is chosen, the
+    lab lists the materials you carry that **work on it**; a material that changes nothing says so, and VEGA explains
+    once what kind of material works. If your backpack holds nothing changeable but you **wear** a changeable piece,
+    the tab says to take it off first. The material's traits decide *what* changes — hard
     makes a drill hit harder or armour tougher, conductive saves energy, light speeds a tool up, magnetic adds
     reach or grip — and the purity of the deposit and the coating decide *how much*. A big change always has a
     **price**: the tool gets a bit slower or hungrier, gear gets a bit heavier (unless the material is light). The

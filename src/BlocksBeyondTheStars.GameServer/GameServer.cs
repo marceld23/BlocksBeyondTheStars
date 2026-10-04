@@ -6291,6 +6291,16 @@ public sealed partial class GameServer
         SendInventory(session);
         ShipAiOnBlueprint(session); // VEGA onboarding: first blueprint researched
         OnCrystalBlueprintUnlockedHint(session, bp.Key); // #2257: the comm radio opens the Crystal Net tab, the conduit the net
+
+        // #2249: the bio lab's blueprints open things no recipe list shows — where the lab is built, and the Change tab.
+        if (bp.Key == Shared.Bio.BioItems.LabBlueprint)
+        {
+            ShipAiHintOnce(session, "bio_lab_unlocked");
+        }
+        else if (bp.Key == Shared.Bio.BioItems.TuningBlueprint)
+        {
+            ShipAiHintOnce(session, "bio_tuning_unlocked");
+        }
     }
 
     private void HandleAdminCommand(PlayerSession session, AdminCommandIntent cmd)

@@ -44,6 +44,12 @@
     "stats": {}
   },
   {
+    "key": "bio_lab", "nameKey": "module.bio_lab.name", "descriptionKey": "module.bio_lab.desc",
+    "mandatory": false, "requiredBlueprint": "bio_lab",
+    "buildCost": [ { "item": "glass", "count": 4 }, { "item": "steel", "count": 4 }, { "item": "circuit_board", "count": 2 }, { "item": "crystal", "count": 2 }, { "item": "polymer", "count": 2 } ],
+    "stats": {}
+  },
+  {
     "key": "tractor_beam", "nameKey": "module.tractor_beam.name", "descriptionKey": "module.tractor_beam.desc",
     "mandatory": false, "requiredBlueprint": "tractor_beam",
     "buildCost": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 3 }, { "item": "magnet", "count": 2 } ],

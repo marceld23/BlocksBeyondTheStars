@@ -1051,6 +1051,10 @@ namespace BlocksBeyondTheStars.Client
         public ScanResult LastScan { get; private set; }
         public float LastScanAt { get; private set; }
 
+        /// <summary>#2247: <see cref="LastScan"/> came in while piloting — a ship-scanner readout. It was shown on the
+        /// right-hand card, so the hand scanner's HUD panel must not replay it after landing.</summary>
+        public bool LastScanFromShip { get; private set; }
+
         /// <summary>The player's first-scan ledger: <c>kind:key</c> → the display name captured at scan time
         /// (empty for entries scanned before the game recorded names). Mirrors the server's
         /// <c>PlayerState.Scanned</c>/<c>ScannedNames</c> and backs the Codex "Discoveries" chapter (#484) —
@@ -2842,12 +2846,25 @@ namespace BlocksBeyondTheStars.Client
                 {
                     OpenOverviewOnNextPlanetScan = false;
                     PlanetOverviewCard.Show(this, m); // #2239: the flight scanner read a planet — what awaits there
+                    if (Settings != null && !Settings.PlanetCardHintShown && m.Rows != null && m.Rows.Length > 0)
+                    {
+                        // #2247: the first card says once what the colours mean and where the report lives on.
+                        Settings.PlanetCardHintShown = true;
+                        Settings.Save();
+                        VegaPanel.Instance?.SayLocal("vega.hint.planet_card");
+                    }
                 }
             };
             Network.ScanResultReceived += m =>
             {
                 LastScan = m;
                 LastScanAt = Time.time;
+                LastScanFromShip = SpaceViewActive && !InEva;
+                if (LastScanFromShip)
+                {
+                    PlanetOverviewCard.ShowReadout(this, m); // #2247: the ship scanner's readouts open on the right
+                }
+
                 if (m.FirstTime && m.KnowledgeGained > 0)
                 {
                     // Localized (#484) — this toast used to be an English literal in the German build too.
