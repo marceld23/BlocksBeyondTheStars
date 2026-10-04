@@ -5717,7 +5717,7 @@
   "mission.crystal_workshop_3.name": "Kristallwerkstatt: Nachtlicht",
   "mission.crystal_workshop_3.desc": "VEGA: Lampen, die wissen, wann es dunkel ist. Verbinde einen Tageslichtsensor auf „Nacht“ mit einer Lampe und warte, bis sie von selbst angeht.",
   "mission.crystal_workshop_4.name": "Kristallwerkstatt: Schleuse",
-  "mission.crystal_workshop_4.desc": "VEGA: Ein Logikblock kann eine Tür halten. Lass einen Logikblock auf einen Kristallleiter zeigen, der eine Tür berührt – NICHT ohne Eingang öffnet sie – und sieh zu, wie die Tür gehorcht.",
+  "mission.crystal_workshop_4.desc": "VEGA: Ein Logikblock kann eine Tür offen halten. Lass einen Logikblock auf NICHT auf einen Kristallleiter zeigen, der eine Tür berührt – ohne Eingang ist NICHT an – und sieh zu, wie die Tür aufgeht.",
   "mission.crystal_workshop_5.name": "Kristallwerkstatt: Kleine Fabrik",
   "mission.crystal_workshop_5.desc": "VEGA: Lass ein Signal die Arbeit machen. Starte einen Fabrikator, einen Bohrer oder einen Materie-Sender mit einem Taster oder einem Takt – die Arbeit muss wirklich erledigt werden.",
   "mission.crystal_workshop_6.name": "Kristallwerkstatt: Geheimgang",

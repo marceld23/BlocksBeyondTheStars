@@ -5717,7 +5717,7 @@
   "mission.crystal_workshop_3.name": "Crystal Workshop: Night Light",
   "mission.crystal_workshop_3.desc": "VEGA: Lights that know when it is dark. Wire a daylight sensor set to \"night\" to a lamp and wait until it switches on by itself.",
   "mission.crystal_workshop_4.name": "Crystal Workshop: Airlock",
-  "mission.crystal_workshop_4.desc": "VEGA: A logic block can hold a door. Point a logic block at a conduit that touches a door — NOT with no input opens it — and watch the door obey.",
+  "mission.crystal_workshop_4.desc": "VEGA: A logic block can hold a door open. Point a logic block set to NOT at a conduit that touches a door — with nothing wired into it, NOT is ON — and watch the door open.",
   "mission.crystal_workshop_5.name": "Crystal Workshop: Little Factory",
   "mission.crystal_workshop_5.desc": "VEGA: Let a signal do the work. Start a fabricator, a drill or a matter sender with a button or a clock — the job must really get done.",
   "mission.crystal_workshop_6.name": "Crystal Workshop: Secret Passage",
