@@ -220,6 +220,7 @@ about 3.3 MB, bundled into every build and prefetched by the browser client befo
   languages — the git-ignored blog-sync tooling (`sync.py plan → prep → workflow → finish --apply --whatsnew-repo`)
   translates and publishes it on the blog and writes the language files for a PR; TRANSLATION_GUIDE.md and
   data-online/README.md point there. `export_whatsnew.py` now defaults to that tooling's store.
+- **✅ 2026.10.4 release post in the twelve languages (2026-10-04):** translated with the blog-sync tooling (`sync.py prep → finish --apply`), live on the blog as linked posts with the German post's date; every `data-online/whatsnew/<code>.json` now holds 68 entries.
 - **✅ Tests:** `WhatsNewContentTests` checks every language file (a game language other than de/en, versions exist in
   the feed, no empty text, unique and newest first; no completeness check on purpose). Edit-mode
   `WhatsNewLanguageEditModeTests` pins the fallback rules.
