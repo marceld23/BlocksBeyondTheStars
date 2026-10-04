@@ -24,6 +24,22 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎮 In-game dialogs: Esc / pad-B gaps and a canvas leak (#2303, 2026-10-04, branch fix/dialog-esc-pad-gaps) — ✅ done (⚠ pad check open)
+
+Found while giving the modals their open effect (#2302). All client-only, no protocol or save change.
+
+- **✅ Esc consumed:** `InterviewUi` and `VendorChoicePrompt` now mark the closing Escape as handled, so the same press
+  no longer opens the pause/quit prompt too (#413).
+- **✅ Pad B:** `InterviewUi` and `ContainerFilterUi` close on the menu verb (`InputAction.UiCancel` — Escape or pad B)
+  instead of the raw Escape key; a pad had only the Close button. The vendor prompt keeps Escape only: it leaves the
+  player in play, where B is crouch.
+- **✅ Leak:** `TrainCabUi` gets an `OnDestroy` (gives the menu back if open, clears `Instance`, destroys its top-level
+  canvas) — the #1789 treatment.
+- **✅ No stacking:** a second `Open` of `CrystalDeviceUi` / `TrainCabUi` closes the first panel instead of laying a
+  second overlay over it.
+- **⚠ Pad check open:** B closes an NPC interview (with and without the on-screen keyboard up) and a crate's filter;
+  Escape on the vendor prompt and the interview no longer opens the pause menu.
+
 ### 🧫 Sample case overview — effect in every row, filters + effect families, throwing samples away, the lab's open effect (#2299 #2300 #2301 #2302, 2026-10-04, branch feat/sample-case-overview) — ✅ done (⚠ playtest open)
 
 **Request (Marcel, 2026-10-04, after v2026.10.5).** "With many samples, how do you keep the overview in the bio lab's
@@ -57,8 +73,7 @@ throwing samples away goes in, the lab gets the Tab menu's look and the other mo
   `NetCodecTests` golden list.
 - **⚠ Playtest open:** the lab's frames and open/tab-change effect; chips and the Effect button with a pad and in long
   languages; the inventory's Samples strip; throwing a sample away from both places; the Codex family headings.
-- **Open follow-up #2303** (older, found on the way): Esc not marked as handled in `InterviewUi` / `VendorChoicePrompt`,
-  pad B does not close the container filter, `TrainCabUi` has no `OnDestroy`, `CrystalDeviceUi.Open` has no open guard.
+- **✅ Follow-up #2303** (older, found on the way) — fixed separately, see the entry above.
 
 ### 💎 Crystal Net 2 — moving blocks, lifts, new devices, owner + alliance rule, world circuits, the net aboard the own ship, catch-up on return (#2251: #2252–#2271, 2026-10-04, branch feat/crystal-net-2) — ✅ done (released in v2026.10.5: protocol v10, save version 3; ⚠ playtest open)
 

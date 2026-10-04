@@ -70,8 +70,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if (_open && Input.GetKeyDown(KeyCode.Escape))
+            // #2303: the menu verb (Escape or pad B), and the press is consumed — closing here hands the menu back in
+            // the same frame, and without the mark the same Escape would also open the pause/quit prompt (#413).
+            // While the on-screen keyboard is up it captures B itself (InputMap.ModalCapture).
+            if (_open && InputMap.Down(InputAction.UiCancel))
             {
+                Game?.MarkMenuInputHandled();
                 Close();
             }
         }

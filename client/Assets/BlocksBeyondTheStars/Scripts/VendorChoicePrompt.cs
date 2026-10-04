@@ -93,6 +93,9 @@ namespace BlocksBeyondTheStars.Client
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
+                // #2303: this Escape is consumed — don't also pop the pause/quit prompt (#413). Escape only, not the
+                // menu verb: the prompt keeps the player in play, and pad B is crouch there.
+                Game?.MarkMenuInputHandled();
                 Close();
                 return;
             }

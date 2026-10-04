@@ -93,7 +93,9 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if (IsOpen && Input.GetKeyDown(KeyCode.Escape))
+            // #2303: the menu verb — Escape or pad B, like the bio lab and the crystal device panel (a pad had only the
+            // Close button).
+            if (IsOpen && InputMap.Down(InputAction.UiCancel))
             {
                 Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
