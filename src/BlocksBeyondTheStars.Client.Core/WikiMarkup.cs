@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -29,6 +30,65 @@ namespace BlocksBeyondTheStars.Client
 
         private static string Rx(string input, string pattern, string replacement)
             => Regex.Replace(input, pattern, replacement, RegexOptions.IgnoreCase, RxTimeout);
+
+        /// <summary>#2259: one piece of an article body — text (still in the HTML subset) or a picture.</summary>
+        public sealed class Segment
+        {
+            public Segment(string text, string image)
+            {
+                Text = text;
+                Image = image;
+            }
+
+            /// <summary>The text of a text piece (empty for a picture).</summary>
+            public string Text { get; }
+
+            /// <summary>The picture's path under the data folder (<c>wiki/img/…png</c>), or empty for text.</summary>
+            public string Image { get; }
+
+            public bool IsImage => Image.Length > 0;
+        }
+
+        // <img src="wiki/img/name.png"> — only plain relative PNG paths under wiki/img/ (no "..", no scheme).
+        private static readonly Regex ImgTag = new Regex(@"<\s*img\b[^>]*\bsrc\s*=\s*""([^""]*)""[^>]*>",
+            RegexOptions.IgnoreCase, RxTimeout);
+
+        private static readonly Regex SafeImagePath = new Regex(@"^wiki/img/[a-z0-9_\-]+\.png$", RegexOptions.None, RxTimeout);
+
+        /// <summary>#2259: cuts an article body at its pictures, in order. A picture whose path is not a plain
+        /// <c>wiki/img/*.png</c> is dropped (the text around it stays). A body without pictures is one text piece.</summary>
+        public static IReadOnlyList<Segment> Segments(string? html)
+        {
+            var result = new List<Segment>();
+            if (string.IsNullOrEmpty(html))
+            {
+                return result;
+            }
+
+            int at = 0;
+            foreach (Match m in ImgTag.Matches(html))
+            {
+                if (m.Index > at)
+                {
+                    result.Add(new Segment(html!.Substring(at, m.Index - at), string.Empty));
+                }
+
+                string src = m.Groups[1].Value.Trim();
+                if (SafeImagePath.IsMatch(src))
+                {
+                    result.Add(new Segment(string.Empty, src));
+                }
+
+                at = m.Index + m.Length;
+            }
+
+            if (at < html!.Length)
+            {
+                result.Add(new Segment(html.Substring(at), string.Empty));
+            }
+
+            return result;
+        }
 
         public static string ToUnityRichText(string? html)
         {

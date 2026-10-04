@@ -198,8 +198,27 @@ namespace BlocksBeyondTheStars.Client
         /// between two chunks survives the split (preferredHeight counts them).</summary>
         private void RenderChapter(Transform content, float textW)
         {
-            string body = BuildChapterText(_chapter);
             float y = Pad;
+            if (_chapter == "guide")
+            {
+                y = RenderGuide(content, textW, y); // #2259: the guide's articles may carry pictures
+            }
+            else
+            {
+                y = AddTextBlock(content, textW, y, BuildChapterText(_chapter));
+            }
+
+            ((RectTransform)content).sizeDelta = new Vector2(0f, Mathf.Max(RegionH, y + Pad));
+        }
+
+        /// <summary>A run of rich text as chunked uGUI Texts (see <see cref="RenderChapter"/>); returns the next y.</summary>
+        private float AddTextBlock(Transform content, float textW, float y, string body)
+        {
+            if (string.IsNullOrEmpty(body))
+            {
+                return y;
+            }
+
             foreach (string chunk in UiTextChunks.Split(body))
             {
                 var t = UiKit.AddText(content, Pad, y, textW, 100f, chunk, 18, UiKit.TextCol, TextAnchor.UpperLeft);
@@ -211,7 +230,78 @@ namespace BlocksBeyondTheStars.Client
                 y += textH;
             }
 
-            ((RectTransform)content).sizeDelta = new Vector2(0f, Mathf.Max(RegionH, y + Pad));
+            return y;
+        }
+
+        /// <summary>#2259: the guide chapter, text and pictures in article order. A picture is a PNG under the data folder
+        /// (<c>wiki/img/…</c>, shipped like every other data file), drawn at most at its own size and never wider than
+        /// the column; one that cannot be read is skipped.</summary>
+        private float RenderGuide(Transform content, float textW, float y)
+        {
+            LoadArticles();
+            var sb = new StringBuilder();
+            foreach (var a in _articles)
+            {
+                sb.Append("<b><size=24>").Append(Loc(a.title)).Append("</size></b>\n\n");
+                foreach (var seg in WikiMarkup.Segments(Loc(a.body)))
+                {
+                    if (!seg.IsImage)
+                    {
+                        sb.Append(WikiMarkup.ToUnityRichText(seg.Text)).Append("\n\n");
+                        continue;
+                    }
+
+                    y = AddTextBlock(content, textW, y, sb.ToString());
+                    sb.Clear();
+                    y = AddWikiImage(content, textW, y, seg.Image);
+                }
+
+                sb.Append('\n');
+            }
+
+            return AddTextBlock(content, textW, y, sb.ToString());
+        }
+
+        private readonly Dictionary<string, Texture2D> _wikiImages = new Dictionary<string, Texture2D>();
+
+        private float AddWikiImage(Transform content, float textW, float y, string src)
+        {
+            if (!_wikiImages.TryGetValue(src, out var tex))
+            {
+                tex = null;
+                try
+                {
+                    string path = Path.Combine(StreamingAssetsCache.DataDir, src.Replace('/', Path.DirectorySeparatorChar));
+                    if (File.Exists(path))
+                    {
+                        tex = new Texture2D(2, 2, TextureFormat.RGBA32, false) { name = "wiki:" + src };
+                        if (!tex.LoadImage(File.ReadAllBytes(path)))
+                        {
+                            Destroy(tex);
+                            tex = null;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[WikiUI] failed to load {src}: {e.Message}");
+                    tex = null;
+                }
+
+                _wikiImages[src] = tex;
+            }
+
+            if (tex == null)
+            {
+                return y;
+            }
+
+            float w = Mathf.Min(textW, tex.width), h = w * tex.height / tex.width;
+            var go = new GameObject("WikiImage", typeof(RectTransform));
+            go.transform.SetParent(content, false);
+            UiKit.Place(go, Pad + (textW - w) * 0.5f, y + 4f, w, h);
+            go.AddComponent<RawImage>().texture = tex;
+            return y + h + 20f;
         }
 
         private string BuildChapterText(string chapter) => chapter switch
@@ -846,6 +936,14 @@ namespace BlocksBeyondTheStars.Client
             if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);
+            }
+
+            foreach (var tex in _wikiImages.Values)
+            {
+                if (tex != null)
+                {
+                    Destroy(tex);
+                }
             }
         }
     }

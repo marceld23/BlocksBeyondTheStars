@@ -59,4 +59,22 @@ public sealed class WikiMarkupTests
     {
         Assert.Equal("A & B < C > D", WikiMarkup.ToUnityRichText("<p>A &amp; B &lt; C &gt; D</p>"));
     }
+
+    /// <summary>#2259: a body is cut at its pictures, in order; only plain wiki/img/*.png paths count, and the rich-text
+    /// conversion drops the tag itself.</summary>
+    [Fact]
+    public void Segments_CutTheBodyAtItsPictures_AndKeepOnlySafePaths()
+    {
+        var parts = WikiMarkup.Segments("<p>A</p><img src=\"wiki/img/circuit_lift.png\"><p>B</p><img src=\"../secret.png\"><p>C</p>");
+
+        Assert.Equal(4, parts.Count);
+        Assert.Equal("<p>A</p>", parts[0].Text);
+        Assert.True(parts[1].IsImage);
+        Assert.Equal("wiki/img/circuit_lift.png", parts[1].Image);
+        Assert.Equal("<p>B</p>", parts[2].Text);
+        Assert.Equal("<p>C</p>", parts[3].Text); // the unsafe picture is gone, the text stays
+
+        Assert.Single(WikiMarkup.Segments("<p>just text</p>"));
+        Assert.Equal("A\n\nB", WikiMarkup.ToUnityRichText("<p>A</p><img src=\"wiki/img/x.png\"><p>B</p>"));
+    }
 }
