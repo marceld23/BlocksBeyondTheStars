@@ -151,7 +151,21 @@ a block of the world grid only: built into a ship it is an ordinary cell without
 the server tells the player once (`NoteShipDecor`: the once-flag `vega:hint:ship_decor` and the line
 `vega.hint.ship_decor`, sent as a system line that muted VEGA hints do not hide; see
 [CRYSTAL_NET.md](CRYSTAL_NET.md) §7 for the same rule on Crystal Net devices); a player's own station takes a working one, because a station is stamped
-into a world grid. Actions:
+into a world grid.
+
+**Aboard: the ship module (#2248).** Aboard a ship the lab is the `bio_lab` **ship module** (`BioItems.LabModule`,
+`data/ship_modules.json`, `requiredBlueprint: bio_lab`) — the way the workshop, refinery and detoxifier work aboard:
+no block, a fitted module. `ShipLabAboard` accepts a player who walks their OWN ship carrying the module — the parked
+cabin (`AboardShip` with a placed ship) or the walkable interior while the ship floats in space (`InShipInterior`) —
+never from the pilot seat (`InSpace`), never on a spacewalk (`InEva`), and never in someone else's ship (a visitor has
+no aboard flag and `ShipOf` is their own ship). The client opens the lab at the ship's **workshop station**: with the
+module fitted, Interact there asks *Workshop (E) / Bio lab* (`VendorChoicePrompt.TryOfferPair`), and
+`BioLabUi.ShipLabAboard` mirrors the server rule. The lab keeps no per-block state, so nothing else changes: washing
+reads the ship's detoxifier module, heat- and cold-sensitive effects read the cabin air (`AmbientTemperature`). A
+`bio_lab` block built into a hull stays decoration; `NoteShipDecor` then says `vega.hint.ship_decor_bio_lab` (the
+same once-flag as every decoration notice), naming the module — and says nothing when the module is fitted.
+
+Actions:
 
 | Action | Needs | Costs | Gives |
 |---|---|---|---|
@@ -314,8 +328,11 @@ All additions are additive under contractless MessagePack; an older client ignor
   `bio_sample`, `mineral_sample`, `seedling`, `bio_sampler`, `prep_injector|gel|bar|capsule|coating`.
 - `data/blocks.json`: `bio_lab` (machine), `flora_hybrid` (flora).
 - `data/recipes.json`: `bio_lab`, `bio_sampler` (workshop).
-- `data/blueprints.json`: `bio_lab` → `bio_synthesis` → `bio_tuning`; `bio_crossing` (needs `bio_lab` and
-  `clone_tank`).
+- `data/blueprints.json`: `bio_lab` is a root node (40 KP, #2248 — the detoxifier and bio refining no longer stand
+  in front of it); `bio_synthesis` (55) and `bio_tuning` (60) both follow it directly, side by side; `bio_crossing`
+  (needs `bio_lab` and `clone_tank`). Each declares its code-gated function in `features` (locale keys
+  `blueprint.feature.*`), which the research screen lists under "Unlocks" (#2250, `BlueprintUnlocks`).
+- `data/ship_modules.json`: the `bio_lab` module (the lab aboard, #2248).
 - Locale keys: `bio.*`, `ui.bio.*`, `srv.bio.*`, `srv.crystal.clone_*` / `cross_*`, `vega.hint.*`.
 
 Adding a material to the lab is a data change (`labTraits`); adding a carrier too (`labCarrier`). A new effect is
@@ -362,8 +379,16 @@ locale keys — and the place in the server where it acts.
   with the same `Shared` code (`Synthesis.Compute`, `ItemModRules.Compute`). A mix preview is shown only for a
   signature the book already holds (or for a plain extract of an analysed species) — anything else reads "reaction
   unknown"; the Change preview is always shown. The panel opens on
-  Interact at a `bio_lab` block within the server's reach. It also holds the static text helpers the inventory, the
-  HUD and the Codex reuse.
+  Interact at a `bio_lab` block within the server's reach, or aboard at the workshop station with the module fitted.
+  It also holds the static text helpers the inventory, the HUD and the Codex reuse.
+- **Guidance (#2249)** — the players could not find "Change" (the update text said *improve*, the blueprint is *Lab
+  Tuning*): the first opening names the three tabs once (`vega.hint.bio_lab_tabs`, client flag `BioLabTabsHintShown`);
+  researching Bio Lab and Lab Tuning each get a server once-hint (`bio_lab_unlocked`, `bio_tuning_unlocked`); the
+  first "material does nothing" gets `bio_no_change`; the Change page labels the coating optional, says "take worn gear
+  off first" when only worn pieces could be changed, and lists the materials the player carries that work on the
+  chosen piece (`WorkingMaterialsLine`, the same `ItemModRules.Compute` as the server). A missing material is
+  `srv.bio.no_material` (it used to read "this sample is not in your case"). The Codex has an article *Improving
+  Items* (`item-tuning`) that ties *improve* / *Change* / *Lab Tuning* together.
 - **HUD** — pooled effect rows inside the vitals panel (label, time, side effect); the shield as a suffix of the
   health row. Rows are relabelled only when what they show changed.
 - **Inventory** — a "samples" category for the sample case; a preparation's card shows its effect and a **Take**

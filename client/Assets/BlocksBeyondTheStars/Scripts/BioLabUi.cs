@@ -111,8 +111,38 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         public static bool RefusedAboard(GameBootstrap game)
             => game != null
+               && !ShipLabAboard(game)
                && (game.InSpace
                    || (!game.InEva && ((game.Aboard && game.ShipPosition.HasValue) || InLandedHull(game, game.PlayerPosition))));
+
+        /// <summary>
+        /// #2248: aboard your own ship that carries the bio lab module, the lab is the module — opened at the workshop
+        /// station (and at any lab block in the hull) in the parked cabin and in the interior while the ship floats in
+        /// space. Never from the pilot seat or a spacewalk. Mirrors the server's <c>ShipLabAboard</c>.
+        /// </summary>
+        public static bool ShipLabAboard(GameBootstrap game)
+        {
+            if (game == null || game.InSpace || game.InEva || !game.Aboard)
+            {
+                return false;
+            }
+
+            var modules = game.ShipCombat?.Modules;
+            if (modules == null)
+            {
+                return false;
+            }
+
+            foreach (var m in modules)
+            {
+                if (m == BlocksBeyondTheStars.Shared.Bio.BioItems.LabModule)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         /// <summary>Whether a position lies in the hull of a ship parked on this world. An open construction frame is
         /// no hull (the server does not count it as a ship interior either).</summary>
@@ -157,6 +187,15 @@ namespace BlocksBeyondTheStars.Client
             _canvas.gameObject.SetActive(true);
             Build();
             Game.SetMenuOwner(this, true);
+
+            // #2249: the first visit names the three tabs once — "Change" (improving a tool or gear) used to go unfound.
+            var settings = Game.Settings;
+            if (settings != null && !settings.BioLabTabsHintShown)
+            {
+                settings.BioLabTabsHintShown = true;
+                settings.Save();
+                VegaPanel.Instance?.SayLocal("vega.hint.bio_lab_tabs");
+            }
         }
 
         private void Update()
@@ -707,10 +746,17 @@ namespace BlocksBeyondTheStars.Client
             float y = TopY;
             y = SlotRow(panel, y, "ui.bio.target", ItemLabel(_chTarget), Pick.Target);
             y = SlotRow(panel, y, "ui.bio.material", _chMatSeed != 0 ? SeedLabel(_chMatSeed, true) : ItemLabel(_chMatItem), Pick.Material);
-            y = SlotRow(panel, y, "ui.bio.coating", ItemLabel(_chCoating), Pick.Coating);
+            // #2249: the coating is optional — every text used to read "a material AND a coating".
+            y = SlotRow(panel, y, "ui.bio.coating", _chCoating.Length > 0 ? ItemName(_chCoating) : L("ui.bio.coating_optional"), Pick.Coating);
             if (!Unlocked(BioItems.TuningBlueprint))
             {
                 y += Para(panel, PaneX, y, PaneW, L("ui.bio.locked.tuning"), 16, UiKit.Warn) + 10f;
+            }
+            else if (_chTarget.Length == 0 && !HasChangeableInBackpack() && WornChangeable())
+            {
+                // #2249: worn gear is not offered (the server changes what lies in the backpack) — say so instead of an
+                // empty list.
+                y += Para(panel, PaneX, y, PaneW, L("ui.bio.worn_gear_hint"), 16, UiKit.Warn) + 10f;
             }
 
             // What the item already carries (a new change overwrites it; washing takes it off).
@@ -729,17 +775,24 @@ namespace BlocksBeyondTheStars.Client
 
             var def = _chTarget.Length > 0 ? Game.Content?.GetItem(_chTarget) : null;
             var material = _chMatSeed != 0 ? MaterialOf(Game, _chMatSeed) : SyntheticMaterial(Game, _chMatItem);
+            var coatingCompound = _chCoating.Length > 0 ? BioItems.CompoundOf(_chCoating) : null;
             bool ready = def != null && material != null;
             if (ready)
             {
                 // The server's call, with the same arguments: what the tool has decides what a material can change.
-                var tool = def.Tool;
-                var coating = _chCoating.Length > 0 ? BioItems.CompoundOf(_chCoating) : null;
-                var mods = ItemModRules.Compute(tool != null, tool is { CooldownSeconds: > 0f }, tool is { Range: > 0f },
-                    tool is { EnergyPerUse: > 0f }, material, coating);
+                var mods = ModsFor(def, material, coatingCompound);
                 bool nothing = mods.IsEmpty || mods.ApplyTo(_chTarget) == _chTarget;
-                Para(panel, PaneX, y, PaneW, nothing ? L("ui.bio.no_change_preview") : ModsText(Game, mods, true, "\n"), 18,
-                    nothing ? UiKit.CyanDim : UiKit.TextCol);
+                y += Para(panel, PaneX, y, PaneW, nothing ? L("ui.bio.no_change_preview") : ModsText(Game, mods, true, "\n"), 18,
+                    nothing ? UiKit.CyanDim : UiKit.TextCol) + 8f;
+                if (nothing)
+                {
+                    // #2249: the dead end gets a way out — what of what you carry would change this piece.
+                    Para(panel, PaneX, y, PaneW, WorkingMaterialsLine(def, coatingCompound), 16, UiKit.Warn);
+                }
+            }
+            else if (def != null)
+            {
+                Para(panel, PaneX, y, PaneW, WorkingMaterialsLine(def, coatingCompound), 16, UiKit.CyanDim);
             }
 
             var change = UiKit.AddButton(panel, PaneX, ActionY, 340f, 48f, L("ui.bio.change"), () => Send(new BioLabIntent
@@ -760,6 +813,68 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddButton(panel, PaneX + 352f, ActionY, 300f, 48f, L("ui.bio.wash"),
                     () => Send(new BioLabIntent { Action = BioLabIntent.WashOff, TargetItem = _chTarget }));
             }
+        }
+
+        /// <summary>The server's change rule for one target, material and (optional) coating.</summary>
+        private static ItemMods ModsFor(ItemDefinition def, MaterialProfile material, Compound coating)
+        {
+            var tool = def.Tool;
+            return ItemModRules.Compute(tool != null, tool is { CooldownSeconds: > 0f }, tool is { Range: > 0f },
+                tool is { EnergyPerUse: > 0f }, material, coating);
+        }
+
+        /// <summary>#2249: "Works on this piece: steel, crystal, …" — the materials the player carries (mineral samples and
+        /// backpack items with lab traits) that would change <paramref name="def"/>, or a line naming the kind of
+        /// material that usually works when none of them does.</summary>
+        private string WorkingMaterialsLine(ItemDefinition def, Compound coating)
+        {
+            var names = new List<string>();
+            foreach (var c in Choices(Pick.Material, out _))
+            {
+                var material = c.Seed != 0 ? MaterialOf(Game, c.Seed) : SyntheticMaterial(Game, c.Item);
+                if (material == null)
+                {
+                    continue;
+                }
+
+                var mods = ModsFor(def, material, coating);
+                if (!mods.IsEmpty && mods.ApplyTo(def.Key) != def.Key)
+                {
+                    names.Add(c.Seed != 0 ? SeedLabel(c.Seed, true) : ItemName(c.Item));
+                    if (names.Count == 4)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return names.Count > 0
+                ? L("ui.bio.materials_that_work").Replace("{list}", string.Join(", ", names))
+                : L("ui.bio.no_material_works");
+        }
+
+        /// <summary>Whether the backpack holds anything the Change tab could take.</summary>
+        private bool HasChangeableInBackpack()
+        {
+            if (Game.Personal == null || Game.Content == null) return false;
+            foreach (var s in Game.Personal)
+            {
+                if (s.Count == 1 && !string.IsNullOrEmpty(s.Item) && Changeable(Game.Content.GetItem(s.Item))) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Whether a worn piece could be changed once it is taken off.</summary>
+        private bool WornChangeable()
+        {
+            if (Game.Content == null) return false;
+            foreach (var key in Game.WornKeys())
+            {
+                if (Changeable(Game.Content.GetItem(ItemKey.Base(key)))) return true;
+            }
+
+            return false;
         }
 
         /// <summary>What the lab can change — the server's rule (a drill, a weapon, or a worn piece that protects),

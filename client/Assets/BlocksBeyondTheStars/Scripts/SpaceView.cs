@@ -1776,6 +1776,7 @@ namespace BlocksBeyondTheStars.Client
             // target ahead (mines asteroids + fights hostiles); the tractor beam sweeps in nearby salvage.
             RebuildSystems();
             MaybeSayAnomalyHint(); // #2238: an unscanned anomaly nearby — VEGA points at the scanner
+            MaybeSayScannerHints(Time.deltaTime); // #2247: "every ship has a scanner" on an early flight, whatever is selected
             for (int n = 0; n < _systems.Count && n < 9; n++)
             {
                 if (Input.GetKeyDown(KeyCode.Alpha1 + n))

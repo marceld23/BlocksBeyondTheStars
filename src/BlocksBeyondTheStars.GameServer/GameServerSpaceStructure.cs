@@ -673,11 +673,20 @@ public sealed partial class GameServer
 
         // The once-flag of a VEGA hint, but sent as a system line (kind 3): a player who switched VEGA's hints off
         // still has to learn why the block does nothing — a muted hint would burn the flag unseen.
+        // #2248: aboard, the lab is the ship's bio lab MODULE. With the module fitted the lab already works in the
+        // cabin (at the workshop station), so there is nothing to explain; without it the line names the module instead
+        // of only saying "decoration".
+        bool lab = def.Key == BioItems.Lab;
+        if (lab && ShipOf(session).HasModule(BioItems.LabModule))
+        {
+            return;
+        }
+
         var p = session.State;
         if (p.Milestones.Add(ShipDecorMilestone))
         {
             _repo.SavePlayer(p);
-            SendVegaLine(session, "vega.hint.ship_decor", 3);
+            SendVegaLine(session, lab ? "vega.hint.ship_decor_bio_lab" : "vega.hint.ship_decor", 3);
         }
     }
 

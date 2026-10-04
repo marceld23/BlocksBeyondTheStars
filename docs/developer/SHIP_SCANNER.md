@@ -59,11 +59,21 @@ only wrecks/anomalies were scannable and are completable again. `relay_survey_1`
 | File | What |
 |---|---|
 | `SpaceView.cs` | the hotbar always ends with the scanner (`Kind "scanner"`, icon from `CurrentScanner().ModuleKey`); the old fallback laser is gone |
-| `SpaceView.Scanner.cs` | targeting (entities + landable bodies in range; 12° auto-aim cone, 4° when several compete), hold progress, the lock HUD (corner brackets, 8-bar ring, name + distance), `ChargeFx`, `CompleteScan`, VEGA hints |
-| `PlanetOverviewCard.cs` | the right-side card: one row per topic with an `ov_*` icon and a level colour, auto-fades after 18 s |
-| `HudUi.cs` | space readouts show the sentence and the traits; the panel sits 74 px higher in flight so the hotbar stays free |
+| `SpaceView.Scanner.cs` | targeting (entities + landable bodies in range; 12° auto-aim cone with auto-aim on, 4° off), lock stickiness while charging (#2247), hold progress, the lock HUD (corner brackets, an empty ring track from the lock on, the filling ring, name + distance + the "Hold {fire}: scan" line), `ChargeFx`, `CompleteScan`, the early-release line and VEGA hints |
+| `PlanetOverviewCard.cs` | the right-side card for EVERY ship readout (#2247): a planet's rows with `ov_*` icons and level colours, or an object's readout (sentence, traits, threat, knowledge); a refusal shows as a short notice; auto-fades after 18 s (6 s for a notice) |
+| `ScanReadoutText.cs` | the readout's words (title + description from the structured payload) — shared by the card and the hand scanner's HUD panel |
+| `HudUi.cs` | the hand scanner's panel (bottom left) — hidden in the space view and never fed a ship readout (`Game.LastScanFromShip`) |
 | `CraftingTechShipUI.cs` | the planet-scan button for every ship; the report reads from `Game.PlanetOverviews` |
-| `GameBootstrap.cs` | `PlanetOverviews` cache, `OpenOverviewOnNextPlanetScan`, `SpaceSystemPingUntil`, the knowledge toast |
+| `GameBootstrap.cs` | `PlanetOverviews` cache, `OpenOverviewOnNextPlanetScan`, routing a piloting `ScanResult` to the card, `SpaceSystemPingUntil`, the knowledge toast, the first-card VEGA line |
+
+**Making the hold discoverable (#2247).** The first playtest scanned and "saw no result": the trigger was tapped, not
+held, so nothing reached the server — and the bottom-left HUD panel kept showing the last *surface* scan (its
+"scanner in hand" test read the frozen on-foot hotbar) under VEGA's objective chip. Since then: the lock shows an empty
+ring and *Hold LMB: scan* (pad RB, touch FIRE) until the ring runs; letting go early shows *Keep holding until the ring
+is full* for 2.5 s and VEGA says it once (`vega.hint.ship_scan_hold`, client flag `ShipScanHoldHintShown`); the "every
+ship has a scanner" tip runs on the first flight whatever system is selected; the first planet card gets
+`vega.hint.planet_card` once; and the on-foot controls line is hidden in the space view (it ran under the flight
+overlay's own line).
 
 **Tier 3 system sweep.** With the Quantum scanner and no target under the nose, holding fire charges a ping
 (8 s cooldown): a wide pulse, and for 60 s the radar pins every scannable object of the system at its rim

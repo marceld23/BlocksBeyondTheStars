@@ -593,6 +593,16 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2242: whether VEGA has explained the first wormhole the player saw (a tear in space, two ways).</summary>
         public bool WormholeHintShown;
 
+        /// <summary>#2247: whether VEGA has said, after a ship scan let go too early, that the trigger must be HELD until
+        /// the ring is full.</summary>
+        public bool ShipScanHoldHintShown;
+
+        /// <summary>#2247: whether VEGA has explained the first planet overview card (the colours, where to find it again).</summary>
+        public bool PlanetCardHintShown;
+
+        /// <summary>#2249: whether VEGA has introduced the bio lab's three tabs (first time the lab opened).</summary>
+        public bool BioLabTabsHintShown;
+
         /// <summary>Show floating health bars over enemies and creatures in combat (#692) — planet surface
         /// and space flight alike. Purely cosmetic (the values are replicated either way); off hides them.</summary>
         public bool ShowEnemyHealthBars = true;

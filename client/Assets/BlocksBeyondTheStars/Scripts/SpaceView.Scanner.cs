@@ -40,6 +40,7 @@ namespace BlocksBeyondTheStars.Client
         private float _scanLockAge;
         private bool _scanCharging;
         private float _scannerHintTimer = 6f;
+        private float _scanLetGoTimer; // #2247: seconds the "keep holding" line stays up after an early release
         private readonly HashSet<string> _scannedThisFlight = new HashSet<string>();
         private readonly HashSet<string> _anomalyHinted = new HashSet<string>();
 
@@ -48,6 +49,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly Image[] _scanBars = new Image[8];
         private Text _scanLabel;
         private Image _scanRing;
+        private Image _scanRingTrack; // #2247: the empty ring, shown from the lock on — "something here wants filling"
         private static Sprite _ringSprite;
 
         /// <summary>Within this, the autopilot / waypoint arrives at a life pod, an anomaly or a wormhole.</summary>
@@ -79,9 +81,11 @@ namespace BlocksBeyondTheStars.Client
             var scanner = CurrentScanner();
             var look = FxLook.ForModule(Game.Content, scanner.ModuleKey);
             _scanCooldown -= dt;
-            MaybeSayScannerHints(dt);
+            _scanLetGoTimer -= dt;
 
-            var target = BestScanTarget(scanner);
+            // #2247: a scan in progress keeps its target while the nose stays on it — an asteroid drifting through the
+            // reticle used to snatch the lock and start the ring over.
+            var target = BestScanTarget(scanner, _scanCharging ? _scanTargetKey : null);
             bool canPing = scanner.Tier >= 3 && target.Key == null; // #2240: the Quantum scanner reads the whole system
             string key = target.Key ?? (canPing ? "ping" : null);
             _fireTargetId = target.IsBody ? null : target.Id;
@@ -127,12 +131,40 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (!held)
             {
+                if (_scanCharging && _scanProgress > 0.05f && _scanProgress < 1f)
+                {
+                    OnScanLetGoEarly(); // #2247: the ring was not full — say why nothing happened
+                }
+
                 _scanProgress = 0f;
                 _scanCharging = false;
             }
 
             DrawScanLock(target, look, canPing);
         }
+
+        /// <summary>#2247: the trigger came up before the ring was full. The scan never reached the server, so nothing
+        /// appears — the one thing a player could not tell from the screen. The lock label says "keep holding" for a
+        /// moment every time, and VEGA explains it once.</summary>
+        private void OnScanLetGoEarly()
+        {
+            _scanLetGoTimer = 2.5f;
+            var settings = Game.Settings;
+            if (settings != null && !settings.ShipScanHoldHintShown)
+            {
+                settings.ShipScanHoldHintShown = true;
+                settings.Save();
+                VegaPanel.Instance?.SayLocal("vega.hint.ship_scan_hold");
+            }
+        }
+
+        /// <summary>The fire control's name on the active device — what the "hold … to scan" line asks for.</summary>
+        private string FireGlyph() => InputMap.ActiveDevice switch
+        {
+            InputDeviceKind.Gamepad => InputMap.PadGlyph(KeyCode.JoystickButton5) ?? "RB",
+            InputDeviceKind.Touch => Loc("ui.touch.fire", "FIRE"),
+            _ => Loc("ui.key.mouse_left", "LMB"),
+        };
 
         /// <summary>Cancels a scan in progress and hides the lock-on HUD (another system selected, view closed).</summary>
         private void StopScanner()
@@ -148,14 +180,20 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The target ahead: a scannable space object within the scanner's range, else a body of the system the
         /// nose points at (any distance — planets are read from afar). A target whose apparent size covers the aim line
-        /// counts too, so a big planet is easy to lock and a small rock needs the nose on it.</summary>
-        private ScanTarget BestScanTarget(ShipScannerSpec scanner)
+        /// counts too, so a big planet is easy to lock and a small rock needs the nose on it. <paramref name="keep"/> is
+        /// the target of a scan in progress (#2247): it stays locked while it is still in reach and within a wider cone,
+        /// whatever else drifts into the aim line meanwhile.</summary>
+        private ScanTarget BestScanTarget(ShipScannerSpec scanner, string keep)
         {
             var best = new ScanTarget();
             Vector3 shipPos = _ship.transform.localPosition;
             Vector3 fwd = _ship.transform.localRotation * Vector3.forward;
             float cone = Game.AutoAimOn ? 12f : 4f; // degrees of slack around the aim line
             float bestScore = float.MaxValue;
+            if (keep != null && TryKeepScanTarget(scanner, keep, shipPos, fwd, cone * 1.5f + 4f, out var kept))
+            {
+                return kept;
+            }
 
             var space = Game.Space;
             if (space != null)
@@ -241,6 +279,87 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return best;
+        }
+
+        /// <summary>#2247: the locked target of a scan in progress, if it still qualifies under <paramref name="cone"/>
+        /// (wider than the pick cone, so a steady hand never loses it).</summary>
+        private bool TryKeepScanTarget(ShipScannerSpec scanner, string key, Vector3 shipPos, Vector3 fwd, float cone, out ScanTarget kept)
+        {
+            kept = default;
+            if (key.StartsWith("e:", System.StringComparison.Ordinal))
+            {
+                string id = key.Substring(2);
+                var space = Game.Space;
+                if (space == null)
+                {
+                    return false;
+                }
+
+                foreach (var e in space.Entities)
+                {
+                    if (e.Id != id || !IsScannableKind(e.Kind))
+                    {
+                        continue;
+                    }
+
+                    var pos = new Vector3(e.X, e.Y, e.Z);
+                    Vector3 to = pos - shipPos;
+                    float dist = to.magnitude;
+                    float radius = TargetRadius(e);
+                    if (dist > scanner.Range || dist < 0.01f
+                        || Vector3.Angle(fwd, to) > cone + Mathf.Atan2(radius, dist) * Mathf.Rad2Deg)
+                    {
+                        return false;
+                    }
+
+                    kept = new ScanTarget
+                    {
+                        Key = key,
+                        Id = e.Id,
+                        Kind = e.Kind,
+                        Name = TargetName(e),
+                        Local = pos,
+                        Radius = radius,
+                        Hostile = e.Hostile,
+                    };
+                    return true;
+                }
+
+                return false;
+            }
+
+            if (key.StartsWith("b:", System.StringComparison.Ordinal))
+            {
+                string id = key.Substring(2);
+                foreach (var body in _landables)
+                {
+                    if ((body.Id ?? string.Empty) != id)
+                    {
+                        continue;
+                    }
+
+                    Vector3 to = body.Pos - shipPos;
+                    float dist = to.magnitude;
+                    if (dist < 0.01f || Vector3.Angle(fwd, to) > cone + Mathf.Atan2(body.Radius, dist) * Mathf.Rad2Deg)
+                    {
+                        return false;
+                    }
+
+                    kept = new ScanTarget
+                    {
+                        Key = key,
+                        Id = id,
+                        IsBody = true,
+                        Kind = "Body",
+                        Name = body.Name,
+                        Local = body.Pos,
+                        Radius = body.Radius,
+                    };
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>An entity's rough size in the flight frame (brackets, effect box, apparent size).</summary>
@@ -446,6 +565,12 @@ namespace BlocksBeyondTheStars.Client
                 _scanBars[i] = img;
             }
 
+            var trackGo = new GameObject("RingTrack", typeof(RectTransform));
+            trackGo.transform.SetParent(_scanLock, false);
+            _scanRingTrack = trackGo.AddComponent<Image>();
+            _scanRingTrack.sprite = RingSprite();
+            _scanRingTrack.raycastTarget = false;
+
             var ringGo = new GameObject("Ring", typeof(RectTransform));
             ringGo.transform.SetParent(_scanLock, false);
             _scanRing = ringGo.AddComponent<Image>();
@@ -546,16 +671,34 @@ namespace BlocksBeyondTheStars.Client
             float ringSize = target.Key != null ? Mathf.Min(h * 0.9f, 70f) : 90f;
             _scanRing.rectTransform.sizeDelta = new Vector2(ringSize, ringSize);
             _scanRing.rectTransform.anchoredPosition = Vector2.zero;
+            _scanRingTrack.color = new Color(col.r, col.g, col.b, 0.28f);
+            _scanRingTrack.rectTransform.sizeDelta = new Vector2(ringSize, ringSize);
+            _scanRingTrack.rectTransform.anchoredPosition = Vector2.zero;
+
+            // #2247: the lock says how to scan — "Hold LMB: scan" — until the ring runs, and "keep holding" for a moment
+            // after an early release. Nothing on screen used to say the trigger must be HELD.
+            string howTo = _scanLetGoTimer > 0f
+                ? Loc("ui.space.scan_keep_holding", "Keep holding until the ring is full")
+                : _scanCharging ? string.Empty
+                : string.Format(Loc("ui.space.scan_hold_hint", "Hold {0}: scan"), FireGlyph());
 
             string text;
             if (target.Key == null)
             {
                 text = Loc("ui.space.scan_ping_hint", "Hold: scan the whole system");
+                if (_scanLetGoTimer > 0f)
+                {
+                    text += "\n" + howTo;
+                }
             }
             else
             {
                 float dist = Vector3.Distance(_ship.transform.localPosition, target.Local);
                 text = target.Name + "\n" + Mathf.RoundToInt(dist) + " m" + (IsScanned(target) ? "  ✓ " + Loc("ui.space.scanned", "scanned") : string.Empty);
+                if (howTo.Length > 0)
+                {
+                    text += "\n" + howTo;
+                }
             }
 
             _scanLabel.text = text;

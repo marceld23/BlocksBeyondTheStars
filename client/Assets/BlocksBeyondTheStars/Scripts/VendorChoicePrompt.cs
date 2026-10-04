@@ -11,6 +11,9 @@ namespace BlocksBeyondTheStars.Client
     /// dialogues (and everything a profession says) were unreachable: talking only fired when no station was in reach,
     /// and a vendor is a station ("market") by definition. E / Enter picks Trade — the old behaviour stays one key
     /// press away — the Talk button opens the NPC's dialogue. Market blocks you look at still open the market at once.
+    /// <para>#2248: the same two-button question serves the ship's workshop once a bio lab module is fitted —
+    /// "Workshop (E)" keeps crafting one key press away, the second button opens the bio lab
+    /// (<see cref="TryOfferPair"/>).</para>
     /// </summary>
     public sealed class VendorChoicePrompt : MonoBehaviour
     {
@@ -27,10 +30,12 @@ namespace BlocksBeyondTheStars.Client
         private Canvas _canvas;
         private GameObject _overlay;
         private UnityEngine.UI.Text _title;
+        private UnityEngine.UI.Text _firstLabel;
+        private UnityEngine.UI.Text _secondLabel;
         private bool _shown;
         private float _openedAt;
-        private Action _onTrade;
-        private Action _onTalk;
+        private Action _onFirst;
+        private Action _onSecond;
 
         private void Awake() => Instance = this;
 
@@ -45,16 +50,32 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Shows the question for one vendor. Returns false (and shows nothing) when it cannot, so the caller
         /// falls back to opening the market directly.</summary>
         public bool TryOffer(string npcLabel, Action onTrade, Action onTalk)
+            => TryOfferPair(string.IsNullOrEmpty(npcLabel) ? Tr("ui.vendor.choice_title") : npcLabel,
+                Tr("ui.vendor.trade_choice"), onTrade, Tr("ui.vendor.talk"), onTalk);
+
+        /// <summary>Shows a two-way question: E / Enter picks the first answer, the second is a button. Returns false
+        /// (and shows nothing) when it cannot, so the caller falls back to the first answer directly.</summary>
+        public bool TryOfferPair(string title, string firstLabel, Action onFirst, string secondLabel, Action onSecond)
         {
-            if (Game == null || _shown || onTrade == null || onTalk == null)
+            if (Game == null || _shown || onFirst == null || onSecond == null)
             {
                 return false;
             }
 
             EnsureUi();
-            _onTrade = onTrade;
-            _onTalk = onTalk;
-            _title.text = string.IsNullOrEmpty(npcLabel) ? Tr("ui.vendor.choice_title") : npcLabel;
+            _onFirst = onFirst;
+            _onSecond = onSecond;
+            _title.text = title;
+            if (_firstLabel != null)
+            {
+                _firstLabel.text = firstLabel;
+            }
+
+            if (_secondLabel != null)
+            {
+                _secondLabel.text = secondLabel;
+            }
+
             _overlay.SetActive(true);
             _shown = true;
             _openedAt = Time.unscaledTime;
@@ -77,20 +98,20 @@ namespace BlocksBeyondTheStars.Client
 
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || InputMap.Down(InputAction.Interact))
             {
-                Trade();
+                First();
             }
         }
 
-        private void Trade()
+        private void First()
         {
-            var act = _onTrade;
+            var act = _onFirst;
             Close();
             act?.Invoke();
         }
 
-        private void Talk()
+        private void Second()
         {
-            var act = _onTalk;
+            var act = _onSecond;
             Close();
             act?.Invoke();
         }
@@ -99,8 +120,8 @@ namespace BlocksBeyondTheStars.Client
         {
             _overlay?.SetActive(false);
             _shown = false;
-            _onTrade = null;
-            _onTalk = null;
+            _onFirst = null;
+            _onSecond = null;
             Game?.SetCursorOwner(this, false);
         }
 
@@ -120,8 +141,8 @@ namespace BlocksBeyondTheStars.Client
             _overlay = overlay;
             _title = UiKit.AddText(panel, 20, 34, w - 40f, 60, string.Empty, 30, new Color(0.96f, 0.97f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold);
             _title.supportRichText = false; // NPC names are generated text
-            UiKit.AddButton(panel, 60, 140, 240, 64, Tr("ui.vendor.trade_choice"), Trade, "btn_join");
-            UiKit.AddButton(panel, 340, 140, 240, 64, Tr("ui.vendor.talk"), Talk, "btn_feedback");
+            _firstLabel = UiKit.AddButton(panel, 60, 140, 240, 64, string.Empty, First, "btn_join").GetComponentInChildren<UnityEngine.UI.Text>();
+            _secondLabel = UiKit.AddButton(panel, 340, 140, 240, 64, string.Empty, Second, "btn_feedback").GetComponentInChildren<UnityEngine.UI.Text>();
             _overlay.SetActive(false);
         }
 

@@ -506,26 +506,31 @@
     "category": "ShipExpansion", "prerequisites": [ "detoxifier" ], "knowledgeCost": 50,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "metal_panel", "count": 4 }, { "item": "carbon", "count": 6 } ]
   },
-  // #2212 (the bio lab): the lab itself (analyse + a plain extract), then its functions one by one — the full mixer,
-  // changing tools and gear, and crossing in the clone tank.
+  // #2212 (the bio lab): the lab itself (analyse + a plain extract), then its functions — the full mixer and changing
+  // tools and gear side by side right after it (#2248: the lab is a root node, so experimenting starts early; detoxifier
+  // and bio refining keep their own content but no longer stand in front of it), and crossing in the clone tank.
   {
     "key": "bio_lab", "nameKey": "blueprint.bio_lab.name", "descriptionKey": "blueprint.bio_lab.desc",
-    "category": "Production", "prerequisites": [ "bio_refining" ], "knowledgeCost": 60,
-    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "glass", "count": 4 }, { "item": "plant_fiber", "count": 8 } ]
+    "category": "Production", "prerequisites": [], "knowledgeCost": 40,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "glass", "count": 4 }, { "item": "plant_fiber", "count": 8 } ],
+    "features": [ "blueprint.feature.bio_lab_analyse" ]
   },
   {
     "key": "bio_synthesis", "nameKey": "blueprint.bio_synthesis.name", "descriptionKey": "blueprint.bio_synthesis.desc",
-    "category": "Production", "prerequisites": [ "bio_lab" ], "knowledgeCost": 75,
-    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "crystal", "count": 4 }, { "item": "salt", "count": 4 } ]
+    "category": "Production", "prerequisites": [ "bio_lab" ], "knowledgeCost": 55,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "crystal", "count": 4 }, { "item": "salt", "count": 4 } ],
+    "features": [ "blueprint.feature.bio_synthesis" ]
   },
   {
     "key": "bio_tuning", "nameKey": "blueprint.bio_tuning.name", "descriptionKey": "blueprint.bio_tuning.desc",
-    "category": "Production", "prerequisites": [ "bio_synthesis" ], "knowledgeCost": 90,
-    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "lubricant", "count": 2 }, { "item": "steel", "count": 4 } ]
+    "category": "Production", "prerequisites": [ "bio_lab" ], "knowledgeCost": 60,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "steel", "count": 4 }, { "item": "crystal", "count": 2 } ],
+    "features": [ "blueprint.feature.bio_tuning" ]
   },
   {
     "key": "bio_crossing", "nameKey": "blueprint.bio_crossing.name", "descriptionKey": "blueprint.bio_crossing.desc",
     "category": "Production", "prerequisites": [ "bio_lab", "clone_tank" ], "knowledgeCost": 110,
-    "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "matter_dust", "count": 6 }, { "item": "circuit_board", "count": 2 } ]
+    "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "matter_dust", "count": 6 }, { "item": "circuit_board", "count": 2 } ],
+    "features": [ "blueprint.feature.bio_crossing" ]
   }
 ]

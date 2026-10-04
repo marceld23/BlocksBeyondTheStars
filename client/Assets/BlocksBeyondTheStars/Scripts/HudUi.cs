@@ -1136,7 +1136,9 @@ namespace BlocksBeyondTheStars.Client
             // #1516: compose the hint in a local and assign ONCE — assigning the base line first and then
             // appending with `+=` dirtied the Text (mesh regeneration) on every refresh even when the final
             // string was identical; the setter only early-outs on an equal string.
-            string hint = InputMap.ActiveDevice switch
+            // #2247: the space view prints its own controls line in the same spot (flight or EVA) — the on-foot one
+            // ran underneath it.
+            string hint = Game.SpaceViewActive ? string.Empty : InputMap.ActiveDevice switch
             {
                 // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
                 InputDeviceKind.Touch => string.Empty,
@@ -2609,7 +2611,11 @@ namespace BlocksBeyondTheStars.Client
             var scan = Game.LastScan;
             // Pinned while the scanner is still in hand (you're actively surveying — the readout is the
             // point), otherwise it lingers ScanHoldSeconds after the scan and fades out (#482).
-            bool show = scan != null && (HoldingScanner() || Time.time - Game.LastScanAt <= ScanHoldSeconds);
+            // #2247: this panel is the HAND scanner's. In the space view the on-foot hotbar is frozen — its
+            // scanner slot used to pin the last surface scan over the whole flight — and the ship scanner's
+            // readouts open the card on the right (PlanetOverviewCard), so a ship readout never lands here.
+            bool show = scan != null && !Game.SpaceViewActive && !Game.LastScanFromShip
+                        && (HoldingScanner() || Time.time - Game.LastScanAt <= ScanHoldSeconds);
             if (_scanPanel.activeSelf != show)
             {
                 _scanPanel.SetActive(show);
@@ -2617,8 +2623,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             if (!show) return;
-            _scanSubject.text = $"{loc.Get("ui.scan.title").ToUpperInvariant()}: {ScanTitleName(loc, scan)}";
-            _scanInfo.text = ScanInfoText(loc, scan) + ScanToolLine(loc, scan) + ScanSentryLine(loc, scan);
+            _scanSubject.text = $"{loc.Get("ui.scan.title").ToUpperInvariant()}: {ScanReadoutText.Title(Game.Content, loc, scan)}";
+            _scanInfo.text = ScanReadoutText.Info(Game.Content, loc, scan) + ScanToolLine(loc, scan) + ScanSentryLine(loc, scan);
             // The threat WORD comes from a locale key now; `scan.Threat` is the legacy English fallback (#484).
             string threat = !string.IsNullOrEmpty(scan.ThreatKey) ? loc.Get(scan.ThreatKey) : scan.Threat;
             _scanThreat.gameObject.SetActive(!string.IsNullOrEmpty(threat) && threat != "—");
@@ -2677,73 +2683,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Keep the bottom edge where the design put it: grow up, never down into the hotbar.
             float panelH = Mathf.Max(ScanPanelH, y);
-            // #2238: in flight the panel sits above the flight instruments (bottom-left, on the overlay canvas above this one).
-            float lift = Game != null && Game.SpaceViewActive ? 74f : 0f;
-            UiKit.Place(_scanPanel, 10f, ScanPanelY + ScanPanelH - panelH - lift, ScanPanelW, panelH);
-        }
-
-        /// <summary>Builds the scan panel's description line from the STRUCTURED payload (#484): a creature's
-        /// habitat/activity/temperament traits, or a yield/resource list with localized item names, or a
-        /// single remark key. Falls back to the legacy English <see cref="ScanResult.Info"/> only when the
-        /// server is older than the structured fields.</summary>
-        private string ScanInfoText(BlocksBeyondTheStars.Shared.Localization.Localizer loc, BlocksBeyondTheStars.Networking.Messages.ScanResult scan)
-        {
-            // #2238: the ship scanner's space readouts carry a sentence AND a few traits — show both.
-            if (IsSpaceReadout(scan.Kind) && !string.IsNullOrEmpty(scan.InfoKey))
-            {
-                string info = loc.Get(scan.InfoKey);
-                if (scan.TraitKeys != null && scan.TraitKeys.Length > 0)
-                {
-                    var traitParts = new string[scan.TraitKeys.Length];
-                    for (int i = 0; i < traitParts.Length; i++)
-                    {
-                        traitParts[i] = loc.Get(scan.TraitKeys[i]);
-                    }
-
-                    info += "\n" + string.Join("  ·  ", traitParts);
-                }
-
-                return info;
-            }
-
-            var traits = scan.TraitKeys;
-            if (traits != null && traits.Length > 0)
-            {
-                var parts = new string[traits.Length];
-                for (int i = 0; i < traits.Length; i++)
-                {
-                    // "key|item" (#2082): a trait that names an item — "Loves: {item}" — in this client's language.
-                    int bar = traits[i].IndexOf('|');
-                    parts[i] = bar > 0
-                        ? loc.Get(traits[i].Substring(0, bar)).Replace("{item}", ItemOrBlockName(loc, traits[i].Substring(bar + 1)))
-                        : loc.Get(traits[i]);
-                }
-
-                return string.Join("  ·  ", parts);
-            }
-
-            var drops = scan.Drops;
-            if (drops != null && drops.Length > 0)
-            {
-                var parts = new string[drops.Length];
-                for (int i = 0; i < drops.Length; i++)
-                {
-                    // Count 0 = a resource TYPE with no quantity (asteroid scan) — no "×n" suffix then.
-                    string name = ItemOrBlockName(loc, drops[i].Item);
-                    parts[i] = drops[i].Count > 0 ? $"{name} ×{drops[i].Count}" : name;
-                }
-
-                // #2238: a derelict's salvage reads "Contents" — "Yield" is for what a creature or a plant gives.
-                string label = loc.Get(scan.Kind == "asteroid" ? "ui.scan.resources" : scan.Kind == "wreck" ? "ui.scan.contents" : "ui.scan.yield");
-                return $"{label}: {string.Join(", ", parts)}";
-            }
-
-            if (!string.IsNullOrEmpty(scan.InfoKey))
-            {
-                return loc.Get(scan.InfoKey);
-            }
-
-            return scan.Info; // pre-#484 server
+            UiKit.Place(_scanPanel, 10f, ScanPanelY + ScanPanelH - panelH, ScanPanelW, panelH);
         }
 
         /// <summary>
@@ -2785,67 +2725,6 @@ namespace BlocksBeyondTheStars.Client
                     .Replace("{range}", BlocksBeyondTheStars.Shared.World.WorldConstants.SentryRange.ToString())
                     .Replace("{zone}", BlocksBeyondTheStars.Shared.World.WorldConstants.BaseZoneRadius.ToString())
                 : string.Empty;
-
-        /// <summary>Localized name for an item key, falling back to the block table (drop lists mix both).</summary>
-        private string ItemOrBlockName(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string key)
-        {
-            if (Game.Content?.GetItem(key) is { } item)
-            {
-                return loc.Get(item.NameKey);
-            }
-
-            return Game.Content?.GetBlock(key) is { } block ? loc.Get(block.NameKey) : key;
-        }
-
-        /// <summary>Resolves a scan subject key to a readable, localized name (block / item / creature)
-        /// so the readout says what it is ("Stone") rather than the raw key ("stone").</summary>
-        /// <summary>#2238: the kinds the ship scanner reads in space whose readout is a sentence plus traits.</summary>
-        private static bool IsSpaceReadout(string kind) => kind is "pod" or "station" or "machine" or "bandit" or "wormhole" or "anomaly";
-
-        /// <summary>The scan title: the subject's name — a wormhole reads "Wormhole → {its twin system}" (#2242), a
-        /// Guardian machine its kind (#2238), everything else as before.</summary>
-        private string ScanTitleName(BlocksBeyondTheStars.Shared.Localization.Localizer loc, BlocksBeyondTheStars.Networking.Messages.ScanResult scan)
-        {
-            if (scan.Kind == "wormhole")
-            {
-                return loc.Get("ui.scan.subject.wormhole") + " → " + (string.IsNullOrEmpty(scan.Subject) ? "???" : scan.Subject);
-            }
-
-            return ScanSubjectName(loc, string.IsNullOrEmpty(scan.Subject) ? scan.SubjectKey : scan.Subject);
-        }
-
-        private string ScanSubjectName(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string key)
-        {
-            if (string.IsNullOrEmpty(key))
-            {
-                return key;
-            }
-
-            if (Game.Content?.GetBlock(key) is { } b)
-            {
-                return loc.Get(b.NameKey);
-            }
-
-            if (Game.Content?.GetItem(key) is { } it)
-            {
-                return loc.Get(it.NameKey);
-            }
-
-            // Not a block/item key: the server already resolved creatures/flora/trees to their coined,
-            // language-neutral display name (CreatureSpecies.Name etc.) and asteroids to a plain label, so
-            // the subject IS the display name — show it as-is. (A real per-species localization key is
-            // honoured if one exists; Localizer.Get returns "[key]" for a missing key, so we must probe
-            // with Has() rather than inspect the returned string.)
-            string creatureKey = $"creature.{key}.name";
-            if (loc.Has(creatureKey))
-            {
-                return loc.Get(creatureKey);
-            }
-
-            // Generic scan subjects that are neither content nor a species — currently just "asteroid" (#484).
-            string subjectKey = $"ui.scan.subject.{key}";
-            return loc.Has(subjectKey) ? loc.Get(subjectKey) : key;
-        }
 
         private void RefreshWreck(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {

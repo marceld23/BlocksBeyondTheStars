@@ -43,9 +43,21 @@ public sealed partial class GameServer
     /// to let exactly that spot decide: a lab beside the launch site answered from orbit, its wash reading the
     /// ship's detoxifier module.
     /// </para>
+    /// <para>
+    /// #2248: aboard your OWN ship the lab is the ship's <see cref="BioItems.LabModule"/> — the module, not a block,
+    /// exactly like the workshop, refinery and detoxifier aboard. It works in the parked ship's cabin and in the
+    /// walkable interior while the ship floats in space (never from the pilot seat or a spacewalk). A visitor has no
+    /// aboard flag and walks no interior of another player's ship, so only the owner's module counts.
+    /// </para>
     /// </summary>
-    private bool AtBioLab(PlayerState p)
+    private bool AtBioLab(PlayerSession session)
     {
+        var p = session.State;
+        if (ShipLabAboard(session))
+        {
+            return true;
+        }
+
         if (InSpace(p.PlayerId))
         {
             return false;
@@ -54,6 +66,19 @@ public sealed partial class GameServer
         bool cabin = (p.AboardShip && _worlds.Active.LandedFor(p.PlayerId).Placed)
             || ShipInteriorContains(p.Position);
         return !(cabin && !p.InEva) && NearStationBlock(p, BioItems.Lab);
+    }
+
+    /// <summary>#2248: the player walks their own ship — parked cabin or the interior in space — and it carries the bio
+    /// lab module.</summary>
+    private bool ShipLabAboard(PlayerSession session)
+    {
+        var p = session.State;
+        if (p.InEva || InSpace(p.PlayerId) || !ShipOf(session).HasModule(BioItems.LabModule))
+        {
+            return false;
+        }
+
+        return InShipInterior(p.PlayerId) || (p.AboardShip && _worlds.Active.LandedFor(p.PlayerId).Placed);
     }
 
     /// <summary>A lab function a player may use: always in a creative world, otherwise once its blueprint is researched.</summary>
@@ -83,7 +108,7 @@ public sealed partial class GameServer
     private void HandleBioLab(PlayerSession session, BioLabIntent intent)
     {
         var p = session.State;
-        if (!AtBioLab(p))
+        if (!AtBioLab(session))
         {
             LabResult(session, intent.Action, false, "srv.bio.need_lab");
             return;
@@ -335,7 +360,8 @@ public sealed partial class GameServer
         if (!TryLabMaterial(p, pool, free, intent, out var materialProfile, out var material, out string materialItem)
             || materialProfile is null)
         {
-            LabResult(session, intent.Action, false, "srv.bio.no_sample");
+            // #2249: the material slot — a mineral sample OR an ingot, steel, a gem — not "this sample is not in your case".
+            LabResult(session, intent.Action, false, "srv.bio.no_material");
             return;
         }
 
@@ -357,6 +383,7 @@ public sealed partial class GameServer
         if (mods.IsEmpty || changed == intent.TargetItem)
         {
             LabResult(session, intent.Action, false, "srv.bio.no_change");
+            ShipAiHintOnce(session, "bio_no_change"); // #2249: what works instead — the first dead end gets a way out
             return;
         }
 

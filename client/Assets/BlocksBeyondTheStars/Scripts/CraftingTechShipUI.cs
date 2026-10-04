@@ -4651,7 +4651,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
                 t.horizontalOverflow = HorizontalWrapMode.Wrap;
-                y += 84f;
+                // A longer description (#2249: the bio lab blueprints name their tab and where the lab stands) grows
+                // the block instead of running into the status line.
+                float descH = Mathf.Max(80f, t.preferredHeight);
+                t.rectTransform.sizeDelta = new Vector2(620f, descH);
+                y += descH + 4f;
             }
 
             var (status, col) = TechStatus(bp);
@@ -4670,6 +4674,8 @@ namespace BlocksBeyondTheStars.Client
                     y += 28f;
                 }
             }
+
+            y = TechUnlocksSection(bp.Key, y);
 
             if (bp.UnlockCost.Count > 0 || bp.KnowledgeCost > 0)
             {
@@ -4709,6 +4715,82 @@ namespace BlocksBeyondTheStars.Client
             SetInteractable(btn, can);
             y += 70f;
             return y;
+        }
+
+        /// <summary>
+        /// #2250: "Unlocks" — what researching the blueprint opens: the functions it names (the bio lab's Change tab, …),
+        /// the items its recipes make, the ship modules it allows and the blueprints it leads to. The pane only ever
+        /// looked backwards (prerequisites), so a chain like the bio lab's read as five unrelated nodes. Long lists are
+        /// cut with "… and N more".
+        /// </summary>
+        private float TechUnlocksSection(string blueprintKey, float y)
+        {
+            var unlocks = BlocksBeyondTheStars.Shared.Content.BlueprintUnlocks.For(Game.Content, blueprintKey);
+            if (unlocks.IsEmpty)
+            {
+                return y;
+            }
+
+            y += 6f;
+            UiKit.AddText(_detail, 8, y, 620, 26, L("ui.tech.unlocks"), 20, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 30f;
+
+            foreach (var feature in unlocks.Features)
+            {
+                y = TechUnlockLine("• " + L(feature), y, UiKit.TextCol);
+            }
+
+            var items = new List<string>();
+            foreach (var item in unlocks.Items)
+            {
+                items.Add(ItemName(item));
+            }
+
+            y = TechUnlockList("ui.tech.unlocks_items", items, y);
+
+            var modules = new List<string>();
+            foreach (var key in unlocks.Modules)
+            {
+                var module = Game.Content.GetShipModule(key);
+                modules.Add(module != null ? L(module.NameKey) : key);
+            }
+
+            y = TechUnlockList("ui.tech.unlocks_modules", modules, y);
+
+            var next = new List<string>();
+            foreach (var key in unlocks.LeadsTo)
+            {
+                next.Add(L($"blueprint.{key}.name"));
+            }
+
+            return TechUnlockList("ui.tech.leads_to", next, y);
+        }
+
+        /// <summary>One "Label: a, b, c … and N more" line of the unlocks section (nothing when the list is empty).</summary>
+        private float TechUnlockList(string labelKey, List<string> names, float y)
+        {
+            const int shown = 6;
+            if (names.Count == 0)
+            {
+                return y;
+            }
+
+            string list = string.Join(", ", names.Take(shown));
+            if (names.Count > shown)
+            {
+                list += " " + L("ui.tech.and_more").Replace("{n}", (names.Count - shown).ToString());
+            }
+
+            return TechUnlockLine(L(labelKey) + ": " + list, y, UiKit.CyanDim);
+        }
+
+        private float TechUnlockLine(string text, float y, Color color)
+        {
+            var t = UiKit.AddText(_detail, 20, y, 600, 26, text, 18, color, TextAnchor.UpperLeft);
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            float h = Mathf.Max(26f, t.preferredHeight);
+            t.rectTransform.sizeDelta = new Vector2(600f, h);
+            return y + h + 2f;
         }
 
         private float DetailShip()

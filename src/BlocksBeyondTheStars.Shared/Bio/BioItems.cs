@@ -26,6 +26,9 @@ public static class BioItems
     /// <summary>The lab block.</summary>
     public const string Lab = "bio_lab";
 
+    /// <summary>#2248: the ship module that carries the lab aboard — opened at the ship's workshop station.</summary>
+    public const string LabModule = "bio_lab";
+
     /// <summary>The blueprints that open the lab's functions one by one — the first is enough for a child's first extract.</summary>
     public const string LabBlueprint = "bio_lab";
     public const string SynthesisBlueprint = "bio_synthesis";

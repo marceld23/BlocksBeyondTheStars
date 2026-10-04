@@ -2245,7 +2245,19 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     break;
-                case "workshop": Menu?.OpenCrafting(); break;
+                case "workshop":
+                    // #2248: with the bio lab module fitted, the lab lives in the workshop room — E asks which one.
+                    // "Workshop (E)" keeps crafting one key press away.
+                    if (!BioLabUi.ShipLabAboard(Game) || VendorChoicePrompt.Instance == null
+                        || !VendorChoicePrompt.Instance.TryOfferPair(
+                            Game.Localizer?.Get("ui.station.workshop") ?? "Workshop",
+                            Game.Localizer?.Get("ui.bio.workshop_choice_craft") ?? "Workshop (E)", () => Menu?.OpenCrafting(),
+                            Game.Localizer?.Get("ui.bio.workshop_choice_lab") ?? "Bio lab", () => BioLabUi.Instance?.Open()))
+                    {
+                        Menu?.OpenCrafting();
+                    }
+
+                    break;
                 case "market":
                     if (!_marketFromVendor || !OfferVendorChoice())
                     {
