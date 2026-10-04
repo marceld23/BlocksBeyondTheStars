@@ -216,6 +216,11 @@ public sealed class WorldMetadata
 
     /// <summary>When a defeated giant comes back (#1998): "locationId|colossus" / "locationId|sandworm0" → unix seconds.</summary>
     public System.Collections.Generic.Dictionary<string, long> GiantBackAt { get; set; } = new();
+
+    /// <summary>#2269: when each world's Crystal Net last ran (UTC unix seconds, by location id) — the machines of a world
+    /// that was not ticking catch up for the gap (bounded by the <c>MachineCatchUpMinutes</c> rule). Additive: an older
+    /// build drops it, a missing entry means "no credit".</summary>
+    public System.Collections.Generic.Dictionary<string, double> CrystalLastTicked { get; set; } = new();
 }
 
 /// <summary>One interview a player gave a reporter (2026-09).</summary>

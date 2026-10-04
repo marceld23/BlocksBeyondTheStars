@@ -48,10 +48,11 @@ public sealed class CrystalNet2Tests : IDisposable
         }
     }
 
-    private SvGameServer NewServer(out SqliteWorldRepository repo, string world = "crystal2")
+    private SvGameServer NewServer(out SqliteWorldRepository repo, string world = "crystal2", int catchUpMinutes = CrystalNetRules.CatchUpDefaultMinutes)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var config = new ServerConfig { WorldName = world, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        config.Rules.MachineCatchUpMinutes = catchUpMinutes;
         var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         return server;
@@ -514,6 +515,64 @@ public sealed class CrystalNet2Tests : IDisposable
             Ticks(server, 0.8);
             Assert.Equal("crate", KeyAt(server, 2, 200, 0));
             Assert.True(server.CrystalDeviceOutput(new Vector3i(1, 200, 0))); // blocked: the amber light says so
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    // #2269 catch-up
+    // ---------------------------------------------------------------------------------------------------
+
+    /// <summary>A Mk1 drill in "everything" mode standing on the natural ground at (0, ?, 0), a crate beside it and a
+    /// switch beside that; returns the crate's cell and the switch's.</summary>
+    private (Vector3i Crate, Vector3i Switch, BlocksBeyondTheStars.GameServer.PlayerSession Builder) DrillOnTheGround(SvGameServer server)
+    {
+        int y = 200;
+        while (y > 1 && server.World.GetBlock(new Vector3i(0, y - 1, 0)).IsAir)
+        {
+            y--;
+        }
+
+        var p = Player(server, "Builder", new Vector3f(0.5f, y + 3, 0.5f), "auto_drill_1", "crate", "crystal_switch");
+        server.PlaceBlock("Builder", 0, y, 0, "auto_drill_1");
+        server.PlaceBlock("Builder", 1, y, 0, "crate");
+        server.PlaceBlock("Builder", 0, y, 1, "crystal_switch");
+        server.SetCrystalDeviceForTest(p, new Vector3i(0, y, 0), action: 2, mode: (int)AutoDrillMode.Everything);
+        return (new Vector3i(1, y, 0), new Vector3i(0, y, 1), p);
+    }
+
+    private static int CrateItems(SvGameServer server, Vector3i crate)
+        => server.Containers.Single(c => c.Position == crate).Items.Sum(s => s.Count);
+
+    [Theory]
+    [InlineData(true, 60, true)]   // running, rule on: the drill catches up
+    [InlineData(false, 60, false)] // switched off when the world stopped: nothing
+    [InlineData(true, 0, false)]   // the world rule is off: nothing
+    public void ARunningDrill_CatchesUpAfterAGap_ButNotWhenItWasOff_OrTheRuleIsOff(bool running, int minutes, bool expectCredit)
+    {
+        var server = NewServer(out var repo, catchUpMinutes: minutes);
+        using (repo)
+        {
+            var (crate, sw, p) = DrillOnTheGround(server);
+            if (running)
+            {
+                server.SetCrystalDeviceForTest(p, sw, action: 0);
+            }
+
+            Ticks(server, 1.0);
+            int before = CrateItems(server, crate);
+            server.ShiftCrystalClockForTest(600); // ten minutes nobody was on this world
+            Ticks(server, 2.0);
+            int gained = CrateItems(server, crate) - before;
+            if (expectCredit)
+            {
+                Assert.True(gained >= 100, $"caught up {gained} blocks"); // 600 s / 2 s per block, capped at 256 — far more than live
+            }
+            else
+            {
+                Assert.True(gained <= 2, $"no catch-up expected, got {gained}"); // at most what the live drill did meanwhile
+            }
+
+            Assert.False(server.CrystalCatchUpPendingForTest);
         }
     }
 

@@ -243,6 +243,12 @@ public sealed class GameRules
     /// OFF default — no start-up lift needed.</summary>
     public bool StarterTeleporter { get; set; }
 
+    /// <summary>Machines catch up (world option, minutes, default 60 — issue #2269): machines of the Crystal Net that were
+    /// running when their world stopped ticking (nobody there) are credited the gap when it runs again, at most this many
+    /// minutes — the drill has dug, the fabricator has crafted, bounded per machine. 0 = off. Old saves deserialize
+    /// without the field and get the default.</summary>
+    public int MachineCatchUpMinutes { get; set; } = Definitions.CrystalNetRules.CatchUpDefaultMinutes;
+
     /// <summary>World textures (world option, default ON — issue #1958): when ON the world's admins may publish
     /// textures that every player of the save sees instead of the official ones; when OFF nothing may be
     /// published and the stored ones are not shown. Only admins ever publish — an override changes the world for

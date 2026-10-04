@@ -542,12 +542,25 @@ public sealed partial class GameServer
                 return false;
             }
 
+            if (_crystalCatchingUp && !merged.ContainsKey(i.Item) && merged.Count >= CrystalNetRules.CatchUpCrateStacks)
+            {
+                return false; // #2269: a catch-up fills an iron crate only so far — the live rule lets it grow without bound
+            }
+
             merged[i.Item] = (merged.TryGetValue(i.Item, out int have) ? have : 0) + i.Count;
         }
 
         container.Items = merged.Select(kv => new ItemStack(kv.Key, kv.Value)).ToList();
         _repo.SaveContainer(container);
-        BroadcastContainers();
+        if (_crystalCatchingUp)
+        {
+            _crystalCatchUpContainersDirty = true; // #2269: one broadcast when the tick's catch-up is done, not one per step
+        }
+        else
+        {
+            BroadcastContainers();
+        }
+
         return true;
     }
 

@@ -77,6 +77,12 @@ public sealed partial class GameServer
         /// <summary>#2267: each device as this world's players were last told it (a signature per cell) — the base of the
         /// device deltas.</summary>
         public Dictionary<Vector3i, string> LastSentDevice { get; } = new();
+
+        /// <summary>#2269: when this world's net last ran (wall clock) and at which uptime; the queued catch-up and its tally.</summary>
+        public double LastTickedUnix { get; set; }
+        public double LastTickUptime { get; set; }
+        public List<CrystalCatchUpJob> CatchUp { get; } = new();
+        public Dictionary<string, int[]> CatchUpSummary { get; } = new();
     }
 
     /// <summary>One network: its cells and its level. <see cref="Level"/> is re-derived every logic beat.</summary>
@@ -125,6 +131,9 @@ public sealed partial class GameServer
         public bool DiceLastInput;      // dice block: the input level of the previous beat (#2263)
         public int Extended;            // bridge motor: deck cells out (#2265) — persisted as ext=
         public bool Pushed;             // piston: its head is out (#2265) — persisted as out=1
+        public bool Ran;                // machine: running when its world last ran (#2269) — persisted as run=1
+        public double LastOnUptime = -1000; // machine: uptime its network was last ON
+        public double RanSavedAt = -1000;   // machine: uptime the "running" flag last went to the row
 
         public bool IsConduit => Kind == CrystalDeviceKind.Conduit;
         public bool IsGate => CrystalNetRules.IsGate(Kind);
@@ -425,6 +434,7 @@ public sealed partial class GameServer
         cell.RemoteOn = kind == CrystalDeviceKind.SignalReceiver && CrystalConfigValue(cell.Config, "remote") == "1";
         cell.Extended = kind == CrystalDeviceKind.BridgeMotor ? Math.Max(0, CrystalConfigInt(cell.Config, "ext", 0)) : 0;
         cell.Pushed = kind == CrystalDeviceKind.Piston && CrystalConfigValue(cell.Config, "out") == "1";
+        cell.Ran = CrystalConfigValue(cell.Config, "run") == "1"; // #2269
         if (cell.Pushed)
         {
             cell.Applied = true; // a piston saved out: the first OFF beat pulls its head back in
@@ -719,6 +729,8 @@ public sealed partial class GameServer
         state.OpenFences.Clear();
         state.Lifts.Clear();
         state.LiftListDirty = true;
+        state.CatchUp.Clear();
+        state.LastTickedUnix = 0; // #2269: re-read from the metadata on the first tick
         if (state.NextDeviceId < 1)
         {
             state.NextDeviceId = 1;
@@ -1093,7 +1105,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>Config keys only the server writes (the configure path keeps their server value, whatever the client sent).</summary>
-    private static readonly string[] CrystalServerKeys = { "key", "depth", "ext", "out", "remote", "n" };
+    private static readonly string[] CrystalServerKeys = { "key", "depth", "ext", "out", "remote", "n", "run", "at" };
 
     /// <summary>Who may change a device's settings: its owner, an ally (alliance or crew), an admin; an ownerless device
     /// (the intercity rail stops) anyone. A world circuit (#2260) only an admin — a vault puzzle must not be re-wired.</summary>
@@ -1193,6 +1205,7 @@ public sealed partial class GameServer
     {
         _drillBlocksThisTick = 0;
         _pistonPushesThisTick = 0;
+        CrystalCatchUpClock(); // #2269: before the empty-world return — a stale stamp must never credit a base built later
         var state = CrystalNet;
         if (state.Cells.Count == 0)
         {
@@ -1218,6 +1231,7 @@ public sealed partial class GameServer
         }
 
         TickLifts(dt); // #2266: moving platforms advance every tick (smooth for the riders), not on the beat
+        ProcessCrystalCatchUp(); // #2269: the machines' share of an absence, a budget per tick
 
         if (state.NetListDirty)
         {
@@ -1391,6 +1405,11 @@ public sealed partial class GameServer
             if (c.Inert || c.IsConduit || c.IsGate || c.NetId == 0 || !state.Nets.TryGetValue(c.NetId, out var net))
             {
                 continue;
+            }
+
+            if (IsCatchUpMachine(c.Kind))
+            {
+                TrackCrystalRunning(c, net.Level); // #2269: was it running when the world stopped?
             }
 
             if (CrystalNetRules.IsEdgeSink(c.Kind))

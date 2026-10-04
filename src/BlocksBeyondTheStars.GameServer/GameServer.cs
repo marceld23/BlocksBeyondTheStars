@@ -7464,6 +7464,7 @@ public sealed partial class GameServer
             InstantTravel = r.InstantTravel,
             AutoAim = r.AutoAim,
             StarterTeleporter = r.StarterTeleporter,
+            MachineCatchUpMinutes = r.MachineCatchUpMinutes, // #2269
             WorldTextures = r.WorldTextures ? "Admins" : "Off",
             FrontierDanger = r.FrontierDanger,
             BaseVisitors = r.BaseVisitors,
@@ -7529,6 +7530,11 @@ public sealed partial class GameServer
         if (!string.IsNullOrEmpty(intent.StarterTeleporter))
         {
             Rules.StarterTeleporter = intent.StarterTeleporter.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (System.Array.IndexOf(CrystalNetRules.CatchUpChoicesMinutes, intent.MachineCatchUpMinutes) >= 0)
+        {
+            Rules.MachineCatchUpMinutes = intent.MachineCatchUpMinutes; // #2269: only the offered steps
         }
 
         if (!string.IsNullOrEmpty(intent.FrontierDanger))

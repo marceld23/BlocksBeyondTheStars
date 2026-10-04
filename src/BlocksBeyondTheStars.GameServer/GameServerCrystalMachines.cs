@@ -120,7 +120,7 @@ public sealed partial class GameServer
     // is the cap.
     // ------------------------------------------------------------------------------------------------------
 
-    private void MatterSenderShot(ServerCrystalCell sender)
+    private bool MatterSenderShot(ServerCrystalCell sender)
     {
         // #2252: the partner is a CELL — a device id is handed out afresh on every load.
         ServerCrystalCell? receiver = CrystalPairCell(sender.Config) is { } at && CrystalNet.Cells.TryGetValue(at, out var r)
@@ -128,7 +128,7 @@ public sealed partial class GameServer
         if (receiver is null || !CanConfigureCrystal(receiver, sender.OwnerId, false))
         {
             SetCrystalBlocked(sender, true);
-            return;
+            return false;
         }
 
         // #2262: any crate beside the sender gives, any crate beside the receiver takes.
@@ -137,7 +137,7 @@ public sealed partial class GameServer
         if (froms.Count == 0 || tos.Count == 0)
         {
             SetCrystalBlocked(sender, true);
-            return;
+            return false;
         }
 
         // The first stack some far crate's filter lets in and has room for, one shot's worth of it.
@@ -171,7 +171,7 @@ public sealed partial class GameServer
         if (from is null || to is null || stack is null || !NpcDepositToContainer(to, new[] { new ItemAmount(stack.Item, count) }))
         {
             SetCrystalBlocked(sender, true); // nothing to send, or no room over there
-            return;
+            return false;
         }
 
         stack.Count -= count;
@@ -186,6 +186,8 @@ public sealed partial class GameServer
         BroadcastToWorld(new BeamFx { FromX = a.X, FromY = a.Y, FromZ = a.Z, ToX = b.X, ToY = b.Y, ToZ = b.Z });
         BroadcastToWorld(new SoundFx { SoundId = "beam_teleport", X = a.X, Y = a.Y, Z = a.Z, SourceId = sender.Id });
         BroadcastToWorld(new SoundFx { SoundId = "beam_teleport", X = b.X, Y = b.Y, Z = b.Z, SourceId = receiver.Id });
+
+        return true;
     }
 
     /// <summary>Test seam: the matter receivers a sender's owner may pair with, as (cell, label) — #2252: a pair names the
@@ -198,7 +200,7 @@ public sealed partial class GameServer
     // Fabricator (#2056): one recipe per device, crafted from the crates beside it into the crates beside it.
     // ------------------------------------------------------------------------------------------------------
 
-    private void FabricatorCraft(ServerCrystalCell fab)
+    private bool FabricatorCraft(ServerCrystalCell fab)
     {
         string? key = CrystalConfigValue(fab.Config, "recipe");
         var recipe = key is null ? null : _content.GetRecipe(key);
@@ -208,7 +210,7 @@ public sealed partial class GameServer
             // #2262: a station's recipe needs that station right beside the fabricator — the forge for smelting, a LIT
             // campfire for cooking (a fire the net put out is "campfire_off" and does not count).
             SetCrystalBlocked(fab, true);
-            return;
+            return false;
         }
 
         // Blueprint gating follows the owner, exactly like a hand craft; an owner who is away does not craft.
@@ -216,7 +218,7 @@ public sealed partial class GameServer
         if (owner is null || (recipe.RequiredBlueprint is { Length: > 0 } bp && !owner.State.UnlockedBlueprints.Contains(bp)))
         {
             SetCrystalBlocked(fab, true);
-            return;
+            return false;
         }
 
         var crates = new List<StoredContainer>();
@@ -231,7 +233,7 @@ public sealed partial class GameServer
         if (crates.Count == 0)
         {
             SetCrystalBlocked(fab, true);
-            return;
+            return false;
         }
 
         // Inputs: every crate beside the fabricator counts; all or nothing.
@@ -241,7 +243,7 @@ public sealed partial class GameServer
             if (have < need.Count)
             {
                 SetCrystalBlocked(fab, true);
-                return;
+                return false;
             }
         }
 
@@ -250,7 +252,7 @@ public sealed partial class GameServer
         if (outCrate is null)
         {
             SetCrystalBlocked(fab, true);
-            return;
+            return false;
         }
 
         foreach (var need in recipe.Inputs)
@@ -286,32 +288,34 @@ public sealed partial class GameServer
         BroadcastContainers();
         SetCrystalBlocked(fab, false);
         BroadcastToWorld(new SoundFx { SoundId = "fabricator_craft", X = fab.Cell.X + 0.5f, Y = fab.Cell.Y + 0.5f, Z = fab.Cell.Z + 0.5f, SourceId = fab.Id });
+
+        return true;
     }
 
     // ------------------------------------------------------------------------------------------------------
     // Auto-drill (#2055): a stationary quarry that mines the square below itself, layer by layer.
     // ------------------------------------------------------------------------------------------------------
 
-    private void AutoDrillStep(ServerCrystalCell drill)
+    private bool AutoDrillStep(ServerCrystalCell drill, bool catchUp = false)
     {
         int tierIndex = CrystalNetRules.DrillTierOf(drill.BlockKey);
         if (tierIndex < 0)
         {
-            return;
+            return false;
         }
 
         var tier = CrystalNetRules.DrillTiers[tierIndex];
         drill.NextBeat = _uptime + tier.Beat;
-        if (_drillBlocksThisTick >= CrystalNetRules.MaxDrillBlocksPerTick)
+        if (!catchUp && _drillBlocksThisTick >= CrystalNetRules.MaxDrillBlocksPerTick) // #2269: a catch-up has its own budget
         {
             drill.NextBeat = _uptime + CrystalNetRules.LogicBeatSeconds; // the world's budget for this tick is spent — try next beat
-            return;
+            return false;
         }
 
         if (AdjacentCrystalCrates(drill.Cell).Count == 0)
         {
             SetCrystalBlocked(drill, true);
-            return;
+            return false;
         }
 
         int side = tier.Radius * 2 + 1;
@@ -329,7 +333,7 @@ public sealed partial class GameServer
             drill.Cursor++;
             scanned++;
 
-            var id = _world.GetBlockIfLoaded(target);
+            var id = CrystalReadCell(catchUp, target);
             var def = _content.BlockById(id);
             if (id.IsAir || def is null || IsFluid(id.Value) || !def.Mineable || !MiningRules.ToolCanMine(tool, def))
             {
@@ -350,7 +354,7 @@ public sealed partial class GameServer
             bool fluidBeside = false;
             foreach (var face in CrystalNetRules.Faces)
             {
-                if (IsFluid(_world.GetBlockIfLoaded(target + face).Value))
+                if (IsFluid(CrystalReadCell(catchUp, target + face).Value))
                 {
                     fluidBeside = true;
                     break;
@@ -368,7 +372,7 @@ public sealed partial class GameServer
             {
                 drill.Cursor--; // come back to this one once a crate has room
                 SetCrystalBlocked(drill, true);
-                return;
+                return false;
             }
 
             BreakBlockCore(null, drill.OwnerId, target, def, null, (item, count) => drops.Add(new ItemAmount(item, count)));
@@ -381,13 +385,15 @@ public sealed partial class GameServer
 
             BroadcastToWorld(new WorldFx { Kind = "thump", X = target.X + 0.5f, Y = target.Y + 0.5f, Z = target.Z + 0.5f, Strength = 0.2f });
             SetCrystalBlocked(drill, false);
-            return;
+            return true;
         }
 
         if (drill.Cursor >= total)
         {
             SetCrystalBlocked(drill, true); // done: the volume is mined; the light stays on until the drill is re-placed
         }
+
+        return false;
     }
 
     // ------------------------------------------------------------------------------------------------------
@@ -400,19 +406,19 @@ public sealed partial class GameServer
     /// it goes into the crate too; and it stops for good at water or lava (in the shaft or beside it), at bedrock or
     /// anything its tier cannot cut, at a protected cell, or at its maximum depth. The depth reached lives in the
     /// cell's config (<c>depth=</c>), so a reload resumes where it stopped.</summary>
-    private void DrillLaserStep(ServerCrystalCell laser)
+    private bool DrillLaserStep(ServerCrystalCell laser, bool catchUp = false)
     {
         laser.NextBeat = _uptime + CrystalNetRules.DrillLaserBeat;
-        if (_drillBlocksThisTick >= CrystalNetRules.MaxDrillBlocksPerTick)
+        if (!catchUp && _drillBlocksThisTick >= CrystalNetRules.MaxDrillBlocksPerTick) // #2269: a catch-up has its own budget
         {
             laser.NextBeat = _uptime + CrystalNetRules.LogicBeatSeconds; // the world's budget for this tick is spent — try next beat
-            return;
+            return false;
         }
 
         if (AdjacentCrystalCrates(laser.Cell).Count == 0)
         {
             SetCrystalBlocked(laser, true);
-            return;
+            return false;
         }
 
         int depth = int.TryParse(CrystalConfigValue(laser.Config, "depth"), out int saved) ? System.Math.Max(0, saved) : 0;
@@ -435,7 +441,7 @@ public sealed partial class GameServer
                 || DrillCellProtected(target, id, laser.OwnerId))
             {
                 DrillLaserStop(laser, depth);
-                return;
+                return false;
             }
 
             // Never open a fluid into the shaft: a cell with water or lava beside it ends the dig.
@@ -444,7 +450,7 @@ public sealed partial class GameServer
                 if (IsFluid(_world.GetBlock(target + face).Value))
                 {
                     DrillLaserStop(laser, depth);
-                    return;
+                    return false;
                 }
             }
 
@@ -454,7 +460,7 @@ public sealed partial class GameServer
             if (bank && crate is null)
             {
                 DrillLaserStop(laser, depth); // the crate is full: it resumes from the same cell once emptied and started again
-                return;
+                return false;
             }
 
             BreakBlockCore(null, laser.OwnerId, target, def, null, (item, count) =>
@@ -476,13 +482,15 @@ public sealed partial class GameServer
             // The beam: from the device straight down to the cell it just cut (Radius carries the length for the client).
             BroadcastToWorld(new WorldFx { Kind = "laser", X = target.X + 0.5f, Y = target.Y + 0.5f, Z = target.Z + 0.5f, Strength = 0.3f, Radius = depth });
             SetCrystalBlocked(laser, false);
-            return;
+            return true;
         }
 
         if (depth >= CrystalNetRules.DrillLaserDepth)
         {
             DrillLaserStop(laser, depth); // done: the shaft is as deep as it goes
         }
+
+        return false;
     }
 
     /// <summary>The laser halts: the depth reached is kept, the status light turns amber (a Device Eye reads it).</summary>
@@ -506,6 +514,9 @@ public sealed partial class GameServer
            || IsFactoryProtected(p, ownerId, false) || IsBaseProtected(p, ownerId, false)
            || _repo.HasPlayerBlockEdits(_world.LocationId, p, p);
 
+    /// <summary>#2269: a drill's read of a cell — a live drill reads the loaded rows only, a catch-up loads what it digs.</summary>
+    private BlockId CrystalReadCell(bool load, Vector3i cell) => load ? _world.GetBlock(cell) : _world.GetBlockIfLoaded(cell);
+
     /// <summary>A dry run of <see cref="NpcDepositToContainer"/>: would these items fit?</summary>
     private bool NpcCrateHasRoom(StoredContainer container, IReadOnlyList<ItemAmount> items)
     {
@@ -522,7 +533,9 @@ public sealed partial class GameServer
         bool woodBox = _world.GetBlock(container.Position).Value == (_content.GetBlock("wood_crate")?.NumericId.Value ?? 0);
         if (!woodBox)
         {
-            return true;
+            // #2269: during a catch-up an iron crate counts as full at a fixed number of kinds (live it has no limit).
+            return !_crystalCatchingUp
+                   || container.Items.Where(s => !s.IsEmpty).Select(s => s.Item).Union(items.Select(i => i.Item)).Count() <= CrystalNetRules.CatchUpCrateStacks;
         }
 
         var have = new HashSet<string>(container.Items.Where(s => !s.IsEmpty).Select(s => s.Item));
