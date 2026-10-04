@@ -32,8 +32,13 @@ POOL = DATA / "settlement_templates.json"
 SIZE = 6  # the plot building envelope (SettlementGenerator.Building)
 
 
-def block(cells, x, y, z, block_id):
-    cells[(x, y, z)] = {"x": x, "y": y, "z": z, "kind": "block", "id": block_id}
+def block(cells, x, y, z, block_id, shape=0, mode=0):
+    c = {"x": x, "y": y, "z": z, "kind": "block", "id": block_id}
+    if shape:
+        c["shape"] = shape
+    if mode:
+        c["mode"] = mode  # a Crystal Net device's picked mode (#2260)
+    cells[(x, y, z)] = c
 
 
 def marker(cells, x, y, z, marker_id):
@@ -113,6 +118,11 @@ def iron_flat():
         block(cells, 1, y, 1, "ladder")
     block(cells, 3, 4, 3, "strip_light_warm")
     block(cells, 3, 8, 3, "strip_light_warm")
+    # #2260: a pre-built Crystal Net circuit — a light switch beside the ladder (ON when stamped), a glowing conduit up the
+    # wall and through the deck to the ground floor's ceiling light.
+    block(cells, 0, 2, 1, "crystal_switch", shape=2 << 8, mode=1)  # front +X: it faces the room
+    for x, y, z in ((0, 3, 1), (0, 4, 1), (0, 4, 2), (0, 4, 3), (1, 4, 3), (2, 4, 3)):
+        block(cells, x, y, z, "crystal_conduit")
     marker(cells, 2, 1, 0, "door_slide")
     marker(cells, 3, 1, 3, "npc")
     marker(cells, 2, 1, 2, "room")

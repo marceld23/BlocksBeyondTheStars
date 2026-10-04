@@ -56,6 +56,10 @@ CROP = "flora_bush"
 FIELD = "force_field"
 LADDER = "ladder"
 HEAL = "heal_tank"
+CONDUIT = "crystal_conduit"
+
+# A cube's FRONT (#2124) rides in the descriptor's up-face field: CubeFacing.Pack(face) = face << 8 (2 = +X).
+FRONT_PLUS_X = 2 << 8
 
 # Packed shapes (ShapeCode.Pack(shape, yaw) = shape << 2 | yaw): Slab 1, Table 14, Chair 15, BedFoot 61, BedHead 62, Bench 63.
 SLAB = 1 << 2
@@ -75,12 +79,14 @@ class Module:
         self.w, self.h, self.l, self.rotate = w, h, l, rotate
         self.cells = {}
 
-    def block(self, x, y, z, block_id, shape=0, port=""):
+    def block(self, x, y, z, block_id, shape=0, port="", mode=0):
         c = {"x": x, "y": y, "z": z, "kind": "block", "id": block_id}
         if shape:
             c["shape"] = shape
         if port:
             c["port"] = port
+        if mode:
+            c["mode"] = mode  # a Crystal Net device's picked mode (#2260)
         self.cells[(x, y, z)] = c
 
     def marker(self, x, y, z, marker_id):
@@ -183,7 +189,21 @@ def hub(tier):
         m.block(1, 2, z, SCREEN)
     m.marker(w // 2, 1, cz, "spawn")
     m.marker(w // 2 + 1, 1, 2, "room")
+    hall_light_switch(m)
     return m
+
+
+def hall_light_switch(m):
+    """#2260: a pre-built Crystal Net circuit every arrival hall shows — a light switch on the −X wall (ON when the
+    station is stamped), a glowing conduit up the wall and along the ceiling edge, and the two ceiling lamps it reaches.
+    Flip it and the lamps go dark: the first circuit a player meets in space."""
+    top = m.h - 1
+    m.block(0, 2, 1, "crystal_switch", shape=FRONT_PLUS_X, mode=1)
+    for y in range(3, top + 1):
+        m.block(0, y, 1, CONDUIT)
+    m.block(0, top, 0, CONDUIT)
+    for x in range(1, m.w - 1):
+        m.block(x, top, 0, CONDUIT)
 
 
 def corridor(tier):

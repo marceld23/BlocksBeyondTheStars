@@ -74,9 +74,17 @@ public sealed partial class GameServer
 
         int modes = CrystalNetRules.ModeCount(kind);
         string label = rawLabel.Length > 0 ? SanitizeBeamName(rawLabel) : string.Empty;
-        RegisterCrystalCell(cell, kind, def.Key, CrystalNetRules.WorldOwnerId, modes > 0 ? System.Math.Max(0, System.Math.Min(modes - 1, mode)) : 0,
+        var registered = RegisterCrystalCell(cell, kind, def.Key, CrystalNetRules.WorldOwnerId, modes > 0 ? System.Math.Max(0, System.Math.Min(modes - 1, mode)) : 0,
             config, label, yaw, persist: true);
-        DiscoverCrystalNeighbours(cell, CrystalNetRules.WorldOwnerId); // the street lamps beside the wire join as world ports
+        if (registered.Inert)
+        {
+            // Over the world circuits' budget: the stamped block stays a plain block. An inert wire must not sit there and
+            // hold the lamps beside it in a dark, sourceless network.
+            UnregisterCrystalCell(registered, relight: true);
+            return;
+        }
+
+        DiscoverCrystalNeighbours(cell, CrystalNetRules.WorldOwnerId); // the lamps beside the wire join as world ports
     }
 
     /// <summary>Test seam: registers a world-circuit cell as a stamped template would.</summary>

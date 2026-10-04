@@ -10075,7 +10075,9 @@
         "y": 2,
         "z": 1,
         "kind": "block",
-        "id": "iron_wall"
+        "id": "crystal_switch",
+        "shape": 512,
+        "mode": 1
       },
       {
         "x": 0,
@@ -10117,7 +10119,7 @@
         "y": 3,
         "z": 1,
         "kind": "block",
-        "id": "iron_wall"
+        "id": "crystal_conduit"
       },
       {
         "x": 0,
@@ -10159,21 +10161,21 @@
         "y": 4,
         "z": 1,
         "kind": "block",
-        "id": "iron_wall"
+        "id": "crystal_conduit"
       },
       {
         "x": 0,
         "y": 4,
         "z": 2,
         "kind": "block",
-        "id": "iron_wall"
+        "id": "crystal_conduit"
       },
       {
         "x": 0,
         "y": 4,
         "z": 3,
         "kind": "block",
-        "id": "iron_wall"
+        "id": "crystal_conduit"
       },
       {
         "x": 0,
@@ -10488,7 +10490,7 @@
         "y": 4,
         "z": 3,
         "kind": "block",
-        "id": "iron_wall"
+        "id": "crystal_conduit"
       },
       {
         "x": 1,
@@ -10712,7 +10714,7 @@
         "y": 4,
         "z": 3,
         "kind": "block",
-        "id": "iron_wall"
+        "id": "crystal_conduit"
       },
       {
         "x": 2,
