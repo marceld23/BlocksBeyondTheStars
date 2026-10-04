@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 💎 Crystal Net 2 — moving blocks, lifts, new devices, owner + alliance rule, world circuits, the net aboard the own ship, catch-up on return (#2251: #2252–#2271, 2026-10-04, branch feat/crystal-net-2) — ✅ done (⚠ RELEASE NOTE: protocol v10 and save version 3 — older game versions cannot join, block ids shift; ⚠ playtest open)
+### 💎 Crystal Net 2 — moving blocks, lifts, new devices, owner + alliance rule, world circuits, the net aboard the own ship, catch-up on return (#2251: #2252–#2271, 2026-10-04, branch feat/crystal-net-2) — ✅ done (released in v2026.10.5: protocol v10, save version 3; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04).** Analyse the Crystal Net (what works, what is missing to make it attractive), then build
 everything proposed in one go: moving blocks, the net on the own ship, a bounded catch-up, discovery and well-placed hints,
@@ -74,7 +74,9 @@ textures, sounds and effects generated with the repo scripts. One worktree, one 
 - **Open (follow-ups):** optional synth fallbacks for the new sounds (the clips ship, so nothing is silent today); lifts,
   pistons and bridges aboard ships stay decoration by design.
 
-### 🔭 Scanner results you can see + the bio lab earlier and aboard (#2247 #2248 #2249 #2250, 2026-10-04, branch feat/scanner-ux-biolab-access) — ✅ done (⚠ playtest open)
+**Released** in **v2026.10.5** "the tinkerer release" (2026-10-04).
+
+### 🔭 Scanner results you can see + the bio lab earlier and aboard (#2247 #2248 #2249 #2250, 2026-10-04, branch feat/scanner-ux-biolab-access) — ✅ done (released in v2026.10.5; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04, after the v2026.10.4 playtest).** "I scan in space and see no result anywhere" (Windows:
 an old surface scan stuck bottom left under VEGA's objective chip; browser: nothing) — and "where is improving items from
@@ -108,6 +110,8 @@ shows what a blueprint unlocks.
   missing material, unlocks, feature texts); `ShipFunctionBlockTests` counts the bio-lab wording of the decor notice.
 - **⚠ Playtest open:** scanner hold line + card on small screens and in the browser; workshop → bio lab choice aboard
   (landed and in space); the Change page's material list; the research "Unlocks" block on long lists.
+
+**Released** in **v2026.10.5** "the tinkerer release" (2026-10-04).
 
 ### 🛰️ Space package — ship scanner, planet overview, scanner tiers, visible pods and anomalies, wormholes (+ fixes) (#2243: #2233 #2235 #2236 #2237–#2242, 2026-10-04, branch feat/space-scanner-wormholes) — ✅ done (released in v2026.10.4; ⚠ playtest open)
 

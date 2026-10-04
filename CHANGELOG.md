@@ -11,6 +11,130 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.5] — 2026-10-04
+
+The tinkerer release. The **Crystal Net** grows up (#2251): blocks now **move** — secret doors, trapdoors, bridges
+that lay themselves out, pistons and a **lift you ride** between floors. New devices show symbols and text, roll the
+dice or answer a remote control, and the net now runs **aboard your own ship** as well. Machines you left running
+catch up when you come back, stations and crystal vaults have circuits of their own, and only you and your alliance
+may use your devices. And after the last playtest, the ship scanner shows its results where you can see them, and
+the bio lab arrives much earlier, also as a **ship module**.
+
+ℹ️ **Compatibility:** the network protocol goes to **version 10**, so game and server must both be on 2026.10.5. An
+older game cannot join a 2026.10.5 server, and the server says so. Twenty new blocks raise the save version to
+**3**: your saves carry over and are updated once on the first start (a backup is taken first), and after that an
+older game refuses them instead of breaking them. The terrain generation stays at 20, so worlds look the way they
+did. The desktop game updates itself on start, and the browser version is always current.
+
+### 🚪 Blocks that move (#2264 #2265 #2266)
+
+- **Phase block** — a wall block that turns into shimmering air while its wire is ON: a secret door. Phase blocks
+  side by side open together, and you can dye them to match your wall.
+- **Trapdoor** — a hatch in the floor. ON folds it open and you drop through (the fall never hurts), OFF closes it.
+- **Bridge motor** — while ON it lays a bridge the way its arrow points, one plank at a time, 2 to 12 blocks long.
+  OFF takes it back in.
+- **Piston** — pushes up to four blocks one step. Set it to **sticky** and it pulls the first one back again. It
+  never moves crates, devices, doors or someone else's base.
+- **Lift** — a lift motor at the bottom of a 3×3 shaft and a **lift stop** on each floor. Press a stop and the
+  platform comes to you; stand on it and it carries you up or down.
+- Moving blocks **never hurt anyone and never close onto anyone**: they wait until the way is clear.
+
+### 💡 New devices and more machines on the wire (#2261 #2262 #2263)
+
+- **Display** — shows a symbol while ON and another while OFF, a short text of your own, or a **counter** of how
+  often its wire switched on.
+- **Dice block** — lets a pulse through only now and then (one in 2, 3, 4 or 6) and sparkles when it does. A
+  button, a dice block and a lamp make a little lucky game.
+- **Signal sender and receiver** — a receiver repeats its sender anywhere on the same world, with no wire in between.
+  The **remote control** switches a paired receiver from wherever you stand.
+- **Environment sensor** — switches ON when there is no air, it is too hot or too cold, a storm blows or the air is
+  toxic, and inside your base when an enemy is in or your alliance is at home.
+- More blocks listen to the net: the **force field** (a whole field wall switches together), the **energy fence**,
+  the **campfire**, the **forge**, the **heal tank** and the **flower pot**. A bed and a seat report when someone
+  lies or sits there.
+- The **fabricator** also makes the recipes of a station block right beside it: next to a forge it smelts, next to
+  a campfire it cooks. Every machine now takes from and fills crates on **any side**.
+
+### 🧭 Building circuits is easier (#2267)
+
+- A block with an arrow points the way you look while you place it, so look **steeply up or down** and it points up
+  or down. Placed it wrong? Its menu has a **Turn** button.
+- The network under your crosshair is outlined, so you see at a glance what belongs together, and devices can carry
+  a **name**.
+- Every player can use at most half of a world's networks and sensors, so nobody gets locked out.
+
+### 🔐 Your devices, your alliance (#2252 #2253 #2254 #2256)
+
+- Only the owner and the owner's **alliance** may use a device or change its settings. Anyone else sees a lock
+  instead of the key.
+- Doors remember who built them, so a stranger's wire can no longer lock your door, and "only me" sensors count your
+  alliance too.
+- Paired devices (matter senders, beam pads) keep their partner after a reload, and old pairs are moved over once.
+
+### 🚀 The net in your own ship (#2268 #2255)
+
+- Conduits, switches, buttons, sensors, logic, timers, lamps, phase blocks, trapdoors, displays and signal devices
+  now work **in your own ship**, and the ship's own doors follow its wires. Lock a hatch, light a corridor.
+- The new **ship sensor** switches ON when the hull is damaged or low, the shield is empty, or the ship has landed
+  or docked.
+- The circuits run while the ship is parked (landed, or with you aboard in space) and rest in flight. Everything
+  else stays decoration aboard, and VEGA tells you so the first time.
+
+### ⏳ Machines catch up while you were away (#2269)
+
+- Drills, fabricators and other machines that were running when you left **catch up** for a while when you come
+  back (one hour by default, a world rule), and VEGA tells you what they did.
+
+### 🏛️ Circuits out in the world (#2260)
+
+- Every station's arrival hall has a **light switch**, and so does the flat in a settlement.
+- One in three fresh **crystal vaults** hides a small puzzle: two hidden switches, a secret door and a bonus niche
+  behind it.
+- Pre-built circuits belong to the world: everyone may use them, only an admin re-wires them. World builders get a
+  **device tool** in the structure editor.
+
+### 🏆 Discovering the net (#2257 #2258 #2259 #2270)
+
+- First-time hints when you mine your first crystal and build your first circuits, loading tips, and a settler
+  who gives you eight conduits to start with.
+- A new radio mission chain, **Crystal workshop** (six steps), and **nine achievements**.
+- The Codex can show **pictures** now: six circuit diagrams and four new Crystal Net articles.
+- New block textures, icons, sounds and effects for everything new.
+
+### 🔭 The ship scanner shows what it found (#2247)
+
+- Every scan result now opens as a **card on the right**: planets and moons with their overview, every other object
+  with what it is, its traits and its danger.
+- **Hold to scan** is obvious now: an empty ring appears when the brackets lock on, the line under the target says
+  what to hold, and if you let go too early it says *Keep holding until the ring is full*.
+- The target stays locked while the ring fills, even if an asteroid drifts through the reticle.
+- The old surface scan no longer sticks at the bottom left during flight.
+
+### 🧪 The bio lab, sooner and aboard (#2248 #2249 #2250)
+
+- **Bio Lab** is a starting blueprint now (no other one needed), and **Synthesis** and **Lab Tuning** follow right
+  after it. So **improving tools and gear** (the lab's Change tab) arrives early in the game.
+- New **Bio lab ship module**: with it fitted, use your ship's workshop and pick *Bio lab*, landed or out in space.
+- The Change tab marks the coating as optional, lists the materials you carry that work on the chosen piece, and
+  says when you have to take worn gear off first. VEGA explains the lab once, and a new Codex article,
+  **Improving Items**, walks you through it.
+- A blueprint's detail pane now lists under **Unlocks** what researching it opens: items, ship modules, the next
+  blueprints and new functions.
+
+### 🔧 Fixes
+
+- The drill laser's beam no longer throws players who stand beside the device every half second.
+- A pre-built switch that should start ON now starts ON.
+- The airlock mission's text says clearly what to do, in every language.
+
+### 🌍 Translations (#2271)
+
+- Every new text is in all 14 languages: the new devices and moving blocks, the scanner card, the bio lab hints, the
+  Codex articles and the mission chain.
+- The "What's new?" notes for 2026.10.4 arrived in the twelve community languages (#2246).
+
+Full details of every change are in the pull requests: #2246, #2272 and #2273.
+
 ## [2026.10.4] — 2026-10-04
 
 The discovery release. Everything you harvest now carries something of its own, and the new **bio lab** finds out
@@ -6747,7 +6871,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.4...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.5...HEAD
+[2026.10.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.4...v2026.10.5
 [2026.10.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.3...v2026.10.4
 [2026.10.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.2...v2026.10.3
 [2026.10.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.1...v2026.10.2
