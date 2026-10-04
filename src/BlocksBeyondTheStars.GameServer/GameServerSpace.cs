@@ -169,6 +169,7 @@ public sealed partial class GameServer
         var flats = _world.LandingPadFlats;
         flats.Clear();
         flats.AddRange(PadFlats(pads));
+        _world.ApplyGeneratorMode(); // #2235: this world's own generator levels the new pads from the next query on
     }
 
     /// <summary>The worldgen levelling of a pad set — shared by the world load and the pad-weather queries (#2173),
@@ -284,17 +285,13 @@ public sealed partial class GameServer
 
     private List<LandingPad> ComputeLandingPadsUncached(PlanetType planet, CelestialKind kind, string locationId, int circ)
     {
-        int savedCirc = _generator.Circumference;
-        bool savedCratered = _generator.Cratered;
-        var savedPads = _generator.LandingPads;
-        string savedLocation = _generator.LocationId;
-        double savedOreBoost = _generator.FrontierOreBoost;
         bool airlessMoon = kind == CelestialKind.Moon
             && string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
-        // Full mode swap for the target body (#424 S13) — no pads: this computes WHERE the pads go, so
-        // flattening must not apply, and the active world's pads must not leak into the noise queries.
-        // The target's location id rides along (#478) so pad nudging sees the target's OWN terrain.
-        _generator.SetWorldMode(circ, airlessMoon, null, locationId);
+        // A generator of its own in the target body's mode (#424 S13, #2235) — no pads: this computes WHERE the pads
+        // go, so flattening must not apply, and the active world's pads must not leak into the noise queries. The
+        // target's location id rides along (#478) so pad nudging sees the target's OWN terrain.
+        var previousOverride = _bodyGeneratorOverride;
+        _bodyGeneratorOverride = BodyGenerator(circ, airlessMoon, null, locationId);
 
         try
         {
@@ -354,7 +351,7 @@ public sealed partial class GameServer
         }
         finally
         {
-            _generator.SetWorldMode(savedCirc, savedCratered, savedPads, savedLocation, savedOreBoost);
+            _bodyGeneratorOverride = previousOverride;
         }
     }
 

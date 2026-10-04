@@ -306,14 +306,11 @@ public sealed partial class GameServer
         bool breathable = string.Equals(planet.Atmosphere, "breathable", StringComparison.OrdinalIgnoreCase);
         bool ladder = WeatherCatalog.Find(sim.State)?.IsLadder ?? true;
 
-        int savedCirc = _generator.Circumference;
-        bool savedCratered = _generator.Cratered;
-        var savedPads = _generator.LandingPads;
-        string savedLocation = _generator.LocationId;
-        double savedOreBoost = _generator.FrontierOreBoost;
         bool airlessMoon = body.Kind == CelestialKind.Moon
             && string.Equals(planet.Atmosphere, "none", StringComparison.OrdinalIgnoreCase);
-        _generator.SetWorldMode(circ, airlessMoon, PadFlats(computed), body.Id); // the loaded world's own levelled pads
+        // A generator of its own for that body (#2235), with the levelled pads the loaded world will have.
+        var previousOverride = _bodyGeneratorOverride;
+        _bodyGeneratorOverride = BodyGenerator(circ, airlessMoon, PadFlats(computed), body.Id);
         try
         {
             for (int i = 0; i < computed.Count && i < pads.Length; i++)
@@ -339,7 +336,7 @@ public sealed partial class GameServer
         }
         finally
         {
-            _generator.SetWorldMode(savedCirc, savedCratered, savedPads, savedLocation, savedOreBoost);
+            _bodyGeneratorOverride = previousOverride;
         }
     }
 

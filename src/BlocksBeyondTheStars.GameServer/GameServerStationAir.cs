@@ -330,7 +330,11 @@ public sealed partial class GameServer
     // ---------------- #1487: crew only staffs posts that hold air ----------------
 
     private const double StationStaffInterval = 3.0; // seconds between re-checks of a boarded player station's posts
-    private double _stationStaffTimer;
+    private double _stationStaffTimer // #2235: per world — each boarded station keeps its own 3-s rhythm
+    {
+        get => _worlds.Active.SinceStationStaffCheck;
+        set => _worlds.Active.SinceStationStaffCheck = value;
+    }
     private readonly Dictionary<string, int> _stationStaffSig = new(); // station id → bitmask of staffable posts at the last (re)staffing
 
     /// <summary>Whether a station post may be staffed: always on NPC stations and for non-post markers; on a

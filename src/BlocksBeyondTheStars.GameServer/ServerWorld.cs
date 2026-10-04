@@ -20,7 +20,15 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed class ServerWorld
 {
     private readonly GameContent _content;
-    private readonly WorldGenerator _generator;
+
+    /// <summary>The server's generator — the galaxy-global settings (seed, world options, continents, terrain
+    /// generation). This world never generates with it; it makes its own sibling from it (#2235).</summary>
+    private readonly WorldGenerator _template;
+
+    /// <summary>This world's OWN generator (#2235), configured once with this world's mode. One generator shared by all
+    /// resident worlds was moved by every chunk another world generated inline, so a terrain query of the active world
+    /// between that chunk and the next cursor switch read the other body — and every switch dropped the column memos.</summary>
+    private WorldGenerator? _own;
     private readonly IWorldRepository _repo;
     private readonly Dictionary<ChunkCoord, ChunkData> _loaded = new();
 
@@ -55,7 +63,7 @@ public sealed class ServerWorld
     public ServerWorld(GameContent content, WorldGenerator generator, IWorldRepository repo, PlanetType planet, string locationId, int circumference)
     {
         _content = content;
-        _generator = generator;
+        _template = generator;
         _repo = repo;
         Planet = planet;
         PlanetKey = planet.Key;
@@ -96,21 +104,36 @@ public sealed class ServerWorld
             return cached;
         }
 
-        // Fully re-configure the SHARED generator for THIS world before generating (#424 S13): size,
-        // airless-moon cratering, pad flattening AND the body identity (#478) together — a partial set
-        // here previously left stale state of whatever world was configured last.
+        // Re-apply this world's mode before generating (#424 S13): size, airless-moon cratering, pad flattening AND the
+        // body identity (#478) together. With its own generator (#2235) nothing else moves it, so this is a comparison
+        // unless the pads or the stamps changed since.
         ApplyGeneratorMode();
-        return Store(coord, _generator.Generate(Planet, coord));
+        return Store(coord, Generator.Generate(Planet, coord));
     }
 
-    /// <summary>Configures the SHARED generator for this world: size, airless-moon cratering, pad flattening, the
-    /// body identity and the frontier ore boost, all together. Before every chunk this world generates — and
-    /// whenever the server points its cursor at this world (#2226), so that the terrain queries its systems make
-    /// directly (the creature spawner, the giants, the ground-height fallback) read this world's ground and not
-    /// that of whichever world configured the generator last. Applying the mode the generator already has is a
+    /// <summary>This world's own generator (#2235), in this world's mode: the one its chunks are generated with and the
+    /// one the server's direct terrain queries use while its cursor points here. Re-made from the template when a
+    /// galaxy-global setting changed after it was made (the chunk pool's rule, #1817).</summary>
+    public WorldGenerator Generator
+    {
+        get
+        {
+            if (_own is null || !_own.SharesGlobalSettingsWith(_template))
+            {
+                _own = _template.CreateSibling();
+                _own.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost);
+            }
+
+            return _own;
+        }
+    }
+
+    /// <summary>Configures this world's generator with its mode: size, airless-moon cratering, pad flattening, the body
+    /// identity and the frontier ore boost, all together. Before every chunk this world generates, after its pads or
+    /// stamps change, and whenever the server points its cursor here. Applying the mode the generator already has is a
     /// comparison and nothing else (#1816).</summary>
     public void ApplyGeneratorMode()
-        => _generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost);
+        => Generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost);
 
     /// <summary>#1817: takes a chunk a worker generated for this world (with this world's mode) into the cache —
     /// persisted edits are applied here, on the tick thread, exactly as <see cref="GetOrLoadChunk"/> does. A chunk

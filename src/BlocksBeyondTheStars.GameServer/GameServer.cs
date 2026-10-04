@@ -101,7 +101,33 @@ public sealed partial class GameServer
     private int _nextLocalConnectionId = -1;
 
     private WorldMetadata _meta = new();
-    private WorldGenerator _generator = null!;
+
+    /// <summary>The galaxy-global generator settings (#2235): seed, world options, continents, lava cores, terrain
+    /// generation. Never configured for a body — every resident world generates with its own sibling of it
+    /// (<see cref="ServerWorld.Generator"/>), and a computation about a body that is not under the cursor gets a
+    /// short-lived sibling of its own (<see cref="BodyGenerator"/>).</summary>
+    private WorldGenerator _generatorTemplate = null!;
+
+    /// <summary>Set (and restored in a <c>finally</c>) while a computation runs for a body that is not the active world:
+    /// <see cref="_generator"/> then answers for that body (#2235).</summary>
+    private WorldGenerator? _bodyGeneratorOverride;
+
+    /// <summary>The generator the server's direct terrain queries use (#2235): the active world's own generator — or,
+    /// while <see cref="_bodyGeneratorOverride"/> is set, the one made for the body being computed. Never shared between
+    /// worlds, so a chunk another world generates inline can no longer move the ground under this world's queries.</summary>
+    private WorldGenerator _generator => _bodyGeneratorOverride ?? _worlds?.Active?.World.Generator ?? _generatorTemplate;
+
+    /// <summary>A fresh generator in a body's mode for a computation about that body (#2235) — the landing pads of a
+    /// body not yet loaded, the weather at another body's pads. It replaces the old save-mode / set-mode /
+    /// restore-mode dance on the one shared generator, which also threw away the active world's column memos.</summary>
+    private WorldGenerator BodyGenerator(int circumference, bool cratered, IReadOnlyList<BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten>? pads,
+        string locationId)
+    {
+        var generator = _generatorTemplate.CreateSibling();
+        generator.SetWorldMode(circumference, cratered, pads, locationId);
+        return generator;
+    }
+
     private WorldManager _worlds = null!;
     private Galaxy _galaxy = new();
 
@@ -300,17 +326,17 @@ public sealed partial class GameServer
 
         _repo.SaveMetadata(_meta);
 
-        _generator = new WorldGenerator(_meta.Seed, _content);
+        _generatorTemplate = new WorldGenerator(_meta.Seed, _content);
         // World options: flora/ore factors are part of the save's description — set BEFORE any chunk
         // generates so worldgen stays deterministic across reloads. Continents (#704) ride the same
         // path: baked at creation, re-applied on every load, never flipped on an existing save.
-        _generator.SetWorldOptionFactors(
+        _generatorTemplate.SetWorldOptionFactors(
             _meta.Description.FloraDensity.FloraFactor(),
             _meta.Description.RareResources.OreFactor());
-        _generator.SetContinentsEnabled(_meta.Description.TerrainContinents);
-        _generator.SetLavaCoreVolcanoes(_meta.Description.LavaCoreVolcanoes); // #1631: new worlds only, like continents
-        _generator.SetTerrainGeneration(_meta.Description.TerrainGeneration); // #1644: the wave this save was created with
-        _worlds = new WorldManager(_content, _generator, _repo);
+        _generatorTemplate.SetContinentsEnabled(_meta.Description.TerrainContinents);
+        _generatorTemplate.SetLavaCoreVolcanoes(_meta.Description.LavaCoreVolcanoes); // #1631: new worlds only, like continents
+        _generatorTemplate.SetTerrainGeneration(_meta.Description.TerrainGeneration); // #1644: the wave this save was created with
+        _worlds = new WorldManager(_content, _generatorTemplate, _repo);
         if (_content.GetPlanet(_meta.DefaultPlanetType) is { Void: true })
         {
             _boot?.Replan(BootProgress.VoidStages); // a station start runs fewer passes than a planet
@@ -680,11 +706,10 @@ public sealed partial class GameServer
         // Frontier scaling (#1122): outer systems generate richer rare-tier veins. Stamped like Cratered,
         // so every chunk generation re-configures the shared generator with it.
         world.World.FrontierOreBoost = FrontierOreBoostFor(FrontierTierForBody(locationId));
-        // Configure the shared generator for this body's direct gen queries (size, cratering, pads —
+        // Configure this world's own generator (#2235) with the stamps just set (size, cratering, pads —
         // LandingPadFlats is still empty for a brand-new world; BuildLandingPads below refills it).
         // The location id salts the per-body identity (#478): terrain character, rosters, structures.
-        _generator.SetWorldMode(world.World.Circumference, airlessMoon, world.World.LandingPadFlats, locationId,
-            world.World.FrontierOreBoost);
+        world.World.ApplyGeneratorMode();
         if (!isNew)
         {
             return world; // already resident — keep its fauna/structures/edits
@@ -2731,7 +2756,7 @@ public sealed partial class GameServer
         if (!_chunkGenPoolTried)
         {
             _chunkGenPoolTried = true;
-            _chunkGenPool = ChunkGenerationPool.TryStart(_generator, _config.ChunkGenWorkers);
+            _chunkGenPool = ChunkGenerationPool.TryStart(_generatorTemplate, _config.ChunkGenWorkers);
             if (_chunkGenPool != null)
             {
                 _log.Info($"Chunk generation runs on {_chunkGenPool.Workers} worker thread(s).");
@@ -7879,12 +7904,11 @@ public sealed partial class GameServer
 
     /// <summary>Points the Active cursor at the resident world for a body. True if it is the current world
     /// or a cached one; false if not loaded (an occupied world is always loaded, so it normally succeeds).
-    /// <para>#2226: the shared generator follows the cursor. It keeps the mode — size, cratering, landing pads, the
-    /// body's own salt, the ore boost — of whichever world configured it last (a world load, a chunk generated
-    /// inline), while the systems of the world under the cursor ask it directly: the creature spawner, the giants,
-    /// the ground-height fallback. With two worlds resident they read the other body's terrain. The mode is applied
-    /// on every call, also when the cursor already points here — another world's chunk generation moves the
-    /// generator without moving the cursor — and an unchanged mode costs a comparison.</para></summary>
+    /// <para>#2235: every resident world has its own generator (<see cref="ServerWorld.Generator"/>), and
+    /// <see cref="_generator"/> answers with the one under the cursor — the creature spawner, the giants and the
+    /// ground-height fallback read this world's ground, whatever another world generated in between. (Until #2226 /
+    /// #2235 one shared generator followed the cursor and kept the mode of whichever world configured it last.) The
+    /// mode is re-applied here as a safety net; an unchanged mode costs a comparison.</para></summary>
     private bool SetActiveWorld(string locationId)
     {
         if ((_worlds.Active == null || _worlds.Active.LocationId != locationId) && !_worlds.SetActive(locationId))

@@ -39,6 +39,16 @@ without a jump drive, never into the story system. Three server bugs go first. A
   engine, door or airtightness keeps the pilot aboard with the reason (repeated at most every 4 s); through the hatch they
   are put back at the heal tank. `InEva` is only set once the pilot really is in a space instance; if `EnterSpace` still
   refuses, the pilot goes back into the interior instead of the planet. Tests: helm + hatch cases in `CustomShipTests`.
+- **✅ Per-world state, the rest (#2235):** the boarded player station's re-staffing throttle moved onto `LoadedWorld`
+  (`SinceStationStaffCheck`) — with two boarded stations the shared field ran at double speed and the same world took
+  every turn, so the other station's breached room kept its vendor forever. **Every resident world now has its own
+  `WorldGenerator`** (`ServerWorld.Generator`, a sibling of the server's template, re-made when a galaxy-global setting
+  changes); the server's direct terrain queries (`_generator`) answer with the active world's one, and computations about
+  another body (its landing pads, the weather at its pads) run on a short-lived generator of their own (`BodyGenerator`)
+  instead of the old save / set / restore dance. A chunk another world generates inline no longer moves the ground
+  under this world's queries, and cursor switches no longer drop the column memos. Tests: `TwoBoardedStations_…` in
+  `PlayerStationReportsTests`; the #2226 terrain test now expects the home world's ground right after the other world
+  generated a chunk (it used to codify the bug).
 
 ---
 

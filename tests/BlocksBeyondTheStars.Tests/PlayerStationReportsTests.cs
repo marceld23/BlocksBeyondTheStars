@@ -391,6 +391,47 @@ public sealed class PlayerStationReportsTests : IDisposable
         }
     }
 
+    [Fact]
+    public void TwoBoardedStations_EachKeepTheirOwnStaffingRhythm()
+    {
+        // #2235: the re-staffing throttle was one field for the server, advanced inside every occupied world's tick.
+        // With two boarded stations it ran at double speed and the world that crossed the threshold first took every
+        // turn — the other station never re-checked its posts, so a breached room kept its vendor forever.
+        var server = NewServer("twostations", out var repo);
+        using (repo)
+        {
+            var ann = server.AddLocalPlayer("Ann");
+            var bob = server.AddLocalPlayer("Bob");
+            string annStation = BuildSealedBox(server, ann, vendorItem: "station_vendor");
+            string bobStation = BuildSealedBox(server, bob, vendorItem: "station_vendor");
+            BoardOwnStation(server, "Ann", annStation);
+            BoardOwnStation(server, "Bob", bobStation);
+            Assert.True(server.ResidentWorldCount >= 2);
+
+            foreach (string station in new[] { annStation, bobStation })
+            {
+                Assert.True(server.ActivateWorldForTest("station:" + station));
+                Assert.Contains(server.NpcSnapshots, n => n.Role == "vendor");
+                server.World.SetBlock(BoxWorld(0, 2, 0), BlockId.Air); // both rooms leak now
+            }
+
+            var annAt = ann.State.Position;
+            var bobAt = bob.State.Position;
+            for (int i = 0; i < 12; i++)
+            {
+                ann.State.Position = annAt;
+                bob.State.Position = bobAt;
+                server.TickForTest(0.5);
+            }
+
+            foreach (string station in new[] { annStation, bobStation })
+            {
+                Assert.True(server.ActivateWorldForTest("station:" + station));
+                Assert.DoesNotContain(server.NpcSnapshots, n => n.Role == "vendor");
+            }
+        }
+    }
+
     // ---------------- #1473: sealed-volume air ----------------
 
     [Fact]

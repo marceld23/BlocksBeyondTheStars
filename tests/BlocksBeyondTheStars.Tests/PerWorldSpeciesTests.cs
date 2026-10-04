@@ -860,11 +860,11 @@ public sealed class PerWorldSpeciesTests : IDisposable
         return generator;
     }
 
-    /// <summary>The server has ONE generator for every resident world, and it keeps the mode (size, cratering, landing
-    /// pads, the body's own salt) of whichever world configured it last. The creature spawner, the giants and the
-    /// ground-height fallback ask it directly — so it has to follow the cursor, or a world reads another body's terrain.
-    /// Three ways to get there: the cursor moves, the cursor stays while another world's chunk moved the generator,
-    /// and the tick itself turning from one world to the next.</summary>
+    /// <summary>The creature spawner, the giants and the ground-height fallback ask the generator directly, so with two
+    /// worlds resident each has to read its OWN body's terrain. Since #2235 every world has its own generator (until
+    /// then one shared generator followed the cursor and kept the mode of whichever world configured it last). Three
+    /// ways a world could read the wrong body: the cursor moves, a chunk is generated for the other world while the
+    /// cursor stays, and the tick itself turning from one world to the next.</summary>
     [Fact]
     public void TheTerrainQueriesOfAWorld_ReadThatWorldsTerrain_AfterAnotherWorldWasLoaded()
     {
@@ -891,15 +891,15 @@ public sealed class PerWorldSpeciesTests : IDisposable
         At(server, other);
         Assert.Equal(otherGround, ServerReads());
 
-        // The cursor stays and the generator moves all the same: a chunk generated for the other world configures it
-        // for that world. The server then turns to the home world again — the cursor already points there, nothing
-        // moves — and the home world's mode has to be applied once more.
+        // The cursor stays while a chunk is generated inline for the other world (#2235): that world generates with its
+        // own generator, so the home world's queries still read the home world — right away, with no second At().
         At(server, home);
         var unseen = new ChunkCoord(otherWorld.Circumference / WorldConstants.ChunkSize / 2, 4, 0); // the far side of that body
         Assert.False(otherWorld.IsChunkLoaded(unseen));
         otherWorld.GetOrLoadChunk(unseen);
         Assert.Equal(home, server.ActiveLocationId);
-        Assert.NotEqual(homeGround, ServerReads()); // the generator is the other world's now, the cursor is not
+        Assert.Equal(homeGround, ServerReads());
+        Assert.NotSame(homeWorld.Generator, otherWorld.Generator);
         At(server, home);
         Assert.Equal(homeGround, ServerReads());
 
