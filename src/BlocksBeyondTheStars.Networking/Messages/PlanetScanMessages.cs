@@ -52,4 +52,42 @@ public sealed class PlanetScanResult
     public bool SurfaceOutcrops { get; set; }
     public bool CraterMetals { get; set; }
     public bool GasWorld { get; set; }
+
+    /// <summary>#2239/#2240: the ship-scanner tier that produced this report — 1 = the overview (every ship's cockpit),
+    /// 2 = + the resources (Deep scanner), 3 = + rare ores and secrets (Quantum scanner). 0 from an older server.</summary>
+    public byte Tier { get; set; }
+
+    /// <summary>#2239: true when the resources were left out because the tier is too low — the card offers the Deep
+    /// scanner instead of an empty list.</summary>
+    public bool ResourcesLocked { get; set; }
+
+    /// <summary>#2239: the overview card — one row per topic, in display order.</summary>
+    public NetOverviewRow[] Rows { get; set; } = System.Array.Empty<NetOverviewRow>();
+
+    /// <summary>#2239: the overall traffic light: 0 = harmless, 1 = take care, 2 = dangerous.</summary>
+    public byte Danger { get; set; }
+
+    /// <summary>#2239: knowledge this report paid (the first overview of a body), 0 otherwise.</summary>
+    public int KnowledgeGained { get; set; }
+}
+
+/// <summary>#2239: one row of the planet overview card — locale keys and a level, never prose.</summary>
+public sealed class NetOverviewRow
+{
+    /// <summary>The topic (<c>air</c>, <c>temperature</c>, <c>gravity</c>, <c>weather</c>, <c>water</c>, <c>lava</c>,
+    /// <c>plants</c>, <c>animals</c>, <c>machines</c>, <c>terrain</c>, <c>structures</c>, <c>frontier</c>) — picks the
+    /// row's icon and its label <c>ui.overview.topic.&lt;topic&gt;</c>.</summary>
+    public string Topic { get; set; } = string.Empty;
+
+    /// <summary>Locale key of the short answer ("breathable", "freezing", …).</summary>
+    public string ValueKey { get; set; } = string.Empty;
+
+    /// <summary>0 = harmless (green), 1 = take care (yellow), 2 = dangerous (red), 3 = neutral information (white).</summary>
+    public byte Level { get; set; }
+
+    /// <summary>Optional locale key of a second line ("protection needed", "water hurts", …), empty when none.</summary>
+    public string DetailKey { get; set; } = string.Empty;
+
+    /// <summary>Optional language-neutral figure appended to the answer ("1.3 g", "7"), empty when none.</summary>
+    public string Extra { get; set; } = string.Empty;
 }

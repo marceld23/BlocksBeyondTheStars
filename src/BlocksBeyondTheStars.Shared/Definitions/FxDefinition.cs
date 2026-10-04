@@ -78,6 +78,7 @@ public static class FxStyles
     public const string PlanetScan = "planet_scan";
     public const string Shield = "shield";
     public const string Warp = "warp";
+    public const string ShipScan = "ship_scan"; // #2237: the ship scanner in the flight hotbar (cockpit, Quantum scanner)
 
     private static readonly HashSet<string> Known = new(System.StringComparer.Ordinal)
     {
@@ -85,7 +86,7 @@ public static class FxStyles
         Drill, DrillHot, DrillCrystal, MiningBeam,
         Scan, ScanPro,
         Blueprint, HealPulse, Stasis, Blast, Pump, TerrainScan, Translate, WeatherScan, Generic,
-        TwinPulse, PlasmaBolt, HeavyBeam, DrillBeam, Tractor, PlanetScan, Shield, Warp,
+        TwinPulse, PlasmaBolt, HeavyBeam, DrillBeam, Tractor, PlanetScan, Shield, Warp, ShipScan,
     };
 
     /// <summary>Every known style.</summary>

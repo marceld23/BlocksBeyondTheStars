@@ -109,4 +109,7 @@ public static class AchievementCounters
 
     /// <summary>A bandit scout beaten at the player's own base (#1224).</summary>
     public const string BaseDefended = "base:defended";
+
+    /// <summary>A flight through a wormhole (#2242).</summary>
+    public const string Wormhole = "wormhole:any";
 }

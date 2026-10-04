@@ -308,6 +308,13 @@ public sealed class TransitLaunchDoneIntent
 {
 }
 
+/// <summary>#2242: fly through this wormhole (the pilot's [E] at the rift). The server checks everything — in flight,
+/// aboard, in range of that rift, a twin outside the story's systems, no arrival lock — before it moves anyone.</summary>
+public sealed class WormholeTransitIntent
+{
+    public string WormholeId { get; set; } = string.Empty;
+}
+
 /// <summary>Client fires a built ship weapon at a space entity. The server validates and resolves the hit.
 /// Contractless-additive aim fields (#693): the ship's forward direction at the moment of firing, so the
 /// server can enforce a firing arc. An all-zero direction (older client) skips the arc check.</summary>
@@ -1535,6 +1542,25 @@ public sealed class StarMapData
     /// <summary>Bodies where THIS player has founded a base, with the base's name — the travel screen badges them
     /// "you have a base here: {name}" and offers a rename.</summary>
     public NetMapBase[] MyBases { get; set; } = System.Array.Empty<NetMapBase>();
+
+    /// <summary>#2242: the wormhole ends THIS player can see — every end in a system they know — with the twin's
+    /// system only when they flew through or scanned it. Additive; an older client ignores it.</summary>
+    public NetWormhole[] Wormholes { get; set; } = System.Array.Empty<NetWormhole>();
+}
+
+/// <summary>#2242: one wormhole end on the star map / system chart.</summary>
+public sealed class NetWormhole
+{
+    public string Id { get; set; } = string.Empty;
+    public string SystemId { get; set; } = string.Empty;
+
+    /// <summary>System-space position (the star at the origin), the frame of <see cref="NetBody"/>'s system coordinates.</summary>
+    public float SystemX { get; set; }
+    public float SystemY { get; set; }
+    public float SystemZ { get; set; }
+
+    /// <summary>The twin's system — empty while the player does not know where this one leads ("???").</summary>
+    public string LinkedSystemId { get; set; } = string.Empty;
 }
 
 /// <summary>A player's own base for the travel screen: which body it's on + its current name.</summary>
@@ -1695,6 +1721,15 @@ public sealed class SpaceState
     /// <summary>The OTHER players sharing this space instance (excludes the recipient) — their ship or floating
     /// EVA suit, so everyone can see each other out here.</summary>
     public NetSpacePlayer[] Players { get; set; } = System.Array.Empty<NetSpacePlayer>();
+
+    /// <summary>#2238: the entities of this instance the RECIPIENT has already read with the ship scanner (anomalies,
+    /// wrecks, wormholes — the kinds the server remembers per object). The lock-on label shows "✓ scanned" and an
+    /// anomaly stays calm across visits. Additive; an older client ignores it.</summary>
+    public string[] ScannedIds { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#2242: true when the player arrived in this flight through a wormhole — the client plays the rift
+    /// transit instead of the hyperspace warp. Additive.</summary>
+    public bool Wormhole { get; set; }
 }
 
 /// <summary>The player's own ship as a voxel structure to render in the flight view (item 20, S1).

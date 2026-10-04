@@ -67,14 +67,21 @@ public sealed class PlanetScannerTests : IDisposable
     }
 
     [Fact]
-    public void Scan_WithoutTheModule_IsRejected()
+    public void Scan_WithoutTheModule_GivesTheOverview_ButNoResources()
     {
+        // #2239/#2240: every ship scans with its cockpit (tier 1) — the overview card, not the ore veins; those need
+        // this module (now the ship scanner's tier 2, the Deep scanner). It used to refuse the whole scan.
         var server = Started("noscanner", out var repo);
         using (repo)
         {
             Aboard(server, fitted: false);
-            Assert.Null(server.PlanetScanForTest("Surveyor", string.Empty, out string reason));
-            Assert.Equal("@srv.planetscan.no_module", reason);
+            var report = server.PlanetScanForTest("Surveyor", string.Empty, out string reason);
+            Assert.NotNull(report);
+            Assert.Equal(string.Empty, reason);
+            Assert.Equal(1, report!.Tier);
+            Assert.True(report.ResourcesLocked);
+            Assert.Empty(report.Ores);
+            Assert.NotEmpty(report.Rows);
         }
     }
 

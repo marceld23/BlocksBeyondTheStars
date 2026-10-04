@@ -522,6 +522,11 @@ public sealed partial class GameServer
         _galaxy = new UniverseGenerator(_meta.Seed, _meta.Description, _content).Generate(systemCount);
         _padCache.Clear(); // pads are a function of the galaxy (#1618)
 
+        // #2242: the wormholes — a pure pass over the FIXED systems after the generator, so the layout is untouched
+        // and growth never moves one. Never in the story's finale system (it is not even in the galaxy yet).
+        _galaxy.Wormholes = WormholePlacer.Place(_galaxy.Systems, _meta.Seed, _meta.Description.Wormholes,
+            _meta.Description.StarSystemCount, _content.Wormholes);
+
         var stored = _repo.LoadLocationStatuses();
         foreach (var body in _galaxy.AllBodies())
         {
@@ -3783,6 +3788,7 @@ public sealed partial class GameServer
             case RepairShipIntent repairShip: HandleRepairShip(session, repairShip); break;
             case TravelIntent travel: HandleTravelIntent(session, travel); break;
             case TransitLaunchDoneIntent transitLaunchDone: HandleTransitLaunchDone(session, transitLaunchDone); break;
+            case WormholeTransitIntent wormholeTransit: HandleWormholeTransit(session, wormholeTransit); break;
             case NpcGreetIntent greet: HandleNpcGreet(session, greet); break;
             case SkipOnboardingIntent skipOnboarding: HandleSkipOnboarding(session, skipOnboarding); break;
             case SetWorldRulesIntent worldRules: HandleSetWorldRules(session, worldRules); break;
@@ -7324,6 +7330,7 @@ public sealed partial class GameServer
             KnownSystemIds = known.ToArray(),
             MyStationBodyIds = MyStationBodyIds(session.State.PlayerId), // bodies the player has a station orbiting
             MyBases = MyBaseList(session.State.PlayerId),                // bodies the player has founded a base on
+            Wormholes = WormholesFor(session, hereBody?.SystemId),           // #2242: the rifts they can see, and where the known ones lead
         });
     }
 

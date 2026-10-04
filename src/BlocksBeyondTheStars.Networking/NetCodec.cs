@@ -571,6 +571,9 @@ public static class NetCodec
         Register(282, typeof(BioBook));                      // Server -> Client
         Register(283, typeof(BioLabIntent));                 // Client -> Server
         Register(284, typeof(BioLabResult));                 // Server -> Client
+
+        // #2242 wormholes: the pilot flies through a rift. No protocol bump — older peers drop the unknown tag.
+        Register(285, typeof(WormholeTransitIntent));        // Client -> Server
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

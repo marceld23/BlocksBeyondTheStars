@@ -330,6 +330,7 @@ public sealed class NetCodecTests
         [282] = typeof(BioBook),
         [283] = typeof(BioLabIntent),
         [284] = typeof(BioLabResult),
+        [285] = typeof(WormholeTransitIntent),
 
     };
 

@@ -681,6 +681,9 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendTransitLaunchDone() => Send(new TransitLaunchDoneIntent());
 
+        /// <summary>#2242: fly through the wormhole in front of the ship (the server checks range and the rest).</summary>
+        public void SendWormholeTransit(string wormholeId) => Send(new WormholeTransitIntent { WormholeId = wormholeId ?? string.Empty });
+
         /// <summary>Leave space and land on a body (empty = the current body), on a chosen landing pad (item 38;
         /// padIndex -1 = auto-pick the first free pad).</summary>
         public void SendLeaveSpace(string destinationBodyId, int padIndex = -1)

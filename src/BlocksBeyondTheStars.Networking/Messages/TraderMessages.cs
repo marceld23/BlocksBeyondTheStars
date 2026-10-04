@@ -16,4 +16,8 @@ public sealed class SpaceWarpFx
 
     /// <summary>True = warp-in (arrival flash); false = warp-out (departure flash).</summary>
     public bool Arriving { get; set; }
+
+    /// <summary>#2242: "wormhole" when a pilot vanishes into / shoots out of a rift (a violet crack flash instead of
+    /// the warp streak); empty = the classic warp. Additive.</summary>
+    public string Style { get; set; } = string.Empty;
 }

@@ -123,6 +123,11 @@ public sealed class WorldDescription
     public Frequency SpaceStations { get; set; } = Frequency.Rare;
     public Frequency Wrecks { get; set; } = Frequency.Normal;
 
+    /// <summary>How many wormhole pairs the galaxy has (#2242) — <c>data/wormholes.json</c> turns the frequency into
+    /// pairs per 12 systems; "rare" = exactly one pair in a standard universe. A save from before the feature reads the
+    /// default, so existing worlds get theirs too: wormholes change no terrain and nothing about them is persisted.</summary>
+    public Frequency Wormholes { get; set; } = Frequency.Rare;
+
     /// <summary>Planet-type key → frequency. Empty means "use all known planet types at Normal".</summary>
     public Dictionary<string, Frequency> PlanetTypeFrequencies { get; set; } = new();
 

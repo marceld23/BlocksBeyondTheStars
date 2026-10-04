@@ -162,7 +162,7 @@
     "chainId": "relay_survey", "step": 1, "nextMissionId": "relay_survey_2",
     "giverRole": "quartermaster", "surface": "board", "offerAt": "station",
     "requiresStory": "guardian_defeated",
-    "objectives": [ { "type": "scan", "target": "anomaly", "required": 2 } ],
+    "objectives": [ { "type": "scan", "target": "anomaly", "required": 2, "firstOnly": true } ],
     "rewards": [ { "item": "data_fragment", "count": 2 } ],
     "knowledgeReward": 4,
     "repeatable": false,

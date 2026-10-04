@@ -80,10 +80,46 @@ public sealed class StarSystem
     public List<CelestialBody> Bodies { get; set; } = new();
 }
 
+/// <summary>One end of a wormhole (#2242): a tear in space-time at the edge of a star system whose twin sits in
+/// another system. Ends come in pairs that point at each other, so every wormhole works both ways. Kept apart from
+/// the bodies on purpose — it is no world, nothing lands on it — and, like the rest of the galaxy, re-derived from the
+/// seed on every start, never persisted.</summary>
+public sealed class Wormhole
+{
+    /// <summary><c>&lt;systemId&gt;-wh</c> — also its entity id in a flight instance.</summary>
+    public string Id { get; set; } = string.Empty;
+
+    public string SystemId { get; set; } = string.Empty;
+
+    /// <summary>System-space position (the star at the origin), the same frame as <see cref="CelestialBody.SystemX"/>.</summary>
+    public float SystemX { get; set; }
+    public float SystemY { get; set; }
+    public float SystemZ { get; set; }
+
+    /// <summary>The twin end's <see cref="Id"/>.</summary>
+    public string LinkedId { get; set; } = string.Empty;
+}
+
 /// <summary>The full procedurally generated universe layout for a world.</summary>
 public sealed class Galaxy
 {
     public List<StarSystem> Systems { get; set; } = new();
+
+    /// <summary>The wormhole ends of this galaxy (#2242), in pairs. Empty when the world option is off.</summary>
+    public List<Wormhole> Wormholes { get; set; } = new();
+
+    public Wormhole? FindWormhole(string id)
+    {
+        foreach (var w in Wormholes)
+        {
+            if (w.Id == id)
+            {
+                return w;
+            }
+        }
+
+        return null;
+    }
 
     public IEnumerable<CelestialBody> AllBodies()
     {

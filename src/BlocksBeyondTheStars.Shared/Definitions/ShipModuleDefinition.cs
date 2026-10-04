@@ -33,6 +33,11 @@ public sealed class ShipModuleDefinition
     /// <summary>Resources consumed to build the module.</summary>
     public List<ItemAmount> BuildCost { get; set; } = new();
 
+    /// <summary>Lower tiers this module takes out when it is built (#2240) — the AI core Mk3 replaces the Mk2, the
+    /// Quantum scanner the Deep scanner. The replaced module comes out with the usual salvage, so a tier upgrade never
+    /// leaves the obsolete part in the rack, fully paid.</summary>
+    public List<string> Replaces { get; set; } = new();
+
     /// <summary>
     /// Stat contributions, e.g. "cargo_capacity": 200, "oxygen_production": 5.
     /// Aggregated by the server to compute the ship's effective stats.

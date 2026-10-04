@@ -269,9 +269,22 @@ public sealed partial class GameServer
         if (!_playerInstance.TryGetValue(playerId, out var instanceId)
             || !_spaceInstances.TryGetValue(instanceId, out var instance)
             || instance.Entities.FirstOrDefault(e => e.Id == entityId) is not { } target
-            || target.Kind is not (CombatEntityKind.Asteroid or CombatEntityKind.Anomaly or CombatEntityKind.Wreck))
+            || !IsScannableSpaceObject(target.Kind))
         {
             return Rejected(session, entityId, "ui.scan.not_scannable", "Not a scannable object.");
+        }
+
+        // #2238: the ship scanner reaches as far as its tier, and a held trigger can't fire scans every frame.
+        Serve(session);
+        var scanner = ShipScanner(ShipOf(session));
+        if (target.Position.DistanceSquared(PilotPositionIn(instance, playerId)) > scanner.Range * scanner.Range)
+        {
+            return Rejected(session, entityId, "ui.scan.out_of_range", "Out of scanner range.");
+        }
+
+        if (!TakeShipScanTurn(playerId, entityId))
+        {
+            return Rejected(session, entityId, "ui.scan.recharging", "The scanner is recharging.");
         }
 
         if (target.Kind == CombatEntityKind.Wreck)
@@ -279,8 +292,14 @@ public sealed partial class GameServer
             return ScanSpaceWreck(session, target); // #1664: the manifest readout + derelict lore + "visited"
         }
 
-        // An anomaly (#1129): the scan is the whole encounter — knowledge once per save per player,
-        // and the archive opens one of its lore texts (deduped per player inside the reveal).
+        if (target.Kind == CombatEntityKind.Wormhole)
+        {
+            return ScanWormhole(session, target); // #2242: the scanner reads where it leads
+        }
+
+        // An anomaly (#1129): the scan is the whole encounter — knowledge for every NEW anomaly (#2238; it used to be
+        // once per player overall, so every anomaly after the first was worth nothing), and the archive opens one of
+        // its lore texts (deduped per player inside the reveal).
         if (target.Kind == CombatEntityKind.Anomaly)
         {
             var anomalyReadout = new ScanReadout
@@ -291,9 +310,15 @@ public sealed partial class GameServer
                 InfoKey = "ui.scan.anomaly",
                 LegacyInfo = "Readings defy the catalogue — logged for the archive.",
             };
-            var anomalyResult = Award(session, "anomaly:signature", anomalyReadout, KnowledgeAnomaly);
+            var anomalyResult = Award(session, AnomalyScanKey(target.Id), anomalyReadout, KnowledgeAnomaly);
             TryRevealLoreText(session, "anomaly");
+            BroadcastSpaceState(instance); // the scanner's own state: the anomaly calms for this pilot (ScannedIds)
             return anomalyResult;
+        }
+
+        if (ScanNewSpaceObject(session, target) is { } objectResult)
+        {
+            return objectResult; // #2238: pods, stations, machines, raiders
         }
 
         // Asteroids break down to mineral drops; report the resource types they ultimately yield.

@@ -29,6 +29,7 @@ public enum CombatEntityKind
     EscapePod,    // #1129: a drifting life pod — fly close to rescue the survivor (never hostile/targetable)
     Anomaly,      // #1129: a shimmering unknown — scan it for knowledge + a lore text (never hostile)
     Wreck,        // #1664: the star map's derelict ship — a voxel hull you carve for salvage (never hostile)
+    Wormhole,     // #2242: a tear in space-time to a twin in another star system — fly through it (never hostile)
 }
 
 /// <summary>A server-authoritative combat entity (space object or planet enemy).</summary>
@@ -464,6 +465,13 @@ public sealed partial class GameServer
             return;
         }
 
+        // A fitted higher tier already does this module's job (#2240): building the lower one would sit beside it.
+        if (_ship.Modules.Any(m => _content.GetShipModule(m)?.Replaces.Contains(module.Key) == true))
+        {
+            Reject(session, "build_module", "@srv.module.superseded");
+            return;
+        }
+
         if (!p.AboardShip)
         {
             Reject(session, "build_module", "@srv.module.aboard");
@@ -496,21 +504,23 @@ public sealed partial class GameServer
             pool.Remove(module.BuildCost);
         }
 
-        // The Mk3 core REPLACES the Mk2 (#799): the old core comes out of the rack and is salvaged at the
-        // disassembly rate. Without this the obsolete module sat in ship.Modules forever, fully paid, while
-        // VegaCoreTier just picked the max. Salvage is skipped in free mode — nothing was paid for the Mk2
-        // build either, and creative refunds would mint materials.
-        if (module.Key == "ai_core_mk3" && _ship.Modules.Remove("ai_core_mk2"))
+        // A higher tier REPLACES the lower ones it names (#799 for the AI core, data-driven since #2240 — the Quantum
+        // scanner replaces the Deep scanner): the old module comes out of the rack and is salvaged at the disassembly
+        // rate. Without this the obsolete module sat in ship.Modules forever, fully paid. Salvage is skipped in free
+        // mode — nothing was paid for the old build either, and creative refunds would mint materials.
+        foreach (string replaced in module.Replaces)
         {
-            if (!free && _content.GetShipModule("ai_core_mk2") is { } mk2)
+            if (!_ship.Modules.Remove(replaced) || free || _content.GetShipModule(replaced) is not { } old)
             {
-                foreach (var part in mk2.BuildCost)
+                continue;
+            }
+
+            foreach (var part in old.BuildCost)
+            {
+                int recovered = (int)System.Math.Floor(part.Count * DisassemblyRecoveryRate);
+                if (recovered > 0)
                 {
-                    int recovered = (int)System.Math.Floor(part.Count * DisassemblyRecoveryRate);
-                    if (recovered > 0)
-                    {
-                        pool.Add(part.Item, recovered);
-                    }
+                    pool.Add(part.Item, recovered);
                 }
             }
         }
@@ -588,7 +598,7 @@ public sealed partial class GameServer
     /// (#2118) puts the ship back where it floated before the player left the flight view without landing (the
     /// ship interior, a station boarded from an EVA) — the flight view is told that pose, instead of drawing the
     /// ship at the launch point and reporting THAT back over the remembered spot.</summary>
-    public void EnterSpace(string playerId, bool skipLaunch = false, bool hyperjump = false, SpacePlayerPose? resume = null)
+    public void EnterSpace(string playerId, bool skipLaunch = false, bool hyperjump = false, SpacePlayerPose? resume = null, bool wormhole = false)
     {
         var session = FindSessionByPlayerId(playerId);
 
@@ -684,7 +694,7 @@ public sealed partial class GameServer
             // late packet) had the view build the DEPARTURE system and offer its planets to land on.
             SendStarMap(session); // the space view needs the system's bodies to render + land on them
             SendSystemWeather(session); // #2173: …and their live weather, before the view builds its cloud shells
-            SendSpaceState(session, instance, skipLaunch, hyperjump, resume);
+            SendSpaceState(session, instance, skipLaunch, hyperjump, resume, wormhole);
             SendShipCombatStatus(session);
 
             // item 20 S1: carry the player's ship as a voxel structure in the instance + send it so the flight
@@ -814,6 +824,7 @@ public sealed partial class GameServer
 
         AddBeltRockClusters(instance, anchor); // #683 S2: mineable rocks AT the system's asteroid bodies
         AddSpaceWrecks(instance, anchor);      // #1664: the system's derelict, AT its star-map position
+        AddSpaceWormholes(instance, anchor);   // #2242: the system's wormhole end, if it has one
 
         AddStationContacts(instance);
         AddPersistedStations(instance); // item 20 S4: re-create player-built stations floating in this instance
@@ -2287,7 +2298,8 @@ public sealed partial class GameServer
         Scale = e.Scale,
     };
 
-    private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false, bool hyperjump = false, SpacePlayerPose? resume = null)
+    private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false, bool hyperjump = false,
+        SpacePlayerPose? resume = null, bool wormhole = false)
     {
         var (systemName, bodyName) = LocationNamesFor(session.CurrentLocationId); // #1565: the flight names where it is
         Send(session, new SpaceState
@@ -2310,6 +2322,8 @@ public sealed partial class GameServer
             // Other real pilots PLUS the peaceful NPC traders out here — both ride the flight view's
             // remote-ship render path (their voxel hull arrives via a "ship_remote" SpaceShipDesign).
             Players = AppendTraderPoses(OtherPlayersInSpace(session.State.PlayerId, instance), instance),
+            ScannedIds = ScannedIdsIn(instance, session), // #2238: what this pilot's scanner has already read here
+            Wormhole = wormhole,                         // #2242: arrived through a rift, not a warp
         });
     }
 

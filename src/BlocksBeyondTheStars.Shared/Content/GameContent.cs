@@ -409,6 +409,13 @@ public sealed class GameContent
     public void SetRelay(RelayDefinition? relay)
         => Relay = relay is { Costs.Count: > 0 } ? relay : null;
 
+    /// <summary>The wormhole tuning (#2242) from <c>data/wormholes.json</c>; the defaults when the file is absent (the
+    /// world option decides whether a galaxy has wormholes at all).</summary>
+    public WormholeDefinition Wormholes { get; private set; } = new();
+
+    /// <summary>Installs the wormhole tuning (called by the content loader); null keeps the defaults.</summary>
+    public void SetWormholes(WormholeDefinition? wormholes) => Wormholes = wormholes ?? new WormholeDefinition();
+
     private IReadOnlyList<DialogDefinition> _dialogs = new List<DialogDefinition>();
 
     /// <summary>Engine NPC dialogues (#1127) in authored order — empty when <c>data/dialogs.json</c> is

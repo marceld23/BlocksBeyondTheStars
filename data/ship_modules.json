@@ -1,5 +1,5 @@
 [
-  { "key": "cockpit",        "nameKey": "module.cockpit.name",        "descriptionKey": "module.cockpit.desc",        "mandatory": true,  "buildCost": [], "stats": { "scanner_strength": 1 } },
+  { "key": "cockpit",        "nameKey": "module.cockpit.name",        "descriptionKey": "module.cockpit.desc",        "mandatory": true,  "buildCost": [], "stats": { "scanner_strength": 1, "scanner_range": 150, "scan_time": 1.2 }, "fx": {"style":"ship_scan","color":"#5fe8ff","color2":"#e8fbff"} },
   { "key": "reactor",        "nameKey": "module.reactor.name",        "descriptionKey": "module.reactor.desc",        "mandatory": true,  "buildCost": [], "stats": { "energy_production": 20 } },
   { "key": "life_support",   "nameKey": "module.life_support.name",   "descriptionKey": "module.life_support.desc",   "mandatory": true,  "buildCost": [], "stats": { "oxygen_storage": 100 } },
   { "key": "quarters",       "nameKey": "module.quarters.name",       "descriptionKey": "module.quarters.desc",       "mandatory": false, "buildCost": [], "stats": {} },
@@ -78,9 +78,17 @@
   {
     "key": "planet_scanner", "nameKey": "module.planet_scanner.name", "descriptionKey": "module.planet_scanner.desc",
     "mandatory": false, "requiredBlueprint": "planet_scanner",
-    "buildCost": [ { "item": "iron_plate", "count": 12 }, { "item": "cable", "count": 4 }, { "item": "glass", "count": 3 }, { "item": "crystal", "count": 4 }, { "item": "energy_cell_1", "count": 1 } ],
-    "stats": {},
-    "fx": {"style":"planet_scan","color":"#66f0ff"}
+    "buildCost": [ { "item": "iron_plate", "count": 12 }, { "item": "cable", "count": 4 }, { "item": "glass", "count": 3 }, { "item": "crystal", "count": 4 }, { "item": "energy_cell_1", "count": 1 }, { "item": "sensor_lens", "count": 1 } ],
+    "stats": { "scanner_strength": 2, "scanner_range": 300, "scan_time": 0.8 },
+    "fx": {"style":"planet_scan","color":"#4dffc8","color2":"#e6fff6"}
+  },
+  {
+    "key": "quantum_scanner", "nameKey": "module.quantum_scanner.name", "descriptionKey": "module.quantum_scanner.desc",
+    "mandatory": false, "requiredBlueprint": "quantum_scanner",
+    "buildCost": [ { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 12 }, { "item": "energy_cell_1", "count": 3 }, { "item": "glass", "count": 4 }, { "item": "quantum_sensor", "count": 1 } ],
+    "replaces": [ "planet_scanner" ],
+    "stats": { "scanner_strength": 3, "scanner_range": 500, "scan_time": 0.5 },
+    "fx": {"style":"ship_scan","color":"#ffe08a","color2":"#ffffff"}
   },
   {
     "key": "hull_plating", "nameKey": "module.hull_plating.name", "descriptionKey": "module.hull_plating.desc",
@@ -133,6 +141,7 @@
     "key": "ai_core_mk3", "nameKey": "module.ai_core_mk3.name", "descriptionKey": "module.ai_core_mk3.desc",
     "mandatory": false, "requiredBlueprint": "ai_core_mk3",
     "buildCost": [ { "item": "data_fragment", "count": 8 }, { "item": "titanium_plate", "count": 12 }, { "item": "energy_cell_1", "count": 6 }, { "item": "cable", "count": 20 } ],
+    "replaces": [ "ai_core_mk2" ],
     "stats": { "ai_core": 3, "energy_production": 5 }
   },
   {

@@ -1,0 +1,12 @@
+{
+  "veryRarePairsPer12": 0.5,
+  "rarePairsPer12": 1.0,
+  "normalPairsPer12": 1.5,
+  "frequentPairsPer12": 2.5,
+  "minMapDistance": 350,
+  "edgeMargin": 320,
+  "edgeSpread": 220,
+  "transitRange": 26,
+  "arrivalOffset": 45,
+  "arrivalLockSeconds": 6
+}

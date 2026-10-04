@@ -129,6 +129,12 @@ public static class ContentLoader
             ? JsonSerializer.Deserialize<RelayDefinition>(File.ReadAllText(relayFile), JsonOptions)
             : null);
 
+        // The wormhole tuning (#2242): no wormholes.json → the defaults (the world option still decides).
+        string wormholeFile = Path.Combine(dataDir, "wormholes.json");
+        content.SetWormholes(File.Exists(wormholeFile)
+            ? JsonSerializer.Deserialize<WormholeDefinition>(File.ReadAllText(wormholeFile), JsonOptions)
+            : null);
+
         content.Validate();
         return content;
     }

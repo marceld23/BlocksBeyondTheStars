@@ -35,6 +35,7 @@
   { "key": "system_hopper",  "counter": "visit:system",    "target": 3,   "category": "explore",  "rewards": [ { "item": "energy_cell_1", "count": 3 } ] },
   { "key": "starfarer",      "counter": "visit:system",    "target": 8,   "category": "explore",  "rewards": [ { "item": "power_cell", "count": 2 } ] },
   { "key": "jump_pilot",     "counter": "hyperjump:any",   "target": 1,   "category": "explore",  "rewards": [ { "item": "energy_cell_1", "count": 2 } ] },
+  { "key": "rift_rider",     "counter": "wormhole:any",    "target": 1,   "category": "explore",  "rewards": [ { "item": "energy_cell_1", "count": 2 } ] },
   { "key": "treasure_hunter","counter": "loot:any",        "target": 10,  "category": "explore",  "rewards": [ { "item": "medpack", "count": 3 } ] },
 
   { "key": "first_defeat",   "counter": "defeat:any",      "target": 1,   "category": "survival", "rewards": [ { "item": "medpack", "count": 1 } ] },

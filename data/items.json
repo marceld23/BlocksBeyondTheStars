@@ -350,5 +350,7 @@
   { "key": "prep_gel",       "nameKey": "item.prep_gel.name",       "category": "consumable", "maxStack": 20, "descriptionKey": "item.prep_gel.desc" },
   { "key": "prep_bar",       "nameKey": "item.prep_bar.name",       "category": "consumable", "maxStack": 20, "descriptionKey": "item.prep_bar.desc", "consumeHunger": 25 },
   { "key": "prep_capsule",   "nameKey": "item.prep_capsule.name",   "category": "consumable", "maxStack": 20, "descriptionKey": "item.prep_capsule.desc" },
-  { "key": "prep_coating",   "nameKey": "item.prep_coating.name",   "category": "component",  "maxStack": 20, "descriptionKey": "item.prep_coating.desc" }
+  { "key": "prep_coating",   "nameKey": "item.prep_coating.name",   "category": "component",  "maxStack": 20, "descriptionKey": "item.prep_coating.desc" },
+  { "key": "sensor_lens",    "nameKey": "item.sensor_lens.name",    "category": "component",  "maxStack": 64, "descriptionKey": "item.sensor_lens.desc" },
+  { "key": "quantum_sensor", "nameKey": "item.quantum_sensor.name", "category": "component",  "maxStack": 64, "descriptionKey": "item.quantum_sensor.desc" }
 ]

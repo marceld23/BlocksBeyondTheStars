@@ -8,15 +8,17 @@ using BlocksBeyondTheStars.Shared.World;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// The ship's planet scanner (#2140 — Bloody Mary's "Ressourcenscan": "I want a tool that scans the planet's available
-/// resources"). A ship expansion researched and built like every other module; with it fitted, the pilot can survey
-/// any body of the current star system from aboard — its ore veins (how common, from which depth, which drill), the
-/// world's overall richness and the extras (oil, data caches, surface outcrops, crater metals). The numbers come from
-/// <see cref="WorldGeneration.WorldGenerator.SurveyResources"/>, i.e. from the terrain's own rolls.
+/// The planet report of the ship scanner (#2140 — Bloody Mary's "Ressourcenscan" — and #2239/#2240). Every ship can
+/// scan any body of the current star system: the cockpit's tier 1 gives the overview card (air, temperature, gravity,
+/// weather, water, life, machines, terrain, structures, frontier); the Deep scanner (tier 2, the former planet scanner
+/// module) adds the ore veins (how common, from which depth, which drill), the world's richness and the extras (oil,
+/// data caches, surface outcrops, crater metals); the Quantum scanner (tier 3) adds the rare-tier veins and the
+/// secrets. The resource numbers come from <see cref="WorldGeneration.WorldGenerator.SurveyResources"/>, i.e. from the
+/// terrain's own rolls; nothing here loads a world.
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>The ship module that carries the scanner.</summary>
+    /// <summary>The Deep scanner module (tier 2 of the ship scanner, key kept from the planet scanner it was).</summary>
     internal const string PlanetScannerModule = "planet_scanner";
 
     // Abundance bands on a vein's effective density (type rarity × frontier boost × world richness — the value the
@@ -34,6 +36,10 @@ public sealed partial class GameServer
         if (BuildPlanetScan(session, intent.BodyId, out string reason) is { } result)
         {
             Send(session, result);
+            if (result.KnowledgeGained > 0)
+            {
+                SendInventory(session); // the knowledge total rides the inventory update
+            }
         }
         else
         {
@@ -52,11 +58,7 @@ public sealed partial class GameServer
             return null;
         }
 
-        if (!ShipOf(session).HasModule(PlanetScannerModule))
-        {
-            reason = "@srv.planetscan.no_module";
-            return null;
-        }
+        var scanner = ShipScanner(ShipOf(session)); // #2240: every ship scans; the tier decides how deep
 
         var here = ResolveLocationHostBody(CurrentBodyLocation(session));
         var body = string.IsNullOrEmpty(bodyId) ? here : _galaxy?.FindBody(bodyId!);
@@ -76,6 +78,17 @@ public sealed partial class GameServer
         bool airlessMoon = body.Kind == CelestialKind.Moon
                            && string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
         var survey = _generator.SurveyResources(planet, body.Id, FrontierOreBoostFor(FrontierTierForBody(body.Id)), airlessMoon);
+        var (rows, danger) = BuildBodyOverview(body, planet, scanner.Tier);
+        bool resources = scanner.Tier >= 2;
+        bool secrets = scanner.Tier >= 3;
+
+        // The first overview of a body pays a little knowledge (#2239) — once per player per body.
+        int gained = 0;
+        if (p.Scanned.Add("body:" + body.Id))
+        {
+            gained = (int)System.Math.Round(KnowledgeBodyOverview * ScanMultiplier(p));
+            p.KnowledgePoints += gained;
+        }
 
         reason = string.Empty;
         return new PlanetScanResult
@@ -83,18 +96,26 @@ public sealed partial class GameServer
             BodyId = body.Id,
             BodyName = body.Name,
             PlanetType = planet.Key,
-            Richness = survey.Richness < PlanetScanLeanRichness ? (byte)0 : survey.Richness > PlanetScanRichRichness ? (byte)2 : (byte)1,
-            Ores = survey.Veins.Select(v => new NetPlanetOre
-            {
-                Block = v.Block,
-                Abundance = v.Density >= PlanetScanCommonDensity ? (byte)2 : v.Density >= PlanetScanModerateDensity ? (byte)1 : (byte)0,
-                MinDepth = v.MinDepth,
-                RareTier = v.RareTier,
-            }).ToArray(),
-            OilPockets = survey.OilPockets,
-            DataCaches = survey.DataCaches,
-            SurfaceOutcrops = survey.SurfaceOutcrops,
-            CraterMetals = survey.CraterMetals,
+            Tier = (byte)scanner.Tier,
+            Rows = rows,
+            Danger = danger,
+            KnowledgeGained = gained,
+            ResourcesLocked = !resources,
+            Richness = !resources ? (byte)1
+                : survey.Richness < PlanetScanLeanRichness ? (byte)0 : survey.Richness > PlanetScanRichRichness ? (byte)2 : (byte)1,
+            Ores = !resources ? System.Array.Empty<NetPlanetOre>() : survey.Veins
+                .Where(v => secrets || !v.RareTier) // the rare-tier veins need the Quantum scanner
+                .Select(v => new NetPlanetOre
+                {
+                    Block = v.Block,
+                    Abundance = v.Density >= PlanetScanCommonDensity ? (byte)2 : v.Density >= PlanetScanModerateDensity ? (byte)1 : (byte)0,
+                    MinDepth = v.MinDepth,
+                    RareTier = v.RareTier,
+                }).ToArray(),
+            OilPockets = resources && survey.OilPockets,
+            DataCaches = secrets && survey.DataCaches,
+            SurfaceOutcrops = resources && survey.SurfaceOutcrops,
+            CraterMetals = resources && survey.CraterMetals,
             GasWorld = survey.GasWorld,
         };
     }
