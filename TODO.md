@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏔️ Gloves & target-lock package — summits into space, fists, companions, Feed rebind, per-pilot hostiles, the flight target lock, shock + energy gloves, remote melee, first-person climbing hands (#2276 #2280 #2281 #2282 #2285 #2277 #2283 #2278 #2279 #2287, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (⚠ local Unity build + playtest open; 12 community locales not yet topped up)
+### 🏔️ Gloves & target-lock package — summits into space, fists, companions, Feed rebind, per-pilot hostiles, the flight target lock, shock + energy gloves, remote melee, first-person climbing hands (#2276 #2280 #2281 #2282 #2285 #2277 #2283 #2278 #2279 #2287, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (⚠ playtest open; #2284, #2286, #2306, #2307 stay open)
 
 **Report (Marcel, 2026-10-04, client 2026.10.4):** "I climbed a very high mountain that rose out of the atmosphere … now
 I don't know how to get back down." Since the #578 massifs a summit can rise above most planet types' atmosphere line
@@ -117,12 +117,62 @@ space — the float above the line is made readable and survivable instead of cl
   `blueprint.shock_gloves.*`, `blueprint.energy_gloves.*` keys and the Codex `combat` text (en/de only). Later (phase 5
   after the playtest): a cone push, the "push master" achievement, an arms-dealer offer, `knockback`/`staggerSeconds` in the
   content editor, a player look for the gloves.
-- **Open (target lock):** local Unity build + playtest (mouse, pad, touch; browser on "Low"; the Guardian finale with 12
-  enemies; a pirate system with a raider demanding cargo); the 12 community locales for the new `ui.space.target.*`,
-  `ui.key.flight_target_*`, `ui.touch.target`, `vega.hint.target_lock` keys and the changed `ui.space.controls` /
-  `ui.space.controls_pad`; optional sharper line icons via `gen_hud_icons.py` if the procedural shapes look too plain.
-- **Open:** follow-up — non-weapon tools (drill, scanner) still hit for 15 + 10·tier with no server cooldown (the client
-  gates them at 1.5 s); decide whether they should share the fist rule.
+- **Open (target lock):** playtest (mouse, pad, touch; browser on "Low"; the Guardian finale with 12
+  enemies; a pirate system with a raider demanding cargo); optional sharper line icons via `gen_hud_icons.py` if the
+  procedural shapes look too plain. (Local Unity build ✅ Success; the 12 community locales ✅ topped up with hand QA.)
+- **Open:** #2306 — non-weapon tools (drill, scanner) still hit for 15 + 10·tier with no server cooldown; Marcel
+  decides whether they share the fist rule. #2307 — the bandit terrain sweep breaks at the world seam (older bug).
+
+### 🎮 In-game dialogs: Esc / pad-B gaps and a canvas leak (#2303, 2026-10-04, branch fix/dialog-esc-pad-gaps) — ✅ done (⚠ pad check open)
+
+Found while giving the modals their open effect (#2302). All client-only, no protocol or save change.
+
+- **✅ Esc consumed:** `InterviewUi` and `VendorChoicePrompt` now mark the closing Escape as handled, so the same press
+  no longer opens the pause/quit prompt too (#413).
+- **✅ Pad B:** `InterviewUi` and `ContainerFilterUi` close on the menu verb (`InputAction.UiCancel` — Escape or pad B)
+  instead of the raw Escape key; a pad had only the Close button. The vendor prompt keeps Escape only: it leaves the
+  player in play, where B is crouch.
+- **✅ Leak:** `TrainCabUi` gets an `OnDestroy` (gives the menu back if open, clears `Instance`, destroys its top-level
+  canvas) — the #1789 treatment.
+- **✅ No stacking:** a second `Open` of `CrystalDeviceUi` / `TrainCabUi` closes the first panel instead of laying a
+  second overlay over it.
+- **⚠ Pad check open:** B closes an NPC interview (with and without the on-screen keyboard up) and a crate's filter;
+  Escape on the vendor prompt and the interview no longer opens the pause menu.
+
+### 🧫 Sample case overview — effect in every row, filters + effect families, throwing samples away, the lab's open effect (#2299 #2300 #2301 #2302, 2026-10-04, branch feat/sample-case-overview) — ✅ done (⚠ playtest open)
+
+**Request (Marcel, 2026-10-04, after v2026.10.5).** "With many samples, how do you keep the overview in the bio lab's
+list? Make it filterable — use the effect categories? Same for the inventory's sample view." Plus: "the bio lab menu
+should get the menu effect like the other in-game menus." Analysis: the case holds 24 kinds, listed in slot order
+without the effect; there were no effect categories; a full case had no way out (no discard); the lab — and nine more
+modals — opened without any effect. Decisions: stage 1 + 2, five effect families, the filter lives for the session only,
+throwing samples away goes in, the lab gets the Tab menu's look and the other modals a shared fade/rise.
+
+- **✅ Overview (#2299):** one Unity-free `SampleCaseView` (Client.Core) orders the case for the bio lab, its slot
+  pickers and *Inventory → Samples*: Plants / Animals / Deposits under headings, the unanalysed first, then by family,
+  effect and level. Every row shows the effect (in its colour) or a deposit's strongest traits, else "Not analysed" —
+  never an unanalysed effect. The inventory cards use the lab's icons. The Change tab lists deposits only and marks the
+  ones that would change the chosen piece ("✓ works").
+- **✅ Filters + effect families (#2300):** `BioEffectFamily` + `BioRules.Family` (Shared): Movement, Protection &
+  healing, Strength & work, Survival, Senses. Kind chips with counts + an Effect button (families, then "Not analysed")
+  — pad-friendly, no typing; one session filter shared by the lab and the inventory (static, never saved). The Codex
+  *Substances* chapter groups by family.
+- **✅ Throwing samples away (#2301):** `DiscardSampleIntent` (NetCodec tag 288, no protocol bump — an older server
+  drops the tag); the server removes every sample of that kind from the case, nothing else, and keeps the research
+  book. Two-click "Throw away" on the inventory's sample card and on the lab's Analyse page; the full-case VEGA hint
+  names it.
+- **✅ Open effect (#2302):** the lab opens like the Tab menu — two holo frames wipe on, the contents fade up, the scrim
+  fades and the panel rises; a tab change replays the right side. Never from `Build()` (every click rebuilds).
+  `UiKit.OpenModal` (scrim fades, panel rises) now also opens the crystal device, container filter, train cab, hotbar
+  pie, vendor and launch prompts, F1 feedback + reply window, interview and editor device panel.
+- **✅ Texts:** 15 new + 2 changed keys in all 14 languages (machine pass + term QA against each locale's case, deposit,
+  crystal and bio-lab words).
+- **Tests:** `SampleCaseViewTests` (entries, order, filters, counts, effect cycle); `BioRulesTests` (every effect in
+  exactly one family); `BioLabTests` (throwing away empties the kind, keeps the book, reaches nothing else);
+  `NetCodecTests` golden list.
+- **⚠ Playtest open:** the lab's frames and open/tab-change effect; chips and the Effect button with a pad and in long
+  languages; the inventory's Samples strip; throwing a sample away from both places; the Codex family headings.
+- **✅ Follow-up #2303** (older, found on the way) — fixed separately, see the entry above.
 
 ### 💎 Crystal Net 2 — moving blocks, lifts, new devices, owner + alliance rule, world circuits, the net aboard the own ship, catch-up on return (#2251: #2252–#2271, 2026-10-04, branch feat/crystal-net-2) — ✅ done (released in v2026.10.5: protocol v10, save version 3; ⚠ playtest open)
 

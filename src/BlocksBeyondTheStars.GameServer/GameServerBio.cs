@@ -475,6 +475,32 @@ public sealed partial class GameServer
 
     private static bool TakeSample(PlayerState p, BioSpeciesEntry entry, int count = 1) => p.SampleCase.Remove(SampleKey(entry), count);
 
+    /// <summary>
+    /// #2301: throws a sample kind out of the case — every sample of it, wherever the player stands (the case is part of
+    /// the suit, no lab needed). Only a sample key goes: the intent cannot reach the backpack or the hold. The research
+    /// book is not touched, so an analysed species and its tried mixes stay known. Anything else is ignored quietly —
+    /// the client offers the button only for what lies in the case.
+    /// </summary>
+    private void HandleDiscardSample(PlayerSession session, DiscardSampleIntent intent)
+    {
+        string item = intent.Item ?? string.Empty;
+        string baseKey = ItemKey.Base(item);
+        if ((baseKey != BioItems.Sample && baseKey != BioItems.MineralSample) || ItemKey.Seed(item) == 0)
+        {
+            return;
+        }
+
+        var p = session.State;
+        int count = p.SampleCase.CountOf(item);
+        if (count <= 0 || !p.SampleCase.Remove(item, count))
+        {
+            return;
+        }
+
+        SendInventory(session);
+        _log.Info($"'{p.Name}' threw {count}x {item} out of the sample case.");
+    }
+
     /// <summary>A block a player broke: a plant or a tree block yields a sample of its species, an ore a sample of its
     /// deposit. <paramref name="bredSeed"/> is the species of a bred plant that stood in the cell (0 for anything else);
     /// <paramref name="naturalDeposit"/> says the cell held what the world made, not a block a player set there.</summary>
@@ -685,6 +711,9 @@ public sealed partial class GameServer
 
     /// <summary>Test seam: puts samples of a registered species into a player's case.</summary>
     public bool GiveSampleForTest(PlayerSession session, uint seed, int count = 1) => GiveSample(session, BioEntry(seed), count);
+
+    /// <summary>Test seam: throws a sample kind out of a player's case through the real handler (#2301).</summary>
+    public void DiscardSampleForTest(PlayerSession session, string item) => HandleDiscardSample(session, new DiscardSampleIntent { Item = item });
 
     /// <summary>Test seam: the values of the tool a player holds — with what the lab changed on it.</summary>
     public ToolProperties ActiveToolForTest(PlayerSession session) => ActiveTool(session.State);

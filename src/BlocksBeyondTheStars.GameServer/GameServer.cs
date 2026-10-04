@@ -3795,6 +3795,7 @@ public sealed partial class GameServer
             case ThrowFoodIntent throwFood: HandleThrowFood(session, throwFood); break; // #2018: the Feed action
             case UseGadgetIntent gadget: HandleUseGadget(session, gadget); break;
             case BioLabIntent bioLab: HandleBioLab(session, bioLab); break; // #2203
+            case DiscardSampleIntent discardSample: HandleDiscardSample(session, discardSample); break; // #2301
             case TameRespondIntent tameResp: HandleTameRespond(session, tameResp); break;
             case BanditResponseIntent banditResp: HandleBanditResponse(session, banditResp); break;
             case RequestCompanionsIntent: HandleRequestCompanions(session); break;

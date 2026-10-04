@@ -41,6 +41,21 @@ public enum BioEffect : byte
     Gathering = 19,   // a harvested plant yields one more
 }
 
+/// <summary>
+/// What an effect is good for, in the words a player looks for (#2300): the sample case filters by it and the Codex
+/// groups the substances under it. Never stored — <see cref="BioRules.Family"/> derives it from the effect — but the
+/// lists show the families in this order.
+/// </summary>
+public enum BioEffectFamily : byte
+{
+    None = 0,
+    Movement = 1,   // speed, jump, feather fall, grip
+    Protection = 2, // shield, regeneration, heat, cold and toxin ward
+    Work = 3,       // strength, mining, reflex, gathering
+    Survival = 4,   // breath, satiety, energy
+    Senses = 5,     // night sight, perception, stealth
+}
+
 /// <summary>The mild catch a strong substance may carry. Never direct damage. Append-only, like <see cref="BioEffect"/>.</summary>
 public enum BioSideEffect : byte
 {

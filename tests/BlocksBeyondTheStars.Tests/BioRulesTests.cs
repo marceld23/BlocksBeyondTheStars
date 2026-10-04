@@ -135,6 +135,29 @@ public sealed class BioRulesTests
         Assert.NotEqual(0u, BioHash.DepositSeed(0, string.Empty));
     }
 
+    [Fact]
+    public void EveryEffect_BelongsToExactlyOneFamily_AndNoFamilyIsEmpty()
+    {
+        // #2300: the sample case filters by family and the Codex groups by it — an effect without one would vanish.
+        var defined = Enum.GetValues(typeof(BioEffect)).Cast<BioEffect>().Where(e => e != BioEffect.None).ToArray();
+        Assert.Equal(defined.OrderBy(e => e), BioRules.Effects.OrderBy(e => e));
+        foreach (var effect in defined)
+        {
+            Assert.Contains(BioRules.Family(effect), BioRules.Families);
+        }
+
+        Assert.Equal(BioEffectFamily.None, BioRules.Family(BioEffect.None));
+        foreach (var family in BioRules.Families)
+        {
+            Assert.Contains(defined, e => BioRules.Family(e) == family);
+        }
+
+        var all = Enum.GetValues(typeof(BioEffectFamily)).Cast<BioEffectFamily>().Where(f => f != BioEffectFamily.None);
+        Assert.Equal(all.OrderBy(f => f), BioRules.Families.OrderBy(f => f));
+        Assert.Equal(BioEffectFamily.Protection, BioRules.Family(BioEffect.HeatWard));
+        Assert.Equal(BioEffectFamily.Senses, BioRules.Family(BioEffect.Stealth));
+    }
+
     // ---------------- The mixer ----------------
 
     private static BioProfile Sample(BioEffect effect, int level, int group, BioSideEffect side = BioSideEffect.None, int sideLevel = 0,

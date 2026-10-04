@@ -664,6 +664,10 @@ namespace BlocksBeyondTheStars.Client
         public void SendDiscardItem(int slot, bool fromCargo = false)
             => Send(new DiscardItemIntent { Slot = slot, FromCargo = fromCargo });
 
+        /// <summary>Throws every sample of one kind out of the sample case (#2301), addressed by its full sample key.
+        /// Irreversible: only call this behind a confirmation. The research book keeps the species.</summary>
+        public void SendDiscardSample(string item) => Send(new DiscardSampleIntent { Item = item });
+
         // --- Ship docking (M18) ---
         public void SendDockRequest(string targetPlayer) => Send(new DockRequestIntent { TargetPlayer = targetPlayer });
 

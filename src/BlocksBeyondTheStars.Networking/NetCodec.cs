@@ -576,6 +576,10 @@ public static class NetCodec
         Register(285, typeof(WormholeTransitIntent));        // Client -> Server
         Register(286, typeof(LiftList));                     // Server -> Client (#2266: the lifts, ~5 Hz while one moves)
         Register(287, typeof(CrystalDeviceDelta));           // Server -> Client (#2267: the devices that changed)
+
+        // #2301: a sample kind thrown out of the sample case. No protocol bump — an older server drops the unknown tag
+        // and simply throws nothing away.
+        Register(288, typeof(DiscardSampleIntent));          // Client -> Server
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,
