@@ -204,6 +204,13 @@ ITEMS = [
     # #2192 wall climbing (2026-10-03): the two climbing modules.
     ("climbing_gloves", "a pair of sturdy sci-fi space-suit climbing gloves, dark grey with bright orange rubber grip pads on the palms and fingertips and a small cyan wrist-strap light"),
     ("climbing_claws", "a pair of armoured sci-fi space-suit climbing gloves with short curved steel claw spikes on every fingertip, dark gunmetal with orange grip pads and icy pale-blue glints on the claw tips"),
+    # #2294–#2297 the suit package (2026-10-04): the titanium set, the spring boots, the glider and the suit battery.
+    ("titan_helmet", "a sleek sci-fi space-suit helmet of brushed blue-silver titanium with a dark tinted visor, small cyan side lights and fine panel lines"),
+    ("titan_chest", "a sci-fi armoured chest plate of brushed blue-silver titanium with layered overlapping plates, rivets and a small glowing cyan core light in the centre"),
+    ("titan_legs", "a pair of sci-fi armoured leg plates of brushed blue-silver titanium with knee guards and thin cyan accent lines"),
+    ("spring_boots", "a pair of chunky sci-fi space-suit boots with big shiny silver coil springs under the soles, dark grey with orange accents and small cyan ankle lights"),
+    ("glider", "a compact sci-fi wing glider backpack with two unfolded bright orange fabric wings stretched over thin silver ribs, a dark grey harness in the middle"),
+    ("suit_battery", "a compact sci-fi suit battery pack, a rounded dark metal cell with a glowing bright cyan energy window and a small clip, three green charge bars on its side"),
     # #2237/#2240 the ship scanner (2026-10-04): the built-in scanner's hotbar icon, tier 3 and the two workbench parts.
     ("ship_scanner", "a sleek sci-fi spaceship sensor module: a slim white and gunmetal nose array with one glowing cyan lens, four small glowing cyan holographic corner brackets floating in front of it as if locking onto a target"),
     ("quantum_scanner", "an advanced sci-fi spaceship sensor array: a dark gunmetal module with a ring of small glowing white-gold lenses around a bright central crystal eye, faint golden holographic scan lines fanning out from it"),

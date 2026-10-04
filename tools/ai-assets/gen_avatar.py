@@ -34,6 +34,10 @@ TEXTURES = [
     ("armor", "brushed metal sci-fi armour plate with rivets, bevelled edges and panel lines"),
     ("visor", "glossy dark helmet visor glass with a faint pale-cyan reflection sheen"),
     ("skin", "smooth even matte skin surface, very subtle pores"),
+    # #2294/#2296 the suit package (2026-10-04): the titanium plates and the glider's wing fabric.
+    ("armor_titan", "finely brushed titanium armour plate with layered overlapping segments, thin engraved panel "
+                    "lines and small countersunk bolts, smoother and more refined than plain riveted armour"),
+    ("glider", "tight ripstop wing fabric with a fine square reinforcement grid and thin stitched rib seams"),
 ]
 
 

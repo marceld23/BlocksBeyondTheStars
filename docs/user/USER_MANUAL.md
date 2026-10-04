@@ -9,7 +9,7 @@ chat/admin commands. This is a living document.
 > localized — English, German, French and Spanish are complete, further community translations such as
 > Italian are in progress.)
 
-Last updated: 2026-08-26.
+Last updated: 2026-10-04.
 
 > **Parents and teachers:** what the game contains, who your child can meet online and which switches you
 > hold are summarised on the [parents page](PARENTS.md) ([Deutsch](PARENTS.de.md)).
@@ -119,7 +119,7 @@ Last updated: 2026-08-26.
 |---|---|
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
-| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot of the Inventory's Worn row); **in water: swim up / surface**; **jump at a wall while pushing towards it to grab it and climb** — on the wall, hold Space to climb up (see §5 → Climbing walls) |
+| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface**; **jump at a wall while pushing towards it to grab it and climb** — on the wall, hold Space to climb up (see §5 → Climbing walls) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
 | **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; **let go of a wall you are climbing**; descend in zero-g |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected) |
@@ -129,7 +129,8 @@ Last updated: 2026-08-26.
 | **Middle mouse** | **Hotbar slot actions** on the selected slot: swap it against any backpack item, and for a building material also colour it (dye / glow / own pattern) or re-form it — see §5 → Hotbar slot actions (rebindable) |
 | **F** | Attack with the held tool/weapon — hits what's **under your crosshair** (the reticle turns red over a target; with **auto-aim** on, the nearest enemy in front of you is acquired automatically) |
 | **R** | At your own **cockpit / ship console** while the repair panel is up: repair the ship (see §5 → Repairing your own ship); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder, stairs or a block with a front** (machines, counters, devices) selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
-| **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
+| **L** | Toggle the suit headlamp (requires a **worn** `suit_lamp` — a module slot on the Suit tab; without one a hint says so) |
+| **B** | Switch the **stealth suit's** cloak on / off (requires the stealth suit **worn** in the chest slot; drains suit energy) — rebindable |
 | **G** | Loot the nearest container |
 | **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
@@ -167,11 +168,11 @@ buttons — retuning is tracked in issue #195):
 | **D-pad ◄ ►** | Cycle hotbar slot |
 | **D-pad ▲** | Open the chat (with the on-screen keyboard) |
 | **D-pad ▼** | Turn the building block you are holding |
-| **(A)** | Jump (hold in air = jetpack; in water = swim up; jump at a wall and push the stick towards it to grab it — **(B)** lets go, see §5 → Climbing walls) |
+| **(A)** | Jump (hold in air = jetpack, or glide while falling with a glider; in water = swim up; jump at a wall and push the stick towards it to grab it — **(B)** lets go, see §5 → Climbing walls) |
 | **(X)** | Use / board / interact |
 | **(Y)** | Toggle first / third-person camera |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
-| **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp, thermal vision, feed a begging herd, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
+| **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp and stealth (only while worn), thermal vision, feed a begging herd, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
 | **View** (the two-rectangles button left of the Xbox logo; "Back" on a 360 pad, Share on PlayStation, − on Nintendo) | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard); also opens the folded VEGA tab |
 | **Menu** (☰ — the three-lines button right of the Xbox logo; Unity and 360-era pads call it Start. The Xbox-logo button itself belongs to Windows' Game Bar and never reaches the game) | Open / close the gameplay menu — its top strip has the **Pause menu** button (Resume / Settings / Quit, the same dialog **Esc** opens on the keyboard); **(B)** resumes |
 
@@ -418,9 +419,9 @@ separate unlock; admins can still disable it through server world rules.
   **greenhouse** (see below), craft emergency rations — or build an **algae tank** (workshop, no blueprint)
   at a base: standing next to it grows 2 algae rations from 1 water (melt 2 snow or 2 ice into water by
   hand if there is no lake).
-- **Suit energy** (max 100): powers the stealth-suit cloak, the **jetpack** (hold Space in the air to
-  thrust up) — and the suit's **climate control** (below); consumers stop when it hits 0. Recharges
-  aboard the ship and refills fully at a heal-tank.
+- **Suit energy** (max 100, **150 with a worn suit battery**): powers the stealth-suit cloak (**B**), the
+  **jetpack** (hold Space in the air to thrust up) — and the suit's **climate control** (below); consumers
+  stop when it hits 0. Recharges aboard the ship and refills fully at a heal-tank. The **glider** needs none.
 - **Temperature** (Survival only): roughly **−5…40 °C is free**. Beyond that the suit's climate control
   drains **suit energy** — the further past the band (ice-world night, lava plain at noon, vacuum on an
   EVA), the faster — and once the energy is empty you slowly take exposure damage (≤ 3/s, the HUD says
@@ -652,18 +653,41 @@ effort.
 ### Inventory & cargo hold
 - Your **inventory** is your personal backpack — **36 slots** since 2026-09 (a nine-wide grid: the
   **quick-bar** row of nine, the on-screen hotbar, under a line, and 27 backpack slots above it). It travels
-  with you everywhere. Older saves are simply widened.
+  with you everywhere. Older saves are simply widened. On the **Backpack** tab, click a slot to pick its item
+  up and a second slot to put it down or swap — the same by touch and with a gamepad (A picks and places).
 - **Suit gear works only while you WEAR it** (2026-09; before, a piece worked anywhere in the pack). The
-  Inventory tab shows a **Worn** row of nine slots above the backpack: **head** (helmet), **chest** (chest
-  armour *or* the stealth suit), **legs**, **feet** (the new **boots**: a softer landing, a little warmth),
-  **back** (the jetpack), **tank** (one oxygen tank), **liner** (one suit liner) and **two modules** (lamp,
-  extractor, a radio, the radar scanner, the climbing gloves or claws). **Click a piece, then click its slot** — the slot wears it and hands
-  back whatever was worn there; click a worn piece, then a backpack slot, to take it off (or use the
-  **Wear / Take off** button in the detail pane). Two backpack clicks move or swap. The same works by touch and
-  with a gamepad (A picks and places). Worn gear **stays with you** when you stow, stash or die. The status
-  line above the grid shows what the worn gear gives you: **armour** (pieces add up, capped at 75 %),
-  **maximum oxygen** and **insulation**; the HUD oxygen bar's full mark is your real maximum. The first time
-  you open an old save, your best helmet, tank, liner, jetpack, armour and two modules are put on for you.
+  Inventory's **Suit** tab shows the worn slots as a **figure** (2026-10): **head** (helmet or titanium helmet),
+  **chest** (chest armour, titanium chest plate *or* the stealth suit), **legs**, **feet** (boots or **spring
+  boots**), **back** (the jetpack *or* the **glider**), **tank** (one oxygen tank), **liner** (one suit liner)
+  and **four modules** (lamp, extractor, a radio, the radar scanner, the climbing gloves or claws, the suit
+  battery). **Click a slot** — empty or not — and a list shows every piece that fits it, with what it does and
+  where it lies: in your **backpack** or, while you are aboard, in the ship's **cargo hold** (you can wear
+  straight from the hold). Pick one to put it on (whatever was worn there goes to your backpack), or **Take off**.
+  Nothing fitting yet? The list says so and its button jumps to the recipe. Worn gear **stays with you** when
+  you stow, stash or die. The status line above the figure shows what the worn gear gives you: **armour**
+  (pieces add up, capped at 75 % — the full titanium set reaches the cap), **maximum oxygen** and **insulation**;
+  the HUD oxygen bar's full mark is your real maximum. Below the figure, *Can be used actively* lists the worn
+  gear you switch or fly yourself, with its key. The first time you open an old save, your best helmet, tank,
+  liner, jetpack, armour and modules are put on for you; a new pilot starts with the suit lamp already worn.
+- **Active gear in the HUD:** right of the quick-bar a small **gear strip** shows each worn piece you use
+  yourself — the **lamp** (on/off, **L**), the **jetpack** (lights up while thrusting, shows the suit energy;
+  hold Jump in the air), the **stealth suit** (on/off, **B**) and the **glider** (lights up while gliding; hold
+  Jump while falling). On touch, tap the lamp or the stealth icon to switch it. The strip takes none of the nine
+  quick-bar slots — the tool in your hand stays where it is — and it is hidden while you wear none of them.
+- **The suit gear at a glance:**
+  - **Titanium helmet / chest plate / leg plates** (tier 2, workshop; blueprints after the helmet, the chest
+    armour and the leg armour): more armour and warmth than the iron set.
+  - **Spring boots** (feet; blueprint after the boots): jump about 60 % higher and land 50 % softer — the coils
+    under the soles squash and spring.
+  - **Glider** (back, instead of the jetpack; blueprint after the jetpack): while falling, hold Jump — the
+    wings unfold and you glide forward slowly, steering where you look, using **no** suit energy. It needs air:
+    on airless worlds, above the atmosphere, in space and under water it stays folded. Landing from a glide
+    does no fall damage.
+  - **Suit battery** (module; blueprint after the jetpack): suit energy 150 instead of 100.
+  - **Radar scanner** (module): while worn, the round compass also shows **creatures** within ~48 m (hostile
+    red, the others green) and **other players** (cyan), with a soft blip when a hostile comes into range.
+  - **Stealth suit** (chest): **B** switches the cloak on and off — hostile creatures stop noticing you while it
+    drains suit energy; it ends by itself when the energy runs out.
 - Your ship's **cargo hold** is bulk storage that belongs to the ship (48 slots, growing with cargo-hold
   modules) and is shared by everyone aboard that ship.
 - **What goes where:** mined and crafted items fill your inventory first and only spill into the cargo hold
