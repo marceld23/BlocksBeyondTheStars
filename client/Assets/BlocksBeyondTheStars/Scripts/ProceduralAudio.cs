@@ -107,6 +107,11 @@ namespace BlocksBeyondTheStars.Client
             "bio_effect_start" => SoftChime("bio_effect_start", rising: true),
             "bio_effect_end" => SoftChime("bio_effect_end", rising: false),
             "bio_sample_take" => NoiseHit("bio_sample_take", 0.14f, 0.35f, 2400f, 34f), // the sampler's short pneumatic snip
+            // #2283 flight target lock cues — stand-ins for the bundled recordings of the same names.
+            "target_lock" => TwoTone("target_lock", 880f, 1320f, 0.24f),
+            "target_lock_hostile" => TwoTone("target_lock_hostile", 1175f, 1568f, 0.26f),
+            "target_cycle" => Beep("target_cycle", 1500f, 0.05f, 0.14f),
+            "target_lost" => Sweep("target_lost", 1100f, 420f, 0.3f, 0.16f),
             var note when note.StartsWith("note_", System.StringComparison.Ordinal) => Note(note),
             _ => null,
         };
@@ -227,6 +232,27 @@ namespace BlocksBeyondTheStars.Client
         {
             "bio_lab_analyse", "bio_lab_mix", "bio_lab_fail", "bio_effect_start", "bio_effect_end", "bio_sample_take",
         };
+
+        /// <summary>The flight target lock's cue ids the synthesizer can stand in for (#2283): lock, lock on an enemy,
+        /// cycle to the next target, target lost.</summary>
+        public static readonly string[] TargetIds =
+        {
+            "target_lock", "target_lock_hostile", "target_cycle", "target_lost",
+        };
+
+        /// <summary>Two short soft beeps a step apart (low, then high) — the "locked on" acknowledgement.</summary>
+        private static AudioClip TwoTone(string name, float first, float second, float vol) => Buf(name, 0.24f, d =>
+        {
+            int half = d.Length / 2;
+            for (int i = 0; i < d.Length; i++)
+            {
+                bool late = i >= half;
+                float t = (late ? i - half : i) / (float)Rate;
+                float hz = late ? second : first;
+                // a fast attack (no click) and a quick decay per note
+                d[i] = Mathf.Sin(2f * Mathf.PI * hz * t) * Mathf.Min(1f, t * 400f) * Mathf.Exp(-t * 22f) * vol;
+            }
+        });
 
         /// <summary>A soft scan sweep: one tone gliding from <paramref name="lo"/> to <paramref name="hi"/> under
         /// a swell, with a faint octave on top.</summary>

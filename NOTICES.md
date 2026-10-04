@@ -52,7 +52,9 @@ three clips `climb_grab`, `climb_strain`, `climb_slide` (#2193, same `gen_sound.
 clips `bio_lab_analyse`, `bio_lab_mix`, `bio_lab_fail`, `bio_effect_start`, `bio_effect_end`, `bio_sample_take` (#2210, same
 `gen_sound.py`, 2026-10-03), and the space package's twelve clips `ship_scan_lock`, `ship_scan_charge`, `ship_scan_complete`,
 `ship_scan_hostile`, `planet_scan_overview`, `pod_beacon`, `pod_rescue`, `anomaly_hum`, `anomaly_react`, `wormhole_hum`,
-`wormhole_enter`, `wormhole_exit` (#2237/#2241/#2242, same `gen_sound.py`, 2026-10-04))
+`wormhole_enter`, `wormhole_exit` (#2237/#2241/#2242, same `gen_sound.py`, 2026-10-04), and the flight target
+lock's four cues `target_lock`, `target_lock_hostile`, `target_cycle`, `target_lost` (#2283, same `gen_sound.py`,
+2026-10-04))
 are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/developer/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio

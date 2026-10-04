@@ -85,6 +85,29 @@ Everything below the line "Deferred" is intentionally **not** in the MVP.
   world has one shared ship; per-player ships come later) — `ShipDamageByPlayers` is read but
   PvP hits are rejected with a clear reason.
 
+## Target lock is client presentation (#2277, #2283)
+
+The flight target lock (cycle with T / pad LB / touch TARGET, nearest enemy with R / R3, "target ahead" with the
+right mouse button; frame, edge arrow, threat ticks, waypoint arrow) is **pure client state** — no intent, no
+snapshot field, no protocol version. The server never learns what a player has locked. The lock only chooses which
+target id the client writes into the intents it already sends:
+
+- **`FireWeaponIntent.TargetEntityId`** — with the `AutoAim` rule on, the locked fire target is preferred inside
+  ±40° of the nose (`SpaceTargeting.LockAssistConeDegrees`), and only when the weapon's `weapon_class` suits it
+  (`SpaceTargeting.WeaponSuits` — no breaker onto a drone); the server's own arc stays ±60° (`ValidateSpaceAim`,
+  `dot < 0.5`), so a lock-assisted shot is never refused for its angle. `AimValidationTests` pins that contract
+  (40° lands, 70° is refused). With `AutoAim` off the lock is display-only — the boresight rule stays honest.
+- **`TractorPullIntent.TargetEntityId`** — a locked salvage drop in reach is the one pulled.
+- **`ScanEntityIntent.EntityId` / `PlanetScanIntent`** — the scanner reads a locked object in its range (the server
+  checks only the range there anyway).
+
+A tampered client could always send any id; the server validates range, arc, rules, energy and cooldown exactly as
+before, so the lock adds no attack surface. The pure rules (disposition, cycle order, lock range with 10 %
+hysteresis, the attack newcomer watch behind the auto-lock, the edge-arrow placement incl. behind the camera) live in
+`Client.Core/SpaceTargeting.cs` with `SpaceTargetingTests`; the Unity side is `SpaceView.Targeting.cs` plus the shared
+bracket/arrow HUD classes in `SpaceTargetHud.cs` (the ship scanner's lock frame is the same class with its charge
+ring). A server-aware lock (a `TargetLockIntent`) only becomes worth it with homing weapons or a lock-on time.
+
 ## Planet enemies (server)
 
 - Gated by `PlanetEnemies` and disabled in Creative / when `PassiveCreatures`-only

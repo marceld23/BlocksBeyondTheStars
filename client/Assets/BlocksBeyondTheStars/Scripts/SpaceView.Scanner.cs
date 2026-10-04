@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Client.Core;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -44,13 +44,8 @@ namespace BlocksBeyondTheStars.Client
         private readonly HashSet<string> _scannedThisFlight = new HashSet<string>();
         private readonly HashSet<string> _anomalyHinted = new HashSet<string>();
 
-        // Lock-on HUD (lives on the flight overlay canvas).
-        private RectTransform _scanLock;
-        private readonly Image[] _scanBars = new Image[8];
-        private Text _scanLabel;
-        private Image _scanRing;
-        private Image _scanRingTrack; // #2247: the empty ring, shown from the lock on — "something here wants filling"
-        private static Sprite _ringSprite;
+        // Lock-on HUD: the shared bracket frame (#2283) with the scanner's charge ring, on the targeting layer.
+        private SpaceTargetFrame _scanFrame;
 
         /// <summary>Within this, the autopilot / waypoint arrives at a life pod, an anomaly or a wormhole.</summary>
         private const float EncounterArriveRange = 22f;
@@ -60,15 +55,13 @@ namespace BlocksBeyondTheStars.Client
             => ShipScannerRules.For(Game.ShipCombat?.Modules ?? System.Array.Empty<string>(), k => Game.Content?.GetShipModule(k));
 
         /// <summary>The encounter kinds that never move — rendered at their position, no snapshot buffer.</summary>
-        private static bool IsStaticEncounter(string kind) => kind == "EscapePod" || kind == "Anomaly" || kind == "Wormhole";
+        private static bool IsStaticEncounter(string kind) => SpaceTargeting.IsStaticEncounterKind(kind);
 
         /// <summary>The encounter kinds a waypoint / the VEGA autopilot can fly to.</summary>
         private static bool IsEncounterWaypointKind(string kind) => IsStaticEncounter(kind);
 
-        /// <summary>The space object kinds the scanner reads (mirrors the server's list).</summary>
-        private static bool IsScannableKind(string kind) => kind == "Asteroid" || kind == "Anomaly" || kind == "Wreck"
-            || kind == "EscapePod" || kind == "SpaceStation" || kind == "Drone" || kind == "Ufo" || kind == "Cruiser"
-            || kind == "BanditShip" || kind == "Wormhole";
+        /// <summary>The space object kinds the scanner reads (mirrors the server's list; one list, #2277).</summary>
+        private static bool IsScannableKind(string kind) => SpaceTargeting.IsScannableKind(kind);
 
         /// <summary>One frame of the selected scanner: lock, hold, read.</summary>
         private void UpdateScanner(float dt)
@@ -172,17 +165,15 @@ namespace BlocksBeyondTheStars.Client
             _scanTargetKey = null;
             _scanProgress = 0f;
             _scanCharging = false;
-            if (_scanLock != null && _scanLock.gameObject.activeSelf)
-            {
-                _scanLock.gameObject.SetActive(false);
-            }
+            _scanFrame?.Hide();
         }
 
         /// <summary>The target ahead: a scannable space object within the scanner's range, else a body of the system the
         /// nose points at (any distance — planets are read from afar). A target whose apparent size covers the aim line
         /// counts too, so a big planet is easy to lock and a small rock needs the nose on it. <paramref name="keep"/> is
         /// the target of a scan in progress (#2247): it stays locked while it is still in reach and within a wider cone,
-        /// whatever else drifts into the aim line meanwhile.</summary>
+        /// whatever else drifts into the aim line meanwhile. Next comes the flight target lock (#2277): a locked object the
+        /// scanner can read, in its range, is scanned without precise aiming — the server only checks the range.</summary>
         private ScanTarget BestScanTarget(ShipScannerSpec scanner, string keep)
         {
             var best = new ScanTarget();
@@ -193,6 +184,11 @@ namespace BlocksBeyondTheStars.Client
             if (keep != null && TryKeepScanTarget(scanner, keep, shipPos, fwd, cone * 1.5f + 4f, out var kept))
             {
                 return kept;
+            }
+
+            if (TryLockedScanTarget(scanner, shipPos, out var locked))
+            {
+                return locked;
             }
 
             var space = Game.Space;
@@ -545,54 +541,13 @@ namespace BlocksBeyondTheStars.Client
 
         private void EnsureScanUi()
         {
-            if (_scanLock != null || _ui == null)
+            if (_scanFrame != null || _ui == null)
             {
                 return;
             }
 
-            var root = new GameObject("ScanLock", typeof(RectTransform));
-            root.transform.SetParent(_ui.transform, false);
-            _scanLock = root.GetComponent<RectTransform>();
-            _scanLock.anchorMin = _scanLock.anchorMax = _scanLock.pivot = new Vector2(0.5f, 0.5f);
-            _scanLock.sizeDelta = Vector2.zero;
-            for (int i = 0; i < _scanBars.Length; i++)
-            {
-                var bar = new GameObject("Bar" + i, typeof(RectTransform));
-                bar.transform.SetParent(_scanLock, false);
-                var img = bar.AddComponent<Image>();
-                img.sprite = UiKit.SolidSprite;
-                img.raycastTarget = false;
-                _scanBars[i] = img;
-            }
-
-            var trackGo = new GameObject("RingTrack", typeof(RectTransform));
-            trackGo.transform.SetParent(_scanLock, false);
-            _scanRingTrack = trackGo.AddComponent<Image>();
-            _scanRingTrack.sprite = RingSprite();
-            _scanRingTrack.raycastTarget = false;
-
-            var ringGo = new GameObject("Ring", typeof(RectTransform));
-            ringGo.transform.SetParent(_scanLock, false);
-            _scanRing = ringGo.AddComponent<Image>();
-            _scanRing.sprite = RingSprite();
-            _scanRing.type = Image.Type.Filled;
-            _scanRing.fillMethod = Image.FillMethod.Radial360;
-            _scanRing.fillOrigin = (int)Image.Origin360.Top;
-            _scanRing.fillClockwise = true;
-            _scanRing.raycastTarget = false;
-
-            var labelGo = new GameObject("Label", typeof(RectTransform));
-            labelGo.transform.SetParent(_scanLock, false);
-            var lrt = labelGo.GetComponent<RectTransform>();
-            lrt.sizeDelta = new Vector2(520f, 48f);
-            _scanLabel = labelGo.AddComponent<Text>();
-            _scanLabel.font = UiKit.Font;
-            _scanLabel.fontSize = 17;
-            _scanLabel.alignment = TextAnchor.UpperCenter;
-            _scanLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
-            _scanLabel.verticalOverflow = VerticalWrapMode.Overflow;
-            _scanLabel.raycastTarget = false;
-            root.SetActive(false);
+            // #2283: the same bracket frame as the target lock, plus the scanner's own charge ring and track.
+            _scanFrame = new SpaceTargetFrame(TargetLayer(), "ScanLock", chargeRing: true);
         }
 
         /// <summary>The four corner brackets around the locked target (snapping in from wider), its name, distance and
@@ -600,7 +555,7 @@ namespace BlocksBeyondTheStars.Client
         private void DrawScanLock(ScanTarget target, FxLook look, bool ping)
         {
             EnsureScanUi();
-            if (_scanLock == null)
+            if (_scanFrame == null)
             {
                 return;
             }
@@ -608,17 +563,8 @@ namespace BlocksBeyondTheStars.Client
             bool show = (target.Key != null || ping) && !Game.MenuOpen && Camera != null;
             if (!show)
             {
-                if (_scanLock.gameObject.activeSelf)
-                {
-                    _scanLock.gameObject.SetActive(false);
-                }
-
+                _scanFrame.Hide();
                 return;
-            }
-
-            if (!_scanLock.gameObject.activeSelf)
-            {
-                _scanLock.gameObject.SetActive(true);
             }
 
             Color col = target.Hostile ? new Color(1f, 0.38f, 0.35f) : look.Color;
@@ -632,7 +578,7 @@ namespace BlocksBeyondTheStars.Client
                 Vector3 screen = Camera.WorldToScreenPoint(world);
                 if (screen.z <= 0f)
                 {
-                    _scanLock.gameObject.SetActive(false);
+                    _scanFrame.Hide(); // behind the camera: the target lock's edge arrow points there (#2277)
                     return;
                 }
 
@@ -645,35 +591,9 @@ namespace BlocksBeyondTheStars.Client
             float snap = Mathf.Clamp01(_scanLockAge / 0.16f);
             float squeeze = _scanCharging ? 1f - 0.12f * _scanProgress : 1f;
             float h = half * Mathf.Lerp(1.8f, 1f, 1f - (1f - snap) * (1f - snap)) * squeeze;
-            _scanLock.anchoredPosition = anchored;
-
-            const float len = 18f;
-            const float thick = 3f;
-            for (int c = 0; c < 4; c++)
-            {
-                float sx = c % 2 == 0 ? -1f : 1f;
-                float sy = c < 2 ? 1f : -1f;
-                var horiz = _scanBars[c * 2].rectTransform;
-                var vert = _scanBars[c * 2 + 1].rectTransform;
-                horiz.sizeDelta = new Vector2(len, thick);
-                horiz.anchoredPosition = new Vector2(sx * (h - len * 0.5f), sy * h);
-                vert.sizeDelta = new Vector2(thick, len);
-                vert.anchoredPosition = new Vector2(sx * h, sy * (h - len * 0.5f));
-                _scanBars[c * 2].color = col;
-                _scanBars[c * 2 + 1].color = col;
-                _scanBars[c * 2].enabled = target.Key != null;
-                _scanBars[c * 2 + 1].enabled = target.Key != null;
-            }
-
-            _scanRing.enabled = _scanCharging && _scanProgress > 0f;
-            _scanRing.color = new Color(col.r, col.g, col.b, 0.9f);
-            _scanRing.fillAmount = _scanProgress;
+            _scanFrame.Place(anchored, h, TargetFrameShape.Corners, col, 3f, brackets: target.Key != null);
             float ringSize = target.Key != null ? Mathf.Min(h * 0.9f, 70f) : 90f;
-            _scanRing.rectTransform.sizeDelta = new Vector2(ringSize, ringSize);
-            _scanRing.rectTransform.anchoredPosition = Vector2.zero;
-            _scanRingTrack.color = new Color(col.r, col.g, col.b, 0.28f);
-            _scanRingTrack.rectTransform.sizeDelta = new Vector2(ringSize, ringSize);
-            _scanRingTrack.rectTransform.anchoredPosition = Vector2.zero;
+            _scanFrame.SetCharge(_scanCharging && _scanProgress > 0f, _scanProgress, ringSize, col);
 
             // #2247: the lock says how to scan — "Hold LMB: scan" — until the ring runs, and "keep holding" for a moment
             // after an early release. Nothing on screen used to say the trigger must be HELD.
@@ -693,46 +613,19 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
+                // #2277: the instruments' kilometres (×10 per flight unit, like the radar) — the label used to print the raw
+                // flight units as "m", so one wreck read "123 m" here and "1 230 km" on the radar.
                 float dist = Vector3.Distance(_ship.transform.localPosition, target.Local);
-                text = target.Name + "\n" + Mathf.RoundToInt(dist) + " m" + (IsScanned(target) ? "  ✓ " + Loc("ui.space.scanned", "scanned") : string.Empty);
+                text = target.Name + "\n" + SpaceDistance.Label(Mathf.Round(dist), Loc("ui.space.km_fmt", SpaceDistance.FallbackFormat))
+                       + (IsScanned(target) ? "  ✓ " + Loc("ui.space.scanned", "scanned") : string.Empty);
                 if (howTo.Length > 0)
                 {
                     text += "\n" + howTo;
                 }
             }
 
-            _scanLabel.text = text;
-            _scanLabel.color = col;
-            _scanLabel.rectTransform.anchoredPosition = new Vector2(0f, -h - 30f);
-        }
-
-        /// <summary>A soft white ring, generated once — the radial fill of the hold ring.</summary>
-        private static Sprite RingSprite()
-        {
-            if (_ringSprite != null)
-            {
-                return _ringSprite;
-            }
-
-            const int n = 64;
-            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
-            var px = new Color32[n * n];
-            for (int y = 0; y < n; y++)
-            {
-                for (int x = 0; x < n; x++)
-                {
-                    float dx = (x + 0.5f) / n * 2f - 1f;
-                    float dy = (y + 0.5f) / n * 2f - 1f;
-                    float d = Mathf.Sqrt(dx * dx + dy * dy);
-                    float a = Mathf.Clamp01(1f - Mathf.Abs(d - 0.86f) / 0.08f);
-                    px[y * n + x] = new Color32(255, 255, 255, (byte)(a * 255f));
-                }
-            }
-
-            tex.SetPixels32(px);
-            tex.Apply(false, true);
-            _ringSprite = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100f);
-            return _ringSprite;
+            _scanFrame.SetLabel(text, col);
+            _scanFrame.SetSubLabel(string.Empty, col);
         }
 
         // ---------------- VEGA tips ----------------

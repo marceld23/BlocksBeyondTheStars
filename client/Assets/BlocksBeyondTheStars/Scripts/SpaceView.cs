@@ -500,6 +500,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.SpaceShipDesignReceived += OnStructureDesign;
                 Game.Network.SpaceEntityDestroyed += OnStructEntityDestroyed;
                 Game.Network.SpaceEntityDestroyed += OnEntityDestroyedFx; // #2156: explosions instead of vanishing
+                Game.Network.SpaceEntityDestroyed += OnLockedEntityDestroyed; // #2277: a killed lock moves on to the next attacker
                 _structSubscribed = true;
             }
 
@@ -1506,6 +1507,10 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network?.SendShipMove(_ship.transform.localPosition, _yaw);
             }
 
+            // #2277: the target lock follows the instance every cruise frame (destroyed, gone, out of range, a new
+            // attacker); its keys are read only while the helm takes input — not behind a menu, the chat or the pad map.
+            UpdateTargetLock(Time.deltaTime, FlightInputAllowed && !_confirmLand);
+
             // Hold position while a menu is open (e.g. the Tab star map, used to hyperspace-jump to another
             // system), while the ship-destruction "Weiter" prompt is up, or while the player is typing (the
             // chat box, any focused field — #1858: "E" typed into the chat used to dock the ship), so flight
@@ -2337,6 +2342,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Vector3 shipPos = _ship.transform.localPosition;
+            if (TryLockedDrop(shipPos, TractorLockRange, out var lockedDrop))
+            {
+                return lockedDrop; // #2277: a drop locked with "target ahead" is the one the beam pulls
+            }
+
             BlocksBeyondTheStars.Networking.Messages.NetCombatEntity best = null;
             float bestSq = TractorLockRange * TractorLockRange;
             foreach (var e in space.Entities)
@@ -2385,12 +2395,19 @@ namespace BlocksBeyondTheStars.Client
             Vector3 shipPos = _ship.transform.localPosition;
             Vector3 fwd = _ship.transform.localRotation * Vector3.forward;
             bool autoAim = Game.AutoAimOn;
+
+            // #2277: the locked target first — in range and inside ±40° with AutoAim on (the server allows ±60°).
+            if (TryLockAssist(weaponKey, range, shipPos, fwd, out var lockedTarget))
+            {
+                return lockedTarget;
+            }
+
             BlocksBeyondTheStars.Networking.Messages.NetCombatEntity best = null;
             float bestScore = 0f;      // auto-aim: alignment/distance score
             float bestDist = range;    // boresight: nearest body the ray pierces
             foreach (var e in space.Entities)
             {
-                if (e.Kind != "Asteroid" && e.Kind != "Wreck" && e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser" && e.Kind != "BanditShip")
+                if (!BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsFireTargetKind(e.Kind))
                 {
                     continue; // (a Wreck is salvage, #1664 — carved with the mining beam like a rock)
                 }
@@ -2486,6 +2503,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _eva = true;
+            ClearTargetLock(sound: false); // #2277: the target lock belongs to the helm
             ClientAudio.Instance?.Cue("scan_ping"); // a soft suit blip as the airlock cycles
         }
 
@@ -3655,6 +3673,7 @@ namespace BlocksBeyondTheStars.Client
             CancelLandChooser();
             _landDestBody = null; // descent finished — don't let a stale target steer a later recovery landing
             StopScanner();          // #2237: no lock brackets or charging fan outlive the flight view
+            ResetTargetLock();      // #2277: landing, docking, the interior, a jump, a new instance — the lock goes
             _nearWormholeId = null; // #2242
             FxSpaceDust.Hide();
             Sky.SpaceSunDir = Vector3.zero;
@@ -5191,7 +5210,7 @@ namespace BlocksBeyondTheStars.Client
 
         // Incoming hostile fire is an invisible damage "aura" server-side (no projectile entity), so the player
         // never saw enemy shots. Mirror it visually: each in-range hostile flashes a red laser bolt at the ship.
-        private const float HostileFireRange = 70f; // matches the server's ShipEngageRange
+        private const float HostileFireRange = BlocksBeyondTheStars.Client.Core.SpaceTargeting.AttackRange; // the server's ShipEngageRange
         private readonly Dictionary<string, float> _hostileFireCd = new Dictionary<string, float>();
         private readonly List<string> _hostileFireStale = new List<string>();
 
@@ -5214,7 +5233,7 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var e in space.Entities)
             {
-                if (!e.Hostile || (e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser" && e.Kind != "BanditShip"))
+                if (!e.Hostile || !BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsHostileShipKind(e.Kind))
                 {
                     continue;
                 }
@@ -5890,14 +5909,17 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Aiming dot: shown in free flight, cyan when the laser has a target locked.
+            // Aiming dot: shown in free flight, cyan when the laser has a target locked — red while that target is the
+            // locked enemy (#2277: "shoot now").
             if (_crosshair != null)
             {
                 bool show = _phase == Phase.Cruise && !_confirmLand && !_eva;
                 _crosshair.enabled = show;
                 if (show)
                 {
-                    _crosshair.color = _fireTargetId != null
+                    _crosshair.color = LockedEnemyInSights()
+                        ? new Color(1f, 0.35f, 0.35f, 0.95f)
+                        : _fireTargetId != null
                         ? new Color(0.5f, 1f, 1f, 0.9f)
                         : new Color(0.6f, 0.7f, 0.8f, 0.35f);
                 }
@@ -5912,6 +5934,8 @@ namespace BlocksBeyondTheStars.Client
                 DrawRemoteNameplates();
                 DrawEntityHealthBars();
             }
+
+            DrawTargetHud(); // #2277/#2283: lock frame or edge arrow, threat ticks, waypoint arrow (free flight only)
         }
 
         /// <summary>Floating health bars over space hostiles (#692): drones, UFOs, cruisers and bandit
@@ -5928,20 +5952,31 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var e in space.Entities)
             {
-                if (e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser" && e.Kind != "BanditShip")
+                // #2277: the locked target always shows its bar — a locked rock or wreck too (its hull is what the beam carves).
+                bool locked = IsLockedEntity(e.Id);
+                bool hostileShip = BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsHostileShipKind(e.Kind);
+                if (!hostileShip && !(locked && e.HullMax > 0f && BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsFireTargetKind(e.Kind)))
                 {
                     continue;
                 }
 
-                if (!_entities.TryGetValue(e.Id, out var go) || go == null)
+                Vector3 at;
+                if (_entities.TryGetValue(e.Id, out var go) && go != null)
+                {
+                    at = go.transform.position + Vector3.up * (2f * Mathf.Max(1f, e.Scale));
+                }
+                else if (locked && _structs.TryGetValue(e.Id, out var body) && body != null && _root != null)
+                {
+                    at = _root.transform.TransformPoint(body.Pos) + Vector3.up * (TargetRadius(e) + 1.5f); // a voxel rock / wreck
+                }
+                else
                 {
                     continue;
                 }
 
-                float height = 2f * Mathf.Max(1f, e.Scale);
-                EnemyHealthBars.Push(Game, Camera, e.Id, go.transform.position + Vector3.up * height,
+                EnemyHealthBars.Push(Game, Camera, e.Id, at,
                     e.Hull, e.HullMax, friendly: false, fadeStart: 90f, fadeEnd: 140f,
-                    targeted: e.Id == _fireTargetId);
+                    targeted: e.Id == _fireTargetId || locked);
             }
         }
 

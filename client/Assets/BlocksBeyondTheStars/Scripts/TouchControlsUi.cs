@@ -52,6 +52,7 @@ namespace BlocksBeyondTheStars.Client
         private TouchButton _feed;                                      // on foot, contextual (#2018: food in hand + a begging animal near)
         private TouchButton _fire, _flightUp, _flightDown;              // flight + EVA
         private TouchButton _land, _shipIn, _auto, _flightMap;          // helm only — swapped out in EVA
+        private TouchButton _target;                                    // helm only: tap = next target, long press = clear (#2277)
         private TouchButton _evaPlace, _evaDeploy;                      // EVA only (#1042)
         private TouchButton _boost, _hop, _fuel;                        // speeder (a boat hides hop + fuel, #1215)
         private TouchButton _prev, _next, _menu;                        // shared
@@ -268,6 +269,7 @@ namespace BlocksBeyondTheStars.Client
                 SetActive(_shipIn?.gameObject, !eva);
                 SetActive(_auto?.gameObject, !eva);
                 SetActive(_flightMap?.gameObject, !eva);
+                SetActive(_target?.gameObject, !eva);
                 SetActive(_evaPlace?.gameObject, eva);
                 SetActive(_evaDeploy?.gameObject, eva);
             }
@@ -409,6 +411,11 @@ namespace BlocksBeyondTheStars.Client
             // EVA (#1042): PLACE + DEPLOY take the helm-only LAND / SHIP spots — Update swaps them with Game.InEva.
             _evaPlace = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-290f, 265f), 110f, L("ui.touch.place", "PLACE"));
             _evaDeploy = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-150f, 305f), 100f, L("ui.touch.deploy", "DEPLOY"));
+            // #2277: TARGET above AUTO — a tap cycles the target lock, a long press clears it (SpaceView reads the
+            // press edge AND the hold, so the button is registered for both).
+            _target = MakeButton(fly, new Vector2(1f, 0f), new Vector2(-420f, 310f), 92f, L("ui.touch.target", "TARGET"));
+            _actions.Add((InputAction.FlightTargetNext, _target));
+            _heldActions.Add((InputAction.FlightTargetNext, _target));
             _actions.Add((InputAction.Interact, flyUse));
             _actions.Add((InputAction.FlightPadChooser, _land));
             _actions.Add((InputAction.FlightEnterInterior, _shipIn));

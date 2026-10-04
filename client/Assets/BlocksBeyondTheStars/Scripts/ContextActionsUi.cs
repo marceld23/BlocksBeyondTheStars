@@ -84,6 +84,8 @@ namespace BlocksBeyondTheStars.Client
             new Entry(InputAction.FlightEnterInterior, u => u.Piloting),
             new Entry(InputAction.FlightAutopilot, u => u.Piloting),
             new Entry(InputAction.FlightMap, u => u.Piloting),
+            new Entry(InputAction.FlightTargetHostile, u => u.Piloting), // #2277: the pad has R3 too; touch reaches it only here
+            new Entry(InputAction.FlightTargetNext, u => u.Piloting),
             new Entry(InputAction.ToggleThirdPerson, u => u.Piloting),
 
             // EVA.

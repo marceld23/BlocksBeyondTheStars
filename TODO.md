@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏔️ Gloves & target-lock package, the fixes first — summits into space, fists, companions, Feed rebind, per-pilot hostiles (#2276 #2280 #2281 #2282 #2285, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (⚠ local Unity build + playtest open; 12 community locales not yet topped up)
+### 🏔️ Gloves & target-lock package — summits into space, fists, companions, Feed rebind, per-pilot hostiles, the flight target lock (#2276 #2280 #2281 #2282 #2285 #2277 #2283, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (⚠ local Unity build + playtest open; 12 community locales not yet topped up)
 
 **Report (Marcel, 2026-10-04, client 2026.10.4):** "I climbed a very high mountain that rose out of the atmosphere … now
 I don't know how to get back down." Since the #578 massifs a summit can rise above most planet types' atmosphere line
@@ -51,6 +51,33 @@ space — the float above the line is made readable and survivable instead of cl
 - **✅ #2285 space hostiles hunt per pilot (2026-10-04):** each hostile picks the nearest pilot, keeps it 3 s and then
   switches only to one clearly (30 %) nearer; chase and the "spotted" warning use that pilot's pose (per-pilot warning
   cooldown). Tests in `EnemyMovementTests`.
+- **✅ #2277 flight target lock (2026-10-04, client-only — no protocol, no server change):** **T** next target (hold ~0.6 s =
+  let go), **R** nearest enemy (again = next nearest), **right mouse button** target ahead (empty = let go); pad **LB**
+  (hold = let go) / **R3**; touch **TARGET** (long press = let go) + both verbs in the ACT list; all three rebindable in the
+  flight group. Cycle order attacking hostiles → other hostiles incl. a raider demanding cargo → stations / wrecks / pods /
+  anomalies / wormholes → pilots and traders; asteroids, drops and planets only via "target ahead". Lock range = radar
+  range for moving things, system-wide for navigation points, everything during the Quantum ping; released at +10 %
+  ("Target lost" for 1.5 s). Auto-lock only with nothing locked when a hostile STARTS attacking (+ one-time VEGA tip,
+  `ClientSettings.TargetLockHintShown`); after a kill on to the next attacker, else clear. Frame per disposition (red
+  diamond + "!", orange hollow diamond, white corners, cyan ring) with name · disposition · km (▲/▼) and "In range" /
+  "Too far — fly closer"; edge arrow on an inner ellipse (mirrored behind the camera, pulses while the enemy attacks,
+  steady with Reduce flashes); red crosshair while the locked enemy is the firing solution; its health bar always shows.
+  Weapon assist ±40° with AutoAim on (server arc ±60°) and only for targets the weapon is built for (`weapon_class` —
+  never the breaker onto a drone), display-only with AutoAim off; the tractor pulls a locked drop; the scanner reads a
+  locked object in range without aiming. Shared kind lists + rules in `Client.Core/SpaceTargeting.cs`
+  (`SpaceTargetingTests`, 45 tests); `SpaceView.Targeting.cs`; contract test `AimValidationTests` (40° lands, 70° is
+  refused); EditMode test for the bindings. Side fix: the scanner label printed raw flight units as "m" — now instrument
+  km like the radar. Docs: USER_MANUAL §3 *Target lock* + controls / touch / pad, INPUT_AND_CONTROLLER, SPACE_COMBAT_CONCEPT
+  ("target lock is client presentation"), SHIP_SCANNER.
+- **✅ #2283 target lock polish (2026-10-04):** threat ticks (≤ 4 red ticks on the same ellipse toward further attackers
+  off screen); one HUD class for brackets (`SpaceTargetFrame` in `SpaceTargetHud.cs` — the scanner adds its charge ring
+  and track) on a nested targeting canvas; the amber waypoint arrow (⌖ + distance, in view just on the point); four own
+  ElevenLabs cues `target_lock`, `target_lock_hostile`, `target_cycle`, `target_lost` (0.48 s each, `ProceduralAudio`
+  stand-ins, NOTICES.md, SOUND_DESIGN §16, prompts in `gen_batch.py`).
+- **Open (target lock):** local Unity build + playtest (mouse, pad, touch; browser on "Low"; the Guardian finale with 12
+  enemies; a pirate system with a raider demanding cargo); the 12 community locales for the new `ui.space.target.*`,
+  `ui.key.flight_target_*`, `ui.touch.target`, `vega.hint.target_lock` keys and the changed `ui.space.controls` /
+  `ui.space.controls_pad`; optional sharper line icons via `gen_hud_icons.py` if the procedural shapes look too plain.
 - **Open:** follow-up — non-weapon tools (drill, scanner) still hit for 15 + 10·tier with no server cooldown (the client
   gates them at 1.5 s); decide whether they should share the fist rule.
 
@@ -13510,7 +13537,9 @@ Client-only. *Playtest wanted.*
   `SlideDoorOpenRange = 4.5`**; the per-door tighter range from the ship-hatch fix (1.8) was applied **only** to
   ship-stamp doors, not stations. In a station's tight rooms 4.5 means you're always within range → doors stay
   open. *Fix:* give station (and tight interior) slide doors a smaller open range, like the hatch.
-- **B24 — Red dots in the space HUD — enemies? Flew to one, saw no enemy ship. [PLAYTEST/analysis]** Most likely
+- **B24 — Red dots in the space HUD — enemies? Flew to one, saw no enemy ship. [✅ DONE 2026-10-04 — the flight target
+  lock #2277/#2283: a labelled frame (name, "Enemy", distance) on the target, an edge arrow when it is off screen or
+  behind, red ticks toward further attackers, and the auto-lock onto an attacker; playtest open]** Most likely
   the **enemy drones at long range**: combat spawns drones **150+ units away** from the launch point
   (`GameServerSpaceCombat.cs:349` — deliberately far so launching is safe) and each drone has a **glowing red
   sensor "eye"** (`SpaceView.cs:1232`), so at distance it reads as a small red dot; singleplayer runs

@@ -220,6 +220,38 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         }
 
         [Test]
+        public void TargetLockActions_TakeTRAndTheRightMouseButton_AndPadLbR3_InTheFlightGroup()
+        {
+            // #2277: T is the genre's target key, R sits beside it, the right mouse button is idle at the helm.
+            InputMap.Use(new ClientSettings());
+            Assert.AreEqual(KeyCode.T, InputMap.Key(InputAction.FlightTargetNext));
+            Assert.AreEqual(KeyCode.R, InputMap.Key(InputAction.FlightTargetHostile));
+            Assert.AreEqual(KeyCode.Mouse1, InputMap.Key(InputAction.FlightTargetAhead));
+            Assert.AreEqual("ui.key.mouse_right", InputMap.MouseLocaleKey(InputMap.Key(InputAction.FlightTargetAhead)));
+
+            // Pad: LB (idle at the helm) cycles, R3 (HotbarAction's button, dead at the helm) takes the nearest enemy.
+            Assert.AreEqual(KeyCode.JoystickButton4, GamepadInputSource.ButtonFor(InputAction.FlightTargetNext));
+            Assert.AreEqual(KeyCode.JoystickButton9, GamepadInputSource.ButtonFor(InputAction.FlightTargetHostile));
+            Assert.AreEqual(KeyCode.None, GamepadInputSource.ButtonFor(InputAction.FlightTargetAhead));
+
+            foreach (var action in new[] { InputAction.FlightTargetNext, InputAction.FlightTargetHostile, InputAction.FlightTargetAhead })
+            {
+                Assert.IsTrue(System.Array.IndexOf(InputMap.FlightRemappable, action) >= 0, $"{action} must be rebindable with the flight keys");
+                Assert.IsFalse(InputMap.KeyboardLocked(action));
+            }
+
+            // Nothing in the flight group shares T or R by default (on foot they trade / repair — another context).
+            foreach (var action in InputMap.FlightRemappable)
+            {
+                if (action != InputAction.FlightTargetNext && action != InputAction.FlightTargetHostile)
+                {
+                    Assert.AreNotEqual(KeyCode.T, InputMap.Key(action), $"{action} collides with the target key");
+                    Assert.AreNotEqual(KeyCode.R, InputMap.Key(action), $"{action} collides with the nearest-enemy key");
+                }
+            }
+        }
+
+        [Test]
         public void UnboundAction_IsNeverDown_OnKeyboard()
         {
             InputMap.Use(new ClientSettings());

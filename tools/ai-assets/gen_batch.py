@@ -88,6 +88,15 @@ def build_catalogue() -> list[tuple[str, str, float, bool]]:
         ("asteroid_break",    "asteroid cracking and shattering into rubble", 1.5, False),
     ]
 
+    # --- Flight target lock (#2283): short, soft, kid-friendly — never an alarm. 0.5 s is the API minimum;
+    # generated one by one with gen_sound.py --influence 0.5 on 2026-10-04 (the files came back 0.48 s). ---
+    s += [
+        ("target_lock",         "short friendly two-tone sci-fi target lock beep, soft rising chime, clean and gentle, kid-friendly game interface sound, no alarm", 0.5, False),
+        ("target_cycle",        "very short soft sci-fi interface click, gentle single tick, clean, quiet, kid-friendly game menu sound", 0.5, False),
+        ("target_lost",         "short soft falling electronic blip, gentle descending tone, sci-fi game interface, calm, no alarm", 0.5, False),
+        ("target_lock_hostile", "short slightly sharper sci-fi target lock beep, two quick bright tones, attentive but friendly, kid-friendly game sound, no siren, no alarm", 0.5, False),
+    ]
+
     # --- Creatures: 6 voice banks (size x disposition) x 5 states; pitch-shifted per creature in game ---
     sizes = [("small", "small"), ("medium", "medium-sized"), ("large", "huge hulking")]
     disps = [("calm", "docile gentle"), ("hostile", "vicious aggressive")]

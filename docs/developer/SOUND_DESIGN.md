@@ -290,6 +290,18 @@ and [WORMHOLES.md](WORMHOLES.md).
 | anomaly hum (loop) / reaction | an anomaly nearby / it is scanned | `anomaly_hum`, `anomaly_react` | EL |
 | rift hum (loop) / enter / exit | a wormhole nearby / flying in / coming out | `wormhole_hum`, `wormhole_enter`, `wormhole_exit` | EL |
 
+## 16. Flight target lock (#2283) — *ElevenLabs clips*
+
+Short 2D cues (`ClientAudio.Cue`, ≈0.5 s each, soft — no alarm tones, the lock must never feel like a siren to a
+child); see `SpaceView.Targeting.cs`. `ProceduralAudio.TargetIds` holds a synthesised stand-in for each id.
+
+| Sound | Trigger | Files | Source |
+|---|---|---|---|
+| lock | a fresh lock on a neutral or friendly target | `target_lock` | EL |
+| lock on an enemy | a fresh lock (or the auto-lock) on an enemy or a raider demanding cargo | `target_lock_hostile` | EL |
+| cycle | switching the lock to another target | `target_cycle` | EL |
+| lost | the lock is let go, drifts out of range or its target vanishes | `target_lost` | EL |
+
 ---
 
 ## Totals & rollout
