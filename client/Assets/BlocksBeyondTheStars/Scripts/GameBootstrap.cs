@@ -1220,12 +1220,19 @@ namespace BlocksBeyondTheStars.Client
         /// bar used to divide by a flat 100, so a Tank III's 300 sat pinned at "full" until two thirds were gone.</summary>
         public float SuitOxygenMax { get; private set; } = BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseOxygen;
 
+        /// <summary>Maximum suit energy with the gear currently worn (#2297: 150 with the suit battery) — the HUD energy
+        /// bar's full mark, the same formula the server fills and clamps to.</summary>
+        public float SuitEnergyMax { get; private set; } = BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseSuitEnergy;
+
         private void RefreshSuitStats()
         {
             SuitOxygenMax = Content == null
                 ? BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseOxygen
                 : BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxOxygen(Content.Items.Values, Wears) // #2110: worn, not carried
                   + BlocksBeyondTheStars.Shared.Bio.GearMods.Bonus(WornKeys(), BlocksBeyondTheStars.Shared.Bio.ModStat.Oxygen); // #2206: what the lab changed on a worn piece
+            SuitEnergyMax = Content == null
+                ? BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseSuitEnergy
+                : BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxSuitEnergy(Content.Items.Values, Wears);
         }
 
         /// <summary>The item keys of the worn gear — what the lab changed on a piece rides in its key (#2206).</summary>
@@ -1475,6 +1482,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Bumped on every refused sit-down (#2122, <c>ActionRejected</c> with action "seat"): the player
         /// controller, seated since before the bump, stands back up — the toast already says why.</summary>
         public int SeatRejections { get; private set; }
+
+        /// <summary>Bumped on every refused glide (#2296, <c>ActionRejected</c> with action "glider" — no glider worn as far
+        /// as the server knows): the player controller folds the wing it opened.</summary>
+        public int GliderRejections { get; private set; }
 
         /// <summary>Opens the story reader panel (#1110) with a localized title/label + text key — or falls
         /// back to the message toast when no reader exists (headless/degraded rigs stay functional).</summary>
@@ -2965,6 +2976,10 @@ namespace BlocksBeyondTheStars.Client
                 if (m.Action == "seat")
                 {
                     SeatRejections++; // #2122: somebody sits there — PlayerController stands us back up
+                }
+                else if (m.Action == "glider")
+                {
+                    GliderRejections++; // #2296: no glider worn as the server sees it — PlayerController folds the wing
                 }
 
                 // The server is authoritative: if a dig is rejected because the cell is "already empty", the

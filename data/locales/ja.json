@@ -4205,6 +4205,7 @@
   "ui.suit.active_none": "ランプ、ジェットパック、グライダー、ステルススーツは装備するとここに表示されます。",
   "ui.hud.no_lamp": "ランプを装備していません — インベントリ → スーツ から装備してください。",
   "ui.hud.no_stealth": "ステルススーツを装備していません — インベントリ → スーツ から装備してください。",
+  "ui.hud.glider_no_air": "空気がないと、グライダーではあなたを支えられません。",
   "ui.hud.gear_hold": "押し続ける",
   "ui.hud.jump_key": "Space",
   "ui.hud.gear_jetpack_hint": "ジェットパック: 空中で{key}を押し続けると上昇します。",

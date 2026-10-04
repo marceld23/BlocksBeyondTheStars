@@ -678,16 +678,18 @@ effort.
   - **Titanium helmet / chest plate / leg plates** (tier 2, workshop; blueprints after the helmet, the chest
     armour and the leg armour): more armour and warmth than the iron set.
   - **Spring boots** (feet; blueprint after the boots): jump about 60 % higher and land 50 % softer — the coils
-    under the soles squash and spring.
+    under the boots stretch when you jump and squash when you land.
   - **Glider** (back, instead of the jetpack; blueprint after the jetpack): while falling, hold Jump — the
-    wings unfold and you glide forward slowly, steering where you look, using **no** suit energy. It needs air:
-    on airless worlds, above the atmosphere, in space and under water it stays folded. Landing from a glide
-    does no fall damage.
+    wings unfold and you glide forward slowly, steering where you look (forward goes a little faster, back
+    brakes, left/right drift sideways; strong wind carries you along), using **no** suit energy. Let go of Jump
+    and the wings fold. It needs air: on airless worlds, above the atmosphere, in space and under water it stays
+    folded. Landing from a glide does no fall damage, and opening a menu mid-glide keeps you gliding.
   - **Suit battery** (module; blueprint after the jetpack): suit energy 150 instead of 100.
   - **Radar scanner** (module): while worn, the round compass also shows **creatures** within ~48 m (hostile
     red, the others green) and **other players** (cyan), with a soft blip when a hostile comes into range.
   - **Stealth suit** (chest): **B** switches the cloak on and off — hostile creatures stop noticing you while it
-    drains suit energy; it ends by itself when the energy runs out.
+    drains suit energy; it ends by itself when the energy runs out. Other players cannot see you while it is
+    on; in the third-person view you see yourself as a faint shimmer.
 - Your ship's **cargo hold** is bulk storage that belongs to the ship (48 slots, growing with cargo-hold
   modules) and is shared by everyone aboard that ship.
 - **What goes where:** mined and crafted items fill your inventory first and only spill into the cargo hold

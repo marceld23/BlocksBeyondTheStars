@@ -35,7 +35,8 @@ reported look), so no facing field is sent. Gloves and claws ride the presence g
 ## The movement chain
 
 `Move()` decides in this order: spectator → **running pull-up** → water → ladder → **wall** → creative flight → ground
-→ zero-g float → gravity and jetpack. `UpdateWallClimb` runs after water, ladder and flight are known, because all of
+→ zero-g float → gravity and jetpack (or the glider, #2296: gliding at a wall while pushing towards it grabs the wall).
+`UpdateWallClimb` runs after water, ladder and flight are known, because all of
 them win, and before the vertical branches, which a climb replaces.
 
 - **Grab:** the player is airborne, pushes towards the wall, is not crouching, and the jetpack is not firing this

@@ -4205,6 +4205,7 @@
   "ui.suit.active_none": "Latarka, plecak odrzutowy, szybowiec i skafander kamuflujący pojawią się tutaj, gdy je założysz.",
   "ui.hud.no_lamp": "Nie masz założonej lampy — załóż ją w Ekwipunek → Kombinezon.",
   "ui.hud.no_stealth": "Nie masz założonego Skafandra Maskującego — załóż go w Ekwipunek → Kombinezon.",
+  "ui.hud.glider_no_air": "Bez powietrza lotnia cię nie uniesie.",
   "ui.hud.gear_hold": "przytrzymaj",
   "ui.hud.jump_key": "Spacja",
   "ui.hud.gear_jetpack_hint": "Plecak odrzutowy: przytrzymaj {key} w powietrzu, by wylecieć w górę.",

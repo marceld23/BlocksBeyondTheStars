@@ -221,7 +221,6 @@ namespace BlocksBeyondTheStars.Client
         private int _gearWorn, _gearBuiltFor = -1; // bit i = ActiveGear[i] worn; the set the cells were built for
         private bool _gearTouchLayout;
         private object _gearLoc;
-        private float _gearEnergyMax = BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseSuitEnergy;
 
         // The radar scanner on the compass (#2292): pooled contact blips, the hostiles in range last frame (a new one pings)
         // and the other players' positions, read from the presence list at 5 Hz.
@@ -1112,8 +1111,9 @@ namespace BlocksBeyondTheStars.Client
                 : string.Empty;
             string oxy = loc.Get("ui.hud.oxygen") + oxySuffix;
             SetVital(1, oxy, Game.Oxygen, Game.Oxygen / Mathf.Max(1f, Game.SuitOxygenMax), Oxygen, true);
-            // While climate control fights heat/cold/vacuum (#666) the energy bar turns stress-orange.
-            SetVital(2, loc.Get("ui.hud.energy"), Game.SuitEnergy, Game.SuitEnergy / 100f,
+            // While climate control fights heat/cold/vacuum (#666) the energy bar turns stress-orange. Its full mark is the
+            // worn gear's maximum (#2297: 150 with the suit battery), not a flat 100.
+            SetVital(2, loc.Get("ui.hud.energy"), Game.SuitEnergy, Game.SuitEnergy / Mathf.Max(1f, Game.SuitEnergyMax),
                 Game.SuitClimateActive ? EnergyStressed : Energy, true);
             SetVital(3, loc.Get("ui.hud.hunger"), Game.Hunger, Game.Hunger / 100f, Hunger, true);
             // Ship rows (hull/shield) exist whenever the player owns a ship in combat range — but while
@@ -1935,7 +1935,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // The worn set and the energy's full mark follow the equipment snapshot — a new array per inventory update.
+            // The worn set follows the equipment snapshot — a new array per inventory update.
             if (!ReferenceEquals(Game.Equipment, _gearEquipment))
             {
                 _gearEquipment = Game.Equipment;
@@ -1947,10 +1947,6 @@ namespace BlocksBeyondTheStars.Client
                         _gearWorn |= 1 << i;
                     }
                 }
-
-                _gearEnergyMax = Game.Content != null
-                    ? BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxSuitEnergy(Game.Content.Items.Values, Game.Wears)
-                    : BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseSuitEnergy;
             }
 
             bool show = _gearWorn != 0 && _hotbarRoot != null && _hotbarRoot.activeSelf && Game.Health > 0f
@@ -1977,7 +1973,7 @@ namespace BlocksBeyondTheStars.Client
                 _playerRig = FindAnyObjectByType<PlayerController>(); // the rig WorldRig creates
             }
 
-            float energy = Game.SuitEnergy / Mathf.Max(1f, _gearEnergyMax);
+            float energy = Game.SuitEnergy / Mathf.Max(1f, Game.SuitEnergyMax); // #2297: the worn battery's full mark
             foreach (var cell in _gearCells)
             {
                 bool on = GearOn(cell.Key);

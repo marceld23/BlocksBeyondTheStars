@@ -37,6 +37,14 @@ namespace BlocksBeyondTheStars.Client
         private readonly Image[] _swatch = new Image[4];
         private readonly bool[] _gear = new bool[5];  // helmet, chest, legs, pack, lamp
         private readonly Text[] _gearLabel = new Text[5];
+
+        /// <summary>The gear-look bit each preview toggle stands for (same order as <see cref="_gear"/>).</summary>
+        private static readonly int[] GearBits =
+        {
+            BlocksBeyondTheStars.Shared.State.GearLook.Helmet, BlocksBeyondTheStars.Shared.State.GearLook.Chest,
+            BlocksBeyondTheStars.Shared.State.GearLook.Legs, BlocksBeyondTheStars.Shared.State.GearLook.Jetpack,
+            BlocksBeyondTheStars.Shared.State.GearLook.Lamp,
+        };
         private string _name = "My Skin";
         private Text _status;
         private string _face = string.Empty; // encoded pixel face (same format as the in-game editor)
@@ -488,7 +496,13 @@ namespace BlocksBeyondTheStars.Client
         {
             _gear[which] = !_gear[which];
             _gearLabel[which].text = OffOn(_gear[which]);
-            _avatar.SetGear(_gear[0], _gear[1], _gear[2], _gear[3], _gear[4]);
+            int mask = 0;
+            for (int i = 0; i < _gear.Length; i++)
+            {
+                mask |= _gear[i] ? GearBits[i] : 0;
+            }
+
+            _avatar.SetGear(mask);
         }
 
         private string OffOn(bool on) => on ? L("ui.avatar.on") : L("ui.avatar.off");

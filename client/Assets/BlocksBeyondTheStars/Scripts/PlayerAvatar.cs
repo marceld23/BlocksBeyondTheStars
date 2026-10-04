@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using BodyPaint = BlocksBeyondTheStars.Shared.State.BodyPaint;
+using GearLook = BlocksBeyondTheStars.Shared.State.GearLook;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -39,6 +40,38 @@ namespace BlocksBeyondTheStars.Client
         private bool _suit; // spacesuit mode (players); NPCs keep the civilian bare-headed look
         private readonly List<GameObject> _suitPack = new List<GameObject>(); // hidden while armor-pack gear is worn
         private bool _gearPack; // armor pack currently worn — suppresses the suit pack (also across SetVisible)
+
+        // The worn gear's look (SetGear, a GearLook mask) and its moving parts (#2294–#2297). The materials are made once
+        // per figure; a change of gear only rebuilds the cubes.
+        private int _gearMask = -1;
+        private Material _gearPlate, _gearPackMat, _gearTitan, _gearCuff, _gearPad, _gearClaw, _gearSpring, _gearWing, _gearRib, _gearLampMat;
+        private static readonly Color TitanTint = new Color(0.58f, 0.70f, 0.86f);   // #2294: blue-silver titanium
+        private static readonly Color GliderTint = new Color(1.0f, 0.55f, 0.15f);   // #2296: the wing's bright orange
+
+        // #2295: the spring boots' coils — squashed on a landing, stretched on a jump, easing back.
+        private const float SpringSquash = 0.45f, SpringReach = 1.4f;
+        private const float SpringAttack = 0.06f, SpringRelease = 0.25f;
+        private Transform _springL, _springR;
+        private float _springAge = SpringAttack + SpringRelease; // settled
+        private float _springPeak = 1f;
+
+        // #2296: the glider's wings — they unfold while gliding and fold back after.
+        private const float WingUnfoldSeconds = 0.3f;
+        private Transform _wingRoot, _wingL, _wingR;
+        private bool _gliding;
+        private float _wingOpen; // 0 folded … 1 spread
+
+        // #2297: the suit battery's window pulses between these.
+        private static readonly Color BatteryDim = new Color(0.12f, 0.55f, 0.70f);
+        private static readonly Color BatteryBright = new Color(0.45f, 1.0f, 1.0f);
+        private Material _batteryGlow;
+        private bool _hasBattery;
+
+        // #2291: the own cloak's glass look — one translucent material over every part, the parts' own remembered.
+        private static readonly Color ShimmerTint = new Color(0.62f, 0.86f, 1f, 0.2f);
+        private bool _shimmer;
+        private Material _shimmerMat;
+        private readonly Dictionary<Renderer, Material> _shimmerSaved = new Dictionary<Renderer, Material>();
 
         // Custom pixel face (FaceEditor): a textured plate on the head front that replaces the procedural
         // eyes/brow/mouth/lower face when set. Placed in head-LOCAL space, where the head is a unit-cube primitive
@@ -419,6 +452,7 @@ namespace BlocksBeyondTheStars.Client
             r.sharedMaterial = mat;
             r.enabled = _visible;
             _renderers.Add(r);
+            ShimmerRenderer(r); // #2291: a part built under the cloak takes the glass at once
             return go;
         }
 
@@ -484,6 +518,17 @@ namespace BlocksBeyondTheStars.Client
                 armL = armR = -25f;
                 elbowL = elbowR = 40f;
                 headYaw = Mathf.Sin(t * 0.5f) * 9f;
+            }
+            else if (_gliding)
+            {
+                // #2296: hanging under the open wing — legs trailing a little behind and swaying, hands forward on the
+                // harness. Without this the slow sink (under the "airborne" speed) and the forward speed ran the legs.
+                float sway = Mathf.Sin(t * 2.2f) * 4f;
+                legL = 14f + sway;
+                legR = 14f - sway;
+                kneeL = kneeR = 18f;
+                armL = armR = -35f;
+                elbowL = elbowR = 40f;
             }
             else if (airborne)
             {
@@ -648,6 +693,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _held.transform.localPosition = new Vector3(0f, -0.1f, 0.06f); // in the palm, pointing forward
                 ApplyHeldVisible();
+                ShimmerHeld(); // #2291
             }
         }
 
@@ -678,17 +724,21 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>
-        /// Layers equipped gear over the body: a helmet shell, a chest plate, leg plates, a back
-        /// pack/tank and a helmet lamp. Rebuilds the gear set from the flags (cheap; only on change).
+        /// Layers the worn gear over the body from its <see cref="GearLook"/> mask — the one mask both sides use: the local
+        /// player builds it from the worn slots, everybody else gets it as the presence's <c>Gear</c>, so a piece looks the
+        /// same on you and on others. Helmet shell, chest plate, leg plates (the titanium set in its own blue-silver with a
+        /// crest, shoulder pads and knee guards, #2294), the jetpack, the folded glider (#2296) or the tank on the back,
+        /// boots (the spring boots with their coils, #2295), climbing gloves/claws, the suit battery on the belt (#2297) and
+        /// the helmet lamp. Rebuilds the gear cubes only when the mask changes (the materials are made once per figure).
         /// </summary>
-        public void SetGear(bool helmet, bool chest, bool legs, bool pack, bool lamp = false, bool boots = false, bool tank = false,
-            bool gloves = false, bool claws = false)
+        public void SetGear(int mask)
         {
-            if (_head == null)
+            if (_head == null || mask == _gearMask)
             {
                 return;
             }
 
+            _gearMask = mask;
             foreach (var g in _gear)
             {
                 if (g != null)
@@ -698,83 +748,372 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _gear.Clear();
+            _renderers.RemoveAll(r => r == null); // the cubes of the gear before last (Destroy lands at the frame's end)
+            _springL = _springR = null;
+            _wingRoot = _wingL = _wingR = null;
+            _hasBattery = false;
+            EnsureGearMaterials();
 
-            var plate = Lit(new Color(0.62f, 0.66f, 0.72f), _armorTex);
-            var packMat = Lit(new Color(0.30f, 0.34f, 0.40f), _armorTex);
-
-            if (helmet)
+            if (GearLook.Has(mask, GearLook.Helmet))
             {
                 // An open armor shell OUTSIDE the suit helmet, so the face (and a custom pixel face) stays
                 // visible. Head-LOCAL units: the head is a 0.46-scaled unit cube, so wrapping it needs scales
                 // > 1 — the old single 0.54-cube was smaller than the head itself and sat buried invisibly
                 // inside it (same trap as the face features, see the Build note).
-                _gear.Add(AddCube("GearHelmetTop", _head, new Vector3(0f, 0.68f, 0f), new Vector3(1.34f, 0.16f, 1.34f), plate));
-                _gear.Add(AddCube("GearHelmetBack", _head, new Vector3(0f, 0.08f, -0.66f), new Vector3(1.34f, 1.36f, 0.14f), plate));
-                _gear.Add(AddCube("GearHelmetL", _head, new Vector3(-0.66f, 0.08f, 0f), new Vector3(0.14f, 1.36f, 1.2f), plate));
-                _gear.Add(AddCube("GearHelmetR", _head, new Vector3(0.66f, 0.08f, 0f), new Vector3(0.14f, 1.36f, 1.2f), plate));
+                bool titan = GearLook.Has(mask, GearLook.TitanHelmet);
+                var m = titan ? _gearTitan : _gearPlate;
+                _gear.Add(AddCube("GearHelmetTop", _head, new Vector3(0f, 0.68f, 0f), new Vector3(1.34f, 0.16f, 1.34f), m));
+                _gear.Add(AddCube("GearHelmetBack", _head, new Vector3(0f, 0.08f, -0.66f), new Vector3(1.34f, 1.36f, 0.14f), m));
+                _gear.Add(AddCube("GearHelmetL", _head, new Vector3(-0.66f, 0.08f, 0f), new Vector3(0.14f, 1.36f, 1.2f), m));
+                _gear.Add(AddCube("GearHelmetR", _head, new Vector3(0.66f, 0.08f, 0f), new Vector3(0.14f, 1.36f, 1.2f), m));
+                if (titan)
+                {
+                    // #2294: a crest from brow to neck — the titanium helmet reads at a glance, even from behind.
+                    _gear.Add(AddCube("GearHelmetCrest", _head, new Vector3(0f, 0.86f, -0.06f), new Vector3(0.18f, 0.20f, 1.16f), m));
+                }
             }
 
-            if (chest)
+            if (GearLook.Has(mask, GearLook.Chest))
             {
-                _gear.Add(AddCube("GearChest", transform, new Vector3(0f, 1.45f, 0.02f), new Vector3(0.62f, 0.42f, 0.38f), plate));
+                bool titan = GearLook.Has(mask, GearLook.TitanChest);
+                var m = titan ? _gearTitan : _gearPlate;
+                _gear.Add(AddCube("GearChest", transform, new Vector3(0f, 1.45f, 0.02f), new Vector3(0.62f, 0.42f, 0.38f), m));
+                if (titan)
+                {
+                    // #2294: shoulder pads over the suit's shoulder blocks (top at 1.64).
+                    _gear.Add(AddCube("GearShoulderL", transform, new Vector3(-0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), m));
+                    _gear.Add(AddCube("GearShoulderR", transform, new Vector3(0.34f, 1.68f, 0f), new Vector3(0.28f, 0.10f, 0.36f), m));
+                }
             }
 
-            if (legs)
+            if (GearLook.Has(mask, GearLook.Legs))
             {
-                _gear.Add(AddCube("GearLegL", _legL, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), plate));
-                _gear.Add(AddCube("GearLegR", _legR, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), plate));
+                bool titan = GearLook.Has(mask, GearLook.TitanLegs);
+                var m = titan ? _gearTitan : _gearPlate;
+                _gear.Add(AddCube("GearLegL", _legL, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), m));
+                _gear.Add(AddCube("GearLegR", _legR, new Vector3(0f, -0.22f, 0f), new Vector3(0.28f, 0.46f, 0.28f), m));
+                if (titan && _kneeL != null && _kneeR != null)
+                {
+                    // #2294: knee guards on the knee pivots (the lower leg's front is at z 0.10), bending with the knee.
+                    _gear.Add(AddCube("GearKneeL", _kneeL, new Vector3(0f, -0.02f, 0.12f), new Vector3(0.22f, 0.16f, 0.06f), m));
+                    _gear.Add(AddCube("GearKneeR", _kneeR, new Vector3(0f, -0.02f, 0.12f), new Vector3(0.22f, 0.16f, 0.06f), m));
+                }
             }
 
-            if (pack)
+            // The back: the glider, the jetpack or the tank — one slot (the glider and the jetpack share it, so a mask never
+            // carries both; should one ever, the glider wins, matching the glide the server mirrors).
+            bool glider = GearLook.Has(mask, GearLook.Glider);
+            bool pack = !glider && GearLook.Has(mask, GearLook.Jetpack);
+            bool tank = !glider && !pack && GearLook.Has(mask, GearLook.Tank);
+            if (glider)
             {
-                _gear.Add(AddCube("GearPack", transform, new Vector3(0f, 1.4f, -0.24f), new Vector3(0.4f, 0.5f, 0.2f), packMat));
+                BuildGlider();
+            }
+            else if (pack)
+            {
+                _gear.Add(AddCube("GearPack", transform, new Vector3(0f, 1.4f, -0.24f), new Vector3(0.4f, 0.5f, 0.2f), _gearPackMat));
             }
             else if (tank)
             {
                 // #2110: a worn oxygen tank without a jetpack — a slim bottle on the back with a pale valve cap.
-                _gear.Add(AddCube("GearTank", transform, new Vector3(0f, 1.42f, -0.22f), new Vector3(0.22f, 0.56f, 0.18f), packMat));
-                _gear.Add(AddCube("GearTankCap", transform, new Vector3(0f, 1.74f, -0.22f), new Vector3(0.12f, 0.08f, 0.12f), plate));
+                _gear.Add(AddCube("GearTank", transform, new Vector3(0f, 1.42f, -0.22f), new Vector3(0.22f, 0.56f, 0.18f), _gearPackMat));
+                _gear.Add(AddCube("GearTankCap", transform, new Vector3(0f, 1.74f, -0.22f), new Vector3(0.12f, 0.08f, 0.12f), _gearPlate));
             }
 
-            if (boots)
+            if (GearLook.Has(mask, GearLook.Boots) && _kneeL != null && _kneeR != null)
             {
-                // #2110: boots — a wider, darker sole block on each foot, outside the leg plates.
-                _gear.Add(AddCube("GearBootL", _legL, new Vector3(0f, -0.50f, 0.03f), new Vector3(0.30f, 0.14f, 0.36f), packMat));
-                _gear.Add(AddCube("GearBootR", _legR, new Vector3(0f, -0.50f, 0.03f), new Vector3(0.30f, 0.14f, 0.36f), packMat));
+                // #2110: boots — a wider, darker block over each foot, outside the leg plates. On the knee pivots, where
+                // the feet hang (knee-local y −0.44): they used to sit on the hip pivots at −0.50, i.e. round the knee.
+                _gear.Add(AddCube("GearBootL", _kneeL, new Vector3(0f, -0.43f, 0.05f), new Vector3(0.28f, 0.16f, 0.36f), _gearPackMat));
+                _gear.Add(AddCube("GearBootR", _kneeR, new Vector3(0f, -0.43f, 0.05f), new Vector3(0.28f, 0.16f, 0.36f), _gearPackMat));
+                if (GearLook.Has(mask, GearLook.SpringBoots))
+                {
+                    _springL = BuildSpringBoot("L", _kneeL);
+                    _springR = BuildSpringBoot("R", _kneeR);
+                }
             }
 
-            if ((gloves || claws) && _handL != null && _handR != null)
+            if ((mask & (GearLook.ClimbingGloves | GearLook.ClimbingClaws)) != 0 && _handL != null && _handR != null)
             {
                 // #2192: climbing gloves — a dark cuff with an orange grip pad over each glove; the claws add three pale
                 // spikes past the fingertips.
-                var cuffMat = Lit(new Color(0.22f, 0.24f, 0.28f), _armorTex);
-                var padMat = Lit(new Color(0.95f, 0.50f, 0.15f), null);
-                var clawMat = Lit(new Color(0.80f, 0.88f, 0.95f), null);
+                bool claws = GearLook.Has(mask, GearLook.ClimbingClaws);
                 foreach (var hand in new[] { _handL, _handR })
                 {
-                    _gear.Add(AddCube("GearGloveCuff", hand, new Vector3(0f, 0.02f, 0f), new Vector3(0.23f, 0.08f, 0.23f), cuffMat));
-                    _gear.Add(AddCube("GearGlovePad", hand, new Vector3(0f, -0.08f, 0.095f), new Vector3(0.16f, 0.10f, 0.03f), padMat));
+                    _gear.Add(AddCube("GearGloveCuff", hand, new Vector3(0f, 0.02f, 0f), new Vector3(0.23f, 0.08f, 0.23f), _gearCuff));
+                    _gear.Add(AddCube("GearGlovePad", hand, new Vector3(0f, -0.08f, 0.095f), new Vector3(0.16f, 0.10f, 0.03f), _gearPad));
                     if (claws)
                     {
                         for (int i = -1; i <= 1; i++)
                         {
-                            _gear.Add(AddCube("GearClaw", hand, new Vector3(i * 0.06f, -0.18f, 0.07f), new Vector3(0.025f, 0.08f, 0.025f), clawMat));
+                            _gear.Add(AddCube("GearClaw", hand, new Vector3(i * 0.06f, -0.18f, 0.07f), new Vector3(0.025f, 0.08f, 0.025f), _gearClaw));
                         }
                     }
                 }
             }
 
-            // The armor pack (or the tank) replaces the suit's life-support pack (they occupy the same spot on the back).
-            _gearPack = pack || tank;
+            if (GearLook.Has(mask, GearLook.SuitBattery))
+            {
+                // #2297: a small cell on the belt, front right of the pelvis (its front is at z 0.14), with a softly
+                // pulsing cyan window (LateUpdate) — self-lit like the guardian's eyes, so it reads in the dark.
+                _gear.Add(AddCube("GearBattery", transform, new Vector3(0.15f, 1.0f, 0.165f), new Vector3(0.11f, 0.13f, 0.05f), _gearCuff));
+                _gear.Add(AddCube("GearBatteryGlow", transform, new Vector3(0.15f, 1.0f, 0.192f), new Vector3(0.065f, 0.08f, 0.02f), _batteryGlow));
+                _hasBattery = true;
+            }
+
+            // The armor pack, the folded glider or the tank replaces the suit's life-support pack (the same spot on the back).
+            _gearPack = pack || tank || glider;
             ApplySuitPackVisible();
 
-            if (lamp)
+            if (GearLook.Has(mask, GearLook.Lamp))
             {
                 // A small bright lamp on the side of the helmet (the actual light cone is the suit lamp).
                 // Head-LOCAL units — outside the suit/armor helmet side plates (see the helmet note above).
-                _gear.Add(AddCube("GearLamp", _head, new Vector3(0.70f, 0.16f, 0.30f), new Vector3(0.22f, 0.22f, 0.26f),
-                    Lit(new Color(1f, 0.96f, 0.7f), null)));
+                _gear.Add(AddCube("GearLamp", _head, new Vector3(0.70f, 0.16f, 0.30f), new Vector3(0.22f, 0.22f, 0.26f), _gearLampMat));
             }
+        }
+
+        /// <summary>
+        /// #2295: the spring boot's coil — four thin silver discs stacked over the boot's sole block (the foot), each a
+        /// hair off-centre in turn so the stack reads as a coil, under a dark boot cuff with an orange band round the shin:
+        /// a boot standing on springs, like the item icon. The coil sits above the ground line on purpose (the sole is on
+        /// the floor; a coil under it would be buried in the block below). Returns the coil's root, which
+        /// <see cref="SpringCompress"/> / <see cref="SpringStretch"/> scale in height.
+        /// </summary>
+        private Transform BuildSpringBoot(string side, Transform knee)
+        {
+            var root = NewPivot("GearSpring" + side, knee, new Vector3(0f, -0.35f, 0f)); // the top of the sole block
+            _gear.Add(root.gameObject);
+            for (int i = 0; i < 4; i++)
+            {
+                float off = (i % 2 == 0 ? -1f : 1f) * 0.012f;
+                AddCube("GearSpringCoil" + side, root, new Vector3(off, 0.015f + (i * 0.03f), off * 0.5f), new Vector3(0.24f, 0.018f, 0.24f), _gearSpring);
+            }
+
+            _gear.Add(AddCube("GearSpringCuff" + side, knee, new Vector3(0f, -0.17f, 0f), new Vector3(0.26f, 0.12f, 0.26f), _gearCuff));
+            _gear.Add(AddCube("GearSpringBand" + side, knee, new Vector3(0f, -0.20f, 0f), new Vector3(0.27f, 0.03f, 0.27f), _gearPad));
+            return root;
+        }
+
+        /// <summary>
+        /// #2296: the glider — folded, a slim pack on the back with the orange wing bundled on it; while gliding two wings
+        /// (flat panels in the glider fabric, a dark spar along the front edge and three ribs) unfold sideways from the
+        /// shoulder blades. The wings hang from pivots under one root that LateUpdate shows, spreads and folds.
+        /// </summary>
+        private void BuildGlider()
+        {
+            _gear.Add(AddCube("GearGliderPack", transform, new Vector3(0f, 1.40f, -0.23f), new Vector3(0.34f, 0.48f, 0.12f), _gearPackMat));
+            _gear.Add(AddCube("GearGliderBundle", transform, new Vector3(0f, 1.42f, -0.31f), new Vector3(0.30f, 0.40f, 0.06f), _gearWing));
+
+            _wingRoot = NewPivot("GearGliderWings", transform, new Vector3(0f, 1.56f, -0.31f));
+            _gear.Add(_wingRoot.gameObject);
+            _wingL = BuildWing("L", -1f);
+            _wingR = BuildWing("R", 1f);
+            ApplyWings(); // start in the current fold state (a rebuild mid-glide stays open)
+        }
+
+        private Transform BuildWing(string side, float dir)
+        {
+            var pivot = NewPivot("GearGliderWing" + side, _wingRoot, new Vector3(dir * 0.10f, 0f, 0f));
+            AddCube("GearGliderSail" + side, pivot, new Vector3(dir * 0.66f, 0f, -0.02f), new Vector3(1.2f, 0.025f, 0.58f), _gearWing);
+            AddCube("GearGliderSpar" + side, pivot, new Vector3(dir * 0.66f, 0.012f, 0.27f), new Vector3(1.2f, 0.035f, 0.035f), _gearRib);
+            for (int i = 0; i < 3; i++)
+            {
+                AddCube("GearGliderRib" + side, pivot, new Vector3(dir * (0.30f + (i * 0.36f)), 0.014f, -0.02f), new Vector3(0.025f, 0.03f, 0.56f), _gearRib);
+            }
+
+            return pivot;
+        }
+
+        /// <summary>The gear materials, made once per figure — a change of gear rebuilds the cubes, never the materials.</summary>
+        private void EnsureGearMaterials()
+        {
+            if (_gearPlate != null)
+            {
+                return;
+            }
+
+            _gearPlate = Lit(new Color(0.62f, 0.66f, 0.72f), _armorTex);
+            _gearPackMat = Lit(new Color(0.30f, 0.34f, 0.40f), _armorTex);
+            _gearTitan = Lit(TitanTint, _titanTex ?? _armorTex);
+            _gearCuff = Lit(new Color(0.22f, 0.24f, 0.28f), _armorTex);
+            _gearPad = Lit(new Color(0.95f, 0.50f, 0.15f), null);
+            _gearClaw = Lit(new Color(0.80f, 0.88f, 0.95f), null);
+            _gearSpring = Lit(new Color(0.78f, 0.82f, 0.88f), _armorTex);
+            _gearWing = Lit(GliderTint, _gliderTex);
+            _gearRib = Lit(new Color(0.16f, 0.17f, 0.20f), null);
+            _gearLampMat = Lit(new Color(1f, 0.96f, 0.7f), null);
+            _batteryGlow = Lit(BatteryDim, null);
+            if (_batteryGlow.HasProperty("_Floor"))
+            {
+                _batteryGlow.SetFloat("_Floor", 1f); // fully lit from every side — reads as a light (see SetGuardianLook)
+            }
+        }
+
+        /// <summary>#2295: the spring boots' coils squash (a landing) — to ~45 % height, easing back over ~0.25 s.</summary>
+        public void SpringCompress() => StartSpring(SpringSquash);
+
+        /// <summary>#2295: the spring boots' coils stretch (a jump) — to ~140 % height, easing back over ~0.25 s.</summary>
+        public void SpringStretch() => StartSpring(SpringReach);
+
+        private void StartSpring(float peak)
+        {
+            _springPeak = peak;
+            _springAge = 0f;
+        }
+
+        /// <summary>#2296: opens (or folds) the glider's wings — over ~0.3 s, with a little flutter while open, and the
+        /// figure hangs under them. Only a figure wearing the glider shows wings; the flag is kept either way.</summary>
+        public void SetGliding(bool gliding) => _gliding = gliding;
+
+        /// <summary>
+        /// The own stealth cloak seen from outside (#2291): while on, every part of this figure — gear, held item and face
+        /// plate included — draws in one faint, slowly shimmering glass material instead of its own; off restores each
+        /// part's material. Other players never see a cloaked player at all (RemotePlayers hides them), so this look is
+        /// only ever the cloaked player's own third-person view of themselves. Idempotent; parts built while it is on
+        /// (a change of gear, a new held item, a painting) take the glass too.
+        /// </summary>
+        public void SetStealthShimmer(bool on)
+        {
+            if (on == _shimmer)
+            {
+                return;
+            }
+
+            _shimmer = on;
+            if (!on)
+            {
+                foreach (var kv in _shimmerSaved)
+                {
+                    if (kv.Key != null)
+                    {
+                        kv.Key.sharedMaterial = kv.Value;
+                    }
+                }
+
+                _shimmerSaved.Clear();
+                return;
+            }
+
+            if (_shimmerMat == null)
+            {
+                var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent"); // always-included
+                _shimmerMat = new Material(shader) { color = ShaderColor.Srgb(ShimmerTint) };
+            }
+
+            foreach (var r in _renderers)
+            {
+                ShimmerRenderer(r);
+            }
+
+            ShimmerHeld();
+            if (_facePlate != null)
+            {
+                ShimmerRenderer(_facePlate.GetComponent<Renderer>());
+            }
+        }
+
+        /// <summary>Puts one part into the glass (remembering what it wore) while the shimmer is on; no-op otherwise.</summary>
+        private void ShimmerRenderer(Renderer r)
+        {
+            if (!_shimmer || r == null || _shimmerMat == null)
+            {
+                return;
+            }
+
+            if (r.sharedMaterial != _shimmerMat)
+            {
+                _shimmerSaved[r] = r.sharedMaterial;
+            }
+
+            r.sharedMaterial = _shimmerMat;
+        }
+
+        private void ShimmerHeld()
+        {
+            if (!_shimmer || _held == null)
+            {
+                return;
+            }
+
+            foreach (var r in _held.GetComponentsInChildren<Renderer>(true))
+            {
+                ShimmerRenderer(r);
+            }
+        }
+
+        /// <summary>The worn gear's moving parts (#2295–#2297) and the cloak's shimmer — after the pose (Update), on the
+        /// unscaled clock so a slowed world never stretches them. Cheap: a figure without any of them returns at once.</summary>
+        private void LateUpdate()
+        {
+            if (_springL == null && _wingRoot == null && !_hasBattery && !_shimmer)
+            {
+                return;
+            }
+
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.1f);
+            float now = Time.unscaledTime;
+
+            if (_springL != null && _springR != null && _springAge < SpringAttack + SpringRelease)
+            {
+                _springAge = Mathf.Min(SpringAttack + SpringRelease, _springAge + dt);
+                float k = _springAge < SpringAttack
+                    ? Mathf.Lerp(1f, _springPeak, Mathf.SmoothStep(0f, 1f, _springAge / SpringAttack))
+                    : Mathf.Lerp(_springPeak, 1f, Mathf.SmoothStep(0f, 1f, (_springAge - SpringAttack) / SpringRelease));
+                var s = new Vector3(1f, k, 1f);
+                _springL.localScale = s;
+                _springR.localScale = s;
+            }
+
+            if (_wingRoot != null)
+            {
+                _wingOpen = Mathf.MoveTowards(_wingOpen, _gliding ? 1f : 0f, dt / WingUnfoldSeconds);
+                ApplyWings();
+            }
+
+            if (_hasBattery && _batteryGlow != null)
+            {
+                float p = 0.5f + (0.5f * Mathf.Sin((now * 2.4f) + _phase));
+                _batteryGlow.color = ShaderColor.Srgb(Color.Lerp(BatteryDim, BatteryBright, p));
+            }
+
+            if (_shimmer && _shimmerMat != null)
+            {
+                var c = ShimmerTint;
+                c.a *= 0.75f + (0.25f * Mathf.Sin(now * 3.1f)) + (0.1f * Mathf.Sin(now * 7.3f));
+                _shimmerMat.color = ShaderColor.Srgb(c);
+            }
+        }
+
+        /// <summary>Poses the glider's wings for the current fold state: folded they hang down along the back, squeezed to
+        /// a sliver (and the root is switched off once fully folded); open they spread sideways with the tips a little up,
+        /// rolling gently while the glide lasts.</summary>
+        private void ApplyWings()
+        {
+            if (_wingRoot == null || _wingL == null || _wingR == null)
+            {
+                return;
+            }
+
+            bool show = _wingOpen > 0.001f;
+            if (_wingRoot.gameObject.activeSelf != show)
+            {
+                _wingRoot.gameObject.SetActive(show);
+            }
+
+            if (!show)
+            {
+                return;
+            }
+
+            float u = Mathf.SmoothStep(0f, 1f, _wingOpen);
+            float spread = Mathf.Lerp(90f, -8f, u); // left wing about the forward axis: 90° hangs down, −8° tips up
+            float flutter = _gliding ? Mathf.Sin((Time.unscaledTime * 6.5f) + _phase) * 3f * u : 0f;
+            _wingL.localRotation = Quaternion.Euler(0f, 0f, spread + flutter);
+            _wingR.localRotation = Quaternion.Euler(0f, 0f, -spread + flutter);
+            var scale = new Vector3(Mathf.Lerp(0.2f, 1f, u), 1f, Mathf.Lerp(0.5f, 1f, u));
+            _wingL.localScale = scale;
+            _wingR.localScale = scale;
         }
 
         /// <summary>Re-applies the per-part colours (e.g. after the player changed them in settings).</summary>
@@ -864,6 +1203,7 @@ namespace BlocksBeyondTheStars.Client
             _facePlate.transform.localScale = new Vector3(FacePlateScale, FacePlateScale, 0.05f);
             _faceMat = Lit(Color.white, null); // white tint so the face texture shows its true colours
             _facePlate.GetComponent<Renderer>().sharedMaterial = _faceMat;
+            ShimmerRenderer(_facePlate.GetComponent<Renderer>()); // #2291
         }
 
         /// <summary>Reconciles the face plate + stock-feature renderers with the current visibility and whether
@@ -951,6 +1291,22 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Re-applies the stored painting of one part to its segments (bake atlas + swap meshes,
         /// or restore the primitives when the painting is empty). Idempotent.</summary>
         private void ApplyBodyPaint(int part)
+        {
+            ApplyBodyPaintCore(part);
+            if (_shimmer)
+            {
+                // #2291: the bake swapped these parts' materials under the cloak — remember the new ones, keep the glass.
+                foreach (var seg in _paintSegs[part])
+                {
+                    if (seg.Go != null)
+                    {
+                        ShimmerRenderer(seg.Go.GetComponent<Renderer>());
+                    }
+                }
+            }
+        }
+
+        private void ApplyBodyPaintCore(int part)
         {
             var segs = _paintSegs[part];
             if (segs.Count == 0)
@@ -1258,8 +1614,9 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        // Shared (loaded once) tintable grayscale textures for the suit/armor/visor/skin.
-        private static Texture2D _suitTex, _armorTex, _visorTex, _skinTex;
+        // Shared (loaded once) tintable grayscale textures for the suit/armor/visor/skin, the titanium plates (#2294) and
+        // the glider's wing fabric (#2296).
+        private static Texture2D _suitTex, _armorTex, _visorTex, _skinTex, _titanTex, _gliderTex;
         private static bool _texLoaded;
 
         private static void EnsureTextures()
@@ -1274,6 +1631,8 @@ namespace BlocksBeyondTheStars.Client
             _armorTex = LoadTex("avatar_armor");
             _visorTex = LoadTex("avatar_visor");
             _skinTex = LoadTex("avatar_skin");
+            _titanTex = LoadTex("avatar_armor_titan");
+            _gliderTex = LoadTex("avatar_glider");
         }
 
         private static Texture2D LoadTex(string key)

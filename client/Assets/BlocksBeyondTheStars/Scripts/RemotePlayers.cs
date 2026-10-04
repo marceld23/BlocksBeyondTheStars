@@ -40,7 +40,10 @@ namespace BlocksBeyondTheStars.Client
             public string Frame = string.Empty; // #2113: aboard a train — the wagon frame and the offset in it
             public Vector3 Local;
             public bool Hidden;            // stealth field active, or the player is up in space — no avatar
-            public int Gear = -1;          // cached so gear is only rebuilt on change
+            public int Gear = -1;          // cached so gear is only rebuilt on change (a GearLook mask)
+            public bool Gliding;           // #2296: the glider's wings are open
+            public float SpringY;          // #2295: the last drawn height — its change is the vertical speed the coils read
+            public bool SpringRising, SpringFalling; // #2295: the stretch / squash already played for this rise / fall
             public int Skin, Torso, Arms, Legs; // #1777: cached colours — re-applied when a presence carries new ones
             public string Held = "\0";     // cached held item key
             public double LastUpdate;      // when the newest presence arrived — drives the stale timeout (#958)
@@ -202,6 +205,7 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     r.Go.transform.position = aboard;
+                    r.SpringY = aboard.y; // #2295: the wagon's motion is never a jump
                     if (r.Interp.Sample(now, circ, out _, out var wagonYaw))
                     {
                         r.Go.transform.rotation = Quaternion.Euler(0f, wagonYaw, 0f);
@@ -219,6 +223,7 @@ namespace BlocksBeyondTheStars.Client
                     // #2193: a climber faces the wall they hang on, not where they look.
                     float facing = r.Climbing && TryWallYaw(pos, yaw, out float wallYaw) ? wallYaw : yaw;
                     r.Go.transform.rotation = Quaternion.Euler(0f, facing, 0f);
+                    SpringFromMotion(r, scene.y);
                 }
 
                 // Thrust flame under a jetpacking avatar: one persistent looping emitter per remote (#1511),
@@ -230,6 +235,53 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 WeaponFx.SetThrust(r.Thrust, thrust);
+            }
+        }
+
+        /// <summary>#2295: rising faster than this (m/s) is a jump — the coils stretch once.</summary>
+        private const float SpringRiseSpeed = 3.5f;
+
+        /// <summary>#2295: falling faster than this (m/s) and then stopping is a landing — the coils squash once. Above the
+        /// glider's 2.5 m/s sink, as on the own avatar.</summary>
+        private const float SpringFallSpeed = 3f;
+
+        /// <summary>#2295: another player's spring boots follow how their drawn body moves — a fast rise stretches the coils
+        /// once, a fall that stops squashes them once. No wire field: the interpolated height says it all. Seated and
+        /// climbing players are left out (the seat drop and the wall are no jumps).</summary>
+        private static void SpringFromMotion(Remote r, float y)
+        {
+            float dt = Time.deltaTime;
+            float vy = dt > 0f ? (y - r.SpringY) / dt : 0f;
+            r.SpringY = y;
+            if (r.Gear <= 0 || r.Seated || r.Climbing
+                || !BlocksBeyondTheStars.Shared.State.GearLook.Has(r.Gear, BlocksBeyondTheStars.Shared.State.GearLook.SpringBoots))
+            {
+                r.SpringRising = false;
+                r.SpringFalling = false;
+                return;
+            }
+
+            if (vy > SpringRiseSpeed)
+            {
+                if (!r.SpringRising)
+                {
+                    r.SpringRising = true;
+                    r.Avatar.SpringStretch();
+                }
+            }
+            else if (vy < 0.5f)
+            {
+                r.SpringRising = false;
+            }
+
+            if (vy < -SpringFallSpeed)
+            {
+                r.SpringFalling = true;
+            }
+            else if (r.SpringFalling && vy > -0.5f)
+            {
+                r.SpringFalling = false;
+                r.Avatar.SpringCompress();
             }
         }
 
@@ -308,6 +360,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Go = go, Avatar = avatar, Name = m.Name, Interp = new RemoteEntityInterpolator(InterpolationDelay),
                     Skin = m.Skin, Torso = m.Torso, Arms = m.Arms, Legs = m.Legs,
+                    SpringY = go.transform.position.y, // #2295: no "jump" from the origin on the first frame
                 };
                 _remotes[m.PlayerId] = r;
             }
@@ -356,13 +409,18 @@ namespace BlocksBeyondTheStars.Client
                 r.Avatar.SetVisible(!m.Stealthed);
             }
 
-            // Equipped gear (helmet/chest/legs/pack/lamp) shown on the remote avatar.
+            // The worn gear on the remote avatar: the presence carries the shared GearLook mask, passed straight through.
             if (m.Gear != r.Gear)
             {
                 r.Gear = m.Gear;
-                r.Avatar.SetGear((m.Gear & 1) != 0, (m.Gear & 2) != 0, (m.Gear & 4) != 0, (m.Gear & 8) != 0, (m.Gear & 16) != 0,
-                    (m.Gear & 32) != 0, (m.Gear & 64) != 0, // #2110: boots, tank
-                    (m.Gear & 128) != 0, (m.Gear & 256) != 0); // #2192: climbing gloves, claws
+                r.Avatar.SetGear(m.Gear);
+            }
+
+            // #2296: the glider's wings open over a gliding player.
+            if (m.Gliding != r.Gliding)
+            {
+                r.Gliding = m.Gliding;
+                r.Avatar.SetGliding(m.Gliding);
             }
 
             // Held tool/weapon/block shown in the remote avatar's hand.

@@ -33,6 +33,7 @@ namespace BlocksBeyondTheStars.Client
         private AudioSource _fluid;     // looping lava/water bed when near a fluid
         private AudioSource _drill;     // looping drill while mining
         private AudioSource _jet;       // looping jetpack thrust while firing
+        private AudioSource _glide;     // looping wind past the glider's wings while gliding (#2296)
         private AudioSource _speeder;   // looping hover-speeder engine while driving
         private AudioSource _boat;      // looping outboard-motor putter while driving a boat (#1215)
 
@@ -59,6 +60,7 @@ namespace BlocksBeyondTheStars.Client
         private float _caveScanTimer;
         private float _drillRefresh = -10f;
         private float _jetRefresh = -10f;
+        private float _glideRefresh = -10f;
         private float _speederRefresh = -10f;
         private float _speederIntensity;
         private bool _speederBoost;
@@ -135,6 +137,18 @@ namespace BlocksBeyondTheStars.Client
             _jet.volume = 0f;
             _jet.clip = _clips.TryGetValue("jetpack_loop", out var jetClip) ? jetClip : JetClip();
             _jet.Play();
+
+            // #2296: the glider's wind — a recorded seamless loop; without it the glide is simply quiet.
+            _glide = gameObject.AddComponent<AudioSource>();
+            _glide.playOnAwake = false;
+            _glide.loop = true;
+            _glide.spatialBlend = 0f;
+            _glide.volume = 0f;
+            if (_clips.TryGetValue("glider_wind", out var glideClip))
+            {
+                _glide.clip = glideClip;
+                _glide.Play();
+            }
 
             _speeder = gameObject.AddComponent<AudioSource>();
             _speeder.playOnAwake = false;
@@ -264,6 +278,14 @@ namespace BlocksBeyondTheStars.Client
                 _jet.volume = Mathf.MoveTowards(_jet.volume, on ? sfx * 0.5f : 0f, Time.deltaTime * 5f);
             }
 
+            // Glider wind loop while gliding (PlayerController calls GlideTick each frame it glides). The recording is
+            // mastered quiet, so it plays near full SFX level; a slower fade than the jet — the wind swells and dies away.
+            if (_glide != null && _glide.clip != null)
+            {
+                bool on = Time.time - _glideRefresh < 0.15f;
+                _glide.volume = Mathf.MoveTowards(_glide.volume, on ? sfx * 0.95f : 0f, Time.deltaTime * 2.5f);
+            }
+
             // Hover-speeder engine loop while driving (PlayerController calls SpeederTick each frame). Volume +
             // pitch track the throttle; boost lifts the pitch.
             if (_speeder != null && _speeder.clip != null)
@@ -320,6 +342,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Called each frame the jetpack is firing; keeps the thrust loop alive (fades out otherwise).</summary>
         public void JetTick() => _jetRefresh = Time.time;
+
+        /// <summary>Called each frame the glider is open (#2296); keeps the wind loop alive (fades out otherwise).</summary>
+        public void GlideTick() => _glideRefresh = Time.time;
 
         /// <summary>One-shot startup chirp when boarding/igniting a speeder — or the splash of stepping into a
         /// boat (#1215).</summary>

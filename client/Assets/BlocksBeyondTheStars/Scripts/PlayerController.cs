@@ -232,8 +232,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The jetpack is firing right now (the state last reported to the server, which drains the energy).</summary>
         public bool JetpackActive => _jetpackActive;
 
-        /// <summary>The glider's wing is open (#2296). Always false until the glider movement lands: that phase sets it where
-        /// the glide starts and ends, and the HUD gear strip already reads it.</summary>
+        /// <summary>The glider's wing is open (#2296) — set where the glide opens and folds (<see cref="UpdateGlide"/>); the
+        /// HUD gear strip lights the glider from it.</summary>
         public bool Gliding { get; private set; }
 
         /// <summary>Switches the worn suit lamp on or off — what the lamp key does, and the HUD gear strip's lamp tap (#2290).
@@ -552,6 +552,9 @@ namespace BlocksBeyondTheStars.Client
             RefreshLiquidKeys(); // #2106: cheap (a reference compare) once the content is known
             RecomputeGravity(); // keep the live movement constants in step with this world's gravity factor
 
+            // #2291: our own cloak, seen in third person — the figure turns to shimmering glass (a no-op unless it flips).
+            Avatar?.SetStealthShimmer(Game != null && Game.Stealthed);
+
             // On travel the world is rebuilt at a new location: re-run the spawn snap there.
             if (Game != null && Game.WorldEpoch != _lastWorldEpoch)
             {
@@ -596,6 +599,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_spawned && Game != null)
             {
                 UpdateJetpack(false);
+                UpdateGlide(false);
                 return;
             }
 
@@ -608,6 +612,7 @@ namespace BlocksBeyondTheStars.Client
                 // beam pad froze the player with the jetpack still "on" server-side, draining suit energy
                 // the whole wait (#413 N3).
                 UpdateJetpack(false);
+                UpdateGlide(false); // #2296: a teleport folds the wing too
                 transform.position = _spawnPos;
                 _verticalVelocity = 0f;
 
@@ -688,6 +693,7 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null && Game.SpaceViewActive)
             {
                 UpdateJetpack(false);
+                UpdateGlide(false);
                 // Entering space skips the per-frame UpdateLamp() below, so the suit headlamp's
                 // shader global would otherwise stay lit. Turn it off once on the way in.
                 if (_lampOn)
@@ -720,6 +726,9 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null && (Game.MenuOpen || Game.ChatTyping || Game.CinematicCameraActive
                                  || OnScreenKeyboardUi.IsOpen))
             {
+                // The jetpack stops (it drains energy server-side). The glider costs nothing, so a wing open when the
+                // panel came up stays open and ApplyGravityOnly keeps its slow sink (#2296) — a plunge at full gravity
+                // behind a menu would be a fall the player never chose.
                 UpdateJetpack(false);
                 if (string.IsNullOrEmpty(Game.InSpeeder) && _seatCell is null)
                 {
@@ -737,6 +746,7 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null && !string.IsNullOrEmpty(Game.InSpeeder))
             {
                 UpdateJetpack(false);
+                UpdateGlide(false);
                 EndClimb();
                 DriveSpeeder();
                 SendMovement();
@@ -751,6 +761,7 @@ namespace BlocksBeyondTheStars.Client
             if (UpdateTrainFrame())
             {
                 UpdateJetpack(false);
+                UpdateGlide(false);
                 EndClimb(); // no wall climbing aboard a moving wagon
                 if (Game.TrainSeat >= 0)
                 {
@@ -793,6 +804,7 @@ namespace BlocksBeyondTheStars.Client
             if (_seatCell is { } seat)
             {
                 UpdateJetpack(false);
+                UpdateGlide(false);
                 EndClimb();
                 LookAround();
                 if (Camera != null && !ThirdPerson)
@@ -1371,12 +1383,14 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private bool _gearHelmet, _gearChest, _gearLegs, _gearPack, _gearLamp, _gearBoots, _gearTank, _gearGloves, _gearClaws;
+        private int _gearLook = -1; // the GearLook mask the avatar was last dressed in
         private float _gearTimer;
         private float _gearWeight; // #2206: the slow-down of worn gear the bio lab made heavier (0 = none)
+        private float _jumpBoost;  // #2295: how much higher the worn gear jumps (0..1, the spring boots' 0.6)
 
-        /// <summary>Mirrors the player's WORN gear (#2110) onto the third-person avatar (helmet/chest/legs/pack/lamp/
-        /// boots/tank), refreshed a couple of times a second so it tracks a change of clothes without polling hard.</summary>
+        /// <summary>Mirrors the player's WORN gear (#2110) onto the third-person avatar — the same <see cref="GearLook"/>
+        /// mask the server sends everybody else — refreshed a couple of times a second so it tracks a change of clothes
+        /// without polling hard; the avatar is only rebuilt when the mask changes.</summary>
         private void UpdateGearPeriodically()
         {
             _gearTimer -= Time.deltaTime;
@@ -1387,11 +1401,13 @@ namespace BlocksBeyondTheStars.Client
 
             _gearTimer = 0.5f;
 
-            // #2192: the worn climbing gear — one formula with the item data (best piece counts).
+            // #2192: the worn climbing gear — one formula with the item data (best piece counts). #2295: the spring boots'
+            // jump the same way.
             if (Game.Content != null)
             {
                 _climbGearGrip = SuitEquipment.ClimbGrip(Game.Content.Items.Values, HasItem);
                 _climbGearIce = SuitEquipment.ClimbIce(Game.Content.Items.Values, HasItem);
+                _jumpBoost = SuitEquipment.JumpBoost(Game.Content.Items.Values, HasItem);
             }
 
             // #2202/#2206: a grip preparation and what the lab changed on the worn gear join the same formula, under
@@ -1402,29 +1418,11 @@ namespace BlocksBeyondTheStars.Client
                 0f, SuitEquipment.MaxClimbGrip);
             _gearWeight = BlocksBeyondTheStars.Shared.Bio.GearMods.Bonus(Game.WornKeys(), BlocksBeyondTheStars.Shared.Bio.ModStat.Weight);
 
-            bool helmet = HasItem("helmet");
-            bool chest = HasItem("armor_chest") || HasItem("stealth_suit");
-            bool legs = HasItem("armor_legs");
-            bool pack = HasItem("jetpack");
-            bool lamp = HasItem("suit_lamp");
-            bool boots = HasItem("boots");
-            bool tank = HasItem("oxygen_tank_1") || HasItem("oxygen_tank_2") || HasItem("oxygen_tank_3");
-            bool gloves = HasItem("climbing_gloves");
-            bool claws = HasItem("climbing_claws");
-
-            if (helmet != _gearHelmet || chest != _gearChest || legs != _gearLegs || pack != _gearPack || lamp != _gearLamp
-                || boots != _gearBoots || tank != _gearTank || gloves != _gearGloves || claws != _gearClaws)
+            int look = GearLook.Mask(HasItem);
+            if (look != _gearLook)
             {
-                _gearHelmet = helmet;
-                _gearChest = chest;
-                _gearLegs = legs;
-                _gearPack = pack;
-                _gearLamp = lamp;
-                _gearBoots = boots;
-                _gearTank = tank;
-                _gearGloves = gloves;
-                _gearClaws = claws;
-                Avatar.SetGear(helmet, chest, legs, pack, lamp, boots, tank, gloves, claws);
+                _gearLook = look;
+                Avatar.SetGear(look);
             }
         }
 
@@ -2530,6 +2528,7 @@ namespace BlocksBeyondTheStars.Client
         private void SnapTo(Vector3 pos)
         {
             EndClimb(); // #2188: a teleport, respawn or rescue never leaves us hanging on a wall that is no longer there
+            UpdateGlide(false); // #2296: nor gliding on
             _grip.Reset();
             _controller.enabled = false;
             transform.position = pos;
@@ -2987,6 +2986,7 @@ namespace BlocksBeyondTheStars.Client
             if (grounded)
             {
                 _verticalVelocity = -1f;
+                UpdateGlide(false); // #2296: touched down under the menu
             }
             else if (_awaitingFloor)
             {
@@ -2995,6 +2995,11 @@ namespace BlocksBeyondTheStars.Client
             else
             {
                 _verticalVelocity -= _effGravity * Time.deltaTime;
+                if (Gliding)
+                {
+                    GlideSink(); // #2296: a wing open when the menu came up keeps carrying us (see the menu branch)
+                    UpdateGlide(true);
+                }
             }
 
             _controller.Move(new Vector3(0f, _verticalVelocity, 0f) * Time.deltaTime);
@@ -3046,6 +3051,7 @@ namespace BlocksBeyondTheStars.Client
             _satFrame = Time.frameCount;
             _verticalVelocity = 0f;
             UpdateJetpack(false);
+            UpdateGlide(false);
             _controller.enabled = false;
             transform.position = Game != null
                 ? Game.ScenePos(cell.x + 0.5f, cell.y, cell.z + 0.5f)
@@ -3119,6 +3125,153 @@ namespace BlocksBeyondTheStars.Client
                 _jetpackActive = active;
                 Game?.Network?.SendSetJetpack(active);
             }
+        }
+
+        // ---- The glider (#2296) ----------------------------------------------------------------------------------
+        // Holding Jump while falling with a worn glider opens the wing: the fall slows to a steady sink and the player
+        // sails forward where they look. Like the jetpack's thrust it is the client's own on-foot movement and costs no
+        // energy; the server only checks that a glider is worn (a refusal folds the wing) and shows the wing to others.
+
+        /// <summary>The steady sink under the open wing, m/s — the same on every world: gravity only decides how quickly a
+        /// glide that started slower than this reaches it. Far under the safe landing speed, so a glide never lands hard.</summary>
+        private const float GlideSinkSpeed = 2.5f;
+
+        /// <summary>How hard the opening wing brakes a faster fall, m/s² (gravity is cancelled on top of it).</summary>
+        private const float GlideBrake = 35f;
+
+        private const float GlideCruiseSpeed = 8f; // m/s forward, hands off
+        private const float GlideFastSpeed = 10f;  // with forward held
+        private const float GlideSlowSpeed = 4f;   // with back held — the brake
+        private const float GlideSideSpeed = 3f;   // sideways drift with left / right
+        private const float GlideAccel = 6f;       // m/s² — the glide's speed has momentum, the walk's does not
+        private const float GlideWindDrift = 2.5f; // m/s downwind in a full gale (#900: the wind holds a hanging player)
+
+        private Vector3 _glideVel;           // the glide's horizontal velocity
+        private int _gliderRejectionsSeen;   // GameBootstrap.GliderRejections when last checked
+        private bool _glideRefused;          // the server refused the wing: it stays folded until Jump is let go
+        private bool _gliderNoAirHinted;     // "without air …" is said once per session
+
+        /// <summary>Whether the air here can carry the glider: a world with an atmosphere (an airless body reports a space
+        /// sky and no air density), below its line (<c>OnFootInSpace</c> is the server's "above the atmosphere"), not on a
+        /// spacewalk or floating in a station's zero-g; inside a station only where it breathes (a player-built deck is open
+        /// space, #1473). Water needs no check: swimming wins in <see cref="Move"/> before the airborne branch.</summary>
+        private bool GlideAirHere()
+        {
+            if (Game == null || Game.OnFootInSpace || Game.InEva || Game.StationZeroG)
+            {
+                return false;
+            }
+
+            var env = Game.Environment;
+            if (env == null || env.SpaceSky || env.AtmosphereDensity <= 0f)
+            {
+                return false;
+            }
+
+            return string.IsNullOrEmpty(Game.CurrentStationId) || env.Breathable;
+        }
+
+        /// <summary>One glide step in the air: the sink (<see cref="GlideSink"/>) and the forward sail — the horizontal
+        /// velocity eases toward cruise speed along the view (forward speeds up, back brakes, left / right drift sideways),
+        /// a gale pushes it downwind, and a wall it ran into eats the speed it took.</summary>
+        private void Glide(float h, float v, ref Vector3 move)
+        {
+            if (!Gliding)
+            {
+                _glideVel = new Vector3(move.x, 0f, move.z); // the wing opens with the run the jump had
+            }
+            else
+            {
+                var actual = _controller.velocity;
+                actual.y = 0f;
+                if (actual.sqrMagnitude < _glideVel.sqrMagnitude)
+                {
+                    _glideVel = actual; // blocked (a wall, a ledge): carry on from what we really did
+                }
+            }
+
+            // The view's flattened forward is the body's: the camera only pitches under it (first and third person).
+            float speed = v >= 0f ? Mathf.Lerp(GlideCruiseSpeed, GlideFastSpeed, v) : Mathf.Lerp(GlideCruiseSpeed, GlideSlowSpeed, -v);
+            Vector3 target = (transform.forward * speed) + (transform.right * (h * GlideSideSpeed));
+            if (Game != null && Game.WindSpeed > 0.05f && Game.ExposedToSky)
+            {
+                target += Game.WindVector * GlideWindDrift;
+            }
+
+            target.y = 0f;
+            _glideVel = Vector3.MoveTowards(_glideVel, target, GlideAccel * Time.deltaTime);
+            move.x = _glideVel.x;
+            move.z = _glideVel.z;
+            GlideSink();
+        }
+
+        /// <summary>The open wing's hold on the fall: a fall faster than the sink brakes toward it, a slower one falls on
+        /// under gravity until it gets there — never pushed upward. Call after this frame's gravity.</summary>
+        private void GlideSink()
+        {
+            if (_verticalVelocity < -GlideSinkSpeed)
+            {
+                _verticalVelocity = Mathf.Min(-GlideSinkSpeed, _verticalVelocity + ((GlideBrake + _effGravity) * Time.deltaTime));
+            }
+        }
+
+        /// <summary>Holding Jump while falling with the glider where there is no air: say why nothing opens, once. Not
+        /// before this world's environment has arrived — until then "no air" is only "not known yet".</summary>
+        private void GliderNoAirHint()
+        {
+            if (_gliderNoAirHinted || Game?.Localizer == null || Game.Environment == null)
+            {
+                return;
+            }
+
+            _gliderNoAirHinted = true;
+            Game.ShowMessage(Game.Localizer.Get("ui.hud.glider_no_air"));
+        }
+
+        /// <summary>Opens or folds the glider's wing: the edge goes to the server (it shows the wing to everyone else) and
+        /// the avatar, the opening rustle plays, and every open frame keeps the wind loop up. Mirrors
+        /// <see cref="UpdateJetpack"/> — every place that cuts the jetpack folds the wing too.</summary>
+        private void UpdateGlide(bool active)
+        {
+            if (active)
+            {
+                ClientAudio.Instance?.GlideTick();
+            }
+
+            if (active == Gliding)
+            {
+                return;
+            }
+
+            Gliding = active;
+            Avatar?.SetGliding(active);
+            Game?.Network?.SendSetGliding(active);
+            if (active)
+            {
+                ClientAudio.Instance?.Cue("glider_open", 0.8f);
+            }
+        }
+
+        // ---- The spring boots (#2295) ------------------------------------------------------------------------------
+
+        /// <summary>The spring boots' share of the jump impulse: jump HEIGHT grows with the square of the impulse, so
+        /// "60 % higher" is the root of 1.6. 1 without them.</summary>
+        private float SpringJumpImpulse() => Mathf.Sqrt(1f + _jumpBoost);
+
+        private float _springJumpAt = -10f;
+
+        /// <summary>A jump on the spring boots: their twang and the coils stretching on the avatar. Debounced, so a jump
+        /// blocked by a low ceiling (the body stays grounded and re-jumps every frame) does not rattle.</summary>
+        private void SpringJump()
+        {
+            if (Time.time - _springJumpAt < 0.25f)
+            {
+                return;
+            }
+
+            _springJumpAt = Time.time;
+            ClientAudio.Instance?.Cue("spring_jump", 0.7f);
+            Avatar?.SpringStretch();
         }
 
         /// <summary>Arcade hover driving (car-style): W/S throttle, A/D steer, Space hop, Shift boost. Holds a
@@ -3643,6 +3796,7 @@ namespace BlocksBeyondTheStars.Client
             // no footsteps to give the invisible admin away.
             if (Game != null && Game.Spectating)
             {
+                UpdateGlide(false);
                 SpectatorMove(h, v);
                 return;
             }
@@ -3690,6 +3844,7 @@ namespace BlocksBeyondTheStars.Client
             if (_pullingUp)
             {
                 UpdateJetpack(false);
+                UpdateGlide(false);
                 UpdateClimbPose(onLadder && !grounded);
                 return;
             }
@@ -3697,7 +3852,20 @@ namespace BlocksBeyondTheStars.Client
             UpdateClimbPose(onLadder && !grounded); // a ladder counts once the feet leave the ground
             _moving = (inWater || grounded || onLadder || climbing) && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
 
+            // #2296: a wing the server refused (no glider worn as it sees it) folds, and stays folded until Jump is let go.
+            if (Game != null && Game.GliderRejections != _gliderRejectionsSeen)
+            {
+                _gliderRejectionsSeen = Game.GliderRejections;
+                _glideRefused |= Gliding;
+            }
+
+            if (_glideRefused && !InputMap.JumpHeld())
+            {
+                _glideRefused = false;
+            }
+
             bool jetpacking = false;
+            bool gliding = false;
             if (inWater)
             {
                 // Buoyant swimming: drift down slowly when idle, hold Jump to rise and surface; water also
@@ -3750,12 +3918,24 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (grounded)
             {
-                if (InputMap.JumpDown())
+                bool springs = _jumpBoost > 0f; // #2295: the spring boots jump higher and have their own sound
+                if (InputMap.JumpDown() && !springs)
                 {
                     ClientAudio.Instance?.Cue("jump", 0.6f);
                 }
 
-                _verticalVelocity = InputMap.JumpHeld() ? _effJumpSpeed * BioJumpImpulse() : -1f;
+                if (InputMap.JumpHeld())
+                {
+                    _verticalVelocity = _effJumpSpeed * BioJumpImpulse() * SpringJumpImpulse();
+                    if (springs)
+                    {
+                        SpringJump();
+                    }
+                }
+                else
+                {
+                    _verticalVelocity = -1f;
+                }
             }
             else if (Game != null && Game.OnFootInSpace)
             {
@@ -3794,9 +3974,24 @@ namespace BlocksBeyondTheStars.Client
                         move.z += gust.z;
                     }
                 }
+                else if (InputMap.JumpHeld() && !_glideRefused && (_verticalVelocity < 0f || Gliding) && HasItem("glider"))
+                {
+                    // #2296: the glider — hold Jump on the way down (past the jump's top) and the wing opens, where there
+                    // is air. It shares the back slot with the jetpack, so the two never meet here.
+                    if (GlideAirHere())
+                    {
+                        gliding = true;
+                        Glide(h, v, ref move);
+                    }
+                    else
+                    {
+                        GliderNoAirHint();
+                    }
+                }
             }
 
             UpdateJetpack(jetpacking);
+            UpdateGlide(gliding);
 
             move.y = _verticalVelocity;
             if (_knock.sqrMagnitude > 0.01f)
@@ -3871,12 +4066,19 @@ namespace BlocksBeyondTheStars.Client
                 ClientAudio.Instance?.Cue("land", 0.6f);
                 Weapons?.Dust(transform.position);
                 FxCamera.AddTrauma(Mathf.Clamp01(-prevVy / 12f) * 0.55f); // impact kick
+                if (_jumpBoost > 0f && prevVy < -3f)
+                {
+                    Avatar?.SpringCompress(); // #2295: the coils take the landing (a step down is no landing)
+                }
 
                 // A hard landing hurts: report the impact speed so the server (which owns health) applies
                 // fall damage. Small drops/jumps stay below the safe threshold and do nothing. Deep water breaks
                 // the fall via the swim branch — but landing in even ONE block of water should cushion it too,
                 // like Minecraft (Severin playtest: shallow water still hurt because the chest wasn't submerged).
                 // Flying down onto the ground is a landing, not a fall — the descent is powered, not a drop.
+                // A glide (#2296) needs no exception: it lands at its 2.5 m/s sink, far under any safe speed. The spring
+                // boots (#2295) need none either — their higher jump lands at most ~11 m/s (on the heaviest, 1.6 g worlds),
+                // under the server's safe 14 m/s, and the server takes their fall protection off any real fall.
                 if (-prevVy > _effSafeFallSpeed && !FeetInWater() && !_flying && _trainFrame == null) // #2113: the frame's motion is never a fall
                 {
                     Game?.Network?.SendFallDamage(-prevVy);
@@ -4315,6 +4517,7 @@ namespace BlocksBeyondTheStars.Client
                 Mathf.Lerp(_pullFrom.z, _pullTo.z, over));
             _moving = true;
             UpdateJetpack(false);
+            UpdateGlide(false);
             UpdateClimbPose(onLadder: false);
             if (t >= 1f)
             {

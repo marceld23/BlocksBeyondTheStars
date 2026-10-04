@@ -4205,6 +4205,7 @@
   "ui.suit.active_none": "A lanterna, o jetpack, o planador e a roupa furtiva aparecem aqui quando você os equipar.",
   "ui.hud.no_lamp": "Você não está usando uma lanterna — coloque-a em Inventário → Traje.",
   "ui.hud.no_stealth": "Você não está usando o traje de furtividade — vista-o em Inventário → Traje.",
+  "ui.hud.glider_no_air": "Sem ar o planador não pode te carregar.",
   "ui.hud.gear_hold": "segurar",
   "ui.hud.jump_key": "Espaço",
   "ui.hud.gear_jetpack_hint": "Jetpack: segure {key} no ar para subir voando.",

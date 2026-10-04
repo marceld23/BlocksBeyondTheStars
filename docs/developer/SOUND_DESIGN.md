@@ -76,6 +76,7 @@ click-on-press + hover-on-enter).
 |---|---|---|
 | footstep per surface (rock/sand/metal-deck/grass/snow) | 5 | EL |
 | jump, land, swim stroke, jetpack thrust | 4 | proc/EL |
+| spring-boot jump ✓ (`spring_jump`), glider open ✓ (`glider_open`) + wind loop while gliding ✓ (`glider_wind`, seamless, `GlideTick`) (#2295/#2296) | 3 | EL ✓ |
 | hover speeder: engine loop ✓ + startup / shutdown / impact ✓ (`vehicle_*`) | 4 | EL ✓ |
 | boat (#1215): outboard putter loop ✓ (`boat_engine_loop`, seamless) + launch / board / dismount splash ✓ (`boat_splash`) | 2 | EL ✓ |
 

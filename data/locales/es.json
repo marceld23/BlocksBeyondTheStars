@@ -4205,6 +4205,7 @@
   "ui.suit.active_none": "La lámpara, el jetpack, el planeador y el traje de sigilo aparecerán aquí cuando te los pongas.",
   "ui.hud.no_lamp": "No llevas una lámpara — póntela en Inventario → Traje.",
   "ui.hud.no_stealth": "No llevas el traje de sigilo — póntelo en Inventario → Traje.",
+  "ui.hud.glider_no_air": "Sin aire el planeador no puede llevarte.",
   "ui.hud.gear_hold": "mantener",
   "ui.hud.jump_key": "Espacio",
   "ui.hud.gear_jetpack_hint": "Jetpack: mantén {key} en el aire para subir volando.",

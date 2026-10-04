@@ -4205,6 +4205,7 @@
   "ui.suit.active_none": "The lamp, the jetpack, the glider and the stealth suit show up here once you wear them.",
   "ui.hud.no_lamp": "You are not wearing a lamp — put it on under Inventory → Suit.",
   "ui.hud.no_stealth": "You are not wearing the stealth suit — put it on under Inventory → Suit.",
+  "ui.hud.glider_no_air": "Without air the glider cannot carry you.",
   "ui.hud.gear_hold": "hold",
   "ui.hud.jump_key": "Space",
   "ui.hud.gear_jetpack_hint": "Jetpack: hold {key} in the air to fly up.",

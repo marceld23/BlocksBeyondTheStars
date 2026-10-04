@@ -4205,6 +4205,7 @@
   "ui.suit.active_none": "Lamba, jetpack, planör ve gizli kıyafet bunlara giyince burada görünür.",
   "ui.hud.no_lamp": "Lamba takmıyorsun — Envanter → Kıyafet altından tak.",
   "ui.hud.no_stealth": "Gizlenme Tulumu giymiyorsun — Envanter → Kıyafet altından giy.",
+  "ui.hud.glider_no_air": "Hava olmadan planör seni taşıyamaz.",
   "ui.hud.gear_hold": "basılı tut",
   "ui.hud.jump_key": "Space",
   "ui.hud.gear_jetpack_hint": "Jetpack: Havadayken {key} basılı tutup yukarı uç.",

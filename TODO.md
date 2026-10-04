@@ -24,6 +24,38 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧑‍🚀 The suit — paper doll, slot picker, gear strip, stealth on B, radar contacts, four modules, new gear (#2298: #2288–#2297, 2026-10-04, branch feat/suit-paper-doll-gear) — ✅ done (⚠ playtest open; release note: protocol 11)
+
+**Request (Marcel, 2026-10-04).** The worn slots (head, chest …) sat on the Backpack tab although they belong to the
+Suit; a click on an empty slot should offer the fitting pieces from the backpack and the cargo hold; every slot should
+have pieces worth wearing; jetpack and lamp need a visible handle. A code read found two dead features on the way: the
+stealth suit could never be switched on, and the radar scanner had no effect. One worktree, one PR; icons, textures and
+sounds generated with the repo scripts.
+
+- **✅ Suit tab as a paper doll (#2288):** Backpack tab = backpack + quick-bar only; the Suit tab draws the worn slots
+  around a figure (head/chest/legs/feet left, back/tank/liner right, four modules below), the status line on top and
+  *Can be used actively* with the real keys. The teleporter no longer shows under Suit (it is a quick-bar tool); stale
+  "works in the backpack" texts fixed (also in seven community languages); the starter lamp is worn from the start.
+- **✅ Slot picker + wear from the cargo hold (#2289):** a click on any slot lists the fitting pieces with their effect
+  and where they lie (backpack / cargo hold aboard), Take off on top, an empty slot jumps to the recipe;
+  `EquipItemIntent.FromCargo` (aboard only, the old piece goes to the backpack, a full backpack swaps it into the hold).
+- **✅ HUD gear strip (#2290):** right of the quick-bar, one icon per worn lamp / jetpack / glider / stealth suit with
+  state, key and suit energy; tappable on touch; takes none of the nine slots.
+- **✅ Stealth on B (#2291):** `InputAction.ToggleStealth`, context-list entry while worn, cloak sounds, the own
+  cloak flag on `PlayerStateUpdate`; L/B without the gear give a hint instead of nothing.
+- **✅ Radar scanner (#2292):** worn, the compass shows creatures and planet enemies (hostile red, others green) and
+  players (cyan) within 48 m, with a contact blip.
+- **✅ Four module slots (#2293):** `EquipSlot.Module3/Module4`, first free module slot on wear, old saves widen.
+- **✅ New gear (#2294–#2297) with blueprints:** titanium helmet / chest plate / leg plates (tier 2, the full set reaches
+  the 75 % armour cap), spring boots (jump ~60 % higher, softer landing, springs that squash and stretch), the glider
+  (back slot instead of the jetpack: hold Jump while falling, no energy, needs air; wings visible to others), the suit
+  battery (suit energy 150; `MaxSuitEnergy` replaces the hard-wired 100 everywhere). `GearLook` is the one gear-look
+  mask for the own avatar and the presence.
+- **✅ Assets:** 6 item icons, 2 avatar textures (OpenAI), 7 sounds (ElevenLabs); all texts in 14 languages.
+- **Open (playtest):** the figure, the picker (mouse, touch, pad) and the gear strip on desktop and tablet; wearing from
+  the hold aboard; a glide from a cliff (and the "no air" hint on an airless moon); the spring-boot jump and the
+  springs; the titanium look on yourself and on another player; the radar blips; the cloak on B.
+
 ### 💎 Crystal Net 2 — moving blocks, lifts, new devices, owner + alliance rule, world circuits, the net aboard the own ship, catch-up on return (#2251: #2252–#2271, 2026-10-04, branch feat/crystal-net-2) — ✅ done (released in v2026.10.5: protocol v10, save version 3; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04).** Analyse the Crystal Net (what works, what is missing to make it attractive), then build

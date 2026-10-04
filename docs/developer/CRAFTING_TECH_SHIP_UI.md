@@ -106,3 +106,17 @@ components, a category sidebar and blueprint state.
   recipe for the slot whose blueprint is known → `JumpToRecipe`) or names where to research it; on foot a line says more
   may wait in the hold. `JumpToRecipe` switches the page itself (`ShowMode(Crafting)`) so a jump from another tab keeps
   its selection.
+- Worn gear on the body (#2294–#2297): `PlayerAvatar.SetGear(int)` takes the `GearLook` mask — the local player builds it
+  from the worn slots (`GearLook.Mask(Game.Wears)`, rebuilt only when it changes), `RemotePlayers` passes the presence's
+  `Gear` straight through. Titanium pieces use the `avatar_armor_titan` texture in blue-silver plus a helmet crest,
+  shoulder pads and knee guards; the spring boots stand on a silver coil (`SpringStretch` on every jump, `SpringCompress`
+  on a landing — remotes derive both from their interpolated height); the glider is a folded pack whose wings
+  (`avatar_glider`, orange) unfold over 0.3 s on `SetGliding(true)` (local `PlayerController.Gliding`, remote
+  `PlayerPresence.Gliding`) and replaces the jetpack on the back; the suit battery is a pulsing cyan cell on the belt.
+  The own stealth cloak (`Game.Stealthed`) turns the third-person figure into shimmering glass (`SetStealthShimmer`) —
+  other players never see a cloaked player at all. Movement: the spring boots scale the ground jump's impulse by
+  √(1 + `SuitEquipment.JumpBoost`); holding Jump while falling with the glider where there is air (an atmosphere, below
+  its line, no spacewalk/zero-g) brakes the fall to a 2.5 m/s sink and sails forward at ~8 m/s along the view (W 10,
+  S 4, A/D sideways, gales drift it), reported by edge with `SendSetGliding`; a menu keeps an open wing, every place that
+  cuts the jetpack folds it, a server refusal ("glider") folds it until Jump is let go. The HUD energy bar's full mark is
+  `GameBootstrap.SuitEnergyMax` (150 with the battery).
