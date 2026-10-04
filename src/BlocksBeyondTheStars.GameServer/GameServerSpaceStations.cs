@@ -1003,6 +1003,11 @@ public sealed partial class GameServer
                 station.Origin.Y + m.LocalPos.Y + 0.5f,
                 station.Origin.Z + m.LocalPos.Z + 0.5f);
             station.Markers.Add((m.Type, pos));
+            if (m.Type == TemplateDevices.Marker)
+            {
+                // #2260: a pre-built circuit (the airlock, the alarm) — the station world's net has loaded already
+                RegisterWorldCircuitCell(new Vector3i(station.Origin.X + m.LocalPos.X, station.Origin.Y + m.LocalPos.Y, station.Origin.Z + m.LocalPos.Z), m.Data);
+            }
         }
 
         // Arrive in the enclosed central hub (solid floor, no open wall), NOT the hangar — the hangar's

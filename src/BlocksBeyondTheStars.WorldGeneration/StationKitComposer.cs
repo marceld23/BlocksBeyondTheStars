@@ -582,6 +582,10 @@ public static class StationKitComposer
                     if (id != 0)
                     {
                         SetCell(pos.X, pos.Y, pos.Z, id, c.Shape, c.Tint, c.Glow);
+                        if (TemplateDevices.DataFor(c) is { } device)
+                        {
+                            markers.Add(new StationMarker(TemplateDevices.Marker, pos, device)); // #2260: a pre-built circuit
+                        }
                     }
                 }
             }

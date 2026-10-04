@@ -228,4 +228,63 @@ public sealed class TemplateCell
     /// is cut away when a module docks. Empty = a plain block.
     /// </summary>
     public string Port { get; set; } = string.Empty;
+
+    /// <summary>#2260: a Crystal Net device's picked mode (block cells only; 0 = the default) — a pre-built world circuit
+    /// in a settlement or station module comes out set the way its author left it.</summary>
+    public int Mode { get; set; }
+
+    /// <summary>#2260: a Crystal Net device's settings line (<c>key=value;key=value</c>: a timer's period, a display's
+    /// symbols, a direction <c>yaw=4</c>/<c>yaw=5</c> for up / down — a horizontal direction rides in <see cref="Shape"/>
+    /// as the block's front, so a turned module turns it along). Empty = defaults.</summary>
+    public string Config { get; set; } = string.Empty;
+
+    /// <summary>#2260: a Crystal Net device's name / own line (a display's text, an announcer's line, a sender's name).</summary>
+    public string Label { get; set; } = string.Empty;
+}
+
+/// <summary>#2260: how a pre-built Crystal Net circuit travels from a structure template into the world. Every conduit and
+/// device cell of a template (not the plain ports — lamps and trays join by themselves when a wire meets them) produces a
+/// <see cref="Marker"/> marker at its cell whose data is the device's mode, settings and name; markers already travel through
+/// every generator, offset and quarter turn, and the server registers each one as a world circuit (owner
+/// <see cref="CrystalNetRules.WorldOwnerId"/>).</summary>
+public static class TemplateDevices
+{
+    /// <summary>The marker type of a pre-built device.</summary>
+    public const string Marker = "crystal";
+
+    /// <summary>The marker data for a template cell, or null when the cell is no conduit / device.</summary>
+    public static string? DataFor(TemplateCell cell)
+    {
+        if (cell.Kind != "block")
+        {
+            return null;
+        }
+
+        var kind = CrystalNetRules.KindOfKey(cell.Id);
+        if (kind == CrystalDeviceKind.None || CrystalNetRules.IsPassivePort(kind))
+        {
+            return null;
+        }
+
+        return Encode(cell.Mode, cell.Config, cell.Label);
+    }
+
+    /// <summary>Mode, settings and name as one marker data string (<c>mode|config|label</c>).</summary>
+    public static string Encode(int mode, string? config, string? label)
+        => mode.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + Clean(config) + "|" + Clean(label);
+
+    /// <summary>The inverse of <see cref="Encode"/>; a malformed string reads as the defaults.</summary>
+    public static (int Mode, string Config, string Label) Decode(string? data)
+    {
+        if (string.IsNullOrEmpty(data))
+        {
+            return (0, string.Empty, string.Empty);
+        }
+
+        var parts = data!.Split('|');
+        int mode = int.TryParse(parts[0], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int m) ? m : 0;
+        return (mode, parts.Length > 1 ? parts[1] : string.Empty, parts.Length > 2 ? parts[2] : string.Empty);
+    }
+
+    private static string Clean(string? s) => string.IsNullOrEmpty(s) ? string.Empty : s!.Replace('|', ' ').Replace('\n', ' ');
 }

@@ -14,10 +14,15 @@ public readonly struct StationMarker
     public readonly string Type;
     public readonly Vector3i LocalPos;
 
-    public StationMarker(string type, Vector3i localPos)
+    /// <summary>#2260: a pre-built Crystal Net device's mode, settings and name (<see cref="TemplateDevices"/>); empty for
+    /// every other marker.</summary>
+    public readonly string Data;
+
+    public StationMarker(string type, Vector3i localPos, string data = "")
     {
         Type = type;
         LocalPos = localPos;
+        Data = data ?? string.Empty;
     }
 }
 
@@ -158,6 +163,10 @@ public static class StationGenerator
                     blocks[idx] = id;
                     if (cell.Tint != 0 || cell.Glow != 0) mods[idx] = (cell.Tint, cell.Glow);
                     if (cell.Shape != 0) shapes[idx] = cell.Shape;
+                    if (TemplateDevices.DataFor(cell) is { } device)
+                    {
+                        markers.Add(new StationMarker(TemplateDevices.Marker, new Vector3i(cell.X, cell.Y, cell.Z), device)); // #2260
+                    }
                 }
             }
         }

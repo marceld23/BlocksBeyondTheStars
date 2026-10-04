@@ -25,11 +25,16 @@ public readonly struct SettlementMarker
     /// </summary>
     public readonly DoorWall DoorAxis;
 
-    public SettlementMarker(string type, Vector3i localPos, DoorWall doorAxis = DoorWall.Unknown)
+    /// <summary>#2260: a pre-built Crystal Net device's mode, settings and name (<see cref="TemplateDevices"/>); empty for
+    /// every other marker.</summary>
+    public readonly string Data;
+
+    public SettlementMarker(string type, Vector3i localPos, DoorWall doorAxis = DoorWall.Unknown, string data = "")
     {
         Type = type;
         LocalPos = localPos;
         DoorAxis = doorAxis;
+        Data = data ?? string.Empty;
     }
 }
 
@@ -231,6 +236,10 @@ public static class SettlementGenerator
                     blocks[idx] = id;
                     if (cell.Tint != 0 || cell.Glow != 0) mods[idx] = (cell.Tint, cell.Glow);
                     if (cell.Shape != 0) shapes[idx] = cell.Shape;
+                    if (TemplateDevices.DataFor(cell) is { } device)
+                    {
+                        markers.Add(new SettlementMarker(TemplateDevices.Marker, new Vector3i(cell.X, cell.Y, cell.Z), data: device)); // #2260
+                    }
                 }
             }
         }
@@ -923,6 +932,10 @@ public static class SettlementGenerator
                 if (id != 0)
                 {
                     setCell(ox + cell.X, oy + cell.Y, oz + cell.Z, id, cell.Shape, cell.Tint, cell.Glow);
+                    if (TemplateDevices.DataFor(cell) is { } device)
+                    {
+                        local.Add(new SettlementMarker(TemplateDevices.Marker, new Vector3i(cell.X, cell.Y, cell.Z), data: device)); // #2260
+                    }
                 }
             }
         }
@@ -932,7 +945,7 @@ public static class SettlementGenerator
 
         foreach (var m in local)
         {
-            markersOut.Add(new SettlementMarker(m.Type, new Vector3i(ox + m.LocalPos.X, oy + m.LocalPos.Y, oz + m.LocalPos.Z)));
+            markersOut.Add(new SettlementMarker(m.Type, new Vector3i(ox + m.LocalPos.X, oy + m.LocalPos.Y, oz + m.LocalPos.Z), m.DoorAxis, m.Data));
         }
     }
 

@@ -95,6 +95,9 @@ public static class TemplateTransform
                 Glow = c.Glow,
                 Shape = c.Kind == "block" ? TurnShape(c.Shape) : c.Shape,
                 Port = c.Port,
+                Mode = c.Mode,     // #2260: a pre-built device keeps its settings; its horizontal direction turns with the
+                Config = c.Config, // front in Shape, an up / down direction (yaw=4/5 in Config) needs no turn
+                Label = c.Label,
             });
         }
 

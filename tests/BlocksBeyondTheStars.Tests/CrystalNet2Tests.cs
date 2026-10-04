@@ -219,6 +219,68 @@ public sealed class CrystalNet2Tests : IDisposable
     }
 
     // ---------------------------------------------------------------------------------------------------
+    // #2260 world circuits
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void AWorldCircuitSwitch_IsOperatedByAnyone_ButOnlyAnAdminReconfiguresIt_AndItCostsNoPlayerCap()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            // The stamp writes the blocks; the registration makes them a world circuit (as a settlement's markers do).
+            var builder = Player(server, "Builder", new Vector3f(0, 203, 0), "crystal_switch", "crystal_conduit", "light_white", "timer_block");
+            server.World.SetBlock(new Vector3i(1, 200, 0), _content.GetBlock("crystal_switch")!.NumericId);
+            server.World.SetBlock(new Vector3i(2, 200, 0), _content.GetBlock("crystal_conduit")!.NumericId);
+            server.World.SetBlock(new Vector3i(3, 200, 0), _content.GetBlock("light_white")!.NumericId);
+            server.RegisterWorldCircuitForTest(new Vector3i(1, 200, 0));
+            server.RegisterWorldCircuitForTest(new Vector3i(2, 200, 0));
+            Assert.Equal(3, server.CrystalCellCount); // the lamp beside the wire joined as a world port
+
+            var visitor = Player(server, "Visitor", new Vector3f(0, 203, 0));
+            server.SetCrystalDeviceForTest(visitor, new Vector3i(1, 200, 0), action: 0);
+            Ticks(server, 0.8);
+            Assert.True(server.CrystalDeviceOutput(new Vector3i(1, 200, 0))); // a puzzle must be solvable by anyone
+            Assert.Equal("light_white", KeyAt(server, 3, 200, 0));
+
+            server.World.SetBlock(new Vector3i(1, 200, 4), _content.GetBlock("timer_block")!.NumericId);
+            server.RegisterWorldCircuitForTest(new Vector3i(1, 200, 4), mode: (int)TimerMode.Clock, config: "period=2");
+            server.SetCrystalDeviceForTest(visitor, new Vector3i(1, 200, 4), action: 2, mode: (int)TimerMode.Toggle);
+            Assert.Equal((int)TimerMode.Clock, server.CrystalDeviceModeForTest(new Vector3i(1, 200, 4))); // not re-wired by a visitor
+
+            // The player's own share of networks is untouched by the world's circuits.
+            for (int i = 0; i < CrystalNetRules.MaxNetsPerPlayer; i++)
+            {
+                builder.State.Position = new Vector3f(i * 2, 206, 8);
+                server.PlaceBlock("Builder", i * 2, 203, 8, "crystal_conduit");
+            }
+
+            Assert.Equal(CrystalNetRules.MaxNetsPerPlayer + 1, server.CrystalNetSnapshots.Count); // 32 own + the world's one
+        }
+    }
+
+    [Fact]
+    public void ATemplateWithACircuit_CarriesItsDevicesAsMarkers_AndAQuarterTurnKeepsTheirSettings()
+    {
+        var t = new StructureTemplate { Key = "test_circuit", Width = 4, Height = 2, Length = 2 };
+        t.Cells.Add(new TemplateCell { X = 0, Y = 0, Z = 0, Kind = "block", Id = "daylight_sensor", Mode = 1 });
+        t.Cells.Add(new TemplateCell { X = 1, Y = 0, Z = 0, Kind = "block", Id = "crystal_conduit" });
+        t.Cells.Add(new TemplateCell { X = 2, Y = 0, Z = 0, Kind = "block", Id = "light_white" }); // a plain port: no marker
+        t.Cells.Add(new TemplateCell { X = 3, Y = 0, Z = 0, Kind = "block", Id = "timer_block", Config = "period=3", Label = "Uhr" });
+        var s = BlocksBeyondTheStars.WorldGeneration.SettlementGenerator.FromTemplate(t, _content);
+        var devices = s.Markers.Where(m => m.Type == TemplateDevices.Marker).ToList();
+        Assert.Equal(3, devices.Count);
+        var sensor = devices.Single(m => m.LocalPos == new Vector3i(0, 0, 0));
+        Assert.Equal(1, TemplateDevices.Decode(sensor.Data).Mode);
+        var timer = TemplateDevices.Decode(devices.Single(m => m.LocalPos == new Vector3i(3, 0, 0)).Data);
+        Assert.Equal(("period=3", "Uhr"), (timer.Config, timer.Label));
+
+        var turned = BlocksBeyondTheStars.WorldGeneration.TemplateTransform.RotateY(t, 1);
+        var turnedTimer = turned.Cells.Single(c => c.Id == "timer_block");
+        Assert.Equal(("period=3", "Uhr"), (turnedTimer.Config, turnedTimer.Label));
+    }
+
+    // ---------------------------------------------------------------------------------------------------
     // #2261 ports
     // ---------------------------------------------------------------------------------------------------
 

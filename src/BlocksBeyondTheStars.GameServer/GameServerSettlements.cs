@@ -540,6 +540,12 @@ public sealed partial class GameServer
                 {
                     SpawnStructureLoot("settlement", m.Type, pos, p.Rng); // ruins: scavengeable loot caches
                 }
+
+                if (m.Type == Shared.Definitions.TemplateDevices.Marker && !p.Ruined)
+                {
+                    // #2260: a pre-built circuit (street lamps on a daylight sensor, a doorbell) — registered once the net loads
+                    QueueWorldCircuitCell(new Vector3i(p.Origin.X + m.LocalPos.X, p.GroundY + m.LocalPos.Y, p.Origin.Z + m.LocalPos.Z), m.Data);
+                }
             }
 
             // An inhabited settlement's mission board offers an endless rolling set of gather missions: seed the

@@ -857,6 +857,7 @@ public sealed partial class GameServer
         LoadBeacons();     // placed radio beacons restore their label/owner entities (the blocks come back via edits)
         LoadBeams();       // placed beam blocks restore their name/owner entities (the blocks come back via edits)
         LoadCrystalNet();  // #2046: conduits + devices rebuild their networks from their rows
+        RegisterPendingWorldCircuits(); // #2260: the settlements' pre-built circuits (a reload finds their rows already)
         LoadBredPlants();  // #2209: which species stands in which cell of this world
         LoadRails();       // #2113: the monorail's pylons, links and trains from the metadata
 

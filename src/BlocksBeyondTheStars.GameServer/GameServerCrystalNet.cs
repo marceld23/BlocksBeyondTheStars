@@ -73,6 +73,10 @@ public sealed partial class GameServer
 
         public bool LiftListDirty { get; set; }
         public double LiftBroadcastIn { get; set; }
+
+        /// <summary>#2267: each device as this world's players were last told it (a signature per cell) — the base of the
+        /// device deltas.</summary>
+        public Dictionary<Vector3i, string> LastSentDevice { get; } = new();
     }
 
     /// <summary>One network: its cells and its level. <see cref="Level"/> is re-derived every logic beat.</summary>
@@ -143,6 +147,10 @@ public sealed partial class GameServer
     /// <summary>Test seam: a device's config line (<c>key=value;key=value</c>), or null when no device sits there.</summary>
     public string? CrystalDeviceConfig(Vector3i cell)
         => CrystalNet.Cells.TryGetValue(cell, out var c) && !c.IsConduit ? c.Config : null;
+
+    /// <summary>Test seam: a device's picked mode, or null when no device sits there.</summary>
+    public int? CrystalDeviceModeForTest(Vector3i cell)
+        => CrystalNet.Cells.TryGetValue(cell, out var c) && !c.IsConduit ? c.Mode : null;
 
     /// <summary>Test seam: the number of registered cells (conduits + devices) in the active world.</summary>
     public int CrystalCellCount => CrystalNet.Cells.Count;
@@ -1226,9 +1234,60 @@ public sealed partial class GameServer
         if (state.DeviceListDirty)
         {
             state.DeviceListDirty = false;
-            BroadcastToWorld(CrystalDeviceMessage());
+            BroadcastCrystalDeviceChanges();
         }
     }
+
+    /// <summary>#2267: the devices that changed since the world was last told, as a delta — a flickering clock costs a few
+    /// devices per beat instead of the whole base. The comparison is against what was sent (a signature per cell), so a
+    /// change made and undone within one beat sends nothing. When most devices changed, the whole list goes out instead.</summary>
+    private void BroadcastCrystalDeviceChanges()
+    {
+        var state = CrystalNet;
+        var changed = new List<NetCrystalDevice>();
+        var seen = new HashSet<Vector3i>();
+        foreach (var c in state.Cells.Values)
+        {
+            if (c.IsConduit)
+            {
+                continue;
+            }
+
+            seen.Add(c.Cell);
+            var net = ToNetCrystalDevice(c);
+            string sig = CrystalDeviceSignature(net);
+            if (!state.LastSentDevice.TryGetValue(c.Cell, out var was) || was != sig)
+            {
+                state.LastSentDevice[c.Cell] = sig;
+                changed.Add(net);
+            }
+        }
+
+        var removed = new List<int>();
+        foreach (var cell in state.LastSentDevice.Keys.Where(k => !seen.Contains(k)).ToList())
+        {
+            state.LastSentDevice.Remove(cell);
+            removed.Add(cell.X);
+            removed.Add(cell.Y);
+            removed.Add(cell.Z);
+        }
+
+        if (changed.Count == 0 && removed.Count == 0)
+        {
+            return;
+        }
+
+        if (changed.Count * 2 > seen.Count)
+        {
+            BroadcastToWorld(CrystalDeviceMessage()); // most of the base changed (a load, a reset): the whole list
+            return;
+        }
+
+        BroadcastToWorld(new CrystalDeviceDelta { Changed = changed.ToArray(), Removed = removed.ToArray() });
+    }
+
+    private static string CrystalDeviceSignature(NetCrystalDevice d)
+        => string.Join("|", d.Id, d.Kind, d.Mode, d.Output ? 1 : 0, d.OwnerId, d.Label, d.Config, string.Join(",", d.Choices));
 
     private void CrystalLogicBeat()
     {
@@ -2207,11 +2266,18 @@ public sealed partial class GameServer
     // Wire
     // ------------------------------------------------------------------------------------------------------
 
-    private CrystalNetList CrystalNetMessage()
+    /// <summary>Every network with its level. Broadcast (<paramref name="baseline"/>) it is what the world was told; sent to
+    /// one joining player it leaves the baseline alone (#2267) — or a level change still waiting for this beat's list would
+    /// never reach the others.</summary>
+    private CrystalNetList CrystalNetMessage(bool baseline = true)
     {
         var state = CrystalNet;
         var nets = new List<NetCrystalNet>(state.Nets.Count);
-        state.LastSentLevel.Clear();
+        if (baseline)
+        {
+            state.LastSentLevel.Clear();
+        }
+
         foreach (var net in state.Nets.Values)
         {
             var cells = new int[net.Cells.Count * 3];
@@ -2224,30 +2290,48 @@ public sealed partial class GameServer
             }
 
             nets.Add(new NetCrystalNet { Id = net.Id, On = net.Level, Cells = cells });
-            state.LastSentLevel[net.Id] = net.Level;
+            if (baseline)
+            {
+                state.LastSentLevel[net.Id] = net.Level;
+            }
         }
 
         return new CrystalNetList { Nets = nets.ToArray() };
     }
 
-    private CrystalDeviceList CrystalDeviceMessage()
-        => new()
+    /// <summary>The whole device list. Broadcast to the world (<paramref name="baseline"/>), it is also what every client was
+    /// told from now on — the deltas compare against it (#2267); sent to one joining player it leaves the baseline alone,
+    /// or the others would miss the changes still waiting for this tick's delta.</summary>
+    private CrystalDeviceList CrystalDeviceMessage(bool baseline = true)
+    {
+        var state = CrystalNet;
+        var devices = state.Cells.Values.Where(c => !c.IsConduit).Select(ToNetCrystalDevice).ToArray();
+        if (baseline)
         {
-            Devices = CrystalNet.Cells.Values.Where(c => !c.IsConduit).Select(c => new NetCrystalDevice
+            state.LastSentDevice.Clear();
+            foreach (var d in devices)
             {
-                Id = c.Id,
-                X = c.Cell.X,
-                Y = c.Cell.Y,
-                Z = c.Cell.Z,
-                Kind = c.Kind.ToString(),
-                Mode = c.Mode,
-                Config = c.Config,
-                Label = c.Label,
-                OwnerId = c.OwnerId,
-                Output = c.Output,
-                Choices = c.Kind == CrystalDeviceKind.CloneTank ? CloneChoicesFor(c.OwnerId) : System.Array.Empty<string>(),
-            }).ToArray(),
-        };
+                state.LastSentDevice[new Vector3i(d.X, d.Y, d.Z)] = CrystalDeviceSignature(d);
+            }
+        }
+
+        return new CrystalDeviceList { Devices = devices };
+    }
+
+    private NetCrystalDevice ToNetCrystalDevice(ServerCrystalCell c) => new()
+    {
+        Id = c.Id,
+        X = c.Cell.X,
+        Y = c.Cell.Y,
+        Z = c.Cell.Z,
+        Kind = c.Kind.ToString(),
+        Mode = c.Mode,
+        Config = c.Config,
+        Label = c.Label,
+        OwnerId = c.OwnerId,
+        Output = c.Output,
+        Choices = c.Kind == CrystalDeviceKind.CloneTank ? CloneChoicesFor(c.OwnerId) : System.Array.Empty<string>(),
+    };
 
     /// <summary>#2097: the species a tank's owner may clone here, as "id|coined name" — the device menu lists exactly these.</summary>
     private string[] CloneChoicesFor(string ownerId)
@@ -2255,8 +2339,8 @@ public sealed partial class GameServer
 
     private void SendCrystalNet(PlayerSession session)
     {
-        Send(session, CrystalNetMessage());
-        Send(session, CrystalDeviceMessage());
+        Send(session, CrystalNetMessage(baseline: false));
+        Send(session, CrystalDeviceMessage(baseline: false)); // #2267: the joiner gets the whole list, the baseline stays
         Send(session, LiftMessage()); // #2266
     }
 }
