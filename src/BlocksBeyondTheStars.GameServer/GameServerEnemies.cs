@@ -631,12 +631,8 @@ public sealed partial class GameServer
 
         if (_creatures.FirstOrDefault(e => e.Id == entityId) is { } creature)
         {
-            if (creature.OwnerId.StartsWith(NpcPetOwnerPrefix, System.StringComparison.Ordinal))
-            {
-                Reject(session, "attack", "@srv.attack.no_target"); // the tamer's pet (2026-09) is not fair game
-                return;
-            }
-
+            // Companions and pets — the player's own, another player's, a tamer NPC's — are refused inside
+            // AttackCombatEntity (#2281), with a friendly line instead of the old "no such target".
             AttackCombatEntity(session, creature, _creatures, isCreature: true, dir);
             return;
         }
@@ -655,12 +651,25 @@ public sealed partial class GameServer
 
     private const double MeleeCooldown = 1.5;                       // melee weapons swing at most this often (B44)
     private readonly Dictionary<string, double> _meleeReadyAt = new(); // playerId → uptime the next melee swing is allowed
+    private readonly Dictionary<string, double> _fistReadyAt = new();  // playerId → uptime the next bare-hand punch is allowed (#2280)
+
+    /// <summary>True for a creature nobody may attack (#2281): a tamed companion — the player's own, another player's —
+    /// or a tamer NPC's pet. The parents' guide promises that friends cannot harm each other, and a pet is part of a
+    /// friend. The one rule for every player-driven hit and push on a creature.</summary>
+    private static bool ProtectedFromPlayers(CombatEntity creature) => creature.IsCompanion;
 
     private void AttackCombatEntity(PlayerSession session, CombatEntity target, List<CombatEntity> list, bool isCreature, Vector3f aimDir = default)
     {
         var p = session.State;
+        if (isCreature && ProtectedFromPlayers(target))
+        {
+            Reject(session, "attack", "@srv.attack.companion"); // #2281: before any cooldown is spent
+            return;
+        }
+
         var tool = ActiveTool(p);
         bool isWeapon = tool.Kind == ToolKind.Weapon;
+        bool bareHand = MeleeRules.IsBareHand(tool);
 
         // A weapon swings on a cooldown, so it can't be spammed (B44). The per-weapon cooldown comes from the
         // item (machete = 1.5s); an energy-free melee weapon with no explicit cooldown falls back to the default.
@@ -678,6 +687,18 @@ public sealed partial class GameServer
 
                 _meleeReadyAt[p.PlayerId] = _uptime + cd;
             }
+        }
+        else if (bareHand)
+        {
+            // #2280: the bare hand has its own, slower rhythm — it used to punch as fast as the player could click.
+            // Its own entry, so switching to a weapon right after a punch is not held back by it (and vice versa).
+            double cd = MeleeRules.FistCooldownSeconds * Shared.Bio.PlayerEffects.CooldownFactor(p.Effects);
+            if (_fistReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt)
+            {
+                return; // too soon — ignore the punch (no reject spam), like a weapon on cooldown
+            }
+
+            _fistReadyAt[p.PlayerId] = _uptime + cd;
         }
 
         // A ranged weapon's longer reach extends the default; a melee weapon never *reduces* it below the
@@ -724,10 +745,11 @@ public sealed partial class GameServer
             SendPlayerState(session);
         }
 
-        // A crafted weapon uses its own damage; any other tool keeps the tier-scaled fallback.
+        // A crafted weapon uses its own damage; the bare hand is the weakest option (#2280, MeleeRules); any other tool
+        // keeps the tier-scaled fallback.
         float damage = isWeapon
             ? (tool.Damage > 0f ? tool.Damage : 20f + tool.Tier * 15f)
-            : 15f + tool.Tier * 10f;
+            : bareHand ? MeleeRules.FistDamage : 15f + tool.Tier * 10f;
         if (!isWeapon || tool.Range <= 6f)
         {
             damage *= Shared.Bio.PlayerEffects.MeleeFactor(p.Effects); // #2202: strength is in the arm, not in a gun

@@ -1010,6 +1010,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 place = string.IsNullOrEmpty(Game.LocationName) ? "—" : Game.LocationName;
                 if (Game.Aboard) place += $"  ({loc.Get("ui.hud.aboard")})";
+                else if (Game.OnFootAbovePlanet) place += $"  ·  {loc.Get("ui.hud.station_zero_g")}"; // #2276: floating above the planet's air
             }
             _locTitle.text = loc.Get("ui.hud.location").ToUpperInvariant();
             _locPlace.text = place;

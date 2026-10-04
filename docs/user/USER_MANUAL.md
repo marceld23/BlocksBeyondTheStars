@@ -131,7 +131,7 @@ Last updated: 2026-08-26.
 | **R** | At your own **cockpit / ship console** while the repair panel is up: repair the ship (see §5 → Repairing your own ship); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder, stairs or a block with a front** (machines, counters, devices) selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
-| **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food |
+| **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food — rebindable (Settings → Controls → *Feed a begging animal*) |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
@@ -579,6 +579,22 @@ separate unlock; admins can still disable it through server world rules.
   still hides what is on the far side of it — nothing notices you across open water, and you cannot snipe
   through it either.
 
+### Above the atmosphere on foot
+- Every planet's air ends at an **atmosphere line** — a fixed height that depends on the planet type (thin air ends
+  low, thick air high). Build a tower up past it — or climb one of the rare giant mountains whose summit reaches
+  into space — and you are **in space on foot**: a toast says so and names the controls, VEGA explains it the first
+  time, and the HUD's location line shows **ZERO-G**. The sky turns black and starry.
+- **There is no gravity up there — you float.** Hold **Jump** to rise, hold **Crouch** (Ctrl/C, pad B, touch
+  DOWN) to sink faster; let go of both and the suit **sinks slowly back down** on its own. Walking off a summit
+  edge therefore no longer leaves you hovering in the air. Climbing walls does not work in zero-g.
+- **Air:** above the line there is nothing to breathe, even over a breathable world — the suit's oxygen tank
+  drains until you are back below it, and your health does not regenerate up there.
+- **The safe way back:** a few blocks below the line gravity returns ("Re-entering the atmosphere"). From then
+  until you land, the suit's **brake thrusters** keep your fall slow, and that first landing never hurts — however
+  high the summit or tower was. The next fall counts normally again.
+- On a player-built station, floating out of its gravity box works like zero-g too, but there the suit simply
+  hovers (see *Stations*).
+
 ### Climbing walls
 On planets, moons and asteroids you can **climb any solid wall** — a cliff, a canyon wall, a tree trunk, the side
 of a house. Ladders work as before (walk into one and you go straight up); climbing a wall is slower and takes
@@ -909,6 +925,8 @@ effort.
 - **Aiming**: the ship laser acquires the best target roughly **ahead of the nose** (the centre dot lights up
   cyan on lock). Weapon **range and fire rate come from the fitted module** — bigger cannons genuinely reach
   further.
+- **Flying together:** every hostile hunts **one** pilot — the nearest — and sticks with them for a while; it only
+  switches to another pilot who comes clearly closer. VEGA warns the pilot it has spotted.
 
 ### Aiming & enemy health bars
 - Damaged enemies (and the one under your crosshair) show a small **health bar** that ramps
@@ -921,6 +939,10 @@ effort.
   **under the crosshair** (on foot) or **on the ship's boresight** (in space) can be hit — misses
   really miss. Shots are server-validated either way, including line-of-sight (no shooting through
   walls).
+- **Fists are the weakest option.** With an empty hand (or a block, food or material in it) **F** throws a punch:
+  **5 damage, at most one every 1.2 s** — even the starter machete does better, and every crafted weapon more so.
+- **Companions and pets can't be attacked** — not your own, not a friend's, not a tamer's. The crosshair and
+  auto-aim pass them by (they never turn the reticle red), and a swing at one is refused with a friendly note.
 
 ### Asteroid belts
 - In worlds created with belts (the default for new worlds), a system's landable asteroids orbit
@@ -1872,7 +1894,8 @@ effort.
   creatures need more steps — and two animals of the same kind can behave differently.
 - A companion **lives on the world you tamed it on**: it follows you there (friendly green-cyan tint + a floating
   name), re-appears whenever you return, and is hidden elsewhere. Manage them in the **Companions** menu tab
-  (rename, **feed**, release — each with a **bond bar**). Companions are peaceful and can't be hurt.
+  (rename, **feed**, release — each with a **bond bar**). Companions are peaceful and can't be hurt — nobody can
+  attack one, yours or anyone else's (a tamer's pet included).
 - **Feed & bond:** every companion has a **bond** (0–100; a fresh tame starts around 40–60). **Feed** it from the
   Companions tab — any bait (forage, meat or nectar) will do, one meal a minute, **+5 bond** each. Feeding
   happens **in person**: the animal has to be on your world within about six blocks of you, otherwise the

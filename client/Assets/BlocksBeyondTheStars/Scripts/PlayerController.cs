@@ -40,6 +40,15 @@ namespace BlocksBeyondTheStars.Client
         // Zero-g (above the atmosphere): float instead of fall — Jump rises, crouch sinks, else drift to a stop.
         public float SpaceFloatSpeed = 4f;
         public float SpaceFloatAccel = 14f;
+        // #2276: above a PLANET's line, with no vertical control held, the suit sinks gently back toward the air instead
+        // of hovering forever — a way down that needs no knowledge (a station's zero-g keeps hovering). Consts, not
+        // serialized fields, so no scene can override them.
+        private const float SpaceSinkSpeed = 1.5f;
+        // #2276: after sinking back below the line ("re-entry") the suit's brake thrusters cap the fall until the first
+        // landing — always below the safe landing speed, so the descent from a summit or a tower never hurts.
+        private const float ReentryMaxFallSpeed = 10f;
+        private bool _reentryBrake;      // armed at re-entry, cleared at the first landing (ground, water, ladder, wall, flight)
+        private bool _wasAbovePlanet;    // last frame's Game.OnFootAbovePlanet, to see the re-entry edge
         // Swimming: in water the player drifts down slowly and holds Jump to rise / surface (no fast falls).
         public float SwimUpSpeed = 4f;     // rise speed while holding Jump underwater
         public float SwimSinkSpeed = 1.5f; // gentle idle sink toward the seabed
@@ -1088,9 +1097,9 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var c in Game.Creatures)
             {
-                if (c.GiantHeight > 0f)
+                if (c.GiantHeight > 0f || !string.IsNullOrEmpty(c.OwnerId))
                 {
-                    continue; // picked by its colliders above
+                    continue; // a giant is picked by its colliders above; a companion or pet is never a target (#2281)
                 }
 
                 float size = Mathf.Clamp(c.Size, 0.4f, 8f);
@@ -1143,9 +1152,15 @@ namespace BlocksBeyondTheStars.Client
                 Consider(e.Id, Game.ScenePos(e.X, e.Y, e.Z));
             }
 
-            // Creatures (fauna) are attackable too — the server shares the hit path.
+            // Creatures (fauna) are attackable too — the server shares the hit path. Never a companion or pet (#2281):
+            // nobody may attack one, so the sweep must not pick it (and swing past a wild animal behind it).
             foreach (var c in Game.Creatures)
             {
+                if (!string.IsNullOrEmpty(c.OwnerId))
+                {
+                    continue;
+                }
+
                 if (c.GiantHeight > 0f)
                 {
                     // #1998: a giant counts from the nearest point of its body (and a buried sandworm not at all).
@@ -1700,8 +1715,10 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
+            // #2280: the bare hand punches on its own shared cooldown (MeleeRules) — it used to have none here, so the
+            // swing played on every press while the server now holds the early punches back.
             var tool = HeldTool();
-            float cd = tool == null ? 0f
+            float cd = MeleeRules.IsBareHand(tool) ? MeleeRules.FistCooldownSeconds
                 : tool.CooldownSeconds > 0f ? tool.CooldownSeconds
                 : tool.EnergyPerUse <= 0f ? DefaultMeleeCooldown : 0f;
             _nextWeaponSwing = Time.time + cd * Game.Bio.CooldownFactor; // #2202: a reflex preparation shortens it, like on the server
@@ -2926,6 +2943,7 @@ namespace BlocksBeyondTheStars.Client
 
             bool grounded = _controller.isGrounded;
             UpdateFloorWait(grounded);
+            TrackReentry(grounded);
             if (grounded)
             {
                 _verticalVelocity = -1f;
@@ -2934,12 +2952,55 @@ namespace BlocksBeyondTheStars.Client
             {
                 _verticalVelocity = 0f; // no floor streamed yet — a menu open at spawn must not drop us either
             }
+            else if (Game != null && Game.OnFootInSpace)
+            {
+                // #2276: zero-g holds behind a menu too. A floating player who opened the inventory used to drop under
+                // full gravity (above a planet's line, or out of a station's gravity box) — and below the line that
+                // could be a real fall. Ease to a stop: the height is kept while the menu is open.
+                _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, 0f, SpaceFloatAccel * Time.deltaTime);
+            }
             else
             {
                 _verticalVelocity -= _effGravity * Time.deltaTime;
+                ApplyReentryBrake();
             }
 
             _controller.Move(new Vector3(0f, _verticalVelocity, 0f) * Time.deltaTime);
+        }
+
+        /// <summary>#2276: arms the re-entry brake on the frame the player sinks back below a planet's atmosphere line, and
+        /// clears it at the first landing — on ground, in water, on a ladder, on a wall or in flight.</summary>
+        private void TrackReentry(bool landed)
+        {
+            bool abovePlanet = Game != null && Game.OnFootAbovePlanet;
+            if (_wasAbovePlanet && !abovePlanet && Game != null && !Game.OnFootInSpace)
+            {
+                _reentryBrake = true;
+            }
+
+            if (landed)
+            {
+                _reentryBrake = false;
+            }
+
+            _wasAbovePlanet = abovePlanet;
+        }
+
+        /// <summary>#2276: while the re-entry brake is armed, caps the fall speed below this world's safe landing speed —
+        /// the suit's brake thrusters — so the way down from above the atmosphere looks (and is) survivable. The server
+        /// holds its own fall grace until the first landing as well.</summary>
+        private void ApplyReentryBrake()
+        {
+            if (!_reentryBrake)
+            {
+                return;
+            }
+
+            float cap = Mathf.Min(ReentryMaxFallSpeed, _effSafeFallSpeed * 0.9f);
+            if (_verticalVelocity < -cap)
+            {
+                _verticalVelocity = -cap;
+            }
         }
 
         /// <summary>Ends the post-spawn hover (#773) as soon as there is something to stand on — the collider
@@ -3638,6 +3699,7 @@ namespace BlocksBeyondTheStars.Client
 
             UpdateClimbPose(onLadder && !grounded); // a ladder counts once the feet leave the ground
             _moving = (inWater || grounded || onLadder || climbing) && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
+            TrackReentry(grounded || inWater || onLadder || climbing || _flying);
 
             bool jetpacking = false;
             if (inWater)
@@ -3702,9 +3764,14 @@ namespace BlocksBeyondTheStars.Client
             else if (Game != null && Game.OnFootInSpace)
             {
                 // Above the atmosphere there is no gravity: float, never fall. Jump rises, crouch (Ctrl/C)
-                // sinks, otherwise the suit drifts to a gentle stop. (Set by item 10 — building up into space.)
-                float lift = (InputMap.JumpHeld() ? SpaceFloatSpeed : 0f)
-                           - ((InputMap.CrouchHeld()) ? SpaceFloatSpeed : 0f);
+                // sinks. With neither held, a station's zero-g drifts to a gentle stop; above a PLANET's line the
+                // suit sinks slowly back toward the air (#2276) — walking off a summit that pokes into space used to
+                // float the player out at summit height with no idea how to get down. Jump still rises (tower building).
+                bool up = InputMap.JumpHeld();
+                bool down = InputMap.CrouchHeld();
+                float lift = up || down
+                    ? (up ? SpaceFloatSpeed : 0f) - (down ? SpaceFloatSpeed : 0f)
+                    : (Game.OnFootAbovePlanet ? -SpaceSinkSpeed : 0f);
                 _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, lift, SpaceFloatAccel * Time.deltaTime);
             }
             else if (_awaitingFloor)
@@ -3736,6 +3803,8 @@ namespace BlocksBeyondTheStars.Client
                         move.z += gust.z;
                     }
                 }
+
+                ApplyReentryBrake(); // #2276: back below the line — the suit brakes the fall until the first landing
             }
 
             UpdateJetpack(jetpacking);

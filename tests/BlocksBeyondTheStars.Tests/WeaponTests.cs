@@ -155,6 +155,107 @@ public sealed class WeaponTests : IDisposable
         }
     }
 
+    // ---------------- #2280: the bare hand is the weakest option ----------------
+
+    [Fact]
+    public void BareHand_Punches5_AndAPunchWithinItsCooldownIsHeldBack()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Boxer");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+            p.State.Inventory.SetSlot(0, null); // nothing in hand
+            p.State.SelectedHotbarSlot = 0;
+
+            server.Tick(6.0);
+            var creature = server.Creatures.First(c => !c.IsGiant && !c.IsCompanion);
+            creature.HullMax = 50f;
+            creature.Hull = 50f;
+
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Boxer", creature.Id);
+            Assert.Equal(50f - MeleeRules.FistDamage, creature.Hull, 3);
+
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Boxer", creature.Id); // right away — inside the 1.2 s cooldown
+            Assert.Equal(50f - MeleeRules.FistDamage, creature.Hull, 3);
+
+            server.Tick(MeleeRules.FistCooldownSeconds + 0.1);
+            Assert.Contains(server.Creatures, c => c.Id == creature.Id);
+            creature.Position = new Vector3f(0, 64, 3);
+            float before = creature.Hull;
+            server.AttackEntity("Boxer", creature.Id);
+            Assert.Equal(before - MeleeRules.FistDamage, creature.Hull, 3);
+        }
+    }
+
+    [Fact]
+    public void BareHand_IsWeakerPerSecondThanTheMachete()
+    {
+        var machete = _content.GetItem("machete")!.Tool!;
+        float macheteCooldown = machete.CooldownSeconds > 0f ? machete.CooldownSeconds : 1.5f;
+        Assert.True(MeleeRules.FistDamage / MeleeRules.FistCooldownSeconds < machete.Damage / macheteCooldown,
+            "the first crafted weapon must always beat the bare hand");
+    }
+
+    // ---------------- #2281: companions and pets cannot be attacked ----------------
+
+    [Fact]
+    public void Companions_AndPets_CannotBeAttacked_ButAWildCreatureStillCan()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Owner");
+            var stranger = server.AddLocalPlayer("Stranger");
+            foreach (var s in new[] { owner, stranger })
+            {
+                s.State.AboardShip = false;
+                s.State.Inventory.SetSlot(0, null);
+                s.State.SelectedHotbarSlot = 0;
+            }
+
+            owner.State.Position = new Vector3f(0, 64, 0);
+            stranger.State.Position = new Vector3f(1, 64, 0);
+
+            for (int i = 0; i < 20 && server.Creatures.Count(c => !c.IsGiant && !c.IsCompanion) < 2; i++)
+            {
+                server.Tick(1.0);
+            }
+
+            var wildOnes = server.Creatures.Where(c => !c.IsGiant && !c.IsCompanion).Take(2).ToList();
+            Assert.Equal(2, wildOnes.Count);
+            var pet = wildOnes[0];
+            var wild = wildOnes[1];
+            pet.OwnerId = "Owner"; // tamed by Owner
+            pet.HullMax = 50f;
+            pet.Hull = 50f;
+
+            // Neither the owner nor another player can hurt it.
+            foreach (var attacker in new[] { "Owner", "Stranger" })
+            {
+                pet.Position = new Vector3f(0, 64, 3);
+                server.AttackEntity(attacker, pet.Id);
+                Assert.Equal(50f, pet.Hull);
+            }
+
+            // A tamer NPC's pet neither.
+            pet.OwnerId = "npc:7";
+            pet.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Stranger", pet.Id);
+            Assert.Equal(50f, pet.Hull);
+
+            // A wild creature is still fair game — and the refused swings spent no cooldown.
+            wild.HullMax = 50f;
+            wild.Hull = 50f;
+            wild.Position = new Vector3f(1, 64, 3);
+            server.AttackEntity("Stranger", wild.Id);
+            Assert.True(wild.Hull < 50f, "a wild creature is still hit");
+        }
+    }
+
     public void Dispose()
     {
         try

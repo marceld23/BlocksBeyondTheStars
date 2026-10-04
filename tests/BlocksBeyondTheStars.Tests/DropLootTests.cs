@@ -231,6 +231,7 @@ public sealed class DropLootTests : IDisposable
 
             server.Tick(6.0); // seed fauna
             var creature = server.Creatures.Where(c => !c.IsCompanion).OrderBy(c => c.HullMax).First(); // not a tamer's pet (2026-09)
+            creature.Hull = 1f; // #2280: one punch puts it down — the bare hand no longer lands 15-damage hits on every click
             p.State.Position = creature.Position;
             for (int i = 0; i < 40 && server.Creatures.Any(c => c.Id == creature.Id); i++)
             {

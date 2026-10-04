@@ -210,6 +210,113 @@ public sealed class EnemyMovementTests : IDisposable
         }
     }
 
+    // ---------------- #2285: in a shared flight each hostile hunts its own pilot ----------------
+
+    /// <summary>Two pilots in one flight instance and no ambient hostiles — the tests place their own drone.</summary>
+    private SvGameServer TwoPilotsInSpace(string world, out SqliteWorldRepository repo)
+    {
+        repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
+        var config = new ServerConfig
+        {
+            WorldName = world,
+            Seed = 9,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
+            ViewDistanceChunks = 1,
+        };
+        config.Rules.FreeSpaceFlight = true;
+        config.Rules.SpaceNpcEnemies = AlienActivity.Off;
+        config.Rules.CreatureAbundance = AlienActivity.Off;
+        var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo);
+        server.Start();
+        server.AddLocalPlayer("Ann");
+        server.AddLocalPlayer("Bob");
+        server.EnterSpace("Ann");
+        server.EnterSpace("Bob");
+        Assert.Equal(server.SpaceInstanceIdForTest("Ann"), server.SpaceInstanceIdForTest("Bob"));
+        return server;
+    }
+
+    private static CombatEntity HarmlessDrone(Vector3f at) => new()
+    {
+        Id = "drone:chase",
+        Kind = CombatEntityKind.Drone,
+        Hostile = true,
+        Hull = 25f,
+        HullMax = 25f,
+        DamagePerSecond = 0f, // the tests watch the chase, not the ships' hulls
+        Position = at,
+    };
+
+    private static float Dist(Vector3f a, Vector3f b) => (float)Math.Sqrt(a.DistanceSquared(b));
+
+    [Fact]
+    public void SpaceHostiles_ChaseTheirOwnPilot_NotWhoeverReportedLast()
+    {
+        var server = TwoPilotsInSpace("chase_own", out var repo);
+        using (repo)
+        {
+            var drone = HarmlessDrone(new Vector3f(0f, 0f, 60f));
+            server.AddSpaceEntityForTest("Ann", drone);
+            var bob = new Vector3f(0f, 0f, 100f); // 40 from the drone — inside its aggro range
+            var ann = new Vector3f(0f, 0f, -100f); // 160 away — outside it
+            float startToBob = Dist(drone.Position, bob);
+
+            for (int i = 0; i < 10; i++)
+            {
+                server.ShipMove("Bob", bob.X, bob.Y, bob.Z);
+                server.ShipMove("Ann", ann.X, ann.Y, ann.Z); // Ann reports LAST every time — the old shared position
+                server.Tick(0.2);
+            }
+
+            Assert.Equal("Bob", drone.ChaseTargetId);
+            Assert.True(Dist(drone.Position, bob) < startToBob - 12f,
+                $"the drone must close in on Bob (from {startToBob:0.0} to {Dist(drone.Position, bob):0.0}), not drift on Ann's report");
+            Assert.True(drone.Spotted, "Bob flew into its aggro range — it has spotted him");
+        }
+    }
+
+    [Fact]
+    public void SpaceHostiles_KeepTheirPilot_UntilAnotherIsClearlyNearer()
+    {
+        var server = TwoPilotsInSpace("chase_sticky", out var repo);
+        using (repo)
+        {
+            var post = new Vector3f(0f, 0f, 0f);
+            var drone = HarmlessDrone(post);
+            server.AddSpaceEntityForTest("Ann", drone);
+
+            // Pins the drone at its post so only the pilots' distances decide.
+            void Fly(Vector3f ann, Vector3f bob, double seconds)
+            {
+                for (double t = 0; t < seconds - 1e-6; t += 0.2)
+                {
+                    drone.Position = post;
+                    server.ShipMove("Bob", bob.X, bob.Y, bob.Z);
+                    server.ShipMove("Ann", ann.X, ann.Y, ann.Z);
+                    server.Tick(0.2);
+                }
+            }
+
+            var bobAt = new Vector3f(0f, 0f, 50f);
+            Fly(new Vector3f(0f, 0f, -90f), bobAt, 0.2);
+            Assert.Equal("Bob", drone.ChaseTargetId); // the nearest pilot
+
+            // Ann a little nearer than Bob (40 vs 50) is not clearly nearer — the hunt stays on Bob past the stick time.
+            Fly(new Vector3f(0f, 0f, -40f), bobAt, 4.0);
+            Assert.Equal("Bob", drone.ChaseTargetId);
+
+            // Ann much nearer (20 vs 50): not at once (the hunt is sticky for a few seconds), but then the drone turns.
+            Fly(new Vector3f(0f, 0f, -20f), bobAt, 0.2);
+            Assert.Equal("Bob", drone.ChaseTargetId);
+            Fly(new Vector3f(0f, 0f, -20f), bobAt, 4.0);
+            Assert.Equal("Ann", drone.ChaseTargetId);
+        }
+    }
+
     // ---------------- #1482: walls stop the walking robots ----------------
 
     /// <summary>The top Y of the first non-air block under <paramref name="from"/> in a column.</summary>

@@ -24,6 +24,36 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏔️ Gloves & target-lock package, the fixes first — summits into space, fists, companions, Feed rebind, per-pilot hostiles (#2276 #2280 #2281 #2282 #2285, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (⚠ local Unity build + playtest open; 12 community locales not yet topped up)
+
+**Report (Marcel, 2026-10-04, client 2026.10.4):** "I climbed a very high mountain that rose out of the atmosphere … now
+I don't know how to get back down." Since the #578 massifs a summit can rise above most planet types' atmosphere line
+(100–280; the generator's Y 288 cap was wrongly documented as "under the ~Y 320 line"). **Decision:** mountains MAY reach
+space — the float above the line is made readable and survivable instead of clamping the terrain.
+
+- **✅ #2276 readable + survivable zero-g above a planet (2026-10-04):** the toast names the controls with the device's own
+  glyphs (`hud.atmosphere.controls`); a one-time VEGA hint on the first float (`vega.hint.zero_g`); a ZERO-G badge in the
+  HUD location line; above a *planet's* line the suit sinks gently (1.5 blocks/s) with no vertical input (Jump still rises,
+  station zero-g still hovers); re-entry arms a server fall grace until the first landing (`PlayerSession.ReentryFallGrace`)
+  and a client fall-speed cap below the safe landing speed; a menu opened while floating keeps the height
+  (`ApplyGravityOnly`, stations too); the server's fall-damage threshold is now 14·√g like the client's; the bump snapshot
+  carries `location.bodyPlanetType` (the old `planetType` is the save's start type). Comments/docs corrected
+  (`WorldGenerator.Relief.cs`, WORLD_GENERATION.md, `TerrainExtremesTests` — the 288 cap is a generator safety net);
+  USER_MANUAL "Above the atmosphere on foot". Tests in `AtmosphereTests` (grace, settle, √g threshold, VEGA once) and
+  `BumpTests`.
+- **✅ #2280 bare hand is the weakest option (2026-10-04):** 5 damage, 1.2 s cooldown (its own entry, `MeleeRules` in Shared
+  — the client gates its swing on the same constant). Other non-weapon tools keep the old tier fallback. Tests in
+  `WeaponTests`; four older tests that spam-killed with fists now lower the target's hull first.
+- **✅ #2281 companions and pets cannot be attacked (2026-10-04):** own, foreign and tamer-NPC pets are refused in
+  `AttackCombatEntity` (`srv.attack.companion`, before any cooldown is spent); the client's crosshair pick and melee/auto-aim
+  cone skip creatures with an owner. Test in `WeaponTests`.
+- **✅ #2282 Feed is rebindable (2026-10-04):** `InputAction.FeedCreature` joined the on-foot `Remappable` group.
+- **✅ #2285 space hostiles hunt per pilot (2026-10-04):** each hostile picks the nearest pilot, keeps it 3 s and then
+  switches only to one clearly (30 %) nearer; chase and the "spotted" warning use that pilot's pose (per-pilot warning
+  cooldown). Tests in `EnemyMovementTests`.
+- **Open:** follow-up — non-weapon tools (drill, scanner) still hit for 15 + 10·tier with no server cooldown (the client
+  gates them at 1.5 s); decide whether they should share the fist rule.
+
 ### 💎 Crystal Net 2 — moving blocks, lifts, new devices, owner + alliance rule, world circuits, the net aboard the own ship, catch-up on return (#2251: #2252–#2271, 2026-10-04, branch feat/crystal-net-2) — ✅ done (released in v2026.10.5: protocol v10, save version 3; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04).** Analyse the Crystal Net (what works, what is missing to make it attractive), then build
@@ -12458,7 +12488,8 @@ rearranging the existing slots — no new data model.
      float** kicks in; **`Sky`/`Starfield`** switch to a **space sky** (black + stars) regardless of the planet's
      own sky. A bilingual toast on crossing up/down (`hud.atmosphere.left`/`.entered`, DE+EN).
    - **Per-body heights:** breathable jungle/varied 240, swamp 230; toxic rocky/desert 190, ice 200; airless
-     crystal/lava 150, asteroid 100 (all well above terrain peaks ~80-98). Void worlds 0 = disabled.
+     crystal/lava 150, asteroid 100 (all well above terrain peaks ~80-98 at the time — since the #578 massifs a
+     summit can reach above the line; intended and made survivable by #2276). Void worlds 0 = disabled.
    - **Tested:** climb sets `AboveAtmosphere` + drains O₂ on a breathable world; descend clears it; hysteresis
      doesn't flicker; aboard-ship never counts; per-body heights differ — full suite **337 green**. Client +
      bundled server rebuilt.
@@ -16796,7 +16827,9 @@ player edits survive in place):
   #477 volcano recipe, seam-safe by construction).
 - **#578 massifs + rifts** — rare giant mountains (+120–220, ridged flanks, auto snow/ice summits) and
   deep gorge segments (50–130) that flood into fjord lakes below sea level. At most ONE landmark claims
-  a column (volcano > massif > butte > rift) and `SurfaceHeight` clamps at Y 288 (atmosphere line ~320).
+  a column (volcano > massif > butte > rift) and `SurfaceHeight` clamps at Y 288 (a generator safety cap — the
+  "atmosphere line ~320" given here was wrong: most types draw their line at 100–280, so summits can reach space;
+  intended since #2276).
   Calibration now samples the full `SurfaceHeight` so the snow gate sees massif summits; altitude-biome
   normalisation switched to the 2–98 % height percentiles so lone landmarks don't compress the biome span.
 - **#579 new planet types** — tablelands (grand-mesa terraces), badlands (fine-ridged gullies), karst

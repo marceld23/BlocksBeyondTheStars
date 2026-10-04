@@ -201,8 +201,13 @@ same planet type rolls gentle on one world and jagged on the next. A **~6 % tail
 grid, at most **one per column** (precedence volcano > massif > table mountain > rift): volcano cones
 with molten craters (on every non-cratered body since #1631 — a lava core — and lifted into **volcanic islands** where the centre lies under a sea), rare **massifs** (+120–220, ridged flanks, snow/ice summits), flat-topped
 **table mountains** (radius 40–120, near-vertical walls) on dry rocky-reading worlds, and **rift
-chasms** (50–130 deep, fjord-flooded below sea level). `SurfaceHeight` clamps everything at **Y 288**,
-safely under the ~Y 320 atmosphere line.
+chasms** (50–130 deep, fjord-flooded below sea level). `SurfaceHeight` clamps everything at **Y 288** — a
+generator safety cap, **not** an atmosphere guarantee: most planet types draw their atmosphere line
+(`atmosphereHeight`, 100–280; only skylands 320 and the gas giant 420 sit higher) below it, so a massif summit can
+rise into space. That is intended (#2276, "a summit at the edge of space"): instead of clamping peaks, the game makes
+the float above the line readable (toast with the controls, a one-time VEGA hint, a ZERO-G badge) and survivable (the
+suit sinks gently with no vertical input, and the way back below the line carries a fall grace until the first
+landing — see `GameServer.UpdateAboveAtmosphere`).
 
 **e) Overriding shapes** — `TerrainStyle` (mesa, **tablelands**, dunes, **badlands**, spires,
 **karst**, flats… — the bold three are #579; generation-1 worlds roll 1–3 styles from a per-type

@@ -61,6 +61,22 @@ public sealed class BumpTests : IDisposable
     }
 
     [Fact]
+    public void BumpSnapshot_NamesTheBodyThePlayerIsOn_NotOnlyTheSaveStartType()
+    {
+        var (server, client, paths) = StartWorld();
+
+        client.Send(NetCodec.Encode(new ChatIntent { Text = "/bump which planet" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        string json = File.ReadAllText(Assert.Single(MyBumpFiles(paths, "*.json")));
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var location = doc.RootElement.GetProperty("location");
+        // #2276: planetType is the save's START type (kept); bodyPlanetType is the body the reporter stands on.
+        Assert.True(location.TryGetProperty("planetType", out _));
+        Assert.Equal(server.World.Planet.Key, location.GetProperty("bodyPlanetType").GetString());
+    }
+
+    [Fact]
     public void BumpReport_WithScreenshot_WritesJpgAlongsideSnapshot()
     {
         var (server, client, paths) = StartWorld();

@@ -133,6 +133,15 @@ public sealed class CombatEntity
     /// been raised. Cleared again when it loses the ship, so re-engaging warns afresh. Server-only.</summary>
     public bool Spotted { get; set; }
 
+    /// <summary>#2285: the pilot this space hostile hunts (empty = none yet). Each hostile picks its own — the nearest,
+    /// kept for a while — so with several pilots in one instance it no longer swings to whoever reported last.
+    /// Server-only.</summary>
+    public string ChaseTargetId { get; set; } = string.Empty;
+
+    /// <summary>#2285: uptime before which the hostile keeps <see cref="ChaseTargetId"/> without looking for a nearer
+    /// pilot. Server-only.</summary>
+    public double ChaseRetargetAt { get; set; }
+
     // --- Tamed companion (design: docs/developer/CREATURE_TAMING.md) ---
 
     /// <summary>Owner player id if this is a tamed companion (empty = wild fauna). Owned creatures follow their
@@ -222,9 +231,10 @@ public sealed class SpaceInstance
     public List<CombatEntity> Entities { get; set; } = new();
     public HashSet<string> Players { get; set; } = new();
 
-    /// <summary>The last reported position of ANY pilot — ambient NPC targeting (traders/bandits) only.
+    /// <summary>The last reported position of ANY pilot — ambient NPC targeting (traders, a raider's approach) only.
     /// Player-triggered actions (fire/tractor/board/structure edits) resolve per pilot via
-    /// <see cref="PlayerPoses"/> (#994); collision and incoming fire via <see cref="PilotSims"/> (#955).</summary>
+    /// <see cref="PlayerPoses"/> (#994); collision and incoming fire via <see cref="PilotSims"/> (#955); a hostile's
+    /// chase and its "spotted you" warning via its own target pilot (<see cref="CombatEntity.ChaseTargetId"/>, #2285).</summary>
     public Vector3f ShipPosition { get; set; }
     public Vector3f ShipLastPosition { get; set; }
 
@@ -248,9 +258,10 @@ public sealed class SpaceInstance
     /// <summary>Throttle for streaming hostile-movement updates (drones/UFOs patrol + chase now).</summary>
     public double HostileSyncTimer { get; set; }
 
-    /// <summary>Uptime after which another "hostile spotted you" warning may be raised in this instance — so a
-    /// pack arriving together raises one warning, not one per ship.</summary>
-    public double SpottedReadyAt { get; set; }
+    /// <summary>Per pilot: uptime after which another "hostile spotted you" warning may be raised for that pilot — so a
+    /// pack arriving together raises one warning, not one per ship (#2285: per pilot, so one pilot's warning never
+    /// swallows the next pilot's).</summary>
+    public Dictionary<string, double> SpottedReadyAt { get; } = new();
 
     /// <summary>Counts up while the asteroid field is below its target so mined-out fields slowly replenish.</summary>
     public double AsteroidRespawnTimer { get; set; }
@@ -1952,15 +1963,18 @@ public sealed partial class GameServer
         SpawnAsteroid(instance, pos, ordinal: instance.AsteroidFieldTarget + r, broadcast: true);
     }
 
-    private const double SpottedCalloutCooldown = 15.0; // s between "hostile spotted you" warnings per instance
+    private const double SpottedCalloutCooldown = 15.0; // s between "hostile spotted you" warnings per pilot (#2285)
 
-    /// <summary>Raises a one-shot "a hostile has spotted you" warning to every pilot in the instance the moment a
-    /// hostile NPC first enters its aggro range and begins hunting the ship — for ALL AI-core tiers (the older
+    /// <summary>Raises a one-shot "a hostile has spotted you" warning to the pilot a hostile hunts the moment that
+    /// pilot's ship first enters its aggro range — for ALL AI-core tiers (the older
     /// <see cref="ShipAiThreatCallout"/> only fires once damage lands, and only on a Mk2+ core). A short
-    /// per-instance cooldown keeps a pack that arrives together from raising one warning per ship.</summary>
+    /// per-pilot cooldown keeps a pack that arrives together from raising one warning per ship.</summary>
     private void AnnounceHostileSpotting(SpaceInstance instance)
     {
-        bool newlySpotted = false;
+        // #2285: a hostile spots ITS target pilot (picked in MoveSpaceHostiles), and only that pilot is warned. Before a
+        // pilot has a pose the hostile hunts the shared position, and every pilot is warned as before.
+        _spottedPilotScratch.Clear();
+        bool spottedShared = false;
         foreach (var e in instance.Entities)
         {
             if (!e.Hostile || e.Hull <= 0f)
@@ -1974,13 +1988,20 @@ public sealed partial class GameServer
                 continue; // not a mobile hunter (e.g. stations / asteroids / drops)
             }
 
-            float distSq = e.Position.DistanceSquared(instance.ShipPosition);
+            float distSq = e.Position.DistanceSquared(ChasePosition(instance, e));
             if (distSq <= aggro * aggro)
             {
                 if (!e.Spotted)
                 {
                     e.Spotted = true;
-                    newlySpotted = true;
+                    if (e.ChaseTargetId.Length > 0)
+                    {
+                        _spottedPilotScratch.Add(e.ChaseTargetId);
+                    }
+                    else
+                    {
+                        spottedShared = true;
+                    }
                 }
             }
             else if (distSq > aggro * aggro * 1.21f)
@@ -1989,20 +2010,103 @@ public sealed partial class GameServer
             }
         }
 
-        if (!newlySpotted || _uptime < instance.SpottedReadyAt)
+        if (_spottedPilotScratch.Count == 0 && !spottedShared)
         {
             return;
         }
 
-        instance.SpottedReadyAt = _uptime + SpottedCalloutCooldown;
         foreach (var playerId in instance.Players)
         {
+            if (!spottedShared && !_spottedPilotScratch.Contains(playerId))
+            {
+                continue;
+            }
+
+            if (instance.SpottedReadyAt.TryGetValue(playerId, out var readyAt) && _uptime < readyAt)
+            {
+                continue; // this pilot was warned moments ago — a pack arriving together raises one warning
+            }
+
+            instance.SpottedReadyAt[playerId] = _uptime + SpottedCalloutCooldown;
             if (FindSessionByPlayerId(playerId) is { } s)
             {
                 SendVegaLine(s, "vega.sys.spotted", 3);
             }
         }
     }
+
+    private readonly HashSet<string> _spottedPilotScratch = new();
+
+    /// <summary>Seconds a space hostile keeps its target pilot before it looks for a nearer one (#2285).</summary>
+    private const double ChaseStickSeconds = 3.0;
+
+    /// <summary>A hostile only switches to another pilot who is clearly nearer than its current one — this fraction of
+    /// the current distance or less (#2285). Two pilots flying side by side never make it flip back and forth.</summary>
+    private const float ChaseSwitchRatio = 0.7f;
+
+    /// <summary>#2285: picks (and keeps) the pilot a space hostile hunts — the nearest pilot in the instance, sticky for
+    /// <see cref="ChaseStickSeconds"/> and then switched only to one clearly nearer (<see cref="ChaseSwitchRatio"/>).
+    /// Returns that pilot's own position. With a single pilot this is simply that pilot's ship, exactly the position the
+    /// shared <see cref="SpaceInstance.ShipPosition"/> held; before any pilot has a pose it falls back to that field.</summary>
+    private Vector3f PickChaseTarget(SpaceInstance instance, CombatEntity e)
+    {
+        SpacePlayerPose current = default;
+        bool hasCurrent = e.ChaseTargetId.Length > 0
+            && instance.Players.Contains(e.ChaseTargetId)
+            && instance.PlayerPoses.TryGetValue(e.ChaseTargetId, out current);
+        if (hasCurrent && _uptime < e.ChaseRetargetAt)
+        {
+            return current.Pos;
+        }
+
+        string nearestId = string.Empty;
+        float nearestSq = float.MaxValue;
+        Vector3f nearestPos = default;
+        foreach (var pilotId in instance.Players)
+        {
+            if (!instance.PlayerPoses.TryGetValue(pilotId, out var pose))
+            {
+                continue; // no pose yet — the client reports one within its first ~0.1 s in space
+            }
+
+            float dsq = pose.Pos.DistanceSquared(e.Position);
+            if (dsq < nearestSq)
+            {
+                nearestSq = dsq;
+                nearestId = pilotId;
+                nearestPos = pose.Pos;
+            }
+        }
+
+        if (nearestId.Length == 0)
+        {
+            e.ChaseTargetId = string.Empty;
+            return instance.ShipPosition; // nobody has a pose yet — hunt the shared position, as before
+        }
+
+        e.ChaseRetargetAt = _uptime + ChaseStickSeconds;
+        if (hasCurrent && nearestSq >= current.Pos.DistanceSquared(e.Position) * (ChaseSwitchRatio * ChaseSwitchRatio))
+        {
+            return current.Pos; // the other pilot is not clearly nearer — keep the hunt
+        }
+
+        if (nearestId != e.ChaseTargetId)
+        {
+            e.ChaseTargetId = nearestId;
+            e.Spotted = false; // a new quarry: spotting it warns that pilot afresh
+        }
+
+        return nearestPos;
+    }
+
+    /// <summary>The position a space hostile currently hunts, without re-picking (#2285): its target pilot's pose, or the
+    /// shared <see cref="SpaceInstance.ShipPosition"/> while it has none.</summary>
+    private static Vector3f ChasePosition(SpaceInstance instance, CombatEntity e)
+        => e.ChaseTargetId.Length > 0
+           && instance.Players.Contains(e.ChaseTargetId)
+           && instance.PlayerPoses.TryGetValue(e.ChaseTargetId, out var pose)
+            ? pose.Pos
+            : instance.ShipPosition;
 
     /// <summary>Per-kind movement profile for hostile space NPCs: how far they notice the ship, how close
     /// they press in, and how fast they fly. Aggro MUST stay well below the ambient spawn distances
@@ -2045,9 +2149,11 @@ public sealed partial class GameServer
                 e.PatrolInitialized = true;
             }
 
-            float dx = instance.ShipPosition.X - e.Position.X;
-            float dy = instance.ShipPosition.Y - e.Position.Y;
-            float dz = instance.ShipPosition.Z - e.Position.Z;
+            // #2285: chase its OWN target pilot, not the shared last-writer-wins position.
+            var quarry = PickChaseTarget(instance, e);
+            float dx = quarry.X - e.Position.X;
+            float dy = quarry.Y - e.Position.Y;
+            float dz = quarry.Z - e.Position.Z;
             float distSq = dx * dx + dy * dy + dz * dz;
 
             float tx, ty, tz;

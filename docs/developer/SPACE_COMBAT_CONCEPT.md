@@ -68,6 +68,9 @@ Everything below the line "Deferred" is intentionally **not** in the MVP.
   `Hostile`, optional loot table. In-memory, per instance.
 - **SpaceInstance**: `Id` (bound to a location), `Kind` (Orbit / AsteroidField), entities,
   the set of present player ids. Created on first entry, unloaded when the last player leaves.
+  Hostiles hunt **per pilot** (#2285): each picks the nearest pilot (`CombatEntity.ChaseTargetId`), keeps it for a
+  few seconds and then switches only to a pilot clearly nearer (`PickChaseTarget`); chase movement and the
+  "spotted you" warning use that pilot's own pose, never the shared last-writer-wins `ShipPosition`.
 - **Ship combat stats** on `ShipState`: `Hull` / `Shield` current values; `HullMax` /
   `ShieldMax` / `ShieldRegenPerSecond` derived from built modules (`hull_plating`,
   `shield_generator`). Shield regenerates out of combat; hull does not (needs repair / base).
