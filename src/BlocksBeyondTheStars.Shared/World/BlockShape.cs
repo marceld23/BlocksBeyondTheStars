@@ -131,6 +131,7 @@ public static class PropShapes
     {
         "bed" => (int)BlockShape.BedHead,     // the head half; the server stamps the foot on the next cell (#1846)
         "campfire" => (int)BlockShape.Slab,
+        "campfire_off" => (int)BlockShape.Slab, // #2261: the unlit twin keeps the campfire's form
         "rug" => (int)BlockShape.Sheet,
         "flower_pot" => (int)BlockShape.Pot,
         "ladder" => (int)BlockShape.Panel,     // thin plate hugging a wall (#803 meshed this, #909 stores it)
