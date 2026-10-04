@@ -287,6 +287,7 @@ public sealed partial class GameServer
 
         BroadcastContainers();
         SetCrystalBlocked(fab, false);
+        OnCrystalCircuitEvent(fab.OwnerId, Shared.Missions.CircuitEvents.Craft); // #2258: "Assembly line"
         BroadcastToWorld(new SoundFx { SoundId = "fabricator_craft", X = fab.Cell.X + 0.5f, Y = fab.Cell.Y + 0.5f, Z = fab.Cell.Z + 0.5f, SourceId = fab.Id });
 
         return true;
@@ -474,6 +475,10 @@ public sealed partial class GameServer
             depth++;
             laser.Config = CrystalConfigWith(laser.Config, "depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             SaveCrystalCell(laser);
+            if (depth == CrystalNetRules.DrillLaserDepth)
+            {
+                OnCrystalCircuitEvent(laser.OwnerId, Shared.Missions.CircuitEvents.LaserDeep); // #2258: "Deep driller"
+            }
             if (drops.Count > 0 && (crate is null || !NpcDepositToContainer(crate, drops)))
             {
                 SpillToGround(target, drops, creatureLoot: false); // the dry run said yes; a composed key can still refuse
@@ -496,6 +501,7 @@ public sealed partial class GameServer
     /// <summary>The laser halts: the depth reached is kept, the status light turns amber (a Device Eye reads it).</summary>
     private void DrillLaserStop(ServerCrystalCell laser, int depth)
     {
+
         string kept = depth.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (CrystalConfigValue(laser.Config, "depth") != kept)
         {

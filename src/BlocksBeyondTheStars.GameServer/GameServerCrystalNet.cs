@@ -225,6 +225,10 @@ public sealed partial class GameServer
 
         DiscoverCrystalNeighbours(pos, owner);
         OnCrystalCellPlacedHints(session, cell); // #2257: this player's first door on a wire, first arrow, …
+        if (cell.IsGate && !cell.Inert)
+        {
+            OnCrystalCircuitEvent(owner, Shared.Missions.CircuitEvents.GatePlaced); // #2258: "Logician"
+        }
     }
 
     /// <summary>The kind a placed cell plays: by its block key (and its category, for lamps), or — #2261 — a seat by its
@@ -1577,6 +1581,7 @@ public sealed partial class GameServer
             var mode = DoorMode.Normal;
             var floor = door.Pos.ToBlock();
             bool any = false, on = false;
+            int drivenNet = 0;
             for (int dy = 0; dy < 2 && !on; dy++)
             {
                 var cell = new Vector3i(floor.X, floor.Y + dy, floor.Z);
@@ -1586,6 +1591,7 @@ public sealed partial class GameServer
                         && CrystalMayDriveDoor(door, c))
                     {
                         any = true;
+                        drivenNet = c.NetId;
                         if (net.Level)
                         {
                             on = true;
@@ -1604,6 +1610,10 @@ public sealed partial class GameServer
             {
                 door.Mode = mode;
                 changed = true;
+                if (mode != DoorMode.Normal)
+                {
+                    OnCrystalDoorDriven(door, drivenNet); // #2258: a logic block holds this door — an airlock works
+                }
             }
         }
 
@@ -1990,6 +2000,7 @@ public sealed partial class GameServer
             case CrystalDeviceKind.Chime:
                 if (on)
                 {
+                    OnCrystalChimeRang(c); // #2258: a doorbell rang
                     PlayCrystalSound(c, "chime_" + Math.Max(0, Math.Min(3, c.Mode)), 1f);
                     EmitVibration(new Vector3f(c.Cell.X + 0.5f, c.Cell.Y - 0.5f, c.Cell.Z + 0.5f), VibrationSource.Horn, c.OwnerId); // #2077: the worm hears it
                 }
@@ -2085,6 +2096,10 @@ public sealed partial class GameServer
                 if (on)
                 {
                     TriggerCrystalMachine(c, null); // the rising edge is one job; a held level keeps the machine on its own beat
+                    if (!c.Output && c.Kind is CrystalDeviceKind.Fabricator or CrystalDeviceKind.MatterSender or CrystalDeviceKind.AutoDrill or CrystalDeviceKind.DrillLaser)
+                    {
+                        OnCrystalCircuitEvent(c.OwnerId, Shared.Missions.CircuitEvents.MachineJob); // #2258: a signal started a job that got done
+                    }
                 }
 
                 break;
@@ -2172,6 +2187,11 @@ public sealed partial class GameServer
         BroadcastToWorld(new BlockChanged { X = c.Cell.X, Y = c.Cell.Y, Z = c.Cell.Z, Block = want.NumericId.Value, Tint = tint, Glow = glow, Shape = shape });
         WriteBackStationCell(c.Cell, want.NumericId, tint, glow, shape);
         c.BlockKey = want.Key;
+        if (on)
+        {
+            OnCrystalLampLit(c); // #2258: a switch or a daylight sensor made a lamp shine
+        }
+
         return true;
     }
 

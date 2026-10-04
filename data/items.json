@@ -353,7 +353,7 @@
   { "key": "prep_coating",   "nameKey": "item.prep_coating.name",   "category": "component",  "maxStack": 20, "descriptionKey": "item.prep_coating.desc" },
   { "key": "sensor_lens",    "nameKey": "item.sensor_lens.name",    "category": "component",  "maxStack": 64, "descriptionKey": "item.sensor_lens.desc" },
   { "key": "quantum_sensor", "nameKey": "item.quantum_sensor.name", "category": "component",  "maxStack": 64, "descriptionKey": "item.quantum_sensor.desc" },
-  { "key": "phase_block", "craftTab": "machines", "nameKey": "item.phase_block.name", "category": "block", "maxStack": 64, "placesBlock": "phase_block", "descriptionKey": "item.phase_block.desc" },
+  { "key": "phase_block", "nameKey": "item.phase_block.name", "category": "block", "maxStack": 64, "placesBlock": "phase_block", "descriptionKey": "item.phase_block.desc" },
   { "key": "trapdoor", "craftTab": "machines", "nameKey": "item.trapdoor.name", "category": "block", "maxStack": 64, "placesBlock": "trapdoor", "descriptionKey": "item.trapdoor.desc" },
   { "key": "bridge_motor", "craftTab": "machines", "nameKey": "item.bridge_motor.name", "category": "block", "maxStack": 16, "placesBlock": "bridge_motor", "descriptionKey": "item.bridge_motor.desc" },
   { "key": "piston", "craftTab": "machines", "nameKey": "item.piston.name", "category": "block", "maxStack": 16, "placesBlock": "piston", "descriptionKey": "item.piston.desc" },

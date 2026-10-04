@@ -94,6 +94,11 @@ public sealed partial class GameServer
         CrystalWriteCell(c.Cell, want.NumericId, tint, glow, shape);
         c.BlockKey = want.Key;
         CrystalTwinFx(c, on);
+        if (on && c.Kind == CrystalDeviceKind.PhaseBlock)
+        {
+            OnCrystalCircuitEvent(c.OwnerId, Shared.Missions.CircuitEvents.PhaseOpen); // #2258: a secret door opened
+        }
+
         return true;
     }
 

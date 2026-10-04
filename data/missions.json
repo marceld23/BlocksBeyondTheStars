@@ -209,5 +209,86 @@
     "knowledgeReward": 3,
     "repeatable": true,
     "active": true
+  },
+  // #2258 the Crystal workshop — VEGA's little Crystal Net course over the radio. Every step finishes when the circuit
+  // WORKS (a "circuit" objective the net reports itself), not when the blocks are merely placed. Each step waits for the
+  // blueprint its circuit needs.
+  {
+    "id": "crystal_workshop_1",
+    "source": "system",
+    "nameKey": "mission.crystal_workshop_1.name",
+    "descriptionKey": "mission.crystal_workshop_1.desc",
+    "chainId": "crystal_workshop", "step": 1, "nextMissionId": "crystal_workshop_2",
+    "surface": "radio", "offerAt": "any", "requiresBlueprint": "crystal_conduit",
+    "objectives": [ { "type": "circuit", "target": "lamp_by_switch", "required": 1 } ],
+    "rewards": [ { "item": "crystal", "count": 3 }, { "item": "glass", "count": 3 } ],
+    "knowledgeReward": 5,
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "crystal_workshop_2",
+    "source": "system",
+    "nameKey": "mission.crystal_workshop_2.name",
+    "descriptionKey": "mission.crystal_workshop_2.desc",
+    "chainId": "crystal_workshop", "step": 2, "prerequisites": [ "crystal_workshop_1" ], "nextMissionId": "crystal_workshop_3",
+    "surface": "radio", "offerAt": "any", "requiresBlueprint": "crystal_sound",
+    "objectives": [ { "type": "circuit", "target": "chime_by_plate", "required": 1 } ],
+    "rewards": [ { "item": "crystal", "count": 3 }, { "item": "iron_plate", "count": 3 } ],
+    "knowledgeReward": 5,
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "crystal_workshop_3",
+    "source": "system",
+    "nameKey": "mission.crystal_workshop_3.name",
+    "descriptionKey": "mission.crystal_workshop_3.desc",
+    "chainId": "crystal_workshop", "step": 3, "prerequisites": [ "crystal_workshop_2" ], "nextMissionId": "crystal_workshop_4",
+    "surface": "radio", "offerAt": "any", "requiresBlueprint": "crystal_sensors",
+    "objectives": [ { "type": "circuit", "target": "lamp_by_daylight", "required": 1 } ],
+    "rewards": [ { "item": "crystal", "count": 4 }, { "item": "circuit_board", "count": 1 } ],
+    "knowledgeReward": 8,
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "crystal_workshop_4",
+    "source": "system",
+    "nameKey": "mission.crystal_workshop_4.name",
+    "descriptionKey": "mission.crystal_workshop_4.desc",
+    "chainId": "crystal_workshop", "step": 4, "prerequisites": [ "crystal_workshop_3" ], "nextMissionId": "crystal_workshop_5",
+    "surface": "radio", "offerAt": "any", "requiresBlueprint": "crystal_logic",
+    "objectives": [ { "type": "circuit", "target": "door_by_gate", "required": 1 } ],
+    "rewards": [ { "item": "crystal", "count": 4 }, { "item": "circuit_board", "count": 2 } ],
+    "knowledgeReward": 8,
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "crystal_workshop_5",
+    "source": "system",
+    "nameKey": "mission.crystal_workshop_5.name",
+    "descriptionKey": "mission.crystal_workshop_5.desc",
+    "chainId": "crystal_workshop", "step": 5, "prerequisites": [ "crystal_workshop_4" ], "nextMissionId": "crystal_workshop_6",
+    "surface": "radio", "offerAt": "any", "requiresBlueprint": "fabricator",
+    "objectives": [ { "type": "circuit", "target": "machine_job", "required": 1 } ],
+    "rewards": [ { "item": "crystal", "count": 6 }, { "item": "iron_plate", "count": 6 } ],
+    "knowledgeReward": 10,
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "crystal_workshop_6",
+    "source": "system",
+    "nameKey": "mission.crystal_workshop_6.name",
+    "descriptionKey": "mission.crystal_workshop_6.desc",
+    "chainId": "crystal_workshop", "step": 6, "prerequisites": [ "crystal_workshop_5" ],
+    "surface": "radio", "offerAt": "any", "requiresBlueprint": "crystal_mechanics",
+    "objectives": [ { "type": "circuit", "target": "phase_open", "required": 1 } ],
+    "rewards": [ { "item": "crystal", "count": 8 }, { "item": "circuit_board", "count": 2 } ],
+    "knowledgeReward": 12,
+    "repeatable": false,
+    "active": true
   }
 ]

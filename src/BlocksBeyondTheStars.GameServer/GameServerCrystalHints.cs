@@ -145,6 +145,7 @@ public sealed partial class GameServer
                     && c.NetId != 0 && state.Nets.TryGetValue(c.NetId, out var net) && net.Level)
                 {
                     ShipAiHintOnce(s, "crystal_net_on");
+                    OnCrystalCircuitEvent(p.PlayerId, Shared.Missions.CircuitEvents.NetOn); // #2258: "First circuit"
                     wantNetOn = false;
                 }
 

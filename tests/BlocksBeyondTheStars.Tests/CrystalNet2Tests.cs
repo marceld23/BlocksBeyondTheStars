@@ -282,6 +282,35 @@ public sealed class CrystalNet2Tests : IDisposable
     }
 
     // ---------------------------------------------------------------------------------------------------
+    // #2258 the Crystal workshop chain and the achievements
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void TheCrystalWorkshop_AppearsWithTheConduitBlueprint_AndItsFirstStep_FinishesWhenASwitchLightsALamp()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Player(server, "Builder", new Vector3f(0, 203, 0), "crystal_switch", "crystal_conduit", "light_white");
+            Assert.DoesNotContain("crystal_workshop_1", server.VisibleMissionIdsForTest("Builder")); // not before the research
+            p.State.UnlockedBlueprints.Add("crystal_conduit");
+            Assert.Contains("crystal_workshop_1", server.VisibleMissionIdsForTest("Builder"));
+            server.AcceptMission("Builder", "crystal_workshop_1");
+
+            server.PlaceBlock("Builder", 1, 200, 0, "crystal_switch");
+            server.PlaceBlock("Builder", 2, 200, 0, "crystal_conduit");
+            server.PlaceBlock("Builder", 3, 200, 0, "light_white");
+            Ticks(server, 0.8);
+            Assert.Equal(new[] { 0 }, server.MissionProgressForTest("Builder", "crystal_workshop_1")); // placed is not enough
+
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 0);
+            Ticks(server, 0.8);
+            Assert.Equal(new[] { 1 }, server.MissionProgressForTest("Builder", "crystal_workshop_1")); // it WORKED
+            Assert.True(p.State.AchievementCounters.GetValueOrDefault("crystal:net_on") >= 1);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------------
     // #2261 ports
     // ---------------------------------------------------------------------------------------------------
 

@@ -37,6 +37,7 @@ public sealed partial class GameServer
         public float PlatformY;
         public float TargetY;
         public bool Moving;
+        public HashSet<string> Riders { get; } = new(); // #2258: who rode this trip ("Going up" counts a ride once)
     }
 
     private const double LiftBroadcastSeconds = 0.2;
@@ -138,6 +139,7 @@ public sealed partial class GameServer
         SetCrystalBlocked(motor, false);
         lift.TargetY = level;
         lift.Moving = true;
+        lift.Riders.Clear();
         CrystalNet.LiftListDirty = true;
         BroadcastToWorld(new SoundFx { SoundId = "lift_motor", X = motor.Cell.X + 0.5f, Y = lift.PlatformY + 0.5f, Z = motor.Cell.Z + 0.5f, Loop = true, SourceId = 100000 + lift.Id });
         UpdateLiftStatuses(motor.Cell);
@@ -254,6 +256,10 @@ public sealed partial class GameServer
             if (Math.Abs(p.X - (lift.Motor.X + 0.5f)) <= r && Math.Abs(p.Z - (lift.Motor.Z + 0.5f)) <= r && p.Y >= top - 1.5f && p.Y <= top + 3f)
             {
                 s.MovingFallGraceUntil = _uptime + CrystalNetRules.MovingFallGraceSeconds;
+                if (lift.Riders.Add(s.State.PlayerId))
+                {
+                    OnCrystalCircuitEvent(s.State.PlayerId, Shared.Missions.CircuitEvents.LiftRide); // #2258: "Going up"
+                }
             }
         }
     }

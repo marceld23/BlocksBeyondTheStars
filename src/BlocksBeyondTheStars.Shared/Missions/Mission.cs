@@ -16,6 +16,44 @@ public enum MissionObjectiveType
     Build,    // place blocks (#1116)
     Defeat,   // drive off N foes / clear a bandit camp (event-tracked, system missions only)
     Contribute, // hand N of an item to a shared build — today the relay network (#1213)
+    Circuit,  // a Crystal Net circuit WORKED (#2258) — the target is one of CircuitEvents, reported by the net itself
+}
+
+/// <summary>#2258: what the Crystal Net reports when a circuit of a player's actually works — the targets of a
+/// <see cref="MissionObjectiveType.Circuit"/> objective and the <c>crystal:&lt;event&gt;</c> achievement counters.</summary>
+public static class CircuitEvents
+{
+    /// <summary>A switch turned a lamp on.</summary>
+    public const string LampBySwitch = "lamp_by_switch";
+
+    /// <summary>Someone stepped on a step plate and a chime rang.</summary>
+    public const string ChimeByPlate = "chime_by_plate";
+
+    /// <summary>A daylight sensor switched a lamp.</summary>
+    public const string LampByDaylight = "lamp_by_daylight";
+
+    /// <summary>A logic block locked or opened a door.</summary>
+    public const string DoorByGate = "door_by_gate";
+
+    /// <summary>A machine started by a signal finished a job.</summary>
+    public const string MachineJob = "machine_job";
+
+    /// <summary>A phase block opened on a signal.</summary>
+    public const string PhaseOpen = "phase_open";
+
+    // Achievement-only events.
+    public const string NetOn = "net_on";
+    public const string Chime = "chime";
+    public const string GatePlaced = "gate_placed";
+    public const string Craft = "craft";
+    public const string LaserDeep = "laser_deep";
+    public const string LiftRide = "lift_ride";
+    public const string Vault = "vault";
+
+    /// <summary>The events a mission objective may name.</summary>
+    public static readonly string[] Objectives = { LampBySwitch, ChimeByPlate, LampByDaylight, DoorByGate, MachineJob, PhaseOpen };
+
+    public static bool IsObjective(string? target) => target is not null && System.Array.IndexOf(Objectives, target) >= 0;
 }
 
 public enum MissionStatus
@@ -123,6 +161,10 @@ public sealed class MissionDefinition
     /// giver's opinion of the player, this is about the world: the SPS survey orders only make sense
     /// once the Guardian is down and the relay network is the thing left to build.</summary>
     public string RequiresStory { get; set; } = string.Empty;
+
+    /// <summary>#2258: "" (no gate) or a blueprint the player must have researched before the mission is offered — the
+    /// Crystal workshop chain appears once the conduit is researched.</summary>
+    public string RequiresBlueprint { get; set; } = string.Empty;
 }
 
 /// <summary>Per-player progress on an accepted mission.</summary>

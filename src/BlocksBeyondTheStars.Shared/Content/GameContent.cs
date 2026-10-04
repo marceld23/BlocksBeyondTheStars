@@ -1366,7 +1366,18 @@ public sealed class GameContent
                             problems.Add($"Mission '{mission.Id}' scan objective has an unknown target '{obj.Target}' (see ScanTargets).");
                         }
                         break;
+                    case BlocksBeyondTheStars.Shared.Missions.MissionObjectiveType.Circuit: // #2258
+                        if (!BlocksBeyondTheStars.Shared.Missions.CircuitEvents.IsObjective(obj.Target))
+                        {
+                            problems.Add($"Mission '{mission.Id}' circuit objective has an unknown target '{obj.Target}' (see CircuitEvents).");
+                        }
+                        break;
                 }
+            }
+
+            if (!string.IsNullOrEmpty(mission.RequiresBlueprint) && !_blueprints.ContainsKey(mission.RequiresBlueprint))
+            {
+                problems.Add($"Mission '{mission.Id}' requiresBlueprint references unknown blueprint '{mission.RequiresBlueprint}'.");
             }
 
             // Mission chains (#1212): the chain vocabulary + every id reference must resolve at load.

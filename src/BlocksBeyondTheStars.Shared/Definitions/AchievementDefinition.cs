@@ -112,4 +112,7 @@ public static class AchievementCounters
 
     /// <summary>A flight through a wormhole (#2242).</summary>
     public const string Wormhole = "wormhole:any";
+
+    /// <summary>#2258: a Crystal Net event of the player's own circuit (<c>Missions.CircuitEvents</c>).</summary>
+    public static string Crystal(string circuitEvent) => "crystal:" + circuitEvent;
 }

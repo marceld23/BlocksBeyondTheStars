@@ -326,6 +326,11 @@ public sealed partial class GameServer
             return false; // e.g. the SPS survey orders before the Guardian is down (#1213)
         }
 
+        if (def.RequiresBlueprint.Length > 0 && !p.UnlockedBlueprints.Contains(def.RequiresBlueprint))
+        {
+            return false; // #2258: the Crystal workshop appears once the conduit is researched
+        }
+
         if (p.Missions.Any(m => m.MissionId == def.Id))
         {
             reason = "@srv.mission.accepted";

@@ -53,5 +53,14 @@
   { "key": "leviathan",      "counter": "defeat:leviathan", "target": 1, "category": "survival", "rewards": [ { "item": "crystal", "count": 6 } ] },
   { "key": "sky_giant",      "counter": "defeat:sky_giant", "target": 1, "category": "survival", "rewards": [ { "item": "crystal", "count": 6 } ] },
   { "key": "sreekmakra_friend", "counter": "tame:sreekmakra", "target": 1, "category": "survival", "rewards": [ { "item": "crystal", "count": 4 } ] },
-  { "key": "guardian_defeated", "counter": "story:finale", "target": 1,   "category": "story",    "rewards": [ { "item": "power_cell", "count": 4 } ] }
+  { "key": "guardian_defeated", "counter": "story:finale", "target": 1,   "category": "story",    "rewards": [ { "item": "power_cell", "count": 4 } ] },
+  { "key": "crystal_first_circuit",  "counter": "crystal:net_on",           "target": 1,   "category": "building", "rewards": [ { "item": "crystal", "count": 4 } ] },
+  { "key": "crystal_ding_dong",      "counter": "crystal:chime",            "target": 25,  "category": "building", "rewards": [ { "item": "glass", "count": 6 } ] },
+  { "key": "crystal_night_watch",    "counter": "crystal:lamp_by_daylight", "target": 1,   "category": "building", "rewards": [ { "item": "crystal", "count": 3 } ] },
+  { "key": "crystal_logician",       "counter": "crystal:gate_placed",      "target": 10,  "category": "building", "rewards": [ { "item": "circuit_board", "count": 2 } ] },
+  { "key": "crystal_assembly_line",  "counter": "crystal:craft",            "target": 100, "category": "crafting", "rewards": [ { "item": "iron_plate", "count": 12 } ] },
+  { "key": "crystal_deep_driller",   "counter": "crystal:laser_deep",       "target": 1,   "category": "mining",   "rewards": [ { "item": "crystal", "count": 8 } ] },
+  { "key": "crystal_secret_passage", "counter": "crystal:phase_open",       "target": 1,   "category": "building", "rewards": [ { "item": "crystal", "count": 3 } ] },
+  { "key": "crystal_going_up",       "counter": "crystal:lift_ride",        "target": 1,   "category": "explore",  "rewards": [ { "item": "crystal", "count": 4 } ] },
+  { "key": "crystal_safecracker",    "counter": "crystal:vault",            "target": 1,   "category": "explore",  "rewards": [ { "item": "data_fragment", "count": 2 } ] }
 ]
