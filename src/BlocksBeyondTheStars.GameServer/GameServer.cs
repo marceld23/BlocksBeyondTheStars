@@ -1947,6 +1947,7 @@ public sealed partial class GameServer
 
             // Built/climbed a tower above the atmosphere → float in space on foot (item 10).
             UpdateAboveAtmosphere(session);
+            TickReentryFallGrace(session, dt); // #2276: the way back below the line ends at the first landing
 
             DecayTeleportCooldown(p.PlayerId, dt);
             DecayBeamCooldown(p.PlayerId, dt);
@@ -2153,11 +2154,15 @@ public sealed partial class GameServer
     /// the planet's atmosphere line (item 10), broadcasting the change. Only an on-foot player on a real
     /// planet qualifies (not aboard / EVA / ship interior; only worlds with an atmosphere line). A boarder who
     /// leaves a player-built station's gravity volume (#1485) floats the same way — see
-    /// <see cref="OutsideStationGravity"/>.</summary>
+    /// <see cref="OutsideStationGravity"/>.
+    /// <para>#2276: natural summits may rise above the line too (a "peak at the edge of space"), so the planet case is
+    /// made readable and survivable: the first float explains the controls once (VEGA), and sinking back below the
+    /// line arms a fall grace until the first landing (<see cref="TickReentryFallGrace"/>).</para></summary>
     private void UpdateAboveAtmosphere(PlayerSession session)
     {
         var p = session.State;
         bool above;
+        bool planetLine = false; // the flip below is a planet's atmosphere line, not a station's gravity box or a boarding
         if (InStation(p.PlayerId))
         {
             above = OutsideStationGravity(session);
@@ -2167,6 +2172,7 @@ public sealed partial class GameServer
             bool eligible = _atmosphereHeight > 0
                 && !p.AboardShip && !p.InEva
                 && !InShipInterior(p.PlayerId);
+            planetLine = eligible;
 
             // Hysteresis: cross up at the line, drop only once a few blocks back below it.
             above = eligible && (p.AboveAtmosphere
@@ -2177,8 +2183,70 @@ public sealed partial class GameServer
         if (above != p.AboveAtmosphere)
         {
             p.AboveAtmosphere = above;
+            if (planetLine)
+            {
+                if (above)
+                {
+                    ShipAiHintOnce(session, "zero_g"); // first float above a planet: how to get back down (#2276)
+                }
+                else
+                {
+                    session.ReentryFallGrace = true; // full gravity is back — the suit brakes the fall (#2276)
+                    session.ReentryGroundedSeconds = 0;
+                }
+            }
+
             SendPlayerState(session);
         }
+    }
+
+    /// <summary>Seconds on the ground after a re-entry before the fall grace ends (#2276) — long enough for the landing's
+    /// own fall report to arrive (it travels with the first grounded position), short enough that the next real fall
+    /// counts again.</summary>
+    private const double ReentryGraceSettleSeconds = 1.0;
+
+    /// <summary>#2276: keeps the re-entry fall grace until the first landing. Ends once the feet rest on ground (or in a
+    /// liquid, which breaks every fall anyway) for <see cref="ReentryGraceSettleSeconds"/>, and at once when the player
+    /// boards, goes on an EVA, floats above the line again or leaves for a station/ship interior.</summary>
+    private void TickReentryFallGrace(PlayerSession session, double dt)
+    {
+        if (!session.ReentryFallGrace)
+        {
+            return;
+        }
+
+        var p = session.State;
+        if (p.AboardShip || p.InEva || p.AboveAtmosphere || InStation(p.PlayerId) || InShipInterior(p.PlayerId))
+        {
+            session.ReentryFallGrace = false;
+            return;
+        }
+
+        if (!StandingOnGround(p.Position))
+        {
+            session.ReentryGroundedSeconds = 0;
+            return;
+        }
+
+        session.ReentryGroundedSeconds += dt;
+        if (session.ReentryGroundedSeconds >= ReentryGraceSettleSeconds)
+        {
+            session.ReentryFallGrace = false;
+        }
+    }
+
+    /// <summary>True when the cell right under the feet holds a block, or the feet stand in a liquid — the server's
+    /// coarse "has landed" read for the re-entry grace (#2276). The client owns on-foot movement; this only needs to
+    /// tell a player standing somewhere from one still falling through open air.</summary>
+    private bool StandingOnGround(Vector3f feet)
+    {
+        int x = (int)System.Math.Floor(feet.X), z = (int)System.Math.Floor(feet.Z);
+        if (!_world.GetBlock(new Vector3i(x, (int)System.Math.Floor(feet.Y - 0.2f), z)).IsAir)
+        {
+            return true;
+        }
+
+        return IsLiquid(_world.GetBlock(new Vector3i(x, (int)System.Math.Floor(feet.Y + 0.1f), z)));
     }
 
     /// <summary>True when the player's head is under water — diving spends the suit's oxygen tank. A plant, ladder or
@@ -4455,6 +4523,9 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Test seam (#2276): pins the active world's gravity multiplier (normally seeded per world).</summary>
+    internal void SetGravityFactorForTest(float factor) => _gravityFactor = factor;
+
     /// <summary>Runs the authoritative mine validator for a player until the block breaks (used by local
     /// play / tests). Hard blocks now need several drill hits, so this applies hits up to a safe cap.</summary>
     public void MineBlock(string playerId, int x, int y, int z)
@@ -4638,8 +4709,25 @@ public sealed partial class GameServer
     // block and one-shot it. A block of a given hardness then always takes the same number of hits (B52).
     private readonly Dictionary<Vector3i, (ushort Block, float Progress)> _miningProgress = new();
 
-    private const float FallSafeImpactSpeed = 14f;  // matches the client; below this a landing is harmless
+    private const float FallSafeImpactSpeed = 14f;  // at 1 g; below this a landing is harmless (scaled by √g, see SafeFallSpeed)
     private const float FallDamagePerSpeed = 4.5f;  // health lost per unit of impact speed over the safe cap
+
+    /// <summary>The impact speed this world's gravity lets a player land at unharmed — 14 · √g, the same rule the client
+    /// uses before it reports a fall at all (<c>PlayerController.RecomputeGravity</c>: a heavier world accelerates you
+    /// faster, so the speed for the same few blocks of drop grows with √g). With the old flat 14 the smallest reported
+    /// fall on a heavy world already cost ~14 health, and a light world's threshold sat higher than intended (#2276).
+    /// The factor gets the client's own guard and clamp, so both sides always agree.</summary>
+    private float SafeFallSpeed()
+    {
+        float g = _gravityFactor;
+        if (g <= 0.05f || float.IsNaN(g))
+        {
+            g = 1f; // a missing/zero value — the client falls back to the baseline too
+        }
+
+        g = System.Math.Clamp(g, 0.2f, 2.5f);
+        return FallSafeImpactSpeed * (float)System.Math.Sqrt(g);
+    }
 
     /// <summary>Applies fall damage from a hard landing the client reported (it owns on-foot movement),
     /// scaled by how far over a safe impact speed it was and reduced by armor. A lethal fall respawns the
@@ -4667,6 +4755,14 @@ public sealed partial class GameServer
             return; // #1842: hovering in zero-g construction mode, or dropped to the deck because it was just switched off
         }
 
+        if (session.ReentryFallGrace)
+        {
+            // #2276: the first landing after sinking back below a planet's atmosphere line — the suit's brake thrusters
+            // carried the descent. This landing ends the grace; the next fall counts again.
+            session.ReentryFallGrace = false;
+            return;
+        }
+
         if (Rules.CreativeFlightFor(p.ModeOverride) || p.Fly)
         {
             // #1838: a suit that can fly never takes a fall. The client's own guard only knows the ACTIVE flight
@@ -4675,7 +4771,7 @@ public sealed partial class GameServer
             return;
         }
 
-        float over = intent.ImpactSpeed - FallSafeImpactSpeed;
+        float over = intent.ImpactSpeed - SafeFallSpeed();
         over *= 1f - FallProtection(p); // #2110: the boots take a share of the excess before it hurts
         if (over <= 0f)
         {

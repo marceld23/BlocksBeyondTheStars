@@ -40,6 +40,15 @@ namespace BlocksBeyondTheStars.Client
         // Zero-g (above the atmosphere): float instead of fall — Jump rises, crouch sinks, else drift to a stop.
         public float SpaceFloatSpeed = 4f;
         public float SpaceFloatAccel = 14f;
+        // #2276: above a PLANET's line, with no vertical control held, the suit sinks gently back toward the air instead
+        // of hovering forever — a way down that needs no knowledge (a station's zero-g keeps hovering). Consts, not
+        // serialized fields, so no scene can override them.
+        private const float SpaceSinkSpeed = 1.5f;
+        // #2276: after sinking back below the line ("re-entry") the suit's brake thrusters cap the fall until the first
+        // landing — always below the safe landing speed, so the descent from a summit or a tower never hurts.
+        private const float ReentryMaxFallSpeed = 10f;
+        private bool _reentryBrake;      // armed at re-entry, cleared at the first landing (ground, water, ladder, wall, flight)
+        private bool _wasAbovePlanet;    // last frame's Game.OnFootAbovePlanet, to see the re-entry edge
         // Swimming: in water the player drifts down slowly and holds Jump to rise / surface (no fast falls).
         public float SwimUpSpeed = 4f;     // rise speed while holding Jump underwater
         public float SwimSinkSpeed = 1.5f; // gentle idle sink toward the seabed
@@ -466,6 +475,7 @@ namespace BlocksBeyondTheStars.Client
 
         private Viewmodel _viewmodel;
         private string _heldKey = "\0"; // forces the first refresh
+        private bool _heldGloves, _heldShockGloves; // #2278: what TriggerSwing plays — read once per hotbar change, not per swing
 
         private void Awake() => _controller = GetComponent<CharacterController>();
 
@@ -517,10 +527,19 @@ namespace BlocksBeyondTheStars.Client
             _viewmodel?.SetVisible(!ThirdPerson);
         }
 
-        /// <summary>Plays the tool swing on both the third-person avatar and the first-person viewmodel.</summary>
+        /// <summary>Plays the tool swing on both the third-person avatar and the first-person viewmodel. The glove weapons
+        /// (#2278) punch instead: the energy gloves left and right in turn, the shock gloves with both palms.</summary>
         private void TriggerSwing()
         {
-            Avatar?.Swing();
+            if (_heldGloves)
+            {
+                Avatar?.Punch(push: _heldShockGloves);
+            }
+            else
+            {
+                Avatar?.Swing();
+            }
+
             _viewmodel?.Swing();
         }
 
@@ -539,9 +558,18 @@ namespace BlocksBeyondTheStars.Client
                 Game.HeldItemDirty = false;
             }
 
+            bool firstRefresh = _heldKey == "\0";
+            bool sameItem = key == _heldKey;
             _heldKey = key;
             _optic?.SetHeldItem(key); // swapping away from the binoculars can never strand a zoomed view
             var (kind, tint, blockKey) = HeldItem.For(Game?.Content, key);
+            _heldGloves = kind == HeldItem.Kind.Gloves;
+            _heldShockGloves = _heldGloves && FxLook.ForItem(Game?.Content, key).Is(FxStyles.ShockPush);
+            if (_heldGloves && !firstRefresh && !sameItem)
+            {
+                ClientAudio.Instance?.Cue("glove_charge", 0.5f); // #2278: the gloves hum awake as they are pulled on
+            }
+
             var look = Game?.LocalToolLook(key); // the player's own look for this tool (#1963), null = standard
             Avatar?.SetHeldItem(kind, tint, blockKey, key, look);
             _viewmodel?.SetHeldItem(kind, tint, blockKey, key, look);
@@ -912,8 +940,8 @@ namespace BlocksBeyondTheStars.Client
 
             if (InputMap.Down(InputAction.PrimaryFire) && WeaponSwingReady())
             {
+                TriggerSwing(); // first: the gloves pick the punching hand the effect starts at (#2278)
                 AttackNearestEnemy();
-                TriggerSwing();
             }
 
             if (InputMap.Down(InputAction.LootContainer))
@@ -1042,13 +1070,17 @@ namespace BlocksBeyondTheStars.Client
                 var from = Muzzle(ct);
                 if (kind == WeaponFxKind.Melee)
                 {
-                    // A melee slash sweeps whether or not it connects (whiff still reads).
-                    var center = ct.position + ct.forward * 0.35f - ct.up * 0.18f;
+                    // A melee slash sweeps whether or not it connects (whiff still reads). The gloves' blow (#2278) starts
+                    // where it peaks: between the palms (the shock push) or in front of the jabbing fist (energy).
+                    bool gloves = FxStyleResolver.IsGlove(look.Style);
+                    var center = gloves ? from : ct.position + ct.forward * 0.35f - ct.up * 0.18f;
                     var hitPoint = targetId != null ? targetPos + Vector3.up * 0.6f : center + ct.forward;
                     Weapons.Swing(look, center, ct.forward, ct.up, targetId != null, hitPoint, local: true);
                     if (targetId != null)
                     {
-                        ClientAudio.Instance?.At("melee_hit", hitPoint); // the shipped-but-unused hit cue (#2151)
+                        // the shipped-but-unused hit cue (#2151); the gloves have their own (#2278), the push quieter at the target
+                        ClientAudio.Instance?.At(FxStyleResolver.MeleeHitCue(look.Style), hitPoint, 1f,
+                            look.Is(BlocksBeyondTheStars.Shared.Definitions.FxStyles.ShockPush) ? 0.5f : 1f);
                     }
 
                     SendFx(BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Melee, heldKey, center, hitPoint, targetId != null);
@@ -1158,9 +1190,9 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var c in Game.Creatures)
             {
-                if (c.GiantHeight > 0f)
+                if (c.GiantHeight > 0f || !string.IsNullOrEmpty(c.OwnerId))
                 {
-                    continue; // picked by its colliders above
+                    continue; // a giant is picked by its colliders above; a companion or pet is never a target (#2281)
                 }
 
                 float size = Mathf.Clamp(c.Size, 0.4f, 8f);
@@ -1213,9 +1245,15 @@ namespace BlocksBeyondTheStars.Client
                 Consider(e.Id, Game.ScenePos(e.X, e.Y, e.Z));
             }
 
-            // Creatures (fauna) are attackable too — the server shares the hit path.
+            // Creatures (fauna) are attackable too — the server shares the hit path. Never a companion or pet (#2281):
+            // nobody may attack one, so the sweep must not pick it (and swing past a wild animal behind it).
             foreach (var c in Game.Creatures)
             {
+                if (!string.IsNullOrEmpty(c.OwnerId))
+                {
+                    continue;
+                }
+
                 if (c.GiantHeight > 0f)
                 {
                     // #1998: a giant counts from the nearest point of its body (and a buried sandworm not at all).
@@ -1423,6 +1461,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _gearLook = look;
                 Avatar.SetGear(look);
+                _viewmodel?.SetClimbGear(GearLook.Has(look, GearLook.ClimbingGloves), GearLook.Has(look, GearLook.ClimbingClaws)); // #2287: the pads show on the first-person climbing hands too
             }
         }
 
@@ -1744,6 +1783,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private float _nextWeaponSwing; // Time.time when the held weapon may swing again (client-side cooldown)
+        private float _nextFistSwing;   // Time.time when the bare hand may punch again — its own timer, like the server's (#2280)
         private const float DefaultMeleeCooldown = 1.5f; // mirrors the server default for energy-free melee (B44)
 
         /// <summary>Whether the held weapon's swing cooldown has elapsed; if so, arms the next swing. Mirrors the
@@ -1751,16 +1791,30 @@ namespace BlocksBeyondTheStars.Client
         /// cooldown is actually felt, not just silently dropped server-side).</summary>
         private bool WeaponSwingReady()
         {
+            // #2280: the bare hand punches on its own shared cooldown (MeleeRules) — it used to have none here, so the
+            // swing played on every press while the server now holds the early punches back. It runs on its own timer,
+            // like the server's separate fist entry, so drawing a weapon right after a punch is not held back by it
+            // (and vice versa). #2202: a reflex preparation shortens both, like on the server.
+            var tool = HeldTool();
+            if (MeleeRules.IsBareHand(tool))
+            {
+                if (Time.time < _nextFistSwing)
+                {
+                    return false;
+                }
+
+                _nextFistSwing = Time.time + MeleeRules.FistCooldownSeconds * Game.Bio.CooldownFactor;
+                return true;
+            }
+
             if (Time.time < _nextWeaponSwing)
             {
                 return false;
             }
 
-            var tool = HeldTool();
-            float cd = tool == null ? 0f
-                : tool.CooldownSeconds > 0f ? tool.CooldownSeconds
+            float cd = tool.CooldownSeconds > 0f ? tool.CooldownSeconds
                 : tool.EnergyPerUse <= 0f ? DefaultMeleeCooldown : 0f;
-            _nextWeaponSwing = Time.time + cd * Game.Bio.CooldownFactor; // #2202: a reflex preparation shortens it, like on the server
+            _nextWeaponSwing = Time.time + cd * Game.Bio.CooldownFactor;
             return true;
         }
 
@@ -2983,6 +3037,7 @@ namespace BlocksBeyondTheStars.Client
 
             bool grounded = _controller.isGrounded;
             UpdateFloorWait(grounded);
+            TrackReentry(grounded);
             if (grounded)
             {
                 _verticalVelocity = -1f;
@@ -2992,9 +3047,17 @@ namespace BlocksBeyondTheStars.Client
             {
                 _verticalVelocity = 0f; // no floor streamed yet — a menu open at spawn must not drop us either
             }
+            else if (Game != null && Game.OnFootInSpace)
+            {
+                // #2276: zero-g holds behind a menu too. A floating player who opened the inventory used to drop under
+                // full gravity (above a planet's line, or out of a station's gravity box) — and below the line that
+                // could be a real fall. Ease to a stop: the height is kept while the menu is open.
+                _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, 0f, SpaceFloatAccel * Time.deltaTime);
+            }
             else
             {
                 _verticalVelocity -= _effGravity * Time.deltaTime;
+                ApplyReentryBrake();
                 if (Gliding && HasItem("glider"))
                 {
                     GlideSink(); // #2296: a wing open when the menu came up keeps carrying us (see the menu branch)
@@ -3007,6 +3070,41 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _controller.Move(new Vector3(0f, _verticalVelocity, 0f) * Time.deltaTime);
+        }
+
+        /// <summary>#2276: arms the re-entry brake on the frame the player sinks back below a planet's atmosphere line, and
+        /// clears it at the first landing — on ground, in water, on a ladder, on a wall or in flight.</summary>
+        private void TrackReentry(bool landed)
+        {
+            bool abovePlanet = Game != null && Game.OnFootAbovePlanet;
+            if (_wasAbovePlanet && !abovePlanet && Game != null && !Game.OnFootInSpace)
+            {
+                _reentryBrake = true;
+            }
+
+            if (landed)
+            {
+                _reentryBrake = false;
+            }
+
+            _wasAbovePlanet = abovePlanet;
+        }
+
+        /// <summary>#2276: while the re-entry brake is armed, caps the fall speed below this world's safe landing speed —
+        /// the suit's brake thrusters — so the way down from above the atmosphere looks (and is) survivable. The server
+        /// holds its own fall grace until the first landing as well.</summary>
+        private void ApplyReentryBrake()
+        {
+            if (!_reentryBrake)
+            {
+                return;
+            }
+
+            float cap = Mathf.Min(ReentryMaxFallSpeed, _effSafeFallSpeed * 0.9f);
+            if (_verticalVelocity < -cap)
+            {
+                _verticalVelocity = -cap;
+            }
         }
 
         /// <summary>Ends the post-spawn hover (#773) as soon as there is something to stand on — the collider
@@ -3868,6 +3966,7 @@ namespace BlocksBeyondTheStars.Client
 
             UpdateClimbPose(onLadder && !grounded); // a ladder counts once the feet leave the ground
             _moving = (inWater || grounded || onLadder || climbing) && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
+            TrackReentry(grounded || inWater || onLadder || climbing || _flying);
 
             // #2296: a wing the server refused (no glider worn as it sees it) folds, and stays folded until Jump is let go.
             if (Game != null && Game.GliderRejections != _gliderRejectionsSeen)
@@ -3964,9 +4063,14 @@ namespace BlocksBeyondTheStars.Client
             else if (Game != null && Game.OnFootInSpace)
             {
                 // Above the atmosphere there is no gravity: float, never fall. Jump rises, crouch (Ctrl/C)
-                // sinks, otherwise the suit drifts to a gentle stop. (Set by item 10 — building up into space.)
-                float lift = (InputMap.JumpHeld() ? SpaceFloatSpeed : 0f)
-                           - ((InputMap.CrouchHeld()) ? SpaceFloatSpeed : 0f);
+                // sinks. With neither held, a station's zero-g drifts to a gentle stop; above a PLANET's line the
+                // suit sinks slowly back toward the air (#2276) — walking off a summit that pokes into space used to
+                // float the player out at summit height with no idea how to get down. Jump still rises (tower building).
+                bool up = InputMap.JumpHeld();
+                bool down = InputMap.CrouchHeld();
+                float lift = up || down
+                    ? (up ? SpaceFloatSpeed : 0f) - (down ? SpaceFloatSpeed : 0f)
+                    : (Game.OnFootAbovePlanet ? -SpaceSinkSpeed : 0f);
                 _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, lift, SpaceFloatAccel * Time.deltaTime);
             }
             else if (_awaitingFloor)
@@ -4016,6 +4120,8 @@ namespace BlocksBeyondTheStars.Client
                         GliderNoAirHint();
                     }
                 }
+
+                ApplyReentryBrake(); // #2276: back below the line — the suit brakes the fall until the first landing
             }
 
             UpdateJetpack(jetpacking);
@@ -4504,6 +4610,7 @@ namespace BlocksBeyondTheStars.Client
             _pullingUp = false;
             _climbSliding = false;
             _climbStrain = 0f;
+            _viewmodel?.SetClimbing(false); // #2287: the held item comes back up
             if (_climbPose || _avatarTurned)
             {
                 _climbPose = false;
@@ -4564,6 +4671,8 @@ namespace BlocksBeyondTheStars.Client
         {
             bool onWall = _climbing || _pullingUp;
             _climbPose = onWall || onLadder;
+            // #2287: the first-person hands climb on the same signals as the avatar (rhythm, strain, slide, pull-up).
+            _viewmodel?.SetClimbing(_climbPose, _climbStrain, _climbSliding, _pullingUp);
             if (Avatar == null)
             {
                 return;
@@ -4915,13 +5024,19 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // #2152: by the item's data-driven look, so a new gun with a known style sounds right without code.
-            switch (FxLook.ForItem(Game.Content, Game.ItemInSlot(Game.SelectedHotbarSlot)).Style)
+            var look = FxLook.ForItem(Game.Content, Game.ItemInSlot(Game.SelectedHotbarSlot));
+            switch (look.Style)
             {
                 case "slug": audio.Cue("weapon_scrap"); break;
                 case "rail": audio.Cue("weapon_gauss"); break;
                 case "laser": audio.Cue("weapon_laser"); break;
                 case "plasma": audio.Cue("weapon_plasma"); break;
-                default: audio.Cue("melee_swing"); break; // melee weapons, tools, fists
+                case FxStyles.ShockPush:
+                    // #2278: the gloves hum during the short wind-up, then the air blast leaves the palms.
+                    audio.Cue("glove_charge", 0.35f);
+                    FxKit.Delay(look.Charge, () => ClientAudio.Instance?.Cue("glove_shock_blast"));
+                    break;
+                default: audio.Cue(FxStyleResolver.MeleeSwingCue(look.Style)); break; // melee weapons, the energy gloves, tools, fists
             }
         }
 
@@ -4961,8 +5076,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (WeaponSwingReady())
                 {
+                    TriggerSwing(); // first: the gloves pick the punching hand the effect starts at (#2278)
                     AttackNearestEnemy();
-                    TriggerSwing();
                 }
 
                 return;

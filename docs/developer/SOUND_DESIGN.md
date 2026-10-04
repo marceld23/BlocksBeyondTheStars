@@ -68,6 +68,7 @@ click-on-press + hover-on-enter).
 | drill loop + impact | 2 | EL |
 | energy weapons: gauss / laser / plasma fire | 3 | EL |
 | melee: swing + hit (machete/vibro/plasma) | 2–3 | EL |
+| glove weapons: whoosh, shock blast, energy hit, charge, dizzy (#2278 — see §17) | 5 | EL |
 | scanner ping ✓, lamp on/off, stealth on/off, teleporter, jetpack loop | ~6 | proc |
 
 ## 4. Movement — *ElevenLabs (footsteps) + procedural*
@@ -290,6 +291,36 @@ and [WORMHOLES.md](WORMHOLES.md).
 | pod beacon (loop) / rescue | a life pod nearby / it is pulled aboard | `pod_beacon`, `pod_rescue` | EL |
 | anomaly hum (loop) / reaction | an anomaly nearby / it is scanned | `anomaly_hum`, `anomaly_react` | EL |
 | rift hum (loop) / enter / exit | a wormhole nearby / flying in / coming out | `wormhole_hum`, `wormhole_enter`, `wormhole_exit` | EL |
+
+## 16. Flight target lock (#2283) — *ElevenLabs clips*
+
+Short 2D cues (`ClientAudio.Cue`, ≈0.5 s each, soft — no alarm tones, the lock must never feel like a siren to a
+child); see `SpaceView.Targeting.cs`. `ProceduralAudio.TargetIds` holds a synthesised stand-in for each id.
+
+| Sound | Trigger | Files | Source |
+|---|---|---|---|
+| lock | a fresh lock on a neutral or friendly target | `target_lock` | EL |
+| lock on an enemy | a fresh lock (or the auto-lock) on an enemy or a raider demanding cargo | `target_lock_hostile` | EL |
+| cycle | switching the lock to another target | `target_cycle` | EL |
+| lost | the lock is let go, drifts out of range or its target vanishes | `target_lost` | EL |
+
+## 17. Glove weapons (#2278) and other players' melee (#2279) — *ElevenLabs clips*
+
+Short cues, friendly on purpose — air, crackle and a cartoon "boing", never a blow that sounds like it hurts. The cue
+of a melee swing and of its hit is chosen by the item's `fx.style` in one place, `FxStyleResolver.MeleeSwingCue` /
+`MeleeHitCue` (Client.Core), so the player's own swing (`PlayerController.PlayWeaponSound`, 2D) and another player's
+(`FxRemote`, 3D at the remote avatar — **#2279: other players' melee used to be silent**) always match.
+`ProceduralAudio.GloveIds` holds a synthesised stand-in for each id.
+
+| Sound | Trigger | Files | Source |
+|---|---|---|---|
+| glove whoosh | every energy-glove jab (2D own, 3D others) | `glove_whoosh` | EL |
+| shock blast | the shock push leaving the palms (after the 0.12 s wind-up); quieter at the target on a hit | `glove_shock_blast` | EL |
+| energy hit | an energy-glove punch landing (instead of `melee_hit`) | `glove_energy_hit` | EL |
+| charge | the shock gloves' wind-up (soft), and pulling either pair on (switching to them in the hotbar) | `glove_charge` | EL |
+| dizzy | a creature, robot or bandit starts its daze (3D at the target, once per push) | `glove_stagger` | EL |
+
+Every other melee look keeps `melee_swing` / `melee_hit` — now also heard from other players.
 
 ---
 

@@ -110,4 +110,72 @@ public sealed class HeldItemShapesTests
         // nothing drawable at all → the kind's own model, never an empty hand
         Assert.Equal(3, HeldItemShapes.Parts("Gun", Tint, new List<HeldModelPart> { model[1] })!.Count);
     }
+
+    // ---------------- #2278 two hands: the mirror ----------------
+
+    [Fact]
+    public void Mirror_FlipsOnlyX_AndTwiceGivesThePartsBack()
+    {
+        var right = HeldItemShapes.Glove(Content.GetItem("shock_gloves")!.HeldModel, Tint);
+        var left = HeldItemShapes.Mirror(right);
+
+        Assert.Equal(right.Count, left.Count);
+        for (int i = 0; i < right.Count; i++)
+        {
+            Assert.Equal(-right[i].Position.X, left[i].Position.X);
+            Assert.Equal(right[i].Position.Y, left[i].Position.Y);
+            Assert.Equal(right[i].Position.Z, left[i].Position.Z);
+            Assert.Equal(right[i].Size, left[i].Size);     // no negative scale: the faces stay outward
+            Assert.True(left[i].Size.X > 0f);
+            Assert.Equal(right[i].Color.R, left[i].Color.R);
+            Assert.Equal(right[i].Glow, left[i].Glow);
+        }
+
+        var back = HeldItemShapes.Mirror(left);
+        Assert.Equal(right.Select(p => p.Position), back.Select(p => p.Position));
+    }
+
+    [Fact]
+    public void Mirror_PutsTheThumbOnTheOtherSide_SoBothHandsHaveItInside()
+    {
+        var right = HeldItemShapes.Glove(Content.GetItem("energy_gloves")!.HeldModel, Tint);
+        var left = HeldItemShapes.Mirror(right);
+        float RightThumb(List<HeldItemShapes.Part> parts) => parts.Where(p => System.Math.Abs(p.Position.X) > 0.07f).Select(p => p.Position.X).First();
+        Assert.True(RightThumb(right) < 0f, "a right hand's thumb sits on its inner (−x) side");
+        Assert.True(RightThumb(left) > 0f, "the mirrored left hand has it on +x — again the inner side");
+
+        // A symmetric part list mirrors onto itself (as a set).
+        var symmetric = HeldItemShapes.ClimbGear(gloves: true, claws: true);
+        var mirrored = HeldItemShapes.Mirror(symmetric);
+        Assert.Equal(
+            symmetric.Select(p => (p.Position.X, p.Position.Y, p.Position.Z)).OrderBy(t => t),
+            mirrored.Select(p => (p.Position.X == 0f ? 0f : p.Position.X, p.Position.Y, p.Position.Z)).OrderBy(t => t));
+    }
+
+    [Fact]
+    public void TheTwoGloves_LookDifferent_AndAGloveWithoutDataIsStillAGlove()
+    {
+        string Sig(string key) => string.Join("|", HeldItemShapes.Glove(Content.GetItem(key)!.HeldModel, Tint)
+            .Select(p => string.Format(CultureInfo.InvariantCulture, "{0:0.###},{1:0.###},{2:0.###}/{3:0.##}", p.Position.X, p.Position.Y, p.Position.Z, p.Color.R)));
+        Assert.NotEqual(Sig("shock_gloves"), Sig("energy_gloves"));
+        Assert.Contains(HeldItemShapes.Glove(Content.GetItem("shock_gloves")!.HeldModel, Tint), p => p.Glow); // the cyan emitter
+
+        var plain = HeldItemShapes.Glove(null, Tint);
+        Assert.True(plain.Count >= 3);
+        Assert.Contains(plain, p => p.Glow && p.Color.R == Tint.R); // the knuckle plate takes the kind's tint
+        Assert.False(HeldItemShapes.IsShapedKind(HeldItemShapes.GlovesKind)); // not offered by the tool-look editor
+        Assert.Null(HeldItemShapes.Parts(HeldItemShapes.GlovesKind, Tint));
+    }
+
+    [Fact]
+    public void ClimbGear_IsNothingWithoutGloves_PadsWithGloves_AndClawsOnTop()
+    {
+        Assert.Empty(HeldItemShapes.ClimbGear(gloves: false, claws: false));
+        var gloves = HeldItemShapes.ClimbGear(gloves: true, claws: false);
+        var claws = HeldItemShapes.ClimbGear(gloves: false, claws: true);
+        Assert.NotEmpty(gloves);
+        Assert.Equal(gloves.Count + 3, claws.Count); // three claws past the fingertips
+        Assert.Contains(gloves, p => p.Color.R > 0.9f && p.Color.G is > 0.4f and < 0.6f); // the orange grip pad
+        Assert.All(claws.Skip(gloves.Count), p => Assert.True(p.Position.Z > 0.15f, "claws reach past the fingertips"));
+    }
 }

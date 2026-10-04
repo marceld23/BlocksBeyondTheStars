@@ -593,6 +593,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2242: whether VEGA has explained the first wormhole the player saw (a tear in space, two ways).</summary>
         public bool WormholeHintShown;
 
+        /// <summary>#2277: whether VEGA has explained the target lock — said once, the first time the ship locks onto an
+        /// attacking enemy by itself (cycle key, the arrow toward the target).</summary>
+        public bool TargetLockHintShown;
+
         /// <summary>#2247: whether VEGA has said, after a ship scan let go too early, that the trigger must be HELD until
         /// the ring is full.</summary>
         public bool ShipScanHoldHintShown;

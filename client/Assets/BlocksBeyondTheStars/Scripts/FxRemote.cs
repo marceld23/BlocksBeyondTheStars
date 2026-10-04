@@ -76,7 +76,24 @@ namespace BlocksBeyondTheStars.Client
                 return; // out of sight
             }
 
-            if (Remotes != null && Remotes.TryGetAvatar(m.PlayerId, out var avatar) && avatar.TryMuzzle(out var hand))
+            PlayerAvatar avatar = null;
+            bool hasAvatar = Remotes != null && Remotes.TryGetAvatar(m.PlayerId, out avatar) && avatar != null;
+            if (hasAvatar && m.Kind == FxActionKinds.Melee)
+            {
+                // #2279: the other player's arm swings too — before this nobody saw a melee attack at all. The gloves punch
+                // (#2278): the energy gloves left and right in turn (this avatar's own alternation, no sync needed), the
+                // shock gloves with both arms. Played first, so the muzzle below is the hand that strikes.
+                if (FxStyleResolver.IsGlove(look.Style))
+                {
+                    avatar.Punch(push: look.Is(FxStyles.ShockPush));
+                }
+                else
+                {
+                    avatar.Swing();
+                }
+            }
+
+            if (hasAvatar && avatar.TryMuzzle(out var hand))
             {
                 from = hand;
             }
@@ -91,6 +108,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     var dir = to - from;
                     FxShots.Swing(look, from, dir.sqrMagnitude > 1e-4f ? dir.normalized : Vector3.forward, Vector3.up, m.Hit, to, local: false);
+                    PlayMeleeCue(look, from, m.Hit, to);
                     break;
                 }
 
@@ -103,6 +121,23 @@ namespace BlocksBeyondTheStars.Client
                 case FxActionKinds.Gadget:
                     FxGadgets.Intent(look, from);
                     break;
+            }
+        }
+
+        /// <summary>#2279: another player's melee swing is heard where it happens — the same cue the swinger hears
+        /// (<see cref="FxStyleResolver.MeleeSwingCue"/>), plus the hit at the target when it landed.</summary>
+        private static void PlayMeleeCue(FxLook look, Vector3 at, bool hit, Vector3 target)
+        {
+            var audio = ClientAudio.Instance;
+            if (audio == null)
+            {
+                return;
+            }
+
+            audio.At(FxStyleResolver.MeleeSwingCue(look.Style), at, Random.Range(0.95f, 1.05f), 0.75f);
+            if (hit)
+            {
+                audio.At(FxStyleResolver.MeleeHitCue(look.Style), target, Random.Range(0.95f, 1.05f), look.Is(FxStyles.ShockPush) ? 0.45f : 0.8f);
             }
         }
 

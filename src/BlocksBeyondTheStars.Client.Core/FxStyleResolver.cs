@@ -159,9 +159,33 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
-        /// <summary>Close-combat styles: a swing arc at the hand, no projectile.</summary>
+        /// <summary>Close-combat styles: a swing arc (or the gloves' push and punches, #2278) at the hand, no projectile.</summary>
         public static bool IsMelee(string style)
-            => style is FxStyles.Slash or FxStyles.Vibro or FxStyles.PlasmaBlade or FxStyles.Fist;
+            => style is FxStyles.Slash or FxStyles.Vibro or FxStyles.PlasmaBlade or FxStyles.Fist
+                or FxStyles.ShockPush or FxStyles.EnergyFist;
+
+        /// <summary>The two glove styles (#2278): drawn with both hands, no slash ribbon — the shock push sends a ring
+        /// forward between the palms, the energy fist alternates left and right punches.</summary>
+        public static bool IsGlove(string style) => style is FxStyles.ShockPush or FxStyles.EnergyFist;
+
+        /// <summary>The sound of a melee swing in <paramref name="style"/> — for the player's own swing and for another
+        /// player's (#2279), so both hear the same: the shock gloves' air blast, the energy gloves' whoosh, a blade's swish
+        /// for every other close-combat look (and fists, tools swung at something).</summary>
+        public static string MeleeSwingCue(string style) => style switch
+        {
+            FxStyles.ShockPush => "glove_shock_blast",
+            FxStyles.EnergyFist => "glove_whoosh",
+            _ => "melee_swing",
+        };
+
+        /// <summary>The sound of a melee hit landing in <paramref name="style"/> (#2278/#2279): the energy gloves' zap, the
+        /// shock gloves' blast at the target (played quieter there), the classic hit for everything else.</summary>
+        public static string MeleeHitCue(string style) => style switch
+        {
+            FxStyles.ShockPush => "glove_shock_blast",
+            FxStyles.EnergyFist => "glove_energy_hit",
+            _ => "melee_hit",
+        };
 
         /// <summary>Styles that fly a visible projectile from muzzle to impact (use <see cref="ResolvedFx.Speed"/>).</summary>
         public static bool IsTravelling(string style)
@@ -178,6 +202,8 @@ namespace BlocksBeyondTheStars.Client
             FxStyles.Slash => new FxColor(1f, 0.95f, 0.8f),
             FxStyles.Vibro => new FxColor(0.35f, 0.75f, 1f),
             FxStyles.PlasmaBlade => new FxColor(1f, 0.4f, 0.85f),
+            FxStyles.ShockPush => new FxColor(0.435f, 0.906f, 1f),  // #2278 cyan #6fe7ff — a push of air
+            FxStyles.EnergyFist => new FxColor(1f, 0.69f, 0.18f),   // #2278 gold #ffb02e — crackling energy
             FxStyles.Slug => new FxColor(0.95f, 0.82f, 0.5f),
             FxStyles.Rail => new FxColor(0.5f, 0.9f, 1f),
             FxStyles.Laser => new FxColor(1f, 0.42f, 0.36f),

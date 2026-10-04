@@ -332,9 +332,9 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (creature.FrozenTimer > 0)
+            if (creature.FrozenTimer > 0 || IsStaggered(creature))
             {
-                continue; // held in stasis (item 36) — can't bite while frozen, so you can scan it safely
+                continue; // held in stasis (item 36) — can't bite while frozen, so you can scan it safely; dazed by a push (#2278) neither
             }
 
             // Hostile species attack; so do provoked (territorial) creatures fighting back.
@@ -1081,6 +1081,21 @@ public sealed partial class GameServer
                 {
                     continue;
                 }
+            }
+
+            // #2278: dazed by a shock-glove push — it stays where the push left it; only the vertical state runs, so the
+            // little hop lands and a push over a low ledge falls. When the daze runs out the clients hear of it at once.
+            if (StaggerJustEnded(creature))
+            {
+                BroadcastCreatures();
+            }
+
+            if (IsStaggered(creature))
+            {
+                creature.Position = ResolveVertical(creature, sp, motion, creature.Position, 0f, profile, moveDt,
+                    asleep: false, MoveMode.Roam, moving: false);
+                LiftEmbeddedHoverer(creature, sp, motion);
+                continue;
             }
 
             // Sleepers rest in place during their off-phase — only their vertical state runs (#1331/#1332).
@@ -2989,6 +3004,7 @@ public sealed partial class GameServer
             Hostile = !e.IsCompanion && (e.Hostile || e.ProvokeTimer > 0), // provoked creatures read as hostile (red tint); companions never
             Asleep = asleep,
             Frozen = e.FrozenTimer > 0, // held in stasis (item 36) — client tints it icy blue
+            Staggered = IsStaggered(e), // #2278: dazed by a shock-glove push — client draws circling stars
             OwnerId = e.OwnerId,        // tamed companion → client draws friendly tint + nameplate
             CustomName = e.CustomName,
             Alerting = e.IsCompanion && _uptime < e.AlertUntil, // #1210: growling at a hostile in sight

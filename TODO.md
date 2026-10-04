@@ -56,6 +56,105 @@ sounds generated with the repo scripts.
   the hold aboard; a glide from a cliff (and the "no air" hint on an airless moon); the spring-boot jump and the
   springs; the titanium look on yourself and on another player; the radar blips; the cloak on B.
 
+### 🏔️ Gloves & target-lock package — summits into space, fists, companions, Feed rebind, per-pilot hostiles, the flight target lock, shock + energy gloves, remote melee, first-person climbing hands (#2276 #2280 #2281 #2282 #2285 #2277 #2283 #2278 #2279 #2287, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (⚠ playtest open; #2284, #2286, #2306, #2307 stay open)
+
+**Report (Marcel, 2026-10-04, client 2026.10.4):** "I climbed a very high mountain that rose out of the atmosphere … now
+I don't know how to get back down." Since the #578 massifs a summit can rise above most planet types' atmosphere line
+(100–280; the generator's Y 288 cap was wrongly documented as "under the ~Y 320 line"). **Decision:** mountains MAY reach
+space — the float above the line is made readable and survivable instead of clamping the terrain.
+
+- **✅ #2276 readable + survivable zero-g above a planet (2026-10-04):** the toast names the controls with the device's own
+  glyphs (`hud.atmosphere.controls`); a one-time VEGA hint on the first float (`vega.hint.zero_g`); a ZERO-G badge in the
+  HUD location line; above a *planet's* line the suit sinks gently (1.5 blocks/s) with no vertical input (Jump still rises,
+  station zero-g still hovers); re-entry arms a server fall grace until the first landing (`PlayerSession.ReentryFallGrace`)
+  and a client fall-speed cap below the safe landing speed; a menu opened while floating keeps the height
+  (`ApplyGravityOnly`, stations too); the server's fall-damage threshold is now 14·√g like the client's; the bump snapshot
+  carries `location.bodyPlanetType` (the old `planetType` is the save's start type). Comments/docs corrected
+  (`WorldGenerator.Relief.cs`, WORLD_GENERATION.md, `TerrainExtremesTests` — the 288 cap is a generator safety net);
+  USER_MANUAL "Above the atmosphere on foot". Tests in `AtmosphereTests` (grace, settle, √g threshold, VEGA once) and
+  `BumpTests`.
+- **✅ #2280 bare hand is the weakest option (2026-10-04):** 5 damage, 1.2 s cooldown (its own entry, `MeleeRules` in Shared
+  — the client gates its swing on the same constant). Other non-weapon tools keep the old tier fallback. Tests in
+  `WeaponTests`; four older tests that spam-killed with fists now lower the target's hull first.
+- **✅ #2281 companions and pets cannot be attacked (2026-10-04):** own, foreign and tamer-NPC pets are refused in
+  `AttackCombatEntity` (`srv.attack.companion`, before any cooldown is spent); the client's crosshair pick and melee/auto-aim
+  cone skip creatures with an owner. Test in `WeaponTests`.
+- **✅ #2282 Feed is rebindable (2026-10-04):** `InputAction.FeedCreature` joined the on-foot `Remappable` group.
+- **✅ #2285 space hostiles hunt per pilot (2026-10-04):** each hostile picks the nearest pilot, keeps it 3 s and then
+  switches only to one clearly (30 %) nearer; chase and the "spotted" warning use that pilot's pose (per-pilot warning
+  cooldown). Tests in `EnemyMovementTests`.
+- **✅ #2277 flight target lock (2026-10-04, client-only — no protocol, no server change):** **T** next target (hold ~0.6 s =
+  let go), **R** nearest enemy (again = next nearest), **right mouse button** target ahead (empty = let go); pad **LB**
+  (hold = let go) / **R3**; touch **TARGET** (long press = let go) + both verbs in the ACT list; all three rebindable in the
+  flight group. Cycle order attacking hostiles → other hostiles incl. a raider demanding cargo → stations / wrecks / pods /
+  anomalies / wormholes → pilots and traders; asteroids, drops and planets only via "target ahead". Lock range = radar
+  range for moving things, system-wide for navigation points, everything during the Quantum ping; released at +10 %
+  ("Target lost" for 1.5 s). Auto-lock only with nothing locked when a hostile STARTS attacking (+ one-time VEGA tip,
+  `ClientSettings.TargetLockHintShown`); after a kill on to the next attacker, else clear. Frame per disposition (red
+  diamond + "!", orange hollow diamond, white corners, cyan ring) with name · disposition · km (▲/▼) and "In range" /
+  "Too far — fly closer"; edge arrow on an inner ellipse (mirrored behind the camera, pulses while the enemy attacks,
+  steady with Reduce flashes); red crosshair while the locked enemy is the firing solution; its health bar always shows.
+  Weapon assist ±40° with AutoAim on (server arc ±60°) and only for targets the weapon is built for (`weapon_class` —
+  never the breaker onto a drone), display-only with AutoAim off; the tractor pulls a locked drop; the scanner reads a
+  locked object in range without aiming. Shared kind lists + rules in `Client.Core/SpaceTargeting.cs`
+  (`SpaceTargetingTests`, 45 tests); `SpaceView.Targeting.cs`; contract test `AimValidationTests` (40° lands, 70° is
+  refused); EditMode test for the bindings. Side fix: the scanner label printed raw flight units as "m" — now instrument
+  km like the radar. Docs: USER_MANUAL §3 *Target lock* + controls / touch / pad, INPUT_AND_CONTROLLER, SPACE_COMBAT_CONCEPT
+  ("target lock is client presentation"), SHIP_SCANNER.
+- **✅ #2283 target lock polish (2026-10-04):** threat ticks (≤ 4 red ticks on the same ellipse toward further attackers
+  off screen); one HUD class for brackets (`SpaceTargetFrame` in `SpaceTargetHud.cs` — the scanner adds its charge ring
+  and track) on a nested targeting canvas; the amber waypoint arrow (⌖ + distance, in view just on the point); four own
+  ElevenLabs cues `target_lock`, `target_lock_hostile`, `target_cycle`, `target_lost` (0.48 s each, `ProceduralAudio`
+  stand-ins, NOTICES.md, SOUND_DESIGN §16, prompts in `gen_batch.py`).
+- **✅ #2278 shock gloves + energy gloves (2026-10-04):** two hotbar weapons held on BOTH hands (`"heldGrip": "gloves"`,
+  `ItemDefinition.HeldGrip` / `HeldGrips`), siblings in the Weapon research (energy needs the shock blueprint, crafting does
+  not consume the shock gloves), workshop recipes from existing materials. Shock: tier 1, 3 damage, 1.2 s, 0.5 suit
+  energy, **knockback 5, daze 1 s** (+1.5 s daze immunity); energy: tier 2, 22 damage, 0.5 s, 0.25 energy. New
+  `ToolProperties.Knockback` / `StaggerSeconds` (JSON `knockback` / `staggerSeconds`), `ToolMods.Apply` copies both and
+  scales the push with power; `KnockbackRules` (Shared: mass `clamp(2/size, 0.15, 1)`, giants 0, bandits 0.8, the heavy
+  hunter robot 0.6, 0.5-block sweep). `GameServerKnockback.cs`: creature / machine / bandit push swept through each one's
+  own collision rules (wall, hull, fence, shut door, drop > 3, water/lava for land animals — never off a cliff), a small hop
+  for walkers/crawlers; never players, companions/pets (`ProtectedFromPlayers`) or giants; dazed creatures neither move
+  nor bite, machines neither move nor hurt (aura paused), bandits neither move nor shoot; the end of a daze broadcasts at
+  once. Additive `Staggered` on `NetCreature` / `NetCombatEntity` (no protocol bump). Client: `HeldItem.Kind.Gloves`,
+  `HeldItemShapes.Mirror` / `Glove` / `ClimbGear` (Client.Core, tested), a second mirrored holder in `Viewmodel` used
+  only for gloves and climbing (idle fists, energy = alternating jabs, shock = wind-up + two-palm push with the ring
+  between the palms), the avatar wears both gloves (climbing pads hidden meanwhile) and punches (`PlayerAvatar.Punch`);
+  FX styles `shock_push` / `energy_fist` (no new shader) and `FxShots.Daze` (stars; sparks over robots) on
+  `CreatureView` / `WorldEntities`; five ElevenLabs cues `glove_whoosh`, `glove_shock_blast`, `glove_energy_hit`,
+  `glove_charge`, `glove_stagger` (+ `ProceduralAudio.GloveIds`), two icons. Tests: `GloveWeaponTests` (16),
+  `WeaponTests.Weapons_HaveExpectedToolStats`, `HeldItemShapesTests`, `FxStyleResolverTests`, `FxContentTests` (34 styles).
+  Docs: USER_MANUAL (*Glove weapons*, effects), Codex `combat`, VFX.md, SOUND_DESIGN §17, NOTICES.md.
+- **✅ #2279 other players see and hear melee (2026-10-04):** a melee `ActionFx` now swings the remote avatar's arm
+  (`Swing()` for blades, tools, fists; `Punch()` for the gloves, alternation local per avatar) and plays the swing cue in 3D
+  at them (+ the hit cue at the target); one cue rule `FxStyleResolver.MeleeSwingCue` / `MeleeHitCue` for own and remote
+  swings. No new network field.
+- **✅ #2287 first-person climbing hands (2026-10-04):** while climbing a wall or a ladder the held item sinks out of view
+  and both suit hands come up (the same mirrored second holder, suit colour + arm painting), hand over hand in the rhythm
+  of `PlayerAvatar.PoseClimb` (vertical + sideways travel), shorter reach + tremble with strain, both hands dragging down
+  on a slide, pressing on the ledge on the pull-up, the climbing gloves' orange pads (and claws) on both hands; leaving
+  the wall brings the item back. Driven by `PlayerController.UpdateClimbPose` / `EndClimb` (`Viewmodel.SetClimbing`,
+  `SetClimbGear`); hidden in third person, aboard, on EVA; holders inactive when unused. USER_MANUAL climbing section.
+- **✅ Review hardening (2026-10-05):** an attack with a NaN/infinite aim is ignored and the push direction refuses a
+  non-finite length (no NaN positions); a creature in stasis is not pushed (still dazed); a pushed machine stops before
+  a player's body (`EnemyStopRange`, #749); the client's bare hand has its own swing timer like the server's; the server
+  accepts a punch up to `MeleeRules.FistJitterToleranceSeconds` (0.1 s) early; the ship scanner prefers the nose target
+  and reads the locked one only with nothing on the nose; `BioLabTests` / `GameServerFinaleTests` pin gravity 1 for
+  their fall checks. Tests in `GloveWeaponTests` / `WeaponTests`.
+- **Open (gloves / climbing hands):** local Unity build + playtest — glove feel and the stat table with Justus (push
+  distance, daze length, energy cost, the 0.5 s energy rhythm), both gloves in first person on a wide FOV and on touch /
+  phone portrait (does the left glove collide with HUD or hotbar?), the avatar's gloves and punch for other players, the
+  climbing hands on a wall and a ladder (climb, tired, slide, pull-up, with and without climbing gloves), the daze stars
+  over animals / sparks over robots; the 12 community locales for the new `item.shock_gloves.*`, `item.energy_gloves.*`,
+  `blueprint.shock_gloves.*`, `blueprint.energy_gloves.*` keys and the Codex `combat` text (en/de only). Later (phase 5
+  after the playtest): a cone push, the "push master" achievement, an arms-dealer offer, `knockback`/`staggerSeconds` in the
+  content editor, a player look for the gloves.
+- **Open (target lock):** playtest (mouse, pad, touch; browser on "Low"; the Guardian finale with 12
+  enemies; a pirate system with a raider demanding cargo); optional sharper line icons via `gen_hud_icons.py` if the
+  procedural shapes look too plain. (Local Unity build ✅ Success; the 12 community locales ✅ topped up with hand QA.)
+- **Open:** #2306 — non-weapon tools (drill, scanner) still hit for 15 + 10·tier with no server cooldown; Marcel
+  decides whether they share the fist rule. #2307 — the bandit terrain sweep breaks at the world seam (older bug).
+
 ### 🎮 In-game dialogs: Esc / pad-B gaps and a canvas leak (#2303, 2026-10-04, branch fix/dialog-esc-pad-gaps) — ✅ done (⚠ pad check open)
 
 Found while giving the modals their open effect (#2302). All client-only, no protocol or save change.
@@ -12541,7 +12640,8 @@ rearranging the existing slots — no new data model.
      float** kicks in; **`Sky`/`Starfield`** switch to a **space sky** (black + stars) regardless of the planet's
      own sky. A bilingual toast on crossing up/down (`hud.atmosphere.left`/`.entered`, DE+EN).
    - **Per-body heights:** breathable jungle/varied 240, swamp 230; toxic rocky/desert 190, ice 200; airless
-     crystal/lava 150, asteroid 100 (all well above terrain peaks ~80-98). Void worlds 0 = disabled.
+     crystal/lava 150, asteroid 100 (all well above terrain peaks ~80-98 at the time — since the #578 massifs a
+     summit can reach above the line; intended and made survivable by #2276). Void worlds 0 = disabled.
    - **Tested:** climb sets `AboveAtmosphere` + drains O₂ on a breathable world; descend clears it; hysteresis
      doesn't flicker; aboard-ship never counts; per-body heights differ — full suite **337 green**. Client +
      bundled server rebuilt.
@@ -13562,7 +13662,9 @@ Client-only. *Playtest wanted.*
   `SlideDoorOpenRange = 4.5`**; the per-door tighter range from the ship-hatch fix (1.8) was applied **only** to
   ship-stamp doors, not stations. In a station's tight rooms 4.5 means you're always within range → doors stay
   open. *Fix:* give station (and tight interior) slide doors a smaller open range, like the hatch.
-- **B24 — Red dots in the space HUD — enemies? Flew to one, saw no enemy ship. [PLAYTEST/analysis]** Most likely
+- **B24 — Red dots in the space HUD — enemies? Flew to one, saw no enemy ship. [✅ DONE 2026-10-04 — the flight target
+  lock #2277/#2283: a labelled frame (name, "Enemy", distance) on the target, an edge arrow when it is off screen or
+  behind, red ticks toward further attackers, and the auto-lock onto an attacker; playtest open]** Most likely
   the **enemy drones at long range**: combat spawns drones **150+ units away** from the launch point
   (`GameServerSpaceCombat.cs:349` — deliberately far so launching is safe) and each drone has a **glowing red
   sensor "eye"** (`SpaceView.cs:1232`), so at distance it reads as a small red dot; singleplayer runs
@@ -16879,7 +16981,9 @@ player edits survive in place):
   #477 volcano recipe, seam-safe by construction).
 - **#578 massifs + rifts** — rare giant mountains (+120–220, ridged flanks, auto snow/ice summits) and
   deep gorge segments (50–130) that flood into fjord lakes below sea level. At most ONE landmark claims
-  a column (volcano > massif > butte > rift) and `SurfaceHeight` clamps at Y 288 (atmosphere line ~320).
+  a column (volcano > massif > butte > rift) and `SurfaceHeight` clamps at Y 288 (a generator safety cap — the
+  "atmosphere line ~320" given here was wrong: most types draw their line at 100–280, so summits can reach space;
+  intended since #2276).
   Calibration now samples the full `SurfaceHeight` so the snow gate sees massif summits; altitude-biome
   normalisation switched to the 2–98 % height percentiles so lone landmarks don't compress the biome span.
 - **#579 new planet types** — tablelands (grand-mesa terraces), badlands (fine-ridged gullies), karst

@@ -144,6 +144,83 @@ namespace BlocksBeyondTheStars.Client
             return parts;
         }
 
+        /// <summary>The kind name of an item worn on both hands (#2278, the shock and energy gloves). Deliberately not a
+        /// shaped kind: the tool-look editor does not offer gloves (yet).</summary>
+        public const string GlovesKind = "Gloves";
+
+        private static readonly Rgb GloveShell = new Rgb(0.30f, 0.33f, 0.38f);
+        private static readonly Rgb GloveCuff = new Rgb(0.16f, 0.18f, 0.22f);
+        private static readonly Rgb ClimbCuff = new Rgb(0.22f, 0.24f, 0.28f);
+        private static readonly Rgb ClimbPad = new Rgb(0.95f, 0.50f, 0.15f);
+        private static readonly Rgb ClimbClaw = new Rgb(0.80f, 0.88f, 0.95f);
+
+        /// <summary>
+        /// Mirrors parts across the holder's x = 0 plane (#2278): a right glove becomes the left one. Only the x of each
+        /// centre flips — sizes, colours and glow stay — because every part is an axis-aligned box: no negative scale, so
+        /// no inside-out faces. Mirroring twice gives the parts back.
+        /// </summary>
+        public static List<Part> Mirror(IReadOnlyList<Part> parts)
+        {
+            var mirrored = new List<Part>(parts.Count);
+            foreach (var p in parts)
+            {
+                mirrored.Add(new Part(new Vector3(-p.Position.X, p.Position.Y, p.Position.Z), p.Size, p.Color, p.Glow));
+            }
+
+            return mirrored;
+        }
+
+        /// <summary>
+        /// One glove of a pair held on both hands (#2278), as a RIGHT glove pointing along +Z: the item's own model (its
+        /// <c>heldModel</c> data), or — for a glove item without one, say from a content pack — a plain padded glove whose
+        /// knuckle plate takes the kind's tint. The caller mirrors it for the left hand and puts the suit forearm behind it.
+        /// </summary>
+        public static List<Part> Glove(IReadOnlyList<HeldModelPart>? model, Rgb tint)
+        {
+            var own = FromModel(model, tint);
+            if (own.Count > 0)
+            {
+                return own;
+            }
+
+            return new List<Part>
+            {
+                P(0f, 0f, 0.07f, 0.15f, 0.14f, 0.16f, GloveShell),     // the fist
+                P(0f, -0.01f, -0.02f, 0.15f, 0.15f, 0.08f, GloveCuff),  // the cuff
+                P(-0.085f, 0.01f, 0.05f, 0.05f, 0.07f, 0.09f, GloveShell), // the thumb, on the inner side
+                new Part(new Vector3(0f, 0.075f, 0.09f), new Vector3(0.12f, 0.02f, 0.07f), tint, glow: true), // knuckle plate
+            };
+        }
+
+        /// <summary>
+        /// The worn climbing gear on a first-person suit hand (#2287, the climbing gloves and claws of #2192), as parts of
+        /// a RIGHT hand in the frame of the bare hand (fist at z 0.07): a dark cuff, orange grip pads on the back of the
+        /// fingers, the fingertips and the palm, and for the claws three pale spikes past the fingertips. Empty without
+        /// either piece. Slightly larger than the hand's own boxes, so the two never fight over a face.
+        /// </summary>
+        public static List<Part> ClimbGear(bool gloves, bool claws)
+        {
+            var parts = new List<Part>();
+            if (!gloves && !claws)
+            {
+                return parts;
+            }
+
+            parts.Add(P(0f, -0.02f, -0.02f, 0.135f, 0.135f, 0.08f, ClimbCuff));
+            parts.Add(P(0f, 0.066f, 0.10f, 0.12f, 0.016f, 0.06f, ClimbPad));   // back of the fingers (faces the eye)
+            parts.Add(P(0f, 0f, 0.146f, 0.12f, 0.10f, 0.016f, ClimbPad));      // fingertips
+            parts.Add(P(0f, -0.066f, 0.07f, 0.11f, 0.016f, 0.10f, ClimbPad));  // palm
+            if (claws)
+            {
+                for (int i = -1; i <= 1; i++)
+                {
+                    parts.Add(P(i * 0.04f, 0.02f, 0.17f, 0.018f, 0.018f, 0.05f, ClimbClaw));
+                }
+            }
+
+            return parts;
+        }
+
         private static Part P(float x, float y, float z, float w, float h, float d, Rgb color)
             => new Part(new Vector3(x, y, z), new Vector3(w, h, d), color);
     }

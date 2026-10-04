@@ -392,6 +392,7 @@ public sealed class BioLabTests : IDisposable
         Assert.Equal(30f, p.State.Shield, 1);
 
         p.State.Health = 100f;
+        server.SetGravityFactorForTest(1f); // the safe landing speed scales with √g (#2276) — pin it at 14
         server.FallDamageForTest("Faller", 17f); // a little over the safe landing speed: about 13 damage
         Assert.Equal(100f, p.State.Health, 1);
         Assert.True(p.State.Shield < 30f && p.State.Shield > 0f);

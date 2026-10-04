@@ -134,10 +134,11 @@ public sealed partial class GameServer
         foreach (var bandit in _bandits)
         {
             moved |= MoveBandit(bandit, targets, dt, ref changed);
+            changed |= StaggerJustEnded(bandit); // #2278: the dizzy look ends even for a bandit that stands still
 
             // Damage aura: only a hostile bandit hurts, only in range, and only with a clear line of
-            // sight — ducking behind cover protects from the gunner too.
-            if (!bandit.Hostile)
+            // sight — ducking behind cover protects from the gunner too. A dazed one (#2278) holds its fire.
+            if (!bandit.Hostile || IsStaggered(bandit))
             {
                 continue;
             }
@@ -353,6 +354,11 @@ public sealed partial class GameServer
         if (BanditStalledByCompanion(bandit))
         {
             return false; // #1210: a companion is in the way — the robber waits it out (no damage either way)
+        }
+
+        if (IsStaggered(bandit))
+        {
+            return false; // #2278: dazed by a shock-glove push — it stands where the push left it
         }
 
         MoveMode intent = MoveMode.Roam;

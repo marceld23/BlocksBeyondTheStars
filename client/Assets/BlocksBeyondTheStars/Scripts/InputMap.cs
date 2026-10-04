@@ -67,6 +67,12 @@ namespace BlocksBeyondTheStars.Client
         // Tab are the two keys a player must not be able to bind away — that can strand them in a modal.
         UiCancel,             // close / step back out of a screen — Escape, pad B
         UiMenu,               // toggle the in-game Tab menu — Tab, pad Start
+
+        // Flight target lock (#2277), appended so no existing value moves (bindings are stored by name anyway).
+        // Read at the helm only: T / R / the right mouse button are on-foot verbs elsewhere, never in the cockpit.
+        FlightTargetNext,     // cycle to the next target; hold ~0.6 s to clear the lock — default T, pad LB, touch TARGET
+        FlightTargetHostile,  // lock the nearest enemy, again = the next nearest — default R, pad R3
+        FlightTargetAhead,    // lock what is under the crosshair; nothing there = clear — default right mouse button
     }
 
     /// <summary>
@@ -146,7 +152,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.RepairWreck, InputAction.ToggleLamp, InputAction.ToggleStealth, InputAction.RotateShape,
             InputAction.ToggleThermal, InputAction.ToggleChat, InputAction.OpenChat, InputAction.HotbarAction,
             InputAction.PlanetMap, InputAction.VegaContinue, InputAction.ContextActions,
-            InputAction.PingMarker,
+            InputAction.PingMarker, InputAction.FeedCreature, // #2282: Feed was in no group, so Q could not be rebound
         };
 
         /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
@@ -154,6 +160,7 @@ namespace BlocksBeyondTheStars.Client
         {
             InputAction.FlightEnterInterior, InputAction.FlightPadChooser,
             InputAction.FlightAutopilot, InputAction.FlightMap, InputAction.EvaDeployStation,
+            InputAction.FlightTargetNext, InputAction.FlightTargetHostile, InputAction.FlightTargetAhead, // #2277
         };
 
         /// <summary>Vehicle (speeder) + dock/trade actions exposed as a third rebinding group.</summary>
@@ -221,6 +228,11 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FeedCreature => KeyCode.Q,  // free on foot (#2018): the editors read Q only inside their own screens
             InputAction.UiCancel => KeyCode.Escape, // the key every screen already closed on (#1198)
             InputAction.UiMenu => KeyCode.Tab,      // the key that always opened the in-game menu (#1198)
+            // #2277: T is the genre's target key and R sits next to it; the right mouse button is idle at the helm
+            // (SecondaryDown is an EVA verb). On foot T/R trade, repair and rotate — another context, never both.
+            InputAction.FlightTargetNext => KeyCode.T,
+            InputAction.FlightTargetHostile => KeyCode.R,
+            InputAction.FlightTargetAhead => KeyCode.Mouse1,
             _ => KeyCode.None,
         };
 
@@ -490,6 +502,9 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FeedCreature => "ui.key.feed_creature",
             InputAction.UiCancel => "ui.key.ui_cancel",
             InputAction.UiMenu => "ui.key.ui_menu",
+            InputAction.FlightTargetNext => "ui.key.flight_target_next",
+            InputAction.FlightTargetHostile => "ui.key.flight_target_hostile",
+            InputAction.FlightTargetAhead => "ui.key.flight_target_ahead",
             _ => string.Empty,
         };
 

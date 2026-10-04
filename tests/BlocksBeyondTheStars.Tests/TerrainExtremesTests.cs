@@ -41,10 +41,12 @@ public class TerrainExtremesTests
     }
 
     [Fact]
-    public void SurfaceHeight_NeverExceedsTheAtmosphereSafeCap()
+    public void SurfaceHeight_NeverExceedsTheGeneratorSafetyCap()
     {
-        // #577/#578: no natural column — archetype, style, drama or landmark — may poke a player "into
-        // space" on foot. The cap sits safely under the ~Y 320 atmosphere line.
+        // #577/#578: no natural column — archetype, style, drama or landmark — may grow past the generator's
+        // safety cap (Y 288), the net under freak archetype × drama × landmark stacks. This is NOT an atmosphere
+        // guarantee: most planet types draw their atmosphere line below 288, and a summit reaching into space is
+        // allowed (#2276) — the float above the line is made readable and survivable instead.
         var content = Content();
         int period = WorldConstants.LatitudePeriodFor(WorldConstants.Circumference);
         foreach (var planet in content.Planets.Values)

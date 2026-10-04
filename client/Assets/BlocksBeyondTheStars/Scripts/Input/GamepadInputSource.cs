@@ -351,6 +351,12 @@ namespace BlocksBeyondTheStars.Client
             // screen owns the input, so the roles never collide.
             InputAction.UiCancel => BtnB,
             InputAction.UiMenu => BtnStart,
+            // Flight target lock (#2277): LB is idle at the helm (it places blocks on foot and in an EVA, where the
+            // lock is not read); holding it also slows the pad look (precision), harmless for a tap. R3 is shared
+            // with HotbarAction, which does nothing at the helm (HotbarActionUi.CanOpen hides in flight outside an
+            // EVA) — the same split as above: one button, two contexts that never overlap.
+            InputAction.FlightTargetNext => BtnLb,
+            InputAction.FlightTargetHostile => BtnR3,
             _ => KeyCode.None,
         };
 

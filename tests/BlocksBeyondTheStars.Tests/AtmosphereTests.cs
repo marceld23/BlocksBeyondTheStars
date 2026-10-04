@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Networking;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -278,6 +280,171 @@ public sealed class AtmosphereTests : IDisposable
             server.Tick(1.0);
             Assert.False(p.AboveAtmosphere, "Aboard the ship you're never 'on foot above the atmosphere'.");
         }
+    }
+
+    // ---------------- #2276: a summit (or tower) above the line is readable and survivable ----------------
+
+    /// <summary>The top solid cell of the origin column — a player standing on it has its feet at Y + 1.</summary>
+    private static int GroundY(SvGameServer server)
+    {
+        for (int y = 200; y > 8; y--)
+        {
+            if (!server.World.GetBlock(new Vector3i(0, y, 0)).IsAir)
+            {
+                return y;
+            }
+        }
+
+        return 64;
+    }
+
+    /// <summary>Floats the player above the line, then sinks them back below it in open air — a re-entry.</summary>
+    private static void FloatUpAndReEnter(SvGameServer server, BlocksBeyondTheStars.Shared.State.PlayerState p)
+    {
+        float line = (float)server.AtmosphereHeight;
+        p.Position = new Vector3f(0, line + 10f, 0);
+        server.Tick(0.2);
+        Assert.True(p.AboveAtmosphere);
+
+        p.Position = new Vector3f(0, line - 10f, 0); // below the hysteresis band, far above the ground
+        server.Tick(0.2);
+        Assert.False(p.AboveAtmosphere);
+    }
+
+    [Fact]
+    public void ReEntry_NoFallDamageUntilTheFirstLanding_ThenFallsCountAgain()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            server.SetGravityFactorForTest(1f); // safe landing speed 14
+            var session = server.AddLocalPlayer("Climber");
+            var p = session.State;
+            p.AboardShip = false;
+            FloatUpAndReEnter(server, p);
+            Assert.True(session.ReentryFallGrace, "sinking back below the line arms the fall grace");
+
+            // Still falling through open air: the grace holds over ticks.
+            server.Tick(0.5);
+            Assert.True(session.ReentryFallGrace);
+
+            p.Health = 100f;
+            server.FallDamageForTest("Climber", 20f); // a hard landing — the first one after the re-entry
+            Assert.Equal(100f, p.Health);
+            Assert.False(session.ReentryFallGrace, "the first landing ends the grace");
+
+            server.FallDamageForTest("Climber", 20f); // the next fall is a real fall again
+            Assert.True(p.Health < 100f, "after the first landing a hard landing hurts as usual");
+        }
+    }
+
+    [Fact]
+    public void ReEntry_GraceEndsAfterStandingOnTheGround_WithoutAFallReport()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            server.SetGravityFactorForTest(1f);
+            var session = server.AddLocalPlayer("Climber");
+            var p = session.State;
+            p.AboardShip = false;
+            FloatUpAndReEnter(server, p);
+            Assert.True(session.ReentryFallGrace);
+
+            // A soft landing (the client reports no fall): the feet rest on the ground for a moment.
+            p.Position = new Vector3f(0.5f, GroundY(server) + 1, 0.5f);
+            for (int i = 0; i < 6; i++)
+            {
+                server.Tick(0.25);
+            }
+
+            Assert.False(session.ReentryFallGrace, "standing on the ground ends the grace");
+            p.Health = 100f;
+            server.FallDamageForTest("Climber", 20f);
+            Assert.True(p.Health < 100f, "a later fall counts again");
+        }
+    }
+
+    [Fact]
+    public void FallDamageThreshold_ScalesWithTheSquareRootOfGravity_LikeTheClient()
+    {
+        var server = Started("rocky", out var repo);
+        using (repo)
+        {
+            var session = server.AddLocalPlayer("Faller");
+            var p = session.State;
+            p.AboardShip = false;
+            p.Position = new Vector3f(0.5f, GroundY(server) + 1, 0.5f);
+
+            // Heavy world (2 g): the client only reports from 14·√2 ≈ 19.8 — 19 is still a safe landing.
+            server.SetGravityFactorForTest(2f);
+            p.Health = 100f;
+            server.FallDamageForTest("Faller", 19f);
+            Assert.Equal(100f, p.Health);
+            server.FallDamageForTest("Faller", 22f);
+            Assert.True(p.Health < 100f, "past 14·√g a landing hurts on a heavy world");
+
+            // Light world (0.5 g): the safe speed drops to 14·√0.5 ≈ 9.9 — 12 already hurts (the flat 14 let it pass).
+            server.SetGravityFactorForTest(0.5f);
+            p.Health = 100f;
+            server.FallDamageForTest("Faller", 12f);
+            Assert.True(p.Health < 100f, "a light world's threshold sits lower too");
+        }
+    }
+
+    [Fact]
+    public void FirstFloatAboveTheLine_VegaExplainsTheWayDown_OncePerPlayer()
+    {
+        var link = new LoopbackLink();
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "atmo_vega"));
+        using var st = new LoopbackServerTransport(link);
+        using var client = new LoopbackClientTransport(link);
+        var lines = new List<ShipAiLine>();
+        client.PayloadReceived += payload =>
+        {
+            if (NetCodec.Decode(payload) is ShipAiLine l)
+            {
+                lines.Add(l);
+            }
+        };
+
+        var config = new ServerConfig
+        {
+            WorldName = "atmo_vega",
+            Seed = 11,
+            StartPlanet = "jungle",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            World = { TerrainGeneration = 0 },
+        };
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        client.Connect("loopback", 0);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Climber" }),
+            DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+
+        var p = server.Sessions.Values.First(s => s.State.Name == "Climber").State;
+        p.AboardShip = false;
+        float line = (float)server.AtmosphereHeight;
+        int Hints() => lines.Count(l => l.LineKey == "vega.hint.zero_g");
+
+        p.Position = new Vector3f(0, line + 10f, 0);
+        server.Tick(0.2);
+        client.Poll();
+        Assert.True(p.AboveAtmosphere);
+        Assert.Equal(1, Hints());
+        Assert.Contains("vega:hint:zero_g", server.MilestonesForTest("Climber"));
+
+        // Down below the line and up again: the hint was learned — it does not repeat.
+        p.Position = new Vector3f(0, line - 10f, 0);
+        server.Tick(0.2);
+        p.Position = new Vector3f(0, line + 10f, 0);
+        server.Tick(0.2);
+        client.Poll();
+        Assert.True(p.AboveAtmosphere);
+        Assert.Equal(1, Hints());
     }
 
     public void Dispose()

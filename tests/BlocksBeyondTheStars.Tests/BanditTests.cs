@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using Xunit;
@@ -200,6 +201,7 @@ public sealed class BanditTests : IDisposable
         var bandit = Assert.Single(server.Bandits);
 
         int plateBefore = pilot.State.Inventory.CountOf("iron_plate");
+        bandit.Hull = 1f; // #2280: one punch puts it down — the bare hand no longer lands 15-damage hits on every click
         for (int i = 0; i < 10 && server.Bandits.Count > 0; i++)
         {
             server.AttackEntity("Mark", bandit.Id);
@@ -224,10 +226,15 @@ public sealed class BanditTests : IDisposable
 
         foreach (var guard in server.Bandits.ToList())
         {
-            pilot.State.Position = guard.Position; // step up to each guard and put it down
+            guard.Hull = 1f; // #2280: one punch each — the bare hand no longer lands 15-damage hits on every click
             for (int i = 0; i < 10 && server.Bandits.Contains(guard); i++)
             {
+                pilot.State.Position = guard.Position; // step up to each guard and put it down
                 server.AttackEntity("Raider", guard.Id);
+                if (server.Bandits.Contains(guard))
+                {
+                    server.TickForTest(MeleeRules.FistCooldownSeconds); // the punch was too soon after the last one — wait
+                }
             }
         }
 

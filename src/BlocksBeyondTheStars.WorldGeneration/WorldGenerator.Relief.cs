@@ -101,9 +101,12 @@ public sealed partial class WorldGenerator
         return 0.9 + 0.6 * ((u >> 16 & 0x3FF) / 1023.0);
     }
 
-    /// <summary>Highest world Y natural terrain may reach — safely under the atmosphere line (~Y 320), so
-    /// no peak ever pokes a player "into space" on foot (#577/#578). Landmark height rolls clamp against
-    /// it; the final clamp here is the safety net for freak archetype × drama × landmark stacks.</summary>
+    /// <summary>Highest world Y natural terrain may reach (#577/#578) — a generator safety cap, NOT an atmosphere
+    /// guarantee. Landmark height rolls clamp against it; the final clamp here is the safety net for freak archetype ×
+    /// drama × landmark stacks. Most planet types draw their atmosphere line (<c>atmosphereHeight</c>, 100–280) below
+    /// this cap, so a high massif can rise above the line — by design since #2276: a summit at the edge of space is an
+    /// experience, and the game makes floating there readable and survivable (VEGA hint, gentle sinking, re-entry fall
+    /// grace) instead of clamping the peaks. Only skylands (320) and the gas giant (420) sit above it.</summary>
     private const int MaxNaturalSurfaceY = 288;
 
     /// <summary>The terrain height WITHOUT the volcano overlay — the base field volcano geometry itself is

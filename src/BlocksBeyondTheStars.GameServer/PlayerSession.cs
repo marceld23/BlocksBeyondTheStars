@@ -444,6 +444,15 @@ public sealed class PlayerSession
     /// under this player (kid rule: a moving block never hurts).</summary>
     public double MovingFallGraceUntil { get; set; }
 
+    /// <summary>#2276: set when the player sinks back below a planet's atmosphere line, cleared at the first landing
+    /// (a reported fall is swallowed, or the feet rest on ground for a moment). Full gravity returns at the line, so the
+    /// way back down from above it must never end in a fatal fall — the suit brakes the descent.</summary>
+    public bool ReentryFallGrace { get; set; }
+
+    /// <summary>#2276: how long the player has stood on ground since <see cref="ReentryFallGrace"/> was set — the grace
+    /// ends after a short settle, so the fall report that rides in with the landing still finds it.</summary>
+    public double ReentryGroundedSeconds { get; set; }
+
     /// <summary>Cached result of the last heal-tank proximity scan.</summary>
     public bool NearHealTank { get; set; }
 

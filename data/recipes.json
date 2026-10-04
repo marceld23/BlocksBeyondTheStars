@@ -61,6 +61,10 @@
   { "key": "gauss_pistol",   "station": "workshop", "requiredBlueprint": "gauss_pistol",   "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 2 } ],                                          "outputs": [ { "item": "gauss_pistol", "count": 1 } ] },
   { "key": "laser_pistol",   "station": "workshop", "requiredBlueprint": "laser_pistol",   "inputs": [ { "item": "gauss_pistol", "count": 1 }, { "item": "titanium_plate", "count": 2 }, { "item": "cable", "count": 2 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "laser_pistol", "count": 1 } ] },
   { "key": "plasma_blaster", "station": "workshop", "requiredBlueprint": "plasma_blaster", "inputs": [ { "item": "laser_pistol", "count": 1 }, { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 3 }, { "item": "energy_cell_1", "count": 3 }, { "item": "diamond", "count": 1 } ], "outputs": [ { "item": "plasma_blaster", "count": 1 } ] },
+  // #2278 the glove weapons are SIBLINGS, not an upgrade chain: the energy gloves need the shock gloves' blueprint but do
+  // not consume the shock gloves — pushing and punching both stay useful.
+  { "key": "shock_gloves",   "station": "workshop", "requiredBlueprint": "shock_gloves",   "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "polymer", "count": 2 }, { "item": "copper_wire", "count": 3 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "shock_gloves", "count": 1 } ] },
+  { "key": "energy_gloves",  "station": "workshop", "requiredBlueprint": "energy_gloves",  "inputs": [ { "item": "titanium_plate", "count": 2 }, { "item": "copper_wire", "count": 4 }, { "item": "energy_cell_1", "count": 2 }, { "item": "crystal", "count": 2 }, { "item": "polymer", "count": 1 } ], "outputs": [ { "item": "energy_gloves", "count": 1 } ] },
 
   { "key": "detoxify_gland", "station": "detoxifier", "inputs": [ { "item": "toxic_gland", "count": 1 } ], "outputs": [ { "item": "creature_meat", "count": 1 } ] },
   // #1203 detoxifier wash (bio_refining blueprint): toxic berries become safe, mud filters to water, giant-mushroom

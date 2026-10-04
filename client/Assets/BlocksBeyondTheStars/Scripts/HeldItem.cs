@@ -15,7 +15,10 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class HeldItem
     {
-        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer }
+        /// <summary>The look of the held item. <see cref="Gloves"/> (#2278) is worn on BOTH hands: the first-person view
+        /// builds the right glove with <see cref="Build"/> and the left one with <c>left: true</c> (the mirror image), the
+        /// avatar draws one on each hand. Every other kind stays one-handed.</summary>
+        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer, Gloves }
 
         /// <summary>What a working NPC carries (#1869), from the server's <c>NetNpc.Held</c> hint — not an item:
         /// the gardener's hoe, the craftsman's hammer, the guard's blade.</summary>
@@ -82,6 +85,13 @@ namespace BlocksBeyondTheStars.Client
                 return (Kind.Block, WorldMap.MapColor(def.PlacesBlock), def.PlacesBlock);
             }
 
+            // #2278: a pair of gloves is worn on both hands — read from the data (heldGrip), never guessed from the key, and
+            // before the weapon branch, which would hold it like a blade. The tint is the suit's, for the forearms.
+            if (HeldGrips.IsGloves(def))
+            {
+                return (Kind.Gloves, HandTintResolver?.Invoke() ?? DefaultGlove, null);
+            }
+
             var tool = def.Tool;
             if (tool == null)
             {
@@ -123,20 +133,29 @@ namespace BlocksBeyondTheStars.Client
         /// For blocks, <paramref name="blockKey"/> lets the cube carry its REAL atlas tile (textured hand
         /// block instead of a flat colour); without a resolver/tile it falls back to the tint.
         /// <paramref name="itemKey"/> picks the item's own look for drills, guns, blades and scanners (#1931) — from the
-        /// item data (#1962). <paramref name="look"/> is a PLAYER's own look for this tool (#1963) and wins over both.</summary>
+        /// item data (#1962). <paramref name="look"/> is a PLAYER's own look for this tool (#1963) and wins over both.
+        /// <paramref name="left"/> builds the LEFT hand's mirror image — only the two-handed kinds (#2278 gloves, the bare
+        /// hand of the #2287 climb) have one; every other kind ignores it.</summary>
         public static GameObject Build(Transform parent, Kind kind, Color tint, string blockKey = null, string itemKey = null,
-            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null)
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null,
+            bool left = false)
         {
             if (kind == Kind.None)
             {
                 return null;
             }
 
-            var holder = new GameObject("Held");
+            var holder = new GameObject(left ? "HeldLeft" : "Held");
             holder.transform.SetParent(parent, false);
 
             // #1931: every drill, gun, blade and scanner has its own parts (the base item keeps the model its kind had).
             var model = look != null && look.Count > 0 ? look : (itemKey != null ? ModelResolver?.Invoke(BlocksBeyondTheStars.Shared.State.ItemKey.Base(itemKey)) : null);
+            if (kind == Kind.Gloves)
+            {
+                BuildGlove(holder.transform, tint, model, left);
+                return holder;
+            }
+
             var shaped = HeldItemShapes.Parts(kind.ToString(), new HeldItemShapes.Rgb(tint.r, tint.g, tint.b), model);
             if (shaped != null)
             {
@@ -179,18 +198,7 @@ namespace BlocksBeyondTheStars.Client
                     break;
 
                 case Kind.Hand:
-                    // Empty slot (#1033): a gloved fist on the suit-coloured forearm — thumb on the inner
-                    // side of a right hand, cuff a darker shade for definition.
-                    var cuff = new Color(tint.r * 0.7f, tint.g * 0.7f, tint.b * 0.7f);
-                    var forearm = Cube(holder.transform, new Vector3(0.02f, -0.06f, -0.16f), new Vector3(0.11f, 0.11f, 0.30f), tint);
-                    var cuffGo = Cube(holder.transform, new Vector3(0f, -0.02f, -0.02f), new Vector3(0.12f, 0.12f, 0.07f), cuff);
-                    var fist = Cube(holder.transform, new Vector3(0f, 0f, 0.07f), new Vector3(0.13f, 0.12f, 0.14f), tint);
-                    var thumb = Cube(holder.transform, new Vector3(-0.075f, 0.01f, 0.05f), new Vector3(0.05f, 0.06f, 0.08f), tint);
-                    PaintHand(tint, forearm, fist, thumb); // the player's own arm painting, when there is one (#1427)
-                    // The hand is suit-coloured like the avatar, so it shares the avatar's failure mode:
-                    // LitColor's fixed key light + Linear colour space sink dark tints to a black silhouette
-                    // without the ambient lift PlayerAvatar.Lit applies (#1427). Cuff included.
-                    LiftAmbient(forearm, cuffGo, fist, thumb);
+                    HandCubes(holder.transform, tint, left);
                     break;
 
                 case Kind.Hoe:
@@ -209,6 +217,88 @@ namespace BlocksBeyondTheStars.Client
                 default: // Tool
                     Cube(holder.transform, new Vector3(0f, 0f, 0.06f), new Vector3(0.12f, 0.12f, 0.26f), tint);
                     break;
+            }
+
+            return holder;
+        }
+
+        /// <summary>The bare suit hand (#1033): a gloved fist on the suit-coloured forearm — thumb on the inner side, cuff a
+        /// darker shade for definition. <paramref name="left"/> mirrors it (thumb on +x) and paints it from the left arm.</summary>
+        private static void HandCubes(Transform holder, Color tint, bool left)
+        {
+            float mx = left ? -1f : 1f;
+            var cuff = new Color(tint.r * 0.7f, tint.g * 0.7f, tint.b * 0.7f);
+            var forearm = Cube(holder, new Vector3(0.02f * mx, -0.06f, -0.16f), new Vector3(0.11f, 0.11f, 0.30f), tint);
+            var cuffGo = Cube(holder, new Vector3(0f, -0.02f, -0.02f), new Vector3(0.12f, 0.12f, 0.07f), cuff);
+            var fist = Cube(holder, new Vector3(0f, 0f, 0.07f), new Vector3(0.13f, 0.12f, 0.14f), tint);
+            var thumb = Cube(holder, new Vector3(-0.075f * mx, 0.01f, 0.05f), new Vector3(0.05f, 0.06f, 0.08f), tint);
+            PaintHand(tint, left ? LeftOuterChunk : RightOuterChunk, forearm, fist, thumb); // the player's own arm painting (#1427)
+            // The hand is suit-coloured like the avatar, so it shares the avatar's failure mode:
+            // LitColor's fixed key light + Linear colour space sink dark tints to a black silhouette
+            // without the ambient lift PlayerAvatar.Lit applies (#1427). Cuff included.
+            LiftAmbient(forearm, cuffGo, fist, thumb);
+        }
+
+        /// <summary>#2278: one glove of a held pair on an avatar's hand (third person and other players). The glove model
+        /// points along +Z like every held model; the avatar's hand hangs along −Y, so the glove is turned onto the hand,
+        /// scaled to wrap the avatar's bigger hand box (0.2 wide) and set so its cuff closes over the wrist. No forearm —
+        /// the avatar has its own arm.</summary>
+        public static GameObject BuildAvatarGlove(Transform hand, string itemKey,
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look, bool left)
+        {
+            var holder = new GameObject(left ? "HeldGloveLeft" : "HeldGlove");
+            holder.transform.SetParent(hand, false);
+            holder.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // +Z (the fist's front) → down the hanging hand
+            holder.transform.localScale = Vector3.one * 1.55f;
+            holder.transform.localPosition = new Vector3(0f, 0.04f, 0f);
+            var model = look != null && look.Count > 0 ? look : (itemKey != null ? ModelResolver?.Invoke(BlocksBeyondTheStars.Shared.State.ItemKey.Base(itemKey)) : null);
+            BuildGlove(holder.transform, Color.white, model, left, forearm: false);
+            return holder;
+        }
+
+        /// <summary>One glove of a pair (#2278): the suit forearm (painted like the bare hand's; first person only) and the
+        /// glove's own parts from the item data — a right glove, mirrored for <paramref name="left"/>.</summary>
+        private static void BuildGlove(Transform holder, Color suit, System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> model, bool left,
+            bool forearm = true)
+        {
+            if (forearm)
+            {
+                float mx = left ? -1f : 1f;
+                var arm = Cube(holder, new Vector3(0.02f * mx, -0.06f, -0.17f), new Vector3(0.11f, 0.11f, 0.28f), suit);
+                PaintHand(suit, left ? LeftOuterChunk : RightOuterChunk, arm);
+                LiftAmbient(arm);
+            }
+
+            var parts = HeldItemShapes.Glove(model, new HeldItemShapes.Rgb(0.45f, 0.85f, 0.95f));
+            if (left)
+            {
+                parts = HeldItemShapes.Mirror(parts);
+            }
+
+            foreach (var part in parts)
+            {
+                Cube(holder, new Vector3(part.Position.X, part.Position.Y, part.Position.Z),
+                    new Vector3(part.Size.X, part.Size.Y, part.Size.Z), new Color(part.Color.R, part.Color.G, part.Color.B), part.Glow);
+            }
+        }
+
+        /// <summary>A first-person suit hand for the climb (#2287) under a new holder: the bare hand (painted, lifted) plus
+        /// the worn climbing gear's pads and claws (<see cref="HeldItemShapes.ClimbGear"/>), mirrored for the left hand.</summary>
+        public static GameObject BuildClimbHand(Transform parent, Color tint, bool left, bool gloves, bool claws)
+        {
+            var holder = new GameObject(left ? "ClimbHandLeft" : "ClimbHandRight");
+            holder.transform.SetParent(parent, false);
+            HandCubes(holder.transform, tint, left);
+            var gear = HeldItemShapes.ClimbGear(gloves, claws);
+            if (left)
+            {
+                gear = HeldItemShapes.Mirror(gear);
+            }
+
+            foreach (var part in gear)
+            {
+                Cube(holder.transform, new Vector3(part.Position.X, part.Position.Y, part.Position.Z),
+                    new Vector3(part.Size.X, part.Size.Y, part.Size.Z), new Color(part.Color.R, part.Color.G, part.Color.B), part.Glow);
             }
 
             return holder;
@@ -266,10 +356,15 @@ namespace BlocksBeyondTheStars.Client
             _handAtlasKey = null;
         }
 
+        /// <summary>Right limb = canvas row 1 → chunks 4..7 (front|outer|back|inner); the outer one is chunk 5. The left
+        /// limb is row 0 → chunks 0..3, its outer face chunk 1 (#2278/#2287: the left first-person hand).</summary>
+        private const int RightOuterChunk = 5;
+        private const int LeftOuterChunk = 1;
+
         /// <summary>Applies the player's arm painting to the hand parts (white tint + the atlas the avatar
-        /// also bakes, mapped to the right arm's OUTER chunk — the hero face of the paint editor). Without
+        /// also bakes, mapped to the arm's OUTER chunk — the hero face of the paint editor). Without
         /// a valid painting the parts keep their flat suit tint, matching the pre-#1427 look.</summary>
-        private static void PaintHand(Color baseColor, params GameObject[] parts)
+        private static void PaintHand(Color baseColor, int chunk, params GameObject[] parts)
         {
             string pixels = HandPaintResolver?.Invoke();
             if (string.IsNullOrEmpty(pixels) || pixels.Length != BodyPaint.ExpectedLength(BodyPaint.Arms))
@@ -289,10 +384,9 @@ namespace BlocksBeyondTheStars.Client
                 _handAtlasKey = key;
             }
 
-            // Right limb = canvas row 1 → chunks 4..7 (front|outer|back|inner); outer is chunk 5. Cube
-            // face UVs are 0..1, so the material ST maps every face onto that chunk (same trick as the
+            // Cube face UVs are 0..1, so the material ST maps every face onto that chunk (same trick as the
             // held block's atlas tile above). Transparent pixels are pre-composited onto the base colour.
-            var uv = BodyPaintKit.ChunkRect(BodyPaint.Arms, 5);
+            var uv = BodyPaintKit.ChunkRect(BodyPaint.Arms, chunk);
             foreach (var go in parts)
             {
                 var m = go.GetComponent<Renderer>().sharedMaterial;

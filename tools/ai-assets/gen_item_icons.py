@@ -211,6 +211,9 @@ ITEMS = [
     ("spring_boots", "a pair of chunky sci-fi space-suit boots with big shiny silver coil springs under the soles, dark grey with orange accents and small cyan ankle lights"),
     ("glider", "a compact sci-fi wing glider backpack with two unfolded bright orange fabric wings stretched over thin silver ribs, a dark grey harness in the middle"),
     ("suit_battery", "a compact sci-fi suit battery pack, a rounded dark metal cell with a glowing bright cyan energy window and a small clip, three green charge bars on its side"),
+    # #2278 shock + energy gloves (2026-10-04): the two glove weapons, held in both hands.
+    ("shock_gloves", "a pair of chunky sci-fi space-suit gauntlet gloves seen palm-forward, dark gunmetal plating with round glowing cyan shock emitter discs in the palms and a faint ring of cyan air ripple around them, small bright blue static sparks between the fingers"),
+    ("energy_gloves", "a pair of armoured sci-fi power gloves clenched into fists, light grey and warm gold plating with glowing amber energy coils across the knuckles and small crackling golden electric arcs around the fists"),
     # #2237/#2240 the ship scanner (2026-10-04): the built-in scanner's hotbar icon, tier 3 and the two workbench parts.
     ("ship_scanner", "a sleek sci-fi spaceship sensor module: a slim white and gunmetal nose array with one glowing cyan lens, four small glowing cyan holographic corner brackets floating in front of it as if locking onto a target"),
     ("quantum_scanner", "an advanced sci-fi spaceship sensor array: a dark gunmetal module with a ring of small glowing white-gold lenses around a bright central crystal eye, faint golden holographic scan lines fanning out from it"),

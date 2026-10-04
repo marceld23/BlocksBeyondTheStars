@@ -299,7 +299,12 @@ public sealed partial class GameServer
                     locationId = p.CurrentLocationId,
                     worldResident,
                     defaultJoinBody = _meta.ActiveLocationId,
+                    // planetType is the save's START type (kept for older inbox tooling); bodyPlanetType is the type of
+                    // the body the reporter is on — a report from "varied" was really from "gamer_hills" (#2276).
                     planetType = _meta.DefaultPlanetType,
+                    bodyPlanetType = worldResident
+                        ? _worlds.Active.PlanetType
+                        : ResolveLocationBody(p.CurrentLocationId)?.PlanetType ?? string.Empty,
                 },
                 player = new
                 {

@@ -50,7 +50,7 @@ namespace BlocksBeyondTheStars.Client
 
         public bool Is(string style) => Style == style;
 
-        /// <summary>Melee looks (swings, no projectile).</summary>
-        public bool IsMelee => Style is "slash" or "vibro" or "plasma_blade" or "fist";
+        /// <summary>Melee looks (swings and the gloves' blows, no projectile) — the one rule in <see cref="FxStyleResolver"/>.</summary>
+        public bool IsMelee => FxStyleResolver.IsMelee(Style);
     }
 }

@@ -68,6 +68,9 @@ Everything below the line "Deferred" is intentionally **not** in the MVP.
   `Hostile`, optional loot table. In-memory, per instance.
 - **SpaceInstance**: `Id` (bound to a location), `Kind` (Orbit / AsteroidField), entities,
   the set of present player ids. Created on first entry, unloaded when the last player leaves.
+  Hostiles hunt **per pilot** (#2285): each picks the nearest pilot (`CombatEntity.ChaseTargetId`), keeps it for a
+  few seconds and then switches only to a pilot clearly nearer (`PickChaseTarget`); chase movement and the
+  "spotted you" warning use that pilot's own pose, never the shared last-writer-wins `ShipPosition`.
 - **Ship combat stats** on `ShipState`: `Hull` / `Shield` current values; `HullMax` /
   `ShieldMax` / `ShieldRegenPerSecond` derived from built modules (`hull_plating`,
   `shield_generator`). Shield regenerates out of combat; hull does not (needs repair / base).
@@ -81,6 +84,30 @@ Everything below the line "Deferred" is intentionally **not** in the MVP.
   clear the instance, ship "recovered to base". PvP ship damage is **not** in the MVP (the
   world has one shared ship; per-player ships come later) — `ShipDamageByPlayers` is read but
   PvP hits are rejected with a clear reason.
+
+## Target lock is client presentation (#2277, #2283)
+
+The flight target lock (cycle with T / pad LB / touch TARGET, nearest enemy with R / R3, "target ahead" with the
+right mouse button; frame, edge arrow, threat ticks, waypoint arrow) is **pure client state** — no intent, no
+snapshot field, no protocol version. The server never learns what a player has locked. The lock only chooses which
+target id the client writes into the intents it already sends:
+
+- **`FireWeaponIntent.TargetEntityId`** — with the `AutoAim` rule on, the locked fire target is preferred inside
+  ±40° of the nose (`SpaceTargeting.LockAssistConeDegrees`), and only when the weapon's `weapon_class` suits it
+  (`SpaceTargeting.WeaponSuits` — no breaker onto a drone); the server's own arc stays ±60° (`ValidateSpaceAim`,
+  `dot < 0.5`), so a lock-assisted shot is never refused for its angle. `AimValidationTests` pins that contract
+  (40° lands, 70° is refused). With `AutoAim` off the lock is display-only — the boresight rule stays honest.
+- **`TractorPullIntent.TargetEntityId`** — a locked salvage drop in reach is the one pulled.
+- **`ScanEntityIntent.EntityId` / `PlanetScanIntent`** — the scanner reads a locked object in its range (the server
+  checks only the range there anyway), but only with nothing on the nose: a nose-aligned target always wins, so an
+  auto-lock on an attacker never steals the scan.
+
+A tampered client could always send any id; the server validates range, arc, rules, energy and cooldown exactly as
+before, so the lock adds no attack surface. The pure rules (disposition, cycle order, lock range with 10 %
+hysteresis, the attack newcomer watch behind the auto-lock, the edge-arrow placement incl. behind the camera) live in
+`Client.Core/SpaceTargeting.cs` with `SpaceTargetingTests`; the Unity side is `SpaceView.Targeting.cs` plus the shared
+bracket/arrow HUD classes in `SpaceTargetHud.cs` (the ship scanner's lock frame is the same class with its charge
+ring). A server-aware lock (a `TargetLockIntent`) only becomes worth it with homing weapons or a lock-on time.
 
 ## Planet enemies (server)
 

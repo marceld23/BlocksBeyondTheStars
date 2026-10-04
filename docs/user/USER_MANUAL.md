@@ -132,7 +132,7 @@ Last updated: 2026-10-04.
 | **L** | Toggle the suit headlamp (requires a **worn** `suit_lamp` — a module slot on the Suit tab; without one a hint says so) |
 | **B** | Switch the **stealth suit's** cloak on / off (requires the stealth suit **worn** in the chest slot; drains suit energy) — rebindable |
 | **G** | Loot the nearest container |
-| **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food |
+| **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food — rebindable (Settings → Controls → *Feed a begging animal*) |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
@@ -183,7 +183,9 @@ docking requests, the bandit demand, the blueprint / beacon / transporter window
 a storage crate's filter, the train cab, an NPC interview, and both maps. **(B)**
 also closes the gameplay menu itself and backs out of the main menu, Settings, the world picker and the
 editors. The right stick also steers the ship in flight; the d-pad cycles the **ship-systems bar**
-(laser ↔ tractor beam) at the helm. Direct hotbar number-key picks remain keyboard-only. Verbs without a
+(laser ↔ tractor beam) at the helm. At the helm **LB** is the **target lock** (tap = next target, hold =
+let go) and **R3** locks the **nearest enemy** (again = the next nearest) — see §3 → *Target lock*. Direct
+hotbar number-key picks remain keyboard-only. Verbs without a
 face button — everything in the **L3 Actions** list — can also be given their own button in Settings.
 
 While a pad is in your hands every menu shows a **hint strip along its bottom edge** — "(A) choose · (B)
@@ -249,7 +251,7 @@ buttons swap with what you're doing:
 | **≡** (top-right) | Open / close the gameplay menu |
 | *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump (at a wall, with the stick pushed towards it: grab and climb) · mine · place · use/board · descend (on a wall: let go) · open chat · camera · planet map |
 | *On foot, when it applies:* **ROTATE · ATTACK · FEED** | Rotate the held block's placement (appears while a rotatable block is selected) · swing / fire the held weapon (hold on the Guardian core to breach it) · throw one piece of the held food to a begging herd (appears while you hold food and an animal begs nearby) |
-| *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · MAP · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · system chart · camera · dock/board · float up/down |
+| *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · TARGET · MAP · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · target lock (tap = next target, long press = let go; "nearest enemy" is in **ACT**) · system chart · camera · dock/board · float up/down |
 | *EVA (spacewalk):* **FIRE (hold) · PLACE · DEPLOY · VIEW · USE · UP · DOWN** | Mine · place the selected block · deploy a station core · camera · board · float up/down |
 | *Speeder:* **BOOST (hold) · JUMP · EXIT · FUEL** | Boost · hop · dismount · refuel |
 
@@ -279,10 +281,47 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens the **landing map**: the planet's real terrain, the day/night band and — switchable with **☁ Weather: on/off** (remembered) — its **live weather**, with drifting fronts marked "◀ front ▶". Every pad says the weather waiting there (e.g. "⚡ Storm", "☀ Clear"), so you can pick a sunny pad. Click a free pad (or its number key) to land; **Esc** cancels |
 | **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) — or, next to a **wormhole**, fly through it (see *Wormholes* below) |
 | **Last hotbar slot → hold fire** | The **ship scanner** (every ship has one): point the nose at a planet, moon, asteroid, station, wreck, life pod, anomaly, wormhole or machine and **hold fire** until the ring fills. See *Ship scanner* in §5 |
+| **T** | **Target lock — next target** (pad **LB**, touch **TARGET**): attacking enemies first, then other enemies, then stations / wrecks / life pods / anomalies / wormholes, then other pilots and traders. **Hold T** (~½ s) to let the lock go. See *Target lock* below |
+| **R** | **Nearest enemy** (pad **R3**, touch: in the **ACT** list) — press again for the next nearest |
+| **Right mouse button** | **Target ahead**: lock what is under the crosshair — also asteroids, salvage and planets, which the cycle skips. Pointing at empty space lets the lock go |
 | **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual |
 | **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
 | **M** | **System chart**: a top-down map of the current system — every planet shows its current weather as a small glyph (☁ ☂ ⚡ ❄ …). Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart** |
 | **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
+
+### Target lock
+
+A **lock** marks one target and keeps it marked while you fly. On screen, a frame sits on it with its name,
+what it is and how far it is (in km, with ▲/▼ when it is well above or below you); for an enemy a line says
+**In range** or **Too far — fly closer** for the weapon you have selected. The frame's colour **and shape**
+tell you what it is, so you never need the colour alone:
+
+| Target | Colour | Frame | Arrow |
+|---|---|---|---|
+| **Enemy** (drone, saucer, cruiser, a raider that fights) | red | a diamond with **!** over it | filled, double (») |
+| **Demands cargo** (a raider still talking) | orange | a hollow diamond | filled |
+| **Neutral** (wreck, asteroid, anomaly, wormhole, salvage, trader, planet) | white | square corners | hollow |
+| **Friendly** (station, life pod, another pilot) | cyan | a ring | hollow |
+
+When the target is **off screen — or behind you** — an **arrow** on a ring inside the screen points the
+way, with the distance next to it; it pulses gently while that enemy is shooting at you (just bright with
+*Reduce flashes*). Other enemies attacking you get a small **red tick** on the same ring (up to four), and
+your **nav waypoint** from the chart (**M**) gets an **amber arrow** with its distance too.
+
+- **What you can lock:** enemies, pilots and traders within your **radar** range (1 300 km, 3 000 km with a
+  radar array) — what the radar shows, you can lock — stations, wrecks, life pods, anomalies and wormholes anywhere in the system, and everything
+  while the Quantum scanner's system sweep lasts. A lock that drifts out of range shows **Target lost** and
+  lets go after a moment.
+- **By itself:** with nothing locked, the ship locks onto an enemy the moment it starts attacking — VEGA
+  explains it the first time. It never swaps a lock you chose. After a kill the lock moves on to the next
+  attacking enemy (or lets go).
+- **The weapon helps:** with the **Auto-aim** world rule on, your laser prefers the locked target while it is
+  in range and roughly in front of you (within about 40°). With Auto-aim off the lock only shows the way —
+  you aim yourself. The aiming dot turns **red** while the locked enemy is in your sights. The tractor beam
+  pulls a locked salvage drop, and the **scanner** reads a locked object in its range without careful aiming
+  (a locked planet from anywhere) — as long as nothing else is right in front of your nose: what you point at
+  is always scanned first.
+- The lock lets go when you land, dock, step inside your ship, start a spacewalk or jump.
 
 Ship classes differ in **speed** and **handling** (`data/ships.json`): e.g. the scout is fast and agile,
 the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge, hull does not.
@@ -332,9 +371,12 @@ separate unlock; admins can still disable it through server world rules.
   - The laser draws a red beam with a glowing hot spot.
   - The plasma blaster throws a wobbling violet ball that lights up a cave as it flies.
   - Blades sweep a slash ribbon.
+  - The shock gloves send a cyan ring of pushed air out between your palms; the energy gloves crackle with gold
+    sparks at the punching fist.
   - Shots leave the barrel of the gun you hold.
 - **Hits and defeats.**
   - A creature or robot you hit flashes white.
+  - Little stars circle over a creature or bandit the shock gloves made dizzy; a dizzy robot fizzes with sparks.
   - When something hurts you, a red marker around the crosshair points toward the closest threat.
   - Beaten creatures break apart into sparkles, robots fall to parts, and bandits beam away.
 - **Mining.**
@@ -354,8 +396,9 @@ separate unlock; admins can still disable it through server world rules.
   - Space dust streaks past with your speed.
   - The hyperjump is a tunnel of light.
   - Landing builds a glow of heat around the ship.
-- **Other players** see your shots, swings, drilling and scans, and you see theirs. Gadgets (medkit, stasis, blaster,
-  terrain scanner) only show their effect once the game has accepted the use.
+- **Other players** see your shots, swings, drilling and scans, and you see theirs. Their arm really swings (a
+  blade's chop, a punch, both arms for the shock gloves) and you hear the swing where they stand. Gadgets (medkit,
+  stasis, blaster, terrain scanner) only show their effect once the game has accepted the use.
 - **Comfort settings:**
   - **Settings → Controls → Screen shake** (0–100 %) sets how hard hits, weapon kicks and explosions rattle the view.
     **Camera motion** off still stops all of it.
@@ -581,6 +624,22 @@ separate unlock; admins can still disable it through server world rules.
   still hides what is on the far side of it — nothing notices you across open water, and you cannot snipe
   through it either.
 
+### Above the atmosphere on foot
+- Every planet's air ends at an **atmosphere line** — a fixed height that depends on the planet type (thin air ends
+  low, thick air high). Build a tower up past it — or climb one of the rare giant mountains whose summit reaches
+  into space — and you are **in space on foot**: a toast says so and names the controls, VEGA explains it the first
+  time, and the HUD's location line shows **ZERO-G**. The sky turns black and starry.
+- **There is no gravity up there — you float.** Hold **Jump** to rise, hold **Crouch** (Ctrl/C, pad B, touch
+  DOWN) to sink faster; let go of both and the suit **sinks slowly back down** on its own. Walking off a summit
+  edge therefore no longer leaves you hovering in the air. Climbing walls does not work in zero-g.
+- **Air:** above the line there is nothing to breathe, even over a breathable world — the suit's oxygen tank
+  drains until you are back below it, and your health does not regenerate up there.
+- **The safe way back:** a few blocks below the line gravity returns ("Re-entering the atmosphere"). From then
+  until you land, the suit's **brake thrusters** keep your fall slow, and that first landing never hurts — however
+  high the summit or tower was. The next fall counts normally again.
+- On a player-built station, floating out of its gravity box works like zero-g too, but there the suit simply
+  hovers (see *Stations*).
+
 ### Climbing walls
 On planets, moons and asteroids you can **climb any solid wall** — a cliff, a canyon wall, a tree trunk, the side
 of a house. Ladders work as before (walk into one and you go straight up); climbing a wall is slower and takes
@@ -606,6 +665,10 @@ effort.
   slowly; the **climbing claws** (made from the gloves) last longer still and let you climb ice, sand and snow
   like rock. Wear them in a **module** slot; other players see them on your hands.
 - There is no climbing in space, in zero-g, in water, in your ship or on a station.
+- **In first person you see both hands climb:** whatever you held goes down, your hands reach up hand over hand
+  in the rhythm of your climb, reach shorter and shake when you get tired, drag down the wall when your grip is gone
+  and press on the edge as you pull yourself up — with the orange pads when you wear climbing gloves. Back on your
+  feet, your tool comes back up.
 - Other players see you climb — on walls and on ladders — facing the wall. The first time you stand in front of
   a tall wall, VEGA tells you how it works.
 
@@ -720,7 +783,8 @@ effort.
   no workbench in reach, a full stack per order — and the craft panel says so instead of "Materials missing". The
   only refusal left is a full inventory.
 - **Every tool looks like itself in your hand:** the titanium and diamond drills, the mining beam, each pistol and
-  blaster, the machete, vibro knife and plasma sword and the advanced scanner all have their own model.
+  blaster, the machete, vibro knife and plasma sword and the advanced scanner all have their own model. The shock and
+  energy gloves sit on both hands.
 - **Throwing things away:** select an item in the **Inventory** or **Cargo Hold** tab and press **"Throw
   away"** — it asks once ("Really throw away?"), and the second click destroys *every* stack of that item.
   This cannot be undone and gives nothing back. Your starting equipment (drill, scanner, suit lamp, machete,
@@ -937,6 +1001,12 @@ effort.
 - **Aiming**: the ship laser acquires the best target roughly **ahead of the nose** (the centre dot lights up
   cyan on lock). Weapon **range and fire rate come from the fitted module** — bigger cannons genuinely reach
   further.
+- **Target lock** (**T** / **R** / right mouse button, pad **LB** / **R3**, touch **TARGET**): mark an enemy or
+  any other target — a frame shows it, an arrow at the edge points to it when it is off screen, small red
+  ticks point at further attackers. With Auto-aim on the laser prefers the locked target, and the centre dot
+  turns **red** while the locked enemy is in your sights. Details in §3 → *Target lock*.
+- **Flying together:** every hostile hunts **one** pilot — the nearest — and sticks with them for a while; it only
+  switches to another pilot who comes clearly closer. VEGA warns the pilot it has spotted.
 
 ### Aiming & enemy health bars
 - Damaged enemies (and the one under your crosshair) show a small **health bar** that ramps
@@ -949,6 +1019,34 @@ effort.
   **under the crosshair** (on foot) or **on the ship's boresight** (in space) can be hit — misses
   really miss. Shots are server-validated either way, including line-of-sight (no shooting through
   walls).
+- **Fists are the weakest option.** With an empty hand (or a block, food or material in it) **F** throws a punch:
+  **5 damage, at most one every 1.2 s** — even the starter machete does better, and every crafted weapon more so.
+- **Companions and pets can't be attacked** — not your own, not a friend's, not a tamer's. The crosshair and
+  auto-aim pass them by (they never turn the reticle red), and a swing at one is refused with a friendly note.
+
+### Glove weapons (shock gloves and energy gloves)
+Two weapons you wear on **both hands** — hold them in the hotbar like any weapon; in first person you see both
+gloves. Research both in the **Weapon** category and craft them at the workshop; the energy gloves need the shock
+gloves' blueprint first, but crafting them does **not** use up your shock gloves — keep both.
+
+| | Shock gloves | Energy gloves |
+|---|---|---|
+| What they do | **push** creatures, robots and bandits about **5 blocks** away and leave them **dizzy for a second** | **fast punches**, left and right in turn |
+| Damage · cooldown | 3 (barely hurts) · 1.2 s | 22 · 0.5 s |
+| Suit energy per hit | 0.5 | 0.25 |
+
+- **A dizzy target** (little stars over its head; a robot fizzes with sparks) neither moves nor bites, and a robot's
+  or bandit's attack pauses. Right after that it can't be made dizzy again for a moment — you can still push it.
+- **Who flies how far:** small animals the full distance, big ones less, a titan about a block. **Giants** (the
+  colossus, sandworms, the leviathan, the sky giant) are far too big to push. **Players and companions/pets are never
+  pushed.** An animal frozen by a **stasis** field stays where it is (it still gets dizzy).
+- **No cheap tricks:** a push stops at walls, ship hulls, energy fences and shut doors, and never throws anything over
+  a cliff, into lava or (a land animal) into water. A pushed robot stops before it would bump into another player.
+- A timid animal you push runs off; an angry one comes back for you; pushing a bandit counts as saying "no" to its
+  hold-up.
+- With no suit energy left the gloves do nothing (recharge aboard your ship or at a heal tank). The bio lab can change
+  them like any weapon — more power also pushes farther.
+- Wearing **climbing gloves** too? Their pads hide under the fight gloves while you hold them.
 
 ### Asteroid belts
 - In worlds created with belts (the default for new worlds), a system's landable asteroids orbit
@@ -1900,7 +1998,8 @@ effort.
   creatures need more steps — and two animals of the same kind can behave differently.
 - A companion **lives on the world you tamed it on**: it follows you there (friendly green-cyan tint + a floating
   name), re-appears whenever you return, and is hidden elsewhere. Manage them in the **Companions** menu tab
-  (rename, **feed**, release — each with a **bond bar**). Companions are peaceful and can't be hurt.
+  (rename, **feed**, release — each with a **bond bar**). Companions are peaceful and can't be hurt — nobody can
+  attack one, yours or anyone else's (a tamer's pet included).
 - **Feed & bond:** every companion has a **bond** (0–100; a fresh tame starts around 40–60). **Feed** it from the
   Companions tab — any bait (forage, meat or nectar) will do, one meal a minute, **+5 bond** each. Feeding
   happens **in person**: the animal has to be on your world within about six blocks of you, otherwise the

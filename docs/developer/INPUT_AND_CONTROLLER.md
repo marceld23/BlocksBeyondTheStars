@@ -79,6 +79,14 @@ cluster.
   RB mine · d-pad ◄► hotbar / ship system · **d-pad ▲ = OpenChat** · **d-pad ▼ = RotateShape** ·
   **LS = ContextActions** (the list above) · **RS = HotbarAction** (slot pie) · **View = VegaContinue** (`PadButton.Back`, JoystickButton6 — shown as "View", the Xbox One/Series name; Unity's "Back" is the 360 name nobody finds on a modern pad) ·
   **Menu = UiMenu** (`PadButton.Start`, JoystickButton7 — shown as "Menu", the One/Series name; the Xbox-logo button belongs to the Windows Game Bar and never reaches the game). Every other action reaches the pad through the context-actions list or a rebind.
+- **Flight target lock (#2277).** At the helm **LB = `FlightTargetNext`** (tap = next target, hold ~0.6 s =
+  clear — `SpaceView.Targeting` fires the cycle on the release so the hold can win) and **RS = `FlightTargetHostile`**
+  (nearest enemy, again = the next nearest). Both buttons are shared on purpose, like `FlightEnterInterior`'s
+  rule above in reverse: LB is *place* on foot and in an EVA, where the lock is not read; RS is `HotbarAction`,
+  whose pie never opens at the helm (`HotbarActionUi.CanOpen`). Holding LB also slows the pad look
+  (precision) — harmless for a tap. `FlightTargetAhead` (keyboard: right mouse button) has no pad button;
+  LB nearly always does the job. Keyboard T / R are on-foot verbs too (trade, repair/rotate) — `PlayerController`
+  is frozen while the flight view is up, so they never fire together. All three sit in `FlightRemappable`.
 - **The two d-pad verbs are fixed (#1220).** An axis cannot be written as a `KeyCode`, so `OpenChat` and
   `RotateShape` fire from inside `GamepadInputSource.DpadActionDown` rather than through the binding table —
   both are still bindable to a *button* as well. Up went to chat because that is what makes text entry
@@ -256,7 +264,8 @@ layer, added to `InputMap`'s combine exactly like the pad — no gameplay change
   swap with the control state: **on foot** (JUMP / MINE-hold / PLACE / USE / DOWN / CHAT / VIEW / MAP, plus
   contextual **ROTATE** while a rotatable block is held and **ATTACK** (tap = swing, hold = finale breach)
   while a weapon is held), **flight + EVA** (`Game.SpaceViewActive`: FIRE-hold / USE / VIEW / UP / DOWN,
-  and at the helm LAND / SHIP / AUTO / MAP which swap for **PLACE / DEPLOY** in EVA — `Game.InEva`) and
+  and at the helm LAND / SHIP / AUTO / MAP / **TARGET** which swap for **PLACE / DEPLOY** in EVA — `Game.InEva`;
+  TARGET is registered for both the press and the hold, so a tap cycles and a long press clears, #2277) and
   **speeder** (`Game.DrivenSpeeder != null`: BOOST-hold / JUMP / EXIT / FUEL). Discrete buttons map to
   `InputAction`s through a lookup the `TouchInputSource.ActionDown/ActionHeld` methods read, so
   rebind-consuming call sites work unchanged; everything without a button is one tap away behind ACT.

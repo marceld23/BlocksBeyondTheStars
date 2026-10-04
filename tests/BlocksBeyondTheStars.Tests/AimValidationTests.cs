@@ -177,6 +177,42 @@ public sealed class AimValidationTests : IDisposable
         }
     }
 
+    /// <summary>#2277 contract: with AutoAim on, the client's target lock prefers the locked target inside ±40° of the
+    /// nose (<c>SpaceTargeting.LockAssistConeDegrees</c>). That only works while the server's arc is wider — a shot 40°
+    /// off the nose must land, one 70° off must still be refused. If the server cone ever narrows, this fails first
+    /// instead of every lock-assisted shot turning into a "not in the firing arc" message.</summary>
+    [Fact]
+    public void ShipWeapon_AcceptsTheTargetLockCone_ButNotBeyondTheServerArc()
+    {
+        var server = Started(out var repo, r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.SpaceCombat = SpaceCombatMode.PvE;
+            r.SpaceNpcEnemies = AlienActivity.Rare; // 1 drone
+            r.ShipWeapons = ShipWeaponMode.NpcsOnly;
+            r.AutoAim = true;
+        });
+        using (repo)
+        {
+            server.AddLocalPlayer("Gunner");
+            server.Ship.Modules.Add("ship_cannon_1");
+            server.EnterSpace("Gunner");
+
+            var drone = server.SpaceEntitiesFor("Gunner").First(e => e.Kind == CombatEntityKind.Drone);
+            server.ShipMove("Gunner", drone.Position.X, drone.Position.Y, drone.Position.Z - 10f); // drone dead ahead on +Z
+
+            // 70° off the nose: beyond the ~60° arc — refused, and the cooldown is not eaten.
+            float wide = 70f * MathF.PI / 180f;
+            server.FireWeapon("Gunner", "ship_cannon_1", drone.Id, dirX: MathF.Sin(wide), dirY: 0f, dirZ: MathF.Cos(wide));
+            Assert.Equal(drone.HullMax, drone.Hull);
+
+            // 40° off the nose (the lock's assist cone): the shot lands.
+            float lockCone = 40f * MathF.PI / 180f;
+            server.FireWeapon("Gunner", "ship_cannon_1", drone.Id, dirX: MathF.Sin(lockCone), dirY: 0f, dirZ: MathF.Cos(lockCone));
+            Assert.True(drone.Hull < drone.HullMax);
+        }
+    }
+
     [Fact]
     public void ShipWeapon_CooldownIsServerEnforced()
     {

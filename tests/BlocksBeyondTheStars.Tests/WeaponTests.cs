@@ -66,6 +66,22 @@ public sealed class WeaponTests : IDisposable
         Assert.Equal(ToolKind.Weapon, laser.Tool!.Kind);
         Assert.True(laser.Tool.Range >= 20f);    // ranged
         Assert.True(laser.Tool.EnergyPerUse > 0f); // energy weapon
+
+        // #2278: the glove weapons — melee reach, suit energy per hit; only the shock gloves push and daze.
+        foreach (var key in new[] { "shock_gloves", "energy_gloves" })
+        {
+            var gloves = _content.GetItem(key)!;
+            Assert.Equal(ToolKind.Weapon, gloves.Tool!.Kind);
+            Assert.True(gloves.Tool.Damage > 0f, $"{key}: damage 0 would fall back to the tier default");
+            Assert.True(gloves.Tool.Range is > 0f and < 6f, $"{key}: melee = short reach");
+            Assert.True(gloves.Tool.EnergyPerUse > 0f, $"{key}: every hit draws suit energy");
+            Assert.True(gloves.Tool.CooldownSeconds > 0f, $"{key}: a cooldown of its own");
+        }
+
+        Assert.True(_content.GetItem("shock_gloves")!.Tool!.Knockback > 0f);
+        Assert.True(_content.GetItem("shock_gloves")!.Tool!.StaggerSeconds > 0f);
+        Assert.Equal(0f, _content.GetItem("energy_gloves")!.Tool!.Knockback);
+        Assert.Equal(0f, machete.Tool.Knockback); // every other weapon stays push-free
     }
 
     [Fact]
@@ -152,6 +168,125 @@ public sealed class WeaponTests : IDisposable
             Assert.Contains(server.Creatures, c => c.Id == creature.Id);
             Assert.Equal(maxHull, server.Creatures.First(c => c.Id == creature.Id).Hull);
             Assert.Equal(0.5f, p.State.SuitEnergy); // nothing spent
+        }
+    }
+
+    // ---------------- #2280: the bare hand is the weakest option ----------------
+
+    [Fact]
+    public void BareHand_Punches5_AndAPunchWithinItsCooldownIsHeldBack()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Boxer");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+            p.State.Inventory.SetSlot(0, null); // nothing in hand
+            p.State.SelectedHotbarSlot = 0;
+
+            server.Tick(6.0);
+            var creature = server.Creatures.First(c => !c.IsGiant && !c.IsCompanion);
+            creature.HullMax = 50f;
+            creature.Hull = 50f;
+
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Boxer", creature.Id);
+            Assert.Equal(50f - MeleeRules.FistDamage, creature.Hull, 3);
+
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Boxer", creature.Id); // right away — inside the 1.2 s cooldown
+            Assert.Equal(50f - MeleeRules.FistDamage, creature.Hull, 3);
+
+            server.Tick(0.5);
+            Assert.Contains(server.Creatures, c => c.Id == creature.Id);
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Boxer", creature.Id); // 0.5 s after the punch — far too early, even with jitter
+            Assert.Equal(50f - MeleeRules.FistDamage, creature.Hull, 3);
+
+            // 1.15 s after the punch: 0.05 s early, inside the server's jitter slack — it lands.
+            server.Tick(0.65);
+            Assert.Contains(server.Creatures, c => c.Id == creature.Id);
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Boxer", creature.Id);
+            Assert.Equal(50f - (2 * MeleeRules.FistDamage), creature.Hull, 3);
+
+            server.Tick(MeleeRules.FistCooldownSeconds + 0.1);
+            Assert.Contains(server.Creatures, c => c.Id == creature.Id);
+            creature.Position = new Vector3f(0, 64, 3);
+            float before = creature.Hull;
+            server.AttackEntity("Boxer", creature.Id);
+            Assert.Equal(before - MeleeRules.FistDamage, creature.Hull, 3);
+        }
+    }
+
+    [Fact]
+    public void BareHand_IsWeakerPerSecondThanTheMachete()
+    {
+        var machete = _content.GetItem("machete")!.Tool!;
+        float macheteCooldown = machete.CooldownSeconds > 0f ? machete.CooldownSeconds : 1.5f;
+        Assert.True(MeleeRules.FistDamage / MeleeRules.FistCooldownSeconds < machete.Damage / macheteCooldown,
+            "the first crafted weapon must always beat the bare hand");
+
+        // Even a client that punches on the very edge of the server's jitter slack stays below the machete.
+        float fastestFist = MeleeRules.FistCooldownSeconds - MeleeRules.FistJitterToleranceSeconds;
+        Assert.True(MeleeRules.FistDamage / fastestFist < machete.Damage / macheteCooldown,
+            "the jitter slack must not make the fist outpunch the machete");
+    }
+
+    // ---------------- #2281: companions and pets cannot be attacked ----------------
+
+    [Fact]
+    public void Companions_AndPets_CannotBeAttacked_ButAWildCreatureStillCan()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Owner");
+            var stranger = server.AddLocalPlayer("Stranger");
+            foreach (var s in new[] { owner, stranger })
+            {
+                s.State.AboardShip = false;
+                s.State.Inventory.SetSlot(0, null);
+                s.State.SelectedHotbarSlot = 0;
+            }
+
+            owner.State.Position = new Vector3f(0, 64, 0);
+            stranger.State.Position = new Vector3f(1, 64, 0);
+
+            for (int i = 0; i < 20 && server.Creatures.Count(c => !c.IsGiant && !c.IsCompanion) < 2; i++)
+            {
+                server.Tick(1.0);
+            }
+
+            var wildOnes = server.Creatures.Where(c => !c.IsGiant && !c.IsCompanion).Take(2).ToList();
+            Assert.Equal(2, wildOnes.Count);
+            var pet = wildOnes[0];
+            var wild = wildOnes[1];
+            pet.OwnerId = "Owner"; // tamed by Owner
+            pet.HullMax = 50f;
+            pet.Hull = 50f;
+
+            // Neither the owner nor another player can hurt it.
+            foreach (var attacker in new[] { "Owner", "Stranger" })
+            {
+                pet.Position = new Vector3f(0, 64, 3);
+                server.AttackEntity(attacker, pet.Id);
+                Assert.Equal(50f, pet.Hull);
+            }
+
+            // A tamer NPC's pet neither.
+            pet.OwnerId = "npc:7";
+            pet.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Stranger", pet.Id);
+            Assert.Equal(50f, pet.Hull);
+
+            // A wild creature is still fair game — and the refused swings spent no cooldown.
+            wild.HullMax = 50f;
+            wild.Hull = 50f;
+            wild.Position = new Vector3f(1, 64, 3);
+            server.AttackEntity("Stranger", wild.Id);
+            Assert.True(wild.Hull < 50f, "a wild creature is still hit");
         }
     }
 

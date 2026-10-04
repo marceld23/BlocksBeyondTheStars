@@ -352,10 +352,16 @@ namespace BlocksBeyondTheStars.Client
         public bool Aboard { get; private set; }
         public bool InEva { get; private set; } // server-authoritative: floating outside the ship in space
 
-        /// <summary>When set, the on-foot player is above the atmosphere (zero-g) and must float instead of
-        /// fall — <see cref="PlayerController"/> drops gravity. Groundwork for item 10 (building a structure up
-        /// into space); nothing sets it yet, so it's a no-op until that lands.</summary>
+        /// <summary>When set, the on-foot player floats in zero-g instead of falling — <see cref="PlayerController"/>
+        /// drops gravity. Mirrors the server's <c>AboveAtmosphere</c> flag: above a planet's atmosphere line (item 10 —
+        /// a tower, or since #578 a high summit) or, on a player station, outside its gravity box (#1485/#1842). See
+        /// <see cref="OnFootAbovePlanet"/> for the planet case alone.</summary>
         public bool OnFootInSpace { get; set; }
+
+        /// <summary>#2276: zero-g above a PLANET's atmosphere line — not a station's. Above a planet the suit sinks gently
+        /// when no vertical control is held (a way back down that needs no knowledge) and the HUD shows the ZERO-G badge;
+        /// a station's zero-g keeps hovering in place.</summary>
+        public bool OnFootAbovePlanet => OnFootInSpace && string.IsNullOrEmpty(StationName);
 
         /// <summary>Zero-g construction mode on the boarded player station (#1842), server-authoritative and
         /// session-only. While set, <see cref="OnFootInSpace"/> is a chosen float rather than a drift over the
@@ -3846,9 +3852,13 @@ namespace BlocksBeyondTheStars.Client
             if (m.AboveAtmosphere != OnFootInSpace)
             {
                 OnFootInSpace = m.AboveAtmosphere;
-                if (!zeroGChanged && !m.StationZeroG)
+                // #2276: the planet's line only. A station's float has its own server line that names the controls
+                // (srv.station.zero_g) — the atmosphere wording was wrong there and could bury it.
+                if (!zeroGChanged && !m.StationZeroG && string.IsNullOrEmpty(m.StationName))
                 {
-                    LastMessage = Localizer?.Get(m.AboveAtmosphere ? "hud.atmosphere.left" : "hud.atmosphere.entered") ?? LastMessage;
+                    LastMessage = m.AboveAtmosphere
+                        ? AtmosphereLeftToast()
+                        : Localizer?.Get("hud.atmosphere.entered") ?? LastMessage;
                 }
             }
 
@@ -3867,6 +3877,34 @@ namespace BlocksBeyondTheStars.Client
             }
             AiCoreTier = m.AiCoreTier;
             ServerSpawn ??= new Vector3(m.X, m.Y, m.Z);
+        }
+
+        /// <summary>#2276: the toast for floating up past a planet's atmosphere line — what happened, then the controls
+        /// that bring you back (the old line only said "zero gravity", and a child who climbed a summit into space did not
+        /// know what to press). Two keys so the long-translated first half stays valid in every language.</summary>
+        private string AtmosphereLeftToast()
+        {
+            string left = Localizer?.Get("hud.atmosphere.left") ?? "You have left the atmosphere — zero gravity";
+            string controls = Localizer?.Get("hud.atmosphere.controls")
+                              ?? "Let go to drift slowly down · hold {0} to sink faster · {1} rises";
+            return left + "  ·  " + string.Format(controls, LocomotionGlyph(jump: false), LocomotionGlyph(jump: true));
+        }
+
+        /// <summary>#2276: the on-screen label of the fixed Jump / Crouch control for the device in hand. They are not
+        /// rebindable <see cref="InputAction"/>s, so <see cref="InputMap.Glyph"/> cannot name them: the pad's bottom /
+        /// right face button (GamepadInputSource), the touch JUMP / DOWN buttons, else the keyboard keys
+        /// DesktopInputSource reads (Space, Ctrl or C).</summary>
+        private string LocomotionGlyph(bool jump)
+        {
+            switch (InputMap.ActiveDevice)
+            {
+                case InputDeviceKind.Gamepad:
+                    return InputMap.PadGlyph(jump ? KeyCode.JoystickButton0 : KeyCode.JoystickButton1) ?? string.Empty;
+                case InputDeviceKind.Touch:
+                    return Localizer?.Get(jump ? "ui.touch.jump" : "ui.touch.down") ?? string.Empty;
+                default:
+                    return Localizer?.Get(jump ? "ui.key.jump_keys" : "ui.key.crouch_keys") ?? (jump ? "Space" : "Ctrl/C");
+            }
         }
 
         /// <summary>(A2) Kicks off an OFF-THREAD geometry build for one chunk; returns false (no work, no budget

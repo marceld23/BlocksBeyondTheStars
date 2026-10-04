@@ -58,6 +58,8 @@ namespace BlocksBeyondTheStars.Client
             public float RollDeg;          // smoothed banking roll (#652) — fliers lean into turns
             public Vector3 PrevFaceDir;    // last frame's facing → heading rate for the banking roll
             public float AttackUntil; // a visible lunge window when attacking
+            public bool PrevStaggered; // #2278: to detect the daze starting (one dizzy cue per push)
+            public float NextDazeSpark; // #2278: paces the daze effect's sparks
             public GameObject Stasis; // icy-blue stasis shell shown while frozen (item 36)
             public bool Echo;     // cave dwellers' calls get a reverberant echo (item 21)
             public GameObject Nameplate; // floating name label shown above a tamed companion
@@ -384,6 +386,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 SetStasis(entry, c.Frozen, c.Size); // icy-blue shell while held in stasis (item 36)
+                UpdateDaze(entry, c);               // #2278: stars circling a creature the shock gloves dazed
                 UpdateNameplate(entry, c);          // floating name label above a tamed companion
                 UpdateSleep(entry, c);              // breathing bob + "z z z" while the creature is asleep (off-phase)
 
@@ -463,7 +466,7 @@ namespace BlocksBeyondTheStars.Client
 
                     // No bite-lunge once the player has fled into their ship: the server stops targeting a
                     // boarded player (no proximity damage), so the render side must not keep mauling the hull.
-                    if (c.Hostile && !Game.Aboard && now >= entry.NextAttack && c.GiantHeight <= 0f // a giant stomps/strikes instead
+                    if (c.Hostile && !Game.Aboard && !c.Staggered && now >= entry.NextAttack && c.GiantHeight <= 0f // a giant stomps/strikes instead; a dazed one (#2278) does not bite
                         && (entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < 9f)
                     {
                         entry.NextAttack = now + Random.Range(1.5f, 3.5f);
@@ -637,6 +640,25 @@ namespace BlocksBeyondTheStars.Client
         /// lower with a slow breathing bob, and float a soft "z z z" above it so the player can read that it is
         /// asleep (and can be snuck up on, or woken by coming close / hitting it). Label is built lazily, kept
         /// under the game root (upright, not the creature rig) and billboarded + distance-faded like nameplates.</summary>
+        /// <summary>#2278: while the server reports the creature dazed by a shock-glove push, a few little stars circle over
+        /// its head; the moment the daze starts a soft dizzy "boing" plays there. Nothing at all otherwise.</summary>
+        private void UpdateDaze(Entry e, NetCreature c)
+        {
+            if (c.Staggered && !e.PrevStaggered)
+            {
+                ClientAudio.Instance?.At("glove_stagger", e.Root.transform.position, Random.Range(0.95f, 1.08f), 0.8f);
+            }
+
+            e.PrevStaggered = c.Staggered;
+            if (!c.Staggered)
+            {
+                return;
+            }
+
+            float s = Mathf.Clamp(c.Size, 0.4f, 8f);
+            FxShots.Daze(e.Root.transform.position + (Vector3.up * ((1.1f * s) + 0.35f)), 0.22f + (0.12f * s), robot: false, ref e.NextDazeSpark);
+        }
+
         private void UpdateSleep(Entry e, NetCreature c)
         {
             if (!c.Asleep)

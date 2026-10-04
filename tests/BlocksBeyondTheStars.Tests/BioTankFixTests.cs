@@ -667,6 +667,7 @@ public sealed class BioTankFixTests : IDisposable
             GrowClone(server, p, b);
 
             p.State.Position = first.Position;
+            first.Hull = 1f; // #2280: one punch defeats it — the bare hand no longer lands 15-damage hits on every click
             for (int i = 0; i < 40 && server.Creatures.Any(c => c.Id == first.Id); i++)
             {
                 server.AttackEntity("Keeper", first.Id);
