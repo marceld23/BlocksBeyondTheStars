@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧑‍🚀 The suit — paper doll, slot picker, gear strip, stealth on B, radar contacts, four modules, new gear (#2298: #2288–#2297, 2026-10-04, branch feat/suit-paper-doll-gear) — ✅ done (⚠ playtest open; release note: protocol 11)
+### 🧑‍🚀 The suit — paper doll, slot picker, gear strip, stealth on B, radar contacts, four modules, new gear (#2298: #2288–#2297, 2026-10-04, branch feat/suit-paper-doll-gear) — ✅ done (released in v2026.10.6: protocol v11; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04).** The worn slots (head, chest …) sat on the Backpack tab although they belong to the
 Suit; a click on an empty slot should offer the fitting pieces from the backpack and the cargo hold; every slot should
@@ -56,7 +56,9 @@ sounds generated with the repo scripts.
   the hold aboard; a glide from a cliff (and the "no air" hint on an airless moon); the spring-boot jump and the
   springs; the titanium look on yourself and on another player; the radar blips; the cloak on B.
 
-### 🏔️ Gloves & target-lock package — summits into space, fists, companions, Feed rebind, per-pilot hostiles, the flight target lock, shock + energy gloves, remote melee, first-person climbing hands (#2276 #2280 #2281 #2282 #2285 #2277 #2283 #2278 #2279 #2287, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (⚠ playtest open; #2284, #2286, #2306, #2307 stay open)
+**Released** in **v2026.10.6** "the suit-up release" (2026-10-05).
+
+### 🏔️ Gloves & target-lock package — summits into space, fists, companions, Feed rebind, per-pilot hostiles, the flight target lock, shock + energy gloves, remote melee, first-person climbing hands (#2276 #2280 #2281 #2282 #2285 #2277 #2283 #2278 #2279 #2287, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (released in v2026.10.6; ⚠ playtest open; #2284, #2286, #2306, #2307 stay open)
 
 **Report (Marcel, 2026-10-04, client 2026.10.4):** "I climbed a very high mountain that rose out of the atmosphere … now
 I don't know how to get back down." Since the #578 massifs a summit can rise above most planet types' atmosphere line
@@ -155,7 +157,9 @@ space — the float above the line is made readable and survivable instead of cl
 - **Open:** #2306 — non-weapon tools (drill, scanner) still hit for 15 + 10·tier with no server cooldown; Marcel
   decides whether they share the fist rule. #2307 — the bandit terrain sweep breaks at the world seam (older bug).
 
-### 🎮 In-game dialogs: Esc / pad-B gaps and a canvas leak (#2303, 2026-10-04, branch fix/dialog-esc-pad-gaps) — ✅ done (⚠ pad check open)
+**Released** in **v2026.10.6** "the suit-up release" (2026-10-05).
+
+### 🎮 In-game dialogs: Esc / pad-B gaps and a canvas leak (#2303, 2026-10-04, branch fix/dialog-esc-pad-gaps) — ✅ done (released in v2026.10.6; ⚠ pad check open)
 
 Found while giving the modals their open effect (#2302). All client-only, no protocol or save change.
 
@@ -171,7 +175,9 @@ Found while giving the modals their open effect (#2302). All client-only, no pro
 - **⚠ Pad check open:** B closes an NPC interview (with and without the on-screen keyboard up) and a crate's filter;
   Escape on the vendor prompt and the interview no longer opens the pause menu.
 
-### 🧫 Sample case overview — effect in every row, filters + effect families, throwing samples away, the lab's open effect (#2299 #2300 #2301 #2302, 2026-10-04, branch feat/sample-case-overview) — ✅ done (⚠ playtest open)
+**Released** in **v2026.10.6** "the suit-up release" (2026-10-05).
+
+### 🧫 Sample case overview — effect in every row, filters + effect families, throwing samples away, the lab's open effect (#2299 #2300 #2301 #2302, 2026-10-04, branch feat/sample-case-overview) — ✅ done (released in v2026.10.6; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04, after v2026.10.5).** "With many samples, how do you keep the overview in the bio lab's
 list? Make it filterable — use the effect categories? Same for the inventory's sample view." Plus: "the bio lab menu
@@ -205,6 +211,8 @@ throwing samples away goes in, the lab gets the Tab menu's look and the other mo
 - **⚠ Playtest open:** the lab's frames and open/tab-change effect; chips and the Effect button with a pad and in long
   languages; the inventory's Samples strip; throwing a sample away from both places; the Codex family headings.
 - **✅ Follow-up #2303** (older, found on the way) — fixed separately, see the entry above.
+
+**Released** in **v2026.10.6** "the suit-up release" (2026-10-05).
 
 ### 💎 Crystal Net 2 — moving blocks, lifts, new devices, owner + alliance rule, world circuits, the net aboard the own ship, catch-up on return (#2251: #2252–#2271, 2026-10-04, branch feat/crystal-net-2) — ✅ done (released in v2026.10.5: protocol v10, save version 3; ⚠ playtest open)
 

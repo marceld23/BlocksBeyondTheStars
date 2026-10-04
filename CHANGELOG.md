@@ -11,6 +11,98 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.6] — 2026-10-05
+
+The suit-up release. Your **suit** gets its own page: the worn pieces sit around a **figure**, and a click on any
+slot shows everything that fits, from your backpack or, aboard, straight from the **cargo hold** (#2298). Six new
+pieces join it: a **titanium set**, **spring boots** that jump higher, a **glider** for the back and a **suit
+battery**, and the suit now has **four module slots**. Next to the quick-bar a small **gear strip** shows your lamp,
+jetpack, glider and stealth suit, the stealth suit finally switches on (**B**), and the radar scanner shows nearby
+creatures and players on the compass. Also new: **shock and energy gloves** you swing with both hands, a **target
+lock** in space, a way down from summits that poke above the atmosphere, and a sample case that keeps its overview.
+
+ℹ️ **Compatibility:** the network protocol goes to **version 11**, so game and server must both be on 2026.10.6. An
+older game cannot join a 2026.10.6 server, and the server says so. The save version stays at **3** and the terrain
+generation at **20**: your saves and worlds carry over unchanged, and the suit grows its two new module slots by
+itself on the first start. The desktop game updates itself on start, and the browser version is always current.
+
+### 🧑‍🚀 Your suit as a figure (#2288 #2289 #2293)
+
+- The Inventory's **Suit** tab shows what you wear around a **figure**: head, chest, legs and feet on one side, back,
+  tank and liner on the other, and the modules below. The **Backpack** tab is just your backpack and quick-bar now.
+- **Click any slot**, empty or not: a list shows every piece that fits, what it does ("Armour +20 %", "Jump +60 %"
+  …) and where it lies, in your **backpack** or, while you are aboard, in the ship's **cargo hold**. Pick one to put
+  it on, or **Take off** the one you wear. Nothing fitting yet? The button jumps straight to the recipe.
+- **Four module slots** instead of two, so the lamp, a radio, the climbing gloves and the oxygen extractor all fit at
+  once.
+- Under the figure, *Can be used actively* lists the worn gear you switch or fly yourself, with your real keys.
+- A new pilot starts with the suit lamp already worn, and the suit teleporter stays a quick-bar tool.
+
+### 🪂 New gear: titanium, spring boots, glider, suit battery (#2294 #2295 #2296 #2297)
+
+- **Titanium helmet, chest plate and leg plates** (tier 2, blueprints after the iron pieces): more armour and more
+  warmth. The full set reaches the armour cap of 75 %, and the plates shine blue-silver on your figure.
+- **Spring boots** (blueprint after the boots): you jump about **60 % higher** and land softer, and the coils under
+  your boots stretch on the jump and squash on landing.
+- **Glider** (back slot, instead of the jetpack): while falling, **hold Jump** and the wings unfold. You glide forward
+  slowly and steer where you look, with no suit energy at all. It needs air, so it stays folded on airless worlds and
+  in space. Other players see your wings.
+- **Suit battery** (module): **150 suit energy** instead of 100 for the jetpack, the cloak and the climate control.
+- Every new piece has its own icon, look and sounds.
+
+### 💡 Active gear at a glance (#2290 #2291 #2292)
+
+- A small **gear strip** right of the quick-bar shows each worn piece you use yourself, the lamp, the jetpack, the
+  glider and the stealth suit, with its state, its key and your suit energy. On a tablet, tap it to switch the lamp
+  or the cloak. It takes none of the nine quick-bar slots, so the tool in your hand stays where it is.
+- The **stealth suit** could be built and worn but never switched on. Now **B** turns the cloak on and off
+  (rebindable; on a pad and a tablet it is in the Actions list). You shimmer faintly in third person.
+- The **radar scanner** finally does what it says: while you wear it, the compass shows creatures within 48 m
+  (hostile ones red, the rest green) and other players (cyan), with a soft blip when a hostile comes close.
+- Pressing L or B without the lamp or the stealth suit tells you to put it on, instead of doing nothing.
+
+### 🧤 Shock and energy gloves (#2278 #2279 #2287)
+
+- **Shock gloves** push an enemy away by up to five blocks and daze it for a moment. **Energy gloves** hit hard with
+  quick left-right jabs. Both are worn on **both hands**, in first person and on your figure.
+- Other players now see and hear every melee swing and punch.
+- While you climb a wall you see **both hands** climb hand over hand, climbing gloves included.
+
+### 🎯 Target lock in space (#2277 #2283)
+
+- **T** steps to the next target (hold to clear it), **R** locks the nearest enemy, the right mouse button the target
+  ahead; on a pad LB and R3, on a tablet the TARGET button.
+- A frame names the target, shows its distance and whether it is in range, and an arrow at the screen's edge points
+  to it when it is out of view. Weapons, the tractor beam and the scanner use the lock, and short sounds confirm it.
+
+### 🏔️ Summits above the atmosphere (#2276)
+
+- Some mountains reach above a planet's atmosphere. Up there your suit now **sinks gently** instead of floating
+  forever, a message names the controls, and on the way back down the suit brakes the fall until you land.
+
+### ⚔️ Fairer fights (#2280 #2281 #2282 #2285)
+
+- Bare fists are weaker (5 damage, a short pause between punches), your companions and pets can no longer be hit by
+  accident, and enemies in space chase the pilot nearest to them.
+- **Feed** (Q) can be put on another key.
+
+### 🧪 The sample case keeps its overview (#2299 #2300 #2301 #2302)
+
+- In the bio lab and on *Inventory → Samples*, every sample says what it holds, sorted by plants, animals and
+  deposits. Filters by kind and by **effect family** help you find the right one.
+- You can **throw samples away** when the case is full; the research book keeps what you learned.
+- The bio lab and nine more dialogs open with a short fade.
+
+### 🎮 Dialogs and the gamepad (#2303)
+
+- Pad B closes an NPC conversation and a crate's filter, and Esc on a dialog no longer also opens the pause menu.
+
+### 🌍 Texts
+
+- Everything new is in all **14 languages**. Some gear descriptions in seven languages still said a piece works in
+  your backpack; they now say it works while you wear it. The 2026.10.5 "What's new?" texts arrived in twelve more
+  languages (#2275).
+
 ## [2026.10.5] — 2026-10-04
 
 The tinkerer release. The **Crystal Net** grows up (#2251): blocks now **move** — secret doors, trapdoors, bridges
@@ -6871,7 +6963,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.5...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.6...HEAD
+[2026.10.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.5...v2026.10.6
 [2026.10.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.4...v2026.10.5
 [2026.10.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.3...v2026.10.4
 [2026.10.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.2...v2026.10.3
