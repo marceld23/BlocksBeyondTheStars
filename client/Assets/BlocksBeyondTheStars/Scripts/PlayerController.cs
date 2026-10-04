@@ -1894,7 +1894,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Aim point: the block under the crosshair, else a point a few metres ahead of the camera.
-            bool aimed = AimBlock(out var cell, out _, includeFluids: true);
+            // #2268: the remote control pairs with a receiver aboard a parked ship too — its march tests the ships.
+            bool aimed = key == "remote_control" ? AimTarget(out var cell, out _, out _) : AimBlock(out cell, out _, includeFluids: true);
             Vector3 target = aimed
                 ? new Vector3(cell.x + 0.5f, cell.y + 0.5f, cell.z + 0.5f)
                 : transform.position + Camera.transform.forward * 5f;
@@ -1986,7 +1987,8 @@ namespace BlocksBeyondTheStars.Client
             // said so. Ship marker cells are covered by NearbyStation above; the factory terminal has its own label.
             Game.AimedStationBlock = null;
             // #2049: the Crystal Net device in the crosshair, for the HUD prompt (one ray, the same reach as E).
-            Game.AimedCrystalDevice = AimBlock(out var crystalAim, out _) ? Game.CrystalDeviceAt(crystalAim.x, crystalAim.y, crystalAim.z) : null;
+            // #2268: the march tests the parked ships too, so a switch in the own cabin is aimed at like one on the ground.
+            Game.AimedCrystalDevice = AimTarget(out var crystalAim, out _, out _) ? Game.CrystalDeviceAt(crystalAim.x, crystalAim.y, crystalAim.z) : null;
             if (string.IsNullOrEmpty(Game.NearbyStation) && AimBlock(out var aimHit, out _))
             {
                 string aimedKey = Game.Content?.BlockById(Game.World.GetBlock(aimHit.x, aimHit.y, aimHit.z))?.Key;
@@ -2071,18 +2073,20 @@ namespace BlocksBeyondTheStars.Client
 
             // #2049: a Crystal Net device you're aiming at — a switch toggles, a button presses, everything with a menu
             // opens it. Aim-based, so it works the same with mouse look, the right stick and the touch look pad.
-            if (AimBlock(out var crystalHit, out _) && Game.CrystalDeviceAt(crystalHit.x, crystalHit.y, crystalHit.z) is { } crystalDev)
+            if (AimTarget(out var crystalHit, out _, out _) && Game.CrystalDeviceAt(crystalHit.x, crystalHit.y, crystalHit.z) is { } crystalDev)
             {
                 var crystalKind = CrystalDeviceUi.KindOf(crystalDev);
                 if (crystalKind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Switch)
                 {
-                    Game.Network?.SendSetCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 0);
+                    Game.SendCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 0);
                     return;
                 }
 
-                if (crystalKind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Button)
+                // A button presses; #2266: a lift stop calls the platform to its floor.
+                if (crystalKind is BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Button
+                    or BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.LiftStop)
                 {
-                    Game.Network?.SendSetCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 1);
+                    Game.SendCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 1);
                     return;
                 }
 
@@ -2430,6 +2434,24 @@ namespace BlocksBeyondTheStars.Client
 
             Game.SelectedHotbarSlot = slot;
             Game.Network?.SendSelectHotbar(slot);
+        }
+
+        /// <summary>#2266: a lift platform under the player moved by <paramref name="dy"/> this frame — the player rides along
+        /// (the capsule is moved with the platform, never pushed into it; a rising floor also ends any fall).</summary>
+        public void RideBy(float dy)
+        {
+            if (_controller == null || !_controller.enabled || Mathf.Abs(dy) < 1e-5f)
+            {
+                return;
+            }
+
+            _controller.enabled = false;
+            transform.position += new Vector3(0f, dy, 0f);
+            _controller.enabled = true;
+            if (dy > 0f && _verticalVelocity < 0f)
+            {
+                _verticalVelocity = 0f;
+            }
         }
 
         /// <summary>Teleports the player (CharacterController toggled so the move isn't blocked) and zeroes fall speed.</summary>
@@ -4805,7 +4827,7 @@ namespace BlocksBeyondTheStars.Client
                         bool shipOriented = PendingPlacement(item, hitCell, placeCell, out _, out int shipUp, out int shipYaw);
                         Game.Network.SendStructureEdit(boundsShip.StructureId, lp.X, lp.Y, lp.Z, mine: false, item,
                             upFace: shipOriented ? shipUp : _placeUpFace,
-                            yaw: shipOriented ? shipYaw : _placeYaw);
+                            yaw: shipOriented ? shipYaw : _placeYaw, deviceDir: DeviceDirFor(def.PlacesBlock));
                         TriggerSwing();
                         return;
                     }
@@ -4819,7 +4841,7 @@ namespace BlocksBeyondTheStars.Client
                         bool siteOriented = PendingPlacement(item, hitCell, placeCell, out _, out int siteUp, out int siteYaw);
                         Game.Network.SendStructureEdit(aimedShip.StructureId, gl.x, gl.y, gl.z, mine: false, item,
                             upFace: siteOriented ? siteUp : _placeUpFace,
-                            yaw: siteOriented ? siteYaw : _placeYaw);
+                            yaw: siteOriented ? siteYaw : _placeYaw, deviceDir: DeviceDirFor(def.PlacesBlock));
                         TriggerSwing();
                         return;
                     }
@@ -4834,7 +4856,7 @@ namespace BlocksBeyondTheStars.Client
                         bool extOriented = PendingPlacement(item, hitCell, placeCell, out _, out int extUp, out int extYaw);
                         Game.Network.SendStructureEdit(aimedShip.StructureId, el.x, el.y, el.z, mine: false, item,
                             upFace: extOriented ? extUp : _placeUpFace,
-                            yaw: extOriented ? extYaw : _placeYaw);
+                            yaw: extOriented ? extYaw : _placeYaw, deviceDir: DeviceDirFor(def.PlacesBlock));
                         TriggerSwing();
                         return;
                     }
@@ -4865,12 +4887,37 @@ namespace BlocksBeyondTheStars.Client
                         bool orientable = PendingPlacement(item, hitCell, placeCell, out _, out int upFace, out int yaw);
                         Game.Network.SendPlace(placeCell.x, placeCell.y, placeCell.z, item,
                             upFace: orientable ? upFace : _placeUpFace,
-                            yaw: orientable ? yaw : _placeYaw);
+                            yaw: orientable ? yaw : _placeYaw, deviceDir: DeviceDirFor(def.PlacesBlock));
                     }
 
                     TriggerSwing();
                 }
             }
+        }
+
+        /// <summary>#2267: the direction a directional Crystal Net device (a logic block, a piston, a bridge motor, …) is
+        /// placed with: looking steeply down points it down, steeply up points it up, otherwise the rotate key's quarter
+        /// turn — or −1, and the server takes the player's facing as before. The device menu's Turn button changes it
+        /// later.</summary>
+        private int DeviceDirFor(string blockKey)
+        {
+            var kind = CrystalNetRules.KindOfKey(blockKey ?? string.Empty);
+            if (!CrystalNetRules.IsDirectional(kind))
+            {
+                return -1;
+            }
+
+            if (_pitch > 50f)
+            {
+                return CrystalNetRules.YawDown;
+            }
+
+            if (_pitch < -50f)
+            {
+                return CrystalNetRules.YawUp;
+            }
+
+            return _placeYaw >= 0 && _placeYaw <= 3 ? _placeYaw : -1;
         }
 
         /// <summary>#2120: whether the player stands in their ship — anywhere in the ship interior out in space; on a planet

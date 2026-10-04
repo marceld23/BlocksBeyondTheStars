@@ -413,27 +413,38 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Placed beam blocks (teleporter pads) on the current world, for the map + the transporter panel.</summary>
         public NetBeam[] Beams { get; private set; } = System.Array.Empty<NetBeam>();
 
+        /// <summary>#2046 / #2268: the Crystal Net of the current world and of the own ships parked on it, composed in world
+        /// cells (Unity-free bookkeeping in <see cref="ClientCrystalNet"/>).</summary>
+        public readonly ClientCrystalNet Crystal = new ClientCrystalNet();
+
         /// <summary>#2046: the Crystal Net's networks on the current world (cells + ON/OFF) — <see cref="CrystalNetView"/> draws the glow.</summary>
-        public NetCrystalNet[] CrystalNets { get; private set; } = System.Array.Empty<NetCrystalNet>();
+        public NetCrystalNet[] CrystalNets => Crystal.Nets;
 
         /// <summary>#2046: the Crystal Net's devices on the current world (kind, mode, config, output) — for the E-ladder + the device menu.</summary>
-        public NetCrystalDevice[] CrystalDevices { get; private set; } = System.Array.Empty<NetCrystalDevice>();
+        public NetCrystalDevice[] CrystalDevices => Crystal.Devices;
 
-        /// <summary>#2049: the Crystal Net device at a cell, or null (a linear scan — a base holds dozens, not thousands).</summary>
-        public NetCrystalDevice CrystalDeviceAt(int x, int y, int z)
+        /// <summary>#2049: the Crystal Net device at a world cell (a parked ship's included), or null.</summary>
+        public NetCrystalDevice CrystalDeviceAt(int x, int y, int z) => Crystal.DeviceAt(x, y, z);
+
+        /// <summary>#2268: sends a device intent in the device's own frame — a parked ship's device goes as its ship-local
+        /// cell, tagged with the ship.</summary>
+        public void SendCrystalDevice(int x, int y, int z, int action, int mode = 0, string config = "", string label = "")
         {
-            var list = CrystalDevices;
-            for (int i = 0; i < list.Length; i++)
+            if (Crystal.TryFrameCell(x, y, z, out string frame, out var local))
             {
-                var d = list[i];
-                if (d.X == x && d.Y == y && d.Z == z)
-                {
-                    return d;
-                }
+                Network?.SendSetCrystalDevice(local.X, local.Y, local.Z, action, mode, config, label, frame);
             }
-
-            return null;
+            else
+            {
+                Network?.SendSetCrystalDevice(x, y, z, action, mode, config, label);
+            }
         }
+
+        /// <summary>#2266: the lifts of the current world — <see cref="LiftView"/> draws and moves their platforms.</summary>
+        public NetLift[] Lifts { get; private set; } = System.Array.Empty<NetLift>();
+
+        /// <summary>When <see cref="Lifts"/> last arrived (unscaled time) — a moving platform eases on from there.</summary>
+        public float LiftsReceivedAt { get; private set; }
 
         /// <summary>#2049: the Crystal Net device the player is looking at this frame (set by PlayerController, read by the HUD prompt).</summary>
         public NetCrystalDevice AimedCrystalDevice { get; set; }
@@ -530,6 +541,30 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var a in allies)
                 {
                     if (a.PartnerId == b.OwnerId)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>#2256: whether the local player may operate a Crystal Net device — the owner, an ally, and everyone on an
+        /// ownerless device or a world circuit (#2260). The server decides; this only picks the HUD prompt.</summary>
+        public bool CanOperateCrystal(NetCrystalDevice d)
+        {
+            if (d == null || string.IsNullOrEmpty(d.OwnerId) || d.OwnerId == CrystalNetRules.WorldOwnerId || d.OwnerId == LocalPlayerId)
+            {
+                return true;
+            }
+
+            var allies = Alliances?.Allies;
+            if (allies != null)
+            {
+                foreach (var a in allies)
+                {
+                    if (a.PartnerId == d.OwnerId)
                     {
                         return true;
                     }
@@ -2468,8 +2503,23 @@ namespace BlocksBeyondTheStars.Client
             Network.PlanetPoisReceived += m => PlanetPois = m.Pois;
             Network.BeaconsReceived += m => Beacons = m.Beacons ?? System.Array.Empty<NetBeacon>();
             Network.BeamsReceived += m => Beams = m.Beams ?? System.Array.Empty<NetBeam>();
-            Network.CrystalNetsReceived += m => CrystalNets = m.Nets ?? System.Array.Empty<NetCrystalNet>();
-            Network.CrystalDevicesReceived += m => CrystalDevices = m.Devices ?? System.Array.Empty<NetCrystalDevice>();
+            Crystal.FrameOrigin = frame => LandedShips.TryGetValue(frame, out var parked) ? parked.Origin : (Vector3i?)null;
+            Crystal.Circumference = () => Circumference;
+            Network.CrystalNetsReceived += Crystal.OnNets;
+            Network.CrystalDevicesReceived += Crystal.OnDevices;
+            Network.CrystalDeviceDeltaReceived += Crystal.OnDelta; // #2267
+            Network.LiftsReceived += m =>
+            {
+                Lifts = m.Lifts ?? System.Array.Empty<NetLift>();
+                LiftsReceivedAt = Time.unscaledTime;
+            };
+            LandedShipsChanged += () =>
+            {
+                if (Crystal.HasFrames)
+                {
+                    Crystal.Recompose(); // #2268: a ship arrived, moved or left — its net follows it
+                }
+            };
             Network.BioBookReceived += Bio.OnBook; // #2203: the research book
             Network.BioLabResultReceived += m => { LastBioLabResult = m; BioLabResultCount++; };
             Network.SoundFxReceived += m => ClientAudio.Instance?.Fx(m, ScenePos(m.X, m.Y, m.Z)); // #2052
@@ -2661,6 +2711,7 @@ namespace BlocksBeyondTheStars.Client
                         if (m.Shape != 0) ship.Shapes[cell] = m.Shape; else ship.Shapes.Remove(cell);
                     }
 
+                    ship.DirtyCells.Add(cell); // #2255: the view re-meshes only the chunks this cell reaches
                     LandedShipsChanged?.Invoke();
                 }
             };
@@ -3476,8 +3527,8 @@ namespace BlocksBeyondTheStars.Client
             Beacons = System.Array.Empty<NetBeacon>();
             Markers = System.Array.Empty<NetMarker>(); // per-world — the server re-sends the new body's set (#1217)
             Beams = System.Array.Empty<NetBeam>();
-            CrystalNets = System.Array.Empty<NetCrystalNet>();
-            CrystalDevices = System.Array.Empty<NetCrystalDevice>();
+            Crystal.Clear();
+            Lifts = System.Array.Empty<NetLift>();
             Bases = System.Array.Empty<NetBase>();
             Factories = System.Array.Empty<NetFactory>();
             DataCubes = System.Array.Empty<NetDataCube>();

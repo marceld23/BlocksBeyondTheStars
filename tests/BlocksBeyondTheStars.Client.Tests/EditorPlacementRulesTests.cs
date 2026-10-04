@@ -186,4 +186,22 @@ public sealed class EditorPlacementRulesTests
         Assert.False(EditorPlacementRules.AffectsDoor(10, 1, 5, 5, 1, 5));
         Assert.False(EditorPlacementRules.AffectsDoor(5, 2, 5, 5, 1, 5));  // the probe reads the floor level only
     }
+
+    /// <summary>#2260: a block with a front placed as a plain cube stores the front the brush turn gives it (the server reads
+    /// a pre-built gate's direction from it), and a trapdoor lies as the closed hatch at the top of its cell.</summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void ADeviceWithAFront_StoresTheFrontTheBrushTurnGives_AndATrapdoorIsTheClosedHatch(int yaw)
+    {
+        Assert.True(EditorPlacementRules.TryPlaceBlock("logic_block", EditorPlacementRules.AutoForm, yaw, 5, 1, 5, -1, Nothing, InRoom, Nothing, out var writes, out _, facing: "away"));
+        int front = CubeFacing.FrontOf(Assert.Single(writes).Shape);
+        Assert.Equal(CubeFacing.FrontForPlacement("away", yaw, 0f), front);
+        Assert.Equal(yaw, CubeFacing.LookHeadingOf("away", front));
+
+        Assert.True(EditorPlacementRules.TryPlaceBlock("trapdoor", EditorPlacementRules.AutoForm, yaw, 5, 1, 5, -1, Nothing, InRoom, Nothing, out writes, out _));
+        Assert.Equal(PropShapes.TrapdoorClosed(ShapeCode.YawFacingForward(yaw)), Assert.Single(writes).Shape);
+    }
 }

@@ -33,6 +33,21 @@
     ]
   },
   {
+    "key": "settler_crystal_gift",
+    "role": "settler",
+    "minStage": "known",
+    "oncePerPlayer": true,
+    "nodes": [
+      {
+        "promptKey": "dlg.settler_crystal_gift.prompt",
+        "choices": [
+          { "textKey": "dlg.settler_crystal_gift.c_yes", "responseKey": "dlg.settler_crystal_gift.r_yes", "consequence": "gift:crystal_conduit:8" },
+          { "textKey": "dlg.settler_crystal_gift.c_no", "responseKey": "dlg.settler_crystal_gift.r_no" }
+        ]
+      }
+    ]
+  },
+  {
     "key": "settler_neighbours",
     "role": "settler",
     "minStage": "",

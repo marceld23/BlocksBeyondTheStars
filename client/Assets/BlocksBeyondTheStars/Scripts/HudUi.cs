@@ -1226,7 +1226,8 @@ namespace BlocksBeyondTheStars.Client
                 {
                     // #2049: a Crystal Net device in the crosshair says what Interact does to it — the glyph follows
                     // the device in hand, and a tablet reads its USE button instead of a key name.
-                    prompt = string.Format(loc.Get(CrystalPromptKey(crystalDev)), InteractGlyph(loc));
+                    // #2256: someone else's device says who may use it instead of offering a key that would be refused.
+                    prompt = string.Format(loc.Get(Game.CanOperateCrystal(crystalDev) ? CrystalPromptKey(crystalDev) : "ui.crystal.prompt.locked"), InteractGlyph(loc));
                 }
                 else if (BeamView.Instance != null && BeamView.Instance.NearestUsableBeam(Game.PlayerPosition, BeamUseRange) != 0)
                 {
@@ -1873,6 +1874,11 @@ namespace BlocksBeyondTheStars.Client
             if (kind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Button)
             {
                 return "ui.crystal.prompt.press";
+            }
+
+            if (kind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.LiftStop)
+            {
+                return "ui.crystal.prompt.call"; // #2266
             }
 
             return BlocksBeyondTheStars.Shared.Definitions.CrystalNetRules.IsConfigurable(kind) ? "ui.crystal.prompt.menu" : "ui.crystal.prompt.linked";

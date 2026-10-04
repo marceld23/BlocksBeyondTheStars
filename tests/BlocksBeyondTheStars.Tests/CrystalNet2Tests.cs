@@ -260,6 +260,25 @@ public sealed class CrystalNet2Tests : IDisposable
         }
     }
 
+    /// <summary>A station hall's light switch is stamped ON (mode 1): the switch has no mode picker, but its lever rides in
+    /// the mode — the hall comes out lit.</summary>
+    [Fact]
+    public void AWorldCircuitSwitch_StampedOn_ComesOutOn()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            Player(server, "Visitor", new Vector3f(0, 203, 0));
+            server.World.SetBlock(new Vector3i(1, 200, 0), _content.GetBlock("crystal_switch")!.NumericId);
+            server.World.SetBlock(new Vector3i(2, 200, 0), _content.GetBlock("light_white")!.NumericId);
+            server.RegisterWorldCircuitForTest(new Vector3i(1, 200, 0), mode: 1);
+
+            Ticks(server, 0.8);
+            Assert.True(server.CrystalDeviceOutput(new Vector3i(1, 200, 0)));
+            Assert.Equal("light_white", KeyAt(server, 2, 200, 0));
+        }
+    }
+
     [Fact]
     public void ACrystalVaultsDoor_OpensWhenBothHiddenSwitchesAreOn_AndCountsAsASafecracker()
     {

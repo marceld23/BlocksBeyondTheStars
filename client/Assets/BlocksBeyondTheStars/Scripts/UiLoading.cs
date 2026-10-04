@@ -50,7 +50,9 @@ namespace BlocksBeyondTheStars.Client
             // TIP panel.
             UiKit.AddPanel(root, 1210f, 760f, 630f, 120f, UiKit.PanelFill);
             UiKit.AddText(root, 1240f, 776f, 120f, 24f, shell.L("ui.loading.tip_label"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var tip = UiKit.AddText(root, 1240f, 802f, 570f, 64f, shell.L("ui.loading.tip"), 17, UiKit.TextCol, TextAnchor.UpperLeft);
+            // #2257: one of a few tips, a new one each time the screen comes up — the Crystal Net's among them.
+            string[] tipKeys = { "ui.loading.tip", "ui.loading.tip.1", "ui.loading.tip.2", "ui.loading.tip.3", "ui.loading.tip.4" };
+            var tip = UiKit.AddText(root, 1240f, 802f, 570f, 64f, shell.L(tipKeys[Random.Range(0, tipKeys.Length)]), 17, UiKit.TextCol, TextAnchor.UpperLeft);
             tip.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             // Status row.

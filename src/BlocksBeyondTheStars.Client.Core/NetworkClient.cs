@@ -91,6 +91,8 @@ namespace BlocksBeyondTheStars.Client
         public event Action<BeamList>? BeamsReceived; // placed beam blocks (teleporter pads) on the current world
         public event Action<CrystalNetList>? CrystalNetsReceived; // #2046: the Crystal Net's networks (cells + ON/OFF) on the current world
         public event Action<CrystalDeviceList>? CrystalDevicesReceived; // #2046: its devices (kind, mode, config, output)
+        public event Action<CrystalDeviceDelta>? CrystalDeviceDeltaReceived; // #2267: the devices that changed since the last list
+        public event Action<LiftList>? LiftsReceived; // #2266: the lifts of the current world (platform heights, moving or not)
         public event Action<SoundFx>? SoundFxReceived; // #2052: a device plays / loops / stops a sound at a cell
         public event Action<BioBook>? BioBookReceived; // #2203: the research book (species known, mixes tried)
         public event Action<BioLabResult>? BioLabResultReceived; // #2203: what the bio lab did
@@ -473,9 +475,10 @@ namespace BlocksBeyondTheStars.Client
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",
             string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "", string hazards = "",
             string autoAim = "", string starterTeleporter = "", string frontierDanger = "", string baseVisitors = "",
-            string worldTextures = "")
+            string worldTextures = "", int machineCatchUpMinutes = -1)
             => Send(new SetWorldRulesIntent
             {
+                MachineCatchUpMinutes = machineCatchUpMinutes, // #2269: -1 = unchanged
                 WorldTextures = worldTextures,
                 CreatureAbundance = creatures,
                 PlanetEnemies = planetEnemies,
@@ -524,7 +527,7 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendMine(int x, int y, int z) => Send(new MineBlockIntent { X = x, Y = y, Z = z });
 
-        public void SendPlace(int x, int y, int z, string itemKey, string? label = null, int upFace = -1, int yaw = -1)
+        public void SendPlace(int x, int y, int z, string itemKey, string? label = null, int upFace = -1, int yaw = -1, int deviceDir = -1)
             => Send(new PlaceBlockIntent
             {
                 X = x,
@@ -534,6 +537,7 @@ namespace BlocksBeyondTheStars.Client
                 Label = label ?? string.Empty,
                 UpFace = upFace,
                 Yaw = yaw,
+                DeviceDir = deviceDir,
             });
 
         public void SendSetBeaconLabel(int beaconId, string label)
@@ -544,9 +548,11 @@ namespace BlocksBeyondTheStars.Client
             => Send(new SetBeamNameIntent { BeamId = beamId, Name = name ?? string.Empty });
 
         /// <summary>Beam from the pad I'm standing at to a chosen destination pad on this world.</summary>
-        /// <summary>#2046: toggle a switch (action 0), press a button / start a machine (1) or configure a device (2) at a cell.</summary>
-        public void SendSetCrystalDevice(int x, int y, int z, int action, int mode = 0, string config = "", string label = "")
-            => Send(new SetCrystalDeviceIntent { X = x, Y = y, Z = z, Action = action, Mode = mode, Config = config ?? string.Empty, Label = label ?? string.Empty });
+        /// <summary>#2046: toggle a switch (action 0), press a button / start a machine (1), configure a device (2), turn it
+        /// (3, #2267) or reset a counter (4, #2263) at a cell. #2268: a device aboard a parked ship names the ship as its
+        /// <paramref name="frame"/>, with the ship-local cell.</summary>
+        public void SendSetCrystalDevice(int x, int y, int z, int action, int mode = 0, string config = "", string label = "", string frame = "")
+            => Send(new SetCrystalDeviceIntent { X = x, Y = y, Z = z, Action = action, Mode = mode, Config = config ?? string.Empty, Label = label ?? string.Empty, Frame = frame ?? string.Empty });
 
         /// <summary>Something done at a bio lab (#2203): analyse a sample, mix, change or wash a tool, raise a seedling.</summary>
         public void SendBioLab(BioLabIntent intent) => Send(intent);
@@ -826,7 +832,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>EVA build/mine on a voxel structure (item 20 S2). Design-local cell coords.</summary>
         public void SendStructureEdit(string structureId, int x, int y, int z, bool mine, string itemKey = "",
-            int upFace = -1, int yaw = -1)
+            int upFace = -1, int yaw = -1, int deviceDir = -1)
             => Send(new StructureEditIntent
             {
                 StructureId = structureId,
@@ -837,6 +843,7 @@ namespace BlocksBeyondTheStars.Client
                 ItemKey = itemKey,
                 UpFace = upFace,
                 Yaw = yaw,
+                DeviceDir = deviceDir,
             });
 
         /// <summary>Deploy a station core in front of the suit to start a player-built station (item 20 S4).</summary>
@@ -1157,6 +1164,8 @@ namespace BlocksBeyondTheStars.Client
                 case BeamList m: BeamsReceived?.Invoke(m); break;
                 case CrystalNetList m: CrystalNetsReceived?.Invoke(m); break;
                 case CrystalDeviceList m: CrystalDevicesReceived?.Invoke(m); break;
+                case CrystalDeviceDelta m: CrystalDeviceDeltaReceived?.Invoke(m); break;
+                case LiftList m: LiftsReceived?.Invoke(m); break;
                 case SoundFx m: SoundFxReceived?.Invoke(m); break;
                 case BioBook m: BioBookReceived?.Invoke(m); break;
                 case BioLabResult m: BioLabResultReceived?.Invoke(m); break;

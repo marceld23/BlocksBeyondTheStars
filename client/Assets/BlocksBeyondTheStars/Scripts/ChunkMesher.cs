@@ -2039,6 +2039,8 @@ namespace BlocksBeyondTheStars.Client
                 case "force_field": return new Vector2(0.60f, 0.0f);
                 case "energy_fence": return new Vector2(0.60f, 0.0f);
                 case "energy_gate": return new Vector2(0.60f, 0.0f);
+                case "force_field_off": return new Vector2(0.60f, 0.0f);
+                case "phase_block_open": return new Vector2(0.80f, 0.0f);
                 case "ice": return new Vector2(0.85f, 0.0f);
                 case "water": return new Vector2(0.80f, 0.0f);
                 case "crystal": return new Vector2(0.95f, 0.15f);
@@ -2437,7 +2439,8 @@ namespace BlocksBeyondTheStars.Client
 
             var def = content.BlockById(id);
             // alpha-blended — see through them
-            return def?.Key is "glass" or "glass_clear" or "force_field" or "water" or "gas" or "gas_dense" or "fire" or "energy_fence" or "energy_gate"; // #2112: the gas sea (#2134: and the dense gas under it)
+            return def?.Key is "glass" or "glass_clear" or "force_field" or "water" or "gas" or "gas_dense" or "fire" or "energy_fence" or "energy_gate" // #2112: the gas sea (#2134: and the dense gas under it)
+                or "phase_block_open" or "force_field_off"; // #2264: an open phase block / a switched-off field is a shimmer you see through
         }
 
         /// <summary>The one deliberately CLEAR glass (#1274): the canopy/dome exception to the frosted rule
@@ -2517,7 +2520,9 @@ namespace BlocksBeyondTheStars.Client
                     // #2184: a tree crown is walked through like a plant — drawn as before, but no collider (the trunk
                     // beside it keeps its own: foliage never seals a neighbour's face, so that face is still emitted).
                     bool crown = BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsKey(key);
-                    if (key != "water" && key != "fire" && key != "energy_gate" && !liquid && !crown) f |= TraitCollidable;
+                    // #2264: the Crystal Net's open twins are walked (or fallen) through — the mesher reads keys, not the Solid flag.
+                    bool openTwin = key is "phase_block_open" or "force_field_off" or "trapdoor_open";
+                    if (key != "water" && key != "fire" && key != "energy_gate" && !liquid && !crown && !openTwin) f |= TraitCollidable;
                     if (key != null && key.StartsWith("flora_", System.StringComparison.Ordinal)) f |= TraitFloraPrefix;
                     if (key != null && TallFlora.Contains(key)) f |= TraitTallFlora;
                     if (key != null && SolidFlora.Contains(key)) f |= TraitSolidFlora;

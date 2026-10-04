@@ -28,6 +28,9 @@ namespace BlocksBeyondTheStars.Client
         public readonly Dictionary<Vector3i, (int Tint, int Glow)> Mods = new();
         public readonly Dictionary<Vector3i, int> Shapes = new();
 
+        /// <summary>#2255: cells changed since the view last meshed this ship — only their chunks are re-meshed.</summary>
+        public readonly HashSet<Vector3i> DirtyCells = new();
+
         public BlockId Get(Vector3i local) => Cells.TryGetValue(local, out var b) ? b : BlockId.Air;
 
         public void Set(Vector3i local, BlockId block)
@@ -57,6 +60,8 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
 
         private readonly Dictionary<string, GameObject> _roots = new();
+        private readonly Dictionary<string, LandedShipModel> _built = new();                         // the model each root was meshed from
+        private readonly Dictionary<string, Dictionary<ChunkCoord, GameObject>> _chunks = new();     // #2255: each ship's chunk objects
         private bool _subscribed;
         private bool _dirty;
 
@@ -91,7 +96,9 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Builds/rebuilds/destroys the ship objects to match the bootstrap's model registry.</summary>
+        /// <summary>Builds/rebuilds/destroys the ship objects to match the bootstrap's model registry. A ship that arrived
+        /// as a whole (a new model) is meshed as a whole; a ship whose cells changed (#2255: a lamp the Crystal Net switched,
+        /// a block built into the cabin) re-meshes only the chunks those cells reach — every other ship stays as it is.</summary>
         private void Reconcile()
         {
             // Drop ships that left (launch, owner logout, world switch).
@@ -118,9 +125,10 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 _roots.Remove(id);
+                _built.Remove(id);
+                _chunks.Remove(id);
             }
 
-            // (Re)build the rest. Ships are small voxel grids — a full re-mesh per change is cheap.
             foreach (var m in Game.LandedShips.Values)
             {
                 if (!_roots.TryGetValue(m.StructureId, out var root) || root == null)
@@ -131,8 +139,38 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 root.transform.position = new Vector3(Game.SceneX(m.Origin.X), m.Origin.Y, Game.SceneZ(m.Origin.Z));
-                BuildShip(m, root);
+                if (!_built.TryGetValue(m.StructureId, out var was) || !ReferenceEquals(was, m))
+                {
+                    _built[m.StructureId] = m;
+                    m.DirtyCells.Clear();
+                    BuildShip(m, root, null);
+                }
+                else if (m.DirtyCells.Count > 0)
+                {
+                    BuildShip(m, root, AffectedChunks(m.DirtyCells));
+                    m.DirtyCells.Clear();
+                }
             }
+        }
+
+        /// <summary>#2255: the chunks a set of changed cells reaches — its own and every chunk within a lamp's reach of it
+        /// (a lamp switched on or off lights its neighbours, and a face at a chunk border changes the chunk next door).</summary>
+        private static HashSet<ChunkCoord> AffectedChunks(HashSet<Vector3i> cells)
+        {
+            int cs = WorldConstants.ChunkSize, r = ChunkMesher.LightRadius;
+            int FloorDiv(int a, int b) => (a >= 0 ? a : a - (b - 1)) / b;
+            var result = new HashSet<ChunkCoord>();
+            foreach (var c in cells)
+            {
+                for (int cx = FloorDiv(c.X - r, cs); cx <= FloorDiv(c.X + r, cs); cx++)
+                for (int cy = FloorDiv(c.Y - r, cs); cy <= FloorDiv(c.Y + r, cs); cy++)
+                for (int cz = FloorDiv(c.Z - r, cs); cz <= FloorDiv(c.Z + r, cs); cz++)
+                {
+                    result.Add(new ChunkCoord(cx, cy, cz));
+                }
+            }
+
+            return result;
         }
 
         /// <summary>Destroys a ship-chunk GameObject AND the fresh render + collision meshes ChunkMesher.Build
@@ -162,12 +200,35 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Meshes one parked ship under its root: the same ChunkMesher + block atlas the world and
         /// flight view use, with the owner's hull colour painted into the mesh (item 32) and a MeshCollider
-        /// per voxel chunk so walking, standing inside and the settle-freeze ground probe all work.</summary>
-        private void BuildShip(LandedShipModel m, GameObject root)
+        /// per voxel chunk so walking, standing inside and the settle-freeze ground probe all work.
+        /// <paramref name="only"/> limits the work to those chunks (#2255); null meshes the whole ship.</summary>
+        private void BuildShip(LandedShipModel m, GameObject root, HashSet<ChunkCoord> only)
         {
-            for (int i = root.transform.childCount - 1; i >= 0; i--)
+            if (!_chunks.TryGetValue(m.StructureId, out var chunks))
             {
-                DestroyShipChunk(root.transform.GetChild(i).gameObject); // free the child's fresh meshes too
+                chunks = new Dictionary<ChunkCoord, GameObject>();
+                _chunks[m.StructureId] = chunks;
+            }
+
+            if (only == null)
+            {
+                for (int i = root.transform.childCount - 1; i >= 0; i--)
+                {
+                    DestroyShipChunk(root.transform.GetChild(i).gameObject); // free the child's fresh meshes too
+                }
+
+                chunks.Clear();
+            }
+            else
+            {
+                foreach (var coord in only)
+                {
+                    if (chunks.TryGetValue(coord, out var old))
+                    {
+                        DestroyShipChunk(old);
+                        chunks.Remove(coord);
+                    }
+                }
             }
 
             if (m.Cells.Count == 0 || Game.ChunkMaterial == null || Game.Atlas == null || Game.Content == null)
@@ -206,6 +267,11 @@ namespace BlocksBeyondTheStars.Client
             for (int cz = FloorDiv(minZ, cs); cz <= FloorDiv(maxZ, cs); cz++)
             {
                 var coord = new ChunkCoord(cx, cy, cz);
+                if (only != null && !only.Contains(coord))
+                {
+                    continue;
+                }
+
                 var origin = WorldConstants.ChunkOrigin(coord);
                 var chunk = new ChunkData(coord);
                 for (int lx = 0; lx < cs; lx++)
@@ -236,6 +302,7 @@ namespace BlocksBeyondTheStars.Client
                 go.AddComponent<MeshCollider>().sharedMesh = collider; // walk on the wings, stand in the cabin
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 go.AddComponent<MeshRenderer>().sharedMaterials = mats;
+                chunks[coord] = go;
             }
         }
     }

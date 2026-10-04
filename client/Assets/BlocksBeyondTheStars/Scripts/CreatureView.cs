@@ -1130,6 +1130,29 @@ namespace BlocksBeyondTheStars.Client
                     case "skycall": // #2112: the sky giant's call, carried on the wind — no shake, it is far up
                         audio?.At("sky_giant_call", at, 0.8f, 1f);
                         break;
+
+                    // Crystal Net 2 (#2251): small, friendly effects — the sound comes as its own SoundFx, nothing shakes.
+                    case "phase_shimmer": // a phase block opened or closed
+                        Fx?.Sparks(at, new Color(0.62f, 0.45f, 1f), fx.Strength >= 1f ? 10 : 6);
+                        Fx?.Pulse(at, new Color(0.62f, 0.45f, 1f, 0.6f));
+                        break;
+                    case "field_flicker": // a force field switched
+                        Fx?.Sparks(at, new Color(0.35f, 0.80f, 1f), 8);
+                        Fx?.Flash(at, new Color(0.35f, 0.80f, 1f, 0.5f), 0.9f);
+                        break;
+                    case "piston_puff": // a piston pushed
+                        Fx?.Dust(at, fx.Strength >= 1f ? 8 : 4);
+                        break;
+                    case "motor_sparks": // a bridge motor laid or took up a deck plate
+                        Fx?.Sparks(at, new Color(1f, 0.78f, 0.35f), 4);
+                        break;
+                    case "signal_ping": // a signal receiver picked up its sender
+                        Fx?.Pulse(at, new Color(0.45f, 0.95f, 1f, 0.7f));
+                        break;
+                    case "dice_win": // the dice block rolled its number
+                        Fx?.Sparks(at, new Color(1f, 0.85f, 0.25f), 12);
+                        Fx?.Flash(at, new Color(1f, 0.9f, 0.4f, 0.7f), 0.7f);
+                        break;
                 }
 
                 // Inside the blast: thrown clear — away from the spot and up.

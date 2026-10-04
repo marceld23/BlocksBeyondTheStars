@@ -211,7 +211,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private void Send()
-            => Game?.Network?.SendSetCrystalDevice(_dev.X, _dev.Y, _dev.Z, 2, _mode, _config, _label);
+            => Game?.SendCrystalDevice(_dev.X, _dev.Y, _dev.Z, 2, _mode, _config, _label);
 
         /// <summary>The player picks a mode: sent at once, and held against the server's record until that answers.</summary>
         private void ChangeMode(int mode)
@@ -240,7 +240,13 @@ namespace BlocksBeyondTheStars.Client
             _shown.Clear(); // the grid and the rows below say what this menu shows
             var kind = KindOf(_dev);
 
-            string blockKey = Game?.Content?.BlockById(Game.World.GetBlock(_dev.X, _dev.Y, _dev.Z))?.Key;
+            var standing = Game.World.GetBlock(_dev.X, _dev.Y, _dev.Z);
+            if (standing.IsAir)
+            {
+                standing = Game.LandedShipBlockAt(_dev.X, _dev.Y, _dev.Z, out _, out _); // #2268: a device aboard a parked ship
+            }
+
+            string blockKey = Game?.Content?.BlockById(standing)?.Key;
             string name = blockKey != null ? L("block." + blockKey + ".name") : _dev.Kind;
             var head = UiKit.AddText(panel, 32f, 24f, W - 64f, 40f, string.Format(L("ui.crystal.title"), name), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
@@ -277,6 +283,45 @@ namespace BlocksBeyondTheStars.Client
                 case CrystalDeviceKind.MatterSender:
                     y = ListRows(panel, y, L("ui.crystal.pair"), ReceiverOptions(), "pair");
                     break;
+                case CrystalDeviceKind.BridgeMotor: // #2265: how far the deck reaches
+                    y = CycleRow(panel, y, L("ui.crystal.length"), "len", new[] { "2", "3", "4", "5", "6", "8", "10", "12" }, v => v);
+                    y = LabelRow(panel, y, L("ui.crystal.name"));
+                    break;
+                case CrystalDeviceKind.SignalDisplay: // #2263: a symbol pair, its own line, or a counter
+                    switch ((DisplayMode)_mode)
+                    {
+                        case DisplayMode.Symbol:
+                            y = CycleRow(panel, y, L("ui.crystal.symbol_on"), "on", SymbolValues, v => SymbolOf(v));
+                            y = CycleRow(panel, y, L("ui.crystal.symbol_off"), "off", SymbolValues, v => SymbolOf(v));
+                            break;
+                        case DisplayMode.Text:
+                            y = LabelRow(panel, y, L("ui.crystal.text"));
+                            break;
+                        default:
+                            UiKit.AddText(panel, 32f, y + 10f, 360f, 36f, (CrystalMenuEdits.ValueOf(_dev.Config, "n") ?? "0"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                            UiKit.AddButton(panel, 400f, y, 300f, 48f, L("ui.crystal.reset"), () =>
+                            {
+                                Game?.SendCrystalDevice(_dev.X, _dev.Y, _dev.Z, 4);
+                                ClientAudio.Instance?.Cue("ui_click");
+                            });
+                            y += 60f;
+                            break;
+                    }
+
+                    break;
+                case CrystalDeviceKind.SignalReceiver: // #2263: its name (the remote shows it) and the sender it repeats
+                    y = LabelRow(panel, y, L("ui.crystal.name"));
+                    y = ListRows(panel, y, L("ui.crystal.sender"), SenderOptions(), "pair", 0f, L("ui.crystal.sender_none"));
+                    break;
+                case CrystalDeviceKind.SignalSender:
+                case CrystalDeviceKind.LiftMotor:
+                case CrystalDeviceKind.LiftStop:
+                case CrystalDeviceKind.Piston:
+                case CrystalDeviceKind.DiceBlock:
+                case CrystalDeviceKind.EnvironmentSensor:
+                case CrystalDeviceKind.ShipSensor:
+                    y = LabelRow(panel, y, L("ui.crystal.name")); // a name the menus and the remote show
+                    break;
                 case CrystalDeviceKind.BeamPad:
                     y = ListRows(panel, y, L("ui.crystal.pair"), BeamOptions(), "pair");
                     break;
@@ -300,13 +345,23 @@ namespace BlocksBeyondTheStars.Client
             _ = y;
             bool machine = kind is CrystalDeviceKind.Fabricator or CrystalDeviceKind.MatterSender or CrystalDeviceKind.CloneTank
                 or CrystalDeviceKind.AutoDrill or CrystalDeviceKind.Caller or CrystalDeviceKind.Thumper or CrystalDeviceKind.HydroTray
-                or CrystalDeviceKind.DrillLaser;
+                or CrystalDeviceKind.DrillLaser or CrystalDeviceKind.LiftMotor or CrystalDeviceKind.LiftStop;
             if (machine)
             {
-                UiKit.AddButton(panel, 32f, h - 72f, 300f, 48f, L("ui.crystal.start"), () =>
+                UiKit.AddButton(panel, 32f, h - 72f, 300f, 48f, L(kind == CrystalDeviceKind.LiftStop ? "ui.crystal.prompt.call" : "ui.crystal.start").Replace("{0}: ", string.Empty), () =>
                 {
-                    Game?.Network?.SendSetCrystalDevice(_dev.X, _dev.Y, _dev.Z, 1);
+                    Game?.SendCrystalDevice(_dev.X, _dev.Y, _dev.Z, 1);
                     ClientAudio.Instance?.Cue("ui_confirm");
+                });
+            }
+
+            if (CrystalNetRules.IsDirectional(kind))
+            {
+                // #2267: turn after placing — the next of the six directions (four quarter turns, up, down).
+                UiKit.AddButton(panel, machine ? 348f : 32f, h - 72f, 260f, 48f, L("ui.crystal.turn"), () =>
+                {
+                    Game?.SendCrystalDevice(_dev.X, _dev.Y, _dev.Z, 3);
+                    ClientAudio.Instance?.Cue("ui_click");
                 });
             }
 
@@ -361,6 +416,11 @@ namespace BlocksBeyondTheStars.Client
             CrystalDeviceKind.AutoDrill => "drill",
             CrystalDeviceKind.DrillLaser => "drill", // #2108: the same two modes (only ore / everything)
             CrystalDeviceKind.CloneTank => "clone",
+            CrystalDeviceKind.Piston => "piston",                 // #2265
+            CrystalDeviceKind.SignalDisplay => "display",         // #2263
+            CrystalDeviceKind.DiceBlock => "dice",
+            CrystalDeviceKind.EnvironmentSensor => "environment",
+            CrystalDeviceKind.ShipSensor => "ship",               // #2268
             _ => "none",
         };
 
@@ -397,7 +457,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A scrollable list of options for the pairing kinds; the chosen one is lit. It takes what is left of
         /// the panel unless <paramref name="height"/> says how tall it is (the clone tank stacks two).</summary>
-        private float ListRows(Transform panel, float y, string title, List<(string Value, string Text)> options, string key, float height = 0f)
+        private float ListRows(Transform panel, float y, string title, List<(string Value, string Text)> options, string key, float height = 0f, string empty = null)
         {
             UiKit.AddText(panel, 32f, y, W - 64f, 30f, title, 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
             y += 36f;
@@ -407,7 +467,7 @@ namespace BlocksBeyondTheStars.Client
             string current = ConfigValue(key) ?? string.Empty;
             if (options.Count == 0)
             {
-                Row(list, 56f, go => UiKit.AddText(go.transform, 12f, 8f, 800f, 40f, L("ui.crystal.none"), 17, UiKit.CyanDim, TextAnchor.MiddleLeft));
+                Row(list, 56f, go => UiKit.AddText(go.transform, 12f, 8f, 800f, 40f, empty ?? L("ui.crystal.none"), 17, UiKit.CyanDim, TextAnchor.MiddleLeft));
             }
 
             foreach (var opt in options)
@@ -457,11 +517,42 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (d.Kind != nameof(CrystalDeviceKind.MatterReceiver)) continue;
                 string label = string.IsNullOrEmpty(d.Label) ? L("ui.crystal.unnamed") : d.Label;
-                result.Add((d.Id.ToString(), $"{label}  ·  X {d.X}  Z {d.Z}"));
+                result.Add((CellValue(d.X, d.Y, d.Z), $"{label}  ·  X {d.X}  Z {d.Z}")); // #2252: the partner's cell
             }
 
             return result;
         }
+
+        /// <summary>#2263: the signal senders this receiver may repeat — the player's own and allied ones in the receiver's
+        /// own frame (the world, or the same parked ship, #2268), named by their cell in that frame.</summary>
+        private List<(string, string)> SenderOptions()
+        {
+            var result = new List<(string, string)>();
+            if (Game?.CrystalDevices == null) return result;
+            bool aboard = Game.Crystal.TryFrameCell(_dev.X, _dev.Y, _dev.Z, out string myFrame, out _);
+            foreach (var d in Game.CrystalDevices)
+            {
+                if (d.Kind != nameof(CrystalDeviceKind.SignalSender) || !Game.CanOperateCrystal(d)) continue;
+                bool senderAboard = Game.Crystal.TryFrameCell(d.X, d.Y, d.Z, out string frame, out var local);
+                if (senderAboard != aboard || (aboard && frame != myFrame)) continue;
+                string label = string.IsNullOrEmpty(d.Label) ? L("ui.crystal.unnamed") : d.Label;
+                string value = aboard ? CellValue(local.X, local.Y, local.Z) : CellValue(d.X, d.Y, d.Z);
+                result.Add((value, $"{label}  ·  X {d.X}  Z {d.Z}"));
+            }
+
+            return result;
+        }
+
+        private static string CellValue(int x, int y, int z) => x + "," + y + "," + z;
+
+        /// <summary>#2263: the display's symbols — plain glyphs every font in the game draws.</summary>
+        public static readonly string[] DisplaySymbols = { "★", "♥", "☺", "!", "?", "→", "←", "↑", "↓", "+", "−", "♪", "●", "■", "▲", "×" };
+
+        private static readonly string[] SymbolValues = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15" };
+
+        /// <summary>The glyph a display's symbol setting stands for.</summary>
+        public static string SymbolOf(string value)
+            => int.TryParse(value, out int i) && i >= 0 && i < DisplaySymbols.Length ? DisplaySymbols[i] : DisplaySymbols[0];
 
         private List<(string, string)> BeamOptions()
         {
@@ -471,7 +562,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (!Game.CanUseBeam(b) || (Mathf.FloorToInt(b.X) == _dev.X && Mathf.FloorToInt(b.Z) == _dev.Z && Mathf.FloorToInt(b.Y) == _dev.Y)) continue;
                 string label = string.IsNullOrEmpty(b.Name) ? L("ui.beam.default") : b.Name;
-                result.Add((b.Id.ToString(), $"{label}  ·  X {Mathf.FloorToInt(b.X)}  Z {Mathf.FloorToInt(b.Z)}"));
+                result.Add((CellValue(Mathf.FloorToInt(b.X), Mathf.FloorToInt(b.Y), Mathf.FloorToInt(b.Z)), $"{label}  ·  X {Mathf.FloorToInt(b.X)}  Z {Mathf.FloorToInt(b.Z)}"));
             }
 
             return result;

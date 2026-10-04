@@ -647,7 +647,8 @@ public sealed partial class GameServer
         SetCrystalBlocked(c, false);
         var fx = c.Cell + face;
         BroadcastToWorld(new SoundFx { SoundId = "piston_push", X = fx.X + 0.5f, Y = fx.Y + 0.5f, Z = fx.Z + 0.5f, SourceId = c.Id });
-        BroadcastToWorld(new WorldFx { Kind = "piston_puff", X = fx.X + 0.5f, Y = fx.Y + 0.5f, Z = fx.Z + 0.5f, Strength = line.Count > 0 ? 1f : 0.5f, Radius = face.X + 3 * face.Y + 9 * face.Z });
+        // Radius stays 0: on the client a WorldFx radius is the reach of a blast that throws players clear.
+        BroadcastToWorld(new WorldFx { Kind = "piston_puff", X = fx.X + 0.5f, Y = fx.Y + 0.5f, Z = fx.Z + 0.5f, Strength = line.Count > 0 ? 1f : 0.5f });
         return true;
     }
 

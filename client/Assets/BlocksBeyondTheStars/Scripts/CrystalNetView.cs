@@ -21,8 +21,11 @@ namespace BlocksBeyondTheStars.Client
     /// looked when placing it): a gate sends that way, a watcher and an eye look that way. It lights up while the
     /// block's own output is ON;</item>
     /// <item>a small amber <b>status light</b> on top of every other device while it reports ON (a flipped switch, a
-    /// sensor that sees something, a blocked sender, a full drill, a growing tank, …).</item>
+    /// sensor that sees something, a blocked sender, a full drill, a growing tank, …);</item>
+    /// <item>#2263: what a <b>display</b> shows, floating over it — its symbol, its own line or its count.</item>
     /// </list>
+    /// #2267: every device that points somewhere (a gate, a piston, a bridge motor, a watcher, an eye) gets the arrow — up
+    /// and down included. #2268: a parked ship's net arrives already moved into world cells (<see cref="ClientCrystalNet"/>).
     /// Built from <see cref="GameBootstrap.CrystalNets"/> and <see cref="GameBootstrap.CrystalDevices"/>: two meshes,
     /// rebuilt only when a list arrives (and every few seconds, so the wrap-around seam follows the player); the wave
     /// only rewrites the shell's vertex colours per frame — eight shared vertices per cell. Vertex colours need the
@@ -89,6 +92,62 @@ namespace BlocksBeyondTheStars.Client
             if (_devGo != null)
             {
                 _devGo.SetActive(visible && _devMesh.vertexCount > 0);
+            }
+        }
+
+        /// <summary>#2263: the displays' faces, as floating labels (pushed every frame, like the beacon names).</summary>
+        private void LateUpdate()
+        {
+            if (Game == null || Game.SpaceViewActive || Game.MenuOpen)
+            {
+                return;
+            }
+
+            var devices = Game.CrystalDevices;
+            var cam = Camera.main;
+            if (devices == null || devices.Length == 0 || cam == null)
+            {
+                return;
+            }
+
+            ScreenLabelLayer labels = null;
+            var here = Game.PlayerPosition;
+            foreach (var d in devices)
+            {
+                if (d.Kind != nameof(CrystalDeviceKind.SignalDisplay))
+                {
+                    continue;
+                }
+
+                string text = DisplayText(d);
+                if (string.IsNullOrEmpty(text))
+                {
+                    continue;
+                }
+
+                var pos = Game.ScenePos(d.X + 0.5f, d.Y + 1.35f, d.Z + 0.5f);
+                if ((pos - here).sqrMagnitude > 30f * 30f)
+                {
+                    continue;
+                }
+
+                labels ??= ScreenLabelLayer.Instance;
+                var col = d.Output ? new Color(0.55f, 0.95f, 1f) : new Color(0.55f, 0.6f, 0.75f);
+                labels.World(cam, pos, text, col, true, 16f, 24f);
+            }
+        }
+
+        /// <summary>What a display shows: its ON / OFF symbol, its own line while ON, or its count.</summary>
+        private static string DisplayText(NetCrystalDevice d)
+        {
+            switch ((DisplayMode)d.Mode)
+            {
+                case DisplayMode.Text:
+                    return d.Output ? d.Label : string.Empty;
+                case DisplayMode.Counter:
+                    return CrystalMenuEdits.ValueOf(d.Config, "n") ?? "0";
+                default:
+                    return CrystalDeviceUi.SymbolOf(CrystalMenuEdits.ValueOf(d.Config, d.Output ? "on" : "off") ?? (d.Output ? "0" : "12"));
             }
         }
 
@@ -237,7 +296,7 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     var p = Game.ScenePos(d.X, d.Y, d.Z);
-                    bool pointed = CrystalNetRules.IsGate(kind) || kind == CrystalDeviceKind.Watcher;
+                    bool pointed = CrystalNetRules.IsDirectional(kind);
                     if (pointed)
                     {
                         int before = _verts.Count;
@@ -248,7 +307,7 @@ namespace BlocksBeyondTheStars.Client
                         }
                     }
 
-                    if (d.Output && !CrystalNetRules.IsGate(kind))
+                    if (d.Output && !CrystalNetRules.IsGate(kind) && kind != CrystalDeviceKind.SignalDisplay)
                     {
                         int before = _verts.Count;
                         var c = p + new Vector3(0.5f, 1.04f, 0.5f);

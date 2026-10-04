@@ -78,14 +78,29 @@ namespace BlocksBeyondTheStars.Client
         /// caller has already checked that cell is free and inside the room. One cell for most blocks (with the
         /// resolved form and the brush yaw), two for a bed (the head here, the foot where the yaw points), the
         /// ladder with its wall-derived form. False with a refusal key when the bed's foot cell is taken or outside.
+        /// #2260: a block with a front (<paramref name="facing"/>, the block's <c>facing</c>) placed as a plain cube stores
+        /// the front the brush turn gives it — the server reads a pre-built Crystal Net gate's direction from it — and a
+        /// trapdoor lies as the closed hatch at the top of its cell, as the server places it.
         /// </summary>
         public static bool TryPlaceBlock(string blockId, int brushShape, int yaw, int x, int y, int z, int hitFace,
             Func<int, int, int, bool> occupied, Func<int, int, int, bool> inBounds, Func<int, int, int, bool> solid,
-            out List<CellWrite> writes, out string? refusalKey)
+            out List<CellWrite> writes, out string? refusalKey, string? facing = null)
         {
             writes = new List<CellWrite>(2);
             refusalKey = null;
             int form = ResolveForm(blockId, brushShape);
+
+            if (blockId == "trapdoor" && brushShape < 0)
+            {
+                writes.Add(new CellWrite(x, y, z, PropShapes.TrapdoorClosed(ShapeCode.YawFacingForward(yaw & 3))));
+                return true;
+            }
+
+            if (form == 0 && facing != null)
+            {
+                writes.Add(new CellWrite(x, y, z, CubeFacing.Pack(CubeFacing.FrontForPlacement(facing, yaw & 3, 0f))));
+                return true;
+            }
 
             if (blockId == "ladder" && brushShape < 0)
             {

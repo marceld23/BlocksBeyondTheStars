@@ -221,6 +221,10 @@ namespace BlocksBeyondTheStars.Client
             var crystalUi = root.AddComponent<CrystalDeviceUi>();
             crystalUi.Game = boot;
 
+            // #2266: the lifts' platforms (drawn + collided here, carried riders).
+            var liftView = root.AddComponent<LiftView>();
+            liftView.Game = boot;
+
             // #2203: the bio lab's panel (analyse a sample, mix a preparation, change a tool) — opens on E at the lab block.
             var bioLabUi = root.AddComponent<BioLabUi>();
             bioLabUi.Game = boot;
@@ -594,6 +598,7 @@ namespace BlocksBeyondTheStars.Client
             remoteFx.Game = boot;
             remoteFx.Remotes = remotes;
             remoteFx.Player = pc;
+            root.GetComponent<LiftView>().Player = pc; // #2266: a player on a platform rides along
 
             // Jetpack thrust flames for the local third-person avatar would render via the player's own VFX.
 

@@ -45,7 +45,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>One authored cell: the palette id + kind, plus the in-game per-voxel modifiers
         /// (dye/glow colour 0xRRGGBB, packed shape+orientation). Markers carry no modifiers.</summary>
-        private struct CellData { public string Id; public string Kind; public int Tint, Glow, Shape; public string Port; }
+        private struct CellData { public string Id; public string Kind; public int Tint, Glow, Shape; public string Port; public int Mode; public string Config, Label; }
+
+        /// <summary>#2260: what the device tool last set per device block — the next one of that block placed comes out alike.</summary>
+        private readonly Dictionary<string, (int Mode, string Config, string Label)> _deviceBrush = new();
+        private EditorDevicePanel _devicePanel;
 
         private readonly Dictionary<Vector3i, CellData> _design = new();   // cell -> authored cell (export source)
         private EditorVoxelChunkView _view;                                // chunked combined-mesh renderer
@@ -163,6 +167,7 @@ namespace BlocksBeyondTheStars.Client
             P("door"),                                       // #1877: docking ports — painted onto wall blocks
             P("wide"),
             P("ladder"),
+            D(),                                             // #2260: a placed Crystal Net device's settings
         };
 
         /// <summary>A material-token entry (#1890): placed like a block, exported as its token (<c>@wall</c> …), drawn as a
@@ -179,6 +184,55 @@ namespace BlocksBeyondTheStars.Client
         };
 
         private static readonly Color PortColor = new Color(0.2f, 0.9f, 1f);
+
+        /// <summary>#2260: the device tool — a click on a placed Crystal Net device opens its settings.</summary>
+        private EditorPaletteKit.Entry D() => new EditorPaletteKit.Entry
+        {
+            Id = "device", Label = L("ui.marker.device"), Kind = "device", Group = "markers", Color = new Color(0.62f, 0.45f, 1f),
+        };
+
+        /// <summary>The Crystal Net kind of an authored cell (None for markers and ordinary blocks).</summary>
+        private CrystalDeviceKind DeviceKindOf(CellData d)
+            => d.Kind == "block" && Shell?.Content?.GetBlock(d.Id) is { } def ? CrystalNetRules.KindOf(def) : CrystalDeviceKind.None;
+
+        /// <summary>#2260: whether a block can carry pre-built settings — a conduit and a passive port (a lamp, a fire …) carry
+        /// none; everything else the net registers does.</summary>
+        private static bool CarriesDeviceSettings(CrystalDeviceKind kind)
+            => kind != CrystalDeviceKind.None && kind != CrystalDeviceKind.Conduit && !CrystalNetRules.IsPassivePort(kind);
+
+        /// <summary>Opens the device settings for the device cell under the cursor (#2260).</summary>
+        private void EditDevice()
+        {
+            if (!TryGetHitCell(out var cell) || !_design.TryGetValue(cell, out var d))
+            {
+                return;
+            }
+
+            var kind = DeviceKindOf(d);
+            if (!CarriesDeviceSettings(kind))
+            {
+                SetStatus(L("ui.ed.device.none"));
+                return;
+            }
+
+            _devicePanel?.Close();
+            _devicePanel = EditorDevicePanel.Show(Shell, _canvas.transform, kind, L("block." + d.Id + ".name"), d.Mode, d.Config, d.Label,
+                (mode, config, label) =>
+                {
+                    if (!_design.TryGetValue(cell, out var now) || now.Id != d.Id)
+                    {
+                        return;
+                    }
+
+                    now.Mode = mode;
+                    now.Config = config;
+                    now.Label = label;
+                    _deviceBrush[d.Id] = (mode, config, label);
+                    PlaceCellData(cell, FindPalette(now.Id, now.Kind), now);
+                    SetStatus(L("ui.ed.device.saved"));
+                },
+                () => _devicePanel = null);
+        }
 
         /// <summary>Marker colours of the eight profession posts, in <c>NpcProfessions.All</c> order.</summary>
         private static readonly Color[] ProfessionColors =
@@ -221,6 +275,7 @@ namespace BlocksBeyondTheStars.Client
             P("door"),                                          // #1877: docking ports (ground kits may use them later)
             P("wide"),
             P("ladder"),
+            D(),                                                // #2260: a placed Crystal Net device's settings
         };
 
         private void BuildRoom()
@@ -320,6 +375,15 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var pal = _palette[_selected];
+            if (pal.Kind == "device")
+            {
+                // #2260: the device tool works on the device under the cursor.
+                bool onDevice = TryGetHitCell(out var dev) && _design.TryGetValue(dev, out var dd) && CarriesDeviceSettings(DeviceKindOf(dd));
+                _ghost?.Update(onDevice, dev, onDevice);
+                Hint(null);
+                return;
+            }
+
             if (pal.Kind == "port")
             {
                 // The port brush paints the wall block under the cursor, not the cell beside it.
@@ -353,7 +417,7 @@ namespace BlocksBeyondTheStars.Client
             if (free)
             {
                 if (!EditorPlacementRules.TryPlaceBlock(pal.Id, _brushShape, _brushOrient, cell.X, cell.Y, cell.Z, hitFace,
-                        Occupied, InBounds, IsSolidCell, out var writes, out string refusal))
+                        Occupied, InBounds, IsSolidCell, out var writes, out string refusal, Shell?.Content?.GetBlock(pal.Id)?.Facing))
                 {
                     _ghost?.Update(true, cell, false);
                     Hint(refusal);
@@ -381,6 +445,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (pal.Kind == "device")
+            {
+                EditDevice(); // #2260
+                return;
+            }
+
             if (!TryGetTargetCell(out var cell, out int hitFace) || !InBounds(cell) || _design.ContainsKey(cell))
             {
                 return;
@@ -399,17 +469,18 @@ namespace BlocksBeyondTheStars.Client
                 // The server's own placement rules (#1975): the block's default form unless the brush chose one, a
                 // bed as head + foot (refused where the foot would not fit), the ladder against its wall.
                 if (!EditorPlacementRules.TryPlaceBlock(pal.Id, _brushShape, _brushOrient, cell.X, cell.Y, cell.Z, hitFace,
-                        Occupied, InBounds, IsSolidCell, out var writes, out string refusal))
+                        Occupied, InBounds, IsSolidCell, out var writes, out string refusal, Shell?.Content?.GetBlock(pal.Id)?.Facing))
                 {
                     SetStatus(L(refusal));
                     return;
                 }
 
                 ClearLeaks();
+                var device = _deviceBrush.TryGetValue(pal.Id, out var preset) ? preset : (0, string.Empty, string.Empty); // #2260
                 foreach (var w in writes)
                 {
                     PlaceCellData(new Vector3i(w.X, w.Y, w.Z), pal,
-                        new CellData { Id = pal.Id, Kind = pal.Kind, Tint = _brushTint, Glow = _brushGlow, Shape = w.Shape });
+                        new CellData { Id = pal.Id, Kind = pal.Kind, Tint = _brushTint, Glow = _brushGlow, Shape = w.Shape, Mode = device.Item1, Config = device.Item2, Label = device.Item3 });
                 }
 
                 return;
@@ -681,7 +752,7 @@ namespace BlocksBeyondTheStars.Client
 
         // ----------------------------- export -----------------------------
 
-        [Serializable] private sealed class CellJson { public int x, y, z; public string kind, id; public int tint, glow, shape; public string port = string.Empty; }
+        [Serializable] private sealed class CellJson { public int x, y, z; public string kind, id; public int tint, glow, shape; public string port = string.Empty; public int mode; public string config = string.Empty, label = string.Empty; }
         [Serializable] private sealed class LayoutJson { public int width, height, length; public List<CellJson> cells = new(); }
         [Serializable] private sealed class MetaJson
         {
@@ -749,6 +820,7 @@ namespace BlocksBeyondTheStars.Client
                     x = kv.Key.X, y = kv.Key.Y, z = kv.Key.Z,
                     kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, id = d.Id,
                     tint = d.Tint, glow = d.Glow, shape = d.Shape, port = d.Port ?? string.Empty,
+                    mode = DeviceMode(d), config = DeviceConfig(d), label = DeviceLabel(d), // #2260
                 });
                 maxX = Mathf.Max(maxX, kv.Key.X);
                 maxY = Mathf.Max(maxY, kv.Key.Y);
@@ -905,6 +977,39 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Finds the palette entry for a loaded cell — by id AND kind first (door_slide is a block in
         /// the shipped templates but a marker in the settlement palette), then by id alone; <c>Id == null</c>
         /// when the palette has no such entry.</summary>
+        // #2260 export validation: device settings travel only on blocks that carry them, the mode inside the device's
+        // range (a switch: OFF / ON), no separators the template's marker data would split on.
+        private int DeviceMode(CellData d)
+        {
+            var kind = DeviceKindOf(d);
+            if (!CarriesDeviceSettings(kind))
+            {
+                return 0;
+            }
+
+            int modes = kind == CrystalDeviceKind.Switch ? 2 : CrystalNetRules.ModeCount(kind);
+            return modes > 0 ? Mathf.Clamp(d.Mode, 0, modes - 1) : 0;
+        }
+
+        private string DeviceConfig(CellData d)
+            => CarriesDeviceSettings(DeviceKindOf(d)) ? (d.Config ?? string.Empty).Replace("|", string.Empty) : string.Empty;
+
+        private string DeviceLabel(CellData d)
+            => CarriesDeviceSettings(DeviceKindOf(d)) ? (d.Label ?? string.Empty).Replace("|", string.Empty) : string.Empty;
+
+        /// <summary>#2260: a generator's <c>crystal</c> markers carry a pre-built device's settings — they go onto the block
+        /// cell they mark, never into the marker palette.</summary>
+        private static bool TakeDeviceMarker(string type, string data, Vector3i at, Dictionary<Vector3i, (int Mode, string Config, string Label)> devices)
+        {
+            if (type != TemplateDevices.Marker)
+            {
+                return false;
+            }
+
+            devices[at] = TemplateDevices.Decode(data ?? string.Empty);
+            return true;
+        }
+
         private EditorPaletteKit.Entry FindPalette(string id, string kind)
         {
             int i = System.Array.FindIndex(_palette, p => p.Id == id && p.Kind == kind);
@@ -952,6 +1057,7 @@ namespace BlocksBeyondTheStars.Client
                     Id = c.id,
                     Kind = kind,
                     Tint = c.tint, Glow = c.glow, Shape = c.shape, Port = c.port ?? string.Empty,
+                    Mode = c.mode, Config = c.config ?? string.Empty, Label = c.label ?? string.Empty, // #2260
                 };
                 PlaceCellData(cell, pal, data);
             }
@@ -968,7 +1074,8 @@ namespace BlocksBeyondTheStars.Client
             var cells = new List<CellJson>(t.Cells.Count);
             foreach (var c in t.Cells)
             {
-                cells.Add(new CellJson { x = c.X, y = c.Y, z = c.Z, kind = c.Kind, id = c.Id, tint = c.Tint, glow = c.Glow, shape = c.Shape, port = c.Port ?? string.Empty });
+                cells.Add(new CellJson { x = c.X, y = c.Y, z = c.Z, kind = c.Kind, id = c.Id, tint = c.Tint, glow = c.Glow, shape = c.Shape, port = c.Port ?? string.Empty,
+                    mode = c.Mode, config = c.Config ?? string.Empty, label = c.Label ?? string.Empty });
             }
 
             ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true, role: t.Role, kit: t.Kit, function: t.Function, style: t.Style);
@@ -1071,6 +1178,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var cells = new List<CellJson>();
+            var devices = new Dictionary<Vector3i, (int Mode, string Config, string Label)>(); // #2260
             try
             {
                 int w, h, l;
@@ -1081,7 +1189,10 @@ namespace BlocksBeyondTheStars.Client
                     w = s.Width; h = s.Height; l = s.Length; get = s.Get;
                     foreach (var m in s.Markers)
                     {
-                        cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
+                        if (!TakeDeviceMarker(m.Type, m.Data, m.LocalPos, devices)) // #2260: a device's settings go onto its block
+                        {
+                            cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
+                        }
                     }
                 }
                 else
@@ -1096,7 +1207,10 @@ namespace BlocksBeyondTheStars.Client
                     w = s.Width; h = s.Height; l = s.Length; get = s.Get;
                     foreach (var m in s.Markers)
                     {
-                        cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
+                        if (!TakeDeviceMarker(m.Type, m.Data, m.LocalPos, devices)) // #2260: a device's settings go onto its block
+                        {
+                            cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
+                        }
                     }
                 }
 
@@ -1114,7 +1228,8 @@ namespace BlocksBeyondTheStars.Client
                                 continue;
                             }
 
-                            cells.Add(new CellJson { x = x, y = y, z = z, kind = "block", id = def.Key });
+                            var dv = devices.TryGetValue(new Vector3i(x, y, z), out var found) ? found : (0, string.Empty, string.Empty);
+                            cells.Add(new CellJson { x = x, y = y, z = z, kind = "block", id = def.Key, mode = dv.Item1, config = dv.Item2, label = dv.Item3 });
                         }
                     }
                 }
@@ -1220,7 +1335,8 @@ namespace BlocksBeyondTheStars.Client
             foreach (var kv in _design)
             {
                 var d = kv.Value;
-                t.Cells.Add(new TemplateCell { X = kv.Key.X, Y = kv.Key.Y, Z = kv.Key.Z, Kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, Id = d.Id, Tint = d.Tint, Glow = d.Glow, Shape = d.Shape, Port = d.Port ?? string.Empty });
+                t.Cells.Add(new TemplateCell { X = kv.Key.X, Y = kv.Key.Y, Z = kv.Key.Z, Kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, Id = d.Id, Tint = d.Tint, Glow = d.Glow, Shape = d.Shape, Port = d.Port ?? string.Empty,
+                    Mode = DeviceMode(d), Config = DeviceConfig(d), Label = DeviceLabel(d) });
                 maxX = Mathf.Max(maxX, kv.Key.X);
                 maxY = Mathf.Max(maxY, kv.Key.Y);
                 maxZ = Mathf.Max(maxZ, kv.Key.Z);
@@ -1340,7 +1456,8 @@ namespace BlocksBeyondTheStars.Client
                         var t = new StructureTemplate { Key = j.key, Name = j.name, Tier = j.tier, Kind = j.kind, Pack = j.pack, Weight = j.weight, Role = j.role ?? string.Empty, Kit = j.kit ?? string.Empty, Function = j.function ?? string.Empty, Style = j.style ?? string.Empty, Width = j.width, Height = j.height, Length = j.length, PlanetTypes = j.planetTypes ?? new List<string>() };
                         foreach (var c in j.cells)
                         {
-                            t.Cells.Add(new TemplateCell { X = c.x, Y = c.y, Z = c.z, Kind = c.kind, Id = c.id, Tint = c.tint, Glow = c.glow, Shape = c.shape, Port = c.port ?? string.Empty });
+                            t.Cells.Add(new TemplateCell { X = c.x, Y = c.y, Z = c.z, Kind = c.kind, Id = c.id, Tint = c.tint, Glow = c.glow, Shape = c.shape, Port = c.port ?? string.Empty,
+                                Mode = c.mode, Config = c.config ?? string.Empty, Label = c.label ?? string.Empty });
                         }
 
                         int i = list.FindIndex(x => string.Equals(x.Key, t.Key, StringComparison.OrdinalIgnoreCase));
@@ -1373,6 +1490,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var cells = new List<CellJson>();
+            var devices = new Dictionary<Vector3i, (int Mode, string Config, string Label)>(); // #2260
             string tier = kit.Tier;
             try
             {
@@ -1420,7 +1538,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     foreach (var m in stationMarkers)
                     {
-                        cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
+                        if (!TakeDeviceMarker(m.Type, m.Data, m.LocalPos, devices)) // #2260: a device's settings go onto its block
+                        {
+                            cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
+                        }
                     }
                 }
 
@@ -1428,7 +1549,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     foreach (var m in settlementMarkers)
                     {
-                        cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
+                        if (!TakeDeviceMarker(m.Type, m.Data, m.LocalPos, devices)) // #2260: a device's settings go onto its block
+                        {
+                            cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
+                        }
                     }
                 }
 
@@ -1443,7 +1567,9 @@ namespace BlocksBeyondTheStars.Client
                             }
 
                             var (tint, glow) = modifier != null ? modifier(x, y, z) : (0, 0);
-                            cells.Add(new CellJson { x = x, y = y, z = z, kind = "block", id = def.Key, tint = tint, glow = glow, shape = shapeAt?.Invoke(x, y, z) ?? 0 });
+                            var dv = devices.TryGetValue(new Vector3i(x, y, z), out var found) ? found : (0, string.Empty, string.Empty);
+                            cells.Add(new CellJson { x = x, y = y, z = z, kind = "block", id = def.Key, tint = tint, glow = glow, shape = shapeAt?.Invoke(x, y, z) ?? 0,
+                                mode = dv.Item1, config = dv.Item2, label = dv.Item3 });
                         }
             }
             catch (Exception e)

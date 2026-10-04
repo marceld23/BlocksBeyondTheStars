@@ -72,7 +72,8 @@ public sealed partial class GameServer
             config = CrystalConfigWith(config, "len", CrystalNetRules.BridgeDefaultLength.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
-        int modes = CrystalNetRules.ModeCount(kind);
+        // A switch has no mode picker, but its lever rides in the mode (1 = ON): a hall light stamped ON comes out lit.
+        int modes = kind == CrystalDeviceKind.Switch ? 2 : CrystalNetRules.ModeCount(kind);
         string label = rawLabel.Length > 0 ? SanitizeBeamName(rawLabel) : string.Empty;
         var registered = RegisterCrystalCell(cell, kind, def.Key, CrystalNetRules.WorldOwnerId, modes > 0 ? System.Math.Max(0, System.Math.Min(modes - 1, mode)) : 0,
             config, label, yaw, persist: true);

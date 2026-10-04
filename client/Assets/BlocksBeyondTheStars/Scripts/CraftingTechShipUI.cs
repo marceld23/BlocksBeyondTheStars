@@ -2844,6 +2844,29 @@ namespace BlocksBeyondTheStars.Client
             StepRow(L("ui.worldopt.hazards"), WorldCreationOptions.HazardSteps, "ui.worldopt.hz.",
                 rules?.EnvironmentalHazards ?? "Normal", v => Game?.Network?.SendSetWorldRules(hazards: v));
 
+            // #2269: how long the machines that were running catch up when someone comes back (Off = they wait).
+            {
+                var steps = BlocksBeyondTheStars.Shared.Definitions.CrystalNetRules.CatchUpChoicesMinutes;
+                int minutes = rules != null && rules.MachineCatchUpMinutes >= 0
+                    ? rules.MachineCatchUpMinutes
+                    : BlocksBeyondTheStars.Shared.Definitions.CrystalNetRules.CatchUpDefaultMinutes;
+                int idx = System.Array.IndexOf(steps, minutes);
+                if (idx < 0) idx = System.Array.IndexOf(steps, BlocksBeyondTheStars.Shared.Definitions.CrystalNetRules.CatchUpDefaultMinutes);
+                UiKit.AddText(_listContent, 16, y, 360, 56, L("ui.rules.machine_catchup"), 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddText(_listContent, 380, y, 180, 56, L("ui.rules.machine_catchup." + steps[idx]), 20, UiKit.Cyan, TextAnchor.MiddleCenter);
+                UiKit.AddButton(_listContent, 570, y + 6, 80, 44, "−", () =>
+                {
+                    if (idx > 0) { Game?.Network?.SendSetWorldRules(machineCatchUpMinutes: steps[idx - 1]); Invoke(nameof(RebuildList), 0.35f); }
+                });
+                UiKit.AddButton(_listContent, 660, y + 6, 80, 44, "+", () =>
+                {
+                    if (idx < steps.Length - 1) { Game?.Network?.SendSetWorldRules(machineCatchUpMinutes: steps[idx + 1]); Invoke(nameof(RebuildList), 0.35f); }
+                });
+                y += 50f;
+                UiKit.AddText(_listContent, 16, y, 760, 30, L("ui.rules.machine_catchup.hint"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 40f;
+            }
+
             // Instant Travel (world option): when on, the travel screen may quick-travel anywhere; when off
             // (default) it is limited to worlds you've already landed on. The server enforces the admin gate.
             bool instant = rules?.InstantTravel ?? false;
