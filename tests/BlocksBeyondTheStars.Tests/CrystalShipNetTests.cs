@@ -79,7 +79,12 @@ public sealed class CrystalShipNetTests : IDisposable
         int before = t.Sent.Count;
         server.HandleStructureEditForTest(who.State.PlayerId, new StructureEditIntent
         {
-            StructureId = "ship:" + who.State.PlayerId, X = cell.X, Y = cell.Y, Z = cell.Z, ItemKey = item, DeviceDir = deviceDir,
+            StructureId = "ship:" + who.State.PlayerId,
+            X = cell.X,
+            Y = cell.Y,
+            Z = cell.Z,
+            ItemKey = item,
+            DeviceDir = deviceDir,
         });
         string? refusal = t.Sent.Skip(before).Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ActionRejected>().LastOrDefault()?.Reason;
         Assert.Null(refusal);

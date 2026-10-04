@@ -197,8 +197,17 @@ namespace BlocksBeyondTheStars.Client
                     var world = new Vector3i(Wrap(o.X + d.X, circumference), o.Y + d.Y, o.Z + d.Z);
                     var copy = new NetCrystalDevice
                     {
-                        Id = d.Id, X = world.X, Y = world.Y, Z = world.Z, Kind = d.Kind, Mode = d.Mode, Config = d.Config,
-                        Label = d.Label, OwnerId = d.OwnerId, Output = d.Output, Choices = d.Choices,
+                        Id = d.Id,
+                        X = world.X,
+                        Y = world.Y,
+                        Z = world.Z,
+                        Kind = d.Kind,
+                        Mode = d.Mode,
+                        Config = d.Config,
+                        Label = d.Label,
+                        OwnerId = d.OwnerId,
+                        Output = d.Output,
+                        Choices = d.Choices,
                     };
                     devices.Add(copy);
                     _byCell[world] = copy;
