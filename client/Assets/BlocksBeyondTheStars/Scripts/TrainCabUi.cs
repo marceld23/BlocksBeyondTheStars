@@ -37,6 +37,10 @@ namespace BlocksBeyondTheStars.Client
             _openFrame = Time.frameCount;
             _canvas.gameObject.SetActive(true);
             Build();
+            // #2302: the open effect — only here, never in the half-second Rebuild(); that refresh waits its half second
+            // first, so it cannot swap the fading overlay for a new one on the next frame (the panel was just built).
+            UiKit.OpenModal(_overlay);
+            _nextRefresh = Time.time + 0.5f;
             Game?.SetMenuOwner(this, true);
         }
 

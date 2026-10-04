@@ -77,6 +77,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _overlay.SetActive(true);
+            UiKit.OpenModal(_overlay); // #2302: the scrim fades in place, the question rises (TryOfferPair refuses while shown)
             _shown = true;
             _openedAt = Time.unscaledTime;
             Game.SetCursorOwner(this, true);

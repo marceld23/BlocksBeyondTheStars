@@ -78,6 +78,7 @@ namespace BlocksBeyondTheStars.Client
             _openFrame = Time.frameCount;
             _canvas.gameObject.SetActive(true);
             Build();
+            UiKit.OpenModal(_overlay); // #2302: the open effect — here, not in Build(), which every click and echo re-runs
             Game?.SetMenuOwner(this, true);
         }
 

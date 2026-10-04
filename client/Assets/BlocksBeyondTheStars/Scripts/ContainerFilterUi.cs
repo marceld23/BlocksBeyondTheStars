@@ -88,7 +88,7 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 58; // above the HUD/chat, below the world map (60) — same shelf as BeaconLabelUi
             UiNav.Enable(_canvas.gameObject); // pad: stick walks the grid, A toggles (#940)
             Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
-            Build();
+            UiKit.OpenModal(Build()); // #2302: the open effect — only here; a toggle's Rebuild() comes back without it
         }
 
         private void Update()
@@ -114,9 +114,10 @@ namespace BlocksBeyondTheStars.Client
             _selected.Clear();
         }
 
-        private void Build()
+        /// <returns>The overlay, for the open effect.</returns>
+        private GameObject Build()
         {
-            var (_, panel) = UiKit.AddModalOverlay(_canvas.transform, 460f, 100f, 1000f, 880f);
+            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, 460f, 100f, 1000f, 880f);
 
             var head = UiKit.AddText(panel, 32f, 28f, 900f, 40f, L("ui.container_filter.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
@@ -173,6 +174,7 @@ namespace BlocksBeyondTheStars.Client
                 Game?.MarkMenuInputHandled();
                 Close();
             });
+            return overlay;
         }
 
         private void Rebuild()

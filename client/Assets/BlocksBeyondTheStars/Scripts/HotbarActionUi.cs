@@ -139,6 +139,12 @@ namespace BlocksBeyondTheStars.Client
             // wedge on its first frame instead of deferring to a control nobody can see (#1405).
             UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null);
             BuildRing();
+            // #2302: the pie fades in where it is — only on open (a Back from a detail panel rebuilds the ring without
+            // it). The ring has no dialog panel to rise: its dim, the fresh canvas' only child, carries all of it.
+            if (_canvas.transform.childCount > 0)
+            {
+                UiKit.TransitionIn(_canvas.transform.GetChild(0).gameObject, 0f);
+            }
         }
 
         private void Close()

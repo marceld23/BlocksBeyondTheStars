@@ -1906,7 +1906,20 @@ look up: what a mix does follows from what goes in, and the same things always g
   you get what you always got — **plus one sample** of that species (for ore: of that world's deposit; always from
   the first block, afterwards from about one block in eight). Samples go into your **sample case**, a separate
   compartment of the inventory (24 kinds, 20 of each), so they never clutter your backpack. A block you placed
-  yourself gives no sample. If the case is full the harvest still works — you just get no sample.
+  yourself gives no sample. If the case is full the harvest still works — you just get no sample. To make room,
+  **throw a kind away**: *Inventory → Samples*, pick the sample, **Throw away** (click twice — the second click
+  confirms), or the same button on the bio lab's *Analyse* page. Every sample of that kind goes; what you learned
+  about it stays in the Codex.
+- **Keeping the overview.** The sample case lists **plants, animals and deposits** under their own headings — the
+  ones you have not analysed yet first, then by effect. Every row shows what an analysed sample holds (an effect
+  like *Speed II* in its colour, a deposit its strongest traits) or *Not analysed*. Above the list sit the
+  **filters**: one chip per kind (*All · Plants · Animals · Deposits*, with how many each holds) and the **Effect**
+  button, which steps through the five **effect families** — *Movement* (speed, jump, feather fall, grip),
+  *Protection & healing* (shield, regeneration, heat, cold and toxin ward), *Strength & work* (strength, mining,
+  reflex, gathering), *Survival* (breath, satiety, energy), *Senses* (night sight, perception, stealth) — and
+  *Not analysed*. The filter is the same in the bio lab and on *Inventory → Samples* and lasts until you quit the
+  game. On the lab's *Change* page the case shows only deposits (nothing else changes a tool) and marks the ones
+  that would change the chosen piece with **✓ works**.
 - **The sampler** (`bio_sampler`, workshop, comes with the bio lab blueprint): a **right-click** gadget that takes
   a sample from a **living** animal without hurting it — 6 blocks reach, 48 for a giant. A hostile animal
   must be held in stasis first — except a giant, which cannot be frozen: there the long reach is the hurdle.
@@ -1981,7 +1994,8 @@ look up: what a mix does follows from what goes in, and the same things always g
   healing or cooldowns — never damage. A heat-sensitive effect runs out twice as fast above 40 °C, a
   cold-sensitive one below −5 °C — judged by the air you are really in: aboard your ship or a station that is a
   comfortable 22 °C, outdoors the real temperature, in every game mode.
-- **Your handbook** is in the Codex: the chapters **Substances** (every species you analysed), **Compounds** (every
+- **Your handbook** is in the Codex: the chapters **Substances** (every species you analysed, grouped by effect
+  family), **Compounds** (every
   mix you tried, also the failed ones) and **Materials** (every deposit you analysed and every item you changed).
   In the lab, the sample case is on the left; a click on a sample puts it into the fitting slot of the open page.
 - **In Sandbox** nothing is used up and no blueprint is needed — but samples still have to be collected: the

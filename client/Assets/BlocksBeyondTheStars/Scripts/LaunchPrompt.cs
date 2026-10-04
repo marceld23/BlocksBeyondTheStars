@@ -54,6 +54,7 @@ namespace BlocksBeyondTheStars.Client
             EnsureUi();
             _onDecline = onDecline;
             _overlay.SetActive(true);
+            UiKit.OpenModal(_overlay); // #2302: the scrim fades in place, the question rises (TryOffer refuses while shown)
             _shown = true;
             _openedAt = Time.unscaledTime;
             Game.SetCursorOwner(this, true); // the buttons need a free cursor (#413 arbiter)

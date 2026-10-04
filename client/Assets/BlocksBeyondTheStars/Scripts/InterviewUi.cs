@@ -55,6 +55,11 @@ namespace BlocksBeyondTheStars.Client
             _presetRow.SetActive(safe);
             _input.text = string.Empty;
             _overlay.SetActive(true);
+            if (!_open)
+            {
+                UiKit.OpenModal(_overlay); // #2302: the open effect — not again when a second ask re-fills an open interview
+            }
+
             _open = true;
             Game.SetMenuOwner(this, true);
             if (!safe)

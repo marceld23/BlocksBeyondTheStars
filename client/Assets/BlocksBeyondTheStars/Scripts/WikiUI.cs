@@ -332,13 +332,15 @@ namespace BlocksBeyondTheStars.Client
         // recomputed from the book with the rules the server used, so a balance change shows here too.
 
         /// <summary>Every plant and animal species this player has analysed: the substance, what it does, its catch,
-        /// how rare it is and where it is from.</summary>
+        /// how rare it is and where it is from — under the headings of the effect families (#2300), the ones the
+        /// sample case filters by.</summary>
         private string BuildSubstances()
         {
             var sb = new StringBuilder();
             sb.Append("<b><size=24>").Append(L("ui.wiki.substances")).Append("</size></b>\n\n");
 
-            var lines = new List<(string Name, string Line)>();
+            var byFamily = new Dictionary<BioEffectFamily, List<(string Name, string Line)>>();
+            int total = 0;
             if (Game != null)
             {
                 foreach (var species in Game.Bio.Species.Values)
@@ -355,17 +357,41 @@ namespace BlocksBeyondTheStars.Client
                         .Append(" · ").Append(BioLabUi.SideText(Game, profile.Side, profile.SideLevel))
                         .Append(" · ").Append(L("bio.rarity." + profile.Rarity));
                     AppendOrigin(line, species.OriginBodyName);
+                    var family = BioRules.Family(profile.Effect);
+                    if (!byFamily.TryGetValue(family, out var lines))
+                    {
+                        byFamily[family] = lines = new List<(string Name, string Line)>();
+                    }
+
                     lines.Add((name, line.ToString()));
+                    total++;
                 }
             }
 
-            if (lines.Count == 0)
+            if (total == 0)
             {
                 sb.Append(L("ui.wiki.substances.empty"));
                 return sb.ToString();
             }
 
-            AppendSorted(sb, lines);
+            bool first = true;
+            foreach (var family in BioRules.Families)
+            {
+                if (!byFamily.TryGetValue(family, out var lines))
+                {
+                    continue;
+                }
+
+                if (!first)
+                {
+                    sb.Append('\n');
+                }
+
+                first = false;
+                sb.Append("<b>").Append(BioLabUi.FamilyLabel(Game, family)).Append(" (").Append(lines.Count).Append(")</b>\n");
+                AppendSorted(sb, lines);
+            }
+
             return sb.ToString();
         }
 

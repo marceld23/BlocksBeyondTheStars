@@ -268,6 +268,26 @@ namespace BlocksBeyondTheStars.Client
             UiHolo.PlayReveal(root, 0.34f, 0.06f, 0.04f);
         }
 
+        /// <summary>
+        /// #2302: the open effect of a modal built with <see cref="AddModalOverlay"/> — the scrim fades in where it is and
+        /// the dialog panel (its first child) rises into place, like the Codex and the trade dialogs. Call it once when
+        /// the dialog OPENS, never from a rebuild of an open one, or every click would replay it. Instant under
+        /// <see cref="ReducedMotion"/>.
+        /// </summary>
+        public static void OpenModal(GameObject overlay)
+        {
+            if (overlay == null)
+            {
+                return;
+            }
+
+            TransitionIn(overlay, 0f);
+            if (overlay.transform.childCount > 0)
+            {
+                TransitionIn(overlay.transform.GetChild(0).gameObject);
+            }
+        }
+
         /// <summary>Fade+rise-in transition (~0.14 s, unscaled) on a UI root: attaches/reuses a CanvasGroup
         /// and animates alpha 0→1 plus a small upward slide. Instant under <see cref="ReducedMotion"/>.
         /// Canvas roots only fade (their RectTransform is driven by the canvas).</summary>

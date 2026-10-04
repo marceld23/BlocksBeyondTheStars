@@ -231,6 +231,24 @@ public static class BioRules
         BioEffect.Energy, BioEffect.Gathering,
     };
 
+    /// <summary>The families in the order the lists show them (<see cref="BioEffectFamily.None"/> left out).</summary>
+    public static readonly BioEffectFamily[] Families =
+    {
+        BioEffectFamily.Movement, BioEffectFamily.Protection, BioEffectFamily.Work, BioEffectFamily.Survival, BioEffectFamily.Senses,
+    };
+
+    /// <summary>The family an effect belongs to (#2300) — every effect to exactly one.</summary>
+    public static BioEffectFamily Family(BioEffect effect) => effect switch
+    {
+        BioEffect.Speed or BioEffect.Jump or BioEffect.FeatherFall or BioEffect.Grip => BioEffectFamily.Movement,
+        BioEffect.Shield or BioEffect.Regeneration or BioEffect.HeatWard or BioEffect.ColdWard or BioEffect.ToxinWard
+            => BioEffectFamily.Protection,
+        BioEffect.Strength or BioEffect.Mining or BioEffect.Reflex or BioEffect.Gathering => BioEffectFamily.Work,
+        BioEffect.Breath or BioEffect.Satiety or BioEffect.Energy => BioEffectFamily.Survival,
+        BioEffect.NightSight or BioEffect.Perception or BioEffect.Stealth => BioEffectFamily.Senses,
+        _ => BioEffectFamily.None,
+    };
+
     /// <summary>The weight of every effect in <see cref="Effects"/> order for a context: 1 plus the bonuses of its tags.</summary>
     public static int[] EffectWeights(BioTag tags)
     {

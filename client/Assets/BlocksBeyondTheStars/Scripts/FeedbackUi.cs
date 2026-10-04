@@ -288,6 +288,7 @@ namespace BlocksBeyondTheStars.Client
             EnsureDialog();
             ResetFields();
             _dialog.SetActive(true);
+            UiKit.OpenModal(_dialog); // #2302: the scrim fades in place, the form (the scrim's first child) rises
 
             // Hold the world like the Esc menu does (#1330) — after the screenshot, so the shot shows live play.
             // The server decides what it means (#973): alone, the world stops right here; with others joined it
@@ -811,6 +812,7 @@ namespace BlocksBeyondTheStars.Client
 
             _replyOverlay.SetActive(true);
             SetReplyBody(ThreadText(thread)); // after activation — the chunk heights are measured against live rects
+            UiKit.OpenModal(_replyOverlay); // #2302: the open effect — ShowThread only runs while no reply is open
             WorldHold.Hold(Time.realtimeSinceStartup); // reading/answering holds the world like the F1 dialog (#1330)
             Game.SetMenuOwner(_replyOwner, true);
         }
