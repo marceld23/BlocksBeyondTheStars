@@ -7307,6 +7307,7 @@ public sealed partial class GameServer
             StationZeroG = session.StationZeroG, // #1842: chosen float on a player station (session-only)
             Effects = DumpEffects(p), // #2202
             Shield = p.Shield,
+            Stealthed = p.Stealthed, // #2291: the own cloak (others see it through the presence)
         });
     }
 

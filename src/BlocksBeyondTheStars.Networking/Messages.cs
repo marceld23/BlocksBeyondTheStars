@@ -1242,6 +1242,11 @@ public sealed class PlayerStateUpdate
 
     /// <summary>What is left of the shield cushion (#2202): extra health on top of the 100, drawn beside the health bar.</summary>
     public float Shield { get; set; }
+
+    /// <summary>The player's own stealth cloak is up (#2291) — the HUD gear strip lights it and the client plays the cloak's
+    /// sound on this answer rather than on the key. New field on an existing contractless MessagePack message: an older
+    /// client ignores it, an older server leaves it false.</summary>
+    public bool Stealthed { get; set; }
 }
 
 public sealed class CraftResult

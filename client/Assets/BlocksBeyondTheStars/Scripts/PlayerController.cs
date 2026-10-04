@@ -224,6 +224,60 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A wreck is registered for repair (RepairWreck applies — the aim check happens on press).</summary>
         public bool NearWreck => Game != null && Game.Wreck != null;
 
+        // ---- The worn active gear, for the HUD gear strip (#2290) ----
+
+        /// <summary>The suit lamp is lit: switched on AND worn (taking it off darkens it; wearing it again relights it).</summary>
+        public bool LampOn => _lampOn && HasItem("suit_lamp");
+
+        /// <summary>The jetpack is firing right now (the state last reported to the server, which drains the energy).</summary>
+        public bool JetpackActive => _jetpackActive;
+
+        /// <summary>The glider's wing is open (#2296). Always false until the glider movement lands: that phase sets it where
+        /// the glide starts and ends, and the HUD gear strip already reads it.</summary>
+        public bool Gliding { get; private set; }
+
+        /// <summary>Switches the worn suit lamp on or off — what the lamp key does, and the HUD gear strip's lamp tap (#2290).
+        /// Without a worn lamp it only says where to put one on (#2291) instead of flipping a switch nothing shows.</summary>
+        public void ToggleLamp()
+        {
+            if (!HasItem("suit_lamp"))
+            {
+                GearHint("ui.hud.no_lamp");
+                return;
+            }
+
+            _lampOn = !_lampOn;
+            ClientAudio.Instance?.Cue("lamp_toggle");
+        }
+
+        /// <summary>Asks the server to switch the stealth suit's cloak on or off (#2291) — the stealth key, the ACT list and
+        /// the gear strip's tap. The server decides (worn suit, energy left); its answer flips <c>Game.Stealthed</c>, and the
+        /// cloak's sound plays on that answer, not here. Without the suit worn it only says where to put it on.</summary>
+        public void ToggleStealth()
+        {
+            if (!HasItem("stealth_suit"))
+            {
+                GearHint("ui.hud.no_stealth");
+                return;
+            }
+
+            Game?.Network?.SendToggleStealth();
+        }
+
+        private float _gearHintAt = -10f;
+
+        /// <summary>A "you are not wearing that" toast (#2291), at most one every few seconds so a held key cannot spam it.</summary>
+        private void GearHint(string key)
+        {
+            if (Game?.Localizer == null || Time.unscaledTime - _gearHintAt < 3f)
+            {
+                return;
+            }
+
+            _gearHintAt = Time.unscaledTime;
+            Game.ShowMessage(Game.Localizer.Get(key));
+        }
+
         private string NearestContainerId(bool crateOnly)
         {
             if (Game?.Containers == null)
@@ -880,8 +934,12 @@ namespace BlocksBeyondTheStars.Client
 
             if (InputMap.Down(InputAction.ToggleLamp))
             {
-                _lampOn = !_lampOn;
-                ClientAudio.Instance?.Cue("lamp_toggle");
+                ToggleLamp();
+            }
+
+            if (InputMap.Down(InputAction.ToggleStealth))
+            {
+                ToggleStealth(); // #2291: on foot only — in EVA the same B deploys a station (SpaceView owns that frame)
             }
 
             UpdateLamp();

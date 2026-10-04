@@ -60,8 +60,8 @@ namespace BlocksBeyondTheStars.Client
         // only carries occupied slots, so free slots derive from this.
         private int PersonalSlotTotal => Game != null ? Game.PersonalSlots : 24;
 
-        // #2110: the grid's click-to-pick state — the slot a click picked up ("inv" = backpack/quick-bar index, "equip" =
-        // equipment slot), or none. The next click puts it down, swaps, wears or takes off.
+        // #2110: the grid's click-to-pick state — the backpack/quick-bar slot a click picked up ("inv" + its index), or
+        // none. The next click puts it down or swaps. Wearing lives on the Suit tab's figure since #2288.
         private string _pickKind = string.Empty;
         private int _pickIndex = -1;
 
@@ -129,6 +129,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _mode = mode;
+            CloseSlotPicker(); // #2289: the picker belongs to the Suit page it was opened from
             _avatarPreview?.SetActive(mode == Mode.Character); // only render the live preview on the colour tab
             _shipPreview?.SetActive(false); // re-enabled by the paint detail pane when that category is shown
             // The Inventory tab has no "all" page (its sidebar is Rucksack / Anzug / Frachtraum) — landing on "all"
@@ -244,6 +245,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             CloseDiscardGearDialog(); // #1484: a half-answered "throw away the helmet lamp?" dies with the menu
+            CloseSlotPicker();        // #2289: and so does an open slot picker
             _avatarPreview?.SetActive(false); // stop rendering the preview camera while the menu is closed
             _shipPreview?.SetActive(false);
         }
@@ -265,8 +267,10 @@ namespace BlocksBeyondTheStars.Client
             // a pad is walking the stick back up through a whole list. The two buttons are place / mine in
             // the world, but an open screen freezes player control, so they are free here (the same way B
             // is both crouch and cancel). Not while the on-screen keyboard has the pad, and not while the
-            // appearance editor sits on top of the Character tab — LB is its fill modifier.
-            if (!UiKit.TextFieldFocused() && Menu?.AppearanceEditorOpen != true && Menu?.TextureEditorOpen != true)
+            // appearance editor sits on top of the Character tab — LB is its fill modifier. Nor while the suit's slot
+            // picker (#2289) is up: a tab change under the modal would leave it pointing at a page that is gone.
+            if (!UiKit.TextFieldFocused() && Menu?.AppearanceEditorOpen != true && Menu?.TextureEditorOpen != true
+                && _pickerCanvas == null)
             {
                 if (InputMap.PadDown(PadButton.Rb))
                 {
@@ -351,6 +355,16 @@ namespace BlocksBeyondTheStars.Client
                 RebuildList();
                 RebuildDetail();
             }
+
+            // #2289: an open slot picker lists what the backpack and the hold carry and what is worn NOW — rebuilt on an
+            // inventory change only, not on every refresh of the page behind it (that would throw the pad to its first row).
+            int pickerSig = unchecked(slotSig * 17 + (Game.Cargo?.Length ?? 0) * 13 + (AboardShipNow() ? 1 : 0));
+            if (_pickerSlot >= 0 && pickerSig != _pickerSig)
+            {
+                ShowSlotPicker(_pickerSlot);
+            }
+
+            _pickerSig = pickerSig;
 
             // #1484: the footer echoes the latest server message in place — it used to ride the data hash and
             // rebuilt every tab for a HUD line. A custom footer text (a validation hint) stays until the next
@@ -1965,7 +1979,12 @@ namespace BlocksBeyondTheStars.Client
 
             if (_category == "personal")
             {
-                return BuildInventoryGrid(); // #2110: the nine-wide slot grid with the worn row
+                return BuildInventoryGrid(); // #2110: the nine-wide slot grid
+            }
+
+            if (_category == "suit")
+            {
+                return BuildSuitPage(); // #2288: the paper doll
             }
 
             if (_category == "samples")
@@ -1974,13 +1993,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var items = _category == "cargo" ? Game.Cargo : Game.Personal;
-            if (_category == "suit" && items != null)
-            {
-                // The Suit tab is a VIEW of the backpack (#1271): gear keeps its slots, it is just listed apart
-                // from ores and blocks — Marcel's call over real equip slots (a save-format change).
-                items = items.Where(s => Game.Content.GetItem(s.Item) is { } d && BlocksBeyondTheStars.Shared.State.SuitEquipment.IsSuitGear(d)).ToArray();
-            }
-
             float y = 0f;
 
             // Cargo transfer controls. The hold only exists while aboard the ship (in flight or in the landed
@@ -2004,19 +2016,9 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(_listContent, 8, y, 752, 30, L("ui.cargo.not_aboard"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
                 y += 40f;
             }
-            else if (_category == "suit")
-            {
-                y = AddSuitStatus(y, full: true);
-            }
 
             if (items == null || items.Length == 0)
             {
-                if (_category == "suit")
-                {
-                    UiKit.AddText(_listContent, 8, y + 8, 752, 60, L("ui.suit.none"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
-                    return y + 76f;
-                }
-
                 UiKit.AddText(_listContent, 8, y + 8, 700, 30, "—", 22, UiKit.CyanDim, TextAnchor.UpperLeft);
                 return y + 40f;
             }
@@ -2070,10 +2072,10 @@ namespace BlocksBeyondTheStars.Client
 
         private const float GridCell = 76f, GridPitch = 84f, GridX0 = 8f;
 
-        /// <summary>The personal inventory as slots: the WORN row (one slot per <c>EquipSlot</c>), the backpack rows and,
-        /// under a line, the quick-bar — nine wide. Click-to-pick / click-to-place (the hotbar swap's model): identical on
-        /// mouse, touch and gamepad (the buttons navigate by geometry). A click on a worn slot with a backpack piece picked
-        /// wears it; a click on a backpack slot with a worn piece picked takes it off; two backpack clicks swap.</summary>
+        /// <summary>The personal inventory as slots: the backpack rows and, under a line, the quick-bar — nine wide.
+        /// Click-to-pick / click-to-place (the hotbar swap's model): identical on mouse, touch and gamepad (the buttons
+        /// navigate by geometry). Two clicks move or swap. What is worn lives on the Suit tab's figure (#2288); a piece
+        /// picked here still gets Wear in the detail pane.</summary>
         private float BuildInventoryGrid()
         {
             float y = 0f;
@@ -2083,28 +2085,6 @@ namespace BlocksBeyondTheStars.Client
                     () => Game.Network?.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true));
                 y += 56f;
             }
-
-            y = AddSuitStatus(y, full: false);
-
-            // The worn row.
-            UiKit.AddText(_listContent, 8, y, 752, 26, L("ui.equip.title"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
-            y += 30f;
-            for (int slot = 0; slot < BlocksBeyondTheStars.Shared.State.EquipSlots.Count; slot++)
-            {
-                int s = slot;
-                float x = GridX0 + slot * GridPitch;
-                string worn = Game.ItemInEquipSlot(slot);
-                var b = AddGridSlot(x, y, worn, 1, () => OnEquipSlotClicked(s));
-                if (_pickKind == "equip" && _pickIndex == slot)
-                {
-                    Highlight(b);
-                }
-
-                string label = L(BlocksBeyondTheStars.Shared.State.EquipSlots.LabelKey((BlocksBeyondTheStars.Shared.State.EquipSlot)slot));
-                UiKit.AddText(_listContent, x, y + GridCell + 2f, GridCell, 18, label, 12, UiKit.CyanDim, TextAnchor.UpperCenter);
-            }
-
-            y += GridCell + 26f;
 
             // The backpack rows (slots 9..N-1).
             UiKit.AddText(_listContent, 8, y, 752, 26, L("ui.inventory.backpack"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
@@ -2246,15 +2226,6 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (_pickKind == "equip")
-            {
-                int slot = _pickIndex;
-                ClearPick();
-                Game.Network?.SendUnequipItem(slot, index); // take off into this slot (a fitting piece there swaps)
-                ClientAudio.Instance?.Cue("ui_click");
-                return;
-            }
-
             if (string.IsNullOrEmpty(item))
             {
                 return; // nothing to pick up
@@ -2268,48 +2239,468 @@ namespace BlocksBeyondTheStars.Client
             RebuildDetail();
         }
 
-        /// <summary>A worn slot was clicked.</summary>
-        private void OnEquipSlotClicked(int slot)
+        // ---------------- #2288: the Suit tab — a paper doll ----------------
+
+        // The figure's geometry in list coordinates: its centre line, the two slot columns and the row pitch of a slot
+        // (cell + its name). Left: head, chest, legs, feet — right: back, tank, liner — the modules in a row under it.
+        private const float DollCx = 384f, DollLeftX = 40f, DollRightX = 652f, DollRow = 100f;
+
+        private static readonly EquipSlot[] DollLeft = { EquipSlot.Head, EquipSlot.Chest, EquipSlot.Legs, EquipSlot.Feet };
+        private static readonly EquipSlot[] DollRight = { EquipSlot.Back, EquipSlot.Tank, EquipSlot.Liner };
+
+        /// <summary>The Suit tab as a paper doll (#2288): the status line, a friendly figure with its slots around it and
+        /// the four module slots under it, the passive hint, and what the worn gear can actively do. Any slot opens the
+        /// picker (#2289); a worn piece also fills the detail pane (its description and Take off). The slots are Buttons,
+        /// so the pad walks them by geometry like the backpack grid.</summary>
+        private float BuildSuitPage()
         {
-            string worn = Game.ItemInEquipSlot(slot);
-            if (_pickKind == "inv")
+            float top = AddSuitStatus(0f) + 4f;
+
+            // The thin lines first, so the figure and the slots cover their ends: each slot points at what it dresses.
+            for (int i = 0; i < DollLeft.Length; i++)
             {
-                int from = _pickIndex;
-                string picked = Game.ItemInSlot(from);
-                ClearPick();
-                var def = string.IsNullOrEmpty(picked) ? null : Game.Content?.GetItem(BlocksBeyondTheStars.Shared.State.ItemKey.Base(picked));
-                if (def != null && BlocksBeyondTheStars.Shared.State.EquipSlots.Accepts((BlocksBeyondTheStars.Shared.State.EquipSlot)slot, def.EquipSlot))
+                var (ax, ay) = DollAnchor(DollLeft[i]);
+                AddDollLine(DollLeftX + GridCell, top + i * DollRow + GridCell / 2f, DollCx + ax, top + ay);
+            }
+
+            for (int i = 0; i < DollRight.Length; i++)
+            {
+                var (ax, ay) = DollAnchor(DollRight[i]);
+                AddDollLine(DollRightX, top + i * DollRow + GridCell / 2f, DollCx + ax, top + ay);
+            }
+
+            AddDollFigure(top);
+            for (int i = 0; i < DollLeft.Length; i++)
+            {
+                AddSuitSlot(DollLeftX, top + i * DollRow, DollLeft[i]);
+            }
+
+            for (int i = 0; i < DollRight.Length; i++)
+            {
+                AddSuitSlot(DollRightX, top + i * DollRow, DollRight[i]);
+            }
+
+            // The modules (#2293): four slots in a row under the figure.
+            float y = top + DollLeft.Length * DollRow + 4f;
+            UiKit.AddText(_listContent, 8, y, 752, 26, L("ui.equip.modules"), 18, UiKit.Cyan, TextAnchor.UpperCenter, FontStyle.Bold);
+            y += 30f;
+            const float modulePitch = GridCell + 20f;
+            int modules = EquipSlots.ModuleSlots.Count;
+            float mx = DollCx - (modules * modulePitch - 20f) / 2f;
+            for (int i = 0; i < modules; i++)
+            {
+                AddSuitSlot(mx + i * modulePitch, y, EquipSlots.ModuleSlots[i]);
+            }
+
+            y += GridCell + 30f;
+
+            // Nothing worn at all (an old save, everything taken off): the getting-started line instead of the rules.
+            var hint = UiKit.AddText(_listContent, 8, y, 752, 40, L(Game.WornKeys().Any() ? "ui.suit.passive_hint" : "ui.suit.none"),
+                16, UiKit.CyanDim, TextAnchor.UpperLeft);
+            hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += Mathf.Max(40f, hint.preferredHeight) + 16f;
+            return AddActiveGearSection(y);
+        }
+
+        /// <summary>Where a slot's line meets the figure, relative to its centre line and its top.</summary>
+        private static (float X, float Y) DollAnchor(EquipSlot slot) => slot switch
+        {
+            EquipSlot.Head => (-30f, 40f),
+            EquipSlot.Chest => (-30f, 140f),
+            EquipSlot.Legs => (-27f, 285f),
+            EquipSlot.Feet => (-30f, 348f),
+            EquipSlot.Back => (40f, 100f),
+            EquipSlot.Tank => (40f, 155f),
+            _ => (40f, 210f), // the liner
+        };
+
+        /// <summary>The figure: a round helmet with its visor, the body, two arms, two legs and boots — soft holo shapes in
+        /// the HUD's dim cyan. Not a mannequin; it only shows where each piece goes. Purely decorative (no raycasts).</summary>
+        private void AddDollFigure(float top)
+        {
+            var fill = new Color(UiKit.CyanDim.r, UiKit.CyanDim.g, UiKit.CyanDim.b, 0.22f);
+            AddDollPart(DollCx - 90f, top + 90f, 28f, 136f, 14f, fill);  // the arms first: the body covers their shoulders
+            AddDollPart(DollCx + 62f, top + 90f, 28f, 136f, 14f, fill);
+            AddDollPart(DollCx - 50f, top + 228f, 46f, 112f, 16f, fill); // the legs
+            AddDollPart(DollCx + 4f, top + 228f, 46f, 112f, 16f, fill);
+            AddDollPart(DollCx - 60f, top + 334f, 58f, 26f, 10f, fill);  // the boots
+            AddDollPart(DollCx + 2f, top + 334f, 58f, 26f, 10f, fill);
+            AddDollPart(DollCx - 56f, top + 84f, 112f, 150f, 22f, fill); // the body
+            AddDollPart(DollCx - 36f, top + 4f, 72f, 72f, 36f, fill);    // the round helmet
+            AddDollPart(DollCx - 24f, top + 26f, 48f, 26f, 12f, new Color(0.04f, 0.10f, 0.20f, 0.85f)); // its visor
+        }
+
+        private void AddDollPart(float x, float y, float w, float h, float radius, Color fill)
+        {
+            var part = UiHolo.AddPanel(_listContent, x, y, w, h, fill, radius, 1.5f, 0.8f);
+            part.raycastTarget = false;
+        }
+
+        /// <summary>A thin line from (x1, y1) to (x2, y2) in list coordinates (y down): one image, turned about its start.</summary>
+        private void AddDollLine(float x1, float y1, float x2, float y2)
+        {
+            float dx = x2 - x1, dy = y2 - y1;
+            var line = UiKit.AddImage(_listContent, x1, y1, Mathf.Sqrt(dx * dx + dy * dy), 2f, UiKit.SolidSprite,
+                new Color(UiKit.CyanDim.r, UiKit.CyanDim.g, UiKit.CyanDim.b, 0.7f));
+            var rt = line.rectTransform;
+            rt.pivot = new Vector2(0f, 0.5f);
+            rt.anchoredPosition = new Vector2(x1, -y1);
+            rt.localRotation = Quaternion.Euler(0f, 0f, -Mathf.Atan2(dy, dx) * Mathf.Rad2Deg); // UI space turns y up
+        }
+
+        /// <summary>One slot of the figure: the worn piece's icon (an empty frame when nothing is worn) and the slot's name.</summary>
+        private void AddSuitSlot(float x, float y, EquipSlot slot)
+        {
+            int s = (int)slot;
+            string worn = Game.ItemInEquipSlot(s);
+            var b = AddGridSlot(x, y, worn, 1, () => OnSuitSlotClicked(s));
+            if (!string.IsNullOrEmpty(worn) && _selected == "inv:" + worn)
+            {
+                Highlight(b);
+            }
+
+            UiKit.AddText(_listContent, x - 10f, y + GridCell + 2f, GridCell + 20f, 18, L(EquipSlots.LabelKey(slot)), 12, UiKit.CyanDim, TextAnchor.UpperCenter);
+        }
+
+        /// <summary>A slot of the figure was clicked: a worn piece fills the detail pane, and the picker opens (#2289).</summary>
+        private void OnSuitSlotClicked(int slot)
+        {
+            ClearPick();
+            string worn = Game.ItemInEquipSlot(slot);
+            if (!string.IsNullOrEmpty(worn))
+            {
+                _selected = "inv:" + worn;
+                RebuildList(); // the highlight follows the selection
+                RebuildDetail();
+            }
+
+            ShowSlotPicker(slot);
+        }
+
+        /// <summary>"Can be used actively" (#2288): the worn gear that does something on a key — the lamp, the jetpack, the
+        /// glider, the stealth suit — with how to use it, in the HUD gear strip's order (<see cref="HudUi.ActiveGear"/>).</summary>
+        private float AddActiveGearSection(float y)
+        {
+            UiKit.AddText(_listContent, 8, y, 752, 26, L("ui.suit.active_title"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 32f;
+            bool any = false;
+            foreach (var key in HudUi.ActiveGear)
+            {
+                if (!Game.Wears(key))
                 {
-                    Game.Network?.SendEquipItem(from, slot);
-                    ClientAudio.Instance?.Cue("ui_confirm");
+                    continue;
+                }
+
+                any = true;
+                var sprite = IconResolver.Resolve(key, Game);
+                if (sprite != null)
+                {
+                    UiKit.AddIconSprite(_listContent, 12, y, 36, sprite, Color.white);
+                }
+
+                UiKit.AddText(_listContent, 58, y, 230, 36, ItemName(key), 18, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                var how = UiKit.AddText(_listContent, 296, y, 464, 36, ActiveGearHowTo(key), 17, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                UiKit.FitLabel(how, 11, 17);
+                y += 44f;
+            }
+
+            if (!any)
+            {
+                var none = UiKit.AddText(_listContent, 8, y, 752, 40, L("ui.suit.active_none"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                none.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += Mathf.Max(40f, none.preferredHeight) + 8f;
+            }
+
+            return y;
+        }
+
+        /// <summary>How an active piece is used, with the player's real control in it (#2288).</summary>
+        private string ActiveGearHowTo(string key) => key switch
+        {
+            "suit_lamp" => L("ui.suit.active_lamp").Replace("{key}", ActionKeyText(InputAction.ToggleLamp)),
+            "jetpack" => L("ui.suit.active_jetpack").Replace("{key}", HudUi.JumpGlyph(Game.Localizer)),
+            "glider" => L("ui.suit.active_glider").Replace("{key}", HudUi.JumpGlyph(Game.Localizer)),
+            _ => L("ui.suit.active_stealth").Replace("{key}", ActionKeyText(InputAction.ToggleStealth)),
+        };
+
+        /// <summary>The control of an action as the HUD names it; on a tablet the ACT list, which carries the lamp and the cloak.</summary>
+        private string ActionKeyText(InputAction action)
+            => InputMap.ActiveDevice == InputDeviceKind.Touch ? L("ui.touch.actions") : HudUi.GlyphText(Game.Localizer, action);
+
+        // ---------------- #2289: the slot picker ----------------
+
+        private GameObject _pickerCanvas; // the open picker's own canvas, or null
+        private int _pickerSlot = -1;     // the equipment slot it was opened for
+        private int _pickerSig;           // the inventory it was built from (see Update)
+
+        // Effects that are not a number: what a piece does on a key or by being worn (#2289).
+        private static readonly Dictionary<string, string> KeyEffects = new Dictionary<string, string>
+        {
+            ["suit_lamp"] = "ui.equip.effect.lamp",
+            ["jetpack"] = "ui.equip.effect.jetpack",
+            ["glider"] = "ui.equip.effect.glider",
+            ["stealth_suit"] = "ui.equip.effect.stealth",
+            ["comm_radio"] = "ui.equip.effect.radio_planet",
+            ["system_radio"] = "ui.equip.effect.radio_system",
+            ["galaxy_radio"] = "ui.equip.effect.radio_galaxy",
+            ["radar_scanner"] = "ui.equip.effect.radar",
+            ["oxygen_extractor"] = "ui.equip.effect.extractor",
+        };
+
+        /// <summary>The slot picker (#2289): a modal over the menu with every piece that fits <paramref name="slot"/> — from
+        /// the backpack, and aboard from the cargo hold too — what it does and where it lies. The piece worn there now sits
+        /// on top with Take off. A pick wears it (the server checks the slot and the hold); with nothing to wear the picker
+        /// points at the recipe, or at the research. Esc / pad B close it before the menu (<see cref="CloseSlotPicker"/>).</summary>
+        private void ShowSlotPicker(int slot)
+        {
+            CloseSlotPicker();
+            if (slot < 0 || slot >= EquipSlots.Count || Game?.Content == null || _canvas == null)
+            {
+                return;
+            }
+
+            var equipSlot = (EquipSlot)slot;
+            string slotName = L(EquipSlots.LabelKey(equipSlot));
+            string worn = Game.ItemInEquipSlot(slot);
+
+            var canvas = UiKit.CreateCanvas("Suit Slot Picker");
+            canvas.sortingOrder = 61; // above the Tab menu (50) — the discard confirm's tier
+            _pickerCanvas = canvas.gameObject;
+            _pickerSlot = slot;
+            UiNav.SetSuspended(_canvas.gameObject, true); // the pad belongs to the picker until it closes
+            UiNav.Enable(canvas.gameObject);
+
+            const float pw = 760f, ph = 700f, rowH = 80f;
+            var (_, panel) = UiKit.AddModalOverlay(canvas.transform, (W - pw) / 2f, (H - ph) / 2f, pw, ph);
+            var title = UiKit.AddText(panel, 24f, 18f, pw - 48f, 44f, L("ui.equip.picker_title").Replace("{slot}", slotName),
+                26, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.FitLabel(title, 14, 26);
+
+            var list = MakeScroll(panel, 24f, 74f, pw - 48f, ph - 74f - 88f);
+            float rowW = pw - 48f - 14f; // clear of the inline scrollbar
+            float y = 0f;
+
+            // What is worn here now, on top: marked, with Take off.
+            if (!string.IsNullOrEmpty(worn))
+            {
+                UiKit.AddPanel(list, 0f, y, rowW, rowH, new Color(UiKit.SlotSelected.r, UiKit.SlotSelected.g, UiKit.SlotSelected.b, 0.45f));
+                AddPickerRowContent(list, y, rowW - 340f, worn);
+                UiKit.AddText(list, rowW - 330f, y, 130f, rowH, L("ui.equip.title"), 18, UiKit.Ok, TextAnchor.MiddleRight, FontStyle.Bold);
+                UiKit.AddButton(list, rowW - 190f, y + 15f, 180f, 50f, L("ui.equip.unequip"), () =>
+                {
+                    Game.Network?.SendUnequipItem(slot, -1);
+                    CloseSlotPicker();
+                    ClearPick();
+                });
+                y += rowH + 8f;
+            }
+
+            foreach (var row in PickerRows(equipSlot))
+            {
+                var stack = row.Stack;
+                bool fromCargo = row.Cargo;
+                var b = UiKit.AddButton(list, 0f, y, rowW, rowH, string.Empty, () =>
+                {
+                    Game.Network?.SendEquipItem(stack.Slot, slot, fromCargo);
+                    ClientAudio.Instance?.Cue("gear_equip");
+                    _selected = "inv:" + stack.Item; // the detail pane follows the piece now worn
+                    CloseSlotPicker();
+                    ClearPick();
+                });
+                AddPickerRowContent(b.transform, 0f, rowW - 220f, stack.Item);
+                UiKit.AddText(b.transform, rowW - 206f, 0f, 190f, rowH, L(fromCargo ? "ui.cargo.title" : "ui.inventory.backpack"),
+                    16, UiKit.Cyan, TextAnchor.MiddleRight);
+                y += rowH + 8f;
+            }
+
+            // Nothing to wear here and nothing worn: what it takes — the recipe once its blueprint is known, else research.
+            if (y <= 0f)
+            {
+                var none = UiKit.AddText(list, 8f, y, rowW - 16f, 34f, L("ui.equip.picker_empty").Replace("{slot}", slotName),
+                    22, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                none.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += Mathf.Max(34f, none.preferredHeight) + 12f;
+                var recipe = PickerRecipeFor(equipSlot);
+                if (recipe != null)
+                {
+                    string recipeKey = recipe.Key;
+                    UiKit.AddButton(list, 8f, y, 320f, 52f, L("ui.equip.picker_recipe"), () =>
+                    {
+                        CloseSlotPicker();
+                        JumpToRecipe(recipeKey);
+                    });
+                    y += 64f;
                 }
                 else
                 {
-                    ClientAudio.Instance?.Cue("ui_click");
-                    RebuildList(); // does not fit here: just put it down
+                    var research = UiKit.AddText(list, 8f, y, rowW - 16f, 30f,
+                        L("ui.equip.picker_research").Replace("{where}", L("ui.tab.tech") + " → " + L("ui.tech.cat_suit")),
+                        18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    research.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    y += 40f;
+                }
+            }
+
+            // On foot the hold is out of reach — more may wait there.
+            if (!AboardShipNow())
+            {
+                var cargoHint = UiKit.AddText(list, 8f, y + 4f, rowW - 16f, 30f, L("ui.equip.picker_cargo_hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                cargoHint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 44f;
+            }
+
+            SetContentHeight(list, y);
+            UiKit.AddButton(panel, pw - 24f - 220f, ph - 72f, 220f, 52f, L("ui.action.close"), () => CloseSlotPicker());
+        }
+
+        /// <summary>Closes the slot picker (#2289) and hands the pad back to the menu. True when one was open — GameMenu lets
+        /// Esc / pad B close the picker first, so the menu behind it stays.</summary>
+        public bool CloseSlotPicker()
+        {
+            _pickerSlot = -1;
+            if (_pickerCanvas == null)
+            {
+                return false;
+            }
+
+            Destroy(_pickerCanvas);
+            _pickerCanvas = null;
+            if (_canvas != null)
+            {
+                UiNav.SetSuspended(_canvas.gameObject, false);
+            }
+
+            return true;
+        }
+
+        /// <summary>The pieces a slot can take (#2289): one row per stack in the backpack and — aboard — the cargo hold whose
+        /// item names this slot; for a module slot without the modules already worn in the other three. Backpack first,
+        /// then the hold, the best piece first in each.</summary>
+        private List<(NetItemStack Stack, bool Cargo)> PickerRows(EquipSlot slot)
+        {
+            var otherModules = new HashSet<string>();
+            if (EquipSlots.IsModule(slot))
+            {
+                foreach (var m in EquipSlots.ModuleSlots)
+                {
+                    string w = m == slot ? string.Empty : Game.ItemInEquipSlot((int)m);
+                    if (!string.IsNullOrEmpty(w))
+                    {
+                        otherModules.Add(ItemKey.Base(w));
+                    }
+                }
+            }
+
+            var rows = new List<(NetItemStack Stack, bool Cargo, float Rank)>();
+            void Collect(NetItemStack[] stacks, bool cargo)
+            {
+                if (stacks == null)
+                {
+                    return;
                 }
 
-                return;
+                foreach (var s in stacks)
+                {
+                    if (s == null || s.Count <= 0 || string.IsNullOrEmpty(s.Item))
+                    {
+                        continue;
+                    }
+
+                    string key = ItemKey.Base(s.Item);
+                    var def = Game.Content.GetItem(key);
+                    if (def != null && EquipSlots.Accepts(slot, def.EquipSlot) && !otherModules.Contains(key))
+                    {
+                        rows.Add((s, cargo, SuitEquipment.Rank(def)));
+                    }
+                }
             }
 
-            if (_pickKind == "equip")
+            Collect(Game.Personal, false);
+            if (AboardShipNow())
             {
-                ClearPick();
-                RebuildList(); // worn ↔ worn is not a move; put it down
-                return;
+                Collect(Game.Cargo, true); // wearing straight from the hold is aboard only (the server checks it too)
             }
 
-            if (string.IsNullOrEmpty(worn))
+            return rows.OrderBy(r => r.Cargo ? 1 : 0).ThenByDescending(r => r.Rank).Select(r => (r.Stack, r.Cargo)).ToList();
+        }
+
+        /// <summary>A picker row's icon, name and effect summary at <paramref name="y"/> in <paramref name="parent"/>.</summary>
+        private void AddPickerRowContent(Transform parent, float y, float textW, string item)
+        {
+            var sprite = IconResolver.Resolve(item, Game);
+            if (sprite != null)
             {
-                return;
+                UiKit.AddIconSprite(parent, 14f, y + 14f, 52f, sprite, IconResolver.Tint(item, Game));
+            }
+            else
+            {
+                UiKit.AddIcon(parent, 14f, y + 14f, 52f, IconFor(ItemKey.Base(item)) ?? "cat_suit");
             }
 
-            _pickKind = "equip";
-            _pickIndex = slot;
-            _selected = "inv:" + worn;
-            ClientAudio.Instance?.Cue("ui_click");
-            RebuildList();
-            RebuildDetail();
+            var name = UiKit.AddText(parent, 80f, y + 6f, textW - 80f, 36f, ItemName(item), 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.FitLabel(name, 12, 22);
+            var def = Game.Content.GetItem(ItemKey.Base(item));
+            var effect = UiKit.AddText(parent, 80f, y + 42f, textW - 80f, 28f, def != null ? EffectSummary(def) : string.Empty,
+                16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.FitLabel(effect, 10, 16);
+        }
+
+        /// <summary>A piece's effect in a few words (#2289): its numbers ("Armour +20 % · Warmth +15 %"), and for a piece that
+        /// works on a key or just by being worn, what it does ("Light", "Cloak", "Contacts on the compass").</summary>
+        private string EffectSummary(ItemDefinition def)
+        {
+            var parts = new List<string>(4);
+            void Add(string key, int value)
+            {
+                if (value > 0)
+                {
+                    parts.Add(L(key).Replace("{value}", value.ToString()));
+                }
+            }
+
+            Add("ui.equip.effect.armor", Mathf.RoundToInt(def.ArmorResistance * 100f));
+            Add("ui.equip.effect.warmth", Mathf.RoundToInt(def.ThermalInsulation * 100f));
+            Add("ui.equip.effect.oxygen", Mathf.RoundToInt(def.OxygenBonus));
+            Add("ui.equip.effect.acid", Mathf.RoundToInt(def.CorrosionResistance * 100f));
+            Add("ui.equip.effect.fall", Mathf.RoundToInt(def.FallProtection * 100f));
+            Add("ui.equip.effect.grip", Mathf.RoundToInt(def.ClimbGrip * 100f));
+            if (def.ClimbIce)
+            {
+                parts.Add(L("ui.equip.effect.ice"));
+            }
+
+            Add("ui.equip.effect.jump", Mathf.RoundToInt(def.JumpBoost * 100f));
+            Add("ui.equip.effect.energy", Mathf.RoundToInt(def.SuitEnergyBonus));
+            if (KeyEffects.TryGetValue(def.Key, out var effectKey))
+            {
+                parts.Add(L(effectKey));
+            }
+
+            return string.Join("  ·  ", parts);
+        }
+
+        /// <summary>The first recipe whose piece fits <paramref name="slot"/>, is not worn yet and whose blueprint is known —
+        /// the picker's "Show recipe" (#2289); null while none is known.</summary>
+        private RecipeDefinition PickerRecipeFor(EquipSlot slot)
+        {
+            foreach (var r in Game.Content.Recipes.Values)
+            {
+                var output = r.Outputs.FirstOrDefault();
+                if (output == null || r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Market)
+                {
+                    continue;
+                }
+
+                string key = ItemKey.Base(output.Item);
+                var def = Game.Content.GetItem(key);
+                if (def != null && EquipSlots.Accepts(slot, def.EquipSlot) && !Game.Wears(key)
+                    && (FreeCrafting() || BlueprintOk(r.RequiredBlueprint)))
+                {
+                    return r;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>The equipment slot a worn item sits in, or −1.</summary>
@@ -2396,9 +2787,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The suit's current passive effects — armour, maximum oxygen, insulation — computed with the
-        /// server's own formula (<see cref="BlocksBeyondTheStars.Shared.State.SuitEquipment"/>) from what is in
-        /// the backpack. Gear "just works" while carried; nothing ever told the player so (#1270).</summary>
-        private float AddSuitStatus(float y, bool full)
+        /// server's own formula (<see cref="BlocksBeyondTheStars.Shared.State.SuitEquipment"/>) from what is worn
+        /// (#1270, #2110): the line on top of the Suit tab's figure (#2288).</summary>
+        private float AddSuitStatus(float y)
         {
             var defs = Game.Content.Items.Values;
             bool Carried(string key) => Game.Wears(key); // #2110: worn, not carried
@@ -2418,14 +2809,7 @@ namespace BlocksBeyondTheStars.Client
                 + "   ·   " + L("ui.suit.status_oxygen").Replace("{value}", oxygen.ToString())
                 + "   ·   " + L("ui.suit.status_insulation").Replace("{value}", insulation.ToString());
             UiKit.AddText(_listContent, 8, y, 752, 32, line, 18, UiKit.TextCol, TextAnchor.MiddleLeft);
-            y += 38f;
-            if (full)
-            {
-                UiKit.AddText(_listContent, 8, y, 752, 70, L("ui.suit.passive_hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
-                y += 80f;
-            }
-
-            return y;
+            return y + 38f;
         }
 
         private float BuildMapList()
@@ -5148,7 +5532,7 @@ namespace BlocksBeyondTheStars.Client
                 else if (packSlot >= 0)
                 {
                     UiKit.AddButton(_detail, 8, y, 320, 46, L("ui.equip.equip"),
-                        () => { Game.Network?.SendEquipItem(packSlot, -1); ClearPick(); });
+                        () => { Game.Network?.SendEquipItem(packSlot, -1); ClientAudio.Instance?.Cue("gear_equip"); ClearPick(); });
                     y += 54f;
                 }
             }
@@ -6361,10 +6745,14 @@ namespace BlocksBeyondTheStars.Client
             _locateStation = null; // one marker per hint, not on every close
         }
 
-        /// <summary>Jump to the recipe that produces the missing station's block ("craft one →").</summary>
+        /// <summary>Jump to a recipe: the one that produces the missing station's block ("craft one →"), or the suit slot
+        /// picker's "Show recipe" (#2289).</summary>
         private void JumpToRecipe(string recipeKey)
         {
             Menu?.OpenCrafting();
+            // Switch the page NOW: GameMenu only shows the new tab on its next Update, and that ShowMode would clear the
+            // selection set below when the jump comes from another tab (the Suit picker, a Blueprints/Ship where-hint).
+            ShowMode(Mode.Crafting);
             _selected = recipeKey;
             _category = "all";
             _search = string.Empty;

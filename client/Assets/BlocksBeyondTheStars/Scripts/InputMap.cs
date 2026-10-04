@@ -23,6 +23,7 @@ namespace BlocksBeyondTheStars.Client
         DepositToCrate,    // deposit into the nearest storage crate — default H
         RepairWreck,       // repair the nearest wreck cell (on foot) — default R
         ToggleLamp,        // toggle the suit lamp — default L
+        ToggleStealth,     // the stealth suit's cloak on/off (#2291) — default B (EVA's station deploy shares it: never both)
         RotateShape,       // cycle a held building shape's orientation (auto → the 6 up-faces) — default R
         ToggleThermal,     // infrared mode while looking through the thermal binoculars — default I
         ToggleChat,        // mute/unmute the chat scrollback overlay for this session (#636) — default J
@@ -142,7 +143,7 @@ namespace BlocksBeyondTheStars.Client
         {
             InputAction.Interact, InputAction.PrimaryFire, InputAction.StowVehicle, InputAction.RecallVehicle,
             InputAction.ToggleThirdPerson, InputAction.LootContainer, InputAction.DepositToCrate,
-            InputAction.RepairWreck, InputAction.ToggleLamp, InputAction.RotateShape,
+            InputAction.RepairWreck, InputAction.ToggleLamp, InputAction.ToggleStealth, InputAction.RotateShape,
             InputAction.ToggleThermal, InputAction.ToggleChat, InputAction.OpenChat, InputAction.HotbarAction,
             InputAction.PlanetMap, InputAction.VegaContinue, InputAction.ContextActions,
             InputAction.PingMarker,
@@ -195,6 +196,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.DepositToCrate => KeyCode.H,
             InputAction.RepairWreck => KeyCode.R,
             InputAction.ToggleLamp => KeyCode.L,
+            InputAction.ToggleStealth => KeyCode.B, // #2291: on foot only — EvaDeployStation's B is read in EVA, the same split as M (PlanetMap / FlightMap)
             InputAction.RotateShape => KeyCode.R,
             InputAction.ToggleThermal => KeyCode.I, // "infrared"; N was taken by the VEGA dialogue advance
             InputAction.ToggleChat => KeyCode.J,    // one of the last free letters near the movement hand
@@ -463,6 +465,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.DepositToCrate => "ui.key.deposit_to_crate",
             InputAction.RepairWreck => "ui.key.repair_wreck",
             InputAction.ToggleLamp => "ui.key.toggle_lamp",
+            InputAction.ToggleStealth => "ui.key.toggle_stealth",
             InputAction.RotateShape => "ui.key.rotate_shape",
             InputAction.ToggleThermal => "ui.key.toggle_thermal",
             InputAction.ToggleChat => "ui.key.toggle_chat",

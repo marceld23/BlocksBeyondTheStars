@@ -206,6 +206,20 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         }
 
         [Test]
+        public void ToggleStealth_IsBOnFoot_SharedWithTheEvaStationDeploy()
+        {
+            InputMap.Use(new ClientSettings());
+            // #2291: B cloaks on foot; in EVA the same letter deploys a station — the two are never polled in one frame,
+            // like M for PlanetMap / FlightMap. Rebindable in the on-foot group, no stock pad button (the ACT list has it).
+            Assert.AreEqual(KeyCode.B, InputMap.Key(InputAction.ToggleStealth));
+            Assert.AreEqual(KeyCode.B, InputMap.Key(InputAction.EvaDeployStation));
+            Assert.AreEqual("ui.key.toggle_stealth", InputMap.LabelKey(InputAction.ToggleStealth));
+            CollectionAssert.Contains(InputMap.Remappable, InputAction.ToggleStealth);
+            CollectionAssert.DoesNotContain(InputMap.FlightRemappable, InputAction.ToggleStealth);
+            Assert.AreEqual(KeyCode.None, GamepadInputSource.ButtonFor(InputAction.ToggleStealth));
+        }
+
+        [Test]
         public void EveryAction_HasALabelKey_AndIsListedInARebindGroup()
         {
             foreach (InputAction action in System.Enum.GetValues(typeof(InputAction)))

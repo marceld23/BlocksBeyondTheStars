@@ -85,10 +85,24 @@ components, a category sidebar and blueprint state.
 - Have/need rows now carry a source tag — *craftable* (`GameContent.CraftDepth > 0`) vs *raw resource* —
   and a craftable ingredient the player is short of lists the materials for the missing amount one recipe
   level deep (`IngredientRow`, #1016). A deeper "which planet? cargo? reward?" popover remains deferred.
-- Inventory (#2110): the **Backpack** page is a nine-wide slot grid — the **worn** row (one slot per
-  `EquipSlot`: head, chest, legs, feet, back, tank, liner, four modules since #2293), the backpack rows (slots 9..35) and,
-  under a line, the quick-bar row (0..8, numbered). Click-to-pick / click-to-place (`_pickKind`/`_pickIndex`),
-  the hotbar swap's model, so mouse, touch and gamepad behave alike: two backpack clicks → `MoveItemIntent`;
-  a backpack pick onto a worn slot → `EquipItemIntent` (checked client-side with `EquipSlots.Accepts` first);
-  a worn pick onto a backpack slot → `UnequipItemIntent`. The detail pane offers **Wear / Take off** for a
-  wearable item. The Suit and Cargo pages stay card lists. Gear works only while worn (`GameBootstrap.Wears`).
+- Inventory (#2110): the **Backpack** page is a nine-wide slot grid — the backpack rows (slots 9..35) and, under a
+  line, the quick-bar row (0..8, numbered); aboard, **Stow all** sits on top. Click-to-pick / click-to-place
+  (`_pickKind`/`_pickIndex`), the hotbar swap's model, so mouse, touch and gamepad behave alike: two clicks →
+  `MoveItemIntent`. The detail pane offers **Wear / Take off** for a wearable item. The Cargo page stays a card list.
+  Gear works only while worn (`GameBootstrap.Wears`).
+- Suit page (#2288): a **paper doll** (`BuildSuitPage`) — the armour / oxygen / insulation status line, a simple figure
+  drawn from holo shapes with thin lines to its slots (head, chest, legs, feet on the left; back, tank, liner on the
+  right; the four module slots of #2293 in a row under it), the passive hint, and **Can be used actively**: the worn
+  lamp, jetpack, glider and stealth suit with their real controls (`HudUi.GlyphText` / `HudUi.JumpGlyph`; the ACT list on
+  a tablet). The slots are `AddGridSlot` buttons, so the pad walks them by geometry. Clicking any slot opens the
+  **slot picker** (#2289, `ShowSlotPicker`) and a worn piece also fills the detail pane (Take off there too).
+- Slot picker (#2289): its own canvas at sort 61 over the menu (`UiKit.AddModalOverlay`, `UiNav` on it, the menu's
+  nav suspended while it is open; Esc / pad B close it first — `GameMenu` asks `CloseSlotPicker()` before closing the
+  menu). One row per fitting stack (`EquipSlots.Accepts`) from the backpack and, aboard (`AboardShipNow()`), the cargo
+  hold — icon, name, an effect summary from the item definition (`EffectSummary`, `ui.equip.effect.*`) and a
+  Backpack / Cargo hold badge; a module already worn in another module slot is left out. The piece worn there now sits
+  on top, marked Worn, with Take off (`UnequipItemIntent`). A row sends `EquipItemIntent { FromSlot, Slot, FromCargo }`
+  (the server validates slot and hold). With nothing to wear the picker offers **Show recipe** (the first non-market
+  recipe for the slot whose blueprint is known → `JumpToRecipe`) or names where to research it; on foot a line says more
+  may wait in the hold. `JumpToRecipe` switches the page itself (`ShowMode(Crafting)`) so a jump from another tab keeps
+  its selection.

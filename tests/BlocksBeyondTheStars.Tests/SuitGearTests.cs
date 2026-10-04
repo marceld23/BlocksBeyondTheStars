@@ -22,8 +22,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// The paper-doll suit, server/shared half: four module slots (#2293) and old saves that widen into them; wearing a
 /// piece straight from the cargo hold (#2289); the second gear tier (#2294–#2297) — titanium plates, spring boots with
-/// their jump boost, the glider and its glide flag on the wire, the suit battery that lifts the suit energy to 150; and the
-/// one gear-look mask (<see cref="GearLook"/>) server and client both draw the body from.
+/// their jump boost, the glider and its glide flag on the wire, the suit battery that lifts the suit energy to 150; the own
+/// stealth cloak on the player's state update (#2291); and the one gear-look mask (<see cref="GearLook"/>) server and client
+/// both draw the body from.
 /// </summary>
 public sealed class SuitGearTests : IDisposable
 {
@@ -411,6 +412,30 @@ public sealed class SuitGearTests : IDisposable
                        | GearLook.SuitBattery | GearLook.Lamp; // the starter lamp is worn too
         Assert.Equal(expected, seen.Gear);
     }
+
+    // ---------------- The cloak on the own state (#2291) ----------------
+
+    [Fact]
+    public void TheCloak_RidesOnTheOwnState_AndTakingTheSuitOffDropsIt()
+    {
+        var transport = new RecordingTransport();
+        var server = Started("cloak", transport);
+        var p = server.AddLocalPlayer("Shadow");
+        p.State.Equipment.SetSlot((int)EquipSlot.Chest, new ItemStack("stealth_suit", 1));
+
+        server.ToggleStealth("Shadow");
+        Assert.True(p.State.Stealthed);
+        Assert.True(LastOwnState(transport, p.ConnectionId)!.Stealthed); // the HUD gear strip and the cloak's sound read it
+
+        server.UnequipItemForTest("Shadow", (int)EquipSlot.Chest);
+        Assert.False(p.State.Stealthed);
+        Assert.False(LastOwnState(transport, p.ConnectionId)!.Stealthed);
+    }
+
+    private static PlayerStateUpdate? LastOwnState(RecordingTransport transport, int connectionId) => transport.Sent
+        .Where(x => x.Conn == connectionId && x.Msg is PlayerStateUpdate)
+        .Select(x => (PlayerStateUpdate)x.Msg)
+        .LastOrDefault();
 
     // ---------------- The gear look (Shared) ----------------
 

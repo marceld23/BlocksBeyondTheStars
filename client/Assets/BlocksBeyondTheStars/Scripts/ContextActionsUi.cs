@@ -76,7 +76,8 @@ namespace BlocksBeyondTheStars.Client
             new Entry(InputAction.ToggleThermal, u => u.OnFoot && u.Player != null && u.Player.BinocularsRaised),
             new Entry(InputAction.PlanetMap, u => u.OnFoot && !u.Game.InSpace),
             new Entry(InputAction.ToggleThirdPerson, u => u.OnFoot),
-            new Entry(InputAction.ToggleLamp, u => u.OnFoot),
+            new Entry(InputAction.ToggleLamp, u => u.OnFoot && u.Game.Wears("suit_lamp")),        // #2291: only with a worn lamp
+            new Entry(InputAction.ToggleStealth, u => u.OnFoot && u.Game.Wears("stealth_suit")), // #2291: the cloak, suit worn
             new Entry(InputAction.ToggleChat, u => u.OnFoot),
 
             // At the helm.

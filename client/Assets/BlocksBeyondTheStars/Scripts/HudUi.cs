@@ -195,6 +195,45 @@ namespace BlocksBeyondTheStars.Client
         private const int PickupMaxRows = 4;
         private const float PickupRowH = 26f, PickupRowW = 300f, PickupLife = 2.5f, PickupFadeTime = 0.5f;
         private float _pickupRightX, _pickupAnchorY; // right edge + top of the hotbar backplate
+        private float _hotbarY; // top of the quick-bar cells (#2290: the gear strip lines up with them)
+
+        // The gear strip (#2290): one small button per worn ACTIVE piece beside the quick-bar — see RefreshGearStrip. It
+        // lives on its own plain overlay canvas: the HUD canvas may render through the visor camera, where a tap lands
+        // wrong, and on a tablet the touch layer's full-screen look pad (sort 100) would swallow every tap below it.
+        /// <summary>The worn ACTIVE gear, in the strip's order — the Suit tab's "Can be used actively" list reads it too.</summary>
+        internal static readonly string[] ActiveGear = { "suit_lamp", "jetpack", "glider", "stealth_suit" };
+
+        private sealed class GearCell
+        {
+            public string Key;
+            public GameObject Go;
+            public Image Frame;
+            public RawImage Icon;
+            public TMP_Text Label;
+            public Image EnergyFill; // the jetpack's and the cloak's suit energy; null on the lamp and the glider
+        }
+
+        private const float GearCellSize = 48f, GearPitch = 58f;
+        private static readonly Color GearOffTint = new Color(0.62f, 0.72f, 0.82f, 0.55f);
+        private Canvas _gearCanvas;
+        private readonly System.Collections.Generic.List<GearCell> _gearCells = new();
+        private object _gearEquipment;        // the Game.Equipment array the worn set below was read from
+        private int _gearWorn, _gearBuiltFor = -1; // bit i = ActiveGear[i] worn; the set the cells were built for
+        private bool _gearTouchLayout;
+        private object _gearLoc;
+        private float _gearEnergyMax = BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseSuitEnergy;
+
+        // The radar scanner on the compass (#2292): pooled contact blips, the hostiles in range last frame (a new one pings)
+        // and the other players' positions, read from the presence list at 5 Hz.
+        private const float RadarRange = 48f;
+        private static readonly Color RadarHostileCol = new Color(1f, 0.3f, 0.25f);
+        private static readonly Color RadarCreatureCol = new Color(0.4f, 0.95f, 0.45f);
+        private static readonly Color RadarPlayerCol = new Color(0.35f, 1f, 0.92f);
+        private readonly System.Collections.Generic.List<Image> _radarBlips = new();
+        private System.Collections.Generic.HashSet<string> _radarHostiles = new(), _radarHostilesNow = new();
+        private readonly System.Collections.Generic.List<Vector3> _radarPlayers = new();
+        private float _radarPlayersAt, _radarCueAt = -10f;
+        private RemotePlayers _remotes;
 
         // Research toast (#763): "New research available!" with the blueprint's icon, top-centre under
         // the IN SPACE/observer lines. One toast at a time; further keys wait in Game.ResearchAvailable.
@@ -263,6 +302,11 @@ namespace BlocksBeyondTheStars.Client
             if (_canvas.enabled != show)
             {
                 _canvas.enabled = show;
+            }
+
+            if (!show && _gearCanvas != null && _gearCanvas.enabled)
+            {
+                _gearCanvas.enabled = false; // #2290: the gear strip goes with the HUD (Refresh brings it back)
             }
 
             // Even while a menu hides the canvas: rows must keep aging (a closed menu must not resurrect
@@ -528,6 +572,11 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_flyCanvas.gameObject);
             }
 
+            if (_gearCanvas != null)
+            {
+                Destroy(_gearCanvas.gameObject); // #2290: a scene-root canvas too
+            }
+
             if (Instance == this)
             {
                 Instance = null;
@@ -725,6 +774,7 @@ namespace BlocksBeyondTheStars.Client
             // from just above it.
             _pickupRightX = x0 + total + 12f;
             _pickupAnchorY = hy - 14f;
+            _hotbarY = hy;
 
             // Compass (round).
             var comp = new GameObject("Compass", typeof(RectTransform));
@@ -912,6 +962,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 UiKit.AddSubCanvas(mover); // copies the parent's shader channels — a bare AddComponent<Canvas> drops UV1–UV3
             }
+
+            // The gear strip (#2290): its own plain canvas in the HUD's reference space (see the fields); cells on demand.
+            _gearCanvas = UiKit.CreateCanvas("HudGearStrip", W, H, userScalable: true);
+            _gearCanvas.sortingOrder = 11;
+            _gearCanvas.enabled = false;
         }
 
         /// <summary>Boot-up: the whole HUD fades in while every holo panel wipes on with a short stagger —
@@ -1118,6 +1173,7 @@ namespace BlocksBeyondTheStars.Client
             VitalsBottomY = VitalsPanelY + vitalsHeight;
 
             RefreshHotbar(loc);
+            RefreshGearStrip(loc); // #2290: after the hotbar — it hides with it
             RefreshTimeOfDay(loc);
             RefreshPlaytime(loc);
 
@@ -1863,6 +1919,228 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        // --- gear strip (#2290) ---
+
+        /// <summary>The gear strip (#2290): one small button per worn ACTIVE piece — lamp, jetpack, glider, stealth suit — in
+        /// line with the quick-bar past its right end (above its left end while the touch controls are up: their ► / … /
+        /// DOWN / USE buttons own the right). Lit while the piece is on, dimmed while off; its control under it (a "hold"
+        /// mark on the two that ride the jump); the suit energy left on the two that spend it. A tap toggles the lamp or
+        /// the cloak, or says how the jetpack and the glider are used — on a tablet; on the desktop the cursor is locked.
+        /// Hidden with the quick-bar, while dead / respawning / loading, and while nothing active is worn. The cells are
+        /// rebuilt only when the worn set, the layout or the language changes; their states follow at the refresh rate.</summary>
+        private void RefreshGearStrip(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            if (_gearCanvas == null)
+            {
+                return;
+            }
+
+            // The worn set and the energy's full mark follow the equipment snapshot — a new array per inventory update.
+            if (!ReferenceEquals(Game.Equipment, _gearEquipment))
+            {
+                _gearEquipment = Game.Equipment;
+                _gearWorn = 0;
+                for (int i = 0; i < ActiveGear.Length; i++)
+                {
+                    if (Game.Wears(ActiveGear[i]))
+                    {
+                        _gearWorn |= 1 << i;
+                    }
+                }
+
+                _gearEnergyMax = Game.Content != null
+                    ? BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxSuitEnergy(Game.Content.Items.Values, Game.Wears)
+                    : BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseSuitEnergy;
+            }
+
+            bool show = _gearWorn != 0 && _hotbarRoot != null && _hotbarRoot.activeSelf && Game.Health > 0f
+                        && !Game.AwaitingRespawnConfirm && (_veil == null || !_veil.VeilActive);
+            if (_gearCanvas.enabled != show)
+            {
+                _gearCanvas.enabled = show;
+            }
+
+            if (!show)
+            {
+                return;
+            }
+
+            var touchUi = TouchControlsUi.Active;
+            bool touch = touchUi != null && touchUi.Visible;
+            if (_gearWorn != _gearBuiltFor || touch != _gearTouchLayout || !ReferenceEquals(loc, _gearLoc))
+            {
+                BuildGearStrip(loc, touch);
+            }
+
+            if (_playerRig == null)
+            {
+                _playerRig = FindAnyObjectByType<PlayerController>(); // the rig WorldRig creates
+            }
+
+            float energy = Game.SuitEnergy / Mathf.Max(1f, _gearEnergyMax);
+            foreach (var cell in _gearCells)
+            {
+                bool on = GearOn(cell.Key);
+                cell.Frame.color = on ? UiKit.SlotSelected : UiKit.SlotIdle;
+                cell.Icon.color = on ? Color.white : GearOffTint;
+                cell.Label.color = on ? UiKit.Cyan : UiKit.CyanDim;
+                string label = GearLabel(loc, cell.Key, touch);
+                if (cell.Label.text != label)
+                {
+                    cell.Label.text = label;
+                }
+
+                if (cell.EnergyFill != null)
+                {
+                    UiHolo.SetBar(cell.EnergyFill, energy, GearCellSize - 12f);
+                }
+            }
+        }
+
+        /// <summary>Lays the cells out for the worn set — see <see cref="RefreshGearStrip"/> for where and why.</summary>
+        private void BuildGearStrip(BlocksBeyondTheStars.Shared.Localization.Localizer loc, bool touch)
+        {
+            foreach (var cell in _gearCells)
+            {
+                Destroy(cell.Go);
+            }
+
+            _gearCells.Clear();
+            _gearBuiltFor = _gearWorn;
+            _gearTouchLayout = touch;
+            _gearLoc = loc;
+
+            // Above the touch layer (100) while it is up, so a tap reaches the strip and not the look pad under it; just
+            // over the HUD otherwise, below every dialog.
+            _gearCanvas.sortingOrder = touch ? 101 : 11;
+
+            // Desktop / pad: past the quick-bar backplate's right end, level with its cells. Touch: above the bar's left
+            // end, right of the ◄ button — the bar's right is the thumb zone there.
+            float x = touch ? _hotbarX0 + 112f : _pickupRightX + 12f;
+            float y = touch ? _hotbarY - 82f : _hotbarY + 4f;
+            for (int i = 0; i < ActiveGear.Length; i++)
+            {
+                if ((_gearWorn & (1 << i)) != 0)
+                {
+                    _gearCells.Add(MakeGearCell(loc, x, y, ActiveGear[i]));
+                    x += GearPitch;
+                }
+            }
+        }
+
+        private GearCell MakeGearCell(BlocksBeyondTheStars.Shared.Localization.Localizer loc, float x, float y, string key)
+        {
+            var go = new GameObject("GearCell_" + key, typeof(RectTransform));
+            go.transform.SetParent(_gearCanvas.transform, false);
+            UiKit.Place(go, x, y, GearCellSize, GearCellSize + 16f);
+
+            var frame = UiHolo.AddPanel(go.transform, 0f, 0f, GearCellSize, GearCellSize, UiKit.SlotIdle, 8f, 1f, 0.45f);
+            frame.raycastTarget = true; // the tap target
+            var button = frame.gameObject.AddComponent<Button>();
+            button.transition = Selectable.Transition.None;
+            button.navigation = new Navigation { mode = Navigation.Mode.None }; // never a pad stop: no menu owns this canvas
+            button.onClick.AddListener(() => OnGearTapped(key));
+
+            var iconGo = new GameObject("Icon", typeof(RectTransform));
+            iconGo.transform.SetParent(frame.transform, false);
+            UiKit.Place(iconGo, 6f, 4f, GearCellSize - 12f, GearCellSize - 12f);
+            var icon = iconGo.AddComponent<RawImage>();
+            icon.raycastTarget = false;
+            var tex = IconResolver.ItemTexture(key);
+            icon.texture = tex != null ? tex : IconFactory.ForItem(key, BlocksBeyondTheStars.Shared.Definitions.ToolKind.None);
+
+            Image energy = null;
+            if (key == "jetpack" || key == "stealth_suit")
+            {
+                energy = UiHolo.AddBar(frame.transform, 6f, GearCellSize - 7f, GearCellSize - 12f, 3f,
+                    new Color(0.03f, 0.07f, 0.13f, 0.9f), Energy).Fill;
+            }
+
+            if (key == "jetpack" || key == "glider")
+            {
+                // The "hold" mark: these two are no switch — they work while the jump is held.
+                UiText.Add(frame.transform, 3f, 1f, GearCellSize - 6f, 12f, loc.Get("ui.hud.gear_hold"), 9, UiKit.TextCol,
+                    TextAnchor.UpperLeft, FontStyle.Bold, UiText.Look.Outline);
+            }
+
+            var label = UiText.Add(go.transform, -5f, GearCellSize + 1f, GearCellSize + 10f, 14f, string.Empty, 11, UiKit.CyanDim,
+                TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
+            label.enableAutoSizing = true; // "Leertaste" / "(Cross)" must fit under a 48 px cell
+            label.fontSizeMin = 7f;
+            label.fontSizeMax = 11f;
+            return new GearCell { Key = key, Go = go, Frame = frame, Icon = icon, Label = label, EnergyFill = energy };
+        }
+
+        /// <summary>Whether a strip piece is on: the lamp lit, the jetpack firing, the glider open (the controller's
+        /// state), the cloak up (the server's answer).</summary>
+        private bool GearOn(string key)
+        {
+            switch (key)
+            {
+                case "suit_lamp":
+                    return _playerRig != null && _playerRig.LampOn;
+                case "jetpack":
+                    return _playerRig != null && _playerRig.JetpackActive;
+                case "glider":
+                    return _playerRig != null && _playerRig.Gliding;
+                default:
+                    return Game.Stealthed;
+            }
+        }
+
+        /// <summary>The control under a strip cell: the lamp's and the cloak's key (nothing on a tablet — the cell itself is
+        /// the button there), the jump for the jetpack and the glider.</summary>
+        private static string GearLabel(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string key, bool touch)
+        {
+            switch (key)
+            {
+                case "suit_lamp":
+                    return touch ? string.Empty : GlyphText(loc, InputAction.ToggleLamp);
+                case "stealth_suit":
+                    return touch ? string.Empty : GlyphText(loc, InputAction.ToggleStealth);
+                default:
+                    return JumpGlyph(loc);
+            }
+        }
+
+        /// <summary>A tap on a strip cell (#2290): the lamp and the cloak toggle like their keys; the jetpack and the glider
+        /// have nothing to switch, so the tap says how they are used.</summary>
+        private void OnGearTapped(string key)
+        {
+            var loc = Game?.Localizer;
+            if (loc == null)
+            {
+                return;
+            }
+
+            if (_playerRig == null)
+            {
+                _playerRig = FindAnyObjectByType<PlayerController>();
+            }
+
+            switch (key)
+            {
+                case "suit_lamp":
+                    if (_playerRig != null)
+                    {
+                        _playerRig.ToggleLamp();
+                    }
+
+                    break;
+                case "stealth_suit":
+                    if (_playerRig != null)
+                    {
+                        _playerRig.ToggleStealth();
+                    }
+
+                    break;
+                default:
+                    Game.ShowMessage(loc.Get(key == "jetpack" ? "ui.hud.gear_jetpack_hint" : "ui.hud.gear_glider_hint")
+                        .Replace("{key}", JumpGlyph(loc)));
+                    break;
+            }
+        }
+
         /// <summary>#2049: the prompt key for a Crystal Net device in the crosshair: a switch toggles, a button
         /// presses, a configurable device opens its menu, everything else just names itself as linked.</summary>
         private static string CrystalPromptKey(NetCrystalDevice dev)
@@ -1894,13 +2172,24 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary><see cref="InputMap.Glyph"/> with mouse buttons rendered as their localized short names
         /// (the LMB/RMB style the hint line already uses) instead of the raw KeyCode name — "Mouse2" reads
-        /// like a debug string on the HUD (#935). Pad glyphs pass through untouched.</summary>
-        private static string GlyphText(BlocksBeyondTheStars.Shared.Localization.Localizer loc, InputAction action)
+        /// like a debug string on the HUD (#935). Pad glyphs pass through untouched. The Suit tab names the active gear's
+        /// keys through it too (#2288).</summary>
+        internal static string GlyphText(BlocksBeyondTheStars.Shared.Localization.Localizer loc, InputAction action)
         {
             string glyph = InputMap.Glyph(action);
             string mouseKey = InputMap.MouseLocaleKey(InputMap.Key(action));
             return mouseKey != null && glyph == InputMap.Key(action).ToString() ? loc.Get(mouseKey) : glyph;
         }
+
+        /// <summary>The jump control's name for a hint (#2290): the pad's bottom face button, the tablet's JUMP button or the
+        /// keyboard's space bar. Jump is no rebindable action (the legacy "Jump" axis), so <see cref="InputMap.Glyph"/>
+        /// cannot name it.</summary>
+        internal static string JumpGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc) => InputMap.ActiveDevice switch
+        {
+            InputDeviceKind.Gamepad => InputMap.PadGlyph(KeyCode.JoystickButton0),
+            InputDeviceKind.Touch => loc.Get("ui.touch.jump"),
+            _ => loc.Get("ui.hud.jump_key"),
+        };
 
         // --- pickup feed (#745) ---
 
@@ -2356,6 +2645,119 @@ namespace BlocksBeyondTheStars.Client
             {
                 _compassMarkers[i].gameObject.SetActive(false);
             }
+
+            RefreshRadar(radius); // #2292: last, so the contacts draw over the other blips
+        }
+
+        /// <summary>The radar scanner (#2292): while it is worn, every creature within <see cref="RadarRange"/> m is a blip on
+        /// the compass — hostile ones red (robots and bandits among them), the rest green — and every other player cyan;
+        /// a cloaked player stays hidden (the presence list leaves them out). A hostile newly in range pings, at most once
+        /// every two seconds. Same bearing and log radius as every other blip; pooled, all hidden without the scanner.</summary>
+        private void RefreshRadar(float radius)
+        {
+            int used = 0;
+            _radarHostilesNow.Clear();
+            if (Game.Wears("radar_scanner"))
+            {
+                var me = Game.PlayerPosition;
+                const float rangeSq = RadarRange * RadarRange;
+                var creatures = Game.Creatures;
+                if (creatures != null)
+                {
+                    for (int i = 0; i < creatures.Length; i++)
+                    {
+                        var c = creatures[i];
+                        if (c != null && RadarBlip(ref used, new Vector3(c.X, c.Y, c.Z), me, rangeSq, c.Hostile ? RadarHostileCol : RadarCreatureCol, radius)
+                            && c.Hostile)
+                        {
+                            _radarHostilesNow.Add(c.Id);
+                        }
+                    }
+                }
+
+                var enemies = Game.PlanetEnemies;
+                if (enemies != null)
+                {
+                    for (int i = 0; i < enemies.Length; i++)
+                    {
+                        var e = enemies[i];
+                        if (e != null && RadarBlip(ref used, new Vector3(e.X, e.Y, e.Z), me, rangeSq, e.Hostile ? RadarHostileCol : RadarCreatureCol, radius)
+                            && e.Hostile)
+                        {
+                            _radarHostilesNow.Add(e.Id);
+                        }
+                    }
+                }
+
+                // Other players: the presence list at 5 Hz (it allocates an enumerator); the blips still turn every frame.
+                if (Time.unscaledTime >= _radarPlayersAt)
+                {
+                    _radarPlayersAt = Time.unscaledTime + 0.2f;
+                    _radarPlayers.Clear();
+                    if (_remotes == null)
+                    {
+                        _remotes = FindAnyObjectByType<RemotePlayers>();
+                    }
+
+                    if (_remotes != null)
+                    {
+                        foreach (var contact in _remotes.Contacts())
+                        {
+                            _radarPlayers.Add(contact.Scene);
+                        }
+                    }
+                }
+
+                for (int i = 0; i < _radarPlayers.Count; i++)
+                {
+                    RadarBlip(ref used, _radarPlayers[i], me, rangeSq, RadarPlayerCol, radius);
+                }
+            }
+
+            for (int i = used; i < _radarBlips.Count; i++)
+            {
+                if (_radarBlips[i].gameObject.activeSelf)
+                {
+                    _radarBlips[i].gameObject.SetActive(false);
+                }
+            }
+
+            bool fresh = false;
+            foreach (var id in _radarHostilesNow)
+            {
+                if (!_radarHostiles.Contains(id))
+                {
+                    fresh = true;
+                    break;
+                }
+            }
+
+            (_radarHostiles, _radarHostilesNow) = (_radarHostilesNow, _radarHostiles);
+            if (fresh && Time.unscaledTime - _radarCueAt >= 2f)
+            {
+                _radarCueAt = Time.unscaledTime;
+                ClientAudio.Instance?.Cue("radar_contact");
+            }
+        }
+
+        /// <summary>Puts the next pooled radar blip on <paramref name="target"/> (a world or a scene position — both map to
+        /// the copy nearest the player) when it lies within range; true when it did.</summary>
+        private bool RadarBlip(ref int used, Vector3 target, Vector3 me, float rangeSq, Color color, float radius)
+        {
+            if ((Game.ScenePos(target.x, target.y, target.z) - me).sqrMagnitude > rangeSq)
+            {
+                return false;
+            }
+
+            if (used >= _radarBlips.Count)
+            {
+                _radarBlips.Add(Blip(_compassParent, color, 5f).GetComponent<Image>());
+            }
+
+            var blip = _radarBlips[used++];
+            blip.color = color;
+            PlaceBlip(blip.rectTransform, true, target, radius);
+            return true;
         }
 
         private void PlaceBlip(RectTransform blip, bool active, Vector3 target, float radius)

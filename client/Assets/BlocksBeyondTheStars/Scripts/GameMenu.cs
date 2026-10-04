@@ -76,6 +76,11 @@ namespace BlocksBeyondTheStars.Client
                         return; // the submit dialog (#1965) takes this press
                     }
 
+                    if (_ui != null && _ui.CloseSlotPicker())
+                    {
+                        return; // the suit's slot picker (#2289) closes first; the menu behind it stays
+                    }
+
                     if (_textureEditor != null)
                     {
                         CloseTextureEditor(); // back to the settings list, not out of the menu (#1959)

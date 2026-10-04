@@ -118,6 +118,7 @@ public sealed partial class GameServer
         if (p.SuitEnergy <= 0f)
         {
             p.Stealthed = false;
+            SendPlayerState(session); // #2291: the gear strip and the cloak's sound follow at once
         }
     }
 

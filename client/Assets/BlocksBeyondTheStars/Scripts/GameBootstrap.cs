@@ -146,6 +146,10 @@ namespace BlocksBeyondTheStars.Client
         /// the HUD colors the energy bar and names the drain; server-authoritative.</summary>
         public bool SuitClimateActive { get; private set; }
 
+        /// <summary>Our own stealth cloak is up (#2291) — server-authoritative (it needs the worn suit and energy, and drops
+        /// when either runs out). The HUD gear strip lights the cloak from it; its sound plays when this flips.</summary>
+        public bool Stealthed { get; private set; }
+
         /// <summary>The exposure meter 0..1 (2026-09, Titas) and whether it is running / counting heat — server-authoritative.</summary>
         public float Exposure { get; private set; }
         public bool ExposureActive { get; private set; }
@@ -3758,6 +3762,17 @@ namespace BlocksBeyondTheStars.Client
             SuitEnergy = m.SuitEnergy;
             Hunger = m.Hunger;
             SuitClimateActive = m.SuitClimateActive;
+            if (m.Stealthed != Stealthed)
+            {
+                // #2291: the cloak's sound follows the server's answer, not the key — a refused toggle stays silent. Not
+                // for the fleet-admin observer, whom the server cloaks with the same flag (#487).
+                Stealthed = m.Stealthed;
+                if (!m.Spectating && !Spectating)
+                {
+                    ClientAudio.Instance?.Cue(m.Stealthed ? "stealth_on" : "stealth_off");
+                }
+            }
+
             Exposure = m.Exposure;
             ExposureActive = m.ExposureActive;
             ExposureHot = m.ExposureHot;
