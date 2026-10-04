@@ -83,6 +83,9 @@ public sealed partial class GameServer
         public double LastTickUptime { get; set; }
         public List<CrystalCatchUpJob> CatchUp { get; } = new();
         public Dictionary<string, int[]> CatchUpSummary { get; } = new();
+
+        /// <summary>#2268: the nets of the own ships parked on this world, by owner (each in ship-local cells).</summary>
+        public Dictionary<string, CrystalShipFrame> ShipFrames { get; } = new();
     }
 
     /// <summary>One network: its cells and its level. <see cref="Level"/> is re-derived every logic beat.</summary>
@@ -139,8 +142,6 @@ public sealed partial class GameServer
         public bool IsGate => CrystalNetRules.IsGate(Kind);
     }
 
-    private CrystalNetState CrystalNet => _worlds.Active.CrystalNet;
-
     /// <summary>Test seam: every network of the active world as (id, level, cell count).</summary>
     public IReadOnlyList<(int Id, bool On, int Cells)> CrystalNetSnapshots
         => CrystalNet.Nets.Values.Select(n => (n.Id, n.Level, n.Cells.Count)).ToList();
@@ -194,7 +195,12 @@ public sealed partial class GameServer
             return; // a caller / clone tank on a station: creatures never tick there — the block stays decoration
         }
 
-        if (CrystalNetRules.IsShipOnly(kind))
+        if (_crystalFrame is not null && !CrystalNetRules.WorksAboard(kind))
+        {
+            return; // #2268: aboard, the rest stays decoration (NoteShipDecor told the builder)
+        }
+
+        if (CrystalNetRules.IsShipOnly(kind) && _crystalFrame is null)
         {
             CrystalSystemHintOnce(session, "crystal_ship_only"); // #2268: the ship sensor reads a ship — here it is decoration
             return;
@@ -236,7 +242,7 @@ public sealed partial class GameServer
     private CrystalDeviceKind CrystalKindAt(Vector3i pos, BlockDefinition? def)
     {
         var kind = CrystalNetRules.KindOf(def);
-        if (kind == CrystalDeviceKind.None && def is not null && SeatStillThere(pos))
+        if (kind == CrystalDeviceKind.None && def is not null && _crystalFrame is null && SeatStillThere(pos))
         {
             return CrystalDeviceKind.Seat;
         }
@@ -259,7 +265,7 @@ public sealed partial class GameServer
     /// <summary>A block was mined / blasted: its cell leaves the net (row deleted, network split), and the lamps or ports
     /// left without a real net cell beside them — #2261: together with every port they reach through other ports, so a
     /// field wall whose conduit was mined dissolves as a whole — go back to being ordinary blocks.</summary>
-    private void OnCrystalBlockRemoved(Vector3i pos, BlockDefinition def)
+    private void OnCrystalBlockRemoved(Vector3i pos, BlockDefinition? def)
     {
         if (!CrystalNet.Cells.TryGetValue(pos, out var cell))
         {
@@ -376,14 +382,14 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                var def = _content.BlockById(_world.GetBlockIfLoaded(n));
+                var def = _content.BlockById(CrystalReadBlock(n));
                 if (def is null)
                 {
                     continue;
                 }
 
                 var kind = CrystalKindAt(n, def);
-                if (!CrystalNetRules.IsPassivePort(kind) || (viaSpreader && kind != fromKind))
+                if (!CrystalNetRules.IsPassivePort(kind) || (viaSpreader && kind != fromKind) || (_crystalFrame is not null && !CrystalNetRules.WorksAboard(kind)))
                 {
                     continue; // beyond the fresh cell only a spreading kind carries the join on, and only to its own kind
                 }
@@ -628,7 +634,7 @@ public sealed partial class GameServer
         var state = CrystalNet;
         StopCrystalActuator(cell, relight);
         state.Cells.Remove(cell.Cell);
-        _repo.DeleteCrystalCell(_world.LocationId, cell.Cell.X, cell.Cell.Y, cell.Cell.Z);
+        _repo.DeleteCrystalCell(CrystalStoreId, cell.Cell.X, cell.Cell.Y, cell.Cell.Z);
         state.ClosedSpouts.Remove(cell.Cell);
         state.OpenGates.Remove(cell.Cell);
         state.DisabledSentries.Remove(cell.Cell);
@@ -707,7 +713,7 @@ public sealed partial class GameServer
     private void SaveCrystalCell(ServerCrystalCell cell)
         => _repo.SaveCrystalCell(new StoredCrystalCell
         {
-            Planet = _world.LocationId,
+            Planet = CrystalStoreId,
             X = cell.Cell.X,
             Y = cell.Cell.Y,
             Z = cell.Cell.Z,
@@ -989,6 +995,19 @@ public sealed partial class GameServer
     /// at. Reach is checked like every block action; configuring needs ownership (or an alliance, or admin).</summary>
     private void HandleSetCrystalDevice(PlayerSession session, SetCrystalDeviceIntent intent)
     {
+        if (!string.IsNullOrEmpty(intent.Frame) && _crystalFrame is null)
+        {
+            // #2268: a device aboard a parked ship — the intent names the ship, the cell is ship-local.
+            if (FrameByTag(intent.Frame) is not { } frame)
+            {
+                Reject(session, "crystal", "@srv.crystal.gone");
+                return;
+            }
+
+            InCrystalFrame(frame, () => HandleSetCrystalDevice(session, intent));
+            return;
+        }
+
         var pos = new Vector3i(intent.X, intent.Y, intent.Z);
         if (!CrystalNet.Cells.TryGetValue(pos, out var cell) || cell.IsConduit)
         {
@@ -996,7 +1015,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!WithinReach(session.State, pos))
+        if (!WithinReach(session.State, CrystalToWorld(pos)))
         {
             Reject(session, "crystal", "@out_of_reach");
             return;
@@ -1021,11 +1040,11 @@ public sealed partial class GameServer
                 cell.Mode = cell.Output ? 1 : 0;
                 SaveCrystalCell(cell);
                 CrystalNet.DeviceListDirty = true;
-                BroadcastToWorld(new SoundFx { SoundId = "crystal_switch", X = pos.X + 0.5f, Y = pos.Y + 0.5f, Z = pos.Z + 0.5f, SourceId = cell.Id });
+                CrystalSoundAt(cell, "crystal_switch");
                 return;
             case 1 when cell.Kind == CrystalDeviceKind.Button:
                 PulseCrystalCell(cell);
-                BroadcastToWorld(new SoundFx { SoundId = "crystal_button", X = pos.X + 0.5f, Y = pos.Y + 0.5f, Z = pos.Z + 0.5f, SourceId = cell.Id });
+                CrystalSoundAt(cell, "crystal_button");
                 return;
             case 1 when cell.Kind is CrystalDeviceKind.Fabricator or CrystalDeviceKind.MatterSender or CrystalDeviceKind.CloneTank
                 or CrystalDeviceKind.AutoDrill or CrystalDeviceKind.Caller or CrystalDeviceKind.Thumper or CrystalDeviceKind.HydroTray
@@ -1207,6 +1226,12 @@ public sealed partial class GameServer
     /// built base one pass over the cells every 100 ms plus the sensor queries every 500 ms.</summary>
     private void TickCrystalNet(double dt)
     {
+        TickCrystalWorldNet(dt);
+        TickCrystalShipNets(); // #2268: the own ships parked here — they wake up with the world they stand on
+    }
+
+    private void TickCrystalWorldNet(double dt)
+    {
         _drillBlocksThisTick = 0;
         _pistonPushesThisTick = 0;
         CrystalCatchUpClock(); // #2269: before the empty-world return — a stale stamp must never credit a base built later
@@ -1301,7 +1326,7 @@ public sealed partial class GameServer
             return;
         }
 
-        BroadcastToWorld(new CrystalDeviceDelta { Changed = changed.ToArray(), Removed = removed.ToArray() });
+        BroadcastToWorld(new CrystalDeviceDelta { Frame = CrystalFrameTag, Changed = changed.ToArray(), Removed = removed.ToArray() });
     }
 
     private static string CrystalDeviceSignature(NetCrystalDevice d)
@@ -1507,15 +1532,16 @@ public sealed partial class GameServer
             return !dev.IsConduit && !dev.Inert && dev.Output;
         }
 
+        var wf = CrystalToWorld(front); // #2268: aboard, the ship's door hangs in world space
         foreach (var door in _doors)
         {
             var floor = door.Pos.ToBlock();
-            if (front.Y < floor.Y || front.Y > floor.Y + 1)
+            if (wf.Y < floor.Y || wf.Y > floor.Y + 1)
             {
                 continue;
             }
 
-            float dx = front.X + 0.5f - door.Pos.X, dz = front.Z + 0.5f - door.Pos.Z;
+            float dx = wf.X + 0.5f - door.Pos.X, dz = wf.Z + 0.5f - door.Pos.Z;
             float half = System.Math.Max(0.5f, door.Width * 0.5f) + 0.05f;
             if (System.Math.Abs(dx) <= half && System.Math.Abs(dz) <= half)
             {
@@ -1578,8 +1604,13 @@ public sealed partial class GameServer
         bool changed = false;
         foreach (var door in _doors)
         {
+            if (!DoorInCurrentFrame(door))
+            {
+                continue; // #2268: a parked ship's door follows its ship's net, every other door the world's
+            }
+
             var mode = DoorMode.Normal;
-            var floor = door.Pos.ToBlock();
+            var floor = CrystalFromWorld(door.Pos.ToBlock());
             bool any = false, on = false;
             int drivenNet = 0;
             for (int dy = 0; dy < 2 && !on; dy++)
@@ -1629,6 +1660,11 @@ public sealed partial class GameServer
     /// station, ship layout) follows only world circuits and public cells.</summary>
     private bool CrystalMayDriveDoor(ServerDoor door, ServerCrystalCell c)
     {
+        if (_crystalFrame is { } frame)
+        {
+            return c.OwnerId == frame.OwnerId || AreAllied(frame.OwnerId, c.OwnerId); // #2268: the ship's own doors
+        }
+
         bool cellPublic = c.OwnerId.Length == 0 || CrystalNetRules.IsWorldOwner(c.OwnerId);
         if (!door.PlayerBuilt)
         {
@@ -1762,7 +1798,8 @@ public sealed partial class GameServer
     /// owner, creatures (wild + tame).</summary>
     private bool PresenceInCell(Vector3i cell, PresenceFilter filter, string owner)
     {
-        var centre = new Vector3f(cell.X + 0.5f, cell.Y, cell.Z + 0.5f);
+        var w = CrystalToWorld(cell);
+        var centre = new Vector3f(w.X + 0.5f, w.Y, w.Z + 0.5f);
         foreach (var p in _crystalPresence)
         {
             bool match = filter == PresenceFilter.WildCreatures
@@ -1790,7 +1827,7 @@ public sealed partial class GameServer
 
     private bool PresenceWithin(Vector3i cell, float radius, PresenceFilter filter, string owner)
     {
-        var centre = new Vector3f(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
+        var centre = CrystalWorldCentre(cell);
         double r2 = radius * radius;
         foreach (var p in _crystalPresence)
         {
@@ -2002,7 +2039,7 @@ public sealed partial class GameServer
                 {
                     OnCrystalChimeRang(c); // #2258: a doorbell rang
                     PlayCrystalSound(c, "chime_" + Math.Max(0, Math.Min(3, c.Mode)), 1f);
-                    EmitVibration(new Vector3f(c.Cell.X + 0.5f, c.Cell.Y - 0.5f, c.Cell.Z + 0.5f), VibrationSource.Horn, c.OwnerId); // #2077: the worm hears it
+                    EmitVibration(CrystalWorldCentre(c.Cell) - new Vector3f(0, 1f, 0), VibrationSource.Horn, c.OwnerId); // #2077: the worm hears it
                 }
 
                 break;
@@ -2010,7 +2047,7 @@ public sealed partial class GameServer
                 if (on)
                 {
                     PlayCrystalSound(c, "horn_" + Math.Max(0, Math.Min(2, c.Mode)), 1f);
-                    EmitVibration(new Vector3f(c.Cell.X + 0.5f, c.Cell.Y - 0.5f, c.Cell.Z + 0.5f), VibrationSource.Horn, c.OwnerId); // #2077: the worm hears it
+                    EmitVibration(CrystalWorldCentre(c.Cell) - new Vector3f(0, 1f, 0), VibrationSource.Horn, c.OwnerId); // #2077: the worm hears it
                 }
 
                 break;
@@ -2162,7 +2199,7 @@ public sealed partial class GameServer
     /// <see cref="BlockChanged"/> per swap — the reason actuators are rate-limited.</summary>
     private bool SwapCrystalLight(ServerCrystalCell c, bool on)
     {
-        var id = _world.GetBlockIfLoaded(c.Cell);
+        var id = CrystalReadBlock(c.Cell);
         var current = _content.BlockById(id);
         if (current is null || id.IsAir)
         {
@@ -2181,11 +2218,9 @@ public sealed partial class GameServer
             return true; // a lamp without a twin (a modded pack) simply stays lit
         }
 
-        var (tint, glow) = _world.GetModifier(c.Cell);
-        int shape = _world.GetShape(c.Cell);
-        _world.SetBlock(c.Cell, want.NumericId, tint, glow, shape);
-        BroadcastToWorld(new BlockChanged { X = c.Cell.X, Y = c.Cell.Y, Z = c.Cell.Z, Block = want.NumericId.Value, Tint = tint, Glow = glow, Shape = shape });
-        WriteBackStationCell(c.Cell, want.NumericId, tint, glow, shape);
+        var (tint, glow) = CrystalReadModifier(c.Cell);
+        int shape = CrystalReadShape(c.Cell);
+        CrystalWriteCell(c.Cell, want.NumericId, tint, glow, shape);
         c.BlockKey = want.Key;
         if (on)
         {
@@ -2202,7 +2237,8 @@ public sealed partial class GameServer
             return;
         }
 
-        BroadcastToWorld(new SoundFx { SoundId = soundId, X = c.Cell.X + 0.5f, Y = c.Cell.Y + 0.5f, Z = c.Cell.Z + 0.5f, Pitch = pitch, SourceId = c.Id });
+        var at = CrystalWorldCentre(c.Cell);
+        BroadcastToWorld(new SoundFx { SoundId = soundId, X = at.X, Y = at.Y, Z = at.Z, Pitch = pitch, SourceId = c.Id });
     }
 
     private void SetCrystalLoop(ServerCrystalCell c, bool on, string soundId)
@@ -2218,7 +2254,8 @@ public sealed partial class GameServer
         }
 
         c.Looping = on;
-        BroadcastToWorld(new SoundFx { SoundId = soundId, X = c.Cell.X + 0.5f, Y = c.Cell.Y + 0.5f, Z = c.Cell.Z + 0.5f, Loop = on, Stop = !on, SourceId = c.Id });
+        var at = CrystalWorldCentre(c.Cell);
+        BroadcastToWorld(new SoundFx { SoundId = soundId, X = at.X, Y = at.Y, Z = at.Z, Loop = on, Stop = !on, SourceId = c.Id });
     }
 
     /// <summary>The announcer speaks one preset line (its mode) — or its own screened label — to the owner and the
@@ -2335,7 +2372,7 @@ public sealed partial class GameServer
             }
         }
 
-        return new CrystalNetList { Nets = nets.ToArray() };
+        return new CrystalNetList { Frame = CrystalFrameTag, Nets = nets.ToArray() };
     }
 
     /// <summary>The whole device list. Broadcast to the world (<paramref name="baseline"/>), it is also what every client was
@@ -2354,7 +2391,7 @@ public sealed partial class GameServer
             }
         }
 
-        return new CrystalDeviceList { Devices = devices };
+        return new CrystalDeviceList { Frame = CrystalFrameTag, Devices = devices };
     }
 
     private NetCrystalDevice ToNetCrystalDevice(ServerCrystalCell c) => new()
@@ -2381,5 +2418,6 @@ public sealed partial class GameServer
         Send(session, CrystalNetMessage(baseline: false));
         Send(session, CrystalDeviceMessage(baseline: false)); // #2267: the joiner gets the whole list, the baseline stays
         Send(session, LiftMessage()); // #2266
+        SendCrystalShipNets(session); // #2268: the nets of the ships parked here
     }
 }

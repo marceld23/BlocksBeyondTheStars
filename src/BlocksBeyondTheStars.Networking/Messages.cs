@@ -1864,6 +1864,9 @@ public sealed class StructureEditIntent
     /// <c>StampStructurePropShape</c>). Without it every prop built into a ship stamped as a plain cube.</summary>
     public int UpFace { get; set; } = -1;
     public int Yaw { get; set; } = -1;
+
+    /// <summary>#2268 (additive): a directional Crystal Net device's direction aboard, as <see cref="PlaceBlockIntent.DeviceDir"/>.</summary>
+    public int DeviceDir { get; set; } = -1;
 }
 
 /// <summary>Client → server: deploy a station core in front of the suit to start a player-built station (item

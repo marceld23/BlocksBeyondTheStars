@@ -52,6 +52,7 @@ public sealed partial class GameServer
         public double NpcHeldUntil;    // #1866: a hand door an NPC swung open closes after this uptime (0 = a player's, left alone)
         public Shared.Definitions.DoorMode Mode; // #2048: derived from the conduit beside it on every Crystal Net beat
         public string Owner = string.Empty; // #2253: who hung a player-built door — only their (alliance's) net drives it
+        public string ShipOwner = string.Empty; // #2268: the parked ship this doorway belongs to (its net drives it), or empty
     }
 
     /// <summary>
@@ -155,7 +156,7 @@ public sealed partial class GameServer
         // structure, so the door's jamb/gap probe reads the structure grid, not the world). The ship's own
         // hatch gets a tighter open range so it stays sealed/closed where you spawn inside, opening only when
         // you walk right up to it to leave.
-        foreach (var rec in _worlds.Active.LandedShips.Values)
+        foreach (var (shipOwner, rec) in _worlds.Active.LandedShips)
         {
             if (!rec.Placed)
             {
@@ -190,12 +191,15 @@ public sealed partial class GameServer
                         AxisX = placedAxisX,
                         Width = 1f,
                         OpenRange = SlideDoorOpenRange,
+                        ShipOwner = shipOwner,
                     });
                     continue;
                 }
 
-                _doors.Add(MakeDoor(kind, pos, ShipHatchOpenRange, forceAxisX: local.Z == 0 ? true : (bool?)null,
-                    solid: (x, y, z) => !ship.Structure.Get(ship.ToLocal(new Vector3i(x, y, z), _world.Circumference)).IsAir));
+                var hatch = MakeDoor(kind, pos, ShipHatchOpenRange, forceAxisX: local.Z == 0 ? true : (bool?)null,
+                    solid: (x, y, z) => !ship.Structure.Get(ship.ToLocal(new Vector3i(x, y, z), _world.Circumference)).IsAir);
+                hatch.ShipOwner = shipOwner;
+                _doors.Add(hatch);
             }
         }
 

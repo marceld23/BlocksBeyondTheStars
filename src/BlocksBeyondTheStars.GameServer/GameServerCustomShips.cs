@@ -581,10 +581,11 @@ public sealed partial class GameServer
     /// geometry stats (an engine came out → it flies slower, #949).</summary>
     private void CommitCustomShipCells(
         PlayerSession session, ShipState ship, LandedShip rec, bool commissioned,
-        Dictionary<Vector3i, BlockId> cells, Vector3i editedCell, ushort editedBlock)
+        Dictionary<Vector3i, BlockId> cells, Vector3i editedCell, ushort editedBlock, int deviceDir = -1)
     {
         string playerId = session.State.PlayerId;
         var origin = rec.Origin;
+        var oldOrigin = rec.Origin;
         var normalized = NormalizeCustomCells(cells, ref origin);
         bool originShifted = origin.X != rec.Origin.X || origin.Y != rec.Origin.Y || origin.Z != rec.Origin.Z;
 
@@ -631,6 +632,9 @@ public sealed partial class GameServer
 
         if (commissioned)
         {
+            // #2268: the hull was rebuilt from its blob — the net moves with a shifted origin and re-applies its
+            // twins; the edited cell joins or leaves it.
+            OnCustomShipCellsCommitted(session, rec, oldOrigin - origin, editedCell, editedBlock, deviceDir);
             RecomputeShipCombatStats();
             SendShipCombatStatus(session);
             BroadcastOwnedShips(); // derived speed/handling ride the fleet message (#949)
@@ -864,6 +868,7 @@ public sealed partial class GameServer
         landed.Placed = true;
         BroadcastToWorld(LandedShipMessage(p.PlayerId, landed, removed: false));
         RegisterDoors();
+        LoadCrystalShipNet(p.PlayerId, landed); // #2268: what was wired on the keel works from now on
 
         PersistFleet(session);
         BroadcastOwnedShips();

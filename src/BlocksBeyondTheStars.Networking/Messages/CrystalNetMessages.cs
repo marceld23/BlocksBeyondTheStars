@@ -19,6 +19,9 @@ public sealed class NetCrystalNet
 public sealed class CrystalNetList
 {
     public NetCrystalNet[] Nets { get; set; } = System.Array.Empty<NetCrystalNet>();
+
+    /// <summary>#2268: empty for the world grid; aboard a parked ship its structure id — the cells are then ship-local.</summary>
+    public string Frame { get; set; } = string.Empty;
 }
 
 /// <summary>A device of the Crystal Net as the client sees it: where it is, what it is, its mode / config and
@@ -50,6 +53,9 @@ public sealed class NetCrystalDevice
 public sealed class CrystalDeviceList
 {
     public NetCrystalDevice[] Devices { get; set; } = System.Array.Empty<NetCrystalDevice>();
+
+    /// <summary>#2268: empty for the world grid; aboard a parked ship its structure id — the cells are then ship-local.</summary>
+    public string Frame { get; set; } = string.Empty;
 }
 
 /// <summary>Client → server: the player toggles a switch, presses a button or configures a device they look at.
@@ -65,6 +71,9 @@ public sealed class SetCrystalDeviceIntent
     public int Mode { get; set; }
     public string Config { get; set; } = string.Empty;
     public string Label { get; set; } = string.Empty;
+
+    /// <summary>#2268: empty for the world grid; aboard a parked ship its structure id — the cells are then ship-local.</summary>
+    public string Frame { get; set; } = string.Empty;
 }
 
 /// <summary>#2266: one lift as the client draws it — a 3×3 platform centred over its motor's column. <see cref="PlatformY"/>
@@ -100,6 +109,9 @@ public sealed class CrystalDeviceDelta
 {
     public NetCrystalDevice[] Changed { get; set; } = System.Array.Empty<NetCrystalDevice>();
     public int[] Removed { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>#2268: empty for the world grid; aboard a parked ship its structure id — the cells are then ship-local.</summary>
+    public string Frame { get; set; } = string.Empty;
 }
 
 /// <summary>Server → world: a device plays a sound at a cell (#2052). A loop is started once and stopped with

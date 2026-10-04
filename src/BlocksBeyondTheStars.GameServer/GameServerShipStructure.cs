@@ -87,6 +87,7 @@ public sealed partial class GameServer
 
         BroadcastToWorld(LandedShipMessage(playerId, rec, removed: false));
         RegisterDoors(); // pick up the ship's doors (+ keep settlement/other-ship doors in sync)
+        LoadCrystalShipNet(playerId, rec); // #2268: the ship's Crystal Net wakes up with it
 
         // The player's half-built ship (if their keel lies on this world) re-places alongside the parked
         // ship — join, landing, respawn and ship switch all route through here (#948).
@@ -189,6 +190,7 @@ public sealed partial class GameServer
         }
 
         rec.Placed = false;
+        DropCrystalShipNet(session.State.PlayerId); // #2268: in flight the ship's net rests
         BroadcastToWorld(new LandedShipState
         {
             PlayerId = session.State.PlayerId,

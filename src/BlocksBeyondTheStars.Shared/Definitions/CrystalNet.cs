@@ -612,10 +612,11 @@ public static class CrystalNetRules
     public static bool IsPlanetOnly(CrystalDeviceKind kind) => kind is CrystalDeviceKind.Caller or CrystalDeviceKind.CloneTank;
 
     /// <summary>#2268: what works aboard the own ship. Everything else built into a ship is decoration (and VEGA says so
-    /// once): a drill has no ground there, and a bridge, a piston or a lift would edit a hull that is meshed in three places.</summary>
+    /// once): a drill has no ground there, a watcher hears only the block changes of a world grid, and a bridge, a piston
+    /// or a lift would edit a hull that is meshed in three places.</summary>
     public static bool WorksAboard(CrystalDeviceKind kind) => kind is CrystalDeviceKind.Conduit or CrystalDeviceKind.Switch
         or CrystalDeviceKind.Button or CrystalDeviceKind.StepPlate or CrystalDeviceKind.ProximitySensor
-        or CrystalDeviceKind.Watcher or CrystalDeviceKind.LogicBlock or CrystalDeviceKind.TimerBlock
+        or CrystalDeviceKind.LogicBlock or CrystalDeviceKind.TimerBlock
         or CrystalDeviceKind.DeviceEye or CrystalDeviceKind.DiceBlock or CrystalDeviceKind.AlarmSiren or CrystalDeviceKind.Chime
         or CrystalDeviceKind.Horn or CrystalDeviceKind.MelodyBlock or CrystalDeviceKind.Announcer or CrystalDeviceKind.Light
         or CrystalDeviceKind.PhaseBlock or CrystalDeviceKind.Trapdoor or CrystalDeviceKind.SignalDisplay

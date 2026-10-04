@@ -55,7 +55,7 @@ public sealed partial class GameServer
             return SwapCrystalLight(c, on);
         }
 
-        var id = _world.GetBlockIfLoaded(c.Cell);
+        var id = CrystalReadBlock(c.Cell);
         var current = _content.BlockById(id);
         if (current is null || id.IsAir)
         {
@@ -74,13 +74,13 @@ public sealed partial class GameServer
             return true; // a pack without the twin: the block simply stays as it is
         }
 
-        if (want.Solid && !current.Solid && CellOccupiedByBody(c.Cell))
+        if (want.Solid && !current.Solid && CellOccupiedByBody(CrystalToWorld(c.Cell)))
         {
             return false; // kid rule: never close onto a player, an NPC or an animal — wait until the cell is free
         }
 
-        var (tint, glow) = _world.GetModifier(c.Cell);
-        int shape = _world.GetShape(c.Cell);
+        var (tint, glow) = CrystalReadModifier(c.Cell);
+        int shape = CrystalReadShape(c.Cell);
         if (c.Kind == CrystalDeviceKind.Trapdoor)
         {
             shape = on ? PropShapes.TrapdoorOpen(PropShapes.TrapdoorClosedFrom(shape)) : PropShapes.TrapdoorClosedFrom(shape);
@@ -88,7 +88,7 @@ public sealed partial class GameServer
 
         if (!want.Solid && current.Solid)
         {
-            GrantMovingFallGrace(c.Cell); // a floor that opens never hurts
+            GrantMovingFallGrace(CrystalToWorld(c.Cell)); // a floor that opens never hurts
         }
 
         CrystalWriteCell(c.Cell, want.NumericId, tint, glow, shape);
@@ -109,6 +109,15 @@ public sealed partial class GameServer
     /// <summary>One cell written by the net: the voxel, the wire, the station's own build (so a boarded station keeps it).</summary>
     private void CrystalWriteCell(Vector3i cell, BlockId id, int tint, int glow, int shape)
     {
+        if (_crystalFrame is { } frame)
+        {
+            // #2268: aboard, the ship's structure — live only: a parked ship's net re-applies its levels after every
+            // rebuild (landing, edit), so the swap never needs to reach the ship's stored design.
+            frame.Rec.Structure.Set(cell, id, tint, glow, shape);
+            BroadcastToWorld(new StructureBlockChanged { StructureId = frame.StructureId, X = cell.X, Y = cell.Y, Z = cell.Z, Block = id.Value, Tint = tint, Glow = glow, Shape = shape });
+            return;
+        }
+
         _world.SetBlock(cell, id, tint, glow, shape);
         BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = id.Value, Tint = tint, Glow = glow, Shape = shape });
         WriteBackStationCell(cell, id, tint, glow, shape);
@@ -164,7 +173,8 @@ public sealed partial class GameServer
             return;
         }
 
-        float x = c.Cell.X + 0.5f, y = c.Cell.Y + 0.5f, z = c.Cell.Z + 0.5f;
+        var at = CrystalWorldCentre(c.Cell);
+        float x = at.X, y = at.Y, z = at.Z;
         BroadcastToWorld(new SoundFx { SoundId = sound, X = x, Y = y, Z = z, SourceId = c.Id });
         BroadcastToWorld(new WorldFx { Kind = c.Kind == CrystalDeviceKind.ForceField ? "field_flicker" : "phase_shimmer", X = x, Y = y, Z = z, Strength = on ? 1f : 0.6f });
     }
@@ -195,6 +205,7 @@ public sealed partial class GameServer
         CrystalDeviceKind.Seat => SeatTaken(c.Cell),
         CrystalDeviceKind.FlowerPot => HydroTrayRipe(c.Cell), // a pot reports "ripe" like a hydro tray
         CrystalDeviceKind.EnvironmentSensor => EnvironmentSensorReads(c),
+        CrystalDeviceKind.ShipSensor => ShipSensorReads(c), // #2268
         _ => null,
     };
 
@@ -320,11 +331,12 @@ public sealed partial class GameServer
         {
             int chance = CrystalNetRules.DiceChances[Math.Max(0, Math.Min(CrystalNetRules.DiceChances.Length - 1, c.Mode))];
             bool win = _crystalDice.Next(chance) == 0;
-            BroadcastToWorld(new SoundFx { SoundId = "dice_roll", X = c.Cell.X + 0.5f, Y = c.Cell.Y + 0.5f, Z = c.Cell.Z + 0.5f, SourceId = c.Id });
+            var at = CrystalWorldCentre(c.Cell);
+            BroadcastToWorld(new SoundFx { SoundId = "dice_roll", X = at.X, Y = at.Y, Z = at.Z, SourceId = c.Id });
             if (win)
             {
                 PulseCrystalCell(c);
-                BroadcastToWorld(new WorldFx { Kind = "dice_win", X = c.Cell.X + 0.5f, Y = c.Cell.Y + 1f, Z = c.Cell.Z + 0.5f, Strength = 1f });
+                BroadcastToWorld(new WorldFx { Kind = "dice_win", X = at.X, Y = at.Y + 0.5f, Z = at.Z, Strength = 1f });
             }
         }
 
@@ -344,7 +356,8 @@ public sealed partial class GameServer
             CrystalNet.DeviceListDirty = true;
             if (next)
             {
-                BroadcastToWorld(new WorldFx { Kind = "signal_ping", X = c.Cell.X + 0.5f, Y = c.Cell.Y + 1f, Z = c.Cell.Z + 0.5f, Strength = 0.6f });
+                var ping = CrystalWorldCentre(c.Cell);
+                BroadcastToWorld(new WorldFx { Kind = "signal_ping", X = ping.X, Y = ping.Y + 0.5f, Z = ping.Z, Strength = 0.6f });
             }
         }
     }
@@ -378,11 +391,27 @@ public sealed partial class GameServer
 
     /// <summary>#2263: the remote control. Used while aiming at a signal receiver within reach that the player may operate,
     /// it PAIRS with it; used anywhere else it flips the paired receiver — on the same world. False when nothing came of
-    /// it (no cooldown, no effect).</summary>
+    /// it (no cooldown, no effect). #2268: a receiver aboard the own ship pairs by the ship (<c>@store|cell</c>), so the
+    /// remote reaches it wherever the ship is parked.</summary>
     private bool UseRemoteControl(PlayerSession session, Vector3f target)
     {
         var p = session.State;
-        if (NearestCrystalReceiver(target) is { } aimed && WithinReach(p, aimed.Cell))
+        var aimed = NearestCrystalReceiver(target);
+        CrystalShipFrame? aimedFrame = null;
+        if (aimed is null)
+        {
+            foreach (var frame in CrystalShipFrames.Values)
+            {
+                InCrystalFrame(frame, () => aimed = NearestCrystalReceiver(target));
+                if (aimed is not null)
+                {
+                    aimedFrame = frame;
+                    break;
+                }
+            }
+        }
+
+        if (aimed is not null && WithinReach(p, aimedFrame is null ? aimed.Cell : InFrame(aimedFrame, () => CrystalToWorld(aimed.Cell))))
         {
             if (!CanOperateCrystal(aimed, p.PlayerId, p.IsAdmin))
             {
@@ -390,7 +419,7 @@ public sealed partial class GameServer
                 return false;
             }
 
-            p.RemoteReceiver = _world.LocationId + "|" + CrystalPairValue(aimed.Cell);
+            p.RemoteReceiver = (aimedFrame is null ? _world.LocationId : "@" + aimedFrame.StoreId) + "|" + CrystalPairValue(aimed.Cell);
             _repo.SavePlayer(p);
             Send(session, new ServerMessage { Text = "@srv.crystal.remote_paired:" + (aimed.Label.Length > 0 ? aimed.Label : "?") });
             ShipAiHintOnce(session, "crystal_remote");
@@ -405,13 +434,17 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (pairing.Substring(0, bar) != _world.LocationId || CrystalPairCell("pair=" + pairing.Substring(bar + 1)) is not { } cell)
+        string where = pairing.Substring(0, bar);
+        var shipFrame = where.StartsWith("@", StringComparison.Ordinal)
+            ? CrystalShipFrames.Values.FirstOrDefault(f => f.Rec.Placed && "@" + f.StoreId == where)
+            : null;
+        if ((shipFrame is null && where != _world.LocationId) || CrystalPairCell("pair=" + pairing.Substring(bar + 1)) is not { } cell)
         {
             Reject(session, "crystal", "@srv.crystal.remote_far");
             return false;
         }
 
-        if (!FlipCrystalRemote(session, cell))
+        if (!(shipFrame is null ? FlipCrystalRemote(session, cell) : InFrame(shipFrame, () => FlipCrystalRemote(session, cell))))
         {
             Reject(session, "crystal", "@srv.crystal.remote_gone");
             return false;
@@ -432,7 +465,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            double d = WrapDistSq(at, new Vector3f(c.Cell.X + 0.5f, c.Cell.Y + 0.5f, c.Cell.Z + 0.5f));
+            double d = WrapDistSq(at, CrystalWorldCentre(c.Cell));
             if (d <= bestSq)
             {
                 bestSq = d;

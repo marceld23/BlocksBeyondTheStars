@@ -94,8 +94,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>Whether a door's gap touches this cell (its floor cell or the one above, six faces each).</summary>
-    private bool CrystalCellTouchesDoor(Vector3i cell)
+    private bool CrystalCellTouchesDoor(Vector3i local)
     {
+        var cell = CrystalToWorld(local); // #2268: aboard, the ship's doors hang in world space
         foreach (var door in _doors)
         {
             var floor = door.Pos.ToBlock();
@@ -157,7 +158,7 @@ public sealed partial class GameServer
                 }
 
                 if (wantRuin && CrystalNetRules.IsWorldOwner(c.OwnerId)
-                    && WrapDistSq(p.Position, new Vector3f(c.Cell.X + 0.5f, c.Cell.Y + 0.5f, c.Cell.Z + 0.5f)) <= 8 * 8)
+                    && WrapDistSq(p.Position, CrystalWorldCentre(c.Cell)) <= 8 * 8)
                 {
                     ShipAiHintOnce(s, "crystal_ruin");
                     wantRuin = false;
