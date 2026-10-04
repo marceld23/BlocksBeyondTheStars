@@ -574,6 +574,8 @@ public static class NetCodec
 
         // #2242 wormholes: the pilot flies through a rift. No protocol bump — older peers drop the unknown tag.
         Register(285, typeof(WormholeTransitIntent));        // Client -> Server
+        Register(286, typeof(LiftList));                     // Server -> Client (#2266: the lifts, ~5 Hz while one moves)
+        Register(287, typeof(CrystalDeviceDelta));           // Server -> Client (#2267: the devices that changed)
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

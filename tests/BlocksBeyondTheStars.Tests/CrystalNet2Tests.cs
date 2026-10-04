@@ -456,6 +456,40 @@ public sealed class CrystalNet2Tests : IDisposable
     }
 
     // ---------------------------------------------------------------------------------------------------
+    // #2266 lift
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void ALift_RidesToTheStopThatCalledIt_ShowsItIsThere_AndTheMotorSendsItBackDown()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Player(server, "Builder", new Vector3f(6, 203, 2), "lift_motor", "lift_stop", "stone");
+            server.PlaceBlock("Builder", 2, 200, 2, "lift_motor");
+            server.PlaceBlock("Builder", 4, 205, 2, "lift_stop"); // a landing two cells from the shaft's middle, five up
+            var motor = new Vector3i(2, 200, 2);
+            Assert.Equal(201f, server.LiftPlatformYForTest(motor)); // resting on the motor
+
+            server.SetCrystalDeviceForTest(p, new Vector3i(4, 205, 2), action: 1); // call it up
+            Ticks(server, 2.0);
+            Assert.Equal(204f, server.LiftPlatformYForTest(motor)); // its top is level with the stop's cell
+            Assert.True(server.CrystalDeviceOutput(new Vector3i(4, 205, 2))); // "the platform is here"
+
+            server.SetCrystalDeviceForTest(p, motor, action: 1); // the motor sends it on: from the top back to the bottom
+            Ticks(server, 2.0);
+            Assert.Equal(201f, server.LiftPlatformYForTest(motor));
+            Assert.False(server.CrystalDeviceOutput(new Vector3i(4, 205, 2)));
+
+            server.PlaceBlock("Builder", 3, 203, 2, "stone"); // a block in the shaft: the lift refuses to start
+            server.SetCrystalDeviceForTest(p, new Vector3i(4, 205, 2), action: 1);
+            Ticks(server, 2.0);
+            Assert.Equal(201f, server.LiftPlatformYForTest(motor));
+            Assert.True(server.CrystalDeviceOutput(motor)); // blocked: the amber light says so
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------------
     // #2263 display, dice, signals, remote
     // ---------------------------------------------------------------------------------------------------
 

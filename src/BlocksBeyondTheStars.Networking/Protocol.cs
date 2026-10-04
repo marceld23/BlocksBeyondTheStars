@@ -33,8 +33,11 @@ public static class Protocol
     /// block keys, so a v8 client would draw every block behind the new keys as its neighbour. From v9 on the join
     /// carries a content fingerprint (JoinRequest / JoinAccepted.ContentFingerprint — the hash of the block
     /// palette) that both sides compare, so a later block addition needs no bump of its own; this bump keeps the
-    /// clients released before the fingerprint off newer servers through the version check they already have.</summary>
-    public const int Version = 9;
+    /// clients released before the fingerprint off newer servers through the version check they already have.
+    /// v10 (#2251): Crystal Net 2 — LiftList (the lifts), CrystalDeviceDelta (devices sent as changes), the Crystal Net
+    /// lists and the device intent carry a frame (a ship's store id, empty = the world), PlaceBlockIntent a device
+    /// direction (six ways); a v9 client could not decode the new lists and would never see a lift or a ship's net.</summary>
+    public const int Version = 10;
 
     /// <summary>The join refusal both sides use when the content fingerprints differ or one is missing (#2222):
     /// the server sends it as the <c>JoinRejected</c> reason, the client raises the same reason itself when the

@@ -331,6 +331,8 @@ public sealed class NetCodecTests
         [283] = typeof(BioLabIntent),
         [284] = typeof(BioLabResult),
         [285] = typeof(WormholeTransitIntent),
+        [286] = typeof(LiftList),            // #2266
+        [287] = typeof(CrystalDeviceDelta),  // #2267
 
     };
 

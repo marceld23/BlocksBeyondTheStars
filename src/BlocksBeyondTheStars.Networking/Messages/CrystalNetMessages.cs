@@ -67,6 +67,41 @@ public sealed class SetCrystalDeviceIntent
     public string Label { get; set; } = string.Empty;
 }
 
+/// <summary>#2266: one lift as the client draws it — a 3×3 platform centred over its motor's column. <see cref="PlatformY"/>
+/// is the y of the platform's cells (its top surface is one higher); while <see cref="Moving"/> the client eases it towards
+/// <see cref="TargetY"/> at <see cref="Speed"/> cells per second, and a player standing on it moves with it.</summary>
+public sealed class NetLift
+{
+    public int Id { get; set; }
+
+    /// <summary>The motor's cell — the shaft is the 3×3 column above it.</summary>
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+
+    public float PlatformY { get; set; }
+    public float TargetY { get; set; }
+    public float Speed { get; set; }
+    public bool Moving { get; set; }
+}
+
+/// <summary>Server → world (#2266): every lift of the world; sent on join, on every start and stop, and about five times a
+/// second while one moves.</summary>
+public sealed class LiftList
+{
+    public NetLift[] Lifts { get; set; } = System.Array.Empty<NetLift>();
+}
+
+/// <summary>Server → world (#2267): the devices that changed since the last list or delta (new or changed devices in
+/// <see cref="Changed"/>, mined ones by cell in <see cref="Removed"/> as x, y, z triples). The full
+/// <see cref="CrystalDeviceList"/> still goes out on join; afterwards a flickering clock costs a few devices per beat, not
+/// the whole base.</summary>
+public sealed class CrystalDeviceDelta
+{
+    public NetCrystalDevice[] Changed { get; set; } = System.Array.Empty<NetCrystalDevice>();
+    public int[] Removed { get; set; } = System.Array.Empty<int>();
+}
+
 /// <summary>Server → world: a device plays a sound at a cell (#2052). A loop is started once and stopped with
 /// <see cref="Stop"/>; the client keeps it playing in between (nothing is re-sent per beat).</summary>
 public sealed class SoundFx

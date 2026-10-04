@@ -67,6 +67,12 @@ public sealed partial class GameServer
 
         /// <summary>#2261: energy fence cells a conduit switched ON: fauna may pass them.</summary>
         public HashSet<Vector3i> OpenFences { get; } = new();
+
+        /// <summary>#2266: the lifts of this world, by their motor's cell.</summary>
+        public Dictionary<Vector3i, ServerLift> Lifts { get; } = new();
+
+        public bool LiftListDirty { get; set; }
+        public double LiftBroadcastIn { get; set; }
     }
 
     /// <summary>One network: its cells and its level. <see cref="Level"/> is re-derived every logic beat.</summary>
@@ -428,6 +434,11 @@ public sealed partial class GameServer
             InitCloneTank(cell); // #2214: its clones' tag and list; a tank that was growing starts its wait over
         }
 
+        if (kind == CrystalDeviceKind.LiftMotor && !cell.Inert)
+        {
+            LiftOf(cell); // #2266: the platform appears resting on the motor (or where the row says it waited)
+        }
+
         if (persist)
         {
             SaveCrystalCell(cell);
@@ -698,6 +709,8 @@ public sealed partial class GameServer
         state.DisabledSentries.Clear();
         state.DisabledHealTanks.Clear();
         state.OpenFences.Clear();
+        state.Lifts.Clear();
+        state.LiftListDirty = true;
         if (state.NextDeviceId < 1)
         {
             state.NextDeviceId = 1;
@@ -1170,7 +1183,6 @@ public sealed partial class GameServer
     /// built base one pass over the cells every 100 ms plus the sensor queries every 500 ms.</summary>
     private void TickCrystalNet(double dt)
     {
-        _ = dt;
         _drillBlocksThisTick = 0;
         _pistonPushesThisTick = 0;
         var state = CrystalNet;
@@ -1196,6 +1208,8 @@ public sealed partial class GameServer
             state.NextLogicBeat = _uptime + CrystalNetRules.LogicBeatSeconds;
             CrystalLogicBeat();
         }
+
+        TickLifts(dt); // #2266: moving platforms advance every tick (smooth for the riders), not on the beat
 
         if (state.NetListDirty)
         {
@@ -2040,6 +2054,11 @@ public sealed partial class GameServer
             BridgeRetractAll(c); // #2265: a mined motor takes its deck with it
         }
 
+        if (c.Kind == CrystalDeviceKind.LiftMotor)
+        {
+            RemoveLift(c.Cell); // #2266: and a mined lift motor its platform
+        }
+
         if (c.Kind == CrystalDeviceKind.Piston && c.Pushed)
         {
             PistonRetract(c, sticky: false);
@@ -2238,5 +2257,6 @@ public sealed partial class GameServer
     {
         Send(session, CrystalNetMessage());
         Send(session, CrystalDeviceMessage());
+        Send(session, LiftMessage()); // #2266
     }
 }
