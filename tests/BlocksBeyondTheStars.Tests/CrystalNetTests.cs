@@ -403,8 +403,8 @@ public sealed class CrystalNetTests : IDisposable
             var to = server.Containers.Single(c => c.Position == new Vector3i(1, 200, 4));
             from.Items.Add(new ItemStack("iron_ore", 40));
 
-            int receiverId = server.CrystalReceiversFor("Builder").Single(r => r.Label == "Lager").Id;
-            server.SetCrystalDeviceForTest(p, new Vector3i(2, 200, 0), action: 2, config: "pair=" + receiverId);
+            var receiver = server.CrystalReceiversFor("Builder").Single(r => r.Label == "Lager").Cell; // #2252: a pair is a cell
+            server.SetCrystalDeviceForTest(p, new Vector3i(2, 200, 0), action: 2, config: $"pair={receiver.X},{receiver.Y},{receiver.Z}");
             server.SetCrystalDeviceForTest(p, new Vector3i(2, 200, 0), action: 1); // one shot
             Assert.Equal(16, to.Items.Single(s => s.Item == "iron_ore").Count);
             Assert.Equal(24, from.Items.Single(s => s.Item == "iron_ore").Count);
@@ -606,12 +606,11 @@ public sealed class CrystalNetTests : IDisposable
             server.PlaceBlock("Builder", 8, 200, 0, "beam_block", "B");
             server.PlaceBlock("Builder", 0, 200, 0, "crystal_button");   // wires pad A
             server.PlaceBlock("Builder", 9, 200, 0, "crystal_conduit");  // wires pad B
-            var beams = server.BeamSnapshots;
-            int idA = beams.Single(b => b.Name == "A").Id, idB = beams.Single(b => b.Name == "B").Id;
+            // #2252: a pair names the partner's CELL (beam ids are handed out afresh on every load).
             p.State.Position = new Vector3f(1.5f, 200f, 0.5f);
-            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 2, config: "pair=" + idB);
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 2, config: "pair=8,200,0");
             p.State.Position = new Vector3f(8.5f, 200f, 0.5f);
-            server.SetCrystalDeviceForTest(p, new Vector3i(8, 200, 0), action: 2, config: "pair=" + idA);
+            server.SetCrystalDeviceForTest(p, new Vector3i(8, 200, 0), action: 2, config: "pair=1,200,0");
 
             p.State.Position = new Vector3f(1.5f, 201f, 0.5f);           // on pad A
             server.SetCrystalDeviceForTest(p, new Vector3i(0, 200, 0), action: 1);

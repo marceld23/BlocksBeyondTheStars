@@ -440,6 +440,10 @@ public sealed class PlayerSession
     /// <summary>Countdown to the next heal-tank proximity rescan (the regen itself applies every tick).</summary>
     public double HealTankScanIn { get; set; }
 
+    /// <summary>#2264: server uptime until which a fall does not hurt — a phase block, a trapdoor or a bridge deck opened
+    /// under this player (kid rule: a moving block never hurts).</summary>
+    public double MovingFallGraceUntil { get; set; }
+
     /// <summary>Cached result of the last heal-tank proximity scan.</summary>
     public bool NearHealTank { get; set; }
 

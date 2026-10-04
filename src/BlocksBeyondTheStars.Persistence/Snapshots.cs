@@ -38,6 +38,7 @@ public sealed class PlayerSnapshot
     public float CustomSpawnY { get; set; }
     public float CustomSpawnZ { get; set; }
     public string CustomSpawnLabel { get; set; } = string.Empty;
+    public string RemoteReceiver { get; set; } = string.Empty; // #2263
     public float Health { get; set; } = 100f;
     public float Oxygen { get; set; } = 100f;
     public float SuitEnergy { get; set; } = 100f;
@@ -224,6 +225,7 @@ public static class StateMapper
         CustomSpawnY = p.CustomSpawnPoint.Y,
         CustomSpawnZ = p.CustomSpawnPoint.Z,
         CustomSpawnLabel = p.CustomSpawnLabel,
+        RemoteReceiver = p.RemoteReceiver,
         Health = p.Health,
         Oxygen = p.Oxygen,
         SuitEnergy = p.SuitEnergy,
@@ -459,6 +461,7 @@ public static class StateMapper
         CustomSpawnBodyId = s.CustomSpawnBodyId ?? string.Empty,
         CustomSpawnPoint = new Vector3f(s.CustomSpawnX, s.CustomSpawnY, s.CustomSpawnZ),
         CustomSpawnLabel = s.CustomSpawnLabel ?? string.Empty,
+        RemoteReceiver = s.RemoteReceiver ?? string.Empty,
         Health = s.Health,
         Oxygen = s.Oxygen,
         SuitEnergy = s.SuitEnergy,

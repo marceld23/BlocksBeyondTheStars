@@ -136,8 +136,31 @@ public static class PropShapes
         "ladder" => (int)BlockShape.Panel,     // thin plate hugging a wall (#803 meshed this, #909 stores it)
         "stairs" => (int)BlockShape.Stairs,    // the crafted staircase used to place as a full cube (#909)
         "stretcher" => (int)BlockShape.Table,  // the doctor's stretcher (2026-09): a flat top on legs
+        "trapdoor" => (int)BlockShape.Panel,   // #2264: a hatch plate at the TOP of its cell (see TrapdoorClosed)
         _ => 0,
     };
+
+    /// <summary>#2264: the closed trapdoor — a panel flipped to the top of its cell (up-face −Y), flush with the floor it
+    /// is built into; <paramref name="yaw"/> remembers the hinge side (the geometry yaw whose local +Z is the hinge).</summary>
+    public static int TrapdoorClosed(int yaw) => ShapeCode.Pack(BlockShape.Panel, yaw & 3, 1);
+
+    /// <summary>#2264: the open trapdoor — the same panel folded up against its hinge side (an up-face pointing away from
+    /// that wall, like a ladder's plate), so the rest of the cell is open to fall or climb through.</summary>
+    public static int TrapdoorOpen(int closedDescriptor)
+    {
+        var (x, z) = ShapeCode.YawDirection(ShapeCode.OrientationOf(closedDescriptor));
+        int upFace = (x, z) switch
+        {
+            (1, 0) => 3,  // hinge on +X: the plate hugs the +X wall, its up-face points −X
+            (-1, 0) => 2,
+            (0, -1) => 4,
+            _ => 5,       // hinge on +Z
+        };
+        return ShapeCode.Pack(BlockShape.Panel, ShapeCode.OrientationOf(closedDescriptor), upFace);
+    }
+
+    /// <summary>#2264: back from an open trapdoor's descriptor to its closed one (the yaw rides along unchanged).</summary>
+    public static int TrapdoorClosedFrom(int anyDescriptor) => TrapdoorClosed(ShapeCode.OrientationOf(anyDescriptor));
 
     /// <summary>The form a ladder takes when it hugs no wall: a slim pole through the cell. The mesher has
     /// always drawn a free-standing ladder this way; since #909 the choice can also be stored.</summary>

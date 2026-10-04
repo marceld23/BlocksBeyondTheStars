@@ -51,6 +51,7 @@ public sealed partial class GameServer
         public float OpenRange = 4.5f; // proximity at which a slide door opens (SlideDoorOpenRange; tighter for the hatch)
         public double NpcHeldUntil;    // #1866: a hand door an NPC swung open closes after this uptime (0 = a player's, left alone)
         public Shared.Definitions.DoorMode Mode; // #2048: derived from the conduit beside it on every Crystal Net beat
+        public string Owner = string.Empty; // #2253: who hung a player-built door — only their (alliance's) net drives it
     }
 
     /// <summary>
@@ -413,8 +414,9 @@ public sealed partial class GameServer
             AxisX = axisX,
             Width = 1f,
             PlayerBuilt = true,
+            Owner = session.State.PlayerId,
         });
-        _repo.SaveDoor(new StoredDoor { Planet = _world.LocationId, X = pos.X, Y = pos.Y, Z = pos.Z, Kind = kind, AxisX = axisX });
+        _repo.SaveDoor(new StoredDoor { Planet = _world.LocationId, X = pos.X, Y = pos.Y, Z = pos.Z, Kind = kind, AxisX = axisX, Owner = session.State.PlayerId });
         BroadcastDoors();
         RefreshStationBoundsAfterDoorChange(); // a doorway on a station's outer face is part of its box (#1559)
     }
@@ -524,6 +526,7 @@ public sealed partial class GameServer
                 AxisX = sd.AxisX,
                 Width = 1f,
                 PlayerBuilt = true,
+                Owner = sd.Owner,
             });
         }
     }

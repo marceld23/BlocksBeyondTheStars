@@ -1028,7 +1028,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     // ---------------- Doors / beacons / beams / bases (flat keyed rows) ----------------
 
     private static StoredDoor CloneDoor(StoredDoor d)
-        => new() { Planet = d.Planet, X = d.X, Y = d.Y, Z = d.Z, Kind = d.Kind, AxisX = d.AxisX };
+        => new() { Planet = d.Planet, X = d.X, Y = d.Y, Z = d.Z, Kind = d.Kind, AxisX = d.AxisX, Owner = d.Owner };
 
     private static StoredBeacon CloneBeacon(StoredBeacon b)
         => new() { Planet = b.Planet, X = b.X, Y = b.Y, Z = b.Z, Label = b.Label, OwnerId = b.OwnerId };

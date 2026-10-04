@@ -71,8 +71,9 @@ public sealed partial class GameServer
             return false;
         }
 
-        // #2053: a gate a conduit holds open lets fauna through — the pen's door on a signal.
-        return v == _energyFenceId || (v == _energyGateId && !CrystalGateOpen(new Vector3i(x, y, z)));
+        // #2053: a gate a conduit holds open lets fauna through — the pen's door on a signal; #2261: a fence too.
+        var cell = new Vector3i(x, y, z);
+        return (v == _energyFenceId && !CrystalNet.OpenFences.Contains(cell)) || (v == _energyGateId && !CrystalGateOpen(cell));
     }
 
     /// <summary>Test/util: expose the fauna fence sweep so tests can probe exact steps without fighting

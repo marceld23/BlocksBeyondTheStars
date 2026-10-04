@@ -655,7 +655,8 @@ public sealed partial class GameServer
     /// a prompt, a menu or a function: it is decoration. A conduit and a lamp are not named here: a conduit does
     /// nothing by itself anywhere, and a lamp shines in a cabin as it does on the ground.</summary>
     private static bool NeedsWorldGrid(BlockDefinition def)
-        => def.Key == BioItems.Lab || CrystalNetRules.NeedsRow(CrystalNetRules.KindOf(def));
+        => def.Key == BioItems.Lab
+           || (CrystalNetRules.NeedsRow(CrystalNetRules.KindOf(def)) && !CrystalNetRules.IsPlainBlockPort(CrystalNetRules.KindOf(def)));
 
     /// <summary>Tells the builder that the block just built into a SHIP is only decoration there (#2219, see
     /// <see cref="NeedsWorldGrid"/>). Players furnish their ships with exactly these blocks, so a ship takes them
@@ -692,8 +693,7 @@ public sealed partial class GameServer
     /// stand, and a conduit laid beside them finds them as ports, so they are built on a spacewalk as before — and
     /// so is the bio lab, which the deck's grid scan finds.</summary>
     private static bool NeedsWorldPlaceHandler(BlockDefinition def)
-        => CrystalNetRules.KindOf(def) is not (CrystalDeviceKind.None or CrystalDeviceKind.Light or CrystalDeviceKind.Sentry
-            or CrystalDeviceKind.EnergyGate or CrystalDeviceKind.HydroTray);
+        => CrystalNetRules.KindOf(def) is var kind && kind != CrystalDeviceKind.None && !CrystalNetRules.IsPlainBlockPort(kind); // #2261: a fire, a field, a bed work by themselves
 
     /// <summary>Refuses a block that would be dead on the deck when it is built onto a station from OUTSIDE (#2219,
     /// see <see cref="NeedsWorldPlaceHandler"/>), before anything is consumed, with a line that says to build it

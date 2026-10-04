@@ -352,5 +352,18 @@
   { "key": "prep_capsule",   "nameKey": "item.prep_capsule.name",   "category": "consumable", "maxStack": 20, "descriptionKey": "item.prep_capsule.desc" },
   { "key": "prep_coating",   "nameKey": "item.prep_coating.name",   "category": "component",  "maxStack": 20, "descriptionKey": "item.prep_coating.desc" },
   { "key": "sensor_lens",    "nameKey": "item.sensor_lens.name",    "category": "component",  "maxStack": 64, "descriptionKey": "item.sensor_lens.desc" },
-  { "key": "quantum_sensor", "nameKey": "item.quantum_sensor.name", "category": "component",  "maxStack": 64, "descriptionKey": "item.quantum_sensor.desc" }
+  { "key": "quantum_sensor", "nameKey": "item.quantum_sensor.name", "category": "component",  "maxStack": 64, "descriptionKey": "item.quantum_sensor.desc" },
+  { "key": "phase_block", "craftTab": "machines", "nameKey": "item.phase_block.name", "category": "block", "maxStack": 64, "placesBlock": "phase_block", "descriptionKey": "item.phase_block.desc" },
+  { "key": "trapdoor", "craftTab": "machines", "nameKey": "item.trapdoor.name", "category": "block", "maxStack": 64, "placesBlock": "trapdoor", "descriptionKey": "item.trapdoor.desc" },
+  { "key": "bridge_motor", "craftTab": "machines", "nameKey": "item.bridge_motor.name", "category": "block", "maxStack": 16, "placesBlock": "bridge_motor", "descriptionKey": "item.bridge_motor.desc" },
+  { "key": "piston", "craftTab": "machines", "nameKey": "item.piston.name", "category": "block", "maxStack": 16, "placesBlock": "piston", "descriptionKey": "item.piston.desc" },
+  { "key": "lift_motor", "craftTab": "machines", "nameKey": "item.lift_motor.name", "category": "block", "maxStack": 16, "placesBlock": "lift_motor", "descriptionKey": "item.lift_motor.desc" },
+  { "key": "lift_stop", "craftTab": "machines", "nameKey": "item.lift_stop.name", "category": "block", "maxStack": 16, "placesBlock": "lift_stop", "descriptionKey": "item.lift_stop.desc" },
+  { "key": "signal_display", "craftTab": "machines", "nameKey": "item.signal_display.name", "category": "block", "maxStack": 16, "placesBlock": "signal_display", "descriptionKey": "item.signal_display.desc" },
+  { "key": "dice_block", "craftTab": "machines", "nameKey": "item.dice_block.name", "category": "block", "maxStack": 16, "placesBlock": "dice_block", "descriptionKey": "item.dice_block.desc" },
+  { "key": "signal_sender", "craftTab": "machines", "nameKey": "item.signal_sender.name", "category": "block", "maxStack": 16, "placesBlock": "signal_sender", "descriptionKey": "item.signal_sender.desc" },
+  { "key": "signal_receiver", "craftTab": "machines", "nameKey": "item.signal_receiver.name", "category": "block", "maxStack": 16, "placesBlock": "signal_receiver", "descriptionKey": "item.signal_receiver.desc" },
+  { "key": "environment_sensor", "craftTab": "machines", "nameKey": "item.environment_sensor.name", "category": "block", "maxStack": 16, "placesBlock": "environment_sensor", "descriptionKey": "item.environment_sensor.desc" },
+  { "key": "ship_sensor", "craftTab": "machines", "nameKey": "item.ship_sensor.name", "category": "block", "maxStack": 16, "placesBlock": "ship_sensor", "descriptionKey": "item.ship_sensor.desc" },
+  { "key": "remote_control", "nameKey": "item.remote_control.name", "category": "tool", "maxStack": 1, "descriptionKey": "item.remote_control.desc", "tool": { "kind": "gadget", "tier": 1, "energyPerUse": 0.0, "fx": {"style":"generic","color":"#b98cff"} }, "heldModel": [{"p":[0,0,0.04],"s":[0.07,0.03,0.14],"c":"#2b2f3a"},{"p":[0,0.018,0.07],"s":[0.03,0.01,0.03],"c":"#b98cff"},{"p":[0,0.018,0.02],"s":[0.025,0.01,0.025],"c":"#e6e9f0"},{"p":[0,0.01,0.115],"s":[0.012,0.012,0.04],"c":"#8c94a3"}] }
 ]

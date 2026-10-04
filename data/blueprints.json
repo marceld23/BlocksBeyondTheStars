@@ -527,5 +527,30 @@
     "key": "bio_crossing", "nameKey": "blueprint.bio_crossing.name", "descriptionKey": "blueprint.bio_crossing.desc",
     "category": "Production", "prerequisites": [ "bio_lab", "clone_tank" ], "knowledgeCost": 110,
     "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "matter_dust", "count": 6 }, { "item": "circuit_board", "count": 2 } ]
+  },
+  {
+    "key": "crystal_mechanics", "nameKey": "blueprint.crystal_mechanics.name", "descriptionKey": "blueprint.crystal_mechanics.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_logic" ], "knowledgeCost": 40,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "crystal", "count": 6 }, { "item": "iron_plate", "count": 4 } ]
+  },
+  {
+    "key": "crystal_piston", "nameKey": "blueprint.crystal_piston.name", "descriptionKey": "blueprint.crystal_piston.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_mechanics" ], "knowledgeCost": 50,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "crystal", "count": 6 }, { "item": "magnet", "count": 1 } ]
+  },
+  {
+    "key": "crystal_lift", "nameKey": "blueprint.crystal_lift.name", "descriptionKey": "blueprint.crystal_lift.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_mechanics" ], "knowledgeCost": 60,
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "crystal", "count": 8 }, { "item": "titanium_plate", "count": 2 } ]
+  },
+  {
+    "key": "crystal_signals", "nameKey": "blueprint.crystal_signals.name", "descriptionKey": "blueprint.crystal_signals.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_sensors" ], "knowledgeCost": 40,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "crystal", "count": 6 }, { "item": "circuit_board", "count": 2 } ]
+  },
+  {
+    "key": "ship_sensor", "nameKey": "blueprint.ship_sensor.name", "descriptionKey": "blueprint.ship_sensor.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_sensors", "shield_generator" ], "knowledgeCost": 60,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "crystal", "count": 6 }, { "item": "circuit_board", "count": 2 } ]
   }
 ]

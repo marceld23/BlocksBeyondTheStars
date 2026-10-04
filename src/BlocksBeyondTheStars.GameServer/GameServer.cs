@@ -4637,6 +4637,11 @@ public sealed partial class GameServer
             return; // #2113: the frame's own motion is never a fall
         }
 
+        if (_uptime < session.MovingFallGraceUntil)
+        {
+            return; // #2264: a trapdoor, a phase block or a bridge opened under this player — a moving block never hurts
+        }
+
         if (session.StationZeroG || InStationZeroGFallGrace(session))
         {
             return; // #1842: hovering in zero-g construction mode, or dropped to the deck because it was just switched off
@@ -5026,6 +5031,7 @@ public sealed partial class GameServer
         }
 
         OnBlockMined(session, def.Key);
+        OnCrystalBlockMinedHint(session, def.Key); // #2257: the first crystal tells what crystal can do
         ShipAiOnMine(session); // VEGA onboarding: the "mine a few blocks" stage counts every break
         ShipAiOnBlockBroken(session, def.Key); // VEGA context tips (#1077): digging score, by-hand streak, rare-ore learned
         CreaturesOnBlockBroken(session, pos); // #1760: a flowerling that SEES this turns on the miner
@@ -5159,6 +5165,11 @@ public sealed partial class GameServer
         if (blockKey == BedBlock && !(place.Yaw >= 0 && place.Yaw <= 3))
         {
             facing = ShapeCode.YawFacingForward(facing);
+        }
+
+        if (blockKey == "trapdoor")
+        {
+            return PropShapes.TrapdoorClosed(ShapeCode.YawFacingForward(facing)); // #2264: hinged on the far side, flush with the floor
         }
 
         return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, ShapeCode.UpPlusY);
@@ -5645,6 +5656,11 @@ public sealed partial class GameServer
         else if (blockDef.Key is "station_vendor" or "mission_board" || NpcProfessions.ByPostBlock(blockDef.Key) != null)
         {
             OnBasePostChanged(session, pos, placed: true); // #1865: a post at home is staffed by a resident
+        }
+
+        if (place.DeviceDir is >= 0 and < CrystalNetRules.DirectionCount)
+        {
+            crystalYaw = place.DeviceDir; // #2267: the client's six-way choice (looking up / down, or the rotate cycle)
         }
 
         OnCrystalBlockPlaced(session, pos, blockDef, place.Label, crystalYaw); // #2046: a conduit or device joins the Crystal Net
@@ -6272,6 +6288,7 @@ public sealed partial class GameServer
         });
         SendInventory(session);
         ShipAiOnBlueprint(session); // VEGA onboarding: first blueprint researched
+        OnCrystalBlueprintUnlockedHint(session, bp.Key); // #2257: the comm radio opens the Crystal Net tab, the conduit the net
     }
 
     private void HandleAdminCommand(PlayerSession session, AdminCommandIntent cmd)

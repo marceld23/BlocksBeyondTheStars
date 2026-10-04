@@ -55,7 +55,12 @@ public sealed partial class GameServer
                 StartThumperAt(c.Cell, c.OwnerId);
                 break;
             case CrystalDeviceKind.HydroTray:
+            case CrystalDeviceKind.FlowerPot: // #2261: a pot harvests like a tray
                 HarvestHydroTray(c);
+                break;
+            case CrystalDeviceKind.LiftStop:
+            case CrystalDeviceKind.LiftMotor:
+                LiftSignal(c); // #2266
                 break;
         }
     }
@@ -92,6 +97,9 @@ public sealed partial class GameServer
                 case CrystalDeviceKind.CloneTank:
                     CloneTankBeat(c, held);
                     break;
+                case CrystalDeviceKind.BridgeMotor:
+                    BridgeMotorBeat(c, held); // #2265: one deck block per step, out while ON, back in while OFF
+                    break;
             }
         }
     }
@@ -114,8 +122,9 @@ public sealed partial class GameServer
 
     private void MatterSenderShot(ServerCrystalCell sender)
     {
-        int pairId = CrystalConfigInt(sender.Config, "pair", 0);
-        var receiver = CrystalNet.Cells.Values.FirstOrDefault(d => d.Id == pairId && d.Kind == CrystalDeviceKind.MatterReceiver && !d.Inert);
+        // #2252: the partner is a CELL — a device id is handed out afresh on every load.
+        ServerCrystalCell? receiver = CrystalPairCell(sender.Config) is { } at && CrystalNet.Cells.TryGetValue(at, out var r)
+            && r.Kind == CrystalDeviceKind.MatterReceiver && !r.Inert ? r : null;
         if (receiver is null || !CanConfigureCrystal(receiver, sender.OwnerId, false))
         {
             SetCrystalBlocked(sender, true);
@@ -168,10 +177,11 @@ public sealed partial class GameServer
         BroadcastToWorld(new SoundFx { SoundId = "beam_teleport", X = b.X, Y = b.Y, Z = b.Z, SourceId = receiver.Id });
     }
 
-    /// <summary>Test seam: the matter receivers a sender's owner may pair with, as (device id, label).</summary>
-    public IReadOnlyList<(int Id, string Label)> CrystalReceiversFor(string playerId)
+    /// <summary>Test seam: the matter receivers a sender's owner may pair with, as (cell, label) — #2252: a pair names the
+    /// partner's cell.</summary>
+    public IReadOnlyList<(Vector3i Cell, string Label)> CrystalReceiversFor(string playerId)
         => CrystalNet.Cells.Values.Where(d => d.Kind == CrystalDeviceKind.MatterReceiver && !d.Inert && CanConfigureCrystal(d, playerId, false))
-            .Select(d => (d.Id, d.Label)).ToList();
+            .Select(d => (d.Cell, d.Label)).ToList();
 
     // ------------------------------------------------------------------------------------------------------
     // Fabricator (#2056): one recipe per device, crafted from the crates beside it into the crates beside it.

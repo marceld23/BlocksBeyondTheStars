@@ -146,6 +146,14 @@ public sealed partial class GameServer
 
                 cooldown = SpeederDeployCooldown;
                 break;
+            case RemoteControlItem: // #2263: aimed at a signal receiver it pairs, anywhere else it flips the paired receiver
+                if (!UseRemoteControl(session, target))
+                {
+                    return;
+                }
+
+                cooldown = 0.3;
+                break;
             case "wagon_seats":
             case "wagon_sleeper":
             case "wagon_bar": // #2113: a wagon couples behind the last one

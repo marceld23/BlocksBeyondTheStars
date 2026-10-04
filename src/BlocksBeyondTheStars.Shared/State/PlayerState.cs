@@ -56,6 +56,10 @@ public sealed class PlayerState
     /// <summary>Display label for the custom spawn (base/station name at set time; purely cosmetic).</summary>
     public string CustomSpawnLabel { get; set; } = string.Empty;
 
+    /// <summary>#2263: the signal receiver this player's remote control flips, as "locationId|x,y,z" (empty = unpaired).
+    /// One pairing per player — the remote is a switch in the pocket.</summary>
+    public string RemoteReceiver { get; set; } = string.Empty;
+
     public float Health { get; set; } = 100f;
     public float Oxygen { get; set; } = 100f;
     public float SuitEnergy { get; set; } = 100f;

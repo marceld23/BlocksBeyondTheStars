@@ -94,6 +94,11 @@ public sealed class PlaceBlockIntent
     /// direct control of all 24 orientations the shape descriptor already stores.
     /// </summary>
     public int Yaw { get; set; } = -1;
+
+    /// <summary>#2267 (additive): the direction a directional Crystal Net device points to — 0..3 the quarter turns
+    /// (0 = +Z, 1 = +X), 4 = up, 5 = down; -1 = none, the server derives the horizontal direction as before. The client
+    /// sends it from its rotate cycle or from looking steeply up / down while placing.</summary>
+    public int DeviceDir { get; set; } = -1;
 }
 
 public sealed class CraftIntent

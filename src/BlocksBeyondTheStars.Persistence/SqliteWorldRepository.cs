@@ -230,6 +230,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
             TryExecute("ALTER TABLE space_structure ADD COLUMN smin_z INTEGER NOT NULL DEFAULT 0;");
             // A fruit grows back in its tree kind's colour (#2038): the cell's tint modifier, 0 for every other plant.
             TryExecute("ALTER TABLE flora_regrow ADD COLUMN tint INTEGER NOT NULL DEFAULT 0;");
+            // #2253: who hung a player-built door — only their own (or their alliance's) Crystal Net may lock it.
+            TryExecute("ALTER TABLE door ADD COLUMN owner TEXT NOT NULL DEFAULT '';");
         }
         catch (SqliteException ex) when (ex.SqliteErrorCode is 11 or 26)
         {
@@ -953,15 +955,16 @@ public sealed class SqliteWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO door (planet, x, y, z, kind, axisx) " +
-                              "VALUES ($p, $x, $y, $z, $k, $a) " +
-                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET kind=excluded.kind, axisx=excluded.axisx;";
+            cmd.CommandText = "INSERT INTO door (planet, x, y, z, kind, axisx, owner) " +
+                              "VALUES ($p, $x, $y, $z, $k, $a, $o) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET kind=excluded.kind, axisx=excluded.axisx, owner=excluded.owner;";
             cmd.Parameters.AddWithValue("$p", door.Planet);
             cmd.Parameters.AddWithValue("$x", door.X);
             cmd.Parameters.AddWithValue("$y", door.Y);
             cmd.Parameters.AddWithValue("$z", door.Z);
             cmd.Parameters.AddWithValue("$k", door.Kind);
             cmd.Parameters.AddWithValue("$a", door.AxisX ? 1 : 0);
+            cmd.Parameters.AddWithValue("$o", door.Owner);
             cmd.ExecuteNonQuery();
         }
     }
@@ -972,7 +975,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT x, y, z, kind, axisx FROM door WHERE planet = $p;";
+            cmd.CommandText = "SELECT x, y, z, kind, axisx, owner FROM door WHERE planet = $p;";
             cmd.Parameters.AddWithValue("$p", planet);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -985,6 +988,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
                     Z = reader.GetInt32(2),
                     Kind = reader.GetString(3),
                     AxisX = reader.GetInt32(4) != 0,
+                    Owner = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
                 });
             }
         }

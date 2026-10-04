@@ -117,7 +117,8 @@ public sealed partial class GameServer
 
     /// <summary>Box scan of the world grid for a heal tank around the player (wider sibling of
     /// <c>NearStationBlock</c> — a regen field should cover a small room, not just arm's reach).</summary>
-    private bool NearHealTankBlock(PlayerState player) => HealTankNear(player.Position, loadedOnly: true);
+    private bool NearHealTankBlock(PlayerState player)
+        => AnchorNear(player.Position, loadedOnly: true, _healTankBlockId, skip: CrystalNet.DisabledHealTanks); // #2261: a tank wired OFF does not heal
 
     /// <summary>Test/util: expose the proximity scan (mirrors <see cref="BlockedByEnergyFenceForTest"/>).</summary>
     public bool NearHealTankForTest(string playerId)
@@ -385,7 +386,7 @@ public sealed partial class GameServer
     /// <summary>Shared box scan for the regen/home checks: true when a block matching <paramref name="a"/> (or
     /// the optional <paramref name="b"/>/<paramref name="c"/>) stands within the field box around
     /// <paramref name="pos"/>.</summary>
-    private bool AnchorNear(Vector3f pos, bool loadedOnly, ushort a, ushort b = 0, ushort c = 0)
+    private bool AnchorNear(Vector3f pos, bool loadedOnly, ushort a, ushort b = 0, ushort c = 0, System.Collections.Generic.HashSet<Vector3i>? skip = null)
     {
         if (a == 0 && b == 0 && c == 0)
         {
@@ -403,7 +404,7 @@ public sealed partial class GameServer
                 {
                     var cell = new Vector3i(px + dx, py + dy, pz + dz);
                     ushort v = (loadedOnly ? _world.GetBlockIfLoaded(cell) : _world.GetBlock(cell)).Value;
-                    if (v != 0 && ((a != 0 && v == a) || (b != 0 && v == b) || (c != 0 && v == c)))
+                    if (v != 0 && ((a != 0 && v == a) || (b != 0 && v == b) || (c != 0 && v == c)) && (skip is null || skip.Count == 0 || !skip.Contains(cell)))
                     {
                         return true;
                     }

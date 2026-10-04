@@ -43,6 +43,22 @@ public sealed class ShipFunctionBlockTests : IDisposable
         "daylight_sensor", "storage_sensor", "watcher", "logic_block", "timer_block", "alarm_siren", "chime", "horn",
         "melody_block", "announcer", "fabricator", "auto_drill_1", "auto_drill_2", "auto_drill_3", "matter_sender",
         "matter_receiver", "drill_laser", "rail_stop", "device_eye",
+        // Crystal Net 2 (#2251)
+        "phase_block", "trapdoor", "bridge_motor", "piston", "lift_motor", "lift_stop",
+        "signal_display", "dice_block", "signal_sender", "signal_receiver", "environment_sensor", "ship_sensor",
+    };
+
+    /// <summary>#2264: the open twins of the moving blocks — no item places them (the net swaps them in), so they are only
+    /// part of the "every net block is classified" check.</summary>
+    private static readonly string[] CrystalTwins = { "phase_block_open", "trapdoor_open" };
+
+    /// <summary>#2261: blocks that gained a port but do their job by themselves wherever they stand — a field, a fence, a
+    /// fire, a forge, a heal tank, a pot, a bed (and their unlit / switched-off twins). No decoration notice in a ship, no
+    /// refusal on a station spacewalk.</summary>
+    private static readonly string[] PlainPorts =
+    {
+        "force_field", "force_field_off", "energy_fence", "campfire", "campfire_off", "forge", "forge_off", "heal_tank",
+        "flower_pot", "bed", "crew_bunk",
     };
 
     /// <summary>The older blocks that gained a Crystal Net port. Each has a function of its own that needs a world: a
@@ -222,7 +238,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
             .Where(b => CrystalNetRules.KindOf(b) is not (CrystalDeviceKind.None or CrystalDeviceKind.Light or CrystalDeviceKind.Conduit))
             .Select(b => b.Key).OrderBy(k => k, StringComparer.Ordinal).ToArray();
 
-        Assert.Equal(CrystalDevices.Concat(PortBlocks).OrderBy(k => k, StringComparer.Ordinal).ToArray(), netBlocks);
+        Assert.Equal(CrystalDevices.Concat(CrystalTwins).Concat(PortBlocks).Concat(PlainPorts).OrderBy(k => k, StringComparer.Ordinal).ToArray(), netBlocks);
         Assert.All(DeckOnly.Concat(SpacewalkParts), key => Assert.NotEqual(CrystalDeviceKind.None, CrystalNetRules.KindOf(_content.GetBlock(key))));
     }
 

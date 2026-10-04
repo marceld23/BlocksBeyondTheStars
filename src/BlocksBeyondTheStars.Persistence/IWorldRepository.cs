@@ -36,6 +36,10 @@ public sealed class StoredDoor
     public int Z { get; set; }
     public string Kind { get; set; } = "hinge"; // "slide" | "hinge"
     public bool AxisX { get; set; }
+
+    /// <summary>#2253: the player who hung the door (empty for doors from older saves until a wire adopts them): only
+    /// their own or their alliance's Crystal Net may lock it or hold it open.</summary>
+    public string Owner { get; set; } = string.Empty;
 }
 
 /// <summary>A player-painted block design: a 32×32 pixel bitmap (palette indices as a hex string) registered

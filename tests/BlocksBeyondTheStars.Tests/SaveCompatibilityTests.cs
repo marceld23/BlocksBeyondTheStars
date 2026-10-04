@@ -488,6 +488,7 @@ public sealed class SaveCompatibilityTests : IDisposable
     private static readonly Dictionary<int, string> BlockSetOfSaveVersion = new()
     {
         [2] = "f7f844cfbd21f315", // the bio lab: bio_lab, flora_hybrid
+        [3] = "f616ce9eeb51b88d", // Crystal Net 2 (#2251): moving blocks, new devices, the open / unlit twins
     };
 
     [Fact]
