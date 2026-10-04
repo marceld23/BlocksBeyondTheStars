@@ -50,8 +50,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         // <img src="wiki/img/name.png"> — only plain relative PNG paths under wiki/img/ (no "..", no scheme).
-        private static readonly Regex ImgTag = new Regex(@"<\s*img\b[^>]*\bsrc\s*=\s*""([^""]*)""[^>]*>",
-            RegexOptions.IgnoreCase, RxTimeout);
+        private static readonly Regex ImgTag = new Regex(@"<\s*img\b[^>]*\bsrc\s*=\s*""(?<src>[^""]*)""[^>]*>",
+            RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture, RxTimeout);
 
         private static readonly Regex SafeImagePath = new Regex(@"^wiki/img/[a-z0-9_\-]+\.png$", RegexOptions.None, RxTimeout);
 
@@ -73,7 +73,7 @@ namespace BlocksBeyondTheStars.Client
                     result.Add(new Segment(html!.Substring(at, m.Index - at), string.Empty));
                 }
 
-                string src = m.Groups[1].Value.Trim();
+                string src = m.Groups["src"].Value.Trim();
                 if (SafeImagePath.IsMatch(src))
                 {
                     result.Add(new Segment(string.Empty, src));
