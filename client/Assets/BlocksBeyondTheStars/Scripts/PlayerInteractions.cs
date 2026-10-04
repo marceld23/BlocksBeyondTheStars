@@ -275,11 +275,7 @@ namespace BlocksBeyondTheStars.Client
             overlay.SetActive(show);
             if (show)
             {
-                UiKit.TransitionIn(overlay, 0f); // scrim fades in place …
-                if (overlay.transform.childCount > 0)
-                {
-                    UiKit.TransitionIn(overlay.transform.GetChild(0).gameObject); // … the dialog panel rises
-                }
+                UiKit.OpenModal(overlay); // the scrim fades in place, the dialog panel rises
             }
         }
 

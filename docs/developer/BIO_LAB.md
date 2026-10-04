@@ -46,8 +46,8 @@ protection comes from what survives beside a lava lake.
 | Where | What |
 |---|---|
 | `Shared/Bio/BioHash.cs` | integer hashing, the seed of a creature / plant / deposit / authored species / cross |
-| `Shared/Bio/BioEnums.cs` | `BioKind`, `BioEffect`, `BioSideEffect`, `BioCarrier`, `BioThermal`, `BioForm`, `BioReaction`, `BioTag`, `MatTrait`, `ModStat` — all **append-only** (ids ride in item keys and saves) |
-| `Shared/Bio/BioRules.cs` | every number: curve, caps, rarity bands, the context table, side effects, the 8×8 reaction table, forms, durations |
+| `Shared/Bio/BioEnums.cs` | `BioKind`, `BioEffect`, `BioEffectFamily` (never stored), `BioSideEffect`, `BioCarrier`, `BioThermal`, `BioForm`, `BioReaction`, `BioTag`, `MatTrait`, `ModStat` — all **append-only** (ids ride in item keys and saves) |
+| `Shared/Bio/BioRules.cs` | every number: curve, caps, rarity bands, the context table, side effects, the 8×8 reaction table, forms, durations; `Family(effect)` (#2300) |
 | `Shared/Bio/BioContexts.cs` | planet / biome / species → `BioContext` (tags + scarcity points) |
 | `Shared/Bio/BioProfile.cs` | `BioProfiles.Derive(seed, context)` and `BioProfiles.Cross(a, b, childSeed, differentWorlds)` |
 | `Shared/Bio/MaterialProfile.cs` | fixed material traits (`labTraits`) + the origin values of a deposit |
@@ -59,8 +59,9 @@ protection comes from what survives beside a lava lake.
 | `GameServer/GameServerBio.cs` | register, research books, the book sent to clients, samples, the sampler |
 | `GameServer/GameServerBioLab.cs` | the lab's five actions, preparations, the effect tick, the shield |
 | `GameServer/GameServerBioBreeding.cs` | clone tank on samples, guest species, crosses, bred plants |
-| `Networking/Messages/BioMessages.cs` | `BioBook`, `BioLabIntent`, `BioLabResult`, `NetEffect`, `NetBioSpecies` |
+| `Networking/Messages/BioMessages.cs` | `BioBook`, `BioLabIntent`, `BioLabResult`, `DiscardSampleIntent`, `NetEffect`, `NetBioSpecies` |
 | `Client.Core/BioClientState.cs` | the client's mirror: sample case, effects, book; derives profiles locally |
+| `Client.Core/SampleCaseView.cs` | the sample case as every list shows it: order, kind and effect filters, the session filter (#2299/#2300) |
 | `client/…/Scripts/BioLabUi.cs`, `BioSenses.cs` | the lab screen; night sight and perception |
 
 ## 4. Seeds
@@ -95,7 +96,12 @@ stack and different ones never mix.
     hostile animal must be in stasis — unless it is a giant, which the stasis projector cannot freeze — and the
     same animal gives one every 5 minutes (`UseBioSampler`). Refusals: `srv.bio.sample_case_full` for a full
     case, `srv.bio.register_full` for a full species register.
-- A full case never holds a harvest up: the sample is simply not taken, VEGA says so once.
+- A full case never holds a harvest up: the sample is simply not taken, VEGA says so once — and names the way out.
+- **Throwing a kind away** (#2301): `DiscardSampleIntent { Item }` → `HandleDiscardSample` removes every sample of
+  that one key from the case — wherever the player stands, no lab needed. Only a sample or mineral-sample key with a
+  seed reaches anything (never the backpack or the hold); the research book is not touched, so an analysed species
+  and its tried mixes stay known. The client offers it behind the backpack's two-click confirm (the inventory's sample
+  card, the lab's Analyse page).
 - **Items that only exist with content.** A sample, a mineral sample and a seedling mean nothing without a seed,
   a preparation nothing without a compound: `BioItems.NeedsPayload(itemKey)` is true for such a plain key. The
   Sandbox catalog does not offer them and the server refuses to hand one out (`srv.catalog.needs_content`),
@@ -317,6 +323,7 @@ The lab turns a plant sample into a **seedling** (`seedling#x<seed>`), which pla
 | `BioLabIntent` (283) | client → server | `Action`, `Sample`, `SampleMineral`, `Carrier`, `Stabiliser`, `MaterialItem`, `Modifier`, `TargetItem`, `CoatingItem` |
 | `BioLabResult` (284) | server → client | `Action`, `Success`, `MessageKey`, `ItemKey`, `Stability`, `Failed`, `Knowledge`, `Washed` |
 | `BioBook` (282) | server → client | `Full`, `Species[]` (`NetBioSpecies`), `Reactions[]`, `Changes[]` |
+| `DiscardSampleIntent` (288) | client → server | `Item` — the full sample key (#2301; no protocol bump, an older server drops the tag) |
 | `InventoryUpdate` | server → client | + `Samples`, `SamplesUnchanged` |
 | `PlayerStateUpdate` | server → client | + `Effects` (`NetEffect[]`), `Shield` |
 
@@ -371,7 +378,10 @@ locale keys — and the place in the server where it acts.
 - The fix round: `BioTankFixTests.cs` (the tank with samples, guest clones, the sampler), `BioLabFixTests.cs` (the
   wash, blanks, payload validation, the effect temperature), `BioFixFollowUpTests.cs`, `ShipFunctionBlockTests.cs`
   (function blocks in a ship are decoration, with a one-time notice; the station spacewalk rule).
-- `NetCodecTests` — the three new messages in the golden list.
+- `NetCodecTests` — the three new messages in the golden list (and `DiscardSampleIntent`).
+- `tests/BlocksBeyondTheStars.Client.Tests/SampleCaseViewTests.cs` — the case's order, the filters and their counts,
+  the effect button's cycle; `BioRulesTests` pins that every effect belongs to exactly one family; `BioLabTests` the
+  discard (the kind leaves the case, the book stays, nothing else is reached).
 
 ## 16. Client notes
 
@@ -381,6 +391,18 @@ locale keys — and the place in the server where it acts.
   unknown"; the Change preview is always shown. The panel opens on
   Interact at a `bio_lab` block within the server's reach, or aboard at the workshop station with the module fitted.
   It also holds the static text helpers the inventory, the HUD and the Codex reuse.
+- **The sample case lists** (#2299/#2300) — the lab's case, its slot pickers and *Inventory → Samples* all read
+  `SampleCaseView`: Plants / Animals / Deposits under headings, the unanalysed first, then by `BioEffectFamily`
+  (Movement, Protection & healing, Strength & work, Survival, Senses), effect and level. A row shows an analysed
+  plant's or animal's effect, a deposit's strongest traits, else "Not analysed" — an unanalysed effect is never shown,
+  although the client could derive it. The filter (kind chips with counts + an Effect button that cycles the families
+  and "Not analysed") is static in `SampleCaseView`: one for the lab and the inventory, for the session only. The
+  Change page lists deposits only and marks those that would change the chosen piece. The Codex *Substances*
+  chapter groups by family.
+- **Open effect** (#2302) — two `UiHolo` frames (case, pane) and one `CanvasGroup` layer per side; `PlayOpenFx`
+  wipes the frames on and fades the layers up (the Tab menu's reveal), on `Open()` and — right side only — on a tab
+  change. Never from `Build()`: every click and data change rebuilds the overlay, a replay there would flicker. The
+  other modals without an effect use `UiKit.OpenModal` (scrim fades, panel rises), also only where they open.
 - **Guidance (#2249)** — the players could not find "Change" (the update text said *improve*, the blueprint is *Lab
   Tuning*): the first opening names the three tabs once (`vega.hint.bio_lab_tabs`, client flag `BioLabTabsHintShown`);
   researching Bio Lab and Lab Tuning each get a server once-hint (`bio_lab_unlocked`, `bio_tuning_unlocked`); the

@@ -66,6 +66,7 @@ namespace BlocksBeyondTheStars.Client
         public void Open(NetCrystalDevice dev)
         {
             if (dev == null) return;
+            if (_open) Close(); // #2303: a second Open (another device) replaces the panel instead of stacking another overlay
             EnsureCanvas();
             _dev = dev;
             _mode = dev.Mode;
@@ -78,6 +79,7 @@ namespace BlocksBeyondTheStars.Client
             _openFrame = Time.frameCount;
             _canvas.gameObject.SetActive(true);
             Build();
+            UiKit.OpenModal(_overlay); // #2302: the open effect — here, not in Build(), which every click and echo re-runs
             Game?.SetMenuOwner(this, true);
         }
 

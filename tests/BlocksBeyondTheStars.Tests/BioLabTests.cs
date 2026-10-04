@@ -201,6 +201,40 @@ public sealed class BioLabTests : IDisposable
         Assert.Single(p.State.SampleCase.Slots.Where(s => s is { IsEmpty: false }));
     }
 
+    [Fact]
+    public void ThrowingASampleAway_EmptiesItsKind_KeepsTheBook_AndReachesNothingButTheCase()
+    {
+        // #2301: a full case takes no new sample — the way out is to throw a kind away, anywhere, without a lab.
+        var server = NewServer();
+        var p = Player(server, "Tidy", "iron_ingot");
+        uint plant = server.GiveFloraSampleForTest(p, "flora_bush", 3);
+        uint ore = server.GiveMineralSampleForTest(p, "tungsten_ore", "tungsten_ore", 2);
+        PutLab(server);
+        server.BioLabForTest(p, new BioLabIntent { Action = BioLabIntent.Analyse, Sample = plant });
+        Assert.True(server.BioAnalysedForTest("Tidy", plant));
+        Assert.Equal(2, Samples(p, plant));
+        server.World.SetBlock(new Vector3i(2, 200, 0), BlockId.Air); // no lab needed for throwing away
+
+        server.DiscardSampleForTest(p, ItemKey.WithSeed(BioItems.Sample, plant));
+        Assert.Equal(0, Samples(p, plant));
+        Assert.True(server.BioAnalysedForTest("Tidy", plant)); // the book keeps what was learned
+        Assert.Equal(2, Samples(p, ore, mineral: true));
+
+        server.DiscardSampleForTest(p, ItemKey.WithSeed(BioItems.MineralSample, ore));
+        Assert.Equal(0, Samples(p, ore, mineral: true));
+
+        // Only a sample key reaches anything: a backpack item, a seedless sample key and an unknown key are ignored.
+        server.DiscardSampleForTest(p, "iron_ingot");
+        server.DiscardSampleForTest(p, BioItems.Sample);
+        server.DiscardSampleForTest(p, ItemKey.WithSeed(BioItems.Sample, plant ^ 0x5A5A5A5Au));
+        Assert.Equal(1, p.State.Inventory.CountOf("iron_ingot"));
+        Assert.DoesNotContain(p.State.SampleCase.Slots, s => s is { IsEmpty: false });
+
+        // The freed slot takes a new sample again.
+        Assert.True(server.GiveSampleForTest(p, plant, 1));
+        Assert.Equal(1, Samples(p, plant));
+    }
+
     // ---------------- The lab ----------------
 
     [Fact]

@@ -56,6 +56,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var panel = new EditorDevicePanel(shell, canvas, kind, blockName, mode, config, label, onApply, onClosed);
             panel.Build();
+            UiKit.OpenModal(panel._overlay); // #2302: the open effect — here, once; a click's Build() renews only the body
             return panel;
         }
 

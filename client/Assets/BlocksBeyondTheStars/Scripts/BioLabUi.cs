@@ -51,6 +51,15 @@ namespace BlocksBeyondTheStars.Client
 
         private Canvas _canvas;
         private GameObject _overlay;
+
+        // #2302: the two holo frames (the case, the tab's pane) and the layers their contents hang on, so the open
+        // effect can wipe a frame on and fade its contents up behind it. Rebuilt with the overlay on every Build.
+        private UiHolo.Shape _caseFrame, _paneFrame;
+        private RectTransform _caseLayer, _paneLayer;
+
+        // #2301: the sample whose "Throw away" was clicked once (the second click sends), and the one just sent —
+        // its card gives way to the next sample once the server has taken it out of the case.
+        private string _discardArmed = string.Empty, _discardSent = string.Empty;
         private RectTransform _caseContent;
         private float _caseScroll;
         private bool _open;
@@ -184,8 +193,11 @@ namespace BlocksBeyondTheStars.Client
             _detoxCheckedAt = Time.unscaledTime;
             _dataSig = DataSig();
             _caseScroll = 0f;
+            _discardArmed = string.Empty;
+            _discardSent = string.Empty;
             _canvas.gameObject.SetActive(true);
             Build();
+            PlayOpenFx(true);
             Game.SetMenuOwner(this, true);
 
             // #2249: the first visit names the three tabs once — "Change" (improving a tool or gear) used to go unfound.
@@ -277,6 +289,69 @@ namespace BlocksBeyondTheStars.Client
             Build();
         }
 
+        /// <summary>
+        /// #2302: the Tab menu's boot feel (<c>CraftingTechShipUI.PlayReveal</c>) for the lab — the scrim fades in, the
+        /// panel rises, the two holo frames wipe on left → right one after the other and each side's contents fade up
+        /// once its frame is half drawn. <paramref name="whole"/> plays all of it (on open); a tab change replays the
+        /// right side only. Never called from <see cref="Build"/>: every click rebuilds the overlay, and a replay there
+        /// would flicker — a rebuilt frame starts fully drawn. Instant under reduced motion.
+        /// </summary>
+        private void PlayOpenFx(bool whole)
+        {
+            if (_overlay == null) return;
+            const float lead = 0.04f, stagger = 0.07f;
+            if (whole)
+            {
+                UiKit.OpenModal(_overlay);
+                RevealSide(_caseFrame, _caseLayer, lead);
+            }
+
+            RevealSide(_paneFrame, _paneLayer, whole ? lead + stagger : lead);
+        }
+
+        private static void RevealSide(UiHolo.Shape frame, RectTransform layer, float at)
+        {
+            const float wipe = 0.30f, contentFade = 0.22f;
+            var group = layer != null ? layer.GetComponent<CanvasGroup>() : null;
+            if (UiKit.ReducedMotion)
+            {
+                if (frame != null) frame.Reveal = 1f;
+                if (group != null) group.alpha = 1f;
+                return;
+            }
+
+            if (frame != null)
+            {
+                UiTween.Kill(frame);
+                frame.Reveal = 0f;
+                UiTween.To(0f, 1f, wipe, r => { if (frame != null) { frame.Reveal = r; } }, UiTween.Ease.OutCubic, at, null, frame);
+            }
+
+            if (group != null)
+            {
+                group.alpha = 0f;
+                UiTween.Alpha(group, 1f, contentFade, UiTween.Ease.OutQuad, at + wipe * 0.45f);
+            }
+        }
+
+        /// <summary>A holo frame behind one side of the panel; null on the bitmap fallback (no shader), which draws a
+        /// plain panel instead and needs no wipe.</summary>
+        private static UiHolo.Shape Frame(Transform panel, float x, float y, float w, float h)
+        {
+            var img = UiHolo.AddPanel(panel, x, y, w, h, UiKit.Panel, 12f, 1.5f, 1f);
+            img.raycastTarget = false;
+            return img.GetComponent<UiHolo.Shape>();
+        }
+
+        /// <summary>A layer over the whole panel (the same coordinates) that one side's contents hang on, with the
+        /// CanvasGroup the open effect fades.</summary>
+        private static RectTransform Layer(Transform panel, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasGroup));
+            go.transform.SetParent(panel, false);
+            return UiKit.Place(go, 0f, 0f, W, H);
+        }
+
         /// <summary>What the panel shows, as one number: the research book and sample case (their revision), the
         /// backpack, the researched blueprints, the game mode and whether a detoxifier stands by. A change of any
         /// of them rebuilds the open panel.</summary>
@@ -336,6 +411,12 @@ namespace BlocksBeyondTheStars.Client
             _overlay = overlay;
             Prune();
 
+            // #2302: the frames first (they draw behind), then one layer per side for the contents.
+            _caseFrame = Frame(panel, CaseX - 12f, TopY - 10f, CaseW + 24f, H - 82f - (TopY - 10f));
+            _paneFrame = Frame(panel, PaneX - 12f, TopY - 10f, PaneW + 24f, ActionY + 58f - (TopY - 10f));
+            _caseLayer = Layer(panel, "Case");
+            _paneLayer = Layer(panel, "Pane");
+
             var head = UiKit.AddText(panel, 32f, 22f, 420f, 40f, L("ui.bio.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
 
@@ -345,30 +426,37 @@ namespace BlocksBeyondTheStars.Client
                 int tab = i;
                 var b = UiKit.AddButton(panel, PaneX + i * 232f, 20f, 220f, 48f, L(tabs[i]), () =>
                 {
+                    bool other = _tab != tab;
                     _tab = tab;
                     _pick = Pick.None;
+                    if (_discardArmed.Length > 0)
+                    {
+                        _discardArmed = string.Empty; // a half-confirmed "Throw away" does not survive a tab change
+                        _status = string.Empty;
+                    }
                     ClientAudio.Instance?.Cue("ui_click");
                     Rebuild();
+                    if (other) PlayOpenFx(false); // the new tab boots up like the Tab menu's panes do
                 });
                 if (_tab == i) Lit(b);
             }
 
-            BuildCase(panel);
+            BuildCase(_caseLayer);
             if (_pick != Pick.None)
             {
-                BuildPicker(panel);
+                BuildPicker(_paneLayer);
             }
             else if (_tab == 0)
             {
-                BuildAnalyse(panel);
+                BuildAnalyse(_paneLayer);
             }
             else if (_tab == 1)
             {
-                BuildMix(panel);
+                BuildMix(_paneLayer);
             }
             else
             {
-                BuildChange(panel);
+                BuildChange(_paneLayer);
             }
 
             if (_status.Length > 0)
@@ -390,17 +478,36 @@ namespace BlocksBeyondTheStars.Client
         private void Prune()
         {
             var bio = Game.Bio;
+            // #2301: a sample kind the player threw away leaves its card too, analysed or not, once the server took it.
+            if (_discardSent.Length > 0 && !InCase(_discardSent))
+            {
+                if (_selKey == _discardSent) _selKey = string.Empty;
+                _discardSent = string.Empty;
+            }
+
+            // An armed "Throw away" whose sample left the case some other way is gone, and so is its warning.
+            if (_discardArmed.Length > 0 && !InCase(_discardArmed))
+            {
+                _discardArmed = string.Empty;
+                _status = string.Empty;
+            }
+
             // The card of a species that was just analysed stays up even when that used the last sample — the result
             // is what the player came for. Anything else that left the case gives way to the first sample.
             if (!InCase(_selKey) && !bio.Analysed(ItemKey.Seed(_selKey)))
             {
-                _selKey = string.Empty;
-                foreach (var s in bio.Samples)
+                // The first sample as the case lists it (#2299), not the first slot.
+                var first = SampleCaseView.Current(bio, NameOf);
+                _selKey = first.Count > 0 ? first[0].Item : string.Empty;
+                if (_selKey.Length == 0)
                 {
-                    if (s != null && s.Count > 0 && !string.IsNullOrEmpty(s.Item))
+                    foreach (var s in bio.Samples)
                     {
-                        _selKey = s.Item;
-                        break;
+                        if (s != null && s.Count > 0 && !string.IsNullOrEmpty(s.Item))
+                        {
+                            _selKey = s.Item;
+                            break;
+                        }
                     }
                 }
             }
@@ -458,24 +565,60 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------- the sample case (left, every tab) ----------------
 
+        /// <summary>
+        /// The sample case (#2299/#2300): grouped under Plants / Animals / Deposits, unanalysed first, then by effect —
+        /// the order <see cref="SampleCaseView"/> gives every list of the case. Above it the session's filter: the
+        /// effect button beside the heading and one chip per kind. The Change tab lists only deposits (nothing else
+        /// changes a tool) and marks the ones that would change the chosen piece.
+        /// </summary>
         private void BuildCase(Transform panel)
         {
-            UiKit.AddText(panel, CaseX, TopY, CaseW, 28f, L("ui.bio.samples"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            _caseContent = UiKit.ScrollList(panel, CaseX, TopY + 34f, CaseW, H - 92f - (TopY + 34f), 6f);
-            bool any = false;
-            foreach (var s in Game.Bio.Samples)
+            bool change = _tab == 2;
+            var heading = UiKit.AddText(panel, CaseX, TopY, change ? CaseW : CaseW - 268f, 28f, L("ui.bio.samples"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.FitLabel(heading, 12, 18);
+
+            var all = SampleCaseView.Entries(Game.Bio);
+            List<SampleCaseEntry> shown;
+            HashSet<uint> works = null;
+            if (change)
             {
-                if (s == null || s.Count <= 0 || string.IsNullOrEmpty(s.Item)) continue;
-                any = true;
-                var stack = s;
-                Row(_caseContent, 64f, go => SampleRow(go.transform, stack));
+                var hint = UiKit.AddText(panel, CaseX, TopY + 34f, CaseW, 42f, L("ui.bio.case_change_hint"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                shown = SampleCaseView.Ordered(all, SampleKindFilter.Deposits, SampleEffectFilter.All, NameOf);
+                works = DepositsThatWork(shown);
+            }
+            else
+            {
+                BuildCaseFilters(panel, all);
+                shown = SampleCaseView.Ordered(all, SampleCaseView.Kind, SampleCaseView.Effect, NameOf);
             }
 
-            if (!any)
+            float listY = TopY + 82f;
+            _caseContent = UiKit.ScrollList(panel, CaseX, listY, CaseW, H - 92f - listY, 6f);
+            for (int i = 0; i < shown.Count; i++)
             {
+                var entry = shown[i];
+                if (i == 0 || shown[i - 1].Kind != entry.Kind)
+                {
+                    int n = 0;
+                    foreach (var e in shown)
+                    {
+                        if (e.Kind == entry.Kind) n++;
+                    }
+
+                    string title = KindLabel(Game, entry.Kind) + "  (" + n + ")";
+                    Row(_caseContent, 28f, go => UiKit.AddText(go.transform, 8f, 2f, CaseW - 44f, 24f, title, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold));
+                }
+
+                Row(_caseContent, 64f, go => SampleRow(go.transform, entry, works));
+            }
+
+            if (shown.Count == 0)
+            {
+                string empty = all.Count == 0 ? "ui.bio.empty_case" : change ? "ui.bio.no_deposit_samples" : "ui.bio.filter_empty";
                 Row(_caseContent, 110f, go =>
                 {
-                    var t = UiKit.AddText(go.transform, 10f, 8f, CaseW - 44f, 96f, L("ui.bio.empty_case"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    var t = UiKit.AddText(go.transform, 10f, 8f, CaseW - 44f, 96f, L(empty), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
                     t.horizontalOverflow = HorizontalWrapMode.Wrap;
                 });
             }
@@ -483,36 +626,100 @@ namespace BlocksBeyondTheStars.Client
             _caseContent.anchoredPosition = new Vector2(_caseContent.anchoredPosition.x, _caseScroll);
         }
 
-        private void SampleRow(Transform row, NetItemStack stack)
+        /// <summary>#2300: the effect button (it steps through the families and "Not analysed") and the kind chips with
+        /// their counts. Pad-friendly: no text to type. A filter that narrows the list is lit.</summary>
+        private void BuildCaseFilters(Transform panel, List<SampleCaseEntry> all)
         {
-            string key = stack.Item;
-            uint seed = ItemKey.Seed(key);
-            Game.Bio.Species.TryGetValue(seed, out var species);
+            var effect = UiKit.AddButton(panel, CaseX + CaseW - 260f, TopY - 6f, 260f, 38f, EffectFilterLabel(Game, SampleCaseView.Effect), () =>
+            {
+                SampleCaseView.Effect = SampleCaseView.NextEffect(SampleCaseView.Effect);
+                FilterChanged();
+            });
+            if (SampleCaseView.Effect != SampleEffectFilter.All) Lit(effect);
+
+            const float gap = 6f;
+            float chipW = (CaseW - 3f * gap) / 4f;
+            for (int i = 0; i < 4; i++)
+            {
+                var kind = (SampleKindFilter)i;
+                int n = SampleCaseView.Count(all, kind, SampleCaseView.Effect);
+                var chip = UiKit.AddButton(panel, CaseX + i * (chipW + gap), TopY + 36f, chipW, 38f, KindFilterLabel(Game, kind) + " " + n, () =>
+                {
+                    SampleCaseView.Kind = kind;
+                    FilterChanged();
+                });
+                if (SampleCaseView.Kind == kind) Lit(chip);
+            }
+        }
+
+        /// <summary>A new filter shows a new list: it starts at the top. (<see cref="Rebuild"/> keeps the scroll of the
+        /// list it replaces — forget that list first.)</summary>
+        private void FilterChanged()
+        {
+            _caseScroll = 0f;
+            _caseContent = null;
+            ClientAudio.Instance?.Cue("ui_click");
+            Rebuild();
+        }
+
+        /// <summary>The Change tab's "✓ works" marks: the deposits that would change the chosen tool or piece of gear —
+        /// the rule of the preview below. Null while nothing is chosen.</summary>
+        private HashSet<uint> DepositsThatWork(List<SampleCaseEntry> deposits)
+        {
+            var def = _chTarget.Length > 0 ? Game.Content?.GetItem(_chTarget) : null;
+            if (def == null) return null;
+            var coating = _chCoating.Length > 0 ? BioItems.CompoundOf(_chCoating) : null;
+            var works = new HashSet<uint>();
+            foreach (var e in deposits)
+            {
+                var material = MaterialOf(Game, e.Seed);
+                if (material == null) continue;
+                var mods = ModsFor(def, material, coating);
+                if (!mods.IsEmpty && mods.ApplyTo(_chTarget) != _chTarget) works.Add(e.Seed);
+            }
+
+            return works;
+        }
+
+        /// <summary>One sample of the case: icon, name and count; under them what it holds (an analysed plant or
+        /// animal its effect in the effect's colour, a deposit its strongest traits, anything else "Not analysed") and
+        /// where it is from — on the Change tab "✓ works" instead, for a deposit that would change the chosen piece.</summary>
+        private void SampleRow(Transform row, SampleCaseEntry entry, HashSet<uint> works)
+        {
+            string key = entry.Item;
             float w = CaseW - 28f;
             var b = UiKit.AddButton(row, 4f, 2f, w, 60f, string.Empty, () => OnSampleClicked(key));
             if (key == _selKey) Lit(b);
 
-            AddSampleIcon(b.transform, 8f, 8f, 44f, key, species);
+            AddSampleIcon(b.transform, 8f, 8f, 44f, key, entry.Species);
             var name = UiKit.AddText(b.transform, 62f, 5f, w - 134f, 26f, SampleName(Game, key), 18, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.FitLabel(name, 12, 18);
-            var origin = UiKit.AddText(b.transform, 62f, 32f, w - 190f, 22f, species != null ? species.OriginBodyName : string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiKit.FitLabel(origin, 10, 14);
-            UiKit.AddText(b.transform, w - 70f, 5f, 62f, 26f, "×" + stack.Count, 18, UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Bold);
-            if (Game.Bio.Analysed(seed))
+            UiKit.AddText(b.transform, w - 70f, 5f, 62f, 26f, "×" + entry.Count, 18, UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Bold);
+
+            float x = 62f;
+            if (entry.Effect != BioEffect.None)
             {
-                var mark = UiKit.AddText(b.transform, w - 126f, 32f, 118f, 22f, L("ui.bio.analysed"), 13, UiKit.Ok, TextAnchor.MiddleRight);
-                UiKit.FitLabel(mark, 9, 13);
+                UiKit.AddImage(b.transform, x, 37f, 12f, 12f, UiKit.SolidSprite, EffectColor(entry.Effect));
+                x += 18f;
             }
+
+            var detail = UiKit.AddText(b.transform, x, 32f, w - x - 132f, 22f, SampleDetail(Game, entry), 14,
+                entry.Analysed ? UiKit.TextCol : UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.FitLabel(detail, 10, 14);
+
+            bool working = works != null && works.Contains(entry.Seed);
+            string right = working ? L("ui.bio.works_here") : entry.Species?.OriginBodyName ?? string.Empty;
+            var origin = UiKit.AddText(b.transform, w - 126f, 32f, 118f, 22f, right, 13, working ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleRight);
+            UiKit.FitLabel(origin, 9, 13);
         }
+
+        private string NameOf(SampleCaseEntry entry) => SampleName(Game, entry.Item);
 
         /// <summary>A sample shows what it was taken from: a deposit its material, a plant its body block, anything
         /// else the sample item's own icon — and a plain square where there is no art at all.</summary>
         private void AddSampleIcon(Transform parent, float x, float y, float size, string key, NetBioSpecies species)
         {
-            string from = species == null ? null
-                : !string.IsNullOrEmpty(species.MaterialItem) ? species.MaterialItem
-                : !string.IsNullOrEmpty(species.BodyBlock) ? species.BodyBlock
-                : null;
+            string from = IconKeyOf(species);
             Sprite sprite = from != null ? IconResolver.Resolve(from, Game) : null;
             if (sprite == null) sprite = IconResolver.Resolve(key, Game);
             if (UiKit.AddIconSprite(parent, x, y, size, sprite, Color.white) == null)
@@ -526,6 +733,12 @@ namespace BlocksBeyondTheStars.Client
         /// open), a mineral sample the stabiliser or the material.</summary>
         private void OnSampleClicked(string key)
         {
+            if (_discardArmed.Length > 0 && _discardArmed != key)
+            {
+                _discardArmed = string.Empty; // another sample: a half-confirmed "Throw away" never moves along with it
+                _status = string.Empty;
+            }
+
             _selKey = key;
             uint seed = ItemKey.Seed(key);
             bool mineral = IsMineral(key);
@@ -595,16 +808,57 @@ namespace BlocksBeyondTheStars.Client
             float x = PaneX;
             if (!analysed)
             {
-                UiKit.AddButton(panel, x, ActionY, 400f, 48f, L("ui.bio.analyse"),
+                UiKit.AddButton(panel, x, ActionY, 330f, 48f, L("ui.bio.analyse"),
                     () => Send(new BioLabIntent { Action = BioLabIntent.Analyse, Sample = seed, SampleMineral = mineral }));
-                x += 412f;
+                x += 342f;
             }
 
             // A single plant (it has a body block) can be raised into a seedling; a tree's trunk cannot.
             if (!mineral && InCase(_selKey) && species != null && species.Kind == (int)BioKind.Plant && !string.IsNullOrEmpty(species.BodyBlock))
             {
-                UiKit.AddButton(panel, x, ActionY, 340f, 48f, L("ui.bio.seedling"),
+                UiKit.AddButton(panel, x, ActionY, 300f, 48f, L("ui.bio.seedling"),
                     () => Send(new BioLabIntent { Action = BioLabIntent.Seedling, Sample = seed }));
+            }
+
+            if (InCase(_selKey))
+            {
+                DiscardButton(panel, _selKey);
+            }
+        }
+
+        /// <summary>
+        /// #2301: "Throw away" for the sample on the card — every sample of its kind leaves the case (the research book
+        /// keeps what was learned). Two clicks, like the backpack's: the first arms the button and names the sample,
+        /// the second sends. Another sample, another tab or closing the lab disarms it.
+        /// </summary>
+        private void DiscardButton(Transform panel, string key)
+        {
+            bool armed = _discardArmed == key;
+            string label = armed
+                ? L("ui.inventory.discard_confirm").Replace("{item}", SampleName(Game, key))
+                : L("ui.inventory.discard");
+            var button = UiKit.AddButton(panel, PaneX + PaneW - 300f, ActionY, 300f, 48f, label, () =>
+            {
+                if (_discardArmed != key)
+                {
+                    _discardArmed = key; // the first click only asks
+                    _status = L("ui.inventory.discard_warn");
+                    _statusOk = false;
+                    Rebuild();
+                    return;
+                }
+
+                _discardArmed = string.Empty;
+                _discardSent = key;
+                _status = string.Empty;
+                Game?.Network?.SendDiscardSample(key);
+                ClientAudio.Instance?.Cue("ui_confirm");
+                Rebuild();
+            });
+            var img = button.GetComponent<Image>();
+            if (img != null)
+            {
+                img.color = armed ? new Color(0.62f, 0.20f, 0.20f) : new Color(0.40f, 0.26f, 0.26f);
             }
         }
 
@@ -993,15 +1247,16 @@ namespace BlocksBeyondTheStars.Client
         private void AddSampleChoices(List<Choice> list, bool mineral, bool second)
         {
             var seen = new HashSet<uint>();
-            foreach (var s in Game.Bio.Samples)
+            // The case's own order (#2299), unfiltered: a slot lists every sample that fits it.
+            foreach (var e in SampleCaseView.Ordered(SampleCaseView.Entries(Game.Bio), SampleKindFilter.All, SampleEffectFilter.All, NameOf))
             {
-                if (s == null || s.Count <= 0 || string.IsNullOrEmpty(s.Item) || IsMineral(s.Item) != mineral) continue;
-                uint seed = ItemKey.Seed(s.Item);
+                if (IsMineral(e.Item) != mineral) continue;
+                uint seed = e.Seed;
                 if (seed == 0 || !seen.Add(seed)) continue;
                 int count = Game.Bio.SampleCount(seed, mineral);
                 if (second && seed == _mixActive && count < 2) continue; // the one sample is the active substance already
 
-                string text = SampleName(Game, s.Item) + "  ×" + count;
+                string text = SampleName(Game, e.Item) + "  ×" + count;
                 if (mineral)
                 {
                     if (Game.Bio.Species.TryGetValue(seed, out var deposit) && !string.IsNullOrEmpty(deposit.OriginBodyName))
@@ -1207,6 +1462,96 @@ namespace BlocksBeyondTheStars.Client
 
             return text;
         }
+
+        /// <summary>"Movement", "Senses" … — the name of an effect family (#2300).</summary>
+        public static string FamilyLabel(GameBootstrap game, BioEffectFamily family)
+            => Loc(game, "bio.family." + family.ToString().ToLowerInvariant());
+
+        /// <summary>The heading of a kind in the sample lists: "Plants", "Animals", "Deposits".</summary>
+        public static string KindLabel(GameBootstrap game, BioKind kind) => kind switch
+        {
+            BioKind.Animal => Loc(game, "ui.bio.filter.animals"),
+            BioKind.Mineral => Loc(game, "ui.bio.filter.deposits"),
+            _ => Loc(game, "ui.bio.filter.plants"),
+        };
+
+        /// <summary>A kind chip's word (#2300): "All" or the kind's heading.</summary>
+        public static string KindFilterLabel(GameBootstrap game, SampleKindFilter kind) => kind switch
+        {
+            SampleKindFilter.Plants => KindLabel(game, BioKind.Plant),
+            SampleKindFilter.Animals => KindLabel(game, BioKind.Animal),
+            SampleKindFilter.Deposits => KindLabel(game, BioKind.Mineral),
+            _ => Loc(game, "ui.bio.filter.all"),
+        };
+
+        /// <summary>The effect button's text (#2300): "Effect: All ▸", "Effect: Senses ▸", "Effect: Not analysed ▸".</summary>
+        public static string EffectFilterLabel(GameBootstrap game, SampleEffectFilter effect)
+        {
+            string value = effect switch
+            {
+                SampleEffectFilter.All => Loc(game, "ui.bio.filter.all"),
+                SampleEffectFilter.NotAnalysed => Loc(game, "ui.bio.not_analysed"),
+                _ => FamilyLabel(game, (BioEffectFamily)(int)effect),
+            };
+            return Loc(game, "ui.bio.filter.effect").Replace("{0}", value) + "  ▸";
+        }
+
+        /// <summary>
+        /// What a sample of the case holds, in one short line for a list (#2299): an analysed plant or animal its effect
+        /// ("Speed II"), an analysed deposit its strongest traits ("Hard 3 · Conductive 2"), anything else "Not
+        /// analysed" — the effect stays a secret until the analysis, as on the lab's card.
+        /// </summary>
+        public static string SampleDetail(GameBootstrap game, SampleCaseEntry entry)
+        {
+            if (entry.Effect != BioEffect.None)
+            {
+                return EffectLabel(game, entry.Effect, entry.Level);
+            }
+
+            if (!entry.Analysed)
+            {
+                return Loc(game, "ui.bio.not_analysed");
+            }
+
+            if (entry.Kind == BioKind.Mineral && MaterialOf(game, entry.Seed) is { } material)
+            {
+                string traits = StrongestTraits(game, material, 2);
+                if (traits.Length > 0)
+                {
+                    return traits;
+                }
+            }
+
+            return Loc(game, "ui.bio.analysed");
+        }
+
+        /// <summary>The <paramref name="count"/> highest traits of a deposit (its trace left out, as on the card).</summary>
+        private static string StrongestTraits(GameBootstrap game, MaterialProfile material, int count)
+        {
+            var traits = new List<MatTrait>();
+            for (int i = 1; i < material.Levels.Length; i++)
+            {
+                if (material.Levels[i] > 0 && (MatTrait)i != material.Trace) traits.Add((MatTrait)i);
+            }
+
+            traits.Sort((a, b) => material.Levels[(int)b].CompareTo(material.Levels[(int)a]));
+            var sb = new StringBuilder();
+            for (int i = 0; i < traits.Count && i < count; i++)
+            {
+                if (sb.Length > 0) sb.Append(" · ");
+                sb.Append(TraitName(game, traits[i])).Append(' ').Append(material.Levels[(int)traits[i]]);
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>The icon a sample shows (#2299): what it was taken from — a deposit its material, a plant its body
+        /// block — or null for the sample item's own icon.</summary>
+        public static string IconKeyOf(NetBioSpecies species)
+            => species == null ? null
+                : !string.IsNullOrEmpty(species.MaterialItem) ? species.MaterialItem
+                : !string.IsNullOrEmpty(species.BodyBlock) ? species.BodyBlock
+                : null;
 
         /// <summary>The material profile of a deposit of the research book, with the fixed traits from the item data.</summary>
         public static MaterialProfile MaterialOf(GameBootstrap game, uint seed)

@@ -119,6 +119,18 @@ public sealed class BioLabIntent
     public string CoatingItem { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Client → server (#2301): throws a sample kind out of the sample case — every sample of it, like the backpack's
+/// "Throw away" (<see cref="DiscardItemIntent"/>) takes every stack of an item. Works anywhere, no lab needed. The
+/// research book keeps the species: what was analysed and tried stays known. Irreversible — only sent behind a
+/// confirmation.
+/// </summary>
+public sealed class DiscardSampleIntent
+{
+    /// <summary>The full sample key as it lies in the case (a sample or a mineral sample with its species seed).</summary>
+    public string Item { get; set; } = string.Empty;
+}
+
 /// <summary>Server → client: what the lab did.</summary>
 public sealed class BioLabResult
 {

@@ -26,17 +26,39 @@ namespace BlocksBeyondTheStars.Client
 
         private void Awake() => Instance = this;
 
+        /// <summary>
+        /// #2303: the cab panel's canvas is a top-level object of its own, so it outlived the world rig and every world
+        /// join left one more hidden canvas behind — and <see cref="Instance"/> pointed at a destroyed panel. The same
+        /// treatment as <c>FeedbackUi</c> (#1789): give back the menu if it was open, drop the instance and the canvas.
+        /// </summary>
+        private void OnDestroy()
+        {
+            if (_open)
+            {
+                _open = false;
+                Game?.SetMenuOwner(this, false);
+            }
+
+            if (Instance == this) Instance = null;
+            if (_canvas != null) Destroy(_canvas.gameObject);
+        }
+
         public bool IsOpen => _open;
 
         public void Open(string trainId)
         {
             if (string.IsNullOrEmpty(trainId)) return;
+            if (_open) Close(); // #2303: a second Open replaces the panel instead of stacking another overlay over it
             EnsureCanvas();
             _trainId = trainId;
             _open = true;
             _openFrame = Time.frameCount;
             _canvas.gameObject.SetActive(true);
             Build();
+            // #2302: the open effect — only here, never in the half-second Rebuild(); that refresh waits its half second
+            // first, so it cannot swap the fading overlay for a new one on the next frame (the panel was just built).
+            UiKit.OpenModal(_overlay);
+            _nextRefresh = Time.time + 0.5f;
             Game?.SetMenuOwner(this, true);
         }
 

@@ -227,6 +227,7 @@ namespace BlocksBeyondTheStars.Client
                 _category = category;
                 _pendingCategory = null;
                 _selected = string.Empty;
+                BuildHeader(); // the header strip follows the page (the Samples filter, #2300)
                 RebuildSidebar();
                 RebuildList();
                 RebuildDetail();
@@ -794,9 +795,48 @@ namespace BlocksBeyondTheStars.Client
                     t.GetComponent<Image>().color = UiKit.Cyan;
                 }
             }
+            else if (_mode == Mode.Inventory && _category == "samples")
+            {
+                AddSampleFilters(p, 392, 168); // #2300: the sample case's filter, shared with the bio lab
+            }
             else if (_mode == Mode.Inventory && CatalogAvailable())
             {
                 AddSearchBox(p, 392, 168, 470, 44); // filters the Sandbox "All items" page (#1930)
+            }
+        }
+
+        /// <summary>#2300: the kind chips (with their counts) and the effect button over the Samples page — the same
+        /// session filter the bio lab's case uses, so both show the same choice.</summary>
+        private void AddSampleFilters(Transform p, float x, float y)
+        {
+            var all = SampleCaseView.Entries(Game.Bio);
+            for (int i = 0; i < 4; i++)
+            {
+                var kind = (SampleKindFilter)i;
+                int n = SampleCaseView.Count(all, kind, SampleCaseView.Effect);
+                var chip = UiKit.AddButton(p, x + i * 120f, y, 112, 44, BioLabUi.KindFilterLabel(Game, kind) + " " + n, () =>
+                {
+                    SampleCaseView.Kind = kind;
+                    BuildHeader();
+                    RebuildList();
+                    ScrollToTop(_listContent); // a new filter is a new list (RebuildList keeps the scroll of the old one)
+                });
+                if (SampleCaseView.Kind == kind)
+                {
+                    chip.GetComponent<Image>().color = UiKit.Cyan;
+                }
+            }
+
+            var effect = UiKit.AddButton(p, x + 488f, y, 300, 44, BioLabUi.EffectFilterLabel(Game, SampleCaseView.Effect), () =>
+            {
+                SampleCaseView.Effect = SampleCaseView.NextEffect(SampleCaseView.Effect);
+                BuildHeader();
+                RebuildList();
+                ScrollToTop(_listContent);
+            });
+            if (SampleCaseView.Effect != SampleEffectFilter.All)
+            {
+                effect.GetComponent<Image>().color = UiKit.Cyan;
             }
         }
 
@@ -859,7 +899,19 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 string k = key;
-                var b = UiKit.AddButton(_sidebar, 0, y, 290, 52, label, () => { _category = k; _selected = string.Empty; RebuildList(); RebuildDetail(); }, icon);
+                var b = UiKit.AddButton(_sidebar, 0, y, 290, 52, label, () =>
+                {
+                    bool strip = _mode == Mode.Inventory && (k == "samples") != (_category == "samples");
+                    _category = k;
+                    _selected = string.Empty;
+                    if (strip)
+                    {
+                        BuildHeader(); // the Samples page brings its own filter strip (#2300)
+                    }
+
+                    RebuildList();
+                    RebuildDetail();
+                }, icon);
                 if (_category == key)
                 {
                     b.GetComponent<Image>().color = UiKit.Cyan;
@@ -2047,30 +2099,42 @@ namespace BlocksBeyondTheStars.Client
         /// analysed one holds.</summary>
         private float BuildSampleList()
         {
+            // #2299/#2300: the case's order and the session filter — the same list the bio lab shows.
+            var all = SampleCaseView.Entries(Game.Bio);
+            var shown = SampleCaseView.Ordered(all, SampleCaseView.Kind, SampleCaseView.Effect, e => BioLabUi.SampleName(Game, e.Item));
             float y = 0f;
-            foreach (var s in Game.Bio.Samples)
+            for (int i = 0; i < shown.Count; i++)
             {
-                if (s == null || s.Count <= 0 || string.IsNullOrEmpty(s.Item))
+                var entry = shown[i];
+                if (i == 0 || shown[i - 1].Kind != entry.Kind)
                 {
-                    continue;
+                    int n = shown.Count(e => e.Kind == entry.Kind);
+                    UiKit.AddText(_listContent, 8, y, 752, 30, BioLabUi.KindLabel(Game, entry.Kind) + "  (" + n + ")", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    y += 36f;
                 }
 
-                string key = s.Item;
-                string origin = Game.Bio.Species.TryGetValue(ItemKey.Seed(key), out var species) ? species.OriginBodyName : string.Empty;
-                string status = "×" + s.Count + (string.IsNullOrEmpty(origin) ? string.Empty : "  ·  " + origin);
-                if (Game.Bio.Analysed(ItemKey.Seed(key)))
+                string key = entry.Item;
+                string origin = entry.Species?.OriginBodyName ?? string.Empty;
+                // The effect in its colour (the lab's square, as rich text), what a deposit is, or "Not analysed".
+                string detail = BioLabUi.SampleDetail(Game, entry);
+                if (entry.Effect != BlocksBeyondTheStars.Shared.Bio.BioEffect.None)
                 {
-                    status += "  ·  " + L("ui.bio.analysed");
+                    detail = "<color=#" + ColorUtility.ToHtmlStringRGB(BioLabUi.EffectColor(entry.Effect)) + ">" + detail + "</color>";
                 }
 
+                string status = "×" + entry.Count + "  ·  " + detail + (string.IsNullOrEmpty(origin) ? string.Empty : "  ·  " + origin);
+
+                // The lab's icon (#2299): the deposit's material or the plant's body block; the sample item's own else.
+                string icon = BioLabUi.IconKeyOf(entry.Species) is { } from && IconResolver.Resolve(from, Game) != null ? from : key;
                 AddCard(y, BioLabUi.SampleName(Game, key), "cat_medicine", status, UiKit.CyanDim, "smp:" + key,
-                    () => { _selected = "smp:" + key; RebuildDetail(); }, contentKey: key);
+                    () => { _selected = "smp:" + key; RebuildDetail(); }, contentKey: icon);
                 y += 88f;
             }
 
-            if (y <= 0f)
+            if (shown.Count == 0)
             {
-                var empty = UiKit.AddText(_listContent, 8, 8, 752, 60, L("ui.bio.empty_case"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                string text = all.Count == 0 ? L("ui.bio.empty_case") : L("ui.bio.filter_empty");
+                var empty = UiKit.AddText(_listContent, 8, 8, 752, 60, text, 18, UiKit.CyanDim, TextAnchor.UpperLeft);
                 empty.horizontalOverflow = HorizontalWrapMode.Wrap;
                 return 76f;
             }
@@ -2384,7 +2448,7 @@ namespace BlocksBeyondTheStars.Client
                 RebuildDetail();
             }
 
-            ShowSlotPicker(slot);
+            ShowSlotPicker(slot, opening: true);
         }
 
         /// <summary>"Can be used actively" (#2288): the worn gear that does something on a key — the lamp, the jetpack, the
@@ -2460,8 +2524,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The slot picker (#2289): a modal over the menu with every piece that fits <paramref name="slot"/> — from
         /// the backpack, and aboard from the cargo hold too — what it does and where it lies. The piece worn there now sits
         /// on top with Take off. A pick wears it (the server checks the slot and the hold); with nothing to wear the picker
-        /// points at the recipe, or at the research. Esc / pad B close it before the menu (<see cref="CloseSlotPicker"/>).</summary>
-        private void ShowSlotPicker(int slot)
+        /// points at the recipe, or at the research. Esc / pad B close it before the menu (<see cref="CloseSlotPicker"/>).
+        /// <paramref name="opening"/> plays the modal's open effect — false when an inventory change rebuilds it in place.</summary>
+        private void ShowSlotPicker(int slot, bool opening = false)
         {
             CloseSlotPicker();
             if (slot < 0 || slot >= EquipSlots.Count || Game?.Content == null || _canvas == null)
@@ -2481,7 +2546,12 @@ namespace BlocksBeyondTheStars.Client
             UiNav.Enable(canvas.gameObject);
 
             const float pw = 760f, ph = 700f, rowH = 80f;
-            var (_, panel) = UiKit.AddModalOverlay(canvas.transform, (W - pw) / 2f, (H - ph) / 2f, pw, ph);
+            var (overlay, panel) = UiKit.AddModalOverlay(canvas.transform, (W - pw) / 2f, (H - ph) / 2f, pw, ph);
+            if (opening)
+            {
+                UiKit.OpenModal(overlay); // #2302: the open effect — on opening only; an inventory echo rebuilds it without
+            }
+
             var title = UiKit.AddText(panel, 24f, 18f, pw - 48f, 44f, L("ui.equip.picker_title").Replace("{slot}", slotName),
                 26, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.FitLabel(title, 14, 26);
@@ -5443,15 +5513,66 @@ namespace BlocksBeyondTheStars.Client
             if (profile != null)
             {
                 y = AddEffectHeadline(y, profile.Effect, profile.Level);
-                return AddDetailPara(y, BioLabUi.ProfileText(Game, profile, species), UiKit.TextCol);
+                y = AddDetailPara(y, BioLabUi.ProfileText(Game, profile, species), UiKit.TextCol);
             }
-
-            if (material != null)
+            else if (material != null)
             {
-                return AddDetailPara(y, BioLabUi.MaterialText(Game, material, "\n"), UiKit.TextCol);
+                y = AddDetailPara(y, BioLabUi.MaterialText(Game, material, "\n"), UiKit.TextCol);
+            }
+            else
+            {
+                y = AddDetailPara(y, L("ui.bio.unknown_substance"), UiKit.CyanDim);
             }
 
-            return AddDetailPara(y, L("ui.bio.unknown_substance"), UiKit.CyanDim);
+            return AddSampleDiscard(y + 8f, key);
+        }
+
+        /// <summary>
+        /// #2301: "Throw away" for a sample kind — the way out of a full case. The backpack's two-step (#599/#1484): the
+        /// first click arms the button and names the sample, the second sends; every sample of the kind leaves the
+        /// case, the research book keeps what was learned.
+        /// </summary>
+        private float AddSampleDiscard(float y, string key)
+        {
+            if (Game.Bio.SampleCount(ItemKey.Seed(key), ItemKey.Base(key) == BlocksBeyondTheStars.Shared.Bio.BioItems.MineralSample) <= 0)
+            {
+                return y;
+            }
+
+            bool armed = _discardArmed == _selected;
+            string label = armed
+                ? L("ui.inventory.discard_confirm").Replace("{item}", BioLabUi.SampleName(Game, key))
+                : L("ui.inventory.discard");
+            var button = UiKit.AddButton(_detail, 8, y, 320, 46, label, () =>
+            {
+                if (_discardArmed != _selected)
+                {
+                    _discardArmed = _selected; // the first click only asks
+                    RebuildDetail();
+                    return;
+                }
+
+                _discardArmed = string.Empty;
+                Game.Network?.SendDiscardSample(key);
+                _selected = string.Empty; // the entry is about to vanish from the list
+                RebuildList();
+                RebuildDetail();
+            });
+            var img = button.GetComponent<Image>();
+            if (img != null)
+            {
+                img.color = armed ? new Color(0.62f, 0.20f, 0.20f) : new Color(0.40f, 0.26f, 0.26f);
+            }
+
+            y += 54f;
+            if (armed)
+            {
+                var warn = UiKit.AddText(_detail, 8, y, 620, 48, L("ui.inventory.discard_warn"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                warn.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 52f;
+            }
+
+            return y;
         }
 
         /// <summary>What a backpack item of the bio lab carries in its key: a preparation's effect, catch and duration,

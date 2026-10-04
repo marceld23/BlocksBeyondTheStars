@@ -77,6 +77,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _overlay.SetActive(true);
+            UiKit.OpenModal(_overlay); // #2302: the scrim fades in place, the question rises (TryOfferPair refuses while shown)
             _shown = true;
             _openedAt = Time.unscaledTime;
             Game.SetCursorOwner(this, true);
@@ -92,6 +93,9 @@ namespace BlocksBeyondTheStars.Client
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
+                // #2303: this Escape is consumed — don't also pop the pause/quit prompt (#413). Escape only, not the
+                // menu verb: the prompt keeps the player in play, and pad B is crouch there.
+                Game?.MarkMenuInputHandled();
                 Close();
                 return;
             }
