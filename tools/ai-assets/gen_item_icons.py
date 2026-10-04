@@ -175,6 +175,20 @@ ITEMS = [
     ("matter_sender", "a sci-fi matter sender pedestal with an upward violet crystal emitter ring and cyan energy motes"),
     ("matter_receiver", "a sci-fi matter receiver pedestal with a downward cyan crystal collector ring and violet energy motes"),
     ("device_eye", "a sci-fi device eye sensor, a dark metal housing with one large round teal crystal lens like an eye and a thin brass rim"),  # #2092 (2026-09-27)
+    # #2270 Crystal Net 2 (2026-10-04): moving blocks, the new devices and the remote control
+    ("phase_block", "a pale grey stone block with faint glowing violet crystal veins, a few sparkles drifting off one edge as if it could dissolve"),
+    ("trapdoor", "a small wooden trapdoor hatch in an iron frame with a ring handle and two hinges"),
+    ("bridge_motor", "a sci-fi drawbridge motor, dark metal housing with a big geared winch drum and a short grey bridge plank sliding out"),
+    ("piston", "a sci-fi piston block, dark steel housing with a polished steel push plate extended forward on a thick rod"),
+    ("lift_motor", "a sci-fi elevator motor, dark metal machine with a large cable pulley, a heavy gear and a cyan up-down arrow sign"),
+    ("lift_stop", "a sci-fi elevator call panel, dark metal post with a round glowing call button and small up and down arrow lights"),
+    ("signal_display", "a sci-fi display screen block, dark metal frame around a glowing blue screen showing a white star symbol"),
+    ("dice_block", "a white sci-fi dice cube with violet crystal pips in a dark metal rim, slightly tilted"),
+    ("signal_sender", "a sci-fi signal transmitter, dark metal pedestal with a small antenna sending violet crystal waves"),
+    ("signal_receiver", "a sci-fi signal receiver, dark metal pedestal with a small dish antenna catching cyan crystal waves"),
+    ("environment_sensor", "a sci-fi weather sensor box with a thermometer, a tiny wind vane and an air gauge dial"),
+    ("ship_sensor", "a sci-fi ship sensor panel with a glowing spaceship outline screen and a green hull integrity bar"),
+    ("remote_control", "a chunky handheld sci-fi remote control, dark grey with one big round violet crystal button and a short antenna"),
     ("speeder", "a sleek futuristic single-seat hover speeder vehicle seen at a three-quarter angle, smooth silver-blue aerodynamic hull with an open cockpit seat, swept side pods and two glowing cyan engine thrusters at the rear, hovering"),
     ("boat", "a small sturdy open motorboat seen at a three-quarter angle, warm wooden plank hull with a rounded bow, a low metal rail, a single seat and a compact grey outboard motor at the stern, sitting on calm water"),
     # Materialvielfalt — new tiers + functional alloy sinks (non-block items only).

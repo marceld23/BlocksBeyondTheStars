@@ -193,6 +193,25 @@ TEXTURES = [
     ("matter_receiver", "a sci-fi matter receiver block, dark metal pedestal with a downward cyan crystal collector ring and violet energy motes settling, front view"),
     # #2092 the Device Eye (2026-09-27): reads what a machine is doing and tells the wire.
     ("device_eye", "a sci-fi device eye block, a dark metal housing with one large round teal crystal lens like an eye looking forward, a thin brass rim and a small cable socket at the back, front view"),
+    # #2270 Crystal Net 2 (2026-10-04): moving blocks and the new devices. The phase block is a pale neutral stone so dye
+    # tints it to match any wall; its open twin is the shimmer it turns into.
+    ("phase_block", "a pale neutral light-grey stone block with very faint thin violet crystal veins, smooth, evenly lit, low contrast"),
+    ("phase_block_open", "a shimmering translucent violet energy veil, soft diagonal light streaks and tiny sparkles, mostly pale and airy"),
+    ("trapdoor", "a sturdy wooden trapdoor hatch seen from above, dark oak planks in an iron frame with a ring handle and two hinges, top-down"),
+    ("trapdoor_open", "a sturdy wooden trapdoor hatch seen from the side, dark oak planks in an iron frame with a ring handle, edge view"),
+    ("bridge_motor", "a sci-fi drawbridge motor block, dark metal housing with a big geared winch drum, a violet crystal status light and an arrow plate, front view"),
+    ("bridge_deck", "a sci-fi bridge deck plate, ribbed grey metal grating with yellow safety edge stripes, top-down"),
+    ("piston", "a sci-fi piston block, dark steel housing with a thick polished steel push plate on its front face and a violet crystal power stripe, front view"),
+    ("piston_head", "a polished steel piston push plate with a thick steel rod, riveted edges, front view"),
+    ("lift_motor", "a sci-fi lift motor block, dark metal machine with a large cable pulley, a heavy gear and a cyan up-down arrow display, front view"),
+    ("lift_stop", "a sci-fi lift call panel block, dark metal post with a round glowing call button and small up and down arrow lights, front view"),
+    ("lift_platform", "a sci-fi elevator platform floor, dark steel plate with a raised diamond tread pattern and yellow-black hazard edge stripes, top-down"),
+    ("signal_display", "a sci-fi display block, dark metal frame around a glowing dark-blue screen with a simple white pixel symbol, front view"),
+    ("dice_block", "a sci-fi dice block, a white cube face with five round violet crystal pips set in a dark metal rim, front view"),
+    ("signal_sender", "a sci-fi signal sender block, dark metal pedestal with a small upward antenna and violet crystal waves rising from it, front view"),
+    ("signal_receiver", "a sci-fi signal receiver block, dark metal pedestal with a small dish antenna and cyan crystal waves arriving, front view"),
+    ("environment_sensor", "a sci-fi environment sensor block, dark metal box with a thermometer, a tiny wind vane and a small air gauge dial, front view"),
+    ("ship_sensor", "a sci-fi ship sensor block, dark metal panel with a glowing spaceship outline screen and a hull integrity bar, front view"),
     ("base_core", "a sci-fi base foundation cornerstone block, a carved grey stone slab with a glowing teal-cyan claim emblem and faint engraved energy lines, top-down"),
     ("beam_block", "a sci-fi teleporter pad, a dark metal floor plate with a glowing cyan hexagonal grid, concentric light rings and small status lights around the rim, top-down"),
     # Materialvielfalt — dead-end fixes + new tiers + metal storage blocks.
