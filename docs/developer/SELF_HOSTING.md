@@ -68,6 +68,13 @@ Created on first run; editable directly or through the admin UI.
 | `aiLevel` | Optional AI text backend: `Off`, `Suggest` (AI missions land as drafts), `Auto` (published) — see §8 | `Off` |
 | `aiBackendUrl` | Base URL of the optional AI backend | `http://127.0.0.1:8077` |
 
+**Machine catch-up (#2269).** A world sleeps while nobody is on it. When a player comes back, the Crystal Net
+machines that were running when the world stopped (drills, drill lasers, matter senders, fabricators, harvesting
+pots and trays) catch up for at most `rules.machineCatchUpMinutes` of the absence (`0` = off; CLI
+`--machine-catchup <minutes>`, at most 1440; world admins change it in-game under the world rules; default `60`).
+The work is bounded per machine and spread over the first ticks after the return (32 block edits per tick, one
+transaction each), so a large base costs a short burst, never a long stall.
+
 ### Environment-variable overrides (containers)
 
 Every key above can also be set with a `BBS_*` environment variable, which is the natural way to

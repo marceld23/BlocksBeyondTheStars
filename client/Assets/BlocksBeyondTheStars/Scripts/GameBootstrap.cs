@@ -449,6 +449,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2049: the Crystal Net device the player is looking at this frame (set by PlayerController, read by the HUD prompt).</summary>
         public NetCrystalDevice AimedCrystalDevice { get; set; }
 
+        /// <summary>#2267: the block cell in the crosshair this frame (any block, the parked ships included), or null —
+        /// <see cref="CrystalNetView"/> outlines the whole network it belongs to.</summary>
+        public Vector3Int? AimedCell { get; set; }
+
         /// <summary>Live hover speeders on the current world (parked + driven). <see cref="SpeederView"/> renders
         /// them; <see cref="PlayerController"/> reads them to board/drive. Server-authoritative.</summary>
         public NetSpeeder[] Speeders { get; private set; } = System.Array.Empty<NetSpeeder>();

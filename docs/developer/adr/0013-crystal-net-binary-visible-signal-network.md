@@ -7,6 +7,8 @@
   [../CRYSTAL_NET.md](../CRYSTAL_NET.md)
 - **Amendment (2026-09-27, #2091):** only sources and gates drive a network; device reports become statuses read
   by a new Device Eye; direction arrows and a travelling glow — see the section at the end.
+- **Amendment 2 (2026-10-04, #2251):** the net aboard the own ship, a bounded catch-up on return, operate vs configure
+  (owner and alliance only), pre-built world circuits, device deltas — see the second amendment at the end.
 
 ## Context
 
@@ -108,3 +110,32 @@ show where a signal comes from.
 **Consequences.** Wiring a machine's report costs one extra block (the eye) — deliberate: the extra block is what
 makes the flow readable. The one-bit, visible model of the original decision is unchanged; the amendment only
 narrows *who* may drive a network and makes direction and flow visible.
+
+## Amendment 2 (2026-10-04, #2251 — Crystal Net 2)
+
+**Context.** Players wanted the net in their ships (a door that locks in flight, a cabin light), wanted a quarry that
+did *something* while they were away, and found that anyone could flip their alarm off. Prefabricated buildings could
+not carry a circuit, and a flickering clock re-sent a base's whole device list ten times a second.
+
+**Decision.**
+
+1. **The own ship gets a net of its own.** Decision 5 ("not ships") is revised: a parked own ship (landed, or the
+   walkable interior in space) carries a `CrystalNetState` in ship-local cells, persisted under the ship's store id,
+   rebuilt on every park and resting in flight. The net code runs unchanged inside a *frame* that redirects block
+   reads and writes to the ship structure and positions into world space. Only a fixed set of kinds works aboard
+   (`WorksAboard`); drills, machines and moving blocks stay decoration, because they would edit a hull that is meshed
+   in three places. Ship caps are smaller (16 networks × 128 cells, 8 sensors).
+2. **A bounded catch-up instead of none.** Decision 6 ("no offline simulation") is narrowed: machines that were running
+   when a world stopped are credited with the absence on return — at most a world-rule window (default 1 h, 0 = off),
+   at most a fixed amount per machine, worked off under a per-tick budget. Timers, sounds, sensors and moving blocks
+   are never simulated; the base still "wakes up with you".
+3. **Operate vs configure.** Using a device (toggle, press, start, call, remote) is for the owner, their alliance and an
+   admin; configuring it likewise. Pre-built **world circuits** (owner `@world`) may be used by anyone and configured
+   only by an admin, with a budget of their own, so a vault puzzle is solvable and stays intact.
+4. **Deltas for devices.** `CrystalDeviceDelta` carries only the devices that changed; the network list stays whole.
+5. **Six directions.** Directional devices may point up and down as well, and can be turned after placing.
+6. **Protocol 10, save version 3.**
+
+**Consequences.** The ship net costs one extra state per parked own ship and nothing in flight. Catch-up keeps the
+"no offline simulation" promise for everything a player can watch and only fast-forwards bounded, crate-filling work.
+A world circuit can never lock a player out of their own budget. The one-bit, visible model is unchanged.

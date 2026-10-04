@@ -1988,7 +1988,9 @@ namespace BlocksBeyondTheStars.Client
             Game.AimedStationBlock = null;
             // #2049: the Crystal Net device in the crosshair, for the HUD prompt (one ray, the same reach as E).
             // #2268: the march tests the parked ships too, so a switch in the own cabin is aimed at like one on the ground.
-            Game.AimedCrystalDevice = AimTarget(out var crystalAim, out _, out _) ? Game.CrystalDeviceAt(crystalAim.x, crystalAim.y, crystalAim.z) : null;
+            bool aimingAtBlock = AimTarget(out var crystalAim, out _, out _);
+            Game.AimedCrystalDevice = aimingAtBlock ? Game.CrystalDeviceAt(crystalAim.x, crystalAim.y, crystalAim.z) : null;
+            Game.AimedCell = aimingAtBlock ? crystalAim : (Vector3Int?)null; // #2267: the network under the crosshair is outlined
             if (string.IsNullOrEmpty(Game.NearbyStation) && AimBlock(out var aimHit, out _))
             {
                 string aimedKey = Game.Content?.BlockById(Game.World.GetBlock(aimHit.x, aimHit.y, aimHit.z))?.Key;
@@ -5419,8 +5421,12 @@ namespace BlocksBeyondTheStars.Client
             _placementGhost ??= new PlacementGhost();
             if (shape == 0)
             {
-                // A cube with a front (#2124): the arrow stands on the face the server will make the front.
-                _placementGhost.ShowFacingCube(placeCell, CubeFacing.FrontForPlacement(HeldFacing(held), yaw, transform.eulerAngles.y));
+                // A cube with a front (#2124): the arrow stands on the face the server will make the front — #2267: on the top
+                // or bottom face for a Crystal Net device placed while looking steeply up or down.
+                int deviceDir = DeviceDirFor(Game.Content?.GetItem(held)?.PlacesBlock);
+                _placementGhost.ShowFacingCube(placeCell, deviceDir == CrystalNetRules.YawUp ? ShapeCode.UpPlusY
+                    : deviceDir == CrystalNetRules.YawDown ? 1
+                    : CubeFacing.FrontForPlacement(HeldFacing(held), yaw, transform.eulerAngles.y));
             }
             else
             {

@@ -2272,3 +2272,21 @@ rules hold (no tickets, no ID cards, no vending machines).
 
 The hall, the wagon, the dead line, the salvage and the station notices are described in [MONORAIL.md](MONORAIL.md)
 §"Abandoned stations". Tests: `RailRuinTests`.
+
+## 37. Pre-built circuits and crystal vaults (#2260, 2026-10-04)
+
+Structure templates may carry **Crystal Net devices with settings** (`TemplateCell.Mode` / `Config` / `Label`); the
+station and settlement generators and every composer turn them into `crystal` markers (`TemplateDevices.Marker`,
+data `mode|config|label`) that `TemplateTransform.QuarterTurn` carries along. When a settlement is stamped its markers
+are queued and registered as **world circuits** after the net has loaded; a station registers them when it is
+stamped. A world circuit's owner is `@world`, it has a budget of its own (8 networks, 8 sensors) and a cell over it
+stays a plain block. Shipped: a light switch (ON) in every station arrival hall, the lamp switch of the iron flat.
+
+**Crystal vaults.** One in three **fresh** buried vaults (chosen by a hash of the vault's position, never from the
+vault loop's random stream, so every other vault's loot rolls stay as they were) gets a bonus niche behind its north
+wall: a two-high phase-block door, an AND logic block above it pointing down, two hidden switches in the west and
+east walls whose glowing wires run along the top of the walls to the gate, and a lamp on each wire that shows which
+switch is ON. Both ON — the door opens. The blocks are written once with the vault (#467, flag `crystalvault:x:z`);
+the niche's loot has a generator of its own and is re-derived on every entry like the vault's. Opening it counts as
+*Safecracker* for everyone in the chamber. A vault stamped before crystal vaults existed stays as it was.
+

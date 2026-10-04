@@ -24,6 +24,56 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 💎 Crystal Net 2 — moving blocks, lifts, new devices, owner + alliance rule, world circuits, the net aboard the own ship, catch-up on return (#2251: #2252–#2271, 2026-10-04, branch feat/crystal-net-2) — ✅ done (⚠ RELEASE NOTE: protocol v10 and save version 3 — older game versions cannot join, block ids shift; ⚠ playtest open)
+
+**Request (Marcel, 2026-10-04).** Analyse the Crystal Net (what works, what is missing to make it attractive), then build
+everything proposed in one go: moving blocks, the net on the own ship, a bounded catch-up, discovery and well-placed hints,
+only the owner or their alliance may operate, pre-built circuits in stations, settlements and vaults (with the editor),
+textures, sounds and effects generated with the repo scripts. One worktree, one PR. Docs:
+[CRYSTAL_NET.md](docs/developer/CRYSTAL_NET.md) §17, [MOVING_BLOCKS.md](docs/developer/MOVING_BLOCKS.md),
+[ADR 0013](docs/developer/adr/0013-crystal-net-binary-visible-signal-network.md) amendment 2,
+[ADR 0014](docs/developer/adr/0014-moving-blocks-twins-and-server-owned-lifts.md).
+
+- **✅ Fixes (#2252–#2256):** pairs by cell (old numeric pairs migrated once), doors remember their owner (a stranger's
+  conduit cannot lock them), "only you" counts the alliance, VEGA's first lines per player, operate vs configure (owner +
+  alliance; world circuits for everyone, re-wired only by an admin) with a lock prompt in the HUD; a parked ship re-meshes
+  only the chunks a changed cell reaches (#2255).
+- **✅ New ports (#2261, #2262):** force field (a wired wall switches as one), energy fence, campfire, forge, heal tank,
+  flower pot; bed and seat as statuses; the fabricator crafts the recipes of the station block beside it; every machine
+  uses all six neighbouring crates.
+- **✅ New devices (#2263):** display (symbol / text / counter), dice block, signal sender + receiver, remote control,
+  environment sensor; the ship sensor (#2268).
+- **✅ Moving blocks (#2264–#2266):** phase block, trapdoor, bridge motor, piston, a lift you ride between stops — never
+  closing onto anyone, falls through them never hurt.
+- **✅ Six directions, Turn, deltas, fair caps (#2267):** up / down by looking steeply while placing (ghost arrow too), the
+  menu's Turn button, the network under the crosshair is outlined, device names, device deltas on the wire, one player at
+  most half of a world's networks and sensors.
+- **✅ Pre-built world circuits (#2260):** device settings in templates and markers, a light switch in every station arrival
+  hall and the iron flat, crystal vaults (one in three fresh vaults: two hidden switches, an AND gate, a phase door, a
+  bonus niche); the structure editor's device tool, cube fronts on placement, export validation. A stamped switch keeps
+  its lever.
+- **✅ Aboard the own ship (#2268):** a net per parked own ship (frame), ship doors follow it, the ship sensor, rests in
+  flight; what does not work aboard stays decoration (no notice for what works).
+- **✅ Catch-up on return (#2269):** running machines catch up for up to the world rule's window (default 1 h, rule row in
+  the world options, `--machine-catchup`), bounded per machine, VEGA sums it up.
+- **✅ Discovery, missions, achievements (#2257, #2258):** first-time hints (first crystal mined … the night-light tip), a
+  crystal-world line, rotating loading tips, a settler gifts eight conduits; the radio chain *Crystal workshop* (6 steps,
+  Circuit objective, blueprint gate); nine achievements.
+- **✅ Codex (#2259):** pictures in the Codex (`<img src="wiki/img/…">`), six wordless circuit diagrams from the item icons,
+  four Crystal Net articles (EN + DE).
+- **✅ Art, audio, effects (#2270):** 17 block tiles, 13 icons (OpenAI), 12 sounds (ElevenLabs), six world effects; the
+  open twins are see-through and walk-through.
+- **✅ Texts, docs, versions (#2271):** ~190 keys in all 14 languages (machine pass + hand QA), docs and ADRs, save version
+  3, protocol 10.
+- **✅ Found on the way:** the drill laser's beam effect threw players standing beside the device every half second (its
+  radius is its depth) — only stomps and strikes push now; a piston puff no longer carries a knock radius.
+- **Open (playtest):** a base with every new device; the lift ride (smoothness, standing still on the platform); a ship
+  with a switch, a lamp and a locked hatch, landed and in space; a crystal vault puzzle; the catch-up summary after an
+  hour away; the station hall light; the device tool in the structure editor; the Codex pictures on desktop and in the
+  browser.
+- **Open (follow-ups):** optional synth fallbacks for the new sounds (the clips ship, so nothing is silent today); lifts,
+  pistons and bridges aboard ships stay decoration by design.
+
 ### 🛰️ Space package — ship scanner, planet overview, scanner tiers, visible pods and anomalies, wormholes (+ fixes) (#2243: #2233 #2235 #2236 #2237–#2242, 2026-10-04, branch feat/space-scanner-wormholes) — ✅ done (released in v2026.10.4; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04).** Every ship gets a scanner in the flight hotbar (like weapon / tractor) with a cool effect,

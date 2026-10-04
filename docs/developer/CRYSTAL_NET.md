@@ -2,10 +2,14 @@
 
 Epic #2045 (parts #2046–#2059), branch `feat/crystal-net`, 2026-09-27; review fixes epic #2091 (parts
 #2092–#2099), branch `fix/crystal-net-review`, 2026-09-27 — devices only listen, the Device Eye, direction arrows,
-status lights and the travelling glow. Status: implemented (see [../../TODO.md](../../TODO.md) for the live
-Done/Open status; the release ships protocol **v7**, so older game versions cannot join a v7 server — the review
-fixes add one field additively and stay on v7). The design decision is recorded in
-[ADR 0013](adr/0013-crystal-net-binary-visible-signal-network.md) (with its #2091 amendment).
+status lights and the travelling glow. **Crystal Net 2** — epic #2251 (parts #2252–#2271), branch
+`feat/crystal-net-2`, 2026-10-04: fixes, new ports and devices, moving blocks, lifts, six directions, device deltas,
+pre-built world circuits, the net aboard the own ship, a bounded catch-up on return, discovery hints, missions and
+achievements, Codex pictures — summarised in §17; the moving blocks have a page of their own,
+[MOVING_BLOCKS.md](MOVING_BLOCKS.md). Status: implemented (see [../../TODO.md](../../TODO.md) for the live Done/Open
+status). Crystal Net 2 ships protocol **v10** and save version **3** (older game versions cannot join). The design
+decisions are recorded in [ADR 0013](adr/0013-crystal-net-binary-visible-signal-network.md) (with its #2091 and
+#2251 amendments) and [ADR 0014](adr/0014-moving-blocks-twins-and-server-owned-lifts.md).
 
 ## 1. Goal
 
@@ -38,8 +42,10 @@ so a circuit can be read by looking at it.
   beat, entity lists gathered once per beat into a flat presence list), and a rate limit of one world change per
   level actuator per 500 ms (an edge device: one action per 200 ms). Hard caps (§8) keep a relay-tiled base
   from turning a beat into a world sweep — the power relay's 32-hop precedent.
-- **No offline simulation.** The tick runs under `Guard` in the per-world loop, i.e. only on a resident (occupied)
-  world. Timers and loops restart OFF on activation; "your base wakes up with you".
+- **No offline simulation — a bounded catch-up instead (#2269).** The tick runs under `Guard` in the per-world
+  loop, i.e. only on a resident (occupied) world. Timers and loops restart OFF on activation; "your base wakes up
+  with you". What *machines* that were running when the world stopped would have done is caught up on return, within
+  a world rule's window and hard per-machine bounds (§17.8).
 - **No power requirement** (for now — #1101 honoured): a conduit costs a crystal and glass, not energy.
 - **Kid rules.** Clones are always wild and never hostile; an announcer reaches only the owner and their allies;
   labels pass the same content screen as beacon names.
@@ -48,10 +54,10 @@ so a circuit can be read by looking at it.
 
 Planets, moons, asteroids **and player-built stations** — a boarded station is an ordinary world with its own
 `CrystalNetState`, and the lamp swap writes back into the station's cell store (`WriteBackStationCell`).
-**Not on ships** (Marcel's decision; a ship's hull is an object, not player-edited world cells, so nothing ever
-registers there). The **caller** and the **clone tank** are planet-only (`CrystalNetRules.IsPlanetOnly`):
-creatures never tick on a void world, so on a station the block is placed as decoration and VEGA says so
-(`vega.sys.crystal_planet_only`).
+**And the own ship (#2268)** — a parked own ship carries a net of its own in ship-local cells (§17.7); what works
+aboard is `CrystalNetRules.WorksAboard`, everything else built into a ship stays decoration. The **caller** and the
+**clone tank** are planet-only (`CrystalNetRules.IsPlanetOnly`): creatures never tick on a void world, so on a
+station the block is placed as decoration and VEGA says so (`vega.sys.crystal_planet_only`).
 
 ## 4. The network index (`GameServerCrystalNet.cs`)
 
@@ -310,11 +316,13 @@ network (before #2092 a blocked machine latched its own control line ON).
   bait path is free in a free game mode; a finished cross waits while the owner's sample case has no room.
   `LoadCrystalNet` registers tanks that are growing or have clones before all other rows, so the tank over
   the cap is not one that is in use.
-- **In a ship: decoration (#2219).** A Crystal Net block is a cell of the world grid. Built into a ship —
+- **In a ship: decoration (#2219) — except what works aboard (#2268, §17.7).** A Crystal Net block is a cell of the
+  world grid. Built into a ship —
   landed ship, ship interior in space, hull on a spacewalk, keel site, commissioned self-built ship — every kind
   with `CrystalNetRules.NeedsRow` (all devices and the port blocks: radio beacon, beam pad, sentry post,
   thumper, water spout, energy gate, hydro tray) and the bio lab is accepted like any block and does nothing
-  there. `NoteShipDecor` (GameServerSpaceStructure.cs) tells the player once, after the payment: it sets the
+  there unless `CrystalNetRules.WorksAboard` names its kind (then it joins the ship's own net and no notice is
+  sent). `NoteShipDecor` (GameServerSpaceStructure.cs) tells the player once, after the payment: it sets the
   once-flag `vega:hint:ship_decor` itself and sends `vega.hint.ship_decor` as a system line (`ShipAiLine.Kind`
   3), not through `ShipAiHintOnce` — a kind-1 hint is muted when the player switched VEGA's hints off, and the
   flag would be used up unseen.
@@ -535,14 +543,14 @@ price line.
 
 - **One bit, one beat.** No signal strength, no colours, no wireless except the matter pair (deliberate). A
   gate adds 100 ms; a long chain of gates is visibly slow — that is the model, not a bug.
-- **Lists, not deltas.** Both wire lists are sent whole on every change; at the 64 × 256 cap that is still a
-  small message, but a base at the cap that flickers a clock will re-send its device list ten times a second.
-  A delta message is the first optimisation if it ever shows.
-- **Only the first crate** beside a sensor, sender, receiver, drill or tank counts (`AdjacentCrystalCrate`);
-  the fabricator alone reads all six faces.
+- **Deltas for devices, lists for networks (#2267).** Devices go out as `CrystalDeviceDelta` (only what changed);
+  the network list is still sent whole when a level changes — at the 64 × 256 cap a small message.
+- **Every machine reads all six faces (#2262)** — takes from and fills any crate beside it; the storage sensor still
+  reads the first crate it finds.
 - **Storage "full"** is a line drawn for the sensor: eight full stacks in a wood crate, 32 stacks in a
   workshop crate.
-- **No offline automation** by design; a drill does not fill a crate while the owner is on another world.
+- **No offline automation** by design; what running machines would have done is caught up on return, bounded
+  (#2269, §17.8).
 - **Melody block** plays one note per pulse; several melody blocks on one network sound together as a chord. A
   tune is a delay per note (#2095): a clock into melody block A, the same clock through a 0.5 s delay into B,
   through a 1 s delay into C, … — each melody block on a network of its own. A sequencer block is a follow-up if
@@ -558,3 +566,151 @@ price line.
   doors on a boarded station); for #2091: a wired beacon, hydro tray, paired beam pads and clone tank no longer
   trigger themselves; a Device Eye on a blocked sender and on a door; the arrows, status lights and the travelling
   glow; a delay tune; the door lamp.
+
+## 17. Crystal Net 2 (#2251)
+
+Twenty parts (#2252–#2271), one PR, protocol 9 → **10**, save version 2 → **3** (twenty new blocks shift the block
+ids; see `SaveCompatibilityTests`). What changed, part by part:
+
+### 17.1 Fixes (#2252–#2256)
+
+- **Pairs by cell (#2252).** `pair=` names the partner's **cell** (`x,y,z`), never an id — device and beam ids are
+  handed out afresh on every load. `MigrateCrystalPairs` rewrites an old numeric pair once at load (best effort by
+  load order; nothing fits → the pair is dropped and the sender's light says so). The client's pairing lists send
+  cells.
+- **Door owner (#2253).** `ServerDoor.Owner` (persisted in the `door` table, new `owner` column): a door a player hung
+  follows only the cells of its owner and the owner's alliance; an old door adopts the first player who wires it;
+  stamped doors follow only world circuits and public cells (`CrystalMayDriveDoor`).
+- **Alliance in the filters (#2254).** "Only you" became "me & my alliance" (`PresenceMatches` counts allies and
+  crew), and VEGA's first-time lines are per **player** (milestones), not per world.
+- **Who operates (#2256).** `CanOperateCrystal` (toggle, press, start, call a lift, use a remote): owner, ally, admin —
+  and anyone on an ownerless device or a world circuit. `CanConfigureCrystal` (menu, Turn): owner, ally, admin; a world
+  circuit only an admin. The HUD shows `ui.crystal.prompt.locked` instead of a key that would be refused; the first
+  refusal explains the rule once (`vega.hint.crystal_locked`).
+
+### 17.2 New ports (#2261)
+
+Joining like every port (only when a net cell touches them): **force field** (ON = open; `force_field_off` twin) and
+**energy fence** (ON = animals pass) — both *spread*: a wired wall of them switches as one (`SpreadsToOwnKind`,
+`DissolvePortCluster` takes the whole cluster out again); **campfire** and **forge** (ON = burning, `_off` twins);
+**heal tank** (OFF = no healing; status "someone heals here"); **flower pot** (edge: harvests into the crate
+beside it; status ripe); **bed** and **seat** (status "someone lies / sits here" — a seat is any block formed into a
+chair or bench). They keep their own use (`IsPlainBlockPort`): a wired forge is still a forge, and none of them is
+decoration in a ship or refused on a station spacewalk. The **fabricator** gained station recipes from the block
+beside it (`FabricatorStationBlock`: forge → refinery, campfire → cooking, detoxifier, matter forge, algae tank,
+decontaminator); every machine takes from and fills **any crate on its six faces** (#2262).
+
+### 17.3 Twins and moving blocks (#2264–#2266)
+
+Phase block, trapdoor, bridge motor, piston, lift — see [MOVING_BLOCKS.md](MOVING_BLOCKS.md).
+
+### 17.4 New devices (#2263)
+
+| Block key | Kind | Role | Notes |
+|---|---|---|---|
+| `signal_display` | SignalDisplay | level listener | mode = `DisplayMode`: symbol (config `on=`, `off=`: 0..15), text (its label while ON), counter (rising edges, `n=` ≤ 999, menu action 4 resets) — the client floats it over the block |
+| `dice_block` | DiceBlock | gate | on each rising edge of its inputs a 0.5 s pulse with chance 1 in 2 / 3 / 4 / 6 (mode); `dice_roll` + `dice_win` |
+| `signal_sender` | SignalSender | listener (read by receivers) | its network's level, for every paired receiver on the same world; ≤ 8 per owner |
+| `signal_receiver` | SignalReceiver | source | repeats its sender's level one beat later (`pair=` the sender's cell, own or allied) — or what a remote set (`remote=1`) |
+| `environment_sensor` | EnvironmentSensor | source (sensor) | mode = `EnvironmentSensorMode`: no air, too hot (> 35 °C), too cold (< 0 °C), storm (weather ≥ 0.6), toxic air, enemy in base, alliance at home (base zone) |
+| `ship_sensor` | ShipSensor | source (sensor, ship only) | mode = `ShipSensorMode`: hull damaged, hull low (< 40 %), shield empty, landed, docked |
+
+The **remote control** (`remote_control`, a gadget): used while aiming at a receiver within reach that the player may
+operate it pairs (`PlayerState.RemoteReceiver` = `<location>|x,y,z`, or `@<ship store>|x,y,z` aboard); used anywhere
+else on the same world it flips that receiver.
+
+### 17.5 Six directions, Turn, deltas, per-player share (#2267)
+
+- **Directions.** `yaw` 0..3 are the quarter turns, **4 = up, 5 = down** (`CrystalNetRules.OutputFace`, `ClampYaw`,
+  `NextYaw`). Directional kinds (`IsDirectional`): logic, timer and dice block, Device Eye, watcher, piston, bridge
+  motor. The client sends `PlaceBlockIntent.DeviceDir` / `StructureEditIntent.DeviceDir` (looking steeply up / down,
+  else the rotate key's quarter turn); the menu's **Turn** button (action 3) steps through all six. A piston or bridge
+  that is out pulls back before it turns.
+- **Device deltas.** `CrystalDeviceDelta` (`Changed`, `Removed` as x/y/z triples) against a per-cell signature of what
+  the world was last told (`LastSentDevice`); most devices changed → the whole list. A joining player gets the whole
+  lists without touching the baseline.
+- **Per-player share.** One player may use at most half of a world's networks (32) and sensors (16).
+
+### 17.6 Pre-built world circuits (#2260)
+
+Owner `@world` (`CrystalNetRules.WorldOwnerId`): anyone operates, only an admin configures, a budget of its own
+(8 networks, 8 sensors) that never counts against the players. Templates carry device settings per cell
+(`TemplateCell.Mode` / `Config` / `Label`); the generators turn them into `crystal` markers
+(`TemplateDevices.Marker`, data `mode|config|label`) that survive rotation and every composer. Settlements queue them
+(`_pendingWorldCircuits`) and register them after `LoadCrystalNet`; stations register them in `StampStation`; a cell
+over the budget stays a plain block. A directional device without `yaw=` takes the cube front the template stores. A
+switch stamped with mode 1 comes out ON. Shipped circuits: a light switch in every station arrival hall, the lamp
+in the iron flat, and the **crystal vaults** (one in three fresh vaults, `IsCrystalVault`): a puzzle niche behind
+the north wall — two hidden switches, their wires and lamps, an AND gate pointing down into a two-high phase door;
+the niche holds its own loot (`StampCrystalVaultPuzzle`). The structure editor's **device tool** sets mode,
+direction, name and settings line per cell (see [STATION_SETTLEMENT_EDITOR.md](STATION_SETTLEMENT_EDITOR.md)).
+
+### 17.7 Aboard the own ship (#2268)
+
+A ship is a structure **object**, so each parked own ship (landed, or the walkable interior out in space) carries a
+net of its own: a `CrystalShipFrame` (`GameServerCrystalShips.cs`) with its own `CrystalNetState`, rows under the
+ship's edit store id (`ship:<pid>` / `ship:<pid>#<shipId>`), rebuilt on every park (`LoadCrystalShipNet`; a device
+cell without a row joins as the owner's), dropped when the ship leaves (`DropCrystalShipNet`; loops stop, the clients
+drop the frame's lists), ticked after the world's net (`TickCrystalShipNets`) — in flight it rests.
+
+The net code runs **unchanged inside a frame** (`_crystalFrame`, `InCrystalFrame`): `CrystalNet` is the frame's state,
+`CrystalReadBlock / Modifier / Shape` read the ship structure, `CrystalWriteCell` writes it (live only, a
+`StructureBlockChanged` — a rebuild re-applies the levels because twins start unsynced), `CrystalStoreId` keys the
+rows, `CrystalToWorld` / `CrystalWorldCentre` turn cells into world positions for sounds, effects, presence, reach and
+doors. What works aboard: `CrystalNetRules.WorksAboard` (conduit, switch, button, step plate, proximity sensor,
+logic / timer / dice block, Device Eye, sounds, lamps, phase block, trapdoor, display, signal sender / receiver, ship
+sensor); the rest stays decoration (no notice for what works). Ship caps: 16 networks, 128 cells per network, 8
+sensors. A parked ship's **doors** (`ServerDoor.ShipOwner`) follow its net and only its net. Edits: the landed-ship
+edit path reports placed / mined cells (`OnCrystalShipCellPlaced` / `Removed`); a self-built ship's commit rebuilds
+the hull from its blob, so the twins re-sync, and a hull grown toward −X / −Y / −Z moves every row and `pair=` by the
+same step (`ShiftCrystalShipRows`). The wire lists carry `Frame` = the ship's structure id with ship-local cells;
+intents name the frame (`SetCrystalDeviceIntent.Frame`). Device ids of a frame start at 1 000 000 + n·100 000, so a
+ship's loop never shares a sound id with a world device.
+
+### 17.8 Catch-up on return (#2269)
+
+`WorldMetadata.CrystalLastTicked[location]` stamps when a world's net last ran (wall clock). On activation, an absence
+longer than 30 s credits the machines that were **running** when it stopped (`Ran`, persisted as `run=1`) with
+`min(absence, MachineCatchUpMinutes)` (world rule, default 60, 0 = off; `machine-catchup` in the server config) —
+bounded per machine (256 drill blocks, 64 crafts, 64 sends, 32 harvests), worked off at 32 edits per tick inside one
+transaction, crates counted full at 32 stacks while catching up. Timers, sounds, sensors and moving blocks are never
+simulated. VEGA sums it up (`srv.crystal.catchup_*`). Test seam: `ShiftCrystalClockForTest`.
+
+### 17.9 Discovery, hints, missions, achievements (#2257, #2258)
+
+VEGA's first-time lines, each once per player: the first crystal mined, the Crystal Net researchable / researched, the
+first conduit, the first own network ON, the first door on a wire, the first arrow, the first amber light, the first
+refusal, the first old world circuit, each new blueprint family, the night-light tip for a dark base; a settler hands
+eight conduits to a player they know (`settler_crystal_gift`). The radio chain `crystal_workshop_1..6` (first light,
+doorbell, night light, airlock, little factory, secret passage) uses the new `MissionObjectiveType.Circuit` with
+`CircuitEvents` the net reports, gated by `MissionDefinition.RequiresBlueprint`; nine achievements count
+`crystal:<event>` (first circuit, ding dong, night watch, logician, assembly line, deep driller, secret passage, going
+up, safecracker).
+
+### 17.10 Client
+
+`ClientCrystalNet` (Client.Core, headless-tested) keeps one list per frame, applies deltas and composes a world-cell
+view (a ship's cells moved by its origin); `GameBootstrap.SendCrystalDevice` sends an intent in the device's own
+frame. `LiftView` draws and collides the lift platforms and carries the local rider. `CrystalNetView` puts the arrow on
+every directional device and floats the displays' faces. The device menu gained the new modes, bridge length,
+display symbols / text / counter reset, the receiver's sender list, a name field and the Turn button; aim (HUD
+prompt, Interact, the remote) also hits devices aboard parked ships. Parked ships re-mesh only the chunks a changed
+cell reaches (#2255). The open twins are see-through and walk-through in the mesher. Effects: `phase_shimmer`,
+`field_flicker`, `piston_puff`, `motor_sparks`, `signal_ping`, `dice_win` ([VFX.md](VFX.md)).
+
+### 17.11 Content and assets (#2259, #2270)
+
+Blueprints `crystal_mechanics` (phase block, trapdoor, bridge motor), `crystal_piston`, `crystal_lift`,
+`crystal_signals` (display, dice, sender, receiver, remote, environment sensor), `ship_sensor`. 17 block tiles and 13
+item icons (OpenAI), 12 sounds (ElevenLabs) — listed in `NOTICES.md` and [SOUND_DESIGN.md](SOUND_DESIGN.md). The Codex
+has four Crystal Net articles with six circuit diagrams (`tools/wiki/gen_circuit_diagrams.py`, see
+[MINIGAMES_AND_WIKI.md](MINIGAMES_AND_WIKI.md)).
+
+### 17.12 Tests
+
+`CrystalNet2Tests` (pairs after reload, door owner, alliance filter, operate vs configure, world circuits incl. a
+switch stamped ON, template markers, the crystal vault, the force-field wall, forge and heal tank ports, fabricator
+station recipes, six crates, phase block, trapdoor, bridge, piston, lift, display, dice, signals and remote, the
+down-pointing gate and Turn, the per-player cap, catch-up), `CrystalShipNetTests` (a cabin lamp, the net in flight and
+back, a stranger refused, the ship sensor, the hatch, a mined device), `ShipFunctionBlockTests` (what works aboard),
+Client.Tests `ClientCrystalNetTests`, `EditorPlacementRulesTests`, `WikiMarkupTests`.

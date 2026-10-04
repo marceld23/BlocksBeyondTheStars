@@ -45,8 +45,13 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color32 ArrowOff = new Color32(70, 90, 120, 200);
         private static readonly Color32 StatusOn = new Color32(255, 180, 40, 245);
 
-        private GameObject _netGo, _devGo;
-        private Mesh _netMesh, _devMesh;
+        private GameObject _netGo, _devGo, _hiGo;
+        private Mesh _netMesh, _devMesh, _hiMesh;
+
+        // #2267: the network under the crosshair, outlined — built when the aimed network (or the lists) change.
+        private int _hiNetId = -1;
+        private NetCrystalNet[] _hiBuiltFrom;
+        private static readonly Color32 Highlight = new Color32(225, 235, 255, 70);
         private Material _mat;
         private NetCrystalNet[] _builtNets;
         private NetCrystalDevice[] _builtDevices;
@@ -93,6 +98,83 @@ namespace BlocksBeyondTheStars.Client
             {
                 _devGo.SetActive(visible && _devMesh.vertexCount > 0);
             }
+
+            UpdateHighlight(nets, visible);
+        }
+
+        /// <summary>#2267: outlines every cell of the network the player aims at — ON or OFF — so a kid sees what one wire
+        /// reaches. Nothing is rebuilt while the same network stays in the crosshair.</summary>
+        private void UpdateHighlight(NetCrystalNet[] nets, bool visible)
+        {
+            if (_hiGo == null)
+            {
+                return;
+            }
+
+            int netId = -1;
+            NetCrystalNet aimedNet = null;
+            if (visible && nets != null && Game.AimedCell is { } aim)
+            {
+                foreach (var net in nets)
+                {
+                    var cells = net.Cells;
+                    if (cells == null)
+                    {
+                        continue;
+                    }
+
+                    for (int i = 0; i + 2 < cells.Length; i += 3)
+                    {
+                        if (cells[i] == aim.x && cells[i + 1] == aim.y && cells[i + 2] == aim.z)
+                        {
+                            aimedNet = net;
+                            break;
+                        }
+                    }
+
+                    if (aimedNet != null)
+                    {
+                        netId = net.Id;
+                        break;
+                    }
+                }
+            }
+
+            if (aimedNet == null)
+            {
+                _hiNetId = -1;
+                _hiGo.SetActive(false);
+                return;
+            }
+
+            if (netId != _hiNetId || !ReferenceEquals(nets, _hiBuiltFrom))
+            {
+                _hiNetId = netId;
+                _hiBuiltFrom = nets;
+                _verts.Clear();
+                _tris.Clear();
+                var cells = aimedNet.Cells;
+                for (int i = 0; i + 2 < cells.Length && _verts.Count < MaxCells * 8; i += 3)
+                {
+                    var p = Game.ScenePos(cells[i], cells[i + 1], cells[i + 2]);
+                    const float o = 0.06f;
+                    AddBox(p + new Vector3(-o, -o, -o), p + new Vector3(1f + o, 1f + o, 1f + o));
+                }
+
+                var colors = new List<Color32>(_verts.Count);
+                for (int i = 0; i < _verts.Count; i++)
+                {
+                    colors.Add(Highlight);
+                }
+
+                _hiMesh.Clear();
+                _hiMesh.SetVertices(_verts);
+                _hiMesh.SetTriangles(_tris, 0);
+                _hiMesh.SetColors(colors);
+                _hiMesh.RecalculateBounds();
+            }
+
+            _hiGo.SetActive(true);
         }
 
         /// <summary>#2263: the displays' faces, as floating labels (pushed every frame, like the beacon names).</summary>
@@ -156,8 +238,10 @@ namespace BlocksBeyondTheStars.Client
             _builtNets = null;
             _builtDevices = null;
             _cellDistance.Clear();
+            _hiNetId = -1;
             if (_netGo != null) _netGo.SetActive(false);
             if (_devGo != null) _devGo.SetActive(false);
+            if (_hiGo != null) _hiGo.SetActive(false);
         }
 
         // ---------------------------------------------------------------------------------------------------
@@ -405,6 +489,7 @@ namespace BlocksBeyondTheStars.Client
             _mat = new Material(shader) { renderQueue = 3050 };
             _netGo = MakeLayer("CrystalNetGlow", out _netMesh);
             _devGo = MakeLayer("CrystalDeviceMarks", out _devMesh);
+            _hiGo = MakeLayer("CrystalNetHighlight", out _hiMesh);
         }
 
         private GameObject MakeLayer(string name, out Mesh mesh)

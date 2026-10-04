@@ -72,6 +72,13 @@ Menu "Codex"/"DataQubes" button
   `VertexHelper`'s 65 000-vertex `ArgumentException` and draws **nothing** — the Guide and Items chapters
   went blank that way once the content grew (#1097). Articles and descriptions may grow freely; a new
   data-fed Text elsewhere must chunk the same way (or render per-entry rows like What's New).
+- **Pictures (#2259).** An article body may hold `<img src="wiki/img/<name>.png">`. `WikiMarkup.Segments` cuts the
+  body at its pictures (only plain `wiki/img/*.png` paths count — anything else is dropped), and the guide chapter
+  draws each picture between its text blocks (`RawImage`, never wider than the column, at most its own size). The
+  PNGs live in `data/wiki/img/` and ship with the rest of `data/` (desktop and browser alike). Keep them small (the
+  six circuit diagrams are 9–20 KB each) and **wordless**, so one picture serves every language — the article text
+  around it names the parts. The Crystal Net diagrams are drawn by `tools/wiki/gen_circuit_diagrams.py` from the
+  game's own item icons (`py tools/wiki/gen_circuit_diagrams.py` from the repository root).
 - `DataCubeView.cs` — renders the glowing cube (texture `Resources/props/data_cube`, point light, pulse),
   proximity hum (`data_cube_hum`), and the E label. `PlayerController` E-interact sends the download +
   plays `data_cube_download`.

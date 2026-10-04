@@ -165,6 +165,25 @@ Hits:
 
 Gadget outcomes play on the server's confirmation (`ActionFx.Outcome`). A refused use only shows the device's short charge glow.
 
+### Crystal Net world effects (#2251)
+
+Server-sent `WorldFx` kinds, played by `CreatureView.PlayWorldFx` with the shared `WeaponFx` helpers. Small and
+friendly: no camera shake, and their `Radius` is always 0 — on the client a `WorldFx` radius is the reach of a blast
+that throws players clear, so a device effect must never carry one.
+
+| Kind | When | Look |
+|---|---|---|
+| `phase_shimmer` | a phase block opens / closes | violet sparks and a pulse ring |
+| `field_flicker` | a force field switches | cyan sparks and a short flash |
+| `piston_puff` | a piston pushes | a dust puff (bigger when it moved blocks) |
+| `motor_sparks` | a bridge motor lays / takes up a plank | a few amber sparks |
+| `signal_ping` | a signal receiver picks up its sender | a cyan pulse ring |
+| `dice_win` | the dice block passes a pulse | golden sparks and a flash |
+| `laser` | the drill laser cuts a cell (#2108) | a beam from the device down to the cell (here `Radius` is the depth; only `stomp`, `strike` and `sea_strike` are blasts that throw players) |
+
+The **display faces** (#2263) are no effect but floating labels (`ScreenLabelLayer`, from `CrystalNetView`), and the
+lift platform is a meshed object (`LiftView`).
+
 ### Flight (`SpaceView` + `SpaceFx`)
 
 - **Weapons:**

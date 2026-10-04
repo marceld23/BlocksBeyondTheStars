@@ -486,6 +486,18 @@ public sealed partial class GameServer
     {
         var state = CrystalNet;
         bool brandNewNet = !cell.IsGate && !HasCrystalNeighbour(cell.Cell);
+        if (_crystalFrame is not null)
+        {
+            // #2268: a ship is small — a net of its own with caps of its own.
+            if (CrystalNetRules.IsSensor(cell.Kind)
+                && state.Cells.Values.Count(c => !c.Inert && CrystalNetRules.IsSensor(c.Kind)) >= CrystalNetRules.MaxShipSensors)
+            {
+                return true;
+            }
+
+            return brandNewNet && state.Nets.Count >= CrystalNetRules.MaxShipNets;
+        }
+
         if (CrystalNetRules.IsWorldOwner(cell.OwnerId))
         {
             if (CrystalNetRules.IsSensor(cell.Kind)
@@ -595,7 +607,7 @@ public sealed partial class GameServer
         }
 
         int total = 1 + neighbours.Sum(n => n.Cells.Count);
-        if (total > CrystalNetRules.MaxCellsPerNet)
+        if (total > (_crystalFrame is null ? CrystalNetRules.MaxCellsPerNet : CrystalNetRules.MaxShipCellsPerNet))
         {
             cell.Inert = true;
             return;

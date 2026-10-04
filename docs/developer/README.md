@@ -93,6 +93,10 @@ refreshed 2026-08-08.
 - [CRYSTAL_NET.md](CRYSTAL_NET.md) — the Crystal Net (#2045): crystal conduits carrying a visible ON/OFF
   signal between switches, sensors, gates, lamps, doors, sound devices and machines (matter link, auto-drill,
   fabricator, caller, clone tank); the network index, the beats, caps, persistence, wire, and how to add a device.
+  §17: Crystal Net 2 (#2251) — new ports and devices, six directions, deltas, pre-built world circuits, the net
+  aboard the own ship, catch-up on return, hints, missions and achievements.
+- [MOVING_BLOCKS.md](MOVING_BLOCKS.md) — phase blocks, trapdoors, bridge motors, pistons and lifts (#2264–#2266):
+  twin swaps, step-wise block moves, the server-owned lift platform the client draws and rides, the kid rules.
 - [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md) — factories with roster-limited
   production terminals, ruins/treasure chests, and access-code claiming.
 - [VOICE_CHAT.md](VOICE_CHAT.md) — push-to-talk voice chat + the tiered radio reach (planet/system/galaxy).
@@ -139,3 +143,4 @@ ones are marked, not deleted.
 - [0011 — CodeQL code scanning strategy](adr/0011-codeql-security-scanning-strategy.md)
 - [0012 — CalVer date-based versioning](adr/0012-calver-date-based-versioning.md)
 - [0013 — The Crystal Net: a binary, visible signal network without power](adr/0013-crystal-net-binary-visible-signal-network.md)
+- [0014 — Moving blocks: twin swaps, step-wise bridges and pistons, server-owned lift platforms](adr/0014-moving-blocks-twins-and-server-owned-lifts.md)

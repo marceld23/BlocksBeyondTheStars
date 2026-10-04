@@ -397,6 +397,29 @@ kit with the current seed (`StationKitComposer.Compose`, `SettlementGenerator.Ge
 the result as a whole structure. `tools/merge_structure.py` merges `kit.json` into `data/structure_kits.json` (defaults
 stripped) and keeps `kit`, `function` and non-empty `port` fields.
 
+**Pre-built circuits (#2260, 2026-10-04).** A template cell may carry Crystal Net settings: `mode`, `config`
+(`key=value;…`, e.g. `period=2;count=4`, `on=3;off=12`, `len=6`, `yaw=5`) and `label` (`TemplateCell.Mode` /
+`Config` / `Label`, JSON `mode` / `config` / `label`). World-gen turns them into `crystal` markers that become
+**world circuits** (owner `@world`: anyone uses them, only an admin re-wires them — see
+[CRYSTAL_NET.md](CRYSTAL_NET.md) §17.6). In the editor:
+
+- **Device tool** — the palette entry *Device settings* (kind `device`, in the markers group of both editors). A
+  click on a placed Crystal Net device opens `EditorDevicePanel`: the mode picker (a switch: OFF / ON), the
+  **direction** of a directional device (its brush-turn front, or `yaw=` 0..3, up, down), the **name** and the raw
+  **settings line**. *Apply* writes the cell and remembers the settings for that block: the next one placed comes out
+  alike. A conduit and a passive port (a lamp, a fire …) carry no settings (the status line says so).
+- **Placement** — a block with a front placed as a cube stores the front the brush turn gives it
+  (`EditorPlacementRules.TryPlaceBlock(..., facing)`), so a pre-built logic block points where its picture points; a
+  trapdoor is placed as the closed hatch at the top of its cell, as the server places it.
+- **Import** — a generated or assembled structure's `crystal` markers go back onto their block cells
+  (`TakeDeviceMarker`), never into the marker palette.
+- **Export validation** — settings travel only on blocks that carry them, the mode is clamped to the device's range
+  and `|` (the marker data separator) is stripped.
+
+The shipped demo circuits come from the generators: `tools/gen_station_modules.py` (`hall_light_switch`: a switch ON
+beside the arrival hall's door, conduits up the wall and along the ceiling edge to two ceiling lamps) and
+`tools/gen_settlement_modules.py` (the iron flat's light switch).
+
 ## 4. Open questions
 1. **Marker parity:** confirm the full marker vocabulary each editor must expose (vendor, mission board,
    medbay/heal-tank, hangar, quarters, npc spawn, loot) so authored structures are fully functional.

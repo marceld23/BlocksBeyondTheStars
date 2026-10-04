@@ -76,14 +76,15 @@ namespace BlocksBeyondTheStars.Client
             _go.SetActive(true);
         }
 
-        /// <summary>A flat pyramid on the middle of the front face, its tip pointing out — the "this side" marker.</summary>
+        /// <summary>A flat pyramid on the middle of the front face, its tip pointing out — the "this side" marker. #2267: the
+        /// top (0) and bottom (1) faces too, for a Crystal Net device pointed up or down.</summary>
         private static void FrontArrow(List<Vector3> verts, List<int> tris, int frontFace)
         {
-            var (dx, _, dz) = ShapeCode.FaceDirection(frontFace);
-            var n = new Vector3(dx, 0f, dz);
+            var (dx, dy, dz) = ShapeCode.FaceDirection(frontFace);
+            var n = new Vector3(dx, dy, dz);
             var centre = new Vector3(0.5f, 0.5f, 0.5f) + (n * 0.5f);
-            var side = new Vector3(dz, 0f, -dx); // horizontal, along the face
-            var up = Vector3.up;
+            var side = dy != 0 ? Vector3.right : new Vector3(dz, 0f, -dx); // along the face
+            var up = dy != 0 ? Vector3.forward : Vector3.up;
             const float h = 0.22f;
             Vector3 a = centre + ((-side - up) * h), b = centre + ((-side + up) * h);
             Vector3 c = centre + ((side + up) * h), d = centre + ((side - up) * h);

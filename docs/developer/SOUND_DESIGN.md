@@ -231,6 +231,22 @@ All cues are 3D at the device cell. See [CRYSTAL_NET.md](CRYSTAL_NET.md).
 Sixteen new ElevenLabs clips in total (`tools/ai-assets/gen_sound.py`, logged in `NOTICES.md`); the melody
 notes are the only new procedural cue. The lamp swap makes no sound.
 
+**Crystal Net 2 (#2251, #2270)** — twelve more ElevenLabs clips, all 3D at the device (aboard a parked ship at the
+cell's world position):
+
+| Sound | Trigger | Files | Source |
+|---|---|---|---|
+| phase block | it opens or closes | `phase_shimmer` | EL |
+| trapdoor | it folds open / closes | `trapdoor_open`, `trapdoor_close` | EL |
+| force field | it switches on / off | `force_field_on`, `force_field_off` | EL |
+| bridge motor | one deck plank laid or taken up | `bridge_motor` | EL |
+| piston | push / retract | `piston_push`, `piston_retract` | EL |
+| lift | moving (loop, `SourceId` 100000 + lift id) / arrived | `lift_motor` (seamless loop), `lift_arrive` | EL |
+| dice block | every roll | `dice_roll` | EL |
+| remote control | a flip (to the user only) | `remote_click` | EL |
+
+Campfires and forges switching on and off are silent, like the lamp swap.
+
 ## 13. Wall climbing (#2193) — *ElevenLabs clips + the step set*
 
 Local, non-positional cues from `PlayerController` (see [CLIMBING.md](CLIMBING.md)). The grip has no HUD bar, so

@@ -211,7 +211,8 @@ the block — a crosshair in the middle of the screen shows where it will land. 
 moves a cell cursor, **(A)** paints, **(X)** erases and **(Y)** picks up a colour. **(B)** returns to the
 panels; the hint line under the tools always says which controls are live.
 
-**Crystal Net on a pad:** **(X)** on a crystal switch flips it, on a button presses it, and on a device with
+**Crystal Net on a pad:** **(X)** on a crystal switch flips it, on a button presses it, on a lift stop calls the
+lift, and on a device with
 settings opens its menu (a picture grid or a list — navigate with the stick / d-pad, **(A)** picks, **(B)**
 closes). Step plates, sensors and the Device Eye need nothing pressed.
 
@@ -250,7 +251,8 @@ buttons swap with what you're doing:
 | *EVA (spacewalk):* **FIRE (hold) · PLACE · DEPLOY · VIEW · USE · UP · DOWN** | Mine · place the selected block · deploy a station core · camera · board · float up/down |
 | *Speeder:* **BOOST (hold) · JUMP · EXIT · FUEL** | Boost · hop · dismount · refuel |
 
-**Crystal Net on touch:** **USE** while looking at a crystal switch flips it, at a button presses it, and at a
+**Crystal Net on touch:** **USE** while looking at a crystal switch flips it, at a button presses it, at a lift
+stop calls the lift, and at a
 device with settings opens its menu (tap a picture or a list entry; **Close** or ≡ leaves it). Step plates,
 sensors and the Device Eye need no button at all.
 
@@ -1118,8 +1120,10 @@ effort.
   looking at the block. A **switch** flips ON/OFF and stays where you left it, even after a reload. A
   **button** gives one half-second pulse. A device with settings opens a small **menu** (pictures to pick a
   mode, or a list to pick a partner, a recipe or an animal); close it with Esc / pad (B) / its Close button.
-  Only the owner or an ally can change a device's settings. Step plates, sensors and the Device Eye need no
-  pressing at all.
+  Only the owner and the owner's **alliance** may use a device or change its settings — anyone else sees "only the
+  owner's alliance" instead of the key. **Pre-built circuits** (the light switch in a station's arrival hall, the
+  lamp in a settlement flat, the puzzle in a crystal vault) belong to the world: everyone may use them, only an admin
+  re-wires them. Step plates, sensors and the Device Eye need no pressing at all.
 - **Who talks, who listens.** Only **sources** switch a network ON: the **switch**, the **button**, the **step
   plate**, the **sensors** and the **watcher** — and the **logic block**, the **timer block** and the **Device
   Eye**, which send their answer into the wire their arrow points to (the eye into the wire behind it).
@@ -1127,15 +1131,26 @@ effort.
   what its network says and never switches its own network ON, not even when it has news. Its news shows as a
   small **amber light** on top of the block, and a **Device Eye** puts that news on a wire.
 - **Reading a circuit.** The glow runs away from whatever sends the signal. A small **arrow** on a logic block,
-  timer block, watcher or Device Eye shows which way it sends or looks, and it lights up **cyan** while the
-  block's own answer is ON. An **amber light** on top of any other device means it reports ON right now — a
+  timer block, dice block, watcher, Device Eye, piston or bridge motor shows which way it sends, looks or moves,
+  and it lights up **cyan** while the block's own answer is ON.
+- **Pointing up, down and around.** A block with an arrow points the way you look while placing it — look
+  **steeply up or down** and it points up or down. Placed it wrong? Open its menu and press **Turn**: it steps
+  through the four sides, up and down. An **amber light** on top of any other device means it reports ON right now — a
   flipped switch, a sensor that sees something, a blocked sender, a full drill, a growing clone tank. A door on a
   wire has a small lamp above the doorway: **red** = locked, **green** = held open.
 - **Sources (things that say ON):**
-  - **Step plate** — ON while someone stands on it. Its menu picks who counts: anyone, players, only you,
-    or animals.
-  - **Proximity sensor** — ON while something is near: anyone, players, you, wild animals, tame animals,
-    hostiles or settlers, at near / mid / far range (4 / 6 / 8 blocks).
+  - **Step plate** — ON while someone stands on it. Its menu picks who counts: anyone, players, you and your
+    alliance, or animals.
+  - **Proximity sensor** — ON while something is near: anyone, players, you and your alliance, wild animals, tame
+    animals, hostiles or settlers, at near / mid / far range (4 / 6 / 8 blocks).
+  - **Environment sensor** — watches where it stands: ON when there is **no air**, it is **too hot** or **too
+    cold**, a **storm** blows, the air is **toxic** — or, inside your base, when an **enemy is in the base** or
+    your **alliance is at home**.
+  - **Signal receiver** — repeats the signal of the **signal sender** you pick in its menu, anywhere on the same
+    world, no wire in between. Give it a name: the **remote control** shows it. Use the remote while looking at a
+    receiver to pair it, then anywhere on that world to switch the receiver ON and OFF.
+  - **Ship sensor** (only in your own ship) — ON when the hull is damaged, the hull is low, the shield is empty,
+    the ship has landed or is docked.
   - **Daylight sensor** — ON by day, or by night if you flip it in the menu. The night light for the whole
     square.
   - **Storage sensor** — reads the crate beside it: ON when it is full, when it is empty, or when it holds
@@ -1161,13 +1176,16 @@ effort.
   (each pulse flips it); its menu sets the seconds (0.5 to 10) and the count. Both **send their answer the way
   you were looking when you placed them** — out of the side facing away from you, where the arrow is — so lay
   the output wire on that side; the other sides are inputs. They never pass a signal straight through, and each
-  one adds a tiny delay.
+  one adds a tiny delay. A **dice block** passes a pulse only now and then — one in 2, 3, 4 or 6 (its menu) — and
+  sparkles when it does: a button, a dice block and a lamp make a little lucky game.
 - **Sound & words.** An **alarm siren** wails while its network is ON (three sirens to choose from; a radio
   beacon on the same network turns its map marker red) — give it an OFF switch, everyone hears it. A
   **chime** rings once per pulse (a step plate outside + a chime inside = a doorbell; on a half-second clock it
   rings every half second), a **horn** blasts once and carries farther, a **melody block** plays one note per
   pulse (eight notes, four instruments), and an **announcer** shows a short line to you and your allies: one
-  of six preset lines or one you type yourself.
+  of six preset lines or one you type yourself. A **display** shows its answer above itself: one **symbol** while
+  ON and another while OFF (pick them in its menu), its own short **text** while ON, or a **counter** of how often
+  its wire switched on (reset in its menu).
 - **Playing a tune.** Several melody blocks on **one** network play together, as a chord. For a tune, give every
   note its own wire and its own moment: a **clock** into melody block A, the same clock through a timer block
   set to a **0.5-second delay** into melody block B, through a **1-second delay** into C, and so on — each
@@ -1179,9 +1197,23 @@ effort.
   few seconds, so two wired pads never throw you back and forth), a **radio beacon** (ON turns its map marker
   red), a **sentry post** (OFF = holds its fire), the **thumper** (a pulse starts its run), a **water spout**
   (OFF stops the water), an **energy gate** (ON lets animals through) and a **hydro tray** (a pulse harvests the
-  crop into the crate beside it). What they have to say — the beacon's "my owner is near", the sentry's "I have
-  a target", the tray's "ripe", the beam block's "someone arrived" — shows on their amber light; a Device Eye
-  puts it on a wire.
+  crop into the crate beside it). Also a **force field** (ON = open; a whole field wall switches together), an
+  **energy fence** (ON lets animals through), a **campfire** and a **forge** (they burn only while ON), a **heal
+  tank** (OFF = it does not heal), a **flower pot** (a pulse harvests into the crate beside it), a **bed** and a
+  **seat**. They all keep doing their normal job — a wired forge is still a forge. What they have to say — the
+  beacon's "my owner is near", the sentry's "I have a target", the tray's "ripe", the beam block's "someone
+  arrived", "someone heals / lies / sits here" — shows on their amber light; a Device Eye puts it on a wire.
+- **Moving blocks** (they never hurt anyone and never close onto anyone — they wait):
+  - **Phase block** — a wall block that turns into shimmering air while its network is ON: a secret door. Phase
+    blocks side by side open together; dye them to match your wall.
+  - **Trapdoor** — a hatch in the floor. ON folds it open and you drop through (the fall never hurts), OFF closes it.
+  - **Bridge motor** — while ON it lays a bridge the way its arrow points, one plank at a time, 2 to 12 long (its
+    menu); OFF takes it back in.
+  - **Piston** — on ON it pushes up to four blocks in front of it one step; set it to **sticky** and on OFF it
+    pulls the first one back. It never moves crates, devices, doors or someone else's base.
+  - **Lift** — a **lift motor** at the bottom of a 3×3 shaft, a **lift stop** beside the shaft on each floor.
+    Press a stop (or send it a signal) and the platform comes to that floor; a signal on the motor sends it to the
+    next stop. Stand on the platform and it carries you; it waits while anything stands under it.
 - **Matter link (beaming crates).** A **matter receiver** gets a name when you place it. A **matter sender**
   picks one of your (or an ally's) receivers in its menu, and every pulse takes one stack (up to 16 items)
   from the crate beside the sender and beams it into the crate beside the receiver — anywhere on the same
@@ -1203,8 +1235,9 @@ effort.
   crate is full or at its full depth — the **amber light** comes on (a Device Eye reads it); empty the crate and
   start it again and it continues from where it stopped, even after a reload. Two per player. Needs lubricant.
 - **Fabricator (an automatic workbench).** Pick one recipe in its menu; every pulse crafts it once, taking the
-  parts from the crates beside it and putting the result back into one. It needs the recipe's blueprint, like
-  a hand craft, and it only works **while you are on the world**. Its amber light shows when it is stuck
+  parts from the crates beside it and putting the result back into one. Put a **station block right beside it**
+  and it can make that station's recipes too: next to a forge it smelts, next to a campfire it cooks. It needs the
+  recipe's blueprint, like a hand craft. Every machine takes from and fills **any crate on any side** of it. Its amber light shows when it is stuck
   (parts missing, no room, you are away).
 - **Caller and clone tank (planets, moons and asteroids only).** A pulse on the **caller** brings the peaceful
   animals within 24 blocks and your own companions to the block for about 20 seconds — a dinner bell for the
@@ -1217,16 +1250,22 @@ effort.
   Two tanks and six living clones per player, sixteen clones per world. With a **bio lab** the tank also grows
   animals from the **samples** in your sample case — from any world — and **crosses** two species into a new one:
   see § The bio lab.
-- **Where it works.** On planets, moons, asteroids and **your own space stations** — not aboard ships. And
-  only **while you are on that world**: nothing ticks while you are away, your base wakes up with you. A
-  drill does not dig while you are off exploring. **Built into a ship, these blocks are decoration only**: every
-  Crystal Net device, the radio beacon, beam pad, sentry post, thumper, water spout, energy gate and hydro tray
-  — and the bio lab. You can build them in like any block, they just do nothing there, and VEGA tells you so the
-  first time. On a station, build devices **aboard on the deck**, where they work; from a spacewalk the station
+- **Where it works.** On planets, moons, asteroids, **your own space stations** and **your own ship** — and only
+  **while someone is on that world**: your base wakes up with you. **Machines that were running when you left
+  catch up** for a while when you come back (one hour by default — a world rule, Tab → Settings → world rules,
+  *Machines catch up*), and VEGA tells you what they did; timers, sounds and moving blocks just start again.
+- **In your ship.** Conduits, switches, buttons, step plates, proximity sensors, logic, timer and dice blocks,
+  Device Eyes, the sound blocks, lamps, phase blocks, trapdoors, displays, signal senders and receivers and the
+  **ship sensor** work in your own ship — and the ship's own doors follow its wires. The ship's circuits run while
+  the ship is parked (landed, or with you inside out in space) and rest in flight. Everything else — drills,
+  machines, bridges, pistons, lifts, the radio beacon, beam pad, sentry post, thumper, water spout, energy gate,
+  hydro tray and the bio lab — is **decoration only** in a ship: you can build it in, it just does nothing there,
+  and VEGA tells you so the first time. On a station, build devices **aboard on the deck**, where they work; from a spacewalk the station
   takes ordinary blocks, lamps, the sentry post, the energy gate, the hydro tray and the bio lab only.
-- **Limits, in plain words.** A network can hold 256 blocks, a world 64 networks and 32 sensors, 8 sound
-  devices can play at once, and each player gets 4 auto-drills, 4 matter senders, 4 fabricators, 2 clone
-  tanks and 6 living clones. Place something beyond a limit and it simply does nothing — VEGA tells you, and
+- **Limits, in plain words.** A network can hold 256 blocks, a world 64 networks and 32 sensors — and one player
+  may use half of each, so nobody gets locked out — 8 sound devices can play at once, and each player gets 4
+  auto-drills, 4 matter senders, 4 fabricators, 2 clone tanks, 6 living clones, 8 bridge motors, 8 pistons, 4
+  lifts and 8 signal senders. In a ship: 16 networks of up to 128 blocks and 8 sensors. Place something beyond a limit and it simply does nothing — VEGA tells you, and
   mining something back frees the slot.
 
 ### Wrecks: repair & claim

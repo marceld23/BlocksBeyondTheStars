@@ -60,6 +60,8 @@ Design your ship block by block, fly real system-scale routes, dock at space sta
 *   **Ships, stations, bases:** lay a keel and build your own ship block by block (it flies the way you built it), deploy a station core in orbit, found planet **bases** with a life-support field, airtight rooms and teleporter pads, repair and claim wrecks — or claim a factory as your base with a rare access code.
 *   **Deep crafting:** mine, smelt, unlock blueprints, and craft everything from hover speeders to space stations; factory terminals for bulk production, greenhouses and farming, tiered gear upgrades, and 40+ achievements with rewards along the way.
 
+*   **Bring your base to life:** the **Crystal Net** — glowing crystal wires that carry ON or OFF. Switches, step plates, sensors and logic blocks drive lamps, doors, alarms, displays, drills and fabricators; **moving blocks** add secret phase doors, trapdoors, drawbridges, pistons and real **lifts**. It works in your own ship too, and pre-built circuits hide puzzles in crystal vaults.
+
 **People & Story**
 
 *   **The VEGA Protocol:** an optional story campaign narrated by your ship's AI companion — intro cinematic, lore fragments, Guardian machines, a two-route finale and an ending with credits.

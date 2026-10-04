@@ -1155,8 +1155,11 @@ namespace BlocksBeyondTheStars.Client
                         break;
                 }
 
-                // Inside the blast: thrown clear — away from the spot and up.
-                if (fx.Radius > 0f && player != null && !Game.Aboard)
+                // Inside the blast: thrown clear — away from the spot and up. Only a giant's stomp and a worm's or a
+                // leviathan's strike are blasts: the drill laser's radius is its depth and must never throw the player
+                // standing beside the device (#2251 found it doing exactly that every half second).
+                bool blast = fx.Kind is "stomp" or "strike" or "sea_strike";
+                if (blast && fx.Radius > 0f && player != null && !Game.Aboard)
                 {
                     var away = me - at;
                     away.y = 0f;
