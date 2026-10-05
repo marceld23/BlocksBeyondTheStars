@@ -11,6 +11,78 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.7] — 2026-10-05
+
+The grappling release. A new tool, the **energy rope gun**, shoots a glowing rope at a cliff and reels you up, across
+a gap or out of a hole (#2317). On foot, the pause menu now has **"Back to my ship"** for when you have wandered too
+far (#2286). In space, **asteroids** join the target lock, so mining works on a gamepad and a tablet too (#2326). And
+after the last playtest, drills and scanners no longer hit like weapons, the starting Laser Cannon reaches further, and
+bandits follow you across the world's seam.
+
+ℹ️ **Compatibility:** the network protocol stays at **version 11**, the save version at **3** and the terrain
+generation at **20**: your saves and worlds carry over unchanged. To get everything new, game and server should both be
+on 2026.10.7. The desktop game updates itself on start, and the browser version is always current.
+
+### 🪢 The energy rope gun (#2317 #2318 #2319 #2320 #2321 #2322 #2323)
+
+- A new held tool: **left click** (pad RT, touch MINE) shoots a glowing **energy rope** at a solid block up to
+  **24 blocks** away. **Hold the right mouse button** (pad LB, touch PLACE) and the rope reels you in.
+- Where you arrive depends on what you hit: on **top of a block** you land on it, on the **side of a cliff** with
+  free space above the rope pulls you over the edge (no climbing gloves needed), and anywhere else you **hang** on the
+  rope. Let go of the button and the winch holds you; **crouch** drops the rope, **jump** hops off.
+- It never hurts: no damage to anything, never on creatures or players, and when you let go high up the fall is
+  softened. It costs 3 suit energy per shot.
+- The rope snaps when its anchor gets too far away or something blocks the line. Switching the quick-bar slot,
+  water, vehicles, trains, seats, the ship and space all drop it.
+- The rope glows, pulses towards you while it pulls and fizzles when it lets go, with sounds of its own. The crosshair
+  turns mint over a block the rope can hold, and other players see your rope.
+- Craft it in the **workshop** after researching it in the **Suit** branch, right after the climbing gloves. VEGA
+  explains the controls the first time a rope holds.
+
+### 🏠 "Back to my ship" (#2286)
+
+- The pause menu has a new button on foot: **Back to my ship** takes you straight aboard your landed ship.
+- It recharges for **three minutes** (the button counts down), and it does not work in the middle of a fight, while
+  you are falling, or when your ship is not landed on this world. Each refusal tells you why.
+- Worlds can switch it off in the world options (next to the starter teleporter). It is on by default and off on
+  dangerous worlds.
+
+### 🪨 Asteroids in the target lock (#2326 #2327 #2328)
+
+- **Target ahead** now works on a gamepad (**L3**) and a tablet (**⋯ → Target ahead**), so every pilot can lock a
+  rock, not just with the right mouse button.
+- **Shoot an asteroid** with nothing locked and the lock picks it up. When a rock is destroyed and no enemy is left,
+  the lock moves on to the **nearest rock** your laser can reach, so you can mine one rock after the other.
+  The frame says *In range* or *Too far — fly closer*.
+- With a laser that can mine selected, the **three nearest rocks** within its reach join the target cycle (**T**)
+  after the enemies. While an enemy attacks you, only enemies count.
+
+### ⚔️ Weapons fight, tools dig (#2306 #2284 #2307)
+
+- A drill, a scanner or a gadget in your hand now hits like a bare fist. Before, a titanium drill was a strong weapon
+  that cost nothing; now weapons are the upgrade for a fight.
+- The **Laser Cannon** your ship starts with reaches **60** instead of 45, so you can hit back at enemies that
+  shoot from range.
+- **Bandits** no longer get stuck at the world's seam, the place where a walk around the planet closes the loop,
+  and the shock gloves' push works there too.
+
+### 🗺️ The map and other systems (#1614)
+
+- The map no longer offers to travel to a world in **another star system** you have never landed on, even with
+  Instant Travel on. It shows how to get there instead: hyperjump into its system first, then fly there and land.
+  Contributed by **ahmdkaml** — thank you! 🙏
+
+### 🧪 Sample filters (#2324)
+
+- The filter buttons above the samples (in the bio lab and on *Inventory → Samples*) are now as wide as their words,
+  so long names like "Lagerstätten" no longer break in the middle.
+
+### 🌍 Texts and more
+
+- Everything new is in all **14 languages**. The 2026.10.6 "What's new?" texts arrived in twelve more languages
+  (#2227), and the map's hint text was updated in the twelve community languages too.
+- Behind the scenes, an editor test that had been out of date since September was brought back in line (#2312).
+
 ## [2026.10.6] — 2026-10-05
 
 The suit-up release. Your **suit** gets its own page: the worn pieces sit around a **figure**, and a click on any
@@ -6963,7 +7035,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.6...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.7...HEAD
+[2026.10.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.6...v2026.10.7
 [2026.10.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.5...v2026.10.6
 [2026.10.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.4...v2026.10.5
 [2026.10.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.3...v2026.10.4

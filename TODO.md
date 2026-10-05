@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🪨 Asteroids as lock targets — "Target ahead" on pad/touch, the mining lock, rocks in the cycle (#2326 #2327 #2328, 2026-10-05, branch feat/asteroid-target-lock) — ✅ done (unreleased; ⚠ playtest open)
+### 🪨 Asteroids as lock targets — "Target ahead" on pad/touch, the mining lock, rocks in the cycle (#2326 #2327 #2328, 2026-10-05, branch feat/asteroid-target-lock) — ✅ done (released in v2026.10.7; ⚠ playtest open)
 
 Marcel's question (2026-10-05): how does the flight target lock work, and how could mineable (destructible) asteroids
 become targets? Finding: a rock was already lockable — but only through "Target ahead" (right mouse button), which had
@@ -48,7 +48,7 @@ purpose ("a belt would bury the enemies under twenty rocks"). Three client-only 
   after the break, *In range* at 40; T with the starter laser at the launch field (rock, rock, rock, station), a drone
   attacking takes them out again; the tractor or the scanner selected leaves the cycle as before.
 
-### 🪢 Energy rope gun + the sample filter chips (#2317–#2324, 2026-10-05, branch feat/energy-rope-gun) — ✅ done (unreleased; ⚠ playtest open)
+### 🪢 Energy rope gun + the sample filter chips (#2317–#2324, 2026-10-05, branch feat/energy-rope-gun) — ✅ done (released in v2026.10.7; ⚠ playtest open)
 
 Marcel's "Energieseilpistole": a pistol that shoots a glowing energy rope at a block face and reels the player in — up
 a cliff, across a gap, out of a hole — with no damage (epic #2317). Plus the Samples filter chips that broke
@@ -83,7 +83,7 @@ a cliff, across a gap, out of a hole — with no damage (epic #2317). Plus the S
   across a canyon with a little steering; walking out of reach snaps; no fall damage from any pull; a menu while
   hanging; a second player's rope and arm; pad and touch holds; the chips in de / ru / uk / es / nl in both screens.
 
-### 🗺️ Map tab: a never-landed world in another system stays locked even with Instant Travel on (#1614 client slice 1, 2026-10-05, PR #2314 by ahmdkaml → e7011bc9, locales + status in the follow-up PR) — ✅ done (unreleased; ⚠ playtest open)
+### 🗺️ Map tab: a never-landed world in another system stays locked even with Instant Travel on (#1614 client slice 1, 2026-10-05, PR #2314 by ahmdkaml → e7011bc9, locales + status in the follow-up PR) — ✅ done (released in v2026.10.7; ⚠ playtest open)
 
 The first client slice of #1614 (landed-ship transit). Since the server half (#1676, 2026-09-11) a cross-system travel
 to a body the player never landed on is rejected server-side, Instant Travel or not — but the map tab still offered the
@@ -98,7 +98,7 @@ Travel/Hyperjump button for such worlds while Instant Travel was on, and the ser
 - **Open — the rest of the #1614 client half (ahmdkaml, separate PR):** take-off → (warp) → landing sequence instead of
   the instant swap; "Hyperjump to this system" from a landed ship showing the take-off first; the case-3 server test.
 
-### 🧰 Tools punch like fists, starter laser 60 + one engage range, "Back to my ship", bandit step across the seam, mesher golden re-pinned (#2306 #2284 #2286 #2307 #2312, 2026-10-05, branch fix/tools-laser-return-seam) — ✅ done (unreleased; ⚠ playtest open)
+### 🧰 Tools punch like fists, starter laser 60 + one engage range, "Back to my ship", bandit step across the seam, mesher golden re-pinned (#2306 #2284 #2286 #2307 #2312, 2026-10-05, branch fix/tools-laser-return-seam) — ✅ done (released in v2026.10.7; ⚠ playtest open)
 
 The four follow-ups of the gloves/target-lock review (decisions on the issues, Marcel 2026-10-05), plus the stale
 EditMode golden found on the way.
