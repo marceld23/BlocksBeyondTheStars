@@ -24,9 +24,10 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧰 Tools punch like fists, starter laser 60 + one engage range, "Back to my ship", bandit step across the seam (#2306 #2284 #2286 #2307, 2026-10-05, branch fix/tools-laser-return-seam) — ✅ done (unreleased; ⚠ playtest open)
+### 🧰 Tools punch like fists, starter laser 60 + one engage range, "Back to my ship", bandit step across the seam, mesher golden re-pinned (#2306 #2284 #2286 #2307 #2312, 2026-10-05, branch fix/tools-laser-return-seam) — ✅ done (unreleased; ⚠ playtest open)
 
-The four follow-ups of the gloves/target-lock review (decisions on the issues, Marcel 2026-10-05).
+The four follow-ups of the gloves/target-lock review (decisions on the issues, Marcel 2026-10-05), plus the stale
+EditMode golden found on the way.
 
 - **✅ #2306 tools dig, weapons fight (2026-10-05):** every held tool that is not a weapon (drill, scanner, gadget) hits like
   the bare hand — `MeleeRules.IsPunch`: 5 damage, 1.2 s on the fist's own cooldown timer, no suit energy — on the server
@@ -64,11 +65,17 @@ The four follow-ups of the gloves/target-lock review (decisions on the issues, M
   circumference/0.25 cells and reported "blocked", stopping `MoveBandit` and the shock-glove `KnockBandit` at the seam.
   Tests (`BanditTests`): a step across X = 0 passes and a post half a world away is no longer swept into, a wall in the
   seam column still blocks, a shock push carries a robber over the seam.
+- **✅ #2312 `ChunkMesherGoldenEditModeTests` re-pinned (2026-10-05):** red on main for weeks — the synthetic world is
+  built from block ids, which follow the sorted block keys, so every block added since September shifted them and the
+  same scene meshed different blocks; vertex and triangle counts were unchanged, so nothing in the mesher moved. New pins
+  from two identical EditMode runs (10-04 and 10-05) plus a comment that names the cause for the next time. Follow-up
+  idea (not done): hash the synthetic world by block keys like the worldgen goldens, so a new block no longer breaks it.
+- **✅ Texts** in all 14 languages (the 11 new `ui.pause.return_ship*` / `ui.worldopt.return_ship` / `srv.return_ship.*`
+  keys machine-translated + hand QA).
 - ⚠ **Playtest:** drill / scanner punch in hand (5 damage, 1.2 s, swing gated on the client too); space: shot at from
   ~70, the laser hits at 60; pause menu on foot shows "Back to my ship" with the countdown and is hidden aboard / in
   flight / in a speeder; the refusals read right in DE/EN; the world-options row toggles live; a bandit walks over the
-  seam. The 12 community locales still need the 11 new keys (`ui.pause.return_ship*`, `ui.worldopt.return_ship`,
-  `srv.return_ship.*`).
+  seam.
 
 ### 🧑‍🚀 The suit — paper doll, slot picker, gear strip, stealth on B, radar contacts, four modules, new gear (#2298: #2288–#2297, 2026-10-04, branch feat/suit-paper-doll-gear) — ✅ done (released in v2026.10.6: protocol v11; ⚠ playtest open)
 
