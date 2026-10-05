@@ -1046,7 +1046,7 @@
   "ui.map.fly_to_unlock": "미방문",
   "ui.map.pick_destination": "왼쪽에서 목적지를 선택하세요.",
   "ui.map.locked_hint": "여기에 착륙한 적이 없습니다 — 먼저 직접 비행해 착륙하세요(또는 즉시 이동 사용).",
-  "ui.map.locked_cross_hint": "여기에는 착륙한 적이 없어요 — 먼저 해당 행성계로 하이퍼점프한 다음 비행해서 직접 착륙하세요(또는 즉시 이동을 활성화하세요).",
+  "ui.map.locked_cross_hint": "여기에는 착륙한 적이 없어요 — 먼저 해당 행성계로 하이퍼점프한 다음 비행해서 직접 착륙하세요.",
   "ui.map.kind_station": "우주 정거장",
   "ui.map.kind_planet": "행성",
   "ui.map.kind_moon": "위성",

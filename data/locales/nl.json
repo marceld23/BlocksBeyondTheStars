@@ -1046,7 +1046,7 @@
   "ui.map.fly_to_unlock": "nog niet bezocht",
   "ui.map.pick_destination": "Kies een bestemming links.",
   "ui.map.locked_hint": "Je bent hier nog nooit geland — vlieg ernaartoe en land eerst handmatig (of schakel Direct Reizen in).",
-  "ui.map.locked_cross_hint": "Nooit hier geland — hyperjump eerst naar het stelsel, vlieg er daarna naartoe en land handmatig (of zet Instant Travel aan).",
+  "ui.map.locked_cross_hint": "Nooit hier geland — hyperjump eerst naar het stelsel, vlieg er daarna naartoe en land handmatig.",
   "ui.map.kind_station": "Ruimtestation",
   "ui.map.kind_planet": "Planeet",
   "ui.map.kind_moon": "Maan",

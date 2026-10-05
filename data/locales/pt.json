@@ -1046,7 +1046,7 @@
   "ui.map.fly_to_unlock": "não visitado",
   "ui.map.pick_destination": "Escolha um destino à esquerda.",
   "ui.map.locked_hint": "Nunca pousou aqui — voe até lá e pouse manualmente primeiro (ou ative Viagem Instantânea).",
-  "ui.map.locked_cross_hint": "Nunca pousou aqui — faça um hiper-salto para o sistema primeiro, depois voe até lá e pouse manualmente (ou ative Viagem Instantânea).",
+  "ui.map.locked_cross_hint": "Nunca pousou aqui — faça um hiper-salto para o sistema primeiro, depois voe até lá e pouse manualmente.",
   "ui.map.kind_station": "Estação Espacial",
   "ui.map.kind_planet": "Planeta",
   "ui.map.kind_moon": "Lua",

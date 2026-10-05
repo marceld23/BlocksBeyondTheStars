@@ -1046,7 +1046,7 @@
   "ui.map.fly_to_unlock": "ziyaret edilmedi",
   "ui.map.pick_destination": "Soldan bir hedef seç.",
   "ui.map.locked_hint": "Buraya hiç inmedin — önce oraya uçup manuel iniş yap (ya da Anında Seyahati aç).",
-  "ui.map.locked_cross_hint": "Buraya hiç inmedin — önce sisteme hiper atla, sonra oraya uçup manuel olarak in (veya Anında Seyahat'i etkinleştir).",
+  "ui.map.locked_cross_hint": "Buraya hiç inmedin — önce sisteme hiper atla, sonra oraya uçup manuel olarak in.",
   "ui.map.kind_station": "Uzay İstasyonu",
   "ui.map.kind_planet": "Gezegen",
   "ui.map.kind_moon": "Uydu",
