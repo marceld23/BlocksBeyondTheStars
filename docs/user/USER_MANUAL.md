@@ -1551,6 +1551,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - Monuments are **freely mineable** like ruins (the masonry, `Ancient Brick` and `Rune Stone`, is
   yours to build with), and what you clear stays cleared. Roughly one in three hides a small
   **relic cache** nearby.
+- **Fossils** (worlds created from terrain generation 21 on): some relics are not built but *died* —
+  a **sauropod skeleton** lying on its side, a **giant skull** you can walk into, a **serpent's spine**
+  winding over the ground. They are made of **bone** and carry no runes: **scan the bones where they
+  lie** and the find pays like reading a monument's runes (Codex → Discoveries → Monuments); a bone
+  pile elsewhere is only a material.
 
 ### Mysteries: one-of-a-kind places & space surprises
 - Three places exist **exactly once per galaxy**: the **Singing Shrine** (a ring of rune pillars with
@@ -1988,6 +1993,16 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Worms** (worlds created from terrain generation 18 on): knee- to hip-high **legless slitherers** — a head and a
   long chain of links that runs a wave along the body. On these worlds nothing "slithers" on legs any more; a worm is
   slow, lives in a small group, and can be as peaceful or as bitey as any other rolled animal.
+- **Spectacle terrain** (worlds created from terrain generation 21 on): the dry rock worlds grow **fields of crossing
+  arches** (some fallen, their rubble between the pillars), **table mountains joined by rock bridges** and tables with
+  **roofs that reach past their walls**, a second table on top, a tilt or several gates, and **wave rocks** that curl
+  over the ground; karst and butte worlds grow **pillar islands** — thin stone towers, alone or in pairs, with
+  **balconies** on the way up and a **meadow with a pond and an endless waterfall** on top (climb them with the gloves
+  and the rope gun — the data caches lie on the balconies and crowns); karst mountains open in **portals** you can fly
+  into and hide **daylight halls** — forests and lakes under a hole in the ground; dry worlds show **bone layers** in
+  their cliffs and **skeletons** surfacing from the sand, now and then one with ribs forty blocks tall. Four new
+  planet types carry one of these as their whole landscape — **Arch Lands**, **Pillar World**, **Hollow World** and the
+  **Ossuary World** — and every galaxy created from now on has each of them at least once, outside the start system.
 - **Mini-Michi-Paul** — invented by **Paul and Ben** of the school club: a **knee-high, yellow biped** with a big head
   and two big eyes that lives in herds of ten on the **tropical worlds** (jungle, karst, archipelago, coral sea,
   rainbow sea — worlds created from terrain generation 16 on). It begs for food and **loves bananas**: **two bananas

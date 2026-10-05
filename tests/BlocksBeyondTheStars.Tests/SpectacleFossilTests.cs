@@ -78,9 +78,19 @@ public sealed class SpectacleFossilTests : IDisposable
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "fossilscan"));
         var config = new ServerConfig
         {
-            WorldName = "fossilscan", Seed = 4242, StartPlanet = "rocky", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-            PlaceSettlements = false, PlaceRuins = false, PlaceRailRuins = false, PlaceChests = false, PlaceWrecks = false,
-            PlaceVaults = false, PlaceDataCubes = false, PlaceBanditCamps = false,
+            WorldName = "fossilscan",
+            Seed = 4242,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+            PlaceRuins = false,
+            PlaceRailRuins = false,
+            PlaceChests = false,
+            PlaceWrecks = false,
+            PlaceVaults = false,
+            PlaceDataCubes = false,
+            PlaceBanditCamps = false,
         };
         var server = new SvGameServer(config, Content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();

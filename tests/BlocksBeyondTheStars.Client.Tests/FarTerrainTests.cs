@@ -189,7 +189,10 @@ public sealed class FarTerrainTests
         var content = LoadContent();
         var info = new FarTerrainWorldInfo
         {
-            WorldId = 1, LocationId = "sys0-p1", PlanetType = "skylands", Circumference = 6000,
+            WorldId = 1,
+            LocationId = "sys0-p1",
+            PlanetType = "skylands",
+            Circumference = 6000,
             TerrainGeneration = WorldDescription.CurrentTerrainGeneration,
         };
         var source = FarTerrainSource.Create(content, 424242, info)!;

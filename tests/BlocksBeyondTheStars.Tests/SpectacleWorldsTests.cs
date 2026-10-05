@@ -132,9 +132,19 @@ public sealed class SpectacleWorldsTests : IDisposable
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "pads_" + type));
         var config = new ServerConfig
         {
-            WorldName = "pads_" + type, Seed = 20261005, StartPlanet = type, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-            PlaceSettlements = false, PlaceRuins = false, PlaceRailRuins = false, PlaceChests = false, PlaceWrecks = false,
-            PlaceVaults = false, PlaceDataCubes = false, PlaceBanditCamps = false,
+            WorldName = "pads_" + type,
+            Seed = 20261005,
+            StartPlanet = type,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+            PlaceRuins = false,
+            PlaceRailRuins = false,
+            PlaceChests = false,
+            PlaceWrecks = false,
+            PlaceVaults = false,
+            PlaceDataCubes = false,
+            PlaceBanditCamps = false,
         };
         var server = new SvGameServer(config, Content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();

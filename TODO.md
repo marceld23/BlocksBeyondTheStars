@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏔️ Spectacle terrain — arch lands, pillar islands, cave portals, overhangs, fossils, four new planet types (#2331: #2332–#2343, 2026-10-05, branch feat/spectacle-gen21, terrain generation 21) — ⏳ in progress
+### 🏔️ Spectacle terrain — arch lands, pillar islands, cave portals, overhangs, fossils, four new planet types (#2331: #2332–#2343, 2026-10-05, branch feat/spectacle-gen21, terrain generation 21) — ✅ done (unreleased; ⚠ playtest open)
 
 Marcel's ask (2026-10-05): really far-out, spectacular terrain kinds on top of the existing landform families —
 crossing rock arches and arches running under each other, stone bridges, fossils surfacing from the ground, giant
@@ -42,34 +42,53 @@ blocks. Three infrastructure gaps underlie every wish: bands have no material or
 the structure placer are blind to bands and caverns (sky islands already pop in at the near ring, silently). Findability
 of gated types: ~23 of them share the 18 % retype pool, so a weight-5 type shows in about every second galaxy.
 
-**The plan — one branch, PRs in dependency order, released as one package:**
+**Built — one branch, one PR, released as one package (the details are WORLD_GENERATION.md §38):**
 
-1. ⏳ **#2332 band infrastructure** — `ColumnBand.Material`, `BandKind.Rock` / `Crown` (classic kinds unchanged),
+1. ✅ **#2332 band infrastructure** — `ColumnBand.Material`, `BandKind.Rock` / `Crown` (classic kinds unchanged),
    `MaxColumnBands` 10 → 16, `AppendGen21Bands` (`NoInlining`, the #1740 rule), flora on every island/crown band from
-   generation 21, `CellCache<T>` for per-cell rolls, `CurrentTerrainGeneration` 20 → 21 (`SpectacleGeneration`).
-2. ⏳ **#2333 far view + far-column streaming see bands** (Client.Core `FarTerrainSource`, server `FarColumnBand`).
-3. ⏳ **#2334 pads and structures avoid bands above / caverns and tunnels below** (closes the 09-09 audit gap).
-4. ⏳ **#2335 stamps on band tops** — trees, props, outcrops, data caches on crowns.
-5. ⏳ **#2336 pillar islands** — 1 stem (60 %) or 2 (40 %), r 4–10, 40–90 tall; 0–3 balconies per stem (half-disc
-   `Crown` bands on rolled bearings); crown r 8–24 (oval over two stems), 6–14 thick, meadow pond + endless waterfall on
-   wet worlds, ice pond on cold ones, bare rock + outcrop on dry ones; 15 % two-storey. A find on karst / jungle /
-   tablelands / rocky / savanna / varied, dense on `pillar_world`.
-6. ⏳ **#2337 arch lands** — clusters of 3–7 parabola-tube arcs (one `Rock` band per arc, real intrados), crossing
-   in plan at different heights, arch rows with shared abutments, double-deckers, collapsed arches over scree.
-7. ⏳ **#2338 bridge mesas + table variants** — mesa clusters joined by decks (one in three broken), visor, two-storey,
-   holed, tilted and ring tables on the classic table's own cell.
-8. ⏳ **#2339 overhangs** — wave rock (oriented row + one-sided curl band), abri (tunnel family along a wall foot).
-9. ⏳ **#2340 cave portals + daylight halls** — portal worms r 6–9 with a flared mouth into the mountain hall; a
-   surface-near cavern whose roof opens in a 20–50-wide skylight, flora on the floor, a pool.
-10. ⏳ **#2341 fossils** — monument archetypes (sauropod, skull, serpent, leviathan on beaches) with scan knowledge;
-    a bone stratum; fossil ridges (mound + bone paint + rib bands); giant skeleton landmarks; `bone_meal` recipe.
-11. ⏳ **#2342 planet types** — `arch_lands`, `pillar_world`, `hollow_world`, `bone_desert` (names + descriptions in
-    all 14 locales, name flavours, tests, goldens); ice arches / pillars on glacial worlds as a tag bonus.
-12. ⏳ **#2343 retype share** — 25 % for generation-21 galaxies + a guaranteed-once rule for the four types.
-13. ⏳ docs (`WORLD_GENERATION.md` §38), goldens for the new groups only, this entry.
+   generation 21, a crown wears the biome of its own height (`ColumnProfile.CrownSurface/CrownSub`, frozen pond above
+   the ice line), `CellCache<T>` for per-cell rolls, `CurrentTerrainGeneration` 20 → 21 (`SpectacleGeneration`).
+2. ✅ **#2333 far view + far-column streaming see bands** (`TryGetHighestBand`, `FarTerrainSource.Sample`,
+   `FarColumnBand(surfaceY, seaLevel, bandTopY)`) — sky islands are seen from afar now too; the minimap stays height-only.
+3. ✅ **#2334 pads and structures avoid bands above / caverns, tunnels and halls below** (`WorldGenerator.Placement.cs`,
+   `PadFootprintCovered`, `FootprintClear` in every placement ring; nothing moves below generation 21) — closes the
+   09-09 audit gap for the new worlds.
+4. ✅ **#2335 stamps on band tops** — trees (the shared `BuildTreeOfKind`, rim rule), boulders, rare-ore clumps, data
+   caches on crowns and (from generation 21) sky islands.
+5. ✅ **#2336 pillar islands** — 1 stem (60 %) or 2 (40 %), r 4–10, 40–90 tall, level tops; 0–3 balconies per stem with
+   seeps; crown r 8–24 (oval over two stems), 6–14 thick, lens + stalactites, pond + endless waterfall on wet worlds, ice
+   pond when cold, outcrop on dry; 15 % two-storey. Tag `pillars`: karst, jungle, tablelands, rocky, savanna, varied.
+6. ✅ **#2337 arch lands** — clusters of 3–7 parabola-tube arcs (one `Rock` band per arc, real intrados), crossing in
+   plan, arch rows with shared abutments (25 %), double-deckers (20 %), collapsed arches over scree + the `arch-rubble`
+   prop row. Tag `arches`: desert, red_desert, badlands, tablelands, rocky, corrupted, dust_bowl, sand_sea, toxic_world.
+7. ✅ **#2338 bridge mesas + table variants** — mesa clusters of one stratum joined by decks (one in three broken);
+   visor, ring, two-storey, tilted and holed tables from a re-hash of the classic table's cell.
+8. ✅ **#2339 overhangs** — wave rock (oriented row, one-sided curl band), abri (worm family along a table's wall foot).
+9. ✅ **#2340 cave portals + daylight halls** — portal worms (r 7–9) into the mountain halls; daylight halls (floor
+   40–90 under the ground, top 6–12 over it: a skylight, the column phase moves the surface to the hall floor, flora
+   and trees on it, a lake, a walk-in worm, never flooded by the sea line). Tag `portals` (or `karst`).
+10. ✅ **#2341 fossils** — `MonumentGenerator.ArchetypesGen21` (sauropod, skull, serpent; bone, no runes; scanning
+    `bone` AT a fossil pays like runes, `ui.scan.monument.fossil_*`); the bone stratum; fossil ridges (mound + bone
+    paint + rib bands as a vault), giants (skull r 15–25, ribs 20–40). Tag `fossil`: desert, badlands, dust_bowl,
+    red_desert, sand_sea. Not built: the leviathan-on-beaches archetype and the `bone_meal` recipe — bone has no
+    fertiliser mechanic to feed yet (open below).
+11. ✅ **#2342 planet types** — `arch_lands`, `pillar_world`, `hollow_world`, `bone_desert` (`spectacleDensity` 4,
+    `guaranteedOnce`, names + descriptions in all 14 locales, name flavours, `SpectacleWorldsTests`, goldens). Ice
+    arches / pillars on glacial worlds come free from `BandMaterial` wherever the tags meet a cold world.
+12. ✅ **#2343 retype share** — 25 % for generation-21 descriptions (`Gen21RetypeChance`) + `ApplyGuaranteedTypes`
+    (every `GuaranteedOnce` type at least once per galaxy, after the gas giants, never the start system).
+13. ✅ docs (`WORLD_GENERATION.md` §38, `USER_MANUAL.md` fossils + spectacle terrain), goldens `*-gen21` (six groups,
+    the classic ones unchanged), `SpectacleCostGuardTests` (Slow: a generation-21 karst chunk ≤ 1.3× generation 3).
 
-Rules: new worlds only (every family gates on `Generation >= 21`; classic / gen-1 / gen-3 goldens byte-identical),
-hotspot cells with seam-safe margins, trig-free geometry, per-cell memos, new code in its own partial file + test class.
+Rules kept: new worlds only (every family gates on `Generation >= 21`; classic / gen-1 / gen-3 goldens byte-identical),
+hotspot cells with seam-safe margins, trig-free geometry (the abri and the holed table's gates share the rock-gate
+family's libm angle), per-cell memos, new code in its own partial file + test class.
+
+**Open after the merge:** ⚠ playtest (arch lands / pillar world / hollow world / bone desert via `--terrain-generation`
+default; the pillar climb with gloves + rope gun; a daylight hall from the ship; a fossil scan); bone meal needs a
+fertiliser mechanic (crops) before a recipe makes sense; a tree under a crown can run its trunk into a crown hanging
+within 18 of the ground (rare, cosmetic); the daylight hall's skylight follows the cell centre's ground (under a hill it
+is mostly a sinkhole with overhanging rims — looks right, but is not the "20–50-wide round hole" of the issue text).
 
 ### 🪨 Asteroids as lock targets — "Target ahead" on pad/touch, the mining lock, rocks in the cycle (#2326 #2327 #2328, 2026-10-05, branch feat/asteroid-target-lock) — ✅ done (unreleased; ⚠ playtest open)
 
