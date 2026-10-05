@@ -2466,6 +2466,7 @@ namespace BlocksBeyondTheStars.Client
                 new BlocksBeyondTheStars.Shared.Geometry.Vector3f(fwd.x, fwd.y, fwd.z));
             Game.LastShotTargetId = target.Id;
             Game.LastShotTime = Time.time;
+            OnShotFired(target); // #2327: a shot at a rock with nothing locked locks it
             bool mining = target.Kind == "Asteroid" || target.Kind == "Wreck"; // salvaging a derelict is mining (#1664)
             Color col = mining ? new Color(1f, 0.7f, 0.25f) : new Color(0.45f, 1f, 1f);
 

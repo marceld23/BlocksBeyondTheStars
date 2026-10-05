@@ -24,6 +24,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🪨 Asteroids as lock targets — "Target ahead" on pad/touch, the mining lock, rocks in the cycle (#2326 #2327 #2328, 2026-10-05, branch feat/asteroid-target-lock) — ✅ done (unreleased; ⚠ playtest open)
+
+Marcel's question (2026-10-05): how does the flight target lock work, and how could mineable (destructible) asteroids
+become targets? Finding: a rock was already lockable — but only through "Target ahead" (right mouse button), which had
+no pad button and no touch entry, so pad and tablet pilots could not lock a rock at all; the cycle skipped asteroids on
+purpose ("a belt would bury the enemies under twenty rocks"). Three client-only changes — no protocol, no server change:
+
+- **✅ #2326 "Target ahead" on pad and touch:** `FlightTargetAhead` joined the context-actions list (`ContextActionsUi`,
+  the Piloting group) — pad **L3 → Target ahead**, touch **⋯ → Target ahead**. No stock pad button (RB fires; nothing at
+  the helm is free).
+- **✅ #2327 mining lock:** a shot at an asteroid or the wreck with nothing locked locks it (`SpaceView.OnShotFired` from
+  `FireAt`; never swaps a chosen lock). After *Target destroyed* with no attacker left, the lock moves to the nearest rock
+  within the selected mining laser's range (`SpaceTargeting.NearestMineable`; `MiningCycleRange` = the selected laser's
+  range when its `weapon_class` can mine — breaker 40, starter laser 60 — else 0), otherwise lets go as before. The lock
+  label reads *In range* / *Too far — fly closer* for a locked rock in that context.
+- **✅ #2328 rocks in the cycle:** `SpaceTargeting.Order`/`Tier` take a `miningRange`: the three nearest asteroids within
+  it (`MaxRocksInCycle`) join as their own tier after the hostiles and before the navigation points — none while a
+  hostile is attacking, none with the tractor, the scanner or a pure combat cannon selected. `IsCycleKind` still excludes
+  asteroids. Tests: +4 in `SpaceTargetingTests` (50 cases). Docs: USER_MANUAL §3 (keys, pad, touch, *Target lock*),
+  INPUT_AND_CONTROLLER (#2277 paragraph), SPACE_COMBAT_CONCEPT ("Mining").
+- **Open:** playtest — pad L3 list with the nose on a rock; breaker: lock on the first shot, the hop to the next rock
+  after the break, *In range* at 40; T with the starter laser at the launch field (rock, rock, rock, station), a drone
+  attacking takes them out again; the tractor or the scanner selected leaves the cycle as before.
+
 ### 🪢 Energy rope gun + the sample filter chips (#2317–#2324, 2026-10-05, branch feat/energy-rope-gun) — ✅ done (unreleased; ⚠ playtest open)
 
 Marcel's "Energieseilpistole": a pistol that shoots a glowing energy rope at a block face and reels the player in — up

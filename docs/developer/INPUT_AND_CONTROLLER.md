@@ -84,8 +84,10 @@ cluster.
   (nearest enemy, again = the next nearest). Both buttons are shared on purpose, like `FlightEnterInterior`'s
   rule above in reverse: LB is *place* on foot and in an EVA, where the lock is not read; RS is `HotbarAction`,
   whose pie never opens at the helm (`HotbarActionUi.CanOpen`). Holding LB also slows the pad look
-  (precision) — harmless for a tap. `FlightTargetAhead` (keyboard: right mouse button) has no pad button;
-  LB nearly always does the job. Keyboard T / R are on-foot verbs too (trade, repair/rotate) — `PlayerController`
+  (precision) — harmless for a tap. `FlightTargetAhead` (keyboard: right mouse button) has no stock pad button —
+  RB fires and nothing else at the helm is free — so it sits in the context-actions list (pad L3, touch ⋯) like
+  `FlightTargetHostile` (#2326): the only route to a rock without a mouse, since the cycle skips asteroids outside
+  a mining context (#2328). Keyboard T / R are on-foot verbs too (trade, repair/rotate) — `PlayerController`
   is frozen while the flight view is up, so they never fire together. All three sit in `FlightRemappable`.
 - **The two d-pad verbs are fixed (#1220).** An axis cannot be written as a `KeyCode`, so `OpenChat` and
   `RotateShape` fire from inside `GamepadInputSource.DpadActionDown` rather than through the binding table —

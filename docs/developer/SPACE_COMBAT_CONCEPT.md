@@ -94,7 +94,8 @@ Everything below the line "Deferred" is intentionally **not** in the MVP.
 ## Target lock is client presentation (#2277, #2283)
 
 The flight target lock (cycle with T / pad LB / touch TARGET, nearest enemy with R / R3, "target ahead" with the
-right mouse button; frame, edge arrow, threat ticks, waypoint arrow) is **pure client state** — no intent, no
+right mouse button or from the context-actions list — pad L3 / touch ⋯, #2326; frame, edge arrow, threat ticks,
+waypoint arrow) is **pure client state** — no intent, no
 snapshot field, no protocol version. The server never learns what a player has locked. The lock only chooses which
 target id the client writes into the intents it already sends:
 
@@ -107,6 +108,17 @@ target id the client writes into the intents it already sends:
 - **`ScanEntityIntent.EntityId` / `PlanetScanIntent`** — the scanner reads a locked object in its range (the server
   checks only the range there anyway), but only with nothing on the nose: a nose-aligned target always wins, so an
   auto-lock on an attacker never steals the scan.
+
+**Mining (#2327, #2328).** The lock serves the miner through the same client-only rules. With nothing locked, a shot
+at an asteroid or the wreck locks it (`SpaceView.OnShotFired`, from `FireAt`). When the locked rock breaks and no
+hostile is attacking, the lock moves to the nearest asteroid/wreck within the selected laser's range
+(`SpaceTargeting.NearestMineable`), provided that laser can mine (`weapon_class` 0 or 2 — `SpaceTargeting.CanMine`;
+`SpaceView.MiningCycleRange` is that range, 0 with the tractor, the scanner or a pure combat cannon selected). In the
+same context the cycle key lets the three nearest asteroids within that range in (`SpaceTargeting.Order` with a
+`miningRange`, capped by `MaxRocksInCycle`), after the hostiles and before the navigation points — never while a
+hostile is attacking (`Order` drops them again). `IsCycleKind` still excludes asteroids. The server's
+`AsteroidDestruction` rule still decides whether a shot breaks the rock; the client never reads it and only learns a
+refusal from the reply, exactly as before.
 
 A tampered client could always send any id; the server validates range, arc, rules, energy and cooldown exactly as
 before, so the lock adds no attack surface. The pure rules (disposition, cycle order, lock range with 10 %
