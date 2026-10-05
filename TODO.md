@@ -24,6 +24,41 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🪢 Energy rope gun + the sample filter chips (#2317–#2324, 2026-10-05, branch feat/energy-rope-gun) — ✅ done (unreleased; ⚠ playtest open)
+
+Marcel's "Energieseilpistole": a pistol that shoots a glowing energy rope at a block face and reels the player in — up
+a cliff, across a gap, out of a hole — with no damage (epic #2317). Plus the Samples filter chips that broke
+"Lagerstätten 12" in the middle of the word (#2324).
+
+- **✅ Data (#2318):** `energy_rope_gun` is a **gadget** (a weapon with damage 0 still hits 20 + tier·15), range 24, 3 suit
+  energy, fx style `rope`, an 8-cube held model (spool, orange grip, glowing tip); workshop recipe (iron plate ×3, cable ×4,
+  polymer ×3, energy cell); Suit research after the climbing gloves (knowledge 45) with an "Unlocks" line. No save or
+  protocol bump.
+- **✅ Server (#2319):** `UseRopeGun` accepts the shot only within the tool's range of the eyes (+ move-stream slack), on a
+  solid block just behind the hit face and in line of sight — gadgets checked neither before; `PlayerState.RopeAnchor`
+  (runtime) rides the presence as `Roped`/`RopeX..Z` (hash-mixed, so a release is a beat); `ReleaseRopeIntent` (tag 291);
+  the anchor is cleared on a hotbar change, on every move that finds the gun put away or the player aboard / seated /
+  riding / above the air, and on respawn. One-time VEGA hint on the first rope that holds.
+- **✅ Client.Core (#2320):** `RopeRig` (Attached → Pulling → Hanging; arrival by face: land / pull-up over a free ledge /
+  hang; snap on distance, lost sight or no progress; a slack rope catches a 1.5 m fall but not a jump; `CappedFall`) and
+  `RopeLine` (7 points, droop only when slack) — `RopeRigTests`. `ChipRowLayout` for #2324 — `ChipRowLayoutTests`.
+- **✅ Client (#2321/#2322):** `InputMap.SecondaryHeld` (mouse, pad LB / place trigger, touch PLACE held); left-click
+  shoots (`FireRope` → `UseGadgetIntent` with the hit point), the pull starts on the server's outcome (`OnRopeConfirmed`);
+  the `Move()` rope branch right before the wall climb, the climb's `StartPullUp` for a ledge, crouch drops, Jump hops,
+  the winch holds behind a menu; `RopeFx` (the FxBeam line anchor → hand with travelling pulses, the shot's head, the
+  hook bite, a knot glow, the fizzle); the viewmodel turns toward the anchor, the avatar's arm points at it, other
+  players' ropes from the presence; four ElevenLabs cues + the `rope_reel` loop; the crosshair turns mint over a block
+  the rope can hold; icon `item_energy_rope_gun`.
+- **✅ Chips (#2324):** `UiKit.AddChipRow` + `FitLabelSingleLine` measure the labels (`TextGenerator`, scaleFactor 1) and
+  size the chips, the effect button takes the rest of the row — shared by the inventory and the bio lab, so
+  "Lagerstätten 12" and "Месторождения 12" stay on one line. `SampleFilterChipsEditModeTests` pins eight languages' worst rows.
+- **✅ Texts + docs:** 8 keys in all 14 languages (hand QA: ru/uk "тросомёт", pl "wyrzutnia liny", the touch labels per
+  locale); USER_MANUAL § Energy rope gun + the controls tables; CLIMBING.md § The energy rope; VFX.md; SOUND_DESIGN §18;
+  NOTICES.
+- **⚠ Playtest:** cliff top → land; cliff face → wound up and over the edge; mid-wall → hang, crouch drops, Jump hops;
+  across a canyon with a little steering; walking out of reach snaps; no fall damage from any pull; a menu while
+  hanging; a second player's rope and arm; pad and touch holds; the chips in de / ru / uk / es / nl in both screens.
+
 ### 🗺️ Map tab: a never-landed world in another system stays locked even with Instant Travel on (#1614 client slice 1, 2026-10-05, PR #2314 by ahmdkaml → e7011bc9, locales + status in the follow-up PR) — ✅ done (unreleased; ⚠ playtest open)
 
 The first client slice of #1614 (landed-ship transit). Since the server half (#1676, 2026-09-11) a cross-system travel

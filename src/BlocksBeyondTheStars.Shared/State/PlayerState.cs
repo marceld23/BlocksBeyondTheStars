@@ -202,6 +202,12 @@ public sealed class PlayerState
     /// broadcast so other players see a climbing avatar. Not persisted.</summary>
     public bool Climbing { get; set; }
 
+    /// <summary>Where the energy rope gun's rope is stuck right now (#2319), or null — set by an accepted shot, cleared by
+    /// the release intent, a hotbar change, a respawn, or any state the rope cannot hold in (aboard, seated, a train,
+    /// space). Mirrored into the presence so other players see the rope; the pull itself is the client's movement.
+    /// Not persisted.</summary>
+    public Vector3f? RopeAnchor { get; set; }
+
     /// <summary>The seat cell (canonical) this player sits on (#2122), so no NPC and no second player sits down into
     /// them. Null while standing, on a train seat, and for a seated older client that sent no cell. Not persisted.</summary>
     public Vector3i? SeatCell { get; set; }

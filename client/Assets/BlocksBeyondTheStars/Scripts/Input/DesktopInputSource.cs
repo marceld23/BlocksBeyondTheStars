@@ -31,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
         public bool PrimaryDown() => Input.GetMouseButtonDown(0);
         public bool PrimaryHeld() => Input.GetMouseButton(0);
         public bool SecondaryDown() => Input.GetMouseButtonDown(1);
+        public bool SecondaryHeld() => Input.GetMouseButton(1);
 
         public int HotbarSlotDown()
         {

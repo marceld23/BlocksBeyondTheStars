@@ -76,6 +76,10 @@ namespace BlocksBeyondTheStars.Client
         private bool _climbHandsDirty = true;
         private GameObject _climbR, _climbL;
 
+        // #2322 the energy rope: the gun turns toward the anchor, trembles while the winch runs, breathes while hanging.
+        private bool _roped, _ropePulling;
+        private Vector3 _ropeAnchor;
+
         private void EnsureHolder()
         {
             if (_holder != null)
@@ -225,6 +229,15 @@ namespace BlocksBeyondTheStars.Client
             _climbStrain = climbing ? Mathf.Clamp01(strain) : 0f;
             _climbSliding = climbing && sliding;
             _climbPullUp = climbing && pullUp;
+        }
+
+        /// <summary>#2322: the energy rope is out — the held gun turns toward <paramref name="anchorWorld"/> (clamped), trembles
+        /// while <paramref name="pulling"/>, and breathes while hanging. Off again when the rope is let go.</summary>
+        public void SetRoped(bool roped, bool pulling, Vector3 anchorWorld)
+        {
+            _roped = roped;
+            _ropePulling = roped && pulling;
+            _ropeAnchor = anchorWorld;
         }
 
         /// <summary>#2287: the worn climbing gear — its orange pads (and the claws) show on both climbing hands.</summary>
@@ -473,6 +486,26 @@ namespace BlocksBeyondTheStars.Client
                     // Tools / drill / block: a forward-down jab.
                     posOff += new Vector3(-0.05f, -0.06f, 0.12f) * jab;
                     rot += new Vector3(55f * jab, -8f * jab, 0f);
+                }
+            }
+
+            if (_roped && _kind == HeldItem.Kind.Gun)
+            {
+                // #2322: the gun follows the rope to its anchor (a clamped turn, never off screen); the winch's hum shakes it a
+                // little while reeling, and it breathes slowly while the body hangs.
+                var local = transform.InverseTransformPoint(_ropeAnchor);
+                float depth = Mathf.Max(0.1f, local.z);
+                float yaw = Mathf.Clamp(Mathf.Atan2(local.x, depth) * Mathf.Rad2Deg, -35f, 35f);
+                float pitch = Mathf.Clamp(-Mathf.Atan2(local.y, depth) * Mathf.Rad2Deg, -35f, 35f);
+                rot += new Vector3(pitch * 0.6f, yaw * 0.6f, 0f);
+                if (_ropePulling)
+                {
+                    float tt = Time.time;
+                    posOff += new Vector3(Mathf.Sin(tt * 113f) * 0.003f, Mathf.Sin(tt * 97f) * 0.003f, -0.02f);
+                }
+                else
+                {
+                    posOff.y += Mathf.Sin(Time.time * 1.6f) * 0.006f;
                 }
             }
 

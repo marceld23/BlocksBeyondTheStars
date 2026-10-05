@@ -107,6 +107,15 @@ def build_catalogue() -> list[tuple[str, str, float, bool]]:
         ("glove_stagger",     "short cartoonish dizzy wobble sound, a soft springy boing with little twinkling chimes, playful", 0.8, False),
     ]
 
+    # --- Energy rope gun (#2317): the shot, the hook biting, the winch loop, the rope fizzling free. Generated one by
+    # one with gen_sound.py --influence 0.5 on 2026-10-05; friendly and springy, never a weapon. ---
+    s += [
+        ("rope_fire",    "short sci-fi energy launcher shot, a quick bright zip-whoosh of a glowing rope shooting out, light and springy, no explosion", 0.6, False),
+        ("rope_anchor",  "short sci-fi energy hook latching onto rock, a soft thunk with a crisp electric click and a tiny shimmering chime, friendly", 0.5, False),
+        ("rope_reel",    "seamless loop of a soft sci-fi winch reeling in a humming energy rope, gentle whirring motor with a light electric hum, steady, not harsh", 3.0, True),
+        ("rope_release", "very short sci-fi energy rope snapping free and fizzling out, a soft twang and a quick fading electric sparkle", 0.5, False),
+    ]
+
     # --- Creatures: 6 voice banks (size x disposition) x 5 states; pitch-shifted per creature in game ---
     sizes = [("small", "small"), ("medium", "medium-sized"), ("large", "huge hulking")]
     disps = [("calm", "docile gentle"), ("hostile", "vicious aggressive")]

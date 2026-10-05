@@ -285,6 +285,12 @@
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 3 } ]
   },
   {
+    "key": "energy_rope_gun", "nameKey": "blueprint.energy_rope_gun.name", "descriptionKey": "blueprint.energy_rope_gun.desc",
+    "category": "Suit", "prerequisites": [ "climbing_gloves" ], "knowledgeCost": 45,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 4 } ],
+    "features": [ "blueprint.feature.energy_rope_gun" ]
+  },
+  {
     "key": "titan_helmet", "nameKey": "blueprint.titan_helmet.name", "descriptionKey": "blueprint.titan_helmet.desc",
     "category": "Suit", "prerequisites": [ "helmet" ], "knowledgeCost": 45,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 6 }, { "item": "glass", "count": 3 } ]

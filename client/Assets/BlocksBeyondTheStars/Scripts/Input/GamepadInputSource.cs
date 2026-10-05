@@ -277,6 +277,7 @@ namespace BlocksBeyondTheStars.Client
         public bool PrimaryDown() => (Connected() && Input.GetKeyDown(BtnRb)) || TriggerDown(TriggerMine);
         public bool PrimaryHeld() => (Connected() && Input.GetKey(BtnRb)) || TriggerHeld(TriggerMine);
         public bool SecondaryDown() => (Connected() && Input.GetKeyDown(BtnLb)) || TriggerDown(TriggerPlace);
+        public bool SecondaryHeld() => (Connected() && Input.GetKey(BtnLb)) || TriggerHeld(TriggerPlace);
 
         // No direct 1..9 pick on a pad — the hotbar is cycled via HotbarScroll (d-pad) instead.
         public int HotbarSlotDown() => -1;

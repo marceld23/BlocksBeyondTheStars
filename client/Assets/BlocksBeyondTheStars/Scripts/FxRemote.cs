@@ -62,6 +62,24 @@ namespace BlocksBeyondTheStars.Client
                     feet = user.transform.position;
                 }
 
+                if (look.Is(FxStyles.Rope))
+                {
+                    // #2319: the rope's shot. The shooter's own client starts the pull on this confirmation (and plays the
+                    // hook biting); another player's shot is drawn from their avatar's hand — the presence carries the anchor
+                    // while the rope holds, and RemotePlayers draws the line.
+                    if (self)
+                    {
+                        Player?.OnRopeConfirmed(to);
+                    }
+                    else if (Remotes != null && Remotes.TryGetAvatar(m.PlayerId, out var shooter) && shooter != null && shooter.TryMuzzle(out var shooterHand))
+                    {
+                        RopeFx.Shot(look, shooterHand, to, local: false);
+                        ClientAudio.Instance?.At("rope_fire", shooterHand, 1f, 0.7f);
+                    }
+
+                    return;
+                }
+
                 FxGadgets.Outcome(look, feet, to, self);
                 return;
             }

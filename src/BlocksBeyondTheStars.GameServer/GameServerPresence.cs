@@ -386,7 +386,10 @@ public sealed partial class GameServer
         Mix((uint)p.Arms);
         Mix((uint)p.Legs);
         Mix((p.Stealthed ? 1UL : 0UL) | (p.Jetpacking ? 2UL : 0UL) | (p.Seated ? 4UL : 0UL) | (p.Climbing ? 8UL : 0UL)
-            | (p.Gliding ? 16UL : 0UL));
+            | (p.Gliding ? 16UL : 0UL) | (p.Roped ? 32UL : 0UL));
+        Mix((uint)BitConverter.SingleToInt32Bits(p.RopeX)); // #2319: a new anchor is a change worth a beat
+        Mix((uint)BitConverter.SingleToInt32Bits(p.RopeY));
+        Mix((uint)BitConverter.SingleToInt32Bits(p.RopeZ));
         Mix((uint)p.Gear);
         MixText(p.Held);
         return h;
@@ -412,6 +415,10 @@ public sealed partial class GameServer
             Stealthed = p.Stealthed || InSpace(p.PlayerId),
             Jetpacking = p.Jetpacking,
             Gliding = p.Gliding, // #2296
+            Roped = p.RopeAnchor.HasValue, // #2319: the energy rope other players see
+            RopeX = p.RopeAnchor?.X ?? 0f,
+            RopeY = p.RopeAnchor?.Y ?? 0f,
+            RopeZ = p.RopeAnchor?.Z ?? 0f,
             Seated = p.Seated,
             Climbing = p.Climbing && p.InTrain.Length == 0,
             Gear = GearMask(p),

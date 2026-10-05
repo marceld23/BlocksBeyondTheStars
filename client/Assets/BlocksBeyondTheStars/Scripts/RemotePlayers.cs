@@ -42,6 +42,9 @@ namespace BlocksBeyondTheStars.Client
             public bool Hidden;            // stealth field active, or the player is up in space — no avatar
             public int Gear = -1;          // cached so gear is only rebuilt on change (a GearLook mask)
             public bool Gliding;           // #2296: the glider's wings are open
+            public bool Roped;             // #2319: the energy rope is out
+            public Vector3 RopeAnchor;     // where it holds (scene position)
+            public LineRenderer RopeLine;  // the drawn rope, rented from the FX kit while it is out (#2322)
             public float SpringY;          // #2295: the last drawn height — its change is the vertical speed the coils read
             public bool SpringRising, SpringFalling; // #2295: the stretch / squash already played for this rise / fall
             public int Skin, Torso, Arms, Legs; // #1777: cached colours — re-applied when a presence carries new ones
@@ -59,6 +62,17 @@ namespace BlocksBeyondTheStars.Client
         private const double StaleDestroySeconds = 10.0;
 
         private readonly Dictionary<string, Remote> _remotes = new Dictionary<string, Remote>();
+        private readonly Vector3f[] _ropeScratch = new Vector3f[RopeLine.PointCount]; // #2322
+
+        /// <summary>#2322: gives a remote's rope line back to the kit (the rope let go, the avatar hides or goes away).</summary>
+        private static void DropRope(Remote r)
+        {
+            if (r.RopeLine != null)
+            {
+                RopeFx.Return(r.RopeLine);
+                r.RopeLine = null;
+            }
+        }
 
         /// <summary>The drawn avatar of another player (#2158: their shots and tools start at its hand), if any.</summary>
         public bool TryGetAvatar(string playerId, out PlayerAvatar avatar)
@@ -188,6 +202,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var id in stale)
                 {
+                    DropRope(_remotes[id]);
                     Destroy(_remotes[id].Go);
                     _remotes.Remove(id); // faces/body paints stay cached — they are per-player, not per-world
                 }
@@ -235,6 +250,22 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 WeaponFx.SetThrust(r.Thrust, thrust);
+
+                // #2322: the rope of a roped player — hand to anchor, humming like the player's own.
+                if (r.Roped && !r.Hidden && !r.TimedOut && r.Go != null)
+                {
+                    if (r.RopeLine == null)
+                    {
+                        r.RopeLine = RopeFx.Rent(FxLook.ForItem(Game?.Content, RopeRules.ItemKey));
+                    }
+
+                    var hand = r.Avatar.TryMuzzle(out var tip) ? tip : r.Go.transform.position + Vector3.up * 1.2f;
+                    RopeFx.Draw(r.RopeLine, hand, r.RopeAnchor, slack: false, Time.time, _ropeScratch);
+                }
+                else if (r.RopeLine != null)
+                {
+                    DropRope(r);
+                }
             }
         }
 
@@ -423,6 +454,19 @@ namespace BlocksBeyondTheStars.Client
                 r.Avatar.SetGliding(m.Gliding);
             }
 
+            // #2319/#2322: the energy rope — the anchor rides the presence while it holds; the line is drawn per frame.
+            var ropeAnchor = m.Roped && Game != null ? Game.ScenePos(m.RopeX, m.RopeY, m.RopeZ) : Vector3.zero;
+            if (m.Roped != r.Roped || (m.Roped && (ropeAnchor - r.RopeAnchor).sqrMagnitude > 1e-4f))
+            {
+                r.Roped = m.Roped;
+                r.RopeAnchor = ropeAnchor;
+                r.Avatar.SetRoped(m.Roped, ropeAnchor);
+                if (!m.Roped)
+                {
+                    DropRope(r);
+                }
+            }
+
             // Held tool/weapon/block shown in the remote avatar's hand.
             if (m.Held != r.Held)
             {
@@ -529,6 +573,7 @@ namespace BlocksBeyondTheStars.Client
         {
             foreach (var r in _remotes.Values)
             {
+                DropRope(r);
                 Destroy(r.Go);
             }
 
@@ -539,6 +584,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_remotes.TryGetValue(m.PlayerId, out var r))
             {
+                DropRope(r);
                 Destroy(r.Go);
                 _remotes.Remove(m.PlayerId);
             }

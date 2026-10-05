@@ -336,6 +336,7 @@ public sealed class NetCodecTests
         [288] = typeof(DiscardSampleIntent), // #2301
         [289] = typeof(SetGlidingIntent),    // #2296
         [290] = typeof(ReturnToShipIntent),  // #2286
+        [291] = typeof(ReleaseRopeIntent),   // #2319
 
     };
 

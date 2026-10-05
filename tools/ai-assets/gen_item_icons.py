@@ -242,6 +242,8 @@ ITEMS = [
     ("prep_bar", "a wrapped sci-fi energy bar, half unwrapped from silver foil, pressed green-brown plant bar with seeds"),
     ("prep_capsule", "two glossy medicine capsules, half teal and half white, lying side by side"),
     ("prep_coating", "a small round metal tin, open, filled with shimmering teal-green protective coating paste and a small brush"),
+    # #2317 the energy rope gun (2026-10-05): the grappling pistol, its rope leaving the muzzle.
+    ("energy_rope_gun", "a compact sci-fi grappling pistol with a chunky dark gunmetal body, an orange grip, a round silver rope spool on its side and a short wide barrel from which a short glowing bright cyan energy rope with a small three-pronged hook shoots out, soft cyan glow"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

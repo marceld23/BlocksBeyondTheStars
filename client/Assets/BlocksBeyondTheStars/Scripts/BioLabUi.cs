@@ -637,19 +637,20 @@ namespace BlocksBeyondTheStars.Client
             });
             if (SampleCaseView.Effect != SampleEffectFilter.All) Lit(effect);
 
-            const float gap = 6f;
-            float chipW = (CaseW - 3f * gap) / 4f;
+            // #2324: chips sized by their words (shrunk alike when the column is too narrow), never broken mid-word.
+            var labels = new string[4];
             for (int i = 0; i < 4; i++)
             {
                 var kind = (SampleKindFilter)i;
-                int n = SampleCaseView.Count(all, kind, SampleCaseView.Effect);
-                var chip = UiKit.AddButton(panel, CaseX + i * (chipW + gap), TopY + 36f, chipW, 38f, KindFilterLabel(Game, kind) + " " + n, () =>
-                {
-                    SampleCaseView.Kind = kind;
-                    FilterChanged();
-                });
-                if (SampleCaseView.Kind == kind) Lit(chip);
+                labels[i] = KindFilterLabel(Game, kind) + " " + SampleCaseView.Count(all, kind, SampleCaseView.Effect);
             }
+
+            var chips = UiKit.AddChipRow(panel, CaseX, TopY + 36f, CaseW, 38f, labels, i =>
+            {
+                SampleCaseView.Kind = (SampleKindFilter)i;
+                FilterChanged();
+            }, gap: 6f, tailMin: 0f, tailPreferred: 0f, out _, out _);
+            Lit(chips[(int)SampleCaseView.Kind]);
         }
 
         /// <summary>A new filter shows a new list: it starts at the top. (<see cref="Rebuild"/> keeps the scroll of the

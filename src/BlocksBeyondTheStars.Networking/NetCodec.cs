@@ -587,6 +587,10 @@ public static class NetCodec
         // #2286 "Back to my ship": the pause menu's rescue teleport for a stuck player on foot. No protocol bump — an
         // older server drops the unknown tag (and never sends the rule, so an up-to-date client hides the button).
         Register(290, typeof(ReturnToShipIntent));           // Client -> Server
+
+        // #2319 the energy rope gun: the player let go of the rope. No protocol bump — the anchor rides additive
+        // presence fields, and an older server drops the unknown tag.
+        Register(291, typeof(ReleaseRopeIntent));            // Client -> Server
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -51,6 +52,12 @@ public sealed partial class GameServer
     // --- balance: weather scanner (#900) ---
     private const int WeatherForecastEpisodes = 3;  // how far ahead a reading looks
     private const double WeatherScannerCooldown = 15.0;
+
+    // --- balance: energy rope gun (#2317/#2319) ---
+    internal const string RopeGunItem = "energy_rope_gun";
+    private const double RopeCooldown = 0.6;      // a second shot replaces the first; no spraying
+    private const float RopeRangeSlack = 1f;      // the 10 Hz move stream trails the true position (like WithinReach)
+    private const float RopeDefaultRange = 24f;   // when the item data carries no range
 
     private void HandleUseGadget(PlayerSession session, UseGadgetIntent intent)
     {
@@ -163,6 +170,14 @@ public sealed partial class GameServer
                 }
 
                 cooldown = SpeederDeployCooldown;
+                break;
+            case RopeGunItem: // #2319: the rope sticks where the client says — once the server agrees it can
+                if (!UseRopeGun(session, target))
+                {
+                    return; // too far, nothing to hold, no sight: costs neither energy nor cooldown
+                }
+
+                cooldown = RopeCooldown;
                 break;
             default:
                 Reject(session, "gadget", "@srv.gadget.unknown");
@@ -411,6 +426,106 @@ public sealed partial class GameServer
         if (FindSessionByPlayerId(playerId) is { } s)
         {
             HandleUseGadget(s, new UseGadgetIntent { GadgetKey = gadgetKey, X = target.X, Y = target.Y, Z = target.Z });
+        }
+    }
+
+    // ---------------- The energy rope gun (#2317/#2319) ----------------
+
+    /// <summary>
+    /// The rope's shot: <paramref name="target"/> is the point on a block face the client's aim ray struck. Accepted
+    /// when the player may hold a rope here at all, the point lies within the tool's range (plus the move-stream
+    /// slack) of the eyes, a solid block sits just behind the face, and nothing solid blocks the line of sight from the
+    /// eyes — gadgets used to check neither distance nor sight, the rope does both. The anchor is stored canonical
+    /// (wrapped) and rides the presence to other players; the pull is the shooter's own movement. False refuses with
+    /// a reason and leaves energy and cooldown untouched.
+    /// </summary>
+    private bool UseRopeGun(PlayerSession session, Vector3f target)
+    {
+        var p = session.State;
+        if (!RopeAllowed(p))
+        {
+            Reject(session, "gadget", "@srv.rope.no_hold");
+            return false;
+        }
+
+        if (!float.IsFinite(target.X) || !float.IsFinite(target.Y) || !float.IsFinite(target.Z))
+        {
+            Reject(session, "gadget", "@srv.rope.no_hold");
+            return false;
+        }
+
+        float range = _content.GetItem(RopeGunItem)?.Tool?.Range ?? 0f;
+        if (range <= 0f)
+        {
+            range = RopeDefaultRange;
+        }
+
+        var eye = new Vector3f(p.Position.X, p.Position.Y + SightEyeHeight, p.Position.Z);
+        var near = Unwrapped(eye, target); // the anchor in the eye's frame, the short way round a seam
+        var span = near - eye;
+        float dist = (float)System.Math.Sqrt(span.DistanceSquared(Vector3f.Zero));
+        if (dist > range + RopeRangeSlack || dist < 0.5f)
+        {
+            Reject(session, "gadget", "@srv.rope.too_far");
+            return false;
+        }
+
+        // The cell just behind the struck face: nudge the point a little further along the ray.
+        float nx = span.X / dist, ny = span.Y / dist, nz = span.Z / dist;
+        var cell = new Vector3i(
+            (int)System.Math.Floor(near.X + (nx * 0.05f)),
+            (int)System.Math.Floor(near.Y + (ny * 0.05f)),
+            (int)System.Math.Floor(near.Z + (nz * 0.05f)));
+        if (!IsSolidBlock(_world.GetBlock(cell)))
+        {
+            Reject(session, "gadget", "@srv.rope.no_hold");
+            return false;
+        }
+
+        if (!HasLineOfSight(p.Position, target, SightEyeHeight, 0f, skipToCell: true))
+        {
+            Reject(session, "gadget", "@srv.rope.too_far");
+            return false;
+        }
+
+        bool onSurface = !InStation(p.PlayerId) && !InSpace(p.PlayerId);
+        float ax = onSurface ? (float)WorldConstants.WrapX((double)target.X, _world.Circumference) : target.X;
+        float az = onSurface ? (float)WorldConstants.WrapZ((double)target.Z, _world.Circumference) : target.Z;
+        p.RopeAnchor = new Vector3f(ax, target.Y, az);
+        ShipAiHintOnce(session, "rope_gun"); // the first rope that holds: how to reel in, hang and let go
+        return true;
+    }
+
+    /// <summary>The rope was let go (#2319): forget the anchor the presence shows to others.</summary>
+    private void HandleReleaseRope(PlayerSession session) => session.State.RopeAnchor = null;
+
+    /// <summary>Where a rope can hold at all: on foot on a body — not aboard, on a spacewalk, in the ship's interior,
+    /// seated, on a train, above the atmosphere or in a flight instance.</summary>
+    private bool RopeAllowed(PlayerState p)
+        => !p.AboardShip && !p.InEva && !p.Seated && p.InTrain.Length == 0 && !p.AboveAtmosphere
+           && !InSpace(p.PlayerId) && !InShipInterior(p.PlayerId);
+
+    /// <summary>True while the selected hotbar slot holds the rope gun.</summary>
+    private static bool HoldsRopeGun(PlayerState p)
+        => p.SelectedHotbarSlot >= 0 && p.SelectedHotbarSlot < p.Inventory.Slots.Count
+           && p.Inventory.Slots[p.SelectedHotbarSlot]?.Item == RopeGunItem;
+
+    /// <summary>Drops the rope when the player can no longer hold it: the gun left the hand, or the player boarded,
+    /// sat down, rode off, or rose above the air. Called on every hotbar change and every move report.</summary>
+    private void ClearRopeIfNotHeld(PlayerState p)
+    {
+        if (p.RopeAnchor.HasValue && (!RopeAllowed(p) || !HoldsRopeGun(p)))
+        {
+            p.RopeAnchor = null;
+        }
+    }
+
+    /// <summary>Test hook (#2319): the release intent as if the client had sent it.</summary>
+    public void ReleaseRopeForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } s)
+        {
+            HandleReleaseRope(s);
         }
     }
 }
