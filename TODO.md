@@ -76,7 +76,10 @@ of gated types: ~23 of them share the 18 % retype pool, so a weight-5 type shows
     `guaranteedOnce`, names + descriptions in all 14 locales, name flavours, `SpectacleWorldsTests`, goldens). Ice
     arches / pillars on glacial worlds come free from `BandMaterial` wherever the tags meet a cold world.
 12. ✅ **#2343 retype share** — 25 % for generation-21 descriptions (`Gen21RetypeChance`) + `ApplyGuaranteedTypes`
-    (every `GuaranteedOnce` type at least once per galaxy, after the gas giants, never the start system).
+    (every `GuaranteedOnce` type at least once per galaxy, after the gas giants, never the start system) + the keep
+    rule `FirstPlanetOfEachType` (the first planet of every type the classic roll produced is never retyped, so the
+    server's start pick — the first planet of the start type — is never wiped; the 25 % alone lost it in one galaxy
+    in four and the start then landed on a forced retype of the galaxy's first planet).
 13. ✅ docs (`WORLD_GENERATION.md` §38, `USER_MANUAL.md` fossils + spectacle terrain), goldens `*-gen21` (six groups,
     the classic ones unchanged), `SpectacleCostGuardTests` (Slow: a generation-21 karst chunk ≤ 1.3× generation 3).
 
