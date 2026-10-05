@@ -24,6 +24,21 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🗺️ Map tab: a never-landed world in another system stays locked even with Instant Travel on (#1614 client slice 1, 2026-10-05, PR #2314 by ahmdkaml → e7011bc9, locales + status in the follow-up PR) — ✅ done (unreleased; ⚠ playtest open)
+
+The first client slice of #1614 (landed-ship transit). Since the server half (#1676, 2026-09-11) a cross-system travel
+to a body the player never landed on is rejected server-side, Instant Travel or not — but the map tab still offered the
+Travel/Hyperjump button for such worlds while Instant Travel was on, and the server then refused the intent.
+
+- **✅ `TravelUnlocked` mirrors the server rule (PR #2314):** a body in *another* system unlocks only through
+  `HasLandedOn`; same-system bodies keep Instant Travel / the active location / a previous landing. The locked detail pane
+  shows the cross-system hint plus the violet "Hyperjump to this system" button (#1638), so the world stays reachable by
+  jumping into its system first and landing by hand.
+- **✅ Texts:** `ui.map.locked_cross_hint` no longer offers "(or enable Instant Travel)" — en/de in PR #2314, the twelve
+  community locales in the follow-up PR. USER_MANUAL § Instant Travel updated.
+- **Open — the rest of the #1614 client half (ahmdkaml, separate PR):** take-off → (warp) → landing sequence instead of
+  the instant swap; "Hyperjump to this system" from a landed ship showing the take-off first; the case-3 server test.
+
 ### 🧰 Tools punch like fists, starter laser 60 + one engage range, "Back to my ship", bandit step across the seam, mesher golden re-pinned (#2306 #2284 #2286 #2307 #2312, 2026-10-05, branch fix/tools-laser-return-seam) — ✅ done (unreleased; ⚠ playtest open)
 
 The four follow-ups of the gloves/target-lock review (decisions on the issues, Marcel 2026-10-05), plus the stale
