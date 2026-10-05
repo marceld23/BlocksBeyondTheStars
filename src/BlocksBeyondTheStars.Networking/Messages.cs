@@ -513,6 +513,10 @@ public sealed class SetGlidingIntent
     public bool Active { get; set; }
 }
 
+/// <summary>Client → server (#2319): the player let go of the energy rope (a crouch, a hop, a snapped rope, a hotbar
+/// change). The shot itself rides the gadget intent; this only clears the anchor the presence shows to others.</summary>
+public sealed class ReleaseRopeIntent { }
+
 /// <summary>Client → server: the suit lamp was switched on or off (#1077). Purely informational — the lamp
 /// itself is a client-side shader light; the server only uses this for VEGA's "it's dark and your lamp is
 /// off" context tip. Sent on every toggle, when the client forces the lamp off, and once after spawning.</summary>
@@ -2527,6 +2531,14 @@ public sealed class PlayerPresence
 
     /// <summary>Hanging on a wall or a ladder (#2193) — other clients pose the avatar climbing, facing the wall.</summary>
     public bool Climbing { get; set; }
+
+    /// <summary>The energy rope is out (#2319): other clients draw it from the avatar's hand to the anchor below.</summary>
+    public bool Roped { get; set; }
+
+    /// <summary>The rope's anchor (world position on a block face) while <see cref="Roped"/>.</summary>
+    public float RopeX { get; set; }
+    public float RopeY { get; set; }
+    public float RopeZ { get; set; }
 
     /// <summary>Equipped-gear bitmask shown on the avatar — the bits of <c>Shared.State.GearLook</c>: 1=helmet, 2=chest,
     /// 4=legs, 8=jetpack, 16=lamp, 32=boots, 64=tank, 128=climbing gloves, 256=climbing claws, and the tier-2 looks on top

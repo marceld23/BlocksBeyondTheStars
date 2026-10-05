@@ -41,6 +41,7 @@ namespace BlocksBeyondTheStars.Client
         public bool PrimaryDown() => Live && Ui.MineDown;
         public bool PrimaryHeld() => Live && Ui.MineHeld;
         public bool SecondaryDown() => Live && Ui.PlaceDown;
+        public bool SecondaryHeld() => Live && Ui.PlaceHeld;
 
         // No 1..9 pick on touch — the hotbar is cycled via the ◄ ► buttons (HotbarScroll).
         public int HotbarSlotDown() => -1;

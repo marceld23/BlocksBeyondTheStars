@@ -896,6 +896,96 @@ namespace BlocksBeyondTheStars.Client
             label.resizeTextMaxSize = maxSize;
         }
 
+        private static readonly TextGenerator ChipMeasurer = new TextGenerator();
+
+        /// <summary>The width of <paramref name="text"/> on one line at <paramref name="size"/>, in reference units (the
+        /// 1920×1080 canvas) — independent of the window, so a layout computed from it holds in the Editor and the build.</summary>
+        public static float MeasureWidth(string text, int size, FontStyle style = FontStyle.Bold)
+        {
+            var settings = new TextGenerationSettings
+            {
+                font = Font,
+                fontSize = size,
+                fontStyle = style,
+                richText = false,
+                scaleFactor = 1f,
+                lineSpacing = 1f,
+                horizontalOverflow = HorizontalWrapMode.Overflow,
+                verticalOverflow = VerticalWrapMode.Overflow,
+                generationExtents = new Vector2(4096f, 256f),
+                textAnchor = TextAnchor.MiddleLeft,
+                pivot = new Vector2(0f, 1f),
+                color = Color.white,
+            };
+            return ChipMeasurer.GetPreferredWidth(text ?? string.Empty, settings);
+        }
+
+        /// <summary>
+        /// Keeps a label on ONE line inside <paramref name="width"/> (#2324): the font comes from a measurement instead of
+        /// Best Fit — which, with a wrapping label, picks the size where two lines fit the height and then breaks a word
+        /// wider than the rect in the middle ("Lagerstätte" / "n 12"), and with an overflowing label shrinks nothing at
+        /// all (see <see cref="FitLabel"/>). Full size when the text fits, scaled down otherwise, never below
+        /// <paramref name="minSize"/>.
+        /// </summary>
+        public static void FitLabelSingleLine(Text label, float width, int minSize, int maxSize)
+        {
+            if (label == null)
+            {
+                return;
+            }
+
+            label.resizeTextForBestFit = false;
+            label.horizontalOverflow = HorizontalWrapMode.Overflow;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
+            int size = ChipRowLayout.SingleLineFontSize(MeasureWidth(label.text, maxSize, label.fontStyle), width, minSize, maxSize);
+            // Glyph widths do not scale linearly with the size (hinting rounds them), so the estimate can land a pixel or
+            // two wide — "Месторождения 12" at the estimated 18 pt needed 164 px in 162. Measure the chosen size and step
+            // down until it really fits (or the floor is reached).
+            while (size > minSize && MeasureWidth(label.text, size, label.fontStyle) > width)
+            {
+                size--;
+            }
+
+            label.fontSize = size;
+        }
+
+        /// <summary>The inset <see cref="AddButton"/> leaves around its label (18 px left, 10 px right).</summary>
+        public const float ButtonLabelInset = 28f;
+
+        /// <summary>
+        /// A row of chips sized by their labels (#2324): each chip gets its text plus the button inset, clamped to
+        /// <paramref name="minChip"/>..<paramref name="maxChip"/>; a <paramref name="tailPreferred"/> above 0 reserves room at
+        /// the right end for one more control (returned as <paramref name="tailX"/> / <paramref name="tailWidth"/>, at least
+        /// <paramref name="tailMin"/>). A row that still does not fit shrinks every chip and its label's font alike, on one
+        /// line, so no word ever breaks in the middle. Returns the buttons in label order.
+        /// </summary>
+        public static Button[] AddChipRow(Transform parent, float x, float y, float rowWidth, float h, IReadOnlyList<string> labels,
+            System.Action<int> onClick, float gap, float tailMin, float tailPreferred, out float tailX, out float tailWidth,
+            float minChip = 72f, float maxChip = 190f)
+        {
+            var widths = new float[labels.Count];
+            for (int i = 0; i < labels.Count; i++)
+            {
+                widths[i] = MeasureWidth(labels[i], 22);
+            }
+
+            var fit = ChipRowLayout.Fit(widths, ButtonLabelInset, minChip, maxChip, gap, rowWidth, tailMin, tailPreferred);
+            var buttons = new Button[labels.Count];
+            float cx = x;
+            for (int i = 0; i < labels.Count; i++)
+            {
+                int index = i;
+                float w = Mathf.Round(fit.Chips[i]);
+                buttons[i] = AddButton(parent, cx, y, w, h, labels[i], () => onClick?.Invoke(index));
+                FitLabelSingleLine(buttons[i].GetComponentInChildren<Text>(), w - ButtonLabelInset, 11, 22);
+                cx += w + gap;
+            }
+
+            tailX = cx;
+            tailWidth = fit.Tail;
+            return buttons;
+        }
+
         /// <summary>Pins a small amber "new content" badge dot to the top-right corner of a freshly built button,
         /// so a menu entry can flag that something new is waiting behind it. Idempotent per rebuild.</summary>
         public static void AddBadge(Component button, float buttonW)

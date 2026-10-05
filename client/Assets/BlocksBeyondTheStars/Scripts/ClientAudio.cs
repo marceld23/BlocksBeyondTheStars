@@ -83,7 +83,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Fill any cue that has no bundled recording with a code-synthesized version, so the whole
             // game is audible even with no recorded assets (recordings, when present, take priority).
-            foreach (var id in ProceduralAudio.KnownIds.Concat(ProceduralAudio.CrystalIds).Concat(ProceduralAudio.NoteIds).Concat(ProceduralAudio.BioIds).Concat(ProceduralAudio.TargetIds).Concat(ProceduralAudio.GloveIds))
+            foreach (var id in ProceduralAudio.KnownIds.Concat(ProceduralAudio.CrystalIds).Concat(ProceduralAudio.NoteIds).Concat(ProceduralAudio.BioIds).Concat(ProceduralAudio.TargetIds).Concat(ProceduralAudio.GloveIds).Concat(ProceduralAudio.RopeIds))
             {
                 if (!_clips.ContainsKey(id))
                 {
@@ -148,6 +148,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 _glide.clip = glideClip;
                 _glide.Play();
+            }
+
+            // #2322: the energy rope's winch — a recorded seamless loop (a synthesised hum stands in without it).
+            _rope = gameObject.AddComponent<AudioSource>();
+            _rope.playOnAwake = false;
+            _rope.loop = true;
+            _rope.spatialBlend = 0f;
+            _rope.volume = 0f;
+            if (_clips.TryGetValue("rope_reel", out var ropeClip))
+            {
+                _rope.clip = ropeClip;
+                _rope.Play();
             }
 
             _speeder = gameObject.AddComponent<AudioSource>();
@@ -286,6 +298,13 @@ namespace BlocksBeyondTheStars.Client
                 _glide.volume = Mathf.MoveTowards(_glide.volume, on ? sfx * 0.95f : 0f, Time.deltaTime * 2.5f);
             }
 
+            // The rope's winch while it reels (PlayerController calls RopeTick each frame of a pull, #2322).
+            if (_rope != null && _rope.clip != null)
+            {
+                bool on = Time.time - _ropeRefresh < 0.15f;
+                _rope.volume = Mathf.MoveTowards(_rope.volume, on ? sfx * 0.6f : 0f, Time.deltaTime * 4f);
+            }
+
             // Hover-speeder engine loop while driving (PlayerController calls SpeederTick each frame). Volume +
             // pitch track the throttle; boost lifts the pitch.
             if (_speeder != null && _speeder.clip != null)
@@ -345,6 +364,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Called each frame the glider is open (#2296); keeps the wind loop alive (fades out otherwise).</summary>
         public void GlideTick() => _glideRefresh = Time.time;
+
+        /// <summary>Called each frame the energy rope's winch reels (#2322); keeps the hum alive (fades out otherwise).</summary>
+        public void RopeTick() => _ropeRefresh = Time.time;
+
+        private AudioSource _rope;         // the winch loop of the energy rope gun (#2322)
+        private float _ropeRefresh = -10f;
 
         /// <summary>One-shot startup chirp when boarding/igniting a speeder — or the splash of stepping into a
         /// boat (#1215).</summary>

@@ -322,6 +322,20 @@ of a melee swing and of its hit is chosen by the item's `fx.style` in one place,
 
 Every other melee look keeps `melee_swing` / `melee_hit` — now also heard from other players.
 
+## 18. Energy rope gun (#2317) — *ElevenLabs clips*
+
+The rope is friendly and springy, never a weapon: a zip for the shot, a soft thunk with a click when the hook bites, a
+gentle winch hum while reeling (a loop, faded in and out like the glider's wind), and a twang-fizzle when it lets go.
+`ProceduralAudio.RopeIds` holds a synthesised stand-in for each id; the prompts are recorded in
+`tools/ai-assets/gen_batch.py`.
+
+| Sound | Trigger | Files | Source |
+|---|---|---|---|
+| shot | the rope leaves the gun (2D own; 3D at another player's hand on their confirmed shot) | `rope_fire` | EL |
+| hook | the server confirmed the anchor — 3D at the anchor; quieter when the winch locks into a hang | `rope_anchor` | EL |
+| winch | every frame of a pull (`ClientAudio.RopeTick`) | `rope_reel` (loop) | EL |
+| let go | a crouch, a hop, a snapped rope — and quietly a shot that found nothing to hold | `rope_release` | EL |
+
 ---
 
 ## Totals & rollout

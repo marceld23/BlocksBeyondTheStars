@@ -766,6 +766,10 @@ namespace BlocksBeyondTheStars.Client
         /// (a refusal comes back as an <c>ActionRejected</c> with action <c>"glider"</c>) and shows the wing to others.</summary>
         public void SendSetGliding(bool active) => Send(new SetGlidingIntent { Active = active });
 
+        /// <summary>The energy rope was let go (#2319): the server forgets the anchor it shows to others. The shot goes
+        /// through <see cref="SendUseGadget"/> with the hit point; the pull is local movement.</summary>
+        public void SendReleaseRope() => Send(new ReleaseRopeIntent());
+
         /// <summary>Suit lamp on/off (#1077) — informational, feeds VEGA's context tips only.</summary>
         public void SendSetLamp(bool on) => Send(new SetLampIntent { On = on });
 

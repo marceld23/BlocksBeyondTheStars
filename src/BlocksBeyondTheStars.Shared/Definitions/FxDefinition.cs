@@ -70,6 +70,7 @@ public static class FxStyles
     public const string Translate = "translate";
     public const string WeatherScan = "weather_scan";
     public const string Generic = "generic";
+    public const string Rope = "rope";             // #2317: the energy rope gun — the rope flies, sticks and reels the player in
 
     // Ship modules.
     public const string TwinPulse = "twin_pulse";
@@ -87,7 +88,7 @@ public static class FxStyles
         Slug, Rail, Laser, Plasma, Slash, Vibro, PlasmaBlade, Fist, ShockPush, EnergyFist,
         Drill, DrillHot, DrillCrystal, MiningBeam,
         Scan, ScanPro,
-        Blueprint, HealPulse, Stasis, Blast, Pump, TerrainScan, Translate, WeatherScan, Generic,
+        Blueprint, HealPulse, Stasis, Blast, Pump, TerrainScan, Translate, WeatherScan, Generic, Rope,
         TwinPulse, PlasmaBolt, HeavyBeam, DrillBeam, Tractor, PlanetScan, Shield, Warp, ShipScan,
     };
 

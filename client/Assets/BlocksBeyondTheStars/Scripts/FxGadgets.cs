@@ -77,6 +77,9 @@ namespace BlocksBeyondTheStars.Client
                 case "pump":
                     Pump(look, chest, target);
                     break;
+                case "rope":
+                    RopeFx.Anchor(look, target, Vector3.up); // #2322: FxRemote handles the rope before this; kept for completeness
+                    break;
                 default:
                     FxKit.Ring(user + Vector3.up * 0.05f, Vector3.up, look.Color, 0.2f, 2.2f, 0.5f, thickness: 0.18f);
                     break;

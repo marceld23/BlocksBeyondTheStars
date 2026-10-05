@@ -78,6 +78,7 @@ namespace BlocksBeyondTheStars.Client
 
         // Crosshair state (#693): hostile tint while an enemy is under the reticle + the hit-marker flash.
         private static readonly Color HostileAim = new Color(1f, 0.4f, 0.35f, 0.95f);
+        private static readonly Color RopeAim = new Color(0.62f, 1f, 0.8f, 0.95f); // #2321: the rope can hold on what is under the reticle
         private static readonly Color HitMarkerCol = new Color(1f, 0.85f, 0.4f, 0.95f);
         private Image _crossV, _crossH;
         private GameObject _hitMarker;
@@ -3403,7 +3404,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var col = Game.AimedEnemyId != null ? HostileAim : UiKit.Cyan;
+            var col = Game.AimedEnemyId != null ? HostileAim : Game.RopeAimValid ? RopeAim : UiKit.Cyan;
             if (_crossV.color != col)
             {
                 _crossV.color = col;

@@ -810,24 +810,25 @@ namespace BlocksBeyondTheStars.Client
         private void AddSampleFilters(Transform p, float x, float y)
         {
             var all = SampleCaseView.Entries(Game.Bio);
+            var labels = new string[4];
             for (int i = 0; i < 4; i++)
             {
                 var kind = (SampleKindFilter)i;
-                int n = SampleCaseView.Count(all, kind, SampleCaseView.Effect);
-                var chip = UiKit.AddButton(p, x + i * 120f, y, 112, 44, BioLabUi.KindFilterLabel(Game, kind) + " " + n, () =>
-                {
-                    SampleCaseView.Kind = kind;
-                    BuildHeader();
-                    RebuildList();
-                    ScrollToTop(_listContent); // a new filter is a new list (RebuildList keeps the scroll of the old one)
-                });
-                if (SampleCaseView.Kind == kind)
-                {
-                    chip.GetComponent<Image>().color = UiKit.Cyan;
-                }
+                labels[i] = BioLabUi.KindFilterLabel(Game, kind) + " " + SampleCaseView.Count(all, kind, SampleCaseView.Effect);
             }
 
-            var effect = UiKit.AddButton(p, x + 488f, y, 300, 44, BioLabUi.EffectFilterLabel(Game, SampleCaseView.Effect), () =>
+            // #2324: chips sized by their words — "Lagerstätten 12" and "Месторождения 12" used to break in the middle of the
+            // word in a fixed 112 px chip; the effect button takes what is left of the row (the list frame's 796 px).
+            var chips = UiKit.AddChipRow(p, x, y, 796f, 44, labels, i =>
+            {
+                SampleCaseView.Kind = (SampleKindFilter)i;
+                BuildHeader();
+                RebuildList();
+                ScrollToTop(_listContent); // a new filter is a new list (RebuildList keeps the scroll of the old one)
+            }, gap: 8f, tailMin: 170f, tailPreferred: 300f, out float effectX, out float effectW);
+            chips[(int)SampleCaseView.Kind].GetComponent<Image>().color = UiKit.Cyan;
+
+            var effect = UiKit.AddButton(p, effectX, y, effectW, 44, BioLabUi.EffectFilterLabel(Game, SampleCaseView.Effect), () =>
             {
                 SampleCaseView.Effect = SampleCaseView.NextEffect(SampleCaseView.Effect);
                 BuildHeader();

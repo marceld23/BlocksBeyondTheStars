@@ -2505,6 +2505,7 @@ public sealed partial class GameServer
         p.Hunger = 100f;
         p.Stealthed = false;
         p.Gliding = false; // #2296: and folds the wing
+        p.RopeAnchor = null; // #2319: and drops the rope
         p.Seated = false; // death stands you up (#806)
         p.SeatCell = null; // and frees the chair (#2122)
         p.InEva = false; // a death ends any spacewalk
@@ -3739,7 +3740,10 @@ public sealed partial class GameServer
         {
             case MoveIntent move: HandleMove(session, move); break;
             case FarTerrainTileRequest farTiles: HandleFarTerrainTileRequest(session, farTiles); break; // #1821
-            case SelectHotbarIntent hotbar: session.State.SelectedHotbarSlot = System.Math.Clamp(hotbar.Slot, 0, HotbarSlots - 1); break;
+            case SelectHotbarIntent hotbar:
+                session.State.SelectedHotbarSlot = System.Math.Clamp(hotbar.Slot, 0, HotbarSlots - 1);
+                ClearRopeIfNotHeld(session.State); // #2319: putting the rope gun away drops the rope
+                break;
             case MoveItemIntent moveItem: HandleMoveItem(session, moveItem); break;
             case EquipItemIntent equip: HandleEquipItem(session, equip); break;       // #2110
             case UnequipItemIntent unequip: HandleUnequipItem(session, unequip); break; // #2110
@@ -3849,6 +3853,7 @@ public sealed partial class GameServer
             case ToggleStealthIntent: HandleToggleStealth(session); break;
             case SetJetpackIntent sj: HandleSetJetpack(session, sj); break;
             case SetGlidingIntent sg: HandleSetGliding(session, sg); break;   // #2296
+            case ReleaseRopeIntent: HandleReleaseRope(session); break;         // #2319
             case SetLampIntent sl: HandleSetLamp(session, sl); break;
             case CopyBuildIntent cb: HandleCopyBuild(session, cb); break;    // #1117: region → share code
             case PasteBuildIntent pb: HandlePasteBuild(session, pb); break;  // #1117: share code → blocks
@@ -4701,6 +4706,7 @@ public sealed partial class GameServer
             session.State.Yaw = move.Yaw;
             session.State.Pitch = move.Pitch;
             session.State.Climbing = move.Climbing; // #2193: pose only — the climb itself is on-foot movement, the client's
+            ClearRopeIfNotHeld(session.State); // #2319: a rope nobody can hold any more (boarded, seated, in space, put away)
             TrackVerticalSpeed(session, before.Y, reported.Y); // #2286: "Back to my ship" refuses a falling player
             UpdateDrivingSpeeder(session); // if driving a speeder, slave it to this pose + drain its energy cell
             if (onSurface)

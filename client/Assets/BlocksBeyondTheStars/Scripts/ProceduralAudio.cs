@@ -118,6 +118,11 @@ namespace BlocksBeyondTheStars.Client
             "glove_energy_hit" => Zap("glove_energy_hit", 0.2f, 0.4f),
             "glove_charge" => Sweep("glove_charge", 260f, 880f, 0.35f, 0.18f),
             "glove_stagger" => SoftChime("glove_stagger", rising: false),
+            // #2322 energy rope gun cues — stand-ins for the bundled recordings of the same names.
+            "rope_fire" => Sweep("rope_fire", 1400f, 420f, 0.22f, 0.3f),
+            "rope_anchor" => NoiseHit("rope_anchor", 0.12f, 0.4f, 1800f, 30f),
+            "rope_reel" => Loop("rope_reel", 1.5f, t => ((Mathf.Sin(t * 440f) * 0.3f) + (Mathf.Sin(t * 37f) * 0.2f)) * 0.4f),
+            "rope_release" => Fizzle("rope_release", 0.3f, 0.3f),
             var note when note.StartsWith("note_", System.StringComparison.Ordinal) => Note(note),
             _ => null,
         };
@@ -251,6 +256,13 @@ namespace BlocksBeyondTheStars.Client
         public static readonly string[] GloveIds =
         {
             "glove_whoosh", "glove_shock_blast", "glove_energy_hit", "glove_charge", "glove_stagger",
+        };
+
+        /// <summary>The energy rope gun's cue ids the synthesizer can stand in for (#2322): the shot, the hook biting, the
+        /// winch loop and the rope fizzling free.</summary>
+        public static readonly string[] RopeIds =
+        {
+            "rope_fire", "rope_anchor", "rope_reel", "rope_release",
         };
 
         /// <summary>Two short soft beeps a step apart (low, then high) — the "locked on" acknowledgement.</summary>

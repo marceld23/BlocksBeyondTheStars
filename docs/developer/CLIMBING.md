@@ -85,6 +85,21 @@ Marcel's decision: no HUD bar. The value lives in `ClimbGrip`, client-only, unsa
   `climbing_gloves` (0.4) and `climbing_claws` (0.6 + ice; crafted from the gloves) sit in the module slots,
   researched in the Suit branch.
 
+## The energy rope (#2317)
+
+The rope gun (2026-10) shares the climb's rules and pieces. The pull is on-foot movement the client owns —
+`RopeRig` in `Client.Core` (attached → pulling → hanging; the arrival by face: land on a top, pull up over a free
+ledge, hang anywhere else; a snap on distance, lost sight or no progress), driven from `PlayerController.UpdateRope`
+in `Move()` right before the wall climb. The server treats the shot as a gadget (`GameServerGadgets.UseRopeGun`: in
+range of the eyes, a solid block behind the hit face, line of sight — checks no other gadget makes) and carries the
+anchor in the presence (`Roped`, `RopeX..Z`, additive fields like `Climbing`); `ReleaseRopeIntent` (tag 291) is the
+only new message. A side-face arrival with a free top ends in the climb's own `StartPullUp`. Letting go caps the fall
+at half the safe landing speed (`RopeRig.CappedFall`), so the rope never reports an impact of its own; a slack rope
+catches a fall past `RopeRules.CatchDrop` but not a jump. The look is `RopeFx` (the `FxBeam` line, pulses running
+anchor → hand), the first-person gun turns toward the anchor (`Viewmodel.SetRoped`), the avatar's arm points at it
+(`PlayerAvatar.SetRoped`), remote ropes come from the presence (`RemotePlayers`). Tests: `RopeRigTests`
+(Client.Tests), `RopeGunTests` (server: data, codec, the shot's refusals, release, presence).
+
 ## Tests
 
 - `tests/BlocksBeyondTheStars.Client.Tests/ClimbProbeTests.cs`: grab rules, the one-block step, approach angle,

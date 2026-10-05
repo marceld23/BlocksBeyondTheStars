@@ -48,6 +48,10 @@ namespace BlocksBeyondTheStars.Client
         private bool _punchPush;
         private bool _punchLeft;
 
+        // #2322: the energy rope is out — the right arm points at its anchor.
+        private bool _roped;
+        private Vector3 _ropeAnchor;
+
         private bool _suit; // spacesuit mode (players); NPCs keep the civilian bare-headed look
         private readonly List<GameObject> _suitPack = new List<GameObject>(); // hidden while armor-pack gear is worn
         private bool _gearPack; // armor pack currently worn — suppresses the suit pack (also across SetVisible)
@@ -581,6 +585,16 @@ namespace BlocksBeyondTheStars.Client
                 PosePunch(c, ref armL, ref armR, ref elbowL, ref elbowR);
             }
 
+            // #2322: on the rope the right arm points at the anchor, straight — the rope leaves the hand.
+            if (_roped)
+            {
+                var toAnchor = _ropeAnchor - transform.TransformPoint(new Vector3(0.2f, 1.3f, 0f));
+                float flat = Mathf.Sqrt((toAnchor.x * toAnchor.x) + (toAnchor.z * toAnchor.z));
+                float elevation = Mathf.Atan2(toAnchor.y, Mathf.Max(0.01f, flat)) * Mathf.Rad2Deg;
+                armR = Mathf.Clamp(-90f - elevation, -175f, -20f);
+                elbowR = 0f;
+            }
+
             _armL.localRotation = Quaternion.Euler(armL, 0f, 0f);
             _armR.localRotation = Quaternion.Euler(armR, 0f, 0f);
             _legL.localRotation = Quaternion.Euler(legL, 0f, 0f);
@@ -1103,6 +1117,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2296: opens (or folds) the glider's wings — over ~0.3 s, with a little flutter while open, and the
         /// figure hangs under them. Only a figure wearing the glider shows wings; the flag is kept either way.</summary>
         public void SetGliding(bool gliding) => _gliding = gliding;
+
+        /// <summary>#2322: the energy rope is out (or not) — the right arm points at <paramref name="anchorWorld"/> while it is,
+        /// so the rope leaves the hand. Driven from the presence for remotes, from the controller for the own figure.</summary>
+        public void SetRoped(bool roped, Vector3 anchorWorld)
+        {
+            _roped = roped;
+            _ropeAnchor = anchorWorld;
+        }
 
         /// <summary>
         /// The own stealth cloak seen from outside (#2291): while on, every part of this figure — gear, held item and face

@@ -103,7 +103,12 @@ namespace BlocksBeyondTheStars.Client
                 case ToolKind.Drill: return (Kind.Drill, new Color(0.62f, 0.66f, 0.72f), null);
                 case ToolKind.Scanner: return (Kind.Scanner, new Color(0.45f, 0.85f, 0.95f), null);
                 case ToolKind.Weapon: return IsRanged(itemKey) ? (Kind.Gun, GunTint(itemKey), null) : (Kind.Blade, new Color(0.80f, 0.84f, 0.90f), null);
-                case ToolKind.Gadget: return (Kind.Gadget, GadgetTint(itemKey), null);
+                case ToolKind.Gadget:
+                    // #2320: a gadget named a gun (the energy rope gun) is held and drawn like one — its own heldModel parts
+                    // and the recoil pose — where every other gadget keeps the compact emitter.
+                    return itemKey.EndsWith("_gun", System.StringComparison.Ordinal)
+                        ? (Kind.Gun, GadgetTint(itemKey), null)
+                        : (Kind.Gadget, GadgetTint(itemKey), null);
                 default: return (Kind.Tool, new Color(0.60f, 0.62f, 0.66f), null);
             }
         }
@@ -111,6 +116,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The emitter glow colour for a gadget's held model (item 36).</summary>
         private static Color GadgetTint(string key)
         {
+            if (key.Contains("rope")) return new Color(0.37f, 0.95f, 1f);     // cyan energy rope (#2317)
             if (key.Contains("medkit")) return new Color(0.35f, 1f, 0.55f);   // green first-aid
             if (key.Contains("stasis")) return new Color(0.4f, 0.8f, 1f);     // cyan stasis
             if (key.Contains("blaster")) return new Color(1f, 0.55f, 0.25f);  // orange blast

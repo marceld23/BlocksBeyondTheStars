@@ -47,6 +47,7 @@ namespace BlocksBeyondTheStars.Client
         bool PrimaryDown();   // mine / attack / scan tap (left mouse)
         bool PrimaryHeld();   // keep-mining hold (left mouse held)
         bool SecondaryDown(); // place block / use held item (right mouse)
+        bool SecondaryHeld(); // keep-reeling hold (right mouse held) — the energy rope gun (#2321)
 
         /// <summary>The hotbar slot 0..8 selected THIS frame by a direct pick (number keys / d-pad), or −1.</summary>
         int HotbarSlotDown();

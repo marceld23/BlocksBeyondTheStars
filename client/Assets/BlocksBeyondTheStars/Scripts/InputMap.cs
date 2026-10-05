@@ -455,6 +455,7 @@ namespace BlocksBeyondTheStars.Client
         public static bool PrimaryDown() => _desktop.PrimaryDown() || _pad.PrimaryDown() || _touch.PrimaryDown();
         public static bool PrimaryHeld() => _desktop.PrimaryHeld() || _pad.PrimaryHeld() || _touch.PrimaryHeld();
         public static bool SecondaryDown() => _desktop.SecondaryDown() || _pad.SecondaryDown() || _touch.SecondaryDown();
+        public static bool SecondaryHeld() => _desktop.SecondaryHeld() || _pad.SecondaryHeld() || _touch.SecondaryHeld();
 
         /// <summary>Hotbar slot 0..8 picked directly this frame (number keys), or −1. Pad + touch have no
         /// direct pick (they cycle via <see cref="HotbarScroll"/>), so this is the keyboard's answer.</summary>

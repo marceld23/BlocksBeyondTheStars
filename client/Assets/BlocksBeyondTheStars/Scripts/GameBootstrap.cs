@@ -1511,6 +1511,10 @@ namespace BlocksBeyondTheStars.Client
         /// as the server knows): the player controller folds the wing it opened.</summary>
         public int GliderRejections { get; private set; }
 
+        /// <summary>#2321: the rope gun is held and a block the rope can stick to is under the crosshair within range — the
+        /// HUD tints the reticle. Set by the player controller every frame it holds the gun.</summary>
+        public bool RopeAimValid { get; set; }
+
         /// <summary>Opens the story reader panel (#1110) with a localized title/label + text key — or falls
         /// back to the message toast when no reader exists (headless/degraded rigs stay functional).</summary>
         private void OpenReader(string title, string label, string textKey)

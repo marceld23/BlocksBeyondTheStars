@@ -105,7 +105,7 @@ Styles in use:
 | On-foot weapons | `slug`, `rail`, `laser`, `plasma`, `slash`, `vibro`, `plasma_blade`, `fist`, `shock_push`, `energy_fist` |
 | Drills | `drill`, `drill_hot`, `drill_crystal`, `mining_beam` |
 | Scanners | `scan`, `scan_pro` |
-| Gadgets | `blueprint`, `heal_pulse`, `stasis`, `blast`, `pump`, `terrain_scan`, `translate`, `weather_scan`, `generic` |
+| Gadgets | `blueprint`, `heal_pulse`, `stasis`, `blast`, `pump`, `terrain_scan`, `translate`, `weather_scan`, `generic`, `rope` (#2317: `RopeFx` — the line stays while the rope holds) |
 | Ship | `twin_pulse`, `plasma_bolt`, `heavy_beam`, `drill_beam`, `tractor`, `planet_scan`, `shield`, `warp` |
 
 ## Effect catalogue

@@ -104,6 +104,7 @@ namespace BlocksBeyondTheStars.Client
         public bool MineHeld => Visible && (Pressed(_mine) || Pressed(_fire));
         public bool MineDown => Visible && (Down(_mine) || Down(_fire));
         public bool PlaceDown => Visible && (Down(_place) || Down(_evaPlace)); // EVA builds through its own PLACE (#1042)
+        public bool PlaceHeld => Visible && (Pressed(_place) || Pressed(_evaPlace)); // #2321: the rope gun reels while PLACE is held
         public bool DescendHeld => Visible && (Pressed(_descend) || Pressed(_flightDown));
 
         /// <summary>Any on-screen button held this frame — flips the HUD into touch glyph mode on ANY tap, not

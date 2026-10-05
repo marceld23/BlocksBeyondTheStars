@@ -122,8 +122,8 @@ Last updated: 2026-10-04.
 | **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface**; **jump at a wall while pushing towards it to grab it and climb** — on the wall, hold Space to climb up (see §5 → Climbing walls) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
 | **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; **let go of a wall you are climbing**; descend in zero-g |
-| **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected) |
-| **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** selected it opens the destination picker — back to ship / to an ally, see §5) |
+| **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
+| **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** selected it opens the destination picker — back to ship / to an ally, see §5; with the **energy rope gun** selected, **hold** it to reel yourself in along the rope) |
 | **Mouse wheel** | Cycle hotbar slot |
 | **1 – 9** | Select hotbar slot |
 | **Middle mouse** | **Hotbar slot actions** on the selected slot: swap it against any backpack item, and for a building material also colour it (dye / glow / own pattern) or re-form it — see §5 → Hotbar slot actions (rebindable) |
@@ -164,7 +164,7 @@ buttons — retuning is tracked in issue #195):
 | **Left stick** | Move |
 | **Right stick** | Look |
 | **RB** | Mine / attack (hold to keep mining) |
-| **LB** | Place the selected hotbar block / use the held gadget |
+| **LB** | Place the selected hotbar block / use the held gadget (hold: reel in on the energy rope) |
 | **D-pad ◄ ►** | Cycle hotbar slot |
 | **D-pad ▲** | Open the chat (with the on-screen keyboard) |
 | **D-pad ▼** | Turn the building block you are holding |
@@ -671,6 +671,34 @@ effort.
   feet, your tool comes back up.
 - Other players see you climb — on walls and on ladders — facing the wall. The first time you stand in front of
   a tall wall, VEGA tells you how it works.
+
+### Energy rope gun
+A pistol that shoots a glowing **energy rope** which sticks to any solid block up to **24 blocks** away — and then
+reels you in. Research it in the **Suit** branch after the climbing gloves (knowledge 45) and craft it at the
+**workshop** (iron plates, cable, polymer, an energy cell). It does **no damage** and never sticks to creatures or
+players.
+
+| | Mouse / keyboard | Gamepad | Touch |
+|---|---|---|---|
+| **Shoot** | left-click | RT | MINE |
+| **Reel in** | **hold** right-click | hold LB | hold PLACE |
+| **Hang** (the winch holds you) | let go of the button | let go | let go |
+| **Drop the rope** | crouch (Ctrl / C) | B | DOWN |
+| **Hop and let go** | Space | A | JUMP |
+
+- **Where you end up:** aim at the **top of a block** and you land on it. Aim at a **cliff face whose top is free** and
+  the rope winds you up to the edge, and you pull yourself over — no climbing gloves needed. Aim **mid-wall** or at a
+  **ceiling** and you hang there until you drop or hop.
+- **Across a gap:** shoot the far side and hold the button; while reeling you can lean a little left and right.
+- **A slack rope** (shot, not reeled) lets you walk and jump as usual — but if you fall more than a block and a half,
+  it catches you.
+- The rope **lets go by itself** when you walk out of its reach, when terrain blocks the line, when you switch the
+  hotbar, enter water, a vehicle, a train, a seat or your ship. It never causes fall damage by itself; dropping it
+  high up is an ordinary fall, as with letting go of a wall.
+- Costs **3 suit energy** per shot; hanging is free. Works on planets, moons and asteroids with gravity — not in zero-g
+  or in space. A bio-lab **range** modification makes the rope longer. Other players see your rope.
+- The crosshair turns **mint green** while a block the rope can hold on to is in reach. The first time a rope holds,
+  VEGA explains the buttons once.
 
 ### Mining & tools
 - Tools have a **kind** (drill/scanner/…) and **tier** (1–5). A block has a **hardness** and may require a
