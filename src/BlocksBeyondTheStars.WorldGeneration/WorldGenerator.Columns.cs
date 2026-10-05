@@ -126,6 +126,9 @@ public sealed partial class WorldGenerator
         var sandstoneId = _content.GetBlock("sandstone")?.NumericId ?? BlockId.Air;
         var strataId = sandstoneId.IsAir ? graniteId : sandstoneId; // #1647: sandstone strata now that the block exists
         bool strataWorld = wonderGates.Strata && !strataId.IsAir;
+        // Generation 21 (#2341): a fossil world lays one bone layer in every third strata period.
+        var boneId = _content.GetBlock("bone")?.NumericId ?? BlockId.Air;
+        bool boneStrata = strataWorld && wonderGates.BoneStrata && !boneId.IsAir;
 
         // Terrain generation 18 (#2106): the oil pockets — tar-shelled, oil-filled, only where plants and animals live.
         var oilId = _content.GetBlock("oil")?.NumericId ?? BlockId.Air;
@@ -652,6 +655,12 @@ public sealed partial class WorldGenerator
                         if (block == rock && strataShift != int.MinValue && depth < 48 && StrataBandAt(worldY, strataShift))
                         {
                             block = strataId;
+                        }
+
+                        // Bone stratum (#2341, generation 21): one bone layer in every third period of a fossil world's strata.
+                        if (boneStrata && block == rock && strataShift != int.MinValue && depth < 48 && StrataBoneBandAt(worldY, strataShift))
+                        {
+                            block = boneId;
                         }
 
                         if (block == rock && planet.DataCacheRarity > 0 && !dataCacheId.IsAir)

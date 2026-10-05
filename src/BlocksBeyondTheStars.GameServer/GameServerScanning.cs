@@ -30,6 +30,9 @@ public sealed partial class GameServer
     /// an ordinary material scan.</summary>
     private static readonly string[] RuneBlocks = { "rune_stone" };
 
+    /// <summary>The block a fossil monument (#2341) is made of: scanning it AT the fossil identifies the find.</summary>
+    private const string FossilBlock = "bone";
+
     /// <summary>Handheld scan of a creature species ("creature") or a block/flora/material ("block").
     /// <paramref name="entityId"/> is the aimed creature when the client sends it (#1926).</summary>
     public ScanResult ScanSubject(string playerId, string subjectType, string subjectKey, string? entityId = null)
@@ -122,11 +125,14 @@ public sealed partial class GameServer
                 value = KnowledgeCreatureHostile;
             }
         }
-        else if (subjectType == "block" && System.Array.IndexOf(RuneBlocks, subjectKey) >= 0
-                 && MonumentForScan(session) is { } monument)
+        else if (subjectType == "block" && (System.Array.IndexOf(RuneBlocks, subjectKey) >= 0 || subjectKey == FossilBlock)
+                 && MonumentForScan(session) is { } monument
+                 && (subjectKey != FossilBlock || WorldGeneration.MonumentGenerator.IsFossil(monument.Archetype)))
         {
             // The runes ARE the discovery — the block is just how the player points the scanner at it. The
-            // ledger is per body AND per archetype, so the next planet's relics are worth finding too.
+            // ledger is per body AND per archetype, so the next planet's relics are worth finding too. #2341: the
+            // bones of a fossil are read the same way (palaeontology pays like archaeology); a bone pile elsewhere
+            // is only a material.
             readout.Kind = "monument";
             readout.SubjectKey = "monument_" + monument.Archetype;
             readout.Display = readout.SubjectKey; // the client localizes it via ui.scan.subject.*

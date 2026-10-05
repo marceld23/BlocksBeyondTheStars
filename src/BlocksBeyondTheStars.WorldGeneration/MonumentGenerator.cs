@@ -36,6 +36,18 @@ public static class MonumentGenerator
         "arcade", "gate", "circle", "obelisk", "altar", "bridge", "watchtower", "tomb", "ziggurat", "colossus", "aqueduct",
     };
 
+    /// <summary>The generation-21 pool (#2341, the spectacle package): the generation-1 eleven plus three FOSSILS — a
+    /// sauropod skeleton with its ribs still arched, a skull you can walk into, a serpent's spine winding over the
+    /// ground. Built from <c>bone</c>, carrying no runes; the scanner reads the bones in place instead.</summary>
+    public static readonly string[] ArchetypesGen21 =
+    {
+        "arcade", "gate", "circle", "obelisk", "altar", "bridge", "watchtower", "tomb", "ziggurat", "colossus", "aqueduct",
+        "fossil_sauropod", "fossil_skull", "fossil_serpent",
+    };
+
+    /// <summary>True for the fossil archetypes (#2341): bone, not masonry, and no runes to scatter.</summary>
+    public static bool IsFossil(string archetype) => archetype.StartsWith("fossil_", System.StringComparison.Ordinal);
+
     /// <summary>Rune glow colours (0xRRGGBB) — one is drawn per monument, so a whole relic glows in one hue.</summary>
     private static readonly int[] RuneGlows = { 0x3FD8E8, 0xA870F0, 0xF0A03C, 0x5FE08A };
 
@@ -52,7 +64,8 @@ public static class MonumentGenerator
             masonry: B("ancient_brick", stone),
             rune: B("rune_stone", B("ancient_brick", stone)),
             rubble: B(biomeSurfaceBlock, stone),
-            glow: RuneGlows[rng.Next(RuneGlows.Length)]);
+            glow: RuneGlows[rng.Next(RuneGlows.Length)],
+            bone: B("bone", stone));
 
         var c = archetype switch
         {
@@ -66,10 +79,16 @@ public static class MonumentGenerator
             "ziggurat" => Ziggurat(mat, rng),
             "colossus" => Colossus(mat, rng),
             "aqueduct" => Aqueduct(mat, rng),
+            "fossil_sauropod" => Sauropod(mat, rng),
+            "fossil_skull" => Skull(mat, rng),
+            "fossil_serpent" => Serpent(mat, rng),
             _ => Arcade(mat, rng),
         };
 
-        ScatterRunes(c, mat, rng);
+        if (!IsFossil(archetype))
+        {
+            ScatterRunes(c, mat, rng); // a fossil carries no inscription — the bones themselves are read in place
+        }
 
         if (withCache)
         {
@@ -86,13 +105,15 @@ public static class MonumentGenerator
         public readonly ushort Rune;
         public readonly ushort Rubble;
         public readonly int Glow;
+        public readonly ushort Bone; // #2341: what a fossil is made of
 
-        public Materials(ushort masonry, ushort rune, ushort rubble, int glow)
+        public Materials(ushort masonry, ushort rune, ushort rubble, int glow, ushort bone)
         {
             Masonry = masonry;
             Rune = rune;
             Rubble = rubble;
             Glow = glow;
+            Bone = bone;
         }
     }
 
@@ -878,6 +899,202 @@ public static class MonumentGenerator
         }
 
         Erode(c, rng, baseP: 0.02, topP: 0.22, protectY: 3);
+        return c;
+    }
+
+    // ---------------- generation-21 fossils (#2341) ----------------
+
+    /// <summary>A sauropod that died on its side: the hips and the shoulders sunk to the ground, a spine arching
+    /// over them, ribs curving down from it on both sides, a neck rising to a skull at one end and a tail tapering
+    /// away at the other, the four leg bones under the body. Thirty-odd blocks long; a few ribs are gone.</summary>
+    private static Canvas Sauropod(Materials mat, System.Random rng)
+    {
+        var c = new Canvas(36, 12, 11);
+        int cz = c.L / 2;
+        ushort bone = mat.Bone;
+
+        // The spine: from the shoulders (x 8) to the hips (x 26) at height 3, arching one higher in the middle.
+        for (int x = 8; x <= 26; x++)
+        {
+            int y = x >= 13 && x <= 21 ? 4 : 3;
+            c.Set(x, y, cz, bone);
+            if (y == 4 && (x == 13 || x == 21))
+            {
+                c.Set(x, 3, cz, bone); // the step up and down
+            }
+        }
+
+        // The hips and the shoulders: masses sunk into the ground.
+        foreach (int hx in new[] { 8, 9, 25, 26 })
+            for (int dz = -1; dz <= 1; dz++)
+                for (int y = 0; y <= 2; y++)
+                {
+                    c.Set(hx, y, cz + dz, bone);
+                }
+
+        // The ribs: every second vertebra, curving down and out to the ground on both sides; some are missing.
+        for (int x = 10; x <= 24; x += 2)
+        {
+            if (rng.NextDouble() < 0.2)
+            {
+                continue;
+            }
+
+            int top = x >= 13 && x <= 21 ? 4 : 3;
+            for (int side = -1; side <= 1; side += 2)
+            {
+                c.Set(x, top, cz + side, bone);
+                c.Set(x, top - 1, cz + side * 2, bone);
+                c.Set(x, top - 2, cz + side * 3, bone);
+                c.Set(x, System.Math.Max(0, top - 3), cz + side * 4, bone);
+                c.Set(x, 0, cz + side * 4, bone);
+            }
+        }
+
+        // The legs: four bones under the body.
+        foreach (var (lx, lz) in new[] { (9, cz - 2), (9, cz + 2), (25, cz - 2), (25, cz + 2) })
+            for (int y = 0; y <= 2; y++)
+            {
+                c.Set(lx, y, lz, bone);
+            }
+
+        // The neck: rising from the shoulders to the skull.
+        int ny = 3;
+        for (int x = 7; x >= 2; x--)
+        {
+            if (x % 2 == 1)
+            {
+                ny++;
+            }
+
+            c.Set(x, ny, cz, bone);
+            if (x % 2 == 1)
+            {
+                c.Set(x, ny - 1, cz, bone);
+            }
+        }
+
+        // The skull: a 3×2×3 block with a jaw.
+        for (int x = 0; x <= 2; x++)
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                c.Set(x, ny, cz + dz, bone);
+                c.Set(x, ny + 1, cz + dz, bone);
+            }
+
+        c.Set(0, ny - 1, cz, bone);
+        c.Set(1, ny - 1, cz, bone);
+
+        // The tail: tapering to the ground.
+        int ty = 3;
+        for (int x = 27; x <= 35; x++)
+        {
+            if (x % 3 == 0 && ty > 0)
+            {
+                ty--;
+            }
+
+            c.Set(x, ty, cz + (x > 31 ? 1 : 0), bone);
+        }
+
+        Erode(c, rng, baseP: 0.0, topP: 0.12, protectY: 0);
+        return c;
+    }
+
+    /// <summary>A skull you can walk into: a hollow bone dome 11 across with two eye sockets and a nasal opening in
+    /// its front, a row of teeth along the jaw, the mouth open three wide.</summary>
+    private static Canvas Skull(Materials mat, System.Random rng)
+    {
+        var c = new Canvas(13, 10, 13);
+        int cx = c.W / 2, cz = c.L / 2;
+        ushort bone = mat.Bone;
+        const double R = 5.5, Ry = 4.5;
+        for (int x = 0; x < c.W; x++)
+            for (int y = 0; y <= 8; y++)
+                for (int z = 0; z < c.L; z++)
+                {
+                    double dx = x - cx, dy = y - 3.0, dz = z - cz;
+                    double d = (dx * dx) / (R * R) + (dy * dy) / (Ry * Ry) + (dz * dz) / (R * R);
+                    double inner = (dx * dx) / ((R - 1.2) * (R - 1.2)) + (dy * dy) / ((Ry - 1.2) * (Ry - 1.2)) + (dz * dz) / ((R - 1.2) * (R - 1.2));
+                    if (d <= 1.0 && inner > 1.0 && y >= 0)
+                    {
+                        c.Set(x, y, z, bone);
+                    }
+                }
+
+        // The front (−z): two eye sockets, a nasal opening below and between them, the mouth at the ground.
+        foreach (int ex in new[] { cx - 2, cx + 2 })
+            for (int dy = 0; dy <= 1; dy++)
+                for (int dx = 0; dx <= 1; dx++)
+                {
+                    for (int z = 0; z <= 2; z++)
+                    {
+                        c.Clear(ex + dx - (ex > cx ? 1 : 0), 4 + dy, z);
+                    }
+                }
+
+        for (int z = 0; z <= 2; z++)
+        {
+            c.Clear(cx, 3, z);
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                c.Clear(cx + dx, 1, z);
+                c.Clear(cx + dx, 2, z);
+            }
+        }
+
+        // The teeth: along the jaw's front edge, every other cell.
+        for (int dx = -4; dx <= 4; dx += 2)
+        {
+            c.Set(cx + dx, 0, 1, bone);
+        }
+
+        Erode(c, rng, baseP: 0.0, topP: 0.15, protectY: 1);
+        return c;
+    }
+
+    /// <summary>A serpent's spine winding across the ground for fifty blocks, half of it under the surface, short
+    /// ribs standing out every third vertebra, a jawed head at one end.</summary>
+    private static Canvas Serpent(Materials mat, System.Random rng)
+    {
+        var c = new Canvas(50, 5, 11);
+        int cz = c.L / 2;
+        ushort bone = mat.Bone;
+        int[] wave = { 0, 1, 2, 2, 1, 0, -1, -2, -2, -1 };
+        int[] dip = { 1, 1, 0, 0, 1, 1, 1, 0, 0, 1 };
+        int phase = rng.Next(wave.Length);
+        for (int x = 4; x < c.W; x++)
+        {
+            int z = cz + wave[(x + phase) % wave.Length];
+            int y = dip[(x + phase) % dip.Length];
+            c.Set(x, y, z, bone);
+            if (x % 3 == 0 && rng.NextDouble() < 0.85)
+            {
+                // A pair of ribs standing out of the ground beside the vertebra.
+                c.Set(x, y + 1, z - 1, bone);
+                c.Set(x, y + 1, z + 1, bone);
+                c.Set(x, y + 2, z - 2, bone);
+                c.Set(x, y + 2, z + 2, bone);
+            }
+        }
+
+        // The head: a 4-long skull with an open jaw at x 0..3.
+        int hz = cz + wave[(4 + phase) % wave.Length];
+        for (int x = 0; x <= 3; x++)
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                c.Set(x, 2, hz + dz, bone);
+                if (x >= 2)
+                {
+                    c.Set(x, 1, hz + dz, bone);
+                }
+            }
+
+        c.Set(0, 0, hz, bone); // the lower jaw's tip, resting on the ground
+        c.Set(1, 0, hz, bone);
+        c.Set(0, 3, hz, bone); // a brow
+
+        Erode(c, rng, baseP: 0.0, topP: 0.1, protectY: 0);
         return c;
     }
 

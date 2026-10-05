@@ -245,6 +245,11 @@ public sealed partial class WorldGenerator
             n = AppendWaveBands(planet, w, worldX, worldZ, bands, n);
         }
 
+        if (w.FossilRidges && n < bands.Length)
+        {
+            n = AppendFossilBands(planet, w, worldX, worldZ, bands, n);
+        }
+
         return n;
     }
 

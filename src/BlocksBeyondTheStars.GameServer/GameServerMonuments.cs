@@ -124,7 +124,9 @@ public sealed partial class GameServer
         // Each monument on a body is a different silhouette, so a world never shows the same relic twice.
         // #1649: generation-1 worlds draw from the larger pool (six more silhouettes); classic worlds keep the
         // five, in the same order, so a loaded save meets the same relics.
-        var archetypes = _meta.Description.TerrainGeneration >= 1 ? MonumentGenerator.ArchetypesGen1 : MonumentGenerator.Archetypes;
+        // #2341: generation-21 worlds add the three fossils to the pool; every older generation keeps its own pool.
+        var archetypes = _meta.Description.TerrainGeneration >= WorldDescription.SpectacleGeneration ? MonumentGenerator.ArchetypesGen21
+            : _meta.Description.TerrainGeneration >= 1 ? MonumentGenerator.ArchetypesGen1 : MonumentGenerator.Archetypes;
         var pool = archetypes.OrderBy(a => WorldGenerator.StableHash(a + ':' + mSeed)).ToList();
 
         var placed = new List<(PlacedSettlement Placement, string Archetype, int Index)>();

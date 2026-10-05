@@ -582,7 +582,7 @@ public sealed partial class WorldGenerator
         public bool OilPockets;
 
         // Terrain generation 21 (#2331, the spectacle package): the family gates, all false below generation 21.
-        public bool PillarIslands, ArchClusters, MesaClusters, TableVariants, WaveRocks, Abris, Portals, DaylightHalls;
+        public bool PillarIslands, ArchClusters, MesaClusters, TableVariants, WaveRocks, Abris, Portals, DaylightHalls, FossilRidges, BoneStrata;
 
         /// <summary>Generation 21 (#2332): the block the package's rock bands are made of on this world — sandstone on
         /// butte / wind country, basalt on volcanic, ice on the deep cold, else Air (= the planet's deep block).</summary>
@@ -759,6 +759,9 @@ public sealed partial class WorldGenerator
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.MesaRubblePaint(p, w, x, z, out fill)),
         // The wave rock's ridge (its curl is a band).
         new("wave-rock", w => w.WaveRocks, static (g, p, w, x, z) => g.WaveRockOffset(p, w, x, z)),
+        // The fossil ridge's spine mound and skull dome (its ribs are bands); the paint is the bone itself.
+        new("fossil-ridge", w => w.FossilRidges, static (g, p, w, x, z) => g.FossilRidgeOffset(p, w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.FossilRidgePaint(p, w, x, z, y, out fill)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -850,6 +853,8 @@ public sealed partial class WorldGenerator
             ["abris"] = w.Abris,
             ["portals"] = w.Portals,
             ["daylightHalls"] = w.DaylightHalls,
+            ["fossilRidges"] = w.FossilRidges,
+            ["boneStrata"] = w.BoneStrata,
         };
     }
 
@@ -1119,6 +1124,8 @@ public sealed partial class WorldGenerator
                     w.Abris = w.TableVariants;
                     w.Portals = HasPortals(planet);
                     w.DaylightHalls = HasDaylightHalls(planet);
+                    w.FossilRidges = HasFossilRidges(planet);
+                    w.BoneStrata = HasBoneStrata(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
@@ -1148,7 +1155,7 @@ public sealed partial class WorldGenerator
                     || w.NaturalBridges || w.CoastalOverhangs || w.IceCornices || w.MushroomRocks // #1646
                     || w.Icebergs
                     || (planet.BuoyantIslands && _terrainGeneration >= WorldDescription.AuthoredContentGeneration) // #1757
-                    || w.PillarIslands || w.ArchClusters || w.MesaClusters || w.TableVariants || w.WaveRocks; // #2331 (false below gen 21)
+                    || w.PillarIslands || w.ArchClusters || w.MesaClusters || w.TableVariants || w.WaveRocks || w.FossilRidges; // #2331 (false below gen 21)
                 // #703 hybrid fade; #1645: on a multi-style world the fade runs whenever more than one style was
                 // rolled — identity styles (flats, spires) stay pure only as the sole pick.
                 w.HybridEligible = _terrainGeneration >= 1 && w.Styles.Length != 0
