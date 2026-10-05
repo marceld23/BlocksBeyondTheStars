@@ -159,6 +159,30 @@ public sealed class RopeRigTests
     }
 
     [Fact]
+    public void HoldingThePull_AfterAHang_KeepsHanging_UntilAFreshPress()
+    {
+        var rig = new RopeRig();
+        rig.Attach(new Vector3f(10f, 8.5f, 5.5f), West, new Vector3i(10, 8, 5), 24f, WallTop10);
+        var feet = new Vector3f(4f, 7f, 5.5f);
+        Assert.Equal(RopeEvent.Hang, Pull(rig, ref feet, 3f).Event);
+
+        // The button stays down for a second: no second Hang, no pull, the body is held where it is.
+        for (int i = 0; i < 50; i++)
+        {
+            var held = rig.Step(feet, 0.02f, pullHeld: true, grounded: false, fallDrop: 0f, sightClear: true, steer: Vector3f.Zero);
+            Assert.True(held.Owns);
+            Assert.Equal(RopeEvent.None, held.Event);
+            Assert.Equal(Vector3f.Zero, held.Velocity);
+            Assert.Equal(RopeState.Hanging, rig.State);
+        }
+
+        // Let go, press again: the pull runs once more (and arrives again — one event per press).
+        rig.Step(feet, 0.02f, pullHeld: false, grounded: false, fallDrop: 0f, sightClear: true, steer: Vector3f.Zero);
+        var again = rig.Step(feet, 0.02f, pullHeld: true, grounded: false, fallDrop: 0f, sightClear: true, steer: Vector3f.Zero);
+        Assert.Equal(RopeEvent.Hang, again.Event);
+    }
+
+    [Fact]
     public void ASlackRope_LetsYouJump_ButCatchesARealFall()
     {
         var rig = new RopeRig();
@@ -173,6 +197,13 @@ public sealed class RopeRigTests
         Assert.True(fall.Owns);
         Assert.Equal(RopeEvent.Hang, fall.Event);
         Assert.Equal(RopeState.Hanging, rig.State);
+
+        // A rope to the floor of a pit cannot hold anyone up: no catch from an anchor below the chest.
+        var low = new RopeRig();
+        low.Attach(new Vector3f(10f, 2f, 0f), Up, new Vector3i(10, 1, 0), 24f, Air);
+        var drop = low.Step(new Vector3f(10f, 10f, 0f), 0.02f, pullHeld: false, grounded: false, fallDrop: 3f, sightClear: true, steer: Vector3f.Zero);
+        Assert.False(drop.Owns);
+        Assert.Equal(RopeState.Attached, low.State);
     }
 
     [Fact]

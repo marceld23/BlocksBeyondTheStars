@@ -500,10 +500,10 @@ public sealed partial class GameServer
     private void HandleReleaseRope(PlayerSession session) => session.State.RopeAnchor = null;
 
     /// <summary>Where a rope can hold at all: on foot on a body — not aboard, on a spacewalk, in the ship's interior,
-    /// seated, on a train, above the atmosphere or in a flight instance.</summary>
+    /// seated, on a train, driving a speeder, above the atmosphere or in a flight instance.</summary>
     private bool RopeAllowed(PlayerState p)
-        => !p.AboardShip && !p.InEva && !p.Seated && p.InTrain.Length == 0 && !p.AboveAtmosphere
-           && !InSpace(p.PlayerId) && !InShipInterior(p.PlayerId);
+        => !p.AboardShip && !p.InEva && !p.Seated && p.InTrain.Length == 0 && string.IsNullOrEmpty(p.InSpeeder)
+           && !p.AboveAtmosphere && !InSpace(p.PlayerId) && !InShipInterior(p.PlayerId);
 
     /// <summary>True while the selected hotbar slot holds the rope gun.</summary>
     private static bool HoldsRopeGun(PlayerState p)

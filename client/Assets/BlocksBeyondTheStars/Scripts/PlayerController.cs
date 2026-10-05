@@ -3443,6 +3443,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (_ropePendingAnchor != null && Time.time - _ropePendingAt < RopePendingSeconds)
+            {
+                return; // a shot is in flight: its outcome must not attach a second aim
+            }
+
             if (_rope.Attached)
             {
                 ReleaseRope();
@@ -3473,6 +3478,8 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_ropePendingAnchor is not { } anchor || Time.time - _ropePendingAt > RopePendingSeconds)
             {
+                Game?.Network?.SendReleaseRope(); // a late confirmation: the server holds an anchor nobody here shows
+                _ropePendingAnchor = null;
                 return;
             }
 
@@ -3578,7 +3585,8 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_ropePendingAnchor != null && Time.time - _ropePendingAt > RopePendingSeconds)
             {
-                _ropePendingAnchor = null; // refused, or the outcome never came
+                _ropePendingAnchor = null; // refused, or the outcome never came — either way the server must not keep an anchor we do not show
+                Game?.Network?.SendReleaseRope();
             }
 
             if (!_rope.Attached)
@@ -3636,6 +3644,11 @@ namespace BlocksBeyondTheStars.Client
             if (!step.Owns)
             {
                 return false;
+            }
+
+            if (_climbing)
+            {
+                EndClimb(); // a slack rope reeled in from a wall: the rope takes over from the climb
             }
 
             move = new Vector3(step.Velocity.X, 0f, step.Velocity.Z);
@@ -4357,8 +4370,11 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (roped)
             {
-                // #2321: on the rope — no gravity; UpdateRope set the move and the vertical speed from the rig.
+                // #2321: on the rope — no gravity; UpdateRope set the move and the vertical speed from the rig. A touch
+                // of the ground while the winch moves the body is no landing (like the pull-up's), so a steep reel
+                // never reports its own speed as a fall on a light world.
                 _verticalVelocity = _ropeVy;
+                _wasGrounded = true;
             }
             else if (climbing)
             {

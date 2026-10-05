@@ -150,6 +150,7 @@ namespace BlocksBeyondTheStars.Client
         private float _stuckTime;
         private Vector3f _stuckFrom;
         private float _startDistance = 1f;
+        private bool _pullLatched; // the hold that ended in a hang is spent — a new pull needs a fresh press
 
         public RopeState State { get; private set; }
 
@@ -249,6 +250,7 @@ namespace BlocksBeyondTheStars.Client
             _pullTime = 0f;
             _sightLost = 0f;
             _stuckTime = 0f;
+            _pullLatched = false;
             _startDistance = 1f;
             Progress = 0f;
         }
@@ -258,6 +260,7 @@ namespace BlocksBeyondTheStars.Client
         /// <paramref name="grounded"/> whether the feet stand on something, <paramref name="fallDrop"/> how far the body
         /// has fallen below its take-off (0 on the ground), <paramref name="sightClear"/> whether nothing solid lies
         /// between the chest and the anchor, and <paramref name="steer"/> the walk input as a world-space vector (m/s).
+        /// A pull that ended in a hang stays a hang while the button is held; a fresh press pulls again.
         /// </summary>
         public RopeStep Step(Vector3f feet, float dt, bool pullHeld, bool grounded, float fallDrop, bool sightClear, Vector3f steer)
         {
@@ -293,6 +296,20 @@ namespace BlocksBeyondTheStars.Client
 
             if (pullHeld)
             {
+                if (_pullLatched)
+                {
+                    // The pull that got us here ended in a hang (arrived at a wall, ran into something): holding on
+                    // keeps hanging — otherwise the rig would re-enter the pull every frame and shove the body into
+                    // the obstacle again and again. Let go and press again to pull once more.
+                    if (grounded)
+                    {
+                        State = RopeState.Attached;
+                        return RopeStep.NotOwned;
+                    }
+
+                    return new RopeStep(true, Vector3f.Zero, RopeEvent.None);
+                }
+
                 if (State != RopeState.Pulling)
                 {
                     State = RopeState.Pulling;
@@ -314,6 +331,7 @@ namespace BlocksBeyondTheStars.Client
                     if (Len(feet - _stuckFrom) < RopeRules.StuckProgress)
                     {
                         State = RopeState.Hanging; // the body ran into something: the winch holds it there
+                        _pullLatched = true;
                         return new RopeStep(true, Vector3f.Zero, RopeEvent.Hang);
                     }
 
@@ -332,6 +350,7 @@ namespace BlocksBeyondTheStars.Client
 
             _pullTime = 0f;
             _stuckTime = 0f;
+            _pullLatched = false; // the button is up: the next press pulls again
             if (State == RopeState.Pulling)
             {
                 State = RopeState.Hanging; // the button went up mid-pull: the winch holds
@@ -348,8 +367,9 @@ namespace BlocksBeyondTheStars.Client
                 return new RopeStep(true, Vector3f.Zero, RopeEvent.None);
             }
 
-            // Slack: the player walks and jumps as usual — but a real fall is caught by the rope.
-            if (!grounded && fallDrop > RopeRules.CatchDrop)
+            // Slack: the player walks and jumps as usual — but a real fall is caught by the rope, as long as the anchor
+            // is above the chest (a rope to the floor of the pit cannot hold anyone up).
+            if (!grounded && fallDrop > RopeRules.CatchDrop && Anchor.Y > chest.Y)
             {
                 State = RopeState.Hanging;
                 return new RopeStep(true, Vector3f.Zero, RopeEvent.Hang);
@@ -366,6 +386,7 @@ namespace BlocksBeyondTheStars.Client
             _pullTime = 0f;
             _sightLost = 0f;
             _stuckTime = 0f;
+            _pullLatched = false;
             Progress = 0f;
         }
 
@@ -387,6 +408,7 @@ namespace BlocksBeyondTheStars.Client
                     return new RopeStep(true, Vector3f.Zero, RopeEvent.PullUp);
                 default:
                     State = RopeState.Hanging;
+                    _pullLatched = true;
                     return new RopeStep(true, Vector3f.Zero, RopeEvent.Hang);
             }
         }
