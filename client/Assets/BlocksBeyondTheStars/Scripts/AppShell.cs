@@ -2034,6 +2034,7 @@ namespace BlocksBeyondTheStars.Client
                 // the player is right now (on foot vs. aboard / flying / driving), and the panel grows a row for it.
                 if (_quitDialog != null)
                 {
+                    _quitDialog.SetActive(false); // Destroy() only takes effect at the end of the frame — hide first, or two pause canvases overlap for one frame
                     Destroy(_quitDialog);
                     _quitDialog = null;
                 }
@@ -2091,6 +2092,7 @@ namespace BlocksBeyondTheStars.Client
             y += Row;
             _returnShipButton = null;
             _returnShipLabel = null;
+            _returnShipShownSecond = int.MinValue; // a fresh row shows its first state right away
             if (returnShip)
             {
                 _returnShipButton = UiKit.AddButton(panel.transform, 90f, y, 300f, 56f, L("ui.pause.return_ship"), ReturnToShip);
@@ -2112,17 +2114,21 @@ namespace BlocksBeyondTheStars.Client
         private UnityEngine.UI.Text _pauseStatusText;
         private UnityEngine.UI.Button _returnShipButton; // #2286: the "Back to my ship" row (null when the menu has none)
         private UnityEngine.UI.Text _returnShipLabel;
+        private int _returnShipShownSecond = int.MinValue; // the whole second the row last showed (0 = ready); the label is only re-formatted when it changes
 
-        /// <summary>"Back to my ship" (#2286): asks the server and closes the menu, so the snap aboard — or the server's
-        /// reason for refusing — is seen in the world, not behind the pause panel.</summary>
+        /// <summary>"Back to my ship" (#2286): closes the menu and asks the server, so the snap aboard — or the server's
+        /// reason for refusing — is seen in the world, not behind the pause panel. The menu closes FIRST: in
+        /// singleplayer this menu is what holds the world, and the release must be on the wire before the intent (the
+        /// server serves the intent through a hold too, but the order keeps it from ever depending on that).</summary>
         private void ReturnToShip()
         {
-            Boot()?.Network?.SendReturnToShip();
             CancelQuit();
+            Boot()?.Network?.SendReturnToShip();
         }
 
         /// <summary>Greys the "Back to my ship" row while its cooldown runs and shows the time left on it (m:ss),
-        /// counting down between the server's state updates.</summary>
+        /// counting down between the server's state updates. Called every frame the menu is up, so the label is only
+        /// re-formatted when the shown second changes — not three strings per frame.</summary>
         private void RefreshReturnShipButton()
         {
             if (_returnShipButton == null)
@@ -2131,7 +2137,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float left = Boot()?.ReturnToShipCooldownLeft ?? 0f;
-            bool ready = left <= 0f;
+            int second = Mathf.CeilToInt(Mathf.Max(0f, left)); // what FormatRemaining shows: rounded up, 0 = ready
+            if (second == _returnShipShownSecond)
+            {
+                return;
+            }
+
+            _returnShipShownSecond = second;
+            bool ready = second <= 0;
             _returnShipButton.interactable = ready;
             if (_returnShipLabel != null)
             {

@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -81,6 +82,7 @@ public sealed class SreekmakraTests : IDisposable
             }
 
             server.Sessions[1].State.Position = c.Position;
+            server.AdvanceUptimeForTest(MeleeRules.FistCooldownSeconds); // #2306: the bare hand lands 5 damage once per 1.2 s — rest it between punches
             server.AttackEntity(playerId, creatureId);
         }
     }

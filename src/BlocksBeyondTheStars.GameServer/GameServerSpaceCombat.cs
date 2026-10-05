@@ -1676,7 +1676,7 @@ public sealed partial class GameServer
     }
 
     private const float TractorPullRange = 30f; // a manual quick-bar tractor sweep reaches further than the passive pull
-    private const float TractorReach = 45f;     // an AIMED (auto-locked) drop pulls in from this far (the starter laser's reach before #2284 lengthened it to 60)
+    private const float TractorReach = 60f;     // an AIMED (auto-locked) drop pulls in from as far as the starter laser reaches (ship_laser_basic weapon_range 60, #2284)
 
     /// <summary>Manual tractor pull (quick-bar). With a locked <paramref name="targetId"/> the client picked,
     /// pulls THAT drop in from a generous range (3D depth is hard to eyeball, so the blind radius sweep used to

@@ -11,6 +11,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -236,6 +237,8 @@ public sealed class BaseVisitorsTests : IDisposable
         Assert.Equal(BanditPhase.Fighting, scout.BanditPhase);
         Assert.Equal(baseId, scout.ScoutBaseId); // it remembers what it came for, so beating it still counts
 
+        scout.Hull = 1f; // #2306: one punch puts it down — the bare hand lands 5 damage once per 1.2 s …
+        server.AdvanceUptimeForTest(MeleeRules.FistCooldownSeconds); // … and the blow above has only just been thrown
         for (int i = 0; i < 12 && server.Bandits.Contains(scout); i++)
         {
             server.AttackEntity("Owner", scout.Id);

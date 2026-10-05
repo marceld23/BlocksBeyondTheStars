@@ -72,6 +72,17 @@ EditMode golden found on the way.
   idea (not done): hash the synthetic world by block keys like the worldgen goldens, so a new block no longer breaks it.
 - **✅ Texts** in all 14 languages (the 11 new `ui.pause.return_ship*` / `ui.worldopt.return_ship` / `srv.return_ship.*`
   keys machine-translated + hand QA).
+- **✅ Review hardening (2026-10-05):** `ship_cannon_1.weapon_range` 50 → **65** — the first weapon upgrade no longer loses
+  reach against the 60 laser (`SpaceCombatTests` pins laser < cannon_1 < laser_cannon_2) — and `TractorReach` 45 → **60**
+  (= the laser's reach, as its comment always claimed). `ReturnToShipIntent` is served through a held world
+  (`PausedMayHandle`: in singleplayer the pause menu that carries the button IS the hold, so the intent was silently
+  dropped — `ReturnToShipTests.FromTheHeldPauseMenu…`; the client also closes the menu before sending). The snap arms
+  `AwaitingSpawnAdopt` so a move report still in flight cannot drag the player back outside (asserted in the success
+  test). The pause menu's countdown runs on `WorldClock.Now` (frozen with the hold, like the server's uptime), the menu
+  hides the old canvas before destroying it and re-formats the cooldown label only when the shown second changes. Plus
+  the 14 server tests that still killed creatures / scouts / camp guards with the bare hand (5 damage once per 1.2 s since
+  #2306) — hull → 1 and the fist rested via `AdvanceUptimeForTest` (`BioLabTests`, `CreatureTests`, `BaseVisitorsTests`,
+  `MissionChainTests`, `NpcRadioTests`, `BountyMissionTests.ClearCamp`, the `SreekmakraTests.Hit` helper).
 - ⚠ **Playtest:** drill / scanner punch in hand (5 damage, 1.2 s, swing gated on the client too); space: shot at from
   ~70, the laser hits at 60; pause menu on foot shows "Back to my ship" with the countdown and is hidden aboard / in
   flight / in a speeder; the refusals read right in DE/EN; the world-options row toggles live; a bandit walks over the

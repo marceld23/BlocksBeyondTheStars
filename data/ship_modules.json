@@ -127,7 +127,7 @@
     "key": "ship_cannon_1", "nameKey": "module.ship_cannon_1.name", "descriptionKey": "module.ship_cannon_1.desc",
     "mandatory": false, "requiredBlueprint": "ship_cannon_1",
     "buildCost": [ { "item": "titanium_plate", "count": 30 }, { "item": "cable", "count": 12 }, { "item": "energy_cell_1", "count": 4 } ],
-    "stats": { "weapon_class": 1, "weapon_damage": 20, "weapon_range": 50, "weapon_cooldown": 1.0, "weapon_energy": 3 },
+    "stats": { "weapon_class": 1, "weapon_damage": 20, "weapon_range": 65, "weapon_cooldown": 1.0, "weapon_energy": 3 },
     "fx": {"style":"plasma_bolt","color":"#ff9a3c","color2":"#fff0c8","speed":140}
   },
   {

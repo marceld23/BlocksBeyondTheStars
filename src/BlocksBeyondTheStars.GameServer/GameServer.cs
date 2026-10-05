@@ -3694,14 +3694,19 @@ public sealed partial class GameServer
         return true;
     }
 
-    /// <summary>Messages still served while the world is held paused (#995): the resume path itself, chat
-    /// and voice (players coordinating the resume), diagnostics, explicit saves, harmless UI state,
-    /// read-only requests and admin commands. Everything else — movement, mining, building, crafting,
-    /// combat, trading — would mutate a world whose simulation (threats, hunger, clock) is frozen.</summary>
+    /// <summary>Messages still served while the world is held paused (#995): the resume path itself, the pause
+    /// menu's own "Back to my ship" (#2286), chat and voice (players coordinating the resume), diagnostics,
+    /// explicit saves, harmless UI state, read-only requests and admin commands. Everything else — movement,
+    /// mining, building, crafting, combat, trading — would mutate a world whose simulation (threats, hunger,
+    /// clock) is frozen.</summary>
     private static bool PausedMayHandle(object message) => message switch
     {
         PauseIntent or ChatIntent or VoiceFrame or BumpReport or SaveGameIntent
             or SelectHotbarIntent or AdminCommandIntent => true,
+        // #2286: sent FROM the pause menu — in singleplayer that menu is exactly what holds the world, so the
+        // intent would never get through otherwise. Every gate (on foot, own ship here, no fight, not falling,
+        // cooldown) is still checked in ReturnToShipRefusal; the snap itself moves nothing but the player.
+        ReturnToShipIntent => true,
         RequestStarMap or RequestMissions or RequestCompanionsIntent
             or RequestAllianceListIntent or RequestLandingPadsIntent or FarTerrainTileRequest => true, // reads (#1821: the far view keeps filling in)
         // The crew/marker envelopes (#1216/#1217) carry reads AND writes — only the read passes a pause.

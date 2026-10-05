@@ -10,6 +10,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using Xunit;
@@ -237,6 +238,8 @@ public sealed class NpcRadioTests : IDisposable
             foreach (var guard in server.Bandits.ToList())
             {
                 p.State.Position = guard.Position;
+                guard.Hull = 1f; // #2306: one punch each — the bare hand lands 5 damage once per 1.2 s …
+                server.AdvanceUptimeForTest(MeleeRules.FistCooldownSeconds); // … so it has to rest between two guards
                 for (int i = 0; i < 10 && server.Bandits.Contains(guard); i++)
                 {
                     server.AttackEntity("Hero", guard.Id);

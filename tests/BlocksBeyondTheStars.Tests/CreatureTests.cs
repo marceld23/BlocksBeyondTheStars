@@ -428,6 +428,7 @@ public sealed class CreatureTests : IDisposable
 
             // Fauna now spawns spread around the player, so step up to it before attacking.
             p.State.Position = creature.Position;
+            creature.Hull = 1f; // #2306: one punch puts it down — the bare hand lands 5 damage once per 1.2 s
 
             for (int i = 0; i < 12 && server.Creatures.Any(c => c.Id == creature.Id); i++)
             {

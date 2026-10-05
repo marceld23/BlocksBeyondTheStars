@@ -127,6 +127,37 @@ public sealed class ReturnToShipTests : IDisposable
         // The state update carries the cooldown, so the pause menu can grey its button.
         Assert.Contains(transport.Sent, x => x.Msg is PlayerStateUpdate u && u.PlayerId == "Lost"
             && u.ReturnToShipCooldownSeconds > ReturnToShipRules.CooldownSeconds - 5);
+
+        // #865: a move report still in flight from the stuck spot must not drag the player back outside — the snap arms
+        // the spawn-adopt gate like every other server teleport. A report beyond the adopt radius is dropped …
+        var tank = p.State.RespawnPoint;
+        server.MoveForTest("Lost", tank.X + 200f, tank.Y + 40f, tank.Z + 200f);
+        Assert.Equal(tank, p.State.Position);
+        // … and the first report at the tank adopts it, after which the client's movement is trusted again.
+        server.MoveForTest("Lost", tank.X, tank.Y, tank.Z);
+        server.MoveForTest("Lost", tank.X + 1f, tank.Y, tank.Z);
+        Assert.Equal(tank.X + 1f, p.State.Position.X);
+    }
+
+    [Fact]
+    public void FromTheHeldPauseMenu_TheIntentIsServed_AndTheHoldStays()
+    {
+        // The button lives in the pause menu — and in singleplayer that menu is what holds the world, where #995 drops
+        // every gameplay intent. The intent is whitelisted like the resume path, so it gets through the dispatcher;
+        // the hold itself is the menu's to release when it closes.
+        var transport = new RecordingTransport();
+        var server = Started("rts_paused", transport);
+        var p = OnFoot(server, "Lost");
+
+        server.PauseForTest(p, true);
+        Assert.True(server.IsPaused);
+
+        server.HandlePayloadForTest(p.ConnectionId, NetCodec.Encode(new ReturnToShipIntent()));
+
+        Assert.True(p.State.AboardShip);
+        Assert.Equal(p.State.RespawnPoint, p.State.Position);
+        Assert.Contains(transport.Sent, x => x.Conn == p.ConnectionId && x.Msg is RespawnNotice n && n.Reason == "@srv.return_ship.done");
+        Assert.True(server.IsPaused); // the menu releases the hold itself, when it closes
     }
 
     [Fact]

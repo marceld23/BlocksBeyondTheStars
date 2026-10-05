@@ -61,6 +61,17 @@ public sealed class SpaceCombatTests : IDisposable
         Assert.True(range < SpaceCombatRules.EngageRange, "the hostiles still open fire first — the laser does not out-range them");
     }
 
+    [Fact]
+    public void ClassOneCannons_OutReachTheStarterLaser_StepByStep()
+    {
+        // Review of #2284: lengthening the laser to 60 left ship_cannon_1 at 50 — the first weapon upgrade LOST reach.
+        // Each step up the class-1 ladder must gain reach: laser 60 < ship_cannon_1 65 < laser_cannon_2 70.
+        float Range(string key) => (float)_content.GetShipModule(key)!.Stats.GetValueOrDefault("weapon_range", 0.0);
+        Assert.Equal(65f, Range("ship_cannon_1"));
+        Assert.True(Range("ship_cannon_1") > Range("ship_laser_basic"), "the first cannon must reach further than the starter laser");
+        Assert.True(Range("laser_cannon_2") > Range("ship_cannon_1"), "the second cannon must reach further than the first");
+    }
+
     // ---------------- Free flight + instance population ----------------
 
     [Fact]

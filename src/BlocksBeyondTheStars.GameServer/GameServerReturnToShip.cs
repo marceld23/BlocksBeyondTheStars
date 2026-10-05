@@ -51,6 +51,7 @@ public sealed partial class GameServer
         _returnToShipReadyAt[p.PlayerId] = _uptime + ReturnToShipRules.CooldownSeconds;
         p.Position = _healTank; // the heal tank of the ship parked on this body — where a respawn and the teleporter land too
         p.AboardShip = true;
+        session.AwaitingSpawnAdopt = true; // #865: the client still streams its stuck-spot pose for a beat — it must not drag the player back outside
         session.VerticalSpeed = 0f; // set down, not falling
 
         Send(session, new RespawnNotice

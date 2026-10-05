@@ -6,6 +6,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Missions;
 using Xunit;
@@ -83,12 +84,15 @@ public sealed class BountyMissionTests : IDisposable
     private static Vector3f BoardPos(SvGameServer server)
         => server.SettlementMarkers.First(m => m.Type == "mission_board").Pos;
 
-    /// <summary>Steps up to every guard of the camp and puts it down (the last one clears the camp).</summary>
+    /// <summary>Steps up to every guard of the camp and puts it down (the last one clears the camp). One punch each — hull 1,
+    /// fist rested: the bare hand lands 5 damage once per 1.2 s since #2306, and these tests are about the cleared camp.</summary>
     private static void ClearCamp(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession fighter)
     {
         foreach (var guard in server.Bandits.ToList())
         {
             fighter.State.Position = guard.Position;
+            guard.Hull = 1f;
+            server.AdvanceUptimeForTest(MeleeRules.FistCooldownSeconds);
             for (int i = 0; i < 10 && server.Bandits.Contains(guard); i++)
             {
                 server.AttackEntity(fighter.State.PlayerId, guard.Id);

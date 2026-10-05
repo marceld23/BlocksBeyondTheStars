@@ -150,6 +150,7 @@ public sealed class BioLabTests : IDisposable
         // Defeating one yields a sample with its loot.
         var target = server.Creatures.First(c => c.Id == alive);
         p.State.Position = target.Position;
+        target.Hull = 1f; // #2306: one punch puts it down — the bare hand lands 5 damage once per 1.2 s, and this test is about the kill → sample chain
         for (int i = 0; i < 12 && server.Creatures.Any(c => c.Id == alive); i++)
         {
             server.AttackEntity("Ranger", alive);
