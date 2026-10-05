@@ -453,6 +453,22 @@ public sealed class PlayerSession
     /// ends after a short settle, so the fall report that rides in with the landing still finds it.</summary>
     public double ReentryGroundedSeconds { get; set; }
 
+    // --- "Back to my ship" gates (#2286) ---
+
+    /// <summary>Server uptime of the last blow this player was part of on foot — a hit they landed on a creature, a
+    /// machine or a bandit, or damage one of those did to them. "In a fight" for <c>ReturnToShipRules.CombatGraceSeconds</c>
+    /// after it. Negative infinity = never.</summary>
+    public double LastCombatAt { get; set; } = double.NegativeInfinity;
+
+    /// <summary>Server uptime of the last position report that advanced the clock (several reports within one tick share
+    /// it; the first one measures the speed). 0 = none yet.</summary>
+    public double LastMoveAt { get; set; }
+
+    /// <summary>Vertical speed (blocks per second, + up) between the last two position reports in different ticks — the
+    /// server's reading of whether this player is falling right now (the client owns on-foot movement and reports only
+    /// positions). Reset when the player is set down somewhere by the server.</summary>
+    public float VerticalSpeed { get; set; }
+
     /// <summary>Cached result of the last heal-tank proximity scan.</summary>
     public bool NearHealTank { get; set; }
 

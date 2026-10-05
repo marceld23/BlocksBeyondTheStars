@@ -242,6 +242,7 @@ public sealed partial class GameServer
                     && HasLineOfSight(enemy.Position, p.Position)) // can't bite a target it can't see — duck behind cover/into a cave to break it
                 {
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(enemy.DamagePerSecond * dt)));
+                    NoteCombat(session); // #2286
                     MarkPlayerStateDirty(session); // #1530: one state per tick, not one per biting machine
                     if (p.Health <= 0f)
                     {
@@ -685,7 +686,6 @@ public sealed partial class GameServer
 
         var tool = ActiveTool(p);
         bool isWeapon = tool.Kind == ToolKind.Weapon;
-        bool bareHand = MeleeRules.IsBareHand(tool);
 
         // A weapon swings on a cooldown, so it can't be spammed (B44). The per-weapon cooldown comes from the
         // item (machete = 1.5s); an energy-free melee weapon with no explicit cooldown falls back to the default.
@@ -704,12 +704,13 @@ public sealed partial class GameServer
                 _meleeReadyAt[p.PlayerId] = _uptime + cd;
             }
         }
-        else if (bareHand)
+        else
         {
             // #2280: the bare hand has its own, slower rhythm — it used to punch as fast as the player could click.
             // Its own entry, so switching to a weapon right after a punch is not held back by it (and vice versa).
             // A punch up to MeleeRules.FistJitterToleranceSeconds early still lands: the client gates on the exact
-            // cooldown, so an early arrival is network jitter, not a faster fist.
+            // cooldown, so an early arrival is network jitter, not a faster fist. #2306: a drill, a scanner or a
+            // gadget is a punch too (MeleeRules.IsPunch) and shares this timer — tools dig, weapons fight.
             double cd = MeleeRules.FistCooldownSeconds * Shared.Bio.PlayerEffects.CooldownFactor(p.Effects);
             if (_fistReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt - MeleeRules.FistJitterToleranceSeconds)
             {
@@ -763,17 +764,19 @@ public sealed partial class GameServer
             SendPlayerState(session);
         }
 
-        // A crafted weapon uses its own damage; the bare hand is the weakest option (#2280, MeleeRules); any other tool
-        // keeps the tier-scaled fallback.
+        // A crafted weapon uses its own damage; everything else is a punch at the fist's damage (#2280, #2306,
+        // MeleeRules) — the bare hand and every tool that is not a weapon alike. The old 15 + tier · 10 fallback made
+        // the titanium drill a 35-damage, uncooled, energy-free weapon; it costs no suit energy either way.
         float damage = isWeapon
             ? (tool.Damage > 0f ? tool.Damage : 20f + tool.Tier * 15f)
-            : bareHand ? MeleeRules.FistDamage : 15f + tool.Tier * 10f;
+            : MeleeRules.FistDamage;
         if (!isWeapon || tool.Range <= 6f)
         {
             damage *= Shared.Bio.PlayerEffects.MeleeFactor(p.Effects); // #2202: strength is in the arm, not in a gun
         }
 
         target.Hull -= damage;
+        NoteCombat(session); // #2286: a blow landed — "Back to my ship" waits out the fight
 
         // 2026-09 (Valuma): a hit turns the shapeshifter on its attacker; at zero its disguise breaks instead of it dying.
         if (isCreature && IsSreekmakra(target) && OnSreekmakraHit(session, target))

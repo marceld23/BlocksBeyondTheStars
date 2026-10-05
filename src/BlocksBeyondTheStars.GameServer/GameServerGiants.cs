@@ -651,6 +651,7 @@ public sealed partial class GameServer
         }
 
         p.Health = System.Math.Max(0f, p.Health - Mitigate(p, amount));
+        NoteCombat(s); // #2286
         MarkPlayerStateDirty(s);
         if (p.Health <= 0f)
         {

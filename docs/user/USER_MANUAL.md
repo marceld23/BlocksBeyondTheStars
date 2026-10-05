@@ -148,7 +148,7 @@ Last updated: 2026-10-04.
 | **Enter** | Open the chat box (Esc cancels) |
 | **J** | Hide / show the chat scrollback for this session (rebindable; see also Settings → Comfort → Chat display) |
 | **V** (hold) | Push-to-talk voice (if the server enabled voice; needs a radio; key is configurable) |
-| **Esc** | Close the current screen; if no game screen is open, show the leave-game confirmation |
+| **Esc** | Close the current screen; if no game screen is open, open the pause menu (Resume · Settings · **Back to my ship** while on foot · Quit) |
 
 Interaction reach is ~6 m (extended by reach equipment).
 
@@ -1001,6 +1001,8 @@ effort.
 - **Aiming**: the ship laser acquires the best target roughly **ahead of the nose** (the centre dot lights up
   cyan on lock). Weapon **range and fire rate come from the fitted module** — bigger cannons genuinely reach
   further.
+- **Who shoots first:** hostiles open fire from about **70** units away; the starter laser reaches **60**. So when the
+  lock frame says *Too far — fly closer*, a short dash towards the enemy is all it takes to shoot back.
 - **Target lock** (**T** / **R** / right mouse button, pad **LB** / **R3**, touch **TARGET**): mark an enemy or
   any other target — a frame shows it, an arrow at the edge points to it when it is off screen, small red
   ticks point at further attackers. With Auto-aim on the laser prefers the locked target, and the centre dot
@@ -1021,6 +1023,9 @@ effort.
   walls).
 - **Fists are the weakest option.** With an empty hand (or a block, food or material in it) **F** throws a punch:
   **5 damage, at most one every 1.2 s** — even the starter machete does better, and every crafted weapon more so.
+- **Tools dig, weapons fight.** A drill, a scanner or a gadget in your hand hits exactly like the bare hand (the same
+  5 damage, the same one punch every 1.2 s, no suit energy) — only a crafted **weapon** brings its own damage, cooldown
+  and reach. Want to win a fight? Switch to the machete, not the drill.
 - **Companions and pets can't be attacked** — not your own, not a friend's, not a tamer's. The crosshair and
   auto-aim pass them by (they never turn the reticle red), and a swing at one is refused with a friendly note.
 
@@ -1239,6 +1244,18 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   world admin; or launch with `--starter-teleporter true`) hands every player who joins without one a suit
   teleporter — switching it on also gives one to everybody online. It stays an ordinary item (unlike the
   protected starter kit) and is off by default, so singleplayer progression is unchanged.
+
+### Back to my ship (stuck on foot)
+- Lost, trapped in a cave you can't dig out of, stranded on a summit above the air? Open the pause menu (**Esc**; pad
+  **Menu** → *Pause menu*) and press **Back to my ship**: you are put back aboard your ship at its heal tank — no
+  device, no suit energy needed.
+- It only works **on foot** (not aboard, not in space or EVA, not in a speeder or a train) and only when your **own
+  ship is landed on the world you are standing on**. It refuses while you are **in a fight** (you hit something or
+  something hurt you in the last 10 seconds, or a robber is still waiting for your answer) and while you are
+  **falling** — land first. One use every **3 minutes**; the button shows the time left and is greyed out meanwhile.
+  The suit teleporter stays the quicker way once you have crafted it (30 s cooldown, 10 energy).
+- World rule **"Back to my ship" in the pause menu** (Tab → Settings → world rules, world admin; or launch with
+  `--return-to-ship false`): **on by default**, **off on the `dangerous` preset** — a hard world keeps the walk back.
 
 ### Crystal Net (signals, sensors, automation)
 - **What it is.** **Crystal conduits** carry a simple signal — **ON or OFF**, nothing else. Lay a line of
@@ -2342,6 +2359,7 @@ look up: what a mix does follows from what goes in, and the same things always g
 ### Death & respawn
 - At 0 health you respawn at the ship's **Medbay heal-tank** (vitals restored); a salvage capsule may drop
   at the death site to recover cargo, per the active rules.
+- Alive but stuck? You never have to wait to suffocate — see *Back to my ship (stuck on foot)* above.
 
 ---
 

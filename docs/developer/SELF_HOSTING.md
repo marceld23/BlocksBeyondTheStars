@@ -75,6 +75,12 @@ pots and trays) catch up for at most `rules.machineCatchUpMinutes` of the absenc
 The work is bounded per machine and spread over the first ticks after the return (32 block edits per tick, one
 transaction each), so a large base costs a short burst, never a long stall.
 
+**"Back to my ship" (#2286).** The pause menu's rescue teleport for a player stuck on foot: back aboard the own ship
+when it is landed on the same body, never in a fight or while falling, once every three minutes, no device or energy
+(the server checks every gate; see `GameServerReturnToShip.cs`). It is a world rule — `rules.returnToShip`, CLI
+`--return-to-ship true|false`, world admins toggle it in-game under the world rules — on by default and **off on the
+`dangerous` preset**, so a hard world keeps the walk back.
+
 ### Environment-variable overrides (containers)
 
 Every key above can also be set with a `BBS_*` environment variable, which is the natural way to

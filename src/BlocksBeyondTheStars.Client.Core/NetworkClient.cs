@@ -475,11 +475,12 @@ namespace BlocksBeyondTheStars.Client
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",
             string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "", string hazards = "",
             string autoAim = "", string starterTeleporter = "", string frontierDanger = "", string baseVisitors = "",
-            string worldTextures = "", int machineCatchUpMinutes = -1)
+            string worldTextures = "", int machineCatchUpMinutes = -1, string returnToShip = "")
             => Send(new SetWorldRulesIntent
             {
                 MachineCatchUpMinutes = machineCatchUpMinutes, // #2269: -1 = unchanged
                 WorldTextures = worldTextures,
+                ReturnToShip = returnToShip, // #2286
                 CreatureAbundance = creatures,
                 PlanetEnemies = planetEnemies,
                 SpaceNpcEnemies = spaceNpcs,
@@ -749,6 +750,10 @@ namespace BlocksBeyondTheStars.Client
         public void SendLoadRation(string itemKey, int count) => Send(new LoadRationIntent { ItemKey = itemKey, Count = count });
 
         public void SendTeleportToShip() => Send(new TeleportToShipIntent());
+
+        /// <summary>"Back to my ship" (#2286): the pause menu asks the server to put the stuck on-foot player back aboard
+        /// their own ship. The server answers with a RespawnNotice snap, or an <c>@srv.return_ship.*</c> reject toast.</summary>
+        public void SendReturnToShip() => Send(new ReturnToShipIntent());
 
         /// <summary>Suit teleporter: beam to an allied player on the same body (#1056; server validates everything).</summary>
         public void SendTeleportToPlayer(string targetPlayerId) => Send(new TeleportToPlayerIntent { TargetPlayerId = targetPlayerId });

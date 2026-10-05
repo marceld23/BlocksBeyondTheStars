@@ -243,6 +243,13 @@ public sealed class GameRules
     /// OFF default — no start-up lift needed.</summary>
     public bool StarterTeleporter { get; set; }
 
+    /// <summary>"Back to my ship" (world option, default ON — issue #2286): the pause menu's way out for a player on
+    /// foot who is lost, trapped in a cave or stranded on a summit — a free teleport back aboard their own ship,
+    /// gated by the server (own ship landed on this body, not in a fight, not falling, one use per three minutes;
+    /// <see cref="Definitions.ReturnToShipRules"/>). OFF makes a hard world hard: the `dangerous` preset turns it off.
+    /// Live-editable by the world admin. Old saves deserialize without the field and keep the ON default.</summary>
+    public bool ReturnToShip { get; set; } = true;
+
     /// <summary>Machines catch up (world option, minutes, default 60 — issue #2269): machines of the Crystal Net that were
     /// running when their world stopped ticking (nobody there) are credited the gap when it runs again, at most this many
     /// minutes — the drill has dug, the fabricator has crafted, bounded per machine. 0 = off. Old saves deserialize

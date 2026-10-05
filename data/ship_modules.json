@@ -120,7 +120,7 @@
     "key": "ship_laser_basic", "nameKey": "module.ship_laser_basic.name", "descriptionKey": "module.ship_laser_basic.desc",
     "mandatory": false,
     "buildCost": [ { "item": "iron_plate", "count": 6 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 1 } ],
-    "stats": { "weapon_class": 2, "weapon_damage": 14, "weapon_range": 45, "weapon_cooldown": 0.6, "weapon_energy": 1 },
+    "stats": { "weapon_class": 2, "weapon_damage": 14, "weapon_range": 60, "weapon_cooldown": 0.6, "weapon_energy": 1 },
     "fx": {"style":"twin_pulse","color":"#5ff2ff","color2":"#ffffff"}
   },
   {

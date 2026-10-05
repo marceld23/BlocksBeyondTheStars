@@ -379,6 +379,7 @@ public sealed partial class GameServer
                     }
 
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, bite));
+                    NoteCombat(session); // #2286
                     MarkPlayerStateDirty(session); // #1530
                     if (p.Health <= 0f)
                     {

@@ -157,6 +157,7 @@ public sealed partial class GameServer
                     && HasLineOfSight(bandit.Position, p.Position))
                 {
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dps * dt)));
+                    NoteCombat(session); // #2286
                     MarkPlayerStateDirty(session); // #1530
                     if (p.Health <= 0f)
                     {
@@ -585,8 +586,13 @@ public sealed partial class GameServer
 
         // Swept at the candidate's height so a ledge just climbed does not read as a wall — the same shape as
         // the creatures' path sweep (#855), sampled every quarter block so a sprinting bandit cannot tunnel
-        // through a one-block wall between two ticks.
-        float dx = cand.X - cur.X, dz = cand.Z - cur.Z;
+        // through a one-block wall between two ticks. The step is measured across the world's seams (#2307): both
+        // positions are wrapped, so a raw cand − cur at the longitude seam read as a step of almost the whole
+        // circumference — the sweep sampled circumference/0.25 cells and reported "blocked", and a bandit (or a
+        // shock-glove push, #2278) stopped dead at the seam. The sample points may fall outside [0, circ);
+        // the block reads canonicalise them.
+        var local = Unwrapped(cur, cand);
+        float dx = local.X - cur.X, dz = local.Z - cur.Z;
         float dist = (float)System.Math.Sqrt(dx * dx + dz * dz);
         int steps = System.Math.Max(1, (int)System.Math.Ceiling(dist / 0.25f));
         for (int s = 1; s <= steps; s++)
@@ -995,6 +1001,11 @@ public sealed partial class GameServer
             Loot = { new ItemAmount("iron_plate", 2) },
         });
     }
+
+    /// <summary>Test seam (#2307): the terrain gate of a bandit step from <paramref name="cur"/> to <paramref name="cand"/>,
+    /// the feet at each position's floored Y — so a test can walk a bandit across the longitude seam.</summary>
+    public bool BanditStepBlockedByTerrainForTest(Vector3f cur, Vector3f cand)
+        => BanditStepBlockedByTerrain(cur, cand, (int)System.Math.Floor(cur.Y), (int)System.Math.Floor(cand.Y));
 
     /// <summary>Test/util: the pending demand id for a player (0 = none).</summary>
     public int PendingBanditDemandIdForTest(string playerId)

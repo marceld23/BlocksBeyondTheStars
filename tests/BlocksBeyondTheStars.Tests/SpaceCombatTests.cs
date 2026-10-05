@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
@@ -36,6 +37,28 @@ public sealed class SpaceCombatTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;
+    }
+
+    // ---------------- #2284: one engage range, a starter laser that reaches it ----------------
+
+    [Fact]
+    public void HostileEngageRange_IsTheSharedConstant()
+    {
+        // The server's damage aura and the client's drawn shots / "attacking" lock state read one number in Shared.
+        Assert.Equal(SpaceCombatRules.EngageRange, SvGameServer.ShipEngageRangeForTest);
+        Assert.Equal(70f, SpaceCombatRules.EngageRange);
+    }
+
+    [Fact]
+    public void StarterLaser_ReachesToWithinTenUnitsOfTheEngageRange()
+    {
+        // A child shot at from the edge of the aura must only fly a little closer to shoot back — not 25 units (#2284).
+        var laser = _content.GetShipModule("ship_laser_basic");
+        Assert.NotNull(laser);
+        float range = (float)laser!.Stats.GetValueOrDefault("weapon_range", 0.0);
+        Assert.Equal(60f, range);
+        Assert.True(range >= SpaceCombatRules.EngageRange - 10f, "the starter laser must reach to within 10 units of the hostiles' engage range");
+        Assert.True(range < SpaceCombatRules.EngageRange, "the hostiles still open fire first — the laser does not out-range them");
     }
 
     // ---------------- Free flight + instance population ----------------
@@ -1288,10 +1311,15 @@ public sealed class SpaceCombatTests : IDisposable
             // Enemies spawn a short distance away now; close in so it is within attack reach.
             p.State.Position = new Vector3f(enemy.Position.X, enemy.Position.Y, enemy.Position.Z);
 
-            // Hand attack deals 15/hit -> a few hits to kill a 30-hull creature.
-            for (int i = 0; i < 3 && server.PlanetEnemies.Any(e => e.Id == id); i++)
+            // A punch — the bare hand or the starter drill alike (#2280, #2306) — deals 5 at most every 1.2 s, so a
+            // 30-hull creature takes six punches with the cooldown waited out between them; the machine wanders in the
+            // meantime, so each punch is thrown from beside it.
+            for (int i = 0; i < 8 && server.PlanetEnemies.Any(e => e.Id == id); i++)
             {
+                var target = server.PlanetEnemies.First(e => e.Id == id);
+                p.State.Position = target.Position;
                 server.AttackEntity("Walker", id);
+                server.Tick(MeleeRules.FistCooldownSeconds + 0.1);
             }
 
             Assert.DoesNotContain(server.PlanetEnemies, e => e.Id == id);

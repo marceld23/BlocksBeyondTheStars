@@ -54,6 +54,13 @@ public sealed class SpaceTargetingTests
         => Assert.Equal(expected, SpaceTargeting.Classify(kind, hostile));
 
     [Fact]
+    public void AttackRange_IsTheServersEngageRange_FromTheOneSharedConstant()
+    {
+        // #2284: the client used to keep its own copy of the server's ShipEngageRange ("matches the server's 70").
+        Assert.Equal(BlocksBeyondTheStars.Shared.Definitions.SpaceCombatRules.EngageRange, SpaceTargeting.AttackRange);
+    }
+
+    [Fact]
     public void Pilots_AreFriendly_AndNpcTraders_Neutral()
     {
         Assert.Equal(TargetDisposition.Friendly, Pilot("papa", 10f).Disposition);

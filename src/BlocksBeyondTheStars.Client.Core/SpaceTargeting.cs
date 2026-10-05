@@ -95,8 +95,8 @@ public static class SpaceTargeting
     public const string TraderIdPrefix = "npc:";
 
     /// <summary>A hostile closer than this is attacking: the server's damage aura (<c>ShipEngageRange</c>) and the
-    /// client's drawn enemy shots use the same 70 units.</summary>
-    public const float AttackRange = 70f;
+    /// client's drawn enemy shots use the same range — one shared constant since #2284, so the two can never drift.</summary>
+    public const float AttackRange = BlocksBeyondTheStars.Shared.Definitions.SpaceCombatRules.EngageRange;
 
     /// <summary>A lock is released only beyond its lock range plus this slack, so a target on the rim never flickers.</summary>
     public const float ReleaseSlack = 1.1f;

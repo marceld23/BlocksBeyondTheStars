@@ -3840,6 +3840,7 @@ public sealed partial class GameServer
             case LoadRationIntent loadRation: HandleLoadRation(session, loadRation); break;
             case TeleportToShipIntent: HandleTeleportToShip(session); break;
             case TeleportToPlayerIntent tpp: HandleTeleportToPlayer(session, tpp); break;
+            case ReturnToShipIntent: HandleReturnToShip(session); break; // #2286
             case ToggleStealthIntent: HandleToggleStealth(session); break;
             case SetJetpackIntent sj: HandleSetJetpack(session, sj); break;
             case SetGlidingIntent sg: HandleSetGliding(session, sg); break;   // #2296
@@ -4695,6 +4696,7 @@ public sealed partial class GameServer
             session.State.Yaw = move.Yaw;
             session.State.Pitch = move.Pitch;
             session.State.Climbing = move.Climbing; // #2193: pose only — the climb itself is on-foot movement, the client's
+            TrackVerticalSpeed(session, before.Y, reported.Y); // #2286: "Back to my ship" refuses a falling player
             UpdateDrivingSpeeder(session); // if driving a speeder, slave it to this pose + drain its energy cell
             if (onSurface)
             {
@@ -7405,6 +7407,7 @@ public sealed partial class GameServer
             Effects = DumpEffects(p), // #2202
             Shield = p.Shield,
             Stealthed = p.Stealthed, // #2291: the own cloak (others see it through the presence)
+            ReturnToShipCooldownSeconds = ReturnToShipCooldownLeft(session), // #2286: the pause menu greys its button
         });
     }
 
@@ -7589,6 +7592,7 @@ public sealed partial class GameServer
             InstantTravel = r.InstantTravel,
             AutoAim = r.AutoAim,
             StarterTeleporter = r.StarterTeleporter,
+            ReturnToShip = r.ReturnToShip ? "On" : "Off", // #2286 (empty = a server without the rule)
             MachineCatchUpMinutes = r.MachineCatchUpMinutes, // #2269
             WorldTextures = r.WorldTextures ? "Admins" : "Off",
             FrontierDanger = r.FrontierDanger,
@@ -7657,6 +7661,11 @@ public sealed partial class GameServer
             Rules.StarterTeleporter = intent.StarterTeleporter.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
 
+        if (!string.IsNullOrEmpty(intent.ReturnToShip))
+        {
+            Rules.ReturnToShip = intent.ReturnToShip.Equals("On", System.StringComparison.OrdinalIgnoreCase); // #2286
+        }
+
         if (System.Array.IndexOf(CrystalNetRules.CatchUpChoicesMinutes, intent.MachineCatchUpMinutes) >= 0)
         {
             Rules.MachineCatchUpMinutes = intent.MachineCatchUpMinutes; // #2269: only the offered steps
@@ -7698,7 +7707,7 @@ public sealed partial class GameServer
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +
                   $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}, " +
                   $"bandits={Rules.Bandits}, instantTravel={Rules.InstantTravel}, hazards={Rules.EnvironmentalHazards}, " +
-                  $"autoAim={Rules.AutoAim}, starterTeleporter={Rules.StarterTeleporter}.");
+                  $"autoAim={Rules.AutoAim}, starterTeleporter={Rules.StarterTeleporter}, returnToShip={Rules.ReturnToShip}.");
     }
 
     /// <summary>Rearranges the player's personal inventory by swapping two slots (B58 — customising the quick-bar,

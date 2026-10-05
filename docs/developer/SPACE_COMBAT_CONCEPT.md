@@ -80,6 +80,12 @@ Everything below the line "Deferred" is intentionally **not** in the MVP.
   - `ShipWeapons` decides Tool-only (asteroid breaker) vs NPC vs PvP.
   - Asteroid mining is allowed even on weapons-off servers if `AsteroidDestruction` permits it
     (§7.4: tools ≠ combat weapons).
+- **Engage range** (#2284): a hostile fires on a pilot only inside `SpaceCombatRules.EngageRange` (70, in `Shared`).
+  The server's damage aura (`GameServerSpaceCombat.ShipEngageRange`) and the client's drawn enemy shots and
+  "attacking" lock state (`SpaceTargeting.AttackRange`, `SpaceView.HostileFireRange`) read that one constant, so the
+  two sides cannot drift (the client used to keep its own copy). The starter laser (`ship_laser_basic`,
+  `weapon_range` 60 — was 45) reaches to within ten units of it: shot at from the edge of the aura, a pilot flies a
+  little closer and shoots back instead of 25 units. `SpaceCombatTests` pins both numbers.
 - **No permanent loss**: hull ≤ 0 ⇒ `DisableShip` ⇒ respawn player, restore hull to max,
   clear the instance, ship "recovered to base". PvP ship damage is **not** in the MVP (the
   world has one shared ship; per-player ships come later) — `ShipDamageByPlayers` is read but

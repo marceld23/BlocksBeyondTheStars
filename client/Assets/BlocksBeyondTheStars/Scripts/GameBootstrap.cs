@@ -377,6 +377,22 @@ namespace BlocksBeyondTheStars.Client
         /// server-authoritative. Only while this is set does double-tapping jump toggle flight.</summary>
         public bool CanFly { get; private set; }
 
+        /// <summary>#2286: <c>Time.time</c> at which "Back to my ship" is ready again, from the server's last state update
+        /// (the server sends the seconds left; the pause menu counts them down between updates).</summary>
+        private float _returnToShipReadyAt;
+
+        /// <summary>Seconds until "Back to my ship" may be used again; 0 when it is ready (#2286).</summary>
+        public float ReturnToShipCooldownLeft => Mathf.Max(0f, _returnToShipReadyAt - Time.time);
+
+        /// <summary>Whether the pause menu offers "Back to my ship" right now (#2286): the world rule is on (an older server
+        /// never sends it and gets no button — it would drop the intent anyway) and the player is on foot — not aboard,
+        /// not flying or in EVA, not driving, not riding a train, not observing. The server checks all of it again, plus
+        /// the gates the client cannot see (own ship landed here, not in a fight, not falling, the cooldown).</summary>
+        public bool ReturnToShipOffered
+            => Rules != null && string.Equals(Rules.ReturnToShip, "On", System.StringComparison.Ordinal)
+               && !Aboard && !SpaceViewActive && !InEva && string.IsNullOrEmpty(InSpeeder) && string.IsNullOrEmpty(InTrain)
+               && !Spectating;
+
         /// <summary>World position of the player's ship (for the HUD minimap / compass), once known.</summary>
         public Vector3? ShipPosition { get; private set; }
 
@@ -3835,6 +3851,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             CanFly = m.CanFly;
+            _returnToShipReadyAt = Time.time + m.ReturnToShipCooldownSeconds; // #2286: 0 from the server = ready now
 
             // Zero-g construction mode on a player station (#1842): its own hints, worded for the station, replace
             // the planet's "left the atmosphere" line for the float that comes with the flip.

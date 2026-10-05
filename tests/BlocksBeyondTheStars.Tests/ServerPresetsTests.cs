@@ -35,6 +35,17 @@ public sealed class ServerPresetsTests
     }
 
     [Fact]
+    public void ReturnToShip_IsOffOnlyOnTheDangerousPreset()
+    {
+        // #2286: the free way out of a cave is on everywhere except the one preset that wants the walk back.
+        foreach (var name in ServerPresets.Names)
+        {
+            var rules = ServerPresets.Get(name)!;
+            Assert.Equal(name != "dangerous", rules.ReturnToShip);
+        }
+    }
+
+    [Fact]
     public void Get_ReturnsNullForNullName()
     {
         Assert.Null(ServerPresets.Get(null!));

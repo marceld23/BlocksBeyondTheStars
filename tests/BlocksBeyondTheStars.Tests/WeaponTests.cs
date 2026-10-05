@@ -234,6 +234,61 @@ public sealed class WeaponTests : IDisposable
             "the jitter slack must not make the fist outpunch the machete");
     }
 
+    // ---------------- #2306: tools dig, weapons fight ----------------
+
+    [Fact]
+    public void ANonWeaponTool_PunchesLikeTheBareHand_NoEnergyNoTierDamage()
+    {
+        // The titanium drill (tier 2, energyPerUse 0.5) used to hit for 15 + 2·10 = 35 with no cooldown and no energy
+        // cost — a better weapon than the machete. Now it is a punch: fist damage, fist cooldown, still no energy.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Driller");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+            p.State.SuitEnergy = 100f;
+            Equip(p.State, "titanium_drill");
+            Assert.Equal(ToolKind.Drill, _content.GetItem("titanium_drill")!.Tool!.Kind);
+
+            server.Tick(6.0);
+            var creature = server.Creatures.First(c => !c.IsGiant && !c.IsCompanion);
+            creature.HullMax = 50f;
+            creature.Hull = 50f;
+
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Driller", creature.Id);
+            Assert.Equal(50f - MeleeRules.FistDamage, creature.Hull, 3);
+            Assert.Equal(100f, p.State.SuitEnergy); // a punch with a tool draws no suit energy
+
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Driller", creature.Id); // right away — held back by the fist cooldown
+            Assert.Equal(50f - MeleeRules.FistDamage, creature.Hull, 3);
+
+            server.Tick(MeleeRules.FistCooldownSeconds + 0.1);
+            Assert.Contains(server.Creatures, c => c.Id == creature.Id);
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Driller", creature.Id);
+            Assert.Equal(50f - (2 * MeleeRules.FistDamage), creature.Hull, 3);
+
+            // Drill and fist share the one punch timer: switching to the bare hand right after a drill punch does not
+            // grant a second, faster punch.
+            p.State.Inventory.SetSlot(0, null);
+            creature.Position = new Vector3f(0, 64, 3);
+            server.AttackEntity("Driller", creature.Id);
+            Assert.Equal(50f - (2 * MeleeRules.FistDamage), creature.Hull, 3);
+        }
+    }
+
+    [Fact]
+    public void IsPunch_IsEverythingButAWeapon()
+    {
+        Assert.True(MeleeRules.IsPunch(null));
+        Assert.True(MeleeRules.IsPunch(_content.GetItem("titanium_drill")!.Tool));
+        Assert.True(MeleeRules.IsPunch(_content.GetItem("hand_scanner")!.Tool));
+        Assert.False(MeleeRules.IsPunch(_content.GetItem("machete")!.Tool));
+    }
+
     // ---------------- #2281: companions and pets cannot be attacked ----------------
 
     [Fact]

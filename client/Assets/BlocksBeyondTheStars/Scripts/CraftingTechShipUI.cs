@@ -3385,6 +3385,23 @@ namespace BlocksBeyondTheStars.Client
                 starterTp ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
 
+            // "Back to my ship" (world option, #2286): the pause menu's rescue teleport for a stuck player on foot —
+            // free, three minutes apart, never in a fight or while falling, only to the own ship landed on this body.
+            // On by default; a hard world switches it off. An older server sends no value — then there is nothing to switch.
+            if (!string.IsNullOrEmpty(rules?.ReturnToShip))
+            {
+                bool returnShip = string.Equals(rules.ReturnToShip, "On", System.StringComparison.Ordinal);
+                var returnShipBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+                {
+                    Game?.Network?.SendSetWorldRules(returnToShip: returnShip ? "Off" : "On");
+                    Invoke(nameof(RebuildList), 0.35f);
+                });
+                UiKit.AddText(returnShipBtn.transform, 16, 0, 520, 78, L("ui.worldopt.return_ship"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(returnShipBtn.transform, 560, 0, 200, 78, returnShip ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                    returnShip ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 96f;
+            }
+
             // World textures (#1959): may the admins of this world publish textures for everyone? Off also takes
             // the published ones away from every client (they stay stored and return when it is switched on).
             // An older server sends no value — then there is nothing to switch.

@@ -210,6 +210,18 @@ public sealed class ServerConfigTests
     }
 
     [Fact]
+    public void ApplyCommandLine_OverridesReturnToShip()
+    {
+        // #2286: "Back to my ship" is a world rule — ON by default, --return-to-ship false switches it off for a hard world.
+        Assert.True(new ServerConfig().Rules.ReturnToShip);
+
+        var config = new ServerConfig();
+        var applied = config.ApplyCommandLine(new[] { "--return-to-ship", "false" });
+        Assert.False(config.Rules.ReturnToShip);
+        Assert.Contains("return-to-ship", applied);
+    }
+
+    [Fact]
     public void ApplyCommandLine_OverridesStructureTemplateOptions()
     {
         var config = new ServerConfig();

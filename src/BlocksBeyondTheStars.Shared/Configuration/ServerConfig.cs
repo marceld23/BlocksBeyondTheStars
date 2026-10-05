@@ -681,6 +681,10 @@ public sealed class ServerConfig
                     // #1056: hand every joining player a suit teleporter (multiplayer crews beam to allies / ship).
                     if (bool.TryParse(value, out var stp)) { Rules.StarterTeleporter = stp; applied.Add("starter-teleporter"); }
                     break;
+                case "return-to-ship":
+                    // #2286: the pause menu's "Back to my ship" rescue teleport (default on; off for hard worlds).
+                    if (bool.TryParse(value, out var rts)) { Rules.ReturnToShip = rts; applied.Add("return-to-ship"); }
+                    break;
                 case "machine-catchup":
                     // #2269: minutes a world's running machines catch up when it runs again (0 = off).
                     if (int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var mcu) && mcu >= 0)

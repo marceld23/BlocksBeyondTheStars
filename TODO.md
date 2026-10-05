@@ -24,6 +24,52 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧰 Tools punch like fists, starter laser 60 + one engage range, "Back to my ship", bandit step across the seam (#2306 #2284 #2286 #2307, 2026-10-05, branch fix/tools-laser-return-seam) — ✅ done (unreleased; ⚠ playtest open)
+
+The four follow-ups of the gloves/target-lock review (decisions on the issues, Marcel 2026-10-05).
+
+- **✅ #2306 tools dig, weapons fight (2026-10-05):** every held tool that is not a weapon (drill, scanner, gadget) hits like
+  the bare hand — `MeleeRules.IsPunch`: 5 damage, 1.2 s on the fist's own cooldown timer, no suit energy — on the server
+  (`AttackCombatEntity`: the `15 + tier·10` fallback is gone, tools share the fist entry) and on the client
+  (`PlayerController.WeaponSwingReady` no longer gives an energy-using tool a cooldown of 0). The titanium drill was a
+  35-damage, uncooled, energy-free weapon before. Tests: `WeaponTests` — a titanium-drill punch deals 5, a second within
+  1.2 s is held back, no energy is drawn, drill and fist share the timer; `SpaceCombatTests.AttackEntity_KillsPlanetEnemy`
+  now punches with the cooldown waited out.
+- **✅ #2284 starter laser 45 → 60, one engage range (2026-10-05):** `ship_laser_basic.weapon_range` 60 (hostiles keep 70);
+  the engage range moved into `Shared/Definitions/SpaceCombatRules.EngageRange`, read by
+  `GameServerSpaceCombat.ShipEngageRange` and `SpaceTargeting.AttackRange` (the client's `HostileFireRange`), so server
+  and client cannot drift. Tests pin the server constant to the shared one, the client constant to it, and the laser to
+  ≥ engage − 10 (`SpaceCombatTests`, `SpaceTargetingTests`). The module's DE/EN descriptions state no number.
+- **✅ #2286 "Back to my ship" (2026-10-05):** a button in the pause menu (Esc; pad Menu → Pause menu), shown only on
+  foot (`GameBootstrap.ReturnToShipOffered`), greyed with an m:ss countdown while recharging. New
+  `ReturnToShipIntent` (NetCodec tag 290, **no protocol bump** — an older server drops the unknown tag and never sends
+  the rule, so an up-to-date client hides the button). Server (`GameServerReturnToShip.cs`, `ReturnToShipRules`): world
+  rule on; on foot (not aboard, in space, EVA, speeder, train, spectating or dead); own ship landed on this body
+  (`_shipPlaced` — launching unparks it); **not in a fight** = a blow the player landed or took less than 10 s ago
+  (`PlayerSession.LastCombatAt`, stamped in `AttackCombatEntity` and at the four on-foot damage sites: machines,
+  bandits, creature bites, giants) or a pending bandit hold-up; **not falling** = vertical speed from the last two move
+  reports below −8 blocks/s with a reading ≤ 1 s old (`TrackVerticalSpeed` in `HandleMove`); **3-minute cooldown** per
+  player (server run, like the suit teleporter's). Arrival = the ship's heal tank on the `RespawnNotice` snap channel
+  (`srv.return_ship.done`); refusals `srv.return_ship.{disabled,aboard,on_foot_only,no_ship_here,in_combat,falling,
+  cooldown}` (the cooldown one carries m:ss). Additive `PlayerStateUpdate.ReturnToShipCooldownSeconds` feeds the button.
+  World rule `GameRules.ReturnToShip` (default **on**, **off on the `dangerous` preset**, `--return-to-ship`,
+  `ServerRules.ReturnToShip` "On"/"Off"/empty like WorldTextures, `SetWorldRulesIntent.ReturnToShip`, a world-options
+  row in the Settings tab). No context-action (ACT) entry: the verb has no hotkey, and the pause menu is reachable on
+  keyboard, pad and touch alike. Tests: `ReturnToShipTests` (success with snap + cooldown field, the 3-minute cooldown,
+  in a fight + grace, hold-up, falling / landed / stale reading, ship not here, not on foot, rule off, m:ss format,
+  locale keys), `ServerConfigTests`, `ServerPresetsTests`, the NetCodec golden list. Docs: USER_MANUAL (new section,
+  Esc row, death & respawn), SELF_HOSTING (launch option).
+- **✅ #2307 bandit step across the seam (2026-10-05):** `BanditStepBlockedByTerrain` measures the step with
+  `Unwrapped(cur, cand)` like the creature/machine sweeps — a raw `cand.X − cur.X` at the longitude seam swept
+  circumference/0.25 cells and reported "blocked", stopping `MoveBandit` and the shock-glove `KnockBandit` at the seam.
+  Tests (`BanditTests`): a step across X = 0 passes and a post half a world away is no longer swept into, a wall in the
+  seam column still blocks, a shock push carries a robber over the seam.
+- ⚠ **Playtest:** drill / scanner punch in hand (5 damage, 1.2 s, swing gated on the client too); space: shot at from
+  ~70, the laser hits at 60; pause menu on foot shows "Back to my ship" with the countdown and is hidden aboard / in
+  flight / in a speeder; the refusals read right in DE/EN; the world-options row toggles live; a bandit walks over the
+  seam. The 12 community locales still need the 11 new keys (`ui.pause.return_ship*`, `ui.worldopt.return_ship`,
+  `srv.return_ship.*`).
+
 ### 🧑‍🚀 The suit — paper doll, slot picker, gear strip, stealth on B, radar contacts, four modules, new gear (#2298: #2288–#2297, 2026-10-04, branch feat/suit-paper-doll-gear) — ✅ done (released in v2026.10.6: protocol v11; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-04).** The worn slots (head, chest …) sat on the Backpack tab although they belong to the
@@ -58,7 +104,7 @@ sounds generated with the repo scripts.
 
 **Released** in **v2026.10.6** "the suit-up release" (2026-10-05).
 
-### 🏔️ Gloves & target-lock package — summits into space, fists, companions, Feed rebind, per-pilot hostiles, the flight target lock, shock + energy gloves, remote melee, first-person climbing hands (#2276 #2280 #2281 #2282 #2285 #2277 #2283 #2278 #2279 #2287, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (released in v2026.10.6; ⚠ playtest open; #2284, #2286, #2306, #2307 stay open)
+### 🏔️ Gloves & target-lock package — summits into space, fists, companions, Feed rebind, per-pilot hostiles, the flight target lock, shock + energy gloves, remote melee, first-person climbing hands (#2276 #2280 #2281 #2282 #2285 #2277 #2283 #2278 #2279 #2287, 2026-10-04, branch feat/gloves-target-lock-atmosphere) — ✅ done (released in v2026.10.6; ⚠ playtest open; the follow-ups #2284, #2286, #2306, #2307 are done above, 2026-10-05)
 
 **Report (Marcel, 2026-10-04, client 2026.10.4):** "I climbed a very high mountain that rose out of the atmosphere … now
 I don't know how to get back down." Since the #578 massifs a summit can rise above most planet types' atmosphere line

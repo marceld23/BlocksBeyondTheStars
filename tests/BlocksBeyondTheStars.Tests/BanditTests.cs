@@ -10,7 +10,9 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -364,6 +366,77 @@ public sealed class BanditTests : IDisposable
 
         Assert.Null(server.BanditShipForTest("Pilot"));
         Assert.Equal(0, server.PendingBanditDemandIdForTest("Pilot"));
+    }
+
+    // ---------------- #2307: the step check across the longitude seam ----------------
+
+    /// <summary>A flat stone floor high above the terrain, straddling the seam X = 0 ≡ X = circumference, with clear
+    /// air above it — and a lone stone post half a world away at the walking height, which a sweep that measured the
+    /// seam step as "almost the whole circumference" would run straight into.</summary>
+    private static void SeamFloor(SvGameServer server, GameContent content, int floorY, int z)
+    {
+        int circ = server.World.Circumference;
+        var stone = content.GetBlock("stone")!.NumericId;
+        for (int dx = -4; dx <= 4; dx++)
+        {
+            int x = WorldConstants.WrapX(dx, circ);
+            server.World.SetBlock(new Vector3i(x, floorY, z), stone);
+            for (int y = floorY + 1; y <= floorY + 3; y++)
+            {
+                server.World.SetBlock(new Vector3i(x, y, z), BlockId.Air);
+            }
+        }
+
+        // The post: a two-block wall at the far side of the world on the same row and height.
+        server.World.SetBlock(new Vector3i(circ / 2, floorY + 1, z), stone);
+        server.World.SetBlock(new Vector3i(circ / 2, floorY + 2, z), stone);
+    }
+
+    [Fact]
+    public void BanditStep_AcrossTheSeam_IsMeasuredTheShortWay()
+    {
+        var server = Started("seam_step");
+        int circ = server.World.Circumference;
+        const int FloorY = 200;
+        const int Z = 40;
+        SeamFloor(server, _content, FloorY, Z);
+
+        // West of the seam to east of it — one block of real walking, not circ − 1 blocks the long way round. A
+        // raw cand.X − cur.X would have swept circumference/0.25 cells and met the far-side post.
+        var west = new Vector3f(circ - 0.5f, FloorY + 1, Z + 0.5f);
+        var east = new Vector3f(0.5f, FloorY + 1, Z + 0.5f);
+        Assert.False(server.BanditStepBlockedByTerrainForTest(west, east), "a step east across the seam must pass");
+        Assert.False(server.BanditStepBlockedByTerrainForTest(east, west), "a step west across the seam must pass");
+
+        // The sweep still works across the seam: a wall in the seam column itself stops the step.
+        var stone = _content.GetBlock("stone")!.NumericId;
+        server.World.SetBlock(new Vector3i(0, FloorY + 1, Z), stone);
+        server.World.SetBlock(new Vector3i(0, FloorY + 2, Z), stone);
+        Assert.True(server.BanditStepBlockedByTerrainForTest(west, new Vector3f(1.5f, FloorY + 1, Z + 0.5f)),
+            "a wall in the seam column must still block the step through it");
+    }
+
+    [Fact]
+    public void ShockGlovePush_CarriesABanditAcrossTheSeam()
+    {
+        var server = Started("seam_push");
+        int circ = server.World.Circumference;
+        const int FloorY = 200;
+        const int Z = 60;
+        SeamFloor(server, _content, FloorY, Z);
+
+        // The player stands just west of the robber and pushes it east, over the seam.
+        var pilot = server.AddLocalPlayer("Pusher");
+        pilot.State.AboardShip = false;
+        pilot.State.Position = new Vector3f(circ - 3.5f, FloorY + 1, Z + 0.5f);
+        pilot.State.Inventory.SetSlot(0, new ItemStack("shock_gloves", 1));
+        pilot.State.SelectedHotbarSlot = 0;
+        server.SpawnBanditAtForTest(new Vector3f(circ - 1.5f, FloorY + 1, Z + 0.5f), pilot.State.PlayerId);
+        var bandit = server.Bandits[^1];
+
+        Assert.True(server.KnockbackForTest(pilot.State.PlayerId, bandit.Id), "the push must move the robber");
+        Assert.True(bandit.Position.X < 4f, $"the robber should have crossed the seam, but stands at X = {bandit.Position.X}");
+        Assert.Equal(FloorY + 1, bandit.Position.Y, 1);
     }
 
     // ---------------- Localization ----------------

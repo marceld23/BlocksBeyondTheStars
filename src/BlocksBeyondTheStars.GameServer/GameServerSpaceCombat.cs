@@ -1534,8 +1534,12 @@ public sealed partial class GameServer
     private const double ShipCollisionCooldown = 0.8;       // …and can't re-damage for this long, so it isn't per-tick
     // Hostiles only fire on the ship once they're within engagement range — so a distant drone can't plink
     // you forever (which read as the ship being shaken + flashing red with no visible attacker), and flying
-    // clear of the fight actually stops the damage and lets the shield recharge.
-    private const float ShipEngageRange = 70f;
+    // clear of the fight actually stops the damage and lets the shield recharge. The number lives in Shared
+    // (#2284) because the client draws the enemy shots and the "attacking" lock state from the very same range.
+    private const float ShipEngageRange = SpaceCombatRules.EngageRange;
+
+    /// <summary>Test seam (#2284): the engage range the hostiles' damage aura really uses — pinned to the shared constant.</summary>
+    public static float ShipEngageRangeForTest => ShipEngageRange;
 
     private const string TractorModule = "tractor_beam";
     // Passive auto-collect radius. Was 8 — too tight: salvage spawns at the destroyed rock's centre, so after a
@@ -1672,7 +1676,7 @@ public sealed partial class GameServer
     }
 
     private const float TractorPullRange = 30f; // a manual quick-bar tractor sweep reaches further than the passive pull
-    private const float TractorReach = 45f;     // an AIMED (auto-locked) drop pulls in from as far as the laser reaches
+    private const float TractorReach = 45f;     // an AIMED (auto-locked) drop pulls in from this far (the starter laser's reach before #2284 lengthened it to 60)
 
     /// <summary>Manual tractor pull (quick-bar). With a locked <paramref name="targetId"/> the client picked,
     /// pulls THAT drop in from a generous range (3D depth is hard to eyeball, so the blind radius sweep used to

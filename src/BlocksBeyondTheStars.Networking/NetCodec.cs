@@ -583,6 +583,10 @@ public static class NetCodec
 
         // #2296 the glider (protocol v11): the player opened or closed the wing.
         Register(289, typeof(SetGlidingIntent));             // Client -> Server
+
+        // #2286 "Back to my ship": the pause menu's rescue teleport for a stuck player on foot. No protocol bump — an
+        // older server drops the unknown tag (and never sends the rule, so an up-to-date client hides the button).
+        Register(290, typeof(ReturnToShipIntent));           // Client -> Server
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

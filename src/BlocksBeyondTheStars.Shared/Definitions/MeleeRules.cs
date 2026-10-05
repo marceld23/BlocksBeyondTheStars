@@ -9,7 +9,11 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// second), so the first crafted weapon is always an upgrade. Fists used to hit for 15 with no cooldown at all, which
 /// out-damaged the machete and most early weapons when clicked fast. The server applies the damage and holds back a
 /// punch thrown too early; the client gates its own swing on the same cooldown so the animation never promises a hit
-/// the server drops. A tool that is not a weapon (a drill, a scanner) keeps the server's tier-scaled fallback.
+/// the server drops. A tool that is not a weapon (a drill, a scanner, a gadget) hits exactly like the bare hand too
+/// (#2306) — <b>tools dig, weapons fight</b>. Before that rule a drill hit for 15 + tier · 10 with no cooldown and no
+/// energy cost, so the starting drill was a better weapon than the machete; now every non-weapon shares the fist's
+/// damage, the fist's cooldown and the fist's cooldown timer (switching from the drill to the fist does not reset it),
+/// and no suit energy is charged for the punch.
 /// </summary>
 public static class MeleeRules
 {
@@ -28,4 +32,9 @@ public static class MeleeRules
     /// <summary>True when the held "tool" is the bare hand: nothing in the slot, or an item without tool properties
     /// (a block, food, a material) — the server resolves both to <see cref="ToolKind.None"/>.</summary>
     public static bool IsBareHand(ToolProperties? tool) => tool is null || tool.Kind == ToolKind.None;
+
+    /// <summary>True when a hit with the held item is a punch (#2306): the bare hand, or any tool that is not a weapon
+    /// — a drill, a scanner, a gadget. Server and client gate and damage such a hit by the <c>Fist*</c> rules above;
+    /// only a <see cref="ToolKind.Weapon"/> brings its own damage, cooldown, reach and energy cost.</summary>
+    public static bool IsPunch(ToolProperties? tool) => tool is null || tool.Kind != ToolKind.Weapon;
 }

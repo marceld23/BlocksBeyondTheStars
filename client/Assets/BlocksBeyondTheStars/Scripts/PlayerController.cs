@@ -1794,9 +1794,11 @@ namespace BlocksBeyondTheStars.Client
             // #2280: the bare hand punches on its own shared cooldown (MeleeRules) — it used to have none here, so the
             // swing played on every press while the server now holds the early punches back. It runs on its own timer,
             // like the server's separate fist entry, so drawing a weapon right after a punch is not held back by it
-            // (and vice versa). #2202: a reflex preparation shortens both, like on the server.
+            // (and vice versa). #2202: a reflex preparation shortens both, like on the server. #2306: a drill, a scanner
+            // or a gadget punches like the bare hand too (tools dig, weapons fight) — the old path gave an energy-using
+            // tool a cooldown of 0 here, so the titanium drill swung as fast as the player could click.
             var tool = HeldTool();
-            if (MeleeRules.IsBareHand(tool))
+            if (MeleeRules.IsPunch(tool))
             {
                 if (Time.time < _nextFistSwing)
                 {

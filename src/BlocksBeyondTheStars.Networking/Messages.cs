@@ -479,6 +479,13 @@ public sealed class LoadRationIntent
 /// <summary>Client uses the suit teleporter to recall to its ship (server validates device/cooldown/energy).</summary>
 public sealed class TeleportToShipIntent { }
 
+/// <summary>Client → server (#2286): the pause menu's "Back to my ship" — a stuck player on foot asks to be put back
+/// aboard their own ship. No device, no energy: the server checks the world rule, that the player is on foot, that the
+/// own ship is landed on this body, not in a fight, not falling, and the three-minute cooldown
+/// (<c>ReturnToShipRules</c>), then snaps the player aboard with a <see cref="RespawnNotice"/>. Refusals arrive as
+/// <c>@srv.return_ship.*</c> toasts. No protocol bump — an older server drops the unknown tag.</summary>
+public sealed class ReturnToShipIntent { }
+
 /// <summary>Client uses the suit teleporter to beam to an <b>allied</b> player on the same body (#1056). The
 /// server validates device/cooldown/energy, the alliance, same-body + not-in-space, and that the target is not
 /// aboard their own ship; the arrival lands beside the target. Rejects arrive as <c>@srv.tp.*</c> toasts.</summary>
@@ -1247,6 +1254,11 @@ public sealed class PlayerStateUpdate
     /// sound on this answer rather than on the key. New field on an existing contractless MessagePack message: an older
     /// client ignores it, an older server leaves it false.</summary>
     public bool Stealthed { get; set; }
+
+    /// <summary>Seconds until "Back to my ship" (#2286) may be used again, 0 when it is ready — the pause menu greys its
+    /// button and counts the rest down between updates. New field on an existing contractless MessagePack message: an
+    /// older client ignores it, an older server leaves it 0.</summary>
+    public float ReturnToShipCooldownSeconds { get; set; }
 }
 
 public sealed class CraftResult
@@ -1331,6 +1343,11 @@ public sealed class ServerRules
     /// teleporter (multiplayer convenience); default false.</summary>
     public bool StarterTeleporter { get; set; }
 
+    /// <summary>"Back to my ship" world option (#2286): "On" when the pause menu may offer the rescue teleport back aboard
+    /// the own ship, "Off" when the world has it switched off. EMPTY from a server that predates the rule (it would drop
+    /// the intent anyway) — the client then hides the button and the world-options row, like <see cref="WorldTextures"/>.</summary>
+    public string ReturnToShip { get; set; } = string.Empty;
+
     /// <summary>#2269: machines catch up for at most this many minutes of a world's absence (0 = off); -1 from a server
     /// that predates the rule — the client then hides the row.</summary>
     public int MachineCatchUpMinutes { get; set; } = -1;
@@ -1396,6 +1413,9 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>Starter-teleporter toggle (#1056): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string StarterTeleporter { get; set; } = string.Empty;
+
+    /// <summary>"Back to my ship" toggle (#2286): "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string ReturnToShip { get; set; } = string.Empty;
 
     /// <summary>#2269: the machines' catch-up in minutes (one of <c>CrystalNetRules.CatchUpChoicesMinutes</c>); -1 = unchanged.</summary>
     public int MachineCatchUpMinutes { get; set; } = -1;
