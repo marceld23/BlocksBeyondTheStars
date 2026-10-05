@@ -304,6 +304,9 @@ public sealed partial class WorldGenerator
                 bool materialBands = col.MaterialBands;
                 int dripDown = col.DripDown, dripUp = col.DripUp;
                 bool paintedHost = col.PaintedHost;
+                // Generation 21 (#2336): what a crown band wears — the biome of its own height (Air = the column's biome).
+                var crownSurface = col.CrownSurface.IsAir ? biome.Surface : col.CrownSurface;
+                var crownSub = col.CrownSub.IsAir ? biome.Sub : col.CrownSub;
 
                 for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
                 {
@@ -364,6 +367,21 @@ public sealed partial class WorldGenerator
                                         : worldY >= bands[b].Top - 2 ? biome.Sub : deepId);
                                     bandHit = true;
                                 }
+                                else if (bands[b].Kind == BandKind.Rock)
+                                {
+                                    // Generation 21 (#2332): solid rock of the band's own material — an arch bar through a
+                                    // bay stands in the water, a bridge deck over a fjord too.
+                                    chunk.Set(lx, ly, lz, bands[b].Material.IsAir ? deepId : bands[b].Material);
+                                    bandHit = true;
+                                }
+                                else if (bands[b].Kind == BandKind.Crown)
+                                {
+                                    // Generation 21 (#2332): a crown or a balcony — the crown's ground on the band's rock.
+                                    chunk.Set(lx, ly, lz, worldY == bands[b].Top ? crownSurface
+                                        : worldY >= bands[b].Top - 2 ? crownSub
+                                        : bands[b].Material.IsAir ? deepId : bands[b].Material);
+                                    bandHit = true;
+                                }
                             }
 
                             if (bandHit)
@@ -396,9 +414,12 @@ public sealed partial class WorldGenerator
                                             : worldY >= bands[b].Top - 2 ? subSurfaceId : deepId);
                                         break;
                                     case BandKind.IslandPond:
-                                        // An island whose meadow top is a sunk pool (#707).
+                                        // An island whose meadow top is a sunk pool (#707). Generation 21 (#2336): a pond
+                                        // on a crown that stands above the ice line is frozen — a pillar's crown 90 up is
+                                        // far colder than its foot; older sky worlds keep their water (the gate).
                                         chunk.Set(lx, ly, lz, worldY == bands[b].Top && !seaWaterId.IsAir
-                                            ? seaWaterId
+                                            ? (snowPossible && !iceId.IsAir && wonderGates.Generation >= WorldDescription.SpectacleGeneration
+                                                && TempAt(calib, worldY) < IceLineC ? iceId : seaWaterId)
                                             : worldY >= bands[b].Top - 2 ? subSurfaceId : deepId);
                                         break;
                                     case BandKind.Afloat:
@@ -425,6 +446,14 @@ public sealed partial class WorldGenerator
                                         break;
                                     case BandKind.Mat: // generation 3, part 5 (normally taken by the pre-scan above)
                                         chunk.Set(lx, ly, lz, mudId.IsAir ? subSurfaceId : mudId);
+                                        break;
+                                    case BandKind.Rock: // generation 21 (#2332; normally taken by the pre-scan above)
+                                        chunk.Set(lx, ly, lz, bands[b].Material.IsAir ? deepId : bands[b].Material);
+                                        break;
+                                    case BandKind.Crown: // generation 21 (#2332; normally taken by the pre-scan above)
+                                        chunk.Set(lx, ly, lz, worldY == bands[b].Top ? crownSurface
+                                            : worldY >= bands[b].Top - 2 ? crownSub
+                                            : bands[b].Material.IsAir ? deepId : bands[b].Material);
                                         break;
                                     default: // BandKind.Waterfall (#707): a standing column of falling water
                                         if (!seaWaterId.IsAir)
@@ -696,6 +725,33 @@ public sealed partial class WorldGenerator
                     }
                 }
 
+                // Generation 21 (#2332): every further crown or island band grows its own meadow — a pillar's balconies,
+                // a second-storey crown. Older worlds plant the highest band only (the pass above), so nothing moves there.
+                if (flora && bandCount > 1 && wonderGates.Generation >= WorldDescription.SpectacleGeneration)
+                {
+                    for (int b = 0; b < bandCount; b++)
+                    {
+                        if ((bands[b].Kind != BandKind.Island && bands[b].Kind != BandKind.Crown) || bands[b].Top == islandTop)
+                        {
+                            continue;
+                        }
+
+                        int by = bands[b].Top + 1 - origin.Y;
+                        if (by < 0 || by >= WorldConstants.ChunkSize || !chunk.Get(lx, by, lz).IsAir)
+                        {
+                            continue;
+                        }
+
+                        var bandFlora = FloraForSurface(planet, biome, seed, worldX, worldZ);
+                        double bandDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ);
+                        if (!bandFlora.IsAir
+                            && Noise.Value01(seed + 9004, WorldConstants.WrapX(worldX, _circumference), 11 + b, Wz(worldZ)) < bandDensity)
+                        {
+                            chunk.Set(lx, by, lz, bandFlora);
+                        }
+                    }
+                }
+
                 // #1759 (generation 5): hanging kelp under the island — roots in the lowest island cell, grows down
                 // into the air (or, under an island afloat, the water) below it, in patches so the underside reads
                 // as a fringe and not as stubble. The roster only activates the hanging species on a generation-5
@@ -739,6 +795,13 @@ public sealed partial class WorldGenerator
         if (trees && wonderGates.Generation >= WorldDescription.NewKindsGeneration)
         {
             StampGiantTrees(planet, seed, chunk, coord, biomes, fluidLevel);
+        }
+
+        // Generation 21 (#2335): trees, boulders, ore clumps and data caches on the crowns and islands — the band-top
+        // host pass. Never on an older world (its sky islands stay bare) and nothing on a world without bands.
+        if (anyBands && wonderGates.Generation >= WorldDescription.SpectacleGeneration)
+        {
+            StampBandTops(planet, seed, chunk, coord, biomes, logId, leafId, treeDensity, fluidLevel);
         }
 
         // Generation 16 (#2085): Sophie's Fifi plants — groves of tree-sized plants with glowing blossoms and berries on
@@ -814,6 +877,11 @@ public sealed partial class WorldGenerator
 
         /// <summary>Generation 8 (Titas): how many top cells take the surface block (a snow blanket); 1 = classic.</summary>
         public int CoverDepth = 1;
+
+        /// <summary>Generation 21 (#2336): the ground a crown band wears — the biome at the CROWN's height (a crown 90 up
+        /// may be alpine where its foot is lowland, and snow or ice past the snow line), not the column's own. Air =
+        /// no crown over the column; the y-loop then falls back to the column's biome.</summary>
+        public BlockId CrownSurface, CrownSub;
     }
 
     /// <summary>The per-chunk constants the column phase reads (resolved once per Generate call).</summary>
@@ -1182,7 +1250,8 @@ public sealed partial class WorldGenerator
         bool materialBands = false; // generation 3: Ice / Fluid bands are written before the sea fill
         for (int b = 0; b < bandCount; b++)
         {
-            if (bands[b].Kind == BandKind.Island || bands[b].Kind == BandKind.Afloat)
+            // A crown (generation 21, #2332) is an island for the flora passes: a meadow on top, hanging plants below.
+            if (bands[b].Kind == BandKind.Island || bands[b].Kind == BandKind.Afloat || bands[b].Kind == BandKind.Crown)
             {
                 if (bands[b].Top > islandTop)
                 {
@@ -1194,14 +1263,47 @@ public sealed partial class WorldGenerator
                     islandBottom = bands[b].Bottom;
                 }
 
-                if (bands[b].Kind == BandKind.Afloat)
+                if (bands[b].Kind != BandKind.Island)
                 {
-                    materialBands = true; // #1757: the keel stands inside the sea span, written before the fill
+                    materialBands = true; // #1757: the keel stands inside the sea span, written before the fill; a crown too
                 }
             }
-            else if (bands[b].Kind == BandKind.Ice || bands[b].Kind == BandKind.Fluid || bands[b].Kind == BandKind.Mat)
+            else if (bands[b].Kind == BandKind.Ice || bands[b].Kind == BandKind.Fluid || bands[b].Kind == BandKind.Mat
+                || bands[b].Kind == BandKind.Rock)
             {
                 materialBands = true;
+            }
+        }
+
+        // Generation 21 (#2336): a crown wears the biome of ITS height — alpine meadow, snow or ice on a crown 90 up —
+        // never the lowland (or seabed) its stem rises from. Resolved once per column for every crown band over it.
+        BlockId crownSurface = BlockId.Air, crownSub = BlockId.Air;
+        int crownTop = int.MinValue;
+        for (int b = 0; b < bandCount; b++)
+        {
+            if (bands[b].Kind == BandKind.Crown && bands[b].Top > crownTop)
+            {
+                crownTop = bands[b].Top;
+            }
+        }
+
+        if (crownTop != int.MinValue)
+        {
+            var crownBiome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, crownTop)];
+            crownSurface = crownBiome.Surface;
+            crownSub = crownBiome.Sub;
+            if (snowPossible)
+            {
+                double crownT = TempAt(calib, crownTop) + (FbmT(seed + 0x51F0, worldX, worldZ, 24.0, octaves: 2) - 0.5) * 3.0;
+                if (crownT < IceLineC && !iceId.IsAir)
+                {
+                    crownSurface = iceId;
+                    crownSub = iceId;
+                }
+                else if (crownT < SnowLineC && !snowId.IsAir)
+                {
+                    crownSurface = snowId;
+                }
             }
         }
 
@@ -1364,6 +1466,8 @@ public sealed partial class WorldGenerator
             DripDown = dripDown,
             DripUp = dripUp,
             PaintedHost = paintedHost,
+            CrownSurface = crownSurface,
+            CrownSub = crownSub,
         };
     }
 }

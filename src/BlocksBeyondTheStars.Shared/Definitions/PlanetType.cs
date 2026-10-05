@@ -404,6 +404,13 @@ public sealed class PlanetType
     /// <summary>How deep the sand of the sea reaches (blocks); the cave shield covers the same band.</summary>
     public int SandSeaDepth { get; set; } = 24;
 
+    // --- Generation 21 (2026-10, #2331): the spectacle package. Read on generation-21 worlds only. ---
+
+    /// <summary>How dense the spectacle families (pillar islands, arch clusters, bridge mesas, fossil ridges, daylight
+    /// halls) stand on a world of this type: 1 = a find (the tagged classic types), 4 = the landscape (the package's own
+    /// planet types). Scales each family's cell chance up and its cell pitch down; the tags decide WHICH families.</summary>
+    public double SpectacleDensity { get; set; } = 1.0;
+
     // --- Generation 13 (2026-09, #2024): the toxic-world class. Its worlds ROLL traits (WorldTraits): a chance of 0 is
     // never, 1 is always (no roll, any generation), anything between rolls per world on generation-13 worlds only. ---
 

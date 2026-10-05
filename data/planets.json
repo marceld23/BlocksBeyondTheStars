@@ -1,7 +1,7 @@
 [
   {
     "key": "rocky", "waterTint": "auto", "baseTemperature": 12, "nameKey": "planet.rocky.name", "atmosphereHeight": 190, "cloudColor": 15593458, "cloudDensity": 0.35,
-    "terrainTags": ["buttes", "hoodoos", "inselbergs"],
+    "terrainTags": ["buttes", "hoodoos", "inselbergs", "pillars", "arches"],
     "baseHeight": 64, "amplitude": 14, "terrainScale": 48.0, "terrainStyle": "mesa",
     "terrainStyles": ["mesa", "hills", "canyons", "downs"],
     "surfaceBlock": "dirt", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -71,7 +71,7 @@
   },
   {
     "key": "desert", "floraTheme": "desert", "baseTemperature": 44, "nameKey": "planet.desert.name", "atmosphereHeight": 190, "cloudColor": 15260080, "cloudDensity": 0.3,
-    "terrainTags": ["buttes", "inselbergs", "wind"],
+    "terrainTags": ["buttes", "inselbergs", "wind", "arches"],
     "baseHeight": 62, "amplitude": 10, "terrainScale": 60.0, "terrainStyle": "dunes",
     "terrainStyles": ["dunes", "badlands", "flats", "downs", "labyrinth", "petrified-dunes"],
     "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 5,
@@ -95,7 +95,7 @@
   },
   {
     "key": "jungle", "authoredCreatures": ["mini_michi_paul"], "guaranteedFruit": "flora_fruit_banana", "waterTint": "auto", "floraTheme": "tropical", "baseTemperature": 28, "nameKey": "planet.jungle.name", "atmosphereHeight": 240, "cloudColor": 15922422, "cloudDensity": 0.6,
-    "terrainTags": ["wetland", "karst", "reef"],
+    "terrainTags": ["wetland", "karst", "reef", "pillars"],
     "baseHeight": 66, "amplitude": 16, "terrainScale": 44.0,
     "terrainStyles": ["hills", "karst", "downs", "stone-forest"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -160,7 +160,7 @@
   },
   {
     "key": "varied", "waterTint": "auto", "floraTheme": "temperate", "baseTemperature": 16, "nameKey": "planet.varied.name", "atmosphereHeight": 240, "cloudColor": 15725044, "cloudDensity": 0.5,
-    "terrainTags": ["buttes"],
+    "terrainTags": ["buttes", "pillars"],
     "baseHeight": 64, "amplitude": 18, "terrainScale": 46.0,
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.73, "dataCacheRarity": 0.0015,
@@ -208,7 +208,7 @@
   },
   {
     "key": "savanna", "waterTint": "auto", "floraTheme": "savanna", "baseTemperature": 32, "nameKey": "planet.savanna.name", "atmosphereHeight": 210, "cloudColor": 15261109, "cloudDensity": 0.3,
-    "terrainTags": ["buttes", "inselbergs"],
+    "terrainTags": ["buttes", "inselbergs", "pillars"],
     "baseHeight": 64, "amplitude": 10, "terrainScale": 58.0,
     "terrainStyles": ["hills", "downs", "flats"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -351,7 +351,7 @@
   },
   {
     "key": "corrupted", "waterTint": "auto", "floraTheme": "alien", "exotic": true, "baseTemperature": 24, "nameKey": "planet.corrupted.name", "atmosphereHeight": 230, "cloudColor": 8030298, "cloudDensity": 0.55,
-    "terrainTags": ["buttes", "hoodoos"],
+    "terrainTags": ["buttes", "hoodoos", "arches"],
     "baseHeight": 64, "amplitude": 16, "terrainScale": 46.0, "terrainStyle": "canyons",
     "terrainStyles": ["canyons", "shattered", "badlands"],
     "surfaceBlock": "alien_grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -415,7 +415,7 @@
   },
   {
     "key": "tablelands", "waterTint": "auto", "floraTheme": "savanna", "baseTemperature": 24, "nameKey": "planet.tablelands.name", "atmosphereHeight": 200, "cloudColor": 15450749, "cloudDensity": 0.25,
-    "terrainTags": ["buttes", "hoodoos", "inselbergs", "wind"],
+    "terrainTags": ["buttes", "hoodoos", "inselbergs", "wind", "pillars", "arches"],
     "baseHeight": 62, "amplitude": 26, "terrainScale": 58.0, "terrainStyle": "tablelands",
     "terrainStyles": ["tablelands", "terraces", "mesa", "labyrinth"],
     "surfaceBlock": "granite", "subSurfaceBlock": "granite", "deepBlock": "stone", "surfaceDepth": 4,
@@ -437,7 +437,7 @@
   },
   {
     "key": "badlands", "floraTheme": "desert", "baseTemperature": 38, "nameKey": "planet.badlands.name", "atmosphereHeight": 190, "cloudColor": 15593458, "cloudDensity": 0.2,
-    "terrainTags": ["buttes", "hoodoos", "wind"],
+    "terrainTags": ["buttes", "hoodoos", "wind", "arches"],
     "baseHeight": 60, "amplitude": 16, "terrainScale": 40.0, "terrainStyle": "badlands",
     "terrainStyles": ["badlands", "canyons", "terraces", "labyrinth"],
     "surfaceBlock": "sand", "subSurfaceBlock": "granite", "deepBlock": "stone", "surfaceDepth": 3,
@@ -460,7 +460,7 @@
   },
   {
     "key": "karst", "authoredCreatures": ["mini_michi_paul"], "guaranteedFruit": "flora_fruit_banana", "waterTint": "auto", "floraTheme": "tropical", "exotic": true, "baseTemperature": 27, "nameKey": "planet.karst.name", "atmosphereHeight": 210, "cloudColor": 14210014, "cloudDensity": 0.5,
-    "terrainTags": ["wetland", "karst"],
+    "terrainTags": ["wetland", "karst", "pillars"],
     "baseHeight": 60, "amplitude": 18, "terrainScale": 46.0, "terrainStyle": "karst",
     "terrainStyles": ["karst", "hills", "downs", "stone-forest"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -482,7 +482,7 @@
   },
   {
     "key": "red_desert", "minTerrainGeneration": 1, "floraTheme": "desert", "baseTemperature": 38, "nameKey": "planet.red_desert.name", "atmosphereHeight": 190, "cloudColor": 14915916, "cloudDensity": 0.25,
-    "terrainTags": ["buttes", "hoodoos", "wind", "inselbergs"],
+    "terrainTags": ["buttes", "hoodoos", "wind", "inselbergs", "arches"],
     "baseHeight": 62, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "badlands",
     "terrainStyles": ["badlands", "dunes", "terraces", "labyrinth", "petrified-dunes"],
     "surfaceBlock": "sand", "subSurfaceBlock": "sandstone", "deepBlock": "stone", "surfaceDepth": 4,
@@ -616,7 +616,7 @@
   },
   {
     "key": "dust_bowl", "minTerrainGeneration": 1, "floraTheme": "desert", "baseTemperature": 30, "nameKey": "planet.dust_bowl.name", "atmosphereHeight": 200, "cloudColor": 13740673, "cloudDensity": 0.35,
-    "terrainTags": ["wind", "buttes"],
+    "terrainTags": ["wind", "buttes", "arches"],
     "baseHeight": 62, "amplitude": 8, "terrainScale": 64.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "downs"],
     "surfaceBlock": "dirt", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -901,7 +901,7 @@
   },
   {
     "key": "sand_sea", "minTerrainGeneration": 9, "floraTheme": "desert", "baseTemperature": 36, "nameKey": "planet.sand_sea.name", "atmosphereHeight": 200, "cloudColor": 15263976, "cloudDensity": 0.2,
-    "terrainTags": ["buttes", "inselbergs", "wind", "volcanic"],
+    "terrainTags": ["buttes", "inselbergs", "wind", "volcanic", "arches"],
     "baseHeight": 62, "amplitude": 14, "terrainScale": 58.0, "terrainStyle": "dunes",
     "terrainStyles": ["dunes", "mountains", "canyons", "mesa", "flats", "badlands"],
     "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 4,
@@ -927,7 +927,7 @@
   },
   {
     "key": "toxic_world", "minTerrainGeneration": 13, "exotic": true, "floraTheme": "ashen", "baseTemperature": 30, "nameKey": "planet.toxic_world.name", "atmosphereHeight": 200, "cloudColor": 11120737, "cloudDensity": 0.65,
-    "terrainTags": ["hoodoos", "buttes"],
+    "terrainTags": ["hoodoos", "buttes", "arches"],
     "baseHeight": 62, "amplitude": 14, "terrainScale": 50.0, "terrainStyle": "badlands",
     "terrainStyles": ["badlands", "canyons", "flats", "shattered"],
     "surfaceBlock": "ash", "subSurfaceBlock": "basalt", "deepBlock": "stone", "surfaceDepth": 2,

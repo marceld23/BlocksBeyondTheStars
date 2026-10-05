@@ -476,6 +476,24 @@ public sealed class ChunkStreamingTests : IDisposable
         Assert.Equal(expectedHi, hi);
     }
 
+    [Theory]
+    // #2333: a band over the column is its visible top — a crown 80 up (y 180, chunk 11) stretches a dry column's band
+    // to chunk 12; a bar inside the surface chunk's own band changes nothing; no band = the classic band.
+    [InlineData(100, int.MinValue, 180, 7, 12)]
+    [InlineData(100, int.MinValue, 110, 5, 7)]
+    [InlineData(100, int.MinValue, int.MinValue, 5, 7)]
+    // Over the sea the higher of the waterline and the band wins.
+    [InlineData(100, 150, 200, 8, 13)]
+    [InlineData(100, 150, 120, 5, 10)]
+    public void FarColumnBand_ReachesTheHighestBand_OverDryAndSubmergedColumns(int surfaceY, int seaLevel, int bandTopY, int expectedLo, int expectedHi)
+    {
+        var (lo, hi) = SvGameServer.FarColumnBand(surfaceY, seaLevel, bandTopY);
+
+        Assert.Equal(expectedLo, lo);
+        Assert.Equal(expectedHi, hi);
+        Assert.True(hi - lo + 1 <= 6, "the six-chunk cap holds with a band too");
+    }
+
     [Fact]
     public void FarColumnBand_CapsAVeryDeepFloodedColumn_ByTrimmingTheSeabed_NotTheWaterline()
     {

@@ -56,6 +56,23 @@ public enum TerrainTag
     /// <summary>Gaming country (school club wave 3, #1762): PC desk props and the mountain-sized monitor, keyboard
     /// and mouse landmarks — terrain generation 5.</summary>
     Gaming = 1 << 12,
+
+    /// <summary>Arch country (the spectacle package, #2337): clusters of crossing rock arches, arch rows,
+    /// double-deckers and collapsed arches, bridge mesas and the table-mountain variants, wave rocks — terrain
+    /// generation 21. Dense on the arch-lands type, a find on the dry buttes worlds.</summary>
+    Arches = 1 << 13,
+
+    /// <summary>Pillar country (#2336): stone towers on one or two pillars with balconies and a crown island —
+    /// terrain generation 21. Dense on the pillar world, a find on karst and butte worlds.</summary>
+    Pillars = 1 << 14,
+
+    /// <summary>Hollow country (#2340): cave portals in the mountain flanks and daylight halls under the surface —
+    /// terrain generation 21. Dense on the hollow world.</summary>
+    Portals = 1 << 15,
+
+    /// <summary>Fossil country (#2341): bone strata in the cliffs, fossil ridges with ribs, giant skeletons — terrain
+    /// generation 21. Dense on the ossuary world, a find on the dry buttes and wind worlds.</summary>
+    Fossil = 1 << 16,
 }
 
 /// <summary>Parses the data-side tag names of <see cref="PlanetType.TerrainTags"/>.</summary>

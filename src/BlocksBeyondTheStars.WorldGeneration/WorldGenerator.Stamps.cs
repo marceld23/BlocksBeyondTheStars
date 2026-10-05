@@ -127,6 +127,9 @@ public sealed partial class WorldGenerator
         // Terrain generation 13 (#2030): the toxic worlds that rolled outcrops show their rare ores on the surface. The key
         // is the row's guard only — the shape picks one of the type's rare-tier veins per clump.
         new("ore-outcrop", 0x0E2C1, 179, 0.0009, PropMaterial.Boulder, StampOreOutcrop, PropOreOutcrops, "titanium_ore"),
+        // Terrain generation 21 (#2337): the rubble of a fallen arch — the roll is dense, the shape stamps only where a
+        // collapsed arc's span lies, so the row costs one hotspot look per rolled column and nothing elsewhere.
+        new("arch-rubble", 0xA2C4B1, 181, 0.08, PropMaterial.Boulder, StampArchRubble, PropArchRubble, "stone"),
     };
 
     /// <summary>The prop rows active on this world (tests): the classic rows whose material exists here, plus
@@ -702,28 +705,49 @@ public sealed partial class WorldGenerator
                 var fruitRecorder = FruitRecorderFor(planet, seed, kind, wx, wz, foliage, SetCell);
                 System.Action<int, int, int, BlockId, bool> set = fruitRecorder != null ? fruitRecorder.Set : SetCell;
 
-                switch (kind)
-                {
-                    case TreeKind.Conifer: BuildConifer(wx, sy, wz, sizeF, hJit, cJit, logId, pineId, set); break;
-                    case TreeKind.Palm: BuildPalm(wx, sy, wz, sizeF, hJit, cJit, logId, palmId, set); break;
-                    case TreeKind.Jungle: BuildJungle(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
-                    case TreeKind.Dead: BuildDead(wx, sy, wz, sizeF, hJit, deadLogId, set); break;
-                    // #1648 generation-1 kinds (the palette only offers them from generation 1)
-                    case TreeKind.Baobab: BuildBaobab(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
-                    case TreeKind.Mangrove: BuildMangrove(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
-                    case TreeKind.Bamboo: BuildBamboo(wx, sy, wz, sizeF, hJit, (int)(Noise.Value01(seed + 0xBA3B0, WorldConstants.WrapX(wx, _circumference), 41, Wz(wz)) * 997), logId, leafId, set); break;
-                    case TreeKind.Saguaro: BuildSaguaro(wx, sy, wz, sizeF, hJit, (int)(Noise.Value01(seed + 0x5A6A0, WorldConstants.WrapX(wx, _circumference), 41, Wz(wz)) * 997), leafId, set); break;
-                    case TreeKind.Willow: BuildWillow(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
-                    case TreeKind.MushroomTree: BuildMushroomTree(wx, sy, wz, sizeF, hJit, stemId, capId, set); break;
-                    case TreeKind.CrystalTree: BuildCrystalTree(wx, sy, wz, sizeF, hJit, crystalTreeId, set); break;
-                    default: BuildBroadleaf(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, set); break;
-                }
+                BuildTreeOfKind(kind, wx, sy, wz, sizeF, hJit, cJit, seed,
+                    new TreeBlocks(logId, leafId, pineId, palmId, deadLogId, stemId, capId, crystalTreeId), set);
 
                 if (fruitRecorder != null)
                 {
                     HangFruit(fruitRecorder, chunk, origin, seed, wx, wz);
                 }
             }
+    }
+
+    /// <summary>The blocks a tree is built from, bundled so the band-top pass (#2335) builds the same kinds the
+    /// ground pass does.</summary>
+    private readonly struct TreeBlocks
+    {
+        public TreeBlocks(BlockId log, BlockId leaf, BlockId pine, BlockId palm, BlockId deadLog, BlockId stem, BlockId cap, BlockId crystal)
+        {
+            Log = log; Leaf = leaf; Pine = pine; Palm = palm; DeadLog = deadLog; Stem = stem; Cap = cap; Crystal = crystal;
+        }
+
+        public readonly BlockId Log, Leaf, Pine, Palm, DeadLog, Stem, Cap, Crystal;
+    }
+
+    /// <summary>Builds one tree of a kind at a column's ground — the switch the ground pass always ran, shared
+    /// with the band-top pass (#2335) so a crown's wood is the biome's wood.</summary>
+    private void BuildTreeOfKind(TreeKind kind, int wx, int sy, int wz, double sizeF, double hJit, double cJit, long seed,
+        in TreeBlocks b, System.Action<int, int, int, BlockId, bool> set)
+    {
+        switch (kind)
+        {
+            case TreeKind.Conifer: BuildConifer(wx, sy, wz, sizeF, hJit, cJit, b.Log, b.Pine, set); break;
+            case TreeKind.Palm: BuildPalm(wx, sy, wz, sizeF, hJit, cJit, b.Log, b.Palm, set); break;
+            case TreeKind.Jungle: BuildJungle(wx, sy, wz, sizeF, hJit, cJit, b.Log, b.Leaf, set); break;
+            case TreeKind.Dead: BuildDead(wx, sy, wz, sizeF, hJit, b.DeadLog, set); break;
+            // #1648 generation-1 kinds (the palette only offers them from generation 1)
+            case TreeKind.Baobab: BuildBaobab(wx, sy, wz, sizeF, hJit, cJit, b.Log, b.Leaf, set); break;
+            case TreeKind.Mangrove: BuildMangrove(wx, sy, wz, sizeF, hJit, cJit, b.Log, b.Leaf, set); break;
+            case TreeKind.Bamboo: BuildBamboo(wx, sy, wz, sizeF, hJit, (int)(Noise.Value01(seed + 0xBA3B0, WorldConstants.WrapX(wx, _circumference), 41, Wz(wz)) * 997), b.Log, b.Leaf, set); break;
+            case TreeKind.Saguaro: BuildSaguaro(wx, sy, wz, sizeF, hJit, (int)(Noise.Value01(seed + 0x5A6A0, WorldConstants.WrapX(wx, _circumference), 41, Wz(wz)) * 997), b.Leaf, set); break;
+            case TreeKind.Willow: BuildWillow(wx, sy, wz, sizeF, hJit, cJit, b.Log, b.Leaf, set); break;
+            case TreeKind.MushroomTree: BuildMushroomTree(wx, sy, wz, sizeF, hJit, b.Stem, b.Cap, set); break;
+            case TreeKind.CrystalTree: BuildCrystalTree(wx, sy, wz, sizeF, hJit, b.Crystal, set); break;
+            default: BuildBroadleaf(wx, sy, wz, sizeF, hJit, cJit, b.Log, b.Leaf, set); break;
+        }
     }
 
     /// <summary>The highest cell any surface stamp writes above its column's surface: the jungle crown

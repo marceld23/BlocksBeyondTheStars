@@ -581,6 +581,13 @@ public sealed partial class WorldGenerator
         // Terrain generation 18 (#2106): a living world carries sealed oil pockets underground.
         public bool OilPockets;
 
+        // Terrain generation 21 (#2331, the spectacle package): the family gates, all false below generation 21.
+        public bool PillarIslands, ArchClusters;
+
+        /// <summary>Generation 21 (#2332): the block the package's rock bands are made of on this world — sandstone on
+        /// butte / wind country, basalt on volcanic, ice on the deep cold, else Air (= the planet's deep block).</summary>
+        public BlockId BandMaterial;
+
         /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
         public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
@@ -741,6 +748,12 @@ public sealed partial class WorldGenerator
         // Marcel's playtest 2026-09-11: the PC tower itself, the structure Ben named first.
         new("giant-pc", w => w.GamingLandmarks, static (g, p, w, x, z) => g.GiantPcOffset(w, x, z),
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.GiantPcPaint(w, x, z, y, out fill)),
+        // Terrain generation 21 (#2331, the spectacle package) — land rows appended last; every gate is false below
+        // generation 21, so no older precedence moves. The stems of the pillar islands (their crowns are bands).
+        new("pillar-island", w => w.PillarIslands, static (g, p, w, x, z) => g.PillarIslandOffset(p, w, x, z)),
+        // The abutment pillars of the arch clusters (their bars are bands); the paint is the fallen arch's rubble.
+        new("arch-cluster", w => w.ArchClusters, static (g, p, w, x, z) => g.ArchClusterOffset(p, w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.ArchRubblePaint(p, w, x, z, out fill)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -1079,6 +1092,15 @@ public sealed partial class WorldGenerator
                     w.GamingLandmarks = HasGamingLandmarks(planet);
                 }
 
+                if (_terrainGeneration >= WorldDescription.SpectacleGeneration)
+                {
+                    // #2331: the spectacle families — each gated on a tag, never on a key; density from the type's data.
+                    // Resolved BEFORE the table below is filtered, like every other gate.
+                    w.BandMaterial = BandMaterialFor(planet);
+                    w.PillarIslands = HasPillarIslands(planet);
+                    w.ArchClusters = HasArchClusters(planet);
+                }
+
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
                 var seaOffsets = new System.Collections.Generic.List<LandmarkOffsetFn>();
                 var paints = new System.Collections.Generic.List<LandmarkPaintFn>();
@@ -1105,7 +1127,8 @@ public sealed partial class WorldGenerator
                 w.AnyBands = planet.FloatingIslands || w.Arches || w.SeaStacks || w.Hoodoos || w.Cenotes
                     || w.NaturalBridges || w.CoastalOverhangs || w.IceCornices || w.MushroomRocks // #1646
                     || w.Icebergs
-                    || (planet.BuoyantIslands && _terrainGeneration >= WorldDescription.AuthoredContentGeneration); // #1757
+                    || (planet.BuoyantIslands && _terrainGeneration >= WorldDescription.AuthoredContentGeneration) // #1757
+                    || w.PillarIslands || w.ArchClusters; // #2331 (every gate here is false below generation 21)
                 // #703 hybrid fade; #1645: on a multi-style world the fade runs whenever more than one style was
                 // rolled — identity styles (flats, spires) stay pure only as the sole pick.
                 w.HybridEligible = _terrainGeneration >= 1 && w.Styles.Length != 0

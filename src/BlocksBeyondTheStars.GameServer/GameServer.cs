@@ -2696,10 +2696,22 @@ public sealed partial class GameServer
     /// rule is unit-testable without spinning up a world. <paramref name="seaLevel"/> is int.MinValue on a dry
     /// world (and below the terrain on any column that stands above the sea), which leaves the band exactly where
     /// it was before #987.</summary>
-    internal static (int LoCy, int HiCy) FarColumnBand(int surfaceY, int seaLevel)
+    internal static (int LoCy, int HiCy) FarColumnBand(int surfaceY, int seaLevel) => FarColumnBand(surfaceY, seaLevel, int.MinValue);
+
+    /// <summary>The far band with the column's highest extra band (#2333): a sky island, a pillar crown or an arch bar
+    /// standing <paramref name="bandTopY"/> high is the column's visible top the same way the waterline is on a
+    /// submerged one, so the band stretches up to it (<see cref="int.MinValue"/> = no band over the column). The
+    /// six-chunk cap still trims at the bottom: the crown is what the player sees, the ground far below it is hazed.</summary>
+    internal static (int LoCy, int HiCy) FarColumnBand(int surfaceY, int seaLevel, int bandTopY)
     {
         int surfCy = WorldConstants.WorldToChunk(surfaceY);
-        int hiCy = (seaLevel > surfaceY ? WorldConstants.WorldToChunk(seaLevel) : surfCy) + FarSurfaceBandAbove;
+        int visibleTop = seaLevel > surfaceY ? seaLevel : surfaceY;
+        if (bandTopY > visibleTop)
+        {
+            visibleTop = bandTopY;
+        }
+
+        int hiCy = WorldConstants.WorldToChunk(visibleTop) + FarSurfaceBandAbove;
         // Trim at the BOTTOM when a very deep body would blow the cap: the waterline is what the player sees, the
         // seabed far below it is lost in the underwater haze (and the client culls fluid faces toward the chunks
         // we never sent, so the cut stays invisible).
@@ -3003,7 +3015,10 @@ public sealed partial class GameServer
                         {
                             int worldX = (center.X + dx) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
                             int worldZ = (center.Z + dz) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
-                            band = FarColumnBand(_generator.SurfaceHeight(planet, worldX, worldZ), seaLevel);
+                            // #2333: a band over the chunk column (a crown, an arch bar, a sky island) streams with it.
+                            int bandTop = _generator.HighestBandTopInSquare(planet,
+                                (center.X + dx) * WorldConstants.ChunkSize, (center.Z + dz) * WorldConstants.ChunkSize, WorldConstants.ChunkSize);
+                            band = FarColumnBand(_generator.SurfaceHeight(planet, worldX, worldZ), seaLevel, bandTop);
                             if (bands.Count >= FarColumnBandCacheCap)
                             {
                                 bands.Clear(); // a lap around a big world at VD 8 is ~50k columns; keep the table bounded

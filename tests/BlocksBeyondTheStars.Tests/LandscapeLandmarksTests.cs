@@ -167,8 +167,9 @@ public sealed class LandscapeLandmarksTests
         // planet gets its dense rows, every other solid-ground world the stray ones, and generation 4 none at all.
         var order = WorldGenerator.PropOrderForTest();
         var tail = new[] { "scrap-heap", "wreck-hull", "girder", "stray-scrap-heap", "stray-wreck-hull", "stray-girder", "desk-setup", "pc-heap", "pc-tower" };
-        // Later waves append behind them, never between (#2030, generation 13: the toxic worlds' ore outcrops).
-        var later = new[] { "ore-outcrop" };
+        // Later waves append behind them, never between (#2030, generation 13: the toxic worlds' ore outcrops;
+        // #2337, generation 21: the rubble of a fallen arch).
+        var later = new[] { "ore-outcrop", "arch-rubble" };
         Assert.Equal(tail.Concat(later).ToArray(), order.Skip(order.Length - tail.Length - later.Length).ToArray());
 
         var scrap = Gen(1, 5).PropActiveForTest(Content.Planets["scrapyard"], false, true);
