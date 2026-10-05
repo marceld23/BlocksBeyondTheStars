@@ -19,6 +19,12 @@ namespace BlocksBeyondTheStars.Client
     /// and an amber arrow at the map waypoint. The ship locks onto a hostile that starts attacking by itself when nothing
     /// is locked, and after a kill moves on to the next attacker.
     ///
+    /// <b>Mining (#2326–#2328).</b> "Target ahead" sits in the context-actions list too (pad L3, touch ⋯), so a rock can be
+    /// locked without a mouse. With a mining-capable laser selected (<see cref="MiningCycleRange"/>) a shot at a rock or
+    /// the wreck with nothing locked locks it, after it breaks the lock moves to the nearest rock in that laser's reach
+    /// (attackers first, as before), the label reads "In range" / "Too far" for a rock, and the cycle key lets the three
+    /// nearest rocks in weapon range in — unless a hostile is attacking.
+    ///
     /// <b>Client presentation only.</b> The lock never reaches the server: it only chooses which target id the client
     /// writes into the intents it already sends — the weapon prefers the lock inside ±40° with AutoAim on (the server's
     /// arc is ±60°), the tractor pulls a locked drop, the scanner reads a locked object in range when nothing is on its
@@ -221,10 +227,11 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>"Next target": the entry after the current lock in the freshly sorted cycle list.</summary>
+        /// <summary>"Next target": the entry after the current lock in the freshly sorted cycle list — with the nearest rocks
+        /// in it while a mining laser is selected and nobody is attacking (#2328).</summary>
         private void CycleTarget(Vector3 ship)
         {
-            SpaceTargeting.Order(_tgtCandidates, ship.x, ship.y, ship.z, TargetLockRange(), TargetPingActive(), _tgtOrdered);
+            SpaceTargeting.Order(_tgtCandidates, ship.x, ship.y, ship.z, TargetLockRange(), TargetPingActive(), _tgtOrdered, MiningCycleRange());
             string current = _lockSource == LockSource.Entity || _lockSource == LockSource.Pilot ? _lockId : null;
             var next = SpaceTargeting.Next(current, _tgtOrdered);
             if (next == null)
@@ -441,7 +448,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Keeps the lock honest: follows the snapshot, releases it beyond the range (with the hysteresis and
-        /// a 1.5 s "Target lost"), and after a kill moves on to the next attacker (else clears).</summary>
+        /// a 1.5 s "Target lost"), and after a kill moves on to the next attacker — or, when a rock broke under a mining
+        /// laser, to the nearest rock in its reach (#2327) — else clears.</summary>
         private void RefreshTargetLock(Vector3 ship)
         {
             switch (_lockSource)
@@ -458,6 +466,7 @@ namespace BlocksBeyondTheStars.Client
                     else
                     {
                         string goneId = _lockId;
+                        string goneKind = _lockKind;
                         bool destroyed = _lockDestroyedId != null && _lockDestroyedId == goneId;
                         // A pulled-in drop or a rescued life pod leaving is the point of locking them — no "lost".
                         bool collected = _lockKind == SpaceTargeting.ResourceDrop || _lockKind == SpaceTargeting.EscapePod;
@@ -476,6 +485,17 @@ namespace BlocksBeyondTheStars.Client
                             if (next != null)
                             {
                                 LockCandidate(next.Value);
+                            }
+                            else if (SpaceTargeting.IsMiningKind(goneKind))
+                            {
+                                // #2327: the mining flow — the rock broke, on to the nearest rock the selected mining laser
+                                // reaches (nothing with the tractor, the scanner or a pure combat cannon up).
+                                float mining = MiningCycleRange();
+                                var rock = mining > 0f ? SpaceTargeting.NearestMineable(_tgtCandidates, ship.x, ship.y, ship.z, mining, goneId) : null;
+                                if (rock != null)
+                                {
+                                    LockCandidate(rock.Value);
+                                }
                             }
                         }
                         else
@@ -680,6 +700,32 @@ namespace BlocksBeyondTheStars.Client
         {
             var stats = Game.Content?.GetShipModule(weaponKey)?.Stats;
             return stats != null && stats.TryGetValue("weapon_class", out var v) ? (int)v : 1;
+        }
+
+        /// <summary>The mining context (#2327/#2328): the selected ship system is a laser whose <c>weapon_class</c> can mine
+        /// (the breaker, the starter laser) — its range; 0 with the tractor, the scanner or a pure combat cannon selected.
+        /// The cycle lets the nearest rocks in, the lock moves on to the next rock after a kill and a locked rock reads
+        /// "In range" only in this context, so the ship-systems bar says what the lock is for.</summary>
+        private float MiningCycleRange()
+        {
+            if (_systems.Count == 0 || _selectedSystem >= _systems.Count || _systems[_selectedSystem].Kind != "laser")
+            {
+                return 0f;
+            }
+
+            string key = _systems[_selectedSystem].WeaponKey;
+            return SpaceTargeting.CanMine(WeaponClassFor(key)) ? WeaponRangeFor(key) : 0f;
+        }
+
+        /// <summary>#2327: a shot at a rock or the wreck with nothing locked locks it — the ship marks what the beam carves.
+        /// It never swaps a lock the pilot chose (a lock on a station stays through a shot at a rock), and only fills an
+        /// empty lock: clearing it and firing again is the pilot mining again.</summary>
+        private void OnShotFired(NetCombatEntity target)
+        {
+            if (!HasTargetLock && target != null && SpaceTargeting.IsMiningKind(target.Kind))
+            {
+                LockCandidate(TargetCandidate.FromEntity(target));
+            }
         }
 
         /// <summary>The tractor pulls a locked salvage drop in its reach (#2277).</summary>
@@ -940,7 +986,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Name, disposition and distance (with the ▲/▼ height cue) under the frame; for an enemy "In range" or
-        /// "Too far — fly closer" for the selected weapon; "Target lost" while it is out of range.</summary>
+        /// "Too far — fly closer" for the selected weapon (for a rock: for the selected mining laser, #2327); "Target lost"
+        /// while it is out of range.</summary>
         private void UpdateLockLabel(TargetDisposition disposition, Color col, float dist, float dy, bool lost)
         {
             // Whole flight units (= 10 km steps), like the radar's readouts: the same object reads the same number on
@@ -969,6 +1016,13 @@ namespace BlocksBeyondTheStars.Client
             else if (disposition == TargetDisposition.Hostile || disposition == TargetDisposition.Caution)
             {
                 float range = LockWeaponRange();
+                sub = range <= 0f ? 0 : dist <= range ? 1 : 2;
+            }
+            else if (_lockSource == LockSource.Entity && SpaceTargeting.IsMiningKind(_lockKind))
+            {
+                // #2327: a rock or the wreck reads "In range" / "Too far" for the selected mining laser — the breaker's 40 is
+                // the number a miner needs; nothing with another system up.
+                float range = MiningCycleRange();
                 sub = range <= 0f ? 0 : dist <= range ? 1 : 2;
             }
 

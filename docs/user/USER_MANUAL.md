@@ -184,7 +184,8 @@ a storage crate's filter, the train cab, an NPC interview, and both maps. **(B)*
 also closes the gameplay menu itself and backs out of the main menu, Settings, the world picker and the
 editors. The right stick also steers the ship in flight; the d-pad cycles the **ship-systems bar**
 (laser ↔ tractor beam) at the helm. At the helm **LB** is the **target lock** (tap = next target, hold =
-let go) and **R3** locks the **nearest enemy** (again = the next nearest) — see §3 → *Target lock*. Direct
+let go) and **R3** locks the **nearest enemy** (again = the next nearest); *Target ahead* — lock the rock on
+your nose — is in the **L3 Actions** list. See §3 → *Target lock*. Direct
 hotbar number-key picks remain keyboard-only. Verbs without a
 face button — everything in the **L3 Actions** list — can also be given their own button in Settings.
 
@@ -251,7 +252,7 @@ buttons swap with what you're doing:
 | **≡** (top-right) | Open / close the gameplay menu |
 | *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump (at a wall, with the stick pushed towards it: grab and climb) · mine · place · use/board · descend (on a wall: let go) · open chat · camera · planet map |
 | *On foot, when it applies:* **ROTATE · ATTACK · FEED** | Rotate the held block's placement (appears while a rotatable block is selected) · swing / fire the held weapon (hold on the Guardian core to breach it) · throw one piece of the held food to a begging herd (appears while you hold food and an animal begs nearby) |
-| *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · TARGET · MAP · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · target lock (tap = next target, long press = let go; "nearest enemy" is in **ACT**) · system chart · camera · dock/board · float up/down |
+| *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · TARGET · MAP · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · target lock (tap = next target, long press = let go; "nearest enemy" and "target ahead" are in **ACT**) · system chart · camera · dock/board · float up/down |
 | *EVA (spacewalk):* **FIRE (hold) · PLACE · DEPLOY · VIEW · USE · UP · DOWN** | Mine · place the selected block · deploy a station core · camera · board · float up/down |
 | *Speeder:* **BOOST (hold) · JUMP · EXIT · FUEL** | Boost · hop · dismount · refuel |
 
@@ -281,9 +282,9 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens the **landing map**: the planet's real terrain, the day/night band and — switchable with **☁ Weather: on/off** (remembered) — its **live weather**, with drifting fronts marked "◀ front ▶". Every pad says the weather waiting there (e.g. "⚡ Storm", "☀ Clear"), so you can pick a sunny pad. Click a free pad (or its number key) to land; **Esc** cancels |
 | **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) — or, next to a **wormhole**, fly through it (see *Wormholes* below) |
 | **Last hotbar slot → hold fire** | The **ship scanner** (every ship has one): point the nose at a planet, moon, asteroid, station, wreck, life pod, anomaly, wormhole or machine and **hold fire** until the ring fills. See *Ship scanner* in §5 |
-| **T** | **Target lock — next target** (pad **LB**, touch **TARGET**): attacking enemies first, then other enemies, then stations / wrecks / life pods / anomalies / wormholes, then other pilots and traders. **Hold T** (~½ s) to let the lock go. See *Target lock* below |
+| **T** | **Target lock — next target** (pad **LB**, touch **TARGET**): attacking enemies first, then other enemies, then stations / wrecks / life pods / anomalies / wormholes, then other pilots and traders. With a **mining laser** selected and nobody attacking, the three nearest asteroids in its reach come right after the enemies. **Hold T** (~½ s) to let the lock go. See *Target lock* below |
 | **R** | **Nearest enemy** (pad **R3**, touch: in the **ACT** list) — press again for the next nearest |
-| **Right mouse button** | **Target ahead**: lock what is under the crosshair — also asteroids, salvage and planets, which the cycle skips. Pointing at empty space lets the lock go |
+| **Right mouse button** | **Target ahead** (pad: **L3 → Target ahead**, touch: **ACT → Target ahead**): lock what is under the crosshair — also asteroids, salvage and planets, which the cycle otherwise skips. Pointing at empty space lets the lock go |
 | **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual |
 | **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
 | **M** | **System chart**: a top-down map of the current system — every planet shows its current weather as a small glyph (☁ ☂ ⚡ ❄ …). Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart** |
@@ -292,8 +293,9 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 ### Target lock
 
 A **lock** marks one target and keeps it marked while you fly. On screen, a frame sits on it with its name,
-what it is and how far it is (in km, with ▲/▼ when it is well above or below you); for an enemy a line says
-**In range** or **Too far — fly closer** for the weapon you have selected. The frame's colour **and shape**
+what it is and how far it is (in km, with ▲/▼ when it is well above or below you); for an enemy — and for a
+rock while a mining laser is selected — a line says **In range** or **Too far — fly closer** for the weapon you
+have selected. The frame's colour **and shape**
 tell you what it is, so you never need the colour alone:
 
 | Target | Colour | Frame | Arrow |
@@ -311,10 +313,16 @@ your **nav waypoint** from the chart (**M**) gets an **amber arrow** with its di
 - **What you can lock:** enemies, pilots and traders within your **radar** range (1 300 km, 3 000 km with a
   radar array) — what the radar shows, you can lock — stations, wrecks, life pods, anomalies and wormholes anywhere in the system, and everything
   while the Quantum scanner's system sweep lasts. A lock that drifts out of range shows **Target lost** and
-  lets go after a moment.
+  lets go after a moment. **Asteroids** are locked with *Target ahead* — and, with the asteroid breaker or the
+  starter laser selected while nobody is attacking, the three nearest within that laser's reach are in the **T**
+  cycle too.
 - **By itself:** with nothing locked, the ship locks onto an enemy the moment it starts attacking — VEGA
   explains it the first time. It never swaps a lock you chose. After a kill the lock moves on to the next
   attacking enemy (or lets go).
+- **Mining:** with nothing locked, your first shot at a rock (or the wreck) locks it — the frame shows its
+  remaining hull and **In range** / **Too far — fly closer** for your mining laser. When the rock breaks, the
+  lock moves on to the nearest rock your laser reaches (an attacking enemy always comes first), or lets go when
+  there is none. With the tractor beam or the scanner selected, none of this happens.
 - **The weapon helps:** with the **Auto-aim** world rule on, your laser prefers the locked target while it is
   in range and roughly in front of you (within about 40°). With Auto-aim off the lock only shows the way —
   you aim yourself. The aiming dot turns **red** while the locked enemy is in your sights. The tractor beam

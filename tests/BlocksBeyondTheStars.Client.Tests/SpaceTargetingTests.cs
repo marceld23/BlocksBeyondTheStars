@@ -85,9 +85,18 @@ public sealed class SpaceTargetingTests
 
         Assert.True(SpaceTargeting.IsCycleKind("Drone"));
         Assert.True(SpaceTargeting.IsCycleKind("EscapePod"));
-        Assert.False(SpaceTargeting.IsCycleKind("Asteroid"));
+        Assert.False(SpaceTargeting.IsCycleKind("Asteroid")); // only in a mining context — see the Order tests
         Assert.False(SpaceTargeting.IsCycleKind("ResourceDrop"));
         Assert.False(SpaceTargeting.IsCycleKind("Body"));
+
+        // #2327/#2328: what the mining beam carves, and which weapon classes open the mining context.
+        Assert.True(SpaceTargeting.IsMiningKind("Asteroid"));
+        Assert.True(SpaceTargeting.IsMiningKind("Wreck"));
+        Assert.False(SpaceTargeting.IsMiningKind("Drone"));
+        Assert.False(SpaceTargeting.IsMiningKind("ResourceDrop"));
+        Assert.True(SpaceTargeting.CanMine(0));  // the asteroid breaker
+        Assert.False(SpaceTargeting.CanMine(1)); // a pure combat cannon
+        Assert.True(SpaceTargeting.CanMine(2));  // the starter laser does both
     }
 
     // ---- Order -----------------------------------------------------------------------------------------
@@ -193,6 +202,87 @@ public sealed class SpaceTargetingTests
 
         var calm = SpaceTargeting.Order(new[] { Entity("far", "Drone", 100f, true) }, 0f, 0f, 0f, Radar, false);
         Assert.Null(SpaceTargeting.FirstAttacking(calm));
+    }
+
+    // ---- Mining context (#2327 / #2328) ------------------------------------------------------------------
+
+    [Fact]
+    public void Order_InAMiningContext_TheThreeNearestRocksInWeaponRange_JoinAfterTheHostiles_BeforeNavigation()
+    {
+        var all = new[]
+        {
+            Pilot("papa", 20f),
+            Entity("station", "SpaceStation", 400f),
+            Entity("rock_55", "Asteroid", 55f),
+            Entity("rock_5", "Asteroid", 5f),
+            Entity("rock_far", "Asteroid", 70f), // beyond the starter laser's 60
+            Entity("drop", "ResourceDrop", 6f),
+            Entity("rock_45", "Asteroid", 45f),
+            Entity("rock_25", "Asteroid", 25f),
+            Entity("wreck", "Wreck", 300f),
+            Entity("bandit", "BanditShip", 50f), // demanding cargo, not attacking: still ahead of the rocks
+        };
+
+        // The starter laser (60): the three nearest rocks within 60 — rock_55 is the fourth, rock_far out of reach.
+        Assert.Equal(new[] { "bandit", "rock_5", "rock_25", "rock_45", "wreck", "station", "papa" },
+            Ids(SpaceTargeting.Order(all, 0f, 0f, 0f, Radar, pingActive: false, miningRange: 60f)));
+
+        // The breaker (40) reaches two of them.
+        Assert.Equal(new[] { "bandit", "rock_5", "rock_25", "wreck", "station", "papa" },
+            Ids(SpaceTargeting.Order(all, 0f, 0f, 0f, Radar, pingActive: false, miningRange: 40f)));
+
+        // No mining context (tractor, scanner or a pure combat cannon selected): the cycle as before, no rocks.
+        Assert.Equal(new[] { "bandit", "wreck", "station", "papa" },
+            Ids(SpaceTargeting.Order(all, 0f, 0f, 0f, Radar, pingActive: false)));
+    }
+
+    [Fact]
+    public void Order_AFightKeepsTheRocksOut_OfTheMiningContext()
+    {
+        var rocks = new[] { Entity("rock_a", "Asteroid", 10f), Entity("rock_b", "Asteroid", 20f), Entity("station", "SpaceStation", 400f) };
+
+        // A hostile that is NOT attacking (beyond the engage range) leaves the mining context open.
+        var calm = new System.Collections.Generic.List<TargetCandidate>(rocks) { Entity("drone", "Drone", 110f, hostile: true) };
+        Assert.Equal(new[] { "drone", "rock_a", "rock_b", "station" }, Ids(SpaceTargeting.Order(calm, 0f, 0f, 0f, Radar, false, miningRange: 60f)));
+
+        // The moment it attacks, the cycle is an enemy list again.
+        var fight = new System.Collections.Generic.List<TargetCandidate>(rocks) { Entity("drone", "Drone", 60f, hostile: true) };
+        Assert.Equal(new[] { "drone", "station" }, Ids(SpaceTargeting.Order(fight, 0f, 0f, 0f, Radar, false, miningRange: 60f)));
+    }
+
+    [Fact]
+    public void Order_RocksInTheMiningContext_StillNeedTheLockRange()
+    {
+        // A huge mining range cannot lock a rock the radar does not show (beyond the lock range) — the ping can.
+        var all = new[] { Entity("rock", "Asteroid", 200f) };
+        Assert.Empty(SpaceTargeting.Order(all, 0f, 0f, 0f, Radar, pingActive: false, miningRange: 1000f));
+        Assert.Equal(new[] { "rock" }, Ids(SpaceTargeting.Order(all, 0f, 0f, 0f, Radar, pingActive: true, miningRange: 1000f)));
+    }
+
+    [Fact]
+    public void NearestMineable_IsTheNearestRockOrWreckInReach_WithoutTheOneThatBroke()
+    {
+        var all = new[]
+        {
+            Pilot("papa", 1f),
+            Entity("drop", "ResourceDrop", 2f),
+            Entity("drone", "Drone", 3f, hostile: true),
+            Entity("broken", "Asteroid", 4f),
+            Entity("wreck", "Wreck", 30f),
+            Entity("rock", "Asteroid", 35f),
+            Entity("far_rock", "Asteroid", 100f),
+        };
+
+        var next = SpaceTargeting.NearestMineable(all, 0f, 0f, 0f, 40f, excludeId: "broken");
+        Assert.Equal("wreck", next!.Value.Id);
+        Near(30f, next.Value.Distance);
+
+        Assert.Null(SpaceTargeting.NearestMineable(all, 0f, 0f, 0f, 20f, excludeId: "broken")); // nothing the breaker reaches
+        Assert.Equal("broken", SpaceTargeting.NearestMineable(all, 0f, 0f, 0f, 40f)!.Value.Id); // nothing excluded: the nearest
+
+        // The wreck salvaged away next: the rock behind it is what remains in reach.
+        var afterTheWreck = new[] { Entity("wreck", "Wreck", 30f), Entity("rock", "Asteroid", 35f), Entity("far_rock", "Asteroid", 100f) };
+        Assert.Equal("rock", SpaceTargeting.NearestMineable(afterTheWreck, 0f, 0f, 0f, 40f, excludeId: "wreck")!.Value.Id);
     }
 
     // ---- Range + hysteresis ----------------------------------------------------------------------------

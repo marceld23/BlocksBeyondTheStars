@@ -134,9 +134,24 @@ public static class SpaceTargeting
         => kind == Asteroid || kind == Anomaly || kind == Wreck || kind == EscapePod || kind == SpaceStation
            || kind == Wormhole || IsHostileShipKind(kind);
 
-    /// <summary>The entity kinds the cycle keys walk. Asteroids, salvage drops and planets are left out (a belt would
-    /// bury the enemies under twenty rocks) — "target ahead" reaches them.</summary>
+    /// <summary>The entity kinds the cycle keys always walk. Asteroids, salvage drops and planets are left out (a belt
+    /// would bury the enemies under twenty rocks) — "target ahead" reaches them, and the mining context (#2328) lets the
+    /// nearest rocks in (see <see cref="Tier"/>).</summary>
     public static bool IsCycleKind(string? kind) => IsHostileShipKind(kind) || IsNavigationKind(kind);
+
+    /// <summary>What the mining beam carves: asteroids and the derelict wreck — the targets <see cref="WeaponSuits"/>
+    /// gives a mining tool. The mining lock (#2327: a shot locks one, after it breaks the lock moves to the next in
+    /// reach) and the mining context of the cycle (#2328) read this list.</summary>
+    public static bool IsMiningKind(string? kind) => kind == Asteroid || kind == Wreck;
+
+    /// <summary>Whether a ship weapon of <paramref name="weaponClass"/> (<c>weapon_class</c>: 0 mining tool, 1 combat,
+    /// 2 both) can mine. A pure combat cannon breaks rocks only where the server rules allow it, so it never opens the
+    /// mining context.</summary>
+    public static bool CanMine(int weaponClass) => weaponClass != 1;
+
+    /// <summary>#2328: at most this many rocks join the cycle in a mining context — the nearest ones in weapon range,
+    /// never the whole field (nine at a dense launch) and never the belt.</summary>
+    public const int MaxRocksInCycle = 3;
 
     /// <summary>The kinds that can be locked at any distance: the navigation points and the bodies of the system.</summary>
     public static bool IsSystemWide(string? kind) => IsNavigationKind(kind) || kind == BodyKind;
@@ -216,13 +231,25 @@ public static class SpaceTargeting
 
     // ---- Cycle order -----------------------------------------------------------------------------------
 
+    private const int AttackingTier = 0;
+    private const int RockTier = 2;
+
     /// <summary>The cycle tier of a candidate at its distance, or −1 when the cycle skips it: 0 hostiles attacking right
-    /// now, 1 every other hostile and a raider demanding cargo, 2 the navigation points, 3 other pilots and traders.</summary>
-    public static int Tier(in TargetCandidate c, float lockRange, bool pingActive)
+    /// now, 1 every other hostile and a raider demanding cargo, 2 the rocks of a mining context (#2328: with
+    /// <paramref name="miningRange"/> &gt; 0 — the selected laser can mine — an asteroid within that range; what you are
+    /// about to shoot is more immediate than a system-wide station), 3 the navigation points, 4 other pilots and traders.
+    /// <see cref="Order"/> adds the two rules a single candidate cannot know: only the <see cref="MaxRocksInCycle"/>
+    /// nearest rocks, and none while a hostile is attacking.</summary>
+    public static int Tier(in TargetCandidate c, float lockRange, bool pingActive, float miningRange = 0f)
     {
         if (c.IsPilot || c.IsTrader)
         {
-            return InLockRange(c.Kind, c.Distance, lockRange, pingActive) ? 3 : -1;
+            return InLockRange(c.Kind, c.Distance, lockRange, pingActive) ? 4 : -1;
+        }
+
+        if (c.Kind == Asteroid)
+        {
+            return miningRange > 0f && c.Distance <= miningRange && InLockRange(c.Kind, c.Distance, lockRange, pingActive) ? RockTier : -1;
         }
 
         if (!IsCycleKind(c.Kind) || !InLockRange(c.Kind, c.Distance, lockRange, pingActive))
@@ -233,28 +260,32 @@ public static class SpaceTargeting
         var disposition = c.Disposition;
         if (disposition == TargetDisposition.Hostile || disposition == TargetDisposition.Caution)
         {
-            return IsAttacking(c) ? 0 : 1;
+            return IsAttacking(c) ? AttackingTier : 1;
         }
 
-        return IsNavigationKind(c.Kind) ? 2 : -1;
+        return IsNavigationKind(c.Kind) ? 3 : -1;
     }
 
     /// <summary>The cycle list, fresh for one key press: lockable candidates by tier (<see cref="Tier"/>), nearest
     /// first within a tier, the id breaking ties so the order is stable. Each entry carries its distance. Fills and
-    /// returns <paramref name="into"/> (a new list when null).</summary>
+    /// returns <paramref name="into"/> (a new list when null). <paramref name="miningRange"/> &gt; 0 opens the mining
+    /// context (#2328): the <see cref="MaxRocksInCycle"/> nearest asteroids within it join — unless a hostile is
+    /// attacking, when a fight keeps the cycle an enemy list.</summary>
     public static List<TargetCandidate> Order(IReadOnlyList<TargetCandidate> all, float shipX, float shipY, float shipZ,
-        float lockRange, bool pingActive, List<TargetCandidate>? into = null)
+        float lockRange, bool pingActive, List<TargetCandidate>? into = null, float miningRange = 0f)
     {
         var result = into ?? new List<TargetCandidate>(all.Count);
         result.Clear();
         var keyed = new List<(int Tier, TargetCandidate C)>(all.Count);
+        bool underAttack = false;
         for (int i = 0; i < all.Count; i++)
         {
             var c = all[i].WithDistance(Distance(all[i], shipX, shipY, shipZ));
-            int tier = Tier(c, lockRange, pingActive);
+            int tier = Tier(c, lockRange, pingActive, miningRange);
             if (tier >= 0)
             {
                 keyed.Add((tier, c));
+                underAttack |= tier == AttackingTier;
             }
         }
 
@@ -269,12 +300,43 @@ public static class SpaceTargeting
             int d = a.C.Distance.CompareTo(b.C.Distance);
             return d != 0 ? d : string.CompareOrdinal(a.C.Id, b.C.Id);
         });
+        int rocks = 0;
         foreach (var k in keyed)
         {
+            if (k.Tier == RockTier && (underAttack || rocks++ >= MaxRocksInCycle))
+            {
+                continue;
+            }
+
             result.Add(k.C);
         }
 
         return result;
+    }
+
+    /// <summary>#2327: the mining flow after a kill — the nearest asteroid or wreck within <paramref name="range"/> (the
+    /// selected mining laser's reach) other than <paramref name="excludeId"/>, with its distance; null when there is
+    /// none. Measured from the ship, the id breaking ties.</summary>
+    public static TargetCandidate? NearestMineable(IReadOnlyList<TargetCandidate> all, float shipX, float shipY, float shipZ,
+        float range, string? excludeId = null)
+    {
+        TargetCandidate? best = null;
+        for (int i = 0; i < all.Count; i++)
+        {
+            var c = all[i];
+            if (c.IsPilot || c.IsTrader || !IsMiningKind(c.Kind) || c.Id == excludeId)
+            {
+                continue;
+            }
+
+            c = c.WithDistance(Distance(c, shipX, shipY, shipZ));
+            if (c.Distance <= range && (best == null || Nearer(c, best.Value)))
+            {
+                best = c;
+            }
+        }
+
+        return best;
     }
 
     /// <summary>"Next target": the entry after <paramref name="currentId"/>, wrapping at the end; the first entry when
