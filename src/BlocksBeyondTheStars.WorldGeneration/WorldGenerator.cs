@@ -582,7 +582,7 @@ public sealed partial class WorldGenerator
         public bool OilPockets;
 
         // Terrain generation 21 (#2331, the spectacle package): the family gates, all false below generation 21.
-        public bool PillarIslands, ArchClusters;
+        public bool PillarIslands, ArchClusters, MesaClusters, TableVariants;
 
         /// <summary>Generation 21 (#2332): the block the package's rock bands are made of on this world — sandstone on
         /// butte / wind country, basalt on volcanic, ice on the deep cold, else Air (= the planet's deep block).</summary>
@@ -657,7 +657,7 @@ public sealed partial class WorldGenerator
         new("volcano", w => w.Volcanoes, static (g, p, w, x, z) => g.VolcanoOffset(p, w.Seed, x, z)),
         new("caldera", w => w.Calderas, static (g, p, w, x, z) => g.CalderaOffset(w.Seed, x, z)),
         new("massif", w => w.Massifs, static (g, p, w, x, z) => g.MassifOffset(p, w.Seed, x, z)),
-        new("table-mountain", w => w.TableMountains, static (g, p, w, x, z) => g.TableMountainOffset(w.Seed, x, z)),
+        new("table-mountain", w => w.TableMountains, static (g, p, w, x, z) => g.TableMountainOffset(w, x, z)),
         new("overhang", w => w.OverhangLandmarks, static (g, p, w, x, z) => g.OverhangGroundOffset(p, w, x, z)),
         new("travertine", w => w.Travertine,
             static (g, p, w, x, z) => g.TryGetTravertine(w.Seed, x, z, out double deckRise, out _) ? deckRise : 0.0),
@@ -754,6 +754,9 @@ public sealed partial class WorldGenerator
         // The abutment pillars of the arch clusters (their bars are bands); the paint is the fallen arch's rubble.
         new("arch-cluster", w => w.ArchClusters, static (g, p, w, x, z) => g.ArchClusterOffset(p, w, x, z),
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.ArchRubblePaint(p, w, x, z, out fill)),
+        // The tables of a bridge mesa (their decks are bands); the paint is a broken bridge's rubble.
+        new("mesa-cluster", w => w.MesaClusters, static (g, p, w, x, z) => g.MesaClusterOffset(p, w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.MesaRubblePaint(p, w, x, z, out fill)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -1099,6 +1102,8 @@ public sealed partial class WorldGenerator
                     w.BandMaterial = BandMaterialFor(planet);
                     w.PillarIslands = HasPillarIslands(planet);
                     w.ArchClusters = HasArchClusters(planet);
+                    w.MesaClusters = HasMesaClusters(planet);
+                    w.TableVariants = w.TableMountains && HasArchClusters(planet); // the impossible tables of arch country
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
@@ -1128,7 +1133,7 @@ public sealed partial class WorldGenerator
                     || w.NaturalBridges || w.CoastalOverhangs || w.IceCornices || w.MushroomRocks // #1646
                     || w.Icebergs
                     || (planet.BuoyantIslands && _terrainGeneration >= WorldDescription.AuthoredContentGeneration) // #1757
-                    || w.PillarIslands || w.ArchClusters; // #2331 (every gate here is false below generation 21)
+                    || w.PillarIslands || w.ArchClusters || w.MesaClusters || w.TableVariants; // #2331 (false below generation 21)
                 // #703 hybrid fade; #1645: on a multi-style world the fade runs whenever more than one style was
                 // rolled — identity styles (flats, spires) stay pure only as the sole pick.
                 w.HybridEligible = _terrainGeneration >= 1 && w.Styles.Length != 0

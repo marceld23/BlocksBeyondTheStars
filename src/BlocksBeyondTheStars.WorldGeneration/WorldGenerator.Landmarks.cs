@@ -345,8 +345,9 @@ public sealed partial class WorldGenerator
     /// <summary>The table mountain's height contribution at a column, or 0 if none covers it (#577): a
     /// talus foot steepening into a near-vertical upper wall (outer 30 % of the radius), then a dead-flat
     /// cap with a light rock roll so the top reads as stone, not glass.</summary>
-    private double TableMountainOffset(long seed, int worldX, int worldZ)
+    private double TableMountainOffset(WonderProfile w, int worldX, int worldZ)
     {
+        long seed = w.Seed;
         if (!TryGetHotspot(seed ^ 0x7AB1E0, ButteCellSize, ButteChance, ButteMaxRadius + 20.0,
                 worldX, worldZ, out ulong h, out double dx, out double dz))
         {
@@ -361,14 +362,44 @@ public sealed partial class WorldGenerator
         }
 
         double height = 30.0 + ((h >> 26) & 0x3FF) / 1023.0 * 40.0; // 30..70
-        double t = 1.0 - dist / radius;
+
+        // Terrain generation 21 (#2338): the impossible tables — a per-table variant from a re-hash, Plain on every
+        // older world. A ring table's ground is its core alone (the cap's outer third is a band with air under it);
+        // a tilted cap slopes along a bearing; a two-storey table carries a smaller table on its cap.
+        var variant = w.TableVariants ? TableVariantOf(h) : TableVariant.Plain;
+        double solid = variant == TableVariant.Ring ? radius * RingCoreShare : radius;
+        if (dist > solid)
+        {
+            return 0.0;
+        }
+
+        double t = 1.0 - dist / solid;
+        double rise;
         if (t >= 0.30)
         {
             double roll = FbmT(seed + 0x7AB2E, worldX, worldZ, 24.0, octaves: 2);
-            return height + (roll - 0.5) * 2.0; // the table top
+            rise = height + (roll - 0.5) * 2.0; // the table top
+        }
+        else
+        {
+            rise = height * System.Math.Pow(t / 0.30, 1.8); // talus foot → near-vertical upper wall
         }
 
-        return height * System.Math.Pow(t / 0.30, 1.8); // talus foot → near-vertical upper wall
+        if (variant == TableVariant.Tilted && t >= 0.30)
+        {
+            rise += TableTilt(h) * TableTiltAlong(h, dx, dz);
+        }
+        else if (variant == TableVariant.TwoStorey)
+        {
+            double r2 = radius * 0.25;
+            if (dist < r2)
+            {
+                double t2 = 1.0 - dist / r2;
+                rise += TableStoreyHeight(h) * (t2 >= 0.30 ? 1.0 : System.Math.Pow(t2 / 0.30, 1.8));
+            }
+        }
+
+        return rise;
     }
 
     private const double MassifCellSize = 3200.0; // very sparse: ~1 in 5 default worlds carries a massif

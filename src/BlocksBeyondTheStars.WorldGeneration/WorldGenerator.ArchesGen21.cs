@@ -291,14 +291,18 @@ public sealed partial class WorldGenerator
         return scree.IsAir ? null : scree;
     }
 
-    /// <summary>The rubble prop row's gate (#2337): arch worlds only; the shape decides per column.</summary>
-    private static bool PropArchRubble(WonderProfile w, PlanetType p) => w.ArchClusters && PropSolidGround(w, p);
+    /// <summary>The rubble prop row's gate (#2337 / #2338): arch and mesa worlds; the shape decides per column.</summary>
+    private static bool PropArchRubble(WonderProfile w, PlanetType p) => (w.ArchClusters || w.MesaClusters) && PropSolidGround(w, p);
+
+    /// <summary>Where a fallen bar or a broken bridge deck lies: the rubble of either family.</summary>
+    private bool SpectacleRubbleAt(PlanetType planet, WonderProfile w, int worldX, int worldZ)
+        => (w.ArchClusters && ArchRubbleAt(planet, w, worldX, worldZ)) || (w.MesaClusters && MesaRubbleAt(planet, w, worldX, worldZ));
 
     /// <summary>A boulder of the fallen bar, only where the rubble lies — elsewhere the roll leaves nothing.</summary>
     private static void StampArchRubble(PropStamp s)
     {
         var w = s.Generator.WonderFor(s.Planet);
-        if (!s.Generator.ArchRubbleAt(s.Planet, w, s.Wx, s.Wz))
+        if (!s.Generator.SpectacleRubbleAt(s.Planet, w, s.Wx, s.Wz))
         {
             return;
         }

@@ -230,6 +230,16 @@ public sealed partial class WorldGenerator
             n = AppendArchBands(planet, w, worldX, worldZ, bands, n);
         }
 
+        if (w.TableVariants && n < bands.Length)
+        {
+            n = AppendTableVariantBands(planet, w, worldX, worldZ, bands, n);
+        }
+
+        if (w.MesaClusters && n < bands.Length)
+        {
+            n = AppendMesaBands(planet, w, worldX, worldZ, bands, n);
+        }
+
         return n;
     }
 
