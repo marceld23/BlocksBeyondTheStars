@@ -60,6 +60,13 @@ public sealed partial class WorldGenerator
             return true;
         }
 
+        // A daylight hall (#2340), open or roofed, within the depth.
+        var w = WonderFor(planet);
+        if (w.DaylightHalls && TryGetDaylightHallSpan(planet, w, worldX, worldZ, surface, out _, out int hallHi, out _, out _) && hallHi >= floor)
+        {
+            return true;
+        }
+
         System.Span<(int Lo, int Hi)> spans = stackalloc (int Lo, int Hi)[TunnelMaxSpans];
         int count = TunnelSpans(planet, worldX, worldZ, spans);
         for (int i = 0; i < count; i++)

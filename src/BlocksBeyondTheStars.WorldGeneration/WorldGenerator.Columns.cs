@@ -970,6 +970,23 @@ public sealed partial class WorldGenerator
 
         int surfaceY = SurfaceHeight(planet, worldX, worldZ);
 
+        // Generation 21 (#2340): a daylight hall under this column. Under its skylight the column's GROUND is the hall
+        // floor — the surface, the biome, the flora and the bodies below all work on the floor; the roofed rim is a
+        // mega-cavern span (taken up where the classic cavern is). Nothing on any older column.
+        bool hallOpen = false, hallRoofed = false;
+        int hallLo = 0, hallHi = -1, hallLake = int.MinValue;
+        if (wonder.DaylightHalls && TryGetDaylightHallSpan(planet, wonder, worldX, worldZ, surfaceY, out hallLo, out hallHi, out hallLake, out hallOpen))
+        {
+            if (hallOpen)
+            {
+                surfaceY = hallLo - 1;
+            }
+            else
+            {
+                hallRoofed = true;
+            }
+        }
+
         // Generation 8 (Titas): a hot-zone column — its ponds hold lava, it never snows or freezes. False elsewhere.
         bool hotHere = calib.HotBiome >= 0 && HotZoneAt(calib, seed, worldX, worldZ);
 
@@ -979,6 +996,11 @@ public sealed partial class WorldGenerator
         int seabedY = surfaceY;
         int waterTop = fluidLevel;
         var columnFluid = fluidId;
+        if (hallOpen)
+        {
+            waterTop = seabedY; // #2340: a hall floor under the sea line is a sealed bowl, not a sea column — dry unless its lake fills it
+        }
+
         bool pondHere = false;
         double? pondMask = null; // computed at most once per column; shared with the beach rim test (#679)
         if (ponds && surfaceY > fluidLevel)
@@ -1018,7 +1040,7 @@ public sealed partial class WorldGenerator
         // Underground reach (generation 3): the surface stays; the passage and its water are carved below it.
         bool passageHere = false;
         int passageLo = 0, passageHi = -1, subLo = 0, subHi = -1, shieldLo = 1, shieldHi = 0;
-        if (!pondHere && !craterHere && surfaceY > fluidLevel && riverField.TryGet(worldX, worldZ, out var river))
+        if (!pondHere && !craterHere && !hallOpen && surfaceY > fluidLevel && riverField.TryGet(worldX, worldZ, out var river))
         {
             if (river.Underground)
             {
@@ -1078,10 +1100,18 @@ public sealed partial class WorldGenerator
             columnFluid = seaWaterId;
         }
 
+        // Generation 21 (#2340): the daylight hall's lake fills the floor's bowl under the skylight (the roofed rim's
+        // share is the cavern branch's); the floor near the rim rises above the lake and stays dry.
+        if (hallOpen && hallLake > seabedY && seabedY == surfaceY && !seaWaterId.IsAir)
+        {
+            waterTop = hallLake;
+            columnFluid = seaWaterId;
+        }
+
         // Generation-1 bodies (#1647): marsh sheets, oases, hot springs, caldera / shield / maar lakes, playas,
         // tarns — only on a column no classic body claimed (still plain: bed = surface, water = the sea line).
         // TryGetGen1Water is the same function the surface-water helpers read, so they agree by construction.
-        if (c.Gen1Paints && seabedY == surfaceY && waterTop == fluidLevel && surfaceY > fluidLevel
+        if (c.Gen1Paints && !hallOpen && seabedY == surfaceY && waterTop == fluidLevel && surfaceY > fluidLevel
             && TryGetGen1Water(planet, wonder, worldX, worldZ, surfaceY, out int g1Top, out int g1Bed, out var g1Fluid))
         {
             seabedY = g1Bed;
@@ -1110,7 +1140,7 @@ public sealed partial class WorldGenerator
         // apron continues the beach under water. The coast mask alternates beach and bare shore;
         // the snow pass below still dusts cold coasts, and volcano basalt still wins near a cone.
         bool beachHere = false;
-        if (beachPossible)
+        if (beachPossible && !hallOpen)
         {
             if (surfaceY < fluidLevel && fluidId == seaWaterId)
             {
@@ -1132,7 +1162,7 @@ public sealed partial class WorldGenerator
 
         // #1757 (generation 5): beyond the beach apron the whole sea floor takes the type's seabed block — sand you
         // can dig in on the rainbow planet. Never on a river, a pond or a dry column; Air (every other type) = classic.
-        if (!c.SeabedId.IsAir && !beachHere && surfaceY < fluidLevel && fluidId == seaWaterId && seabedY == surfaceY)
+        if (!c.SeabedId.IsAir && !beachHere && !hallOpen && surfaceY < fluidLevel && fluidId == seaWaterId && seabedY == surfaceY)
         {
             surfaceId = c.SeabedId;
             subSurfaceId = c.SeabedId;
@@ -1311,6 +1341,16 @@ public sealed partial class WorldGenerator
         int cavLo = 0, cavHi = -1, cavLakeY = int.MinValue;
         bool cavernHere = cavernWorld
             && TryGetCavernSpan(planet, worldX, worldZ, out cavLo, out cavHi, out cavLakeY);
+
+        // Generation 21 (#2340): the daylight hall's roofed rim is written like a mega-cavern (a classic cavern on the
+        // same column keeps precedence; both are rare).
+        if (!cavernHere && hallRoofed)
+        {
+            cavernHere = true;
+            cavLo = hallLo;
+            cavHi = System.Math.Min(hallHi, seabedY - 1);
+            cavLakeY = hallLake;
+        }
 
         // Generation 9 (#2000): nothing opens under the sand sea — its deep sand band is shielded from every carver
         // (caves, the worm tunnels below, and the mega-caverns), so the sandworm's buried body never shows through.

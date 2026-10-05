@@ -240,6 +240,11 @@ public sealed partial class WorldGenerator
             n = AppendMesaBands(planet, w, worldX, worldZ, bands, n);
         }
 
+        if (w.WaveRocks && n < bands.Length)
+        {
+            n = AppendWaveBands(planet, w, worldX, worldZ, bands, n);
+        }
+
         return n;
     }
 

@@ -242,6 +242,15 @@ public sealed partial class WorldGenerator
             static (g, p, w, h, cx, cz) => g.IceCaveSegments(p, w, h, cx, cz)),
         new("sheet-caves", SheetCaveSalt, SheetCaveCellSize, SheetCaveChance, SheetCaveMargin, static w => w.SheetCaves,
             static (g, p, w, h, cx, cz) => g.SheetCaveSegments(p, w, h, cx, cz)),
+        // Terrain generation 21 (#2339, #2340). The portal rides the massif's cell (into its hall), the abri the table's
+        // cell (along its wall foot), the hall's walk-in the daylight hall's own cell — every cell rolled, the builder
+        // asks whether the hall exists. Every gate is false below generation 21.
+        new("portals", 0x3A551F, MassifCellSize, MassifChance, MassifMaxRadius + 20.0, static w => w.Portals,
+            static (g, p, w, h, cx, cz) => g.PortalSegments(p, w, h, cx, cz)),
+        new("abris", 0x7AB1E0, ButteCellSize, ButteChance, ButteMaxRadius + 20.0, static w => w.Abris,
+            static (g, p, w, h, cx, cz) => g.AbriSegments(p, w, h, cx, cz)),
+        new("hall-portals", HallSalt, HallCellSize, 0.95, HallMargin, static w => w.DaylightHalls,
+            static (g, p, w, h, cx, cz) => g.HallPortalSegments(p, w, h, cx, cz)),
     };
 
     /// <summary>The registered worm families in table order (tests).</summary>

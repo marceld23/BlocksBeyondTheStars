@@ -278,6 +278,11 @@ public sealed partial class WorldGenerator
                 }
 
                 int sy = SurfaceHeight(planet, wx, wz);
+                if (wonderProps.DaylightHalls && DaylightHallFloorAt(planet, wonderProps, wx, wz, out int hallFloor))
+                {
+                    sy = hallFloor; // generation 21 (#2340): under a skylight the props lie on the hall floor
+                }
+
                 if (sy + 1 > origin.Y + cs - 1 || sy + MaxStampRise < origin.Y)
                 {
                     continue; // #1527: props write sy+1 .. sy+7 — none of it lands in this chunk
@@ -598,6 +603,11 @@ public sealed partial class WorldGenerator
                 }
 
                 int sy = SurfaceHeight(planet, wx, wz);
+                if (wonderTrees.DaylightHalls && DaylightHallFloorAt(planet, wonderTrees, wx, wz, out int hallFloor))
+                {
+                    sy = hallFloor; // generation 21 (#2340): under a skylight the wood stands on the hall floor
+                }
+
                 if (sy + 1 > origin.Y + cs - 1 || sy + MaxStampRise < origin.Y)
                 {
                     continue; // every cell a tree here could write lies outside this chunk — SetCell would clip them all

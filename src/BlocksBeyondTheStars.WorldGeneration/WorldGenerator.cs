@@ -582,7 +582,7 @@ public sealed partial class WorldGenerator
         public bool OilPockets;
 
         // Terrain generation 21 (#2331, the spectacle package): the family gates, all false below generation 21.
-        public bool PillarIslands, ArchClusters, MesaClusters, TableVariants;
+        public bool PillarIslands, ArchClusters, MesaClusters, TableVariants, WaveRocks, Abris, Portals, DaylightHalls;
 
         /// <summary>Generation 21 (#2332): the block the package's rock bands are made of on this world — sandstone on
         /// butte / wind country, basalt on volcanic, ice on the deep cold, else Air (= the planet's deep block).</summary>
@@ -757,6 +757,8 @@ public sealed partial class WorldGenerator
         // The tables of a bridge mesa (their decks are bands); the paint is a broken bridge's rubble.
         new("mesa-cluster", w => w.MesaClusters, static (g, p, w, x, z) => g.MesaClusterOffset(p, w, x, z),
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.MesaRubblePaint(p, w, x, z, out fill)),
+        // The wave rock's ridge (its curl is a band).
+        new("wave-rock", w => w.WaveRocks, static (g, p, w, x, z) => g.WaveRockOffset(p, w, x, z)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -839,6 +841,15 @@ public sealed partial class WorldGenerator
             ["hangingValleys"] = w.HangingValleys,
             ["iceCaves"] = w.IceCaves,
             ["sheetCaves"] = w.SheetCaves,
+            // terrain generation 21 (#2331)
+            ["pillarIslands"] = w.PillarIslands,
+            ["archClusters"] = w.ArchClusters,
+            ["mesaClusters"] = w.MesaClusters,
+            ["tableVariants"] = w.TableVariants,
+            ["waveRocks"] = w.WaveRocks,
+            ["abris"] = w.Abris,
+            ["portals"] = w.Portals,
+            ["daylightHalls"] = w.DaylightHalls,
         };
     }
 
@@ -1104,6 +1115,10 @@ public sealed partial class WorldGenerator
                     w.ArchClusters = HasArchClusters(planet);
                     w.MesaClusters = HasMesaClusters(planet);
                     w.TableVariants = w.TableMountains && HasArchClusters(planet); // the impossible tables of arch country
+                    w.WaveRocks = HasWaveRocks(planet);
+                    w.Abris = w.TableVariants;
+                    w.Portals = HasPortals(planet);
+                    w.DaylightHalls = HasDaylightHalls(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
@@ -1133,7 +1148,7 @@ public sealed partial class WorldGenerator
                     || w.NaturalBridges || w.CoastalOverhangs || w.IceCornices || w.MushroomRocks // #1646
                     || w.Icebergs
                     || (planet.BuoyantIslands && _terrainGeneration >= WorldDescription.AuthoredContentGeneration) // #1757
-                    || w.PillarIslands || w.ArchClusters || w.MesaClusters || w.TableVariants; // #2331 (false below generation 21)
+                    || w.PillarIslands || w.ArchClusters || w.MesaClusters || w.TableVariants || w.WaveRocks; // #2331 (false below gen 21)
                 // #703 hybrid fade; #1645: on a multi-style world the fade runs whenever more than one style was
                 // rolled — identity styles (flats, spires) stay pure only as the sole pick.
                 w.HybridEligible = _terrainGeneration >= 1 && w.Styles.Length != 0
