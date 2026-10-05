@@ -108,6 +108,41 @@ public sealed class SpectacleWorldsTests : IDisposable
     }
 
     [Fact]
+    public void TheFirstPlanetOfEveryClassicType_KeepsItsType_InAGenerationTwentyOneGalaxy()
+    {
+        // The keep rule behind the 25 % share: the server starts on the first planet of the chosen start type, and a
+        // quarter retype wiped a rarely rolled type from one galaxy in four. A generation-0 description rolls no gated
+        // type at all, so its galaxy IS the classic roll the retype pass works on (same seed → same layout).
+        var classic = new WorldDescription { StarSystemCount = 12, TerrainGeneration = 0 };
+        var gen21 = new WorldDescription { StarSystemCount = 12, TerrainGeneration = WorldDescription.SpectacleGeneration };
+        int kept = 0;
+        for (long seed = 1; seed <= 40; seed++)
+        {
+            var a = new UniverseGenerator(seed, classic, Content).Generate();
+            var b = new UniverseGenerator(seed, gen21, Content).Generate();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            for (int si = 0; si < a.Systems.Count; si++)
+            {
+                for (int bi = 0; bi < a.Systems[si].Bodies.Count; bi++)
+                {
+                    var body = a.Systems[si].Bodies[bi];
+                    if (body.Kind != CelestialKind.Planet || body.PlanetType is not { Length: > 0 } type || !seen.Add(type))
+                    {
+                        continue;
+                    }
+
+                    // The gas giant pass (generation 18) predates the rule and may still take the body.
+                    string? after = b.Systems[si].Bodies[bi].PlanetType;
+                    Assert.True(after == type || after == UniverseGenerator.GasGiantKey, $"seed {seed}: first {type} planet became {after}");
+                    kept++;
+                }
+            }
+        }
+
+        Assert.True(kept > 40 * 5, $"only {kept} first-of-type planets over 40 seeds — the rule guards nothing");
+    }
+
+    [Fact]
     public void AGrownGalaxy_KeepsItsGuaranteedBodies()
     {
         var desc = new WorldDescription { StarSystemCount = 12, TerrainGeneration = WorldDescription.SpectacleGeneration };

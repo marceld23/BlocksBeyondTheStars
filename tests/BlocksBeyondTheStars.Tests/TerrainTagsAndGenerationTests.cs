@@ -73,7 +73,8 @@ public sealed class TerrainTagsAndGenerationTests
         // The city world (#1793) is tag-driven the same way: a sand desert that carries buttes and the volcanic family —
         // and so is the sand sea (#2000): its lava and its rock islands come from the volcanic and butte tags.
         // Toxica-Maxima (#2068) is tag-driven too: its hoodoos come from the tag, not from a classic key or style.
-        var gen1Types = new HashSet<string> { "red_desert", "boreal", "archipelago", "glacier", "meadowlands", "ashen_ocean", "dust_bowl", "frozen_ocean", "gds_desert", "sand_sea", "toxica_maxima", "arena_nigra", "gas_giant" }; // #2078: the black dunes are tag-driven like the sand sea; #2112: the gas giant has no ground at all
+        // #2342: the four spectacle types are tag-driven too (the ossuary world carries buttes on a flats style).
+        var gen1Types = new HashSet<string> { "red_desert", "boreal", "archipelago", "glacier", "meadowlands", "ashen_ocean", "dust_bowl", "frozen_ocean", "gds_desert", "sand_sea", "toxica_maxima", "arena_nigra", "gas_giant", "arch_lands", "pillar_world", "hollow_world", "bone_desert" }; // #2078: the black dunes are tag-driven like the sand sea; #2112: the gas giant has no ground at all
         foreach (var planet in Content.Planets.Values.Where(p => !gen1Types.Contains(p.Key)))
         {
             var gates = gen.WonderGatesForTest(planet);

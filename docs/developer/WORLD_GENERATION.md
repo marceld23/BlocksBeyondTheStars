@@ -2383,7 +2383,12 @@ pure function of the cell hash, memoised in a `CellCache<T>` (the #712 lesson of
 - **Findability (#2343).** `UniverseGenerator`: a generation-21 description retypes 64/256 (25 %) of the eligible
   bodies instead of 46/256, and `ApplyGuaranteedTypes` (after the gas giants) gives every `GuaranteedOnce` type the
   retype pass missed to the eligible planet with the smallest hash of the original systems — never the start system,
-  the first breathable planet, a landmark body or the gas giant. An older description keeps 18 % and no guarantee.
+  the first breathable planet, a landmark body or the gas giant. The larger share comes with a keep rule
+  (`FirstPlanetOfEachType`): the first planet of every type the classic roll produced is never retyped and never taken
+  for a guarantee, so "the first planet of the start type" — the server's start pick — stays the body the classic
+  layout rolled instead of being wiped from one galaxy in four (the server would then force the start type onto the
+  galaxy's first planet). The gas giant pass predates the rule and still takes its lone-giant and outer-orbit bodies.
+  An older description keeps 18 %, no guarantee and no keep rule.
 
 Tests: `Spectacle*Tests` (one class per family, each proving the form by its defining property over seeds, absent
 below generation 21), golden groups `arch_lands-gen21`, `pillar_world-gen21`, `hollow_world-gen21`,

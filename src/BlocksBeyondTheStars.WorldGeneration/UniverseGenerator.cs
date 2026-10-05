@@ -132,6 +132,7 @@ public sealed class UniverseGenerator
         }
 
         var seenOnce = new HashSet<string>(System.StringComparer.Ordinal);
+        var kept = _desc.TerrainGeneration >= WorldDescription.SpectacleGeneration ? FirstPlanetOfEachType(galaxy) : null;
 
         for (int si = 1; si < galaxy.Systems.Count; si++)
         {
@@ -139,7 +140,8 @@ public sealed class UniverseGenerator
             for (int bi = 0; bi < system.Bodies.Count; bi++)
             {
                 var body = system.Bodies[bi];
-                if ((body.Kind != CelestialKind.Planet && body.Kind != CelestialKind.Moon) || ReferenceEquals(body, firstBreathable))
+                if ((body.Kind != CelestialKind.Planet && body.Kind != CelestialKind.Moon) || ReferenceEquals(body, firstBreathable)
+                    || kept?.Contains(body) == true)
                 {
                     continue;
                 }
@@ -189,15 +191,36 @@ public sealed class UniverseGenerator
         }
 
         ApplyGasGiants(galaxy, firstBreathable);
-        ApplyGuaranteedTypes(galaxy, firstBreathable);
+        ApplyGuaranteedTypes(galaxy, firstBreathable, kept);
+    }
+
+    /// <summary>#2343: the first planet of every type the classic roll produced, in the server's start-pick order
+    /// (<see cref="Galaxy.AllBodies"/>). A generation-21 galaxy retypes a quarter of its bodies, and at that share a
+    /// rarely rolled type — the player's chosen start type among them — was wiped from one galaxy in four; the server
+    /// then forces the type onto the galaxy's first planet, which moves the start world to a body that was never meant
+    /// to be one. Keeping each type's first planet makes "the first planet of the start type" the body the classic
+    /// layout rolled. Only consulted on generation 21 and later, so every older galaxy regenerates byte for byte.</summary>
+    private static HashSet<CelestialBody> FirstPlanetOfEachType(Galaxy galaxy)
+    {
+        var kept = new HashSet<CelestialBody>();
+        var seen = new HashSet<string>(System.StringComparer.Ordinal);
+        foreach (var body in galaxy.AllBodies())
+        {
+            if (body.Kind == CelestialKind.Planet && body.PlanetType is { Length: > 0 } type && seen.Add(type))
+            {
+                kept.Add(body);
+            }
+        }
+
+        return kept;
     }
 
     /// <summary>#2343: every <see cref="PlanetType.GuaranteedOnce"/> type this description may roll stands on at least
     /// one planet of the ORIGINAL systems. Runs last, so it never undoes the gas giant or a once-per-galaxy landmark: when
     /// the retype pass rolled none, the eligible planet with the smallest hash (outside the start system, not the first
-    /// breathable one, not a body already carrying a landmark or a guaranteed type) takes it. Deterministic from the seed;
-    /// a grown galaxy's appended systems are never looked at, so they change nothing.</summary>
-    private void ApplyGuaranteedTypes(Galaxy galaxy, CelestialBody? firstBreathable)
+    /// breathable one, not a body already carrying a landmark or a guaranteed type, not a type's first planet) takes it.
+    /// Deterministic from the seed; a grown galaxy's appended systems are never looked at, so they change nothing.</summary>
+    private void ApplyGuaranteedTypes(Galaxy galaxy, CelestialBody? firstBreathable, HashSet<CelestialBody>? kept)
     {
         int original = System.Math.Min(galaxy.Systems.Count, System.Math.Max(0, _desc.StarSystemCount));
         foreach (var (key, _) in _gen1Weights)
@@ -229,7 +252,7 @@ public sealed class UniverseGenerator
                 for (int bi = 0; bi < system.Bodies.Count; bi++)
                 {
                     var body = system.Bodies[bi];
-                    if (body.Kind != CelestialKind.Planet || ReferenceEquals(body, firstBreathable))
+                    if (body.Kind != CelestialKind.Planet || ReferenceEquals(body, firstBreathable) || kept?.Contains(body) == true)
                     {
                         continue;
                     }
