@@ -24,6 +24,14 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧪 `make-test-world.ps1 -Sandbox` creates the panel's real Sandbox (2026-10-06, branch fix/test-world-sandbox-flags) — ✅ done
+
+Found while making Sandbox saves of the four generation-21 worlds: `-Sandbox` passed only `--game-mode Creative`
+(free crafting, no oxygen/hunger, no enemies, flight), while the create-world panel's Sandbox (UiSaveSelect mode 2)
+also passes `--unlock-all-blueprints`, `--start-all-ships` and `--creative-kit`. The script now passes all four, the
+parameter help says what the mode is, and the run prints "Preset : Standard + Sandbox". Checked against a scratch saves
+folder: the new save's metadata carries GameMode Creative, flight, blueprints, ships and kit.
+
 ### 📖 README feature highlights caught up with v2026.10.7 + generation 21 (2026-10-06, branch docs/readme-feature-highlights) — ✅ done
 
 Marcel's ask (2026-10-06): which highlights (Crystal Net, bio research, unusual worlds, …) are missing from the
