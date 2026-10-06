@@ -40,7 +40,9 @@
   Apply the "Peaceful" preset of the create-world panel (frequent creatures, no enemies, no bandits,
   light hazards, no death penalty). Default: the "Standard" preset.
 .PARAMETER Sandbox
-  Creative game mode (free crafting, no oxygen/hunger, peaceful) — handy for placing the new blocks.
+  The create-world panel's "Sandbox" mode (UiSaveSelect mode 2): the Creative game mode (free crafting,
+  no oxygen/hunger, no planet enemies, flight) plus every blueprint, every ship and the creative kit —
+  handy for placing the new blocks.
 .PARAMETER Force
   Replace an existing world of the same name (deletes its folder first).
 .PARAMETER List
@@ -195,7 +197,12 @@ function Get-ServerArgs([string] $worldName, [string] $planetKey) {
         '--guarantee-start-cube', 'true', '--admin-cheats', 'true', '--no-config', 'true'
     ))
     if ($Seed -ne 0) { $a.AddRange([string[]]@('--seed', "$Seed")) }
-    if ($Sandbox) { $a.AddRange([string[]]@('--game-mode', 'Creative')) }
+    if ($Sandbox) {
+        # The panel's Sandbox passes the creative world options too (UnlockAll/AllShips/Kit are on for mode 2);
+        # --game-mode Creative alone left a world without the ships, the kit and the blueprints.
+        $a.AddRange([string[]]@('--game-mode', 'Creative', '--unlock-all-blueprints', 'true',
+                '--start-all-ships', 'true', '--creative-kit', 'true'))
+    }
     if ($Peaceful) {
         # WorldCreationOptions.Peaceful(): frequent creatures, no planet enemies / space NPCs / UFOs / bandits,
         # light hazards, no death penalty, space combat off.
@@ -295,7 +302,7 @@ function New-TestWorld([string] $worldName, [string] $planetKey) {
 Write-Host "Client : $clientDir"
 Write-Host "Saves  : $savesDir"
 $preset = if ($Peaceful) { 'Peaceful' } else { 'Standard' }
-if ($Sandbox) { $preset += ' + Creative (sandbox)' }
+if ($Sandbox) { $preset += ' + Sandbox' }
 Write-Host "Preset : $preset"
 
 $made = 0
