@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛰️ Debris fields with salvage, one-time salvage, combat debris, raiders with real hulls (#2351: #2352–#2359, 2026-10-06, branch feat/debris-fields) — ✅ done (unreleased; ⚠ playtest open)
+### 🛰️ Debris fields with salvage, one-time salvage, combat debris, raiders with real hulls (#2351: #2352–#2359, 2026-10-06, branch feat/debris-fields) — ✅ done (released in v2026.10.8; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-06).** Analysis first: do pirates exist (yes — raiders in pirate space), how could debris
 fields with loot work. Decisions: a location of its own on the chart; capsule loot and the wreck's salvage pay once per
@@ -87,7 +87,7 @@ scanner and the wormholes had been added, everything else had not.
 
 - **Features at a Glance — new bullets:** *Unusual worlds* (once-per-galaxy landmark planets, the city world, gas
   giants, the school club's planets, the generation-21 arches, pillar islands, rock bridges, cave portals, daylight
-  halls and fossils — in already, unreleased), *Giants and strange creatures*, *Bio research* (samples, the bio lab,
+  halls and fossils — released in v2026.10.8), *Giants and strange creatures*, *Bio research* (samples, the bio lab,
   cloning and crossing), *Get anywhere* (climbing, rope gun, glider, suit gear, monorail and intercity train),
   *Towns that are lived in* (residents, daily routine, eight professions, base jobs) and *Play your way* (Explorer /
   Creative / Sandbox, per-player mode). Existing bullets gained the creator suite, ship growth on a spacewalk, oil
@@ -101,7 +101,7 @@ scanner and the wormholes had been added, everything else had not.
 - **Later (Marcel, 2026-10-06):** new screenshots (Crystal Net, bio lab, colossus, gas giant, monorail, arch lands —
   the README shows 8 of 48 planet types) and the same gap pass for the website's "Das steckt drin" tiles.
 
-### 🏔️ Spectacle terrain — arch lands, pillar islands, cave portals, overhangs, fossils, four new planet types (#2331: #2332–#2343, 2026-10-05, branch feat/spectacle-gen21, terrain generation 21) — ✅ done (unreleased; ⚠ playtest open)
+### 🏔️ Spectacle terrain — arch lands, pillar islands, cave portals, overhangs, fossils, four new planet types (#2331: #2332–#2343, 2026-10-05, branch feat/spectacle-gen21, terrain generation 21) — ✅ done (released in v2026.10.8; ⚠ playtest open)
 
 Marcel's ask (2026-10-05): really far-out, spectacular terrain kinds on top of the existing landform families —
 crossing rock arches and arches running under each other, stone bridges, fossils surfacing from the ground, giant

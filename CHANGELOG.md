@@ -11,6 +11,88 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.8] — 2026-10-06
+
+The spectacle release. New worlds grow **far-out terrain**: fields of crossing stone arches, thin pillar islands
+with a meadow and a waterfall on top, table mountains joined by rock bridges, cave portals you can fly into and
+daylight halls with a forest under a hole in the ground, and fossils of giants surfacing from the sand — plus four
+planet types where one of these is the whole landscape (#2331). In space, many systems now hold a **debris field**
+with wreckage, a flight recorder and sealed salvage capsules, salvage pays once per galaxy, destroyed ships leave
+wreckage, and **raiders fly real ships** (#2351).
+
+ℹ️ **Compatibility:** the network protocol stays at **version 11** and the save version at **3**: your saves and
+worlds carry over unchanged. The terrain generation moves from **20 to 21**, and only worlds created from now on get
+the spectacle terrain and the four new planet types; existing worlds and galaxies regenerate exactly as before.
+Debris fields do appear in existing galaxies too, without moving any planet, station or wormhole. To get everything
+new, game and server should both be on 2026.10.8. The desktop game updates itself on start, and the browser version
+is always current.
+
+### 🏞️ Spectacle terrain — generation 21 (#2331 #2332 #2333 #2334 #2335 #2336 #2337 #2338 #2339 #2340 #2341 #2342 #2343)
+
+- **Arch lands:** dry rock worlds grow fields of three to seven stone arches crossing at different heights, rows of
+  arches end to end, double-decker arches, and now and then a fallen one with its rubble between the pillars.
+- **Pillar islands:** thin stone towers 40 to 90 blocks tall, alone or in pairs, with balconies on the way up and a
+  crown island on top — a meadow with a pond and an endless waterfall, snow or ice when the crown stands high enough.
+  The climbing gloves stop under a balcony, the rope gun pulls you over its edge: every pillar is a climbing puzzle.
+  Data caches, trees, boulders and rare ore wait on the balconies and crowns.
+- **Bridge mesas and impossible tables:** table mountains of one height joined by rock decks (one in three broken),
+  and tables with a roof that reaches past their walls, a ring over empty air, a second table on top, a tilt or a few
+  gates through the base; a quarter of the big tables hides a rock shelter at the foot of the wall.
+- **Wave rocks:** ridges that curl over the ground with a sheer front and air below the lip.
+- **Cave portals and daylight halls:** karst mountains open in mouths a ship fits through, and halls hide under the
+  ground with the sky in their roof — a forest and often a lake on the floor, and a walk-in tunnel from outside.
+- **Fossils:** a sauropod skeleton lying on its side, a giant skull you can walk into, a serpent's spine winding over
+  the ground. They are made of bone and carry no runes — **scan the bones where they lie** and the find pays like
+  reading a monument (Codex → Discoveries → Monuments). Dry worlds show bone layers in their cliffs and fossil ridges
+  with ribs standing as a vault, now and then a giant with ribs forty blocks tall.
+- **Four planet types** carry one family as their whole landscape: **Arch Lands**, **Pillar World**, **Hollow World**
+  and the **Ossuary World**. Every galaxy created from now on has each of them at least once, outside the start
+  system, and new galaxies hold more of the unusual planet types than before.
+- The far view shows sky islands and crowns from a distance, and landing pads and buildings keep clear of anything
+  above them or hollow below them.
+
+### 🛰️ Debris fields and salvage (#2351 #2352 #2353 #2354 #2355 #2356)
+
+- Many systems hold a **debris field**: a cloud of wreckage around a still-ticking **flight recorder**, listed on
+  the travel screen, copper on the radar and the system chart (**M**, click to set a waypoint), and a fly-to of its
+  own. Fly close and the recorder tells what broke here — a freighter's spilled cargo, a shipyard's scrap, a broken
+  satellite, alien wreckage or an old battle.
+- The **mining laser** or an EVA pick breaks the eight to twelve **fragments** for scrap metal, plating, cabling and
+  the like (they drift back in on your next visit, like belt rocks). The **tractor beam** pulls in the one or two
+  sealed **salvage capsules** — energy cells, circuit boards, data fragments — which pay **once per galaxy**.
+- **Salvage pays once** at the space wreck too: what you carve off stays carved, even after a restart, and a wreck
+  stripped to its last plate is gone for good — the travel screen then says *salvaged*. Fixed on the way: an EVA
+  pick could mine a wreck to nothing **without paying its salvage**.
+- Inside a field, drifting rubble **taps your shield** every few seconds while you move — never the hull — so take
+  it slow. A ship without shields just hears the clank.
+- **Combat debris:** destroyed drones, saucers, cruisers and raiders leave two or three fragments you can carve
+  like any debris.
+- How many systems hold a field is a world option (**Debris fields**, advanced page: off · very rare · rare ·
+  normal · frequent). Existing worlds use *normal*.
+
+### 🏴‍☠️ Raiders fly real ships (#2357)
+
+- Raiders no longer fly a plain wedge: each one flies **one of the known ship classes** in near-black plating with
+  a rust-red band — mostly the small hulls, now and then a big hauler — and turns toward where it is going. The
+  bigger the hull, the more hits it takes.
+- Shoot one down and its ship **breaks apart** into wreckage you can carve for scrap. A ship coming apart is a
+  machine — never a person (see the parents' guide).
+- A defeated pilot's own ship is the one that goes dark now, not the first ship in the area.
+
+### 🔊 Sounds (#2358)
+
+- Three new sounds: the clank of rubble on your shield, the pull of a salvage capsule and a raider's warp-in.
+
+### 🌍 Texts and more (#2359 #2227 #2350 #2349)
+
+- Everything new is in all **14 languages** — the planet names and descriptions, the recorder's stories, the fossil
+  finds and the world option. The 2026.10.7 "What's new?" texts arrived in the twelve community languages (#2227).
+- The manual's life-pod entry was corrected: fly within about 14 units and the survivor comes aboard — no tractor
+  beam is needed.
+- For hosts and developers: `scripts/make-test-world.ps1 -Sandbox` now creates the same Sandbox the create-world
+  panel does, with blueprints, ships and the creative kit (#2350), and the README's feature list caught up with the
+  last two months (#2349).
+
 ## [2026.10.7] — 2026-10-05
 
 The grappling release. A new tool, the **energy rope gun**, shoots a glowing rope at a cliff and reels you up, across
@@ -7035,7 +7117,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.7...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.8...HEAD
+[2026.10.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.7...v2026.10.8
 [2026.10.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.6...v2026.10.7
 [2026.10.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.5...v2026.10.6
 [2026.10.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.4...v2026.10.5
