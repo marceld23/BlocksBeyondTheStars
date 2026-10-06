@@ -64,6 +64,10 @@ from the existing designs. Docs: [docs/developer/DEBRIS_FIELDS.md](docs/develope
   with the starter laser and on an EVA, a capsule with and without a tractor beam, the shield taps' feel (interval,
   clank, the toast), a raider's hull + livery + heading at the warp-in and its wreckage after the kill, the salvaged
   wreck's "salvaged" line on the travel screen, the world option on the advanced page in all 14 languages.
+- ⚠ **Shard weights are due for a refresh:** the PR gate's drift guard tripped on this package (the new
+  `DebrisFieldTests` pushed the guessed share past 5 %); `scripts/test-shard-weights.json` got a measured entry for it
+  (30 s locally, 45 s pinned), but 52 other classes still run on the 10 s guess — refresh from a full-tier run + a PR
+  run per DEVELOPER.md ("The weights decay").
 
 ---
 
