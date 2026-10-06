@@ -20,4 +20,8 @@ public sealed class SpaceWarpFx
     /// <summary>#2242: "wormhole" when a pilot vanishes into / shoots out of a rift (a violet crack flash instead of
     /// the warp streak); empty = the classic warp. Additive.</summary>
     public string Style { get; set; } = string.Empty;
+
+    /// <summary>#2357: true when the ship warping in is a raider — the client adds its ominous sting to the flash
+    /// (an NPC trader's warp stays silent). Additive.</summary>
+    public bool Raider { get; set; }
 }

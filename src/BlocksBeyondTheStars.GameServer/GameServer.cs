@@ -527,6 +527,12 @@ public sealed partial class GameServer
         _galaxy.Wormholes = WormholePlacer.Place(_galaxy.Systems, _meta.Seed, _meta.Description.Wormholes,
             _meta.Description.StarSystemCount, _content.Wormholes);
 
+        // #2353: the debris fields — the same kind of pure pass, AFTER the wormholes (their ends measure the outermost
+        // orbit over every body, and a field never moves one). The generator's SeparateFromBodies skips the new kind, so
+        // the start station added later (EnsureStartSystemStation) lands where it always did.
+        DebrisFieldPlacer.Place(_galaxy.Systems, _meta.Seed, _meta.Description.DebrisFields,
+            _meta.Description.StarSystemCount, _content.SpaceSalvage, ArchetypeNameOf);
+
         var stored = _repo.LoadLocationStatuses();
         foreach (var body in _galaxy.AllBodies())
         {
@@ -7580,6 +7586,7 @@ public sealed partial class GameServer
             RingSeed = b.RingSeed, // #596: 0 = no rings; the client renders the ring system from this
             PadsTotal = total,
             PadsFree = total > 0 ? FreePadCount(b.Id, total, receiver.State.PlayerId) : 0,
+            Salvaged = b.Kind == CelestialKind.Wreck && IsWreckSalvaged(b.Id), // #2354: nothing left to carve there
         };
     }
 

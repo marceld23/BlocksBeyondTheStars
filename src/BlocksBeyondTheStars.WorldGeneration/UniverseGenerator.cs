@@ -895,8 +895,10 @@ public sealed class UniverseGenerator
             bool moved = false;
             foreach (var b in system.Bodies)
             {
-                // Only avoid the solid, sized bodies — not other free-floaters (placed before this one anyway).
-                if (b.Kind == CelestialKind.SpaceStation || b.Kind == CelestialKind.Wreck)
+                // Only avoid the solid, sized bodies — not other free-floaters (placed before this one anyway). A debris
+                // field (#2353) is a free-floater placed AFTER the generator; treating it as an obstacle here would move
+                // the start system's late-added station in an existing save.
+                if (b.Kind == CelestialKind.SpaceStation || b.Kind == CelestialKind.Wreck || b.Kind == CelestialKind.DebrisField)
                 {
                     continue;
                 }

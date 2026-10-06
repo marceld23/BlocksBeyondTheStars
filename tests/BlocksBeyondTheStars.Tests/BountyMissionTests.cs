@@ -307,7 +307,7 @@ public sealed class BountyMissionTests : IDisposable
         {
             var pilot = server.AddLocalPlayer("Pilot");
             pilot.State.AboardShip = true;
-            server.Ship.Modules.Add("ship_cannon_1"); // 20 dmg vs hull 55 → 3 shots
+            server.Ship.Modules.Add("ship_cannon_1"); // 20 dmg vs hull 55–120 (#2357: it scales with the raider's hull design) → 3–6 shots
             server.Ship.Modules.Remove("tractor_beam");
             server.EnterSpace("Pilot");
             string bountyId = server.GrantShipBountyForTest(pilot.State.PlayerId);
@@ -316,7 +316,7 @@ public sealed class BountyMissionTests : IDisposable
             var raider = server.BanditShipForTest("Pilot");
             Assert.NotNull(raider);
             server.ShipMove("Pilot", raider!.Position.X, raider.Position.Y, raider.Position.Z);
-            for (int i = 0; i < 5 && server.BanditShipForTest("Pilot") is not null; i++)
+            for (int i = 0; i < 10 && server.BanditShipForTest("Pilot") is not null; i++)
             {
                 server.FireWeapon("Pilot", "ship_cannon_1", raider.Id);
                 server.TickForTest(1.1); // cannon cooldown

@@ -133,5 +133,11 @@
   "lore.site.observatory_log": "Survey post 9, final entry: “Dome sealed against the dust. The sky has been wrong for three nights — the relays answer out of order, as if something between them is listening first. Sending the log home while home still answers.”",
   "lore.site.derelict_manifest": "Cargo manifest, hand-corrected: “Water, seed-stock, forty passengers.” The forty is crossed out. Under it, in smaller writing: “Thirty-nine. She stayed so the pod count would work. Remember her name.”",
   "lore.site.anomaly_echo": "The scan returns your own ping — half a second early. The archive files it under ‘echo, impossible’ and, in an older hand, ‘the sky remembers’.",
-  "lore.site.anomaly_choir": "Layer the anomaly's noise and it resolves into voices — dozens, all reading the same numbers. Navigation beacons. The anomaly has been reciting the old Service's positions all along, to no one, for years."
+  "lore.site.anomaly_choir": "Layer the anomaly's noise and it resolves into voices — dozens, all reading the same numbers. Navigation beacons. The anomaly has been reciting the old Service's positions all along, to no one, for years.",
+  "lore.site.debris_freighter_log": "Flight recorder, freighter: “Cargo strap three let go in the turn. Containers everywhere. Nobody hurt — we are laughing, actually. Logging the spill for whoever wants free plating. Mind the sharp bits.”",
+  "lore.site.debris_shipyard_tag": "A yard tag, still readable on the plating: “REJECTED — hairline crack, do not fit.” Hundreds of these drifted out here when the yard closed. Honest scrap: every piece was looked at by someone who cared.",
+  "lore.site.debris_satellite_last": "Satellite log, last frames: a star count, a weather map of a world below, then a single line typed by hand — “Thanks for the view.” The relay that read it has been gone longer than the satellite.",
+  "lore.site.debris_alien_hum": "The recorder is not a recorder. It hums one note, and the crystal shards around it hum back a fifth above. Nothing in the catalogue sings in intervals. The archive files it under ‘instrument?’.",
+  "lore.site.debris_battle_order": "Last order on the channel, in a steady voice: “Break off. Everyone break off — it is not worth a single one of you.” The wreckage says they listened; the hulls are empty, the pods long gone.",
+  "lore.site.debris_recorder": "A flight recorder still ticking in the rubble — the last position, the last heading, and a note nobody expected to be read: “If you found this, the field is yours. Take what helps.”"
 }

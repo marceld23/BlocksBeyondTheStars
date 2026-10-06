@@ -83,6 +83,7 @@
   "CustomShapeTests": 0.0,
   "CustomShipTests": 4.9,
   "DeathblockShipTests": 10.2,
+  "DebrisFieldTests": 45.0,
   "DeterministicRandomTests": 0.0,
   "DetoxifierTests": 8.9,
   "DisassemblyTests": 8.5,

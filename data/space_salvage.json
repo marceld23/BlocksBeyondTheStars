@@ -1,0 +1,120 @@
+{
+  "fields": {
+    "fragmentsMin": 8,
+    "fragmentsMax": 12,
+    "capsulesMin": 1,
+    "capsulesMax": 2,
+    "radius": 28,
+    "approachRange": 45,
+    "bumpShield": 3,
+    "bumpIntervalSeconds": 7,
+    "bumpMinSpeed": 0.5,
+    "archetypeOdds": { "Belt": 1.5, "Desolate": 1.5, "PirateHaven": 2.0, "Hub": 0.5 }
+  },
+  "themes": {
+    "freighter": {
+      "weight": 4,
+      "archetypeWeights": { "Hub": 2.0 },
+      "hull": "iron_wall", "accent": "steel_wall", "scorch": "carbon", "scorchShare": 0.15,
+      "fragmentLoot": [
+        { "item": "iron_plate", "min": 1, "max": 3 },
+        { "item": "cable", "min": 1, "max": 2, "chance": 0.6 },
+        { "item": "copper_wire", "min": 1, "max": 2, "chance": 0.4 }
+      ],
+      "capsuleLoot": [
+        { "item": "energy_cell_1", "min": 2, "max": 3 },
+        { "item": "circuit_board", "min": 1, "max": 2 },
+        { "item": "data_fragment", "min": 1, "max": 1, "chance": 0.5 }
+      ],
+      "lore": "debris_freighter"
+    },
+    "shipyard": {
+      "weight": 3,
+      "archetypeWeights": { "Hub": 2.0, "Desolate": 0.5 },
+      "hull": "steel_wall", "accent": "metal_panel", "scorch": "rusted_panel", "scorchShare": 0.35,
+      "fragmentLoot": [
+        { "item": "scrap_metal", "min": 2, "max": 4 },
+        { "item": "iron_plate", "min": 1, "max": 2, "chance": 0.7 },
+        { "item": "titanium_plate", "min": 1, "max": 1, "chance": 0.2 }
+      ],
+      "capsuleLoot": [
+        { "item": "titanium_plate", "min": 2, "max": 3 },
+        { "item": "cable", "min": 3, "max": 5 },
+        { "item": "circuit_board", "min": 1, "max": 1, "chance": 0.6 }
+      ],
+      "lore": "debris_shipyard"
+    },
+    "satellite": {
+      "weight": 3,
+      "hull": "metal_panel", "accent": "iron_wall", "scorch": "carbon", "scorchShare": 0.2,
+      "fragmentLoot": [
+        { "item": "copper_wire", "min": 1, "max": 3 },
+        { "item": "cable", "min": 1, "max": 2, "chance": 0.6 },
+        { "item": "iron_plate", "min": 1, "max": 1, "chance": 0.5 }
+      ],
+      "capsuleLoot": [
+        { "item": "circuit_board", "min": 2, "max": 3 },
+        { "item": "data_fragment", "min": 1, "max": 2 },
+        { "item": "energy_cell_1", "min": 1, "max": 2, "chance": 0.6 }
+      ],
+      "lore": "debris_satellite"
+    },
+    "alien": {
+      "weight": 2,
+      "archetypeWeights": { "Desolate": 2.0, "Hub": 0.5 },
+      "hull": "crystal", "accent": "crystal", "scorch": "carbon", "scorchShare": 0.2,
+      "fragmentLoot": [
+        { "item": "crystal", "min": 1, "max": 3 },
+        { "item": "iron_plate", "min": 1, "max": 1, "chance": 0.3 }
+      ],
+      "capsuleLoot": [
+        { "item": "crystal", "min": 3, "max": 5 },
+        { "item": "data_fragment", "min": 1, "max": 2 },
+        { "item": "ai_memory_fragment", "min": 1, "max": 1, "chance": 0.5 }
+      ],
+      "lore": "debris_alien"
+    },
+    "battle": {
+      "weight": 2,
+      "archetypeWeights": { "PirateHaven": 3.0, "Belt": 1.5, "Hub": 0.25 },
+      "hull": "iron_wall", "accent": "steel_wall", "scorch": "carbon", "scorchShare": 0.5,
+      "fragmentLoot": [
+        { "item": "scrap_metal", "min": 1, "max": 3 },
+        { "item": "iron_plate", "min": 1, "max": 2, "chance": 0.7 },
+        { "item": "titanium_plate", "min": 1, "max": 1, "chance": 0.3 }
+      ],
+      "capsuleLoot": [
+        { "item": "titanium_plate", "min": 2, "max": 4 },
+        { "item": "energy_cell_1", "min": 2, "max": 3 },
+        { "item": "data_fragment", "min": 1, "max": 2 },
+        { "item": "ai_memory_fragment", "min": 1, "max": 1, "chance": 0.3 }
+      ],
+      "lore": "debris_battle"
+    }
+  },
+  "combatDebris": {
+    "fragmentsMin": 2,
+    "fragmentsMax": 3,
+    "cap": 12,
+    "loot": [
+      { "item": "scrap_metal", "min": 1, "max": 2 },
+      { "item": "iron_plate", "min": 1, "max": 1, "chance": 0.4 }
+    ]
+  },
+  "wreck": {
+    "human": [
+      { "item": "iron_plate", "base": 3, "perCells": 12 },
+      { "item": "cable", "base": 2, "perCells": 30 },
+      { "item": "titanium_plate", "base": 1, "perCells": 60 },
+      { "item": "data_fragment", "base": 1, "extraMax": 1, "chance": 0.45 },
+      { "item": "ai_memory_fragment", "base": 1, "chance": 0.25 }
+    ],
+    "alien": [
+      { "item": "iron_plate", "base": 3, "perCells": 12 },
+      { "item": "cable", "base": 2, "perCells": 30 },
+      { "item": "crystal", "base": 1, "perCells": 60 },
+      { "item": "data_fragment", "base": 1, "extraMax": 1, "chance": 0.45 },
+      { "item": "ai_memory_fragment", "base": 1, "chance": 0.25 }
+    ]
+  }
+}

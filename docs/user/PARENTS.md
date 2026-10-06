@@ -23,8 +23,9 @@ generated planets, mine resources, craft gear, build ships and bases, tame creat
 - **Mild sci-fi combat, no gore.** Players can fend off aggressive wildlife, robots and cartoonish
   "bandits" with tools and sci-fi weapons. There is no blood, no gore, no death animations of people —
   defeated creatures simply break apart into sparkles and robots into parts; bandits beam away — they are
-  **chased away, never killed**. Bright flashes can be softened and the screen shake turned down (or off) in
-  the settings.
+  **chased away, never killed**. A raider *ship* shot down in space breaks apart into scrap like a robot does —
+  a machine coming apart, never a person. Bright flashes can be softened and the screen shake turned down (or
+  off) in the settings.
   Hand weapons are part of every world; what a world decides is how much hostility there is — planet robots,
   bandits, space enemies and UFOs can each be switched **off** in the world options, and wildlife can be turned
   down to none.

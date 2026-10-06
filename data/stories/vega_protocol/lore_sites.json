@@ -46,5 +46,12 @@
   { "key": "observatory_log",  "site": "observatory",   "textKey": "lore.site.observatory_log",  "minKnowledge": 0, "weight": 1 },
   { "key": "derelict_manifest","site": "derelict",      "textKey": "lore.site.derelict_manifest","minKnowledge": 0, "weight": 1 },
   { "key": "anomaly_echo",     "site": "anomaly",       "textKey": "lore.site.anomaly_echo",     "minKnowledge": 0, "weight": 2 },
-  { "key": "anomaly_choir",    "site": "anomaly",       "textKey": "lore.site.anomaly_choir",    "minKnowledge": 2, "weight": 1 }
+  { "key": "anomaly_choir",    "site": "anomaly",       "textKey": "lore.site.anomaly_choir",    "minKnowledge": 2, "weight": 1 },
+
+  { "key": "debris_freighter_log", "site": "debris_freighter", "textKey": "lore.site.debris_freighter_log", "minKnowledge": 0, "weight": 1 },
+  { "key": "debris_shipyard_tag",  "site": "debris_shipyard",  "textKey": "lore.site.debris_shipyard_tag",  "minKnowledge": 0, "weight": 1 },
+  { "key": "debris_satellite_last","site": "debris_satellite", "textKey": "lore.site.debris_satellite_last","minKnowledge": 0, "weight": 1 },
+  { "key": "debris_alien_hum",     "site": "debris_alien",     "textKey": "lore.site.debris_alien_hum",     "minKnowledge": 0, "weight": 1 },
+  { "key": "debris_battle_order",  "site": "debris_battle",    "textKey": "lore.site.debris_battle_order",  "minKnowledge": 0, "weight": 1 },
+  { "key": "debris_recorder",      "site": "debris",           "textKey": "lore.site.debris_recorder",      "minKnowledge": 0, "weight": 1 }
 ]

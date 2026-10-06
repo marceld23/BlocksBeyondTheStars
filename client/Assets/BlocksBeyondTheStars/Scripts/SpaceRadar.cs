@@ -58,6 +58,8 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color WreckCol = new Color(1f, 0.75f, 0.35f); // scorched amber — salvage, not a threat
         private static readonly Color PodCol = new Color(1f, 0.55f, 0.15f);   // #2241: rescue orange — someone needs help
         private static readonly Color WormholeCol = new Color(0.72f, 0.45f, 1f); // #2242: the rift's violet
+        private static readonly Color DebrisCol = new Color(0.85f, 0.55f, 0.3f);  // #2353: dusty copper — wreckage to salvage
+        private static readonly Color CapsuleCol = new Color(0.4f, 0.95f, 0.85f); // #2353: a sealed salvage capsule
 
         /// <summary>#2241: the anomaly's blip shimmers through teal and its neighbours, like the bubble itself.</summary>
         private static Color AnomalyCol(float t) => Color.HSVToRGB(0.42f + Mathf.Sin(t * 1.5f) * 0.08f, 0.55f, 1f);
@@ -232,7 +234,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool station = e.Kind == "SpaceStation";
                 bool wreck = e.Kind == "Wreck"; // #1664: the system's derelict — a fixed navigation point too
-                bool encounter = e.Kind == "EscapePod" || e.Kind == "Anomaly" || e.Kind == "Wormhole"; // #2241/#2242
+                bool encounter = e.Kind == "EscapePod" || e.Kind == "Anomaly" || e.Kind == "Wormhole" || e.Kind == "DebrisField"; // #2241/#2242/#2353
                 bool pinged = Game.SpaceSystemPingUntil > Time.time && e.Kind != "ResourceDrop"; // #2240: the system ping
                 var world = new Vector3(e.X, e.Y, e.Z);
                 var dir = world - pilot;
@@ -276,6 +278,8 @@ namespace BlocksBeyondTheStars.Client
                     : e.Kind == "EscapePod" ? PodCol
                     : e.Kind == "Anomaly" ? AnomalyCol(Time.time)
                     : e.Kind == "Wormhole" ? WormholeCol
+                    : e.Kind == "DebrisField" || e.Kind == "Debris" ? DebrisCol
+                    : e.Kind == "SalvageCapsule" ? CapsuleCol
                     : e.Kind == "ResourceDrop" ? new Color(0.5f, 0.9f, 1f)
                     : e.Hostile ? new Color(1f, 0.35f, 0.35f)
                     : new Color(0.9f, 0.95f, 1f);

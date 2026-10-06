@@ -105,7 +105,7 @@ public sealed class SpaceWreckTests : IDisposable
     }
 
     [Fact]
-    public void SpaceWreck_IsTheSameHull_OnEveryEntry()
+    public void SpaceWreck_IsTheSameHull_OnEveryEntry_UntilCarved()
     {
         var server = NewServer("wreck_stable", 11, out var repo);
         using (repo)
@@ -125,6 +125,87 @@ public sealed class SpaceWreckTests : IDisposable
             Assert.Equal(cellsFirst, server.StructureBlockCountForTest(wreck.Id));
             Assert.Equal(posFirst, again.Position);
             Assert.Equal(lootFirst, again.Loot.Select(l => (l.Item, l.Count)).ToList());
+        }
+    }
+
+    [Fact]
+    public void SpaceWreck_KeepsItsCarvedState_AcrossReentry_AndARestart_AndStaysGoneOnceSalvaged()
+    {
+        // #2354: salvage pays once. Before, AddSpaceWrecks rebuilt the whole hull with full salvage on every flight.
+        string worldName = "wreck_once";
+        var server = NewServer(worldName, 11, out var repo);
+        string wreckId;
+        int original, carved;
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Salvager");
+            server.Ship.Modules.Add("asteroid_breaker");
+            server.Ship.Modules.Remove("tractor_beam");
+            var (wreck, _) = ParkNextToAWreck(server, pilot);
+            wreckId = wreck.Id;
+            server.EnterSpace("Salvager");
+            var entity = server.SpaceEntitiesFor("Salvager").First(e => e.Id == wreckId);
+            original = server.StructureBlockCountForTest(wreckId);
+            server.ShipMove("Salvager", entity.Position.X + 6f, entity.Position.Y, entity.Position.Z);
+
+            // Peel some plating off, then leave: the hull comes back as it was left, not whole.
+            server.FireWeapon("Salvager", "asteroid_breaker", wreckId);
+            server.TickForTest(2.0);
+            server.FireWeapon("Salvager", "asteroid_breaker", wreckId);
+            carved = server.StructureBlockCountForTest(wreckId);
+            Assert.True(carved < original, "two laser hits should have carved plating off");
+            server.LeaveSpace("Salvager");
+            server.EnterSpace("Salvager");
+            Assert.Equal(carved, server.StructureBlockCountForTest(wreckId));
+            Assert.Equal(carved, server.SpaceSalvageLedgerForTest("wreck:" + wreckId));
+            server.LeaveSpace("Salvager");
+            repo.Flush();
+        }
+
+        // A server restart: the ledger is in the save, the hull is rebuilt trimmed to it.
+        server = NewServer(worldName, 11, out repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Salvager");
+            server.Ship.Modules.Add("asteroid_breaker");
+            server.Ship.Modules.Remove("tractor_beam");
+            ParkNextToAWreck(server, pilot);
+            server.EnterSpace("Salvager");
+            Assert.Equal(carved, server.StructureBlockCountForTest(wreckId));
+            var entity = server.SpaceEntitiesFor("Salvager").First(e => e.Id == wreckId);
+            server.ShipMove("Salvager", entity.Position.X + 6f, entity.Position.Y, entity.Position.Z);
+
+            // Salvage it down to nothing: the payout lands exactly once …
+            int platesBefore = pilot.State.Inventory.CountOf("iron_plate");
+            for (int i = 0; i < 120 && server.SpaceEntitiesFor("Salvager").Any(e => e.Id == wreckId); i++)
+            {
+                server.TickForTest(2.0);
+                server.FireWeapon("Salvager", "asteroid_breaker", wreckId);
+            }
+
+            Assert.DoesNotContain(server.SpaceEntitiesFor("Salvager"), e => e.Id == wreckId);
+            int paid = pilot.State.Inventory.CountOf("iron_plate") - platesBefore;
+            Assert.True(paid >= 3, "the salvage pays plating when the hull is gone");
+            Assert.Equal(0, server.SpaceSalvageLedgerForTest("wreck:" + wreckId));
+
+            // … and the wreck never comes back: not on re-entry, not after another restart.
+            server.LeaveSpace("Salvager");
+            server.EnterSpace("Salvager");
+            Assert.DoesNotContain(server.SpaceEntitiesFor("Salvager"), e => e.Id == wreckId);
+            Assert.Equal(0, server.StructureBlockCountForTest(wreckId));
+            Assert.Equal(paid, pilot.State.Inventory.CountOf("iron_plate") - platesBefore);
+            server.LeaveSpace("Salvager");
+            repo.Flush();
+        }
+
+        server = NewServer(worldName, 11, out repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Salvager");
+            ParkNextToAWreck(server, pilot);
+            server.EnterSpace("Salvager");
+            Assert.DoesNotContain(server.SpaceEntitiesFor("Salvager"), e => e.Id == wreckId);
+            Assert.Equal(0, server.SpaceSalvageLedgerForTest("wreck:" + wreckId));
         }
     }
 

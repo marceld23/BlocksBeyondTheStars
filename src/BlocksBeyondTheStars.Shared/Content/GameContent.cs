@@ -416,6 +416,21 @@ public sealed class GameContent
     /// <summary>Installs the wormhole tuning (called by the content loader); null keeps the defaults.</summary>
     public void SetWormholes(WormholeDefinition? wormholes) => Wormholes = wormholes ?? new WormholeDefinition();
 
+    /// <summary>The space salvage data (#2352) from <c>data/space_salvage.json</c>: debris-field themes and loot, combat
+    /// debris, the wreck payout. The defaults when the file is absent.</summary>
+    public SpaceSalvageDefinition SpaceSalvage { get; private set; } = new();
+
+    /// <summary>True once <c>data/space_salvage.json</c> was installed — only then does <see cref="Validate"/> check its
+    /// rows (the built-in defaults name items a minimal test content may not define).</summary>
+    private bool _spaceSalvageFromData;
+
+    /// <summary>Installs the space salvage data (called by the content loader); null keeps the defaults.</summary>
+    public void SetSpaceSalvage(SpaceSalvageDefinition? salvage)
+    {
+        SpaceSalvage = salvage ?? new SpaceSalvageDefinition();
+        _spaceSalvageFromData = salvage is not null;
+    }
+
     private IReadOnlyList<DialogDefinition> _dialogs = new List<DialogDefinition>();
 
     /// <summary>Engine NPC dialogues (#1127) in authored order — empty when <c>data/dialogs.json</c> is
@@ -1465,6 +1480,54 @@ public sealed class GameContent
                 if (string.IsNullOrEmpty(cell.Id) || (!ShipLayoutCell.IsElementId(cell.Id) && !_blocks.ContainsKey(cell.Id)))
                 {
                     problems.Add($"Ship layout '{layout.Key}' cell ({cell.X},{cell.Y},{cell.Z}) references unknown block or element '{cell.Id}'.");
+                }
+            }
+        }
+
+        // #2352: the space salvage data — every loot row names a real item with a chance in 0..1 and a sane range, every
+        // theme's blocks exist, and the weights are not negative. Only for data from the file: the built-in defaults
+        // name the shipped items, which a minimal test content does not define.
+        if (_spaceSalvageFromData)
+        {
+            void CheckRolls(string ctx, IEnumerable<SalvageRoll> rolls)
+            {
+                foreach (var r in rolls)
+                {
+                    RequireItem(ctx, r.Item);
+                    if (r.Chance < 0.0 || r.Chance > 1.0)
+                    {
+                        problems.Add($"{ctx} '{r.Item}' has a chance outside 0..1 ({r.Chance}).");
+                    }
+
+                    if (r.Min < 0 || r.Max < r.Min)
+                    {
+                        problems.Add($"{ctx} '{r.Item}' has an invalid count range {r.Min}..{r.Max}.");
+                    }
+                }
+            }
+
+            foreach (var (themeKey, theme) in SpaceSalvage.Themes)
+            {
+                string ctx = $"Debris theme '{themeKey}'";
+                if (theme.Weight < 0)
+                {
+                    problems.Add($"{ctx} has a negative weight.");
+                }
+
+                RequireBlock(ctx, theme.Hull);
+                RequireBlock(ctx, theme.Accent);
+                RequireBlock(ctx, theme.Scorch);
+                CheckRolls(ctx + " fragment loot", theme.FragmentLoot);
+                CheckRolls(ctx + " capsule loot", theme.CapsuleLoot);
+            }
+
+            CheckRolls("Combat debris loot", SpaceSalvage.CombatDebris.Loot);
+            foreach (var row in SpaceSalvage.Wreck.Human.Concat(SpaceSalvage.Wreck.Alien))
+            {
+                RequireItem("Space wreck salvage", row.Item);
+                if (row.Chance < 0.0 || row.Chance > 1.0)
+                {
+                    problems.Add($"Space wreck salvage '{row.Item}' has a chance outside 0..1 ({row.Chance}).");
                 }
             }
         }

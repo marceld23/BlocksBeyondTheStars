@@ -282,7 +282,7 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens the **landing map**: the planet's real terrain, the day/night band and — switchable with **☁ Weather: on/off** (remembered) — its **live weather**, with drifting fronts marked "◀ front ▶". Every pad says the weather waiting there (e.g. "⚡ Storm", "☀ Clear"), so you can pick a sunny pad. Click a free pad (or its number key) to land; **Esc** cancels |
 | **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) — or, next to a **wormhole**, fly through it (see *Wormholes* below) |
 | **Last hotbar slot → hold fire** | The **ship scanner** (every ship has one): point the nose at a planet, moon, asteroid, station, wreck, life pod, anomaly, wormhole or machine and **hold fire** until the ring fills. See *Ship scanner* in §5 |
-| **T** | **Target lock — next target** (pad **LB**, touch **TARGET**): attacking enemies first, then other enemies, then stations / wrecks / life pods / anomalies / wormholes, then other pilots and traders. With a **mining laser** selected and nobody attacking, the three nearest asteroids in its reach come right after the enemies. **Hold T** (~½ s) to let the lock go. See *Target lock* below |
+| **T** | **Target lock — next target** (pad **LB**, touch **TARGET**): attacking enemies first, then other enemies, then stations / wrecks / debris fields / life pods / anomalies / wormholes, then other pilots and traders. With a **mining laser** selected and nobody attacking, the three nearest asteroids or wreckage fragments in its reach come right after the enemies. **Hold T** (~½ s) to let the lock go. See *Target lock* below |
 | **R** | **Nearest enemy** (pad **R3**, touch: in the **ACT** list) — press again for the next nearest |
 | **Right mouse button** | **Target ahead** (pad: **L3 → Target ahead**, touch: **ACT → Target ahead**): lock what is under the crosshair — also asteroids, salvage and planets, which the cycle otherwise skips. Pointing at empty space lets the lock go |
 | **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual |
@@ -1564,9 +1564,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   full of salvage and its ship's manifest. Where they stand, only a **Friend**-tier NPC will tell you
   (and mark your map); the derelict shows on the star map of its system.
 - Space holds two friendly surprises: a **life pod** sometimes drifts through a system — a small orange capsule
-  with a blinking beacon and someone waving behind the porthole (orange on the radar). **Fly close** and your
-  tractor pulls it aboard: you rescue the survivor (a small thank-you, a new person in *People you know*, and a
-  radio call later). And an **anomaly** no catalogue explains — a shimmering bubble with glitching blocks around
+  with a blinking beacon and someone waving behind the porthole (orange on the radar). **Fly close** — within
+  about 14 flight units; no tractor beam is needed — and the survivor comes aboard: you rescue them (a small
+  thank-you, a new person in *People you know*, and a radio call later). And an **anomaly** no catalogue
+  explains — a shimmering bubble with glitching blocks around
   it (violet on the radar): only the **ship scanner** reads it, for knowledge and a field record. Both sit
   still where they were found, show on the system chart, and stay pinned at the radar's rim.
 - **Wormholes** are rare rifts in space-time — a glowing tear with a bent, shimmering edge (violet zigzag on
@@ -1580,10 +1581,24 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   it shows amber on the radar and on the system chart (**M**, click it to set a waypoint), and it is a
   **fly-to**, never a quick-travel destination. Coming close reads its manifest (a field record, and the
   wreck counts as visited); the **mining laser** carves it up like an asteroid for plating, cabling, a metal
-  and now and then a data fragment — an EVA pick works too.
+  and now and then a data fragment — an EVA pick works too. Salvage pays **once**: what you carve off stays
+  carved when you come back (even after a restart), and a wreck stripped to its last plate is gone for good —
+  the travel screen then says *salvaged*.
+- Many systems hold a **debris field** too: a cloud of wreckage — torn plating, scorched panels, now and then
+  crystal — around a still-ticking **flight recorder**, listed on the travel screen with a coined name and
+  "Debris field", copper on the radar and the system chart (**M**, click it to set a waypoint). It is a
+  **fly-to** as well. Coming close reads the recorder (a field record and a short story of what broke here —
+  a freighter's spilled cargo, a shipyard's scrap, a broken satellite, alien wreckage, an old battle); the
+  **mining laser** or an EVA pick breaks the fragments for scrap metal, plating, cabling and the like (they
+  drift back in on your next visit, like belt rocks), and the **tractor beam** pulls in the one or two sealed
+  **salvage capsules** — energy cells, circuit boards, data fragments — which pay **once per galaxy**, like the
+  wreck. Inside the field, drifting rubble **taps your shield** every few seconds while you move (never the
+  hull — a ship without shields just hears the clank), so take it slow. How many systems hold a field is a
+  world option (**Debris fields**, advanced page: off · very rare · rare · normal (default) · frequent).
 - Every **asteroid** listed for a system stays a visible dot from anywhere in that system, and the green
   bearing blips on the radar's rim carry the body's name — the chart's waypoint is still the quickest way there.
-- Everything in this section is peaceful and appears under every preset — nothing here fights back.
+- Everything in this section is peaceful and appears under every preset — nothing here fights back; the debris
+  field's rubble only taps the shield.
 
 ### Bandits (robbers, camps, pirate space)
 - Bandits are **people**, not machines: you can tell one by the cloth mask over the nose and mouth
@@ -1601,7 +1616,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Pirate space:** about a quarter of star systems have a bandit reputation — VEGA warns you on
   entry, *before* anything happens. There, a raider ship may warp in and hail you with a cargo
   demand (drawn from inventory **and** hold) while you keep flying: pay and it warps away for good,
-  refuse or open fire and it fights. Raiders only appear where the rules let you shoot back.
+  refuse or open fire and it fights. Raiders fly **real ships** — one of the known ship classes in
+  near-black plating with a rust-red band, mostly the small ones, now and then a big hauler — and
+  turn toward where they are going; the bigger the hull, the more hits it takes. Shoot one down and its
+  ship **breaks apart**, leaving wreckage you can carve for scrap like any debris. Raiders only appear
+  where the rules let you shoot back.
 - The **"Bandits"** world option (world options / at creation) scales all three — Off disables them
   entirely (peaceful/family presets default to Off).
 

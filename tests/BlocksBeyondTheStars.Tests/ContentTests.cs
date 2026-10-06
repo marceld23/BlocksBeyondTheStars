@@ -27,6 +27,50 @@ public class ContentTests
     }
 
     [Fact]
+    public void SpaceSalvageData_ShipsEveryTheme_WithLootThatExists()
+    {
+        // #2352: data/space_salvage.json — the debris-field themes, the combat debris and the wreck payout. Validate()
+        // already rejects unknown items; this pins what the shipped file must carry for the feature to work.
+        var content = Load();
+        var salvage = content.SpaceSalvage;
+
+        Assert.True(salvage.Themes.Count >= 5, "five debris-field themes ship: freighter, shipyard, satellite, alien, battle");
+        foreach (var key in new[] { "freighter", "shipyard", "satellite", "alien", "battle" })
+        {
+            Assert.True(salvage.Themes.TryGetValue(key, out var theme), $"theme '{key}' missing");
+            Assert.True(theme!.Weight > 0);
+            Assert.NotEmpty(theme.FragmentLoot);
+            Assert.NotEmpty(theme.CapsuleLoot);
+            Assert.NotNull(content.GetBlock(theme.Hull));
+            Assert.NotNull(content.GetBlock(theme.Accent));
+            Assert.NotNull(content.GetBlock(theme.Scorch));
+            foreach (var roll in theme.FragmentLoot.Concat(theme.CapsuleLoot))
+            {
+                Assert.NotNull(content.GetItem(roll.Item));
+                Assert.InRange(roll.Chance, 0.0, 1.0);
+                Assert.True(roll.Max >= roll.Min && roll.Min >= 0);
+            }
+
+            Assert.False(string.IsNullOrEmpty(theme.Lore));
+        }
+
+        Assert.True(salvage.Fields.FragmentsMax >= salvage.Fields.FragmentsMin && salvage.Fields.FragmentsMin > 0);
+        Assert.True(salvage.Fields.CapsulesMax >= salvage.Fields.CapsulesMin && salvage.Fields.CapsulesMin > 0);
+        Assert.True(salvage.Fields.BumpShield > 0f && salvage.Fields.BumpIntervalSeconds > 0.0);
+        Assert.NotEmpty(salvage.CombatDebris.Loot);
+        Assert.True(salvage.CombatDebris.Cap >= salvage.CombatDebris.FragmentsMax);
+
+        // The wreck payout rows are the numbers the code used to hard-code (#1664), human and alien hulls alike.
+        Assert.Contains(salvage.Wreck.Human, r => r.Item == "iron_plate" && r.Base == 3 && r.PerCells == 12);
+        Assert.Contains(salvage.Wreck.Human, r => r.Item == "titanium_plate");
+        Assert.Contains(salvage.Wreck.Alien, r => r.Item == "crystal");
+        foreach (var row in salvage.Wreck.Human.Concat(salvage.Wreck.Alien))
+        {
+            Assert.NotNull(content.GetItem(row.Item));
+        }
+    }
+
+    [Fact]
     public void CraftTab_OnlyNamesTheMachinesTab_AndOnlyForPlaceableDevices()
     {
         // #1273: the Machines crafting tab is an explicit per-item field, not BlockDefinition.Category (which

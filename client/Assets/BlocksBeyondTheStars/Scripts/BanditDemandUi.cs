@@ -103,6 +103,7 @@ namespace BlocksBeyondTheStars.Client
                 "paid" => "ui.bandit.paid",
                 "refused" => "ui.bandit.refused",
                 "expired" => "ui.bandit.expired",
+                "destroyed" => "ui.bandit.destroyed", // #2357: the raider's ship broke apart (it explodes, by decision)
                 _ => "ui.bandit.fled",
             };
             Game.ShowMessage(L(key));

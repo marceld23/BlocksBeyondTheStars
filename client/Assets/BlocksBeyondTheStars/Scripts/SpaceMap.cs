@@ -58,13 +58,14 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color DiscCol = new Color(0.01f, 0.03f, 0.07f, 0.78f); // WorldMap's backing disc
 
         /// <summary>#2241/#2242: the encounter kinds drawn as fixed chart markers (and waypoint targets).</summary>
-        private static bool IsEncounterMarker(string kind) => kind == "EscapePod" || kind == "Anomaly" || kind == "Wormhole";
+        private static bool IsEncounterMarker(string kind) => kind == "EscapePod" || kind == "Anomaly" || kind == "Wormhole" || kind == "DebrisField";
 
         /// <summary>The colour and label of an encounter marker — the radar's colours.</summary>
         private (Color Col, string Label) EncounterMarker(BlocksBeyondTheStars.Networking.Messages.NetCombatEntity e) => e.Kind switch
         {
             "EscapePod" => (new Color(1f, 0.55f, 0.15f), "SOS · " + e.Name),
             "Anomaly" => (new Color(0.45f, 1f, 0.85f), L("ui.scan.subject.anomaly")),
+            "DebrisField" => (new Color(0.85f, 0.55f, 0.3f), $"{e.Name} · {L("ui.map.kind_debrisfield")}"), // #2353
             _ => (new Color(0.72f, 0.45f, 1f), L("ui.scan.subject.wormhole")),
         };
 

@@ -527,8 +527,8 @@ public sealed partial class GameServer
         return list.ToArray();
     }
 
-    private void BroadcastWarpFx(SpaceInstance instance, Vector3f pos, bool arriving)
-        => BroadcastToInstance(instance, new SpaceWarpFx { X = pos.X, Y = pos.Y, Z = pos.Z, Arriving = arriving });
+    private void BroadcastWarpFx(SpaceInstance instance, Vector3f pos, bool arriving, bool raider = false)
+        => BroadcastToInstance(instance, new SpaceWarpFx { X = pos.X, Y = pos.Y, Z = pos.Z, Arriving = arriving, Raider = raider });
 
     // ------------------------------------------------------------------ docked merchant (on the station)
 

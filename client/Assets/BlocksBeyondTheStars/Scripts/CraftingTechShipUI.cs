@@ -3008,7 +3008,12 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else if (b.Kind == "Wreck")
                     {
-                        status += "   · " + L("ui.map.wreck_hint"); // #1664: a derelict is flown to, never travelled to
+                        // #1664: a derelict is flown to, never travelled to — and once salvaged to nothing (#2354) it says so.
+                        status += "   · " + L(b.Salvaged ? "ui.map.wreck_salvaged" : "ui.map.wreck_hint");
+                    }
+                    else if (b.Kind == "DebrisField")
+                    {
+                        status += "   · " + L("ui.map.debris_hint"); // #2353: a debris field is flown to as well
                     }
                 }
 
@@ -6023,8 +6028,15 @@ namespace BlocksBeyondTheStars.Client
             // read on approach and its plating carved in flight. Say so instead of silently offering nothing.
             if (body.Kind == "Wreck")
             {
-                UiKit.AddText(_detail, 8, y, 600, 90, L("ui.map.wreck_detail"), 18, new Color(1f, 0.8f, 0.45f), TextAnchor.UpperLeft);
+                UiKit.AddText(_detail, 8, y, 600, 90, L(body.Salvaged ? "ui.map.wreck_salvaged_detail" : "ui.map.wreck_detail"), 18, new Color(1f, 0.8f, 0.45f), TextAnchor.UpperLeft);
                 return y + 98f;
+            }
+
+            // A debris field (#2353): the same kind of place — flown to, read on approach, carved and pulled in flight.
+            if (body.Kind == "DebrisField")
+            {
+                UiKit.AddText(_detail, 8, y, 600, 110, L("ui.map.debris_detail"), 18, new Color(0.95f, 0.7f, 0.45f), TextAnchor.UpperLeft);
+                return y + 118f;
             }
 
             if (here || string.IsNullOrEmpty(body.PlanetType))

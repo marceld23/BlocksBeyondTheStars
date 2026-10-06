@@ -336,6 +336,21 @@ gentle winch hum while reeling (a loop, faded in and out like the glider's wind)
 | winch | every frame of a pull (`ClientAudio.RopeTick`) | `rope_reel` (loop) | EL |
 | let go | a crouch, a hop, a snapped rope — and quietly a shot that found nothing to hold | `rope_release` | EL |
 
+## 19. Debris fields and raiders (#2358) — *ElevenLabs clips*
+
+A debris field is peaceful content with a little texture: the rubble that taps the shield is a dull clank with a fizz,
+never an impact; a salvage capsule coming aboard is a latch and a warm two-note chime (the tractor-beam look does the
+rest); the raider's warp-in gets the sting a trader's silent arrival never had — deep, heavy, menacing, not frightening.
+The shield-hit cue (`ship_shield_hit`) and the camera jolt still fire on the status drop itself; the clank is layered on
+top only when the client sees no attacker and the ship inside a field. The prompts are recorded in
+`tools/ai-assets/gen_batch.py`.
+
+| Sound | Trigger | Files | Source |
+|---|---|---|---|
+| rubble tap | a shield drop with no hull damage and no hostile in range while inside a debris field (3D at the hull) | `debris_bump` | EL |
+| capsule aboard | a salvage capsule vanishes within tractor reach of the ship (2D, with the beam) | `salvage_capsule` | EL |
+| raider warp-in | the `SpaceWarpFx` flash flagged `Raider` (3D at the arrival point) | `raider_warp_in` | EL |
+
 ---
 
 ## Totals & rollout
