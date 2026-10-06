@@ -249,8 +249,6 @@ public sealed partial class WorldGenerator
 
         ulong g = h * 0x9E3779B97F4A7C15UL;
         double angle = ((g >> 12) & 0x3FF) / 1023.0 * System.Math.PI * 2.0;
-        double cos = System.Math.Cos(angle);
-        double sin = System.Math.Sin(angle);
         double halfHeight = 2.5 + ((g >> 24) & 0xFF) / 255.0 * 2.0; // a 5–9-tall opening
 
         // The wall band is the outer 30 % of the radius (TableMountainOffset: t < 0.30 is the talus-to-cliff
@@ -260,10 +258,20 @@ public sealed partial class WorldGenerator
         double inner = radius * 0.62;
         double outer = radius + 6.0;
         double y = RawSurfaceHeight(planet, w, centreX, centreZ) + halfHeight + 1.0;
-        return new[]
+
+        // Terrain generation 21 (#2338): a HOLED table carries two to four gates at bearings spread around it (a ring
+        // table's gates run through its core). Plain tables and every older world keep the one gate.
+        int gates = w.TableVariants && TableVariantOf(h) == TableVariant.Holed ? TableHoleCount(h) : 1;
+        var segs = new TunnelSeg[gates];
+        for (int k = 0; k < gates; k++)
         {
-            new TunnelSeg(inner * cos, y, inner * sin, outer * cos, y, outer * sin, halfHeight),
-        };
+            double a = angle + k * (System.Math.PI * 2.0 / gates);
+            double cos = System.Math.Cos(a);
+            double sin = System.Math.Sin(a);
+            segs[k] = new TunnelSeg(inner * cos, y, inner * sin, outer * cos, y, outer * sin, halfHeight);
+        }
+
+        return segs;
     }
 
     // ================= Mountain halls (worm family) =================

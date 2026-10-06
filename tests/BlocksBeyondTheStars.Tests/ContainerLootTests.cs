@@ -47,6 +47,7 @@ public sealed class ContainerLootTests : IDisposable
             PlaceRailRuins = false, // #2166
             PlaceChests = false,
             PlaceFactories = false,
+            PlaceBanditCamps = false, // #2334: the camps seat differently on a generation-21 world and their stashes would count
             Rules = new GameRules { DeathPenalty = DeathPenalty.Normal, KeepInventoryOnDeath = false },
         };
         var server = new SvGameServer(config, _content, st, repo);

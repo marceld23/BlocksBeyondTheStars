@@ -118,6 +118,14 @@ public sealed class WorldGenerationGoldenTests
         new("jungle-gen18", 20260927, "jungle", 0, false, null, 18),
         // Generation 18 (2026-09-27, #2112): the gas giant — the gas sea over the dense gas (#2134), the islands, the deck pad.
         new("gas_giant-gen18", 20260927, "gas_giant", 0, false, null, 18),
+        // Generation 21 (2026-10-05, #2331 the spectacle package): the four types where the families are dense, plus a
+        // desert (arches, fossils, table variants) and a karst world (pillar islands, daylight halls, portals) as finds.
+        new("arch_lands-gen21", 20261005, "arch_lands", 0, false, null, 21),
+        new("pillar_world-gen21", 20261005, "pillar_world", 0, false, null, 21),
+        new("hollow_world-gen21", 20261005, "hollow_world", 0, false, null, 21),
+        new("bone_desert-gen21", 20261005, "bone_desert", 0, false, null, 21),
+        new("desert-gen21", 20261005, "desert", 0, false, null, 21),
+        new("karst-gen21", 20261005, "karst", 0, false, null, 21),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -203,6 +211,13 @@ public sealed class WorldGenerationGoldenTests
             // Pinned 2026-09-27 (the gas giant, generation 18; Windows 11, .NET 10). Re-pinned 2026-09-29 (#2134): dense gas
             // under the gas sea instead of the heightfield's rock — deliberately ungated, see WORLD_GENERATION.md §34.
             ["gas_giant-gen18"] = 0xbc2874e175c5f0ffUL,
+            // Pinned 2026-10-05 (the spectacle package, generation 21; Windows 11, .NET 10).
+            ["arch_lands-gen21"] = 0xb8c9b3d4f7647324UL,
+            ["pillar_world-gen21"] = 0x75d2491cbf72a7acUL,
+            ["hollow_world-gen21"] = 0xf42cefa339a8ed4aUL,
+            ["bone_desert-gen21"] = 0x7d70da7ea2a3fec3UL,
+            ["desert-gen21"] = 0x88b994418402ffabUL,
+            ["karst-gen21"] = 0xce432b6e64c242b0UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

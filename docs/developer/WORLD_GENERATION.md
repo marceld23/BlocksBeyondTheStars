@@ -2295,3 +2295,105 @@ switch is ON. Both ON — the door opens. The blocks are written once with the v
 the niche's loot has a generator of its own and is re-derived on every entry like the vault's. Opening it counts as
 *Safecracker* for everyone in the chamber. A vault stamped before crystal vaults existed stays as it was.
 
+## 38. Generation 21 — the spectacle package (#2331: #2332–#2343, 2026-10-05)
+
+Marcel's ask: really far-out terrain on top of the landform families — crossing arches, stone bridges, fossils
+surfacing from the ground, giant overhangs, cave entrances you fly into, impossible table mountains, thin towers with
+an island on top. `WorldDescription.CurrentTerrainGeneration` is **21** (`SpectacleGeneration`); every family is a
+row in a table that already existed, gated on a profile flag `WonderFor` sets from generation 21 only, so every
+classic / gen-1 / gen-3 golden group stays byte-identical. All families gate on **tags** (`arches`, `pillars`,
+`portals`, `fossil` joined `TerrainTag`), never on a key; `PlanetType.SpectacleDensity` (1 = a find, 4 = the
+landscape) scales a family's cell chance up and its pitch down (`SpectacleCell`). Each family's cluster rolls are a
+pure function of the cell hash, memoised in a `CellCache<T>` (the #712 lesson of the worm cache).
+
+### 38.1 The infrastructure
+
+- **Band material and the crown (#2332).** `ColumnBand.Material` and two kinds: `Rock` (solid of the material, the
+  deep block when Air — bars, decks, visors, ribs) and `Crown` (the biome's surface and sub-surface on top of the
+  material — pillar crowns and balconies). Both are written before the sea fill like the material bands, so a bar
+  through a bay stands in the water. `MaxColumnBands` 10 → 16 (scratch only). The generation-21 kinds live in
+  `AppendGen21Bands` (`NoInlining`, the #1740 rule) behind `AppendGen3Bands`. A crown wears the biome of ITS height
+  (`ColumnProfile.CrownSurface/CrownSub`: alpine meadow, snow or ice on a crown 90 up — and a pond up there freezes),
+  not its foot's. From generation 21 every island / crown band grows its own flora (older worlds plant the highest
+  band only). `WonderProfile.BandMaterial` = sandstone on butte / wind country, basalt on volcanic, ice in the deep
+  cold, else the deep block.
+- **The far view sees bands (#2333).** `WorldGenerator.TryGetHighestBand` / `HighestBandTopInSquare`;
+  `FarTerrainSource.Sample` reports the highest band's top and skin as the column's top, and the server's
+  `FarColumnBand(surfaceY, seaLevel, bandTopY)` stretches a far column's streaming band up to it — sky islands are
+  seen from afar now too. The minimap stays height-only on purpose.
+- **Pads and structures read bands and voids (#2334).** `WorldGenerator.Placement.cs`: `ColumnHasBandAbove`,
+  `ColumnHasVoidBelow` (mega-caverns, tunnels, daylight halls within a depth), `FootprintClear` (centre + corners).
+  The pad nudge (`NudgePadToDryAndFlat`) skips covered columns (`PadFootprintCovered`); `TryPlaceStructureGuaranteed`
+  rejects a footprint under a band or over a void shallower than `StructureFoundationDepth` (10) in every ring. Both
+  probes answer nothing below generation 21, so pinned pads and frozen placements never move — and the last resort
+  stays what it was: `FlattenLandingPads` shears everything above a pad. This closes the 09-09 audit's open item
+  (structures never read the underground) for the new worlds.
+- **Stamps on band tops (#2335).** `WorldGenerator.BandTopsGen21.cs`: after the ground stamps, every crown / island
+  band top on a generation-21 world rolls trees (the biome's palette through the shared `BuildTreeOfKind`, three times
+  the ground density, the rim rule: the trunk's four neighbours stand on the same deck within one cell), boulders, a
+  rare-ore clump (types with rare veins) and a data cache (~one per crown of 600 columns) — own salts, air only.
+
+### 38.2 The forms
+
+- **Pillar islands (#2336, `WorldGenerator.PillarsGen21.cs`, tag `pillars`).** One cell (pitch 900, 35 %) grows
+  1–3 islands (up to 12 on a dense type): one stem (60 %) or two (40 %), r 4–10, 40–90 tall, sheer (`pow 0.2`),
+  every stem of a cluster topping out level (anchored to the raw ground under the cell centre); 0–3 balconies per
+  stem (half-disc `Crown` bands r stem + 3–7, 2–4 thick, each on its own bearing, a seep waterfall off one in five
+  on wet worlds); a crown r 8–24 (an oval over two stems), 6–14 thick, a lens with stalactite tapers under its rim,
+  a meadow pond (`IslandPond`) in 60 % on wet worlds spilling an endless `Waterfall` band down the rolled side, 15 %
+  two-storey (a `Rock` stem and a smaller crown on the crown). The climber stops under a balcony; the rope gun pulls
+  over its edge — the pillar is a climbing puzzle by construction.
+- **Arch lands (#2337, `WorldGenerator.ArchesGen21.cs`, tag `arches`).** One cell (pitch 1400, 40 %) grows 3–7
+  arcs (spans 20–70, bearings from the eight) crossing in plan at different heights, or (25 %) an arch ROW of 2–4
+  arcs end to end sharing their abutments; 20 % of arcs carry a second deck on the same pillars; one arc in some
+  clusters has fallen (pillars only, `scree` paint and the `arch-rubble` prop row between them). An arc is a tube
+  around a parabola: abutment pillars (the row's offset, level with the bar's top) and one `Rock` band per arc that
+  covers a column — the underside rising from the pillar tops to the apex, the thickness three at the apex growing to
+  6–8 at the abutments. The classic single arch (#706) keeps its place.
+- **Bridge mesas and the impossible tables (#2338, `WorldGenerator.MesasGen21.cs`).** `mesa-cluster`: 2–4 tables of
+  ONE height joined by `Rock` decks 5–9 wide, 3–6 thick at rim height, one deck in three broken (rubble below). The
+  classic table's own cell rolls a variant from a re-hash (three of eight plain): **Visor** (the cap reaches 8–20 past
+  the wall as a 4–7-thick band following the cap's swell), **Ring** (the ground is the core alone, the outer third a
+  band over air), **TwoStorey**, **Tilted** (3–8° along a bearing) and **Holed** (2–4 rock gates); `TableMountainOffset`
+  takes the profile for it. A quarter of the big tables carry an **abri** (#2339): a worm family along the wall foot.
+- **Wave rocks (#2339, `WorldGenerator.OverhangsGen21.cs`).** An oriented ridge (half-length 30–65, rise 12–25) with
+  a gentle back and a sheer front; past the front a `Rock` band 6–10 out, 3–5 thick, drooping to its lip, air below.
+- **Cave portals and daylight halls (#2340, `WorldGenerator.HallsGen21.cs`, tag `portals` or `karst`).** Portals
+  are a worm family riding the massif cell: a mouth of radius 7–9 at the flank's foot climbing into the mountain hall.
+  A **daylight hall** has a cell of its own (pitch 1700): an ellipsoid whose floor lies 40–90 under the raw ground and
+  whose top 6–12 OVER it, so the roof breaks open where the terrain is at or below the centre's ground. Under the
+  skylight the column phase moves the surface DOWN to the hall floor (`ComputeColumn` at its first line): flora,
+  trees and props (`DaylightHallFloorAt`) grow on the floor, a lake fills the lowest 40 % of the bowl on three in five,
+  the floor is never flooded by the sea line (a sealed bowl), and no river, beach or seabed paint reaches it; the
+  roofed rim is written as a mega-cavern span. A walk-in worm (`hall-portals`) cuts from outside down to the floor.
+- **Fossils (#2341).** Three **monument archetypes** (`MonumentGenerator.ArchetypesGen21`, built from `bone`, no
+  runes): `fossil_sauropod` (a 36-long skeleton on its side, ribs curving to the ground, neck, skull, tail, legs),
+  `fossil_skull` (a hollow dome 11 across with eye sockets and a mouth you walk into), `fossil_serpent` (a spine
+  winding over the ground for fifty blocks). A generation-21 world draws its monuments from that pool; scanning
+  `bone` AT a fossil pays like reading runes (`GameServerScanning`, `ui.scan.monument.fossil_*`), a bone pile
+  elsewhere is a material. `WorldGenerator.FossilsGen21.cs` (tag `fossil`): the **fossil ridge** row — a spine
+  mound with a bone line painted two deep down its crest, a skull dome painted bone four deep, ribs as `Rock` bands
+  of bone standing as a vault over the spine (one cell in seven is a **giant**: skull r 15–25, spine 120–200, ribs
+  20–40 tall); and the **bone stratum** — one bone layer in every third period of the sediment strata.
+- **Four planet types (#2342, `minTerrainGeneration` 21, `spectacleDensity` 4, `guaranteedOnce`):** `arch_lands`
+  (Bogenland: arches, bridge mesas, table variants, abris, wave rocks, rainbow strata), `pillar_world` (Säulenwelt:
+  pillar islands in groups, halls as karst country, fog), `hollow_world` (Hohlwelt: portals, daylight halls, mountain
+  halls, cave flora), `bone_desert` (Knochenwüste: bone strata, fossil ridges and giants, fossil monuments, dead
+  forests, salt pans). Names and descriptions in all fourteen locales; name flavours borrow their kin's.
+- **Findability (#2343).** `UniverseGenerator`: a generation-21 description retypes 64/256 (25 %) of the eligible
+  bodies instead of 46/256, and `ApplyGuaranteedTypes` (after the gas giants) gives every `GuaranteedOnce` type the
+  retype pass missed to the eligible planet with the smallest hash of the original systems — never the start system,
+  the first breathable planet, a landmark body or the gas giant. The larger share comes with a keep rule
+  (`FirstPlanetOfEachType`): the first planet of every type the classic roll produced is never retyped and never taken
+  for a guarantee, so "the first planet of the start type" — the server's start pick — stays the body the classic
+  layout rolled instead of being wiped from one galaxy in four (the server would then force the start type onto the
+  galaxy's first planet). The gas giant pass predates the rule and still takes its lone-giant and outer-orbit bodies.
+  An older description keeps 18 %, no guarantee and no keep rule.
+
+Tests: `Spectacle*Tests` (one class per family, each proving the form by its defining property over seeds, absent
+below generation 21), golden groups `arch_lands-gen21`, `pillar_world-gen21`, `hollow_world-gen21`,
+`bone_desert-gen21`, `desert-gen21`, `karst-gen21`. Known limits: a tree under a crown can run its trunk into a
+crown that hangs within 18 of the ground (rare); bone has no second use yet (a fertiliser mechanic would give the
+bone-meal recipe a point); the hall's skylight follows the cell centre's ground, so a hall under a hill is mostly a
+sinkhole with overhanging rims.
+

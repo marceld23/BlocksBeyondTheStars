@@ -95,12 +95,9 @@ public class TerrainExtremesTests
         var content = Content();
         var planet = content.GetPlanet("savanna")!;
         var gen = new WorldGenerator(7, content);
-        long seed = (long)typeof(WorldGenerator)
-            .GetMethod("PlanetSeed", BindingFlags.NonPublic | BindingFlags.Instance)!
-            .Invoke(gen, new object[] { planet })!;
-        var mOff = typeof(WorldGenerator)
-            .GetMethod("TableMountainOffset", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        double Off(int x, int z) => (double)mOff.Invoke(gen, new object[] { seed, x, z })!;
+        // The row's offset through the landmark-table seam (#2338 gave TableMountainOffset the profile for the
+        // generation-21 variants; a generation-0 generator like this one only ever builds the plain table).
+        double Off(int x, int z) => gen.LandmarkOffsetForTest("table-mountain", planet, x, z);
 
         int period = WorldConstants.LatitudePeriodFor(WorldConstants.Circumference);
         int foundX = int.MinValue, foundZ = 0;

@@ -53,6 +53,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
         private readonly bool _seaIsWater;
         private readonly bool _seaIsGas; // #2112
         private readonly bool _pondsAndRivers;
+        private readonly bool _bands; // #2333: the world can carry extra bands (sky islands, arch bars, crowns)
 
         public PlanetType Planet { get; }
         public int Circumference { get; }
@@ -75,6 +76,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
             _seaIsWater = SeaLevel != int.MinValue && generator.SeaIsWater(planet);
             _seaIsGas = SeaLevel != int.MinValue && generator.SeaIsGas(planet);
             _pondsAndRivers = !planet.IsAirless;
+            _bands = generator.HasExtraBands(planet);
         }
 
         /// <summary>Builds the source for a world, or null for a void world / an unknown planet type.</summary>
@@ -120,6 +122,15 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
         public FarSample Sample(int worldX, int worldZ, bool detail)
         {
             int ground = _generator.SurfaceHeight(Planet, worldX, worldZ);
+
+            // #2333: a band over the column — a sky island, an arch bar, a pillar crown — is what the eye sees from
+            // afar, so it is the sample's top, over dry ground and over the sea alike.
+            if (_bands && _generator.TryGetHighestBand(Planet, worldX, worldZ, out var band) && band.Top >= ground
+                && (SeaLevel == int.MinValue || band.Top >= SeaLevel))
+            {
+                return BandSample(band, worldX, worldZ, detail);
+            }
+
             if (SeaLevel != int.MinValue && ground <= SeaLevel) // the generator's own sea-column test
             {
                 return new FarSample(SeaLevel + 1, _seaIsWater ? FarSurface.Water : _seaIsGas ? FarSurface.Gas : FarSurface.Lava, 0);
@@ -133,6 +144,32 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
 
             string? key = detail ? _generator.BiomeSurfaceKeyAt(Planet, worldX, worldZ) : null;
             return new FarSample(ground + 1, FarSurface.Ground, BlockIdOf(key ?? Planet.SurfaceBlock));
+        }
+
+        /// <summary>What a band's top reads as from afar (#2333): a pond or a fluid band is the sea's fluid, an ice
+        /// band ice, a mat mud, an island / crown / afloat deck the biome's ground (the planet's surface block on the
+        /// coarse level), a rock bar or cap its own material or the deep block.</summary>
+        private FarSample BandSample(in WorldGenerator.ColumnBand band, int worldX, int worldZ, bool detail)
+        {
+            int top = band.Top + 1;
+            switch (band.Kind)
+            {
+                case WorldGenerator.BandKind.IslandPond:
+                    return new FarSample(top, FarSurface.Water, 0);
+                case WorldGenerator.BandKind.Fluid:
+                    return new FarSample(top, _seaIsWater ? FarSurface.Water : _seaIsGas ? FarSurface.Gas : FarSurface.Lava, 0);
+                case WorldGenerator.BandKind.Ice:
+                    return new FarSample(top, FarSurface.Ground, BlockIdOf("ice"));
+                case WorldGenerator.BandKind.Mat:
+                    return new FarSample(top, FarSurface.Ground, BlockIdOf("mud"));
+                case WorldGenerator.BandKind.Rock:
+                case WorldGenerator.BandKind.Cap:
+                    return new FarSample(top, FarSurface.Ground,
+                        band.Material.IsAir ? BlockIdOf(Planet.DeepBlock) : band.Material.Value);
+                default: // Island, Afloat, Crown: a meadow on the band
+                    string? key = detail ? _generator.BiomeSurfaceKeyAt(Planet, worldX, worldZ) : null;
+                    return new FarSample(top, FarSurface.Ground, BlockIdOf(key ?? Planet.SurfaceBlock));
+            }
         }
 
         private ushort BlockIdOf(string key)

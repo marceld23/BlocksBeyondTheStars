@@ -188,8 +188,18 @@ public sealed class WorldDescription
     /// planet types, 2026-09 the giants + the sand-sea planet class, #2009 the arachnid body plan, 2026-09 cave flora,
     /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees, #2062 Toxica-Maxima,
     /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant, #2073 Arena Nigra, #2104 Justus' package:
-    /// oil pockets, the worm body plan, the gas giant, #2125 the intercity monorail, #2166 the abandoned monorail stations).</summary>
-    public const int CurrentTerrainGeneration = 20;
+    /// oil pockets, the worm body plan, the gas giant, #2125 the intercity monorail, #2166 the abandoned monorail stations,
+    /// #2331 the spectacle terrain package).</summary>
+    public const int CurrentTerrainGeneration = 21;
+
+    /// <summary>The generation of the spectacle terrain package (#2331, 2026-10): arch lands, pillar islands with
+    /// balconies and crowns, bridge mesas and the impossible table mountains, wave rocks and rock shelters, cave
+    /// portals and daylight halls, fossils, and four planet types where each family is dense. Every family is a row
+    /// in a table that already existed, gated on this generation through its profile flag; bands may carry their own
+    /// material from here on (<c>BandKind.Rock</c> / <c>BandKind.Crown</c>) and the per-column band scratch grew
+    /// 10 → 16. A world of any older generation keeps its terrain bit for bit — and so do its landing pads, which the
+    /// planner now keeps from under a band and over a cavern on the new worlds only.</summary>
+    public const int SpectacleGeneration = 21;
 
     /// <summary>The generation of the abandoned monorail stations (#2166, 2026-10, Justus' idea): on some worlds the ruin of
     /// an old station hall — caved-in roof, a derelict wagon on the track bed, the dead line beyond, salvage and station

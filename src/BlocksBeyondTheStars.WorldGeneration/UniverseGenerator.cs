@@ -51,6 +51,13 @@ public sealed class UniverseGenerator
     /// into the generation-1 planet types (#1649) — the classic layout stays byte-identical, some worlds are new kinds.</summary>
     private const int Gen1RetypeChance = 46; // of 256 ≈ 18 %
 
+    /// <summary>#2343: a generation-21 galaxy retypes a quarter of its eligible bodies — the spectacle package added four
+    /// types to a pool ~23 types already share, and at 18 % a weight-5 type showed in about every second galaxy. An older
+    /// description keeps 46/256, so every galaxy created before regenerates byte for byte.</summary>
+    private const int Gen21RetypeChance = 64; // of 256 = 25 %
+
+    private int RetypeChance => _desc.TerrainGeneration >= WorldDescription.SpectacleGeneration ? Gen21RetypeChance : Gen1RetypeChance;
+
     /// <summary>The generation-gated types (#1649: <see cref="PlanetType.MinTerrainGeneration"/> &gt; 0) this
     /// description may roll, weighted like the classic table (player override, else spawn weight × exotic).</summary>
     private static List<(string, int)> BuildGenerationWeights(WorldDescription desc, GameContent content)
@@ -125,6 +132,7 @@ public sealed class UniverseGenerator
         }
 
         var seenOnce = new HashSet<string>(System.StringComparer.Ordinal);
+        var kept = _desc.TerrainGeneration >= WorldDescription.SpectacleGeneration ? FirstPlanetOfEachType(galaxy) : null;
 
         for (int si = 1; si < galaxy.Systems.Count; si++)
         {
@@ -132,13 +140,14 @@ public sealed class UniverseGenerator
             for (int bi = 0; bi < system.Bodies.Count; bi++)
             {
                 var body = system.Bodies[bi];
-                if ((body.Kind != CelestialKind.Planet && body.Kind != CelestialKind.Moon) || ReferenceEquals(body, firstBreathable))
+                if ((body.Kind != CelestialKind.Planet && body.Kind != CelestialKind.Moon) || ReferenceEquals(body, firstBreathable)
+                    || kept?.Contains(body) == true)
                 {
                     continue;
                 }
 
                 ulong h = Noise.Hash(_seed ^ 0x6E1A7, si, bi, 0x1649);
-                if ((h & 0xFF) >= (ulong)Gen1RetypeChance)
+                if ((h & 0xFF) >= (ulong)RetypeChance)
                 {
                     continue;
                 }
@@ -182,6 +191,92 @@ public sealed class UniverseGenerator
         }
 
         ApplyGasGiants(galaxy, firstBreathable);
+        ApplyGuaranteedTypes(galaxy, firstBreathable, kept);
+    }
+
+    /// <summary>#2343: the first planet of every type the classic roll produced, in the server's start-pick order
+    /// (<see cref="Galaxy.AllBodies"/>). A generation-21 galaxy retypes a quarter of its bodies, and at that share a
+    /// rarely rolled type — the player's chosen start type among them — was wiped from one galaxy in four; the server
+    /// then forces the type onto the galaxy's first planet, which moves the start world to a body that was never meant
+    /// to be one. Keeping each type's first planet makes "the first planet of the start type" the body the classic
+    /// layout rolled. Only consulted on generation 21 and later, so every older galaxy regenerates byte for byte.</summary>
+    private static HashSet<CelestialBody> FirstPlanetOfEachType(Galaxy galaxy)
+    {
+        var kept = new HashSet<CelestialBody>();
+        var seen = new HashSet<string>(System.StringComparer.Ordinal);
+        foreach (var body in galaxy.AllBodies())
+        {
+            if (body.Kind == CelestialKind.Planet && body.PlanetType is { Length: > 0 } type && seen.Add(type))
+            {
+                kept.Add(body);
+            }
+        }
+
+        return kept;
+    }
+
+    /// <summary>#2343: every <see cref="PlanetType.GuaranteedOnce"/> type this description may roll stands on at least
+    /// one planet of the ORIGINAL systems. Runs last, so it never undoes the gas giant or a once-per-galaxy landmark: when
+    /// the retype pass rolled none, the eligible planet with the smallest hash (outside the start system, not the first
+    /// breathable one, not a body already carrying a landmark or a guaranteed type, not a type's first planet) takes it.
+    /// Deterministic from the seed; a grown galaxy's appended systems are never looked at, so they change nothing.</summary>
+    private void ApplyGuaranteedTypes(Galaxy galaxy, CelestialBody? firstBreathable, HashSet<CelestialBody>? kept)
+    {
+        int original = System.Math.Min(galaxy.Systems.Count, System.Math.Max(0, _desc.StarSystemCount));
+        foreach (var (key, _) in _gen1Weights)
+        {
+            if (_content.GetPlanet(key) is not { GuaranteedOnce: true })
+            {
+                continue;
+            }
+
+            bool present = false;
+            for (int si = 0; si < original && !present; si++)
+            {
+                foreach (var body in galaxy.Systems[si].Bodies)
+                {
+                    present |= body.Kind == CelestialKind.Planet && body.PlanetType == key;
+                }
+            }
+
+            if (present)
+            {
+                continue;
+            }
+
+            CelestialBody? best = null;
+            ulong bestHash = ulong.MaxValue;
+            for (int si = 1; si < original; si++)
+            {
+                var system = galaxy.Systems[si];
+                for (int bi = 0; bi < system.Bodies.Count; bi++)
+                {
+                    var body = system.Bodies[bi];
+                    if (body.Kind != CelestialKind.Planet || ReferenceEquals(body, firstBreathable) || kept?.Contains(body) == true)
+                    {
+                        continue;
+                    }
+
+                    var current = body.PlanetType is { } t ? _content.GetPlanet(t) : null;
+                    if (current is { OncePerGalaxy: true } || current is { GuaranteedOnce: true } || current is { SpawnWeight: 0 })
+                    {
+                        continue; // a landmark, another guaranteed type, or the gas giant — never taken away
+                    }
+
+                    ulong h = Noise.Hash(_seed ^ 0x6A4A21, si, bi, (int)(WorldGenerator.StableHash(key) & 0x7FFFFFFF));
+                    if (h < bestHash)
+                    {
+                        bestHash = h;
+                        best = body;
+                    }
+                }
+            }
+
+            if (best is not null)
+            {
+                best.PlanetType = key;
+            }
+        }
     }
 
     /// <summary>#2112 (generation 18, Marcel's placement): the <see cref="SystemArchetype.LoneGiant"/> system's one planet —

@@ -362,9 +362,14 @@ public sealed class FifiPlantTests : IDisposable
             Assert.True(p.State.Inventory.CountOf("berries") >= 2, "a Fifi harvest yields normal berries");
             Assert.Equal(0, p.State.Inventory.CountOf("toxic_berries"));
 
-            server.Tick(60.0);
+            // The regrow clock runs on the local weather (#900: a dry season slows it, rain speeds it up), so the two
+            // minutes are measured in plant time — the seam gives this cell's pace, and the galaxy decides which body
+            // and season the start world is in (the generation-21 galaxy rules put seed 7's start into a dry spell).
+            double pace = server.WeatherRegrowFactorForTest(pos);
+            double twoMinutes = BlocksBeyondTheStars.WorldGeneration.FruitRules.RegrowSeconds / pace;
+            server.Tick(twoMinutes * 0.5);
             Assert.True(server.World.GetBlock(pos).IsAir, "berries take two minutes to grow back");
-            server.Tick(70.0);
+            server.Tick(twoMinutes * 0.6);
             Assert.Equal(berries.Value, server.World.GetBlock(pos).Value);
         }
     }

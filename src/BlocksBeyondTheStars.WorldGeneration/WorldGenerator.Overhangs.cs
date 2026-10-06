@@ -36,6 +36,15 @@ public sealed partial class WorldGenerator
         /// <summary>Generation 5 (#1757): an island afloat on the sea — deck above the waterline, keel below it,
         /// open water under the keel. Written before the sea fill like the material bands.</summary>
         Afloat = 7,
+        /// <summary>Terrain generation 21 (#2332): solid rock of the band's own <see cref="ColumnBand.Material"/> (the
+        /// deep block when Air) — arch bars, bridge decks, visors, ribs. Written before the sea fill like the material
+        /// bands, so a bar through a bay stands as rock inside the water.</summary>
+        Rock = 8,
+        /// <summary>Terrain generation 21 (#2332): a crown — the biome's surface block on top, two cells of its
+        /// sub-surface, then the band's <see cref="ColumnBand.Material"/> (the deep block when Air): pillar crowns and
+        /// balconies. Grows surface flora on top like an island, roots hanging flora below like one, and is written
+        /// before the sea fill like <see cref="Afloat"/>.</summary>
+        Crown = 9,
     }
 
     /// <summary>One extra solid/fluid band of a column (#705), in inclusive world-Y coordinates.</summary>
@@ -44,12 +53,20 @@ public sealed partial class WorldGenerator
         public int Bottom;
         public int Top;
         public BandKind Kind;
+
+        /// <summary>Terrain generation 21 (#2332): the block a <see cref="BandKind.Rock"/> band is made of and a
+        /// <see cref="BandKind.Crown"/> band rests on — sandstone on a buttes world, basalt on a volcanic one, ice on a
+        /// glacial one. Air (the default) = the kind's classic fill, the planet's deep block; every older kind ignores it.</summary>
+        public BlockId Material;
     }
 
     /// <summary>Max extra bands a column can carry (#705): 3 island tiers + a cap + a waterfall, plus room for
     /// the generation-1 bands (#1646: bridge, coastal ledge, cornice, mushroom cap) and the generation-3
-    /// material bands (iceberg, a coast band) stacking on one column.</summary>
-    public const int MaxColumnBands = 10;
+    /// material bands (iceberg, a coast band) stacking on one column. Raised 10 → 16 for terrain generation 21
+    /// (#2332): an arch cluster emits one band per arc covering a column (up to seven), a pillar island a crown,
+    /// balconies, a pond and a waterfall — on top of whatever classic band stands there. Scratch size only; a
+    /// column profile stores the exact slice, so no older world's output depends on it.</summary>
+    public const int MaxColumnBands = 16;
 
     /// <summary>Collects every extra band covering this column (#705): sky-island tiers (with ponds,
     /// stalactites and edge waterfalls, #707), arch bars, sea-stack and hoodoo caps and cenote lips
@@ -185,12 +202,123 @@ public sealed partial class WorldGenerator
             bands[n++] = new ColumnBand { Bottom = sbLo, Top = sbHi, Kind = BandKind.Cap };
         }
 
+        return AppendGen21Bands(planet, w, worldX, worldZ, bands, n);
+    }
+
+    /// <summary>The terrain-generation-21 bands (#2332, the spectacle package), behind their own call for the same
+    /// reason <see cref="AppendGen3Bands"/> is: the compile of <see cref="GetExtraBands"/> must never grow (#1740).
+    /// Every family here gates on a profile flag <c>WonderFor</c> sets from generation 21 only, and the whole method
+    /// returns at once on an older world, so no generation 0–20 column ever pays for it.</summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private int AppendGen21Bands(PlanetType planet, WonderProfile w, int worldX, int worldZ, System.Span<ColumnBand> bands, int n)
+    {
+        if (w.Generation < WorldDescription.SpectacleGeneration)
+        {
+            return n;
+        }
+
+        // The package's families append their bands here in table order: pillar islands (crowns, balconies, ponds,
+        // waterfalls), arch clusters (one band per arc), bridge mesas and table variants (decks, visors, rings), wave
+        // rocks (the curl) and fossil ridges (the ribs). Each is one call guarded by its gate.
+        if (w.PillarIslands && n < bands.Length)
+        {
+            n = AppendPillarBands(planet, w, worldX, worldZ, bands, n);
+        }
+
+        if (w.ArchClusters && n < bands.Length)
+        {
+            n = AppendArchBands(planet, w, worldX, worldZ, bands, n);
+        }
+
+        if (w.TableVariants && n < bands.Length)
+        {
+            n = AppendTableVariantBands(planet, w, worldX, worldZ, bands, n);
+        }
+
+        if (w.MesaClusters && n < bands.Length)
+        {
+            n = AppendMesaBands(planet, w, worldX, worldZ, bands, n);
+        }
+
+        if (w.WaveRocks && n < bands.Length)
+        {
+            n = AppendWaveBands(planet, w, worldX, worldZ, bands, n);
+        }
+
+        if (w.FossilRidges && n < bands.Length)
+        {
+            n = AppendFossilBands(planet, w, worldX, worldZ, bands, n);
+        }
+
         return n;
     }
 
     /// <summary>True when any band-producing feature can exist on this world at all — Generate's cheap
     /// whole-chunk gate so classic worlds pay nothing for #705.</summary>
     public bool HasExtraBands(PlanetType planet) => WonderFor(planet).AnyBands;
+
+    /// <summary>The highest band standing over this column that reads as a top from afar (#2333) — every kind but
+    /// the waterfall — or false where no band covers the column. What the far view and the far-column streaming
+    /// band read, so a crown, an arch bar or a sky island is seen from the ship and streams with the far ring
+    /// instead of popping in at the near one. Cheap off a band world (the profile gate) and bounded by the hotspot
+    /// rejects on one.</summary>
+    public bool TryGetHighestBand(PlanetType planet, int worldX, int worldZ, out ColumnBand band)
+    {
+        band = default;
+        if (!HasExtraBands(planet))
+        {
+            return false;
+        }
+
+        System.Span<ColumnBand> bands = stackalloc ColumnBand[MaxColumnBands];
+        int n = GetExtraBands(planet, worldX, worldZ, bands);
+        bool found = false;
+        for (int i = 0; i < n; i++)
+        {
+            if (bands[i].Kind == BandKind.Waterfall)
+            {
+                continue;
+            }
+
+            if (!found || bands[i].Top > band.Top)
+            {
+                band = bands[i];
+                found = true;
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>The highest band top over a <paramref name="size"/>-wide square of columns (#2333), or
+    /// <see cref="int.MinValue"/> when none stands there — five samples (the centre and the four corners, one in),
+    /// which is what a chunk column's far streaming band needs: a crown or an arch bar crossing a corner of the
+    /// chunk must stream with it, not pop in at the near ring. Off a band world the answer is immediate.</summary>
+    public int HighestBandTopInSquare(PlanetType planet, int x0, int z0, int size)
+    {
+        if (!HasExtraBands(planet))
+        {
+            return int.MinValue;
+        }
+
+        int top = int.MinValue;
+        int half = size / 2;
+        int far = size - 2;
+        Probe(x0 + half, z0 + half);
+        Probe(x0 + 1, z0 + 1);
+        Probe(x0 + far, z0 + 1);
+        Probe(x0 + 1, z0 + far);
+        Probe(x0 + far, z0 + far);
+        return top;
+
+        void Probe(int x, int z)
+        {
+            if (TryGetHighestBand(planet, x, z, out var band) && band.Top > top)
+            {
+                top = band.Top;
+            }
+        }
+    }
 
     // --- Multi-tier skylands (#707): floating worlds roll 1–3 island tiers; tier 0 is the classic band
     // (same seeds and shaping, so existing sky worlds keep their islands), upper tiers stack ~36 blocks

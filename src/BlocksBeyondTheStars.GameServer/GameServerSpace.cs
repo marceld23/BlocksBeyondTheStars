@@ -660,7 +660,7 @@ public sealed partial class GameServer
 
         void Consider(int x, int z)
         {
-            if (LandingFootprintWet(planet, x, z))
+            if (LandingFootprintWet(planet, x, z) || PadFootprintCovered(planet, x, z))
             {
                 return;
             }
@@ -787,6 +787,20 @@ public sealed partial class GameServer
         }
 
         return false;
+    }
+
+    /// <summary>#2334: a band over any of the pad's five cardinal samples — an arch bar, a crown, a sky island — makes
+    /// the column no seat for a ship. The generator answers false on every world of a generation before 21, so no
+    /// pinned pad moves; on a new world the nudge walks on to the next dry, flat, uncovered column.</summary>
+    private bool PadFootprintCovered(PlanetType planet, int cx, int cz)
+    {
+        int r = LandingPadRadius;
+        int circ = _generator.Circumference;
+        return _generator.ColumnHasBandAbove(planet, cx, cz)
+            || _generator.ColumnHasBandAbove(planet, WorldConstants.WrapX(cx - r, circ), cz)
+            || _generator.ColumnHasBandAbove(planet, WorldConstants.WrapX(cx + r, circ), cz)
+            || _generator.ColumnHasBandAbove(planet, cx, cz - r)
+            || _generator.ColumnHasBandAbove(planet, cx, cz + r);
     }
 
     /// <summary>True if lava stands anywhere under a pad footprint (every lava body the generator makes), with the

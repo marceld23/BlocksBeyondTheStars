@@ -1104,6 +1104,10 @@ public sealed partial class GameServer
     public IReadOnlyList<StructurePlacementRecord> PlacementRecordsForTest
         => _meta.Placements.Where(r => r.LocationId == _world.LocationId).ToList();
 
+    /// <summary>#2334: how far under a structure's ground a cavern or a tunnel may not open — the plinth and the
+    /// shelf cut reach a few cells down, and a hall closer than this would be breached by the foundation fill.</summary>
+    private const int StructureFoundationDepth = 10;
+
     /// <summary>The guaranteed placement search (#586): first the classic gates (ring 1 — first-fit on dry,
     /// flat ground, no visual change where they succeed), then widening best-fit rings that rank every seen
     /// candidate (dry lowest-spread first, then water for stilt-capable kinds, lava last for lava-capable
@@ -1184,7 +1188,8 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (FootprintWet(planet, ox, oz, w, l) || FootprintSpread(planet, ox, oz, w, l) > maxSpread)
+            if (FootprintWet(planet, ox, oz, w, l) || FootprintSpread(planet, ox, oz, w, l) > maxSpread
+                || !_generator.FootprintClear(planet, ox, oz, w, l, StructureFoundationDepth)) // #2334: no arch above, no hall below
             {
                 continue;
             }
@@ -1250,9 +1255,9 @@ public sealed partial class GameServer
                 int dist = 40 + rng.Next(0, maxDist);
                 int cx = pad0X + (int)System.Math.Round(System.Math.Cos(ang) * dist);
                 int cz = System.Math.Clamp(pad0Z + (int)System.Math.Round(System.Math.Sin(ang) * dist), -latBand, latBand);
-                if (Blocked(cx, cz, margin))
+                if (Blocked(cx, cz, margin) || !_generator.FootprintClear(planet, cx - w / 2, cz - l / 2, w, l, StructureFoundationDepth))
                 {
-                    continue;
+                    continue; // reserved, or (#2334) under a band / over a void — never a seat
                 }
 
                 var c = EvaluateFootprint(planet, cx - w / 2, cz - l / 2, w, l);
@@ -1281,7 +1286,7 @@ public sealed partial class GameServer
                 for (int cx = pad0X + 40; cx < pad0X + circ - 40 && best is null; cx += 16)
                 {
                     int wxc = WorldConstants.WrapX(cx, circ);
-                    if (Blocked(wxc, cz, 2))
+                    if (Blocked(wxc, cz, 2) || !_generator.FootprintClear(planet, wxc - w / 2, cz - l / 2, w, l, StructureFoundationDepth))
                     {
                         continue;
                     }
