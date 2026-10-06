@@ -255,6 +255,17 @@ public sealed partial class GameServer
             }
         }
 
+        // Eight misses in a row (a corner sample every time): pull the last one onto the sphere — the field radius is a
+        // promise the shield taps and the tests read.
+        float len = (float)Math.Sqrt(x * x + y * y + z * z);
+        if (len > radius && len > 0f)
+        {
+            float k = radius / len;
+            x *= k;
+            y *= k;
+            z *= k;
+        }
+
         return new Vector3f(centre.X + x, centre.Y + y, centre.Z + z);
     }
 
@@ -406,8 +417,7 @@ public sealed partial class GameServer
     /// <see cref="DebrisFieldSettings.BumpShield"/> points, never below zero — the hull is never touched, a shieldless
     /// ship just hears the clank. Not on an EVA (the suit has no shield), not for a ship that sits still. The first tap of
     /// a flight says so once. The client plays the shield-hit cue and the camera jolt on the status drop itself.</summary>
-    private void TickDebrisBump(SpaceInstance instance, PlayerSession pilot, PilotSim sim, SpacePlayerPose pose, float speed,
-        bool inField, double dt)
+    private void TickDebrisBump(PlayerSession pilot, PilotSim sim, SpacePlayerPose pose, float speed, bool inField, double dt)
     {
         sim.DebrisBumpCooldown = Math.Max(0.0, sim.DebrisBumpCooldown - dt);
         var fields = _content.SpaceSalvage.Fields;

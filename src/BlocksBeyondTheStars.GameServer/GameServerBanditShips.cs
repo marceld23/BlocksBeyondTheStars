@@ -142,6 +142,7 @@ public sealed partial class GameServer
         var raider = instance.Entities.FirstOrDefault(e => e.Id == instance.BanditShipId);
         if (raider is null)
         {
+            instance.Structures.Remove(RaiderStructureId(instance.BanditShipId)); // #2357: no orphaned hull for late joiners
             instance.BanditShipId = string.Empty;
             return;
         }

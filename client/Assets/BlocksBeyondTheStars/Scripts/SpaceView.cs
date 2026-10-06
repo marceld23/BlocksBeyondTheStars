@@ -2472,7 +2472,7 @@ namespace BlocksBeyondTheStars.Client
             Game.LastShotTargetId = target.Id;
             Game.LastShotTime = Time.time;
             OnShotFired(target); // #2327: a shot at a rock with nothing locked locks it
-            bool mining = target.Kind == "Asteroid" || target.Kind == "Wreck"; // salvaging a derelict is mining (#1664)
+            bool mining = BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsMiningKind(target.Kind); // a derelict (#1664) and wreckage (#2353) are mined like rock
             Color col = mining ? new Color(1f, 0.7f, 0.25f) : new Color(0.45f, 1f, 1f);
 
             // #2156: every module its own look (data-driven fx) — they all drew the same 0.16-unit cube.
@@ -5099,6 +5099,7 @@ namespace BlocksBeyondTheStars.Client
                     // #2357: the raider's REAL hull arrives as a "ship_remote" design — possibly after the entity.
                     // Swap the placeholder wedge for the voxel ship as soon as the design is here.
                     if (e.Kind == "BanditShip" && !_voxelRaiders.Contains(e.Id) && RaiderDesignFor(e.Id) != null
+                        && Game.ChunkMaterial != null && Game.Atlas != null // the mesher needs both — else the wedge would churn every frame
                         && _entities.TryGetValue(e.Id, out var wedge))
                     {
                         if (wedge != null)

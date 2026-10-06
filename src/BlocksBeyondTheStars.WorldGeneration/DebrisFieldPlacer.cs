@@ -143,8 +143,9 @@ public static class DebrisFieldPlacer
     }
 
     /// <summary>A spot between the orbits: a seeded angle at a seeded radius inside the outermost body's orbit, moved
-    /// to the next of twelve candidate angles while a planet, moon or asteroid body is too close; when every angle is
-    /// crowded, the one with the most room wins.</summary>
+    /// to the next of twelve candidate angles while a planet, moon, asteroid or station body is too close. A crowded
+    /// system tries a middle ring next and finally a ring beyond the outermost orbit, which always has room — so the
+    /// clearance is a guarantee, not a hope.</summary>
     private static (float X, float Z) PositionIn(StarSystem system, long seed, int index)
     {
         float outer = 0f;
@@ -160,47 +161,55 @@ public static class DebrisFieldPlacer
         }
 
         // A one-body system has no "between": park the field at a fixed ring well outside that body.
-        float radius = outer > BodyClearance * 2f
+        float seeded = outer > BodyClearance * 2f
             ? outer * (0.35f + 0.55f * (float)Hash01(seed, "radius", index))
             : outer + BodyClearance * 1.5f;
         double angle0 = Hash01(seed, "angle", index) * Math.PI * 2.0;
 
         float bestX = 0f, bestZ = 0f, bestRoom = -1f;
-        for (int k = 0; k < 12; k++)
+        foreach (float radius in new[] { seeded, outer * 0.6f, outer + BodyClearance * 1.5f })
         {
-            double angle = angle0 + k * (Math.PI * 2.0 / 12.0);
-            float x = (float)(Math.Cos(angle) * radius);
-            float z = (float)(Math.Sin(angle) * radius);
-            float room = float.MaxValue;
-            foreach (var body in system.Bodies)
+            for (int k = 0; k < 12; k++)
             {
-                if (!IsSolid(body.Kind))
+                double angle = angle0 + k * (Math.PI * 2.0 / 12.0);
+                float x = (float)(Math.Cos(angle) * radius);
+                float z = (float)(Math.Sin(angle) * radius);
+                float room = float.MaxValue;
+                foreach (var body in system.Bodies)
                 {
-                    continue;
+                    if (!IsObstacle(body.Kind))
+                    {
+                        continue;
+                    }
+
+                    float dx = x - body.SystemX, dz = z - body.SystemZ;
+                    room = Math.Min(room, (float)Math.Sqrt(dx * dx + dz * dz));
                 }
 
-                float dx = x - body.SystemX, dz = z - body.SystemZ;
-                room = Math.Min(room, (float)Math.Sqrt(dx * dx + dz * dz));
-            }
+                if (room >= BodyClearance)
+                {
+                    return (x, z);
+                }
 
-            if (room >= BodyClearance)
-            {
-                return (x, z);
-            }
-
-            if (room > bestRoom)
-            {
-                bestRoom = room;
-                bestX = x;
-                bestZ = z;
+                if (room > bestRoom)
+                {
+                    bestRoom = room;
+                    bestX = x;
+                    bestZ = z;
+                }
             }
         }
 
-        return (bestX, bestZ);
+        return (bestX, bestZ); // unreachable in practice: the outer ring is at least 1.5 clearances from every body
     }
 
+    /// <summary>The sized bodies whose orbits define "between the orbits".</summary>
     private static bool IsSolid(CelestialKind kind)
         => kind is CelestialKind.Planet or CelestialKind.Moon or CelestialKind.AsteroidField;
+
+    /// <summary>Everything a field keeps clear of: the solid bodies and the stations (a field centred on a station would
+    /// tap every docking ship's shield). The wreck is a free-floater of its own and ignored.</summary>
+    private static bool IsObstacle(CelestialKind kind) => IsSolid(kind) || kind == CelestialKind.SpaceStation;
 
     private static int FixedIndex(string systemId)
         => systemId.Length > 3 && systemId.StartsWith("sys", StringComparison.Ordinal)

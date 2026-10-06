@@ -1950,7 +1950,7 @@ public sealed partial class GameServer
                     }
                 }
 
-                TickDebrisBump(instance, pilot, sim, pose, speed, inDebrisField, dt);
+                TickDebrisBump(pilot, sim, pose, speed, inDebrisField, dt);
                 if (hitAsteroid && speed > ShipCollisionMinSpeed)
                 {
                     if (sim.CollisionCooldown <= 0.0)

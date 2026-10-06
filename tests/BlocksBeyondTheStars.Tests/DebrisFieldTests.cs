@@ -104,7 +104,7 @@ public sealed class DebrisFieldTests : IDisposable
 
             Assert.Equal(sys.Id + "-d", field.Id);
             Assert.False(string.IsNullOrEmpty(field.Name));
-            foreach (var body in sys.Bodies.Where(b => b.Kind is CelestialKind.Planet or CelestialKind.Moon or CelestialKind.AsteroidField))
+            foreach (var body in sys.Bodies.Where(b => b.Kind is CelestialKind.Planet or CelestialKind.Moon or CelestialKind.AsteroidField or CelestialKind.SpaceStation))
             {
                 float dx = field.SystemX - body.SystemX, dz = field.SystemZ - body.SystemZ;
                 Assert.True(Math.Sqrt(dx * dx + dz * dz) >= DebrisFieldPlacer.BodyClearance - 0.01, $"{field.Id} sits inside {body.Id}");

@@ -45,8 +45,11 @@ fixedCount, settings, archetypeOf)` right **after** the wormhole placer:
   and a growing galaxy never gains or moves a field.
 - Odds = `Frequency.Probability()` × the system archetype's multiplier, rolled with the salt `debrisfield:`. At most
   one field per system, as a `CelestialKind.DebrisField` body with id `<sys>-d`, a coined ship name and a position
-  between the orbits with `BodyClearance` (220 system units) from every planet / moon / asteroid body (twelve
-  candidate angles, the roomiest wins when every angle is crowded).
+  between the orbits with `BodyClearance` (220 system units) from every planet / moon / asteroid / station body:
+  twelve candidate angles on a seeded ring, then a middle ring, then a ring beyond the outermost orbit — which always
+  has room, so the clearance is a guarantee (`Placer_NeverTouchesAStorySystem_AndKeepsClearOfEveryBody`). The one
+  station the placer cannot see is the start station `EnsureStartSystemStation` adds afterwards when the start system
+  rolled none — it skips the field as an obstacle on purpose (see above), so in that one case the two may overlap.
 - Why after the wormholes: an end's radius is measured over *all* bodies of its system. Why `SeparateFromBodies`
   skips the new kind: `EnsureStartSystemStation` runs later and treats every non-free-floater as an obstacle — a
   debris body would have moved the start station in an existing save.
