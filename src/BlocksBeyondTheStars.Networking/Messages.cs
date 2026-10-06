@@ -1552,6 +1552,10 @@ public sealed class NetBody
     /// Saturn-like ring system around this planet, deriving tilt/bands/hue from the seed. Purely
     /// cosmetic; an additive contractless field, so old clients/servers simply ignore it.</summary>
     public int RingSeed { get; set; }
+
+    /// <summary>#2354: a space wreck salvaged down to nothing — the chart and the travel screen say "salvaged" instead
+    /// of "fly there to salvage", and the flight holds no hull at its position any more. Additive.</summary>
+    public bool Salvaged { get; set; }
 }
 
 public sealed class NetStarSystem
@@ -1726,6 +1730,10 @@ public sealed class NetCombatEntity
     /// the client draws sparks (machines) or circling stars (bandits) over it. Contractless-additive like
     /// <see cref="Scale"/>: an older client ignores it and an older server leaves it false, so no protocol bump.</summary>
     public bool Staggered { get; set; }
+
+    /// <summary>#2357: the heading (degrees about Y, the client's Euler Y) of an entity that flies a real hull — the
+    /// raider turns its voxel ship toward its course. 0 for everything else. Contractless-additive like <see cref="Scale"/>.</summary>
+    public float Yaw { get; set; }
 }
 
 /// <summary>Authoritative ship hull/shield, sent on join and whenever they change.</summary>

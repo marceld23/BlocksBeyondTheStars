@@ -326,6 +326,12 @@ namespace BlocksBeyondTheStars.Client
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.continents"), galaxyOnOff,
                 () => opt.TerrainContinents ? 1 : 0, v => opt.TerrainContinents = v == 1, rebuilders: null);
 
+            // Debris fields (#2353): how many systems hold one. Here, not on the main page — its grid is full
+            // (WorldOptionsLayoutTests pins the footer clearance), and the wormholes already took the last row there.
+            y += 62f;
+            AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.debris_fields"), freqSteps,
+                () => opt.DebrisFields, v => opt.DebrisFields = v, rebuilders: null);
+
             // Landscape-variety package (#1644): the terrain generation is pinned to the newest one this launcher
             // knows (WorldCreationOptions.TerrainGeneration) — shown read-only so the panel says which landform
             // set the new world rolls; the classic set (0) stays a server-CLI escape hatch, not a slider.

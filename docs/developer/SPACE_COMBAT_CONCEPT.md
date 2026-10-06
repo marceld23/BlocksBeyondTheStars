@@ -16,6 +16,14 @@ scope of the server MVP that ships with milestone **M19**.
 > (`GameServerWrecks`); and peaceful **NPC trader ships** (`GameServerSpaceTraders`). Still
 > deferred: per-player/multiple ships and PvP ship combat, module-level damage/overheating,
 > large cruiser/boss events.
+>
+> **Status note (2026-10-06, #2351):** raiders (`GameServerBanditShips`) now fly **real voxel hulls** from the
+> content ship designs in a dyed livery and face their course (`NetCombatEntity.Yaw`); a destroyed drone, saucer,
+> cruiser or raider leaves **combat debris** — voxel fragments carved for scrap (`GameServerDebrisFields`); **debris
+> fields** are a star-map location of their own with fragments, once-per-galaxy salvage capsules and a flight recorder,
+> and their rubble taps the shield (never the hull); the space wreck's salvage pays **once** (a persisted ledger). See
+> [DEBRIS_FIELDS.md](DEBRIS_FIELDS.md). The "salvage of defeated ships" item below is thereby landed in its PvE form;
+> boarding a defeated ship remains deferred.
 
 ## Decision
 

@@ -125,5 +125,11 @@
   "lore.site.observatory_log": "Gözlem noktası 9, son kayıt: “Kubbe toza karşı kapatıldı. Gökyüzü üç gecedir yanlış — röleler sıra dışı cevap veriyor, sanki aralarında önce bir şey dinliyor. Ev hâlâ cevap verirken kaydı eve gönderiyorum.”",
   "lore.site.derelict_manifest": "Yük manifestosu, elle düzeltilmiş: “Su, tohum stoku, kırk yolcu.” Kırk üzeri çizilmiş. Altında, daha küçük yazıyla: “Otuz dokuz. Pod sayısı tutması için o kaldı. Adını hatırla.”",
   "lore.site.anomaly_echo": "Tarama kendi ping’ini döndürüyor — yarım saniye erken. Arşiv bunu ‘echo, impossible’ başlığıyla kayıt ediyor ve daha eski bir elde ‘gökyüzü hatırlar’ diye not düşülmüş.",
-  "lore.site.anomaly_choir": "Anomali sesini üst üste koyunca seslere çözülüyor — düzinelerce, hepsi aynı sayıları okuyor. Seyrüsefer işaretleri. Anomali yıllardır kimseye değil, eski Servis’in konumlarını hep ezberliyormuş."
+  "lore.site.anomaly_choir": "Anomali sesini üst üste koyunca seslere çözülüyor — düzinelerce, hepsi aynı sayıları okuyor. Seyrüsefer işaretleri. Anomali yıllardır kimseye değil, eski Servis’in konumlarını hep ezberliyormuş.",
+  "lore.site.debris_freighter_log": "Uçuş kaydedici, yük gemisi: “Dönüşte üçüncü yük kayışı koptu. Konteynerler her yerde. Kimse yaralanmadı — aslında gülüyoruz. Dökülenleri isteyenler için kayda geçiriyorum. Keskin parçalara dikkat.”",
+  "lore.site.debris_shipyard_tag": "Kaplamada hâlâ okunabilen bir tersane etiketi: “REDDEDİLDİ — saç telince çatlak, uymaz.” Tersane kapandığında buralara yüzlercesi sürüklendi. Dürüst hurda: her parça umursayan biri tarafından bakılmıştı.",
+  "lore.site.debris_satellite_last": "Uydu kaydı, son kareler: bir yıldız sayımı, aşağıdaki bir dünyanın hava haritası, sonra el ile yazılmış tek bir satır — “Manzara için teşekkürler.” Bunu okuyan röle uyduya göre çok daha önce yok oldu.",
+  "lore.site.debris_alien_hum": "Kayıt cihazı kayıt cihazı değil. Bir nota vızıldıyor ve etrafındaki kristal parçaları beşinci daha yukarıya vızıltıyla yanıt veriyor. Katalogdaki hiçbir şey bu aralıklarda şarkı söylemiyor. Arşiv bunu ‘enstrüman?’ olarak dosyalamış.",
+  "lore.site.debris_battle_order": "Kanaldaki son emir, sakin bir sesle: “Ayrılın. Herkes ayrılın — hiç biriniz buna değmez.” Enkaz onların dinlediğini söylüyor; gövdeler boş, podlar çoktan gitmiş.",
+  "lore.site.debris_recorder": "Enkazda hâlâ tikleyen bir uçuş kaydedici — son konum, son yön, ve kimsenin okunacağını beklemediği bir not: “Bunu bulduysan, alan senin. İşine yarayanı al.”"
 }

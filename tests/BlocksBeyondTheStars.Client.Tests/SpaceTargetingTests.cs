@@ -92,8 +92,26 @@ public sealed class SpaceTargetingTests
         // #2327/#2328: what the mining beam carves, and which weapon classes open the mining context.
         Assert.True(SpaceTargeting.IsMiningKind("Asteroid"));
         Assert.True(SpaceTargeting.IsMiningKind("Wreck"));
+        Assert.True(SpaceTargeting.IsMiningKind("Debris")); // #2353: a wreckage fragment carves like a rock
         Assert.False(SpaceTargeting.IsMiningKind("Drone"));
         Assert.False(SpaceTargeting.IsMiningKind("ResourceDrop"));
+
+        // #2353: the debris field's marker is a navigation point the scanner reads; fragments are fire targets but never
+        // in the plain cycle (they join it in a mining context like rocks); a capsule is pulled in like a drop.
+        Assert.True(SpaceTargeting.IsNavigationKind("DebrisField"));
+        Assert.True(SpaceTargeting.IsStaticEncounterKind("DebrisField"));
+        Assert.True(SpaceTargeting.IsScannableKind("DebrisField"));
+        Assert.True(SpaceTargeting.IsCycleKind("DebrisField"));
+        Assert.False(SpaceTargeting.IsFireTargetKind("DebrisField"));
+        Assert.True(SpaceTargeting.IsFireTargetKind("Debris"));
+        Assert.False(SpaceTargeting.IsCycleKind("Debris"));
+        Assert.False(SpaceTargeting.IsScannableKind("Debris"));
+        Assert.True(SpaceTargeting.IsCollectableKind("ResourceDrop"));
+        Assert.True(SpaceTargeting.IsCollectableKind("SalvageCapsule"));
+        Assert.False(SpaceTargeting.IsCollectableKind("Debris"));
+        Assert.False(SpaceTargeting.IsFireTargetKind("SalvageCapsule"));
+        Assert.True(SpaceTargeting.WeaponSuits(0, "Debris"));  // the breaker mines wreckage
+        Assert.False(SpaceTargeting.WeaponSuits(1, "Debris")); // a pure cannon does not
         Assert.True(SpaceTargeting.CanMine(0));  // the asteroid breaker
         Assert.False(SpaceTargeting.CanMine(1)); // a pure combat cannon
         Assert.True(SpaceTargeting.CanMine(2));  // the starter laser does both

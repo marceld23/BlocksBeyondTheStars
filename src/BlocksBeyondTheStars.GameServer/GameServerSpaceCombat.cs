@@ -30,6 +30,9 @@ public enum CombatEntityKind
     Anomaly,      // #1129: a shimmering unknown — scan it for knowledge + a lore text (never hostile)
     Wreck,        // #1664: the star map's derelict ship — a voxel hull you carve for salvage (never hostile)
     Wormhole,     // #2242: a tear in space-time to a twin in another star system — fly through it (never hostile)
+    DebrisField,  // #2353: a debris field's marker — chart / radar / waypoint / scanner target, its flight recorder (never hostile)
+    Debris,       // #2353/#2356: a wreckage fragment — a small voxel hull carved for scrap like an asteroid (never hostile)
+    SalvageCapsule, // #2353: a sealed salvage capsule — collected like a resource drop, pays once per galaxy (never hostile)
 }
 
 /// <summary>A server-authoritative combat entity (space object or planet enemy).</summary>
@@ -124,6 +127,14 @@ public sealed class CombatEntity
 
     /// <summary>What this entity drops when destroyed.</summary>
     public List<ItemAmount> Loot { get; set; } = new();
+
+    /// <summary>#2357: heading in degrees about Y for an entity that flies a real hull (the raider turns its voxel ship
+    /// toward its course). On the wire as <c>NetCombatEntity.Yaw</c>; 0 for everything else.</summary>
+    public float Yaw { get; set; }
+
+    /// <summary>#2353: for a debris fragment or a salvage capsule — the debris field body it belongs to. Empty for the
+    /// fragments a destroyed ship leaves (#2356), which the per-instance cap counts.</summary>
+    public string FieldId { get; set; } = string.Empty;
 
     // --- Hostile-NPC movement state (space drones/UFOs/cruisers patrol + chase; server-only) ---
     public bool PatrolInitialized { get; set; }
@@ -346,6 +357,12 @@ public sealed class PilotSim
 {
     public Vector3f LastPosition { get; set; }
     public double CollisionCooldown { get; set; }
+
+    /// <summary>#2355: seconds until drifting debris may tap this pilot's shield again.</summary>
+    public double DebrisBumpCooldown { get; set; }
+
+    /// <summary>#2355: the "debris is tapping the shield" line went out once this flight.</summary>
+    public bool DebrisBumpToasted { get; set; }
 }
 
 /// <summary>
@@ -733,9 +750,9 @@ public sealed partial class GameServer
             // The system's derelict (#1664) is a voxel hull of the same family.
             foreach (var st in instance.Structures.Values)
             {
-                if (st.Kind == "asteroid" || st.Kind == "station" || st.Kind == "wreck")
+                if (st.Kind == "asteroid" || st.Kind == "station" || st.Kind == "wreck" || st.Kind == "debris")
                 {
-                    SendShipDesign(session, st);
+                    SendShipDesign(session, st); // a debris fragment (#2353/#2356) is a voxel hull of the same family
                 }
             }
 
@@ -798,6 +815,7 @@ public sealed partial class GameServer
             if (instance.Players.Count == 0)
             {
                 StashFloatingSalvage(instance); // #1475: uncollected ore outlives the flight
+                PersistSpaceSalvageLedger();    // #2354: a half-carved wreck keeps its state across the teardown
                 _spaceInstances.Remove(instanceId);
             }
         }
@@ -845,6 +863,7 @@ public sealed partial class GameServer
         AddBeltRockClusters(instance, anchor); // #683 S2: mineable rocks AT the system's asteroid bodies
         AddSpaceWrecks(instance, anchor);      // #1664: the system's derelict, AT its star-map position
         AddSpaceWormholes(instance, anchor);   // #2242: the system's wormhole end, if it has one
+        AddDebrisFields(instance, anchor);     // #2353: the system's debris field — fragments, capsules, the recorder
 
         AddStationContacts(instance);
         AddPersistedStations(instance); // item 20 S4: re-create player-built stations floating in this instance
@@ -1198,10 +1217,15 @@ public sealed partial class GameServer
         target.Hull -= weapon.Damage;
 
         // item 20 S3: a voxel ore asteroid carves down to match its hull as you shoot it (visible depletion).
-        // A derelict hull (#1664) is salvaged the same way — plating comes off shot by shot.
-        if (target.Kind is CombatEntityKind.Asteroid or CombatEntityKind.Wreck && instance.Structures.ContainsKey(target.Id))
+        // A derelict hull (#1664) is salvaged the same way — plating comes off shot by shot — and so is a
+        // debris fragment (#2353).
+        if (IsCarvedKind(target.Kind) && instance.Structures.ContainsKey(target.Id))
         {
             CarveAsteroidToHull(instance, target);
+            if (target.Kind == CombatEntityKind.Wreck)
+            {
+                NoteWreckHull(instance, target); // #2354: the carved state outlives the flight
+            }
         }
 
         if (target.Hull > 0f)
@@ -1218,6 +1242,11 @@ public sealed partial class GameServer
         // Destroyed. A large/medium asteroid splits into smaller chunks instead of dropping loot;
         // only the smallest asteroids (and other entities) yield resources.
         instance.Entities.Remove(target);
+        if (LeavesCombatDebris(target.Kind))
+        {
+            SpawnCombatDebris(instance, target); // #2356: wreckage — before the raider's hull structure goes below
+        }
+
         if (target.Kind == CombatEntityKind.BanditShip)
         {
             OnBanditShipKilled(instance, target); // a person, not a Guardian machine — no story credit
@@ -1237,22 +1266,51 @@ public sealed partial class GameServer
             }
         }
 
-        if (target.Kind is CombatEntityKind.Asteroid or CombatEntityKind.Wreck && instance.Structures.ContainsKey(target.Id))
+        if (IsCarvedKind(target.Kind) && instance.Structures.ContainsKey(target.Id))
         {
             RemoveAsteroidStructure(instance, target.Id); // S3: drop the voxel body too (loot handled below)
             // fall through to the loot branch (voxel asteroids are tier 0 → they yield ore)
         }
 
-        if (target.Kind == CombatEntityKind.Wreck && session is not null)
+        if (target.Kind == CombatEntityKind.Wreck)
         {
-            MarkSpaceWreckVisited(session, target.Id); // #1664: salvaged down to nothing counts as having been there
+            CompleteWreckSalvage(target.Id); // #2354: salvaged down to nothing — gone for good, paid once
+            if (session is not null)
+            {
+                MarkSpaceWreckVisited(session, target.Id); // #1664: salvaged down to nothing counts as having been there
+            }
         }
 
         if (target.Kind == CombatEntityKind.Asteroid && target.AsteroidTier > 0)
         {
             SplitAsteroid(instance, target);
         }
-        else if (target.Loot.Count > 0 && _ship.HasModule(TractorModule))
+        else
+        {
+            PayEntityLoot(instance, target, session);
+        }
+
+        BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = target.Id });
+        BroadcastSpaceState(instance);
+    }
+
+    /// <summary>The voxel kinds a weapon carves cell by cell and an EVA pick hand-mines: asteroids, the derelict wreck
+    /// (#1664) and debris fragments (#2353).</summary>
+    private static bool IsCarvedKind(CombatEntityKind kind)
+        => kind is CombatEntityKind.Asteroid or CombatEntityKind.Wreck or CombatEntityKind.Debris;
+
+    /// <summary>Pays a destroyed entity's loot: with a tractor beam fitted it floats as a salvage drop to be collected;
+    /// otherwise it goes straight to the backpack and the hold, whatever finds no room floating as a drop (#1475), with
+    /// the "+n → where" toasts (#1317). Shared by the laser kill and the EVA pick that mines a hull to nothing (#2354 —
+    /// the pick used to remove a wreck without paying its salvage). The ship cursor must point at the collector.</summary>
+    private void PayEntityLoot(SpaceInstance instance, CombatEntity target, PlayerSession? session)
+    {
+        if (target.Loot.Count == 0)
+        {
+            return;
+        }
+
+        if (_ship.HasModule(TractorModule))
         {
             // With a tractor beam fitted, loot floats as a salvage drop to be collected, instead of
             // teleporting into the inventory.
@@ -1266,45 +1324,46 @@ public sealed partial class GameServer
                 Position = target.Position,
                 Loot = new List<ItemAmount>(target.Loot),
             });
+            return;
         }
-        else if (session is not null)
+
+        if (session is null)
         {
-            var pool = new MaterialPool(_content, session.State, _ship);
-            var backpackBefore = target.Loot.Select(l => session.State.Inventory.CountOf(l.Item)).ToList();
-            var cargoBefore = target.Loot.Select(l => _ship.Cargo.CountOf(l.Item)).ToList();
-            BankLoot(session, pool, target.Loot); // target is already destroyed — warn rather than lose it silently
-            // #1475: whatever found no room floats as salvage at the rock instead of vanishing — space has no
-            // drop packets, so this is its lossless path (a tractor beam, or flying through it, collects it later).
-            var leftovers = pool.TakeLeftovers();
-            if (leftovers.Count > 0)
-            {
-                instance.Entities.Add(new CombatEntity
-                {
-                    Id = NextEntityId(),
-                    Kind = CombatEntityKind.ResourceDrop,
-                    Hostile = false,
-                    Hull = 1f,
-                    HullMax = 1f,
-                    Position = target.Position,
-                    Loot = leftovers,
-                });
-            }
-
-            SendInventory(session);
-
-            // #1317: say where the ore went. The pool fills the backpack first and the hold after, and until
-            // now neither path said a word — "what happens after I break it?" was a support question.
-            for (int i = 0; i < target.Loot.Count; i++)
-            {
-                var l = target.Loot[i];
-                QueueLootToast(session, l.Item,
-                    toBackpack: System.Math.Max(0, session.State.Inventory.CountOf(l.Item) - backpackBefore[i]),
-                    toCargo: System.Math.Max(0, _ship.Cargo.CountOf(l.Item) - cargoBefore[i]));
-            }
+            return;
         }
 
-        BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = target.Id });
-        BroadcastSpaceState(instance);
+        var pool = new MaterialPool(_content, session.State, _ship);
+        var backpackBefore = target.Loot.Select(l => session.State.Inventory.CountOf(l.Item)).ToList();
+        var cargoBefore = target.Loot.Select(l => _ship.Cargo.CountOf(l.Item)).ToList();
+        BankLoot(session, pool, target.Loot); // target is already destroyed — warn rather than lose it silently
+        // #1475: whatever found no room floats as salvage at the rock instead of vanishing — space has no
+        // drop packets, so this is its lossless path (a tractor beam, or flying through it, collects it later).
+        var leftovers = pool.TakeLeftovers();
+        if (leftovers.Count > 0)
+        {
+            instance.Entities.Add(new CombatEntity
+            {
+                Id = NextEntityId(),
+                Kind = CombatEntityKind.ResourceDrop,
+                Hostile = false,
+                Hull = 1f,
+                HullMax = 1f,
+                Position = target.Position,
+                Loot = leftovers,
+            });
+        }
+
+        SendInventory(session);
+
+        // #1317: say where the ore went. The pool fills the backpack first and the hold after, and until
+        // now neither path said a word — "what happens after I break it?" was a support question.
+        for (int i = 0; i < target.Loot.Count; i++)
+        {
+            var l = target.Loot[i];
+            QueueLootToast(session, l.Item,
+                toBackpack: System.Math.Max(0, session.State.Inventory.CountOf(l.Item) - backpackBefore[i]),
+                toCargo: System.Math.Max(0, _ship.Cargo.CountOf(l.Item) - cargoBefore[i]));
+        }
     }
 
     /// <summary>Validates the client's reported firing direction (the ship's nose) against the claimed
@@ -1400,7 +1459,7 @@ public sealed partial class GameServer
     {
         reason = string.Empty;
 
-        if (target.Kind is CombatEntityKind.Asteroid or CombatEntityKind.Wreck)
+        if (IsCarvedKind(target.Kind))
         {
             // Asteroid mining/breaking is governed by AsteroidDestruction, independent of combat. A derelict
             // hull (#1664) is salvage, not a fight — it follows the same rule.
@@ -1565,7 +1624,7 @@ public sealed partial class GameServer
 
         var shipPos = PilotPositionIn(instance, playerId); // #994: sweep around the collector's own ship
         bool changed = false;
-        foreach (var drop in instance.Entities.Where(e => e.Kind == CombatEntityKind.ResourceDrop).ToList())
+        foreach (var drop in instance.Entities.Where(e => IsCollectableDrop(e.Kind)).ToList())
         {
             if (drop.Position.DistanceSquared(shipPos) > range * range)
             {
@@ -1621,10 +1680,19 @@ public sealed partial class GameServer
         if (drop.Loot.Count == 0)
         {
             instance.Entities.Remove(drop);
+            if (drop.Kind == CombatEntityKind.SalvageCapsule)
+            {
+                OnSalvageCapsuleCollected(drop); // #2354: paid once per galaxy
+            }
         }
 
         return stowed;
     }
+
+    /// <summary>What the tractor pulls in and a hull collects by flying through: salvage drops and the debris fields'
+    /// sealed capsules (#2353).</summary>
+    private static bool IsCollectableDrop(CombatEntityKind kind)
+        => kind is CombatEntityKind.ResourceDrop or CombatEntityKind.SalvageCapsule;
 
     private const double LootToastCooldown = 1.5; // one "+n Ore → cargo hold" toast per burst of fragments (#1317)
 
@@ -1698,8 +1766,7 @@ public sealed partial class GameServer
 
         if (!string.IsNullOrEmpty(targetId))
         {
-            var drop = instance.Entities.FirstOrDefault(e => e.Id == targetId
-                && e.Kind == CombatEntityKind.ResourceDrop);
+            var drop = instance.Entities.FirstOrDefault(e => e.Id == targetId && IsCollectableDrop(e.Kind));
             if (drop is null)
             {
                 return; // already collected / gone — no need to nag
@@ -1863,6 +1930,7 @@ public sealed partial class GameServer
                 // (two closures + an enumerator chain per pilot per tick before). The fire sum accumulates in
                 // double like Enumerable.Sum(float) did.
                 bool hitAsteroid = false;
+                bool inDebrisField = false;
                 double incomingSum = 0.0;
                 foreach (var e in instance.Entities)
                 {
@@ -1871,12 +1939,18 @@ public sealed partial class GameServer
                     {
                         hitAsteroid = true;
                     }
+                    else if (e.Kind == CombatEntityKind.DebrisField && !inDebrisField && InsideDebrisField(e, pose.Pos))
+                    {
+                        inDebrisField = true; // #2355: the rubble taps the shield below
+                    }
 
                     if (e.Hostile && dsq <= ShipEngageRange * ShipEngageRange)
                     {
                         incomingSum += e.DamagePerSecond;
                     }
                 }
+
+                TickDebrisBump(instance, pilot, sim, pose, speed, inDebrisField, dt);
                 if (hitAsteroid && speed > ShipCollisionMinSpeed)
                 {
                     if (sim.CollisionCooldown <= 0.0)
@@ -2224,6 +2298,7 @@ public sealed partial class GameServer
 
             float step = System.Math.Min((float)(moveSpeed * dt), maxStep) / norm;
             e.Position = new Vector3f(e.Position.X + tx * step, e.Position.Y + ty * step, e.Position.Z + tz * step);
+            FaceCourse(e, tx, tz); // #2357: a raider's voxel hull turns toward its course
             moved = true;
         }
 
@@ -2264,7 +2339,13 @@ public sealed partial class GameServer
     private void DisableShip(SpaceInstance instance)
     {
         bool keepShip = Rules.KeepShipOnDeath;
-        string shipOwnerId = instance.Structures.Values.FirstOrDefault(s => s.Kind == "ship")?.OwnerId ?? string.Empty;
+        // #2357: the defeated pilot's OWN hull — the ship cursor points at them. The first "ship" structure used to do,
+        // but an NPC trader's or a raider's ownerless hull (kind "ship" too) can come first in the dictionary.
+        string currentId = _current?.State.PlayerId ?? string.Empty;
+        string shipOwnerId = (instance.Structures.TryGetValue("ship:" + currentId, out var ownHull)
+                ? ownHull
+                : instance.Structures.Values.FirstOrDefault(s => s.Kind == "ship" && s.OwnerId.Length > 0))?.OwnerId
+            ?? string.Empty;
 
         if (keepShip)
         {
@@ -2416,6 +2497,7 @@ public sealed partial class GameServer
         Z = e.Position.Z,
         Scale = e.Scale,
         Staggered = IsStaggered(e), // #2278: a pushed machine or bandit is dazed for a moment
+        Yaw = e.Yaw,                // #2357: the raider's heading for its voxel hull
     };
 
     private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false, bool hyperjump = false,

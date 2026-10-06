@@ -135,6 +135,12 @@ public static class ContentLoader
             ? JsonSerializer.Deserialize<WormholeDefinition>(File.ReadAllText(wormholeFile), JsonOptions)
             : null);
 
+        // The space salvage data (#2352): no space_salvage.json → the defaults (the numbers that shipped before it).
+        string salvageFile = Path.Combine(dataDir, "space_salvage.json");
+        content.SetSpaceSalvage(File.Exists(salvageFile)
+            ? JsonSerializer.Deserialize<SpaceSalvageDefinition>(File.ReadAllText(salvageFile), JsonOptions)
+            : null);
+
         content.Validate();
         return content;
     }

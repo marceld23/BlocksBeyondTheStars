@@ -81,6 +81,9 @@ public static class SpaceTargeting
     public const string EscapePod = "EscapePod";
     public const string Anomaly = "Anomaly";
     public const string Wormhole = "Wormhole";
+    public const string DebrisField = "DebrisField";       // #2353: the field's marker (its flight recorder)
+    public const string Debris = "Debris";                 // #2353/#2356: a wreckage fragment — mined like a rock
+    public const string SalvageCapsule = "SalvageCapsule"; // #2353: a sealed capsule — pulled in like a salvage drop
 
     /// <summary>Synthetic kind of another pilot (not a server entity kind).</summary>
     public const string PilotKind = "Pilot";
@@ -121,28 +124,34 @@ public static class SpaceTargeting
 
     /// <summary>The fixed navigation points of a system — lockable from anywhere in it, like the radar pins them.</summary>
     public static bool IsNavigationKind(string? kind)
-        => kind == SpaceStation || kind == Wreck || kind == EscapePod || kind == Anomaly || kind == Wormhole;
+        => kind == SpaceStation || kind == Wreck || kind == EscapePod || kind == Anomaly || kind == Wormhole || kind == DebrisField;
 
-    /// <summary>The encounters that never move (life pod, anomaly, wormhole).</summary>
-    public static bool IsStaticEncounterKind(string? kind) => kind == EscapePod || kind == Anomaly || kind == Wormhole;
+    /// <summary>The encounters that never move (life pod, anomaly, wormhole, a debris field's marker).</summary>
+    public static bool IsStaticEncounterKind(string? kind)
+        => kind == EscapePod || kind == Anomaly || kind == Wormhole || kind == DebrisField;
 
-    /// <summary>What the ship's weapons shoot: hostile ships, asteroids and the wreck (salvage is mined with the beam).</summary>
-    public static bool IsFireTargetKind(string? kind) => kind == Asteroid || kind == Wreck || IsHostileShipKind(kind);
+    /// <summary>What the ship's weapons shoot: hostile ships, asteroids, the wreck and debris fragments (salvage is
+    /// mined with the beam).</summary>
+    public static bool IsFireTargetKind(string? kind) => IsMiningKind(kind) || IsHostileShipKind(kind);
 
     /// <summary>The space objects the ship scanner reads (mirrors the server's list).</summary>
     public static bool IsScannableKind(string? kind)
         => kind == Asteroid || kind == Anomaly || kind == Wreck || kind == EscapePod || kind == SpaceStation
-           || kind == Wormhole || IsHostileShipKind(kind);
+           || kind == Wormhole || kind == DebrisField || IsHostileShipKind(kind);
+
+    /// <summary>What the tractor beam pulls in (a locked one in reach is the one pulled): salvage drops and the
+    /// debris fields' sealed capsules (#2353).</summary>
+    public static bool IsCollectableKind(string? kind) => kind == ResourceDrop || kind == SalvageCapsule;
 
     /// <summary>The entity kinds the cycle keys always walk. Asteroids, salvage drops and planets are left out (a belt
     /// would bury the enemies under twenty rocks) — "target ahead" reaches them, and the mining context (#2328) lets the
     /// nearest rocks in (see <see cref="Tier"/>).</summary>
     public static bool IsCycleKind(string? kind) => IsHostileShipKind(kind) || IsNavigationKind(kind);
 
-    /// <summary>What the mining beam carves: asteroids and the derelict wreck — the targets <see cref="WeaponSuits"/>
-    /// gives a mining tool. The mining lock (#2327: a shot locks one, after it breaks the lock moves to the next in
-    /// reach) and the mining context of the cycle (#2328) read this list.</summary>
-    public static bool IsMiningKind(string? kind) => kind == Asteroid || kind == Wreck;
+    /// <summary>What the mining beam carves: asteroids, the derelict wreck and debris fragments (#2353) — the targets
+    /// <see cref="WeaponSuits"/> gives a mining tool. The mining lock (#2327: a shot locks one, after it breaks the lock
+    /// moves to the next in reach) and the mining context of the cycle (#2328) read this list.</summary>
+    public static bool IsMiningKind(string? kind) => kind == Asteroid || kind == Wreck || kind == Debris;
 
     /// <summary>Whether a ship weapon of <paramref name="weaponClass"/> (<c>weapon_class</c>: 0 mining tool, 1 combat,
     /// 2 both) can mine. A pure combat cannon breaks rocks only where the server rules allow it, so it never opens the
@@ -166,7 +175,7 @@ public static class SpaceTargeting
             return weaponClass != 0;
         }
 
-        return (kind == Asteroid || kind == Wreck) && weaponClass != 1;
+        return IsMiningKind(kind) && weaponClass != 1;
     }
 
     /// <summary>True for an NPC trader's pose id.</summary>
@@ -247,8 +256,9 @@ public static class SpaceTargeting
             return InLockRange(c.Kind, c.Distance, lockRange, pingActive) ? 4 : -1;
         }
 
-        if (c.Kind == Asteroid)
+        if (c.Kind == Asteroid || c.Kind == Debris)
         {
+            // Rocks and wreckage fragments (#2353) join the cycle only in a mining context, nearest first.
             return miningRange > 0f && c.Distance <= miningRange && InLockRange(c.Kind, c.Distance, lockRange, pingActive) ? RockTier : -1;
         }
 

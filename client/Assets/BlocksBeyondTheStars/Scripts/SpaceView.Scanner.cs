@@ -361,8 +361,9 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
-        /// <summary>An entity's rough size in the flight frame (brackets, effect box, apparent size).</summary>
-        private static float TargetRadius(NetCombatEntity e)
+        /// <summary>An entity's rough size in the flight frame (brackets, effect box, apparent size). An instance method
+        /// since #2357: a raider's radius follows the voxel design cached for it.</summary>
+        private float TargetRadius(NetCombatEntity e)
         {
             float s = Mathf.Max(1f, e.Scale);
             switch (e.Kind)
@@ -374,6 +375,10 @@ namespace BlocksBeyondTheStars.Client
                 case "Anomaly": return 3.5f;
                 case "EscapePod": return 2.5f;
                 case "Cruiser": return 4.5f;
+                case "DebrisField": return 6f;    // #2353: the recorder's beacon, roomy brackets
+                case "Debris": return 2f;         // #2353: a few cells of plating
+                case "SalvageCapsule": return 2f;
+                case "BanditShip": return RaiderDesignRadius(e); // #2357: the real hull's extent, else the wedge's
                 default: return 2.5f * s;
             }
         }
@@ -391,6 +396,9 @@ namespace BlocksBeyondTheStars.Client
                 case "Cruiser": return Loc("ui.scan.subject.cruiser", "Guardian cruiser");
                 case "BanditShip": return string.IsNullOrEmpty(e.Name) ? Loc("ui.scan.subject.bandit_ship", "Raider ship") : e.Name;
                 case "Wormhole": return WormholeLabel(e.Id);
+                case "DebrisField": return Loc("ui.scan.subject.debris_field", "Debris field") + (string.IsNullOrEmpty(e.Name) ? string.Empty : ": " + e.Name); // #2353
+                case "Debris": return Loc("ui.scan.subject.debris", "Wreckage");
+                case "SalvageCapsule": return Loc("ui.scan.subject.salvage_capsule", "Salvage capsule");
                 default: return string.IsNullOrEmpty(e.Name) ? e.Kind : e.Name;
             }
         }

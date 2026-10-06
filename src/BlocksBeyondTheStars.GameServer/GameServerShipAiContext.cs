@@ -139,6 +139,8 @@ public sealed partial class GameServer
         // the chart click + autopilot with an AI core Mk2 or better, else the radar's ▲/▼ height cue.
         new("wreck_signal",   VegaTipPriority.Opportunity, 5,  900, 2, true),
         new("wreck_signal_manual", VegaTipPriority.Opportunity, 5, 900, 2, true),
+        // #2353: a debris field drifts in this system — chart click + waypoint, like the wreck.
+        new("debris_signal",  VegaTipPriority.Opportunity, 5,  900, 2, true),
         new("jump_ready",     VegaTipPriority.Opportunity, 0, 1800, 2, true),
     };
 
@@ -747,6 +749,7 @@ public sealed partial class GameServer
         var pos = instance.PlayerPoses.TryGetValue(p.PlayerId, out var pose) ? pose.Pos : instance.ShipPosition;
         bool asteroidNear = false, stationNear = false;
         CombatEntity? wreck = null;
+        CombatEntity? field = null;
         foreach (var e in instance.Entities)
         {
             if (e.Kind == CombatEntityKind.Asteroid && !asteroidNear && DistSq(pos, e.Position) <= 80.0 * 80.0)
@@ -762,6 +765,11 @@ public sealed partial class GameServer
             {
                 wreck = e; // not visited yet, and not already right in front of the nose
             }
+            else if (e.Kind == CombatEntityKind.DebrisField && field is null && !p.Scanned.Contains(DebrisFieldScanKey(e.Id))
+                     && DistSq(pos, e.Position) > VegaTipWreckQuietRange * VegaTipWreckQuietRange)
+            {
+                field = e; // #2353: an unread debris field somewhere out there
+            }
         }
 
         if (wreck is not null)
@@ -769,6 +777,11 @@ public sealed partial class GameServer
             // #1882: the autopilot (AI core Mk2+) flies the pitch too once the wreck is the chart waypoint; without
             // it the pilot has to read the radar's height cue.
             add(VegaCoreTier(session) >= 2 ? "wreck_signal" : "wreck_signal_manual", wreck.Name, "wreck:" + wreck.Id);
+        }
+
+        if (field is not null)
+        {
+            add("debris_signal", field.Name, "debris:" + field.Id);
         }
 
         if (asteroidNear)

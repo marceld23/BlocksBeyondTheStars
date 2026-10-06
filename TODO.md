@@ -24,6 +24,49 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛰️ Debris fields with salvage, one-time salvage, combat debris, raiders with real hulls (#2351: #2352–#2359, 2026-10-06, branch feat/debris-fields) — ✅ done (unreleased; ⚠ playtest open)
+
+**Request (Marcel, 2026-10-06).** Analysis first: do pirates exist (yes — raiders in pirate space), how could debris
+fields with loot work. Decisions: a location of its own on the chart; capsule loot and the wreck's salvage pay once per
+galaxy; themes may include an old battle; drifting debris lightly taps the shield only; destroyed drones, saucers and
+raiders leave fragments; raiders keep exploding. Plus the gaps the analysis found — above all raiders flying real ships
+from the existing designs. Docs: [docs/developer/DEBRIS_FIELDS.md](docs/developer/DEBRIS_FIELDS.md).
+
+- **✅ Salvage data (#2352):** `data/space_salvage.json` — five themes (freighter, shipyard, satellite, alien, battle)
+  with palettes, fragment and capsule loot tables and lore keys; combat debris; the wreck payout moved out of code.
+  `SpaceSalvageDefinition` validated in `GameContent.Validate()`. World option `DebrisFields` (Normal; CLI
+  `debris-fields`; a slider on the advanced world-options page — the main page grid is full).
+- **✅ Debris fields as a location (#2353):** `DebrisFieldPlacer` after the wormhole placer (own salt, fixed systems
+  only, never a story system, clearance from every body; `SeparateFromBodies` skips the kind so the start station never
+  moves). In flight: a `DebrisField` marker (chart, radar, waypoint, scanner, the flight recorder read on approach with
+  knowledge + a theme lore text + "visited"), 8–12 `Debris` fragments (voxel, carved like asteroids, theme loot), 1–2
+  `SalvageCapsule`s (pulled in like drops). VEGA tip `debris_signal`.
+- **✅ Salvage pays once (#2354):** `WorldMetadata.SpaceSalvage` ledger — the wreck's remaining cells (0 = gone for
+  good; `NetBody.Salvaged` for chart + travel screen) and the capsules' bitmask; saved at teardown + completion. Fixed
+  on the way: the EVA pick mined a wreck to nothing **without paying its salvage** (`PayEntityLoot` now shared).
+- **✅ Shield taps (#2355):** inside a field a moving ship loses 3 shield every ~7 s, never hull, not on EVA; one toast
+  per flight; the client adds the `debris_bump` clank when no attacker is in range.
+- **✅ Combat debris (#2356):** destroyed drones / saucers / cruisers / raiders leave 2–3 fragments (a raider's cut from
+  its own hull), cap 12 per instance.
+- **✅ Raiders with real hulls (#2357):** `PickRaiderDesign` (small hulls common, hammerhead rare), the trader hull path
+  with a per-cell dye livery (near-black + rust band), hull points `clamp(40 + cells/6, 55, 120)`, `NetCombatEntity.Yaw`
+  so the hull faces its course, outcome `destroyed`, `SpaceWarpFx.Raider` sting; `DisableShip` picks the pilot's own
+  hull (it took the first "ship" structure — a trader's could come first).
+- **✅ Client (#2358):** `SpaceView.Debris.cs` (marker, capsule, voxel raider upgrade, in-field + attacker checks),
+  radar / chart / travel-screen / targeting lists; three ElevenLabs clips (`debris_bump`, `salvage_capsule`,
+  `raider_warp_in`), NOTICES 315, SOUND_DESIGN §19.
+- **✅ Texts & docs (#2359):** 18 keys + 6 lore texts × 14 languages; USER_MANUAL (mysteries, bandits, T key; the
+  life-pod sentence said a tractor pulls the pod aboard — flying within 14 units does, no beam involved); PARENTS
+  (raider ships break apart — a machine, never a person); SPACE_COMBAT_CONCEPT status note; new DEBRIS_FIELDS.md.
+- Tests: `DebrisFieldTests` (11), `SpaceWreckTests` (+1, the farmable-wreck pin replaced), `ContentTests` (+1),
+  `SpaceTargetingTests` kind lists.
+- ⚠ **Playtest open:** a field from the chart (marker, copper blips, the recorder read on approach), fragment mining
+  with the starter laser and on an EVA, a capsule with and without a tractor beam, the shield taps' feel (interval,
+  clank, the toast), a raider's hull + livery + heading at the warp-in and its wreckage after the kill, the salvaged
+  wreck's "salvaged" line on the travel screen, the world option on the advanced page in all 14 languages.
+
+---
+
 ### 🧪 `make-test-world.ps1 -Sandbox` creates the panel's real Sandbox (2026-10-06, branch fix/test-world-sandbox-flags) — ✅ done
 
 Found while making Sandbox saves of the four generation-21 worlds: `-Sandbox` passed only `--game-mode Creative`

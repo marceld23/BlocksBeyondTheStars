@@ -732,7 +732,7 @@ namespace BlocksBeyondTheStars.Client
         private bool TryLockedDrop(Vector3 shipPos, float reach, out NetCombatEntity drop)
         {
             drop = null;
-            if (!TryLockedEntity(out var locked) || locked.Kind != SpaceTargeting.ResourceDrop
+            if (!TryLockedEntity(out var locked) || !SpaceTargeting.IsCollectableKind(locked.Kind) // a drop or a salvage capsule (#2353)
                 || (new Vector3(locked.X, locked.Y, locked.Z) - shipPos).sqrMagnitude > reach * reach)
             {
                 return false;

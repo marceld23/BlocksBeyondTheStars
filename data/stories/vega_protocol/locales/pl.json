@@ -125,5 +125,11 @@
   "lore.site.observatory_log": "Posterunek obserwacyjny 9, wpis końcowy: „Kopuła zamknięta przed pyłem. Niebo jest nie w porządku od trzech nocy — przekaźniki odpowiadają w nieładzie, jakby coś między nimi najpierw nasłuchiwało. Wysyłam zapis do domu, póki dom jeszcze odpowiada.”",
   "lore.site.derelict_manifest": "Manifest ładunku, poprawiony ręcznie: „Woda, nasiona, czterdzieści pasażerów.” Czterdzieści jest przekreślone. Pod tym, mniejszym pismem: „Trzydzieści dziewięć. Ona została, żeby liczba kapsuł się zgadzała. Zapamiętaj jej imię.”",
   "lore.site.anomaly_echo": "Skan zwraca twoje własne echo — pół sekundy za wcześnie. Archiwum zapisuje to pod ‚echo, niemożliwe’ i, starszym pismem, ‚niebo pamięta’.",
-  "lore.site.anomaly_choir": "Nałóż na siebie szum anomalii, a rozdziela się na głosy — dziesiątki, wszystkie odczytujące te same liczby. Boje nawigacyjne. Anomalia recytowała pozycje dawnej Służby przez lata, dla nikogo."
+  "lore.site.anomaly_choir": "Nałóż na siebie szum anomalii, a rozdziela się na głosy — dziesiątki, wszystkie odczytujące te same liczby. Boje nawigacyjne. Anomalia recytowała pozycje dawnej Służby przez lata, dla nikogo.",
+  "lore.site.debris_freighter_log": "Rejestrator lotu, frachtowiec: „Pas ładunkowy trzy puścił się na zakręcie. Kontenery wszędzie. Nikt nie został ranny — właściwie się śmiejemy. Zapisuję rozrzut dla tych, którzy chcą darmowej blachy. Uważaj na ostre kawałki.”",
+  "lore.site.debris_shipyard_tag": "Etykieta ze stoczni, nadal czytelna na blachach: „ODRZUCONO — włosowate pęknięcie, nie montować.” Setki takich odpłynęły tutaj, gdy stocznia zamknęła. Uczciwy złom: każdy kawałek obejrzała osoba, której zależało.",
+  "lore.site.debris_satellite_last": "Log satelity, ostatnie klatki: zliczenie gwiazd, mapa pogody świata poniżej, a potem jedna linijka napisana ręcznie — „Dzięki za widok.” Przekaźnik, który to odczytał, zniknął dłużej niż satelita.",
+  "lore.site.debris_alien_hum": "Rejestrator nie jest rejestratorem. Brzęczy jedną nutę, a kryształowe odłamki wokół brzęczą piątą wyżej. Nic w katalogu nie śpiewa w interwałach. Archiwum zapisuje to pod ‚instrument?’.",
+  "lore.site.debris_battle_order": "Ostatni rozkaz na kanale, spokojnym głosem: „Wycofać się. Wszyscy wycofajcie się — to nie warte żadnego z was.” Wrak mówi, że posłuchali; kadłuby są puste, kapsuły dawno odleciały.",
+  "lore.site.debris_recorder": "Rejestrator lotu wciąż tykający w gruzach — ostatnia pozycja, ostatni kurs i notatka, której nikt się nie spodziewał: „Jeśli to znalazłeś, pole jest twoje. Weź to, co pomaga.”"
 }

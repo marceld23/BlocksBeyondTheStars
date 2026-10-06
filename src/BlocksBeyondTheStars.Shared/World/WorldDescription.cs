@@ -128,6 +128,12 @@ public sealed class WorldDescription
     /// default, so existing worlds get theirs too: wormholes change no terrain and nothing about them is persisted.</summary>
     public Frequency Wormholes { get; set; } = Frequency.Rare;
 
+    /// <summary>How many systems hold a debris field (#2353) — the frequency's odds per fixed system, tilted by the
+    /// system archetype (<c>data/space_salvage.json</c>). Like <see cref="Wormholes"/> a save from before the feature
+    /// reads the default and gains its fields: they are placed after the generator with their own salt, so no existing
+    /// body moves and nothing about them is persisted except the salvage ledger.</summary>
+    public Frequency DebrisFields { get; set; } = Frequency.Normal;
+
     /// <summary>Planet-type key → frequency. Empty means "use all known planet types at Normal".</summary>
     public Dictionary<string, Frequency> PlanetTypeFrequencies { get; set; } = new();
 

@@ -85,6 +85,9 @@ refreshed 2026-08-08.
   (cockpit · Deep · Quantum) with module replacement, and the life-pod and anomaly models.
 - [WORMHOLES.md](WORMHOLES.md) — wormholes (#2242): seed-pure pair placement beyond the outer orbit, the story-system
   lock, the world option, the transit gates and pose, the scanner reading, and the rift shader and transit effect.
+- [DEBRIS_FIELDS.md](DEBRIS_FIELDS.md) — debris fields (#2351): seed-pure placement after the generator, the field in
+  flight (marker, fragments, capsules), the once-per-galaxy salvage ledger shared with the space wreck, the shield taps,
+  combat debris, raiders with real hulls, and the `data/space_salvage.json` data file.
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
 - [NPC_ROUTINES.md](NPC_ROUTINES.md) — living NPCs: base residents, the daily routine, pathfinding with doors,
   jobs with yield, and the station night.

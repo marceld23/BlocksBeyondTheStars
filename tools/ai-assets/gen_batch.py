@@ -116,6 +116,14 @@ def build_catalogue() -> list[tuple[str, str, float, bool]]:
         ("rope_release", "very short sci-fi energy rope snapping free and fizzling out, a soft twang and a quick fading electric sparkle", 0.5, False),
     ]
 
+    # --- Debris fields + raiders (#2358): the rubble tapping the shield, a salvage capsule pulled aboard, the raider's
+    # warp-in. Generated one by one with gen_sound.py --influence 0.5 on 2026-10-06. ---
+    s += [
+        ("debris_bump",     "short dull metallic clank of a small piece of space debris bumping a ship's energy shield, a soft thud with a brief electric fizz, no explosion, muted", 0.8, False),
+        ("salvage_capsule", "short sci-fi salvage capsule being pulled into a cargo hold, a soft mechanical latch click followed by a small warm two-note chime, friendly", 1.2, False),
+        ("raider_warp_in",  "short ominous sci-fi warp arrival of a raider ship, a deep reverse whoosh ending in a low heavy thump with a brief metallic rattle, menacing but not frightening", 1.6, False),
+    ]
+
     # --- Creatures: 6 voice banks (size x disposition) x 5 states; pitch-shifted per creature in game ---
     sizes = [("small", "small"), ("medium", "medium-sized"), ("large", "huge hulking")]
     disps = [("calm", "docile gentle"), ("hostile", "vicious aggressive")]

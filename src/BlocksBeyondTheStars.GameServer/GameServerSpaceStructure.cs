@@ -747,9 +747,9 @@ public sealed partial class GameServer
         }
 
         // S2/S3: you may mine your OWN ship or any asteroid; placing is only on your own ship. Other players'
-        // ships + game stations stay protected (S5). A derelict wreck (#1664) is ownerless salvage: hand-mine
-        // it like a rock.
-        bool isAsteroid = s.Kind == "asteroid" || s.Kind == "wreck";
+        // ships + game stations stay protected (S5). A derelict wreck (#1664) and a debris fragment (#2353) are
+        // ownerless salvage: hand-mine them like a rock.
+        bool isAsteroid = s.Kind is "asteroid" or "wreck" or "debris";
         bool isOwn = s.OwnerId == p.PlayerId; // your own ship or your own station
         // Allies co-own each other's STATIONS (build/mine the floating structure), but never each other's ship —
         // the ship stays owner-only by design, so the alliance grant is scoped to station structures.
@@ -900,13 +900,31 @@ public sealed partial class GameServer
             // A fully mined-out asteroid is gone — remove its body + paired entity (the field respawns later).
             if (isAsteroid && s.Cells.Count == 0)
             {
+                var gone = instance.Entities.FirstOrDefault(e => e.Id == s.Id);
                 instance.Entities.RemoveAll(e => e.Id == s.Id);
                 RemoveAsteroidStructure(instance, s.Id);
+                if (gone is not null && gone.Kind is CombatEntityKind.Wreck or CombatEntityKind.Debris)
+                {
+                    // #2354: the pick pays what the laser pays — the wreck's salvage, a fragment's scrap (an asteroid
+                    // already paid per block). The wreck is then gone for good.
+                    if (gone.Kind == CombatEntityKind.Wreck)
+                    {
+                        CompleteWreckSalvage(gone.Id);
+                        MarkSpaceWreckVisited(session, gone.Id);
+                    }
+
+                    PayEntityLoot(instance, gone, session);
+                }
+
                 BroadcastSpaceState(instance);
             }
             else if (isAsteroid && instance.Entities.FirstOrDefault(e => e.Id == s.Id) is { } ent)
             {
                 ent.Hull = ent.HullMax = s.Cells.Count; // keep the shoot-path hull in step with mined blocks
+                if (ent.Kind == CombatEntityKind.Wreck)
+                {
+                    NoteWreckHull(instance, ent); // #2354
+                }
             }
 
             return;
@@ -1652,22 +1670,33 @@ public sealed partial class GameServer
             return;
         }
 
-        // Remove outermost cells first (largest distance from the centre) for a clean shrink.
+        PeelOutermost(s, s.Cells.Count - target, c => BroadcastToInstance(instance, new StructureBlockChanged
+        {
+            StructureId = s.Id,
+            X = c.X,
+            Y = c.Y,
+            Z = c.Z,
+            Block = BlockId.AirValue,
+        }));
+    }
+
+    /// <summary>Removes <paramref name="remove"/> cells, outermost first (largest distance from the centre), for a clean
+    /// shrink — the laser carve broadcasts each removal; the wreck rebuilt from the salvage ledger (#2354) peels in
+    /// silence before anyone sees it.</summary>
+    private static void PeelOutermost(SpaceStructure s, int remove, System.Action<Vector3i>? onRemoved)
+    {
+        if (remove <= 0 || s.Cells.Count == 0)
+        {
+            return;
+        }
+
         var ordered = new List<Vector3i>(s.Cells.Keys);
         ordered.Sort((a, b) => (b.X * b.X + b.Y * b.Y + b.Z * b.Z).CompareTo(a.X * a.X + a.Y * a.Y + a.Z * a.Z));
-        int remove = s.Cells.Count - target;
         for (int i = 0; i < remove && i < ordered.Count; i++)
         {
             var c = ordered[i];
             s.Set(c, BlockId.Air);
-            BroadcastToInstance(instance, new StructureBlockChanged
-            {
-                StructureId = s.Id,
-                X = c.X,
-                Y = c.Y,
-                Z = c.Z,
-                Block = BlockId.AirValue,
-            });
+            onRemoved?.Invoke(c);
         }
     }
 

@@ -77,6 +77,20 @@ public sealed partial class GameServer
                 continue; // no hull blocks in content — nothing to render or salvage
             }
 
+            // #2354: salvage pays once. A wreck carved to nothing stays gone; a half-carved one comes back as the
+            // pilot left it (the ledger keeps its remaining cells; the outermost plating is what the laser took).
+            int original = structure.Cells.Count;
+            bool ledgered = _meta.SpaceSalvage.TryGetValue(WreckLedgerKey(body.Id), out int remaining);
+            if (ledgered && remaining <= 0)
+            {
+                continue;
+            }
+
+            if (ledgered && remaining < original)
+            {
+                PeelOutermost(structure, original - remaining, onRemoved: null);
+            }
+
             var entity = new CombatEntity
             {
                 Id = body.Id, // the star-map body id: the client's chart, radar and waypoints key on it
@@ -86,12 +100,13 @@ public sealed partial class GameServer
                 AsteroidTier = 0, // carves + depletes like a voxel asteroid, never splits
                 Position = pos,
             };
-            foreach (var drop in SpaceWreckSalvage(hull.Origin, structure.Cells.Count, rng))
+            foreach (var drop in SpaceWreckSalvage(hull.Origin, original, rng))
             {
-                entity.Loot.Add(drop);
+                entity.Loot.Add(drop); // the payout follows the whole hull, not what is left of it
             }
 
-            entity.HullMax = entity.Hull = Math.Max(8, structure.Cells.Count); // hull == blocks → carve maps to damage
+            entity.HullMax = Math.Max(8, original); // hull == blocks → carve maps to damage
+            entity.Hull = ledgered ? Math.Min(entity.HullMax, Math.Max(1, structure.Cells.Count)) : entity.HullMax;
             instance.Entities.Add(entity);
             instance.Structures[structure.Id] = structure;
         }
@@ -128,31 +143,26 @@ public sealed partial class GameServer
         return s;
     }
 
-    /// <summary>What a salvaged-to-nothing wreck pays out: plating + cabling scaled with the hull, a structural
-    /// metal by origin (human hulls: titanium, alien hulls: crystal), and a chance of the data / memory fragments
-    /// a dead ship's terminal would hold (the same items the planet wreck's data terminal carries).</summary>
+    /// <summary>What a salvaged-to-nothing wreck pays out — the rows of <c>data/space_salvage.json</c> (#2352) by hull
+    /// origin (human hulls: titanium, alien hulls: crystal): plating + cabling scaled with the hull, a structural metal,
+    /// and a chance of the data / memory fragments a dead ship's terminal would hold. The defaults are the numbers that
+    /// used to be written here.</summary>
     private List<ItemAmount> SpaceWreckSalvage(string origin, int cells, Random rng)
     {
         var loot = new List<ItemAmount>();
-        void Add(string item, int count)
+        var rows = origin == "alien" ? _content.SpaceSalvage.Wreck.Alien : _content.SpaceSalvage.Wreck.Human;
+        foreach (var row in rows)
         {
-            if (count > 0 && _content.GetItem(item) is not null)
+            if (row.Chance < 1.0 && rng.NextDouble() >= row.Chance)
             {
-                loot.Add(new ItemAmount(item, count));
+                continue;
             }
-        }
 
-        Add("iron_plate", 3 + cells / 12);
-        Add("cable", 2 + cells / 30);
-        Add(origin == "alien" ? "crystal" : "titanium_plate", 1 + cells / 60);
-        if (rng.NextDouble() < 0.45)
-        {
-            Add("data_fragment", 1 + rng.Next(2));
-        }
-
-        if (rng.NextDouble() < 0.25)
-        {
-            Add("ai_memory_fragment", 1);
+            int count = row.Base + (row.PerCells > 0 ? cells / row.PerCells : 0) + (row.ExtraMax > 0 ? rng.Next(row.ExtraMax + 1) : 0);
+            if (count > 0 && !string.IsNullOrEmpty(row.Item) && _content.GetItem(row.Item) is not null)
+            {
+                loot.Add(new ItemAmount(row.Item, count));
+            }
         }
 
         return loot;
@@ -179,11 +189,11 @@ public sealed partial class GameServer
         return result;
     }
 
-    /// <summary>Marks a wreck body visited for this player (star map + Places codex, like a first landing) and
-    /// refreshes their star map. No-op for anything that isn't a wreck body, or on a repeat.</summary>
+    /// <summary>Marks a wreck (or debris field, #2353) body visited for this player (star map + Places codex, like a
+    /// first landing) and refreshes their star map. No-op for any other body, or on a repeat.</summary>
     private void MarkSpaceWreckVisited(PlayerSession session, string bodyId)
     {
-        if (_galaxy?.FindBody(bodyId) is not { Kind: CelestialKind.Wreck } body)
+        if (_galaxy?.FindBody(bodyId) is not { Kind: CelestialKind.Wreck or CelestialKind.DebrisField } body)
         {
             return;
         }
@@ -205,10 +215,14 @@ public sealed partial class GameServer
     private void CheckSpaceWreckApproach(SpaceInstance instance, string playerId, Vector3f pos)
     {
         const float rangeSq = SpaceWreckApproachRange * SpaceWreckApproachRange;
+        float fieldRange = _content.SpaceSalvage.Fields.ApproachRange;
+        float fieldRangeSq = fieldRange * fieldRange;
         PlayerSession? session = null;
         foreach (var e in instance.Entities)
         {
-            if (e.Kind != CombatEntityKind.Wreck || e.Position.DistanceSquared(pos) > rangeSq)
+            bool wreck = e.Kind == CombatEntityKind.Wreck;
+            bool field = e.Kind == CombatEntityKind.DebrisField; // #2353: the flight recorder is read the same way
+            if ((!wreck && !field) || e.Position.DistanceSquared(pos) > (wreck ? rangeSq : fieldRangeSq))
             {
                 continue;
             }
@@ -219,13 +233,18 @@ public sealed partial class GameServer
                 return;
             }
 
-            if (!session.State.Scanned.Contains(SpaceWreckScanPrefix + e.Id))
+            if (wreck && !session.State.Scanned.Contains(SpaceWreckScanPrefix + e.Id))
             {
                 ScanSpaceWreck(session, e);
 
                 // #1882: flown there once — the pilot knows how to reach a wreck; VEGA stops explaining it.
                 RetireVegaTip(session, "wreck_signal");
                 RetireVegaTip(session, "wreck_signal_manual");
+            }
+            else if (field && !session.State.Scanned.Contains(DebrisFieldScanKey(e.Id)))
+            {
+                ScanDebrisField(session, e);
+                RetireVegaTip(session, "debris_signal");
             }
         }
     }

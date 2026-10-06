@@ -20,8 +20,21 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const float BanditShipHull = 55f;
+    private const float BanditShipHull = 55f;      // the least a raider has (a scout hull); bigger hulls carry more (#2357)
+    private const float BanditShipHullMax = 120f;  // …up to this (a hammerhead) — still a short fight for a starter laser
     private const float BanditShipDps = 5f;
+
+    /// <summary>Structure id prefix of a raider's voxel hull (#2357): <c>ship:bandit:&lt;entityId&gt;</c>. Kind "ship"
+    /// and ownerless like a trader's, so the join-time cross-send hands it to late pilots; the client looks it up as
+    /// <c>RemoteShipDesignFor("bandit:&lt;entityId&gt;")</c>.</summary>
+    private const string RaiderStructurePrefix = "ship:bandit:";
+
+    private static string RaiderStructureId(string entityId) => RaiderStructurePrefix + entityId;
+
+    /// <summary>The raider livery (#2357), applied as per-cell dye so no client paint rule is needed: near-black
+    /// plating with a rust-red band along the upper flanks.</summary>
+    private const int RaiderHullDye = 0x33313A;
+    private const int RaiderTrimDye = 0x8C3828;
     private const float BanditHailRange = 60f;       // it closes to conversation range before demanding
     private const float BanditShipApproachSpeed = 9f;
     private const float BanditShipLeaveSpeed = 12f;
@@ -184,10 +197,12 @@ public sealed partial class GameServer
                         raider.Position.X + away.X * (float)(BanditShipLeaveSpeed * dt),
                         raider.Position.Y + away.Y * (float)(BanditShipLeaveSpeed * dt),
                         raider.Position.Z + away.Z * (float)(BanditShipLeaveSpeed * dt));
+                    FaceCourse(raider, away.X, away.Z);
                     if (raider.Position.DistanceSquared(instance.ShipPosition) >= BanditWarpOutDistance * BanditWarpOutDistance)
                     {
                         BroadcastWarpFx(instance, raider.Position, arriving: false);
                         instance.Entities.Remove(raider);
+                        instance.Structures.Remove(RaiderStructureId(raider.Id)); // #2357: its hull leaves with it
                         instance.BanditShipId = string.Empty;
                         BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = raider.Id });
                         BroadcastSpaceState(instance);
@@ -247,9 +262,41 @@ public sealed partial class GameServer
             BanditPhase = BanditPhase.Approach,
             Loot = { new ItemAmount("data_fragment", 2), new ItemAmount("titanium_plate", 2) },
         };
+        FaceCourse(raider, instance.ShipPosition.X - pos.X, instance.ShipPosition.Z - pos.Z);
+
+        // #2357: a REAL hull from the content ship designs (the trader path), in raider livery; its hull points grow
+        // with the design, so a hammerhead raider is a longer fight than a scout — never a wall, though.
+        SpaceStructure? hull = null;
+        if (PickRaiderDesign() is { } design)
+        {
+            hull = BuildNpcShipStructure(RaiderStructureId(raider.Id), design.Key);
+            if (hull.Cells.Count > 0)
+            {
+                ApplyRaiderLivery(hull);
+                hull.Position = pos;
+                raider.Hull = raider.HullMax = System.Math.Clamp(40f + hull.Cells.Count / 6f, BanditShipHull, BanditShipHullMax);
+            }
+            else
+            {
+                hull = null; // no hull block in content → the client keeps its built model
+            }
+        }
+
         instance.Entities.Add(raider);
         instance.BanditShipId = raider.Id;
-        BroadcastWarpFx(instance, pos, arriving: true);
+        if (hull is not null)
+        {
+            instance.Structures[hull.Id] = hull;
+            foreach (var pid in instance.Players)
+            {
+                if (FindSessionByPlayerId(pid) is { } s)
+                {
+                    SendShipDesign(s, hull, "ship_remote");
+                }
+            }
+        }
+
+        BroadcastWarpFx(instance, pos, arriving: true, raider: true);
         BroadcastSpaceState(instance);
     }
 
@@ -331,16 +378,18 @@ public sealed partial class GameServer
         raider.BanditPhase = BanditPhase.Fighting;
     }
 
-    /// <summary>The raider blew up: close any open hold-up UI and free the instance slot.</summary>
+    /// <summary>The raider blew up: close any open hold-up UI (the ship broke apart — "destroyed", not "fled"; the
+    /// raider explodes by decision), drop its hull structure and free the instance slot.</summary>
     private void OnBanditShipKilled(SpaceInstance instance, CombatEntity raider)
     {
         var mark = raider.BanditTargetId.Length > 0 ? FindSessionByPlayerId(raider.BanditTargetId) : FirstPilotIn(instance);
         if (mark is not null && mark.BanditDemandId != 0 && mark.BanditDemandBanditId == raider.Id)
         {
-            SendBanditResult(mark, "fled");
+            SendBanditResult(mark, "destroyed");
             ClearBanditDemand(mark);
         }
 
+        instance.Structures.Remove(RaiderStructureId(raider.Id)); // #2357 (the combat debris was cut from it already)
         if (instance.BanditShipId == raider.Id)
         {
             instance.BanditShipId = string.Empty;
@@ -360,6 +409,78 @@ public sealed partial class GameServer
 
         float step = System.Math.Min((float)(speed * dt), dist - stopAt);
         e.Position = new Vector3f(e.Position.X + dx / dist * step, e.Position.Y + dy / dist * step, e.Position.Z + dz / dist * step);
+        FaceCourse(e, dx, dz);
+    }
+
+    /// <summary>#2357: turns an entity's heading toward a horizontal course (degrees about Y, the client's Euler Y —
+    /// the same convention as a trader's <c>Yaw</c>). A zero course leaves the heading alone.</summary>
+    internal static void FaceCourse(CombatEntity e, float dx, float dz)
+    {
+        if (dx * dx + dz * dz > 1e-6f)
+        {
+            e.Yaw = (float)(System.Math.Atan2(dx, dz) * (180.0 / System.Math.PI));
+        }
+    }
+
+    /// <summary>The raider's hull design (#2357): any content ship with a layout except the starter, weighted toward
+    /// the smaller hulls — a scout raider is the common sight, a hammerhead pirate a rare one.</summary>
+    private ShipDefinition? PickRaiderDesign()
+    {
+        var pool = _content.Ships.Values
+            .Where(s => s.Key != "starter" && _content.GetShipLayout(s.Layout) is { Cells.Count: > 0 })
+            .OrderBy(s => s.Key, System.StringComparer.Ordinal)
+            .ToList();
+        if (pool.Count == 0)
+        {
+            return null;
+        }
+
+        int Weight(ShipDefinition d) => System.Math.Max(1, 600 - (_content.GetShipLayout(d.Layout)?.Cells.Count ?? 0));
+        int roll = _banditRng.Next(pool.Sum(Weight));
+        foreach (var d in pool)
+        {
+            roll -= Weight(d);
+            if (roll < 0)
+            {
+                return d;
+            }
+        }
+
+        return pool[pool.Count - 1];
+    }
+
+    /// <summary>Dyes a hull in raider colours (#2357): every tintable plating cell near-black, the outermost cells of
+    /// each upper row rust-red — a band along the flanks. Dye rides the design message the client already meshes, so
+    /// no client paint rule is needed; glass, lights and nozzles keep their look.</summary>
+    private void ApplyRaiderLivery(SpaceStructure hull)
+    {
+        if (hull.Cells.Count == 0)
+        {
+            return;
+        }
+
+        int maxY = hull.Cells.Keys.Max(c => c.Y);
+        int bandFrom = (maxY + 1) / 2;
+        var rows = new Dictionary<(int Y, int Z), (int MinX, int MaxX)>();
+        foreach (var c in hull.Cells.Keys)
+        {
+            rows[(c.Y, c.Z)] = rows.TryGetValue((c.Y, c.Z), out var r)
+                ? (System.Math.Min(r.MinX, c.X), System.Math.Max(r.MaxX, c.X))
+                : (c.X, c.X);
+        }
+
+        foreach (var kv in hull.Cells.ToList())
+        {
+            if (_content.BlockById(kv.Value) is not { Tintable: true })
+            {
+                continue;
+            }
+
+            var row = rows[(kv.Key.Y, kv.Key.Z)];
+            bool trim = kv.Key.Y >= bandFrom && (kv.Key.X == row.MinX || kv.Key.X == row.MaxX);
+            int glow = hull.Mods.TryGetValue(kv.Key, out var m) ? m.Glow : 0;
+            hull.Mods[kv.Key] = (trim ? RaiderTrimDye : RaiderHullDye, glow);
+        }
     }
 
     private static Vector3f AwayFrom(Vector3f from, Vector3f pos)

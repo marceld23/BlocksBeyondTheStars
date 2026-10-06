@@ -1207,6 +1207,11 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                if (fx.Raider && fx.Arriving)
+                {
+                    ClientAudio.Instance?.At("raider_warp_in", at, 1f, 1f); // #2357: the raider's ominous arrival
+                }
+
                 // #2157: a stretched light streak + flash + ring (was a burst of cubes).
                 var dir = Camera != null ? (at - Camera.transform.position) : Vector3.forward;
                 dir = Vector3.Cross(dir.sqrMagnitude > 1e-4f ? dir.normalized : Vector3.forward, Vector3.up);
@@ -2351,9 +2356,9 @@ namespace BlocksBeyondTheStars.Client
             float bestSq = TractorLockRange * TractorLockRange;
             foreach (var e in space.Entities)
             {
-                if (e.Kind != "ResourceDrop")
+                if (!BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsCollectableKind(e.Kind))
                 {
-                    continue;
+                    continue; // drops and the debris fields' capsules (#2353)
                 }
 
                 float sq = (new Vector3(e.X, e.Y, e.Z) - shipPos).sqrMagnitude;
@@ -3050,9 +3055,9 @@ namespace BlocksBeyondTheStars.Client
             // only feeds the remote avatar's hull — building either here spawned a static, unscaled,
             // collider-less ghost copy at the design position (players: the scene origin). A "wreck" (#1664)
             // is the system's derelict: a static voxel hull like an asteroid.
-            if (m.Kind != "asteroid" && m.Kind != "station" && m.Kind != "wreck")
+            if (m.Kind != "asteroid" && m.Kind != "station" && m.Kind != "wreck" && m.Kind != "debris")
             {
-                return;
+                return; // "debris" (#2353/#2356): a wreckage fragment — a static voxel hull like an asteroid
             }
 
             var cells = CellsFromDesign(m, out var centre);
@@ -3791,6 +3796,17 @@ namespace BlocksBeyondTheStars.Client
                 if (hullDrop > 0.05f)
                 {
                     SpawnHitSparks(mag); // visible damage at the hull, not just a screen tint
+                }
+                else if (InDebrisFieldNow() && !HostileInAttackRange())
+                {
+                    // #2355: a shield drop with no hull damage and no attacker inside a debris field is the rubble
+                    // tapping the shield — the clank at the hull and a few sparks (the shield-hit cue plays anyway).
+                    if (_ship != null)
+                    {
+                        ClientAudio.Instance?.At("debris_bump", _ship.transform.position, 1f, 0.9f);
+                    }
+
+                    SpawnHitSparks(mag * 0.5f);
                 }
             }
 
@@ -5074,9 +5090,23 @@ namespace BlocksBeyondTheStars.Client
 
                     // item 20 S3: asteroids render as voxel ore structures (see ReconcileStructs), not cube
                     // entities — but they stay in Space.Entities so the ship's weapons can still target them.
-                    if (e.Kind == "Asteroid")
+                    // A wreckage fragment (#2353/#2356) is the same kind of thing.
+                    if (e.Kind == "Asteroid" || e.Kind == "Debris")
                     {
                         continue;
+                    }
+
+                    // #2357: the raider's REAL hull arrives as a "ship_remote" design — possibly after the entity.
+                    // Swap the placeholder wedge for the voxel ship as soon as the design is here.
+                    if (e.Kind == "BanditShip" && !_voxelRaiders.Contains(e.Id) && RaiderDesignFor(e.Id) != null
+                        && _entities.TryGetValue(e.Id, out var wedge))
+                    {
+                        if (wedge != null)
+                        {
+                            Destroy(wedge);
+                        }
+
+                        _entities.Remove(e.Id);
                     }
 
                     // #1469: a player-built station renders as its own voxel hull (a "station" design in _structs
@@ -5104,10 +5134,12 @@ namespace BlocksBeyondTheStars.Client
                             "Drone" => BuildDroneModel(_root.transform),
                             "Ufo" => BuildUfoModel(_root.transform),
                             "Cruiser" => BuildCruiserModel(_root.transform),
-                            "BanditShip" => BuildBanditShipModel(_root.transform),
+                            "BanditShip" => BuildBanditShipModel(_root.transform, e), // #2357: its real voxel hull once the design is here
                             "EscapePod" => BuildEscapePodModel(_root.transform, e),   // #2241: a little lifeboat, not a red cube
                             "Anomaly" => BuildAnomalyModel(_root.transform, e),       // #2241: the shimmering soap bubble
                             "Wormhole" => BuildWormholeModel(_root.transform, e),     // #2242: the tear in space-time
+                            "DebrisField" => BuildDebrisFieldMarkerModel(_root.transform, e), // #2353: the flight recorder's beacon
+                            "SalvageCapsule" => BuildSalvageCapsuleModel(_root.transform, e), // #2353: a sealed canister
                             _ => Cube("Entity", _root.transform, Vector3.zero, EntityScale(e.Kind), Unlit(EntityColor(e.Kind))), // ResourceDrop etc.
                         };
 
@@ -5146,15 +5178,21 @@ namespace BlocksBeyondTheStars.Client
                         {
                             go.transform.localPosition = new Vector3(e.X, e.Y, e.Z);
                         }
+
+                        if (e.Kind == "BanditShip")
+                        {
+                            // #2357: the hull faces its course (the server's heading), eased so the turn reads as flown.
+                            go.transform.localRotation = Quaternion.Slerp(go.transform.localRotation, Quaternion.Euler(0f, e.Yaw, 0f), Time.deltaTime * 3f);
+                        }
                     }
                     else
                     {
                         go.transform.localPosition = new Vector3(e.X, e.Y, e.Z);
                     }
 
-                    if (e.Kind == "ResourceDrop")
+                    if (e.Kind == "ResourceDrop" || e.Kind == "SalvageCapsule")
                     {
-                        _dropIds.Add(e.Id);
+                        _dropIds.Add(e.Id); // a capsule (#2353) is pulled in like a drop
                     }
 
                     // #2156: a hit target flashes white for a moment (the server's hull drop is the confirmation).
@@ -5192,10 +5230,15 @@ namespace BlocksBeyondTheStars.Client
                         {
                             SpawnTractorBeam(_ship.transform.localPosition, dropPos);
                             _cargoFlash = 1f;
+                            if (_entityKinds.TryGetValue(id, out var goneKind) && goneKind == "SalvageCapsule")
+                            {
+                                ClientAudio.Instance?.Cue("salvage_capsule", 0.9f); // #2353: the latch and the chime
+                            }
                         }
                     }
 
                     OnEntityGone(id); // #2241: a rescued life pod is pulled aboard on a tractor beam
+                    _voxelRaiders.Remove(id);
                     Destroy(_entities[id]);
                     _entities.Remove(id);
                     _entityKinds.Remove(id);
@@ -6298,6 +6341,8 @@ namespace BlocksBeyondTheStars.Client
             "SpaceStation" => new Vector3(8f, 5f, 8f),
             "Wreck" => new Vector3(4f, 2.5f, 6f), // #1664: only until its voxel hull design arrives
             "ResourceDrop" => Vector3.one * 0.7f,
+            "Debris" => Vector3.one * 1.2f,       // #2353: only until its voxel design arrives
+            "SalvageCapsule" => Vector3.one * 0.9f,
             _ => Vector3.one * 1.1f,
         };
 
@@ -6305,6 +6350,9 @@ namespace BlocksBeyondTheStars.Client
         {
             "Asteroid" => new Color(0.45f, 0.42f, 0.38f),
             "Wreck" => new Color(0.55f, 0.45f, 0.32f), // scorched plating — amber-grey like its radar blip
+            "Debris" => new Color(0.5f, 0.42f, 0.36f),      // #2353: torn plating
+            "DebrisField" => new Color(0.85f, 0.55f, 0.3f), // #2353: the field's dusty copper
+            "SalvageCapsule" => new Color(0.4f, 0.95f, 0.85f),
             "Ufo" => new Color(0.6f, 0.35f, 0.8f),
             "Cruiser" => new Color(0.7f, 0.3f, 0.3f),
             "SpaceStation" => new Color(0.62f, 0.66f, 0.72f),

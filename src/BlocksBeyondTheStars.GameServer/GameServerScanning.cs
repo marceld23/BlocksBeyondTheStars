@@ -298,6 +298,11 @@ public sealed partial class GameServer
             return ScanSpaceWreck(session, target); // #1664: the manifest readout + derelict lore + "visited"
         }
 
+        if (target.Kind == CombatEntityKind.DebrisField)
+        {
+            return ScanDebrisField(session, target); // #2353: the flight recorder — theme, scrap, a lore text, "visited"
+        }
+
         if (target.Kind == CombatEntityKind.Wormhole)
         {
             return ScanWormhole(session, target); // #2242: the scanner reads where it leads

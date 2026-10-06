@@ -11,6 +11,10 @@ public enum CelestialKind
     AsteroidField,
     SpaceStation,
     Wreck,
+
+    /// <summary>#2353: a debris field — a cloud of wreckage with salvage capsules and a flight recorder, placed by
+    /// <c>DebrisFieldPlacer</c> after the generator. No surface, no quick travel: a fly-to location like the wreck.</summary>
+    DebrisField,
 }
 
 /// <summary>Lifecycle of a location (technical requirements / `anf_admin_einstellungen.md` §9.4).</summary>

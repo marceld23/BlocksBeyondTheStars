@@ -65,6 +65,14 @@ public sealed class WorldMetadata
     public System.Collections.Generic.List<string> GeneratedLoot { get; set; } = new();
 
     /// <summary>
+    /// The space salvage ledger (#2354): salvage pays once per galaxy. <c>wreck:&lt;bodyId&gt;</c> → the space wreck's
+    /// remaining hull cells (0 = salvaged down to nothing — it is not spawned again); <c>debris:&lt;bodyId&gt;</c> → a
+    /// bitmask of the debris field's collected salvage capsules. Absent keys mean "untouched". Additive: an older
+    /// build ignores the field and would drop it on its next save, which only re-opens the salvage.
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, int> SpaceSalvage { get; set; } = new();
+
+    /// <summary>
     /// Player claims over spawned structures (factories): each maps a structure's stable per-world key to its
     /// owner. A claimed structure becomes an editable player base for the owner + their allies. Founded by
     /// consuming an access code at the structure. Persisted (the structures themselves re-derive from the seed).

@@ -60,7 +60,8 @@ public sealed partial class GameServer
     private static bool IsScannableSpaceObject(CombatEntityKind kind) => kind is CombatEntityKind.Asteroid
         or CombatEntityKind.Anomaly or CombatEntityKind.Wreck or CombatEntityKind.EscapePod
         or CombatEntityKind.SpaceStation or CombatEntityKind.Drone or CombatEntityKind.Ufo
-        or CombatEntityKind.Cruiser or CombatEntityKind.BanditShip or CombatEntityKind.Wormhole;
+        or CombatEntityKind.Cruiser or CombatEntityKind.BanditShip or CombatEntityKind.Wormhole
+        or CombatEntityKind.DebrisField; // #2353: the flight recorder (fragments and capsules are not worth a readout)
 
     /// <summary>The readouts the scanner adds for the kinds that had none (#2238): a life pod, a station, the
     /// Guardian machines and the raiders. Knowledge once per kind, through the shared <see cref="Award"/> (missions,
@@ -153,6 +154,7 @@ public sealed partial class GameServer
                 CombatEntityKind.Anomaly => AnomalyScanKey(e.Id),
                 CombatEntityKind.Wreck => "wreck:" + e.Id,
                 CombatEntityKind.Wormhole => WormholeScanKey(e.Id),
+                CombatEntityKind.DebrisField => DebrisFieldScanKey(e.Id), // #2353
                 _ => null,
             };
             if (key != null && scanned.Contains(key))
