@@ -24,6 +24,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📖 README feature highlights caught up with v2026.10.7 + generation 21 (2026-10-06, branch docs/readme-feature-highlights) — ✅ done
+
+Marcel's ask (2026-10-06): which highlights (Crystal Net, bio research, unusual worlds, …) are missing from the
+README's game description. The last full pass was 2026-08-22 (v2026.8.18); since then the Crystal Net, the ship
+scanner and the wormholes had been added, everything else had not.
+
+- **Features at a Glance — new bullets:** *Unusual worlds* (once-per-galaxy landmark planets, the city world, gas
+  giants, the school club's planets, the generation-21 arches, pillar islands, rock bridges, cave portals, daylight
+  halls and fossils — in already, unreleased), *Giants and strange creatures*, *Bio research* (samples, the bio lab,
+  cloning and crossing), *Get anywhere* (climbing, rope gun, glider, suit gear, monorail and intercity train),
+  *Towns that are lived in* (residents, daily routine, eight professions, base jobs) and *Play your way* (Explorer /
+  Creative / Sandbox, per-player mode). Existing bullets gained the creator suite, ship growth on a spacewalk, oil
+  and the drill laser, matter beaming, temperature, fire, swimming and the avatar editor.
+- **Counts:** 30 → **48 planet types** (data/planets.json without the asteroid, station and ship-interior entries);
+  40+ → **50+ achievements** (58 in data/achievements.json).
+- **Short Pitch:** names the rope, the giants, the bio lab and the Crystal Net.
+- **Status section shortened** to a pointer list (features, changelog, manual, TODO, AGENTS) plus "more than 4,000
+  xUnit tests" instead of a 40-line run-on paragraph with a hand-kept test count, so it can no longer drift away
+  from *Features at a Glance*.
+- **Later (Marcel, 2026-10-06):** new screenshots (Crystal Net, bio lab, colossus, gas giant, monorail, arch lands —
+  the README shows 8 of 48 planet types) and the same gap pass for the website's "Das steckt drin" tiles.
+
 ### 🏔️ Spectacle terrain — arch lands, pillar islands, cave portals, overhangs, fossils, four new planet types (#2331: #2332–#2343, 2026-10-05, branch feat/spectacle-gen21, terrain generation 21) — ✅ done (unreleased; ⚠ playtest open)
 
 Marcel's ask (2026-10-05): really far-out, spectacular terrain kinds on top of the existing landform families —

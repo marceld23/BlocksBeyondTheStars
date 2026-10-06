@@ -41,36 +41,41 @@ teachers, including how to host a private family world: **[docs/user/PARENTS.md]
 
 A block-based 3D space crafting game for Windows and Linux (with an experimental macOS build), built from day one as a persistent client/server multiplayer experience.
 
-You wake aboard your own spaceship. Out there are procedurally generated star systems—each with its own sun, planets, moons, and asteroid fields. Land on unique worlds (from airless rocks to lava fields and floating skylands), mine resources, craft gear, and unlock blueprints.
+You wake aboard your own spaceship. Out there are procedurally generated star systems—each with its own sun, planets, moons, and asteroid fields. Land on unique worlds (from airless rocks and lava fields to floating skylands, gas giants with sky cities and bone deserts with giant skeletons), mine resources, craft gear, and unlock blueprints.
 
-Design your ship block by block, fly real system-scale routes, dock at space stations, tame alien creatures, and build your own planet bases with your friends.
+Design your ship block by block, fly real system-scale routes, dock at space stations, tame alien creatures, and build your own planet bases with your friends. Climb cliffs and reel yourself across canyons on an energy rope, meet giants as tall as a high-rise, find out in your bio lab what every plant and animal carries, and wire your base to life with the Crystal Net.
 
 ## 🎮 Features at a Glance
 
 **Explore**
 
-*   **System-scale flight:** procedurally generated star systems — each with its own sun, planets, moons and mineable asteroid belts — and **30 planet types** (airless rocks, lava fields, jungles, oceans, skylands, fungal and crystal worlds, red deserts, archipelagos, glaciers, …) with their own terrain, flora, fauna and sky. Worlds wrap east–west, so you can walk around a planet. Jump between systems — or slip through a rare two-way **wormhole** — and scan planets from orbit with your **ship scanner** to see what waits below before you land; the far **frontier** is richer, and a *Growing* galaxy grows a new system every time you push past its edge.
-*   **Living worlds:** per-position **weather and seasons** (storms that drift across the land, fog, blizzards, acid rain, ember fall, ion storms, meteor showers — with real consequences and opportunities), a true day/night terminator, creatures you can scan, hunt or **tame as companions**, binoculars with thermal vision and an in-game camera with a photo album.
-*   **Places to find:** settlements and space stations with NPCs, rare **factories**, fallen ruins, treasure chests, **monuments with glowing runes**, bandit camps and pirate space — and a handful of **one-of-a-kind mysteries** per galaxy.
+*   **System-scale flight:** procedurally generated star systems — each with its own sun, planets, moons and mineable asteroid belts — and **48 planet types** (airless rocks, lava fields, jungles, oceans, skylands, fungal and crystal worlds, red deserts, archipelagos, glaciers, sand seas, gas giants, …) with their own terrain, flora, fauna and sky. Worlds wrap east–west, so you can walk around a planet. Jump between systems — or slip through a rare two-way **wormhole** — and scan planets from orbit with your **ship scanner** to see what waits below before you land, down to the live weather; the far **frontier** is richer, and a *Growing* galaxy grows a new system every time you push past its edge.
+*   **Unusual worlds:** landmark planets that exist **only once per galaxy** (frozen Titas, poisoned Toxica-Maxima, the black sands of Arena Nigra), a lava desert with one gigantic guarded city, **gas giants** with floating islands and sky cities, sand seas, toxic worlds, and the school club's rainbow, flower, scrap and gaming planets. The newest worlds grow **fields of stone arches, pillar islands with a waterfall on top, table mountains joined by rock bridges, cave portals, hidden daylight halls and giant fossil skeletons**.
+*   **Living worlds:** per-position **weather and seasons** (storms that drift across the land, fog, blizzards, acid rain, ember fall, ion storms, meteor showers — with real consequences and opportunities), a true day/night terminator, heat and cold to dress for, fire that burns plants but never your builds, fruit trees and glowing caves, creatures you can scan, hunt or **tame as companions**, binoculars with thermal vision and an in-game camera with a photo album.
+*   **Giants and strange creatures:** a **colossus** up to sixty blocks tall, a **sandworm** that hunts by the vibration of your steps, a **leviathan** under the deep seas and a sky giant drifting over the gas — plus eight-legged arachnids, hydras with up to three heads, rays and air fish, and herds that come over and beg for food.
+*   **Bio research:** everything you harvest, fell, mine or defeat leaves a **sample** of its species, and a sampler even takes one from a living giant without hurting it. The **bio lab** finds out what a species carries (19 effects: speed, jump, shield, night sight, heat ward, stealth, …), mixes samples into preparations, upgrades your tools and gear, and **clones and crosses** species into brand-new, friendly animals and plants. What a species carries depends on where it lives, so travel pays.
+*   **Get anywhere:** swim and dive, **climb** any wall, shoot an **energy rope** to reel yourself up a cliff or across a gap, open a **glider** on the way down, and fit your suit piece by piece (spring boots, armour sets, a stealth suit, a radar). Ride a hover speeder or a boat, or build a **monorail hover train** — on many newer worlds a public intercity train already links two towns.
+*   **Places to find:** settlements, towns and space stations with NPCs, rare **factories**, fallen ruins, abandoned monorail stations, treasure chests, **monuments with glowing runes**, bandit camps and pirate space, life pods and anomalies out in space — and a handful of **one-of-a-kind mysteries** per galaxy.
 
 **Build & Create**
 
 *   **Complete freedom:** every block can be mined, reshaped and rebuilt.
-*   **Build beyond cubes:** reshape any block into slabs, ramps, stairs, domes, furniture — or **draw your own forms** — dye it any colour and **paint your own 32×32 textures** on it. All inside the game. Share whole builds with friends as **blueprint codes**.
-*   **Ships, stations, bases:** lay a keel and build your own ship block by block (it flies the way you built it), deploy a station core in orbit, found planet **bases** with a life-support field, airtight rooms and teleporter pads, repair and claim wrecks — or claim a factory as your base with a rare access code.
-*   **Deep crafting:** mine, smelt, unlock blueprints, and craft everything from hover speeders to space stations; factory terminals for bulk production, greenhouses and farming, tiered gear upgrades, and 40+ achievements with rewards along the way.
-
-*   **Bring your base to life:** the **Crystal Net** — glowing crystal wires that carry ON or OFF. Switches, step plates, sensors and logic blocks drive lamps, doors, alarms, displays, drills and fabricators; **moving blocks** add secret phase doors, trapdoors, drawbridges, pistons and real **lifts**. It works in your own ship too, and pre-built circuits hide puzzles in crystal vaults.
+*   **Build beyond cubes:** reshape any block into slabs, ramps, stairs, domes, furniture — or **draw your own forms**, even ones that fill several blocks — dye it any colour and paint it: your own 32×32 designs, or **repaint any texture in the game** and publish it to everyone on your server. All inside the game. Share whole builds with friends as **blueprint codes**, and paint your own astronaut with outfits to switch between.
+*   **Ships, stations, bases:** lay a keel and build your own ship block by block (it flies the way you built it) and keep growing it on a spacewalk, deploy a station core in orbit, found planet **bases** with a life-support field, airtight rooms and teleporter pads, repair and claim wrecks — or claim a factory as your base with a rare access code.
+*   **Deep crafting:** mine, smelt, pump oil, cut shafts with a drill laser, unlock blueprints, and craft everything from hover speeders to space stations; factory terminals for bulk production, greenhouses and farming, tiered gear upgrades, and 50+ achievements with rewards along the way.
+*   **Bring your base to life:** the **Crystal Net** — glowing crystal wires that carry ON or OFF. Switches, step plates, sensors and logic blocks drive lamps, doors, alarms, displays, auto-drills and fabricators, and a matter sender beams a crate's contents across the world; **moving blocks** add secret phase doors, trapdoors, drawbridges, pistons and real **lifts**. It works in your own ship too, and pre-built circuits hide puzzles in crystal vaults.
 
 **People & Story**
 
 *   **The VEGA Protocol:** an optional story campaign narrated by your ship's AI companion — intro cinematic, lore fragments, Guardian machines, a two-route finale and an ending with credits.
 *   **NPCs who remember you:** trade and talk your way from *Stranger* to *Friend*, make choices in dialogues, get **radio calls** from people you know, watch settlers move into your base; missions, bounties and build jobs on the boards; bandits you can pay off or fight.
+*   **Towns that are lived in:** villages, towns and cities are built from furnished houses with a bed for everyone who lives there, and the people **work by day, sit together in the evening and sleep in their own bed at night**. Meet eight professions, from the doctor and the animal tamer to a streamer who wants a photo with you and a reporter who interviews you — and residents of your own base take on jobs that bring you something, like a gardener, a craftsman or a night guard.
 *   **Learn as you go:** an in-game **Codex wiki**, DataQube arcade minigames, VEGA context tips and a built-in music library.
 
 **Together**
 
 *   **Rich multiplayer:** form alliances, share bases, trade with other players, talk over text **and voice chat** (push-to-talk) with tiered radio reach — play solo, host a world for friends on your LAN, or create your own **[hosted world](https://play.blocksbeyondthestars.de/?lang=en)** on our official servers (set a password, list it publicly, and share it with your friends).
+*   **Play your way:** **Explorer** is the full survival game, **Creative** lets everyone fly with every blueprint unlocked, and in **Sandbox** you craft anything without materials. The mode can even differ per player, so a parent plays survival while a kid builds in creative.
 *   **Made for families:** no gore, friendly-name screening, mute and report tools, a host switch for voice chat, and peaceful/family world presets — see our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 **Platforms & Languages**
@@ -489,50 +494,16 @@ changes are needed to add content. Player-facing names use localization keys res
 
 ## Status
 
-A fully playable client + server game: **multiple star systems** (each with its own sun, planets,
-moons and **asteroid belts** you can mine from the ship or on an EVA), procedurally generated
-worlds that wrap east–west (walk around the planet, seam-free) with a real day/night terminator,
-30 planet types including exotic ones (skylands, fungal, corrupted, ocean, salt flats, ash seas, …) with their
-own flora and fauna, **per-position weather and seasons** (episodic fronts that drift across the
-world — rain, fog, blizzards, acid rain, ember fall, spore blooms, ion storms, meteor showers — with
-gameplay consequences and a weather scanner), swimming/diving, **wall climbing** (jump at a cliff and hold on —
-further on asteroids, with climbing gloves and claws to research), a survival **temperature/climate
-system**, **fire** you can start and put out (vegetation-only — nothing built ever burns), creature
-taming with energy-fence pens, a craftable hover speeder, mining → crafting → blueprints (with
-**tiered gear upgrades** that consume their predecessor) → ship building (**lay a keel, build the
-hull, commission it at the helm — it flies the way you built it**), real system-scale space flight
-(with jumps between systems) with stations, settlements and NPCs, peaceful NPC trader traffic,
-**NPC relationships** (standings from Stranger to Friend, dialogues with choices, **radio calls**
-from people you know, settlers who move into your base), missions, **bounty missions** on bandit
-camps and raider ships, build jobs, robbers you can pay off or fight, rare **factories** with
-roster-limited production terminals, fallen **ruins**, **treasure chests**, **monuments with
-scannable runes**, three **one-of-a-kind mystery places** per galaxy (plus life-pod rescues and
-anomalies in space), **access-code claiming** that turns a factory into your own editable base, the
-**frontier** (richer rare ores far from home) and a **growing galaxy** option, an **SPS relay
-network** of player stations that opens jump lanes, the **"VEGA Protocol" story campaign** (a
-swappable, story-agnostic engine with lore fragments, three Guardian machine types and a two-route
-finale) opened by a watchable **intro cinematic** and a staged prologue and closed by a proper
-ending, multiplayer with per-player ships, **player alliances**, shared bases and player↔player
-trading, text + **voice chat** (push-to-talk) with tiered radio reach, planet **bases + teleporter
-pads** (and a suit teleporter) with a life-support field and **airtight sealed rooms** (energy
-door, shield dome, leak warnings), greenhouses and farming, **18 craftable block shapes plus a
-form editor for your own shapes**, material dyeing in any colour and colored-light building,
-**low-tech furniture** (bed, campfire, chairs you can actually sit on), **player-paintable 32×32
-block designs** and a **blueprint tool** that shares whole builds as codes, binoculars with thermal
-vision, an in-game camera with a photo album, **40+ achievements** with rewards, in-game
-customization (avatar pixel-face/body-paint editor with outfits, content/ship/station editors), an
-in-game **Codex wiki + data-cube arcade minigames**, a built-in **music library**, the VEGA ship-AI
-onboarding/advisor companion with context tips, an in-game *What's new?*, world-creation options and
-presets (peaceful/family → dangerous), and an optional LLM backend for dynamic dialogue/mission text
-— all of it playable in **14 languages, from English and German to Japanese and Simplified
-Chinese**, with keyboard + mouse, gamepad or touch. Self-hostable dedicated server. **Native Windows
-and Linux** clients (no Wine/Proton; an experimental macOS build exists), a browser build, auto-update,
-and **opt-in automatic crash reporting** so problems get fixed faster.
-Currently **2354 xUnit tests pass** (2080 server/shared + 274 headless client<->server).
+A fully playable client + server game in active development, with frequent releases. Where to look:
 
-See [TODO.md](TODO.md) for the current Done/Open status, the
-[user manual](docs/user/USER_MANUAL.md) for controls/mechanics/commands, and [AGENTS.md](AGENTS.md)
-for contributor rules.
+- **What is in it:** [Features at a Glance](#-features-at-a-glance) above.
+- **What changed, release by release:** the [changelog](CHANGELOG.md).
+- **How to play it:** the [user manual](docs/user/USER_MANUAL.md) — controls, mechanics, commands.
+- **What is done and what is open:** [TODO.md](TODO.md).
+- **Rules for contributors:** [AGENTS.md](AGENTS.md).
+
+More than **4,000 automated xUnit tests** guard it, from the server and shared code to headless client↔server
+runs against the real game server.
 
 ## 📜 License
 
