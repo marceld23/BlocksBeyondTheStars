@@ -126,6 +126,9 @@ public sealed class WorldGenerationGoldenTests
         new("bone_desert-gen21", 20261005, "bone_desert", 0, false, null, 21),
         new("desert-gen21", 20261005, "desert", 0, false, null, 21),
         new("karst-gen21", 20261005, "karst", 0, false, null, 21),
+        // Generation 22 (2026-10-07, #2370/#2371): full-height oil pockets and the seeps — a living world's chunks are the
+        // same as generation 21 but for the pockets and their chimneys (OilSeepsWorldTests checks those directly).
+        new("jungle-gen22", 20260927, "jungle", 0, false, null, 22),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -218,6 +221,9 @@ public sealed class WorldGenerationGoldenTests
             ["bone_desert-gen21"] = 0x7d70da7ea2a3fec3UL,
             ["desert-gen21"] = 0x88b994418402ffabUL,
             ["karst-gen21"] = 0xce432b6e64c242b0UL,
+            // Pinned 2026-10-07 (oil you can find, generation 22; Windows 11, .NET 10). Equal to jungle-gen18: no pocket or
+            // seep lies under the three sample columns, and nothing else of generations 19–22 moved them.
+            ["jungle-gen22"] = 0x77b4051ac5c69436UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

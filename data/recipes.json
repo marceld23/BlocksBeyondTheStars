@@ -39,6 +39,9 @@
   { "key": "titanium_plate",   "station": "refinery", "inputs": [ { "item": "titanium_ore", "count": 2 } ],                                        "outputs": [ { "item": "titanium_plate", "count": 1 } ] },
   { "key": "refine_oil_polymer", "station": "refinery", "inputs": [ { "item": "oil", "count": 1 } ],                                              "outputs": [ { "item": "polymer", "count": 3 } ] },
   { "key": "refine_oil_lubricant", "station": "refinery", "inputs": [ { "item": "oil", "count": 1 }, { "item": "carbon", "count": 1 } ],            "outputs": [ { "item": "lubricant", "count": 2 } ] },
+  // #2373: bio-lubricant — the route without oil (every world with plants or water makes biofuel, worlds older than oil too).
+  // Deliberately dearer than crude: 3 biofuel + 1 carbon -> 1, against 1 oil + 1 carbon -> 2.
+  { "key": "refine_bio_lubricant", "station": "refinery", "inputs": [ { "item": "biofuel", "count": 3 }, { "item": "carbon", "count": 1 } ],     "outputs": [ { "item": "lubricant", "count": 1 } ] },
 
   { "key": "refine_iron",   "station": "refinery", "inputs": [ { "item": "iron_ore", "count": 1 } ],   "outputs": [ { "item": "iron_ingot", "count": 1 } ] },
   { "key": "refine_copper", "station": "refinery", "inputs": [ { "item": "copper_ore", "count": 1 } ], "outputs": [ { "item": "copper_wire", "count": 3 } ] },

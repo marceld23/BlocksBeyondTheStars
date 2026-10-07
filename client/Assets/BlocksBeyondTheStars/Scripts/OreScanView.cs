@@ -41,6 +41,15 @@ namespace BlocksBeyondTheStars.Client
         private float _until;
         private bool _subscribed;
 
+        /// <summary>#2372: the oil echo's line, shown as a second toast once the ore line has been read (the toast is one
+        /// line — both at once would not fit).</summary>
+        private string _pendingEcho;
+        private float _echoAt;
+        private const float EchoToastDelay = 3f;
+
+        /// <summary>#2372: the oil marker is bigger than an ore cube — it may stand hundreds of blocks away.</summary>
+        private const float OilMarkerScale = 1.6f;
+
         /// <summary>The scene's overlay (one per world rig) — lets the Tab menu drop a station marker (#1072).</summary>
         public static OreScanView Instance { get; private set; }
 
@@ -82,6 +91,12 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.OreScanReceived += OnScan;
                 Game.Network.WorldResetReceived += _ => Clear();
                 _subscribed = true;
+            }
+
+            if (_pendingEcho != null && Time.time >= _echoAt)
+            {
+                Game?.ShowMessage(_pendingEcho);
+                _pendingEcho = null;
             }
 
             if (_markers.Count == 0)
@@ -158,6 +173,16 @@ namespace BlocksBeyondTheStars.Client
                 FxGadgets.TerrainScan(FxLook.ForItem(Game.Content, "terrain_scanner"), origin);
             }
 
+            // #2372: the oil echo — its own toast a moment later, and a marker on the pocket that is there at once (the
+            // wave never reaches a pocket hundreds of blocks off). The server also pinged it on the compass and the map.
+            _pendingEcho = loc != null ? OilEchoLine(scan, loc) : null;
+            _echoAt = Time.time + EchoToastDelay;
+            if (scan.OilFound)
+            {
+                _until = Time.time + Mathf.Max(2f, scan.Seconds);
+                AddMarker(Game.ScenePos(scan.OilX + 0.5f, scan.OilY + 0.5f, scan.OilZ + 0.5f), OilTint, Time.time, OilMarkerScale);
+            }
+
             if (hits == 0)
             {
                 return;
@@ -196,11 +221,45 @@ namespace BlocksBeyondTheStars.Client
             return counts.Count > shown ? list + " · …" : list;
         }
 
+        /// <summary>#2372: the oil echo's toast line — how far off the pocket lies and how deep below (or above) the player,
+        /// rounded, as the echo is a hint and not a survey; "nothing within N m" when no pocket answered; null on a world
+        /// without oil (the scan then says nothing about oil at all).</summary>
+        private string OilEchoLine(OreScanResult scan, BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            if (!scan.OilEcho)
+            {
+                return null;
+            }
+
+            if (!scan.OilFound || Player == null)
+            {
+                return string.Format(loc.Get("ui.scan.oil_echo.none"), scan.OilEchoRange);
+            }
+
+            var oil = Game.ScenePos(scan.OilX + 0.5f, scan.OilY + 0.5f, scan.OilZ + 0.5f);
+            var feet = Player.transform.position;
+            float flat = new Vector2(oil.x - feet.x, oil.z - feet.z).magnitude;
+            int metres = flat < 50f ? Mathf.RoundToInt(flat) : Mathf.RoundToInt(flat / 10f) * 10;
+            int below = Mathf.RoundToInt(feet.y - oil.y);
+            if (below >= 3)
+            {
+                return string.Format(loc.Get("ui.scan.oil_echo"), metres, below);
+            }
+
+            return below <= -3
+                ? string.Format(loc.Get("ui.scan.oil_echo.above"), metres, -below)
+                : string.Format(loc.Get("ui.scan.oil_echo.level"), metres);
+        }
+
+        /// <summary>#2372: oil's marker — a violet oil sheen (black would vanish against the rock it glows through).</summary>
+        private static readonly Color OilTint = new Color(0.78f, 0.45f, 1f);
+
         /// <summary>Marker tint by block kind: gold warm yellow, copper orange, iron rust, crystal cyan,
-        /// data cache green, titanium pale silver — everything else a generic amber.</summary>
+        /// data cache green, titanium pale silver, oil violet — everything else a generic amber.</summary>
         private Color TintFor(ushort blockId)
         {
             string key = Game?.Content?.BlockById(new BlocksBeyondTheStars.Shared.Primitives.BlockId(blockId))?.Key ?? string.Empty;
+            if (key == "oil") return OilTint;
             if (key.Contains("gold")) return new Color(1f, 0.84f, 0.2f);
             if (key.Contains("copper")) return new Color(1f, 0.55f, 0.25f);
             if (key.Contains("iron")) return new Color(0.95f, 0.45f, 0.35f);

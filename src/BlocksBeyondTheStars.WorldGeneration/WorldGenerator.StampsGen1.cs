@@ -602,7 +602,7 @@ public sealed partial class WorldGenerator
 
                     if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
                         || SurfaceGen1WaterDepth(planet, wx, wz) > 0
-                        || DryBeachAt(planet, calib, seed, RiverFieldFor(planet), waterId, wx, wz, sy))
+                        || DryBeachAt(planet, calib, seed, RiverFieldFor(planet), waterId, wx, wz, sy) || OilSeepNear(planet, wx, wz))
                     {
                         continue;
                     }

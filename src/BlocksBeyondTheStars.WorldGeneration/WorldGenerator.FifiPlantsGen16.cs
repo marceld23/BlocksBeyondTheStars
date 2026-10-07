@@ -100,9 +100,9 @@ public sealed partial class WorldGenerator
         }
 
         if (sy + 1 <= g.FluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
-            || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || IsSandSeaAt(planet, wx, wz))
+            || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || IsSandSeaAt(planet, wx, wz) || OilSeepNear(planet, wx, wz))
         {
-            return false; // not in the sea, a pond, a river or a sand sea
+            return false; // not in the sea, a pond, a river, a sand sea or an oil seep's tar (#2371)
         }
 
         if (g.Trees && ForestMaskAt(planet, seed, wx, wz) > GiantTreeForestMask)

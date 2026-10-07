@@ -139,9 +139,9 @@ public sealed partial class WorldGenerator
 
                 if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
                     || SurfaceGen1WaterDepth(planet, wx, wz) > 0
-                    || DryBeachAt(planet, calib, seed, riverField, waterId, wx, wz, sy))
+                    || DryBeachAt(planet, calib, seed, riverField, waterId, wx, wz, sy) || OilSeepNear(planet, wx, wz))
                 {
-                    continue; // a pond, a river or a beach — no giant stands in the water or in the sand
+                    continue; // a pond, a river, a beach or a seep's tar (#2371) — no giant stands in the water or in the sand
                 }
 
                 var surf = biome.Surface;

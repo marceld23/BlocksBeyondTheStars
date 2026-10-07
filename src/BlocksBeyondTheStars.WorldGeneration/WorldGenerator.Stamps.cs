@@ -289,9 +289,9 @@ public sealed partial class WorldGenerator
                 }
 
                 if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
-                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0)
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz))
                 {
-                    continue; // dry ground only
+                    continue; // dry ground only, and never on a seep's tar (#2371)
                 }
 
                 int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, cz) * 997); // per-column shape hash
@@ -406,9 +406,9 @@ public sealed partial class WorldGenerator
                 }
 
                 if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
-                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0)
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz))
                 {
-                    continue; // a vent needs open ground (not a sea/pond column)
+                    continue; // a vent needs open ground (not a sea/pond column, not a seep's tar — #2371)
                 }
 
                 int ly = sy - origin.Y;
@@ -473,9 +473,9 @@ public sealed partial class WorldGenerator
                 }
 
                 if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
-                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0)
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz))
                 {
-                    continue; // not in water
+                    continue; // not in water, not on a seep's tar (#2371)
                 }
 
                 if (DryBeachAt(planet, calib, seed, RiverFieldFor(planet),
@@ -663,9 +663,9 @@ public sealed partial class WorldGenerator
                 }
 
                 if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
-                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0)
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz))
                 {
-                    continue; // B35: an upland pond/lake, a river or a generation-1 body here — a tree would stand in the water
+                    continue; // B35: an upland pond/lake, a river or a generation-1 body here — a tree would stand in the water; #2371: or in a seep's tar
                 }
 
                 // Beaches (#679): on a beach column the painted ground is the beach block, NOT the biome

@@ -296,6 +296,8 @@ public sealed partial class WorldGenerator
                 int geoLo = col.GeoLo, geoHi = col.GeoHi, geoInLo = col.GeoInLo, geoInHi = col.GeoInHi;
                 bool oilHere = col.OilHere; // generation 18 (#2106): false on every older column
                 int oilLo = col.OilLo, oilHi = col.OilHi, oilInLo = col.OilInLo, oilInHi = col.OilInHi;
+                int oilSeepLo = col.OilSeepLo; // generation 22 (#2371): int.MaxValue on every column without a seep cell
+                bool oilPuddle = col.OilPuddle;
                 int strataShift = col.StrataShift;
                 // Terrain generation 3: the paint fill, the sub-surface fluid spans and the cave shield — all at
                 // their classic no-op values (MinValue / empty / an empty range) on every generation 0–2 column.
@@ -555,6 +557,15 @@ public sealed partial class WorldGenerator
                         continue;
                     }
 
+                    // Oil seep (#2371, generation 22): the tar chimney from the pocket's shell up to the ground and the tar
+                    // patch round its mouth, with an oil puddle in the middle on dry land — claimed like the pocket, before
+                    // the topsoil, the tunnels and the caves, so the black trail runs unbroken down to the oil.
+                    if (worldY >= oilSeepLo)
+                    {
+                        chunk.Set(lx, ly, lz, oilPuddle && worldY == seabedY ? oilId : tarShellId);
+                        continue;
+                    }
+
                     // Cavern shell glints (#707): sparse crystal studs the cell just under the cavern floor.
                     if (cavernHere && worldY == cavLo - 1 && !cavernCrystalId.IsAir
                         && Noise.Value01(seed + 0x0CAFE1, WorldConstants.WrapX(worldX, _circumference), worldY, Wz(worldZ)) < 0.10)
@@ -679,7 +690,7 @@ public sealed partial class WorldGenerator
                 // Surface flora: one plant in the air cell directly above the surface (bounded — one per column,
                 // no spreading), chosen by biome surface + a density roll. Columns that lie under the sea grow
                 // aquatic flora instead (kelp + lily pads); land plants don't grow underwater.
-                if (flora && seabedY + 1 > waterTop)
+                if (flora && seabedY + 1 > waterTop && oilSeepLo == int.MaxValue) // #2371: nothing grows out of a seep's tar
                 {
                     // On a beach the painted ground is the beach block, not the biome surface — grow that
                     // host's flora (sparse sand tufts), never grass plants standing in sand (#679).
@@ -856,6 +867,10 @@ public sealed partial class WorldGenerator
         /// older column.</summary>
         public int OilLo, OilHi = -1, OilInLo = 1, OilInHi;
         public bool OilHere;
+        /// <summary>Generation 22 (#2371): the lowest cell of the seep on this column (every cell from it up to the ground is
+        /// the seep's tar), int.MaxValue on every column without one; OilPuddle = the ground cell is the oil puddle.</summary>
+        public int OilSeepLo = int.MaxValue;
+        public bool OilPuddle;
         public BlockId ColumnFluid, SurfaceId, SubSurfaceId;
         public BlockId? CraterMetal;
         public ColumnBand[] Bands = System.Array.Empty<ColumnBand>();
@@ -1456,8 +1471,12 @@ public sealed partial class WorldGenerator
         int strataShift = c.StrataWorld ? StrataShiftAt(seed, worldX, worldZ) : int.MinValue;
 
         // Generation 18 (#2106): the oil pocket covering this column (clamped under the local ground).
-        int oilLo = 0, oilHi = -1, oilInLo = 1, oilInHi = 0;
-        bool oilHere = c.OilWorld && TryGetOilPocketSpan(planet, wonder, worldX, worldZ, seabedY, out oilLo, out oilHi, out oilInLo, out oilInHi);
+        // Generation 22 (#2371): and its seep, if it has one — the puddle only where no water stands over the ground.
+        int oilLo = 0, oilHi = -1, oilInLo = 1, oilInHi = 0, oilSeepLo = int.MaxValue;
+        bool oilPuddle = false;
+        bool oilHere = c.OilWorld && TryGetOilPocketSpan(planet, wonder, worldX, worldZ, seabedY,
+            out oilLo, out oilHi, out oilInLo, out oilInHi, out oilSeepLo, out oilPuddle);
+        oilPuddle = oilPuddle && waterTop <= seabedY;
 
         // Crater-floor metal clumps (item 33): on a cratered world, the top cells of a metal-bearing deep
         // crater floor are exposed rare ore instead of regolith (only some craters, a few clumps each).
@@ -1504,6 +1523,8 @@ public sealed partial class WorldGenerator
             OilHi = oilHi,
             OilInLo = oilInLo,
             OilInHi = oilInHi,
+            OilSeepLo = oilHere ? oilSeepLo : int.MaxValue,
+            OilPuddle = oilHere && oilPuddle,
             StrataShift = strataShift,
             // Terrain generation 3
             PaintFillToY = paintFillToY,

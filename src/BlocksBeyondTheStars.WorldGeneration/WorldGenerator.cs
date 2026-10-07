@@ -581,6 +581,9 @@ public sealed partial class WorldGenerator
         // Terrain generation 18 (#2106): a living world carries sealed oil pockets underground.
         public bool OilPockets;
 
+        // Terrain generation 22 (#2370/#2371): the pockets reach their designed half-height, and some of them seep.
+        public bool OilFullHeight, OilSeeps;
+
         // Terrain generation 21 (#2331, the spectacle package): the family gates, all false below generation 21.
         public bool PillarIslands, ArchClusters, MesaClusters, TableVariants, WaveRocks, Abris, Portals, DaylightHalls, FossilRidges, BoneStrata;
 
@@ -1176,6 +1179,12 @@ public sealed partial class WorldGenerator
                 if (_terrainGeneration >= WorldDescription.OilGeneration)
                 {
                     w.OilPockets = HasOilPockets(planet); // #2106: only where plants and animals live
+                }
+
+                if (_terrainGeneration >= WorldDescription.OilSeepGeneration)
+                {
+                    w.OilFullHeight = w.OilPockets; // #2370: the half-height reads hash bits no older roll used
+                    w.OilSeeps = w.OilPockets && !planet.IsGasWorld; // #2371: about a third reach the surface (no gas sea)
                 }
 
                 ulong uh = Noise.Hash(seed ^ 0x57FADE, 2, 4, 8);
