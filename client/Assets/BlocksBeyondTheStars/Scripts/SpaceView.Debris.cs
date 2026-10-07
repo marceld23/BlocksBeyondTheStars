@@ -79,8 +79,8 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------- The debris field (#2353) ----------------
 
-        /// <summary>The field marker: a scorched flight recorder — a small dark box with a copper band and a beacon that
-        /// pulses slowly — turning gently in the middle of the field (<see cref="DebrisBeaconView"/>).</summary>
+        /// <summary>The field marker: a scorched flight recorder — a scorched-steel box with a copper band, a glow line
+        /// and a beacon that pulses slowly — turning gently in the middle of the field (<see cref="DebrisBeaconView"/>).</summary>
         private GameObject BuildDebrisFieldMarkerModel(Transform parent, NetCombatEntity e)
         {
             var root = new GameObject("DebrisField");
@@ -88,18 +88,22 @@ namespace BlocksBeyondTheStars.Client
             var body = new GameObject("Body").transform;
             body.SetParent(root.transform, false);
 
-            var dark = Lit(new Color(0.22f, 0.21f, 0.23f));
+            // #2365: the box used to be near-black and vanished against space, leaving a floating copper ring
+            // ("was ist das?"). Scorched steel now, half again as big, with a glow line along the band so it reads
+            // as a device with a beacon rather than a bent orange bar.
+            var scorched = Lit(new Color(0.46f, 0.45f, 0.48f));
             var copper = Lit(DebrisCopper);
-            Cube("Box", body, Vector3.zero, new Vector3(1.4f, 0.9f, 1.0f), dark);
-            Cube("Band", body, new Vector3(0f, 0f, 0f), new Vector3(1.46f, 0.22f, 1.06f), copper);
-            Cube("Mast", body, new Vector3(0f, 0.85f, 0f), new Vector3(0.08f, 0.8f, 0.08f), Lit(new Color(0.6f, 0.62f, 0.66f)));
+            Cube("Box", body, Vector3.zero, new Vector3(2.1f, 1.35f, 1.5f), scorched);
+            Cube("Band", body, Vector3.zero, new Vector3(2.19f, 0.33f, 1.59f), copper);
+            Cube("Glow", body, new Vector3(0f, 0.19f, 0f), new Vector3(2.21f, 0.05f, 1.61f), Unlit(DebrisCopper));
+            Cube("Mast", body, new Vector3(0f, 1.28f, 0f), new Vector3(0.12f, 1.2f, 0.12f), Lit(new Color(0.6f, 0.62f, 0.66f)));
 
             var beacon = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             beacon.name = "Beacon";
             StripCollider(beacon);
             beacon.transform.SetParent(body, false);
-            beacon.transform.localPosition = new Vector3(0f, 1.3f, 0f);
-            beacon.transform.localScale = Vector3.one * 0.3f;
+            beacon.transform.localPosition = new Vector3(0f, 1.95f, 0f);
+            beacon.transform.localScale = Vector3.one * 0.45f;
             beacon.GetComponent<Renderer>().sharedMaterial = Unlit(DebrisCopper);
 
             root.AddComponent<DebrisBeaconView>().Init(body, beacon.transform, 0.5f, 1.6f, 6f);

@@ -4808,7 +4808,9 @@ namespace BlocksBeyondTheStars.Client
                         continue; // a future server hint this client has no translation for — no raw "[key]" (#428)
                     }
 
-                    y = StoryEntry(y, L(key));
+                    // Composed like the speech panel (#2364): key glyphs resolved, a lost {0} reads as "…".
+                    string line = VegaPanel.Instance != null ? VegaPanel.Instance.ComposeLine(L(key), null) : VegaText.Compose(L(key), null, a => a);
+                    y = StoryEntry(y, line);
                     anyTip = true;
                 }
             }

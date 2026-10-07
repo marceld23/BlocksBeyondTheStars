@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -14,6 +15,85 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// </summary>
 public sealed class VegaTextTests
 {
+    // ---- Compose (#2363 / #2364): key glyphs before the format, a format that never throws ----
+
+    private static string Glyph(string action) => action switch
+    {
+        "FlightMap" => "M",
+        "FlightAutopilot" => "F",
+        "ToggleLamp" => "L",
+        _ => action,
+    };
+
+    [Fact]
+    public void Compose_ExpandsKeyTokens_BeforeFillingTheArgument()
+    {
+        // The 2026.10.8 line that threw FormatException out of the poll for every pilot in space (Hadewin's crash report).
+        const string line = "A debris field, {0}, drifts somewhere in this system. Open the map with {key:FlightMap}, click it, then press {key:FlightAutopilot}.";
+        Assert.Equal(
+            "A debris field, Likorn, drifts somewhere in this system. Open the map with M, click it, then press F.",
+            VegaText.Compose(line, "Likorn", Glyph));
+    }
+
+    [Fact]
+    public void Compose_FillsEveryPackedArgument()
+    {
+        string packed = "iron ore" + VegaText.ArgSeparator + "drill";
+        Assert.Equal("iron ore — what you need for drill", VegaText.Compose("{0} — what you need for {1}", packed, Glyph));
+    }
+
+    [Fact]
+    public void Compose_MalformedFormat_NeverThrows_ShowsTheExpandedLine()
+    {
+        // A damaged community translation: a brace that belongs to no token. The glyphs still resolve, the slot stays.
+        Assert.Equal("Press { to open {0} with L", VegaText.Compose("Press { to open {0} with {key:ToggleLamp}", "x", Glyph));
+    }
+
+    [Fact]
+    public void Compose_WithoutArgument_NeutralisesTheSlot_ForTheTipsLog()
+    {
+        Assert.Equal("The wreck … drifts here. Map: M", VegaText.Compose("The wreck {0} drifts here. Map: {key:FlightMap}", null, Glyph));
+        Assert.Equal("Night falls. L.", VegaText.Compose("Night falls. {key:ToggleLamp}.", "ignored", Glyph));
+        Assert.Equal(string.Empty, VegaText.Compose(null, "x", Glyph));
+    }
+
+    public static TheoryData<string> Locales()
+    {
+        var data = new TheoryData<string>();
+        foreach (var file in Directory.GetFiles(Path.Combine(ClientTestPaths.DataDir(), "locales"), "*.json"))
+        {
+            data.Add(Path.GetFileNameWithoutExtension(file));
+        }
+
+        return data;
+    }
+
+    /// <summary>Every VEGA line in every language composes with an argument and leaves no brace behind — the test
+    /// that would have caught <c>debris_signal</c> at PR time instead of in the crash inbox.</summary>
+    [Theory]
+    [MemberData(nameof(Locales))]
+    public void EveryVegaLine_InEveryLocale_Composes(string code)
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(ClientTestPaths.DataDir(), "locales", code + ".json")));
+        string args = string.Join(VegaText.ArgSeparator.ToString(), "a", "b", "c", "d");
+        var bad = new List<string>();
+        foreach (var prop in doc.RootElement.EnumerateObject())
+        {
+            if (!prop.Name.StartsWith("vega.", StringComparison.Ordinal) || prop.Value.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            string composed = VegaText.Compose(prop.Value.GetString(), args, a => "K");
+            if (composed.Contains('{') || composed.Contains('}'))
+            {
+                bad.Add(prop.Name + " → " + composed);
+            }
+        }
+
+        Assert.True(bad.Count == 0, $"{code}: VEGA lines that do not compose:\n" + string.Join("\n", bad));
+    }
+
     // ---- PageRanges (#736): grouping wrapped lines into panel-height pages ----
 
     [Fact]

@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -29,7 +30,7 @@ namespace BlocksBeyondTheStars.Client
             "lamp_off", "lamp_missing", "torch_underground", "eat_now", "wrong_tool", "tier_gate", "scanner_idle", "scanner_unknown", "speeder_far", "ship_far",
             "rare_ore_near", "needed_ore_near", "data_cache_near", "craftable_now", "blueprint_affordable",
             "settlement_near", "ruin_near", "factory_near", "treasure_near", "trader_near", "tameable_near", "player_near",
-            "asteroid_near", "asteroid_no_tool", "station_near", "wreck_signal", "wreck_signal_manual", "debris_signal", "jump_ready",
+            "asteroid_near", "asteroid_no_tool", "station_near", "wreck_signal", "wreck_signal_manual", "debris_signal", "debris_recorder", "jump_ready",
         };
 
         /// <summary>Repeat / retire markers the server appends to a context-tip milestone (<c>vega:hint:lamp_off#2</c>,
@@ -83,6 +84,58 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>What a <c>{0}</c> slot reads as when a line is shown without its argument (the tips log, #2364:
+        /// the milestones remember the key, not the wreck's name).</summary>
+        public const string MissingArg = "…";
+
+        /// <summary>
+        /// Composes a VEGA line for display (#2363): the <c>{key:Action}</c> tokens are expanded FIRST, then the
+        /// <c>{0}</c>, <c>{1}</c>… slots are filled from the packed <paramref name="lineArg"/>. The order is the fix —
+        /// <c>string.Format</c> reads <c>{key:…}</c> as a malformed placeholder and throws, which is how
+        /// <c>vega.hint.debris_signal</c> silently lost every pilot's debris-field tip in 2026.10.8. A format that still
+        /// fails (a damaged community translation) never throws: the token-expanded line is shown as it is, and the
+        /// locale test that composes every VEGA line catches the leftover braces. Without an argument the slots read
+        /// as <see cref="MissingArg"/> ("The wreck … drifts"), for the tips log.
+        /// </summary>
+        public static string Compose(string? text, string? lineArg, Func<string, string> glyph)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            text = ExpandKeyTokens(text!, glyph); // netstandard2.1 has no NotNullWhen on IsNullOrEmpty
+            if (text.IndexOf("{0}", StringComparison.Ordinal) < 0)
+            {
+                return text; // no slot — the common case, and the path such lines always took
+            }
+
+            if (string.IsNullOrEmpty(lineArg))
+            {
+                return NeutralisePlaceholders(text);
+            }
+
+            try
+            {
+                return string.Format(CultureInfo.InvariantCulture, text, SplitArgs(lineArg!));
+            }
+            catch (FormatException)
+            {
+                return text;
+            }
+        }
+
+        /// <summary>Replaces the <c>{0}</c>…<c>{9}</c> slots with <see cref="MissingArg"/>.</summary>
+        private static string NeutralisePlaceholders(string text)
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                text = text.Replace("{" + i.ToString(CultureInfo.InvariantCulture) + "}", MissingArg, StringComparison.Ordinal);
+            }
+
+            return text;
         }
 
         private static readonly string[] WorldOrder =

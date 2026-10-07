@@ -262,6 +262,32 @@ public sealed class DebrisFieldTests : IDisposable
     }
 
     [Fact]
+    public void VegaTip_NamesTheRecorder_OnceTheFieldIsCarvedOut()
+    {
+        var server = NewServer("field_recorder_tip", 11, Frequency.Frequent, null, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Salvager");
+            var (field, _) = ParkNextToAField(server, pilot);
+            server.EnterSpace("Salvager");
+            var marker = server.SpaceEntitiesFor("Salvager").First(e => e.Id == field.Id);
+
+            // Parked at the recorder with the rubble still around: the approach reads it, the tip stays quiet.
+            server.ShipMove("Salvager", marker.Position.X + 3f, marker.Position.Y, marker.Position.Z);
+            Assert.Contains("debris:" + field.Id, pilot.State.Scanned);
+            Assert.DoesNotContain("debris_recorder", server.VegaTipCandidatesForTest("Salvager").Candidates);
+
+            // Every fragment carved, every capsule pulled in (#2366, Layex' "was ist das?"): the box left behind gets its line.
+            server.ClearDebrisFieldSalvageForTest("Salvager", field.Id);
+            Assert.Contains("debris_recorder", server.VegaTipCandidatesForTest("Salvager").Candidates);
+
+            // Away from the field it is not the moment.
+            server.ShipMove("Salvager", marker.Position.X + 80f, marker.Position.Y, marker.Position.Z);
+            Assert.DoesNotContain("debris_recorder", server.VegaTipCandidatesForTest("Salvager").Candidates);
+        }
+    }
+
+    [Fact]
     public void MiningLaser_BreaksAFragment_AndPaysTheThemesScrap()
     {
         var server = NewServer("field_mine", 11, Frequency.Frequent, null, out var repo);

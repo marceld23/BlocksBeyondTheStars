@@ -232,7 +232,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _queue.Enqueue((VegaText.ExpandKeyTokens(L(lineKey), KeyGlyphFor), false));
+            _queue.Enqueue((VegaText.Compose(L(lineKey), null, KeyGlyphFor), false));
             if (Game != null && !Game.VegaLogKeys.Contains(lineKey))
             {
                 Game.VegaLogKeys.Add(lineKey);
@@ -258,6 +258,10 @@ namespace BlocksBeyondTheStars.Client
 
             return InputMap.Glyph(a);
         }
+
+        /// <summary>A VEGA line composed the way the panel shows it — key glyphs resolved, slots filled or, without an
+        /// argument, neutralised (#2364: the tips log re-reads lines whose argument the milestones no longer carry).</summary>
+        public string ComposeLine(string text, string lineArg) => VegaText.Compose(text, lineArg, KeyGlyphFor);
 
         /// <summary>Capture hook (<see cref="ScreenshotDirector"/>): drop any queued VEGA speech and hide the
         /// panel, so an unattended screenshot run never catches the onboarding/greeting dialog in the frame.
@@ -389,16 +393,11 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (!string.IsNullOrEmpty(m.LineKey) && !muted)
             {
-                string text = L(m.LineKey);
-                if (!string.IsNullOrEmpty(m.LineArg) && text.Contains("{0}"))
-                {
-                    // Several arguments travel packed in one LineArg (#1079: "{ore} — what you need for {item}").
-                    text = string.Format(text, VegaText.SplitArgs(m.LineArg));
-                }
-
                 // {key:Action} → the control bound to that action on the device in hand (#1077) — so "your
-                // suit lamp is on L" reads right after a rebind, on a pad, and on touch.
-                text = VegaText.ExpandKeyTokens(text, KeyGlyphFor);
+                // suit lamp is on L" reads right after a rebind, on a pad, and on touch — expanded BEFORE the
+                // packed {0}… arguments (#1079) are filled in: string.Format reads "{key:" as a broken placeholder
+                // and threw the debris-field tip out of the poll for every pilot in 2026.10.8 (#2363).
+                string text = VegaText.Compose(L(m.LineKey), m.LineArg, KeyGlyphFor);
 
                 // Prologue pages (Kind 4, #754) ride the normal queue with a flag — same panel, same
                 // paging, plus the dim + Esc-to-skip while one is showing.
