@@ -1593,8 +1593,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   drift back in on your next visit, like belt rocks), and the **tractor beam** pulls in the one or two sealed
   **salvage capsules** — energy cells, circuit boards, data fragments — which pay **once per galaxy**, like the
   wreck. Inside the field, drifting rubble **taps your shield** every few seconds while you move (never the
-  hull — a ship without shields just hears the clank), so take it slow. How many systems hold a field is a
-  world option (**Debris fields**, advanced page: off · very rare · rare · normal (default) · frequent).
+  hull — a ship without shields just hears the clank), so take it slow. The scorched box with the beacon in the
+  middle is the recorder itself — the target lock calls it **Flight recorder** — and it cannot be salvaged; once a
+  field is carved out, VEGA says so. Loot floating free after a break shows as **Loot** on the lock. How many
+  systems hold a field is a world option (**Debris fields**, advanced page: off · very rare · rare · normal
+  (default) · frequent).
 - Every **asteroid** listed for a system stays a visible dot from anywhere in that system, and the green
   bearing blips on the radar's rim carry the body's name — the chart's waypoint is still the quickest way there.
 - Everything in this section is peaceful and appears under every preset — nothing here fights back; the debris

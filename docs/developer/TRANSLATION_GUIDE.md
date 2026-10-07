@@ -42,9 +42,10 @@ Hard rules (CI fails on violations; `locale_report.py --check` finds them first)
 
 - Placeholders like `{name}`, `{item}`, `{count}` and key-binding tokens like `{key:ToggleLamp}` must
   survive unchanged (position may move).
-- No other braces. The game substitutes tokens by plain replacement — there is no plural or
-  conditional syntax, so something like `{count?100:100}` is shown to players literally. Where the
-  English has a plain number, write the plain number.
+- No other braces. Named tokens are filled by plain replacement; positional `{0}` slots go through
+  `string.Format` after the key-binding tokens are expanded (`VegaText.Compose`, #2363). There is no
+  plural or conditional syntax, so something like `{count?100:100}` is shown to players literally. Where
+  the English has a plain number, write the plain number.
 - No blank values, no invented keys.
 - Keep formatting characters (`\n`, leading `[`, trailing `:`) intact.
 

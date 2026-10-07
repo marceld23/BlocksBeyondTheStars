@@ -228,6 +228,8 @@ Community contributions we're grateful for:
 - **Bastian** — hands-on playtest of the Linux build
 - **Lyxette** — detailed in-game (F1) bug report after building a second ship: pilot wedged in the hull and stale cargo after a ship switch, base settler standing inside a wall ([#1247](https://github.com/marceld23/BlocksBeyondTheStars/issues/1247), [#1248](https://github.com/marceld23/BlocksBeyondTheStars/issues/1248))
 - **sasas** — the first real macOS crash report, which uncovered why the Mac client could not send a single network message ([#1250](https://github.com/marceld23/BlocksBeyondTheStars/issues/1250))
+- **Hadewin** — the browser crash report that uncovered VEGA's broken debris-field tip: the one line explaining debris fields had never reached a single 2026.10.8 player ([#2363](https://github.com/marceld23/BlocksBeyondTheStars/issues/2363))
+- **Layex** — in-game (F1) report with screenshot, "what is this?", from a salvaged-out debris field — it gave the flight recorder its name, a visible shape and a VEGA line of its own ([#2365](https://github.com/marceld23/BlocksBeyondTheStars/issues/2365), [#2366](https://github.com/marceld23/BlocksBeyondTheStars/issues/2366))
 
 Want to see your name here? Pick something from **[Contribute](#-contribute)** — we add every merged
 contributor to this list and to the in-game Credits screen ourselves

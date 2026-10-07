@@ -24,6 +24,31 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📨 Player reports 2026-10-07 — VEGA's debris tip throws, the flight recorder nobody can name (#2368: #2363–#2367, 2026-10-07, branch fix/player-reports-1007) — ✅ done (unreleased; ⚠ playtest open)
+
+**Reports (2026-10-07, both v2026.10.8).** Hadewin (browser): crash report `FormatException: Input string was not in
+a correct format.` Layex (Windows): „was ist das? Ich hab es zwischen Trümmern gefunden!“ with a screenshot of a
+floating orange bar and dot in a salvaged-out debris field.
+
+**Findings.** `VegaPanel.OnLine` ran `string.Format` over the localized line *before* the `{key:Action}` tokens were
+expanded; `vega.hint.debris_signal` (new in #2360) carries both `{0}` and `{key:FlightMap}`, so the format threw out of
+the poll for every pilot in a system with an unread debris field — no visible crash, the tip simply never showed and
+its cadence slot was spent (#2363). `wreck_signal` had the same mix since #1883 but only fires with an AI core Mk2+.
+The tips log showed the raw tokens (#2364). Layex' object is the field marker, the "scorched flight recorder": a
+near-black box (invisible against space) with a copper band and beacon, nameless in flight — the lock said
+„Trümmerfeld: Likorn“ (#2365), nothing explained the thing left behind once the field is carved out (#2366), and a
+locked loot drop read raw "ResourceDrop" (#2367).
+
+**Done.** `VegaText.Compose` (Client.Core): key tokens first, then the packed `{0}…` slots, a `FormatException` guard,
+`{0}` → „…“ without an argument; `VegaPanel`, `SayLocal` and the tips log use it; a theory composes every `vega.*` line
+in every locale (would have failed at PR time). Marker: scorched-steel box 1.5× the size with a copper glow line, lock
+label „Flugschreiber · Trümmerfeld Likorn“, loot label „Beute“. Server tip `debris_recorder` (once per save) when the
+pilot sits inside a read field with no fragment or capsule left; the recorder readout names the box. Keys en/de by
+hand, the twelve community languages machine-translated and read through; Hadewin and Layex in the README and the
+in-game credits (14 languages). Tests: `VegaTextTests` (+5 and a 14-locale theory), `DebrisFieldTests` (+1).
+**Playtest open:** fly into a system with a debris field → VEGA's debris line arrives; lock the recorder → the label;
+carve the field out → VEGA's recorder line once; the tips log reads clean.
+
 ### 🛰️ Debris fields with salvage, one-time salvage, combat debris, raiders with real hulls (#2351: #2352–#2359, 2026-10-06, branch feat/debris-fields) — ✅ done (released in v2026.10.8; ⚠ playtest open)
 
 **Request (Marcel, 2026-10-06).** Analysis first: do pirates exist (yes — raiders in pirate space), how could debris

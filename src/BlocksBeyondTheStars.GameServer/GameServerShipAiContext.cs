@@ -141,6 +141,8 @@ public sealed partial class GameServer
         new("wreck_signal_manual", VegaTipPriority.Opportunity, 5, 900, 2, true),
         // #2353: a debris field drifts in this system — chart click + waypoint, like the wreck.
         new("debris_signal",  VegaTipPriority.Opportunity, 5,  900, 2, true),
+        // #2366: parked at the recorder of a field carved out — the thing left behind gets its name, once per save.
+        new("debris_recorder", VegaTipPriority.Opportunity, 5, 900, 1, true),
         new("jump_ready",     VegaTipPriority.Opportunity, 0, 1800, 2, true),
     };
 
@@ -750,6 +752,7 @@ public sealed partial class GameServer
         bool asteroidNear = false, stationNear = false;
         CombatEntity? wreck = null;
         CombatEntity? field = null;
+        CombatEntity? recorder = null;
         foreach (var e in instance.Entities)
         {
             if (e.Kind == CombatEntityKind.Asteroid && !asteroidNear && DistSq(pos, e.Position) <= 80.0 * 80.0)
@@ -770,6 +773,11 @@ public sealed partial class GameServer
             {
                 field = e; // #2353: an unread debris field somewhere out there
             }
+            else if (e.Kind == CombatEntityKind.DebrisField && recorder is null && p.Scanned.Contains(DebrisFieldScanKey(e.Id))
+                     && InsideDebrisField(e, pos) && !DebrisFieldHasSalvageLeft(instance, e.Id))
+            {
+                recorder = e; // #2366: inside a field read and carved out — only its recorder is left to wonder about
+            }
         }
 
         if (wreck is not null)
@@ -782,6 +790,11 @@ public sealed partial class GameServer
         if (field is not null)
         {
             add("debris_signal", field.Name, "debris:" + field.Id);
+        }
+
+        if (recorder is not null)
+        {
+            add("debris_recorder", "", "recorder:" + recorder.Id);
         }
 
         if (asteroidNear)

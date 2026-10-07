@@ -396,7 +396,9 @@ namespace BlocksBeyondTheStars.Client
                 case "Cruiser": return Loc("ui.scan.subject.cruiser", "Guardian cruiser");
                 case "BanditShip": return string.IsNullOrEmpty(e.Name) ? Loc("ui.scan.subject.bandit_ship", "Raider ship") : e.Name;
                 case "Wormhole": return WormholeLabel(e.Id);
-                case "DebrisField": return Loc("ui.scan.subject.debris_field", "Debris field") + (string.IsNullOrEmpty(e.Name) ? string.Empty : ": " + e.Name); // #2353
+                case "DebrisField": // #2365: the marker is the field's flight recorder — name the thing, then where it sits
+                    return Loc("ui.scan.subject.debris_recorder", "Flight recorder") + " · " + Loc("ui.scan.subject.debris_field", "Debris field") + (string.IsNullOrEmpty(e.Name) ? string.Empty : " " + e.Name);
+                case "ResourceDrop": return Loc("ui.scan.subject.resource_drop", "Loot"); // #2367: used to show the raw kind name
                 case "Debris": return Loc("ui.scan.subject.debris", "Wreckage");
                 case "SalvageCapsule": return Loc("ui.scan.subject.salvage_capsule", "Salvage capsule");
                 default: return string.IsNullOrEmpty(e.Name) ? e.Kind : e.Name;

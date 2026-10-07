@@ -447,6 +447,10 @@ public sealed partial class GameServer
         return marker.Position.DistanceSquared(pos) <= r * r;
     }
 
+    /// <summary>True while a field still holds a fragment or a sealed capsule in this instance (#2366).</summary>
+    private static bool DebrisFieldHasSalvageLeft(SpaceInstance instance, string fieldId)
+        => instance.Entities.Any(e => e.FieldId == fieldId && e.Kind is CombatEntityKind.Debris or CombatEntityKind.SalvageCapsule);
+
     // ---------------- the flight recorder: approach + scanner ----------------
 
     /// <summary>Reads a debris field's flight recorder: a scan readout naming the theme and the scrap its fragments yield
@@ -533,6 +537,21 @@ public sealed partial class GameServer
 
     /// <summary>Test seam (#2354): the stored ledger value for a key, or -1 when untouched.</summary>
     public int SpaceSalvageLedgerForTest(string key) => _meta.SpaceSalvage.TryGetValue(key, out int v) ? v : -1;
+
+    /// <summary>Test seam (#2366): a field carved out as after a full salvage run — every fragment and capsule gone from
+    /// the player's instance, without the shots and the tractor passes.</summary>
+    public void ClearDebrisFieldSalvageForTest(string playerId, string fieldId)
+    {
+        if (!_playerInstance.TryGetValue(playerId, out var id) || !_spaceInstances.TryGetValue(id, out var instance))
+        {
+            return;
+        }
+
+        foreach (var e in instance.Entities.Where(e => e.FieldId == fieldId && e.Kind is CombatEntityKind.Debris or CombatEntityKind.SalvageCapsule).ToList())
+        {
+            instance.Entities.Remove(e);
+        }
+    }
 
     /// <summary>Test seam: the fragments of a debris field (or of combat debris with an empty field id) in a player's instance.</summary>
     public int DebrisFragmentCountForTest(string playerId, string fieldId)

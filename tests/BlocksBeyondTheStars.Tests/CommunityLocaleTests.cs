@@ -27,8 +27,10 @@ namespace BlocksBeyondTheStars.Tests;
 public class CommunityLocaleTests
 {
     /// <summary>Every token the locale tables use: positional (<c>{0}</c>), named (<c>{item}</c>, <c>{player}</c>)
-    /// and the key-binding control token (<c>{key:ToggleLamp}</c>). The game substitutes these by plain string
-    /// replacement — there is no conditional or plural syntax, so anything else in braces is a defect.</summary>
+    /// and the key-binding control token (<c>{key:ToggleLamp}</c>). Named tokens are filled by plain string
+    /// replacement; positional ones go through <c>string.Format</c> after the key tokens are expanded
+    /// (<c>VegaText.Compose</c>, #2363 — the order matters). There is no conditional or plural syntax, so anything
+    /// else in braces is a defect.</summary>
     private static readonly Regex PlaceholderPattern = new(
         @"\{(?:key:)?[A-Za-z0-9_]+\}",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
