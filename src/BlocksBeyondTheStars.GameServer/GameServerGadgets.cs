@@ -92,6 +92,18 @@ public sealed partial class GameServer
         }
 
         var target = new Vector3f(intent.X, intent.Y, intent.Z);
+
+        // #2376: a gadget that acts at the aim point acts only within the player's reach. The client aims the 8 m block
+        // ray from the camera (or, aimed at nothing, a point 5 m ahead), so a target farther off can only come from a
+        // modified client — which used to pump oil out of a far pocket or blast another player's ground. Same bound and
+        // slack as mining (WithinReach). The rope gun and the remote control check their own ranges.
+        if (ActsAtTarget(intent.GadgetKey)
+            && !WithinReach(p, new Vector3i((int)System.Math.Floor(target.X), (int)System.Math.Floor(target.Y), (int)System.Math.Floor(target.Z))))
+        {
+            Reject(session, "gadget", "@out_of_reach");
+            return;
+        }
+
         double cooldown;
         bool happened = true; // false = the use is spent, but nothing came of it to show (a refused vehicle deploy)
         switch (intent.GadgetKey)
@@ -196,6 +208,18 @@ public sealed partial class GameServer
             BroadcastGadgetOutcome(session, intent.GadgetKey, target); // #2158: the user's client plays the effect on this
         }
     }
+
+    /// <summary>#2376: the gadgets whose effect lands at the aim point — and so must stay within reach. The self-centred
+    /// ones (medkit, the scanners, the vehicle deploys) ignore the target; the rope gun and the remote control check
+    /// their own ranges.</summary>
+    private static bool ActsAtTarget(string gadgetKey) => gadgetKey switch
+    {
+        "stasis_projector" or "terrain_blaster" or "fluid_pump" or "creature_translator" => true,
+        BlocksBeyondTheStars.Shared.Bio.BioItems.Sampler => true,
+        RailRules.LinkerItemKey or RailRules.CabItemKey => true,
+        "wagon_seats" or "wagon_sleeper" or "wagon_bar" => true,
+        _ => false,
+    };
 
     /// <summary>Heals the user and every other on-foot player within <see cref="MedkitRadius"/> in the same
     /// world (a shared first-aid pulse) — item 36.</summary>

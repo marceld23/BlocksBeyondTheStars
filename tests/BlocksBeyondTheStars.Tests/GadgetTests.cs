@@ -92,6 +92,7 @@ public sealed class GadgetTests : IDisposable
                     }
 
             int stoneBefore = p.State.Inventory.CountOf("stone");
+            p.State.Position = Beside(center); // #2376: within reach of the aim point
 
             server.UseGadgetForTest("Demo", "terrain_blaster",
                 new Vector3f(center.X + 0.5f, center.Y + 0.5f, center.Z + 0.5f));
@@ -99,6 +100,48 @@ public sealed class GadgetTests : IDisposable
             Assert.True(server.World.GetBlock(center).IsAir, "the blast clears the centre");
             Assert.True(server.World.GetBlock(new Vector3i(center.X + 1, center.Y, center.Z)).IsAir);
             Assert.Equal(stoneBefore, p.State.Inventory.CountOf("stone")); // a clearing blast yields no loot
+        }
+    }
+
+    /// <summary>A standing spot two blocks east of a cell — inside the gadget reach (#2376), like a real player aiming at it.</summary>
+    private static Vector3f Beside(Vector3i cell) => new(cell.X + 2.5f, cell.Y, cell.Z + 0.5f);
+
+    /// <summary>#2376: the gadgets that act at the aim point refuse a point beyond the player's reach — a modified client
+    /// used to pump a far pocket or blast ground it never stood near. A refused use costs neither energy nor cooldown.</summary>
+    [Fact]
+    public void TargetedGadgets_RefuseAnAimPointOutOfReach_ButWorkBesideIt()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Faraway");
+            p.State.AboardShip = false;
+            p.State.Inventory.Add("fluid_pump", 1, 1);
+            p.State.Inventory.Add("terrain_blaster", 1, 1);
+
+            var oil = _content.GetBlock("oil")!.NumericId;
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var pocket = new Vector3i(40, 40, 14);
+            var ground = new Vector3i(60, 40, 14);
+            server.World.SetBlock(pocket, oil);
+            server.World.SetBlock(ground, stone);
+            p.State.Position = new Vector3f(14.5f, 40f, 14.5f); // 25+ blocks from both
+            float energy = p.State.SuitEnergy;
+
+            server.UseGadgetForTest("Faraway", "fluid_pump", new Vector3f(pocket.X + 0.5f, pocket.Y + 0.5f, pocket.Z + 0.5f));
+            server.UseGadgetForTest("Faraway", "terrain_blaster", new Vector3f(ground.X + 0.5f, ground.Y + 0.5f, ground.Z + 0.5f));
+            Assert.Equal(oil, server.World.GetBlock(pocket));
+            Assert.Equal(stone, server.World.GetBlock(ground));
+            Assert.Equal(0, p.State.Inventory.CountOf("oil"));
+            Assert.Equal(energy, p.State.SuitEnergy);
+            Assert.Equal(0, server.GadgetCooldownForTest("Faraway", "fluid_pump"));
+            Assert.Equal(0, server.GadgetCooldownForTest("Faraway", "terrain_blaster"));
+
+            // Walk over: the same aim point is in reach now.
+            p.State.Position = Beside(pocket);
+            server.UseGadgetForTest("Faraway", "fluid_pump", new Vector3f(pocket.X + 0.5f, pocket.Y + 0.5f, pocket.Z + 0.5f));
+            Assert.True(server.World.GetBlock(pocket).IsAir);
+            Assert.Equal(1, p.State.Inventory.CountOf("oil"));
         }
     }
 
@@ -115,6 +158,7 @@ public sealed class GadgetTests : IDisposable
             var oil = _content.GetBlock("oil")!.NumericId;
             var cell = new Vector3i(14, 40, 14);
             server.World.SetBlock(cell, oil);
+            p.State.Position = Beside(cell); // #2376: within reach of the aim point
 
             server.UseGadgetForTest("Pumper", "fluid_pump", new Vector3f(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f));
 
@@ -138,6 +182,7 @@ public sealed class GadgetTests : IDisposable
             var water = _content.GetBlock("water")!.NumericId;
             var wet = new Vector3i(14, 40, 14);
             server.World.SetBlock(wet, water);
+            p.State.Position = Beside(wet); // #2376: within reach of the aim point
             server.UseGadgetForTest("Pumper", "fluid_pump", new Vector3f(wet.X + 0.5f, wet.Y + 0.5f, wet.Z + 0.5f));
             Assert.Equal(1, p.State.Inventory.CountOf("water"));
 
@@ -145,6 +190,7 @@ public sealed class GadgetTests : IDisposable
             var stone = _content.GetBlock("stone")!.NumericId;
             var rock = new Vector3i(18, 40, 18);
             server.World.SetBlock(rock, stone);
+            p.State.Position = Beside(rock);
             server.UseGadgetForTest("Pumper", "fluid_pump", new Vector3f(rock.X + 0.5f, rock.Y + 0.5f, rock.Z + 0.5f));
             Assert.Equal(stone, server.World.GetBlock(rock));      // rock is not pumped
             Assert.Equal(energy, p.State.SuitEnergy);              // a miss is free

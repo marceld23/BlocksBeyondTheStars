@@ -403,6 +403,8 @@ public sealed class CreatureTests : IDisposable
             var creature = server.Creatures.First();
             Assert.Equal(0, server.CreatureFrozenForTest(creature.Id)); // not frozen yet
 
+            // #2376: the projector acts within reach — stand a few blocks from the animal, as a player aiming at it does.
+            p.State.Position = new Vector3f(creature.Position.X + 3f, creature.Position.Y, creature.Position.Z);
             server.UseGadgetForTest("Ranger", "stasis_projector", creature.Position);
 
             Assert.True(server.CreatureFrozenForTest(creature.Id) > 0, "the creature is held in stasis");
