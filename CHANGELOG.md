@@ -11,6 +11,63 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.9] — 2026-10-07
+
+The black-gold release. **Oil is now something you can find.** On new worlds, black **tar seeps** with an oil puddle
+show where a pocket lies below, and the pockets hold about twice as much oil. On every living world, the **terrain
+scanner** now listens for oil and pings the nearest pocket on your compass (#2377). Lubricant can also be refined from
+**biofuel**, on every world. And from your reports: VEGA's debris-field tip works again, the flight recorder in a debris
+field has a name and a shape you can see, and fruit no longer leaves see-through holes in tree crowns.
+
+ℹ️ **Compatibility:** the network protocol stays at **version 11** and the save version at **3**: your saves and
+worlds carry over unchanged. The terrain generation moves from **21 to 22**. Only worlds created from now on get the
+tar seeps and the fuller oil pockets; existing worlds regenerate exactly as before. The oil echo and bio-lubricant work
+on existing worlds too. To get everything new, game and server should both be on 2026.10.9. The desktop game updates
+itself on start, and the browser version is always current.
+
+### 🛢️ Oil you can find — generation 22 (#2377 #2370 #2371 #2372 #2373 #2374 #2375)
+
+- **Tar seeps:** on worlds created from now on, about **three oil pockets in eight** reach the surface. You see a black
+  **tar patch** with a small **oil puddle** in the middle, and under it a column of soft tar runs straight down to the
+  pocket. Dig along the black trail. Nothing grows or is built on a seep, so it stays easy to spot.
+- **Fuller pockets:** the pockets were flat by mistake. They now reach their full height, up to ten blocks of oil
+  instead of four, and hold about twice as much oil as before.
+- **The terrain scanner's oil echo:** on a living world, every scan pulse also listens for oil. The nearest pocket
+  within **800 m** that still holds oil gets a **ping** on your compass and map and a violet marker. A second message
+  tells you how far away it is and how deep ("Oil echo: a pocket about 420 m away, about 70 blocks down"). A pocket
+  you have pumped dry stops answering. This works on existing worlds that already have oil pockets too.
+- **Bio-lubricant:** no oil in sight, or a world from before oil existed? The refinery now also makes lubricant from
+  **3 biofuel + 1 carbon**. Crude oil stays the cheaper way (1 oil + 1 carbon → 2 lubricant). Lubricant is what the
+  jump generator, the better drills, the speeder, the fabricator and the clone tank need.
+- **Codex:** a new article, **Oil and Lubricant**. *Prospecting & Ore* now gives depths that match the real worlds,
+  the Planets chapter shows which world types hold oil, and the planet scan says "40–120 blocks underground".
+- **Gas giants** no longer promise oil. They never had any; the planet scan now says so.
+
+### 📨 From your reports (#2368 #2363 #2364 #2365 #2366 #2367 #2379)
+
+- **VEGA's debris-field tip** never showed: the line that explains debris fields broke before it reached a single
+  2026.10.8 player. It works now, and the tips log shows the right key names instead of raw placeholders. Thanks to
+  **Hadewin** for the crash report that found it.
+- **The flight recorder** in the middle of a debris field was a near-black box you could hardly see against space.
+  It is now bigger and has a glowing copper line. The target lock calls it **Flight recorder**, and once a field is
+  salvaged out, VEGA tells you that the box stays and cannot be salvaged. Loot floating free shows as **Loot** on the
+  lock instead of a technical name. Thanks to **Layex** for the "what is this?" report with a screenshot.
+- **Fruit x-ray:** looking past a fruit hanging under a tree crown showed the sky through the leaves. The crowns are
+  closed again around fruit and berries. Thanks to **Justus** for spotting it.
+
+### 🛡️ Fair play for gadgets (#2376)
+
+- The **fluid pump**, **terrain blaster**, **stasis projector**, **creature translator**, **sampler** and the rail
+  tools now only work on what you can actually reach, the same 8 blocks as mining. Before, a modified game could pump
+  a pocket on the other side of the map or freeze an animal far away. Normal play never hits the limit, and a use
+  that is out of reach costs no energy.
+
+### 🌍 Texts and more (#2378 #2227)
+
+- Everything new is in all **14 languages**. The Chinese texts now give the gas giant one name everywhere, and the
+  Japanese texts give the Crystal Net one name everywhere. In Polish, tar is now „Smoła“.
+- The 2026.10.8 "What's new?" texts arrived in the twelve community languages (#2227).
+
 ## [2026.10.8] — 2026-10-06
 
 The spectacle release. New worlds grow **far-out terrain**: fields of crossing stone arches, thin pillar islands
@@ -7117,7 +7174,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.8...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.9...HEAD
+[2026.10.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.8...v2026.10.9
 [2026.10.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.7...v2026.10.8
 [2026.10.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.6...v2026.10.7
 [2026.10.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.5...v2026.10.6
