@@ -54,6 +54,16 @@ other. EditMode tests in `ChunkMesherTreeFoliageEditModeTests` (+2).
 with a puddle) and dig down the tar; refine biofuel into lubricant; the Codex article; look up at a fruit tree and a
 Fifi plant's berries — no hole in the crown.
 
+### 🈶 Chinese gas giant + Japanese Crystal Net: one name per thing (2026-10-07, branch fix/locale-zh-gas-giant-ja-crystal-net) — ✅ done (unreleased)
+
+Found while translating the website's feature section into 13 languages with the game's own terms as glossary.
+`zh.json` called the gas giant **类巨行星** ("giant-planet-like") in its planet name and VEGA's world hint, while
+the scan hint and the sky-giant achievement already said **气态巨行星** — now that everywhere. `ja.json` named the
+Crystal Net **クリスタル回路** in the tech-tree category and the conduit description, but **クリスタルネット** in its
+other 15 places (incl. the blueprint) — now クリスタルネット throughout. 4 values, no new keys. The released
+"What's new?" text `data-online/whatsnew/zh.json` keeps the old word (it comes from the devblog translation and is
+never hand-edited).
+
 ### 📨 Player reports 2026-10-07 — VEGA's debris tip throws, the flight recorder nobody can name (#2368: #2363–#2367, 2026-10-07, branch fix/player-reports-1007) — ✅ done (unreleased; ⚠ playtest open)
 
 **Reports (2026-10-07, both v2026.10.8).** Hadewin (browser): crash report `FormatException: Input string was not in
