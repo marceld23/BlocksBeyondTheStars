@@ -24,6 +24,36 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛢️ Oil you can find — tar seeps, the scanner's oil echo, full-height pockets, bio-lubricant, the Codex + Screelit's fruit x-ray (#2377: #2370–#2375, #2379, 2026-10-07, branch feat/oil-findability, terrain generation 22) — ✅ done (unreleased; ⚠ playtest open)
+
+**Analysis (2026-10-07, measured with the real generator).** A living world of the default size carries 7–21 oil
+pockets (mean ≈ 13), ≈ 450 oil each, their tops ≈ 75 blocks under the surface, the nearest ≈ 600 blocks away — and the
+terrain scanner reached 20 blocks; nothing on the surface pointed at a pocket. Lubricant has exactly one source (oil +
+carbon) and gates the jump generator, the drill tier, the speeder, the fabricator, the clone tank, the asteroid breaker
+and the monorail; worlds older than generation 18 hold no oil at all. The pockets were pancakes: the half-height read
+hash bits the chance roll had already zeroed (#2370). The gas giant's planet scan promised oil it never holds (#2375).
+The Codex covered ore depths (Planets chapter, Prospecting) but said nothing about oil (#2374).
+
+**Done.** Terrain generation **22** (`OilSeepGeneration`): the half-height reads free hash bits (oil per pocket ≈ 465 →
+≈ 975, up to ten cells tall); three pockets in eight **seep** — a tar chimney from the pocket to the ground, a tar patch
+with an oil puddle on top, nothing grows or is built on it (#2371). The terrain scanner's **oil echo**: the nearest
+pocket within 800 m that still holds oil, as a ping, a violet marker and a second toast with distance and depth
+(#2372). **Bio-lubricant**: 3 biofuel + 1 carbon → 1 lubricant at the refinery — the road for every world, the old ones
+too (#2373). Codex: new article *Oil and Lubricant*, depth figures in *Prospecting & Ore*, an oil line in the Planets
+chapter, the planet scan names 40–120 blocks (#2374). Gas giants claim no oil (#2375). Texts in all 14 languages (the
+twelve community languages by hand, with each locale's terms; `pl` tar is now „Smoła“). Docs: WORLD_GENERATION §39,
+USER_MANUAL. Tests: `OilSeepsWorldTests` (8), `OilEchoTests` (4), golden `jungle-gen22`.
+**Taken into the same PR — Screelit's report (2026-10-07, v2026.10.8, #2379):** „wenn man über die Frucht kuckt …
+hinterlässt sie eine X Ray Funktion" — looking past a fruit hanging under a crown showed the sky through the crown. A crown
+cell drew its faces only toward air/glass, and a fruit (`flora_fruit_*`, `flora_fifi_berries`) counted as "its own kind",
+so the leaf face toward it was culled — but the fruit is a thin cross billboard. Crown cells now also face cross-billboard
+plants and slim props (new mesher trait `TraitThinPlant`, `ChunkMesher.FoliageFaceOpensTo`); crown cells still seal each
+other. EditMode tests in `ChunkMesherTreeFoliageEditModeTests` (+2).
+**Not in this package:** #2376 — gadgets have no server-side reach check (pump, blaster, stasis).
+**Playtest open:** a new world → scan on a living world → the echo's toast + ping → follow it; find a seep (a black patch
+with a puddle) and dig down the tar; refine biofuel into lubricant; the Codex article; look up at a fruit tree and a
+Fifi plant's berries — no hole in the crown.
+
 ### 🈶 Chinese gas giant + Japanese Crystal Net: one name per thing (2026-10-07, branch fix/locale-zh-gas-giant-ja-crystal-net) — ✅ done (unreleased)
 
 Found while translating the website's feature section into 13 languages with the game's own terms as glossary.

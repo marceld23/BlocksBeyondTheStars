@@ -38,7 +38,7 @@ public sealed partial class GameServer
     private const double BlasterCooldown = 3.0;
 
     // --- balance: fluid pump (#2106) ---
-    private const double PumpCooldown = 0.4;     // one cell per pull; a pocket of a few hundred cells is a minute's work
+    private const double PumpCooldown = 0.4;     // one cell per pull; a dozen oil covers every lubricant need
 
     // --- balance: creature translator (taming) ---
     private const double TranslatorCooldown = 1.5; // seconds between decodes (the ritual responses are free)
@@ -48,6 +48,10 @@ public sealed partial class GameServer
     private const int ScannerMaxHits = 80;       // nearest hits sent (bounds the message on ore-rich worlds)
     private const float ScannerSeconds = 8f;     // how long the client shows the glow markers
     private const double ScannerCooldown = 10.0;
+
+    // --- balance: the scanner's oil echo (#2372) ---
+    internal const int OilEchoRange = 800;       // the nearest pocket within this many blocks (horizontal) answers
+    private const int OilEchoCandidates = 3;     // pockets checked for oil left in them before the echo stays silent
 
     // --- balance: weather scanner (#900) ---
     private const int WeatherForecastEpisodes = 3;  // how far ahead a reading looks
@@ -344,7 +348,14 @@ public sealed partial class GameServer
     private void UseTerrainScanner(PlayerSession session)
     {
         ShipAiOnScannerUsed(session); // the "you carry a scanner" nudge (#1078) rests after a real use
-        Send(session, BuildOreScan(session.State, VegaScannerRadiusBonus(session)));
+        var scan = BuildOreScan(session.State, VegaScannerRadiusBonus(session));
+        if (scan.OilFound)
+        {
+            // #2372: the oil echo's pocket as a ping — on the compass and the map, like a ping of the player's own.
+            RaisePingAt(session, new Vector3f(scan.OilX + 0.5f, scan.OilY + 0.5f, scan.OilZ + 0.5f));
+        }
+
+        Send(session, scan);
     }
 
     /// <summary>Test seam: the scan result the terrain scanner would send for a player right now
@@ -407,8 +418,73 @@ public sealed partial class GameServer
             result.Block[i] = hits[i].Block;
         }
 
+        AddOilEcho(result, centre);
         return result;
     }
+
+    /// <summary>The scanner's oil echo (#2372): the pulse's sphere reaches 20 blocks, the pockets lie ~75 deep and ~600
+    /// apart, so the sphere alone practically never shows one. The echo asks the generator's pocket function for the
+    /// pockets within <see cref="OilEchoRange"/> blocks (a handful of hotspot cells, no block loop) and reports the nearest
+    /// one a pump has not emptied yet — its top oil cell, for the toast, the marker and the ping. Only on a world that
+    /// holds oil pockets at all; elsewhere the result says nothing about oil.</summary>
+    private void AddOilEcho(OreScanResult result, Vector3i centre)
+    {
+        var planet = _world.Planet;
+        if (planet is null || !_generator.CarriesOilPockets(planet))
+        {
+            return;
+        }
+
+        result.OilEcho = true;
+        result.OilEchoRange = OilEchoRange;
+        int asked = 0;
+        foreach (var site in _generator.FindOilPocketsNear(planet, centre.X, centre.Z, OilEchoRange))
+        {
+            if (asked++ >= OilEchoCandidates)
+            {
+                break;
+            }
+
+            if (TryFindPocketOil(site, out var cell))
+            {
+                result.OilFound = true;
+                result.OilX = cell.X;
+                result.OilY = cell.Y;
+                result.OilZ = cell.Z;
+                return;
+            }
+        }
+    }
+
+    /// <summary>Whether a pump has left oil in the pocket: the highest oil cell of its centre column, or of four columns
+    /// three blocks round it (their spans lie inside the centre's). Reads the live world, so a pocket pumped dry at its
+    /// heart stays silent instead of luring the player to an empty shell.</summary>
+    private bool TryFindPocketOil(BlocksBeyondTheStars.WorldGeneration.OilPocketSite site, out Vector3i cell)
+    {
+        cell = default;
+        var oilId = _content.GetBlock("oil")?.NumericId;
+        if (oilId is null)
+        {
+            return false;
+        }
+
+        foreach (var (ox, oz) in PocketProbeColumns)
+        {
+            for (int y = site.OilHi; y >= site.OilLo; y--)
+            {
+                var at = WorldConstants.CanonicalBlock(new Vector3i(site.X + ox, y, site.Z + oz), _world.Circumference);
+                if (_world.GetBlock(at) == oilId.Value)
+                {
+                    cell = at;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static readonly (int X, int Z)[] PocketProbeColumns = { (0, 0), (3, 0), (-3, 0), (0, 3), (0, -3) };
 
     /// <summary>What the scanner counts as "valuable": every ore vein block, crystal, data caches — and oil (#2106), or
     /// nobody would ever find a pocket forty blocks down.</summary>

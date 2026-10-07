@@ -88,8 +88,10 @@ public sealed partial class WorldGenerator
         survey.Veins.Sort((a, b) => b.Density.CompareTo(a.Density));
         survey.DataCaches = planet.DataCacheRarity > 0;
         survey.CraterMetals = planet.Cratered || cratered;
+        // = HasOilPockets for that body — and never a gas giant (#2375): its pockets would lie in the gas sea, which the
+        // column fills before the oil branch, so not one cell of oil is ever written there.
         survey.OilPockets = _terrainGeneration >= WorldDescription.OilGeneration
-                            && planet.HasLife && !planet.Cratered && !cratered; // = HasOilPockets for that body
+                            && planet.HasLife && !planet.Cratered && !cratered && !planet.IsGasWorld;
         survey.SurfaceOutcrops = _terrainGeneration >= WorldDescription.ToxicWorldsGeneration
                                  && !planet.Cratered
                                  && WorldTraits.For(planet, RosterSeedFor(_worldSeed, locationId), _terrainGeneration).OreOutcrops;

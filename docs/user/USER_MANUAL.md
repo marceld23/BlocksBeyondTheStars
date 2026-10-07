@@ -882,6 +882,10 @@ players.
   the fabricator, and the jump generator and asteroid breaker modules need it. Polymer now also seals the beam
   block, the sentry post and the matter sender/receiver. The starter tier (basic and titanium drill, the base core,
   the first machines) stays oil-free, so you can always reach a living world first.
+- **Bio-lubricant (2026-10):** no oil in sight — or a world from before oil existed? The refinery also makes
+  lubricant from **3 biofuel + 1 carbon → 1 lubricant**. Biofuel comes from berries and plant fibre (by hand) or
+  from water and plant fibre in the algae tank, so this works on every world. Crude oil stays the cheaper road
+  (1 oil + 1 carbon → 2).
 - **The bio lab is a station without recipes:** it analyses samples, mixes them into preparations and changes
   tools and gear — what comes out is computed from what goes in. Four blueprints open it up: **Bio Lab** (a starting
   blueprint — no other one needed, 40 knowledge), then **Synthesis** and **Lab Tuning** side by side right after it,
@@ -1794,11 +1798,18 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   pulses once (10 suit energy, 10 s cooldown) and reveals ores, crystal, data caches — and **oil** — within
   20 blocks as through-wall glow markers for 8 s, tinted by ore type; the toast names the finds, most common first
   ("12 deposits — iron ore ×8 · copper ore ×3 · …"). An `ai_core_mk2` extends the radius. Digging a lot without
-  one, VEGA points you to its blueprint once.
+  one, VEGA points you to its blueprint once. **Oil echo (2026-10):** on a living world every pulse also listens
+  for oil — the nearest oil pocket within **800 m** gets a **ping** on your compass and map, a violet marker, and
+  a second toast tells you how far away and how many blocks down it lies ("Oil echo: a pocket about 420 m away,
+  about 70 blocks down"). A pocket pumped dry at its heart no longer answers; without a pocket in range the
+  toast says so.
 - **Fluid pump** (`fluid_pump`, workshop recipe + the `fluid_pump` blueprint after the titanium drill): a
   **right-click** gadget that pulls **one cell of liquid** into your pack (2 suit energy, 0.4 s): **oil**,
   **water** or **lava**. **Oil** (new worlds since 2026-09) lies in **sealed, tar-rimmed pockets 40–120 blocks
-  under living worlds** — worlds with plants *and* animals; the terrain scanner finds them. It is a **deposit**:
+  under living worlds** — worlds with plants *and* animals; the terrain scanner's **oil echo** points you to the
+  nearest one. On worlds created from 2026-10 on, about **one pocket in three seeps**: a black **tar patch** on the
+  ground with a small **oil puddle** in the middle, and under it a column of soft tar straight down to the pocket —
+  dig along the black trail. From then on the pockets are also taller (up to ten cells of oil). It is a **deposit**:
   what you pump is gone, the pocket never refills and never floods a cave; a drill cannot mine it. Water and
   lava flow back as they do for a tier-3 drill. Oil **burns** (a torch or lava sets a pocket alight), and the
   **refinery** turns it into polymer (3 per cell) — see §crafting. You can place oil again; you sink into it

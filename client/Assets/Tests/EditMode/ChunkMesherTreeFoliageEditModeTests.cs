@@ -96,5 +96,43 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             // Six faces, two triangles each: the leaves around it take none of the trunk's collider away and add none.
             Assert.That(collider, Is.EqualTo(12), "the trunk keeps all six collider faces inside its crown, the leaves add none");
         }
+
+        /// <summary>#2379 (Screelit, 2026-10-07): a fruit hanging under a crown opened an x-ray hole — the leaf face toward the
+        /// fruit was culled as if the fruit were another leaf, but a fruit is a thin cross billboard, so the hollow crown
+        /// showed the sky behind it. Crown cells still seal each other; everything that never fills its cell does not.</summary>
+        [Test]
+        public void ACrownLeaf_KeepsItsFaceTowardAFruitOrAProp_ButNotTowardAnotherCrownCell()
+        {
+            var content = LoadContentOrIgnore();
+            foreach (var crown in TreeFoliage.Keys)
+            {
+                Assert.IsFalse(ChunkMesher.FoliageFaceOpensTo(content, IdOf(content, crown)),
+                    $"'{crown}' seals a neighbouring crown cell — the crown stays a thin shell");
+            }
+
+            foreach (var thin in new[] { "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana",
+                         "flora_fifi_berries", "torch", "lantern", "ladder" })
+            {
+                Assert.IsTrue(ChunkMesher.FoliageFaceOpensTo(content, IdOf(content, thin)),
+                    $"'{thin}' never fills its cell — the leaf beside it must keep its face");
+            }
+
+            Assert.IsTrue(ChunkMesher.FoliageFaceOpensTo(content, BlockId.Air));
+            Assert.IsFalse(ChunkMesher.FoliageFaceOpensTo(content, IdOf(content, "stone")));
+        }
+
+        [Test]
+        public void AFruitUnderTheCrown_LeavesNoHoleInIt()
+        {
+            var content = LoadContentOrIgnore();
+            var leaves = IdOf(content, TreeFoliage.LeavesKey);
+            var fruit = IdOf(content, "flora_fruit_round");
+
+            // Headless (null atlas) the fruit meshes as a leaf-like cube. A leaf over a leaf seals the shared face on both
+            // sides; a leaf over a fruit must keep its own bottom face — so that pair draws more.
+            int overLeaf = Mesh(content, c => { c.Set(C, C, C, leaves); c.Set(C, C - 1, C, leaves); }).Render;
+            int overFruit = Mesh(content, c => { c.Set(C, C, C, leaves); c.Set(C, C - 1, C, fruit); }).Render;
+            Assert.That(overFruit, Is.GreaterThan(overLeaf), "the leaf over a fruit lost its bottom face — an x-ray hole");
+        }
     }
 }

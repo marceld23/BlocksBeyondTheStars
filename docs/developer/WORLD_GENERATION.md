@@ -2105,7 +2105,9 @@ derived from the fields, never from a key (jungle, meadowlands, swamp, … yes; 
 worlds no). `HasOilPockets` additionally excludes cratered bodies.
 
 **The pocket (`WorldGenerator.OilPocketsGen18.cs`).** A hotspot ellipsoid (`TryGetHotspot`, cell 600, chance 0.25, salt
-`0x01A5EED`): rx 6–14, ry 3–7, centre **40–120 below `BaseHeight`**, a **1.6-thick shell of `tar`** around **`oil`**
+`0x01A5EED`): rx 6–14, ry 3–7 by design — but generations 18–21 read ry from hash bits the chance roll had already
+zeroed, so their pockets never exceed ry 3.99 (at most four cells of oil); generation 22 fixes it (§39) — centre
+**40–120 below `BaseHeight`**, a **1.6-thick shell of `tar`** around **`oil`**
 cells. It is claimed in the column's y-loop **right after the geode branch and before the tunnels and blob caves**
 (`Columns.cs`), so the carvers never open it; a column that only grazes the ellipsoid is all shell (the geode's trick,
 #1646). The shell is clamped to `seabedY − 4` and the oil to two cells below that, so a valley never opens the top. The
@@ -2397,3 +2399,41 @@ crown that hangs within 18 of the ground (rare); bone has no second use yet (a f
 bone-meal recipe a point); the hall's skylight follows the cell centre's ground, so a hall under a hill is mostly a
 sinkhole with overhanging rims.
 
+
+## 39. Generation 22 — oil you can find (#2377: #2370–#2375, 2026-10-07)
+
+**Why.** Oil (§33) is the only source of lubricant, and lubricant gates the jump generator, the drill tier, the speeder,
+the fabricator and the clone tank. Measured with the real generator: a living world of the default size carries 7–21
+pockets (mean ≈ 13; 50 hotspot cells × 0.25), their tops lie ≈ 75 blocks under the surface (median), the nearest pocket
+is ≈ 600 blocks away — and the terrain scanner reached 20 blocks. Nothing on the surface pointed at a pocket. Gated on
+`WorldDescription.OilSeepGeneration` (22) through `WonderProfile.OilFullHeight` / `OilSeeps`; every older chunk is
+bit-identical (golden `jungle-gen22` equals `jungle-gen18` at the sample columns).
+
+- **The half-height (#2370).** `TryGetHotspot` keeps a cell when `(h & 0xFFFF) < 0x4000`, so bits 14 and 15 of a pocket's
+  hash are always clear — and ry read bits 8–15. From generation 22 `OilHalfHeightByte` reads bits 56–63 (the pocket's
+  bit budget: 0–15 chance, 16–25 rx, 26–32 depth, 33–35 the seep, 36–55 the hotspot offset, 56–63 ry). Oil per pocket
+  ≈ 465 → ≈ 975, the tallest column 4 → 10; the tar shell stays sealed (the inner ellipsoid is the outer shrunk by the
+  shell on both axes, which keeps every oil cell's axis neighbours inside the outer span).
+- **The seeps (#2371, `WorldGenerator.OilSeepsGen22.cs`).** A pocket seeps when `(h >> 33) & 7 < 3` — three in eight.
+  Columns within 1.5 of the pocket's centre carry a **tar chimney** from the shell's top to the ground; columns within
+  3.2 carry a two-cell **tar patch** at the ground; the centre and its four axis neighbours wear an **oil puddle** as the
+  ground cell where no water stands over it (`waterTop <= seabedY`). `TryGetOilPocketSpan` returns the seep span with the
+  pocket span (`ColumnProfile.OilSeepLo/OilPuddle`), and the y-loop claims it right after the pocket branch — before the
+  topsoil, the tunnels and the caves, so the trail runs unbroken; the mega-cavern, the sub-surface rivers and the geode
+  still win. Tar, never oil or air, in the chimney: oil cannot be breathed in and an open shaft is a fall trap. The
+  column flora skips a seep column; `OilSeepNear` (the keep-clear radius 4.7) keeps trees, giant trees, giant flora,
+  giant mushrooms, Fifi plants, geysers and the set dressing off the patch; `FootprintTouchesOilSeep` (inside
+  `FootprintClear`) keeps settlement buildings off it. A landing pad still wins (it is flattened last).
+- **The oil echo's query (#2372).** `FindOilPocketsNear` walks the hotspot cells round a point (a cell's middle answers
+  for its pocket through `TryGetHotspot`) and returns every pocket within the radius, nearest first, with the generated
+  oil span of its centre column — a handful of hash evaluations, no chunk. The server's terrain scanner (`AddOilEcho`)
+  asks it for 800 blocks, checks the live world at the pocket's heart (centre + four columns 3 off) so a pumped pocket
+  falls silent, and sends the top oil cell in `OreScanResult.OilX/Y/Z` plus a ping.
+- **The gas giant (#2375).** It counts as living, so `HasOilPockets` was true — but its gas sea fills the column before
+  the oil branch, so not one oil cell was ever written. `SurveyResources` and `CarriesOilPockets` now exclude gas worlds,
+  and `OilSeeps` is never set on one.
+
+Tests: `OilSeepsWorldTests` (the half-height on both sides of the gate, generation 21 = generation 18 pocket for pocket,
+three in eight seeps, an unbroken chimney with a puddle and nothing growing on it, no seep below 22, the echo query
+against the pocket function, the gas giant), `OilEchoTests` (the scan finds the nearest pocket, a pocket pumped dry at
+its heart falls silent, the real scan pings, no echo on a dead world, the bio-lubricant recipe), golden `jungle-gen22`.

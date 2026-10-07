@@ -49,6 +49,12 @@ namespace BlocksBeyondTheStars.Client
         public static bool NeighbourExposesOpaqueFace(GameContent content, BlockId neighbour)
             => TraitsFor(content).ExposesOpaqueFace(neighbour);
 
+        /// <summary>#2379: whether a crown leaf's face toward <paramref name="neighbour"/> stays visible — air, see-through
+        /// blocks, and everything that never fills its cell (a fruit, a berry or any other cross-billboard plant, a slim
+        /// prop). Another crown cell or an opaque cube seals it, so the crown stays a thin cutout shell.</summary>
+        public static bool FoliageFaceOpensTo(GameContent content, BlockId neighbour)
+            => TraitsFor(content).OpensFoliageFace(neighbour);
+
         /// <summary>How far a water SURFACE cell's top face sits below the block top (fraction of a block), so
         /// standing water reads as liquid in a hollow instead of a glass cube flush with the bank (#658). Water
         /// only: lava is opaque, so its neighbours cull their faces against it and a lowered lava top would open
@@ -1205,11 +1211,15 @@ namespace BlocksBeyondTheStars.Client
                     // of the loaded world see-through instead of closing it off with an ordinary wall.
                     // #1902: water also faces a dry bank plant, and never a wet one (its cell draws the water itself).
                     // #2134: the dense gas also faces the light gas over it (the gas never faces the dense gas — one face each).
+                    // #2379 (Screelit): foliage also faces a neighbour that does not fill its cell — a fruit or a berry
+                    // hanging under the crown, any cross-billboard plant, a torch/lantern/ladder. Those used to count as
+                    // "its own kind", so the leaf face toward them was culled and the hollow crown shell opened onto
+                    // the sky behind the fruit (an x-ray hole). Crown cells still cull against each other.
                     bool drawFace = transparent
                         ? (isWater
                             ? OpenForWaterBlock(nb, nx, ny, nz) || (isDenseGas && (traits.FlagsOf(nb) & (TraitGas | TraitDenseGas)) == TraitGas)
                             : nb.IsAir && Loaded(nx, ny, nz))
-                        : foliage ? (nb.IsAir || traits.Has(nb, TraitTransparent))
+                        : foliage ? traits.OpensFoliageFace(nb)
                         : traits.ExposesOpaqueFace(nb);
 
                     // A non-cube SHAPED neighbour doesn't fill its cell, so it can't seal this face — draw toward
@@ -2480,6 +2490,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitGas = 1u << 23;               // #2128: the gas sea — shaded as a haze (TEXCOORD2.x = 5), not as water
         private const uint TraitDenseGas = 1u << 24;          // #2134: the dense gas under the gas sea (also TraitGas) — TEXCOORD2.x = 6
         private const uint TraitBredPlant = 1u << 25;         // #2209: the bred plant — its look rides on the cell's tint + glow channels (FloraForm)
+        private const uint TraitThinPlant = 1u << 26;         // #2379: a "flora_" plant drawn as a cross billboard (not solid flora) — it never fills its cell
 
         private sealed class BlockTraits
         {
@@ -2541,6 +2552,8 @@ namespace BlocksBeyondTheStars.Client
                     if (key == "flower_pot") f |= TraitFlowerPot;
                     if (key == FloraForm.BlockKey) f |= TraitBredPlant;
                     if ((f & (TraitTransparent | TraitFlora | TraitFoliage | TraitSlimProp)) != 0) f |= TraitExposesOpaqueFace;
+                    // #2379: the cross-billboard plants — the same set the cross path draws (foliage with the flora_ prefix).
+                    if ((f & TraitFoliage) != 0 && (f & TraitFloraPrefix) != 0) f |= TraitThinPlant;
                     _flags[i] = f;
                     _emission[i] = BlockEmissionSlow(content, id);
                     _material[i] = BlockMaterialSlow(content, id);
@@ -2553,6 +2566,11 @@ namespace BlocksBeyondTheStars.Client
             public uint FlagsOf(BlockId id) => id.Value < _flags.Length ? _flags[id.Value] : TraitCollidable;
             public bool Has(BlockId id, uint flag) => (FlagsOf(id) & flag) != 0;
             public bool ExposesOpaqueFace(BlockId id) => id.IsAir || (FlagsOf(id) & TraitExposesOpaqueFace) != 0;
+
+            /// <summary>#2379: whether a foliage cell (a crown leaf) draws its face toward this neighbour — air, a see-through
+            /// block, or anything that never fills its cell: a cross-billboard plant (a fruit, a berry, a hanging plant)
+            /// or a slim prop. Another crown cell or an opaque cube seals it, which keeps the crown a thin shell.</summary>
+            public bool OpensFoliageFace(BlockId id) => id.IsAir || (FlagsOf(id) & (TraitTransparent | TraitThinPlant | TraitSlimProp)) != 0;
             public float EmissionOf(BlockId id) => id.Value < _emission.Length ? _emission[id.Value] : 0f;
             public Vector2 MaterialOf(BlockId id) => id.Value < _material.Length ? _material[id.Value] : new Vector2(0.05f, 0.0f);
             public int ScatterOf(BlockId id) => id.Value < _scatter.Length ? _scatter[id.Value] : -1;

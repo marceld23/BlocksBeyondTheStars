@@ -92,6 +92,11 @@ public sealed partial class WorldGenerator
             return true;
         }
 
+        if (FootprintTouchesOilSeep(planet, ox, oz, w, l))
+        {
+            return false; // generation 22 (#2371): a building never stands on an oil seep's tar patch
+        }
+
         int x1 = ox + System.Math.Max(0, w - 1), z1 = oz + System.Math.Max(0, l - 1);
         int cx = ox + w / 2, cz = oz + l / 2;
         return Clear(cx, cz) && Clear(ox, oz) && Clear(x1, oz) && Clear(ox, z1) && Clear(x1, z1);

@@ -2857,6 +2857,22 @@ public sealed class OreScanResult
     /// slice rather than everything in range. The client's hit-count toast says "80+" instead of an
     /// exact number that would be silently wrong (#482).</summary>
     public bool Capped { get; set; }
+
+    /// <summary>#2372: the pulse also listened for oil — true on a world that holds oil pockets (a living world of terrain
+    /// generation 18 or newer, never a gas giant). False everywhere else and from an older server, so the client says
+    /// nothing about oil there.</summary>
+    public bool OilEcho { get; set; }
+
+    /// <summary>#2372: the oil echo found a pocket within <see cref="OilEchoRange"/> blocks that still holds oil.</summary>
+    public bool OilFound { get; set; }
+
+    /// <summary>#2372: the found pocket's top oil cell at its centre column (valid when <see cref="OilFound"/>).</summary>
+    public int OilX { get; set; }
+    public int OilY { get; set; }
+    public int OilZ { get; set; }
+
+    /// <summary>#2372: the echo's horizontal range in blocks (the toast names it when nothing answered).</summary>
+    public int OilEchoRange { get; set; }
 }
 
 /// <summary>

@@ -195,8 +195,16 @@ public sealed class WorldDescription
     /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees, #2062 Toxica-Maxima,
     /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant, #2073 Arena Nigra, #2104 Justus' package:
     /// oil pockets, the worm body plan, the gas giant, #2125 the intercity monorail, #2166 the abandoned monorail stations,
-    /// #2331 the spectacle terrain package).</summary>
-    public const int CurrentTerrainGeneration = 21;
+    /// #2331 the spectacle terrain package, #2370/#2371 the full-height oil pockets and the oil seeps).</summary>
+    public const int CurrentTerrainGeneration = 22;
+
+    /// <summary>The generation of the oil you can find (#2377, 2026-10): the oil pockets reach the half-height they were
+    /// designed with (#2370 — below this generation the half-height read hash bits the pocket's own chance roll had already
+    /// zeroed, so every pocket was a pancake at most four cells of oil high), and about a third of them <b>seep</b> (#2371): a
+    /// solid tar chimney from the pocket's shell up to the ground, a tar patch on the surface and a small oil puddle on dry
+    /// land. Both read only hash bits no older roll used, behind their profile flags, so a world of any older generation keeps
+    /// every pocket and every chunk bit for bit.</summary>
+    public const int OilSeepGeneration = 22;
 
     /// <summary>The generation of the spectacle terrain package (#2331, 2026-10): arch lands, pillar islands with
     /// balconies and crowns, bridge mesas and the impossible table mountains, wave rocks and rock shelters, cave

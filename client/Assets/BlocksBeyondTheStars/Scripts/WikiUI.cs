@@ -851,6 +851,17 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
+                // #2374: the living types hold oil pockets (the generator's rule — never a cratered body or a gas giant).
+                if (d.HasLife && !d.Cratered && !d.IsGasWorld)
+                {
+                    if (sb.Length > 0)
+                    {
+                        sb.Append('\n');
+                    }
+
+                    sb.Append(L("ui.wiki.oil_pockets"));
+                }
+
                 result.Add((L(d.NameKey), sb.ToString()));
             }
 
