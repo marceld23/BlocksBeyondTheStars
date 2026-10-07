@@ -1126,7 +1126,9 @@ public sealed class BioTankFixTests : IDisposable
         var near = new Vector3f(p.State.Position.X + 30f, p.State.Position.Y, p.State.Position.Z); // out of the hand sampler's 6 blocks
         server.SetGiantForTest(giant.Id, near, 0f);
 
-        server.UseGadgetForTest("Keeper", BioItems.Sampler, near);
+        // #2376: the client aims at most ~8 m ahead — the sampler finds the giant from that aim point (its 48-block search).
+        var aim = new Vector3f(p.State.Position.X + 5f, p.State.Position.Y + 1f, p.State.Position.Z);
+        server.UseGadgetForTest("Keeper", BioItems.Sampler, aim);
 
         Assert.Equal(1, Samples(p, server.BioSeedForTest(sp)));
         Assert.Contains(server.Creatures, c => c.Id == giant.Id); // and it lives
@@ -1168,6 +1170,7 @@ public sealed class BioTankFixTests : IDisposable
         // A really full case: every slot holds another kind.
         FillSampleCase(p);
         server.SpawnCreatureAtForTest(here, species[0].Id);
+        p.State.Position = here; // #2376: the sampler acts within reach
         server.UseGadgetForTest("Keeper", BioItems.Sampler, here);
         Assert.Equal(new[] { "@srv.bio.sample_case_full" }, RejectionsTo(t, p));
 
@@ -1180,6 +1183,7 @@ public sealed class BioTankFixTests : IDisposable
 
         t.Sent.Clear();
         server.SpawnCreatureAtForTest(there, species[1].Id); // a species this save has not registered yet
+        p.State.Position = there;
         server.UseGadgetForTest("Keeper", BioItems.Sampler, there);
         Assert.Equal(new[] { "@srv.bio.register_full" }, RejectionsTo(t, p));
         Assert.Equal(0, Samples(p, server.BioSeedForTest(species[1])));

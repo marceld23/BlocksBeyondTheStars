@@ -24,6 +24,18 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛡️ Gadgets act only within reach — fluid pump, terrain blaster, stasis projector, translator, sampler, rail tools (#2376, 2026-10-07, branch fix/gadget-reach-check) — ✅ done (unreleased)
+
+**Finding (while analysing the oil pump).** `HandleUseGadget` never compared the aim point with the player: a modified
+client could pump a pocket far away, blast ground it never stood near, freeze or sample animals across the map. Only
+the rope gun (its item range) and the remote control (`WithinReach`) checked. **Done.** Every gadget that acts at the aim
+point (`ActsAtTarget`: stasis projector, terrain blaster, fluid pump, creature translator, bio sampler, rail linker, cab
+and wagons) is refused with `@out_of_reach` beyond `WithinReach` — the same 8-block bound + slack as mining, which is
+exactly what the client can aim at (its 8 m block ray, or a point 5 m ahead). A refused use costs neither energy nor
+cooldown. The self-centred gadgets (medkit, scanners, vehicles) ignore the target as before. Tests: `GadgetTests` (+1:
+far pump/blaster refused, beside them they work); six older tests that fired from across the map now stand where a
+player would (blaster, pump ×2, stasis, sampler ×2 — the giant sampler aims 5 blocks ahead, its 48-block search does the rest).
+
 ### 🛢️ Oil you can find — tar seeps, the scanner's oil echo, full-height pockets, bio-lubricant, the Codex + Screelit's fruit x-ray (#2377: #2370–#2375, #2379, 2026-10-07, branch feat/oil-findability, terrain generation 22) — ✅ done (unreleased; ⚠ playtest open)
 
 **Analysis (2026-10-07, measured with the real generator).** A living world of the default size carries 7–21 oil
@@ -49,7 +61,7 @@ cell drew its faces only toward air/glass, and a fruit (`flora_fruit_*`, `flora_
 so the leaf face toward it was culled — but the fruit is a thin cross billboard. Crown cells now also face cross-billboard
 plants and slim props (new mesher trait `TraitThinPlant`, `ChunkMesher.FoliageFaceOpensTo`); crown cells still seal each
 other. EditMode tests in `ChunkMesherTreeFoliageEditModeTests` (+2).
-**Not in this package:** #2376 — gadgets have no server-side reach check (pump, blaster, stasis).
+**Not in this package:** #2376 — gadgets had no server-side reach check (done right after, see above).
 **Playtest open:** a new world → scan on a living world → the echo's toast + ping → follow it; find a seep (a black patch
 with a puddle) and dig down the tar; refine biofuel into lubricant; the Codex article; look up at a fruit tree and a
 Fifi plant's berries — no hole in the crown.
