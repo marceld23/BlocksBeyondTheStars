@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛡️ Gadgets act only within reach — fluid pump, terrain blaster, stasis projector, translator, sampler, rail tools (#2376, 2026-10-07, branch fix/gadget-reach-check) — ✅ done (unreleased)
+### 🛡️ Gadgets act only within reach — fluid pump, terrain blaster, stasis projector, translator, sampler, rail tools (#2376, 2026-10-07, branch fix/gadget-reach-check) — ✅ done (released in v2026.10.9)
 
 **Finding (while analysing the oil pump).** `HandleUseGadget` never compared the aim point with the player: a modified
 client could pump a pocket far away, blast ground it never stood near, freeze or sample animals across the map. Only
@@ -36,7 +36,7 @@ cooldown. The self-centred gadgets (medkit, scanners, vehicles) ignore the targe
 far pump/blaster refused, beside them they work); six older tests that fired from across the map now stand where a
 player would (blaster, pump ×2, stasis, sampler ×2 — the giant sampler aims 5 blocks ahead, its 48-block search does the rest).
 
-### 🛢️ Oil you can find — tar seeps, the scanner's oil echo, full-height pockets, bio-lubricant, the Codex + Screelit's fruit x-ray (#2377: #2370–#2375, #2379, 2026-10-07, branch feat/oil-findability, terrain generation 22) — ✅ done (unreleased; ⚠ playtest open)
+### 🛢️ Oil you can find — tar seeps, the scanner's oil echo, full-height pockets, bio-lubricant, the Codex + Screelit's fruit x-ray (#2377: #2370–#2375, #2379, 2026-10-07, branch feat/oil-findability, terrain generation 22) — ✅ done (released in v2026.10.9; ⚠ playtest open)
 
 **Analysis (2026-10-07, measured with the real generator).** A living world of the default size carries 7–21 oil
 pockets (mean ≈ 13), ≈ 450 oil each, their tops ≈ 75 blocks under the surface, the nearest ≈ 600 blocks away — and the
@@ -66,7 +66,7 @@ other. EditMode tests in `ChunkMesherTreeFoliageEditModeTests` (+2).
 with a puddle) and dig down the tar; refine biofuel into lubricant; the Codex article; look up at a fruit tree and a
 Fifi plant's berries — no hole in the crown.
 
-### 🈶 Chinese gas giant + Japanese Crystal Net: one name per thing (2026-10-07, branch fix/locale-zh-gas-giant-ja-crystal-net) — ✅ done (unreleased)
+### 🈶 Chinese gas giant + Japanese Crystal Net: one name per thing (2026-10-07, branch fix/locale-zh-gas-giant-ja-crystal-net) — ✅ done (released in v2026.10.9)
 
 Found while translating the website's feature section into 13 languages with the game's own terms as glossary.
 `zh.json` called the gas giant **类巨行星** ("giant-planet-like") in its planet name and VEGA's world hint, while
@@ -76,7 +76,7 @@ other 15 places (incl. the blueprint) — now クリスタルネット throughou
 "What's new?" text `data-online/whatsnew/zh.json` keeps the old word (it comes from the devblog translation and is
 never hand-edited).
 
-### 📨 Player reports 2026-10-07 — VEGA's debris tip throws, the flight recorder nobody can name (#2368: #2363–#2367, 2026-10-07, branch fix/player-reports-1007) — ✅ done (unreleased; ⚠ playtest open)
+### 📨 Player reports 2026-10-07 — VEGA's debris tip throws, the flight recorder nobody can name (#2368: #2363–#2367, 2026-10-07, branch fix/player-reports-1007) — ✅ done (released in v2026.10.9; ⚠ playtest open)
 
 **Reports (2026-10-07, both v2026.10.8).** Hadewin (browser): crash report `FormatException: Input string was not in
 a correct format.` Layex (Windows): „was ist das? Ich hab es zwischen Trümmern gefunden!“ with a screenshot of a
