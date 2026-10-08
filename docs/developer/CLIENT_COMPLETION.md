@@ -91,7 +91,7 @@ expandable interiors pending); hyperspace system-to-system travel (planned).
 ## Known gaps / deferred
 
 - **Build & distribution:** the tooling is in place (`BuildScript.BuildWindows` +
-  `scripts/build-client.ps1`); what remains is running it on a machine with Unity 6000.4.x to produce
+  `scripts/build-client.ps1`); what remains is running it on a machine with the project's Unity version to produce
   the self-contained `.exe`, then a smoke-test checklist + first-run polish. An optional WebGL "Lite"
   build is analysed in `WEBCLIENT_FEASIBILITY.md`.
 - **Art polish (M27):** real UI icons replacing text/emoji placeholders; first-person held-tool

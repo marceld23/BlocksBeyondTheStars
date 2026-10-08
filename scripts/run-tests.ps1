@@ -20,7 +20,8 @@
   Which suites to run: any of Dotnet, ClientCore, UnityEdit, UnityPlay, or All. Default: Dotnet, ClientCore.
 
 .PARAMETER UnityPath
-  Path to Unity.exe (only needed for the Unity suites). Defaults to the project's editor version.
+  Path to Unity.exe (only needed for the Unity suites). Defaults to the project's editor version as found by
+  scripts/resolve-unity.ps1 (Hub default folder, per-user %USERPROFILE%\Unity\Editors, $env:UNITY_EDITOR_PATH).
 
 .PARAMETER Coverage
   Run the .NET suites under coverage (delegates to scripts/test-coverage.ps1; ignores the Unity suites).
@@ -35,13 +36,16 @@
 param(
     [ValidateSet('Dotnet', 'ClientCore', 'UnityEdit', 'UnityPlay', 'All')]
     [string[]] $Suites = @('Dotnet', 'ClientCore'),
-    [string]   $UnityPath = "C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe",
+    [string]   $UnityPath = '',
     [switch]   $Coverage
 )
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $client = Join-Path $repo 'client'
+if (-not $UnityPath -and ($Suites -contains 'All' -or $Suites -contains 'UnityEdit' -or $Suites -contains 'UnityPlay')) {
+    $UnityPath = & (Join-Path $PSScriptRoot 'resolve-unity.ps1')
+}
 $results = Join-Path $repo 'TestResults'
 New-Item -ItemType Directory -Force $results | Out-Null
 
@@ -78,8 +82,8 @@ function Invoke-DotnetSuite([string] $name, [string] $projectRelPath) {
 # non-zero on test failure, but (like the build script) Unity can relaunch a child process, so we also
 # parse the result file to report pass/fail counts and to confirm the run actually produced results.
 function Invoke-UnitySuite([string] $name, [string] $platform) {
-    if (-not (Test-Path $UnityPath)) {
-        Write-Error "Unity editor not found at '$UnityPath'. Pass -UnityPath to your Unity 6000.4.x Unity.exe."
+    if (-not $UnityPath -or -not (Test-Path $UnityPath)) {
+        Write-Error "Unity editor not found at '$UnityPath'. Pass -UnityPath to the Unity.exe of the project's editor version (client/ProjectSettings/ProjectVersion.txt)."
     }
 
     $resultFile = Join-Path $results ("unity-" + $platform.ToLower() + ".xml")

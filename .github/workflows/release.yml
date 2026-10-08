@@ -221,7 +221,7 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           projectPath: client
-          unityVersion: 6000.4.9f1
+          unityVersion: 6000.6.5f1
           targetPlatform: StandaloneWindows64
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWindows
           # GameCI always applies its versioning to PlayerSettings.bundleVersion (overriding anything our
@@ -324,7 +324,7 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           projectPath: client
-          unityVersion: 6000.4.9f1
+          unityVersion: 6000.6.5f1
           targetPlatform: StandaloneLinux64
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildLinux
           versioning: Custom
@@ -436,7 +436,7 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           projectPath: client
-          unityVersion: 6000.4.9f1
+          unityVersion: 6000.6.5f1
           targetPlatform: StandaloneOSX
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildMacOS
           versioning: Custom
@@ -565,7 +565,7 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           projectPath: client
-          unityVersion: 6000.4.9f1
+          unityVersion: 6000.6.5f1
           targetPlatform: WebGL
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWebGL
           versioning: Custom

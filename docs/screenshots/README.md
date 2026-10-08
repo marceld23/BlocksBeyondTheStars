@@ -87,7 +87,7 @@ wrapper script.
 ./scripts/capture-screenshots.ps1 -SkipMain -Planets lava -Seed 2468
 ```
 
-**Requirements:** the Unity editor (6000.4.x) for the build, and a machine with a GPU — the
+**Requirements:** the project's Unity editor (6000.6.x) for the build, and a machine with a GPU — the
 capture renders real frames, so it is *not* a headless `-nographics` run.
 
 ## How it works (for maintainers)
@@ -140,3 +140,35 @@ messages) never land in a frame.
 The wait timings and the flight heading are constants at the top of `ScreenshotDirector.cs`
 (`MenuSettle`, `ChunkSettle`, `PoseSettle`, `FlightHeading`, `DefaultSeed`). Adjust them if a shot
 is mis-timed or you want a different framing, then rebuild and re-run.
+
+## Video clips (`-captureClip`) — and look checks without a playtest
+
+The moving-picture sibling is `ClipDirector` (`-captureClip`): one run records ONE clip from a JSON
+manifest (`-clipManifest <path> -clipName <name>`, default manifest `marketing/clips/clips.json`) as a
+PNG frame sequence plus a frame-synced WAV; `scripts/capture-clips.ps1` loops the player over every
+clip and muxes MP4s with FFmpeg. Each `ClipSpec` (see `ClipManifest.cs`) picks the scene
+(`space` / `surface` / `cockpit` / `land` / `intro`), HUD on/off, length, fps, a camera move
+(`static` / `yaw_sweep` / `orbit` / `dolly` / `pan`) and diegetic motion (ship throttle, walking, look).
+
+Since #2405 a clip can also pin the **environment** and the **pose**, which is how a shader or lighting
+change is verified without playing — same seed before and after, Low and High:
+
+| Field | Values | Meaning |
+|-------|--------|---------|
+| `timeOfDay` | `0..1` (`0` midnight, `0.27` dawn, `0.5` noon, `0.75` dusk); negative = off | Local time of day pinned for the clip (longitude-compensated, like the screenshot pin) |
+| `weather` | a state (`clear`, `clouds`, `rain`, `storm`, `fog`, `ground_fog`, `blizzard`, `gale`, …) or a precipitation form (`snow`, `sleet`, `hail`, `sandstorm`, `dust`, `ash`, …); `""` = off | Weather pinned for the clip; the wire fields (state, family, precipitation, intensity, wind) are filled as the server would |
+| `pose` | `spawn` (default), `cave`, `underwater`, `forest`, `shore`, `ridge` | Where the on-foot player stands (surface scenes). Found by scanning the streamed chunks near the spawn (`PlayerController.PlaceForCapturePose`); when no such spot is loaded the clip logs it and uses the spawn pose |
+
+Every time-smoothed look (weather easing, eye adaptation, wet/snowy ground, …) is snapped to its target
+right before the first frame (`GameBootstrap.RequestCaptureSnap`), so two captures of one seed are
+identical. A short frames-only check needs no FFmpeg: run the built player directly, e.g.
+
+```powershell
+Start-Process client\Build\Windows\BlocksBeyondTheStars.exe -Wait -ArgumentList `
+  -captureClip,-clipManifest,scripts\clip-manifests\atmosphere-check.json,-clipName,jungle_dawn, `
+  -clipOut,$env:TEMP\clips,-lang,en,-seed,424242,-screen-width,1920,-screen-height,1080,-screen-fullscreen,0
+```
+
+→ `%TEMP%\clips\jungle_dawn\frames\frame_0000N.png`. The tracked manifest
+[`scripts/clip-manifests/atmosphere-check.json`](../../scripts/clip-manifests/atmosphere-check.json)
+is the standing set of look-check scenes (dawn, rain, fog, cave, under water, forest, night, orbit).

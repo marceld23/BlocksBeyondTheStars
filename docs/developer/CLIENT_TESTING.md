@@ -97,11 +97,21 @@ suites are opt-in, so you choose whether they ride along.
 ```
 
 `-Suites` accepts any of `Dotnet`, `ClientCore`, `UnityEdit`, `UnityPlay`, `All`. The Unity suites need
-`Unity.exe` (pass `-UnityPath` if it is not at the default `6000.4.9f1` location); the runner first syncs the
+`Unity.exe` (found by `scripts/resolve-unity.ps1` from `ProjectVersion.txt`; pass `-UnityPath` to override); the runner first syncs the
 shared libs/content, and for `UnityPlay` also publishes the bundled server. Unity results (NUnit XML) and logs
 land under `TestResults/`.
 
 You can still run a single suite directly: `dotnet test tests/BlocksBeyondTheStars.Client.Tests`.
+
+## Look checks without a playtest
+
+Rendering changes (shaders, lighting, post, weather) have no assertion to fail, so they are checked by
+**capturing the same world twice** — before and after, same seed, Low and High — with the built player's
+clip recorder (`-captureClip`). A clip pins time of day, weather and where the player stands (cave, under
+water, forest, shore, ridge), so dawn mist, a rain shower or a lava cave can be requested on purpose
+instead of hoping the spawn rolls them. The manifest fields and a frames-only recipe are documented in
+[docs/screenshots/README.md](../screenshots/README.md#video-clips--captureclip--and-look-checks-without-a-playtest);
+the standing set of look-check scenes is `scripts/clip-manifests/atmosphere-check.json`.
 
 ## Notes & caveats
 

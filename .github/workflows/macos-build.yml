@@ -66,7 +66,7 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           projectPath: client
-          unityVersion: 6000.4.9f1
+          unityVersion: 6000.6.5f1
           targetPlatform: StandaloneOSX
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildMacOS
           versioning: Custom

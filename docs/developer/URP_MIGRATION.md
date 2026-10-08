@@ -2,7 +2,7 @@
 
 Status: implemented (see TODO.md for live Done/Open status). Date: 2026-06-19.
 
-The Unity client (Unity 6000.4.9f1) renders through the **Universal Render Pipeline**. URP has been
+The Unity client (Unity 6000.6.5f1, URP 17.6) renders through the **Universal Render Pipeline**. URP has been
 the shipping pipeline since 2026-06-10; the migration off Built-in RP is complete and merged to main.
 This doc describes the final shape of that rendering setup and where it lives.
 

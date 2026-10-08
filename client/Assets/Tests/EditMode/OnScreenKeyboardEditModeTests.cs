@@ -152,7 +152,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             OnScreenKeyboardUi.Open("First", string.Empty, 0, _ => { });
             OnScreenKeyboardUi.Open("Second", string.Empty, 0, _ => { });
 
-            var canvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            var canvases = Object.FindObjectsByType<Canvas>(); // Unity 6.6: the sort-mode overload is obsolete (unsorted is the default)
             int keyboards = 0;
             foreach (var canvas in canvases)
             {

@@ -32,7 +32,7 @@ if [ -z "$UNITY_PATH" ]; then
 fi
 
 if [ -z "$UNITY_PATH" ] || [ ! -x "$UNITY_PATH" ]; then
-    echo "Unity editor not found. Pass --unity-path to your Unity 6000.4.x editor."
+    echo "Unity editor not found. Pass --unity-path to the editor matching client/ProjectSettings/ProjectVersion.txt."
     echo "Looked in /opt/Unity/Hub/Editor/*/Editor/Unity"
     exit 1
 fi

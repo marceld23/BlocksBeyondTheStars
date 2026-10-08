@@ -147,3 +147,4 @@ ones are marked, not deleted.
 - [0012 — CalVer date-based versioning](adr/0012-calver-date-based-versioning.md)
 - [0013 — The Crystal Net: a binary, visible signal network without power](adr/0013-crystal-net-binary-visible-signal-network.md)
 - [0014 — Moving blocks: twin swaps, step-wise bridges and pistons, server-owned lift platforms](adr/0014-moving-blocks-twins-and-server-owned-lifts.md)
+- [0015 — Unity 6.6, the Supported-release cadence, and WebGPU first in the browser](adr/0015-unity-6-6-supported-releases-and-webgpu-first.md)
