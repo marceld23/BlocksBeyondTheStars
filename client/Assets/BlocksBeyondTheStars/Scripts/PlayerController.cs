@@ -3015,6 +3015,322 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
+        /// <summary>Capture hook (#2405): put the on-foot player at a spot of the requested kind near the anchor — a
+        /// covered room underground ("cave"), under three blocks of water ("underwater"), in dense flora ("forest"),
+        /// on dry ground beside water ("shore") or on the highest open spot around ("ridge"). "spawn" (and any unknown
+        /// kind) is the plain outdoor placement of <see cref="PlaceForCaptureNear"/>. The search walks the streamed
+        /// client chunks rather than the physics scene so it can look underground and into water; the caller keeps
+        /// polling <see cref="IsCaptureGrounded"/> / <see cref="IsHeadUnderwater"/> (and calls this again) until the
+        /// chunk collider under the spot has been cooked, because a snap onto a not-yet-cooked chunk drops the player
+        /// through it. Returns false when no spot of that kind is loaded near the anchor, so the caller can fall back.</summary>
+        public bool PlaceForCapturePose(string pose, Vector3 anchor, float pitch)
+        {
+            string kind = (pose ?? string.Empty).Trim().ToLowerInvariant();
+            if (kind.Length == 0 || kind == "spawn")
+            {
+                return PlaceForCaptureNear(anchor, pitch);
+            }
+
+            if (_controller == null || Game?.World == null || Game.Content == null)
+            {
+                return false;
+            }
+
+            RefreshLiquidKeys();
+            const int Radius = 44;
+            int ax = Mathf.FloorToInt(anchor.x), ay = Mathf.FloorToInt(anchor.y), az = Mathf.FloorToInt(anchor.z);
+            int yLo = kind == "cave" ? ay - 56 : ay - 28;
+            int yHi = kind == "cave" ? ay + 6 : ay + 48;
+            float bestScore = float.NegativeInfinity;
+            Vector3Int best = default;
+            float bestYaw = 0f;
+
+            for (int dx = -Radius; dx <= Radius; dx += 2)
+            {
+                for (int dz = -Radius; dz <= Radius; dz += 2)
+                {
+                    float horiz = Mathf.Sqrt(dx * dx + dz * dz);
+                    if (horiz < 7f)
+                    {
+                        continue; // the ship's footprint — its hull is stamped into the voxels
+                    }
+
+                    int x = ax + dx, z = az + dz;
+                    for (int y = yLo; y <= yHi; y++)
+                    {
+                        float score = CapturePoseScore(kind, x, y, z, ax, az, horiz, out float yaw);
+                        if (!float.IsNaN(score) && score > bestScore)
+                        {
+                            bestScore = score;
+                            best = new Vector3Int(x, y, z);
+                            bestYaw = yaw;
+                        }
+                    }
+                }
+            }
+
+            if (float.IsNegativeInfinity(bestScore))
+            {
+                Debug.LogWarning($"[Capture] PlaceForCapturePose: no '{kind}' spot streamed in near the spawn.");
+                return false;
+            }
+
+            float half = _controller.height * 0.5f + _controller.skinWidth;
+            var stand = new Vector3(best.x + 0.5f, best.y + half + (kind == "underwater" ? 0.1f : 0.05f), best.z + 0.5f);
+            SetCapturePose(stand, bestYaw, pitch);
+            Debug.Log($"[Capture] PlaceForCapturePose: '{kind}' at ({best.x},{best.y},{best.z}) score={bestScore:F1} yaw={bestYaw:F0}°");
+            return true;
+        }
+
+        /// <summary>Score a candidate feet cell for <see cref="PlaceForCapturePose"/>: NaN = not that kind of spot,
+        /// otherwise higher is better. <paramref name="yaw"/> is where the player should look from there.</summary>
+        private float CapturePoseScore(string kind, int x, int y, int z, int ax, int az, float horiz, out float yaw)
+        {
+            yaw = 0f;
+            if (!CaptureKeyAt(x, y, z, out string feet) || !CaptureKeyAt(x, y + 1, z, out string head)
+                || !CaptureKeyAt(x, y - 1, z, out string floor))
+            {
+                return float.NaN; // not streamed in
+            }
+
+            if (kind == "underwater")
+            {
+                if (feet != "water" || head != "water" || !CaptureKeyAt(x, y + 2, z, out string above) || above != "water")
+                {
+                    return float.NaN;
+                }
+
+                int depth = 0;
+                for (int i = 3; i < 12 && CaptureKeyAt(x, y + i, z, out string w) && w == "water"; i++)
+                {
+                    depth++;
+                }
+
+                yaw = CaptureYawAway(x, z, ax, az);
+                return depth * 2f - horiz * 0.08f;
+            }
+
+            if (!IsCollidingKey(floor) || !CaptureFree(feet) || !CaptureFree(head))
+            {
+                return float.NaN;
+            }
+
+            switch (kind)
+            {
+                case "cave":
+                {
+                    int solidAbove = CaptureSolidAbove(x, y + 2, z, 48);
+                    if (solidAbove < 6)
+                    {
+                        return float.NaN; // a hull roof or an overhang, not underground
+                    }
+
+                    int room = CaptureFreeCount(x, y, z);
+                    if (room < 22)
+                    {
+                        return float.NaN; // a crack, not a room
+                    }
+
+                    yaw = CaptureYawToOpen(x, y, z);
+                    return solidAbove + room * 0.25f - horiz * 0.1f;
+                }
+
+                case "forest":
+                {
+                    if (!CaptureOpenSky(x, y + 2, z))
+                    {
+                        return float.NaN;
+                    }
+
+                    int flora = CaptureFloraCount(x, y, z, out yaw);
+                    return flora < 24 ? float.NaN : flora - horiz * 0.2f;
+                }
+
+                case "shore":
+                {
+                    if (!CaptureOpenSky(x, y + 2, z))
+                    {
+                        return float.NaN;
+                    }
+
+                    float d = CaptureNearestWater(x, y, z, out yaw);
+                    return float.IsNaN(d) ? float.NaN : 10f - d - horiz * 0.1f;
+                }
+
+                case "ridge":
+                {
+                    if (!CaptureOpenSky(x, y + 2, z))
+                    {
+                        return float.NaN;
+                    }
+
+                    yaw = CaptureYawAway(x, z, ax, az);
+                    return y - horiz * 0.05f;
+                }
+
+                default:
+                    return float.NaN;
+            }
+        }
+
+        /// <summary>The block key at a cell of the streamed client world; false when its chunk is not loaded.</summary>
+        private bool CaptureKeyAt(int x, int y, int z, out string key)
+        {
+            if (!Game.World.TryGetBlock(x, y, z, out var id))
+            {
+                key = null;
+                return false;
+            }
+
+            key = id.IsAir ? "air" : (Game.Content.BlockById(id)?.Key ?? "air");
+            return true;
+        }
+
+        /// <summary>A cell the capsule can occupy: air, or a prop it walks through — never a liquid.</summary>
+        private static bool CaptureFree(string key)
+            => key == "air" || (!IsCollidingKey(key) && key != "water" && key != "lava" && !LiquidKeys.Contains(key));
+
+        /// <summary>How many colliding blocks sit in the column from <paramref name="y"/> up to <paramref name="maxUp"/>
+        /// cells higher (unloaded cells count as open).</summary>
+        private int CaptureSolidAbove(int x, int y, int z, int maxUp)
+        {
+            int solid = 0;
+            for (int i = 0; i < maxUp; i++)
+            {
+                if (CaptureKeyAt(x, y + i, z, out string k) && IsCollidingKey(k))
+                {
+                    solid++;
+                }
+            }
+
+            return solid;
+        }
+
+        /// <summary>No colliding block in the 40 cells above and no parked ship over the spot (foliage is walk-through,
+        /// so a tree crown still counts as open sky — that is what "forest" wants).</summary>
+        private bool CaptureOpenSky(int x, int y, int z)
+            => CaptureSolidAbove(x, y, z, 40) == 0 && !Game.LandedShipCovers(x, y, z);
+
+        /// <summary>Free cells in the 5×3×5 box around the feet cell — a room reads as ≥ 22 of 75.</summary>
+        private int CaptureFreeCount(int x, int y, int z)
+        {
+            int free = 0;
+            for (int dx = -2; dx <= 2; dx++)
+            {
+                for (int dy = 0; dy <= 2; dy++)
+                {
+                    for (int dz = -2; dz <= 2; dz++)
+                    {
+                        if (CaptureKeyAt(x + dx, y + dy, z + dz, out string k) && CaptureFree(k))
+                        {
+                            free++;
+                        }
+                    }
+                }
+            }
+
+            return free;
+        }
+
+        /// <summary>Flora and tree-crown cells within 6 blocks (ground to 9 up); the yaw points at the densest side.</summary>
+        private int CaptureFloraCount(int x, int y, int z, out float yaw)
+        {
+            int count = 0;
+            float sx = 0f, sz = 0f;
+            for (int dx = -6; dx <= 6; dx++)
+            {
+                for (int dz = -6; dz <= 6; dz++)
+                {
+                    for (int dy = -1; dy <= 9; dy++)
+                    {
+                        if (!Game.World.TryGetBlock(x + dx, y + dy, z + dz, out var id) || id.IsAir)
+                        {
+                            continue;
+                        }
+
+                        var def = Game.Content.BlockById(id);
+                        if (def != null && (def.Category == "flora" || TreeFoliage.IsKey(def.Key)))
+                        {
+                            count++;
+                            sx += dx;
+                            sz += dz;
+                        }
+                    }
+                }
+            }
+
+            yaw = Mathf.Abs(sx) + Mathf.Abs(sz) > 0.5f ? Mathf.Atan2(sx, sz) * Mathf.Rad2Deg : 0f;
+            return count;
+        }
+
+        /// <summary>Distance to the nearest water cell at foot level or one below within 4 blocks (NaN = none); the yaw
+        /// faces it.</summary>
+        private float CaptureNearestWater(int x, int y, int z, out float yaw)
+        {
+            float bestD = float.NaN;
+            yaw = 0f;
+            for (int dx = -4; dx <= 4; dx++)
+            {
+                for (int dz = -4; dz <= 4; dz++)
+                {
+                    if (dx == 0 && dz == 0)
+                    {
+                        continue;
+                    }
+
+                    for (int dy = -2; dy <= -1; dy++)
+                    {
+                        if (!CaptureKeyAt(x + dx, y + dy, z + dz, out string k) || k != "water")
+                        {
+                            continue;
+                        }
+
+                        float d = Mathf.Sqrt(dx * dx + dz * dz);
+                        if (float.IsNaN(bestD) || d < bestD)
+                        {
+                            bestD = d;
+                            yaw = Mathf.Atan2(dx, dz) * Mathf.Rad2Deg;
+                        }
+                    }
+                }
+            }
+
+            return bestD;
+        }
+
+        /// <summary>The yaw of the longest free run at head height among eight directions — look down the cave, not
+        /// into its wall.</summary>
+        private float CaptureYawToOpen(int x, int y, int z)
+        {
+            int bestRun = -1;
+            float yaw = 0f;
+            for (int a = 0; a < 8; a++)
+            {
+                float ang = a * 45f * Mathf.Deg2Rad;
+                int sx = Mathf.RoundToInt(Mathf.Sin(ang)), sz = Mathf.RoundToInt(Mathf.Cos(ang));
+                int run = 0;
+                while (run < 14 && CaptureKeyAt(x + sx * (run + 1), y + 1, z + sz * (run + 1), out string k) && CaptureFree(k))
+                {
+                    run++;
+                }
+
+                if (run > bestRun)
+                {
+                    bestRun = run;
+                    yaw = a * 45f;
+                }
+            }
+
+            return yaw;
+        }
+
+        /// <summary>Face away from the anchor (the landed ship), like <see cref="PlaceForCaptureNear"/>.</summary>
+        private static float CaptureYawAway(int x, int z, int ax, int az)
+        {
+            float dx = x - ax, dz = z - az;
+            return Mathf.Abs(dx) + Mathf.Abs(dz) > 0.01f ? Mathf.Atan2(dx, dz) * Mathf.Rad2Deg : 0f;
+        }
+
         /// <summary>Capture hook: the on-foot player is standing on solid ground this frame.</summary>
         public bool IsCaptureGrounded => _controller != null && _controller.enabled && _controller.isGrounded;
 

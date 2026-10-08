@@ -24,6 +24,40 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌫️ Atmosphere package — Unity 6.6 + WebGPU, living air and light, weather that leaves a trace, deeper water and caves (#2408: #2389–#2407, 2026-10-08, branch feat/atmosphere-2026-10) — 🚧 in progress
+
+**Ask (Marcel, 2026-10-08):** "which kinds of visual effects in Unity could give the game a better atmosphere?" — an
+analysis first, then: everything in ONE PR, the Unity 6.4 → 6.6 upgrade and WebGPU-first for the browser included,
+lava/crystals/glowing flora may light their surroundings (reverses #2036), Low/Potato get the cheap effects with a
+switch per effect, no intermediate screenshots — the maintainer tests the finished build from the project folder.
+
+**Decisions:** one PR with bisectable commits (branch kept after the squash-merge) · Unity 6000.6.5f1 with no time box ·
+WebGPU first in the web graphics-API list, WebGL2 as the fallback · emitter light for lava, crystals and glowing flora ·
+an "Atmosphere effects: Off / Some / All" settings row with per-effect switches underneath · acceptance: High ≥ 60 fps at
+view distance 8 on the reference laptop, Low in the browser ≥ 30 fps at view distance 3 (school PC, measured after the
+release) · nothing flickers or flashes faster than 3/s (WCAG 2.3.1), `Reduce flashes` / `Reduced effects` apply to every
+new effect, no effect may make the world darker overall · verification by clip-recorder captures of one seed before/after,
+Low and High (no playtest needed until the end).
+
+**Build order (each a commit):**
+0. ✅ Tooling (#2405): `ClipSpec.timeOfDay` / `weather` / `pose` — `GameBootstrap.SetCaptureEnvironment(time?, weather)`
+   fills the wire fields the way the server would (state, family, precipitation, intensity, wind) and snaps the weather
+   easing; `RequestCaptureSnap` / `CaptureSnap` event for every smoothed look; `PlayerController.PlaceForCapturePose`
+   scans the streamed chunks for a cave room, a three-deep water column, dense flora, a shore or the highest open spot;
+   the clip director re-snaps until the chunk collider has cooked and falls back to the spawn pose. Standing manifest
+   `scripts/clip-manifests/atmosphere-check.json` (22 scenes); docs in `docs/screenshots/README.md` + `CLIENT_TESTING.md`.
+1. ⬜ Unity 6000.4.9f1 → 6000.6.5f1 (#2389)
+2. ⬜ WebGPU first + async GPU readback (#2390)
+3. ⬜ Fixes: heat shimmer on Low (#2391), settings housekeeping + stale docs (#2392)
+4. ⬜ Air & light: haze on every shader (#2393), height fog + sun-tinted haze (#2406), cloud shadows (#2394), eye
+   adaptation (#2395), torch-light flicker (#2396)
+5. ⬜ Living world: wind (#2397), wet + snowy surfaces (#2398), weather as particles + splashes (#2399), planet limb +
+   shooting stars (#2400)
+6. ⬜ Depth: underwater (#2401), light shafts (#2402), emitter light (#2407), fake SSS + soft particles (#2403)
+7. ⬜ Wrap-up: settings group in 14 languages (#2404), docs (ADVANCED_GRAPHICS, VFX, URP_MIGRATION, ART_BIBLE,
+   USER_MANUAL, DEVELOPER, AGENTS), two ADRs (Unity 6.6 + WebGPU rollout; natural emitters light their surroundings),
+   tests, local build, release.yml dispatch, PR
+
 ### 🧗 Climbing controls — hold Jump to hold on, let go to slide, two-block walls in one jump, "no room" message (#2384 #2385 #2386 #2387, 2026-10-08, branch feat/climb-hold-to-grip) — ✅ done (⚠ playtest open)
 
 **Report (Marcel, 2026-10-08):** "with only two blocks I don't climb up", and "how do I get out of climbing?" — idea:

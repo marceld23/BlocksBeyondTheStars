@@ -40,6 +40,10 @@ namespace BlocksBeyondTheStars.Client
         private bool _headless;
         private string _manifestPath;
         private string _clipName;
+        private string _preset;                  // -preset Potato|Low|Medium|High: capture under that quality preset (#2405)
+        private QualityPreset _presetBefore;     // … restored before quitting, so the run never rewrites the player's settings
+        private bool _presetAutoBefore;
+        private bool _presetApplied;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoInstall()
@@ -58,6 +62,7 @@ namespace BlocksBeyondTheStars.Client
             d._headless = cfg.headless;
             d._manifestPath = cfg.manifest;
             d._clipName = cfg.clipName;
+            d._preset = cfg.preset;
         }
 
         private struct Config
@@ -68,6 +73,7 @@ namespace BlocksBeyondTheStars.Client
             public bool headless;
             public string manifest;
             public string clipName;
+            public string preset;
         }
 
         private static bool ClipRequested(out Config cfg)
@@ -97,6 +103,10 @@ namespace BlocksBeyondTheStars.Client
                 else if (string.Equals(a, "-clipName", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
                 {
                     cfg.clipName = args[i + 1];
+                }
+                else if (string.Equals(a, "-preset", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    cfg.preset = args[i + 1];
                 }
                 else if (string.Equals(a, "-seed", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length
                          && long.TryParse(args[i + 1], out var s))
@@ -166,6 +176,19 @@ namespace BlocksBeyondTheStars.Client
             shell.Settings.Language = _lang;
             shell.LoadLocalizer();
 
+            // Capture under a requested quality preset (Low vs High look checks), without touching the player's saved
+            // settings: the original preset is restored in Quit(), before any save-on-exit.
+            if (!string.IsNullOrEmpty(_preset) && Enum.TryParse(_preset, true, out QualityPreset preset))
+            {
+                _presetBefore = shell.Settings.Preset;
+                _presetAutoBefore = shell.Settings.PresetAuto;
+                _presetApplied = true;
+                shell.Settings.Preset = preset;
+                shell.Settings.PresetAuto = false;
+                shell.Settings.Apply();
+                Debug.Log($"[Clip] preset={preset} (restored on exit)");
+            }
+
             ClipSpec clip = ResolveClip();
             if (clip == null)
             {
@@ -224,7 +247,7 @@ namespace BlocksBeyondTheStars.Client
 
                 case "surface":
                     bool ready = false;
-                    yield return PlaceOnSurface(boot, r => ready = r);
+                    yield return PlaceOnSurface(boot, clip, r => ready = r);
                     if (!ready)
                     {
                         Debug.LogWarning($"[Clip] {clip.name}: no safe footing — recording the spawn view anyway.");
@@ -250,6 +273,18 @@ namespace BlocksBeyondTheStars.Client
                     break;
             }
 
+            // Pin the time of day and/or the weather when the clip asks for it (#2405), then snap every smoothed look
+            // (weather easing, adaptation, wet ground …) so the first frame is already settled and a re-run of the same
+            // seed comes out identical.
+            if (clip.timeOfDay >= 0f || !string.IsNullOrEmpty(clip.weather))
+            {
+                boot.SetCaptureEnvironment(clip.timeOfDay >= 0f ? clip.timeOfDay : (float?)null, clip.weather ?? string.Empty);
+                yield return new WaitForSecondsRealtime(1f);
+            }
+
+            boot.RequestCaptureSnap();
+            yield return null;
+
             if (string.Equals(clip.scene, "land", StringComparison.OrdinalIgnoreCase) && space != null)
             {
                 yield return RecordLandingClip(clip, clipDir, boot, space);
@@ -263,9 +298,12 @@ namespace BlocksBeyondTheStars.Client
             Quit(0);
         }
 
-        /// <summary>Step the on-foot player out of the spawn hull onto real, dry, solid ground near the ship
-        /// (terrain-aware, like <see cref="ScreenshotDirector"/>), reporting whether a safe pose was reached.</summary>
-        private IEnumerator PlaceOnSurface(GameBootstrap boot, Action<bool> done)
+        /// <summary>Step the on-foot player out of the spawn hull to the clip's pose (#2405): open, dry ground near the
+        /// ship by default (terrain-aware, like <see cref="ScreenshotDirector"/>), or a cave / under water / a forest /
+        /// a shore / a ridge when the manifest asks for one — falling back to the spawn pose when no such spot is
+        /// streamed in. Reports whether a safe pose was reached. The snap is repeated every ¾ s until the player is
+        /// settled, because a grid-chosen spot can sit on a chunk whose collider is still cooking.</summary>
+        private IEnumerator PlaceOnSurface(GameBootstrap boot, ClipSpec clip, Action<bool> done)
         {
             var pc = FindAnyObjectByType<PlayerController>();
             if (pc == null)
@@ -276,17 +314,31 @@ namespace BlocksBeyondTheStars.Client
 
             var p = boot.PlayerPosition;
             var anchor = new Vector3(p.x, p.y, p.z);
+            string pose = (clip.pose ?? string.Empty).Trim().ToLowerInvariant();
+            bool underwater = pose == "underwater";
             bool placed = false;
             float t = 0f;
+            float sincePlace = float.MaxValue;
             while (t < CaptureReadyTimeout)
             {
-                if (!placed)
+                if (!placed || sincePlace > 0.75f)
                 {
-                    placed = pc.PlaceForCaptureNear(anchor, pitch: 4f);
+                    placed = pc.PlaceForCapturePose(pose, anchor, pitch: underwater ? 0f : 4f);
+                    sincePlace = 0f;
+                    if (!placed && pose.Length > 0 && pose != "spawn")
+                    {
+                        Debug.LogWarning($"[Clip] {clip.name}: no '{pose}' spot near the spawn — using the spawn pose.");
+                        pose = "spawn";
+                        underwater = false;
+                        continue;
+                    }
                 }
 
                 bool alive = !boot.AwaitingRespawnConfirm && boot.Health > 0f;
-                if (placed && pc.IsCaptureGrounded && !pc.IsHeadUnderwater() && alive)
+                bool settled = underwater
+                    ? pc.IsHeadUnderwater()
+                    : pc.IsCaptureGrounded && !pc.IsHeadUnderwater();
+                if (placed && settled && alive)
                 {
                     yield return new WaitForSecondsRealtime(ChunkSettle);
                     done(true);
@@ -294,6 +346,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 t += Time.unscaledDeltaTime;
+                sincePlace += Time.unscaledDeltaTime;
                 yield return null;
             }
 
@@ -669,6 +722,18 @@ namespace BlocksBeyondTheStars.Client
         private void Quit(int code)
         {
             Time.captureFramerate = 0;
+            if (_presetApplied)
+            {
+                var shell = FindAnyObjectByType<AppShell>();
+                if (shell != null && shell.Settings != null)
+                {
+                    shell.Settings.Preset = _presetBefore;
+                    shell.Settings.PresetAuto = _presetAutoBefore;
+                }
+
+                _presetApplied = false;
+            }
+
 #if UNITY_EDITOR
             if (_headless)
             {
