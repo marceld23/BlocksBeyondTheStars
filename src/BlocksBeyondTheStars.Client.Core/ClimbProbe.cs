@@ -79,6 +79,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The highest ledge a climber's hands can still pull the body over.</summary>
         public const float MaxPullUp = 1.75f;
 
+        /// <summary>A jump still rising faster than this (m/s) grabs no wall yet (#2385): it carries the climber to its
+        /// top first, and the grab happens there or on the way down.</summary>
+        public const float GrabRiseLimit = 0.5f;
+
+        /// <summary>How far a ledge must lie above the top of a jump before the jump counts as falling short of it
+        /// (#2385) — a hair, so float noise at the very top never turns a clearing jump into a pull-up.</summary>
+        public const float JumpShortfall = 0.05f;
+
         private readonly Func<int, int, int, ClimbSurface> _holdAt;
         private readonly Func<int, int, int, bool> _solidAt;
 
@@ -126,6 +134,30 @@ namespace BlocksBeyondTheStars.Client
 
             return false;
         }
+
+        /// <summary>Whether a climber moving up at <paramref name="verticalSpeed"/> may grab a wall now (#2385): not while a
+        /// jump is still rising fast.</summary>
+        public static bool MayGrab(float verticalSpeed) => verticalSpeed <= GrabRiseLimit;
+
+        /// <summary>
+        /// The lowest ledge a jump rising at <paramref name="verticalSpeed"/> under <paramref name="gravity"/> pulls the
+        /// climber over (#2385): higher than a step, and higher than what the jump still rises by itself
+        /// (v² / 2g, plus <see cref="JumpShortfall"/>). A ledge the jump clears is landed on, not pulled over; one it falls
+        /// short of is pulled over as soon as the hands reach it, on the way up — not only at the top of the jump.
+        /// </summary>
+        public static float JumpPullUpMinRise(float verticalSpeed, float gravity)
+        {
+            float rest = verticalSpeed > 0f && gravity > 0f ? verticalSpeed * verticalSpeed / (2f * gravity) : 0f;
+            return Math.Max(StepHeight, rest + JumpShortfall);
+        }
+
+        /// <summary>A pull-up straight from a jump (#2190, #2385): <see cref="TryFindLedgeAhead"/> with the rise that
+        /// <see cref="JumpPullUpMinRise"/> gives for the jump's vertical speed — a jump that falls short of a two-block
+        /// wall pulls over it on the way up, a one-block step stays an ordinary jump.</summary>
+        public bool TryPullUpFromJump(float x, float y, float z, float wishX, float wishZ, float verticalSpeed, float gravity,
+            out WallHold hold, out float targetX, out float targetY, out float targetZ)
+            => TryFindLedgeAhead(x, y, z, wishX, wishZ, JumpPullUpMinRise(verticalSpeed, gravity),
+                out hold, out targetX, out targetY, out targetZ);
 
         /// <summary>A pull-up straight from a jump (#2190): the ledge the push points at, if
         /// <see cref="TryFindLedge"/> accepts it — what makes a two-block wall crossable with a jump.</summary>

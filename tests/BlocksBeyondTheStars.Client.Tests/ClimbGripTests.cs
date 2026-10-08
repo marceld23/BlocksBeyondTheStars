@@ -102,4 +102,23 @@ public sealed class ClimbGripTests
     [Fact]
     public void TheSlide_StaysFarBelowTheSafeLandingSpeed()
         => Assert.True(ClimbGrip.SlideSpeed < 14f / 2f); // the client's safe fall speed is 14 m/s at 1 g
+
+    [Fact]
+    public void LettingGoOfJump_Slides_ASpentHeldGripSlidesSlower_AHeldGripHolds()
+    {
+        // #2384: holding on is a held button.
+        Assert.Equal(ClimbGrip.ReleaseSlideSpeed, ClimbGrip.SlideSpeedFor(holding: false, exhausted: false));
+        Assert.Equal(ClimbGrip.ReleaseSlideSpeed, ClimbGrip.SlideSpeedFor(holding: false, exhausted: true));
+        Assert.Equal(ClimbGrip.SlideSpeed, ClimbGrip.SlideSpeedFor(holding: true, exhausted: true));
+        Assert.Equal(0f, ClimbGrip.SlideSpeedFor(holding: true, exhausted: false));
+        Assert.Equal(4f, ClimbGrip.ReleaseSlideSpeed);
+    }
+
+    [Fact]
+    public void TheReleaseSlide_NeverHurts_OnAnyWorld()
+    {
+        // The safe-landing speed scales with √gravity (14 m/s at 1 g); the lightest world the client allows is 0.2 g.
+        float lightestSafeSpeed = 14f * (float)System.Math.Sqrt(0.2);
+        Assert.True(ClimbGrip.ReleaseSlideSpeed < lightestSafeSpeed);
+    }
 }
