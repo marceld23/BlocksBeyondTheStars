@@ -3611,7 +3611,7 @@ namespace BlocksBeyondTheStars.Client
                 if (InputMap.JumpDown())
                 {
                     ReleaseRope();
-                    _verticalVelocity = RopeRules.HopSpeed; // a hop: climbing gloves can grab from here, or a low ledge is reached
+                    _verticalVelocity = RopeRules.HopSpeed; // a hop: Jump kept held grabs the wall at its top (#2384), or a low ledge is reached
                     return false;
                 }
             }
@@ -4322,6 +4322,13 @@ namespace BlocksBeyondTheStars.Client
                 _glideRefused = false;
             }
 
+            // #2384: Jump held as the grip through a climb's end jumps only after it is let go once — or pressed afresh
+            // (a release that happened while a menu was open is never seen here).
+            if (_climbJumpLatch && (!InputMap.JumpHeld() || InputMap.JumpDown()))
+            {
+                _climbJumpLatch = false;
+            }
+
             bool jetpacking = false;
             bool gliding = false;
             if (grounded || inWater || onLadder || climbing || _flying || roped)
@@ -4379,7 +4386,7 @@ namespace BlocksBeyondTheStars.Client
             else if (climbing)
             {
                 // #2188: hanging on a wall — no gravity, no jetpack; UpdateWallClimb already steered the move along the
-                // wall and picked the vertical speed (up, down, hold, or the slow slide of a spent grip).
+                // wall and picked the vertical speed (up, down, hold, or a slide: Jump let go or the grip spent, #2384).
                 _verticalVelocity = _climbVy;
             }
             else if (_flying)
@@ -4397,7 +4404,7 @@ namespace BlocksBeyondTheStars.Client
                     ClientAudio.Instance?.Cue("jump", 0.6f);
                 }
 
-                if (InputMap.JumpHeld())
+                if (InputMap.JumpHeld() && !_climbJumpLatch)
                 {
                     _verticalVelocity = _effJumpSpeed * BioJumpImpulse() * SpringJumpImpulse();
                     if (springs)
@@ -4629,17 +4636,26 @@ namespace BlocksBeyondTheStars.Client
         // #2188–#2193: wall climbing on planets, moons and asteroids
         // ---------------------------------------------------------------------------------------------------------
         //
-        // Jump at a wall and push towards it: you hold on. On the wall you climb up (push in or hold Jump), down (pull
-        // away), sideways (along it), and let go with crouch; at the top you pull yourself over the edge. The grip tires
-        // (ClimbGrip) but is never drawn on the HUD — you feel it: slower, then a tremble and a breath, then a slow slide.
-        // Ladders keep their own rules and win; water, flight, space, stations and the ship interior have no climbing.
-        // All of it is on-foot movement, which the client owns; other players only learn the pose (MoveIntent.Climbing).
+        // Jump at a wall, push towards it and hold Jump: you hold on (#2384 — holding on is a held button). On the wall
+        // you climb up (push in), down (pull away), sideways (along it) or hang still (Jump alone); letting go of Jump
+        // slides you down, crouch drops you off; at the top you pull yourself over the edge. A jump that falls short of a
+        // low wall pulls you over it on the way up (#2385). The grip tires (ClimbGrip) but is never drawn on the HUD —
+        // you feel it: slower, then a tremble and a breath, then a slow slide. Ladders keep their own rules and win;
+        // water, flight, space, stations and the ship interior have no climbing. All of it is on-foot movement, which
+        // the client owns; other players only learn the pose (MoveIntent.Climbing).
 
         /// <summary>How hard a climber leans into the wall, m/s — keeps the capsule touching it.</summary>
         private const float WallPress = 1f;
 
         /// <summary>The little shove off the wall when letting go, m/s.</summary>
         private const float LetGoPush = 2.5f;
+
+        /// <summary>#2386: how long the pull-up must stay refused before the HUD says why, s — no flash while the hands
+        /// pass along an edge.</summary>
+        private const float ClimbNoRoomDelay = 0.25f;
+
+        /// <summary>#2386: the least time between two "no room to pull up" messages, s.</summary>
+        private const float ClimbNoRoomPause = 8f;
 
         private readonly ClimbGrip _grip = new ClimbGrip();
         private ClimbProbe _climbProbe;
@@ -4656,11 +4672,15 @@ namespace BlocksBeyondTheStars.Client
         private float _pullT;
         private float _climbGearGrip;   // worn gear: share of the grip drain taken away (#2192)
         private bool _climbGearIce;     // worn gear: icy walls hold (#2192)
-        private bool _climbSliding;     // the grip is spent — sliding down slowly
+        private bool _climbSliding;     // sliding down: Jump let go (#2384) or the grip spent
         private float _climbStrain;     // eased 0..1 — the camera tremble and the avatar's shake
         private bool _climbPose;        // climbing a wall or a ladder: the avatar pose + the flag the server mirrors
         private bool _avatarTurned;     // the third-person avatar is turned to face the wall
         private float _climbTapTimer, _climbBreathTimer, _climbSlideTimer, _climbHintTimer;
+        private bool _climbNoRoomHinted;    // #2386: this climb already said why the pull-up is refused
+        private float _climbNoRoomFor;      // #2386: how long the pull-up has been refused while pushing up
+        private float _climbNoRoomNextAt;   // #2386: no new message before this time
+        private bool _climbJumpLatch;       // #2384: Jump still held as the grip after a climb — no jump until it is let go
 
         /// <summary>True while the player hangs on a wall or pulls up over its edge (not on a ladder).</summary>
         public bool ClimbingWall => _climbing || _pullingUp;
@@ -4723,10 +4743,10 @@ namespace BlocksBeyondTheStars.Client
                && string.IsNullOrEmpty(Game.CurrentStationId) && _trainFrame == null && _seatCell is null;
 
         /// <summary>
-        /// The wall-climbing step (#2188–#2190): grabs a wall, climbs it, lets go, or starts a pull-up. Returns true
-        /// while the player hangs on a wall this frame — <paramref name="move"/> then carries the sideways move and the
-        /// lean into the wall, and <see cref="_climbVy"/> the vertical speed. Also refills the grip on the ground and on
-        /// a ladder.
+        /// The wall-climbing step (#2188–#2190, #2384–#2386): grabs a wall, climbs it, slides down it, lets go, or starts a
+        /// pull-up. Returns true while the player is on a wall this frame — <paramref name="move"/> then carries the
+        /// sideways move and the lean into the wall, and <see cref="_climbVy"/> the vertical speed. Also refills the grip on
+        /// the ground and on a ladder.
         /// </summary>
         private bool UpdateWallClimb(bool grounded, bool inWater, bool onLadder, float h, float v, ref Vector3 move)
         {
@@ -4750,6 +4770,9 @@ namespace BlocksBeyondTheStars.Client
 
             var pos = transform.position;
             Vector3 wish = (transform.right * h) + (transform.forward * v);
+            // #2384: holding on is a held button — Jump (Space, pad (A), touch JUMP). A window that lost focus reads every
+            // key as up; a climber on the wall keeps holding then instead of sliding off while alt-tabbed.
+            bool holding = InputMap.JumpHeld() || (_climbing && !Application.isFocused);
 
             if (!_climbing)
             {
@@ -4762,14 +4785,15 @@ namespace BlocksBeyondTheStars.Client
 
                 // Grabbing is deliberate: in the air, pushing at the wall, not letting go, and not flying the jetpack —
                 // holding Jump with a jetpack keeps you flying; an empty tank at a cliff lets you grab it instead.
-                if (wish.sqrMagnitude < 0.09f || InputMap.CrouchHeld() || (InputMap.JumpHeld() && CanJetpack()))
+                if (wish.sqrMagnitude < 0.09f || InputMap.CrouchHeld() || (holding && CanJetpack()))
                 {
                     return false;
                 }
 
-                // A jump that falls just short of a ledge pulls you over it — what makes a two-block wall crossable.
-                if (_verticalVelocity <= 0.5f
-                    && probe.TryFindLedgeAhead(pos.x, pos.y, pos.z, wish.x, wish.z, ClimbProbe.StepHeight,
+                // A jump that falls short of a ledge pulls you over it — what makes a two-block wall crossable. #2385: as
+                // soon as the edge is in reach, on the way up too; a ledge the jump clears by itself (a one-block step,
+                // spring boots, a light world) is landed on instead. Needs no held Jump: running and hopping is enough.
+                if (probe.TryPullUpFromJump(pos.x, pos.y, pos.z, wish.x, wish.z, _verticalVelocity, _effGravity,
                         out var ledge, out float lx, out float ly, out float lz))
                 {
                     _wall = ledge;
@@ -4777,7 +4801,8 @@ namespace BlocksBeyondTheStars.Client
                     return false;
                 }
 
-                if (Time.time < _regrabAt || !_grip.CanGrab
+                // #2384: a grab needs Jump held; #2385: a jump still rising fast carries you to its top before you grab.
+                if (!holding || !ClimbProbe.MayGrab(_verticalVelocity) || Time.time < _regrabAt || !_grip.CanGrab
                     || !probe.TryFindWall(pos.x, pos.y, pos.z, wish.x, wish.z, out var hold))
                 {
                     return false;
@@ -4788,11 +4813,13 @@ namespace BlocksBeyondTheStars.Client
                 _climbVy = 0f;
                 _verticalVelocity = 0f; // the grab IS the landing — no fall is reported
                 _climbTapTimer = 0.3f;
+                _climbNoRoomHinted = false;
+                _climbNoRoomFor = 0f;
                 ClientAudio.Instance?.Cue("climb_grab", 0.5f);
                 Weapons?.Dust(pos + (new Vector3(hold.DirX, 0f, hold.DirZ) * 0.45f) + (Vector3.up * 1.2f));
             }
 
-            // Let go on purpose (crouch), or because there is nothing left to hold.
+            // Drop off on purpose (crouch), or because there is nothing left to hold.
             if (InputMap.CrouchHeld())
             {
                 LetGo(push: true);
@@ -4807,28 +4834,32 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Steering is relative to the wall, so it reads the same wherever you look: push into it = up, pull away =
-            // down, along it = sideways. Jump held climbs up too, the ladder's muscle memory.
+            // down, along it = sideways, Jump alone = hang still (#2384: Jump is the grip now, so mining a vein works).
             var into = new Vector3(_wall.DirX, 0f, _wall.DirZ);
             var along = new Vector3(_wall.DirZ, 0f, -_wall.DirX);
             float push = Vector3.Dot(wish, into);
             float side = Vector3.Dot(wish, along);
-            bool up = InputMap.JumpHeld() || push > 0.3f;
+            bool up = push > 0.3f;
             bool down = !up && push < -0.3f;
             float sideDir = Mathf.Abs(side) > 0.3f ? Mathf.Sign(side) : 0f;
 
             float vy = 0f;
             float lateral;
             var motion = ClimbMotion.Hang;
-            _climbSliding = _grip.Exhausted;
+            float slide = ClimbGrip.SlideSpeedFor(holding, _grip.Exhausted);
+            _climbSliding = slide > 0f;
             if (_climbSliding)
             {
-                // Spent: a slow slide (far below the safe-landing speed) instead of a fall — steering still works.
-                vy = -ClimbGrip.SlideSpeed;
+                // #2384: Jump let go, or the grip spent — a slide (far below the safe-landing speed) instead of a fall;
+                // steering still works, and pressing Jump again catches you while the grip lasts.
+                vy = -slide;
                 lateral = sideDir * ClimbGrip.SideSpeed * 0.5f;
+                _climbNoRoomFor = 0f;
             }
             else
             {
                 float pace = _grip.SpeedFactor; // a tiring grip climbs slower
+                bool refused = false;
                 if (up)
                 {
                     if (ahead == WallAhead.Ledge)
@@ -4839,6 +4870,8 @@ namespace BlocksBeyondTheStars.Client
                             StartPullUp(new Vector3(tx, ty, tz));
                             return false;
                         }
+
+                        refused = true; // #2386: no room on top, a blocked column or an edge without hold
                     }
                     else if (!probe.BlockedAbove(pos.x, pos.y, pos.z))
                     {
@@ -4856,6 +4889,13 @@ namespace BlocksBeyondTheStars.Client
                 if (lateral != 0f && motion == ClimbMotion.Hang)
                 {
                     motion = ClimbMotion.Side;
+                }
+
+                // #2386: a climber pushing up at an edge that refuses the pull-up is told why, instead of hanging silently.
+                _climbNoRoomFor = refused ? _climbNoRoomFor + dt : 0f;
+                if (_climbNoRoomFor >= ClimbNoRoomDelay)
+                {
+                    ClimbNoRoomHint();
                 }
             }
 
@@ -4878,6 +4918,7 @@ namespace BlocksBeyondTheStars.Client
             if (grounded && vy <= 0f)
             {
                 EndClimb();
+                _climbJumpLatch = holding; // #2384: the held grip is no jump on arrival
                 return false;
             }
 
@@ -4886,6 +4927,21 @@ namespace BlocksBeyondTheStars.Client
             _climbStrain = Mathf.MoveTowards(_climbStrain, _grip.Strain, dt * 2f);
             ClimbFeedback(dt, moving: lateral != 0f || vy != 0f, pos);
             return true;
+        }
+
+        /// <summary>#2386: the hands are at the top edge but the pull-up is refused — no room for a standing body on top,
+        /// the climber's own column blocked above, or an edge without hold. Says so on the HUD once per climb, and not
+        /// more often than every <see cref="ClimbNoRoomPause"/> seconds.</summary>
+        private void ClimbNoRoomHint()
+        {
+            if (_climbNoRoomHinted || Time.time < _climbNoRoomNextAt || Game?.Localizer == null)
+            {
+                return;
+            }
+
+            _climbNoRoomHinted = true;
+            _climbNoRoomNextAt = Time.time + ClimbNoRoomPause;
+            Game.ShowMessage(Game.Localizer.Get("ui.hud.climb_no_room"));
         }
 
         /// <summary>Sounds of the climb, all from the shipped set or the three climbing clips: the wall's own step
@@ -4939,6 +4995,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _climbing = false;
             _climbSliding = false;
+            _climbJumpLatch = InputMap.JumpHeld(); // #2384: a grip still held through the fall is no hop on landing
             _regrabAt = Time.time + ClimbGrip.RegrabCooldown;
             _verticalVelocity = Mathf.Min(_climbVy, 0f);
             if (push)
@@ -5010,6 +5067,7 @@ namespace BlocksBeyondTheStars.Client
                 _controller.enabled = true;
                 _verticalVelocity = -1f;
                 _wasGrounded = true; // standing up on the ledge is no landing
+                _climbJumpLatch = InputMap.JumpHeld(); // #2384: Jump held as the grip is no hop on top
             }
 
             return true;

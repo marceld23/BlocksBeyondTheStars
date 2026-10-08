@@ -24,6 +24,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧗 Climbing controls — hold Jump to hold on, let go to slide, two-block walls in one jump, "no room" message (#2384 #2385 #2386 #2387, 2026-10-08, branch feat/climb-hold-to-grip) — ✅ done (⚠ playtest open)
+
+**Report (Marcel, 2026-10-08):** "with only two blocks I don't climb up", and "how do I get out of climbing?" — idea:
+hold Space to climb, let go and you slide down. A code read found no logic error for an open two-block wall; what
+hurt was the feel (the first airborne frame grabbed and killed the jump), a pull-up refused without a word (no room on
+top, an overhang above the own column, an edge without hold), and the only way off — crouch — being a free fall that
+hurts above ~5 blocks. Decisions: hold-to-grip on all devices (keyboard Space, pad (A) — LT stays the optional place
+trigger — touch JUMP), the release slide at 4 m/s, both improvements.
+
+- **✅ Hold Jump to hold on (#2384):** a grab needs Jump held; on the wall Jump is the grip — push in = up, pull away =
+  down, along = sideways, Jump alone = hang still. Letting go slides at 4 m/s (`ClimbGrip.ReleaseSlideSpeed`,
+  `SlideSpeedFor`; below the safe-landing speed on every world; no grip spent; press again to stop). Crouch drops you
+  off as before. Jetpack with energy keeps flying while Jump is held; an empty tank lets the held Jump grab. A Jump
+  still held when a climb ends (on the ground, after a pull-up, through the fall after a drop) does not jump until it
+  is let go or pressed afresh; a window without focus counts as still holding.
+- **✅ Two-block walls in one jump (#2385):** `ClimbProbe.TryPullUpFromJump` / `JumpPullUpMinRise` — a jump that falls
+  short of a ledge (higher than its remaining rise v²/2g) pulls over it on the way up; one that clears it lands on it;
+  no grab while a jump rises faster than 0.5 m/s (`MayGrab`), so a tall wall is grabbed at the top of the jump.
+- **✅ "No room" message (#2386):** pushing up at a refused pull-up shows `ui.hud.climb_no_room` once per climb after
+  0.25 s (at most every 8 s).
+- **✅ Docs + texts (#2387):** USER_MANUAL § Climbing walls + keyboard/pad/touch tables + the rope note, Codex
+  `climbing` (EN/DE), `vega.hint.climb` reworded and `ui.hud.climb_no_room` new in all 14 languages (machine pass +
+  hand QA), CLIMBING.md.
+- **Tests:** `ClimbProbeTests` (+5, a jump flown frame by frame at 1-, 2-, 3- and 4-block walls), `ClimbGripTests` (+2).
+- **⚠ Open:** a playtest on keyboard, pad and touch: the two-block hop, hang still while mining (on pad and touch the
+  grip sits under the right thumb, which also aims), the release slide, the jetpack running empty at a cliff (with
+  suit energy left a jetpack wearer flies instead of climbing — by design), the "no room" message under an overhang.
+
 ### 🛡️ Gadgets act only within reach — fluid pump, terrain blaster, stasis projector, translator, sampler, rail tools (#2376, 2026-10-07, branch fix/gadget-reach-check) — ✅ done (released in v2026.10.9)
 
 **Finding (while analysing the oil pump).** `HandleUseGadget` never compared the aim point with the player: a modified

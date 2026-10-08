@@ -20,7 +20,8 @@ namespace BlocksBeyondTheStars.Client
     /// The wall climber's grip (#2189): a hidden 0..1 value that is never drawn on the HUD (Marcel's decision) — the
     /// player feels it instead. Below <see cref="SlowBelow"/> the climb slows (<see cref="SpeedFactor"/>), below
     /// <see cref="StrainBelow"/> the body strains (<see cref="Strain"/> drives a tremble and a breath), and at 0 the
-    /// climber slides down slowly instead of falling. Client-only like all on-foot movement: nothing is saved or sent.
+    /// climber slides down slowly instead of falling. Holding on is a held button (#2384): letting go of Jump slides the
+    /// climber down too (<see cref="SlideSpeedFor"/>). Client-only like all on-foot movement: nothing is saved or sent.
     /// <para>Tiring scales with the world's gravity, so an asteroid lets you climb several times further than a heavy
     /// planet; slippery walls tire twice as fast, and worn climbing gear takes a share of the drain away. The grip
     /// refills on the ground and on a ladder — never in the air, so letting go and grabbing again is no trick.</para>
@@ -50,6 +51,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The slide of an empty grip, m/s — far below the safe-landing speed, so it never hurts.</summary>
         public const float SlideSpeed = 2.5f;
 
+        /// <summary>The slide of a climber who let go of Jump (#2384), m/s — quicker than a spent grip's, still far below
+        /// the safe-landing speed.</summary>
+        public const float ReleaseSlideSpeed = 4f;
+
         /// <summary>Seconds after letting go before a new grab — so a let-go is not caught again at once.</summary>
         public const float RegrabCooldown = 0.4f;
 
@@ -70,6 +75,21 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>How hard the body strains, 0 (fine) … 1 (spent) — below <see cref="StrainBelow"/> only.</summary>
         public float Strain => Value >= StrainBelow ? 0f : 1f - (Value / StrainBelow);
+
+        /// <summary>
+        /// How fast a climber on the wall slides down this frame (#2384), m/s, 0 = no slide. Holding on is a held button
+        /// (Jump): letting go of it slides at <see cref="ReleaseSlideSpeed"/>, a spent grip that is still held slides at
+        /// the slower <see cref="SlideSpeed"/>, and a held grip with strength left holds.
+        /// </summary>
+        public static float SlideSpeedFor(bool holding, bool exhausted)
+        {
+            if (!holding)
+            {
+                return ReleaseSlideSpeed;
+            }
+
+            return exhausted ? SlideSpeed : 0f;
+        }
 
         /// <summary>Grip spent per second at 1 g on a normal wall without gear.</summary>
         public static float BaseDrain(ClimbMotion motion) => motion switch

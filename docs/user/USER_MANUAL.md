@@ -119,9 +119,9 @@ Last updated: 2026-10-04.
 |---|---|
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
-| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface**; **jump at a wall while pushing towards it to grab it and climb** — on the wall, hold Space to climb up (see §5 → Climbing walls) |
+| **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface**; **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
-| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; **let go of a wall you are climbing**; descend in zero-g |
+| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** selected it opens the destination picker — back to ship / to an ally, see §5; with the **energy rope gun** selected, **hold** it to reel yourself in along the rope) |
 | **Mouse wheel** | Cycle hotbar slot |
@@ -168,7 +168,7 @@ buttons — retuning is tracked in issue #195):
 | **D-pad ◄ ►** | Cycle hotbar slot |
 | **D-pad ▲** | Open the chat (with the on-screen keyboard) |
 | **D-pad ▼** | Turn the building block you are holding |
-| **(A)** | Jump (hold in air = jetpack, or glide while falling with a glider; in water = swim up; jump at a wall and push the stick towards it to grab it — **(B)** lets go, see §5 → Climbing walls) |
+| **(A)** | Jump (hold in air = jetpack, or glide while falling with a glider; in water = swim up; jump at a wall, push the stick towards it and hold (A) to hold on and climb — let go of (A) to slide down, **(B)** drops you off, see §5 → Climbing walls) |
 | **(X)** | Use / board / interact |
 | **(Y)** | Toggle first / third-person camera |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
@@ -250,7 +250,7 @@ buttons swap with what you're doing:
 | **ACT** (beside ◄) | **Actions** — a list of everything you can do right now: rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair a wreck, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, … Tap an entry to do it. Shown only when something applies |
 | **NEXT ▶** (top-centre) | **VEGA: continue** — advance or dismiss the ship AI's line; also opens the folded VEGA tab; shown only while a line is up |
 | **≡** (top-right) | Open / close the gameplay menu |
-| *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump (at a wall, with the stick pushed towards it: grab and climb) · mine · place · use/board · descend (on a wall: let go) · open chat · camera · planet map |
+| *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump (at a wall, with the stick pushed towards it: hold JUMP to hold on and climb, let go of it to slide down) · mine · place · use/board · descend (on a wall: drop off) · open chat · camera · planet map |
 | *On foot, when it applies:* **ROTATE · ATTACK · FEED** | Rotate the held block's placement (appears while a rotatable block is selected) · swing / fire the held weapon (hold on the Guardian core to breach it) · throw one piece of the held food to a begging herd (appears while you hold food and an animal begs nearby) |
 | *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · TARGET · MAP · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · target lock (tap = next target, long press = let go; "nearest enemy" and "target ahead" are in **ACT**) · system chart · camera · dock/board · float up/down |
 | *EVA (spacewalk):* **FIRE (hold) · PLACE · DEPLOY · VIEW · USE · UP · DOWN** | Mine · place the selected block · deploy a station core · camera · board · float up/down |
@@ -653,16 +653,22 @@ On planets, moons and asteroids you can **climb any solid wall** — a cliff, a 
 of a house. Ladders work as before (walk into one and you go straight up); climbing a wall is slower and takes
 effort.
 
-- **Grab:** jump at the wall and keep pushing towards it (**W**, the left stick, or the touch stick). You hold on.
-  Walking along a wall never sticks you to it — you have to be in the air — and a one-block step is still simply
-  jumped onto. A grab also catches a fall: no fall damage. **With a jetpack**, holding Space keeps you flying; let
-  go of Space while you push at the cliff (or run out of suit energy) and you grab it instead of falling.
-- **On the wall:** push towards the wall or **hold Space** to climb up, pull away from it to climb down, and move
-  along it sideways. **Crouch lets go** (Ctrl/C, pad **(B)**, touch **DOWN**). Climbing down onto the ground puts
-  you back on your feet. You stop at the side edge of a wall and under an overhang — there is no climbing along a
+- **Grab:** jump at the wall, keep pushing towards it (**W**, the left stick, or the touch stick) and **hold Jump**
+  (**Space**, pad **(A)**, touch **JUMP**). You hold on — at the top of your jump, so the jump still carries you up
+  first. Walking along a wall never sticks you to it — you have to be in the air — and a one-block step is still
+  simply jumped onto. Holding Jump at a wall also catches a fall: no fall damage. **With a jetpack**, holding Space
+  keeps you flying; if its suit energy runs out at a cliff, the held Space grabs the wall instead of letting you fall.
+- **On the wall you hold on as long as you hold Jump.** Push towards the wall to climb up, pull away from it to climb
+  down, move along it sideways — or hold only Jump to hang still. **Let go of Jump and you slide down** the wall
+  (4 m/s, never fast enough to hurt; you can still steer sideways); press it again and you stop. **Crouch drops you
+  off** the wall (Ctrl/C, pad **(B)**, touch **DOWN**) — from high up, that fall hurts. Reaching the ground puts you
+  back on your feet. You stop at the side edge of a wall and under an overhang — there is no climbing along a
   ceiling. Mining, building and tools keep working while you hang there, so a vein of ore in a cliff is in reach.
-- **At the top** you pull yourself over the edge by yourself. That also gets you over a **two-block wall**: run,
-  jump and keep pushing.
+- **At the top** you pull yourself over the edge by yourself. If there is no room up there (something above the edge
+  or above your head) or the edge gives no hold (glass, ice without claws), a message says so — let go of Jump to
+  slide back down.
+- **A two-block wall needs no climbing:** run at it, jump and keep pushing, and you pull yourself over it on the way
+  up. A one-block step you just jump onto, as always.
 - **Your grip tires** — there is no bar for it, you feel it: after a while you climb slower, then your view
   trembles and you breathe hard, and when it is gone you **slide down slowly** (never fast enough to hurt).
   Standing on the ground — or on a ladder rung — refills it in a moment. How far you get depends on the world's
@@ -702,7 +708,7 @@ players.
   it catches you.
 - The rope **lets go by itself** when you walk out of its reach, when terrain blocks the line, when you switch the
   hotbar, enter water, a vehicle, a train, a seat or your ship. It never causes fall damage by itself; dropping it
-  high up is an ordinary fall, as with letting go of a wall.
+  high up is an ordinary fall, as with dropping off a wall (crouch).
 - Costs **3 suit energy** per shot; hanging is free. Works on planets, moons and asteroids with gravity — not in zero-g
   or in space. A bio-lab **range** modification makes the rope longer. Other players see your rope.
 - The crosshair turns **mint green** while a block the rope can hold on to is in reach. The first time a rope holds,

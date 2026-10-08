@@ -1,9 +1,11 @@
 # Wall climbing
 
-**Status:** shipped with #2195 (#2188–#2194), 2026-10. Player-facing rules: [USER_MANUAL.md §5 → Climbing walls](../user/USER_MANUAL.md#climbing-walls).
+**Status:** shipped with #2195 (#2188–#2194), 2026-10; hold-to-grip controls, the quick two-block pull-up and the
+refused-pull-up message with #2384–#2387 (2026-10-08). Player-facing rules: [USER_MANUAL.md §5 → Climbing walls](../user/USER_MANUAL.md#climbing-walls).
 
-On planets, moons and asteroids the player can climb any solid wall: jump at it, hold on, climb up, down and sideways,
-and pull up over the top. Ladders keep their own, older rules (#126): walk in and go straight up.
+On planets, moons and asteroids the player can climb any solid wall: jump at it, hold Jump to hold on, climb up, down
+and sideways, let go of Jump to slide down, and pull up over the top. Ladders keep their own, older rules (#126): walk
+in and go straight up.
 
 ## Where it lives
 
@@ -40,19 +42,36 @@ reported look), so no facing field is sent. Gloves and claws ride the presence g
 `UpdateWallClimb` runs after water, ladder and flight are known, because all of
 them win, and before the vertical branches, which a climb replaces.
 
-- **Grab:** the player is airborne, pushes towards the wall, is not crouching, and the jetpack is not firing this
-  frame. `ClimbProbe.TryFindWall` then needs a hold at the knees **and** the hands, on the axis the push points at
-  within 60°, so a one-block step is never a wall. The grip must hold more than 20 %, and a let-go starts a 0.4 s
-  cooldown.
-- **Air pull-up:** before the grab, a jump that falls short of a ledge (vertical speed ≤ 0.5) is pulled over by
-  `TryFindLedgeAhead`. This is what makes 2-block walls crossable.
-- **Hanging:** steering is relative to the wall. Push in or hold Jump to climb up, pull away to climb down, move
-  along the wall to go sideways. `Ahead` reads the wall (keep going), a ledge (pull up if `TryFindLedge` finds room)
-  or nothing (let go). `WallContinues` stops a sideways step at the wall's edge, and `BlockedAbove` stops the way up
-  under an overhang. The capsule leans into the wall at 1 m/s and auto-step is off while hanging.
-- **Ends:** crouch lets go with a small push away from the wall. Losing the wall lets go too. Feet on the ground
-  while not climbing up end the climb. `SnapTo`, the speeder, a seat and a train end any climb. A menu opened while
-  hanging keeps you on the wall: `ApplyGravityOnly` returns early.
+- **Holding on is a held button (#2384):** Jump (`InputMap.JumpHeld`: Space, pad (A), touch JUMP). A grab needs it,
+  and on the wall it is the grip: let go of it and the climber slides.
+- **Grab:** the player is airborne, pushes towards the wall, holds Jump, is not crouching, and the jetpack is not
+  firing this frame (Jump held with suit energy left keeps flying; an empty tank lets the held Jump grab). A jump
+  still rising faster than `ClimbProbe.GrabRiseLimit` (0.5 m/s) does not grab yet (#2385): it carries the player to
+  its top first, and a grab still catches any fall. `ClimbProbe.TryFindWall` then needs a hold at the knees **and**
+  the hands, on the axis the push points at within 60°, so a one-block step is never a wall. The grip must hold more
+  than 20 %, and every let-go (crouch, a lost wall) starts a 0.4 s cooldown.
+- **Air pull-up:** before the grab, `ClimbProbe.TryPullUpFromJump` pulls a jump over a ledge it falls short of. The
+  ledge must rise more than `JumpPullUpMinRise`: a step (0.6), and the jump's remaining rise v²/2g plus a hair — so a
+  ledge the jump clears by itself (a one-block step, spring boots, a light world) is landed on, and a two-block wall
+  is pulled over on the way up, a few frames after take-off (#2385). It needs no held Jump: running and hopping at a
+  low wall is enough. At the top of a jump the hands can just reach a three-block edge, as before — at most frame
+  rates (the stepped jump peaks a little above v²/2g); otherwise the held-Jump grab takes over there.
+- **Hanging:** steering is relative to the wall. Push in to climb up, pull away to climb down, move along the wall to
+  go sideways, Jump alone to hang still (mining from the wall keeps working). `Ahead` reads the wall (keep going), a
+  ledge (pull up if `TryFindLedge` finds room) or nothing (let go). `WallContinues` stops a sideways step at the
+  wall's edge, and `BlockedAbove` stops the way up under an overhang. The capsule leans into the wall at 1 m/s and
+  auto-step is off while hanging.
+- **Slide:** `ClimbGrip.SlideSpeedFor(holding, exhausted)` — Jump let go slides at 4 m/s (`ReleaseSlideSpeed`), a
+  spent grip still held at 2.5 m/s, sideways steering at half speed either way; no grip is spent while sliding, and
+  pressing Jump again stops the slide while the grip lasts. Both stay below the safe-landing speed on every world.
+- **Refused pull-up (#2386):** pushing up at a ledge whose pull-up `TryFindLedge` refuses (no room on top, the own
+  column blocked, an edge without hold) shows `ui.hud.climb_no_room` once per climb after 0.25 s, at most every 8 s.
+- **Ends:** crouch drops the climber with a small push away from the wall (a real fall). Losing the wall lets go too.
+  Feet on the ground while not climbing up end the climb. `SnapTo`, the speeder, a seat and a train end any climb. A
+  menu opened while hanging keeps you on the wall: `ApplyGravityOnly` returns early, and a window without focus counts
+  as still holding. A Jump still held when a climb ends (on the ground, after a pull-up, or through the fall after a
+  let-go) does not jump until it is let go or pressed afresh (`_climbJumpLatch`), so the grip never turns into a hop
+  on arrival.
 - **Pull-up:** 0.35 s with the controller off. The body rises in its own column, then swings over the edge. The
   probe has already checked both paths: an open own column and a body that fits standing on top.
 
@@ -70,7 +89,7 @@ Marcel's decision: no HUD bar. The value lives in `ClimbGrip`, client-only, unsa
   go and grabbing again gains nothing.
 - How the player feels it: below 40 % the climb slows, down to half speed at empty (`SpeedFactor`). Below 25 %,
   `Strain` drives a camera tremble (off with the camera-motion comfort switch), the `climb_strain` breath and a
-  shaking pose. At 0 the climber slides down at 2.5 m/s and can still steer sideways.
+  shaking pose. At 0 the climber slides down at 2.5 m/s and can still steer sideways (4 m/s once Jump is let go).
 
 ## Surfaces and gear (data)
 
@@ -104,9 +123,11 @@ anchor → hand), the first-person gun turns toward the anchor (`Viewmodel.SetRo
 
 - `tests/BlocksBeyondTheStars.Client.Tests/ClimbProbeTests.cs`: grab rules, the one-block step, approach angle,
   glass and slippery holds, wall/ledge/lost, the side edge, the overhang, the pull-up target and its refusals, the
-  2-block jump pull-up.
+  2-block jump pull-up; a jump flown frame by frame (#2385): a two-block wall is pulled over on the way up, a one-block
+  step and a jump that clears the wall are landed on, a three-block edge is reached only at the top of the jump, a
+  four-block wall is no pull-up and the grab waits for the top of the jump.
 - `tests/BlocksBeyondTheStars.Client.Tests/ClimbGripTests.cs`: drain per motion, gravity, slippery walls and gear,
-  slow, strain and slide, refill.
+  slow, strain and slide, refill; the slide of a let-go Jump vs. a spent held grip, and that it never hurts (#2384).
 - `tests/BlocksBeyondTheStars.Tests/WallClimbingTests.cs`: surfaces from the real block data, the gear, its research
   and recipes, icons, the codec, `HandleMove` → state, and presence including the gear bits.
 

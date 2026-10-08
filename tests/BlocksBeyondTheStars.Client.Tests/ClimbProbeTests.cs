@@ -8,9 +8,10 @@ using Xunit;
 namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>
-/// The wall-climbing probe (#2188, #2190): a grab needs a wall at the knees AND the hands that the push points at, so a
-/// one-block step is never a wall; a hanging climber sees wall, ledge or nothing; the wall's side edge stops a sideways
-/// climb; an overhang stops the way up; and a pull-up only ends where the body fits standing on a block that holds.
+/// The wall-climbing probe (#2188, #2190, #2385): a grab needs a wall at the knees AND the hands that the push points at,
+/// so a one-block step is never a wall; a hanging climber sees wall, ledge or nothing; the wall's side edge stops a
+/// sideways climb; an overhang stops the way up; a pull-up only ends where the body fits standing on a block that holds;
+/// and a jump that falls short of a low wall pulls over it on the way up, while one that clears a ledge lands on it.
 /// The test world is a wall face at x = 5 (cells x = 5), the climber pressed against it from the west.
 /// </summary>
 public sealed class ClimbProbeTests
@@ -169,5 +170,83 @@ public sealed class ClimbProbeTests
         var hold = new WallHold(1, 0, ClimbSurface.Normal);
 
         Assert.False(probe.TryFindLedge(FaceX, 0.5f, 0.5f, hold, 0.05f, out _, out _, out _)); // top at 4, 3.5 above the feet
+    }
+
+    /// <summary>
+    /// Flies the rising half of a jump the way the controller does (#2385): the grounded frame sets the jump speed and
+    /// moves, then every airborne frame first asks the probe (with last frame's speed) and then applies gravity and
+    /// moves. The climber is pressed against the wall at x = 5 and pushes into it. Returns the feet height and vertical
+    /// speed at the first pull-up from the jump and where it ends, or null when the jump reaches its top without one.
+    /// </summary>
+    private static (float Y, float Vy, float TargetY)? PullUpOnTheWayUp(ClimbProbe probe, float jumpSpeed = 7f, float gravity = 20f)
+    {
+        const float dt = 1f / 60f;
+        float vy = jumpSpeed;
+        float y = vy * dt;
+        while (vy > 0f)
+        {
+            if (probe.TryPullUpFromJump(FaceX, y, 0.5f, 1f, 0f, vy, gravity, out _, out _, out float ty, out _))
+            {
+                return (y, vy, ty);
+            }
+
+            vy -= gravity * dt;
+            y += vy * dt;
+        }
+
+        return null;
+    }
+
+    [Fact]
+    public void AJumpAtATwoBlockWall_PullsOver_OnTheWayUp_NotOnlyAtTheTop()
+    {
+        var pullUp = PullUpOnTheWayUp(new Grid().Wall(height: 2).Probe());
+
+        Assert.NotNull(pullUp);
+        Assert.True(pullUp.Value.Vy > ClimbProbe.GrabRiseLimit, $"pulled over only at vy {pullUp.Value.Vy}");
+        Assert.True(pullUp.Value.Y < 0.5f, $"pulled over late, at feet height {pullUp.Value.Y}"); // a few frames after take-off
+        Assert.Equal(2f, pullUp.Value.TargetY, 3); // standing on top of the wall
+    }
+
+    [Fact]
+    public void AJump_ThatClearsTheLedge_IsLandedOn_NotPulledOver()
+    {
+        // A one-block step: the ordinary 1.2-block jump clears it.
+        Assert.Null(PullUpOnTheWayUp(new Grid().Wall(height: 1).Probe()));
+
+        // A light world (half gravity, the jump reaches ~2.45 blocks) or spring boots: a two-block wall is cleared too.
+        Assert.Null(PullUpOnTheWayUp(new Grid().Wall(height: 2).Probe(), jumpSpeed: 7f, gravity: 10f));
+    }
+
+    [Fact]
+    public void AJumpAtAThreeBlockWall_ReachesItsEdge_OnlyAtTheVeryTopOfTheJump()
+    {
+        // The hands reach MaxPullUp (1.75) above the feet, so a 3-block edge is just in reach at the top of a jump — as it
+        // always was; the pull-up then fires there, not on the way up.
+        var pullUp = PullUpOnTheWayUp(new Grid().Wall(height: 3).Probe());
+
+        Assert.NotNull(pullUp);
+        Assert.True(pullUp.Value.Y >= 3f - ClimbProbe.MaxPullUp, $"pulled over from feet height {pullUp.Value.Y}");
+        Assert.True(pullUp.Value.Vy < 1.5f, $"pulled over early, at vy {pullUp.Value.Vy}");
+    }
+
+    [Fact]
+    public void AJumpAtATallWall_IsNoPullUp_ItCarriesYouUp_AndTheGrabWaitsForItsTop()
+    {
+        var probe = new Grid().Wall(height: 4).Probe();
+
+        Assert.Null(PullUpOnTheWayUp(probe));
+        Assert.False(ClimbProbe.MayGrab(7f));  // just off the ground: no grab yet
+        Assert.True(ClimbProbe.MayGrab(0.4f)); // at the top of the jump
+        Assert.True(ClimbProbe.MayGrab(-9f));  // a grab still catches a fall
+        Assert.True(probe.TryFindWall(FaceX, 1.2f, 0.5f, 1f, 0f, out _)); // and at the top (feet at 1.2) the wall is there
+    }
+
+    [Fact]
+    public void TheJumpPullUpRise_IsTheJumpsRemainingRise_ButNeverLessThanAStep()
+    {
+        Assert.Equal(ClimbProbe.StepHeight, ClimbProbe.JumpPullUpMinRise(0f, 20f), 3);   // at the top of the jump
+        Assert.Equal(ClimbProbe.StepHeight, ClimbProbe.JumpPullUpMinRise(-5f, 20f), 3);  // falling
+        Assert.Equal(1.225f + ClimbProbe.JumpShortfall, ClimbProbe.JumpPullUpMinRise(7f, 20f), 3); // 7²/(2·20)
     }
 }
