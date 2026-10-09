@@ -49,7 +49,9 @@ Low and High (no playtest needed until the end).
 1. ✅ Unity 6000.4.9f1 → 6000.6.5f1 (#2389, `6b2001dd`): URP 17.6, `scripts/resolve-unity.ps1` finds the project's
    editor (the Hub cannot install under the maintainer's endpoint security — the silent installer into the user
    profile works), seven workflow pins, re-serialised project assets; the 22-scene capture set is pixel-equivalent
-   before and after the upgrade (luma Δ ≤ 1.3).
+   before and after the upgrade (luma Δ ≤ 1.3). The first cloud dispatch failed on every platform: the 6000.6
+   editor needs `--shm-size=1025M` in Docker (game-ci/unity-builder#840, reported as a licence failure) — the
+   workflows now run `game-ci/unity-builder` v6 with `cliVersion` pinned, whose CLI passes the flag.
 2. ✅ WebGPU first + async GPU readback (#2390, ADR 0015): `GpuReadback` (ReadPixels on desktop, `AsyncGPUReadback`
    where a sync read is illegal, flip on `graphicsUVStartsAtTop`, GPU downscale for the F1/F2 report and chat
    screenshots) replaces every `ReadPixels` (CameraTool, ChatUi, FeedbackUi, TextureEditor icons); the water SSR loop

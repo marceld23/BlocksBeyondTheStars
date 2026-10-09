@@ -41,6 +41,11 @@ no compute, no GPU particles and no modern upscaling.
 
 - Every Unity upgrade is a package upgrade of URP/core/Shader Graph (17.4 → 17.6 this time) and a full
   re-import of `client/Library`; the maintainer's checkout rebuilds its Library once after the merge.
+- The 6000.6 editor's asset-database service needs more shared memory than a Docker container gets by default
+  (`--shm-size=1025M`, game-ci/unity-builder#840) — in the GameCI container it aborts at start, and the action
+  reports it as a licence failure. The workflows therefore run `game-ci/unity-builder` v6 (a thin wrapper over
+  `game-ci/cli`, which passes the flag) with the CLI release pinned; an editor bump that outruns the builder shows up
+  exactly there, so dispatch `release.yml` on the branch before merging an upgrade.
 - The browser build's behaviour now differs per browser and device (WebGPU vs WebGL 2). A bug report carries
   `SystemInfo.graphicsDeviceVersion` (`DeviceInfo`), and the player logs the API at start.
 - The engine falls back to WebGL 2 only when the browser has no WebGPU adapter at all; an adapter whose device
