@@ -386,7 +386,8 @@ public sealed partial class GameServer
         Mix((uint)p.Arms);
         Mix((uint)p.Legs);
         Mix((p.Stealthed ? 1UL : 0UL) | (p.Jetpacking ? 2UL : 0UL) | (p.Seated ? 4UL : 0UL) | (p.Climbing ? 8UL : 0UL)
-            | (p.Gliding ? 16UL : 0UL) | (p.Roped ? 32UL : 0UL));
+            | (p.Gliding ? 16UL : 0UL) | (p.Roped ? 32UL : 0UL) | (p.Crouching ? 64UL : 0UL)); // #2435: the squat is a change
+        Mix((uint)BitConverter.SingleToInt32Bits(p.Pitch)); // #2434: a nod of the head reaches the others while standing still
         Mix((uint)BitConverter.SingleToInt32Bits(p.RopeX)); // #2319: a new anchor is a change worth a beat
         Mix((uint)BitConverter.SingleToInt32Bits(p.RopeY));
         Mix((uint)BitConverter.SingleToInt32Bits(p.RopeZ));
@@ -421,6 +422,8 @@ public sealed partial class GameServer
             RopeZ = p.RopeAnchor?.Z ?? 0f,
             Seated = p.Seated,
             Climbing = p.Climbing && p.InTrain.Length == 0,
+            Crouching = p.Crouching && !p.Seated && !p.Climbing, // #2435: a seat or a wall wins over the squat
+            Pitch = p.Pitch,                                     // #2434: where the player looks
             Gear = GearMask(p),
             Held = HeldItemKey(p),
             FrameId = p.InTrain, // #2113: aboard a train — the wagon frame and the rider's offset in it

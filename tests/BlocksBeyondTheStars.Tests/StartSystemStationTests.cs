@@ -25,7 +25,8 @@ public sealed class StartSystemStationTests : IDisposable
 
     private static WorldDescription NewWorld() => new ServerConfig().World;
 
-    /// <summary>The server's start pick for a fresh default world: the first planet of the start type.</summary>
+    /// <summary>The server's start pick for a fresh default world: the first planet of the start type. The generator above is
+    /// told that type like the server does (#2437), so the generation-23 gas giants never eat the pick.</summary>
     private static CelestialBody? StartOf(Galaxy galaxy)
         => galaxy.AllBodies().FirstOrDefault(b => b.Kind == CelestialKind.Planet && b.PlanetType == new ServerConfig().StartPlanet);
 
@@ -38,7 +39,7 @@ public sealed class StartSystemStationTests : IDisposable
         int added = 0, checkedSeeds = 0;
         for (long seed = 1; seed <= 40; seed++)
         {
-            var galaxy = new UniverseGenerator(seed, NewWorld(), _content).Generate();
+            var galaxy = new UniverseGenerator(seed, NewWorld(), _content, new ServerConfig().StartPlanet).Generate();
             if (StartOf(galaxy) is not { } start)
             {
                 continue;
@@ -70,7 +71,7 @@ public sealed class StartSystemStationTests : IDisposable
         long seed = StationlessStartSeed();
         CelestialBody Add()
         {
-            var galaxy = new UniverseGenerator(seed, NewWorld(), _content).Generate();
+            var galaxy = new UniverseGenerator(seed, NewWorld(), _content, new ServerConfig().StartPlanet).Generate();
             var start = StartOf(galaxy)!;
             return UniverseGenerator.EnsureStartSystemStation(galaxy.Systems.First(s => s.Id == start.SystemId), start)!;
         }
@@ -117,7 +118,7 @@ public sealed class StartSystemStationTests : IDisposable
     {
         for (long seed = 1; seed <= 400; seed++)
         {
-            var galaxy = new UniverseGenerator(seed, NewWorld(), _content).Generate();
+            var galaxy = new UniverseGenerator(seed, NewWorld(), _content, new ServerConfig().StartPlanet).Generate();
             if (StartOf(galaxy) is { } start && start.SystemId != "sys0" && !HasStation(galaxy, start.SystemId))
             {
                 return seed;

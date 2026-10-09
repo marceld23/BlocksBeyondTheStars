@@ -121,7 +121,7 @@ Last updated: 2026-10-04.
 | **Mouse** | Look |
 | **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface**; **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
-| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g |
+| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** selected it opens the destination picker — back to ship / to an ally, see §5; with the **energy rope gun** selected, **hold** it to reel yourself in along the rope) |
 | **Mouse wheel** | Cycle hotbar slot |
@@ -133,8 +133,8 @@ Last updated: 2026-10-04.
 | **B** | Switch the **stealth suit's** cloak on / off (requires the stealth suit **worn** in the chest slot; drains suit energy) — rebindable |
 | **G** | Loot the nearest container |
 | **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food — rebindable (Settings → Controls → *Feed a begging animal*) |
-| **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
-| **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors) |
+| **H** | Store your loose materials and blocks in the nearest storage crate / wood box (the one-key sweep leaves tools, weapons, food and equipment with you — put those in by hand on the crate screen, **E**); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
+| **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **open the crate screen** of a storage crate you're aiming at — its contents above, your backpack below, click to move (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
@@ -285,7 +285,7 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **T** | **Target lock — next target** (pad **LB**, touch **TARGET**): attacking enemies first, then other enemies, then stations / wrecks / debris fields / life pods / anomalies / wormholes, then other pilots and traders. With a **mining laser** selected and nobody attacking, the three nearest asteroids or wreckage fragments in its reach come right after the enemies. **Hold T** (~½ s) to let the lock go. See *Target lock* below |
 | **R** | **Nearest enemy** (pad **R3**, touch: in the **ACT** list) — press again for the next nearest |
 | **Right mouse button** | **Target ahead** (pad: **L3 → Target ahead**, touch: **ACT → Target ahead**): lock what is under the crosshair — also asteroids, salvage and planets, which the cycle otherwise skips. Pointing at empty space lets the lock go |
-| **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual |
+| **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual. Other pilots keep seeing your ship meanwhile — engines off, its nameplate says *parked* |
 | **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
 | **M** | **System chart**: a top-down map of the current system — every planet shows its current weather as a small glyph (☁ ☂ ⚡ ❄ …). Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart** |
 | **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
@@ -515,7 +515,8 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   corrosive air, see below). In vacuum the readout shows
   the sun-side/shadow hull temperature (about +120 °C to −150 °C). The world option **Environmental
   hazards** (world creation, or live in the in-game Settings tab as world admin) scales this from Off to
-  Hard; Creative/Sandbox worlds are always exempt.
+  Hard; Creative/Sandbox worlds are always exempt — and in Creative/Sandbox the **suit battery never drains** either
+  (powered tools, the beam, the teleporter, jetpack and cloak are free), like oxygen and hunger.
 - **Titas** (a very rare frozen planet — only one per galaxy): the suit's climate control is not enough there. An
   **exposure meter** replaces the energy drain — the HUD shows your **cold protection** (or **heat protection** in the
   volcanic hot zones). Outside it runs out in about **40 minutes** (hot zones **30**), half as fast under a roof; liners
@@ -566,8 +567,10 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   city holds a **pocket of breathable air** over its lanes (the HUD says so; an abandoned one has lost it). Everything else
   is **−120 °C and toxic**, and the storm never stops — the suit will not last long out there. Ships land on **metal decks**
   hanging over the gas (a rail and lights around the rim); nothing can be pumped out of the gas. Every animal here **flies**,
-  and so does the **sky giant** (see *Giants*). The lone giant of a star system is one of these, and sometimes the
-  outermost planet of any other; most wear rings. From space it shows its banded cloud tops.
+  and so does the **sky giant** (see *Giants*). The lone giant of a star system is one of these; in galaxies created
+  since generation 23 **almost every system has one** on its outermost orbit (a big system often a second one on the orbit
+  inside), only the start system and one-planet systems go without — older galaxies keep their rarer roll. Most wear
+  rings. From space it shows its banded cloud tops, and on the **system chart** it is the big amber dot, visited or not.
 - **Arena Nigra** (Theo's planet — at most one per galaxy, never in the start system; an exotic type): the black
   landmark. The air is **breathable** but it is **hot** (58 °C — the suit's climate drains, then your health; rock islands,
   the ship and a roof shelter you). Two thirds of the world is a **sea of black sand** over basalt, with sharp needles,
@@ -604,13 +607,19 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   back into safe ones (with carbon), filters **mud to water** and turns giant-mushroom parts into **forage
   bait**. **Archaeology** (after *Terrain Scanner*) reworks **ancient bricks** into concrete and **obsidian**
   into glass; researchers at any market buy **rune stones** for data fragments.
-- **Wood box** (hand-crafted from logs): early-game storage sharing the crate's stash/loot keys, but it
-  only holds a few kinds of material (8 stacks) — the workshop's iron crate stores everything.
-- **Storage crates — choose what goes in:** aim at a placed crate or wood box and press **E** to pick
-  which items belong in it (an ore crate, a food crate, …). From then on **H** only stores the chosen
-  items there — walk your loot past a row of dedicated crates and it sorts itself. The HUD prompt shows
-  **Filter on** at such a crate; select nothing in the dialog (or hit *Allow everything*) to go back to
-  accepting it all. Dyed or re-formed variants of a chosen material count as that material.
+- **Wood box** (hand-crafted from logs): early-game storage sharing the crate's keys and screen, but it
+  only holds a few kinds of item (8 stacks) — the workshop's iron crate stores everything.
+- **Storage crates — the crate screen:** aim at a placed crate or wood box and press **E**. The screen shows
+  **what is in the crate at the top and your backpack (quick-bar included) at the bottom** — click a stack to
+  move it across, hold **Shift** while clicking to move every stack of that kind. **Anything** goes in by hand:
+  blocks, ores, food, medpacks, tools and weapons alike. The buttons on the screen do the bulk moves — *Store all
+  materials* (the same sweep as **H**: loose materials, components and blocks, never your tools or food) and *Take
+  everything out* (**G**) — and *What belongs in here?* opens the filter picker.
+- **Storage crates — choose what goes in:** that filter picker (an ore crate, a food crate, a tool crate, …) makes
+  **H** store only the chosen items there — walk your loot past a row of dedicated crates and it sorts itself — and
+  the crate screen refuses anything else. The HUD prompt shows **Filter on** at such a crate; select nothing in the
+  dialog (or hit *Allow everything*) to go back to accepting it all. Dyed or re-formed variants of a chosen material
+  count as that material.
 - **Armor**: each worn piece (chest/legs/helmet/boots) adds resistance, summed and capped (~75%); worn boots also
   soften a hard landing by about a third.
 - **Water meets lava**: lava hardens wherever water touches it — a lava **pool** (a source) turns to

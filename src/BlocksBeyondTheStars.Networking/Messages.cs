@@ -63,6 +63,10 @@ public sealed class MoveIntent
     /// <summary>#2193: the player hangs on a wall or a ladder — other clients pose the avatar climbing. Pure pose state
     /// (on-foot movement is the client's); additive, an older client never sends it.</summary>
     public bool Climbing { get; set; }
+
+    /// <summary>#2435: the player crouches — other clients pose the avatar squatting. Pure pose state like
+    /// <see cref="Climbing"/>; additive, an older client never sends it.</summary>
+    public bool Crouching { get; set; }
 }
 
 public sealed class MineBlockIntent
@@ -405,6 +409,40 @@ public sealed class SetContainerFilterIntent
 {
     public string ContainerId { get; set; } = string.Empty;
     public string[] Items { get; set; } = System.Array.Empty<string>();
+}
+
+/// <summary>#2436: the client opens (or closes) the crate screen for a storage crate. While a crate is open the server
+/// answers with <see cref="ContainerContents"/> and keeps re-sending it after every change — the contents are not on
+/// the count-only <see cref="NetContainer"/> broadcast on purpose. The server validates proximity.</summary>
+public sealed class OpenContainerIntent
+{
+    public string ContainerId { get; set; } = string.Empty;
+
+    /// <summary>True = opened (send the contents, keep them fresh); false = the screen closed.</summary>
+    public bool Open { get; set; } = true;
+}
+
+/// <summary>#2436: the client moves one kind of item between its backpack and a storage crate — a click on a stack in the
+/// crate screen. <see cref="ToContainer"/> true moves it in (the crate's filter and a wood box's capacity still apply),
+/// false takes it out. <see cref="All"/> moves every stack of that item, else one stack. Any item category goes in by
+/// hand — tools and food too; only the bulk stash (H) keeps to loose materials. The server validates proximity.</summary>
+public sealed class MoveContainerItemIntent
+{
+    public string ContainerId { get; set; } = string.Empty;
+    public string Item { get; set; } = string.Empty;
+    public bool ToContainer { get; set; }
+    public bool All { get; set; }
+}
+
+/// <summary>#2436: server → client, the stacks inside one storage crate — sent on <see cref="OpenContainerIntent"/> and
+/// after every change while the crate screen is open. <see cref="StackLimit"/> is the number of distinct stacks a wood
+/// box holds (0 = unbounded, the workshop crate); <see cref="Filter"/> mirrors the crate's whitelist.</summary>
+public sealed class ContainerContents
+{
+    public string ContainerId { get; set; } = string.Empty;
+    public NetItemStack[] Items { get; set; } = System.Array.Empty<NetItemStack>();
+    public int StackLimit { get; set; }
+    public string[] Filter { get; set; } = System.Array.Empty<string>();
 }
 
 /// <summary>
@@ -1977,6 +2015,11 @@ public sealed class NetSpacePlayer
     /// <summary>Ship hull colour (packed 0xRRGGBB) so other players see this pilot's ship in their colour
     /// (item 32). 0 = unset → the client falls back to the default steel tint.</summary>
     public int Hull { get; set; }
+
+    /// <summary>#2431: the ship floats parked while its pilot walks inside it — other clients keep drawing the hull,
+    /// engines off. It used to vanish for everyone the moment the pilot left the helm. Additive; an older client
+    /// ignores it and draws the ship as flying.</summary>
+    public bool Parked { get; set; }
 }
 
 /// <summary>A space entity was destroyed (asteroid mined or enemy defeated).</summary>
@@ -2539,6 +2582,13 @@ public sealed class PlayerPresence
 
     /// <summary>Hanging on a wall or a ladder (#2193) — other clients pose the avatar climbing, facing the wall.</summary>
     public bool Climbing { get; set; }
+
+    /// <summary>Crouching (#2435) — other clients pose the avatar squatting. Additive; an older client ignores it.</summary>
+    public bool Crouching { get; set; }
+
+    /// <summary>The look pitch in degrees (#2434, up is negative like the camera's): other clients nod the avatar's head
+    /// so you can see where someone looks. Additive; an older client ignores it, an older server leaves it 0.</summary>
+    public float Pitch { get; set; }
 
     /// <summary>The energy rope is out (#2319): other clients draw it from the avatar's hand to the anchor below.</summary>
     public bool Roped { get; set; }

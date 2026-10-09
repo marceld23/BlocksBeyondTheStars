@@ -74,7 +74,7 @@ namespace BlocksBeyondTheStars.Client
                 float r = maxR * (0.32f + 0.68f * (i + 1) / n);
                 bool active = bodies[i].Id == activeBodyId;
                 bool selected = bodies[i].Id == selectedBodyId;
-                float dotSize = active ? 18f : selected ? 16f : 12f;
+                float dotSize = (active ? 18f : selected ? 16f : 12f) * DotScale(bodies[i].PlanetType); // #2437: a giant reads big
                 var col = PlanetColor(bodies[i].PlanetType, bodies[i].Kind);
                 if (active)
                 {
@@ -152,6 +152,13 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A planet-type → dot colour mapping (a few known biomes, else a stable hash hue); stations
         /// and asteroid fields get neutral greys. Shared with the flight system chart (#597).</summary>
+        /// <summary>#2437: the gas giant's chart colour — the amber of its banded clouds, unlike any landable world's dot, so
+        /// Justus's "no gas planet anywhere" is answered by a glance at the system chart, visited or not.</summary>
+        internal static readonly Color GasGiantColor = new Color(0.96f, 0.72f, 0.42f);
+
+        /// <summary>#2437: a gas giant draws half again as big as the other dots — it IS the biggest thing in its system.</summary>
+        internal static float DotScale(string type) => type == "gas_giant" ? 1.5f : 1f;
+
         internal static Color PlanetColor(string type, string kind)
         {
             if (string.IsNullOrEmpty(type))
@@ -162,6 +169,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string t = type.ToLowerInvariant();
+            if (t == "gas_giant") return GasGiantColor; // #2437: before the "gas" rule below, which would paint it toxic green
             if (t.Contains("lava") || t.Contains("volcan")) return new Color(0.9f, 0.4f, 0.2f);
             if (t.Contains("ice") || t.Contains("frost") || t.Contains("snow")) return new Color(0.7f, 0.88f, 1f);
             if (t.Contains("ocean") || t.Contains("water")) return new Color(0.3f, 0.55f, 0.95f);

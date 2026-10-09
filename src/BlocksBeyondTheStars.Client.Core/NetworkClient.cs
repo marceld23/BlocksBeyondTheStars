@@ -77,6 +77,10 @@ namespace BlocksBeyondTheStars.Client
         public event Action<CreatureDefeated>? CreatureDefeatedReceived;
         public event Action<ContainerList>? ContainersReceived;
 
+        /// <summary>#2436: the stacks inside one storage crate — on opening the crate screen and after every change
+        /// while it is open.</summary>
+        public event Action<ContainerContents>? ContainerContentsReceived;
+
         /// <summary>Ground drop packets on this body (#853) — the bundles a full inventory left lying around.
         /// Rendered by <c>DropPacketView</c>; collected automatically by the server, so there is no intent.</summary>
         public event Action<DropPacketList>? DropPacketsReceived;
@@ -523,8 +527,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Hyperjump into a (possibly unvisited) star system, arriving in flight mode there.</summary>
         public void SendHyperjumpSystem(string systemId) => Send(new HyperjumpSystemIntent { SystemId = systemId });
 
-        public void SendMove(Vector3f pos, float yaw, float pitch, bool climbing = false)
-            => Send(new MoveIntent { X = pos.X, Y = pos.Y, Z = pos.Z, Yaw = yaw, Pitch = pitch, Climbing = climbing }, DeliveryMode.Unreliable);
+        public void SendMove(Vector3f pos, float yaw, float pitch, bool climbing = false, bool crouching = false)
+            => Send(new MoveIntent { X = pos.X, Y = pos.Y, Z = pos.Z, Yaw = yaw, Pitch = pitch, Climbing = climbing, Crouching = crouching }, DeliveryMode.Unreliable);
 
         public void SendMine(int x, int y, int z) => Send(new MineBlockIntent { X = x, Y = y, Z = z });
 
@@ -816,6 +820,16 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Dedicate a crate to specific base item keys (#1032); an empty array clears the filter.</summary>
         public void SendSetContainerFilter(string containerId, string[] items)
             => Send(new SetContainerFilterIntent { ContainerId = containerId, Items = items ?? System.Array.Empty<string>() });
+
+        /// <summary>#2436: open (or close) the crate screen for a crate — the server answers with its contents and keeps
+        /// them fresh while it is open.</summary>
+        public void SendOpenContainer(string containerId, bool open = true)
+            => Send(new OpenContainerIntent { ContainerId = containerId, Open = open });
+
+        /// <summary>#2436: move one kind of item between the backpack and a crate (one stack, or every stack with
+        /// <paramref name="all"/>).</summary>
+        public void SendMoveContainerItem(string containerId, string item, bool toContainer, bool all = false)
+            => Send(new MoveContainerItemIntent { ContainerId = containerId, Item = item ?? string.Empty, ToContainer = toContainer, All = all });
 
         /// <summary>Move items between the personal inventory and the ship's cargo hold. <paramref name="item"/> = ""
         /// with <paramref name="bulkAll"/> = true is "stow all" / "take all"; otherwise it moves all of one item.</summary>
@@ -1174,6 +1188,7 @@ namespace BlocksBeyondTheStars.Client
                 case ActionFx m: ActionFxReceived?.Invoke(m); break;                     // #2158
                 case CreatureDefeated m: CreatureDefeatedReceived?.Invoke(m); break;     // #2154
                 case ContainerList m: ContainersReceived?.Invoke(m); break;
+                case ContainerContents m: ContainerContentsReceived?.Invoke(m); break; // #2436
                 case DropPacketList m: DropPacketsReceived?.Invoke(m); break;
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
                 case ShipStations m: ShipStationsReceived?.Invoke(m); break;

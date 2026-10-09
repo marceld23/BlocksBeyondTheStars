@@ -129,7 +129,7 @@ public sealed partial class GameServer
         // generator's name registry is claimed in index order, so the first N systems of an (N+1)-run are
         // byte-identical to the live ones (the prefix property) — and a full run is a few milliseconds of
         // pure CPU over POCOs. Appending the fresh object keeps every live reference into _galaxy valid.
-        var regrown = new UniverseGenerator(_meta.Seed, _meta.Description, _content).Generate(procedural + 1);
+        var regrown = new UniverseGenerator(_meta.Seed, _meta.Description, _content, _meta.DefaultPlanetType).Generate(procedural + 1);
         if (regrown.Systems.Count <= procedural)
         {
             return;

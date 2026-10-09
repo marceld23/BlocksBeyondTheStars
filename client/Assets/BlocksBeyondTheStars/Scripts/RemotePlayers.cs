@@ -36,6 +36,7 @@ namespace BlocksBeyondTheStars.Client
             public ParticleSystem Thrust;  // the persistent flame emitter (#1511), created on first use; dies with Go
             public bool Seated;            // sit pose (#806) — avatar lowered onto the chair seat
             public bool Climbing;          // #2193: on a wall or a ladder — climb pose, turned to face the wall
+            public bool Crouching;         // #2435: the squat — pose folded, root lowered by the avatar's blend
             public Vector3f Reported;      // #2122: the newest reported world position (the seat check reads it)
             public string Frame = string.Empty; // #2113: aboard a train — the wagon frame and the offset in it
             public Vector3 Local;
@@ -219,6 +220,8 @@ namespace BlocksBeyondTheStars.Client
                         aboard.y -= 0.45f;
                     }
 
+                    aboard.y -= PlayerAvatar.CrouchDrop * r.Avatar.CrouchBlend; // #2435: the folded legs are shorter
+
                     r.Go.transform.position = aboard;
                     r.SpringY = aboard.y; // #2295: the wagon's motion is never a jump
                     if (r.Interp.Sample(now, circ, out _, out var wagonYaw))
@@ -234,6 +237,7 @@ namespace BlocksBeyondTheStars.Client
                         scene.y -= 0.45f; // drop the pelvis onto the chair seat (#806) — the pose bends the legs
                     }
 
+                    scene.y -= PlayerAvatar.CrouchDrop * r.Avatar.CrouchBlend; // #2435: a squatting friend sits lower
                     r.Go.transform.position = scene;
                     // #2193: a climber faces the wall they hang on, not where they look.
                     float facing = r.Climbing && TryWallYaw(pos, yaw, out float wallYaw) ? wallYaw : yaw;
@@ -431,6 +435,16 @@ namespace BlocksBeyondTheStars.Client
                 r.Climbing = m.Climbing;
                 r.Avatar.SetClimbing(m.Climbing);
             }
+
+            // #2435: the squat, #2434: the nod — both ride every presence, so a crouching, downward-looking friend reads
+            // as exactly that from across the room (the avatar eases both, the 10 Hz steps never snap).
+            if (m.Crouching != r.Crouching)
+            {
+                r.Crouching = m.Crouching;
+                r.Avatar.SetCrouched(m.Crouching);
+            }
+
+            r.Avatar.SetLookPitch(m.Pitch);
 
             // Stealth field active, or the player is up in SPACE (the server stealth-marks orbiters so
             // no frozen ghost avatar keeps standing at the pad they launched from): hide avatar + plate.

@@ -60,6 +60,11 @@ public sealed class PlayerSession
         set => State.LandingPadIndex = value;
     }
 
+    /// <summary>#2436: the storage crate whose crate screen this player has open, or null — the server re-sends that
+    /// crate's contents after every change for as long as it is set. Transient; cleared when the screen closes or the
+    /// crate is gone.</summary>
+    public string? OpenContainerId { get; set; }
+
     /// <summary>Fleet admin: the operator of this hosting installation, as opposed to the owner of one world
     /// (issue #487). Granted on join from <see cref="Shared.Configuration.ServerConfig.FleetAdminPlayers"/> and
     /// deliberately <b>never persisted</b> — see that property for why a saved role would leak between worlds.

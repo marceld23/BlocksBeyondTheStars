@@ -153,11 +153,24 @@ namespace BlocksBeyondTheStars.Client
                 ScreenCapture.CaptureScreenshotIntoRenderTexture(full);
                 var source = full;
                 float scale = maxDim > 0 ? Mathf.Min(1f, (float)maxDim / Mathf.Max(w, h)) : 1f;
-                if (scale < 1f)
+                // #2430: on a top-left-origin API (Direct3D, Vulkan, Metal) the captured frame lies in the texture
+                // top-down, and the synchronous ReadPixels copies it as it lies — every F1 screenshot of v2026.10.10
+                // reached the inbox upside down. The async path flips its raw rows itself (above), so only the
+                // synchronous read gets the flip, done on the GPU as a mirrored blit; OpenGL / WebGL 2 need neither.
+                bool flip = SyncReadsAllowed && SystemInfo.graphicsUVStartsAtTop;
+                if (scale < 1f || flip)
                 {
                     int tw = Mathf.Max(1, Mathf.RoundToInt(w * scale)), th = Mathf.Max(1, Mathf.RoundToInt(h * scale));
                     small = RenderTexture.GetTemporary(tw, th, 0, RenderTextureFormat.ARGB32);
-                    Graphics.Blit(full, small);
+                    if (flip)
+                    {
+                        Graphics.Blit(full, small, new Vector2(1f, -1f), new Vector2(0f, 1f));
+                    }
+                    else
+                    {
+                        Graphics.Blit(full, small);
+                    }
+
                     source = small;
                 }
 

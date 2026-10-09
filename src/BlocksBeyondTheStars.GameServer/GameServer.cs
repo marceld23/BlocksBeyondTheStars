@@ -519,7 +519,8 @@ public sealed partial class GameServer
         // #1123: a grown save regenerates with the persisted extra count — system N is a pure function
         // of (seed, N), so the grown systems come back byte-identical, in the same pass as the fixed ones.
         int systemCount = _meta.Description.StarSystemCount + Math.Max(0, _meta.GalaxyGrownSystems);
-        _galaxy = new UniverseGenerator(_meta.Seed, _meta.Description, _content).Generate(systemCount);
+        // #2437: the generator is told the start type so its gas-giant pass never eats the planet the pick below lands on.
+        _galaxy = new UniverseGenerator(_meta.Seed, _meta.Description, _content, _meta.DefaultPlanetType).Generate(systemCount);
         _padCache.Clear(); // pads are a function of the galaxy (#1618)
 
         // #2242: the wormholes — a pure pass over the FIXED systems after the generator, so the layout is untouched
@@ -2029,6 +2030,15 @@ public sealed partial class GameServer
             // #2120: the ship interior's void world "breathes" only so the cabin needs no special case — out in space
             // there is no air: an extension that is not sealed is outside the ship's air, helmet on.
             bool worldAir = AtmosphereBreathable && !InShipInterior(p.PlayerId);
+
+            // #2432: Creative/Sandbox — the suit battery is bottomless, like oxygen and hunger are off. Topping it up
+            // every tick, wherever the player is (instead of guarding each of the seven drains), keeps the bar full,
+            // makes every "no energy" refusal unreachable and lets the jetpack and the cloak run as long as they like.
+            if (!Rules.SuitEnergyDrainsFor(p.ModeOverride))
+            {
+                p.SuitEnergy = MaxSuitEnergy(p);
+            }
+
             if (!submerged && (lifeSupport || (!p.AboveAtmosphere && !p.InEva && worldAir && !InSpsLab(p.Position)))) // 2026-09: a lab module holds no air
             {
                 // Aboard the ship (life support), boarded on a station (its life support), oxygen disabled
@@ -3855,6 +3865,8 @@ public sealed partial class GameServer
             case LootContainerIntent loot: HandleLootContainer(session, loot); break;
             case DepositContainerIntent dep: HandleDepositContainer(session, dep); break;
             case SetContainerFilterIntent filter: HandleSetContainerFilter(session, filter); break;
+            case OpenContainerIntent openCrate: HandleOpenContainer(session, openCrate); break;          // #2436
+            case MoveContainerItemIntent moveCrate: HandleMoveContainerItem(session, moveCrate); break; // #2436
             case MoveCargoItemIntent moveCargo: HandleMoveCargoItem(session, moveCargo); break;
             case ShipMoveIntent shipMove: HandleShipMove(session, shipMove); break;
             case DisassembleIntent disassemble: HandleDisassemble(session, disassemble); break;
@@ -4727,6 +4739,7 @@ public sealed partial class GameServer
             session.State.Yaw = move.Yaw;
             session.State.Pitch = move.Pitch;
             session.State.Climbing = move.Climbing; // #2193: pose only — the climb itself is on-foot movement, the client's
+            session.State.Crouching = move.Crouching; // #2435: pose only, like the climb — the presence shows the squat to the others
             ClearRopeIfNotHeld(session.State); // #2319: a rope nobody can hold any more (boarded, seated, in space, put away)
             TrackVerticalSpeed(session, before.Y, reported.Y); // #2286: "Back to my ship" refuses a falling player
             UpdateDrivingSpeeder(session); // if driving a speeder, slave it to this pose + drain its energy cell
