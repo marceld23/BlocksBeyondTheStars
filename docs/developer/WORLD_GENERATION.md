@@ -2449,7 +2449,12 @@ system he skipped. About 4 % of galaxies had none at all.
 keeps the old roll for a description below 23 (the galaxy is re-derived from the seed on every start, so a saved world's
 pinned generation keeps its planets), and from 23 on:
 
-- the start system never changes;
+- the start system never changes — and neither does **the planet the server picks as the start**: the first planet of the
+  configured start type anywhere in the galaxy (`GameServer.LoadWorld`), often an outermost orbit. The server hands that
+  type to the generator (`UniverseGenerator(seed, description, content, startPlanetType)`, from the persisted
+  `WorldMetadata.DefaultPlanetType`, so every load re-derives the same galaxy) and `ApplyGasGiants` finds the pick before
+  its first roll and never retypes it. Without this, the first CI run of the package had seed 7 / `rocky` start on a
+  different world (`SuitGearTests`' hard-coded positions) and eleven of forty default seeds lose their start planet;
 - a Lone Giant keeps its giant exactly as before;
 - every other system with at least `GasGiantMinPlanetsPerSystem` (2) planets puts a giant on its **outermost orbit** with
   `GasGiantOuterOrbitChancePerSystem` = 218/256 ≈ 85 %;

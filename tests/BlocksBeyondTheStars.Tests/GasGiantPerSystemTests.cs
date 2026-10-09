@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Linq;
+using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -134,5 +135,62 @@ public sealed class GasGiantPerSystemTests
         }
 
         Assert.InRange(withGiant / (double)(galaxy.Systems.Count - 1), 0.08, 0.5);
+    }
+
+    private static CelestialBody? FirstOfType(Galaxy galaxy, string type)
+        => galaxy.AllBodies().FirstOrDefault(b => b.Kind == CelestialKind.Planet && b.PlanetType == type);
+
+    /// <summary>The server starts on the first planet of the configured type anywhere in the galaxy — on many seeds an
+    /// outermost orbit, exactly where the new rolls land. Told the type, the generator leaves that planet alone; a generator
+    /// that is not told it eats it in some seeds (the start moves to the next planet of the type, or vanishes into the
+    /// server's retype fallback — "only 29 seeds had a start planet" in StartSystemStationTests before this).</summary>
+    [Theory]
+    [InlineData("varied")]
+    [InlineData("rocky")]
+    public void TheServersStartPick_NeverBecomesTheGiant(string startType)
+    {
+        int told = 0, bare = 0, rescued = 0;
+        for (long seed = 1; seed <= 40; seed++)
+        {
+            var desc = Desc(WorldDescription.GasGiantPerSystemGeneration);
+            var toldPick = FirstOfType(new UniverseGenerator(seed, desc, Content, startType).Generate(), startType);
+            var bareGalaxy = new UniverseGenerator(seed, desc, Content).Generate();
+            var barePick = FirstOfType(bareGalaxy, startType);
+            told += toldPick is null ? 0 : 1;
+            bare += barePick is null ? 0 : 1;
+            if (barePick is not null)
+            {
+                Assert.NotNull(toldPick); // the type existed, so the told generator still has a planet of it
+            }
+
+            if (toldPick is not null && (barePick is null || barePick.Id != toldPick.Id))
+            {
+                // The told pick is a body the bare rolls turned into a giant — the protection touched nothing else.
+                rescued++;
+                Assert.Equal(Key, bareGalaxy.FindBody(toldPick.Id)!.PlanetType);
+            }
+        }
+
+        Assert.True(told >= bare, $"{startType}: {told} seeds with a start pick when told, {bare} when not");
+        if (startType == "varied")
+        {
+            Assert.True(rescued > 0, "no seed in 1..40 needed the protection — the test guards nothing");
+            Assert.True(told >= 30, $"only {told} of 40 seeds have a start planet of the default type");
+        }
+    }
+
+    [Fact]
+    public void Seed7Rocky_StartsOnTheSameWorld_AsGenerationTwentyTwo()
+    {
+        // SuitGearTests and others fix seed 7 with start type "rocky" and hard-code surface positions; their world must not
+        // move when the gas giants do.
+        var desc = new ServerConfig { Seed = 7, StartPlanet = "rocky" }.World;
+        desc.TerrainGeneration = WorldDescription.GasGiantPerSystemGeneration - 1;
+        var before = FirstOfType(new UniverseGenerator(7, desc, Content, "rocky").Generate(), "rocky");
+        desc.TerrainGeneration = WorldDescription.GasGiantPerSystemGeneration;
+        var now = FirstOfType(new UniverseGenerator(7, desc, Content, "rocky").Generate(), "rocky");
+        Assert.NotNull(before);
+        Assert.NotNull(now);
+        Assert.Equal(before!.Id, now!.Id);
     }
 }

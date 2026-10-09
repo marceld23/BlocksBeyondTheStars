@@ -36,12 +36,19 @@ public sealed class UniverseGenerator
     private readonly List<(string key, int weight)> _planetWeights;
     private readonly List<(string key, int weight)> _gen1Weights;
     private readonly List<(string key, int weight)> _asteroidWeights;
+    private readonly string? _startPlanetType;
 
-    public UniverseGenerator(long seed, WorldDescription description, GameContent content)
+    /// <param name="startPlanetType">The planet type the server will start the world on — it picks the first planet of
+    /// that type anywhere in the galaxy (<c>GameServer.LoadWorld</c>, often an outermost orbit). From generation 23 the
+    /// gas-giant pass (#2437) never retypes that planet, so a seed's start world is the same with and without the new rolls.
+    /// Null or an unknown type protects nothing; the server passes <c>WorldMetadata.DefaultPlanetType</c>, which is
+    /// persisted, so every load re-derives the same galaxy.</param>
+    public UniverseGenerator(long seed, WorldDescription description, GameContent content, string? startPlanetType = null)
     {
         _seed = seed;
         _desc = description;
         _content = content;
+        _startPlanetType = startPlanetType;
         _planetWeights = BuildPlanetWeights(description, content);
         _gen1Weights = BuildGenerationWeights(description, content);
         _asteroidWeights = BuildAsteroidWeights(content);
@@ -284,7 +291,9 @@ public sealed class UniverseGenerator
     /// system rolls one in <see cref="GasGiantOuterOrbitChance"/>; both get rings in about three cases of five. Runs after
     /// the generic retype (the gas giant's own spawn weight is 0, so that roll never picks it), touches only the type and
     /// the ring seed of the chosen body, and never the start system, the first breathable planet or a once-per-galaxy
-    /// landmark. An older galaxy (a description below generation 18) keeps every body's type.</summary>
+    /// landmark — and from generation 23 never the planet the server will pick as the start (the first planet of the type
+    /// handed to the constructor, which may sit on any system's outermost orbit). An older galaxy (a description below
+    /// generation 18) keeps every body's type.</summary>
     private void ApplyGasGiants(Galaxy galaxy, CelestialBody? firstBreathable)
     {
         if (_desc.TerrainGeneration < WorldDescription.GasGiantGeneration || _content.GetPlanet(GasGiantKey) is null)
@@ -298,13 +307,22 @@ public sealed class UniverseGenerator
         // inside it. A galaxy pinned below generation 23 keeps the old roll bit for bit.
         bool perSystem = _desc.TerrainGeneration >= WorldDescription.GasGiantPerSystemGeneration;
 
+        // The server starts on the first planet of the configured type anywhere in the galaxy; with a giant on most
+        // outermost orbits that planet would be eaten in a good share of seeds (the start would move to the next one of
+        // its type, or vanish into the retype fallback). Found before any roll of this pass, protected throughout it.
+        CelestialBody? startPick = null;
+        if (perSystem && _startPlanetType is { Length: > 0 } startType && _content.GetPlanet(startType) is not null)
+        {
+            startPick = galaxy.AllBodies().FirstOrDefault(b => b.Kind == CelestialKind.Planet && b.PlanetType == startType);
+        }
+
         for (int si = 1; si < galaxy.Systems.Count; si++)
         {
             var system = galaxy.Systems[si];
             var archetype = _desc.SystemVariance ? SystemArchetypes.ForIndex(_seed, si) : SystemArchetype.Standard;
             if (archetype == SystemArchetype.LoneGiant)
             {
-                MakeGasGiant(system.Bodies.Find(b => b.Kind == CelestialKind.Planet), firstBreathable, si);
+                MakeGasGiant(system.Bodies.Find(b => b.Kind == CelestialKind.Planet), firstBreathable, startPick, si);
                 continue;
             }
 
@@ -314,7 +332,7 @@ public sealed class UniverseGenerator
                 ulong h = Noise.Hash(_seed ^ 0x6A5, si, 0, 0x2112);
                 if ((h & 0xFF) < (ulong)GasGiantOuterOrbitChance && planets.Count > 0)
                 {
-                    MakeGasGiant(planets[planets.Count - 1], firstBreathable, si); // the outermost orbit
+                    MakeGasGiant(planets[planets.Count - 1], firstBreathable, startPick: null, si); // the outermost orbit
                 }
 
                 continue;
@@ -330,22 +348,23 @@ public sealed class UniverseGenerator
 
             if ((Noise.Hash(_seed ^ 0x6A5, si, 3, 0x2437) & 0xFF) < (ulong)GasGiantOuterOrbitChancePerSystem)
             {
-                MakeGasGiant(planets[planets.Count - 1], firstBreathable, si);
+                MakeGasGiant(planets[planets.Count - 1], firstBreathable, startPick, si);
             }
 
             if (planets.Count >= GasGiantSecondMinPlanets
                 && (Noise.Hash(_seed ^ 0x6A5, si, 4, 0x2437) & 0xFF) < (ulong)GasGiantSecondOrbitChance)
             {
-                MakeGasGiant(planets[planets.Count - 2], firstBreathable, si);
+                MakeGasGiant(planets[planets.Count - 2], firstBreathable, startPick, si);
             }
         }
     }
 
     /// <summary>Retypes <paramref name="planet"/> into the gas giant (and rolls its rings) unless it is the galaxy's first
-    /// breathable planet or a once-per-galaxy landmark — those keep their type whatever the orbit rolled.</summary>
-    private void MakeGasGiant(CelestialBody? planet, CelestialBody? firstBreathable, int si)
+    /// breathable planet, the server's start pick (<paramref name="startPick"/>, generation 23) or a once-per-galaxy
+    /// landmark — those keep their type whatever the orbit rolled.</summary>
+    private void MakeGasGiant(CelestialBody? planet, CelestialBody? firstBreathable, CelestialBody? startPick, int si)
     {
-        if (planet is null || ReferenceEquals(planet, firstBreathable)
+        if (planet is null || ReferenceEquals(planet, firstBreathable) || ReferenceEquals(planet, startPick)
             || planet.PlanetType == GasGiantKey
             || _content.GetPlanet(planet.PlanetType ?? string.Empty)?.OncePerGalaxy == true)
         {

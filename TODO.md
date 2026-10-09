@@ -50,7 +50,7 @@ Twenty-eight F1 rows in one afternoon, triaged into one package (issues #2425–
   292–294); the server keeps an open crate's contents fresh (`PlayerSession.OpenContainerId`, `RefreshOpenCrates`);
   **any category goes in by hand** (`Storable`) and may be named in a filter, the H sweep keeps to loose materials
   (`Stashable`); the cargo hold already took any item by explicit move.
-- **#2437 gas giants in almost every system (generation 23)** — see WORLD_GENERATION §40; `SystemMapWidget` paints a
+- **#2437 gas giants in almost every system (generation 23)** — see WORLD_GENERATION §40 (the generator is told the start type, so the planet the server picks as the start is never retyped — the first CI run caught seed 7 starting on another world); `SystemMapWidget` paints a
   giant amber and 1.5× big.
 - **#2438 fall-guard teleport on thin blocks** — `BlockShapeFacts.CanEnclosePlayer` makes the guard shape-aware.
 - **#2439 mounted ladder picture rotated 90°** on ±X walls — a quarter-turn yaw before the panel tilt.
