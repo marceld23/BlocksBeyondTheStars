@@ -9,7 +9,7 @@
 ## The one-minute version
 
 ```powershell
-dotnet test -c Release --filter Category!=Slow   # fast daily loop (~3 min)
+dotnet test -c Release --filter Category!=Slow   # the whole fast tier — ~30 min on a 16-thread box, prefer a targeted --filter; CI runs it on 10 shards
 dotnet test                                      # everything, incl. ~31 Slow soak tests
 ./scripts/test-coverage.ps1 -Open                # full coverage report (slow, ~30 min)
 ```

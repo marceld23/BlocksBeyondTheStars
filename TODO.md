@@ -10,7 +10,7 @@ keep it current when controls/features change. Last consolidated 2026-06-04.
 **Test:** `./scripts/run-tests.sh` — currently **2567 server (non-Slow tier) + 448 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
-The server suite is sharded across a 6-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4:30. The weights decay as test classes are added, so
+The server suite is sharded across a 10-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~7–8 min (six shards sat at 10–12 min once the fast tier reached ~14 100 test-seconds; widened 2026-10-09). The weights decay as test classes are added, so
 shard 1's verify step fails a PR once >5 % of the predicted load is guesswork (`--weight-drift-guard`) — that is the cue to refresh them (see docs/developer/DEVELOPER.md).
 A PR touching nothing but `data/locales/*.json` runs a single narrow `locale-tests` job instead of the matrix (`scripts/locale-test-filter.py`, ~140 tests).
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
@@ -23,6 +23,14 @@ code (no scene authoring). One shared world; MessagePack networking for native c
 envelope at the WebSocket edge; deterministic seed world-gen; SQLite default persistence with opt-in PostgreSQL.
 
 ---
+
+### ⚙️ CI: test matrix 6 → 10 shards (2026-10-09) — ✅ done
+
+The fast tier grew from 2 549 predicted test-seconds (2026-08-04) to 14 100 (2026-10-07, +55 % in four weeks); six shards carried
+~2 350 s each — a 10–12 min tail on a normal runner, 14–16 min on a slow one, where the 120 s per-test guardrail began tripping on
+queue/lock waits (PR #2442 needed a rerun for exactly that). `tests.yml` now fans out over ten shards (~1 400 s each, 7–8 min);
+DEVELOPER.md §CI carries the numbers. Marcel's call after the analysis. Open: refresh `scripts/test-shard-weights.json` from a
+ten-shard fast-tier run once a few PRs have gone through (the new classes of #2442 are still guessed at 10 s).
 
 ### 📬 Player reports 2026-10-09 (Layex + Screelit, two-player Sandbox afternoon on v2026.10.10) — epic #2441, branch fix/player-reports-1009 — ✅ done
 

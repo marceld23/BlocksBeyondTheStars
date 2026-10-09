@@ -65,9 +65,9 @@ fast-tier CPU-seconds a PERFECTLY balanced gate still takes ~6 min over 4 runner
 (#1254 moved the matrix to 6). Below that the levers are cheaper tests, not packing.
 
 Usage:
-  partition-tests.py filter --shard 2 --shards 6 --tier fast   # shard 2's --filter expression
-  partition-tests.py verify --shards 6 --tier full --list-file listed.txt [--weight-drift-guard]
-  partition-tests.py show --shards 6 --tier full               # human-readable assignment + weights
+  partition-tests.py filter --shard 2 --shards 10 --tier fast   # shard 2's --filter expression
+  partition-tests.py verify --shards 10 --tier full --list-file listed.txt [--weight-drift-guard]
+  partition-tests.py show --shards 10 --tier full               # human-readable assignment + weights
   partition-tests.py weights --trx a.trx b.trx --slow-list slow.txt [--write]
 """
 
