@@ -11,6 +11,94 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.11] — 2026-10-10
+
+The playtest release. **One afternoon of two-player Sandbox, twenty-eight reports, one update.** Justus and Aasim
+played together on 2026.10.10 and pressed F1 at everything that bothered them. What came out of it: **a real crate
+screen** where you move stacks by click, **ships that stay visible** while their pilot walks around inside them,
+**avatars that nod and crouch**, **a gas giant in almost every system** of new galaxies, **suit energy that never runs
+out in Sandbox**, and a handful of crash and glitch fixes (#2441). Repairing your ship got clearer too: the game now
+says where the hull plates come from and how to start the repair from wherever you stand (#2423 #2424).
+
+ℹ️ **Compatibility:** the network protocol stays at **version 11** and the save version at **3**: your saves and worlds
+carry over unchanged. The terrain generation moves from **22 to 23**. Only galaxies created from now on get the extra
+gas giants; existing worlds keep their planets exactly as they are. The crate screen, the parked-ship view and the
+crouching and nodding avatars need the game and the server on 2026.10.11, so update both. The desktop game updates
+itself on start, and the browser version is always current.
+
+### 📦 A real crate screen (#2436)
+
+- **Press E at a storage crate or wood box** and a screen opens: **what is in the crate at the top, your backpack below.**
+  Click a stack to move it across; hold **Shift** while clicking to move every stack of that kind.
+- **Anything goes in by hand now:** blocks and ores, but also food, medpacks, tools and weapons. A crate's filter
+  (*What belongs in here?*) can name them too, so a food crate or a tool crate works.
+- **H** stays the quick sweep for loose materials and blocks and never takes your tools or food. *Store all materials*
+  and *Take everything out* (**G**) sit as buttons on the screen.
+
+### 🧑‍🚀 Playing together (#2431 #2434 #2435 #2440 #2433)
+
+- **A parked ship stays visible.** When a pilot gets up and walks around inside the ship in space, everyone else still
+  sees it floating there, engines off, labelled *Name · parked*. Before, it simply vanished.
+- **Heads nod and bodies crouch.** Other players' heads follow where they look up or down, and crouching shows as a
+  squat. Your own avatar in the third-person view does the same.
+- **No more ships stuck inside each other at take-off.** When several ships launch into the same orbit, each one now
+  rises a little to the side of the ships already out there.
+- **Fewer beards:** about two in three of the faces you meet are clean-shaven now (it was two in five).
+
+### 🪐 A gas giant in almost every system (#2437, terrain generation 23)
+
+- In galaxies created from now on, **almost every system with two or more planets has a gas giant on its outermost
+  orbit**, and a system with four or more planets sometimes gets a second one just inside it. Before, only about one
+  system in four had one, and some galaxies had none at all.
+- The planet you start on, the first planet with breathable air and the galaxy's landmarks never turn into gas giants.
+- **The system chart shows gas giants in amber and a bit bigger** than the other planets, visited or not.
+
+### 🔧 Repairing your ship (#2423 #2424)
+
+- **Hull plates come from the workbench, not from a factory.** The crafting list showed two identical *Iron plate*
+  cards, and the factory one often came first. Now a factory recipe says **· Factory terminal** on its card and sorts
+  behind the workbench version unless a factory terminal is in reach. The repair panel names the bench behind each
+  material: *Iron plate ×10 · Workbench*.
+- **The repair panel tells you what to do from where you are.** On foot: go inside the ship to the cockpit or the
+  ship console and press **R**. At the helm: press **R**. In the pilot seat: press **F** to step inside first. On a
+  gamepad it says *Actions (L3) → Repair (ship / wreck)*, and on touch you tap the button.
+- **The cockpit and the console say "Repair ship (R)"** while your ship needs it, and pressing R anywhere else tells
+  you where to go instead of doing nothing.
+- **Gamepads can start the repair** from the Actions list at your own cockpit or console now.
+- A hull dented **in flight** now shows its current damage at the helm. Before, the panel still showed the damage from
+  the last landing.
+
+### 🐞 Fixes from your reports (#2428 #2429 #2430 #2432 #2438 #2439)
+
+- **A crash when locking a ship that had flown absurdly far away** is fixed. The server now also ignores a ship
+  position that far out, so one ship gone astray can no longer crash every pilot who locks onto it.
+- **F1/F2 report screenshots and chat photos were upside down** since 2026.10.10 on Windows and Linux. They are the
+  right way up again.
+- **Sandbox: suit energy no longer runs out.** The battery stays full, so nothing is refused for lack of energy.
+- **Standing on a carpet, a plate or a slab** no longer teleports you back to where you stood before. The fall guard
+  thought you were stuck inside a block.
+- **A ladder on an east or west wall** no longer shows its picture turned sideways.
+- An error when quitting the game while a target was locked is fixed.
+
+### 🌍 Texts (#2420 #2227)
+
+- Ukrainian: two Russian words slipped into the Ukrainian texts (the touch **Jump** label and a hyperjump line on the
+  map). Both are Ukrainian now.
+- Everything new is in all **14 languages**, and the 2026.10.10 "What's new?" texts arrived in the twelve community
+  languages (#2227).
+
+### 🛠️ For tinkerers (#2444)
+
+- The automated test run on every pull request is split across ten parallel jobs instead of six, so a check finishes in
+  about seven or eight minutes again.
+
+### 🙏 Thank you, Justus and Aasim
+
+Almost everything in this release started as an F1 report from your two-player afternoon, including the upside-down
+screenshots, which only showed up because you sent so many of them. Three of your reports still need a bit more
+information from you, and we are on them. **Aasim** is in the credits now, in the game (all 14 languages) and in the
+README.
+
 ## [2026.10.10] — 2026-10-09
 
 The atmosphere release. **The air and the weather now leave their mark on every world.** Mist gathers in the valleys
@@ -7280,7 +7368,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.10...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.11...HEAD
+[2026.10.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.10...v2026.10.11
 [2026.10.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.9...v2026.10.10
 [2026.10.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.8...v2026.10.9
 [2026.10.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.7...v2026.10.8
