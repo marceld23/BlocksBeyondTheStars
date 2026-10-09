@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### ⚙️ CI: test matrix 6 → 10 shards (2026-10-09) — ✅ done
+### ⚙️ CI: test matrix 6 → 10 shards (2026-10-09) — ✅ done (released in v2026.10.11)
 
 The fast tier grew from 2 549 predicted test-seconds (2026-08-04) to 14 100 (2026-10-07, +55 % in four weeks); six shards carried
 ~2 350 s each — a 10–12 min tail on a normal runner, 14–16 min on a slow one, where the 120 s per-test guardrail began tripping on
@@ -32,7 +32,7 @@ queue/lock waits (PR #2442 needed a rerun for exactly that). `tests.yml` now fan
 DEVELOPER.md §CI carries the numbers. Marcel's call after the analysis. Open: refresh `scripts/test-shard-weights.json` from a
 ten-shard fast-tier run once a few PRs have gone through (the new classes of #2442 are still guessed at 10 s).
 
-### 📬 Player reports 2026-10-09 (Layex + Screelit, two-player Sandbox afternoon on v2026.10.10) — epic #2441, branch fix/player-reports-1009 — ✅ done
+### 📬 Player reports 2026-10-09 (Layex + Screelit, two-player Sandbox afternoon on v2026.10.10) — epic #2441, branch fix/player-reports-1009 — ✅ done (released in v2026.10.11, terrain generation 23; ⚠ playtest open)
 
 Twenty-eight F1 rows in one afternoon, triaged into one package (issues #2425–#2441). Everything below shipped in one PR:
 
@@ -67,11 +67,13 @@ Twenty-eight F1 rows in one afternoon, triaged into one package (issues #2425–
 - Docs: USER_MANUAL (crate screen, H/E, crouch, Sandbox energy, gas giants), WORLD_GENERATION §40, README + in-game
   credits (Layex, Screelit). Tests: `SpaceDistanceTests`, `NpcLooksTests`, `BlockShapeFactsTests`, `GasGiantPerSystemTests`,
   `SuitEnergyCreativeTests`, `CrateScreenTests`, `PilotVisibilityTests`, `NetCodecTests` golden list.
+- Credits follow-up (release PR v2026.10.11): in this round Layex was Justus and Screelit was Aasim, so the Screelit line
+  now reads "Aasim (Screelit)" in the README and in `ui.credits.body` of all 14 languages (Marcel, 2026-10-09).
 - **Still open, need the players:** #2425 (avatar colours + painted face lost for the other player after a ship visit or a
   death — every path read re-syncs; needs the host's `server.log`), #2426 (Screelit's boat bug, no description), #2427
   (pilot frozen after two pilots shot the same asteroid — ship or EVA suit?).
 
-### 🔧 Ship repair: how to trigger it — context-aware panel line, terminal prompt names the key, toast when R is pressed elsewhere, Actions-list entry for pads, status pushed on entering the floating interior (2026-10-09, branch fix/repair-how-to-hints, PR #2424) — ✅ done
+### 🔧 Ship repair: how to trigger it — context-aware panel line, terminal prompt names the key, toast when R is pressed elsewhere, Actions-list entry for pads, status pushed on entering the floating interior (2026-10-09, branch fix/repair-how-to-hints, PR #2424) — ✅ done (released in v2026.10.11; ⚠ playtest open)
 
 **Report (Marcel, 2026-10-09):** "the panel says press R at the console or the cockpit — but how? the button is not
 reachable." Findings: the button never works on the desktop (cursor locked in play, the HUD never frees it; #1561 added R
@@ -84,7 +86,7 @@ needed, toast `ui.shiprepair.go_to_console`, Actions-list entry at the own termi
 `ui.key.repair_wreck` relabelled "Repair (ship / wreck)", `ui.station.cockpit` without the static "(R)", server pushes the
 repair status on entering the floating interior (`ShipRepairInteriorTests`). Ten keys changed/added in all 14 languages.
 
-### 🔧 Ship repair: where the plates come from — factory twin cards labelled and sorted behind the bench twin, repair panel names the bench, manual fix (2026-10-09, branch fix/repair-plate-source-hints, PR #2423, merged bac3e4f1) — ✅ done
+### 🔧 Ship repair: where the plates come from — factory twin cards labelled and sorted behind the bench twin, repair panel names the bench, manual fix (2026-10-09, branch fix/repair-plate-source-hints, PR #2423, merged bac3e4f1) — ✅ done (released in v2026.10.11; ⚠ playtest open)
 
 **Report (Justus via Marcel, 2026-10-09):** "I need a factory to repair the ship." Not a misread: the crafting list titles
 its cards by output item, so `iron_plate` (workbench) and `factory_iron_plate` (factory terminal) were two identical
