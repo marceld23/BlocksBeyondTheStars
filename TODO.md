@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🌊 Water after the atmosphere package — surface haze, double haze, sheen, seabed weather, far-terrain colour, capture worlds (#2410: #2411–#2417, 2026-10-09, branch fix/water-haze) — 🚧 in progress
+### 🌊 Water after the atmosphere package — surface haze, double haze, sheen, seabed weather, far-terrain colour, capture worlds (#2410: #2411–#2417, 2026-10-09, branch fix/water-haze, PR #2418) — ✅ done (⚠ playtest open)
 
 **Report (Marcel, 2026-10-09):** "with the newly built version the water surface is only very faintly visible" — plus:
 are the world water colours still respected, does the rainbow sea still work? Analysis by code read + clip-recorder
