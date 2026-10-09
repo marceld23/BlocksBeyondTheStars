@@ -128,7 +128,7 @@ Last updated: 2026-10-04.
 | **1 – 9** | Select hotbar slot |
 | **Middle mouse** | **Hotbar slot actions** on the selected slot: swap it against any backpack item, and for a building material also colour it (dye / glow / own pattern) or re-form it — see §5 → Hotbar slot actions (rebindable) |
 | **F** | Attack with the held tool/weapon — hits what's **under your crosshair** (the reticle turns red over a target; with **auto-aim** on, the nearest enemy in front of you is acquired automatically) |
-| **R** | At your own **cockpit / ship console** while the repair panel is up: repair the ship (see §5 → Repairing your own ship); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder, stairs or a block with a front** (machines, counters, devices) selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
+| **R** | At your own **cockpit / ship console** — inside the parked ship, or at the helm after **F** stepped you into the floating ship — while the repair panel is up: repair the ship (see §5 → Repairing your own ship; pressed elsewhere while the panel is up, a hint says where to go); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder, stairs or a block with a front** (machines, counters, devices) selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a **worn** `suit_lamp` — a module slot on the Suit tab; without one a hint says so) |
 | **B** | Switch the **stealth suit's** cloak on / off (requires the stealth suit **worn** in the chest slot; drains suit energy) — rebindable |
 | **G** | Loot the nearest container |
@@ -1031,9 +1031,15 @@ players.
   until you refill them. Cells **you** cut out on a spacewalk (to build onward) and doorways you hung a door in are
   your ship's new shape, not damage — the repair leaves them alone. Whenever your ship needs work, a **"Repair ship" / "Schiff reparieren"** panel sits on
   the right of the HUD (a hull bar plus the materials still needed and the bench that makes them, e.g.
-  *Iron plate ×10 · Workbench*; it greys out and says so while you are short). To repair, stand at the
-  **cockpit** or the **ship console** and press **R** — one action fixes hull and cells together. The panel
-  refreshes on every landing and login, so it is never stale.
+  *Iron plate ×10 · Workbench*; it greys out and says so while you are short). To repair, stand **inside the
+  ship** at the **cockpit** (the terminal at the front) or the **ship console** and press **R** — one action fixes
+  hull and cells together. The panel's first line always says how from where you are: on foot ("inside the ship,
+  at the cockpit or the console: press R"), at the helm of the floating ship, or in the pilot seat (**F** steps
+  you inside first — R in flight is the target lock). The station prompt at the terminal names the key too, and
+  pressing R anywhere else while the panel is up answers with where to go. On a **gamepad** the Actions list
+  (L3) offers *Repair* at the terminal; on **touch** tap the panel's button — that button is touch-only, on the
+  desktop the cursor stays locked in play. The panel refreshes on every landing and login and when you step inside
+  the floating ship, so it is never stale.
 - Hull is bought with **`iron_plate`** (10 hull per plate — pressed from 2 iron ingots at any **workbench**, which
   your ship's workshop module is; no factory needed); each missing cell costs the item that originally
   placed it (or `iron_plate` for structural blocks like lights/engine, so they never block a repair). The

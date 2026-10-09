@@ -1261,6 +1261,16 @@ namespace BlocksBeyondTheStars.Client
                         // The ship can call a vehicle left out on this world back beside it (#1661).
                         prompt += $"  ·  {loc.Get("ui.key.recall_vehicle")} ({InputMap.Glyph(InputAction.RecallVehicle)})";
                     }
+                    if ((Game.NearbyStation == "cockpit" || Game.NearbyStation == "console") && Game.ShipRepair != null
+                        && InputMap.ActiveDevice != InputDeviceKind.Touch)
+                    {
+                        // Something to repair and this is the terminal for it: name the trigger right here (the static
+                        // cockpit label no longer carries a hard-coded "(R)"; a pad reaches it through the Actions list).
+                        string g = InputMap.ActiveDevice == InputDeviceKind.Gamepad
+                            ? InputMap.Glyph(InputAction.ContextActions)
+                            : InputMap.Glyph(InputAction.RepairWreck);
+                        prompt += $"  ·  {loc.Get("ui.shiprepair.repair")} ({g})";
+                    }
                 }
                 else if (Game.AimedOwnBase is { } ownBase)
                 {
@@ -3266,12 +3276,46 @@ namespace BlocksBeyondTheStars.Client
             // #1561: say what is still short — the server computes CanAfford but the panel never showed it, so a
             // player with "Material vorhanden" (a hull-plating MODULE, no plates) saw a button that did nothing.
             string missing = sr.CanAfford ? string.Empty : "\n" + loc.Get("ui.shiprepair.missing");
-            _shipRepairHint.text = loc.Get("ui.shiprepair.hint") + needs + cells + missing;
 
+            // How to trigger the repair from HERE. The panel used to say "press R at the cockpit" everywhere — in the
+            // pilot seat (where R is the target lock), out on the pad and on a gamepad that left the player stuck
+            // ("the button is unreachable", 2026-10-09). The button itself works on touch only: in play the cursor
+            // stays locked (#413 arbiter) and the HUD never frees it, so everywhere else it is hidden and the key named.
+            bool touch = InputMap.ActiveDevice == InputDeviceKind.Touch;
+            string how;
+            if (touch)
+            {
+                how = loc.Get("ui.shiprepair.how_touch");
+            }
+            else if (Game.SpaceViewActive && !Game.InEva)
+            {
+                how = loc.Get("ui.shiprepair.how_flight")
+                    .Replace("{enter}", KeyPhrase(loc, InputAction.FlightEnterInterior))
+                    .Replace("{key}", KeyPhrase(loc, InputAction.RepairWreck));
+            }
+            else
+            {
+                string where = Game.LoadingPlanetType == "ship_interior" ? "ui.shiprepair.how_helm" : "ui.shiprepair.how_foot";
+                how = loc.Get(where).Replace("{key}", KeyPhrase(loc, InputAction.RepairWreck));
+            }
+
+            _shipRepairHint.text = how + "\n" + loc.Get("ui.shiprepair.needs") + needs + cells + missing;
+
+            _shipRepairBtn.gameObject.SetActive(touch);
             var t = _shipRepairBtn.GetComponentInChildren<Text>();
             if (t != null) { t.text = loc.Get("ui.shiprepair.repair"); }
             _shipRepairBtn.interactable = sr.CanAfford;
         }
+
+        /// <summary>How the player triggers an action on the active device, for a hint sentence: "press R" on the
+        /// keyboard, "Actions (L3) → Repair (ship / wreck)" on a gamepad — the on-foot verbs have no pad button of
+        /// their own and live in the Actions list (<see cref="ContextActionsUi"/>).</summary>
+        private static string KeyPhrase(BlocksBeyondTheStars.Shared.Localization.Localizer loc, InputAction action)
+            => InputMap.ActiveDevice == InputDeviceKind.Gamepad
+                ? loc.Get("ui.shiprepair.key_pad")
+                    .Replace("{glyph}", InputMap.Glyph(InputAction.ContextActions))
+                    .Replace("{action}", loc.Get(InputMap.LabelKey(action)))
+                : loc.Get("ui.shiprepair.key_press").Replace("{glyph}", InputMap.Glyph(action));
 
         /// <summary>The bench a repair material is made at, named as the crafting menu names stations ("Werkbank"):
         /// the station of the item's shallowest everyday recipe. Factory and vendor recipes don't count — a factory is

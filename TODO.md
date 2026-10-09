@@ -24,6 +24,19 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔧 Ship repair: how to trigger it — context-aware panel line, terminal prompt names the key, toast when R is pressed elsewhere, Actions-list entry for pads, status pushed on entering the floating interior (2026-10-09, branch fix/repair-how-to-hints) — ✅ done (PR pending)
+
+**Report (Marcel, 2026-10-09):** "the panel says press R at the console or the cockpit — but how? the button is not
+reachable." Findings: the button never works on the desktop (cursor locked in play, the HUD never frees it; #1561 added R
+for exactly that), R works only within 3 blocks of / looking at the cockpit or console cell inside the ship, the panel
+also shows in the pilot seat where R is the target lock (the route is F → interior → helm → R, and the helm prompt said
+nothing about R), the console prompt had no "(R)", a gamepad had no way at all (no pad button, the Actions list offered
+Repair only beside a wreck), and R in the wrong spot gave no feedback. Fix: panel line per situation (foot / helm / flight,
+touch keeps the button, keyboard "press R", pad "Actions (L3) → Repair"), terminal prompt appends "Repair ship (R)" while
+needed, toast `ui.shiprepair.go_to_console`, Actions-list entry at the own terminal (`PlayerController.CanRepairOwnShip`),
+`ui.key.repair_wreck` relabelled "Repair (ship / wreck)", `ui.station.cockpit` without the static "(R)", server pushes the
+repair status on entering the floating interior (`ShipRepairInteriorTests`). Ten keys changed/added in all 14 languages.
+
 ### 🔧 Ship repair: where the plates come from — factory twin cards labelled and sorted behind the bench twin, repair panel names the bench, manual fix (2026-10-09, branch fix/repair-plate-source-hints, PR #2423) — ✅ done
 
 **Report (Justus via Marcel, 2026-10-09):** "I need a factory to repair the ship." Not a misread: the crafting list titles

@@ -68,7 +68,7 @@ namespace BlocksBeyondTheStars.Client
             new Entry(InputAction.LootContainer, u => u.OnFoot && u.Player != null && u.Player.NearContainer),
             new Entry(InputAction.FeedCreature, u => u.OnFoot && u.Player != null && u.Player.CanFeedCreature), // #2018: food in hand + a begging animal near
             new Entry(InputAction.DepositToCrate, u => u.OnFoot && u.Player != null && (u.Player.NearCrate || u.Player.CanStowToCargo)),
-            new Entry(InputAction.RepairWreck, u => u.OnFoot && u.Player != null && u.Player.NearWreck),
+            new Entry(InputAction.RepairWreck, u => u.OnFoot && u.Player != null && (u.Player.NearWreck || u.Player.CanRepairOwnShip)), // own ship at its cockpit/console too (#1561 gave R that meaning; pads had no way in)
             new Entry(InputAction.StowVehicle, u => u.OnFoot && u.Player != null && u.Player.NearOwnParkedSpeeder),
             new Entry(InputAction.RecallVehicle, u => u.OnFoot && u.Player != null && u.Player.CanRecallVehicle), // at the cockpit (#1661)
             new Entry(InputAction.PingMarker, u => u.OnFoot), // "look here!" for allies + crew (#1217)

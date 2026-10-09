@@ -233,6 +233,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A wreck is registered for repair (RepairWreck applies — the aim check happens on press).</summary>
         public bool NearWreck => Game != null && Game.Wreck != null;
 
+        /// <summary>At the own ship's cockpit or console while the repair panel is up: RepairWreck repairs the SHIP here
+        /// (#1561). Also what puts "Repair" into the Actions list for pads and touch, which have no R.</summary>
+        public bool CanRepairOwnShip
+            => Game != null && Game.ShipRepair != null && (Game.NearbyStation == "cockpit" || Game.NearbyStation == "console");
+
         // ---- The worn active gear, for the HUD gear strip (#2290) ----
 
         /// <summary>The suit lamp is lit: switched on AND worn (taking it off darkens it; wearing it again relights it).</summary>
@@ -969,7 +974,17 @@ namespace BlocksBeyondTheStars.Client
                 // only sender of the repair intent, and it cannot be clicked while the cursor is locked.
                 if (!RepairOwnShipAtConsole())
                 {
-                    RepairWreckCell();
+                    if (Game.ShipRepair != null && !NearWreck)
+                    {
+                        // The repair panel is up but this is neither a terminal nor a wreck: say where to go. R used to
+                        // do nothing here, which read as "the repair cannot be triggered" (2026-10-09).
+                        Game.ShowMessage(Game.Localizer?.Get("ui.shiprepair.go_to_console")
+                            ?? "To repair, stand at the cockpit or the ship console inside your ship.");
+                    }
+                    else
+                    {
+                        RepairWreckCell();
+                    }
                 }
             }
 
@@ -2039,12 +2054,7 @@ namespace BlocksBeyondTheStars.Client
         /// Returns false when nothing applies, so R keeps its wreck meaning everywhere else (#1561).</summary>
         private bool RepairOwnShipAtConsole()
         {
-            if (Game?.Network == null || Game.ShipRepair is not { NeedsRepair: true })
-            {
-                return false;
-            }
-
-            if (Game.NearbyStation != "cockpit" && Game.NearbyStation != "console")
+            if (Game?.Network == null || !CanRepairOwnShip)
             {
                 return false;
             }
