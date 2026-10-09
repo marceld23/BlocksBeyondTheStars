@@ -12,8 +12,8 @@
 # SHARDED TEST MATRIX (#716): the server suite (tests/BlocksBeyondTheStars.Tests) is CPU-bound and already
 # scales ~perfectly with cores in-process (xunit.runner.json pins maxParallelThreads 4 because of the
 # WorldGenerator lock convoy, #536; the runner has 4 vCPUs) — so the only way to go faster is more runners.
-# Six of them since #1254: the repo is public, so ubuntu-latest minutes are not billed, and the only
-# real cost of another shard is one more copy of the ~90 s build.
+# Ten of them since 2026-10-09 (four → six in #1254): the repo is public, so ubuntu-latest minutes are
+# not billed, and the only real cost of another shard is one more copy of the ~100 s build.
 # scripts/partition-tests.py deterministically packs test CLASSES onto shards (tier-aware weights from
 # real trx data: scripts/test-shard-weights.json + test-shard-weights-slow.json) and emits each shard's
 # --filter. Shard 1 additionally runs the small Client.Tests suite (~11 s) and a partition-completeness
@@ -73,10 +73,12 @@ jobs:
         # The ONE place the shard count lives: `strategy.job-total` hands it to partition-tests.py
         # below, so the matrix and the packer can no longer disagree (a mismatch would silently drop
         # a shard's worth of tests — `verify` only checks that each test maps to exactly one of the N
-        # filters it was ASKED about). Six is where more runners stop paying: the fast tier is ~1100 s
-        # of test wall clock in total against ~90 s of fixed checkout/restore/build overhead per shard,
-        # so 6 lands at ~4:30 while 8 would spend 40 % of every job rebuilding the same assembly.
-        shard: [1, 2, 3, 4, 5, 6]
+        # filters it was ASKED about). Ten since 2026-10-09: the fast tier has grown to ~14 100 s of
+        # predicted test wall clock (weights of 2026-10-07; 2 549 s in August), against ~100 s of fixed
+        # checkout/restore/build per shard. Six shards carried ~2 350 s each — a 10–12 min tail on a normal
+        # runner, 14–16 min on a slow one, where the per-test 120 s guardrail started tripping on queue and
+        # lock waits. Ten carry ~1 400 s each (≈ 7–8 min); twelve would only buy one more minute.
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - uses: actions/checkout@v5
 

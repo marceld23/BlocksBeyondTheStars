@@ -18,8 +18,9 @@
 # SHARDED TEST MATRIX (#716): the server suite is CPU-bound and already scales ~perfectly with cores
 # (at maxParallelThreads 4 on the 4-vCPU runner the summed test time IS the ~11 min wall the PR gate
 # used to spend). More in-process threads would gain nothing (no more cores; xunit.runner.json pins 4
-# because of the WorldGenerator lock convoy, #536) — so the suite fans out over 6 runners instead,
-# cutting the test step to ~3 min. The matrix itself lives in the reusable .github/workflows/tests.yml
+# because of the WorldGenerator lock convoy, #536) — so the suite fans out over 10 runners instead
+# (six until 2026-10-09; the fast tier is ~14 100 test-seconds now), a test step of ~5–6 min per shard.
+# The matrix itself lives in the reusable .github/workflows/tests.yml
 # (#1067) — shared with release.yml's gate, so the two cannot drift — and is called by `build-test`
 # below with the tier/-warnaserror/guardrail settings this workflow wants. Branch protection requires
 # the `tests-passed` fan-in job, NOT the matrix jobs (matrix job names carry the shard index and a
