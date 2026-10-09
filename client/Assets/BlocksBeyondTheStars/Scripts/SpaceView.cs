@@ -283,7 +283,8 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<string> _entityRemove = new List<string>();
 
         // Other players sharing this space instance, drawn as a ship or a floating EVA suit (R2 visibility).
-        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; public int HullRgb = -1; public string Name = string.Empty; public double LastSeen; public ParticleSystem Plume; }
+        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; public int HullRgb = -1; public string Name = string.Empty; public double LastSeen; public ParticleSystem Plume; public bool Parked; public bool PlumesOff; }
+        private Vector3 _launchOffset; // #2440: where this launch rises (beside the ships already out here)
         private readonly Dictionary<string, RemoteAvatar> _remotePlayers = new Dictionary<string, RemoteAvatar>();
         private readonly HashSet<string> _remoteSeen = new HashSet<string>();
         private readonly List<string> _remoteRemove = new List<string>();
@@ -1318,7 +1319,7 @@ namespace BlocksBeyondTheStars.Client
             float y = Mathf.Lerp(-40f, 0f, ease);
             if (_ship != null)
             {
-                _ship.transform.localPosition = new Vector3(0f, y, 0f);
+                _ship.transform.localPosition = new Vector3(_launchOffset.x, y, _launchOffset.z); // #2440: beside the others
                 _ship.transform.localRotation = Quaternion.identity;
             }
 
@@ -3620,6 +3621,13 @@ namespace BlocksBeyondTheStars.Client
                 _ship.transform.localRotation = Quaternion.Euler(0f, _yaw, 0f);
             }
 
+            // #2440: a launch into an orbit that already holds other ships starts a few units to the side of them — the
+            // server hands the offset on the resume fields — so two friends lifting off together no longer sit inside each
+            // other at the launch point. The take-off sequence rises along that offset column.
+            _launchOffset = !Game.SpaceSkipLaunch && Game.SpaceHasResume
+                ? new Vector3(Game.SpaceResumePos.x, 0f, Game.SpaceResumePos.z)
+                : Vector3.zero;
+
             // React to server-reported hull/shield damage (collisions, enemy fire) with a flash + shake,
             // and to ship destruction with an explosion burst at the hull.
             if (Game.Network != null && !_combatSubscribed)
@@ -5001,6 +5009,7 @@ namespace BlocksBeyondTheStars.Client
                             Destroy(av.Ship);
                             vox.transform.localScale = Vector3.one * FlightShipScale; // same compact flight scale as the own ship
                             av.Ship = vox;
+                            av.PlumesOff = false; // #2431: a new hull brings new plumes — the parked state is re-applied below
                             // #2157/#2162: a plume on each of their engines (it used to sit on their rear door).
                             av.Plume = null;
                             foreach (var (exLocal, exSize) in ShipMeshBuilder.ExhaustPoints(Game.Content, rd))
@@ -5022,6 +5031,21 @@ namespace BlocksBeyondTheStars.Client
                     if (av.HullMat != null)
                     {
                         av.HullMat.color = ShaderColor.Srgb(Rgb(hullRgb)); // their chosen hull colour (item 32)
+                    }
+
+                    // #2431: a parked ship (its pilot walks inside) keeps its hull but cuts its engines — the plumes go out,
+                    // and the nameplate says so. Re-applied when the hull was just swapped for the voxel design, whose
+                    // plumes are new particle systems.
+                    av.Parked = rp.Parked;
+                    bool plumesOff = rp.Parked && !rp.Eva;
+                    if (plumesOff != av.PlumesOff)
+                    {
+                        av.PlumesOff = plumesOff;
+                        foreach (var ps in av.Ship.GetComponentsInChildren<ParticleSystem>(true))
+                        {
+                            var emission = ps.emission;
+                            emission.enabled = !plumesOff;
+                        }
                     }
                 }
             }
@@ -6049,7 +6073,8 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 // ~2 m above the hull clears both the half-scale flight ship and a floating EVA suit.
-                labels.World(Camera, av.Root.transform.position + Vector3.up * 2f, av.Name, UiKit.TextCol, false, 90f, 140f);
+                string plate = av.Parked ? av.Name + " · " + Loc("ui.space.parked", "parked") : av.Name; // #2431: engines off, pilot inside
+                labels.World(Camera, av.Root.transform.position + Vector3.up * 2f, plate, UiKit.TextCol, false, 90f, 140f);
             }
         }
 

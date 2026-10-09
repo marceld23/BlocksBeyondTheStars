@@ -297,6 +297,14 @@ public sealed class GameRules
         _ => 0f,
     };
 
+    /// <summary>Whether the suit battery drains at all (#2432): powered tools, the beam, the teleporter, the jetpack and
+    /// the cloak all spend suit energy — in Creative/Sandbox none of them does, like oxygen and hunger, and the server
+    /// keeps the bar at the worn battery's maximum. Honours the per-player mode override (#1121).</summary>
+    public bool SuitEnergyDrains => SuitEnergyDrainsFor(PlayerModeOverride.None);
+
+    /// <summary>Per-player twin of <see cref="SuitEnergyDrains"/>.</summary>
+    public bool SuitEnergyDrainsFor(PlayerModeOverride over) => ModeFor(over) != GameMode.Creative;
+
     /// <summary>Whether the player's hunger drains given the mode and setting.</summary>
     public bool HungerEnabled => HungerEnabledFor(PlayerModeOverride.None);
 

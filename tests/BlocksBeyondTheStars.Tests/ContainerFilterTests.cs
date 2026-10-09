@@ -116,7 +116,7 @@ public sealed class ContainerFilterTests : IDisposable
     }
 
     [Fact]
-    public void SetFilter_DropsUnknownAndNonStashableKeys()
+    public void SetFilter_DropsUnknownKeys_KeepsToolsAndFoodSinceTheCrateScreen()
     {
         var server = Started(out var repo);
         using (repo)
@@ -129,13 +129,13 @@ public sealed class ContainerFilterTests : IDisposable
             server.PlaceBlock("Builder", 1, 200, 0, "crate");
             var crate = server.Containers.First(c => c.Kind == "crate");
 
-            // "machete" is a tool (never stashed → pointless on a whitelist), "no_such_item" doesn't exist,
-            // "stone" is a block (stashable since #1264, so it stays), and the dyed key must be stored
-            // stripped to its base.
+            // "no_such_item" doesn't exist and is dropped; "machete" is a tool — since the crate screen (#2436) a tool
+            // crate is a valid wish, so it stays; "stone" is a block (stashable since #1264), and the dyed key must be
+            // stored stripped to its base.
             server.SetContainerFilterForTest(session, crate.Id, new[] { "iron_ore", "machete", "no_such_item", "stone", "copper_ore#tff0000" });
 
             var filter = server.Containers.First(c => c.Id == crate.Id).Filter;
-            Assert.Equal(new[] { "copper_ore", "iron_ore", "stone" }, filter.OrderBy(k => k).ToArray());
+            Assert.Equal(new[] { "copper_ore", "iron_ore", "machete", "stone" }, filter.OrderBy(k => k).ToArray());
         }
     }
 

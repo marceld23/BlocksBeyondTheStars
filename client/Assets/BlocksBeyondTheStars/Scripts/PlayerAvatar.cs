@@ -152,6 +152,10 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _seated;     // sit pose (#806): thighs forward, knees bent — set from the presence flag
         private bool _lying;      // #1869: asleep in bed — limbs straight and still (the caller lays the root flat)
+        private bool _crouched;   // #2435: the squat — thighs forward, knees deep, arms down (the caller lowers the root)
+        private float _crouchBlend; // 0 = standing, 1 = fully squatted — eased so a remote crouch does not snap
+        private float _lookPitch;   // #2434: the look pitch (degrees, up negative) the head nods to
+        private float _headPitch;   // the smoothed nod actually applied
 
         // #2193: climbing a wall or a ladder — the caller turns the root to face the wall. Strain (0..1), the slide and
         // the pull-up are known for the local player only; a remote climber shows the plain climb.
@@ -524,6 +528,20 @@ namespace BlocksBeyondTheStars.Client
                 PoseClimb(dt, vy, speed, t, out armL, out armR, out elbowL, out elbowR, out legL, out legR, out kneeL, out kneeR);
                 headYaw = 0f;
             }
+            else if (_crouched && !airborne)
+            {
+                // #2435: the squat — thighs well forward, knees deep, the arms hanging a little in front. A sneaking
+                // player still walks, so the walk swing rides on top at a smaller amplitude; the caller lowers the root
+                // by CrouchDrop so the feet stay on the floor.
+                float walk = Mathf.Sin(_walkPhase) * Mathf.Lerp(0f, 14f, moving);
+                legL = -70f + walk;
+                legR = -70f - walk;
+                kneeL = kneeR = 95f;
+                armL = -18f - walk * 0.5f;
+                armR = -18f + walk * 0.5f;
+                elbowL = elbowR = 30f;
+                headYaw = idle ? Mathf.Sin(t * 0.5f) * 9f : 0f;
+            }
             else if (_seated)
             {
                 // Sitting on a chair (#806): thighs forward, knees bent, hands resting toward the lap,
@@ -603,8 +621,31 @@ namespace BlocksBeyondTheStars.Client
             if (_elbowR != null) _elbowR.localRotation = Quaternion.Euler(elbowR, 0f, 0f);
             if (_kneeL != null) _kneeL.localRotation = Quaternion.Euler(-kneeL, 0f, 0f); // bends the lower leg back
             if (_kneeR != null) _kneeR.localRotation = Quaternion.Euler(-kneeR, 0f, 0f);
-            if (_head != null) _head.localRotation = Quaternion.Euler(0f, headYaw, 0f);
+            // #2434: the head nods to where its player looks (clamped — a head does not fold onto the chest), eased so the
+            // 10 Hz presence steps read as a glance, not a twitch; the idle look-around keeps riding on the yaw.
+            float wantPitch = _lying ? 0f : Mathf.Clamp(_lookPitch, -LookPitchLimit, LookPitchLimit);
+            _headPitch = dt > 0f ? Mathf.Lerp(_headPitch, wantPitch, 1f - Mathf.Exp(-dt * 10f)) : wantPitch;
+            _crouchBlend = dt > 0f ? Mathf.MoveTowards(_crouchBlend, _crouched ? 1f : 0f, dt * 6f) : (_crouched ? 1f : 0f);
+            if (_head != null) _head.localRotation = Quaternion.Euler(_headPitch, headYaw, 0f);
         }
+
+        /// <summary>#2435: how far the caller lowers the avatar root while <see cref="CrouchBlend"/> is 1 — the folded legs
+        /// are this much shorter than standing ones, so the feet stay on the floor instead of hanging in the air.</summary>
+        public const float CrouchDrop = 0.55f;
+
+        /// <summary>#2434: the head nods at most this far up or down.</summary>
+        public const float LookPitchLimit = 60f;
+
+        /// <summary>#2435: 0 = standing, 1 = fully squatted — the eased blend the caller scales <see cref="CrouchDrop"/> by.</summary>
+        public float CrouchBlend => _crouchBlend;
+
+        /// <summary>Poses the avatar squatting (#2435) — thighs forward, knees deep. Driven from the presence broadcast for
+        /// remotes and from the local crouch for the own third-person view; the caller lowers the root by
+        /// <see cref="CrouchDrop"/> × <see cref="CrouchBlend"/>.</summary>
+        public void SetCrouched(bool crouched) => _crouched = crouched;
+
+        /// <summary>#2434: where the player looks (degrees, up negative like the camera pitch) — the head nods to it.</summary>
+        public void SetLookPitch(float pitch) => _lookPitch = float.IsNaN(pitch) ? 0f : pitch;
 
         /// <summary>Poses the avatar seated (#806) — thighs forward, knees bent. Driven from the presence
         /// broadcast for remotes; the caller also lowers the avatar so the pelvis meets the seat.</summary>

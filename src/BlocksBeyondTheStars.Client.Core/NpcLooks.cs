@@ -39,11 +39,13 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class NpcLooks
     {
-        /// <summary>Share (percent) of civilians without facial hair.</summary>
-        public const int NonePercent = 40;
+        /// <summary>Share (percent) of civilians without facial hair. 40 after #2123 ("at least some without a beard");
+        /// 65 since #2433 (Justus: "not ALL of them — only some!") — a beard is now the exception, about one face in three,
+        /// and a child who counts a moustache as a beard still sees a mostly clean-shaven crowd.</summary>
+        public const int NonePercent = 65;
 
         /// <summary>The facial hair of the civilian with face seed <paramref name="seed"/>; androids have none (they get a
-        /// speaker grille instead). About 40 % bare, the rest spread evenly over moustache, goatee, beard and full beard.</summary>
+        /// speaker grille instead). About 65 % bare, the rest spread evenly over moustache, goatee, beard and full beard.</summary>
         public static FacialHair FacialHairFor(int seed, bool robot)
         {
             if (robot)
@@ -57,7 +59,7 @@ namespace BlocksBeyondTheStars.Client
                 return FacialHair.None;
             }
 
-            int step = (100 - NonePercent) / 4; // 15 each
+            int step = (100 - NonePercent) / 4; // about 9 each (the remainder of the integer division stays a full beard)
             roll -= NonePercent;
             return roll < step ? FacialHair.Moustache
                 : roll < 2 * step ? FacialHair.Goatee

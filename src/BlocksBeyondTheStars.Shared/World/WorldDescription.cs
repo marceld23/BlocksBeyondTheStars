@@ -195,8 +195,17 @@ public sealed class WorldDescription
     /// #2018 big herds + the begging trait, #2024 the toxic-world class, #2038 the fruit trees, #2062 Toxica-Maxima,
     /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant, #2073 Arena Nigra, #2104 Justus' package:
     /// oil pockets, the worm body plan, the gas giant, #2125 the intercity monorail, #2166 the abandoned monorail stations,
-    /// #2331 the spectacle terrain package, #2370/#2371 the full-height oil pockets and the oil seeps).</summary>
-    public const int CurrentTerrainGeneration = 22;
+    /// #2331 the spectacle terrain package, #2370/#2371 the full-height oil pockets and the oil seeps, #2437 a gas giant in
+    /// almost every system).</summary>
+    public const int CurrentTerrainGeneration = 23;
+
+    /// <summary>The generation from which almost every star system has a gas giant (#2437, 2026-10): the outermost planet of
+    /// every system with at least two planets becomes one in about 85 % of systems, and a system of four planets or more
+    /// hangs a second one on the orbit inside with about 35 %; the start system, a one-planet system, the galaxy's first
+    /// breathable planet and the once-per-galaxy landmarks are never retyped. Generations 18–22 keep the old roll (a lone
+    /// giant always, one other system in six) — the galaxy is re-derived from the seed on every start, so a saved world's
+    /// pinned generation is what keeps its planets where its player left them.</summary>
+    public const int GasGiantPerSystemGeneration = 23;
 
     /// <summary>The generation of the oil you can find (#2377, 2026-10): the oil pockets reach the half-height they were
     /// designed with (#2370 — below this generation the half-height read hash bits the pocket's own chance roll had already

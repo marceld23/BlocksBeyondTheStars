@@ -292,44 +292,93 @@ public sealed class UniverseGenerator
             return;
         }
 
+        // #2437 (generation 23): a gas giant in almost every system — Justus flew his whole galaxy and found none, because
+        // the one-in-six roll had hit only the unnamed catalogue system he skipped. Every system with room for one now
+        // puts a giant on its outermost orbit with a high chance, and a big system may hang a second one on the orbit
+        // inside it. A galaxy pinned below generation 23 keeps the old roll bit for bit.
+        bool perSystem = _desc.TerrainGeneration >= WorldDescription.GasGiantPerSystemGeneration;
+
         for (int si = 1; si < galaxy.Systems.Count; si++)
         {
             var system = galaxy.Systems[si];
             var archetype = _desc.SystemVariance ? SystemArchetypes.ForIndex(_seed, si) : SystemArchetype.Standard;
-            CelestialBody? planet = null;
             if (archetype == SystemArchetype.LoneGiant)
             {
-                planet = system.Bodies.Find(b => b.Kind == CelestialKind.Planet);
-            }
-            else
-            {
-                ulong h = Noise.Hash(_seed ^ 0x6A5, si, 0, 0x2112);
-                if ((h & 0xFF) < (ulong)GasGiantOuterOrbitChance)
-                {
-                    planet = system.Bodies.FindLast(b => b.Kind == CelestialKind.Planet); // the outermost orbit
-                }
+                MakeGasGiant(system.Bodies.Find(b => b.Kind == CelestialKind.Planet), firstBreathable, si);
+                continue;
             }
 
-            if (planet is null || ReferenceEquals(planet, firstBreathable)
-                || _content.GetPlanet(planet.PlanetType ?? string.Empty)?.OncePerGalaxy == true)
+            var planets = system.Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
+            if (!perSystem)
+            {
+                ulong h = Noise.Hash(_seed ^ 0x6A5, si, 0, 0x2112);
+                if ((h & 0xFF) < (ulong)GasGiantOuterOrbitChance && planets.Count > 0)
+                {
+                    MakeGasGiant(planets[planets.Count - 1], firstBreathable, si); // the outermost orbit
+                }
+
+                continue;
+            }
+
+            // Generation 23: a system of one planet keeps it (there has to be a world to land on); from two planets up the
+            // outermost orbit rolls high, and from four planets up the orbit inside it rolls a second giant. The rolls read
+            // their own hash bits, so the ring draw below stays what it was for a giant that would have rolled before.
+            if (planets.Count < GasGiantMinPlanetsPerSystem)
             {
                 continue;
             }
 
-            planet.PlanetType = GasGiantKey;
-            if (planet.RingSeed == 0 && (Noise.Hash(_seed ^ 0x6A5, si, 1, 0x2112) & 0xFF) < (ulong)GasGiantRingChance)
+            if ((Noise.Hash(_seed ^ 0x6A5, si, 3, 0x2437) & 0xFF) < (ulong)GasGiantOuterOrbitChancePerSystem)
             {
-                planet.RingSeed = 1 + (int)(Noise.Hash(_seed ^ 0x6A5, si, 2, 0x2112) % 999_999UL);
+                MakeGasGiant(planets[planets.Count - 1], firstBreathable, si);
             }
+
+            if (planets.Count >= GasGiantSecondMinPlanets
+                && (Noise.Hash(_seed ^ 0x6A5, si, 4, 0x2437) & 0xFF) < (ulong)GasGiantSecondOrbitChance)
+            {
+                MakeGasGiant(planets[planets.Count - 2], firstBreathable, si);
+            }
+        }
+    }
+
+    /// <summary>Retypes <paramref name="planet"/> into the gas giant (and rolls its rings) unless it is the galaxy's first
+    /// breathable planet or a once-per-galaxy landmark — those keep their type whatever the orbit rolled.</summary>
+    private void MakeGasGiant(CelestialBody? planet, CelestialBody? firstBreathable, int si)
+    {
+        if (planet is null || ReferenceEquals(planet, firstBreathable)
+            || planet.PlanetType == GasGiantKey
+            || _content.GetPlanet(planet.PlanetType ?? string.Empty)?.OncePerGalaxy == true)
+        {
+            return;
+        }
+
+        planet.PlanetType = GasGiantKey;
+        if (planet.RingSeed == 0 && (Noise.Hash(_seed ^ 0x6A5, si, 1, 0x2112) & 0xFF) < (ulong)GasGiantRingChance)
+        {
+            planet.RingSeed = 1 + (int)(Noise.Hash(_seed ^ 0x6A5, si, 2, 0x2112) % 999_999UL);
         }
     }
 
     /// <summary>The gas giant's type key (#2112).</summary>
     public const string GasGiantKey = "gas_giant";
 
-    /// <summary>One system in six (of the ones that are not a lone giant) puts a gas giant on its outermost orbit; ~60 % ring.</summary>
+    /// <summary>Generations 18–22: one system in six (of the ones that are not a lone giant) puts a gas giant on its outermost
+    /// orbit; ~60 % ring.</summary>
     private const int GasGiantOuterOrbitChance = 40;  // of 256
     private const int GasGiantRingChance = 154;       // of 256
+
+    /// <summary>Generation 23 (#2437): a system needs this many planets before its outermost orbit may become the gas giant —
+    /// a one-planet system keeps its landable world.</summary>
+    public const int GasGiantMinPlanetsPerSystem = 2;
+
+    /// <summary>Generation 23 (#2437): the outermost orbit of an eligible system becomes the gas giant in about 85 % of systems.</summary>
+    public const int GasGiantOuterOrbitChancePerSystem = 218; // of 256 ≈ 85 %
+
+    /// <summary>Generation 23 (#2437): a system of this many planets or more rolls a second giant on the orbit inside the outermost.</summary>
+    public const int GasGiantSecondMinPlanets = 4;
+
+    /// <summary>Generation 23 (#2437): the second giant's chance, about 35 %.</summary>
+    public const int GasGiantSecondOrbitChance = 90;  // of 256 ≈ 35 %
 
     /// <summary>The landable-asteroid families and their relative frequency (#515). Every non-selectable
     /// "asteroid…" type in planets.json is one, weighted by its <c>spawnWeight</c> — so adding a family is a

@@ -190,9 +190,13 @@ namespace BlocksBeyondTheStars.Client
             var blueprintTool = root.AddComponent<BlueprintToolUi>();
             blueprintTool.Game = boot;
 
-            // Crate stash filter (#1032): opens on E at a storage crate — pick what belongs in it.
+            // Crate stash filter (#1032): opened from the crate screen's button — pick what belongs in it.
             var containerFilter = root.AddComponent<ContainerFilterUi>();
             containerFilter.Game = boot;
+
+            // The crate screen (#2436): opens on E at a storage crate — contents above, backpack below, click to move.
+            var crateUi = root.AddComponent<CrateUi>();
+            crateUi.Game = boot;
 
             // Block-paint editor host (#818): opens when using the paint tool on a placed block.
             var paintTool = root.AddComponent<PaintToolUi>();

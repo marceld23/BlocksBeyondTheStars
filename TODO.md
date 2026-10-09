@@ -24,6 +24,45 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-09 (Layex + Screelit, two-player Sandbox afternoon on v2026.10.10) — epic #2441, branch fix/player-reports-1009 — ✅ done
+
+Twenty-eight F1 rows in one afternoon, triaged into one package (issues #2425–#2441). Everything below shipped in one PR:
+
+- **#2428 lock-marker overflow crash** — `SpaceDistance.Km` multiplied flight units by 10 and cast to `int`; from 2.15e8
+  units the cast gave `int.MinValue` and `Math.Abs` threw out of `LateUpdate`. `Km` now saturates, `Group` never throws,
+  `SpaceDistance.IsPlausible` lets the HUD judge a lock distance; the server drops a `ShipMove` beyond
+  `ShipPoseSanityBound` (100 000 units) and logs the client (30 s per player) — a client gone astray no longer takes
+  every pilot that locks it down with it.
+- **#2429 quit-time NRE** in `SpaceTargetFrame.Hide` — Unity fake-null guards on the target frame + edge marker.
+- **#2430 F1/F2 + chat screenshots upside down since 10.10** — the WebGPU readback rework read the screen capture
+  synchronously without a row flip; `GpuReadback.CaptureScreen` blits mirrored on top-left-origin APIs (D3D/Vulkan/Metal).
+- **#2431 parked ship stays visible** — `OtherPlayersInSpace` lists the ships of pilots walking inside them (from
+  `_inShipInterior`, flagged `NetSpacePlayer.Parked`), the instance stays loaded while one floats, the client cuts the
+  plumes and labels "Name · parked" (`ui.space.parked`, 14 languages).
+- **#2432 Sandbox suit energy** — `GameRules.SuitEnergyDrainsFor` (Creative = false, per-player override honoured); the
+  tick tops the battery up, so every "no energy" refusal is unreachable in Sandbox.
+- **#2433 beards** — `NpcLooks.NonePercent` 40 → 65.
+- **#2434 head pitch / #2435 crouch pose** — `PlayerPresence.Pitch` + `Crouching` (`MoveIntent.Crouching` →
+  `PlayerState.Crouching`), `PlayerAvatar.SetLookPitch` / `SetCrouched` (`CrouchDrop` × eased `CrouchBlend` lowers the
+  root), applied by `RemotePlayers` and by the own third-person avatar.
+- **#2436 crate screen** — E at a crate opens `CrateUi`: crate stacks above, backpack grid below, click = one stack,
+  Shift-click = every stack of that kind; `OpenContainerIntent` / `MoveContainerItemIntent` / `ContainerContents` (tags
+  292–294); the server keeps an open crate's contents fresh (`PlayerSession.OpenContainerId`, `RefreshOpenCrates`);
+  **any category goes in by hand** (`Storable`) and may be named in a filter, the H sweep keeps to loose materials
+  (`Stashable`); the cargo hold already took any item by explicit move.
+- **#2437 gas giants in almost every system (generation 23)** — see WORLD_GENERATION §40; `SystemMapWidget` paints a
+  giant amber and 1.5× big.
+- **#2438 fall-guard teleport on thin blocks** — `BlockShapeFacts.CanEnclosePlayer` makes the guard shape-aware.
+- **#2439 mounted ladder picture rotated 90°** on ±X walls — a quarter-turn yaw before the panel tilt.
+- **#2440 launch offset** — `LaunchOffsetFor(n)` (8, −8, 16, …) rides the resume fields; the take-off rises beside the
+  ships already out there.
+- Docs: USER_MANUAL (crate screen, H/E, crouch, Sandbox energy, gas giants), WORLD_GENERATION §40, README + in-game
+  credits (Layex, Screelit). Tests: `SpaceDistanceTests`, `NpcLooksTests`, `BlockShapeFactsTests`, `GasGiantPerSystemTests`,
+  `SuitEnergyCreativeTests`, `CrateScreenTests`, `PilotVisibilityTests`, `NetCodecTests` golden list.
+- **Still open, need the players:** #2425 (avatar colours + painted face lost for the other player after a ship visit or a
+  death — every path read re-syncs; needs the host's `server.log`), #2426 (Screelit's boat bug, no description), #2427
+  (pilot frozen after two pilots shot the same asteroid — ship or EVA suit?).
+
 ### 🔧 Ship repair: how to trigger it — context-aware panel line, terminal prompt names the key, toast when R is pressed elsewhere, Actions-list entry for pads, status pushed on entering the floating interior (2026-10-09, branch fix/repair-how-to-hints, PR #2424) — ✅ done
 
 **Report (Marcel, 2026-10-09):** "the panel says press R at the console or the cockpit — but how? the button is not

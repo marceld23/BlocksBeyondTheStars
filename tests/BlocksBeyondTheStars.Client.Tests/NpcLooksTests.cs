@@ -57,17 +57,20 @@ public sealed class NpcLooksTests
         }
     }
 
+    /// <summary>#2433: about two thirds clean-shaven (was 40 % after #2123 — Justus asked for "only some" with a beard);
+    /// every style still shows up with a fair share of the remaining third.</summary>
     [Fact]
-    public void AboutFortyPercentAreCleanShaven_AndEveryStyleHasAFairShare()
+    public void AboutTwoThirdsAreCleanShaven_AndEveryStyleHasAFairShare()
     {
         var counts = Seeds().GroupBy(s => NpcLooks.FacialHairFor(s, robot: false)).ToDictionary(g => g.Key, g => g.Count());
         foreach (FacialHair style in Enum.GetValues(typeof(FacialHair)))
         {
             double share = counts.TryGetValue(style, out int n) ? n / (double)Samples : 0.0;
-            Assert.InRange(share, 0.08, 0.50);
+            Assert.InRange(share, 0.06, 0.70);
         }
 
-        Assert.InRange(counts[FacialHair.None] / (double)Samples, 0.36, 0.44);
+        Assert.InRange(counts[FacialHair.None] / (double)Samples, 0.61, 0.69);
+        Assert.Equal(65, NpcLooks.NonePercent);
     }
 
     [Fact]
@@ -78,7 +81,7 @@ public sealed class NpcLooksTests
         var haired = Seeds().Where(s => (s & 0x7) != 0).ToList();
         double baldBare = bald.Count(s => NpcLooks.FacialHairFor(s, robot: false) == FacialHair.None) / (double)bald.Count;
         double hairedBare = haired.Count(s => NpcLooks.FacialHairFor(s, robot: false) == FacialHair.None) / (double)haired.Count;
-        Assert.InRange(baldBare, 0.30, 0.50);
+        Assert.InRange(baldBare, 0.55, 0.75);
         Assert.InRange(Math.Abs(baldBare - hairedBare), 0.0, 0.08);
     }
 }

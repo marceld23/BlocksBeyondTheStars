@@ -60,7 +60,10 @@ public sealed partial class GameServer
         instance.Players.Remove(playerId);
         instance.ShipPoses.Remove(playerId);
         _playerInstance.Remove(playerId);
-        if (instance.Players.Count == 0)
+        // #2431: the instance stays loaded while a parked ship floats in it (its hull structure lives there — the next
+        // pilot to arrive gets it as a "ship_remote" design like any other ship out here). The tick skips an instance
+        // without pilots, and the last pilot's leave tears it down once no parked ship is left (LeaveSpace).
+        if (instance.Players.Count == 0 && !AnyParkedShipIn(instance))
         {
             _spaceInstances.Remove(instanceId); // ShipPosition is saved above; restored on return
         }

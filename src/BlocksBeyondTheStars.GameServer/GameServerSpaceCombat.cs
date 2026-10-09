@@ -812,7 +812,7 @@ public sealed partial class GameServer
             instance.Players.Remove(playerId);
             instance.PilotSims.Remove(playerId); // per-pilot collision state dies with the flight (#955)
             instance.ShipPoses.Remove(playerId);
-            if (instance.Players.Count == 0)
+            if (instance.Players.Count == 0 && !AnyParkedShipIn(instance)) // #2431: a parked ship keeps the instance
             {
                 StashFloatingSalvage(instance); // #1475: uncollected ore outlives the flight
                 PersistSpaceSalvageLedger();    // #2354: a half-carved wreck keeps its state across the teardown
@@ -1802,6 +1802,14 @@ public sealed partial class GameServer
     private void HandleTractorPull(PlayerSession session, TractorPullIntent intent)
         => TractorPull(session.State.PlayerId, intent.TargetEntityId);
 
+    /// <summary>#2428: the farthest a ship pose may lie from the instance origin on any axis. The flight clamp a client
+    /// enforces is the system's reach plus the station hulls — a few thousand units; a hundred thousand leaves every
+    /// legitimate flight room and still cuts off the overflow range (2.1e8 and up) long before the HUD can choke on it.</summary>
+    public const float ShipPoseSanityBound = 100_000f;
+
+    private const double BadPoseLogInterval = 30.0;
+    private readonly Dictionary<string, double> _badPoseLoggedAt = new();
+
     /// <summary>Sets the player's ship position in its space instance (trusted + finite-clamped, like on-foot move).</summary>
     public void ShipMove(string playerId, float x, float y, float z, float yaw = 0f)
     {
@@ -1814,6 +1822,21 @@ public sealed partial class GameServer
         if (!float.IsFinite(x) || !float.IsFinite(y) || !float.IsFinite(z) || !float.IsFinite(yaw))
         {
             return; // ignore garbage
+        }
+
+        // #2428: a pose is relayed to every pilot in the instance, and a client gone astray (an overflow, a hack) used to
+        // push a position like 5e8 to all of them — everyone who locked that ship then crashed on the distance readout.
+        // The flight scene is a few thousand units across; anything past the sanity bound is dropped and logged once in
+        // a while per player, so the server log names the client that spins.
+        if (System.Math.Abs(x) > ShipPoseSanityBound || System.Math.Abs(y) > ShipPoseSanityBound || System.Math.Abs(z) > ShipPoseSanityBound)
+        {
+            if (!_badPoseLoggedAt.TryGetValue(playerId, out double at) || _uptime - at > BadPoseLogInterval)
+            {
+                _badPoseLoggedAt[playerId] = _uptime;
+                _log.Warn($"Rejected ship pose of '{playerId}' at ({x:0}, {y:0}, {z:0}) — beyond the {ShipPoseSanityBound:0} unit sanity bound of instance '{instanceId}'.");
+            }
+
+            return;
         }
 
         var pos = new Vector3f(x, y, z);
@@ -2500,10 +2523,29 @@ public sealed partial class GameServer
         Yaw = e.Yaw,                // #2357: the raider's heading for its voxel hull
     };
 
+    /// <summary>#2440: how far to the side the n-th ship launches into an orbit that already holds <paramref name="shipsAhead"/>
+    /// others — 8 units, alternating sides (8, −8, 16, −16 …), so two friends lifting off together never sit inside each
+    /// other at the launch point. 0 for the first ship, which keeps the classic launch column.</summary>
+    public static float LaunchOffsetFor(int shipsAhead)
+        => shipsAhead <= 0 ? 0f : (shipsAhead % 2 == 1 ? 1f : -1f) * 8f * ((shipsAhead + 1) / 2);
+
     private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false, bool hyperjump = false,
         SpacePlayerPose? resume = null, bool wormhole = false)
     {
         var (systemName, bodyName) = LocationNamesFor(session.CurrentLocationId); // #1565: the flight names where it is
+
+        // #2440: a fresh launch (no resume pose) into an orbit with other ships rises beside them — the offset rides the
+        // resume fields, which the flight view reads as a launch column when SkipLaunch is off. Parked ships count too.
+        float launchX = 0f;
+        bool launchBeside = false;
+        if (!resume.HasValue && !skipLaunch)
+        {
+            int ahead = instance.Players.Count(p => p != session.State.PlayerId)
+                + _inShipInterior.Count(kv => kv.Key != session.State.PlayerId && kv.Value.InstanceId == instance.Id && !kv.Value.Ship.Eva);
+            launchX = LaunchOffsetFor(ahead);
+            launchBeside = launchX != 0f;
+        }
+
         Send(session, new SpaceState
         {
             InstanceId = instance.Id,
@@ -2511,8 +2553,8 @@ public sealed partial class GameServer
             Entities = instance.Entities.Select(ToNet).ToArray(),
             SkipLaunch = skipLaunch,
             Hyperjump = hyperjump,
-            HasResumePose = resume.HasValue, // #2118: where the ship floated before the flight view closed
-            ResumeX = resume?.Pos.X ?? 0f,
+            HasResumePose = resume.HasValue || launchBeside, // #2118: where the ship floated before the flight view closed; #2440: the launch column
+            ResumeX = resume?.Pos.X ?? launchX,
             ResumeY = resume?.Pos.Y ?? 0f,
             ResumeZ = resume?.Pos.Z ?? 0f,
             ResumeYaw = resume?.Yaw ?? 0f,
@@ -2562,7 +2604,52 @@ public sealed partial class GameServer
             });
         }
 
+        // #2431: the ships of pilots who are walking inside them float parked where they were left — they used to vanish
+        // for everyone the moment the pilot left the helm (the walkabout takes the player out of the instance). The parked
+        // pose is the one the return trip uses (#2118), so the hull sits exactly where its owner will take the helm again.
+        foreach (var kv in _inShipInterior)
+        {
+            if (kv.Key == recipientId || kv.Value.InstanceId != instance.Id || kv.Value.Ship.Eva)
+            {
+                continue;
+            }
+
+            var owner = FindSessionByPlayerId(kv.Key);
+            if (owner is not { Joined: true })
+            {
+                continue; // a walkabout whose owner is gone leaves no ship behind
+            }
+
+            (others ??= new List<NetSpacePlayer>()).Add(new NetSpacePlayer
+            {
+                PlayerId = kv.Key,
+                Name = owner.State.Name,
+                X = kv.Value.Ship.Pos.X,
+                Y = kv.Value.Ship.Pos.Y,
+                Z = kv.Value.Ship.Pos.Z,
+                Yaw = kv.Value.Ship.Yaw,
+                Eva = false,
+                Hull = owner.HullColor,
+                Parked = true,
+            });
+        }
+
         return others is null ? System.Array.Empty<NetSpacePlayer>() : others.ToArray();
+    }
+
+    /// <summary>#2431: whether any joined pilot's ship floats parked in <paramref name="instance"/> — such an instance is
+    /// kept loaded without pilots, so the hull is still there (and still seen) when the next pilot arrives.</summary>
+    private bool AnyParkedShipIn(SpaceInstance instance)
+    {
+        foreach (var kv in _inShipInterior)
+        {
+            if (kv.Value.InstanceId == instance.Id && !kv.Value.Ship.Eva && FindSessionByPlayerId(kv.Key) is { Joined: true })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void BroadcastSpaceState(SpaceInstance instance)

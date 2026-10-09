@@ -90,11 +90,13 @@ namespace BlocksBeyondTheStars.Client
             rootGo.SetActive(false);
         }
 
-        public bool Visible => _root.gameObject.activeSelf;
+        public bool Visible => _root != null && _root.gameObject.activeSelf;
 
         public void Hide()
         {
-            if (_root.gameObject.activeSelf)
+            // #2429: during a scene or application teardown the overlay canvas is destroyed before SpaceView.OnDestroy
+            // resets the lock — a destroyed RectTransform's gameObject throws, so the Unity fake-null check comes first.
+            if (_root != null && _root.gameObject.activeSelf)
             {
                 _root.gameObject.SetActive(false);
             }
@@ -105,6 +107,11 @@ namespace BlocksBeyondTheStars.Client
         /// scanner's system ping, which has no target).</summary>
         public void Place(Vector2 anchored, float half, TargetFrameShape shape, Color color, float thickness, bool brackets = true, bool mark = false)
         {
+            if (_root == null)
+            {
+                return; // #2429: the overlay is already torn down
+            }
+
             if (!_root.gameObject.activeSelf)
             {
                 _root.gameObject.SetActive(true);
@@ -291,7 +298,9 @@ namespace BlocksBeyondTheStars.Client
 
         public void Hide()
         {
-            if (_root.gameObject.activeSelf)
+            // #2429: during a scene or application teardown the overlay canvas is destroyed before SpaceView.OnDestroy
+            // resets the lock — a destroyed RectTransform's gameObject throws, so the Unity fake-null check comes first.
+            if (_root != null && _root.gameObject.activeSelf)
             {
                 _root.gameObject.SetActive(false);
             }
@@ -301,6 +310,11 @@ namespace BlocksBeyondTheStars.Client
         /// (counter-clockwise from screen-right). <paramref name="scale"/> pulses it.</summary>
         public void Place(Vector2 anchored, float angleDeg, Color color, bool hollow, bool doubled, float scale = 1f)
         {
+            if (_root == null)
+            {
+                return; // #2429: the overlay is already torn down
+            }
+
             if (!_root.gameObject.activeSelf)
             {
                 _root.gameObject.SetActive(true);
@@ -336,6 +350,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Shows only the label at an on-screen point (the waypoint while it is in view), no arrow.</summary>
         public void PlacePoint(Vector2 anchored, Color color)
         {
+            if (_root == null)
+            {
+                return; // #2429: the overlay is already torn down
+            }
+
             if (!_root.gameObject.activeSelf)
             {
                 _root.gameObject.SetActive(true);

@@ -591,6 +591,12 @@ public static class NetCodec
         // #2319 the energy rope gun: the player let go of the rope. No protocol bump — the anchor rides additive
         // presence fields, and an older server drops the unknown tag.
         Register(291, typeof(ReleaseRopeIntent));            // Client -> Server
+
+        // #2436 the crate screen: open a crate, move one kind of item, and the crate's contents back. No protocol bump —
+        // an older server drops the unknown tags (and never sends the contents, so an old-server crate stays H/G only).
+        Register(292, typeof(OpenContainerIntent));          // Client -> Server
+        Register(293, typeof(MoveContainerItemIntent));      // Client -> Server
+        Register(294, typeof(ContainerContents));            // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

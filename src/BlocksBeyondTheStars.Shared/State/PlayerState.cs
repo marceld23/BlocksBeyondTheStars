@@ -202,6 +202,10 @@ public sealed class PlayerState
     /// broadcast so other players see a climbing avatar. Not persisted.</summary>
     public bool Climbing { get; set; }
 
+    /// <summary>Crouching / sneaking (#2435, client-driven) — pure pose state mirrored into the presence broadcast so
+    /// other players see a squatting avatar. The crouch itself (capsule, speed, eye height) is the client's. Not persisted.</summary>
+    public bool Crouching { get; set; }
+
     /// <summary>Where the energy rope gun's rope is stuck right now (#2319), or null — set by an accepted shot, cleared by
     /// the release intent, a hotbar change, a respawn, or any state the rope cannot hold in (aboard, seated, a train,
     /// space). Mirrored into the presence so other players see the rope; the pull itself is the client's movement.

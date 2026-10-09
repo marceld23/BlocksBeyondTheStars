@@ -2437,3 +2437,29 @@ Tests: `OilSeepsWorldTests` (the half-height on both sides of the gate, generati
 three in eight seeps, an unbroken chimney with a puddle and nothing growing on it, no seep below 22, the echo query
 against the pocket function, the gas giant), `OilEchoTests` (the scan finds the nearest pocket, a pocket pumped dry at
 its heart falls silent, the real scan pings, no echo on a dead world, the bio-lubricant recipe), golden `jungle-gen22`.
+
+## 40. Generation 23 — a gas giant in almost every system (#2437, 2026-10-09)
+
+Justus flew his whole 12-system galaxy and reported "no gas planet anywhere". He was almost right: generations 18–22
+placed a giant in every Lone Giant system and on the outermost orbit of any other system with a 40/256 roll — about one
+system in four, and his seed had rolled no Lone Giant and a single outer-orbit hit, hidden in the unnamed catalogue
+system he skipped. About 4 % of galaxies had none at all.
+
+`WorldDescription.CurrentTerrainGeneration` is **23** (`GasGiantPerSystemGeneration`). `UniverseGenerator.ApplyGasGiants`
+keeps the old roll for a description below 23 (the galaxy is re-derived from the seed on every start, so a saved world's
+pinned generation keeps its planets), and from 23 on:
+
+- the start system never changes;
+- a Lone Giant keeps its giant exactly as before;
+- every other system with at least `GasGiantMinPlanetsPerSystem` (2) planets puts a giant on its **outermost orbit** with
+  `GasGiantOuterOrbitChancePerSystem` = 218/256 ≈ 85 %;
+- a system with at least `GasGiantSecondMinPlanets` (4) planets additionally rolls its **second-outermost orbit** with
+  `GasGiantSecondOrbitChance` = 90/256 ≈ 35 %;
+- the galaxy's first breathable planet and the once-per-galaxy landmarks are never retyped (`MakeGasGiant` skips them);
+- rings as before (`GasGiantRingChance`, about three in five).
+
+The new rolls read their own hash salts (`Noise.Hash(seed ^ 0x6A5, si, 3|4, 0x2437)`), so the ring draw of a giant that
+would have rolled under the old rule is unchanged. `GasGiantPerSystemTests` pins the structure (only the two outer orbits,
+a second giant only from four planets, one-planet systems untouched, ≥ 70 % of eligible systems with a giant) and that a
+generation-22 description still obeys the old rule. The system chart paints a gas giant in its own amber and half again
+as big as the other dots (`SystemMapWidget.GasGiantColor` / `DotScale`), visited or not.

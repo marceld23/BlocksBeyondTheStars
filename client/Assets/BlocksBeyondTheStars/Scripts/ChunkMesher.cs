@@ -1053,9 +1053,14 @@ namespace BlocksBeyondTheStars.Client
                     int ladUp = ladShape == (int)BlockShape.Panel ? ShapeCode.UpFaceOf(ladDesc)
                         : ladShape == (int)BlockShape.Post ? -1
                         : LadderMountUpFace(content, worldBlock, wx, wy, wz);
+                    // #2439: the plate's picture is projected top-down (u = x, v = z) and rides the tilt. Tilting onto a ±X
+                    // wall (up-faces 2 and 3) maps the picture's u axis onto world Y, so the rails lay flat and the rungs
+                    // stood up on those two walls; a quarter turn before the tilt puts the rungs back across. The ±Z walls
+                    // tilt about X and keep v vertical — they were fine.
+                    int ladYaw = ladUp == 2 || ladUp == 3 ? 1 : 0;
                     AddShapedBlock(verts, tris, dumpTris, dumpVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         ladUp >= 2 ? (int)BlockShape.Panel : (int)BlockShape.Post,
-                        0, ladUp >= 2 ? ladUp : ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
+                        ladYaw, ladUp >= 2 ? ladUp : ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
                         matR, matG, emission, Color.black, 0f, ladSky, ladBl, ladBlDir,
                         slots: ShapeFaceTextures.SlotsFor(content, id), slotAtlas: atlas);
                     continue;

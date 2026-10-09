@@ -2181,8 +2181,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // A storage crate you're aiming at → choose what belongs in it (#1032). Matched by the
-            // container list, not the block alone, so a crate block that hasn't registered yet no-ops.
+            // A storage crate you're aiming at → the crate screen (#2436): its contents above, your backpack below, click
+            // to move a stack; the filter picker (#1032) is a button on it. Matched by the container list, not the block
+            // alone, so a crate block that hasn't registered yet no-ops.
             if (AimBlock(out var crateHit, out _)
                 && Game.Content?.BlockById(Game.World.GetBlock(crateHit.x, crateHit.y, crateHit.z))?.Key is "crate" or "wood_crate")
             {
@@ -2190,7 +2191,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (c.Kind == "crate" && (int)c.X == crateHit.x && (int)c.Y == crateHit.y && (int)c.Z == crateHit.z)
                     {
-                        ContainerFilterUi.Instance?.Open(c.Id, c.Filter);
+                        CrateUi.Instance?.Open(c.Id, c.Filter);
                         return;
                     }
                 }
@@ -2714,8 +2715,8 @@ namespace BlocksBeyondTheStars.Client
             // it (the eye check is what stops a block placed at head height from x-raying the world, #1460).
             // Only blocks that really collide count — walking through grass or past a wall torch is not being stuck.
             float eyeHeight = _crouched ? CrouchEye.y : FirstPersonEye.y;
-            bool embedded = IsCollidingKey(BlockKeyAt(transform.position + Vector3.up * 0.9f))
-                || IsCollidingKey(BlockKeyAt(transform.position + Vector3.up * eyeHeight));
+            bool embedded = EnclosedAt(transform.position + Vector3.up * 0.9f)
+                || EnclosedAt(transform.position + Vector3.up * eyeHeight);
             if (embedded)
             {
                 if (++_embeddedFrames >= EmbeddedFramesBeforeRescue && _hasSafeGround)
@@ -5465,6 +5466,19 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Avatar.SetClimbing(_climbPose, _climbStrain, _climbSliding, _pullingUp);
+            // #2435/#2434: the own avatar in the third-person view squats with the crouch and nods with the camera, the
+            // same two signals the presence hands everyone else; the root drops with the eased blend so the feet stay down.
+            Avatar.SetCrouched(_crouched && !_climbPose);
+            Avatar.SetLookPitch(_pitch);
+            if (!_avatarBaseYKnown)
+            {
+                _avatarBaseY = Avatar.transform.localPosition.y;
+                _avatarBaseYKnown = true;
+            }
+
+            var avatarPos = Avatar.transform.localPosition;
+            avatarPos.y = _avatarBaseY - PlayerAvatar.CrouchDrop * Avatar.CrouchBlend;
+            Avatar.transform.localPosition = avatarPos;
             if (onWall)
             {
                 Avatar.transform.localRotation = Quaternion.Euler(0f, Mathf.DeltaAngle(transform.eulerAngles.y, _wall.FacingYaw), 0f);
@@ -5475,6 +5489,9 @@ namespace BlocksBeyondTheStars.Client
                 ResetAvatarTurn();
             }
         }
+
+        private float _avatarBaseY;          // #2435: the avatar's resting height under the player root
+        private bool _avatarBaseYKnown;
 
         private void ResetAvatarTurn()
         {
@@ -5510,6 +5527,22 @@ namespace BlocksBeyondTheStars.Client
                 settings.Save();
                 VegaPanel.Instance?.SayLocal("vega.hint.climb");
             }
+        }
+
+        /// <summary>#2438: whether the cell at <paramref name="world"/> can really enclose the player — a colliding block key
+        /// AND a form that fills the cell. The fall guard used to ask the key alone, so a carpet, a plate or a slab laid into
+        /// the feet cell read as "embedded in stone" and teleported the player back to the last safe spot ("with plates and
+        /// carpets I always get teleported to my last position").</summary>
+        private bool EnclosedAt(Vector3 world)
+        {
+            if (Game?.World == null || !IsCollidingKey(BlockKeyAt(world)))
+            {
+                return false;
+            }
+
+            int x = Mathf.FloorToInt(world.x), y = Mathf.FloorToInt(world.y), z = Mathf.FloorToInt(world.z);
+            return BlocksBeyondTheStars.Shared.World.BlockShapeFacts.CanEnclosePlayer(
+                BlocksBeyondTheStars.Shared.World.ShapeCode.ShapeOf(Game.World.GetShape(x, y, z)));
         }
 
         /// <summary>The content key of the block at a world position (null if the world/content isn't ready).</summary>
@@ -6819,7 +6852,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Game.Network.SendMove(transform.position, transform.eulerAngles.y, _pitch, _climbPose); // #2193: others see us climb
+            Game.Network.SendMove(transform.position, transform.eulerAngles.y, _pitch, _climbPose, _crouched); // #2193: others see us climb; #2435: and crouch
         }
 
         // ---------------------------------------------------------------------------------------------------------

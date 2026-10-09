@@ -150,14 +150,19 @@ public sealed partial class GameServer
     private void HandleLootContainer(PlayerSession session, LootContainerIntent intent)
         => LootContainer(session.State.PlayerId, intent.ContainerId);
 
-    /// <summary>What a storage crate takes: materials, components and placeable blocks — the stuff you haul
-    /// and build with. Blocks were refused until #1264 ("I can only put items in, not resources"): a Luanti
-    /// player's stone, wood, sand and glass are all <c>block</c> items here. Tools, weapons, consumables
-    /// and suit gear stay with the player.</summary>
+    /// <summary>What the BULK stash (H) sweeps into a storage crate: materials, components and placeable blocks — the
+    /// stuff you haul and build with. Blocks were refused until #1264 ("I can only put items in, not resources"): a Luanti
+    /// player's stone, wood, sand and glass are all <c>block</c> items here. Tools, weapons, consumables and suit gear
+    /// stay with the player on the sweep — put them in by hand on the crate screen (<see cref="Storable"/>, #2436).</summary>
     private static bool Stashable(Shared.Definitions.ItemDefinition? item)
         => item?.Category is Shared.Definitions.ItemCategory.Material
             or Shared.Definitions.ItemCategory.Component
             or Shared.Definitions.ItemCategory.Block;
+
+    /// <summary>#2436: what a crate may HOLD — every known item. Justus: "you can only put blocks into the crate, no
+    /// items!" — food, medpacks, tools and weapons go in by hand on the crate screen and may be named in a crate's filter;
+    /// only the one-key bulk sweep keeps to <see cref="Stashable"/>, so H never packs away the drill in your hand.</summary>
+    private static bool Storable(Shared.Definitions.ItemDefinition? item) => item is not null;
 
     /// <summary>Stashes a player's loose raw/refined materials and blocks into a nearby storage crate (Task 5
     /// Stage 3b): every Material/Component/Block stack moves in (tools/weapons/equipment stay with the
@@ -266,7 +271,7 @@ public sealed partial class GameServer
 
         container.Filter = (intent.Items ?? Array.Empty<string>())
             .Select(ItemKey.Base)
-            .Where(key => Stashable(_content.GetItem(key)))
+            .Where(key => Storable(_content.GetItem(key))) // #2436: a food crate or a tool crate is a valid wish now
             .Distinct()
             .Take(MaxFilterEntries)
             .ToList();
@@ -349,7 +354,188 @@ public sealed partial class GameServer
         Containers = _containers.Where(c => c.Kind != DropPacketKind).Select(ToNetContainer).ToArray(),
     };
 
-    private void BroadcastContainers() => BroadcastToWorld(ContainerMessage());
+    private void BroadcastContainers()
+    {
+        BroadcastToWorld(ContainerMessage());
+        RefreshOpenCrates(); // #2436: whoever has a crate screen open sees the change at once
+    }
+
+    // ---------------- The crate screen (#2436) ----------------
+
+    /// <summary>Opens or closes the crate screen for a crate: on open the contents go out at once and keep being re-sent
+    /// after every change (<see cref="RefreshOpenCrates"/>) for as long as the screen is open. Validates reach.</summary>
+    private void HandleOpenContainer(PlayerSession session, OpenContainerIntent intent)
+    {
+        if (!intent.Open)
+        {
+            session.OpenContainerId = null;
+            return;
+        }
+
+        var container = _containers.FirstOrDefault(c => c.Id == intent.ContainerId && c.Kind == "crate");
+        if (container is null)
+        {
+            Reject(session, "stash", "@srv.loot.no_crate");
+            return;
+        }
+
+        if (!WithinLootReach(session, container))
+        {
+            Reject(session, "stash", "@out_of_reach");
+            return;
+        }
+
+        session.OpenContainerId = container.Id;
+        SendContainerContents(session, container);
+    }
+
+    private void HandleMoveContainerItem(PlayerSession session, MoveContainerItemIntent intent)
+        => MoveContainerItem(session.State.PlayerId, intent.ContainerId, intent.Item, intent.ToContainer, intent.All);
+
+    /// <summary>Moves one kind of item between the player's backpack and a crate (#2436) — a click on the crate screen.
+    /// Into the crate: one stack (or every stack with <paramref name="all"/>) of <paramref name="item"/>, any category,
+    /// subject to the crate's filter and a wood box's capacity. Out of the crate: up to one full stack (or everything of
+    /// that item with <paramref name="all"/>), as far as the backpack has room. Persisted; the contents go out to every
+    /// open crate screen and the count to the world. Returns true if anything moved.</summary>
+    public bool MoveContainerItem(string playerId, string containerId, string item, bool toContainer, bool all)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is null || string.IsNullOrEmpty(item))
+        {
+            return false;
+        }
+
+        var container = _containers.FirstOrDefault(c => c.Id == containerId && c.Kind == "crate");
+        if (container is null)
+        {
+            Reject(session, "stash", "@srv.loot.no_crate");
+            return false;
+        }
+
+        if (!WithinLootReach(session, container))
+        {
+            Reject(session, "stash", "@out_of_reach");
+            return false;
+        }
+
+        var inv = session.State.Inventory;
+        var merged = container.Items.Where(s => !s.IsEmpty).ToDictionary(s => s.Item, s => s.Count);
+        if (toContainer)
+        {
+            if (!Storable(_content.GetItem(item)))
+            {
+                return false; // an item this server does not know
+            }
+
+            if (container.Filter.Count > 0 && !container.Filter.Contains(ItemKey.Base(item)))
+            {
+                Reject(session, "stash", "@srv.loot.filter_blocked");
+                return false;
+            }
+
+            bool woodBox = _world.GetBlock(container.Position).Value == (_content.GetBlock("wood_crate")?.NumericId.Value ?? 0);
+            if (woodBox && !merged.ContainsKey(item) && merged.Count >= WoodCrateStackSlots)
+            {
+                Reject(session, "stash", "@srv.loot.wood_box_full");
+                return false;
+            }
+
+            int count = 0;
+            for (int i = 0; i < inv.SlotCount; i++)
+            {
+                if (inv.Slots[i] is { IsEmpty: false } s && s.Item == item)
+                {
+                    count += s.Count;
+                    if (!all)
+                    {
+                        break; // one stack: the first one found
+                    }
+                }
+            }
+
+            if (count == 0)
+            {
+                return false;
+            }
+
+            inv.Remove(item, count);
+            merged[item] = (merged.TryGetValue(item, out var have) ? have : 0) + count;
+        }
+        else
+        {
+            if (!merged.TryGetValue(item, out int inCrate) || inCrate <= 0)
+            {
+                return false;
+            }
+
+            int max = _content.GetItem(item)?.MaxStack ?? Shared.Definitions.ItemDefinition.DefaultMaxStack;
+            int want = all ? inCrate : System.Math.Min(inCrate, max);
+            int notPlaced = inv.Add(item, want, max);
+            int taken = want - notPlaced;
+            if (taken <= 0)
+            {
+                Reject(session, "loot", "@inventory_full");
+                return false;
+            }
+
+            if (inCrate - taken > 0)
+            {
+                merged[item] = inCrate - taken;
+            }
+            else
+            {
+                merged.Remove(item);
+            }
+        }
+
+        container.Items = merged.Select(kv => new ItemStack(kv.Key, kv.Value)).ToList();
+        _repo.SaveContainer(container);
+        SendInventory(session);
+        BroadcastContainers(); // count to the world + contents to every open crate screen
+        return true;
+    }
+
+    private bool WithinLootReach(PlayerSession session, StoredContainer container)
+    {
+        var center = new Vector3f(container.Position.X + 0.5f, container.Position.Y + 0.5f, container.Position.Z + 0.5f);
+        return WrapDistSq(session.State.Position, center) <= LootReach * LootReach;
+    }
+
+    private void SendContainerContents(PlayerSession session, StoredContainer container)
+    {
+        bool woodBox = _world.GetBlock(container.Position).Value == (_content.GetBlock("wood_crate")?.NumericId.Value ?? 0);
+        int slot = 0;
+        Send(session, new ContainerContents
+        {
+            ContainerId = container.Id,
+            Items = container.Items.Where(s => !s.IsEmpty).Select(s => new NetItemStack { Slot = slot++, Item = s.Item, Count = s.Count }).ToArray(),
+            StackLimit = woodBox ? WoodCrateStackSlots : 0,
+            Filter = container.Filter.ToArray(),
+        });
+    }
+
+    /// <summary>Re-sends the contents of every crate someone has open (#2436) — after any stash, loot, move or filter
+    /// change. A crate that is gone (mined) sends an empty list, which closes the screen.</summary>
+    private void RefreshOpenCrates()
+    {
+        foreach (var s in _sessions.Values)
+        {
+            if (!s.Joined || string.IsNullOrEmpty(s.OpenContainerId))
+            {
+                continue;
+            }
+
+            var container = _containers.FirstOrDefault(c => c.Id == s.OpenContainerId && c.Kind == "crate");
+            if (container is null)
+            {
+                Send(s, new ContainerContents { ContainerId = s.OpenContainerId });
+                s.OpenContainerId = null;
+                continue;
+            }
+
+            SendContainerContents(s, container);
+        }
+    }
 
     /// <summary>Sends this world's containers AND its ground drop packets — the two lists always travel
     /// together, so every join/respawn/travel path stays in sync with one call.</summary>

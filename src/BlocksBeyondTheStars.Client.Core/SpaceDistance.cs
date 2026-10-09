@@ -11,6 +11,12 @@ namespace BlocksBeyondTheStars.Client.Core;
 /// ~35-unit ball — so the readouts label it as <b>kilometres at 10 km per unit</b>: "830 km" to the next
 /// planet instead of "83 m". The EVA prompt deliberately keeps metres (suit scale: board range 11 units),
 /// and every on-foot distance (compass, world map, beam) is a real voxel metre and untouched.
+/// <para>
+/// A readout never throws (#2428): a NaN, an infinity or a distance past two billion kilometres used to turn
+/// into <c>int.MinValue</c> on the cast, and <c>Math.Abs</c> of that threw an <c>OverflowException</c> out of the
+/// flight HUD's <c>LateUpdate</c>. Such a value is a bug upstream (an absurd lock position), and the label is the
+/// wrong place to crash on it — it prints 0 km for the unrepresentable, and the HUD logs the real culprit.
+/// </para>
 /// </summary>
 public static class SpaceDistance
 {
@@ -20,14 +26,26 @@ public static class SpaceDistance
     /// <summary>The format used when the locale table has no <c>ui.space.km_fmt</c> (or hands back the key).</summary>
     public const string FallbackFormat = "{0} km";
 
-    /// <summary>Whole kilometres for a flight-scene distance (never negative).</summary>
-    public static int Km(float units) => (int)System.Math.Round(System.Math.Max(0f, units) * KmPerUnit);
+    /// <summary>Whole kilometres for a flight-scene distance (never negative). A non-finite or negative distance
+    /// reads 0; a distance past <see cref="int.MaxValue"/> kilometres saturates there instead of overflowing.</summary>
+    public static int Km(float units)
+    {
+        if (float.IsNaN(units) || float.IsInfinity(units) || units <= 0f)
+        {
+            return 0;
+        }
+
+        double km = System.Math.Round((double)units * KmPerUnit);
+        return km >= int.MaxValue ? int.MaxValue : (int)km;
+    }
 
     /// <summary>Digits grouped in threes with a plain space ("1 660") — the SI style, readable in every
-    /// locale the game ships and free of culture lookups on the HUD path.</summary>
+    /// locale the game ships and free of culture lookups on the HUD path. Safe for every <see cref="int"/>,
+    /// <see cref="int.MinValue"/> included.</summary>
     public static string Group(int value)
     {
-        string digits = System.Math.Abs(value).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        long magnitude = System.Math.Abs((long)value); // long: Math.Abs(int.MinValue) throws
+        string digits = magnitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (digits.Length <= 3)
         {
             return value < 0 ? "-" + digits : digits;
@@ -65,4 +83,10 @@ public static class SpaceDistance
         string fmt = !string.IsNullOrEmpty(format) && format!.Contains("{0}") ? format : FallbackFormat;
         return string.Format(System.Globalization.CultureInfo.InvariantCulture, fmt, Group(Km(units)));
     }
+
+    /// <summary>True for a distance the flight scene can actually hold: finite and within <paramref name="reach"/>
+    /// flight units of the origin. The lock HUD drops a lock whose object reads farther than that and logs it (#2428) —
+    /// the system reach is a few thousand units, so anything beyond it is a position gone wrong, not a far target.</summary>
+    public static bool IsPlausible(float units, float reach)
+        => !float.IsNaN(units) && !float.IsInfinity(units) && units >= 0f && units <= reach;
 }
