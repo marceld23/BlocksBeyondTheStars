@@ -95,6 +95,9 @@ public sealed partial class GameServer
         SendInventory(session);
         SendShipStations(session);
         SendDoors(session);
+        // The helm in here is the repair point too (R at the cockpit cell): the readout the client holds is from the
+        // last landing, so a hull dented since then showed no panel and R at the helm did nothing (2026-10-09).
+        SendShipRepairStatus(session);
     }
 
     /// <summary>When the pilot was last told that their ship can't fly (#2233) — the hatch route runs every tick

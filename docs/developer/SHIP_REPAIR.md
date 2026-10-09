@@ -57,6 +57,19 @@ ingot); its detail then said "Station: Fabrikterminal". The list now labels fact
 and detail heading) and sorts them behind their bench twin while no terminal offering them is in reach
 (`CraftingTechShipUI.ReachTier` tier 2 via `IsFactoryRecipeAway`). Bench proximity itself stays out of the order (#826).
 
+**How the trigger is explained (2026-10-09, second round).** The client gates R on `Game.NearbyStation` being the
+`cockpit` or `console` station cell (looked at within reach, else within 3 blocks) while the panel is up
+(`PlayerController.CanRepairOwnShip`); the server itself accepts the intent wherever the own ship structure exists. The
+panel's button only works on touch — the cursor is locked in play (#413 arbiter) and the HUD never frees it — so it is
+hidden on keyboard/gamepad and the panel's first line says how from here: `ui.shiprepair.how_foot` / `how_helm` /
+`how_flight` (the pilot seat: F steps inside first, R there is the target lock) with the device phrase
+`key_press` ("press R") or `key_pad` ("Actions (L3) → Repair"). The station prompt at the terminal appends
+"Repair ship (R)" while something needs repair (the static cockpit label lost its hard-coded "(R)"), R pressed
+elsewhere with the panel up toasts `ui.shiprepair.go_to_console`, and the Actions list offers `RepairWreck`
+(relabelled "Repair (ship / wreck)") at the own terminal, which gives pads and the touch list a way in. The server
+pushes `ShipRepairStatus` on entering the floating interior (`LoadShipInteriorFor`), so a hull dented in flight has a
+current readout at the helm.
+
 ## Networking & persistence
 
 - New messages (registered in `NetCodec`): `RepairShipIntent` (C→S: `all` | `cell(x,y,z,itemKey)`) at tag 151
