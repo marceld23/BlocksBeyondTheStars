@@ -1,6 +1,6 @@
 # Own-ship repair (hull + EVA-carved cells) — how it works
 
-Status: implemented (see [../../TODO.md](../../TODO.md) for live Done/Open status). Last updated 2026-06-19.
+Status: implemented (see [../../TODO.md](../../TODO.md) for live Done/Open status). Last updated 2026-10-09.
 
 ## Overview
 
@@ -46,6 +46,16 @@ repair's value is *avoiding* the destruction event (keeping cargo/position/run, 
 **Surface.** The repair point is the ship's existing **cockpit** `StationCell` (no new station/medbay). At
 the cockpit the server pushes a `ShipRepairStatus`; HudUi shows a "Repair ship" panel (hull bar + material
 needs + a button → `RepairShipIntent{all}`). Field/EVA per-cell repair uses `RepairShipIntent{Mode="cell"}`.
+
+**Where the materials come from (2026-10-09).** The panel names the bench behind each material
+(`HudUi.RepairMaterialBench`: the station of the item's shallowest non-factory, non-market recipe — *Iron plate ×10 ·
+Workbench*; one shared bench is named once, otherwise per item). Reason: a playtest concluded "the repair needs a
+factory". The crafting list titles its cards by output item, so `iron_plate` (workbench) and its bulk twin
+`factory_iron_plate` (factory terminal) were two identical "Eisenplatte" cards, and the factory one sorted first
+whenever the player lacked ingots (the within-tier key prefers shallower inputs, and raw ore is shallower than an
+ingot); its detail then said "Station: Fabrikterminal". The list now labels factory recipes "· Factory terminal" (card
+and detail heading) and sorts them behind their bench twin while no terminal offering them is in reach
+(`CraftingTechShipUI.ReachTier` tier 2 via `IsFactoryRecipeAway`). Bench proximity itself stays out of the order (#826).
 
 ## Networking & persistence
 
