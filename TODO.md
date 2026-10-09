@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🔧 Ship repair: where the plates come from — factory twin cards labelled and sorted behind the bench twin, repair panel names the bench, manual fix (2026-10-09, branch fix/repair-plate-source-hints) — ✅ done (PR pending)
+### 🔧 Ship repair: where the plates come from — factory twin cards labelled and sorted behind the bench twin, repair panel names the bench, manual fix (2026-10-09, branch fix/repair-plate-source-hints, PR #2423) — ✅ done
 
 **Report (Justus via Marcel, 2026-10-09):** "I need a factory to repair the ship." Not a misread: the crafting list titles
 its cards by output item, so `iron_plate` (workbench) and `factory_iron_plate` (factory terminal) were two identical
