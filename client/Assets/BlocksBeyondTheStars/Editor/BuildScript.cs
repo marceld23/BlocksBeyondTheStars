@@ -187,6 +187,11 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                 EditorApplication.Exit(1);
             }
 
+            // The game-ci CLI (unity-builder v6) validates a build by this literal in the editor's output — its own
+            // reporter prints it for BuildResult.Succeeded; a custom build method must say it too, or the CLI fails
+            // the job after a successful build ("There was an error building the project").
+            Debug.Log("Build succeeded!");
+
             if (target == BuildTarget.WebGL)
             {
                 RemoveAutoFullscreen(outDir);
