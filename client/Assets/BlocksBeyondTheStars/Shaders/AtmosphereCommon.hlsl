@@ -37,6 +37,7 @@ float4 _Sc_Wind; // xz = wind direction × strength 0..1, y = world time (pauses
 float4 _Sc_Surface; // x = wet 0..1 (after rain), y = snow 0..1 (after snowfall), z = on (0/1), w unused (#2398)
 float4 _Sc_Underwater; // x = camera under water (0/1), y = the water surface's world Y there, z = time, w unused (#2401)
 float  _Sc_Caustics;   // the player's switch × preset (0/1)
+float  _Sc_SeaLevel;   // the sea surface's world Y (#2414): faces below it lie under the sea; -1e9 when the world has none
 float  _Sc_AtmoDebug;  // capture diagnostics (-atmoDebug N): 1 = show _Sc_Surface, 2 = skylight / up / cloud shade, 3 = haze amount
 TEXTURE2D(_Sc_CloudNoise); SAMPLER(sampler_Sc_CloudNoise);
 
@@ -66,6 +67,14 @@ float BbtsCaustics(float3 wp, float3 N, float skylight)
 float BbtsWeatherSurface(inout float3 albedo, inout float gloss, float3 wp, float3 N, float skylight)
 {
     if (_Sc_Surface.z < 0.5)
+    {
+        return 0.0;
+    }
+
+    // #2414: nothing under the sea gets wet or snowed on. The seabed under shallow water still carries some mesher
+    // skylight (water counts as cover, so the shade floor of #1608 applies), and without this the shallows turned
+    // patchily white after snowfall. Lakes above sea level keep the traces (rare, accepted).
+    if (wp.y < _Sc_SeaLevel - 0.5)
     {
         return 0.0;
     }
@@ -119,8 +128,10 @@ float BbtsMistDensity(float y)
 }
 
 // 0..1 haze at world position `wp`. `skylight` is the fragment's own sky exposure (0 cave … 1 open); surfaces that
-// carry none pass 1 and rely on the camera-exposure term.
-float BbtsHazeAmount(float3 wp, float skylight)
+// carry none pass 1 and rely on the camera-exposure term. `heightScale` scales the height-fog term only: a water
+// surface passes 0.5 (#2412) — the mist floor lies ON the water (the probe's lowest column tops are the water itself),
+// and at full strength the surface dissolved into the sky from dusk on. The distance veil is never scaled.
+float BbtsHazeAmountScaled(float3 wp, float skylight, float heightScale)
 {
     if (_Sc_Fog.w < 0.5)
     {
@@ -138,10 +149,15 @@ float BbtsHazeAmount(float3 wp, float skylight)
         float depth = camDist * (BbtsMistDensity(cam.y) + 4.0 * BbtsMistDensity(mid.y) + BbtsMistDensity(wp.y)) / 6.0;
         // 0.035 per metre at full strength: ~40 m through dense mist leaves a quarter of the scene.
         height = 1.0 - exp(-depth * 0.035 * _Sc_FogHeight.z);
-        height *= saturate(skylight) * _Sc_FogHeight.w;
+        height *= saturate(skylight) * _Sc_FogHeight.w * heightScale;
     }
 
     return (1.0 - (1.0 - dist) * (1.0 - height)) * _Sc_Fog.z;
+}
+
+float BbtsHazeAmount(float3 wp, float skylight)
+{
+    return BbtsHazeAmountScaled(wp, skylight, 1.0);
 }
 
 // The colour the haze blends toward at `wp`: the sky, warmed toward the sun when looking at it.

@@ -24,6 +24,42 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌊 Water after the atmosphere package — surface haze, double haze, sheen, seabed weather, far-terrain colour, capture worlds (#2410: #2411–#2417, 2026-10-09, branch fix/water-haze) — 🚧 in progress
+
+**Report (Marcel, 2026-10-09):** "with the newly built version the water surface is only very faintly visible" — plus:
+are the world water colours still respected, does the rainbow sea still work? Analysis by code read + clip-recorder
+captures (seed 424242, poses `shore`/`ridge`, dusk + noon, `ocean`/`swamp`/`rainbow_sea`): the colour path (#1758) is
+untouched and the rainbow renders, but (A) the height fog (#2406) lay on the water surface at full strength — the
+probe's mist floor is the 25th percentile of the column tops and water counts as a top, so at dusk the sea carried
+44 % haze at 50 m and 69 % at 100 m (0 % before the package: Unity's fog began at 337–503 m) — and (B) the
+screen-space water hazed the refracted bed and the SSR hit a second time (69 % against 44 % on the beach beside it).
+At noon (`mist` 0.11) the loss is small, which is why the standing 22-scene set (water at noon only) missed it.
+
+**Decisions:** one PR; half-strength height fog on water (not none); a moderately stronger sheen (design); the seabed
+guard, the far-terrain colour and the capture-world cleanup in the same PR; the leftover `ClipShots_*` worlds deleted.
+
+- ✅ #2411 double haze: the water hazes its own colour before the composite, the bed and the SSR hit keep theirs, the
+  glint fades with the veil, the final pass runs only for glass, fields, waterfalls and the simple (Potato/Low) path;
+  the SSR comment now says the opaque copy is 2× downsampled.
+- ✅ #2412 `BbtsHazeAmountScaled(wp, skylight, heightScale)` in `AtmosphereCommon.hlsl`; water (near and far) passes 0.5.
+- ✅ #2413 sheen cap 0.45 × 0.35 → 0.6 × 0.5 (30 % sky at a grazing angle, 4 % head-on).
+- ✅ #2414 `_Sc_SeaLevel` (`FarTerrainView.SeaSurfaceY`, from the far-terrain world info) keeps wet ground and snow
+  caps off faces below the sea surface; lakes above sea level keep them (rare, accepted).
+- ✅ #2415 far-sea vertices carry alpha 0.5 and `FarTerrain.shader` recolours them from `_Sc_WaterTint` /
+  `_Sc_WaterMode` (tint by luminance, rainbow bands by position), so the colour no longer ends at the chunk ring.
+  The alpha interpolates across a shore triangle, so the recolour ramps in over the last fifth of the slope only
+  (a hard threshold painted rainbow skirts halfway up the far hills in the first capture); `_Sc_FarSeaWater`
+  (`FarTerrainSource.SeaIsWater`) tells a water sea from a lava sea, whose continuous glow in the alpha is untouched.
+- ✅ #2416 the IMGUI underwater wash thins to ~15 % while the shader haze is active (`Sky.UnderwaterFog`).
+- ✅ #2417 `ClipDirector` sweeps leftover `ClipShots_*` worlds at the start and deletes its own after stopping the server
+  (`AppShell.StopLocalServer` is internal now).
+- ✅ Verification: `dotnet build --no-incremental` 0 warnings, format clean, Client.Tests 1028 green; local Windows
+  build 0 shader errors / 0 CS errors; capture pairs of seed 424242 (shore/ridge, dusk + noon, ocean/swamp/rainbow,
+  snow, underwater) before and after on High: the dusk sea keeps its sheen and wave texture (ridge luma 72 → 63, the
+  veil only), the rainbow bands are back at dusk and continue into the far sea without striping the far hills (pixel
+  check), no snow on the seabed, 0 `ClipShots_*` worlds left after every run (35 leftovers swept). Open: the
+  maintainer's playtest of the build in `client\Build\Windows`.
+
 ### 🌫️ Atmosphere package — Unity 6.6 + WebGPU, living air and light, weather that leaves a trace, deeper water and caves (#2408: #2389–#2407, 2026-10-08/09, branch feat/atmosphere-2026-10) — ✅ done (⚠ FPS acceptance + playtest open)
 
 **Ask (Marcel, 2026-10-08):** "which kinds of visual effects in Unity could give the game a better atmosphere?" — an

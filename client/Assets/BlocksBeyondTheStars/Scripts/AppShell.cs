@@ -1101,7 +1101,9 @@ namespace BlocksBeyondTheStars.Client
             Application.Quit();
         }
 
-        private void StopLocalServer()
+        /// <summary>Stops the bundled singleplayer server (graceful: the launcher closes its stdin and waits for the
+        /// drain + save). Internal for the clip recorder, which deletes its throwaway world afterwards (#2417).</summary>
+        internal void StopLocalServer()
         {
             _serverPending = false;
             if (_serverLaunch != null)

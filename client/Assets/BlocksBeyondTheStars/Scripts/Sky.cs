@@ -67,7 +67,12 @@ namespace BlocksBeyondTheStars.Client
         /// camera is submerged; caustics and bubbles ride on the same state.</summary>
         public bool UnderwaterEnabled = true;
         private static readonly int UnderwaterId = Shader.PropertyToID("_Sc_Underwater");
+        private static readonly int SeaLevelId = Shader.PropertyToID("_Sc_SeaLevel"); // #2414: the sea surface's world Y
         private float _submerged; // eased 0..1
+
+        /// <summary>The eased underwater-haze share (0..1, #2416): the weather overlay reads it to thin its own
+        /// submerged wash while the shader-side haze carries the look.</summary>
+        public static float UnderwaterFog { get; private set; }
 
         /// <summary>The surroundings probe (fog floor, camera exposure) — wired by <see cref="WorldRig"/>.</summary>
         public AtmosphereProbe Probe;
@@ -672,6 +677,7 @@ namespace BlocksBeyondTheStars.Client
             bool under = UnderwaterEnabled && Camera != null && Game != null && !Game.SpaceViewActive
                          && Game.IsWaterAt(Camera.transform.position);
             _submerged = Mathf.MoveTowards(_submerged, under ? 1f : 0f, Time.deltaTime * 3.5f);
+            UnderwaterFog = _submerged;
             if (_submerged > 0.001f)
             {
                 float clarity = 1f - Mathf.Clamp01(airDensity) * 0.6f;
@@ -687,6 +693,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Shader.SetGlobalVector(UnderwaterId, new Vector4(under ? 1f : 0f, under ? WaterSurfaceAbove(Camera.transform.position) : 0f, Time.time, 0f));
+            // #2414: the sea surface (from the far-terrain world info the server sends on join) keeps wet ground and snow
+            // caps off the seabed; a world without a sea (or before the info arrived) publishes a very low value.
+            Shader.SetGlobalFloat(SeaLevelId, Game?.FarView != null ? Game.FarView.SeaSurfaceY : -1e9f);
             SetFog(new Vector4(fogStart, far, maxHaze, (FogEnabled || _submerged > 0.001f) ? 1f : 0f));
 
             // #2406: height fog — mist in the low ground. The floor comes from the probe (the valleys around the player),
