@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🌊 Water after the atmosphere package — surface haze, double haze, sheen, seabed weather, far-terrain colour, capture worlds (#2410: #2411–#2417, 2026-10-09, branch fix/water-haze, PR #2418) — ✅ done (⚠ playtest open)
+### 🌊 Water after the atmosphere package — surface haze, double haze, sheen, seabed weather, far-terrain colour, capture worlds (#2410: #2411–#2417, 2026-10-09, branch fix/water-haze, PR #2418) — ✅ done (released in v2026.10.10; ⚠ playtest open)
 
 **Report (Marcel, 2026-10-09):** "with the newly built version the water surface is only very faintly visible" — plus:
 are the world water colours still respected, does the rainbow sea still work? Analysis by code read + clip-recorder
@@ -60,7 +60,7 @@ guard, the far-terrain colour and the capture-world cleanup in the same PR; the 
   check), no snow on the seabed, 0 `ClipShots_*` worlds left after every run (35 leftovers swept). Open: the
   maintainer's playtest of the build in `client\Build\Windows`.
 
-### 🌫️ Atmosphere package — Unity 6.6 + WebGPU, living air and light, weather that leaves a trace, deeper water and caves (#2408: #2389–#2407, 2026-10-08/09, branch feat/atmosphere-2026-10) — ✅ done (⚠ FPS acceptance + playtest open)
+### 🌫️ Atmosphere package — Unity 6.6 + WebGPU, living air and light, weather that leaves a trace, deeper water and caves (#2408: #2389–#2407, 2026-10-08/09, branch feat/atmosphere-2026-10) — ✅ done (released in v2026.10.10; ⚠ FPS acceptance + playtest open)
 
 **Ask (Marcel, 2026-10-08):** "which kinds of visual effects in Unity could give the game a better atmosphere?" — an
 analysis first, then: everything in ONE PR, the Unity 6.4 → 6.6 upgrade and WebGPU-first for the browser included,
@@ -156,7 +156,7 @@ Low and High (no playtest needed until the end).
 glow but declare no `lightColor` yet (their textures are raw blobs, so no colour was guessed) — add one in data to let
 them light caves; the underwater pose still prefers a kelp forest on seed 424242 (a tooling nicety).
 
-### 🧗 Climbing controls — hold Jump to hold on, let go to slide, two-block walls in one jump, "no room" message (#2384 #2385 #2386 #2387, 2026-10-08, branch feat/climb-hold-to-grip) — ✅ done (⚠ playtest open)
+### 🧗 Climbing controls — hold Jump to hold on, let go to slide, two-block walls in one jump, "no room" message (#2384 #2385 #2386 #2387, 2026-10-08, branch feat/climb-hold-to-grip) — ✅ done (released in v2026.10.10; ⚠ playtest open)
 
 **Report (Marcel, 2026-10-08):** "with only two blocks I don't climb up", and "how do I get out of climbing?" — idea:
 hold Space to climb, let go and you slide down. A code read found no logic error for an open two-block wall; what

@@ -11,6 +11,112 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.10] — 2026-10-09
+
+The atmosphere release. **The air and the weather now leave their mark on every world.** Mist gathers in the valleys
+around dawn and dusk, cloud shadows drift over the land, leaves and grass sway in the wind, rain leaves the ground
+wet and glossy, snow caps the roofs and rocks, your eyes adapt when you step into a cave, lava, crystals and glowing
+plants light their surroundings, and under water the view closes in with dancing light and rising bubbles (#2408).
+The game runs on **Unity 6.6** now, and the browser version starts on **WebGPU** where the browser offers it. Climbing
+changed too: **hold Jump to hold on, let go to slide down** safely, and a two-block wall goes in one jump (#2384). And
+the water surface, which the new mist had almost swallowed, reads clearly again (#2410).
+
+ℹ️ **Compatibility:** the network protocol stays at **version 11**, the save version at **3** and the terrain
+generation at **22**: your saves and worlds carry over unchanged. Everything in this release lives in the game itself,
+so all the new effects show on your existing worlds too. The desktop game updates itself on start, and the browser
+version is always current. Servers do not need to change for this release; to be safe, game and server should both
+be on 2026.10.10.
+
+### 🌫️ Living air and light (#2393 #2406 #2394 #2395 #2396 #2400)
+
+- **Mist in the valleys:** around dawn and dusk and in fog weather, mist gathers in the low ground and burns off toward
+  noon. Looking toward a low sun, the haze glows golden. Caves and interiors stay clear.
+- **One haze for everything:** creatures, ships, scattered rocks, particles and clouds now fade into the distance like the
+  terrain does. Before, a ship far away stood razor-sharp in a hazy landscape.
+- **Cloud shadows** drift over the land with the wind.
+- **Eyes adapt to the dark:** a cave starts dark and resolves after a few seconds; stepping back into daylight dazzles
+  for a moment. Nothing flashes, it is a slow ramp.
+- **Flickering torchlight:** the light of torches, campfires and lanterns breathes; lamps and crystals stay steady.
+  **Reduce flashes** keeps every light steady.
+- **From orbit and at night:** planets with air show a lit atmosphere rim with a warm terminator and a dark night side,
+  shooting stars cross the night sky now and then (sometimes as a meteor shower), and very rarely a distant ship blinks by.
+
+### 🌧️ Weather that leaves a trace (#2397 #2398 #2399)
+
+- **Wind in leaves and grass:** tree crowns, plants and grass tufts sway, gently on a calm day, hard in a storm.
+- **Wet ground and snow caps:** rain darkens and glosses the open ground and it dries again over minutes; snowfall caps
+  the upward faces, roofs included, and the snow melts when it warms up.
+- **Rain splashes** where drops meet the ground near you. Rain, snow, hail and ash fall as soft drops and flakes instead
+  of little cubes.
+
+### 🌊 Deeper water and caves (#2401 #2402 #2407 #2403)
+
+- **Under water** the view closes in to a few metres in the water's own colour, sunlight dances on the sea floor, and
+  bubbles rise past your visor.
+- **Light shafts** reach into cave mouths, pits and gaps in the canopy when you stand in the shade and the sun is up.
+- **Lava and crystals light caves:** lava, crystal blocks and the glowing flora cast a quiet light of their own. A lava
+  lake glows at its shores, a crystal cavern in its colours. Mine the rock off a buried lava or crystal face and it
+  lights up at once.
+- **Soft particles:** dust, mist and smoke no longer cut a hard line into the ground (Medium and up).
+
+### ⚙️ Your choice: the "Atmosphere effects" settings (#2404 #2392 #2391)
+
+- **Settings → Graphics → Atmosphere effects** sets them all at once: **Off**, **Some** (the cheap ones, which is what the
+  browser's Low preset gets), **All**, or **Custom** with one switch per effect. The expensive ones (cloud shadows,
+  light shafts, the lava and crystal light, soft particles, the underwater light patterns) need the **Medium** preset or
+  better regardless of the switch. **Reduced effects** makes the eye adaptation gentler.
+- The switch that used to be called "Volumetric fog" now says what it always did: **Distance haze & sun rays**. The
+  "Reflections" switch, which did nothing, is gone.
+- **Hot worlds on Low:** the heat shimmer used to draw a grey panel over the view on the Low and Potato presets (the
+  browser's default). It now shows only where the preset can draw it.
+
+### 🖥️ Unity 6.6 and WebGPU in the browser (#2389 #2390)
+
+- The game is built on **Unity 6000.6** now (it was 6000.4). Nothing changes in how you play; the newer engine is what
+  makes the browser's WebGPU path possible.
+- **The browser version starts on WebGPU** where the browser has it (current Chrome and Edge, for example) and falls
+  back to WebGL 2 everywhere else. If something looks wrong, add `?bbsGpu=webgl2` to the address to force the old path.
+  Screenshots for the F1/F2 reports and the chat work on both.
+
+### 🧗 Climbing: hold Jump to hold on (#2384 #2385 #2386 #2387)
+
+- **Hold Jump to hold on.** Jump at a wall, keep pushing towards it and **hold Jump** (Space, pad (A), touch JUMP): you
+  grab on. On the wall, Jump is your grip: push towards the wall to climb up, pull away to climb down, move along it
+  sideways, or hold only Jump to hang still (mining from the wall keeps working). **Let go of Jump and you slide down**
+  at a safe speed, no grip spent, and a new press stops the slide. Crouch still drops you off. With a jetpack and suit
+  energy, holding Jump keeps you flying; when the tank runs empty at a cliff, the held Jump grabs the wall instead of
+  letting you fall.
+- **Two-block walls in one jump.** Pressed against a wall, the first airborne moment used to grab and kill the jump, so a
+  two-block step became a slow crawl. Now a jump that falls short of a ledge pulls you over it as soon as the edge is
+  in reach, a ledge the jump clears is simply landed on, and a tall wall is grabbed at the top of the jump.
+- **"No room" message.** Pushing up at an edge where the pull-up is refused (no room above the edge, or the edge gives
+  no hold) now says so once instead of leaving you hanging in silence.
+- The manual's climbing section, the keyboard, pad and touch tables, VEGA's climbing hint and the Codex article were
+  rewritten to match, in all 14 languages.
+
+### 💧 The water surface reads again (#2410 #2411 #2412 #2413 #2414 #2415 #2416 #2417)
+
+- After the atmosphere package, the sea at dusk was a flat haze where sea and shore were one: the new valley mist lay
+  on the water at full strength, and the water hazed its reflection a second time. The water now hazes its own colour
+  once, the mist counts at half strength on water, and the sky's sheen on the surface is a little stronger, so the sea
+  reads from the shore and you still look into the water from above.
+- The **world's water colour continues to the horizon** now, the rainbow sea's bands included. Before, the far sea was
+  always classic blue past the loaded chunks.
+- Rain and snow no longer leave wet patches or snow caps on the seabed under the shallows, and under water the old
+  screen wash is thinner now that the water has its own haze.
+- The clip recorder no longer leaves its test worlds in the singleplayer list (#2417).
+
+### 🛠️ For tinkerers (#2405)
+
+- The clip recorder can pin the time of day, the weather and a pose (a cave, a shore, under water, dense flora, a lava
+  lake), and ships a standing manifest of look-check scenes, so a change of the look can be compared on the same seed
+  before and after. See `docs/screenshots/README.md`.
+
+### 🌍 Texts (#2227)
+
+- Everything new is in all **14 languages**. The 2026.10.9 "What's new?" texts arrived in the twelve community
+  languages (#2227).
+
 ## [2026.10.9] — 2026-10-07
 
 The black-gold release. **Oil is now something you can find.** On new worlds, black **tar seeps** with an oil puddle
@@ -7174,7 +7280,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.9...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.10...HEAD
+[2026.10.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.9...v2026.10.10
 [2026.10.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.8...v2026.10.9
 [2026.10.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.7...v2026.10.8
 [2026.10.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.6...v2026.10.7
