@@ -919,13 +919,13 @@ namespace BlocksBeyondTheStars.Client
 
             // Ship-repair panel (right, below the wreck panel) — the cockpit "Repair ship" action: buy hull
             // back + refill EVA-carved hull cells with one click, paid in metal (docs/developer/SHIP_REPAIR.md).
-            _shipRepairPanel = Panel(root, W - 260f, 300, 250, 120).gameObject;
+            _shipRepairPanel = Panel(root, W - 260f, 300, 250, 150).gameObject; // tall enough for the bench names + "short" line
             _shipRepairTitle = UiText.Add(_shipRepairPanel.transform, 10, 6, 230, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             (_shipRepairTrack, _shipRepairBar) = UiHolo.AddBar(_shipRepairPanel.transform, 10, 30, 230, 14, new Color(0.03f, 0.07f, 0.13f), UiKit.Cyan);
             _shipRepairProg = UiText.Add(_shipRepairPanel.transform, 12, 29, 226, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _shipRepairHint = UiText.Add(_shipRepairPanel.transform, 10, 50, 230, 36, string.Empty, 12, UiKit.CyanDim, TextAnchor.UpperLeft);
+            _shipRepairHint = UiText.Add(_shipRepairPanel.transform, 10, 50, 230, 66, string.Empty, 12, UiKit.CyanDim, TextAnchor.UpperLeft);
             UiText.Wrap(_shipRepairHint);
-            _shipRepairBtn = UiKit.AddButton(_shipRepairPanel.transform, 10, 90, 230, 24, string.Empty, () => Game.Network?.SendRepairShip("all"));
+            _shipRepairBtn = UiKit.AddButton(_shipRepairPanel.transform, 10, 120, 230, 24, string.Empty, () => Game.Network?.SendRepairShip("all"));
 
             // Creature-taming prompt (bottom-centre, above the hotbar): the translator's decoded mood + need,
             // a trust bar of correct responses, and the four response actions. Captions are set in RefreshTaming.
@@ -3226,20 +3226,38 @@ namespace BlocksBeyondTheStars.Client
                 UiHolo.SetBar(_shipRepairBar, sr.Hull / sr.HullMax, 230f);
             }
 
-            // List the materials the full repair needs (item:count pairs from the server), localized.
+            // List the materials the full repair needs (item:count pairs from the server), localized — and the bench
+            // each is made at. The panel alone once sent a pilot to a factory: it said "Eisenplatte ×10", the crafting
+            // list's first "Eisenplatte" card was the factory twin, so a factory looked required (2026-10-09).
             string needs = string.Empty;
             if (!string.IsNullOrEmpty(sr.Needs))
             {
                 var parts = sr.Needs.Split(',');
+                var benches = new string[parts.Length];
+                bool oneBench = true;
                 for (int i = 0; i < parts.Length; i++)
                 {
                     var kv = parts[i].Split(':');
                     string name = loc.Get($"item.{kv[0]}.name");
                     if (name.StartsWith("item.")) { name = loc.Get($"block.{kv[0]}.name"); } // fall back for raw block keys
                     parts[i] = kv.Length > 1 ? $"{name} ×{kv[1]}" : name;
+                    benches[i] = RepairMaterialBench(kv[0], loc);
+                    oneBench &= benches[i] == benches[0];
                 }
 
-                needs = "  " + string.Join(", ", parts);
+                if (oneBench && benches[0].Length > 0)
+                {
+                    needs = "  " + string.Join(", ", parts) + " · " + benches[0]; // one bench for everything: name it once
+                }
+                else
+                {
+                    for (int i = 0; i < parts.Length; i++)
+                    {
+                        if (benches[i].Length > 0) { parts[i] += " · " + benches[i]; }
+                    }
+
+                    needs = "  " + string.Join(", ", parts);
+                }
             }
 
             // The breach count already leads the panel when the hull is full — only repeat it next to the
@@ -3253,6 +3271,56 @@ namespace BlocksBeyondTheStars.Client
             var t = _shipRepairBtn.GetComponentInChildren<Text>();
             if (t != null) { t.text = loc.Get("ui.shiprepair.repair"); }
             _shipRepairBtn.interactable = sr.CanAfford;
+        }
+
+        /// <summary>The bench a repair material is made at, named as the crafting menu names stations ("Werkbank"):
+        /// the station of the item's shallowest everyday recipe. Factory and vendor recipes don't count — a factory is
+        /// a rare find and a barter deal is not a way to MAKE the item. Empty for a raw item (mined or looted) or a
+        /// station without a name key.</summary>
+        private string RepairMaterialBench(string itemKey, BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            var content = Game.Content;
+            if (content == null)
+            {
+                return string.Empty;
+            }
+
+            BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition best = null;
+            int bestDepth = int.MaxValue;
+            foreach (var r in content.Recipes.Values)
+            {
+                if (r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Factory
+                    || r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Market)
+                {
+                    continue;
+                }
+
+                bool makesIt = false;
+                foreach (var o in r.Outputs)
+                {
+                    if (o.Item == itemKey) { makesIt = true; break; }
+                }
+
+                if (!makesIt)
+                {
+                    continue;
+                }
+
+                int depth = content.MaxInputDepth(r.Inputs);
+                if (depth < bestDepth)
+                {
+                    bestDepth = depth;
+                    best = r;
+                }
+            }
+
+            if (best == null)
+            {
+                return string.Empty;
+            }
+
+            string key = "ui.craft.station_" + best.Station.ToString().ToLowerInvariant();
+            return loc.Has(key) ? loc.Get(key) : string.Empty;
         }
 
         private void RefreshTaming(BlocksBeyondTheStars.Shared.Localization.Localizer loc)

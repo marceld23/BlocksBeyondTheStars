@@ -776,8 +776,9 @@ players.
   the world loads — you wake up aboard.
 - **Your ship is a real parked object** on its landing pad (pads are naturally flat). You can
   **furnish the interior**: place blocks in free cabin space (and mine those again) — they stay with
-  the ship across launches, landings and the walk-in interior. The hull cannot be damaged and ship
-  modules (medbay, cockpit, …) cannot be removed. Step or hop up through the hatch to enter.
+  the ship across launches, landings and the walk-in interior. The hull is dented only out in space (combat,
+  asteroid rams — see *Repairing your own ship* below) and ship modules (medbay, cockpit, …) cannot be removed.
+  Step or hop up through the hatch to enter.
 - **Grow your ship**: on a spacewalk you can build onto its hull (and cut hull cells out of it); from inside you
   can keep building outward — up to **15 × 15 × 15 blocks** in all. A **door** you build into the ship is a real
   door (you see it while placing, it opens and closes, it shows on the ship in flight, and mining it gives it back).
@@ -1029,10 +1030,12 @@ players.
 - Combat dents your ship's **hull** (it never regenerates on its own), and hull cells lost in a wreck stay missing
   until you refill them. Cells **you** cut out on a spacewalk (to build onward) and doorways you hung a door in are
   your ship's new shape, not damage — the repair leaves them alone. Whenever your ship needs work, a **"Repair ship" / "Schiff reparieren"** panel sits on
-  the right of the HUD (a hull bar plus the materials still needed; it greys out and says so while you are
-  short). To repair, stand at the **cockpit** or the **ship console** and press **R** — one action fixes hull and
-  cells together. The panel refreshes on every landing and login, so it is never stale.
-- Hull is bought with **`iron_plate`** (10 hull per plate); each missing cell costs the item that originally
+  the right of the HUD (a hull bar plus the materials still needed and the bench that makes them, e.g.
+  *Iron plate ×10 · Workbench*; it greys out and says so while you are short). To repair, stand at the
+  **cockpit** or the **ship console** and press **R** — one action fixes hull and cells together. The panel
+  refreshes on every landing and login, so it is never stale.
+- Hull is bought with **`iron_plate`** (10 hull per plate — pressed from 2 iron ingots at any **workbench**, which
+  your ship's workshop module is; no factory needed); each missing cell costs the item that originally
   placed it (or `iron_plate` for structural blocks like lights/engine, so they never block a repair). The
   repair is **greedy/partial** — it fixes the hull first, then as many cells as your materials stretch to, and
   never hard-blocks when you're short. Only the **ship's owner** can repair it. There is no passive hull regen.
@@ -1509,7 +1512,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   recipes turn **cheaper, less-rare raw materials into the same output as the workshop, but in bulk** —
   more input per step, fewer refining stages. The catch: each factory only makes the **1–4 items on its
   own roster**, so a recipe the menu lists may say *"Use a factory terminal that makes this"* — you'll need
-  a different factory. Factory crafts **cannot be disassembled** back into their inputs.
+  a different factory. In the list a factory recipe is labelled **· Factory terminal** and sorts below its
+  workbench twin while no terminal is in reach, so two same-named cards (e.g. *Iron plate*) read apart. Factory
+  crafts **cannot be disassembled** back into their inputs.
 - Besides the basic parts (plates, panels, cable, glass, steel, energy cells, circuit boards, polymer) factories
   run a **raw-ore tier**: light alloy, bronze, brass, power cells, carbide, magnets, diamonds and even reactor
   fuel straight from ore — every ore has a second buyer that way. A factory's roster is **pinned the first

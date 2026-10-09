@@ -24,6 +24,22 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔧 Ship repair: where the plates come from — factory twin cards labelled and sorted behind the bench twin, repair panel names the bench, manual fix (2026-10-09, branch fix/repair-plate-source-hints) — ✅ done (PR pending)
+
+**Report (Justus via Marcel, 2026-10-09):** "I need a factory to repair the ship." Not a misread: the crafting list titles
+its cards by output item, so `iron_plate` (workbench) and `factory_iron_plate` (factory terminal) were two identical
+"Eisenplatte" cards — and the factory one sorted first whenever the player lacked ingots (the within-tier key prefers
+shallower inputs; raw ore is shallower than an ingot), its detail saying "Station: Fabrikterminal". No other text points
+at a factory (the HUD panel and `vega.hint.hull_low` say plates, the wiki has no repair article). Fix, client only, no
+new locale keys: (1) factory recipe cards and their detail heading carry "· Factory terminal"; (2) a factory recipe sorts
+behind its bench twin while no terminal offering it is in reach (`ReachTier` tier 2 — bench proximity itself stays out of
+the order, #826); (3) the repair panel names the bench behind each material (*Iron plate ×10 · Workbench*,
+`HudUi.RepairMaterialBench`; panel 30 px taller so the lines fit); (4) the manual's stale "hull cannot be damaged" line and
+the repair/factory sections. Workshop aboard a wreck confirmed working (module-based, modules untouched by the carve,
+design box always has air). **Open (not in this PR):** a wiki article on ship repair; a VEGA line that names the
+workbench; an "honest badge" ("Factory terminal missing" instead of "Material fehlt") would need a `CanCraft` reason
+kind + keys in 14 languages.
+
 ### 🌊 Water after the atmosphere package — surface haze, double haze, sheen, seabed weather, far-terrain colour, capture worlds (#2410: #2411–#2417, 2026-10-09, branch fix/water-haze, PR #2418) — ✅ done (released in v2026.10.10; ⚠ playtest open)
 
 **Report (Marcel, 2026-10-09):** "with the newly built version the water surface is only very faintly visible" — plus:

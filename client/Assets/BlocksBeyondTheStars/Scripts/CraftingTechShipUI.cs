@@ -1410,10 +1410,14 @@ namespace BlocksBeyondTheStars.Client
             // middle, blueprint-locked last; within a tier simpler recipes first. The within-tier key is
             // static (inventory-independent), so cards only move when they change tier. Market keeps the
             // authored order — barter offers are a vendor's stall, not a progression list.
+            // A factory recipe is the bulk twin of a bench recipe and carries the same output name, so while no
+            // terminal offering it is in reach it sorts BEHIND its twin: raw ore is "shallower" than an ingot, which
+            // used to put the factory "Eisenplatte" above the workbench one — a pilot repairing at the cockpit read
+            // "Station: Fabrikterminal" first and went looking for a factory (2026-10-09).
             if (_category != "market")
             {
                 entries = entries
-                    .OrderBy(e => ReachTier(e.r.RequiredBlueprint, e.r.Inputs))
+                    .OrderBy(e => ReachTier(e.r.RequiredBlueprint, e.r.Inputs, stationInReach: !IsFactoryRecipeAway(e.r)))
                     .ThenBy(e => e.r.Inputs.Count)
                     .ThenBy(e => Game.Content.MaxInputDepth(e.r.Inputs))
                     .ThenBy(e => e.r.Inputs.Sum(i => i.Count))
@@ -1427,7 +1431,15 @@ namespace BlocksBeyondTheStars.Client
                 string badge = trade
                     ? (e.can ? L("ui.craft.tradable") : L("ui.vendor.cant_afford"))
                     : (e.can ? L("ui.craft.ready") : L("ui.craft.blocked"));
-                AddCard(y, ItemName(e.outItem), IconFor(e.outItem), badge,
+                // The factory twin names its terminal — two cards reading "Eisenplatte" with the same icon told a
+                // player nothing about which one the ship's workshop makes.
+                string cardTitle = ItemName(e.outItem);
+                if (e.r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Factory)
+                {
+                    cardTitle += " · " + L("ui.craft.station_factory");
+                }
+
+                AddCard(y, cardTitle, IconFor(e.outItem), badge,
                     e.can ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), key, () => { _selected = key; RebuildDetail(); }, contentKey: e.outItem);
                 y += 88f;
             }
@@ -5047,7 +5059,13 @@ namespace BlocksBeyondTheStars.Client
 
             var outItem = r.Outputs.First();
             float y = 0f;
-            UiKit.AddText(_detail, 8, y, 620, 40, ItemName(outItem.Item) + (outItem.Count > 1 ? $"  ×{outItem.Count}" : ""), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            string heading = ItemName(outItem.Item) + (outItem.Count > 1 ? $"  ×{outItem.Count}" : "");
+            if (r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Factory)
+            {
+                heading += " · " + L("ui.craft.station_factory"); // the card's suffix, so the page matches the card
+            }
+
+            UiKit.AddText(_detail, 8, y, 620, 40, heading, 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 48f;
             string desc = Desc($"item.{outItem.Item}.desc");
             if (!string.IsNullOrEmpty(desc))
@@ -6426,9 +6444,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 // A factory recipe is craftable only while standing at a factory terminal that offers it on
                 // its roster (the server enforces the same). Factory terminals only exist in spawned factories.
-                string[] roster = System.Array.Empty<string>();
-                bool atFactory = FactoryView.Instance != null && FactoryView.Instance.PlayerAtTerminal(out roster);
-                if (!atFactory || System.Array.IndexOf(roster, r.Key) < 0)
+                if (IsFactoryRecipeAway(r))
                 {
                     reason = L("ui.craft.go_to_factory");
                     return false;
@@ -6545,10 +6561,13 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Reachability tier for the list ordering (#826): 0 = craftable now (blueprint unlocked +
-        /// materials owned), 1 = blueprint unlocked but materials missing, 2 = blueprint locked. Station
-        /// proximity is deliberately NOT part of the tier — the order must not reshuffle while walking
-        /// around; the station only keeps gating the status colour and the craft button.</summary>
-        private int ReachTier(string requiredBlueprint, List<BlocksBeyondTheStars.Shared.Definitions.ItemAmount> cost)
+        /// materials owned), 1 = blueprint unlocked but materials missing, 2 = a factory recipe with no terminal
+        /// offering it in reach (<paramref name="stationInReach"/> false), 3 = blueprint locked. Bench proximity is
+        /// deliberately NOT part of the tier — the order must not reshuffle while walking around; the bench only
+        /// keeps gating the status colour and the craft button. The factory terminal is the one exception: a factory
+        /// recipe is the bulk twin of a bench recipe with the same output name, a terminal is a rare find rather than
+        /// a bench you walk past, and sorted above its twin the factory card read as "this needs a factory".</summary>
+        private int ReachTier(string requiredBlueprint, List<BlocksBeyondTheStars.Shared.Definitions.ItemAmount> cost, bool stationInReach = true)
         {
             if (FreeCrafting())
             {
@@ -6557,10 +6576,30 @@ namespace BlocksBeyondTheStars.Client
 
             if (!BlueprintOk(requiredBlueprint))
             {
+                return 3;
+            }
+
+            if (!stationInReach)
+            {
                 return 2;
             }
 
             return HasAll(cost) ? 0 : 1;
+        }
+
+        /// <summary>True for a factory recipe while no spawned factory terminal in reach has it on its roster — the
+        /// server's gate for factory crafts (<c>HandleCraft</c>). Shared by <see cref="CanCraft"/> and the list order,
+        /// so the craft button and the card position never disagree. False for every other station.</summary>
+        private static bool IsFactoryRecipeAway(RecipeDefinition r)
+        {
+            if (r.Station != CraftingStation.Factory)
+            {
+                return false;
+            }
+
+            string[] roster = System.Array.Empty<string>();
+            bool atFactory = FactoryView.Instance != null && FactoryView.Instance.PlayerAtTerminal(out roster);
+            return !atFactory || System.Array.IndexOf(roster, r.Key) < 0;
         }
 
         private bool BlueprintOk(string bp) => string.IsNullOrEmpty(bp) || Game.UnlockedBlueprints.Contains(bp);
