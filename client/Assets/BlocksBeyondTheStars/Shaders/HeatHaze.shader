@@ -28,6 +28,7 @@ Shader "BlocksBeyondTheStars/HeatHaze"
 
             float _HeatAmp;  // 0 = none .. 1 = full (global, set by HeatShimmer.cs)
             float4 _Sc_Fog;  // shared distance-haze global (x = fog start, y = fog end) — set by Sky.cs
+            float _Sc_ScreenFx; // 1 when the depth + opaque textures exist (Medium+), 0 on Potato/Low (#2391)
 
             struct Attributes { float4 positionOS : POSITION; };
             struct Varyings { float4 positionCS : SV_POSITION; float4 screenPos : TEXCOORD0; };
@@ -42,6 +43,13 @@ Shader "BlocksBeyondTheStars/HeatHaze"
 
             half4 frag(Varyings i) : SV_Target
             {
+                // #2391: without the opaque + depth copies (Potato/Low) there is nothing to re-draw the frame from —
+                // discard keeps the frame as rendered instead of replacing it with an unbound texture.
+                if (_Sc_ScreenFx < 0.5)
+                {
+                    discard;
+                }
+
                 float2 uv = i.screenPos.xy / i.screenPos.w;
 
                 // Distance fade from scene depth — near surfaces stay rock-steady, the far field boils. Tied to

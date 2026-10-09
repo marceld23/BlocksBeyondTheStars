@@ -129,8 +129,38 @@ namespace BlocksBeyondTheStars.Client
             Toggle(ref y, L("ui.settings.smaa"), S.Smaa, () => { S.Smaa = !S.Smaa; S.ApplyCameraLook(); Rebuild(); });
             Toggle(ref y, L("ui.settings.lens_flare"), S.LensFlare, () => { S.LensFlare = !S.LensFlare; ApplyLiveWorld(); Rebuild(); });
             Toggle(ref y, L("ui.settings.motion_blur"), S.MotionBlur, () => { S.MotionBlur = !S.MotionBlur; ApplyLiveWorld(); Rebuild(); });
-            Toggle(ref y, L("ui.settings.volumetric_fog"), S.VolumetricFog, () => { S.VolumetricFog = !S.VolumetricFog; ApplyLiveWorld(); Rebuild(); });
-            Toggle(ref y, L("ui.settings.reflections"), S.Reflections, () => { S.Reflections = !S.Reflections; Rebuild(); });
+            Toggle(ref y, L("ui.settings.distance_haze"), S.DistanceHaze, () => { S.DistanceHaze = !S.DistanceHaze; ApplyLiveWorld(); Rebuild(); });
+
+            // Atmosphere package (#2404): one row — Off / Some (the cheap set) / All / Custom — and, on Custom, the
+            // per-effect switches. The presets still gate the expensive ones (Medium+), whatever the switch says.
+            Cycle(ref y, L("ui.settings.atmosphere"), L("ui.settings.atmosphere." + S.Atmosphere.ToString().ToLowerInvariant()), () =>
+            {
+                S.ApplyAtmosphereMode(S.Atmosphere switch
+                {
+                    AtmosphereMode.Off => AtmosphereMode.Some,
+                    AtmosphereMode.Some => AtmosphereMode.All,
+                    AtmosphereMode.All => AtmosphereMode.Custom,
+                    _ => AtmosphereMode.Off,
+                });
+                S.Apply();
+                ApplyLiveWorld();
+                Rebuild();
+            });
+            if (S.Atmosphere == AtmosphereMode.Custom)
+            {
+                AtmoToggle(ref y, "height_fog", S.HeightFog, v => S.HeightFog = v);
+                AtmoToggle(ref y, "cloud_shadows", S.CloudShadows, v => S.CloudShadows = v);
+                AtmoToggle(ref y, "eye_adaptation", S.EyeAdaptation, v => S.EyeAdaptation = v);
+                AtmoToggle(ref y, "torch_flicker", S.TorchFlicker, v => S.TorchFlicker = v);
+                AtmoToggle(ref y, "wind_sway", S.WindSway, v => S.WindSway = v);
+                AtmoToggle(ref y, "wet_surfaces", S.WetSurfaces, v => S.WetSurfaces = v);
+                AtmoToggle(ref y, "weather_particles", S.WeatherParticles, v => S.WeatherParticles = v);
+                AtmoToggle(ref y, "shooting_stars", S.ShootingStars, v => S.ShootingStars = v);
+                AtmoToggle(ref y, "underwater", S.Underwater, v => S.Underwater = v);
+                AtmoToggle(ref y, "light_shafts", S.LightShafts, v => S.LightShafts = v);
+                AtmoToggle(ref y, "emitter_light", S.EmitterLight, v => S.EmitterLight = v);
+                AtmoToggle(ref y, "soft_particles", S.SoftParticles, v => S.SoftParticles = v);
+            }
 
             Head(ref y, L("ui.settings.audio"));
             VolRow(ref y, L("ui.settings.master_volume"), () => S.MasterVolume, v => S.MasterVolume = v);
@@ -420,6 +450,20 @@ namespace BlocksBeyondTheStars.Client
             y += 52f;
         }
 
+        /// <summary>One per-effect switch of the atmosphere group (#2404): indented under the mode row; a change applies
+        /// live and keeps the mode on Custom.</summary>
+        private void AtmoToggle(ref float y, string key, bool on, System.Action<bool> set)
+        {
+            Toggle(ref y, "    " + L("ui.settings.atmo." + key), on, () =>
+            {
+                set(!on);
+                S.Atmosphere = AtmosphereMode.Custom;
+                S.Apply();
+                ApplyLiveWorld();
+                Rebuild();
+            });
+        }
+
         private void Toggle(ref float y, string label, bool on, System.Action onClick)
         {
             UiKit.AddText(_content, _x, y, LabelW, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
@@ -615,7 +659,39 @@ namespace BlocksBeyondTheStars.Client
             var sky = FindAnyObjectByType<Sky>();
             if (sky != null)
             {
-                sky.FogEnabled = S.VolumetricFog;
+                sky.FogEnabled = S.DistanceHaze;
+                sky.HeightFogEnabled = S.AtmosphereEffect(S.HeightFog, cheap: true);
+                sky.CloudShadowsEnabled = S.AtmosphereEffect(S.CloudShadows, cheap: false);
+                sky.FlickerScale = !S.ReduceFlashes && S.AtmosphereEffect(S.TorchFlicker, cheap: true) ? 1f : 0f;
+                sky.WindSwayEnabled = S.AtmosphereEffect(S.WindSway, cheap: true);
+                sky.WetSurfacesEnabled = S.AtmosphereEffect(S.WetSurfaces, cheap: true);
+                sky.UnderwaterEnabled = S.AtmosphereEffect(S.Underwater, cheap: true);
+            }
+
+            var probe = FindAnyObjectByType<AtmosphereProbe>();
+            if (probe != null)
+            {
+                probe.AdaptationEnabled = S.AtmosphereEffect(S.EyeAdaptation, cheap: true);
+                probe.ReducedEffects = S.ReducedEffects;
+                probe.BubblesEnabled = S.AtmosphereEffect(S.Underwater, cheap: true);
+            }
+
+            var shafts = FindAnyObjectByType<LightShafts>();
+            if (shafts != null)
+            {
+                shafts.MaxCards = WorldRig.ShaftCardsFor(S);
+            }
+
+            var stars = FindAnyObjectByType<ShootingStars>();
+            if (stars != null)
+            {
+                stars.Enabled = S.AtmosphereEffect(S.ShootingStars, cheap: true);
+            }
+
+            var weather3d = FindAnyObjectByType<WeatherFx3D>();
+            if (weather3d != null)
+            {
+                weather3d.Particles = S.AtmosphereEffect(S.WeatherParticles, cheap: true);
             }
 
             var pc = FindAnyObjectByType<PlayerController>();

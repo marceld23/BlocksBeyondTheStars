@@ -99,7 +99,7 @@ system (`BlockTextureAtlas.VariantKeys` whitelist is natural blocks only).
 
 ## 6. Light & post
 
-- ACES tonemapping, bloom threshold 0.9 / intensity 0.5, vignette 0.26 base (`UrpScenePost`).
+- ACES tonemapping, bloom threshold 0.9 / intensity 0.5, vignette 0.18 base (`UrpScenePost`; was 0.26 until #1457).
 - Emission is the sci-fi signature: lights, strips, lava veins, glow flora, ores, force fields,
   console screens — bloom catches them; **every important tech object carries one glowing detail.**
 - Dynamic vignette is reserved for meaning: blue pulse = low oxygen, red kick = damage; chroma/

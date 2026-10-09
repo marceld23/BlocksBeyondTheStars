@@ -29,7 +29,6 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma multi_compile_fog
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -40,6 +39,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             // Opaque scene colour (Phase 0 opaque texture) — the bed behind the water, sampled wave-distorted for
             // refraction (the surface bends what's beneath it; plain alpha-blending can't do that).
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
+            #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): water and glass haze like the terrain (#2393)
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             float4 _Sc_Light;
@@ -78,8 +78,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float3 wn : TEXCOORD1;
                 float3 wp : TEXCOORD2;
                 float4 mat : TEXCOORD3;
-                float fog : TEXCOORD4;
-                float4 water : TEXCOORD5;
+                float4 water : TEXCOORD4;
             };
 
             // #1957 animated tiles. TEXCOORD1.y = tint mode (low 4 bits) + 16*frames + 256*speedIndex + 1024*stripStart
@@ -164,7 +163,6 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 o.wp = wp;
                 o.mat = v.color;
                 o.water = v.water;
-                o.fog = ComputeFogFactor(o.positionCS.z);
                 return o;
             }
 
@@ -461,6 +459,12 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     float3 reflCol = _Sc_Sky.rgb; // most of a water reflection is the sky
                     float3 sp = i.wp;
                     float stepLen = 0.5;
+                    // Texel LOADS, not samples, inside the march: a sample needs screen derivatives, which a loop
+                    // with a data-dependent exit cannot provide — GLES3 only warned ("gradient instruction in a
+                    // loop"), WebGPU's WGSL rejects it (#2390). The depth and opaque copies are full-size here
+                    // (opaque downsample off), so UV × size is the texel.
+                    int2 depthSize = (int2)_CameraDepthTexture_TexelSize.zw;
+                    int2 colorSize = (int2)_CameraOpaqueTexture_TexelSize.zw;
                     [loop] for (int k = 0; k < 14; k++)
                     {
                         sp += Rw * stepLen;
@@ -470,18 +474,21 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                         float2 ruv = cp.xy / cp.w * 0.5 + 0.5;
                         if (_ProjectionParams.x < 0.0) { ruv.y = 1.0 - ruv.y; }
                         if (ruv.x < 0.0 || ruv.x > 1.0 || ruv.y < 0.0 || ruv.y > 1.0) { break; }
-                        float hitEye = LinearEyeDepth(SampleSceneDepth(ruv), _ZBufferParams);
+                        int2 dp = clamp((int2)(ruv * depthSize), int2(0, 0), depthSize - 1);
+                        float hitEye = LinearEyeDepth(LoadSceneDepth((uint2)dp), _ZBufferParams);
                         float rayEye = -TransformWorldToView(sp).z;
                         if (rayEye > hitEye + 0.1 && rayEye < hitEye + 4.0)
                         {
                             // Soft 5-tap blur of the reflected scene colour so the mirror is gently diffused
                             // (water is never a perfect mirror) — kills the "too hard" sharp reflection.
-                            float2 br = 0.0035;
-                            reflCol = (SampleSceneColor(ruv)
-                                     + SampleSceneColor(ruv + float2(br.x, 0.0))
-                                     + SampleSceneColor(ruv - float2(br.x, 0.0))
-                                     + SampleSceneColor(ruv + float2(0.0, br.y))
-                                     + SampleSceneColor(ruv - float2(0.0, br.y))) * 0.2;
+                            int2 rp = (int2)(ruv * colorSize);
+                            int2 br = max(int2(1, 1), (int2)(colorSize * 0.0035)); // ≈ 0.0035 of the frame
+                            int2 lo = int2(0, 0), hi = colorSize - 1;
+                            reflCol = (LoadSceneColor((uint2)clamp(rp, lo, hi))
+                                     + LoadSceneColor((uint2)clamp(rp + int2(br.x, 0), lo, hi))
+                                     + LoadSceneColor((uint2)clamp(rp - int2(br.x, 0), lo, hi))
+                                     + LoadSceneColor((uint2)clamp(rp + int2(0, br.y), lo, hi))
+                                     + LoadSceneColor((uint2)clamp(rp - int2(0, br.y), lo, hi))) * 0.2;
                             break;
                         }
                     }
@@ -520,7 +527,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 }
 
                 half4 outc = half4(col, alpha);
-                outc.rgb = MixFog(outc.rgb, i.fog);
+                outc.rgb = BbtsApplyHaze(outc.rgb, i.wp, 1.0); // the shared haze (#2393); cave water is kept clear by the camera's exposure
                 return outc;
             }
             ENDHLSL

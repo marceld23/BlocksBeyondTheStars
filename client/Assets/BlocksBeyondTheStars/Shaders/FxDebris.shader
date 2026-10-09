@@ -27,6 +27,7 @@ Shader "BlocksBeyondTheStars/FxDebris"
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "FxCommon.hlsl"
+            #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): chips haze like the block they came from (#2393)
 
             CBUFFER_START(UnityPerMaterial)
                 float _Ambient;
@@ -57,9 +58,10 @@ Shader "BlocksBeyondTheStars/FxDebris"
                 float3 L = (dot(_Sc_SunDir.xyz, _Sc_SunDir.xyz) > 0.01) ? normalize(_Sc_SunDir.xyz) : normalize(float3(0.4, 0.8, -0.45));
                 float ndl = saturate(dot(N, L));
                 float3 albedo = i.color.rgb;
-                float3 col = albedo * light * (_Ambient + (1.0 - _Ambient) * ndl);
+                float3 col = albedo * light * (_Ambient + (1.0 - _Ambient) * ndl * BbtsCloudShade(i.wp));
                 col += BbtsFxLights(i.wp, N, albedo);
                 col += albedo * _Emission;
+                col = BbtsApplyHaze(col, i.wp, 1.0);
                 return half4(col, 1.0);
             }
             ENDHLSL

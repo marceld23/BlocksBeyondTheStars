@@ -31,6 +31,11 @@ namespace BlocksBeyondTheStars.Client
         /// Used both by the mesher's flood-fill and by callers when gathering nearby light sources.</summary>
         public const int LightRadius = 9;
 
+        /// <summary>#2407: how bright a natural emitter (lava, crystal, glowing flora) starts, as a share of a fixture's
+        /// level — a crystal is not a lamp. Its light then fades over its own few blocks, not over the fixtures' reach.</summary>
+        private const float NaturalEmitterLevel = 0.8f;
+        [System.ThreadStatic] private static List<int> _lightReachScratch;
+
         /// <summary>Self-glow of a cell made with the Glow action (#2036) — the torch/strip-light level, so a glowing
         /// block shines and blooms like a fixture instead of only lighting the faces around it.</summary>
         public const float GlowCellEmission = 0.85f;
@@ -101,7 +106,7 @@ namespace BlocksBeyondTheStars.Client
                 return i >= 0 ? Cells[i] * (1f / LightRadius) : Vector3.zero;
             }
         }
-        [System.ThreadStatic] private static List<(int X, int Y, int Z, Vector3 Col)> _lightSourcesScratch;
+        [System.ThreadStatic] private static List<(int X, int Y, int Z, Vector3 Col, int Radius)> _lightSourcesScratch;
 
         // Per-face quad/UV scratch (one 4-element array per CALL SITE, so two live quads never alias): the
         // mesher touches these thousands of times per chunk, and a fresh array per face was a real share of
@@ -2249,16 +2254,17 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int baseRgb = BlockLightColor(content, id, 0);
-            return baseRgb != 0 && tintMod != 0 ? tintMod & 0xFFFFFF : baseRgb;
+            return baseRgb != 0 && tintMod != 0 ? BlocksBeyondTheStars.Shared.Definitions.BlockLight.Recolor(baseRgb, tintMod) : baseRgb;
         }
 
         /// <summary>
-        /// The light colour a cell emits as 0xRRGGBB, or 0 if it is not a light source. A placed glow block
-        /// carries its colour in <paramref name="glowMod"/>; otherwise the block type decides — the fixtures that
-        /// declare a <c>lightColor</c> in data/blocks.json (lamps, torch, lantern, campfire, fire, forge, beam pad,
-        /// strip lights; #2036). Natural emissives (lava, crystals, glowing ores/flora) deliberately return 0 —
-        /// they keep their self-glow look and do NOT flood the world with propagated light. Shared by the mesher
-        /// and the client light-source registry.
+        /// The light a cell emits as a PACKED source (<see cref="BlocksBeyondTheStars.Shared.Definitions.BlockLight.Pack"/>:
+        /// colour, reach, surface-only), or 0 if it is not a light source. A placed glow block carries its colour in
+        /// <paramref name="glowMod"/> (full reach); otherwise the block type decides — the fixtures that declare a
+        /// <c>lightColor</c> in data/blocks.json (lamps, torch, lantern, campfire, fire, forge, beam pad, strip
+        /// lights; #2036) and, since #2407, the natural emitters (lava, crystals, glowing flora) with their small
+        /// <c>lightRadius</c>. Ores and machines return 0 — self-glow only. Shared by the mesher and the client
+        /// light-source registry.
         /// </summary>
         public static int BlockLightColor(GameContent content, BlockId id, int glowMod)
         {
@@ -2267,7 +2273,7 @@ namespace BlocksBeyondTheStars.Client
                 return glowMod & 0xFFFFFF;
             }
 
-            return BlocksBeyondTheStars.Shared.Definitions.BlockLight.NaturalColorOf(content?.BlockById(id));
+            return BlocksBeyondTheStars.Shared.Definitions.BlockLight.PackedLightOf(content?.BlockById(id));
         }
 
         /// <summary>
@@ -2281,7 +2287,7 @@ namespace BlocksBeyondTheStars.Client
             ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock,
             Vector3i origin, int n, IReadOnlyList<(Vector3i Pos, int Rgb)> lights)
         {
-            var sources = _lightSourcesScratch ??= new List<(int X, int Y, int Z, Vector3 Col)>();
+            var sources = _lightSourcesScratch ??= new List<(int X, int Y, int Z, Vector3 Col, int Radius)>();
             sources.Clear();
             if (lights != null)
             {
@@ -2298,8 +2304,8 @@ namespace BlocksBeyondTheStars.Client
                         continue; // out of light range of this chunk
                     }
 
-                    var c = RgbToColor(rgb);
-                    sources.Add((pos.X, pos.Y, pos.Z, new Vector3(c.r, c.g, c.b)));
+                    var c = RgbToColor(rgb); // reads the colour bits only; the reach rides in the upper byte (#2407)
+                    sources.Add((pos.X, pos.Y, pos.Z, new Vector3(c.r, c.g, c.b), BlocksBeyondTheStars.Shared.Definitions.BlockLight.RadiusFrom(rgb)));
                 }
             }
             else
@@ -2321,8 +2327,19 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
+                    // #2407: a massed emitter (lava) lights from its surface only — cells with an air neighbour; a cell
+                    // on the chunk edge counts as surface (the neighbour is unknown here; ship meshes are small).
+                    if (BlocksBeyondTheStars.Shared.Definitions.BlockLight.SurfaceOnlyFrom(rgb)
+                        && !(x == 0 || y == 0 || z == 0 || x == n - 1 || y == n - 1 || z == n - 1
+                             || chunk.Get(x + 1, y, z).IsAir || chunk.Get(x - 1, y, z).IsAir
+                             || chunk.Get(x, y + 1, z).IsAir || chunk.Get(x, y - 1, z).IsAir
+                             || chunk.Get(x, y, z + 1).IsAir || chunk.Get(x, y, z - 1).IsAir))
+                    {
+                        continue;
+                    }
+
                     var c = RgbToColor(rgb);
-                    sources.Add((origin.X + x, origin.Y + y, origin.Z + z, new Vector3(c.r, c.g, c.b)));
+                    sources.Add((origin.X + x, origin.Y + y, origin.Z + z, new Vector3(c.r, c.g, c.b), BlocksBeyondTheStars.Shared.Definitions.BlockLight.RadiusFrom(rgb)));
                 }
             }
 
@@ -2365,71 +2382,100 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var queue = _lightQueueDense ??= new Queue<int>();
-            queue.Clear();
             var cells = field.Cells;
+            int WW = W * W;
+
+            // One flood per reach (#2407): a fixture (LightRadius) starts at full level and loses 1 per block; a
+            // natural emitter starts a little below full — a crystal is not a lamp — and loses level/reach per block,
+            // so it is gone after its own few blocks. The floods share the field (max-merge), so the brighter light
+            // wins wherever they overlap; the longest reach goes first, and a short flood never carries past a cell a
+            // longer one already lit brighter.
+            var reaches = _lightReachScratch ??= new List<int>(4);
+            reaches.Clear();
             foreach (var s in sources)
             {
-                int key = field.IndexOf(s.X, s.Y, s.Z);
-                if (key < 0)
+                int r = Mathf.Clamp(s.Radius, 1, LightRadius);
+                if (!reaches.Contains(r))
                 {
-                    continue; // outside the window — cannot happen for a source inside the light box
+                    reaches.Add(r);
                 }
-
-                var lvl = s.Col * LightRadius; // per-channel start level (0..LightRadius)
-                var ex = cells[key];
-                if (ex == Vector3.zero)
-                {
-                    touched.Add(key);
-                }
-
-                cells[key] = ex != Vector3.zero ? Vector3.Max(ex, lvl) : lvl;
-                queue.Enqueue(key);
             }
 
-            int WW = W * W;
-            while (queue.Count > 0)
+            reaches.Sort((a, b) => b.CompareTo(a));
+            foreach (int reach in reaches)
             {
-                int p = queue.Dequeue();
-                var cur = cells[p];
-                int px = p % W, pz = p / W % W, py = p / WW;
-                for (int f = 0; f < Faces.Length; f++)
+                bool fixtures = reach >= LightRadius;
+                float top = fixtures ? LightRadius : LightRadius * NaturalEmitterLevel;
+                float step = top / reach;
+                queue.Clear();
+                foreach (var s in sources)
                 {
-                    int ix = px + Faces[f].X, iy = py + Faces[f].Y, iz = pz + Faces[f].Z;
-                    if ((uint)ix >= W || (uint)iy >= W || (uint)iz >= W)
-                    {
-                        continue; // beyond the window — unreachable within LightRadius - 1 steps of a source
-                    }
-
-                    int key = (iy * W + iz) * W + ix;
-                    if (Opaque(field.Ox + ix, field.Oy + iy, field.Oz + iz, key))
-                    {
-                        continue; // solid blocks stop light (sources are already seeded)
-                    }
-
-                    var nl = new Vector3(Mathf.Max(0f, cur.x - 1f), Mathf.Max(0f, cur.y - 1f), Mathf.Max(0f, cur.z - 1f));
-                    if (nl.x <= 0f && nl.y <= 0f && nl.z <= 0f)
+                    if (Mathf.Clamp(s.Radius, 1, LightRadius) != reach)
                     {
                         continue;
                     }
 
-                    var exist = cells[key];
-                    if (exist != Vector3.zero)
+                    int key = field.IndexOf(s.X, s.Y, s.Z);
+                    if (key < 0)
                     {
-                        var merged = Vector3.Max(exist, nl);
-                        if (merged == exist)
-                        {
-                            continue; // no channel improved
-                        }
-
-                        cells[key] = merged;
+                        continue; // outside the window — cannot happen for a source inside the light box
                     }
-                    else
+
+                    var lvl = s.Col * top; // per-channel start level (0..LightRadius)
+                    var ex = cells[key];
+                    if (ex == Vector3.zero)
                     {
-                        cells[key] = nl;
                         touched.Add(key);
                     }
 
+                    cells[key] = ex != Vector3.zero ? Vector3.Max(ex, lvl) : lvl;
                     queue.Enqueue(key);
+                }
+
+                while (queue.Count > 0)
+                {
+                    int p = queue.Dequeue();
+                    var cur = cells[p];
+                    int px = p % W, pz = p / W % W, py = p / WW;
+                    for (int f = 0; f < Faces.Length; f++)
+                    {
+                        int ix = px + Faces[f].X, iy = py + Faces[f].Y, iz = pz + Faces[f].Z;
+                        if ((uint)ix >= W || (uint)iy >= W || (uint)iz >= W)
+                        {
+                            continue; // beyond the window — unreachable within LightRadius - 1 steps of a source
+                        }
+
+                        int key = (iy * W + iz) * W + ix;
+                        if (Opaque(field.Ox + ix, field.Oy + iy, field.Oz + iz, key))
+                        {
+                            continue; // solid blocks stop light (sources are already seeded)
+                        }
+
+                        var nl = new Vector3(Mathf.Max(0f, cur.x - step), Mathf.Max(0f, cur.y - step), Mathf.Max(0f, cur.z - step));
+                        if (nl.x <= 0f && nl.y <= 0f && nl.z <= 0f)
+                        {
+                            continue;
+                        }
+
+                        var exist = cells[key];
+                        if (exist != Vector3.zero)
+                        {
+                            var merged = Vector3.Max(exist, nl);
+                            if (merged == exist)
+                            {
+                                continue; // no channel improved
+                            }
+
+                            cells[key] = merged;
+                        }
+                        else
+                        {
+                            cells[key] = nl;
+                            touched.Add(key);
+                        }
+
+                        queue.Enqueue(key);
+                    }
                 }
             }
 

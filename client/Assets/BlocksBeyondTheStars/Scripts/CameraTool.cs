@@ -61,20 +61,27 @@ namespace BlocksBeyondTheStars.Client
             cam.transform.SetPositionAndRotation(Source.transform.position, Source.transform.rotation);
             cam.targetTexture = rt;
             cam.enabled = true;
+            Sky.WorldCameras.Add(cam); // the photo shows the world, haze included (#2393)
 
             // Wait until the end of this frame, by which point the pipeline has rendered our camera into the RT.
             yield return new WaitForEndOfFrame();
 
+            // Read the RT back through GpuReadback (#2390): a synchronous ReadPixels where the API allows it, an
+            // async request on WebGPU (the photo then lands a frame or two later — the shutter sound waits for it).
             byte[] jpg = null;
-            var prevActive = RenderTexture.active;
             Texture2D tex = null;
+            cam.enabled = false;
+            yield return GpuReadback.ReadInto(rt, TextureFormat.RGB24, t => tex = t);
             try
             {
-                RenderTexture.active = rt;
-                tex = new Texture2D(w, h, TextureFormat.RGB24, mipChain: false);
-                tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
-                tex.Apply(false);
-                jpg = tex.EncodeToJPG(92);
+                if (tex != null)
+                {
+                    jpg = tex.EncodeToJPG(92);
+                }
+                else
+                {
+                    Debug.LogWarning("[CameraTool] capture failed: readback returned nothing.");
+                }
             }
             catch (Exception ex)
             {
@@ -82,7 +89,7 @@ namespace BlocksBeyondTheStars.Client
             }
             finally
             {
-                RenderTexture.active = prevActive;
+                Sky.WorldCameras.Remove(cam);
                 cam.targetTexture = null;
                 if (tex != null) { Destroy(tex); }
                 Destroy(camGo);

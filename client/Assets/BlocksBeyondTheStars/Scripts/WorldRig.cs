@@ -440,11 +440,34 @@ namespace BlocksBeyondTheStars.Client
             space.Map = spaceMap;
 
             // Day/night + weather + sun colour (World systems).
+            // Atmosphere package (#2408): the surroundings probe feeds the height fog's floor, the camera exposure and
+            // the eye adaptation; the Sky owns the haze / cloud-shadow / flicker globals.
+            var probe = root.AddComponent<AtmosphereProbe>();
+            probe.Game = boot;
+            probe.Camera = cam;
+            probe.AdaptationEnabled = shell.Settings.AtmosphereEffect(shell.Settings.EyeAdaptation, cheap: true);
+            probe.ReducedEffects = shell.Settings.ReducedEffects;
+
             var sky = root.AddComponent<Sky>();
             sky.Game = boot;
             sky.Camera = cam;
+            sky.Probe = probe;
             sky.ViewChunks = shell.Settings.ViewDistanceChunks; // scale distance fog to the render distance
-            sky.FogEnabled = shell.Settings.VolumetricFog;      // "Volumetric fog / light shafts" toggle → distance haze + god-rays
+            sky.FogEnabled = shell.Settings.DistanceHaze;       // "Distance haze & sun rays" toggle → distance haze + god-rays
+            sky.HeightFogEnabled = shell.Settings.AtmosphereEffect(shell.Settings.HeightFog, cheap: true);
+            sky.CloudShadowsEnabled = shell.Settings.AtmosphereEffect(shell.Settings.CloudShadows, cheap: false);
+            sky.FlickerScale = !shell.Settings.ReduceFlashes && shell.Settings.AtmosphereEffect(shell.Settings.TorchFlicker, cheap: true) ? 1f : 0f;
+            sky.WindSwayEnabled = shell.Settings.AtmosphereEffect(shell.Settings.WindSway, cheap: true);
+            sky.WetSurfacesEnabled = shell.Settings.AtmosphereEffect(shell.Settings.WetSurfaces, cheap: true);
+            sky.UnderwaterEnabled = shell.Settings.AtmosphereEffect(shell.Settings.Underwater, cheap: true);
+            probe.BubblesEnabled = sky.UnderwaterEnabled;
+
+            // Light-shaft cards at cave mouths and canopy gaps (#2402): Medium 6, High 12, off below.
+            var shafts = root.AddComponent<LightShafts>();
+            shafts.Game = boot;
+            shafts.Camera = cam;
+            shafts.Probe = probe;
+            shafts.MaxCards = ShaftCardsFor(shell.Settings);
 
             // Far terrain (#1820): the low-resolution horizon beyond the streamed chunks, and the haze that reaches it (#1822).
             var farView = root.AddComponent<FarTerrainView>();
@@ -482,6 +505,12 @@ namespace BlocksBeyondTheStars.Client
             starfield.Game = boot;
             starfield.Camera = cam;
 
+            // Shooting stars on the night sky (#2400).
+            var shootingStars = root.AddComponent<ShootingStars>();
+            shootingStars.Game = boot;
+            shootingStars.Camera = cam;
+            shootingStars.Enabled = shell.Settings.AtmosphereEffect(shell.Settings.ShootingStars, cheap: true);
+
             // The planet's own ring arcing across the surface sky, on ringed planets only (#596).
             var ringBand = root.AddComponent<RingBand>();
             ringBand.Game = boot;
@@ -505,6 +534,7 @@ namespace BlocksBeyondTheStars.Client
             var weather3d = root.AddComponent<WeatherFx3D>();
             weather3d.Game = boot;
             weather3d.Cam = cam;
+            weather3d.Particles = shell.Settings.AtmosphereEffect(shell.Settings.WeatherParticles, cheap: true); // #2399
 
             // Procedural creatures / fauna (World systems §12).
             var creatures = root.AddComponent<CreatureView>();
@@ -603,6 +633,18 @@ namespace BlocksBeyondTheStars.Client
             // Jetpack thrust flames for the local third-person avatar would render via the player's own VFX.
 
             return root;
+        }
+
+        /// <summary>How many light-shaft cards (#2402) a preset affords: High 12, Medium 6, Potato/Low none — and 0
+        /// when the player switched the effect off.</summary>
+        public static int ShaftCardsFor(ClientSettings s)
+        {
+            if (!s.AtmosphereEffect(s.LightShafts, cheap: false))
+            {
+                return 0;
+            }
+
+            return s.Preset >= QualityPreset.High ? 12 : 6;
         }
 
         private static int Rgb(Color c)

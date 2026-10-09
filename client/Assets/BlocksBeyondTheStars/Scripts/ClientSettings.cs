@@ -75,6 +75,9 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>Graphics quality presets, including a Potato profile for weak / low-power machines.</summary>
     public enum QualityPreset { Potato, Low, Medium, High }
 
+    /// <summary>The atmosphere package's one-row setting (#2404): Off / Some (the cheap set) / All / Custom.</summary>
+    public enum AtmosphereMode { Off, Some, All, Custom }
+
     /// <summary>
     /// Which background-music source the player prefers. <see cref="Synth"/> = the original code-synth
     /// ambient pads (the short bundled <c>music_*</c> loops with synthesized fallbacks); <see cref="Tracks"/>
@@ -252,10 +255,69 @@ namespace BlocksBeyondTheStars.Client
         public bool LensFlare = true;
         /// <summary>Subtle camera motion blur while flying the ship / driving the speeder (High+ only).</summary>
         public bool MotionBlur = true;
-        /// <summary>Volumetric fog + god-rays (light shafts). Needs the depth texture (Medium+).</summary>
-        public bool VolumetricFog = true;
-        /// <summary>Screen-space reflections on water / glossy hull / metal. Needs depth + opaque (High+).</summary>
-        public bool Reflections = true;
+        /// <summary>The distance haze toward the horizon and the sun-ray fan at the sun (#2392: the toggle used to be
+        /// called "Volumetric fog" although no volumetric pass exists — it gates exactly these two). All presets.</summary>
+        public bool DistanceHaze = true;
+
+        // Atmosphere package (#2408): one switch per effect (#2404). The cheap ones run on every preset; the rest need
+        // Medium+ (see AtmosphereEffect). Defaults on — the presets, not the player, decide what a weak machine skips.
+        /// <summary>Mist lying in the low ground at dawn, dusk and in fog weather (#2406). Cheap: all presets.</summary>
+        public bool HeightFog = true;
+        /// <summary>Drifting cloud shadows on the direct sun (#2394). Medium+.</summary>
+        public bool CloudShadows = true;
+        /// <summary>Eye adaptation between caves and daylight (#2395). Cheap: all presets.</summary>
+        public bool EyeAdaptation = true;
+        /// <summary>Warm fixture light breathing (#2396). Cheap: all presets; forced steady by <see cref="ReduceFlashes"/>.</summary>
+        public bool TorchFlicker = true;
+        /// <summary>Wind sway of leaves, grass and flora (#2397). Cheap: all presets.</summary>
+        public bool WindSway = true;
+        /// <summary>Wet ground after rain and snow caps after snowfall (#2398). Cheap: all presets (a few shader ops).</summary>
+        public bool WetSurfaces = true;
+        /// <summary>Rain/snow particles with ground splashes (#2399). All presets, budgeted by preset.</summary>
+        public bool WeatherParticles = true;
+        /// <summary>Shooting stars at night and the planet limb in orbit (#2400). Cheap: all presets.</summary>
+        public bool ShootingStars = true;
+        /// <summary>Underwater fog, caustics and bubbles (#2401). Fog + bubbles on every preset, caustics Medium+.</summary>
+        public bool Underwater = true;
+        /// <summary>Light-shaft cards at cave mouths, windows and canopy gaps (#2402). Medium+.</summary>
+        public bool LightShafts = true;
+        /// <summary>Lava, crystals and glowing flora light their surroundings (#2407). Medium+ at full radius.</summary>
+        public bool EmitterLight = true;
+        /// <summary>Particles fade softly into surfaces (#2403). Medium+ (needs the depth texture).</summary>
+        public bool SoftParticles = true;
+
+        /// <summary>Whether an atmosphere effect runs: its own switch, and — unless it is one of the cheap ones — a
+        /// preset of Medium or better.</summary>
+        public bool AtmosphereEffect(bool toggle, bool cheap) => toggle && (cheap || Preset >= QualityPreset.Medium);
+
+        /// <summary>The one-row control of the atmosphere package (#2404): Off / Some (the cheap set) / All, or Custom
+        /// once a switch below was set by hand. <see cref="ApplyAtmosphereMode"/> writes the switches.</summary>
+        public AtmosphereMode Atmosphere = AtmosphereMode.All;
+
+        /// <summary>Sets the mode and, unless it is Custom, every per-effect switch to match it.</summary>
+        public void ApplyAtmosphereMode(AtmosphereMode mode)
+        {
+            Atmosphere = mode;
+            if (mode == AtmosphereMode.Custom)
+            {
+                return;
+            }
+
+            bool all = mode == AtmosphereMode.All;
+            bool some = all || mode == AtmosphereMode.Some;
+            HeightFog = some;
+            EyeAdaptation = some;
+            TorchFlicker = some;
+            WindSway = some;
+            ShootingStars = some;
+            WetSurfaces = some;
+            Underwater = some;
+            WeatherParticles = some;
+            CloudShadows = all;
+            LightShafts = all;
+            EmitterLight = all;
+            SoftParticles = all;
+        }
 
         // Audio (0..1)
         public float MasterVolume = 0.8f;
@@ -1185,6 +1247,12 @@ namespace BlocksBeyondTheStars.Client
                 UnityEngine.Shader.SetGlobalFloat("_Sc_ScreenFx", wantsScreenSpace ? 1f : 0f);
             }
 
+            // Atmosphere package switches the shaders read directly (#2403 soft particles, #2401 caustics), and the one
+            // the light index reads (#2407 — takes effect as chunks stream in).
+            UnityEngine.Shader.SetGlobalFloat("_Sc_SoftParticles", AtmosphereEffect(SoftParticles, cheap: false) ? 1f : 0f);
+            UnityEngine.Shader.SetGlobalFloat("_Sc_Caustics", AtmosphereEffect(Underwater, cheap: false) ? 1f : 0f);
+            ClientWorld.NaturalEmittersLight = AtmosphereEffect(EmitterLight, cheap: false);
+
             ApplyCameraLook();
         }
 
@@ -1203,6 +1271,11 @@ namespace BlocksBeyondTheStars.Client
 
         private static UniversalAdditionalCameraData _activeCameraData;
         private static bool _opaqueTexturePresetAllows;
+
+        /// <summary>True on the presets that render the depth + opaque textures (Medium+). A screen-space effect that
+        /// samples them (heat haze, thermal vision, soft particles) must stay off without this (#2391: the heat haze
+        /// used to re-draw the frame from a texture Low never had).</summary>
+        public static bool ScreenSpaceFxAllowed => _opaqueTexturePresetAllows;
         private static int _opaqueTextureRequests;
         private static bool _waterOpaqueHeld; // #1577: the water shader's standing request at Medium+
 
@@ -1248,6 +1321,18 @@ namespace BlocksBeyondTheStars.Client
         /// (Potato/Low). SSAO was the measured Low→Medium frame-time cliff (#374).</summary>
         public void ApplyCameraLook() => ApplyCameraLook(ActiveCameraData);
 
+        /// <summary>The URP renderer the preset selects. The index carries the SSAO cost tier: 0 = full-resolution SSAO
+        /// (High), 2 = half-resolution SSAO (Medium — Downsample renderer), 1 = SSAO-free (Potato/Low). Measured (#374):
+        /// SSAO was the whole Low→Medium frame-time cliff on the reference laptop, so Medium keeps ambient occlusion but at
+        /// half resolution — most of the look, ~half the cost — while High stays untouched at full res. The clip recorder's
+        /// clone camera reads it too (#2405), so a capture renders with the same renderer as play.</summary>
+        public int RendererIndex => Preset switch
+        {
+            QualityPreset.High => 0,
+            QualityPreset.Medium => 2,
+            _ => 1,
+        };
+
         /// <summary>Same as <see cref="ApplyCameraLook()"/> for an explicit camera — the shell scenes
         /// (intro cinematic, menu backdrop) pass their own camera data, which exists before
         /// <see cref="ActiveCameraData"/> is ever assigned (#1421).</summary>
@@ -1259,16 +1344,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             cd.renderPostProcessing = true;
-            // Renderer index carries the SSAO cost tier: 0 = full-resolution SSAO (High), 2 = half-resolution
-            // SSAO (Medium — Downsample renderer), 1 = SSAO-free (Potato/Low). Measured (#374): SSAO was the
-            // whole Low→Medium frame-time cliff on the reference laptop, so Medium keeps ambient occlusion but
-            // at half resolution — most of the look, ~half the cost — while High stays untouched at full res.
-            cd.SetRenderer(Preset switch
-            {
-                QualityPreset.High => 0,
-                QualityPreset.Medium => 2,
-                _ => 1,
-            });
+            cd.SetRenderer(RendererIndex);
 
             bool smaa = Smaa && Preset >= QualityPreset.Medium;
             cd.antialiasing = smaa ? AntialiasingMode.SubpixelMorphologicalAntiAliasing : AntialiasingMode.None;

@@ -113,6 +113,16 @@ instead of hoping the spawn rolls them. The manifest fields and a frames-only re
 [docs/screenshots/README.md](../screenshots/README.md#video-clips--captureclip--and-look-checks-without-a-playtest);
 the standing set of look-check scenes is `scripts/clip-manifests/atmosphere-check.json`.
 
+Two rules learned the hard way (#2405): **never run a capture set while a Unity or IL2CPP build or the test
+suite is running** — a starved client lifts its spawn freeze before any chunk has streamed and every pose falls
+back to the spawn over the far-terrain mesh (the log says `cells loaded=0`); and **count `Shader error` lines in
+`client/build.log` after every build** — a broken include still ends in `build: Succeeded`, with every shader that
+includes it rendering its fallback.
+
+The browser build has its own check: `scripts/webgl-browser-check.py` loads a local WebGL build in Playwright's
+Chromium (WebGL 2 in the headless shell, WebGPU with `--channel chromium`) and records the console and screenshots —
+see [WEBCLIENT_FEASIBILITY.md](WEBCLIENT_FEASIBILITY.md#webgpu-first-webgl-2-as-the-fallback-2026-10-2390).
+
 ## Notes & caveats
 
 - **Unity batch exit codes are unreliable** (the Editor can relaunch a child process), so the runner waits for

@@ -60,6 +60,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/Particle",
             "BlocksBeyondTheStars/ParticleAlpha",
             "BlocksBeyondTheStars/PlanetRing",
+            "BlocksBeyondTheStars/PlanetLimb",   // #2400: the lit atmosphere rim of a planet seen from orbit
             "BlocksBeyondTheStars/ScatterLit",
             "BlocksBeyondTheStars/SkyBodyPhase",
             "BlocksBeyondTheStars/Starfield",
@@ -240,6 +241,19 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             // WebGL target only; desktop/native builds keep their settings.
             PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.WebGL, ManagedStrippingLevel.Medium);
             PlayerSettings.SetIl2CppCodeGeneration(NamedBuildTarget.WebGL, UnityEditor.Build.Il2CppCodeGeneration.OptimizeSpeed);
+
+            // #2390: WebGPU first, WebGL 2 as the automatic fallback for browsers without it (and for plain-HTTP /
+            // file:// contexts, where Unity always falls back). Set here rather than in the serialised ProjectSettings
+            // so every build — local, GameCI, glitch — carries the same list; BBS_WEBGL_API=webgl2 pins the old API
+            // for an A/B build. The player logs SystemInfo.graphicsDeviceType at start, so a browser run says which
+            // one it got.
+            string apiPin = Environment.GetEnvironmentVariable("BBS_WEBGL_API") ?? string.Empty;
+            var apis = string.Equals(apiPin, "webgl2", StringComparison.OrdinalIgnoreCase)
+                ? new[] { UnityEngine.Rendering.GraphicsDeviceType.OpenGLES3 }
+                : new[] { UnityEngine.Rendering.GraphicsDeviceType.WebGPU, UnityEngine.Rendering.GraphicsDeviceType.OpenGLES3 };
+            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.WebGL, false);
+            PlayerSettings.SetGraphicsAPIs(BuildTarget.WebGL, apis);
+            Debug.Log("WebGL graphics APIs: " + string.Join(" → ", apis));
 
             SetWebGLProperty("memorySize", 512);
             SetWebGLProperty("compressionFormat", fastLocal ? "Disabled" : "Brotli");

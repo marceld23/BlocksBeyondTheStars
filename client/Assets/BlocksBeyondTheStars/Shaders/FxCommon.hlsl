@@ -68,7 +68,7 @@ float3 BbtsScanWave(float3 wp)
     }
 
     float t = 1.0 - behind / width;                 // 1 at the lead edge → 0 at the tail
-    float lead = pow(t, 10.0);                      // the razor-thin bright front
+    float lead = pow(saturate(t), 10.0);            // the razor-thin bright front (saturate: keeps the compiler's pow warning away)
     float trail = t * t * 0.45;                     // the soft glow it drags behind it
     float lines = pow(abs(sin(wp.y * 3.14159 * _Sc_ScanWaveParams.z)), 24.0) * t * 0.35; // faint horizontal bars
     float fade = 1.0 - saturate(radius / max(1.0, _Sc_ScanWaveParams.y)); // dies out toward the max radius

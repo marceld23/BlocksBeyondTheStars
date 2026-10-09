@@ -43,6 +43,10 @@ no compute, no GPU particles and no modern upscaling.
   re-import of `client/Library`; the maintainer's checkout rebuilds its Library once after the merge.
 - The browser build's behaviour now differs per browser and device (WebGPU vs WebGL 2). A bug report carries
   `SystemInfo.graphicsDeviceVersion` (`DeviceInfo`), and the player logs the API at start.
+- The engine falls back to WebGL 2 only when the browser has no WebGPU adapter at all; an adapter whose device
+  creation fails stalled the engine on a null device. The WebGL template therefore probes adapter + device before
+  loading the engine and hides `navigator.gpu` on failure (`?bbsGpu=webgl2` forces it) — the fallback is ours, not
+  only Unity's.
 - Captures on the Windows player test the WebGPU *code paths* (`-clipReadbackCheck`, the SSR texel loads), not
   the WebGPU backend; only a browser run does that.
 - A later decision may drop WebGL 2 once the school club's hardware is known to run WebGPU — that is when

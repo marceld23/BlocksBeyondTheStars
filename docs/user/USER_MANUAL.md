@@ -415,6 +415,35 @@ separate unlock; admins can still disable it through server world rules.
     the next world start.
   - Lower graphics presets use fewer particles automatically.
 
+### Atmosphere effects (Settings → Graphics → Atmosphere effects)
+
+The air and the weather leave their mark on the world (atmosphere package, October 2026):
+
+- **Mist in the valleys** gathers in the low ground around dawn and dusk and in fog weather, and burns off toward
+  noon; looking toward a low sun, the haze glows golden. Caves and interiors stay clear.
+- **Cloud shadows** drift over the land with the wind.
+- **Eyes adapt to the dark**: a cave starts dark and resolves after a few seconds; stepping back into daylight
+  dazzles for a moment. Nothing flashes — it is a slow ramp.
+- **Flickering torchlight**: the light of torches, campfires and lanterns breathes; lamps and crystals stay steady.
+- **Wind in leaves and grass**: crowns, plants and grass tufts sway — gently on a calm day, hard in a storm.
+- **Wet ground and snow caps**: rain darkens and glosses the open ground and dries again over minutes; snowfall caps
+  the upward faces (roofs too) and the snow melts when it warms up.
+- **Rain splashes** where drops meet the ground near you; rain, snow, hail and ash are soft drops and flakes.
+- **Shooting stars** cross the night sky now and then (often in a meteor shower); very rarely a distant ship blinks by.
+- **Underwater haze and light patterns**: under water the view closes in to a few metres in the water's colour,
+  sunlight dances on the sea floor, and bubbles rise past your visor.
+- **Light shafts** reach into cave mouths, pits and canopy gaps when you stand in the shade and the sun is up.
+- **Lava and crystals light caves**: lava, crystal blocks and the glowing flora cast a quiet light of their own — a
+  lava lake glows at its shores, a crystal cavern in its colours. (The light index is built as chunks load, so
+  switching this applies as the world streams in.)
+- **Soft particles**: dust, mist and smoke no longer cut a hard line into the ground (Medium and up).
+
+The row **Atmosphere effects** sets them all at once — **Off**, **Some** (the cheap ones, what the browser's Low
+preset also gets), **All** — or **Custom**, which opens one switch per effect. The expensive effects (cloud shadows,
+light shafts, the emitter light, soft particles, caustics) need the **Medium** preset or better regardless of the
+switch. **Reduce flashes** keeps the torchlight steady; **Reduced effects** makes the eye adaptation gentler. From
+orbit, planets with air show a lit atmosphere rim with a warm terminator and a dark night side.
+
 ### Arcade (minigames)
 - The **DataQubes Arcade** holds 20 built-in minigames. Locked cabinets unlock through data cubes you find
   in the world; beating your **best score** on a completed run pays **+5/+10/+15 knowledge** by rating.
@@ -1962,7 +1991,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Weather has consequences** — corrosive and falling weather drains your suit out in the open, so a
   roof is a real answer; rain waters planted flora so it regrows faster; scanners lose range in blown
   grit and charged air; animals hunker down in violent weather; snow settles on the ground and melts
-  again when it warms up.
+  again when it warms up. Rain also wets the open ground (darker, glossy, drying over minutes) and snowfall caps the
+  upward faces — see *Atmosphere effects* under §4.
 - **…and opportunities** — an **ion storm charges an exposed suit**, a **spore bloom** fattens what you
   harvest. Sometimes the right move is to walk into the bad weather. Craft the **weather scanner** to
   read what is coming before you set out.

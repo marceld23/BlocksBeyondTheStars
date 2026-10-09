@@ -81,6 +81,19 @@ public sealed class BlockDefinition
     public int? LightColor { get; set; }
 
     /// <summary>
+    /// How far the block's light reaches, in blocks (#2407); null = the fixtures' full reach
+    /// (<see cref="BlockLight.DefaultRadius"/>). The natural emitters — lava, crystals, glowing flora — light their
+    /// surroundings quietly with a small radius, so a lava world glows at its shores without turning orange.
+    /// </summary>
+    public int? LightRadius { get; set; }
+
+    /// <summary>
+    /// Only cells with an air neighbour cast the light (#2407): a lava lake lights from its surface, not from every
+    /// cell of its depth — which keeps the flood-fill cheap on a lake of a thousand cells.
+    /// </summary>
+    public bool LightSurfaceOnly { get; set; }
+
+    /// <summary>
     /// What the block's tile shows (#1900): <c>"material"</c> (a surface — stone, planks, steel; the default) or
     /// <c>"picture"</c> (a drawing of the whole object — the bed seen from above, a flower pot). A picture only fits
     /// the face it was drawn for, so a picture block that renders as a non-cube form declares <see cref="Faces"/>.

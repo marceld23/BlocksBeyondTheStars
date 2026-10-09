@@ -48,10 +48,11 @@ Shader "BlocksBeyondTheStars/FarTerrain"
             #pragma vertex vert
             #pragma fragment frag
 
+            #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): the shared haze + cloud shadows
+
             float4 _Sc_Light;
             float4 _Sc_SunDir;
             float4 _Sc_Sky;
-            float4 _Sc_Fog;
 
             struct Attributes
             {
@@ -88,7 +89,7 @@ Shader "BlocksBeyondTheStars/FarTerrain"
                 float3 albedo = i.color.rgb;
                 float3 light = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
                 float3 N = normalize(i.wn);
-                float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz)));
+                float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz))) * BbtsCloudShade(i.wp); // #2394: cloud shadows reach the horizon
                 // Open sky everywhere out there: the block shader's sky-lit ambient + half-weight direct sun.
                 float3 col = albedo * (light * (0.78 + 0.5 * ndl) + 0.05);
                 float nightFloor = saturate(0.6 - dot(light, float3(0.299, 0.587, 0.114)));
@@ -97,10 +98,8 @@ Shader "BlocksBeyondTheStars/FarTerrain"
 
                 if (_Sc_Fog.w > 0.5)
                 {
-                    float camDist = distance(i.wp, _WorldSpaceCameraPos);
-                    float haze = saturate((camDist - _Sc_Fog.x) / max(1.0, _Sc_Fog.y - _Sc_Fog.x)) * _Sc_Fog.z;
-                    float3 hazeCol = (_Sc_Sky.a < 0.5) ? light : _Sc_Sky.rgb;
-                    col = lerp(col, hazeCol, haze);
+                    float haze = BbtsHazeAmount(i.wp, 1.0); // the shared haze (#2393/#2406); open sky out there
+                    col = lerp(col, BbtsHazeColor(i.wp), haze);
                     col += albedo * i.color.a * haze; // a lava glow still reads at the edge of the view
                 }
 

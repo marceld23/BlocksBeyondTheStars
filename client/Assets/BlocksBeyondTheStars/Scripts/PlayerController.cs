@@ -3037,13 +3037,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             RefreshLiquidKeys();
-            const int Radius = 44;
+            const int Radius = 60;
             int ax = Mathf.FloorToInt(anchor.x), ay = Mathf.FloorToInt(anchor.y), az = Mathf.FloorToInt(anchor.z);
-            int yLo = kind == "cave" ? ay - 56 : ay - 28;
-            int yHi = kind == "cave" ? ay + 6 : ay + 48;
+            int yLo = kind is "cave" or "lava" ? ay - 70 : ay - 32;
+            int yHi = kind == "cave" ? ay + 8 : ay + 48;
             float bestScore = float.NegativeInfinity;
             Vector3Int best = default;
             float bestYaw = 0f;
+            int loaded = 0, candidates = 0;
 
             for (int dx = -Radius; dx <= Radius; dx += 2)
             {
@@ -3058,8 +3059,20 @@ namespace BlocksBeyondTheStars.Client
                     int x = ax + dx, z = az + dz;
                     for (int y = yLo; y <= yHi; y++)
                     {
+                        if (!Game.World.TryGetBlock(x, y, z, out _))
+                        {
+                            continue;
+                        }
+
+                        loaded++;
                         float score = CapturePoseScore(kind, x, y, z, ax, az, horiz, out float yaw);
-                        if (!float.IsNaN(score) && score > bestScore)
+                        if (float.IsNaN(score))
+                        {
+                            continue;
+                        }
+
+                        candidates++;
+                        if (score > bestScore)
                         {
                             bestScore = score;
                             best = new Vector3Int(x, y, z);
@@ -3071,9 +3084,11 @@ namespace BlocksBeyondTheStars.Client
 
             if (float.IsNegativeInfinity(bestScore))
             {
-                Debug.LogWarning($"[Capture] PlaceForCapturePose: no '{kind}' spot streamed in near the spawn.");
+                Debug.LogWarning($"[Capture] PlaceForCapturePose: no '{kind}' spot streamed in near the spawn (cells loaded={loaded}, y {yLo}..{yHi}, radius {Radius}).");
                 return false;
             }
+
+            Debug.Log($"[Capture] PlaceForCapturePose: '{kind}' candidates={candidates} of {loaded} loaded cells.");
 
             float half = _controller.height * 0.5f + _controller.skinWidth;
             var stand = new Vector3(best.x + 0.5f, best.y + half + (kind == "underwater" ? 0.1f : 0.05f), best.z + 0.5f);
@@ -3095,19 +3110,22 @@ namespace BlocksBeyondTheStars.Client
 
             if (kind == "underwater")
             {
-                if (feet != "water" || head != "water" || !CaptureKeyAt(x, y + 2, z, out string above) || above != "water")
+                // Feet and head in water puts the camera under the surface; more water overhead scores higher.
+                if (feet != "water" || head != "water")
                 {
                     return float.NaN;
                 }
 
                 int depth = 0;
-                for (int i = 3; i < 12 && CaptureKeyAt(x, y + i, z, out string w) && w == "water"; i++)
+                for (int i = 2; i < 12 && CaptureKeyAt(x, y + i, z, out string w) && w == "water"; i++)
                 {
                     depth++;
                 }
 
+                // Open water over the bed, not the inside of a kelp wall: the plants around the spot count against it.
+                int kelp = CaptureFloraCount(x, y, z, out _);
                 yaw = CaptureYawAway(x, z, ax, az);
-                return depth * 2f - horiz * 0.08f;
+                return depth * 2f - kelp * 0.4f - horiz * 0.08f;
             }
 
             if (!IsCollidingKey(floor) || !CaptureFree(feet) || !CaptureFree(head))
@@ -3120,15 +3138,15 @@ namespace BlocksBeyondTheStars.Client
                 case "cave":
                 {
                     int solidAbove = CaptureSolidAbove(x, y + 2, z, 48);
-                    if (solidAbove < 6)
+                    if (solidAbove < 4)
                     {
                         return float.NaN; // a hull roof or an overhang, not underground
                     }
 
                     int room = CaptureFreeCount(x, y, z);
-                    if (room < 22)
+                    if (room < 14)
                     {
-                        return float.NaN; // a crack, not a room
+                        return float.NaN; // a crack, not a passage or a room
                     }
 
                     yaw = CaptureYawToOpen(x, y, z);
@@ -3166,6 +3184,20 @@ namespace BlocksBeyondTheStars.Client
 
                     yaw = CaptureYawAway(x, z, ax, az);
                     return y - horiz * 0.05f;
+                }
+
+                case "lava":
+                {
+                    // Dry footing a few blocks from lava, facing it — the spot to judge the emitter light (#2407);
+                    // a roof over it (a lava cave) scores higher than an open lake, and a little room to look.
+                    float d = CaptureNearestKey(x, y, z, "lava", 5, -2, 0, out yaw);
+                    if (float.IsNaN(d) || d < 2f)
+                    {
+                        return float.NaN;
+                    }
+
+                    int covered = CaptureSolidAbove(x, y + 2, z, 24) >= 3 ? 4 : 0;
+                    return 8f - d + covered + CaptureFreeCount(x, y, z) * 0.1f - horiz * 0.05f;
                 }
 
                 default:
@@ -3266,21 +3298,27 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Distance to the nearest water cell at foot level or one below within 4 blocks (NaN = none); the yaw
         /// faces it.</summary>
         private float CaptureNearestWater(int x, int y, int z, out float yaw)
+            => CaptureNearestKey(x, y, z, "water", 4, -2, -1, out yaw);
+
+        /// <summary>Horizontal distance to the nearest cell of <paramref name="key"/> within <paramref name="radius"/>
+        /// blocks and the vertical band <paramref name="dyLo"/>..<paramref name="dyHi"/> around the feet (NaN = none);
+        /// the yaw faces it.</summary>
+        private float CaptureNearestKey(int x, int y, int z, string key, int radius, int dyLo, int dyHi, out float yaw)
         {
             float bestD = float.NaN;
             yaw = 0f;
-            for (int dx = -4; dx <= 4; dx++)
+            for (int dx = -radius; dx <= radius; dx++)
             {
-                for (int dz = -4; dz <= 4; dz++)
+                for (int dz = -radius; dz <= radius; dz++)
                 {
                     if (dx == 0 && dz == 0)
                     {
                         continue;
                     }
 
-                    for (int dy = -2; dy <= -1; dy++)
+                    for (int dy = dyLo; dy <= dyHi; dy++)
                     {
-                        if (!CaptureKeyAt(x + dx, y + dy, z + dz, out string k) || k != "water")
+                        if (!CaptureKeyAt(x + dx, y + dy, z + dz, out string k) || k != key)
                         {
                             continue;
                         }
@@ -3333,6 +3371,20 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Capture hook: the on-foot player is standing on solid ground this frame.</summary>
         public bool IsCaptureGrounded => _controller != null && _controller.enabled && _controller.isGrounded;
+
+        /// <summary>Capture hook (#2405): true while the spawn snap still owns the body — before the server's spawn
+        /// arrived, or during the settle freeze that pins the transform to the spawn every frame until the floor chunk
+        /// is in (or the 8 s grace runs out). A pose taken during the freeze is undone the next frame, so a capture
+        /// waits for this to clear first.</summary>
+        public bool IsSettling => !_spawned || _settling;
+
+        /// <summary>Capture diagnostics (#2405): the control state a look-check run logs when a pose does not take —
+        /// which early return in <see cref="Update"/> owns the body, and whether the server still counts us aboard.</summary>
+        public string CaptureDebugState()
+            => $"pos={transform.position} published={Game?.PlayerPosition} spawned={_spawned} settling={_settling} awaitingFloor={_awaitingFloor} "
+               + $"controller={(_controller != null && _controller.enabled)} grounded={IsCaptureGrounded} seat={_seatCell} "
+               + $"menu={Game?.MenuOpen} chat={Game?.ChatTyping} cinematic={Game?.CinematicCameraActive} osk={OnScreenKeyboardUi.IsOpen} "
+               + $"aboard={Game?.Aboard} epoch={Game?.WorldEpoch} space={Game?.SpaceViewActive} train='{Game?.InTrain}' speeder='{Game?.InSpeeder}'";
 
         /// <summary>Capture hook: the player's head is under water (so the shot would be a submerged murk).</summary>
         public bool IsHeadUnderwater() => IsSubmerged();

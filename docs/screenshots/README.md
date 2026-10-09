@@ -157,7 +157,7 @@ change is verified without playing — same seed before and after, Low and High:
 |-------|--------|---------|
 | `timeOfDay` | `0..1` (`0` midnight, `0.27` dawn, `0.5` noon, `0.75` dusk); negative = off | Local time of day pinned for the clip (longitude-compensated, like the screenshot pin) |
 | `weather` | a state (`clear`, `clouds`, `rain`, `storm`, `fog`, `ground_fog`, `blizzard`, `gale`, …) or a precipitation form (`snow`, `sleet`, `hail`, `sandstorm`, `dust`, `ash`, …); `""` = off | Weather pinned for the clip; the wire fields (state, family, precipitation, intensity, wind) are filled as the server would |
-| `pose` | `spawn` (default), `cave`, `underwater`, `forest`, `shore`, `ridge` | Where the on-foot player stands (surface scenes). Found by scanning the streamed chunks near the spawn (`PlayerController.PlaceForCapturePose`); when no such spot is loaded the clip logs it and uses the spawn pose |
+| `pose` | `spawn` (default), `cave`, `underwater`, `forest`, `shore`, `ridge`, `lava` (dry footing a few blocks from lava, facing it) | Where the on-foot player stands (surface scenes). Found by scanning the streamed chunks near the spawn (`PlayerController.PlaceForCapturePose`); when no such spot is loaded the clip logs it and uses the spawn pose |
 
 Every time-smoothed look (weather easing, eye adaptation, wet/snowy ground, …) is snapped to its target
 right before the first frame (`GameBootstrap.RequestCaptureSnap`), so two captures of one seed are
@@ -169,6 +169,19 @@ Start-Process client\Build\Windows\BlocksBeyondTheStars.exe -Wait -ArgumentList 
   -clipOut,$env:TEMP\clips,-lang,en,-seed,424242,-screen-width,1920,-screen-height,1080,-screen-fullscreen,0
 ```
 
+`-preset Potato|Low|Medium|High` captures under that quality preset and `-atmosphere Off|Some|All|Custom`
+under that *Atmosphere effects* mode (#2404) — "Off" against "All" on one build is the before/after pair
+for every effect of the atmosphere package; both are restored before the player quits, so a capture run
+never rewrites the saved settings.
+
 → `%TEMP%\clips\jungle_dawn\frames\frame_0000N.png`. The tracked manifest
 [`scripts/clip-manifests/atmosphere-check.json`](../../scripts/clip-manifests/atmosphere-check.json)
 is the standing set of look-check scenes (dawn, rain, fog, cave, under water, forest, night, orbit).
+
+When a capture looks unchanged, read the `Player.log` of that run first: the pose search logs
+`[Capture] PlaceForCapturePose: '<pose>' at (x,y,z)` (or the fallback to the spawn pose), and while the
+environment is pinned `Sky` prints an `[Atmosphere] fog … mist … cloud … aboard=… sky=…` line every two
+seconds with the globals the shaders received. A surface clip steps the player out of the spawn hull and
+waits for the server's *aboard* flag to drop — while it is set, the interior fill, the sky exposure and the
+haze are off by design, and VEGA's prologue is dismissed for the run (its staged cinematic would otherwise
+film the orbit around the ship instead of the pose).

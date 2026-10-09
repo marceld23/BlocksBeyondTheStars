@@ -23,8 +23,8 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_instancing
-            #pragma multi_compile_fog
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): the shared haze (#2393) + cloud shadows (#2394)
 
             float4 _Sc_Light;
             float4 _Sc_SunDir;
@@ -42,7 +42,7 @@ Shader "BlocksBeyondTheStars/ScatterLit"
                 float4 positionCS : SV_POSITION;
                 half4 color : COLOR;
                 float3 wn : TEXCOORD0;
-                float fog : TEXCOORD1;
+                float3 wp : TEXCOORD1;
             };
 
             Varyings vert(Attributes v)
@@ -50,10 +50,12 @@ Shader "BlocksBeyondTheStars/ScatterLit"
                 Varyings o = (Varyings)0;
                 UNITY_SETUP_INSTANCE_ID(v);
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
+                // #2397: tufts sway like the plants (rooted at the base, free at the top).
+                wp += BbtsWindSway(wp, false, true, saturate(v.positionOS.y / 0.4));
                 o.positionCS = TransformWorldToHClip(wp);
                 o.wn = TransformObjectToWorldNormal(v.normal);
                 o.color = v.color;
-                o.fog = ComputeFogFactor(o.positionCS.z);
+                o.wp = wp;
                 return o;
             }
 
@@ -61,9 +63,9 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             {
                 float3 light = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
                 float3 N = normalize(i.wn);
-                float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz)));
+                float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz))) * BbtsCloudShade(i.wp);
                 float3 col = i.color.rgb * light * (0.45 + 0.55 * ndl);
-                col = MixFog(col, i.fog);
+                col = BbtsApplyHaze(col, i.wp, 1.0); // scatter sits on open ground
                 return half4(col, 1);
             }
             ENDHLSL

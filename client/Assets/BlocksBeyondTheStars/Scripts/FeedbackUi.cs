@@ -283,7 +283,17 @@ namespace BlocksBeyondTheStars.Client
                 yield break;
             }
 
-            _shotJpg = TryCaptureJpg();
+            // Full frame with the HUD, downscaled on the GPU, read back through GpuReadback (#2390: WebGPU has no
+            // synchronous reads, so on the browser the dialog appears a frame or two after the hotkey).
+            Texture2D shot = null;
+            yield return GpuReadback.CaptureScreen(1600, TextureFormat.RGB24, t => shot = t);
+            if (!_open)
+            {
+                if (shot != null) { Destroy(shot); }
+                yield break;
+            }
+
+            _shotJpg = EncodeJpg(shot);
 
             EnsureDialog();
             ResetFields();
@@ -1048,48 +1058,29 @@ namespace BlocksBeyondTheStars.Client
 
         // --- Screenshot ------------------------------------------------------------------------------------
 
-        private byte[] TryCaptureJpg()
+        /// <summary>JPG-encodes the (already downscaled) screenshot and destroys it; null when the capture failed —
+        /// the report then goes out without an image, as before.</summary>
+        private static byte[] EncodeJpg(Texture2D shot)
         {
+            if (shot == null)
+            {
+                Debug.LogWarning("[Feedback] screenshot failed: readback returned nothing.");
+                return null;
+            }
+
             try
             {
-                var shot = ScreenCapture.CaptureScreenshotAsTexture();
-                try { return EncodeDownscaledJpg(shot, 1600, 70); }
-                finally { Destroy(shot); }
+                return ImageConversion.EncodeToJPG(shot, 70);
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[Feedback] screenshot failed: {e.Message}");
                 return null;
             }
-        }
-
-        /// <summary>JPG-encodes a screenshot, downscaled so its longest side is at most <paramref name="maxDim"/>
-        /// (keeps the upload small). Mirrors <see cref="ChatUi"/>'s /bump encoder.</summary>
-        private static byte[] EncodeDownscaledJpg(Texture2D src, int maxDim, int quality)
-        {
-            int w = src.width, h = src.height;
-            float scale = Mathf.Min(1f, (float)maxDim / Mathf.Max(w, h));
-            int tw = Mathf.Max(1, Mathf.RoundToInt(w * scale));
-            int th = Mathf.Max(1, Mathf.RoundToInt(h * scale));
-
-            if (tw == w && th == h)
+            finally
             {
-                return ImageConversion.EncodeToJPG(src, quality);
+                Destroy(shot);
             }
-
-            var rt = RenderTexture.GetTemporary(tw, th, 0, RenderTextureFormat.ARGB32);
-            var prev = RenderTexture.active;
-            Graphics.Blit(src, rt);
-            RenderTexture.active = rt;
-            var small = new Texture2D(tw, th, TextureFormat.RGB24, false);
-            small.ReadPixels(new Rect(0, 0, tw, th), 0, 0);
-            small.Apply();
-            RenderTexture.active = prev;
-            RenderTexture.ReleaseTemporary(rt);
-
-            byte[] jpg = ImageConversion.EncodeToJPG(small, quality);
-            UnityEngine.Object.Destroy(small);
-            return jpg;
         }
     }
 }

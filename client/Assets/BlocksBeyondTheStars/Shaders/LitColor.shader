@@ -40,6 +40,7 @@ Shader "BlocksBeyondTheStars/LitColor"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "FxCommon.hlsl" // VFX overhaul (#2152): FX lights + scan wave globals
+            #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): models haze like the terrain (#2393), cloud shadows
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
 
@@ -82,7 +83,7 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float3 N = normalize(i.wn);
                 float3 L = normalize(float3(0.4, 0.7, -0.55)); // fixed key light (sun-independent, like the preview)
                 float ndl = saturate(dot(N, L));
-                float shadow = MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp));
+                float shadow = MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp)) * BbtsCloudShade(i.wp); // #2394
                 float fill = saturate(dot(N, normalize(float3(-0.55, 0.25, 0.5)))) * _Fill; // opposite flank, unshadowed
                 float3 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).rgb;
                 float3 col = _Color.rgb * tex * (_Floor + (1.1 - _Floor) * ndl * shadow + fill); // peak stays 1.1 at _Floor==0.35, _Fill==0
@@ -98,6 +99,7 @@ Shader "BlocksBeyondTheStars/LitColor"
                 }
 
                 col += BbtsFxLights(i.wp, N, _Color.rgb * tex);
+                col = BbtsApplyHaze(col, i.wp, 1.0); // #2393: a far creature or ship sinks into the haze like the rock behind it
                 col += BbtsScanWave(i.wp);
                 col = lerp(col, float3(1.6, 1.6, 1.7), saturate(_HitFlash));
                 return half4(col, 1);

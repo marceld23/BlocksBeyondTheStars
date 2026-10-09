@@ -70,9 +70,12 @@ namespace BlocksBeyondTheStars.Client
 
             var cam = Camera;
             var env = Game != null ? Game.Environment : null;
-            // Needs real air (not airless/space-sky, guard the −999 sentinel), open sky, and genuinely hot.
+            // Needs real air (not airless/space-sky, guard the −999 sentinel), open sky, genuinely hot — and the
+            // depth + opaque textures (#2391): Potato/Low have neither, and the quad re-draws the whole frame from
+            // them, so there it must stay off entirely (the shader discards as a second line of defence).
+            bool screenFx = ClientSettings.ScreenSpaceFxAllowed;
             bool hotWorld = env != null && !env.SpaceSky && env.Temperature > HotWarmC;
-            bool show = hotWorld && cam != null && Game.ExposedToSky && !Game.SpaceViewActive;
+            bool show = screenFx && hotWorld && cam != null && Game.ExposedToSky && !Game.SpaceViewActive;
 
             float target = 0f;
             if (show)
@@ -82,7 +85,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Localized lavafall heat OR-ed in (works even on a cool world / under cover, as long as we have a
             // camera and aren't in the space view). Decays each frame unless LavaFallView keeps refreshing it.
-            if (_proximityHeat > 0f && cam != null && !Game.SpaceViewActive)
+            if (_proximityHeat > 0f && cam != null && screenFx && !Game.SpaceViewActive)
             {
                 target = Mathf.Max(target, _proximityHeat);
             }
