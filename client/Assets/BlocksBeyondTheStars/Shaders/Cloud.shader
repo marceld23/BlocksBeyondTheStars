@@ -39,6 +39,7 @@ Shader "BlocksBeyondTheStars/Cloud"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): fog weather hides the sky too (#2393)
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             CBUFFER_START(UnityPerMaterial)
@@ -94,7 +95,9 @@ Shader "BlocksBeyondTheStars/Cloud"
                     rgb = lerp(_ShadeColor.rgb, _Color.rgb, ndl);
                 }
 
-                return half4(rgb * t.rgb, t.a * _Color.a);
+                // A pea-souper or a sandstorm hides the clouds with the rest of the sky (the far distance term alone
+                // would swallow them on every clear day — they sit well beyond the chunk ring).
+                return half4(rgb * t.rgb, t.a * _Color.a * (1.0 - BbtsSkyObjectHaze()));
             }
             ENDHLSL
         }

@@ -25,7 +25,7 @@
   portal https://play.blocksbeyondthestars.de.
 
 .PARAMETER UnityPath
-  Path to Unity.exe. Defaults to the Unity Hub install of the project's editor version.
+  Path to Unity.exe. Defaults to the project's editor version as found by scripts/resolve-unity.ps1.
 
 .PARAMETER SkipBuild
   Package/deploy an existing client/Build/WebGL folder without rebuilding.
@@ -44,7 +44,7 @@
 param(
     [string] $Version = '',
     [string] $PortalUrl = '',
-    [string] $UnityPath = "C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe",
+    [string] $UnityPath = '',
     [switch] $SkipBuild,
     [switch] $SkipPrereqs,
     [switch] $Deploy
@@ -53,6 +53,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $repo 'client'
+if (-not $UnityPath -and -not $SkipBuild) { $UnityPath = & (Join-Path $PSScriptRoot 'resolve-unity.ps1') }
 $outDir = Join-Path $project 'Build/WebGL'
 $secretsFile = Join-Path $project 'Assets/BlocksBeyondTheStars/Scripts/GlitchIntegrationSecrets.Generated.cs'
 
@@ -73,7 +74,7 @@ if (-not $SkipBuild) {
     }
 
     if (-not (Test-Path $UnityPath)) {
-        Write-Error "Unity editor not found at '$UnityPath'. Pass -UnityPath to your Unity 6000.4.x Unity.exe."
+        Write-Error "Unity editor not found at '$UnityPath'. Pass -UnityPath to the Unity.exe of the project's editor version (client/ProjectSettings/ProjectVersion.txt)."
     }
 
     # Bake the arcade (relay) configuration. Deliberately NO title token: this file only points the

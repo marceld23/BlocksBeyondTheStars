@@ -351,7 +351,7 @@ oxygen, damage, blueprints or travel.
 
 | Area | Choice |
 |---|---|
-| Client | Unity 6 LTS (6000.4.x), URP + C# (Windows, Linux, experimental macOS) — see [`client/`](client/) |
+| Client | Unity 6.6 (6000.6.x), URP + C# (Windows, Linux, experimental macOS, WebGPU/WebGL2 browser build) — see [`client/`](client/) |
 | Server | .NET 10, standalone console host (no Unity runtime) |
 | Admin UI | ASP.NET Core (.NET 10) minimal API + HTML dashboard |
 | Database | SQLite (default, portable); optional PostgreSQL for hosted realms |

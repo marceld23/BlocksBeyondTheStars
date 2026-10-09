@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using Unity.Collections;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -80,6 +81,7 @@ namespace BlocksBeyondTheStars.Client
                 _cam = _camGo.AddComponent<Camera>();
                 _cam.enabled = false;             // we drive it manually with Render() each frame
                 _cam.targetTexture = _rt;
+                Sky.WorldCameras.Add(_cam);       // the clone sees the world, haze included (#2393)
             }
         }
 
@@ -88,6 +90,40 @@ namespace BlocksBeyondTheStars.Client
         {
             AudioRenderer.Start();
             _audioStarted = true;
+        }
+
+        /// <summary>The URP renderer index the clone camera renders with (<see cref="ClientSettings.RendererIndex"/>:
+        /// the SSAO tier of the preset); −1 keeps the clone's default.</summary>
+        public int RendererIndex { get; set; } = -1;
+
+        /// <summary><c>Camera.CopyFrom</c> copies the Camera only — the URP data beside it (post-processing, the
+        /// depth + opaque copies, the renderer) stays at the clone's defaults, so every clip rendered without the
+        /// post stack and with the heat-haze quad re-drawing the frame from an opaque texture that did not exist (a
+        /// black panel over every hot world, #2405). Mirror the live camera's data and force the two copies on:
+        /// the clone holds no request of its own.</summary>
+        private static void SyncUrpCamera(Camera source, Camera clone, int rendererIndex)
+        {
+            var src = source.GetUniversalAdditionalCameraData();
+            var dst = clone.GetUniversalAdditionalCameraData();
+            if (src == null || dst == null)
+            {
+                return;
+            }
+
+            dst.renderPostProcessing = src.renderPostProcessing;
+            dst.antialiasing = src.antialiasing;
+            dst.antialiasingQuality = src.antialiasingQuality;
+            dst.renderShadows = src.renderShadows;
+            dst.dithering = src.dithering;
+            dst.stopNaN = src.stopNaN;
+            dst.volumeLayerMask = src.volumeLayerMask;
+            dst.volumeTrigger = src.volumeTrigger;
+            dst.requiresColorOption = CameraOverrideOption.On;
+            dst.requiresDepthOption = CameraOverrideOption.On;
+            if (rendererIndex >= 0)
+            {
+                dst.SetRenderer(rendererIndex);
+            }
         }
 
         /// <summary>Write one video frame (PNG) and pull one frame of audio. Call once per rendered frame,
@@ -115,6 +151,7 @@ namespace BlocksBeyondTheStars.Client
                     _cam.CopyFrom(_hudFreeSource); // FOV, clip planes, HUD-excluded culling mask
                     _cam.enabled = false;
                     _cam.targetTexture = _rt;
+                    SyncUrpCamera(_hudFreeSource, _cam, RendererIndex);
                     if (overridePose)
                     {
                         _cam.transform.SetPositionAndRotation(overridePos, overrideRot);
@@ -294,6 +331,11 @@ namespace BlocksBeyondTheStars.Client
 
             if (_camGo != null)
             {
+                if (_cam != null)
+                {
+                    Sky.WorldCameras.Remove(_cam);
+                }
+
                 UnityEngine.Object.Destroy(_camGo);
                 _camGo = null;
                 _cam = null;

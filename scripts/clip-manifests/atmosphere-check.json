@@ -1,0 +1,28 @@
+{
+  "clips": [
+    { "name": "plains_noon",    "scene": "surface", "planet": "",        "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "clear" },
+    { "name": "plains_dawn",    "scene": "surface", "planet": "",        "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.27, "weather": "clear" },
+    { "name": "plains_night",   "scene": "surface", "planet": "",        "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.0,  "weather": "clear" },
+    { "name": "plains_rain",    "scene": "surface", "planet": "",        "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "rain" },
+    { "name": "plains_fog",     "scene": "surface", "planet": "",        "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.3,  "weather": "fog" },
+    { "name": "plains_ridge",   "scene": "surface", "planet": "",        "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -60, "yawEnd": 60, "timeOfDay": 0.27, "weather": "clear", "pose": "ridge" },
+    { "name": "jungle_dawn",    "scene": "surface", "planet": "jungle",  "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.27, "weather": "clear" },
+    { "name": "jungle_forest",  "scene": "surface", "planet": "jungle",  "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.45, "weather": "clear", "pose": "forest" },
+    { "name": "jungle_storm",   "scene": "surface", "planet": "jungle",  "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "storm" },
+    { "name": "rock_cave",      "scene": "surface", "planet": "",        "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -40, "yawEnd": 40, "timeOfDay": 0.5,  "weather": "clear", "pose": "cave" },
+    { "name": "ocean_shore",    "scene": "surface", "planet": "ocean",   "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "clear", "pose": "shore" },
+    { "name": "ocean_underwater", "scene": "surface", "planet": "ocean", "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "clear", "pose": "underwater" },
+    { "name": "lava_night",     "scene": "surface", "planet": "lava",    "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.0,  "weather": "clear" },
+    { "name": "lava_cave",      "scene": "surface", "planet": "lava",    "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -40, "yawEnd": 40, "timeOfDay": 0.0,  "weather": "clear", "pose": "cave" },
+    { "name": "lava_glow",      "scene": "surface", "planet": "lava",    "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -30, "yawEnd": 30, "timeOfDay": 0.0,  "weather": "clear", "pose": "lava" },
+    { "name": "rain_close",     "scene": "surface", "planet": "",        "lengthSeconds": 1, "fps": 24, "hud": false, "camera": "static", "timeOfDay": 0.5, "weather": "rain" },
+    { "name": "crystal_cave",   "scene": "surface", "planet": "crystal", "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -40, "yawEnd": 40, "timeOfDay": 0.0,  "weather": "clear", "pose": "cave" },
+    { "name": "fungal_night",   "scene": "surface", "planet": "fungal",  "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.0,  "weather": "clear" },
+    { "name": "ice_snow",       "scene": "surface", "planet": "ice",     "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "snow" },
+    { "name": "desert_noon",    "scene": "surface", "planet": "desert",  "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "clear" },
+    { "name": "desert_sandstorm", "scene": "surface", "planet": "desert", "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5, "weather": "sandstorm" },
+    { "name": "swamp_dusk",     "scene": "surface", "planet": "swamp",   "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.75, "weather": "clear" },
+    { "name": "orbit_planet",   "scene": "space",   "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "yaw_sweep", "yawStart": -15, "yawEnd": 15 },
+    { "name": "cockpit_hud",    "scene": "cockpit", "lengthSeconds": 2, "fps": 2, "hud": true,  "timeOfDay": 0.5, "weather": "clear" }
+  ]
+}

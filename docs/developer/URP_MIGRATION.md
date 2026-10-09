@@ -2,7 +2,7 @@
 
 Status: implemented (see TODO.md for live Done/Open status). Date: 2026-06-19.
 
-The Unity client (Unity 6000.4.9f1) renders through the **Universal Render Pipeline**. URP has been
+The Unity client (Unity 6000.6.5f1, URP 17.6) renders through the **Universal Render Pipeline**. URP has been
 the shipping pipeline since 2026-06-10; the migration off Built-in RP is complete and merged to main.
 This doc describes the final shape of that rendering setup and where it lives.
 
@@ -31,10 +31,10 @@ developer in the editor before continuing.
 - **Post-processing** moved from the old `OnRenderImage` stack to a global URP **Volume**
   (`UrpScenePost.cs`, added by `WorldRig` and also by `MenuBackground`): ACES tonemap + bloom + vignette
   + colour adjustments (+ SMH, lens flare, motion blur, menu-blur DoF, event vignette). The per-system
-  biome×sun grade (`Sky.SetGrade`) drives the Volume via `UrpScenePost.ApplyGrade`. **Caveat:** the
-  Volume only takes effect on a camera with `renderPostProcessing = true`, which today is set only on the
-  menu-background camera — see *Known gaps* below. **SSAO** is a renderer feature on the URP Renderer
-  asset and applies regardless.
+  biome×sun grade (`Sky.SetGrade`) drives the Volume via `UrpScenePost.ApplyGrade`. The Volume only takes
+  effect on a camera with `renderPostProcessing = true`; `WorldRig` sets it on the gameplay camera (since
+  2026-06-24, PR #50) and `MenuBackground` on the menu camera, so the stack renders in both. **SSAO** is a
+  renderer feature on the URP Renderer asset and applies regardless.
 - **Diegetic visor HUD** is re-implemented as a render-graph blit pass: the `BlocksBeyondTheStars/Visor`
   shader gained a URP Blit SubShader, and `VisorUrpCompositor.cs` enqueues an `AddBlitPass` per frame
   from `RenderPipelineManager.beginCameraRendering` (code-only, no renderer-asset edits), running after
@@ -60,20 +60,12 @@ developer in the editor before continuing.
 
 ## Known gaps / deferred
 
-- `renderPostProcessing` is **not** enabled on the in-game player camera (`WorldRig` builds the camera
-  but never sets it), so the global URP Volume that `UrpScenePost` creates — tonemap / bloom / grade /
-  lens-flare / SMH / motion-blur / event-vignette — almost certainly **does not apply during gameplay**.
-  The only place `renderPostProcessing = true` is currently set is the **menu-background camera**
-  (`MenuBackground.cs`), so the URP post stack is effectively a menu-only feature today. SSAO (a renderer
-  feature) and the visor (an `AddBlitPass`) are independent of that flag and *do* apply in-game. Note also
-  that the Built-in `PostFx` stack disables itself under URP (`PostFx.cs`: `currentRenderPipeline != null`
-  ⇒ `enabled = false`), so under the shipping URP path **in-game has no full-screen tonemap/bloom/grade**
-  beyond what the per-block shaders bake in. Enabling `renderPostProcessing` on the in-game camera is the
-  open question.
-- `PostFx.cs` and the `Post*` shaders remain as the **Built-in RP fallback** path (gamma-tuned) rather
-  than being deleted; URP is the shipping path. (Because `PostFx` self-disables under URP, these only do
-  anything if the project is reverted to Built-in.)
+- The old Built-in `PostFx` stack (`PostFx.cs`, the `Post*` shaders) was removed in June 2026; the dual-
+  pipeline shaders still render under Built-in, but without any full-screen post there. URP is the shipping
+  path and its Volume stack renders in-game (see above).
 - Global metal/hull **SSR** and URP **decals** are deferred (low ROI / risky full-screen pass).
+- The browser build lists **WebGPU first, WebGL 2 as the fallback** since Unity 6.6 (#2390); see
+  `WEBCLIENT_FEASIBILITY.md` for what that changes (no synchronous GPU reads, texel loads in loops).
 - **Rollback** (if ever needed): revert `GraphicsSettings.asset` (custom pipeline → 0), remove URP from
   `client/Packages/manifest.json`, drop the Settings assets; the dual-pipeline shaders still render
   under Built-in.

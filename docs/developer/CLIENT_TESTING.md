@@ -97,11 +97,31 @@ suites are opt-in, so you choose whether they ride along.
 ```
 
 `-Suites` accepts any of `Dotnet`, `ClientCore`, `UnityEdit`, `UnityPlay`, `All`. The Unity suites need
-`Unity.exe` (pass `-UnityPath` if it is not at the default `6000.4.9f1` location); the runner first syncs the
+`Unity.exe` (found by `scripts/resolve-unity.ps1` from `ProjectVersion.txt`; pass `-UnityPath` to override); the runner first syncs the
 shared libs/content, and for `UnityPlay` also publishes the bundled server. Unity results (NUnit XML) and logs
 land under `TestResults/`.
 
 You can still run a single suite directly: `dotnet test tests/BlocksBeyondTheStars.Client.Tests`.
+
+## Look checks without a playtest
+
+Rendering changes (shaders, lighting, post, weather) have no assertion to fail, so they are checked by
+**capturing the same world twice** — before and after, same seed, Low and High — with the built player's
+clip recorder (`-captureClip`). A clip pins time of day, weather and where the player stands (cave, under
+water, forest, shore, ridge), so dawn mist, a rain shower or a lava cave can be requested on purpose
+instead of hoping the spawn rolls them. The manifest fields and a frames-only recipe are documented in
+[docs/screenshots/README.md](../screenshots/README.md#video-clips--captureclip--and-look-checks-without-a-playtest);
+the standing set of look-check scenes is `scripts/clip-manifests/atmosphere-check.json`.
+
+Two rules learned the hard way (#2405): **never run a capture set while a Unity or IL2CPP build or the test
+suite is running** — a starved client lifts its spawn freeze before any chunk has streamed and every pose falls
+back to the spawn over the far-terrain mesh (the log says `cells loaded=0`); and **count `Shader error` lines in
+`client/build.log` after every build** — a broken include still ends in `build: Succeeded`, with every shader that
+includes it rendering its fallback.
+
+The browser build has its own check: `scripts/webgl-browser-check.py` loads a local WebGL build in Playwright's
+Chromium (WebGL 2 in the headless shell, WebGPU with `--channel chromium`) and records the console and screenshots —
+see [WEBCLIENT_FEASIBILITY.md](WEBCLIENT_FEASIBILITY.md#webgpu-first-webgl-2-as-the-fallback-2026-10-2390).
 
 ## Notes & caveats
 

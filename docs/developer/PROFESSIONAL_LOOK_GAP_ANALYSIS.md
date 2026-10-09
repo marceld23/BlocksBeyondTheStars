@@ -160,7 +160,7 @@ behaving differently from script colors.
 | G9 | Biome blending / transitions (snow caps on top faces, sand dusting at rock edges, side gradients on grass) | §7.2 | **MISSING** | Hard block transitions everywhere; no top-face overlays or edge blending. |
 | G10 | Trim-sheet–style ship block faces: light strips, warning stripes, vents as dedicated blocks | §9.2/§6.1 | **PARTIAL** | Panel textures have rivets/seams (AI-generated), but there are no warning-marking blocks, no wall light-strip blocks, no hazard-stripe variants — the "Schiffsmaterialien" palette of the plan is roughly half present (4 hull blocks + lights vs. the listed ~8 categories). |
 | G11 | Heat shimmer / screen distortion (lava planets, engines) | §8.1, §12.1 | **MISSING** | Lava worlds get color grade + emissive cracks + audio only; no distortion pass anywhere. ADVANCED_GRAPHICS item D (lava heat haze). |
-| G12 | Dynamic light emission from glowing flora/crystals (actual light sources, not just emissive texture) | §8.1 | **PARTIAL** | Emissive textures + bloom read as glow, but glow flora doesn't illuminate surroundings at night. (Real point lights per block are costly — a cheap "block light" term in the shader would be the fitting approach.) |
+| G12 | Dynamic light emission from glowing flora/crystals (actual light sources, not just emissive texture) | §8.1 | **DONE** (2026-10, #2407) | Lava, crystal blocks and the glowing flora flood a quiet block light (small `lightRadius`, lava/crystal from the surface only — ADR 0016); ores and machines stay glow-only. |
 
 ### 3.3 Ship — the weakest area relative to the plan
 

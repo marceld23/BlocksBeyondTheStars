@@ -451,6 +451,38 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A wider, softer dot (glow cards, smoke, dust).</summary>
         public static Texture2D SoftDot => _softDot != null ? _softDot : (_softDot = MakeDot(32, 2.6f));
 
+        /// <summary>A streak for stretched particles (#2399: rain, sleet, grit): a firm core across its width and soft
+        /// ends along it — a soft dot stretched eight times is a faint line with faint ends, which read as no rain.</summary>
+        public static Texture2D Streak => _streak != null ? _streak : (_streak = MakeStreak(16, 64));
+
+        /// <summary>Alpha-blended material for stretched streaks (<see cref="Streak"/>); sibling of <see cref="SoftAlphaMaterial"/>.</summary>
+        public static Material StreakMaterial() => _streakMat != null ? _streakMat : (_streakMat = ParticleMat("BlocksBeyondTheStars/ParticleAlpha", Streak, 1f));
+
+        private static Texture2D _streak;
+        private static Material _streakMat;
+
+        private static Texture2D MakeStreak(int w, int h)
+        {
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color[w * h];
+            float cx = (w - 1) * 0.5f;
+            for (int y = 0; y < h; y++)
+            {
+                float v = (y + 0.5f) / h;
+                float ends = Mathf.Clamp01(Mathf.Min(v, 1f - v) * 5f); // fades over the outer fifth at each end
+                for (int x = 0; x < w; x++)
+                {
+                    float d = Mathf.Abs(x - cx) / cx;
+                    float across = 1f - d * d;                                   // firm core, rounded edge
+                    px[y * w + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(across) * ends);
+                }
+            }
+
+            tex.SetPixels(px);
+            tex.Apply(false, true);
+            return tex;
+        }
+
         private static Texture2D MakeDot(int n, float power)
         {
             var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };

@@ -162,9 +162,25 @@ namespace BlocksBeyondTheStars.Client
             if (entry.IsIcon)
             {
                 // The player's own icon if there is one, else the shipped one — read back through the GPU, because the
-                // build's icons are not CPU-readable and come in every size.
-                var source = TexturePackFolder.IconOverride(entry.IconName) ?? Resources.Load<Texture2D>("icons/" + entry.IconName);
-                _model.Load(new[] { ReadIcon(source) }, 0, mode);
+                // build's icons are not CPU-readable and come in every size. The read lands inline on a synchronous-
+                // read API and a frame or two later on WebGPU (#2390), so the model starts blank and fills in; the
+                // shipped icon is cached for "reset to official".
+                var official = Resources.Load<Texture2D>("icons/" + entry.IconName);
+                var source = TexturePackFolder.IconOverride(entry.IconName) ?? official;
+                string iconName = entry.IconName;
+                _model.Load(null, 0, mode);
+                ReadIcon(official, raw => _iconCache[iconName] = raw);
+                ReadIcon(source, raw =>
+                {
+                    if (!ReferenceEquals(_entry, entry) || _model == null)
+                    {
+                        return;
+                    }
+
+                    _model.Load(new[] { raw }, 0, mode);
+                    RefreshTileColors();
+                    RefreshAll();
+                });
             }
             else if (current != null)
             {
@@ -194,42 +210,44 @@ namespace BlocksBeyondTheStars.Client
             SetStatus(string.Empty, UiKit.Ok);
         }
 
-        /// <summary>An icon as one 64×64 frame in the tile layout (RGBA32, rows bottom-up). Blitting into a small
-        /// render target and reading that back works for non-readable textures and scales in one go.</summary>
-        private static byte[] ReadIcon(Texture source)
+        /// <summary>Shipped icons already read back this session (icon name → 64×64 frame), so "reset to official"
+        /// has the pixels at hand even where the read is asynchronous.</summary>
+        private readonly Dictionary<string, byte[]> _iconCache = new Dictionary<string, byte[]>();
+
+        /// <summary>An icon as one 64×64 frame in the tile layout (RGBA32, rows bottom-up), handed to
+        /// <paramref name="done"/>. Blitting into a small render target and reading that back works for
+        /// non-readable textures and scales in one go; the read goes through <see cref="GpuReadback"/>, so the
+        /// callback runs inline on a synchronous-read API and a frame or two later on WebGPU (#2390).</summary>
+        private static void ReadIcon(Texture source, System.Action<byte[]> done)
         {
             var raw = new byte[TextureTiles.BytesPerFrame];
             if (source == null)
             {
-                return raw;
+                done(raw);
+                return;
             }
 
             var rt = RenderTexture.GetTemporary(Tile, Tile, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
-            var previous = RenderTexture.active;
-            var copy = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false);
-            try
+            var filter = source.filterMode;
+            source.filterMode = source.width > Tile ? FilterMode.Bilinear : FilterMode.Point;
+            Graphics.Blit(source, rt);
+            source.filterMode = filter;
+            GpuReadback.Read(rt, TextureFormat.RGBA32, copy =>
             {
-                var filter = source.filterMode;
-                source.filterMode = source.width > Tile ? FilterMode.Bilinear : FilterMode.Point;
-                Graphics.Blit(source, rt);
-                source.filterMode = filter;
-                RenderTexture.active = rt;
-                copy.ReadPixels(new Rect(0, 0, Tile, Tile), 0, 0);
-                copy.Apply();
-                var data = copy.GetRawTextureData<byte>();
-                if (data.Length == raw.Length)
-                {
-                    data.CopyTo(raw);
-                }
-            }
-            finally
-            {
-                RenderTexture.active = previous;
                 RenderTexture.ReleaseTemporary(rt);
-                Destroy(copy);
-            }
+                if (copy != null)
+                {
+                    var data = copy.GetRawTextureData<byte>();
+                    if (data.Length == raw.Length)
+                    {
+                        data.CopyTo(raw);
+                    }
 
-            return raw;
+                    Destroy(copy);
+                }
+
+                done(raw);
+            });
         }
 
         /// <summary>The texture as shipped — every frame, or the code-painted tile of a block that has no file.</summary>
@@ -242,7 +260,15 @@ namespace BlocksBeyondTheStars.Client
 
             if (_entry.IsIcon)
             {
-                return new TextureFrames(new[] { ReadIcon(Resources.Load<Texture2D>("icons/" + _entry.IconName)) }, 0, TextureLayer.Official);
+                string iconName = _entry.IconName;
+                if (!_iconCache.ContainsKey(iconName))
+                {
+                    ReadIcon(Resources.Load<Texture2D>("icons/" + iconName), raw => _iconCache[iconName] = raw); // inline, or a frame later on WebGPU
+                }
+
+                return _iconCache.TryGetValue(iconName, out var cached)
+                    ? new TextureFrames(new[] { cached }, 0, TextureLayer.Official)
+                    : null;
             }
 
             var bundled = GameTextures.Official(_entry.Key);

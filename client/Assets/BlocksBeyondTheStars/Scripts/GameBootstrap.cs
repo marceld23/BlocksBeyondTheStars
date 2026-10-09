@@ -961,35 +961,95 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Latest day/night + weather + sun colour (World systems).</summary>
         public WorldEnvironment Environment { get; private set; }
 
-        /// <summary>Capture-only environment override (set by <see cref="ScreenshotDirector"/>): when active, the
-        /// current and every later <see cref="WorldEnvironment"/> broadcast is forced to clear-weather daylight at a
-        /// pinned local time-of-day, so marketing screenshots aren't gloomy regardless of the world's spawn
-        /// time-of-day or weather roll. No effect on normal play (the director never sets it).</summary>
+        /// <summary>Capture-only environment override (set by <see cref="ScreenshotDirector"/> and
+        /// <see cref="ClipDirector"/>): when active, the current and every later <see cref="WorldEnvironment"/>
+        /// broadcast is forced to a pinned weather (clear by default) at a pinned local time-of-day, so marketing
+        /// screenshots aren't gloomy regardless of the world's spawn time-of-day or weather roll — and a look check
+        /// can ask for dawn, rain or fog on purpose (#2405). No effect on normal play (the directors never set it).</summary>
         public bool CaptureEnvActive { get; private set; }
-        private float _captureLocalTime = 0.5f;
+        private float? _captureLocalTime = 0.5f;
+        private string _captureWeather = "clear";
 
-        /// <summary>Pin the visible environment to clear-weather daylight at <paramref name="localTimeOfDay"/>
-        /// (0.5 = noon) for screenshots. Applied to the current environment immediately and re-applied to every
-        /// later broadcast until the session ends. The pinned server <c>TimeOfDay</c> is offset by the player's
-        /// longitude so <see cref="LocalTimeOfDay"/> lands exactly on the requested value.</summary>
-        public void SetCaptureEnvironment(float localTimeOfDay = 0.5f)
+        /// <summary>Raised by <see cref="RequestCaptureSnap"/>: every time-smoothed look (weather ramps, eye adaptation,
+        /// wet and snowy ground …) jumps straight to its target so the first recorded frame is already settled and two
+        /// captures of the same seed come out identical (#2405).</summary>
+        public static event System.Action CaptureSnap;
+
+        /// <summary>Pin the visible environment for a capture: <paramref name="localTimeOfDay"/> (0.5 = noon;
+        /// <c>null</c> = keep the world's own clock) and <paramref name="weather"/> (a weather state or precipitation
+        /// form; <c>""</c> = keep the world's own weather). Applied to the current environment immediately and
+        /// re-applied to every later broadcast until the session ends. The pinned server <c>TimeOfDay</c> is offset by
+        /// the player's longitude so <see cref="LocalTimeOfDay"/> lands exactly on the requested value.</summary>
+        public void SetCaptureEnvironment(float? localTimeOfDay = 0.5f, string weather = "clear")
         {
             CaptureEnvActive = true;
             _captureLocalTime = localTimeOfDay;
+            _captureWeather = string.IsNullOrEmpty(weather) ? string.Empty : weather.Trim().ToLowerInvariant();
             if (Environment != null)
             {
                 ApplyCaptureEnv(Environment);
             }
         }
 
+        /// <summary>Snap every smoothed look to its target right now (see <see cref="CaptureSnap"/>).</summary>
+        public void RequestCaptureSnap()
+        {
+            SnapWeatherSmoothing();
+            CaptureSnap?.Invoke();
+        }
+
         private void ApplyCaptureEnv(WorldEnvironment env)
         {
-            env.TimeOfDay = Mathf.Repeat(_captureLocalTime - (string.IsNullOrEmpty(StationName) ? PlayerPosition.x / Circumference : 0f), 1f); // #1869: no longitude aboard a station
-            env.Weather = "clear";
-            env.Precipitation = "none";
-            env.Intensity = 0f;
+            if (_captureLocalTime is float local)
+            {
+                env.TimeOfDay = Mathf.Repeat(local - (string.IsNullOrEmpty(StationName) ? PlayerPosition.x / Circumference : 0f), 1f); // #1869: no longitude aboard a station
+            }
+
+            if (_captureWeather.Length == 0)
+            {
+                return; // the world's own weather
+            }
+
+            // A pinned weather is either a catalogue state (clear, rain, fog, blizzard …) or a precipitation form
+            // (snow, sandstorm, hail …), which rides on the ladder state that produces it. The wire fields the look
+            // reads — state, family, precipitation, intensity, wind — are filled the way the server would.
+            string key = _captureWeather;
+            var def = BlocksBeyondTheStars.Shared.Weather.WeatherCatalog.Find(key);
+            string precip = "none";
+            if (def != null)
+            {
+                precip = def.Precip.Length > 0 ? def.Precip[0] : "none";
+            }
+            else
+            {
+                precip = key;
+                bool violent = key is "hail" or "sandstorm" or "dust" or "acid" or "meteor";
+                key = violent ? "storm" : "rain";
+                def = BlocksBeyondTheStars.Shared.Weather.WeatherCatalog.Find(key);
+            }
+
+            env.Weather = key;
+            env.Precipitation = precip;
+            env.WeatherFamily = (def?.Family ?? BlocksBeyondTheStars.Shared.Weather.WeatherFamily.Calm).ToString().ToLowerInvariant();
+            env.Intensity = def != null && key != "clear" ? Mathf.Max(0.5f, BlocksBeyondTheStars.Shared.Weather.WeatherCatalog.MidPeak(def)) : 0f;
             env.IntensityRate = 0f;
-            env.WindSpeed = 0f;
+            env.WindSpeed = def != null ? (def.WindLo + def.WindHi) * 0.5f : 0f;
+            SnapWeatherSmoothing();
+        }
+
+        /// <summary>Jump the client-side weather easing to the current environment (captures only).</summary>
+        private void SnapWeatherSmoothing()
+        {
+            var env = Environment;
+            if (env == null)
+            {
+                return;
+            }
+
+            _weatherIntensity = Mathf.Clamp01(env.Intensity);
+            _windSpeed = Mathf.Clamp01(env.WindSpeed);
+            _windDirection = env.WindDirection;
+            _envAge = 0f;
         }
 
         // --- Weather smoothing (#900) ---------------------------------------------------------------

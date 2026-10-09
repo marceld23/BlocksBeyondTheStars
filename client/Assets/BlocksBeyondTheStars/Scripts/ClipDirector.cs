@@ -40,6 +40,15 @@ namespace BlocksBeyondTheStars.Client
         private bool _headless;
         private string _manifestPath;
         private string _clipName;
+        private string _preset;                  // -preset Potato|Low|Medium|High: capture under that quality preset (#2405)
+        private QualityPreset _presetBefore;     // … restored before quitting, so the run never rewrites the player's settings
+        private bool _presetAutoBefore;
+        private bool _presetApplied;
+        private string _atmosphere;              // -atmosphere Off|Some|All|Custom: capture under that atmosphere mode (#2404)
+        private AtmosphereMode _atmoBefore;      // … restored before quitting, switches included
+        private bool[] _atmoSwitchesBefore;
+        private bool _atmoApplied;
+        private bool _readbackCheck;             // -clipReadbackCheck: one extra frame through GpuReadback's async path
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoInstall()
@@ -58,6 +67,9 @@ namespace BlocksBeyondTheStars.Client
             d._headless = cfg.headless;
             d._manifestPath = cfg.manifest;
             d._clipName = cfg.clipName;
+            d._preset = cfg.preset;
+            d._atmosphere = cfg.atmosphere;
+            d._readbackCheck = cfg.readbackCheck;
         }
 
         private struct Config
@@ -68,6 +80,9 @@ namespace BlocksBeyondTheStars.Client
             public bool headless;
             public string manifest;
             public string clipName;
+            public string preset;
+            public string atmosphere;
+            public bool readbackCheck;
         }
 
         private static bool ClipRequested(out Config cfg)
@@ -97,6 +112,29 @@ namespace BlocksBeyondTheStars.Client
                 else if (string.Equals(a, "-clipName", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
                 {
                     cfg.clipName = args[i + 1];
+                }
+                else if (string.Equals(a, "-preset", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    cfg.preset = args[i + 1];
+                }
+                else if (string.Equals(a, "-atmosphere", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    cfg.atmosphere = args[i + 1];
+                }
+                else if (string.Equals(a, "-atmoDebug", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length
+                         && float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dbg))
+                {
+                    // Diagnostics view (#2405): the block shader shows its atmosphere inputs instead of the lit colour
+                    // (1 = wet/snow/on, 2 = skylight/up/cloud shade, 3 = haze/mist/exposure) — says whether a global
+                    // reached the GPU at all. Global, this process only; a capture run never saves settings.
+                    Shader.SetGlobalFloat("_Sc_AtmoDebug", dbg);
+                }
+                else if (string.Equals(a, "-clipReadbackCheck", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Dev check for #2390: after the clip, write one extra frame through the ASYNC readback path
+                    // (readback_check.png) so its orientation/colour can be compared with the ReadPixels frames.
+                    GpuReadback.ForceAsync = true;
+                    cfg.readbackCheck = true;
                 }
                 else if (string.Equals(a, "-seed", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length
                          && long.TryParse(args[i + 1], out var s))
@@ -166,6 +204,31 @@ namespace BlocksBeyondTheStars.Client
             shell.Settings.Language = _lang;
             shell.LoadLocalizer();
 
+            // Capture under a requested quality preset (Low vs High look checks), without touching the player's saved
+            // settings: the original preset is restored in Quit(), before any save-on-exit.
+            if (!string.IsNullOrEmpty(_preset) && Enum.TryParse(_preset, true, out QualityPreset preset))
+            {
+                _presetBefore = shell.Settings.Preset;
+                _presetAutoBefore = shell.Settings.PresetAuto;
+                _presetApplied = true;
+                shell.Settings.Preset = preset;
+                shell.Settings.PresetAuto = false;
+                shell.Settings.Apply();
+                Debug.Log($"[Clip] preset={preset} (restored on exit)");
+            }
+
+            // Capture under an atmosphere mode (#2404) — "Off" against "All" on the same build is the before/after pair
+            // for every effect of the package. The mode and the twelve switches are restored in Quit().
+            if (!string.IsNullOrEmpty(_atmosphere) && Enum.TryParse(_atmosphere, true, out AtmosphereMode atmo))
+            {
+                _atmoBefore = shell.Settings.Atmosphere;
+                _atmoSwitchesBefore = AtmosphereSwitches(shell.Settings);
+                _atmoApplied = true;
+                shell.Settings.ApplyAtmosphereMode(atmo);
+                shell.Settings.Apply();
+                Debug.Log($"[Clip] atmosphere={atmo} (restored on exit)");
+            }
+
             ClipSpec clip = ResolveClip();
             if (clip == null)
             {
@@ -210,6 +273,12 @@ namespace BlocksBeyondTheStars.Client
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
 
+            // A fresh world queues VEGA's prologue at the join, and its staged cinematic (#760) takes the camera over
+            // the moment the veil drops — every "surface" clip then films the orbit around the ship instead of the
+            // pose. Drop the speech before the pose is taken, and again right before rolling (a later milestone line
+            // would otherwise pop up mid-clip). The same hook the screenshot run uses.
+            DismissVegaForCapture();
+
             // Reach the requested scene.
             SpaceView space = null;
             switch (clip.scene)
@@ -224,10 +293,20 @@ namespace BlocksBeyondTheStars.Client
 
                 case "surface":
                     bool ready = false;
-                    yield return PlaceOnSurface(boot, r => ready = r);
+                    yield return PlaceOnSurface(boot, clip, r => ready = r);
                     if (!ready)
                     {
                         Debug.LogWarning($"[Clip] {clip.name}: no safe footing — recording the spawn view anyway.");
+                    }
+
+                    // The server derives "aboard" from the reported position (its environment tick), and the client's
+                    // interior fill, sky exposure and haze all key off that flag — a clip rolled while it still reads
+                    // aboard shows a cabin-lit, haze-free, weather-free world. Give the round trip a moment.
+                    yield return WaitUntil(() => !boot.Aboard, 6f);
+                    if (boot.Aboard)
+                    {
+                        var pcState = FindAnyObjectByType<PlayerController>()?.CaptureDebugState();
+                        Debug.LogWarning($"[Clip] {clip.name}: still flagged aboard after the pose — the frame will miss the outdoor haze and weather. {pcState}");
                     }
 
                     break;
@@ -250,6 +329,19 @@ namespace BlocksBeyondTheStars.Client
                     break;
             }
 
+            // Pin the time of day and/or the weather when the clip asks for it (#2405), then snap every smoothed look
+            // (weather easing, adaptation, wet ground …) so the first frame is already settled and a re-run of the same
+            // seed comes out identical.
+            if (clip.timeOfDay >= 0f || !string.IsNullOrEmpty(clip.weather))
+            {
+                boot.SetCaptureEnvironment(clip.timeOfDay >= 0f ? clip.timeOfDay : (float?)null, clip.weather ?? string.Empty);
+                yield return new WaitForSecondsRealtime(1f);
+            }
+
+            DismissVegaForCapture();
+            boot.RequestCaptureSnap();
+            yield return null;
+
             if (string.Equals(clip.scene, "land", StringComparison.OrdinalIgnoreCase) && space != null)
             {
                 yield return RecordLandingClip(clip, clipDir, boot, space);
@@ -263,9 +355,16 @@ namespace BlocksBeyondTheStars.Client
             Quit(0);
         }
 
-        /// <summary>Step the on-foot player out of the spawn hull onto real, dry, solid ground near the ship
-        /// (terrain-aware, like <see cref="ScreenshotDirector"/>), reporting whether a safe pose was reached.</summary>
-        private IEnumerator PlaceOnSurface(GameBootstrap boot, Action<bool> done)
+        /// <summary>Drops queued VEGA speech, the panel and the staged prologue cinematic (its camera override) — an
+        /// unattended clip must film the pose, not the onboarding. No-op before the panel exists.</summary>
+        private static void DismissVegaForCapture() => FindAnyObjectByType<VegaPanel>()?.DismissSpeechForCapture();
+
+        /// <summary>Step the on-foot player out of the spawn hull to the clip's pose (#2405): open, dry ground near the
+        /// ship by default (terrain-aware, like <see cref="ScreenshotDirector"/>), or a cave / under water / a forest /
+        /// a shore / a ridge when the manifest asks for one — falling back to the spawn pose when no such spot is
+        /// streamed in. Reports whether a safe pose was reached. The snap is repeated every ¾ s until the player is
+        /// settled, because a grid-chosen spot can sit on a chunk whose collider is still cooking.</summary>
+        private IEnumerator PlaceOnSurface(GameBootstrap boot, ClipSpec clip, Action<bool> done)
         {
             var pc = FindAnyObjectByType<PlayerController>();
             if (pc == null)
@@ -274,19 +373,59 @@ namespace BlocksBeyondTheStars.Client
                 yield break;
             }
 
+            // The settle freeze after the spawn snap pins the body to the spawn every frame until the floor chunk is in
+            // or its grace runs out — a pose taken inside it is undone the next frame, the player stays in the hull,
+            // and the server keeps counting them aboard (no haze, no weather, interior fill). Wait it out first.
+            yield return WaitUntil(() => !pc.IsSettling, 20f);
+            if (pc.IsSettling)
+            {
+                Debug.LogWarning($"[Clip] {clip.name}: the spawn settle freeze did not release — the pose may not take.");
+            }
+
+            // Then let a few position reports go out FROM the spawn: the server drops every report farther than 64 m
+            // from the spawn until one arrives near it (#865, the spawn-adoption gate) — a cave pose 50 m down taken on
+            // the first free frame would be refused for the whole clip, and the server would keep us aboard.
+            yield return new WaitForSecondsRealtime(0.6f);
+
+            // And wait for the chunks: the freeze also lifts on its 8 s grace with nothing streamed yet (a loaded
+            // machine), and a pose search over zero cells falls back to the spawn pose on the far-terrain mesh. The
+            // world counts as here once the spawn cell itself is known and the stream has gone quiet.
+            yield return WaitUntil(() =>
+            {
+                var at = boot.PlayerPosition;
+                return boot.World != null
+                       && boot.World.TryGetBlock(Mathf.FloorToInt(at.x), Mathf.FloorToInt(at.y), Mathf.FloorToInt(at.z), out _)
+                       && boot.TimeSinceLastChunk >= 0.6f && boot.PendingMeshCount <= 6;
+            }, 30f);
+
             var p = boot.PlayerPosition;
             var anchor = new Vector3(p.x, p.y, p.z);
+            string pose = (clip.pose ?? string.Empty).Trim().ToLowerInvariant();
+            bool underwater = pose == "underwater";
             bool placed = false;
             float t = 0f;
+            float sincePlace = float.MaxValue;
             while (t < CaptureReadyTimeout)
             {
-                if (!placed)
+                if (!placed || sincePlace > 0.75f)
                 {
-                    placed = pc.PlaceForCaptureNear(anchor, pitch: 4f);
+                    placed = pc.PlaceForCapturePose(pose, anchor, pitch: underwater ? 0f : 4f);
+                    sincePlace = 0f;
+                    Debug.Log($"[Clip] pose '{pose}' placed={placed}: {pc.CaptureDebugState()}");
+                    if (!placed && pose.Length > 0 && pose != "spawn")
+                    {
+                        Debug.LogWarning($"[Clip] {clip.name}: no '{pose}' spot near the spawn — using the spawn pose.");
+                        pose = "spawn";
+                        underwater = false;
+                        continue;
+                    }
                 }
 
                 bool alive = !boot.AwaitingRespawnConfirm && boot.Health > 0f;
-                if (placed && pc.IsCaptureGrounded && !pc.IsHeadUnderwater() && alive)
+                bool settled = underwater
+                    ? pc.IsHeadUnderwater()
+                    : pc.IsCaptureGrounded && !pc.IsHeadUnderwater();
+                if (placed && settled && alive)
                 {
                     yield return new WaitForSecondsRealtime(ChunkSettle);
                     done(true);
@@ -294,6 +433,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 t += Time.unscaledDeltaTime;
+                sincePlace += Time.unscaledDeltaTime;
                 yield return null;
             }
 
@@ -329,6 +469,7 @@ namespace BlocksBeyondTheStars.Client
 
             using (var writer = new ClipFrameWriter(framesDir, ClipWidth, ClipHeight, hudFreeSource))
             {
+                writer.RendererIndex = FindAnyObjectByType<AppShell>()?.Settings?.RendererIndex ?? -1; // the preset's SSAO tier
                 Time.captureFramerate = fps;
                 writer.StartAudio();
 
@@ -363,6 +504,23 @@ namespace BlocksBeyondTheStars.Client
 
                 string wrote = writer.FinishAudio(wavPath);
                 Debug.Log($"[Clip] {clip.name}: wrote {writer.FrameCount} frames to {framesDir}; audio={(wrote ?? "(none)")}");
+            }
+
+            if (_readbackCheck)
+            {
+                yield return new WaitForEndOfFrame();
+                Texture2D check = null;
+                yield return GpuReadback.CaptureScreen(0, TextureFormat.RGB24, t => check = t);
+                if (check != null)
+                {
+                    File.WriteAllBytes(Path.Combine(clipDir, "readback_check.png"), check.EncodeToPNG());
+                    Destroy(check);
+                    Debug.Log("[Clip] readback_check.png written through the async readback path.");
+                }
+                else
+                {
+                    Debug.LogWarning("[Clip] readback check failed — no texture came back.");
+                }
             }
         }
 
@@ -666,9 +824,60 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>The twelve per-effect switches of the atmosphere group, in a fixed order, so a capture run can
+        /// put them back exactly (a Custom selection included).</summary>
+        private static bool[] AtmosphereSwitches(ClientSettings s) => new[]
+        {
+            s.HeightFog, s.CloudShadows, s.EyeAdaptation, s.TorchFlicker, s.WindSway, s.WetSurfaces,
+            s.WeatherParticles, s.ShootingStars, s.Underwater, s.LightShafts, s.EmitterLight, s.SoftParticles,
+        };
+
+        private static void RestoreAtmosphereSwitches(ClientSettings s, bool[] v)
+        {
+            if (v == null || v.Length < 12)
+            {
+                return;
+            }
+
+            s.HeightFog = v[0];
+            s.CloudShadows = v[1];
+            s.EyeAdaptation = v[2];
+            s.TorchFlicker = v[3];
+            s.WindSway = v[4];
+            s.WetSurfaces = v[5];
+            s.WeatherParticles = v[6];
+            s.ShootingStars = v[7];
+            s.Underwater = v[8];
+            s.LightShafts = v[9];
+            s.EmitterLight = v[10];
+            s.SoftParticles = v[11];
+        }
+
         private void Quit(int code)
         {
             Time.captureFramerate = 0;
+            if (_presetApplied || _atmoApplied)
+            {
+                var shell = FindAnyObjectByType<AppShell>();
+                if (shell != null && shell.Settings != null)
+                {
+                    if (_presetApplied)
+                    {
+                        shell.Settings.Preset = _presetBefore;
+                        shell.Settings.PresetAuto = _presetAutoBefore;
+                    }
+
+                    if (_atmoApplied)
+                    {
+                        shell.Settings.Atmosphere = _atmoBefore;
+                        RestoreAtmosphereSwitches(shell.Settings, _atmoSwitchesBefore);
+                    }
+                }
+
+                _presetApplied = false;
+                _atmoApplied = false;
+            }
+
 #if UNITY_EDITOR
             if (_headless)
             {

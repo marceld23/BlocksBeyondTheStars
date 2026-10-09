@@ -298,10 +298,42 @@
       // Desktop and mobile alike fill the whole browser client area (the CSS pins the canvas to the
       // viewport); Unity keeps the render target matched to the DOM size, so no manual resize handling.
 
+      // WebGPU pre-flight (#2390): the player lists WebGPU first and the engine takes it whenever navigator.gpu
+      // exists — but it only falls back to WebGL 2 when there is NO adapter. A browser that offers an adapter and
+      // then fails to create the device (a blocklisted or half-supported GPU, a headless shell without DXC) left
+      // the engine crashing on a null device and the page stuck at the loading bar. Probe adapter + device here
+      // first; on any failure hide navigator.gpu so the engine starts on WebGL 2. ?bbsGpu=webgl2 forces that path.
+      function bbsProbeWebGpu() {
+        var forced = new URLSearchParams(location.search).get("bbsGpu") === "webgl2";
+        if (!navigator.gpu || forced) {
+          console.log("[BBS] graphics: WebGL 2 (" + (forced ? "forced by ?bbsGpu=webgl2" : "no WebGPU in this browser") + ")");
+          if (forced) { bbsHideWebGpu(); }
+          return Promise.resolve();
+        }
+        return navigator.gpu.requestAdapter().then(function (adapter) {
+          if (!adapter) { throw new Error("no adapter"); }
+          return adapter.requestDevice().then(function (device) {
+            if (!device) { throw new Error("no device"); }
+            console.log("[BBS] graphics: WebGPU adapter + device OK — the engine starts on WebGPU");
+            try { device.destroy(); } catch (e) { /* the engine makes its own */ }
+          });
+        }).catch(function (err) {
+          console.warn("[BBS] graphics: WebGPU probe failed (" + err + ") — falling back to WebGL 2");
+          bbsHideWebGpu();
+        });
+      }
+
+      function bbsHideWebGpu() {
+        try { Object.defineProperty(navigator, "gpu", { value: undefined, configurable: true }); } catch (e) { /* read-only: the engine decides */ }
+      }
+
       function bbsStartGame() {
         document.querySelector("#bbs-mem-panel").style.display = "none";
         document.querySelector("#unity-loading-bar").style.display = "block";
+        bbsProbeWebGpu().then(bbsLoadEngine, bbsLoadEngine);
+      }
 
+      function bbsLoadEngine() {
         var script = document.createElement("script");
         script.src = loaderUrl;
         script.onload = () => {

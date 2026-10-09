@@ -180,6 +180,8 @@ namespace BlocksBeyondTheStars.Client
             PinWorkingDirectory();
             MigrateRenamedPersistentData();
             Settings = ClientSettings.Load();
+            // Which graphics API this run got — in the browser that is WebGPU or the WebGL 2 fallback (#2390).
+            Debug.Log($"[Graphics] {SystemInfo.graphicsDeviceType} — {SystemInfo.graphicsDeviceVersion} on {SystemInfo.graphicsDeviceName}");
 
             // Install the global crash reporter early (on its own DontDestroyOnLoad object) so unhandled client
             // exceptions are captured app-wide and reported automatically — see CrashReporter. AddComponent runs

@@ -319,13 +319,33 @@ namespace BlocksBeyondTheStars.Client
         /// neutral (+0.08 EV); above/below lifts/drops the whole graded frame uniformly.</summary>
         private static float ExposureFor(float brightness) => 0.08f + (brightness - 1f) * 1.2f;
 
+        private float _adaptationEv; // #2395: the eye adaptation's offset (AtmosphereProbe), on top of the slider
+
         /// <summary>Live brightness update from the settings slider — re-exposes the colour grade for every world.</summary>
         public void SetBrightness(float brightness)
         {
             Brightness = brightness;
+            ApplyExposure();
+        }
+
+        /// <summary>Eye adaptation (#2395): an exposure offset in EV the dark earns, eased by <see cref="AtmosphereProbe"/>
+        /// (slow into the dark, quick back into the light). Composes with the brightness slider; 0 = no adaptation.</summary>
+        public void SetAdaptation(float ev)
+        {
+            if (Mathf.Approximately(ev, _adaptationEv))
+            {
+                return;
+            }
+
+            _adaptationEv = ev;
+            ApplyExposure();
+        }
+
+        private void ApplyExposure()
+        {
             if (_grade != null)
             {
-                _grade.postExposure.Override(ExposureFor(brightness));
+                _grade.postExposure.Override(ExposureFor(Brightness) + _adaptationEv);
             }
         }
 

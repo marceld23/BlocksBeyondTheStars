@@ -80,7 +80,7 @@ public sealed class AuditLowLeftoversTests
         string feedback = File.ReadAllText(Scripts("FeedbackUi.cs"));
         int wait = feedback.IndexOf("yield return new WaitForEndOfFrame();", System.StringComparison.Ordinal);
         int bail = feedback.IndexOf("if (!_open)", wait, System.StringComparison.Ordinal);
-        int capture = feedback.IndexOf("_shotJpg = TryCaptureJpg();", wait, System.StringComparison.Ordinal);
+        int capture = feedback.IndexOf("GpuReadback.CaptureScreen(", wait, System.StringComparison.Ordinal); // #2390: the screenshot goes through GpuReadback
         Assert.True(wait >= 0 && bail > wait && bail < capture, "OpenRoutine must check _open right after WaitForEndOfFrame, before capturing/building");
     }
 }

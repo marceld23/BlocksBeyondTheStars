@@ -128,20 +128,22 @@ Shader "BlocksBeyondTheStars/UiHolo"
                 // Position in canvas units, centred on the logical rect (the quad is bigger by `pad` all round).
                 float2 full = float2(w, h) + 2.0 * pad;
                 float2 p = (i.uv - 0.5) * full;
-                float2 half = float2(w, h) * 0.5;
+                // `hs`, not `half`: that is a type name, and the WebGPU (WGSL) compiler refuses every declaration
+                // after a variable of that name (#2390 — DX11/GLES let it pass).
+                float2 hs = float2(w, h) * 0.5;
 
                 float d;      // signed distance to the shape's outer edge
                 float inner;  // distance from the edge inward (for the border band)
                 if (style > 0.5 && style < 1.5)
                 {
                     // Ring: the border IS the shape; a faint disc fill inside.
-                    float R = min(half.x, half.y);
+                    float R = min(hs.x, hs.y);
                     float rr = length(p);
                     d = rr - R;
                 }
                 else
                 {
-                    d = sdRoundRect(p, half, min(radius, min(half.x, half.y)));
+                    d = sdRoundRect(p, hs, min(radius, min(hs.x, hs.y)));
                 }
 
                 float aa = max(fwidth(d), 0.75); // ~1 screen px of anti-aliasing in canvas units
@@ -151,7 +153,7 @@ Shader "BlocksBeyondTheStars/UiHolo"
 
                 // Fill: the vertex colour, a soft vertical gradient (brighter at the top) and faint scanlines.
                 float2 lp = i.uv * full; // canvas-unit coords for the pattern
-                float grad = 1.0 + 0.10 * saturate(1.0 - (p.y + half.y) / max(h, 1.0)) - 0.05;
+                float grad = 1.0 + 0.10 * saturate(1.0 - (p.y + hs.y) / max(h, 1.0)) - 0.05;
                 float scan = 1.0 - _Scan * (0.5 + 0.5 * sin(lp.y * 3.1415926 * 0.5));
                 float3 fillRgb = i.color.rgb * grad * scan;
                 float fillA = i.extra.x;
@@ -162,7 +164,7 @@ Shader "BlocksBeyondTheStars/UiHolo"
                 float bracket = 1.0;
                 if (style < 0.5 || style > 1.5)
                 {
-                    float2 corner = saturate(1.0 - (half - abs(p)) / max(min(half.x, half.y) * 0.55, 1.0));
+                    float2 corner = saturate(1.0 - (hs - abs(p)) / max(min(hs.x, hs.y) * 0.55, 1.0));
                     bracket = 0.55 + 0.45 * max(corner.x, corner.y);
                 }
 

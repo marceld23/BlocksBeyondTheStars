@@ -24,6 +24,102 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌫️ Atmosphere package — Unity 6.6 + WebGPU, living air and light, weather that leaves a trace, deeper water and caves (#2408: #2389–#2407, 2026-10-08/09, branch feat/atmosphere-2026-10) — ✅ done (⚠ FPS acceptance + playtest open)
+
+**Ask (Marcel, 2026-10-08):** "which kinds of visual effects in Unity could give the game a better atmosphere?" — an
+analysis first, then: everything in ONE PR, the Unity 6.4 → 6.6 upgrade and WebGPU-first for the browser included,
+lava/crystals/glowing flora may light their surroundings (reverses #2036), Low/Potato get the cheap effects with a
+switch per effect, no intermediate screenshots — the maintainer tests the finished build from the project folder.
+
+**Decisions:** one PR with bisectable commits (branch kept after the squash-merge) · Unity 6000.6.5f1 with no time box ·
+WebGPU first in the web graphics-API list, WebGL2 as the fallback · emitter light for lava, crystals and glowing flora ·
+an "Atmosphere effects: Off / Some / All" settings row with per-effect switches underneath · acceptance: High ≥ 60 fps at
+view distance 8 on the reference laptop, Low in the browser ≥ 30 fps at view distance 3 (school PC, measured after the
+release) · nothing flickers or flashes faster than 3/s (WCAG 2.3.1), `Reduce flashes` / `Reduced effects` apply to every
+new effect, no effect may make the world darker overall · verification by clip-recorder captures of one seed before/after,
+Low and High (no playtest needed until the end).
+
+**Build order (each a commit):**
+0. ✅ Tooling (#2405): `ClipSpec.timeOfDay` / `weather` / `pose` — `GameBootstrap.SetCaptureEnvironment(time?, weather)`
+   fills the wire fields the way the server would (state, family, precipitation, intensity, wind) and snaps the weather
+   easing; `RequestCaptureSnap` / `CaptureSnap` event for every smoothed look; `PlayerController.PlaceForCapturePose`
+   scans the streamed chunks for a cave room, a three-deep water column, dense flora, a shore or the highest open spot;
+   the clip director re-snaps until the chunk collider has cooked and falls back to the spawn pose. Standing manifest
+   `scripts/clip-manifests/atmosphere-check.json` (22 scenes); docs in `docs/screenshots/README.md` + `CLIENT_TESTING.md`.
+1. ✅ Unity 6000.4.9f1 → 6000.6.5f1 (#2389, `6b2001dd`): URP 17.6, `scripts/resolve-unity.ps1` finds the project's
+   editor (the Hub cannot install under the maintainer's endpoint security — the silent installer into the user
+   profile works), seven workflow pins, re-serialised project assets; the 22-scene capture set is pixel-equivalent
+   before and after the upgrade (luma Δ ≤ 1.3). The first cloud dispatch failed on every platform: the 6000.6
+   editor needs `--shm-size=1025M` in Docker (game-ci/unity-builder#840, reported as a licence failure) — the
+   workflows now run `game-ci/unity-builder` v6 with `cliVersion` pinned, whose CLI passes the flag.
+2. ✅ WebGPU first + async GPU readback (#2390, ADR 0015): `GpuReadback` (ReadPixels on desktop, `AsyncGPUReadback`
+   where a sync read is illegal, flip on `graphicsUVStartsAtTop`, GPU downscale for the F1/F2 report and chat
+   screenshots) replaces every `ReadPixels` (CameraTool, ChatUi, FeedbackUi, TextureEditor icons); the water SSR loop
+   loads texels instead of sampling in a branch; `BuildScript.ConfigureWebGLPlayer` puts WebGPU first with WebGL 2 as
+   the fallback (`BBS_WEBGL_API=webgl2` pins the old order); the player logs its graphics API at start.
+3. ✅ Fixes: the heat shimmer is gated on `ScreenSpaceFxAllowed` and its shader discards without the opaque texture
+   (#2391 — Low/browser no longer draw a grey quad over hot worlds); the dead `Reflections` toggle is gone,
+   `VolumetricFog` is `DistanceHaze` with an honest label in 14 languages, URP_MIGRATION / ADVANCED_GRAPHICS /
+   PROFESSIONAL_LOOK_GAP_ANALYSIS tell the shipped truth (#2392).
+4. ✅ Air & light (`Shaders/AtmosphereCommon.hlsl`, `Sky.cs`, `AtmosphereProbe.cs`): one haze for every world-space
+   shader — blocks, far terrain, creatures, ships, scatter, particles, clouds (#2393); height fog that lies in the low
+   ground (floor = 25th percentile of the terrain around the player, exponential falloff, 3-point Simpson along the
+   view ray, masked by skylight and the camera's sky exposure) warmed toward the sun (#2406); wind-scrolled cloud
+   shadows on the direct-sun term, capped at a quarter (#2394); eye adaptation as a post-exposure offset from the
+   probe's scene brightness, 0.35 EV/s into the dark, 2.5 EV/s back (#2395); warm block light breathes at < 1 Hz,
+   cold lamps stay steady, `Reduce flashes` zeroes it (#2396).
+5. ✅ Living world: wind sway for leaves, grass and flora from the foliage flag / tint mode / tile V — no mesher
+   change, the shadow and depth passes follow (#2397); wet ground after rain and snow caps after snowfall on skylit
+   upward faces (`_Sc_Surface`, `Sky.TickWeatherTraces`) (#2398); rain and snow as one `ParticleSystem` driven by
+   `SetParticles` with ground splashes through `FxKit` (#2399); `PlanetLimb.shader` for the sunlit rim from orbit and
+   `ShootingStars` at night (#2400).
+6. ✅ Depth: under water the haze turns into the water's own colour at a few metres, caustics dance on lit faces below
+   the surface and bubbles rise past the visor (#2401); light-shaft cards at cave mouths and canopy gaps (12 on
+   High, 6 on Medium) (#2402); lava and crystals (radius 4, surface-only) and the glowing flora (radius 3) light
+   their surroundings — `BlockDefinition.LightRadius` / `LightSurfaceOnly`, packed with the colour into the light
+   source, per-source flood radius in the mesher, `ClientWorld.CastsLight`; reverses #2036 (ADR 0016) (#2407);
+   fake SSS for leaves and plants, soft particles against the depth texture (#2403).
+7. ✅ Wrap-up: `Atmosphere effects: Off / Some / All / Custom` with twelve per-effect switches, every effect also
+   preset-gated (`ClientSettings.AtmosphereEffect(toggle, cheap)`), 17 keys in 14 languages (#2404); docs
+   (ADVANCED_GRAPHICS, VFX, URP_MIGRATION, ART_BIBLE, USER_MANUAL, DEVELOPER, AGENTS, CLIENT_TESTING,
+   WEBCLIENT_FEASIBILITY, screenshots/README), ADR 0015 + 0016. Steps 2–7 ship as one commit: their files overlap
+   (Sky, ClientSettings, BlockAtlas carry every package), so a split would not bisect anyway.
+
+**What the verification found and fixed on the way (all in this PR):**
+- *Clip recorder:* every surface clip had filmed the spawn hull with the player still counted aboard — the director
+  posed the player during the spawn settle freeze (`WorldReady` defaults to true until the join is accepted) and
+  VEGA's prologue cinematic took the camera. Now: `PlayerController.IsSettling` is awaited, then a few spawn-side
+  position reports (the server's 64 m spawn-adoption gate, #865), then the chunk stream going quiet; the prologue is
+  dismissed; the aboard flag is waited out. The HUD-free clone camera copied the `Camera` only, not its URP data —
+  no post stack, no depth/opaque copies: the heat-haze quad drew a black panel over every hot world *in captures
+  only* (the screenshot path and play were fine). `ClipFrameWriter.SyncUrpCamera` mirrors the data; the preset's
+  renderer comes from `ClientSettings.RendererIndex`. `-atmosphere Off|Some|All|Custom` captures the before/after pair
+  on one build, `-atmoDebug 1…5` shows the shader's inputs (surface globals, skylight/up/cloud shade, haze, raw
+  particles, raw block light), `pose: lava` and the 24-fps `rain_close` clip were added. Rule learned: never run a
+  capture set beside a Unity/IL2CPP build or the test suite (a starved client lifts its spawn freeze before any chunk
+  streamed and every pose falls back to the far-terrain mesh), and count `Shader error` lines after every build (a
+  broken include still ends in `build: Succeeded`).
+- *Weather particles (#2399):* a paused `ParticleSystem` never refreshes its renderer bounds (culled), and the stretch
+  length was only set when the precipitation kind *changed* (the first rain of a session fell as dots) — fixed; drops
+  are drawn with their own streak texture (`FxKit.Streak`).
+- *Emitter light (#2407):* a short-reach source was seeded at `colour × reach / 9` (a crystal at 44 % of a lamp, invisible
+  on dark rock) — the mesher now floods each reach in its own pass: natural emitters start at 80 % of a fixture and
+  fade over their own few blocks. Mining the rock off a lava or crystal face lights it at once
+  (`ClientWorld.ReindexSurfaceNeighbours`, `NaturalEmitterLightTests`).
+- *WebGPU (#2390):* `UiHolo.shader` used `half` as a variable name — WGSL refused every declaration after it; the engine
+  falls back to WebGL 2 only without an adapter, so an adapter whose device creation fails stalled the page — the
+  WebGL template now probes adapter + device first and hides `navigator.gpu` on failure (`?bbsGpu=webgl2` forces it).
+  Verified in Playwright's Chromium: WebGPU reaches the menu and a singleplayer world, the headless shell falls back and
+  reaches the menu (`scripts/webgl-browser-check.py`).
+- *Snow caps, wet ground, cloud shadows, height fog, light shafts, caustics, eye adaptation, lava light:* seen in the
+  Off/All pairs (snow: the ice world's mint ground turns white; lava: the river floods its walls orange in the raw
+  block-light view; cave: beam + adaptation; under water: haze + caustics on the sand).
+
+**Open after the merge:** the FPS acceptance (High ≥ 60 fps at VD 8 on the reference laptop, Low in the browser
+≥ 30 fps at VD 3) needs the maintainer / the school club; `flora_glowmoss`, `flora_glowthread` and `flora_prismbloom`
+glow but declare no `lightColor` yet (their textures are raw blobs, so no colour was guessed) — add one in data to let
+them light caves; the underwater pose still prefers a kelp forest on seed 424242 (a tooling nicety).
+
 ### 🧗 Climbing controls — hold Jump to hold on, let go to slide, two-block walls in one jump, "no room" message (#2384 #2385 #2386 #2387, 2026-10-08, branch feat/climb-hold-to-grip) — ✅ done (⚠ playtest open)
 
 **Report (Marcel, 2026-10-08):** "with only two blocks I don't climb up", and "how do I get out of climbing?" — idea:

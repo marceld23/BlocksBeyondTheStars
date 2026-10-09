@@ -675,21 +675,31 @@ namespace BlocksBeyondTheStars.Client
 
             yield return new WaitForEndOfFrame();
 
+            // Full composited frame (HUD kept), downscaled on the GPU to 1600 px and read back through GpuReadback
+            // (#2390: no synchronous reads on WebGPU — the frame then lands a frame or two later).
+            Texture2D shot = null;
+            yield return GpuReadback.CaptureScreen(1600, TextureFormat.RGB24, t => shot = t);
             try
             {
-                var shot = ScreenCapture.CaptureScreenshotAsTexture();
-                try
+                if (shot != null)
                 {
-                    jpg = EncodeDownscaledJpg(shot, 1600, 70);
+                    jpg = ImageConversion.EncodeToJPG(shot, 70);
                 }
-                finally
+                else
                 {
-                    Destroy(shot);
+                    Debug.LogWarning("Bump screenshot failed: readback returned nothing.");
                 }
             }
             catch (System.Exception e)
             {
                 Debug.LogWarning($"Bump screenshot failed: {e.Message}");
+            }
+            finally
+            {
+                if (shot != null)
+                {
+                    Destroy(shot);
+                }
             }
 
             if (_canvas != null)
@@ -712,35 +722,6 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.SendChat(rawCommand); // fallback: server still writes the snapshot, just no image
             }
-        }
-
-        /// <summary>JPG-encodes a screenshot, downscaled so its longest side is at most <paramref name="maxDim"/>
-        /// (keeping packet/disk size modest). Returns the encoded bytes.</summary>
-        private static byte[] EncodeDownscaledJpg(Texture2D src, int maxDim, int quality)
-        {
-            int w = src.width, h = src.height;
-            float scale = Mathf.Min(1f, (float)maxDim / Mathf.Max(w, h));
-            int tw = Mathf.Max(1, Mathf.RoundToInt(w * scale));
-            int th = Mathf.Max(1, Mathf.RoundToInt(h * scale));
-
-            if (tw == w && th == h)
-            {
-                return ImageConversion.EncodeToJPG(src, quality);
-            }
-
-            var rt = RenderTexture.GetTemporary(tw, th, 0, RenderTextureFormat.ARGB32);
-            var prev = RenderTexture.active;
-            Graphics.Blit(src, rt);
-            RenderTexture.active = rt;
-            var small = new Texture2D(tw, th, TextureFormat.RGB24, false);
-            small.ReadPixels(new Rect(0, 0, tw, th), 0, 0);
-            small.Apply();
-            RenderTexture.active = prev;
-            RenderTexture.ReleaseTemporary(rt);
-
-            byte[] jpg = ImageConversion.EncodeToJPG(small, quality);
-            UnityEngine.Object.Destroy(small);
-            return jpg;
         }
 
         /// <summary>

@@ -14,17 +14,19 @@
   client/Assets/StreamingAssets (data + the published server) is included in the build.
 
 .PARAMETER UnityPath
-  Path to Unity.exe. Defaults to the Unity Hub install of the project's editor version.
+  Path to Unity.exe. Defaults to the editor matching client/ProjectSettings/ProjectVersion.txt, found by
+  scripts/resolve-unity.ps1 (Hub default folder, the per-user %USERPROFILE%\Unity\Editors\<version>, the Hub's
+  secondary install location, or $env:UNITY_EDITOR_PATH).
 
 .PARAMETER Out
   Output folder for the build (relative to the client project). Default: Build/Windows.
 
 .EXAMPLE
   ./scripts/build-client.ps1
-  ./scripts/build-client.ps1 -UnityPath "C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe"
+  ./scripts/build-client.ps1 -UnityPath "C:\Program Files\Unity\Hub\Editor\6000.6.5f1\Editor\Unity.exe"
 #>
 param(
-    [string] $UnityPath = "C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe",
+    [string] $UnityPath = '',
     [string] $Out = "Build/Windows",
     [switch] $SkipPrereqs   # skip the sync-libs + publish-server steps (e.g. when re-building only)
 )
@@ -32,6 +34,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $repo 'client'
+if (-not $UnityPath) { $UnityPath = & (Join-Path $PSScriptRoot 'resolve-unity.ps1') }
 
 # Self-contained singleplayer build needs the synced shared libs/content + the bundled server.
 if (-not $SkipPrereqs) {
@@ -46,7 +49,7 @@ if (-not $SkipPrereqs) {
 }
 
 if (-not (Test-Path $UnityPath)) {
-    Write-Error "Unity editor not found at '$UnityPath'. Pass -UnityPath to your Unity 6000.4.x Unity.exe."
+    Write-Error "Unity editor not found at '$UnityPath'. Pass -UnityPath to the Unity.exe of the project's editor version (client/ProjectSettings/ProjectVersion.txt)."
 }
 
 $log = Join-Path $project 'build.log'

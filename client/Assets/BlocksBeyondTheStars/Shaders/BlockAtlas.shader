@@ -35,13 +35,15 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma multi_compile_fog
+            // (No multi_compile_fog: the haze is the explicit AtmosphereCommon blend; Unity's fog variants were
+            // stripped from every player build anyway and would only double the haze in the Editor.)
             // Receive the sun's real-time shadow map (URP main light).
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "FxCommon.hlsl" // VFX overhaul (#2152): FX lights + scan wave globals
+            #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): haze + height fog, cloud shadows, torch flicker
 
             TEXTURE2D(_MainTex);   SAMPLER(sampler_MainTex);
             TEXTURE2D(_NormalTex); SAMPLER(sampler_NormalTex);
@@ -50,7 +52,6 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             float4 _Sc_Light;
             float4 _Sc_SunDir;
             float4 _Sc_Sky;
-            float4 _Sc_Fog;       // explicit distance haze (URP MixFog doesn't engage here): x=start, y=end, z=max, w=on
             float4 _Sc_LampPos;
             float4 _Sc_LampDir;
             float4 _Sc_LampColor;
@@ -88,9 +89,8 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float2 skyl : TEXCOORD4;
                 float4 leaf : TEXCOORD5;
                 float4 mat : TEXCOORD6;
-                float  fog : TEXCOORD7;
-                float3 bl : TEXCOORD8;
-                float3 blDir : TEXCOORD9;
+                float3 bl : TEXCOORD7;
+                float3 blDir : TEXCOORD8;
             };
 
             // #1957 animated tiles. TEXCOORD1.y = tint mode (low 4 bits) + 16*frames + 256*speedIndex + 1024*stripStart
@@ -117,9 +117,11 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             {
                 Varyings o = (Varyings)0;
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
-                o.positionCS = TransformWorldToHClip(wp);
                 float tintMode;
                 o.uv = BbtsAnimatedUv(v.uv, v.sky.y, tintMode);
+                // #2397: leaves and plants sway in the wind (the tile's v = 0 root … 1 tip for a plant quad).
+                wp += BbtsWindSway(wp, v.leaf.x > 0.5, tintMode > 0.5 && tintMode < 1.5, frac(v.uv.y * 32.0));
+                o.positionCS = TransformWorldToHClip(wp);
                 o.wn = TransformObjectToWorldNormal(v.normal);
                 o.wt = float4(TransformObjectToWorldDir(v.tangent.xyz), v.tangent.w);
                 o.wp = wp;
@@ -128,7 +130,6 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 o.mat = v.color;
                 o.bl = v.bl;
                 o.blDir = v.blDir;
-                o.fog = ComputeFogFactor(o.positionCS.z);
                 return o;
             }
 
@@ -194,6 +195,14 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float ndl = saturate(dot(N, L));
                 float sky = saturate(i.skyl.x);
 
+                // #2398: wet ground after rain, snow caps after snowfall — upward, skylit faces only (not the lava
+                // surface, whose glow is the point). Adjusts the albedo and the material gloss in place.
+                float glossIn = i.mat.r;
+                if (i.skyl.y < 4.5)
+                {
+                    BbtsWeatherSurface(albedo, glossIn, i.wp, gN, sky);
+                }
+
                 // Sun shadow map (URP main light): 1 where lit, →0 in shadow. Only the direct-sun terms are
                 // shadowed (ambient/sky fill + emissive stay), so shadowed faces dim but never go black.
                 // #1518: the lookup only feeds terms multiplied by ndl*sky, so a face turned away from the sun
@@ -203,6 +212,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // instead of marching across the terrain as a hard line at the preset distance (40/70/110 m).
                 float shadow = (ndl * sky > 0.0)
                     ? lerp(MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp)), 1.0, GetMainLightShadowFade(i.wp))
+                      * BbtsCloudShade(i.wp) // #2394: drifting cloud shadows ride the same direct-sun term
                     : 0.0;
 
                 // Per-vertex AO (mesher, in .b) widened to a visible contact-shadow range, then multiplied by
@@ -226,7 +236,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float nightFloor = saturate(0.6 - dot(light, float3(0.299, 0.587, 0.114)));
                 col += albedo * float3(0.10, 0.13, 0.20) * (sky * nightFloor) * faceAo;
 
-                float gloss = i.mat.r;            // perceptual smoothness (0 = matte .. 1 = mirror)
+                float gloss = glossIn;            // perceptual smoothness (0 = matte .. 1 = mirror), wet/snow-adjusted (#2398)
                 float metal = i.mat.g;            // metallic (0 = dielectric .. 1 = metal)
                 float rough = clamp(1.0 - gloss, 0.045, 1.0);
 
@@ -240,6 +250,20 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float specTerm = r2 / ((dterm * dterm) * max(0.1, lh * lh) * (rough * 4.0 + 2.0));
                 float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metal);
                 col += light * F0 * (specTerm * ndl * sunOpen * shadow);
+
+                // #2401: caustics on the sea floor while the camera is under water.
+                col += albedo * light * (BbtsCaustics(i.wp, gN, sky) * 0.7);
+
+                // #2403: thin, translucent things let the sun through — leaves and plants glow when the sun is behind
+                // them (a wrap-lit back-light term, strongest looking into a low sun), so a canopy reads as foliage,
+                // not as painted cubes. Skylit faces only; the shadow map keeps a shaded crown dark.
+                bool translucent = i.leaf.x > 0.5 || (i.skyl.y > 0.5 && i.skyl.y < 1.5);
+                if (translucent)
+                {
+                    float back = pow(saturate(dot(-V, L)), 3.0);
+                    float wrap = saturate(dot(N, L) * 0.5 + 0.5);
+                    col += albedo * light * (back * 0.45 + wrap * 0.12) * sunOpen * shadow * sky;
+                }
 
                 // Environment reflection of the sky colour, roughness-aware: metals reflect strongly (tinted by
                 // F0) even head-on, dielectrics mostly at grazing angles (Fresnel). Additive, faded by skylight.
@@ -291,22 +315,23 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // dominant direction (TEXCOORD4) lets us shade them like the sun — N·L diffuse shaping + a
                 // GGX glint + normal-map relief — so lamps sculpt the surface instead of flat-washing
                 // it. A fill floor keeps faces the light wrapped around lit; bright enough to feed the bloom.
+                float3 bl = BbtsBlockLightFlicker(i.bl, i.wp); // #2396: warm fixtures breathe, cold ones stay steady
                 float blLen = length(i.blDir);
                 if (blLen > 0.01)
                 {
                     float3 blL = i.blDir / blLen;
                     float blNdl = saturate(dot(N, blL));
-                    col += albedo * i.bl * (0.5 + 0.5 * blNdl) * 2.0;
+                    col += albedo * bl * (0.5 + 0.5 * blNdl) * 2.0;
                     float3 blH = normalize(blL + V);
                     float blNh = saturate(dot(N, blH));
                     float blLh = saturate(dot(blL, blH));
                     float blDterm = blNh * blNh * (r2 - 1.0) + 1.00001;
                     float blSpec = r2 / ((blDterm * blDterm) * max(0.1, blLh * blLh) * (rough * 4.0 + 2.0));
-                    col += i.bl * F0 * (blSpec * blNdl);
+                    col += bl * F0 * (blSpec * blNdl);
                 }
                 else
                 {
-                    col += albedo * i.bl * 2.0; // no direction baked (uniform/none) → flat fallback
+                    col += albedo * bl * 2.0; // no direction baked (uniform/none) → flat fallback
                 }
 
                 if (_Sc_LampColor.a > 0.5)
@@ -323,15 +348,13 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // VFX overhaul (#2152): muzzle flashes, plasma bolts and explosions light the terrain (8 FX lights).
                 col += BbtsFxLights(i.wp, N, albedo);
 
-                // Explicit distance haze toward the sky colour (Unity's MixFog path doesn't engage on this
-                // unlit shader). Driven by _Sc_Fog (x=start, y=end, z=max already faded indoors, w=on). Blends in
-                // shader space so it only tints distant terrain — it never darkens the frame like a full-screen pass.
+                // The shared haze (AtmosphereCommon, #2393/#2406): distance veil + height fog toward the sky colour,
+                // warmed toward the sun. Blends in shader space so it only tints distant terrain — it never darkens
+                // the frame like a full-screen pass. The mesher skylight keeps caves clear of the height fog.
                 if (_Sc_Fog.w > 0.5)
                 {
-                    float camDist = distance(i.wp, _WorldSpaceCameraPos);
-                    float haze = saturate((camDist - _Sc_Fog.x) / max(1.0, _Sc_Fog.y - _Sc_Fog.x)) * _Sc_Fog.z;
-                    float3 hazeCol = (_Sc_Sky.a < 0.5) ? light : _Sc_Sky.rgb;
-                    col = lerp(col, hazeCol, haze);
+                    float haze = BbtsHazeAmount(i.wp, sky);
+                    col = lerp(col, BbtsHazeColor(i.wp), haze);
 
                     // #1748: a beacon must outlast the haze. The emission above went into `col` BEFORE this
                     // lerp, so a warning light on a far tower faded exactly like the rock beside it. Half the
@@ -343,9 +366,13 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // #2153: the scanner's wave rolls over the terrain after the haze, so it reads at any distance.
                 col += BbtsScanWave(i.wp);
 
-                half4 outc = half4(col, 1);
-                outc.rgb = MixFog(outc.rgb, i.fog);
-                return outc;
+                col = BbtsAtmoDebug(col, i.wp, gN, sky); // capture diagnostics only (0 in play)
+                if (_Sc_AtmoDebug > 4.5 && _Sc_AtmoDebug < 5.5)
+                {
+                    col = i.bl; // capture diagnostics: the baked block light as the mesher wrote it
+                }
+
+                return half4(col, 1);
             }
             ENDHLSL
         }
@@ -362,6 +389,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #pragma fragment shadowFrag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+            #include "AtmosphereCommon.hlsl" // #2397: the shadow follows the swaying leaves
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
 
@@ -372,13 +400,15 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
             float3 _LightDirection; // set by URP while rendering the shadow map (a global, not a material property)
 
-            struct SAttr { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
+            struct SAttr { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float2 sky : TEXCOORD1; float4 leaf : TEXCOORD2; };
             struct SVary { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };
 
             SVary shadowVert(SAttr v)
             {
                 SVary o;
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
+                float tintMode = fmod(v.sky.y, 16.0);
+                wp += BbtsWindSway(wp, v.leaf.x > 0.5, tintMode > 0.5 && tintMode < 1.5, frac(v.uv.y * 32.0));
                 float3 wn = TransformObjectToWorldNormal(v.normal);
                 float4 cs = TransformWorldToHClip(ApplyShadowBias(wp, wn, _LightDirection));
                 #if UNITY_REVERSED_Z
@@ -414,6 +444,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #pragma vertex depthVert
             #pragma fragment depthFrag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "AtmosphereCommon.hlsl" // #2397: the depth prepass follows the swaying leaves too
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
 
@@ -422,13 +453,16 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float _LeafCutoff;
             CBUFFER_END
 
-            struct DAttr { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
+            struct DAttr { float4 positionOS : POSITION; float2 uv : TEXCOORD0; float2 sky : TEXCOORD1; float4 leaf : TEXCOORD2; };
             struct DVary { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };
 
             DVary depthVert(DAttr v)
             {
                 DVary o;
-                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                float3 wp = TransformObjectToWorld(v.positionOS.xyz);
+                float tintMode = fmod(v.sky.y, 16.0);
+                wp += BbtsWindSway(wp, v.leaf.x > 0.5, tintMode > 0.5 && tintMode < 1.5, frac(v.uv.y * 32.0));
+                o.positionCS = TransformWorldToHClip(wp);
                 o.uv = v.uv;
                 return o;
             }

@@ -78,6 +78,46 @@ server using PostgreSQL. Provider-specific deployment wiring is intentionally le
 | Input | Mouse+keyboard on desktop browsers (Chrome/Edge first); pointer-lock needed. |
 | Mobile | Out of scope initially. |
 
+## WebGPU first, WebGL 2 as the fallback (2026-10, #2390)
+
+Since Unity 6.6 the WebGPU graphics API is a supported (no longer experimental) web backend, and the build
+lists it **first**, with WebGL 2 as the automatic fallback — `BuildScript.ConfigureWebGLPlayer` sets the
+list on every build (`BBS_WEBGL_API=webgl2` pins the old API for an A/B build). Unity tries WebGPU and silently
+takes WebGL 2 when the browser has no WebGPU, when the page is not a secure context (plain `http://` over a LAN IP
+or `file://` — `http://localhost` *is* secure), or when the device is on Unity's compatibility list. The player logs
+`[Graphics] WebGPU …` or `[Graphics] OpenGLES3 …` at start, so a browser console says which one it got. See
+[ADR 0015](adr/0015-unity-6-6-supported-releases-and-webgpu-first.md) for why it is on for everyone.
+
+The engine's own fallback covers only a browser **without** an adapter. A browser that hands out an adapter and
+then fails to create the device (a blocklisted or half-supported GPU, a headless shell without the DXC
+libraries) left the engine on a null device and the page stuck at the loading bar — so the WebGL template
+(`client/Assets/WebGLTemplates/BlocksBeyondTheStars/index.html`) probes `requestAdapter()` + `requestDevice()`
+before it loads the engine and hides `navigator.gpu` on any failure, which makes the engine start on WebGL 2.
+The console says which path was taken (`[BBS] graphics: …`); `?bbsGpu=webgl2` on the URL forces WebGL 2 for
+an A/B check without a rebuild.
+
+**Checking a build in a browser without clicking:** `scripts/webgl-browser-check.py` serves a local
+(uncompressed, `BBS_WEBGL_FAST_LOCAL=1`) build, opens it in Playwright's Chromium and keeps the console and a
+screenshot every five seconds. Playwright's headless shell has no DXC libraries, so it exercises the WebGL 2
+fallback; `--channel chromium` (the full browser in new-headless mode) runs WebGPU. Both were run for #2390 on
+2026-10-09: WebGPU reached the menu and a singleplayer world, the shell fell back cleanly and reached the menu.
+The system's own Chrome/Edge cannot be driven here (an enterprise policy hands every launch to the running
+instance), which is why the check uses Playwright's own browser.
+
+What WebGPU changes for the code:
+
+- **No synchronous GPU reads.** `Texture2D.ReadPixels`, `ScreenCapture.CaptureScreenshotAsTexture` and
+  `GetPixels` on a render target are not available; WebGL 2 in turn has no `AsyncGPUReadback`. Every read goes
+  through `GpuReadback` (photo item, chat and F1/F2 screenshots, the texture editor's icon reads), which takes the
+  synchronous path where allowed and an async request on WebGPU — the result then lands a frame or two later, so
+  callers are coroutines/callbacks. The capture tools (`ScreenshotDirector`, `ClipFrameWriter`) are desktop-only
+  and keep `ReadPixels`; `-clipReadbackCheck` writes one frame through the async path to compare.
+- **Shaders:** no texture *samples* (implicit derivatives) inside loops with a data-dependent exit — the water SSR
+  march uses `LoadSceneDepth` / `LoadSceneColor`. Barriers only in uniform control flow (no compute here).
+  Everything that WebGL 2 forbids still applies, because it remains the fallback (no VFX Graph, no compute, no
+  DBuffer decals, no Forward+).
+- **Readback of the swap chain** for the visor composite and the HUD glow works as before (render-graph passes).
+
 ## Remaining hardening
 
 - A validated Unity WebGL Lite profile + asset bundling/shrinking. The build method exists and local play works,

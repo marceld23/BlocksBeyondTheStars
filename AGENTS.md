@@ -26,7 +26,10 @@ LAN/self-hosting and anti-cheat correct by construction.
 
 ## Tech stack (decided)
 
-- **Client:** Unity 6 LTS (6000.4.x), C#. Lives in `client/` (open in the Unity Editor). Builds for Windows (WinForms launcher) and Linux (console launcher).
+- **Client:** Unity 6.6 (6000.6.x), C#. Lives in `client/` (open in the Unity Editor). Builds for Windows (WinForms launcher) and Linux (console launcher).
+  Unity 6.4+ are *Supported* releases (patched only until the next Supported release ships; the LTS line is 6000.3),
+  so the editor pin (`client/ProjectSettings/ProjectVersion.txt` + the `unityVersion:` lines in the workflows) moves
+  with Unity's cadence — `scripts/resolve-unity.ps1` finds the matching editor for the build scripts.
 - **Server:** .NET 10, standalone console host. **No Unity runtime on the server.**
 - **Admin/API:** ASP.NET Core 8 (Minimal API).
 - **DB:** SQLite by default (portable); PostgreSQL later.

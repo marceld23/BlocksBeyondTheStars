@@ -84,7 +84,7 @@ See [DEVELOPER.md](DEVELOPER.md) (§ Building the Linux client) for the full gui
 Quick start:
 
 ```bash
-# Prerequisites: Unity 6000.4.x Linux Editor + .NET 10 SDK
+# Prerequisites: the project's Unity version (6000.6.x) as Linux Editor + .NET 10 SDK
 
 # One-command full build:
 ./scripts/build-client.sh --unity-path /path/to/Unity

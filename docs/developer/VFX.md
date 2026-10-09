@@ -10,10 +10,13 @@ Status: **implemented** (VFX overhaul, epic #2159: #2151–#2158, 2026-10-01). N
   - Robots fall to parts.
   - Bandits beam away; they are never killed on screen (see [PARENTS.md](../user/PARENTS.md)).
 - **Every device has its own look**, chosen by data, not by code that guesses from item keys.
-- **WebGL2 and small hardware.**
+- **WebGL2 and small hardware.** The browser build runs on WebGPU where the browser has it (#2390), but
+  WebGL2 stays the automatic fallback, so every effect must still work there:
   - Not available: VFX Graph (needs compute), geometry shaders, DBuffer decals, Forward+.
   - Everything is Shuriken `ParticleSystem`s, meshes and hand-written shaders.
   - Particle budgets scale per quality preset.
+  - WebGPU adds its own rule: no texture *samples* (implicit derivatives) inside loops with a data-dependent
+    exit — use texel loads there (the water SSR march does).
 - **No URP additional lights.** They stay off by design ([ADR 0003](adr/0003-urp-custom-unlit-shaders-baked-lighting.md)).
   - Glow comes from HDR colour plus bloom.
   - "Light" on the surroundings comes from shader-global **FX lights** (below).
@@ -224,6 +227,25 @@ lift platform is a meshed object (`LiftView`).
 - **Ship scanner** (#2237, [SHIP_SCANNER.md](SHIP_SCANNER.md)): corner brackets snap onto the target and a ring fills while fire is held. The charge fans four beams from the nose to the target's corners, sweeps a holo plane over it and pulls motes back. Completion runs a scan wave over the target with a flash and a short FX light. The colour is the scanner module's `fx` look (cockpit cyan, Deep scanner teal, Quantum gold). The Quantum scanner's system sweep is a wide pulse from the ship.
 - **Life pods and anomalies** (#2241): a pod blinks its beacon and its passenger waves; a rescue plays a short tractor pull. An anomaly is a soap-bubble shell with glitching cubes orbiting it, which ripples and calms when scanned.
 - **Wormholes** (#2242): the `Wormhole` shader rift with arcs, motes and an FX light. Flying through runs `WormholeTransitFx` — a crack spreading over the screen, the rush, then an arrival flash. Other players see a burst at the rift (`SpaceWarpFx.Style = "wormhole"`).
+
+### Atmosphere (#2408)
+
+The atmosphere package's world effects ride on the same kit and the same rules (see `ADVANCED_GRAPHICS.md` for
+the shader side):
+
+- **Weather drops** (`WeatherFx3D`): one particle system fed through `SetParticles` with the simulation paused —
+  the class still integrates every drop itself (open-sky columns, roofs, the hull), the system only draws them:
+  velocity-stretched streaks for rain, sleet, acid and sand, round flakes for snow, hail, ash and spores. A drop
+  that meets the ground within 14 m leaves a `Dust` splash (every fourth hit; none for the dry forms).
+- **Shooting stars** (`ShootingStars`): a stretched particle on the night dome every 45–110 s (2–5 s in a meteor
+  shower), and very rarely a slow blinking "distant ship". Off by day, in space, aboard a station.
+- **Light-shaft cards** (`LightShafts`): Cloud-shader quads hanging along the sun direction from openings the chunk
+  scan finds (open-sky columns at the camera's height with roofed neighbours), with `Motes` dust drifting in them.
+  Only while the camera is in the shade and the sun is up; High 12 cards, Medium 6, Low none.
+- **Bubbles** (`AtmosphereProbe`): `Motes` rising past the visor while submerged; the caustics and the water haze
+  are shader-side (`AtmosphereCommon.hlsl`, `Sky.ApplyFog`).
+- **Soft particles** (#2403): `Particle` / `ParticleAlpha` fade within 0.5 m of the depth behind them on Medium+
+  (`_Sc_ScreenFx` × `_Sc_SoftParticles`).
 
 ### Multiplayer (#2158)
 

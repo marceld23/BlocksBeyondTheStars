@@ -48,6 +48,19 @@ namespace BlocksBeyondTheStars.Client
         public float lookYawStart;             // surface: body/look yaw sweep while walking — first frame
         public float lookYawEnd;               // ... last frame
         public float lookPitch;                // surface: look pitch
+
+        // Environment + placement pins (#2405) — the look checks need dawn, rain, a cave, the sea floor … on purpose.
+        //   timeOfDay — local time of day to pin, 0..1 (0 = midnight, 0.27 ≈ dawn, 0.5 = noon, 0.75 ≈ dusk);
+        //               negative = leave the world's own clock alone (the default, as before)
+        //   weather   — weather to pin: a state (clear, clouds, rain, storm, fog, ground_fog, blizzard, gale, …) or a
+        //               precipitation form (snow, sleet, hail, sandstorm, dust, ash, …); "" = the world's own weather
+        //   pose      — where the on-foot player stands (surface scenes): spawn (default, open ground near the ship),
+        //               cave (a covered room underground), underwater (three blocks of water overhead), forest (dense
+        //               flora), shore (dry ground beside water), ridge (the highest open spot around). When no such spot
+        //               is streamed in near the spawn the clip logs it and falls back to the spawn pose.
+        public float timeOfDay = -1f;
+        public string weather = "";
+        public string pose = "";
     }
 
     /// <summary>

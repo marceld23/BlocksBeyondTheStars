@@ -9,10 +9,11 @@ using Xunit;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// Real light sources (#2036): which block types flood coloured light into their surroundings on top of their own
-/// glow. The lantern and the campfire used to glow without lighting anything — they sat below the old implicit
-/// "colour + emission ≥ 0.85" rule — so every shipped light now declares its <c>lightColor</c> in data, and the
-/// natural emitters (lava, crystals, ores, glowing flora) and the machines keep only their self-glow.
+/// Real light sources (#2036, #2407): which block types flood coloured light into their surroundings on top of their
+/// own glow. The lantern and the campfire used to glow without lighting anything — they sat below the old implicit
+/// "colour + emission ≥ 0.85" rule — so every shipped light now declares its <c>lightColor</c> in data. Since #2407
+/// lava, crystals and the glowing flora light too, quietly (a small <c>lightRadius</c>, lava from its surface only);
+/// ores and the machines keep only their self-glow.
 /// </summary>
 public sealed class BlockLightTests
 {
@@ -69,21 +70,70 @@ public sealed class BlockLightTests
     }
 
     [Theory]
-    [InlineData("lava")]
-    [InlineData("crystal")]
     [InlineData("iron_ore")]
     [InlineData("copper_ore")]
-    [InlineData("flora_glowcap")]
-    [InlineData("flora_crystal")]
     [InlineData("flora_prismbloom")] // generation 11 plants light through the flora catalog, not their block type
     [InlineData("ship_core")]
     [InlineData("station_core")]
     [InlineData("matter_forge")]
     [InlineData("energy_fence")]
     [InlineData("stone")]
-    public void NaturalEmittersAndMachines_OnlyGlow(string key)
+    public void OresAndMachines_OnlyGlow(string key)
     {
         Assert.Equal(0, LightOf(key));
+    }
+
+    [Theory]
+    [InlineData("lava", true)]
+    [InlineData("crystal", true)]
+    [InlineData("flora_glowcap", false)]
+    [InlineData("flora_crystal", false)]
+    [InlineData("flora_shardbloom", false)]
+    [InlineData("flora_emberbloom", false)]
+    [InlineData("flora_glowvine", false)]
+    [InlineData("flora_cinderbush", false)]
+    public void NaturalEmitters_LightQuietly(string key, bool surfaceOnly)
+    {
+        // #2407: a light of their own, but short — never the fixtures' full reach — and lava/crystal from the surface only.
+        var def = _content.GetBlock(key);
+        Assert.NotNull(def);
+        Assert.NotEqual(0, BlockLight.NaturalColorOf(def));
+        Assert.InRange(BlockLight.RadiusOf(def), 2, 4);
+        Assert.Equal(surfaceOnly, def!.LightSurfaceOnly);
+
+        int packed = BlockLight.PackedLightOf(def);
+        Assert.Equal(BlockLight.NaturalColorOf(def), BlockLight.ColorFrom(packed));
+        Assert.Equal(BlockLight.RadiusOf(def), BlockLight.RadiusFrom(packed));
+        Assert.Equal(surfaceOnly, BlockLight.SurfaceOnlyFrom(packed));
+    }
+
+    [Fact]
+    public void Fixtures_KeepTheFullReach()
+    {
+        foreach (var key in new[] { "light_white", "torch", "lantern", "campfire" })
+        {
+            int packed = BlockLight.PackedLightOf(_content.GetBlock(key));
+            Assert.Equal(BlockLight.DefaultRadius, BlockLight.RadiusFrom(packed));
+            Assert.False(BlockLight.SurfaceOnlyFrom(packed));
+        }
+    }
+
+    [Fact]
+    public void PackedSource_RoundTripsAndKeepsReachWhenRecoloured()
+    {
+        int packed = BlockLight.Pack(0xFF6A1A, 4, surfaceOnly: true);
+        Assert.Equal(0xFF6A1A, BlockLight.ColorFrom(packed));
+        Assert.Equal(4, BlockLight.RadiusFrom(packed));
+        Assert.True(BlockLight.SurfaceOnlyFrom(packed));
+
+        int dyed = BlockLight.Recolor(packed, 0x2040FF);
+        Assert.Equal(0x2040FF, BlockLight.ColorFrom(dyed));
+        Assert.Equal(4, BlockLight.RadiusFrom(dyed));
+        Assert.True(BlockLight.SurfaceOnlyFrom(dyed));
+
+        // A plain colour (a placed glow block) is a full-reach source — the upper bits stay clear.
+        Assert.Equal(BlockLight.DefaultRadius, BlockLight.RadiusFrom(0x00FFFFFF));
+        Assert.Equal(0, BlockLight.Pack(0xABCDEF, BlockLight.DefaultRadius, false) >> 24);
     }
 
     [Fact]

@@ -8,12 +8,14 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// In-world weather (M27 polish, P7 weather rest): actual 3D rain falling around the player during
-    /// rain/storm, plus storm fog that cuts view distance. The rain is a recycled pool of thin unlit
-    /// streaks (the same robust "cubes in code" approach as the space view — no particle-shader stripping
-    /// risk in builds). Drops are gated per *column*, not by the player's own sky exposure: each drop only
-    /// spawns where the sky is open above it and dies on hitting a solid block, so rain stays visible
-    /// outside a cave mouth while the player stands inside, yet never falls through roofs or ceilings.
-    /// Storm fog keys on the player's exposure (global fog would fill the cave/room). Both are off in the
+    /// rain/storm, plus storm fog that cuts view distance. The drops are a recycled pool whose positions this
+    /// class integrates itself; since #2399 they are DRAWN by one particle system (soft streaks stretched along
+    /// their fall, soft flakes for snow and ash) fed through <c>SetParticles</c> each frame — the simulation has no
+    /// emission and no gravity, so the world-aware placement below stays the only thing that moves a drop. Drops are gated per
+    /// *column*, not by the player's own sky exposure: each drop only spawns where the sky is open above it and
+    /// dies on hitting a solid block, so rain stays visible outside a cave mouth while the player stands inside,
+    /// yet never falls through roofs or ceilings. A drop that reaches the ground near the camera leaves a small
+    /// splash. Storm fog keys on the player's exposure (global fog would fill the cave/room). Both are off in the
     /// space view and while a menu is up. Density/speed/slant scale with the authoritative
     /// <c>WorldEnvironment.Intensity</c>. The looping rain/storm bed + thunder live in
     /// <see cref="ClientAudio"/>; the screen wash + lightning flash in <see cref="WeatherFx"/>.
@@ -23,12 +25,20 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public Camera Cam;
 
+        /// <summary>Ground splashes and the full pool (#2399); off = half the drops, no splashes.</summary>
+        public bool Particles = true;
+
         private const int Pool = 280;
         private const float SpawnRadius = 18f; // box half-extent around the camera the rain spawns in
         private const float SpawnUp = 12f;     // height above the camera it spawns at
-        private Transform[] _drops;
+        private const float SplashRadius = 14f; // splashes only where they can be seen
+        private Vector3[] _pos;
+        private bool[] _alive;
         private float[] _speed;
-        private Material _mat;
+        private ParticleSystem _ps;
+        private ParticleSystemRenderer _psr;
+        private ParticleSystem.Particle[] _particles;
+        private string _styledPrecip;         // the precipitation kind the renderer is currently set up for (mode, material, stretch)
         private readonly System.Random _rng = new System.Random(13);
 
         // Per-column "open sky above?" cache so per-drop spawn checks stay cheap; cleared once a
@@ -46,30 +56,41 @@ namespace BlocksBeyondTheStars.Client
 
         private void Start()
         {
-            _mat = new Material(Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque"))
-            {
-                color = ShaderColor.Srgb(new Color(0.68f, 0.80f, 1f)),
-            };
-
-            _drops = new Transform[Pool];
+            _pos = new Vector3[Pool];
+            _alive = new bool[Pool];
             _speed = new float[Pool];
+            _particles = new ParticleSystem.Particle[Pool];
             for (int i = 0; i < Pool; i++)
             {
-                var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                go.name = "RainDrop";
-                var col = go.GetComponent<Collider>();
-                if (col != null)
-                {
-                    Destroy(col);
-                }
-
-                go.transform.SetParent(transform, false);
-                go.transform.localScale = new Vector3(0.03f, 0.5f, 0.03f);
-                go.GetComponent<Renderer>().sharedMaterial = _mat;
-                go.SetActive(false);
-                _drops[i] = go.transform;
                 _speed[i] = 26f + (float)_rng.NextDouble() * 16f;
             }
+
+            // One particle system, driven by SetParticles. The simulation keeps running (a paused system never refreshes
+            // its renderer bounds, so the camera culled every drop), but it has nothing of its own to do: no emission,
+            // no gravity, and every position is rewritten here each frame — the velocity only sets the streak's stretch
+            // and moves the drop by one frame's fall before the next rewrite. Never culled: the drops follow the camera.
+            var go = new GameObject("WeatherDrops");
+            go.transform.SetParent(transform, false);
+            _ps = go.AddComponent<ParticleSystem>();
+            var main = _ps.main;
+            main.playOnAwake = false;
+            main.loop = true;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.simulationSpeed = 1f;
+            main.gravityModifier = 0f;
+            main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
+            main.maxParticles = Pool;
+            main.startLifetime = 1000f;
+            var emission = _ps.emission;
+            emission.enabled = false;
+            _psr = go.GetComponent<ParticleSystemRenderer>();
+            _psr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _psr.receiveShadows = false;
+            _psr.renderMode = ParticleSystemRenderMode.Stretch;
+            _psr.velocityScale = 0f;
+            _psr.lengthScale = 1f;
+            _psr.sharedMaterial = FxKit.StreakMaterial();
+            _ps.Play();
         }
 
         private struct Style
@@ -142,12 +163,28 @@ namespace BlocksBeyondTheStars.Client
             // #1758: WATER precipitation takes the world's water colour (rain, drizzle, sleet); snow, hail, ash, sand,
             // acid, meteors and spores keep their own look. A rainbow world's rain cycles through the colours.
             Color styled = precip is "rain" or "drizzle" or "sleet" ? WaterColours.Blend(s.Color, env, 0.75f, Time.time) : s.Color;
-            Color drop = ShaderColor.Srgb(styled);
-            if (_mat.color != drop) { _mat.color = drop; } // all drops share one material → one precip form at a time
+            Color drop = ShaderColor.Srgb(styled); // particle vertex colours go to the shader as-is → hand over linear
+            drop.a = precip is "snow" or "ash" or "spores" ? 0.85f : 0.9f;
+            // #2399: flakes (snow, hail, ash, spores) are round soft-dot billboards; everything else a streak (its own
+            // texture: firm core, soft ends) stretched along its fall — the particle's velocity sets the stretch only.
+            bool flakes = precip is "snow" or "hail" or "ash" or "spores";
+            if (!ReferenceEquals(precip, _styledPrecip) && precip != _styledPrecip)
+            {
+                // Per precipitation kind (the first rain of a session included — this used to key on the flake/streak
+                // flip alone, so the first rain kept the stretch length of 1 and fell as dots): render mode, material
+                // and the streak length, which the style's own proportions set.
+                _styledPrecip = precip;
+                _psr.renderMode = flakes ? ParticleSystemRenderMode.Billboard : ParticleSystemRenderMode.Stretch;
+                _psr.sharedMaterial = flakes ? FxKit.SoftAlphaMaterial() : FxKit.StreakMaterial();
+                _psr.velocityScale = 0f;
+                _psr.lengthScale = flakes ? 1f : Mathf.Max(1f, s.Scale.y / Mathf.Max(0.02f, s.Scale.x) * 0.5f);
+            }
+
             // Intensity comes from the SMOOTHED client value (#900), so an episode's swell and fade shows
             // as a ramp in the drop count rather than a 5 s staircase.
             float strength = Game != null ? Game.WeatherIntensity : env.Intensity;
-            int count = Mathf.RoundToInt(Pool * Mathf.Clamp01(0.4f + strength * 0.6f) * s.Density);
+            int count = Mathf.RoundToInt(Pool * Mathf.Clamp01(0.4f + strength * 0.6f) * s.Density * (Particles ? 1f : 0.5f));
+            count = Mathf.Min(count, Pool);
             var camPos = Cam.transform.position;
             float dt = Time.deltaTime, t = Time.time;
 
@@ -156,59 +193,102 @@ namespace BlocksBeyondTheStars.Client
             float wind = Game != null ? Game.WindSpeed : 0f;
             Vector3 windDir = Game != null ? Game.WindVector : Vector3.zero;
             float windPush = wind * 12f;
+            float size = Mathf.Max(s.Scale.x, s.Scale.z) * (flakes ? 1.6f : 3.0f); // a streak needs some width to read at all
+            int live = 0;
 
             for (int i = 0; i < Pool; i++)
             {
-                var d = _drops[i];
                 if (i >= count)
                 {
-                    if (d.gameObject.activeSelf)
-                    {
-                        d.gameObject.SetActive(false);
-                    }
-
+                    _alive[i] = false;
                     continue;
                 }
 
-                if (!d.gameObject.activeSelf)
+                if (!_alive[i])
                 {
-                    if (!TryRespawn(d, camPos, s.Rises))
+                    if (!TryRespawn(i, camPos, s.Rises))
                     {
                         continue; // no open-sky column found this frame (e.g. deep underground)
                     }
 
-                    d.gameObject.SetActive(true);
+                    _alive[i] = true;
                 }
 
                 float wobble = Mathf.Sin(t * 2.2f + i) * s.Drift; // flakes/embers/sand swirl sideways
                 float vertical = _speed[i] * s.Fall * (s.Rises ? 1f : -1f);
-                var p = d.position + new Vector3(
+                var step = new Vector3(
                     (s.Slant + wobble + windDir.x * windPush) * dt,
                     vertical * dt,
                     (wobble * 0.4f + windDir.z * windPush) * dt);
+                var p = _pos[i] + step;
                 // Rising motes leave upward; falling ones die below the camera or inside a block.
                 bool gone = s.Rises ? p.y > camPos.y + SpawnUp + 8f : p.y < camPos.y - 7f;
-                if (gone || (p - camPos).sqrMagnitude > (SpawnRadius * 1.6f) * (SpawnRadius * 1.6f)
-                    || InsideBlock(p))
+                bool hit = !gone && InsideBlock(p);
+                if (hit && !s.Rises && Particles && !flakes)
                 {
-                    if (!TryRespawn(d, camPos, s.Rises))
+                    Splash(p, step, camPos, styled, precip);
+                }
+
+                if (gone || hit || (p - camPos).sqrMagnitude > (SpawnRadius * 1.6f) * (SpawnRadius * 1.6f))
+                {
+                    if (!TryRespawn(i, camPos, s.Rises))
                     {
-                        d.gameObject.SetActive(false);
+                        _alive[i] = false;
+                        continue;
                     }
+
+                    p = _pos[i];
                 }
                 else
                 {
-                    d.position = p;
-                    d.rotation = s.Tilt;
-                    d.localScale = s.Scale;
+                    _pos[i] = p;
                 }
+
+                ref var part = ref _particles[live++];
+                part.position = p;
+                part.velocity = dt > 1e-5f ? step / dt : Vector3.down; // stretch direction + length (streaks)
+                part.startSize = size;
+                part.startColor = drop;
+                part.startLifetime = 1000f;
+                part.remainingLifetime = 1000f;
+                part.rotation = 0f;
             }
+
+            _ps.SetParticles(_particles, live);
+
+            // Capture diagnostics (#2405): while a capture pins the environment, say what the drops are doing.
+            if (Game != null && Game.CaptureEnvActive && Time.unscaledTime >= _nextDropLog)
+            {
+                _nextDropLog = Time.unscaledTime + 2f;
+                var b = _psr.bounds;
+                Debug.Log($"[Weather3D] drops live={live} count={count} strength={strength:F2} psCount={_ps.particleCount} playing={_ps.isPlaying} "
+                          + $"visible={_psr.isVisible} enabled={_psr.enabled} active={_ps.gameObject.activeInHierarchy} layer={_ps.gameObject.layer} "
+                          + $"mat={(_psr.sharedMaterial != null ? _psr.sharedMaterial.shader.name : "null")} bounds={b.center}/{b.size} cam={camPos} first={(live > 0 ? _particles[0].position : Vector3.zero)}");
+            }
+        }
+
+        private float _nextDropLog;
+
+        /// <summary>A small splash where a drop meets the ground within sight of the camera (#2399): a puff for rain,
+        /// a brighter one for acid, nothing for the dry forms. Every fourth hit, so the dust budget is never flooded.</summary>
+        private void Splash(Vector3 at, Vector3 step, Vector3 camPos, Color drop, string precip)
+        {
+            if (precip is "sandstorm" or "dust" or "meteor" || (at - camPos).sqrMagnitude > SplashRadius * SplashRadius
+                || _rng.Next(4) != 0)
+            {
+                return;
+            }
+
+            // Back the point up out of the block it entered so the puff sits on the surface, not inside it.
+            Vector3 surface = at - step.normalized * 0.3f;
+            Color c = precip == "acid" ? new Color(0.7f, 1f, 0.5f, 0.6f) : new Color(drop.r, drop.g, drop.b, 0.45f);
+            FxKit.Emit(FxKit.Kind.Dust, surface, Vector3.up * 0.6f, 0.22f, 0.28f, c);
         }
 
         /// <summary>Moves the drop to a fresh spawn above the camera, but only into a column with open
         /// sky overhead — drops must never appear under a cave ceiling or roof. False = no open column
         /// found this frame; the caller keeps the drop hidden and retries next frame.</summary>
-        private bool TryRespawn(Transform d, Vector3 camPos, bool rises = false)
+        private bool TryRespawn(int i, Vector3 camPos, bool rises = false)
         {
             for (int attempt = 0; attempt < 3; attempt++)
             {
@@ -222,7 +302,7 @@ namespace BlocksBeyondTheStars.Client
                     (float)(_rng.NextDouble() * 2 - 1) * SpawnRadius);
                 if (ColumnOpen(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z)))
                 {
-                    d.position = p;
+                    _pos[i] = p;
                     return true;
                 }
             }
@@ -308,17 +388,21 @@ namespace BlocksBeyondTheStars.Client
 
         private void HideAll()
         {
-            if (_drops == null)
+            if (_alive == null || _ps == null)
             {
                 return;
             }
 
-            for (int i = 0; i < _drops.Length; i++)
+            bool any = false;
+            for (int i = 0; i < _alive.Length; i++)
             {
-                if (_drops[i] != null && _drops[i].gameObject.activeSelf)
-                {
-                    _drops[i].gameObject.SetActive(false);
-                }
+                any |= _alive[i];
+                _alive[i] = false;
+            }
+
+            if (any || _ps.particleCount > 0)
+            {
+                _ps.SetParticles(_particles, 0);
             }
         }
 

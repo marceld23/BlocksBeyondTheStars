@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Bio;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -128,7 +129,57 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int baseRgb = block != BlockId.AirValue ? InherentLightAt(block, pos) : 0;
-            return glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
+            // The base value is a PACKED source (#2407: colour + reach + surface-only); a dye keeps the reach.
+            return glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? BlockLight.Recolor(baseRgb, tint) : baseRgb);
+        }
+
+        /// <summary>The player's switch for the natural emitters' light (#2407, settings): off = only the full-reach
+        /// fixtures are indexed. Read when a chunk is stored, so a change shows as chunks stream in.</summary>
+        public static bool NaturalEmittersLight { get; set; } = true;
+
+        /// <summary>Diagnostics (#2405): how many light sources the index holds in total, and how many of them are
+        /// short-reach natural emitters — recounted whenever a chunk is stored.</summary>
+        public int LightSourceCount { get; private set; }
+
+        /// <summary>Diagnostics (#2405): the natural-emitter share of <see cref="LightSourceCount"/>.</summary>
+        public int NaturalLightSourceCount { get; private set; }
+
+        private void RecountLightSources()
+        {
+            int total = 0, natural = 0;
+            foreach (var bucket in _lightSources.Values)
+            {
+                total += bucket.Count;
+                foreach (int packed in bucket.Values)
+                {
+                    if (BlockLight.RadiusFrom(packed) < BlockLight.DefaultRadius)
+                    {
+                        natural++;
+                    }
+                }
+            }
+
+            LightSourceCount = total;
+            NaturalLightSourceCount = natural;
+        }
+
+        /// <summary>#2407: a surface-only source (lava) lights only from a cell with an air neighbour — a lake lights at
+        /// its shores and its top, not from its depth. A neighbour in a chunk not loaded yet counts as air.</summary>
+        private bool CastsLight(int packed, Vector3i pos)
+        {
+            if (!NaturalEmittersLight && BlockLight.RadiusFrom(packed) < BlockLight.DefaultRadius)
+            {
+                return false; // a short-reach source is a natural emitter; the switch turns those off
+            }
+
+            if (!BlockLight.SurfaceOnlyFrom(packed))
+            {
+                return true;
+            }
+
+            return GetBlock(pos.X + 1, pos.Y, pos.Z).IsAir || GetBlock(pos.X - 1, pos.Y, pos.Z).IsAir
+                || GetBlock(pos.X, pos.Y + 1, pos.Z).IsAir || GetBlock(pos.X, pos.Y - 1, pos.Z).IsAir
+                || GetBlock(pos.X, pos.Y, pos.Z + 1).IsAir || GetBlock(pos.X, pos.Y, pos.Z - 1).IsAir;
         }
 
         // Round worlds: chunks are cached by canonical chunk coordinate (a chunk a lap away — east OR
@@ -258,22 +309,63 @@ namespace BlocksBeyondTheStars.Client
             chunk.SetShape(local.X, local.Y, local.Z, shape);
 
             int rgb = CellLight(block, pos, tint, glow);
+            IndexLightSource(affected, pos, rgb != 0 && CastsLight(rgb, pos) ? rgb : 0);
+
+            // #2407: a surface-only emitter beside the changed cell may just have gained or lost its air neighbour —
+            // mining the rock off a lava face lights the face, bricking a crystal in puts it out.
+            ReindexSurfaceNeighbours(pos);
+            return true;
+        }
+
+        /// <summary>Adds (<paramref name="rgb"/> ≠ 0) or removes a cell's entry in its chunk's light bucket.</summary>
+        private void IndexLightSource(ChunkCoord coord, Vector3i pos, int rgb)
+        {
             if (rgb != 0)
             {
-                if (!_lightSources.TryGetValue(affected, out var bucket))
+                if (!_lightSources.TryGetValue(coord, out var bucket))
                 {
                     bucket = new Dictionary<Vector3i, int>();
-                    _lightSources[affected] = bucket;
+                    _lightSources[coord] = bucket;
                 }
 
                 bucket[pos] = rgb;
             }
-            else if (_lightSources.TryGetValue(affected, out var bucket) && bucket.Remove(pos) && bucket.Count == 0)
+            else if (_lightSources.TryGetValue(coord, out var bucket) && bucket.Remove(pos) && bucket.Count == 0)
             {
-                _lightSources.Remove(affected);
+                _lightSources.Remove(coord);
             }
+        }
 
-            return true;
+        private static readonly (int X, int Y, int Z)[] Faces6 = { (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1) };
+
+        /// <summary>Re-evaluates the six neighbours of a changed cell that are surface-only emitters (#2407).</summary>
+        private void ReindexSurfaceNeighbours(Vector3i changed)
+        {
+            foreach (var f in Faces6)
+            {
+                var pos = WorldConstants.CanonicalBlock(new Vector3i(changed.X + f.X, changed.Y + f.Y, changed.Z + f.Z), _circumference);
+                var coord = WorldConstants.WorldToChunk(pos);
+                if (!_chunks.TryGetValue(coord, out var chunk))
+                {
+                    continue;
+                }
+
+                var local = WorldConstants.WorldToLocal(pos);
+                var id = chunk.Get(local.X, local.Y, local.Z);
+                if (id.IsAir)
+                {
+                    continue;
+                }
+
+                var (tint, glow) = chunk.GetModifier(local.X, local.Y, local.Z);
+                int rgb = CellLight(id.Value, pos, tint, glow);
+                if (rgb == 0 || !BlockLight.SurfaceOnlyFrom(rgb))
+                {
+                    continue; // not an emitter, or one that lights from any cell — nothing to re-decide
+                }
+
+                IndexLightSource(coord, pos, CastsLight(rgb, pos) ? rgb : 0);
+            }
         }
 
         /// <summary>Light sources within <paramref name="radius"/> blocks of a chunk's box — handed to the
@@ -361,7 +453,7 @@ namespace BlocksBeyondTheStars.Client
                         var (tint, glow) = chunk.GetModifier(x, y, z);
                         var pos = new Vector3i(origin.X + x, origin.Y + y, origin.Z + z);
                         int rgb = CellLight(id.Value, pos, tint, glow);
-                        if (rgb != 0)
+                        if (rgb != 0 && CastsLight(rgb, pos))
                         {
                             bucket ??= new Dictionary<Vector3i, int>();
                             bucket[pos] = rgb;
@@ -376,6 +468,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 _lightSources.Remove(coord);
             }
+
+            RecountLightSources();
         }
     }
 }

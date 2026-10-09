@@ -589,7 +589,7 @@ namespace BlocksBeyondTheStars.Client
                 if (Time.unscaledTime >= _rescanAt)
                 {
                     _rescanAt = Time.unscaledTime + 1f;
-                    _texts = UnityEngine.Object.FindObjectsByType<Text>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+                    _texts = UnityEngine.Object.FindObjectsByType<Text>(FindObjectsInactive.Exclude); // Unity 6.6: the sort-mode overload is obsolete (unsorted is the default)
                 }
 
                 foreach (var text in _texts)

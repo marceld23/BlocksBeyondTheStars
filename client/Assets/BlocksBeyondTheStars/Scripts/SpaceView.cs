@@ -4268,8 +4268,9 @@ namespace BlocksBeyondTheStars.Client
                 AddCloudShell(ob, sunHue, sunDir, CloudShellSeed(key));
             }
 
-            // Atmosphere haze: a thin translucent shell in the world's own sky colour — a breathable atmosphere reads
-            // as a denser glow than a toxic one; airless bodies stay crisp bare rock.
+            // Atmosphere limb (#2400): a thin shell whose glow sits on the rim and the sun-facing side, warm along the
+            // terminator, dark on the night side (PlanetLimb.shader) — a breathable atmosphere reads as a denser glow
+            // than a toxic one; airless bodies stay crisp bare rock.
             if (ob.Atmosphere.HasAir)
             {
                 float atm = ob.Atmosphere.Breathable ? 1f : 0.7f;
@@ -4278,12 +4279,14 @@ namespace BlocksBeyondTheStars.Client
                 StripCollider(haze);
                 haze.transform.SetParent(sphere.transform, false);
                 haze.transform.localScale = Vector3.one * 1.06f;
-                var hShader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
+                var hShader = Shader.Find("BlocksBeyondTheStars/PlanetLimb") ?? Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
                 var sky = PlanetWeatherVisuals.Rgb(ob.Atmosphere.SkyRgb);
                 var hCol = Color.Lerp(Color.Lerp(sky, Color.white, 0.25f), sunHue, 0.25f);
-                hCol.a = 0.08f + 0.08f * atm;
+                hCol.a = 0.35f + 0.35f * atm;
                 var hMat = new Material(hShader) { mainTexture = Texture2D.whiteTexture, renderQueue = 2999 };
                 hMat.SetColor("_Color", ShaderColor.Srgb(hCol));
+                hMat.SetVector("_SunDir", sunDir);
+                hMat.SetColor("_Warm", ShaderColor.Srgb(Color.Lerp(new Color(1f, 0.6f, 0.3f), sunHue, 0.4f)));
                 var hMr = haze.GetComponent<Renderer>();
                 hMr.sharedMaterial = hMat;
                 hMr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

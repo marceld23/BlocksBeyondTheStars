@@ -10,9 +10,8 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
 ## What has shipped
 
 - **URP migration** (2026-06-10): real soft sun shadows (terrain + models + creatures + enemies, cast +
-  receive), a URP Volume post stack (ACES / bloom / vignette / grade — built in `UrpScenePost`, though
-  note it currently only renders on the menu camera because the in-game camera does not enable
-  `renderPostProcessing`; see the *Known gaps* in `URP_MIGRATION.md`), URP SSAO, the diegetic visor
+  receive), a URP Volume post stack (ACES / bloom / vignette / grade — built in `UrpScenePost`, rendering
+  on the gameplay camera since PR #50 enabled `renderPostProcessing` there), URP SSAO, the diegetic visor
   as a render-graph blit pass, per-system sun tint, and per-preset shadow cost. Details in
   `URP_MIGRATION.md`.
 - **Post stack + emissive** (Phase 1): bloom + ACES tonemap + vignette + SSAO (preset-gated) plus
@@ -34,6 +33,17 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   pebbles on open ground, distance-culled, preset-gated); **3D mesh flora** (leafy flora as leaning 3-plane
   rosettes, solid flora like cactus/crystal/mushroom as real shapes); sparse **ship-hull greeble** plating on
   exposed hull faces. All client presentation only — server data unchanged.
+- **Atmosphere package** (2026-10, #2408, Unity 6.6 + WebGPU first — ADR 0015): one shared haze for every
+  world-space shader (`AtmosphereCommon.hlsl`: distance veil + **height fog** that lies in the low ground, warmed
+  toward the sun; creatures, ships, particles and clouds no longer cut out of the fog); **cloud shadows** on the
+  direct-sun term (wind-scrolled baked noise); **eye adaptation** driving the post exposure from a chunk-data light
+  probe (`AtmosphereProbe`); **breathing torch light**; **wind sway** of leaves, grass and flora (no mesher change —
+  the foliage flag and the tint mode decide, the shadow and depth passes follow); **wet ground and snow caps** from
+  the weather (`_Sc_Surface`); weather drops as one **particle system** driven by `SetParticles` with ground
+  splashes; **shooting stars** and the **planet limb** (`PlanetLimb.shader`) from orbit; **underwater** haze,
+  caustics and bubbles; **light-shaft cards** at cave mouths and canopy gaps; **lava, crystals and glowing flora
+  light their surroundings** quietly (ADR 0016); fake **SSS** for foliage and **soft particles**. Everything is
+  preset-gated and has its own switch under *Atmosphere effects* (#2404); nothing flashes faster than 3/s.
 
 ## Design rationale worth keeping
 
@@ -63,11 +73,13 @@ Ordered by impact ÷ effort. These are the next polish milestones; each is prese
   seams, embedded ore nuggets. Builds straight on the existing normal mapping; gate step count by preset
   + distance, keep heightScale small (voxel faces are 1 unit).
 - **Sky / atmosphere / volumetrics:** denser per-system nebula skybox, Rayleigh-ish atmospheric
-  scattering (horizon glow + sunrise/sunset tints), volumetric light shafts / god rays from the sun.
-- **Detail-scatter extensions:** the base GPU-instanced scatter (grass tufts + pebbles) shipped with the
-  organic look pass — still open: flowers as a third scatter kind, wind sway, pairing with grass shells.
-- **Translucency / fake SSS:** wrap-lighting + back-light for leaves, thin fauna membranes, ice,
-  crystals.
+  scattering (horizon glow + sunrise/sunset tints). (Height fog, sun-warmed haze and light-shaft cards shipped
+  with the atmosphere package; a true volumetric pass stays out — it needs WebGPU-only compute and the June
+  full-screen attempt darkened the frame.)
+- **Detail-scatter extensions:** flowers as a third scatter kind, pairing with grass shells (wind sway shipped
+  with the atmosphere package).
+- **Translucency / fake SSS:** shipped for leaves and plants (atmosphere package); still open for thin fauna
+  membranes, ice and crystal blocks.
 - **Reflections:** reflection probes per interior/station (extends the current Fresnel sky reflection);
   SSR for wet floors / hull is deferred (risky full-screen pass, low ROI).
 - **Decals:** scorch marks, impact craters, scanner pings — extends the existing `WeaponFx` impacts.

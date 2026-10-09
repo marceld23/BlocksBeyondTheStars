@@ -10,7 +10,7 @@ built player. Contributor rules (language, architecture, conventions) live in
 | Tool | Version | Notes |
 |---|---|---|
 | .NET SDK | 10.x | builds the server, shared libs, tests and tools (all projects target `net10.0` / `netstandard2.1`) |
-| Unity Editor | 6 LTS (6000.4.x) | required only for the client build; default paths: `C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe` (Windows) or `/opt/Unity/Hub/Editor/6000.4.9f1/Editor/Unity` (Linux) |
+| Unity Editor | 6.6 (6000.6.x, see `client/ProjectSettings/ProjectVersion.txt`) | required only for the client build; the Windows scripts find it via `scripts/resolve-unity.ps1` (Hub default `C:\Program Files\Unity\Hub\Editor\<version>`, per-user `%USERPROFILE%\Unity\Editors\<version>`, or `$env:UNITY_EDITOR_PATH`); Linux looks in `/opt/Unity/Hub/Editor/*/Editor/Unity`. Unity 6.4+ are *Supported* releases patched only until the next one ships, so the pin moves with Unity's cadence |
 | Windows | 10/11 | for the Windows client build; the dedicated server also publishes for Linux |
 | Linux | any modern distro | for the Linux client build and/or server hosting |
 | PowerShell | 7+ | for the Windows `scripts/*.ps1` build scripts |
@@ -87,7 +87,7 @@ disagree. Below ~4:30 the lever is cheaper tests, not more runners.
 
 `run-tests.ps1` selects suites via `-Suites` (`Dotnet`, `ClientCore`, `UnityEdit`, `UnityPlay`, `All`); the
 Unity suites are opt-in so they don't slow the common loop, and need `Unity.exe` (pass `-UnityPath` if not at
-the default `6000.4.9f1` path). The client is tested against the **real** server at three tiers — the design,
+the path `scripts/resolve-unity.ps1` finds). The client is tested against the **real** server at three tiers — the design,
 the `Client.Core` split, and the per-tier prerequisites are documented in
 [CLIENT_TESTING.md](CLIENT_TESTING.md).
 
@@ -259,7 +259,7 @@ Useful parameters:
 
 ```powershell
 ./scripts/build-client.ps1 -SkipPrereqs    # rebuild only the Unity player (client-only changes)
-./scripts/build-client.ps1 -UnityPath "C:\...\6000.4.x\Editor\Unity.exe"
+./scripts/build-client.ps1 -UnityPath "C:\...\6000.6.x\Editor\Unity.exe"   # override the auto-detected editor
 ./scripts/build-client.ps1 -Out Build/SomewhereElse
 ```
 
@@ -320,7 +320,7 @@ Useful parameters:
 
 ```bash
 ./scripts/build-client.sh --skip-prereqs          # rebuild only the Unity player
-./scripts/build-client.sh --unity-path /opt/Unity/Hub/Editor/6000.4.9f1/Editor/Unity
+./scripts/build-client.sh --unity-path /opt/Unity/Hub/Editor/6000.6.5f1/Editor/Unity
 ./scripts/build-client.sh --out Build/Linux
 ```
 

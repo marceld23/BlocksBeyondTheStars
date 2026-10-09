@@ -5,9 +5,10 @@ reports and sends player *intents*. It never decides game outcomes.
 
 ## Requirements
 
-- Unity **6 LTS** (6000.4.9f1; see `ProjectSettings/ProjectVersion.txt`). The project was
+- Unity **6.6** (6000.6.5f1; see `ProjectSettings/ProjectVersion.txt`). The project was
   started on 2022.3 LTS and migrated to Unity 6 — on first open Unity finalizes the project
-  files (and the exact editor-revision hash) automatically.
+  files (and the exact editor-revision hash) automatically. Unity 6.4+ are *Supported* releases that
+  are patched only until the next one ships, so the pin moves with Unity's cadence.
 - A running Blocks Beyond the Stars server (`dotnet run --project ../src/BlocksBeyondTheStars.GameServer`).
 
 ## One-time setup
@@ -70,7 +71,7 @@ For a self-contained singleplayer build, sync content + bundle the server, then 
 ```powershell
 ../scripts/sync-client-libs.ps1
 ../scripts/publish-local-server.ps1
-../scripts/build-client.ps1            # uses Unity 6000.4.x in batch mode
+../scripts/build-client.ps1            # uses the project's Unity version in batch mode (scripts/resolve-unity.ps1)
 ```
 
 `build-client.ps1` runs `BlocksBeyondTheStars/Build Windows Player` (an editor menu item too) which
