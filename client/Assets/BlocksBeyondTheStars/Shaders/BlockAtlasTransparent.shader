@@ -199,6 +199,8 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float isField = saturate(emission * 4.0); // ~1 for fire + energy fields, 0 for water and glass
 
                 float alpha;
+                float hazeHeightScale = 1.0; // #2412: 0.5 on a water surface (the mist floor is the water)
+                float hazeDone = 0.0;        // #2411: 1 once the screen-space water has hazed itself
                 if (i.water.x > 5.5)
                 {
                     // #2134: the dense gas under the gas sea — the floor you see from the islands and sink into, where the bare
@@ -307,6 +309,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
                     // and through it while swimming.
                     alpha = tex.a;
+                    hazeHeightScale = 0.5; // #2412: half the height fog on a water surface (see BbtsHazeAmountScaled)
 
                     // #1758 (school club wave 3): the world's water colour. A luminance recolour keeps the wave
                     // shading; mode 2 lays static rainbow bands across the world (by position, never animated).
@@ -435,6 +438,12 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                                         cos(i.wp.z * 1.2 + t * 1.3) + sin(i.wp.x * 0.7 - t * 0.9));
                     float refr = 0.018 * (1.0 - depth01); // shallow distorts the visible bed; deep hides it anyway
                     float3 bed = SampleSceneColor(screenUV + wob * refr);
+                    // #2411: haze the water's OWN colour here, before the composite. The bed arrives through the opaque
+                    // copy already hazed by the opaque pass, and so does every SSR hit below, so the old pass over the
+                    // finished composite veiled shallow water twice — the sea was the haziest surface in the frame.
+                    // #2412: the height fog at half strength (hazeHeightScale), see BbtsHazeAmountScaled.
+                    float haze = BbtsHazeAmountScaled(i.wp, 1.0, hazeHeightScale);
+                    col = lerp(col, BbtsHazeColor(i.wp), haze);
                     col = lerp(bed, col, saturate(alpha));
                     // #1758: the bed is seen THROUGH coloured water — recolour the composite as well, else the
                     // refracted sand wins over the tint and rainbow water looks like a sandy sea with a hue.
@@ -454,15 +463,17 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     float3 rn = normalize(N + float3(wob.x, 0.0, wob.y) * 0.12);
                     float3 Rw = reflect(Vw, rn);
                     // Keep the reflection a sheen, not a mirror, so you can see INTO the water: low base sheen and
-                    // a capped grazing maximum (0.45, not full mirror) let the depth/bed colour read through.
-                    float fres = lerp(0.08, 0.45, pow(1.0 - saturate(dot(-Vw, rn)), 4.0));
+                    // a capped grazing maximum let the depth/bed colour read through. #2413: 0.6 × 0.5 = 30 % sky
+                    // at a grazing angle (was 0.45 × 0.35 = 16 %, too faint to find the surface from the shore),
+                    // 4 % head-on, so from above you still look into the water.
+                    float fres = lerp(0.08, 0.6, pow(1.0 - saturate(dot(-Vw, rn)), 4.0));
                     float3 reflCol = _Sc_Sky.rgb; // most of a water reflection is the sky
                     float3 sp = i.wp;
                     float stepLen = 0.5;
                     // Texel LOADS, not samples, inside the march: a sample needs screen derivatives, which a loop
                     // with a data-dependent exit cannot provide — GLES3 only warned ("gradient instruction in a
-                    // loop"), WebGPU's WGSL rejects it (#2390). The depth and opaque copies are full-size here
-                    // (opaque downsample off), so UV × size is the texel.
+                    // loop"), WebGPU's WGSL rejects it (#2390). UV × the texture's own size is the texel: the opaque
+                    // copy is half-size (the URP asset downsamples it 2× bilinear, #1520) and its _TexelSize says so.
                     int2 depthSize = (int2)_CameraDepthTexture_TexelSize.zw;
                     int2 colorSize = (int2)_CameraOpaqueTexture_TexelSize.zw;
                     [loop] for (int k = 0; k < 14; k++)
@@ -494,10 +505,11 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     }
                     // Glint capped well below the old x4 blow-out: it should sparkle, not white out the bed below.
                     float sunSpec = min(pow(saturate(dot(Rw, normalize(_Sc_SunDir.xyz))), 220.0) * 1.5, 1.5);
-                    reflCol += light * sunSpec;
-                    col = lerp(col, reflCol, saturate(fres) * 0.35);
+                    reflCol += light * sunSpec * (1.0 - haze); // the glint fades with the veil like the rest of the surface
+                    col = lerp(col, reflCol, saturate(fres) * 0.5); // #2413
 
                     alpha = 1.0; // bed + reflection composited here → opaque output, no hardware double-blend
+                    hazeDone = 1.0; // #2411: hazed above, the final pass must not run again
                     } // _Sc_ScreenFx (depth/opaque available)
                 }
                 else
@@ -527,7 +539,14 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 }
 
                 half4 outc = half4(col, alpha);
-                outc.rgb = BbtsApplyHaze(outc.rgb, i.wp, 1.0); // the shared haze (#2393); cave water is kept clear by the camera's exposure
+                if (hazeDone < 0.5)
+                {
+                    // The shared haze (#2393) for glass, fields, waterfalls and the simple water path (Potato/Low: a
+                    // hardware blend over an already hazed background), once, on the pane's own colour. The
+                    // screen-space water hazed itself above (#2411). Cave water is kept clear by the camera's exposure.
+                    outc.rgb = lerp(outc.rgb, BbtsHazeColor(i.wp), BbtsHazeAmountScaled(i.wp, 1.0, hazeHeightScale));
+                }
+
                 return outc;
             }
             ENDHLSL

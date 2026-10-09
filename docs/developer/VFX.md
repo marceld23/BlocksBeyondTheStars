@@ -243,7 +243,8 @@ the shader side):
   scan finds (open-sky columns at the camera's height with roofed neighbours), with `Motes` dust drifting in them.
   Only while the camera is in the shade and the sun is up; High 12 cards, Medium 6, Low none.
 - **Bubbles** (`AtmosphereProbe`): `Motes` rising past the visor while submerged; the caustics and the water haze
-  are shader-side (`AtmosphereCommon.hlsl`, `Sky.ApplyFog`).
+  are shader-side (`AtmosphereCommon.hlsl`, `Sky.ApplyFog`). The older IMGUI wash in `WeatherFx` thins to ~15 % while
+  that haze is active (`Sky.UnderwaterFog`, #2416) and keeps its 34 % with the effect off.
 - **Soft particles** (#2403): `Particle` / `ParticleAlpha` fade within 0.5 m of the depth behind them on Medium+
   (`_Sc_ScreenFx` × `_Sc_SoftParticles`).
 

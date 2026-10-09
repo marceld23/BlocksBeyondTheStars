@@ -53,12 +53,15 @@ Shader "BlocksBeyondTheStars/FarTerrain"
             float4 _Sc_Light;
             float4 _Sc_SunDir;
             float4 _Sc_Sky;
+            float4 _Sc_WaterTint; // #1758/#2415: the world's water colour (Sky.cs), read in mode 1
+            float _Sc_WaterMode;  // 0 = the classic blue, 1 = tint, 2 = static rainbow bands by position
+            float _Sc_FarSeaWater; // #2415: 1 when this world's sea is water (FarTerrainView), 0 for a lava or gas sea
 
             struct Attributes
             {
                 float4 positionOS : POSITION;
                 float3 normal : NORMAL;
-                float4 color : COLOR;     // rgb = albedo, a = emissive (lava)
+                float4 color : COLOR;     // rgb = albedo, a = 1 lava (emissive), 0.5 the sea (#2415), 0 land
                 float2 uv : TEXCOORD0;    // x = inner discard radius, y = level
             };
 
@@ -87,6 +90,29 @@ Shader "BlocksBeyondTheStars/FarTerrain"
                 FarClip(i.wp, i.inner);
 
                 float3 albedo = i.color.rgb;
+                // The vertex alpha interpolates across a shore triangle (sea vertex 0.5 → land vertex 0), so the water
+                // weight ramps in over the last fifth of the slope only — a hard threshold at 0.25 painted rainbow
+                // skirts halfway up every far hillside. The world kind comes from a global, not from the alpha: on a
+                // lava world the alpha is the old continuous glow (lava vertex 1 → shore 0) and stays untouched.
+                float seaWater = _Sc_FarSeaWater;
+                float water = saturate((i.color.a - 0.35) * 8.0) * seaWater;
+                float lava = i.color.a * (1.0 - seaWater);
+                // #2415: the far sea follows the world's water colour (#1758) exactly like the near water
+                // (BlockAtlasTransparent): mode 1 recolours by luminance, mode 2 lays the same static rainbow bands by
+                // position — so a tinted or rainbow sea no longer ends in classic blue at the chunk ring.
+                if (water > 0.001 && _Sc_WaterMode > 0.5)
+                {
+                    float wlum = dot(albedo, float3(0.299, 0.587, 0.114));
+                    float3 wtint = _Sc_WaterTint.rgb;
+                    if (_Sc_WaterMode > 1.5)
+                    {
+                        float hue = frac((i.wp.x + i.wp.z) / 96.0);
+                        wtint = saturate(abs(frac(hue + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0);
+                        wtint = lerp(float3(0.5, 0.5, 0.5), wtint, 0.85);
+                    }
+                    albedo = lerp(albedo, wlum * wtint * 2.2, 0.85 * water);
+                }
+
                 float3 light = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
                 float3 N = normalize(i.wn);
                 float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz))) * BbtsCloudShade(i.wp); // #2394: cloud shadows reach the horizon
@@ -94,13 +120,15 @@ Shader "BlocksBeyondTheStars/FarTerrain"
                 float3 col = albedo * (light * (0.78 + 0.5 * ndl) + 0.05);
                 float nightFloor = saturate(0.6 - dot(light, float3(0.299, 0.587, 0.114)));
                 col += albedo * float3(0.10, 0.13, 0.20) * nightFloor;
-                col += albedo * i.color.a * 2.0; // lava seas glow
+                col += albedo * lava * 2.0; // lava seas glow
 
                 if (_Sc_Fog.w > 0.5)
                 {
-                    float haze = BbtsHazeAmount(i.wp, 1.0); // the shared haze (#2393/#2406); open sky out there
+                    // The shared haze (#2393/#2406); open sky out there. The sea counts the height fog half, like the near
+                    // water (#2412), so the two meet at the chunk ring instead of stepping.
+                    float haze = BbtsHazeAmountScaled(i.wp, 1.0, lerp(1.0, 0.5, water));
                     col = lerp(col, BbtsHazeColor(i.wp), haze);
-                    col += albedo * i.color.a * haze; // a lava glow still reads at the edge of the view
+                    col += albedo * lava * haze; // a lava glow still reads at the edge of the view
                 }
 
                 return half4(col, 1);

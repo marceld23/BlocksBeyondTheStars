@@ -172,7 +172,9 @@ Start-Process client\Build\Windows\BlocksBeyondTheStars.exe -Wait -ArgumentList 
 `-preset Potato|Low|Medium|High` captures under that quality preset and `-atmosphere Off|Some|All|Custom`
 under that *Atmosphere effects* mode (#2404) — "Off" against "All" on one build is the before/after pair
 for every effect of the atmosphere package; both are restored before the player quits, so a capture run
-never rewrites the saved settings.
+never rewrites the saved settings. Each clip runs in a throwaway singleplayer world `ClipShots_<clip>` (the
+seed, peaceful, creative); the director deletes it after the run and sweeps any leftover from an earlier or
+killed run at the start (#2417), so the singleplayer world list stays clean.
 
 → `%TEMP%\clips\jungle_dawn\frames\frame_0000N.png`. The tracked manifest
 [`scripts/clip-manifests/atmosphere-check.json`](../../scripts/clip-manifests/atmosphere-check.json)

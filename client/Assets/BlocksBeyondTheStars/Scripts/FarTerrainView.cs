@@ -43,6 +43,7 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int MaskTexId = Shader.PropertyToID("_Sc_FarMask");
         private static readonly int MaskParamsId = Shader.PropertyToID("_Sc_FarMaskParams");
         private static readonly int CenterId = Shader.PropertyToID("_Sc_FarCenter");
+        private static readonly int SeaWaterId = Shader.PropertyToID("_Sc_FarSeaWater"); // #2415: 1 = the sea is water
 
         private sealed class Patch
         {
@@ -187,6 +188,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             ActiveRange = _source == null ? 0 : FarViewRange.ClampToWorld(RangeSetting, _source.Circumference, _source.LatitudePeriod);
+            // #2415: the shader tells a water sea (recoloured from the world's tint, vertex alpha 0.5) from a lava sea
+            // (the old continuous glow in the alpha) by this global, not by the interpolated alpha itself.
+            Shader.SetGlobalFloat(SeaWaterId, _source != null && _source.SeaIsWater ? 1f : 0f);
             _plannedRange = -1;
             if (ActiveRange == 0)
             {
@@ -628,9 +632,17 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            var c32 = (Color32)new Color(Mathf.Clamp01(c.r), Mathf.Clamp01(c.g), Mathf.Clamp01(c.b), sample.Surface == FarSurface.Lava && !edited ? 1f : 0f);
+            // The vertex alpha flags the surface for the shader: 1 = lava (glows through the haze), 0.5 = the sea
+            // (#2415: recoloured on the GPU from the world's water tint / rainbow globals, like the near water), 0 = land.
+            float flag = edited ? 0f : sample.Surface == FarSurface.Lava ? 1f : sample.Surface == FarSurface.Water ? 0.5f : 0f;
+            var c32 = (Color32)new Color(Mathf.Clamp01(c.r), Mathf.Clamp01(c.g), Mathf.Clamp01(c.b), flag);
             return (uint)(c32.a << 24 | c32.b << 16 | c32.g << 8 | c32.r);
         }
+
+        /// <summary>The world Y of the sea surface (the far mesh's sea plane), or a very low value when the world has no
+        /// sea or its info has not arrived yet. <see cref="Sky"/> publishes it as <c>_Sc_SeaLevel</c> so wet ground and
+        /// snow caps stay off the seabed (#2414).</summary>
+        public float SeaSurfaceY => _source != null && _source.SeaLevel != int.MinValue ? _source.SeaLevel + 1f : -1e9f;
 
         private Color BlockColor(ushort id)
         {

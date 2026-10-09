@@ -62,6 +62,10 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
         /// <summary>World Y of the sea surface, or <see cref="int.MinValue"/> on a world without a sea.</summary>
         public int SeaLevel { get; }
 
+        /// <summary>True when the world's sea is water (not lava, not gas): the far-terrain shader then recolours the
+        /// sea vertices from the world's water tint (#2415) instead of reading their alpha as a lava glow.</summary>
+        public bool SeaIsWater => _seaIsWater;
+
         public int WorldId { get; }
 
         private FarTerrainSource(GameContent content, WorldGenerator generator, PlanetType planet, FarTerrainWorldInfo info)

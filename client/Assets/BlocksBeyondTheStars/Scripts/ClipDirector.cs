@@ -27,6 +27,7 @@ namespace BlocksBeyondTheStars.Client
     public sealed class ClipDirector : MonoBehaviour
     {
         private const string WorldName = "ClipShots";
+        private string _worldName; // the run's throwaway world, deleted on quit (#2417)
         private const long DefaultSeed = 424242L;
         private const int ClipWidth = 1920;
         private const int ClipHeight = 1080;
@@ -256,6 +257,8 @@ namespace BlocksBeyondTheStars.Client
             // peaceful world (otherwise a leftover save from an earlier run keeps its old, hostile settings).
             yield return WaitForPhase(shell, ShellPhase.MainMenu, 30f);
             string worldName = WorldName + "_" + clip.name;
+            DeleteLeftoverClipWorlds(); // #2417: whatever an earlier (or killed) run left behind
+            _worldName = worldName;
             LocalServerLauncher.DeleteWorld(worldName);
             shell.StartSingleplayerWorld(worldName, _seed,
                 creativeUnlockAll: true, creativeAllShips: true, creativeKit: true,
@@ -758,6 +761,8 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 // 3) "Click" New Game — start a fresh (peaceful) world.
+                DeleteLeftoverClipWorlds(); // #2417
+                _worldName = WorldName + "_intro";
                 LocalServerLauncher.DeleteWorld(WorldName + "_intro");
                 shell.StartSingleplayerWorld(WorldName + "_intro", _seed,
                     creativeUnlockAll: true, creativeAllShips: true, creativeKit: true,
@@ -853,29 +858,49 @@ namespace BlocksBeyondTheStars.Client
             s.SoftParticles = v[11];
         }
 
+        /// <summary>#2417: deletes every <c>ClipShots_*</c> world an earlier run left behind (a run that was killed never
+        /// reached its own cleanup). Called at the main menu, before any server holds a world.</summary>
+        private static void DeleteLeftoverClipWorlds()
+        {
+            foreach (string name in LocalServerLauncher.ListWorlds())
+            {
+                if (name.StartsWith(WorldName + "_", StringComparison.Ordinal))
+                {
+                    LocalServerLauncher.DeleteWorld(name);
+                }
+            }
+        }
+
         private void Quit(int code)
         {
             Time.captureFramerate = 0;
-            if (_presetApplied || _atmoApplied)
+            var shell = FindAnyObjectByType<AppShell>();
+            if ((_presetApplied || _atmoApplied) && shell != null && shell.Settings != null)
             {
-                var shell = FindAnyObjectByType<AppShell>();
-                if (shell != null && shell.Settings != null)
+                if (_presetApplied)
                 {
-                    if (_presetApplied)
-                    {
-                        shell.Settings.Preset = _presetBefore;
-                        shell.Settings.PresetAuto = _presetAutoBefore;
-                    }
-
-                    if (_atmoApplied)
-                    {
-                        shell.Settings.Atmosphere = _atmoBefore;
-                        RestoreAtmosphereSwitches(shell.Settings, _atmoSwitchesBefore);
-                    }
+                    shell.Settings.Preset = _presetBefore;
+                    shell.Settings.PresetAuto = _presetAutoBefore;
                 }
 
-                _presetApplied = false;
-                _atmoApplied = false;
+                if (_atmoApplied)
+                {
+                    shell.Settings.Atmosphere = _atmoBefore;
+                    RestoreAtmosphereSwitches(shell.Settings, _atmoSwitchesBefore);
+                }
+            }
+
+            _presetApplied = false;
+            _atmoApplied = false;
+
+            // #2417: the capture world is a throwaway. Stop the bundled server first (its graceful stop waits for the
+            // save to finish, so the folder is free), then delete it — the singleplayer list never fills with
+            // ClipShots_* worlds.
+            if (shell != null && !string.IsNullOrEmpty(_worldName))
+            {
+                shell.StopLocalServer();
+                LocalServerLauncher.DeleteWorld(_worldName);
+                _worldName = null;
             }
 
 #if UNITY_EDITOR

@@ -463,7 +463,10 @@ namespace BlocksBeyondTheStars.Client
                 GUI.depth = 10;
                 var prevWater = GUI.color;
                 // #1758: the wash takes the world's water colour — swimming in a green sea looks green.
-                GUI.color = WaterColours.Blend(new Color(0.15f, 0.40f, 0.62f, 0.34f * _underwater), Game.Environment, 0.8f, Time.time);
+                // #2416: while the shader-side underwater haze (#2401) carries the look, the wash thins to ~15 % so the
+                // two no longer stack; with that effect off (or on Potato/Low, where it is weaker) it keeps its 34 %.
+                float washAlpha = 0.34f * _underwater * Mathf.Lerp(1f, 0.44f, Sky.UnderwaterFog);
+                GUI.color = WaterColours.Blend(new Color(0.15f, 0.40f, 0.62f, washAlpha), Game.Environment, 0.8f, Time.time);
                 GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
                 GUI.color = prevWater;
             }
