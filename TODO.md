@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🚀 Travel from a parked ship plays take-off → (warp) → landing (#1614 client half, 2026-10-10, branch feat/1614-travel-sequences; server half #1676 + map lock #2314 by ahmdkaml, who is co-author here) — ✅ done (ships with the next release; ⚠ playtest open)
+### 🚀 Travel from a parked ship plays take-off → (warp) → landing (#1614 client half, 2026-10-10, branch feat/1614-travel-sequences; server half #1676 + map lock #2314 by ahmdkaml, who is co-author here) — ✅ done (released in v2026.10.12; ⚠ playtest open)
 
 Map travel from a landed ship used to be an instant world swap. The server half (#1676) already launched the ship and
 waited for the client's signal, but the client side was missing: the landing aimed at whatever lay ahead of the nose, a
@@ -53,7 +53,7 @@ from the ground hung forever in the take-off (the server had jumped before the t
 - **⚠ Playtest:** the three cases from the issue in the real game (same system, other system, "Hyperjump to this
   system" from the ground) plus a jump from a flying ship; a second player on the origin/target watching the ship.
 
-### 💧 Water at the seam, waking on placement, twice the pace + lock-HUD diagnosis (2026-10-10) — issues #2447–#2450, branch fix/water-seam-speed — ✅ done (ships with the next release)
+### 💧 Water at the seam, waking on placement, twice the pace + lock-HUD diagnosis (2026-10-10) — issues #2447–#2450, branch fix/water-seam-speed — ✅ done (released in v2026.10.12)
 
 Marcel: "placed quickly one after another, water takes several seconds to spread properly". Measured on the real
 server (15 Hz ticks): away from the seam a spread was always right, just slow (~1.9 s after the last click);

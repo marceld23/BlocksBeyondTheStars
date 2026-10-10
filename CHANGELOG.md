@@ -11,6 +11,62 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.12] — 2026-10-10
+
+The voyage release. **Travelling from the map is a real trip now:** when your ship is parked on the ground and you pick
+another world on the map, the ship **takes off, warps to another star system if it has to, and lands** on the world
+you chose. Before, the screen just cut to the new place (#1614). **Water got quicker and calmer at the same time:** it
+runs about twice as fast, a pond you add water to grows to its new size, and the flood near the first landing spot of
+every world that never came to rest is gone (#2447 #2448 #2449). Ahmed (ahmdkaml) built the server side of the trip and
+the map's lock earlier and is co-author of this part.
+
+ℹ️ **Compatibility:** the network protocol stays at **version 11**, the save version at **3** and the terrain generation
+at **23**: your saves and worlds carry over unchanged. Water that already flooded an area in an existing world stays
+where it is (the game cannot tell it apart from water you placed), but it comes to rest now. The full take-off, warp
+and landing needs the game and the server on 2026.10.12, so update both. The desktop game updates itself on start, and
+the browser version is always current.
+
+### 🚀 Travelling from a parked ship (#1614)
+
+- **Pick a world on the map while your ship is parked on the ground** and travel there: the ship **takes off**, the
+  **hyperspace warp** carries you across if the world lies in another star system, and the ship **lands** on the world
+  you picked, just like a landing you fly yourself.
+- **You don't steer during the trip.** The controls come back once you stand on the new world.
+- **"Hyperjump to this system" from a parked ship** takes off first now, then warps and leaves you **in flight** in the
+  new system. Before, it could hang in the take-off and never jump.
+- A jump you start while you are already flying (system chart, Hyperspace tab) still warps straight away, as before.
+- If the trip cannot finish, for example because the landing is refused, you get the controls back in flight instead
+  of being stuck.
+
+### 💧 Water that flows and settles (#2447 #2448 #2449)
+
+- **Water runs about twice as fast:** placed water spreads about seven blocks in a second and settles shortly after the
+  last block you place. **Lava keeps its slow pace** of one block every half second, so a breached crater still gives
+  you time to step back.
+- **Adding water to a pond makes it grow.** Before, water placed into a pond that had already come to rest left the
+  pond as it was.
+- **The endless flood near the start is fixed.** Every world wraps around, and the line where it joins up lies close to
+  where you first land. Water poured near that line never came to rest and kept spreading. It settles now like
+  everywhere else.
+
+### 🎯 Target lock (#2450)
+
+- **A lock on a ship that seems impossibly far away is released** instead of pointing at nowhere, and the game writes a
+  short note about it into its log. If you send an F1 report after that happens, the note tells us which ship caused
+  it, so we can find out why a ship ends up there at all. The crash this used to cause was already fixed in 2026.10.11.
+
+### 🛠️ For tinkerers
+
+- The ten parallel test jobs on every pull request get an even share of the work again, so the slowest one no longer
+  runs into the time limit.
+
+### 🙏 Thank you
+
+- **Ahmed (ahmdkaml)** built the server half of the trip from the map and the map's lock for unvisited worlds in other
+  systems. The take-off, warp and landing in this release build on that, and his credit line now names it, in the game
+  (all 14 languages) and in the README.
+- **dr-Tikool** sent the crash report that showed the far-away lock still needed a safety net.
+
 ## [2026.10.11] — 2026-10-10
 
 The playtest release. **One afternoon of two-player Sandbox, twenty-eight reports, one update.** Justus and Aasim
@@ -7368,7 +7424,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.11...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.12...HEAD
+[2026.10.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.11...v2026.10.12
 [2026.10.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.10...v2026.10.11
 [2026.10.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.9...v2026.10.10
 [2026.10.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.8...v2026.10.9
