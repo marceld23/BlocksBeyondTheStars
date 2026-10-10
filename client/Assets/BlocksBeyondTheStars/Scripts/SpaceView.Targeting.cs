@@ -41,6 +41,13 @@ namespace BlocksBeyondTheStars.Client
         private const int MaxThreatTicks = 4;
         private const float PilotLockRadius = 2.5f;
 
+        /// <summary>#2450: a lock whose object reads farther than this many flight clamps away is a position gone wrong,
+        /// not a far target — everything the flight scene holds lies within one clamp of the origin.</summary>
+        private const float ImplausibleLockReachFactor = 4f;
+
+        /// <summary>Seconds before the same implausible lock is logged again (a re-lock of the same object).</summary>
+        private const float ImplausibleLockLogSeconds = 30f;
+
         private static readonly Color TargetHostileCol = new Color(1f, 0.35f, 0.35f);
         private static readonly Color TargetCautionCol = new Color(1f, 0.6f, 0.2f);
         private static readonly Color TargetNeutralCol = new Color(0.9f, 0.95f, 1f);
@@ -58,6 +65,8 @@ namespace BlocksBeyondTheStars.Client
         private Vector3 _lockLocal;          // last known raw instance-frame position
         private string _lockScanKey;         // the scanner's key for the same object ("e:<id>" / "b:<id>"), or null
         private float _lockSince;            // Time.time of the lock (the brackets snap in)
+        private string _implausibleLockLogged; // #2450: source + id of the last implausible lock logged, and when
+        private float _implausibleLockLoggedAt = float.NegativeInfinity;
         private float _lockLostAt = -1f;     // Time.time it left the lock range (-1 = in range)
         private string _lockDestroyedId;     // the server reported this locked entity destroyed
 
@@ -415,6 +424,31 @@ namespace BlocksBeyondTheStars.Client
             {
                 audio.Cue("target_lock", 0.45f);
             }
+        }
+
+        /// <summary>
+        /// Releases a lock whose object reads absurdly far away and logs what it was (#2450).
+        /// <para>
+        /// Two players' flight HUDs crashed on a lock distance between 2·10⁸ and 2·10⁹ flight units (#2428 — the
+        /// readout no longer throws), while the whole system spans a few thousand. Such a position is a bug upstream,
+        /// and the readout cannot say which object carried it. Dropping the lock keeps "2 147 483 647 km" off the HUD;
+        /// the warning — source, id, kind and both positions — lands in the player log that every F1 report carries,
+        /// so the next report names the culprit.
+        /// </para>
+        /// </summary>
+        private void DropImplausibleLock(Vector3 world, float dist)
+        {
+            string key = _lockSource + ":" + _lockId;
+            if (key != _implausibleLockLogged || Time.time - _implausibleLockLoggedAt > ImplausibleLockLogSeconds)
+            {
+                _implausibleLockLogged = key;
+                _implausibleLockLoggedAt = Time.time;
+                Debug.LogWarning($"[SpaceView] Dropped an implausible target lock (#2450): source {_lockSource}, id '{_lockId}', "
+                    + $"kind '{_lockKind}', name '{_lockName}', distance {dist:G6} units (flight clamp {FlightClamp:F0}), "
+                    + $"locked world position {world}, last local {_lockLocal}, ship local {_ship.transform.localPosition}.");
+            }
+
+            ClearTargetLock(sound: true);
         }
 
         private void ClearTargetLock(bool sound)
@@ -946,6 +980,11 @@ namespace BlocksBeyondTheStars.Client
 
             Vector3 delta = _root.transform.InverseTransformPoint(world) - _ship.transform.localPosition;
             float dist = delta.magnitude;
+            if (!SpaceDistance.IsPlausible(dist, FlightClamp * ImplausibleLockReachFactor))
+            {
+                DropImplausibleLock(world, dist);
+                return;
+            }
 
             if (place.OnScreen)
             {

@@ -85,7 +85,7 @@ public static class SpaceDistance
     }
 
     /// <summary>True for a distance the flight scene can actually hold: finite and within <paramref name="reach"/>
-    /// flight units of the origin. The lock HUD drops a lock whose object reads farther than that and logs it (#2428) —
+    /// flight units of the origin. The lock HUD drops a lock whose object reads farther than that and logs it (#2450) —
     /// the system reach is a few thousand units, so anything beyond it is a position gone wrong, not a far target.</summary>
     public static bool IsPlausible(float units, float reach)
         => !float.IsNaN(units) && !float.IsInfinity(units) && units >= 0f && units <= reach;

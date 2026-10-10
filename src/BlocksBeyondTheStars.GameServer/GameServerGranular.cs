@@ -40,6 +40,10 @@ public sealed partial class GameServer
     private const int GranularUpdatesPerStep = 200; // woken cells settled per step (a whole dune face is a few dozen)
     private const int GranularFallScan = 256;        // how far a block may drop in one step (the build-height span)
 
+    /// <summary>One settle step every 0.25 s — the old fluid cadence, kept when water doubled its pace (#2449), so sand
+    /// still sinks one cell per 0.25 s through water and lava.</summary>
+    private const double GranularInterval = 0.25;
+
     private HashSet<Vector3i> _activeGranular => _worlds.Active.ActiveGranular;
     private double _sinceGranular { get => _worlds.Active.SinceGranular; set => _worlds.Active.SinceGranular = value; }
 
@@ -68,7 +72,7 @@ public sealed partial class GameServer
         }
 
         _sinceGranular += dt;
-        if (_sinceGranular < FluidInterval)
+        if (_sinceGranular < GranularInterval)
         {
             return;
         }
@@ -77,7 +81,7 @@ public sealed partial class GameServer
         _repo.RunInTransaction(StepGranular); // #1505: one commit per step, not per settled cell
     }
 
-    /// <summary>One settle step over the woken cells (the fluid cadence, its own budget).</summary>
+    /// <summary>One settle step over the woken cells (its own 0.25 s cadence and budget).</summary>
     private void StepGranular()
     {
         var todo = new List<Vector3i>(_activeGranular);

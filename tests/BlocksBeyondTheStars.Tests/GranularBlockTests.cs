@@ -15,7 +15,7 @@ namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
 /// Granular blocks (#1319 — sand/ash/snow settle when their support goes, instant through air, one cell per
-/// step through fluid) and the lava cadence (#1316 — half the water speed). Everything is built high in the
+/// step through fluid) and the lava cadence (#1316, #2449 — one step in four of the water). Everything is built high in the
 /// air column (y ≥ 120) where the rocky test world is guaranteed empty.
 /// </summary>
 public sealed class GranularBlockTests : IDisposable
@@ -246,9 +246,10 @@ public sealed class GranularBlockTests : IDisposable
     }
 
     [Fact]
-    public void Lava_FlowsAtHalfTheWaterSpeed()
+    public void Lava_MovesOnEveryFourthWaterStep()
     {
-        // #1316: two identical floors far apart, a water source on one and a lava source on the other.
+        // #1316: two identical floors far apart, a water source on one and a lava source on the other. Lava keeps one
+        // cell per 0.5 s; since water doubled its pace (#2449) that is one step in four.
         var server = Started(out var repo);
         using (repo)
         {
@@ -258,14 +259,12 @@ public sealed class GranularBlockTests : IDisposable
             server.PlaceFluidSource("water", 0, y, 0);
             server.PlaceFluidSource("lava", 100, y, 0);
 
-            Steps(server, 4);
+            Steps(server, 8);
 
             int waterReach = Reach(server, Id("water").Value, 0, y);
             int lavaReach = Reach(server, Id("lava").Value, 100, y);
-            Assert.True(waterReach >= 3, $"water should have spread a few cells (got {waterReach})");
-            Assert.True(lavaReach >= 1, $"lava must still flow (got {lavaReach})");
-            Assert.True(lavaReach <= waterReach / 2 + 1 && lavaReach < waterReach,
-                $"lava should reach about half as far as water (water {waterReach}, lava {lavaReach})");
+            Assert.Equal(6, waterReach); // the whole floor (the scan stops at its edge)
+            Assert.Equal(2, lavaReach);  // eight steps hold exactly two lava steps
         }
     }
 

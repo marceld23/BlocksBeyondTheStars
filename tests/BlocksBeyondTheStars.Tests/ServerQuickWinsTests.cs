@@ -59,12 +59,12 @@ public sealed class ServerQuickWinsTests : IDisposable
             server.PlaceFluidSource("water", feet.X, feet.Y + 40, feet.Z);
             for (int i = 0; i < 8; i++)
             {
-                server.TickForTest(0.3); // 2.4 s ≈ 9 fluid steps at the 0.25 s cadence
+                server.TickForTest(0.3); // eight ticks longer than the fluid interval = eight fluid steps
             }
 
             int steps = repo.TransactionsBegun - before;
             Assert.True(steps >= 2, $"the fluid steps should have run inside transactions (got {steps})");
-            Assert.True(steps <= 12, $"one transaction per STEP, not per cell (got {steps} for ~9 steps)");
+            Assert.True(steps <= 12, $"one transaction per STEP, not per cell (got {steps} for ~8 steps)");
         }
     }
 
