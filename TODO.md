@@ -40,8 +40,11 @@ a different test each time), and the full tier's shard 2 ran ~8 min longer than 
 - **#2456 — `SettlementOverhaulTests` held two `Slow` sweeps (150 server boots, ~800 s in one class).** They moved to
   `SettlementPadClearanceTests` and `SettlementRuinSkewTests`, each running its seeds on two `Parallel.Invoke` workers;
   `SettlementTestWorlds` boots settlement-only servers (nothing stamped after the settlements — same settlements, pads
-  and counts, 1–3.5 s less per boot), used by all three classes. Slow weights: 774 s → 140 s + 265 s (estimated from the
-  CI times; refresh from the first full-tier run on main). Docs: SERVER_TESTING.md (fixture + shared-cache rule).
+  and counts, 1–3.5 s less per boot), used by all three classes. Slow weights: 774 s → 187.7 s + 375.9 s, measured on the
+  first full-tier run on main (the estimates 140 + 265 in PR #2457 were ~40 % low). Docs: SERVER_TESTING.md (fixture +
+  shared-cache rule).
+- **Measured on CI:** PR gate slowest shard 741 s → 512 s (shard 7: 741 s → 272 s, PR #2457); full tier 343–1 145 s
+  (release gate v2026.10.12, shard 2 the long pole) → 243–515 s (main run 38086216867).
 
 ### 🚀 Travel from a parked ship plays take-off → (warp) → landing (#1614 client half, 2026-10-10, branch feat/1614-travel-sequences; server half #1676 + map lock #2314 by ahmdkaml, who is co-author here) — ✅ done (released in v2026.10.12; playtested by Marcel 2026-10-10)
 
