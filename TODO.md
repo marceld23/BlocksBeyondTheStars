@@ -50,6 +50,8 @@ from the ground hung forever in the take-off (the server had jumped before the t
 - **✅ Tests:** `TravelTests` — same system (state flags + no warp), cross system in three stages, case 3, the two-stage
   timeout, a stray signal, a refused take-off keeping the pad. USER_MANUAL § Travel; credits for ahmdkaml (README + all
   14 `ui.credits.body`).
+- **✅ Korean label (release PR v2026.10.12):** `ui.map.hyperjump_here` read "이 항성계로 초점 이동" ("move the focus to this
+  system") — now "이 항성계로 하이퍼점프". Found while translating the release post; the other eleven community labels are fine.
 - **⚠ Playtest:** the three cases from the issue in the real game (same system, other system, "Hyperjump to this
   system" from the ground) plus a jump from a flying ship; a second player on the origin/target watching the ship.
 

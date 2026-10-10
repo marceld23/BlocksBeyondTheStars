@@ -55,6 +55,10 @@ the browser version is always current.
   short note about it into its log. If you send an F1 report after that happens, the note tells us which ship caused
   it, so we can find out why a ship ends up there at all. The crash this used to cause was already fixed in 2026.10.11.
 
+### 🌍 Texts
+
+- Korean: the map button **"Hyperjump to this system"** read "move the focus to this system". It now says hyperjump.
+
 ### 🛠️ For tinkerers
 
 - The ten parallel test jobs on every pull request get an even share of the work again, so the slowest one no longer
