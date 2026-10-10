@@ -403,10 +403,19 @@ public sealed class PlayerSession
     public bool PendingRespawnSameWorld { get; set; }
     public string PendingRespawnReason { get; set; } = string.Empty;
 
-    /// <summary>Destination body for an automatic landed-ship transit, or null when no transit is pending.</summary>
+    /// <summary>#1614: the body an automatic landed-ship transit lands on at its end, or null when no transit is
+    /// pending or the transit ends in free flight ("Hyperjump to this system" from a parked ship).</summary>
     public string? PendingTransitBodyId { get; set; }
-    /// <summary>Indicates whether the player is currently in an automatic transit.</summary>
+
+    /// <summary>#1614: the star system the transit still has to warp into before it lands (or, without a
+    /// <see cref="PendingTransitBodyId"/>, before it hands over the controls), or null once the warp is done or
+    /// the destination lies in the system the ship took off in.</summary>
+    public string? PendingTransitSystemId { get; set; }
+
+    /// <summary>#1614: the pilot is in an automatic transit — the client plays the take-off, the warp and the
+    /// landing on its own and reports each stage with <c>TransitLaunchDoneIntent</c>.</summary>
     public bool AutomaticTransit { get; set; }
+
     /// <summary>Pad index reserved for an automatic landed-ship transit, or -1 when none is pending.</summary>
     public int PendingTransitPadIndex { get; set; } = -1;
 
@@ -557,7 +566,8 @@ public sealed class PlayerSession
 
     // --- Periodic vitals sync (HUD bars froze between event-driven sends before) ---
     public double VitalsSyncTimer { get; set; }
-    // Automatic landed-ship transit (#1614): server fallback if the client never signals launch completion.
+    // Automatic landed-ship transit (#1614): seconds since the current stage began — the server moves on by
+    // itself after ServerConfig.TransitLaunchTimeoutSeconds if the client never reports the stage as played.
     public double TransitLaunchTimer { get; set; }
     public float LastSentHealth = 100f;
     public float LastSentOxygen = 100f;

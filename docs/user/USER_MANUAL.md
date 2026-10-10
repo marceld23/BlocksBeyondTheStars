@@ -1958,6 +1958,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     into but never landed in stays reachable — a locked world in another system offers the same jump in its
     detail pane (#1638).
   - **On:** quick-travel works for any world immediately, except for unvisited planets in another system (which always require landing there first).
+- **Travelling from a parked ship plays the whole trip** (#1614): the ship **takes off**, then — for a world in
+  another system — the **hyperspace warp** carries you there, and the ship **lands** on the world you picked.
+  You don't steer; the controls come back once you stand on the new world. **"Hyperjump to this system"** from a
+  parked ship takes off first too, then warps and drops you into the new system **in flight**. A jump you start
+  while already flying (system chart, Hyperspace tab) still warps straight away.
 - Jumping to **another star system** requires a fitted **`jump_generator`** module — or a **wormhole**, if the
   system has one (§ Mysteries).
 - A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.Networking;
@@ -78,6 +79,38 @@ public sealed class TravelTests : IDisposable
 
         return server;
     }
+
+    /// <summary>Collects every message the server sends to <paramref name="client"/> (both loopback lanes) on each Poll.</summary>
+    private static List<object> Capture(LoopbackClientTransport client)
+    {
+        var received = new List<object>();
+        client.PayloadReceived += pl =>
+        {
+            if (NetCodec.Decode(pl) is { } m)
+            {
+                received.Add(m);
+            }
+        };
+        client.MessageReceived += received.Add;
+        return received;
+    }
+
+    /// <summary>Sends one intent and runs a short tick, then drains the client — the received list holds only this step's answer.</summary>
+    private static void Step(SvGameServer server, LoopbackClientTransport client, List<object> received, object intent)
+    {
+        client.Poll();
+        received.Clear();
+        client.Send(NetCodec.Encode(intent), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+    }
+
+    private CelestialBody LandablePlanet(SvGameServer server, Func<CelestialBody, bool> where)
+        => server.Galaxy.AllBodies().First(b =>
+            b.Kind == CelestialKind.Planet
+            && !string.IsNullOrEmpty(b.PlanetType)
+            && _content.GetPlanet(b.PlanetType!) is not null
+            && where(b));
 
     private CelestialBody OtherPlanet(SvGameServer server)
         => server.Galaxy.AllBodies().First(b =>
@@ -170,87 +203,198 @@ public sealed class TravelTests : IDisposable
         var (server, client) = StartedWithClient(out var repo);
         using (repo)
         {
+            var received = Capture(client);
             var pilot = server.Sessions[1];
             var origin = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
-            var destination = server.Galaxy.AllBodies().First(b =>
-                b.Kind == CelestialKind.Planet
-                && !string.IsNullOrEmpty(b.PlanetType)
-                && _content.GetPlanet(b.PlanetType!) is not null
-                && b.SystemId == origin.SystemId
-                && b.Id != origin.Id);
-
+            var destination = LandablePlanet(server, b => b.SystemId == origin.SystemId && b.Id != origin.Id);
             pilot.State.LandedBodies.Add(destination.Id);
 
-            client.Send(
-                NetCodec.Encode(new TravelIntent
-                {
-                    DestinationBodyId = destination.Id
-                }),
-                DeliveryMode.ReliableOrdered);
-            server.Tick(0.1);
+            Step(server, client, received, new TravelIntent { DestinationBodyId = destination.Id });
 
+            // The take-off: in flight over the origin, the client told where the landing descent heads.
             Assert.True(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.PendingTransitBodyId);
+            Assert.Null(pilot.PendingTransitSystemId);
             Assert.True(pilot.AutomaticTransit);
-            Assert.NotEqual(destination.Id, pilot.CurrentLocationId);
+            Assert.Equal(origin.Id, pilot.CurrentLocationId);
+            var launch = Assert.Single(received.OfType<SpaceState>());
+            Assert.True(launch.AutomaticTransit);
+            Assert.False(launch.SkipLaunch);
+            Assert.False(launch.Hyperjump);
+            Assert.Equal(destination.Id, launch.TransitDestinationBodyId);
 
-            client.Send(
-                NetCodec.Encode(new TransitLaunchDoneIntent()),
-                DeliveryMode.ReliableOrdered);
-            server.Tick(0.1);
+            Step(server, client, received, new TransitLaunchDoneIntent());
 
+            // The landing: exactly like a manual one, no warp.
             Assert.False(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);
             Assert.Null(pilot.PendingTransitBodyId);
             Assert.False(pilot.AutomaticTransit);
+            Assert.False(Assert.Single(received.OfType<WorldReset>()).Hyperjump);
         }
     }
 
     [Fact]
-    public void Travel_FromLandedShip_CrossSystem_UsesAutomaticTransit()
+    public void Travel_FromLandedShip_CrossSystem_TakesOffThenWarpsThenLands()
+    {
+        var (server, client) = StartedWithClient(out var repo, jumpDrive: true);
+        using (repo)
+        {
+            var received = Capture(client);
+            var pilot = server.Sessions[1];
+            var origin = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
+            var destination = LandablePlanet(server, b => b.SystemId != origin.SystemId);
+            pilot.State.LandedBodies.Add(destination.Id); // cross-system travel needs an earlier landing there
+
+            Step(server, client, received, new TravelIntent { DestinationBodyId = destination.Id });
+
+            // Stage 1, the take-off: still over the ORIGIN, and no warp yet — it would play over the take-off.
+            Assert.True(server.InSpace("Pilot"));
+            Assert.Equal(origin.Id, pilot.CurrentLocationId);
+            Assert.Equal(destination.SystemId, pilot.PendingTransitSystemId);
+            var launch = Assert.Single(received.OfType<SpaceState>());
+            Assert.False(launch.SkipLaunch);
+            Assert.False(launch.Hyperjump);
+            Assert.True(launch.AutomaticTransit);
+
+            Step(server, client, received, new TransitLaunchDoneIntent());
+
+            // Stage 2, the warp: in flight in the destination's system, anchored on the destination itself.
+            Assert.True(server.InSpace("Pilot"));
+            Assert.Equal(destination.Id, pilot.CurrentLocationId);
+            Assert.True(pilot.AutomaticTransit);
+            Assert.Null(pilot.PendingTransitSystemId);
+            Assert.Equal(destination.Id, pilot.PendingTransitBodyId);
+            var warp = Assert.Single(received.OfType<SpaceState>());
+            Assert.True(warp.Hyperjump);
+            Assert.True(warp.SkipLaunch);
+            Assert.True(warp.AutomaticTransit);
+            Assert.Equal(destination.Id, warp.TransitDestinationBodyId);
+
+            Step(server, client, received, new TransitLaunchDoneIntent());
+
+            // Stage 3, the landing: a plain landing in the system the warp already reached.
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Equal(destination.Id, pilot.CurrentLocationId);
+            Assert.Null(pilot.PendingTransitBodyId);
+            Assert.False(pilot.AutomaticTransit);
+            Assert.False(Assert.Single(received.OfType<WorldReset>()).Hyperjump);
+        }
+    }
+
+    [Fact]
+    public void HyperjumpToSystem_FromLandedShip_TakesOffFirst_ThenArrivesInFlight()
+    {
+        var (server, client) = StartedWithClient(out var repo, jumpDrive: true);
+        using (repo)
+        {
+            var received = Capture(client);
+            var pilot = server.Sessions[1];
+            var origin = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
+            var target = server.Galaxy.Systems.First(s => s.Id != origin.SystemId && s.Bodies.Count > 0);
+
+            Step(server, client, received, new HyperjumpSystemIntent { SystemId = target.Id });
+
+            // The take-off plays in the system the ship leaves.
+            Assert.True(server.InSpace("Pilot"));
+            Assert.Equal(origin.Id, pilot.CurrentLocationId);
+            Assert.True(pilot.AutomaticTransit);
+            Assert.Null(pilot.PendingTransitBodyId);
+            Assert.Equal(target.Id, pilot.PendingTransitSystemId);
+            var launch = Assert.Single(received.OfType<SpaceState>());
+            Assert.False(launch.SkipLaunch);
+            Assert.False(launch.Hyperjump);
+            Assert.True(launch.AutomaticTransit);
+            Assert.Equal(string.Empty, launch.TransitDestinationBodyId);
+
+            Step(server, client, received, new TransitLaunchDoneIntent());
+
+            // Then the warp, and the pilot is handed the controls in the new system.
+            Assert.True(server.InSpace("Pilot"));
+            Assert.Equal(target.Id, server.Galaxy.FindBody(pilot.CurrentLocationId)!.SystemId);
+            Assert.False(pilot.AutomaticTransit);
+            Assert.Null(pilot.PendingTransitSystemId);
+            var warp = Assert.Single(received.OfType<SpaceState>());
+            Assert.True(warp.Hyperjump);
+            Assert.True(warp.SkipLaunch);
+            Assert.False(warp.AutomaticTransit);
+            Assert.Contains(received.OfType<ServerMessage>(), m => !string.IsNullOrEmpty(m.Text)); // "hyperjumped into …"
+        }
+    }
+
+    [Fact]
+    public void Travel_FromLandedShip_CrossSystem_Timeout_MovesOnStageByStage()
     {
         var (server, client) = StartedWithClient(out var repo, jumpDrive: true);
         using (repo)
         {
             var pilot = server.Sessions[1];
             var origin = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
-
-            // Pick a landable planet in a different star system
-            var destination = server.Galaxy.AllBodies().First(b =>
-                b.Kind == CelestialKind.Planet
-                && !string.IsNullOrEmpty(b.PlanetType)
-                && _content.GetPlanet(b.PlanetType!) is not null
-                && b.SystemId != origin.SystemId);
-
-            // Mark destination as previously visited to satisfy travel eligibility
+            var destination = LandablePlanet(server, b => b.SystemId != origin.SystemId);
             pilot.State.LandedBodies.Add(destination.Id);
 
-            // Send TravelIntent to initiate cross-system transit
-            client.Send(
-                NetCodec.Encode(new TravelIntent
-                {
-                    DestinationBodyId = destination.Id
-                }),
-                DeliveryMode.ReliableOrdered);
+            client.Send(NetCodec.Encode(new TravelIntent { DestinationBodyId = destination.Id }), DeliveryMode.ReliableOrdered);
             server.Tick(0.1);
+            Assert.Equal(origin.Id, pilot.CurrentLocationId);
 
-            // Player is now launched into space in automatic transit toward B, but hasn't landed yet
+            // No client signal at all: the server warps after one timeout …
+            server.Tick(6.0);
             Assert.True(server.InSpace("Pilot"));
-            Assert.Equal(destination.Id, pilot.PendingTransitBodyId);
+            Assert.Equal(destination.Id, pilot.CurrentLocationId);
             Assert.True(pilot.AutomaticTransit);
-            Assert.NotEqual(destination.Id, pilot.CurrentLocationId);
 
-            // Client finishes the launch sequence
-            client.Send(
-                NetCodec.Encode(new TransitLaunchDoneIntent()),
-                DeliveryMode.ReliableOrdered);
-            server.Tick(0.1);
-
-            // Player completes hyperspace warp and lands on B
+            // … and lands after the next — the warped pilot flies over a world that is not loaded, so this timer
+            // must not live in the per-world tick.
+            server.Tick(6.0);
             Assert.False(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);
-            Assert.Null(pilot.PendingTransitBodyId);
             Assert.False(pilot.AutomaticTransit);
+        }
+    }
+
+    [Fact]
+    public void TransitLaunchDone_WithoutATransit_ChangesNothing()
+    {
+        var (server, client) = StartedWithClient(out var repo);
+        using (repo)
+        {
+            var pilot = server.Sessions[1];
+            string home = pilot.CurrentLocationId;
+
+            client.Send(NetCodec.Encode(new TransitLaunchDoneIntent()), DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Equal(home, pilot.CurrentLocationId);
+            Assert.False(pilot.AutomaticTransit);
+        }
+    }
+
+    [Fact]
+    public void Travel_FromLandedShip_RefusedTakeOff_LeavesNoTransitAndKeepsThePad()
+    {
+        var (server, client) = StartedWithClient(out var repo);
+        using (repo)
+        {
+            var pilot = server.Sessions[1];
+            var origin = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
+            var destination = LandablePlanet(server, b => b.SystemId == origin.SystemId && b.Id != origin.Id);
+            pilot.State.LandedBodies.Add(destination.Id);
+            int heldPad = server.AssignedPadForTest("Pilot");
+
+            pilot.State.AboardShip = false; // the launch needs the pilot aboard — the travel check before it does not
+            client.Send(NetCodec.Encode(new TravelIntent { DestinationBodyId = destination.Id }), DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Equal(origin.Id, pilot.CurrentLocationId);
+            Assert.False(pilot.AutomaticTransit);
+            Assert.Null(pilot.PendingTransitBodyId);
+            Assert.Equal(heldPad, server.AssignedPadForTest("Pilot"));
+
+            // Nothing is left for the timeout to land later.
+            server.Tick(6.0);
+            Assert.Equal(origin.Id, pilot.CurrentLocationId);
         }
     }
 

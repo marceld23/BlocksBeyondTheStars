@@ -317,7 +317,8 @@ public sealed class TravelIntent
     public int PadIndex { get; set; } = -1;
 }
 
-/// <summary>launch done during transit travel move on to the next step</summary>
+/// <summary>#1614: the client has played the current stage of an automatic transit (the take-off, or the warp into
+/// the destination system) — the server moves the transit on: warp, land, or hand over in free flight.</summary>
 public sealed class TransitLaunchDoneIntent
 {
 }
@@ -1815,7 +1816,15 @@ public sealed class SpaceState
     public float ResumeZ { get; set; }
     public float ResumeYaw { get; set; }
 
+    /// <summary>#1614: this flight is an automatic transit from a parked ship. The client plays its stages
+    /// hands-off — the take-off, or after a warp a short hold — and reports each one with
+    /// <see cref="TransitLaunchDoneIntent"/>; the server answers with the next stage. Re-sent false when a transit
+    /// ends in flight (a refused landing), so the client hands the controls back.</summary>
     public bool AutomaticTransit { get; set; } = false;
+
+    /// <summary>#1614: the body the transit lands on, so the landing descent heads for it. Empty when the transit
+    /// ends in flight or no transit runs. Additive; an older client ignores it.</summary>
+    public string TransitDestinationBodyId { get; set; } = string.Empty;
 
     /// <summary>Friendly names of the star system and the body this flight is anchored on (#1565). An in-flight
     /// hyperjump never lands, so no <see cref="WorldReset"/> carries the new identity — the HUD, the F1 form and
