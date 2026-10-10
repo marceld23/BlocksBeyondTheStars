@@ -472,15 +472,20 @@ Per column the precedence is **pond > river > sea**. On lava worlds the *same* m
 (sparser, wider, shallower), tagged for shader animation. Submerged columns also grow aquatic flora
 (kelp/seagrass/coral on the bed, lily pads on the surface).
 
-**Live flow (`GameServerFluids.cs`):** a server-authoritative cellular automaton on a shared ~4 Hz cadence
-(`FluidInterval`) with a per-step budget — cells flow down, else spread sideways with a decaying level;
-sources are untracked and bottomless, flowing cells persist their level (#657). **Lava moves on every
-second step only** (#1316 — half the water speed, a readability decision: fast lava kills before you can
-react); the water↔lava quench (#1284) fires on wake and never waits for the cadence.
+**Live flow (`GameServerFluids.cs`):** a server-authoritative cellular automaton stepping every 0.125 s
+(`FluidInterval`, ~8 Hz since #2449 — a seven-cell spread takes about a second) with a per-step budget — cells
+flow down, else spread sideways with a decaying level; sources are untracked and bottomless, flowing cells
+persist their level (#657). **Lava moves on every fourth step only** (`LavaStepEvery`; #1316 — one cell per
+0.5 s, a readability decision: fast lava kills before you can react); the water↔lava quench (#1284) fires on
+wake and never waits for the cadence. A placed source wakes its six neighbours (#2448), so water dropped into
+a resting pond makes it grow. Every fluid structure — levels, falling flags, the woken and parked sets, the
+persisted rows — is keyed by the **canonical** cell (`FluidCell`, #2447): the automaton walks neighbours as
+`pos ± 1`, and without that, one cell at the X seam had two spellings, a flowing cell read under the wrong one
+passed for a source, and water placed on both sides of x = 0 (where every first spawn lies) flooded without end.
 
 **Granular blocks (`GameServerGranular.cs`, #1319):** `"granular": true` in `blocks.json` (sand, ash, snow)
 marks loose material that settles when its support goes — **instant** through air (one `SetBlock` pair,
-two `BlockChanged`, no falling entity, nothing mid-fall to save), **one cell per fluid step** through
+two `BlockChanged`, no falling entity, nothing mid-fall to save), **one cell per 0.25 s step** through
 water/lava, replacing the fluid like a placed block does (#851) — sand dropped on lava eats it cell by cell.
 Only mutations wake a cell: mining, placing, the terrain blaster, a doused fire, a retracting fluid, and
 the cascade above a vacated cell. **Generated terrain is never scanned**, so dune overhangs stand until

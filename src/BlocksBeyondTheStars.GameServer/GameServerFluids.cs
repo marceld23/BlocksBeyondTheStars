@@ -26,16 +26,50 @@ namespace BlocksBeyondTheStars.GameServer;
 /// of water floating over the drop). Levels are persisted alongside the fluid block edits (#657): the
 /// block itself survives a restart as a block edit, so without its level row every flowing tongue would
 /// reload as untracked — i.e. as a permanent full source that can never dry up.
+///
+/// Every structure here — levels, falling flags, the woken and the parked set, the persisted rows — is keyed
+/// by the <b>canonical</b> cell (<see cref="FluidCell"/>, #2447). The automaton walks neighbours as
+/// <c>pos ± 1</c>, so without that one cell beside the world's X seam had two spellings, and a flowing cell
+/// read under the spelling without a level row passed for a source.
 /// </summary>
 public sealed partial class GameServer
 {
-    private const double FluidInterval = 0.25; // ~4 Hz
+    /// <summary>One fluid step every 0.125 s (#2449: twice the old 0.25 s, so a seven-cell spread takes about a
+    /// second; on the default 15 Hz server tick that is every second tick). Lava sits most steps out
+    /// (<see cref="LavaStepEvery"/>) and keeps its old pace.</summary>
+    private const double FluidInterval = 0.125;
+
+    /// <summary>Lava advances on every fourth fluid step only — one cell per 0.5 s, the pace it had before water
+    /// doubled (#1316: fast lava kills before you can react; #2449).</summary>
+    private const int LavaStepEvery = 4;
+
+    /// <summary>How often (in fluid steps) the parked cells are re-checked without a chunk load (#1824): about
+    /// once a second.</summary>
+    private const int UnparkEverySteps = 8;
+
     private const int FluidUpdatesPerTick = 400;
     private const byte FluidFull = 8;
 
     private Dictionary<Vector3i, byte> _fluidLevel => _worlds.Active.FluidLevel;
     private HashSet<Vector3i> _activeFluid => _worlds.Active.ActiveFluid;
     private HashSet<Vector3i> _fallingFluid => _worlds.Active.FallingFluid;
+
+    /// <summary>#2447: the one spelling of a cell that every fluid structure is keyed by. The world wraps X (and Z)
+    /// on each read and write, but the automaton reaches neighbours as <c>pos ± 1</c>: water flowing east from a
+    /// block placed at x = −3 (stored as circumference − 3) reached the seam as <c>circumference</c>, water flowing
+    /// west from x = +3 as <c>−1</c> — one cell, two keys. Read under the key without a level row, a flowing cell
+    /// looked like an untracked source, and those phantom sources flooded the seam without end. Every first spawn
+    /// sits at or near that seam (landing pad 0 is the prime-meridian touchdown).</summary>
+    private Vector3i FluidCell(Vector3i p) => WorldConstants.CanonicalBlock(p, _world.Circumference);
+
+    /// <summary>True if the cell is a tracked FLOWING cell (has a level row); false for a source or no fluid.</summary>
+    private bool IsFlowingCell(Vector3i p) => _fluidLevel.ContainsKey(FluidCell(p));
+
+    /// <summary>True if the cell was filled by a downward flow (it feeds a waterfall).</summary>
+    private bool IsFallingCell(Vector3i p) => _fallingFluid.Contains(FluidCell(p));
+
+    /// <summary>Puts the cell into the woken set for the next fluid step.</summary>
+    private void WakeFluidCell(Vector3i p) => _activeFluid.Add(FluidCell(p));
     private double _sinceFluid { get => _worlds.Active.SinceFluid; set => _worlds.Active.SinceFluid = value; }
     private ushort _waterId, _lavaId, _obsidianId, _basaltId;
 
@@ -84,7 +118,7 @@ public sealed partial class GameServer
             return 0;
         }
 
-        ushort crust = _fluidLevel.ContainsKey(pos) ? _basaltId : _obsidianId;
+        ushort crust = IsFlowingCell(pos) ? _basaltId : _obsidianId;
         if (crust == 0)
         {
             return 0;
@@ -204,57 +238,108 @@ public sealed partial class GameServer
 
     /// <summary>Registers a full fluid source at the cell (the block must already be set). A source is an
     /// <i>untracked</i> cell — no level entry — so it is always full and never recedes, exactly like a
-    /// worldgen sea. Flowing cells, by contrast, live in <c>_fluidLevel</c> and dry up when cut off.</summary>
+    /// worldgen sea. Flowing cells, by contrast, live in <c>_fluidLevel</c> and dry up when cut off.
+    /// <para>
+    /// The neighbours are woken too (#2448). A source only ever spreads into AIR, so one placed into a pond —
+    /// the client puts the block into the water cell under the crosshair (#851) — changed nothing around it: the
+    /// flowing cells beside it kept their old, lower level until something else happened to wake them, and a pond
+    /// that had already come to rest never grew to its new size. They are queued without reading them: a source at
+    /// the edge of the loaded world must not generate the chunk beyond (#1824) — the step parks what it cannot read
+    /// yet and drops what is no fluid.
+    /// </para></summary>
     public void RegisterFluidSource(Vector3i pos)
     {
         UntrackFluid(pos);
-        _activeFluid.Add(pos);
+        WakeFluidCell(pos);
+        WakeFluidCell(new Vector3i(pos.X + 1, pos.Y, pos.Z));
+        WakeFluidCell(new Vector3i(pos.X - 1, pos.Y, pos.Z));
+        WakeFluidCell(new Vector3i(pos.X, pos.Y, pos.Z + 1));
+        WakeFluidCell(new Vector3i(pos.X, pos.Y, pos.Z - 1));
+        WakeFluidCell(new Vector3i(pos.X, pos.Y + 1, pos.Z));
+        WakeFluidCell(new Vector3i(pos.X, pos.Y - 1, pos.Z));
     }
 
     /// <summary>Records a flowing cell's level (memory + save). The persisted row is what stops a restart from
     /// promoting the cell to an untracked source (#657).</summary>
     private void TrackFluid(Vector3i pos, byte level, bool falling)
     {
-        _fluidLevel[pos] = level;
+        var cell = FluidCell(pos);
+        _fluidLevel[cell] = level;
         if (falling)
         {
-            _fallingFluid.Add(pos);
+            _fallingFluid.Add(cell);
         }
         else
         {
-            _fallingFluid.Remove(pos); // a cell filled sideways rests on the surface it spread across
+            _fallingFluid.Remove(cell); // a cell filled sideways rests on the surface it spread across
         }
 
-        _repo.SaveFluidCell(_world.LocationId, pos, level, falling);
+        _repo.SaveFluidCell(_world.LocationId, cell, level, falling);
     }
 
     /// <summary>Drops a cell's flowing state (memory + save) — it dried up, became a source, or its block
     /// was replaced. Safe to call for cells that were never tracked.</summary>
     private void UntrackFluid(Vector3i pos)
     {
-        if (_fluidLevel.Remove(pos))
+        var cell = FluidCell(pos);
+        if (_fluidLevel.Remove(cell))
         {
-            _repo.DeleteFluidCell(_world.LocationId, pos);
+            _repo.DeleteFluidCell(_world.LocationId, cell);
         }
 
-        _fallingFluid.Remove(pos);
+        _fallingFluid.Remove(cell);
     }
 
     /// <summary>Restores this world's persisted flowing-fluid cells (levels + falling flags) and wakes them,
     /// so streams keep flowing/retracting across a restart instead of fossilising into full sources (#657).
     /// Deliberately does not touch the world's blocks here (that would force chunk generation at load) — the
-    /// tick's own stale-cell check drops any row whose block is no longer a fluid.</summary>
+    /// tick's own stale-cell check drops any row whose block is no longer a fluid.
+    /// <para>
+    /// A row written before the keys were canonical (#2447) is moved to the canonical cell; a cell that ended up
+    /// with a row under each spelling keeps the higher level. Water a seam flood already left in a save stays as
+    /// it is — a stored flood cannot be told apart from water placed on purpose.
+    /// </para></summary>
     private void LoadFluidState()
     {
-        foreach (var cell in _repo.ListFluidCells(_world.LocationId))
+        var rows = new Dictionary<Vector3i, (byte Level, bool Falling)>();
+        List<(Vector3i Stored, Vector3i Cell)>? moved = null;
+        foreach (var row in _repo.ListFluidCells(_world.LocationId))
         {
-            _fluidLevel[cell.WorldPosition] = Math.Clamp(cell.Level, (byte)1, FluidFull);
-            if (cell.Falling)
+            var cell = FluidCell(row.WorldPosition);
+            byte level = Math.Clamp(row.Level, (byte)1, FluidFull);
+            if (!cell.Equals(row.WorldPosition))
             {
-                _fallingFluid.Add(cell.WorldPosition);
+                (moved ??= new List<(Vector3i, Vector3i)>()).Add((row.WorldPosition, cell));
             }
 
-            _activeFluid.Add(cell.WorldPosition); // wake: orphans retract, still-fed cells settle again
+            if (!rows.TryGetValue(cell, out var have) || level > have.Level)
+            {
+                rows[cell] = (level, row.Falling);
+            }
+        }
+
+        foreach (var (cell, state) in rows)
+        {
+            _fluidLevel[cell] = state.Level;
+            if (state.Falling)
+            {
+                _fallingFluid.Add(cell);
+            }
+
+            _activeFluid.Add(cell); // wake: orphans retract, still-fed cells settle again
+        }
+
+        if (moved != null)
+        {
+            _repo.RunInTransaction(() =>
+            {
+                foreach (var (stored, cell) in moved)
+                {
+                    _repo.DeleteFluidCell(_world.LocationId, stored);
+                    var state = rows[cell];
+                    _repo.SaveFluidCell(_world.LocationId, cell, state.Level, state.Falling);
+                }
+            });
         }
     }
 
@@ -276,7 +361,7 @@ public sealed partial class GameServer
     /// all, and a block that silently does nothing is a bug report waiting to happen — so the player is told.</summary>
     private void StartSpout(PlayerSession session, Vector3i pos)
     {
-        _activeFluid.Add(pos);
+        WakeFluidCell(pos);
         if (!FluidCanEnter(new Vector3i(pos.X, pos.Y - 1, pos.Z)))
         {
             Send(session, new ServerMessage { Text = "@srv.fluid.spout_needs_drop" });
@@ -325,7 +410,7 @@ public sealed partial class GameServer
                 return true;
             }
 
-            if (u != id || !_fallingFluid.Contains(up))
+            if (u != id || !IsFallingCell(up))
             {
                 return false;
             }
@@ -347,7 +432,7 @@ public sealed partial class GameServer
         var pos = new Vector3i(x, y, z);
         _world.SetBlock(pos, new BlockId(_spoutId));
         BroadcastToWorld(new BlockChanged { X = x, Y = y, Z = z, Block = _spoutId });
-        _activeFluid.Add(pos);
+        WakeFluidCell(pos);
     }
 
     private void TickFluids(double dt)
@@ -366,7 +451,7 @@ public sealed partial class GameServer
 
         _sinceFluid = 0;
         _worlds.Active.FluidStep++;
-        bool lavaRests = (_worlds.Active.FluidStep & 1) == 1; // #1316: lava moves on every second step only
+        bool lavaRests = _worlds.Active.FluidStep % LavaStepEvery != 0; // #1316/#2449: lava keeps one cell per 0.5 s
 
         // #1505: one transaction per step. Every cell the step touches persists through SetBlock/SaveFluidCell/
         // DeleteFluidCell — as autocommits that was one commit per cell (measured 100–142 µs each on NVMe, far
@@ -385,8 +470,9 @@ public sealed partial class GameServer
         _activeFluid.Clear();
         int budget = FluidUpdatesPerTick;
 
-        foreach (var pos in todo)
+        foreach (var queued in todo)
         {
+            var pos = FluidCell(queued); // #2447: every wake is canonical already; this keeps a stray spelling harmless
             if (budget-- <= 0)
             {
                 _activeFluid.Add(pos); // defer leftover to the next step
@@ -424,9 +510,10 @@ public sealed partial class GameServer
                     continue; // touched water: it is rock now (#1284) — contact fires on wake, never waits for the cadence
                 }
 
-                // Lava flows at half the water speed (#1316, maintainer decision — readability, not realism:
-                // fast lava kills before you can react). The budget and the wake set stay shared; a lava cell
-                // just sits out every other step and is re-queued untouched.
+                // Lava keeps one cell per 0.5 s (#1316, maintainer decision — readability, not realism: fast lava
+                // kills before you can react). Since water doubled its pace (#2449) that is a quarter of the water
+                // speed. The budget and the wake set stay shared; a lava cell sits out three steps of four and is
+                // re-queued untouched.
                 if (lavaRests)
                 {
                     _activeFluid.Add(pos);
@@ -485,7 +572,7 @@ public sealed partial class GameServer
                 // Don't crawl sideways while feeding a waterfall: a cell sitting on a *falling* column would
                 // otherwise spread at its own (high) elevation and build a sheet of water hanging over the drop.
                 ushort belowId = _world.GetBlock(below).Value;
-                bool feedingFall = IsFluid(belowId) && _fallingFluid.Contains(below);
+                bool feedingFall = IsFluid(belowId) && IsFallingCell(below);
                 // ...and a column poured by a waterfall block (#1726) never spreads at all, not even where it
                 // lands: the whole point of that block is a fall that ends where it hits, not a sheet across the floor.
                 bool confined = !feedingFall && _fallingFluid.Contains(pos) && FedByASpout(pos, id);
@@ -559,7 +646,7 @@ public sealed partial class GameServer
     {
         var parked = _worlds.Active.ParkedFluid;
         if (parked.Count == 0
-            || (_worlds.Active.ParkedFluidCheckedAt == _world.ChunkLoads && (_worlds.Active.FluidStep & 3) != 0))
+            || (_worlds.Active.ParkedFluidCheckedAt == _world.ChunkLoads && _worlds.Active.FluidStep % UnparkEverySteps != 0))
         {
             return;
         }
@@ -579,6 +666,9 @@ public sealed partial class GameServer
 
     /// <summary>Test seam (#1824): how many fluid cells currently wait at the loaded edge.</summary>
     public int ParkedFluidCountForTest => _worlds.Active.ParkedFluid.Count;
+
+    /// <summary>Test seam (#2447): how many fluid cells wait for the next step — 0 once every body has come to rest.</summary>
+    public int ActiveFluidCountForTest => _worlds.Active.ActiveFluid.Count;
 
     /// <summary>The level a <i>flowing</i> cell can sustain from its surroundings: full if the same fluid sits
     /// directly above (a falling column feeds it), otherwise the strongest horizontal neighbour's level minus
@@ -609,7 +699,7 @@ public sealed partial class GameServer
             return 0;
         }
 
-        byte nl = _fluidLevel.TryGetValue(n, out var lv) ? lv : FluidFull; // untracked neighbour = full source
+        byte nl = _fluidLevel.TryGetValue(FluidCell(n), out var lv) ? lv : FluidFull; // untracked neighbour = full source
         return nl - 1;
     }
 
@@ -651,6 +741,8 @@ public sealed partial class GameServer
 
     private void FillFluid(Vector3i pos, BlockId kind, byte level, bool falling)
     {
+        pos = FluidCell(pos); // #2447: a neighbour across the seam arrives as pos ± 1 — store and wake the one spelling
+
         // Water meets lava (#477, decision #6): the entering flow solidifies at the contact face instead of
         // interleaving with the other fluid — dig a channel from a pond into a volcano crater and a glassy
         // crust grows where the two touch. Entering WATER chills to obsidian; an entering LAVA tongue is a
@@ -668,7 +760,7 @@ public sealed partial class GameServer
         _world.SetBlock(pos, kind);
         TrackFluid(pos, level, falling);
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = kind.Value });
-        _activeFluid.Add(pos);
+        WakeFluidCell(pos);
     }
 
     /// <summary>Dries up a flowing cell that has lost its feed: clears the block, tells clients, and wakes the
@@ -724,7 +816,7 @@ public sealed partial class GameServer
         ushort id = _world.GetBlock(p).Value;
         if (IsFluid(id) || IsSpout(id))
         {
-            _activeFluid.Add(p); // untracked stays a source, tracked stays flowing — no promotion here
+            WakeFluidCell(p); // untracked stays a source, tracked stays flowing — no promotion here
         }
     }
 

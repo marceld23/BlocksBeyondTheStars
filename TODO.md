@@ -24,6 +24,36 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 💧 Water at the seam, waking on placement, twice the pace + lock-HUD diagnosis (2026-10-10) — issues #2447–#2450, branch fix/water-seam-speed — ✅ done (ships with the next release)
+
+Marcel: "placed quickly one after another, water takes several seconds to spread properly". Measured on the real
+server (15 Hz ticks): away from the seam a spread was always right, just slow (~1.9 s after the last click);
+two real bugs made it worse.
+
+- **#2447 the X seam** — the world wraps X into `[0, circumference)`, the fluid bookkeeping did not: levels, falling
+  flags and the woken set were keyed by `pos ± 1`, so water reaching x = 0 from both sides gave one cell two
+  spellings, and a flowing cell read under the one without a level row passed for a source. Two blocks at x = ±3:
+  not at rest after 30 s, 806 cells too many, over every edge. Every first spawn lies at or near x = 0 (five seeds:
+  0–108 blocks away). Now every structure is keyed by `FluidCell` (canonical); `LoadFluidState` moves old rows to
+  the canonical cell (higher level wins). Floods already in a save stay (Marcel's call — not distinguishable from
+  placed water).
+- **#2448 the wake on placement** — `RegisterFluidSource` queued only the new cell; a source spreads into air only,
+  so water placed into a resting pond never grew it (one click per second: 52 cells missing). It now queues the six
+  neighbours too, without reading them (#1824: no chunk generated at the loaded edge).
+- **#2449 the pace** — `FluidInterval` 0.25 → 0.125 s (seven cells in ~1 s); lava steps every fourth step
+  (`LavaStepEvery`, still one cell per 0.5 s); the parked re-check stays ~1 s (`UnparkEverySteps`); sand keeps its
+  own 0.25 s (`GranularInterval`). After the fix every measured case (1–49 sources, 1–10 clicks/s, at the seam and
+  away) settles ~0.9 s after the last click with exactly the expected footprint.
+- **#2450 lock-HUD diagnosis** — a second player (dr-Tikool, v2026.10.10) hit the #2428 overflow via the on-screen
+  frame label; the crash is fixed since v2026.10.11, but the planned drop-and-log never shipped
+  (`SpaceDistance.IsPlausible` had no caller). `DrawLockMarker` now releases a lock beyond 4× the flight clamp and
+  logs source, id, kind and positions (once per 30 s per lock) — the next F1 report names the culprit.
+- Tests: `FluidTests` (seam, resting pond, pace, legacy row), `GranularBlockTests.Lava_MovesOnEveryFourthWaterStep`.
+  Docs: WORLD_GENERATION §live flow, USER_MANUAL (water/lava pace).
+- Open: the culprit behind the absurd lock positions (wait for a report with the new log line). Other per-cell sets
+  are keyed raw too: the granular woken set is harmless (no per-cell state, a cell processed twice re-reads the
+  world), the fire set + burn timers (`GameServerFire.cs`) could hold one cell twice at the seam — not verified.
+
 ### ⚙️ CI: test matrix 6 → 10 shards (2026-10-09) — ✅ done (released in v2026.10.11)
 
 The fast tier grew from 2 549 predicted test-seconds (2026-08-04) to 14 100 (2026-10-07, +55 % in four weeks); six shards carried

@@ -626,8 +626,8 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   **obsidian**, a flowing lava **tongue** cools to **basalt**. Place water onto a lava pool and the pool is
   quenched to obsidian in place; place it beside lava and the neighbouring lava crusts over while the water
   stays. Water flowing into lava still chills to obsidian at the contact face.
-- **Lava is slow, water is quick**: lava creeps at half the speed water flows, so a breached crater gives
-  you time to step back.
+- **Lava is slow, water is quick**: placed water runs about seven blocks in a second, while lava creeps one
+  block every half second — a quarter of the water's pace — so a breached crater gives you time to step back.
 - **Lava and fire burn everybody**: animals, robbers and Guardian machines take contact damage exactly as
   you do (lava −15/s, fire −10/s), so a flooded fire trench really defends a base. Land animals are kept out
   of a lava column anyway and mostly never reach it; what burns is what flies in, what was inside when you

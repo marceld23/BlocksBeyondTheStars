@@ -2093,7 +2093,7 @@ public sealed partial class GameServer
                 if (on)
                 {
                     state.ClosedSpouts.Remove(c.Cell);
-                    _activeFluid.Add(c.Cell); // wake it so it pours again
+                    WakeFluidCell(c.Cell); // wake it so it pours again
                 }
                 else
                 {
@@ -2183,7 +2183,7 @@ public sealed partial class GameServer
 
         if (c.Kind == CrystalDeviceKind.Spout)
         {
-            _activeFluid.Add(c.Cell);
+            WakeFluidCell(c.Cell);
         }
 
         if (relight && CrystalNetRules.PlainKeyFor(c.Kind) is not null)

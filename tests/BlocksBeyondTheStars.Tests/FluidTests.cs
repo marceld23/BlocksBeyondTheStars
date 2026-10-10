@@ -689,6 +689,178 @@ public sealed class FluidTests : IDisposable
         }
     }
 
+    // ---------------- #2447 the seam · #2448 the wake on placement · #2449 the pace ----------------
+
+    private const double ServerTick = 1.0 / 15.0; // the default tick rate
+
+    /// <summary>A stone floor in the air column under layer <paramref name="y"/>, centred on x = <paramref name="cx"/>,
+    /// and a builder with water standing over its middle.</summary>
+    private BlocksBeyondTheStars.GameServer.PlayerSession Slab(SvGameServer server, int cx, int y, int half)
+    {
+        var stone = _content.GetBlock("stone")!.NumericId;
+        for (int x = cx - half; x <= cx + half; x++)
+        {
+            for (int z = -half; z <= half; z++)
+            {
+                server.World.SetBlock(new Vector3i(x, y - 1, z), stone);
+            }
+        }
+
+        var p = Builder(server, ("water", 32));
+        p.State.Position = new Vector3f(cx + 0.5f, y + 2f, 0.5f);
+        return p;
+    }
+
+    /// <summary>Places a water block the way a click does (the real placement path), standing right above the cell.</summary>
+    private static void PlaceWater(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession p, Vector3i cell)
+    {
+        p.State.Position = new Vector3f(cell.X + 0.5f, cell.Y + 2f, cell.Z + 0.5f);
+        server.PlaceBlock("Builder", cell.X, cell.Y, cell.Z, "water");
+    }
+
+    /// <summary>Ticks at the server's real rate until no fluid cell is woken; the seconds that took, ∞ past the limit.</summary>
+    private static double SettleSeconds(SvGameServer server, double limit = 10)
+    {
+        for (double t = ServerTick; t < limit; t += ServerTick)
+        {
+            server.TickForTest(ServerTick);
+            if (server.ActiveFluidCountForTest == 0 && server.ParkedFluidCountForTest == 0)
+            {
+                return t;
+            }
+        }
+
+        return double.PositiveInfinity;
+    }
+
+    /// <summary>The water on layer <paramref name="y"/> must be exactly the diamonds of radius 7 around the sources —
+    /// nothing missing, nothing beyond.</summary>
+    private void AssertIdealPond(SvGameServer server, int y, int cx, int half, params Vector3i[] sources)
+    {
+        var water = _content.GetBlock("water")!.NumericId.Value;
+        for (int x = cx - half; x <= cx + half; x++)
+        {
+            for (int z = -half; z <= half; z++)
+            {
+                int d = sources.Min(s => Math.Abs(s.X - x) + Math.Abs(s.Z - z));
+                bool wet = server.World.GetBlock(new Vector3i(x, y, z)).Value == water;
+                Assert.True(wet == (d <= 7), $"cell ({x}, {y}, {z}), {d} from the nearest source: water = {wet}");
+            }
+        }
+    }
+
+    [Fact]
+    public void WaterFromBothSidesOfTheSeam_ComesToRestLikeAnywhereElse()
+    {
+        // #2447: x = 0 is where the world wraps, and every first spawn lies at or near it. Water flowing east from a
+        // block placed at x = −3 (stored as circumference − 3) and west from one at x = +3 used to meet there under
+        // two spellings of one cell. Read under the one without a level row, a flowing cell passed for a source, and
+        // the seam flooded without end (measured before the fix: not at rest after 30 s, 800 cells too many).
+        var server = Started(out var repo);
+        using (repo)
+        {
+            int y = 131;
+            var p = Slab(server, 0, y, 20);
+            var west = new Vector3i(-3, y, 0);
+            var east = new Vector3i(3, y, 0);
+            PlaceWater(server, p, west);
+            PlaceWater(server, p, east);
+
+            double settled = SettleSeconds(server);
+            Assert.True(settled < 3, $"water across the seam should come to rest like anywhere else (took {settled:0.0} s)");
+            AssertIdealPond(server, y, 0, 20, west, east);
+        }
+    }
+
+    [Fact]
+    public void WaterPlacedIntoARestingPond_WakesTheNeighbours_AndThePondGrows()
+    {
+        // #2448: a click on a pond puts the new block INTO the water cell under the crosshair (#851). A source only
+        // spreads into air, so the flowing cells around it kept their old level, and a pond at rest never grew to
+        // the size its new source gives it.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            int y = 131, cx = 200; // well away from the seam
+            var p = Slab(server, cx, y, 20);
+            var first = new Vector3i(cx, y, 0);
+            PlaceWater(server, p, first);
+            Assert.True(SettleSeconds(server) < 3, "the first pond should come to rest");
+
+            var second = new Vector3i(cx + 4, y, 0); // a flowing cell of the resting pond
+            PlaceWater(server, p, second);
+            Assert.True(SettleSeconds(server) < 3, "the grown pond should come to rest");
+            AssertIdealPond(server, y, cx, 20, first, second);
+        }
+    }
+
+    [Fact]
+    public void Water_SpreadsSevenCellsInAboutASecond_LavaKeepsHalfASecondPerCell()
+    {
+        // #2449: one fluid step every 0.125 s — on the 15 Hz tick, every second tick — so a full spread takes about a
+        // second (it took ~1.9 s). Lava sits out three steps of four and keeps its old pace (#1316).
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var water = _content.GetBlock("water")!.NumericId.Value;
+            var lava = _content.GetBlock("lava")!.NumericId.Value;
+            int y = 131;
+            for (int x = -1; x <= 10; x++)
+            {
+                server.World.SetBlock(new Vector3i(x, y - 1, 0), stone);
+                server.World.SetBlock(new Vector3i(100 + x, y - 1, 0), stone);
+            }
+
+            server.PlaceFluidSource("water", 0, y, 0);
+            server.PlaceFluidSource("lava", 100, y, 0);
+            for (int i = 0; i < 15; i++)
+            {
+                server.TickForTest(ServerTick); // one second
+            }
+
+            Assert.Equal(water, server.World.GetBlock(new Vector3i(7, y, 0)).Value); // the seventh cell, after one second
+            Assert.True(server.World.GetBlock(new Vector3i(8, y, 0)).IsAir, "water reaches seven cells, not eight");
+
+            int lavaReach = Enumerable.Range(1, 8).LastOrDefault(dx => server.World.GetBlock(new Vector3i(100 + dx, y, 0)).Value == lava);
+            Assert.InRange(lavaReach, 1, 2); // seven steps hold one or two lava steps: one cell per ~0.5 s
+        }
+    }
+
+    [Fact]
+    public void ALevelRowSavedUnderTheOldSpelling_LoadsUnderTheCanonicalCell()
+    {
+        // #2447: rows written before the keys were canonical carry the raw coordinate (x = −1 for the cell the world
+        // stores as circumference − 1). On load they move to the one spelling, so the cell is a FLOWING cell for every
+        // reader — never a phantom source — and dries up once nothing feeds it.
+        var stone = _content.GetBlock("stone")!.NumericId;
+        var water = _content.GetBlock("water")!.NumericId;
+        int y = 140;
+
+        var server1 = Started(out var repo1);
+        string location = server1.World.LocationId;
+        int circumference = server1.World.Circumference;
+        server1.World.SetBlock(new Vector3i(-1, y - 1, 0), stone);
+        server1.World.SetBlock(new Vector3i(-1, y, 0), water);
+        repo1.SaveFluidCell(location, new Vector3i(-1, y, 0), 3, falling: false); // the old, raw spelling
+        repo1.Dispose(); // restart on the same save
+
+        var server2 = Started(out var repo2);
+        using (repo2)
+        {
+            var rows = repo2.ListFluidCells(location);
+            Assert.Contains(rows, r => r.WorldPosition.Equals(new Vector3i(circumference - 1, y, 0)) && r.Level == 3);
+            Assert.DoesNotContain(rows, r => r.WorldPosition.X < 0);
+
+            for (int i = 0; i < 4; i++)
+            {
+                server2.Tick(0.3);
+            }
+
+            Assert.True(server2.World.GetBlock(new Vector3i(-1, y, 0)).IsAir, "an unfed flowing cell must dry up, not stand as a source");
+        }
+    }
+
     public void Dispose()
     {
         try
