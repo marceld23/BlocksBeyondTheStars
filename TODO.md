@@ -24,7 +24,26 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🚀 Travel from a parked ship plays take-off → (warp) → landing (#1614 client half, 2026-10-10, branch feat/1614-travel-sequences; server half #1676 + map lock #2314 by ahmdkaml, who is co-author here) — ✅ done (released in v2026.10.12; ⚠ playtest open)
+### ⚙️ CI long poles: world-gen caches no longer build under a shared lock (#2455), the settlement sweeps split up (#2456) (2026-10-10, branch fix/ci-shard-long-poles) — ✅ done
+
+Found while shipping v2026.10.12: the PR gate's shard 7 tripped the 120 s guard three times in a row (520/520 passed,
+a different test each time), and the full tier's shard 2 ran ~8 min longer than the rest.
+
+- **#2455 — the cause was lock starvation, not slow tests.** `CalibFor` took the process-wide `_calibLock` on every
+  column and built a missing calibration (~17 k height samples) under it; `RiverFieldFor` did the same with the ~300 ms
+  river build. A test that creates world after world (`OilSeepsWorldTests`, `SettlementStampTests`) held the lock almost
+  continuously, and every server test on the other workers stalled on its per-column lookups (TRX: three server tests
+  106–122 s together, one ending in the same 0.1 s as the world-gen test next to it). Now `WorldDataCache<T>` (the lock
+  only guards the bookkeeping, a missing entry is built outside it once per key) plus an instance `WorldSlot<T>` for the
+  lock-free hit (like `_wonderSlot`). Output bit-identical (pure functions of the key; `_calibrating` is `[ThreadStatic]`).
+  Local A/B on the four classes involved: **375 s → 166 s** wall, 1 238 → 417 test-seconds, no test over 100 s (was 4).
+- **#2456 — `SettlementOverhaulTests` held two `Slow` sweeps (150 server boots, ~800 s in one class).** They moved to
+  `SettlementPadClearanceTests` and `SettlementRuinSkewTests`, each running its seeds on two `Parallel.Invoke` workers;
+  `SettlementTestWorlds` boots settlement-only servers (nothing stamped after the settlements — same settlements, pads
+  and counts, 1–3.5 s less per boot), used by all three classes. Slow weights: 774 s → 140 s + 265 s (estimated from the
+  CI times; refresh from the first full-tier run on main). Docs: SERVER_TESTING.md (fixture + shared-cache rule).
+
+### 🚀 Travel from a parked ship plays take-off → (warp) → landing (#1614 client half, 2026-10-10, branch feat/1614-travel-sequences; server half #1676 + map lock #2314 by ahmdkaml, who is co-author here) — ✅ done (released in v2026.10.12; playtested by Marcel 2026-10-10)
 
 Map travel from a landed ship used to be an instant world swap. The server half (#1676) already launched the ship and
 waited for the client's signal, but the client side was missing: the landing aimed at whatever lay ahead of the nose, a
@@ -52,8 +71,7 @@ from the ground hung forever in the take-off (the server had jumped before the t
   14 `ui.credits.body`).
 - **✅ Korean label (release PR v2026.10.12):** `ui.map.hyperjump_here` read "이 항성계로 초점 이동" ("move the focus to this
   system") — now "이 항성계로 하이퍼점프". Found while translating the release post; the other eleven community labels are fine.
-- **⚠ Playtest:** the three cases from the issue in the real game (same system, other system, "Hyperjump to this
-  system" from the ground) plus a jump from a flying ship; a second player on the origin/target watching the ship.
+- **✅ Playtest:** done by Marcel on v2026.10.12 (2026-10-10).
 
 ### 💧 Water at the seam, waking on placement, twice the pace + lock-HUD diagnosis (2026-10-10) — issues #2447–#2450, branch fix/water-seam-speed — ✅ done (released in v2026.10.12)
 

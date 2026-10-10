@@ -241,29 +241,24 @@ public sealed partial class WorldGenerator
     // rebuilds the identical field — no network snapshot. See the plan doc.
     // STATIC like the calibration cache: the field is a pure function of (world seed, planet, size,
     // cratered, body salt), and fresh generator instances (tests, client preview bakes) would otherwise
-    // re-run the ~300 ms network build per instance.
-    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool, bool, int), RiverField> _riverFields = new();
-    private static readonly object _riverLock = new object();
-    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool, bool, int)> _riverOrder = new();
+    // re-run the ~300 ms network build per instance. #2455: built outside the shared lock, read through the
+    // instance slot (this is asked per column).
+    private static readonly WorldDataCache<RiverField> _riverFields = new(8); // #1527: a ship alternating past 8 bodies no longer re-runs the ~300 ms build
+    private WorldSlot<RiverField>? _riverSlot;
 
     /// <summary>This world's routed river placement (built once per world, then cached). Empty on worlds that
     /// get no rivers (no water sea, or WaterAbundance below the river threshold).</summary>
     public RiverField RiverFieldFor(PlanetType planet)
     {
         var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled, _lavaCoreVolcanoes, _terrainGeneration);
-        lock (_riverLock)
+        if (_riverSlot is { } fast && fast.Key == key)
         {
-            if (_riverFields.TryGetValue(key, out var cached))
-            {
-                return cached;
-            }
-
-            var field = BuildRiverField(planet);
-            EvictOldest(_riverFields, _riverOrder, 8); // #1527: a ship alternating past 8 bodies no longer re-runs the ~300 ms build
-            _riverFields[key] = field;
-            _riverOrder.Enqueue(key);
-            return field;
+            return fast.Value;
         }
+
+        var field = _riverFields.TryGet(key, out var hit) ? hit : _riverFields.GetOrBuild(key, () => BuildRiverField(planet));
+        _riverSlot = new WorldSlot<RiverField>(key, field);
+        return field;
     }
 
     /// <summary>Whether this type routes LAVA rivers into its lava sea (#1644: the `volcanic` tag — formerly

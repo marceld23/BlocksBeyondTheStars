@@ -53,43 +53,44 @@ public sealed partial class WorldGenerator
     // STATIC cache: the calibration is a pure function of (world seed, planet, circumference, cratered,
     // body salt), so it is safe — and important — to share across generator instances: the client bakes a
     // fresh WorldGenerator per minimap/orbit texture and the tests spin up hundreds, each of which would
-    // otherwise re-sample ~17k heights + 2×4096 field points.
-    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool, bool, int), WorldCalibration> _calibs = new();
-    private static readonly object _calibLock = new object();
-    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool, bool, int)> _calibOrder = new();
+    // otherwise re-sample ~17k heights + 2×4096 field points. #2455: built outside the shared lock and read through
+    // the instance slot, so one world calibrating never stalls the column lookups of another.
+    private static readonly WorldDataCache<WorldCalibration> _calibs = new(64); // #1527: entries are ~150 KB each
+    private WorldSlot<WorldCalibration>? _calibSlot;
 
     private WorldCalibration CalibFor(PlanetType planet)
     {
         var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled, _lavaCoreVolcanoes, _terrainGeneration);
-        lock (_calibLock)
+        if (_calibSlot is { } fast && fast.Key == key)
         {
-            if (_calibs.TryGetValue(key, out var cached))
-            {
-                return cached;
-            }
-
-            WorldCalibration calib;
-            bool outer = !_calibrating;
-            _calibrating = true; // #1631: cones sample without the sea-mount lift while the sea is unknown
-            try
-            {
-                calib = BuildCalibration(planet);
-            }
-            finally
-            {
-                _calibrating = !outer;
-            }
-
-            EvictOldest(_calibs, _calibOrder, 64); // #1527: oldest-out — entries are ~150 KB each
-            _calibs[key] = calib;
-            _calibOrder.Enqueue(key);
-            if (outer)
-            {
-                InvalidateColumnCaches(); // #1631: drop the un-lifted cone columns memoised during the sample
-            }
-
-            return calib;
+            return fast.Value;
         }
+
+        var calib = _calibs.TryGet(key, out var hit) ? hit : _calibs.GetOrBuild(key, () => Calibrate(planet));
+        _calibSlot = new WorldSlot<WorldCalibration>(key, calib);
+        return calib;
+    }
+
+    private WorldCalibration Calibrate(PlanetType planet)
+    {
+        WorldCalibration calib;
+        bool outer = !_calibrating;
+        _calibrating = true; // #1631: cones sample without the sea-mount lift while the sea is unknown
+        try
+        {
+            calib = BuildCalibration(planet);
+        }
+        finally
+        {
+            _calibrating = !outer;
+        }
+
+        if (outer)
+        {
+            InvalidateColumnCaches(); // #1631: drop the un-lifted cone columns memoised during the sample
+        }
+
+        return calib;
     }
 
     private WorldCalibration BuildCalibration(PlanetType planet)

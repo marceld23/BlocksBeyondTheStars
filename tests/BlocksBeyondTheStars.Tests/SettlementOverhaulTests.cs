@@ -3,9 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Linq;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
-using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
@@ -15,39 +13,18 @@ namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
 /// The multi-settlement overhaul: a world can hold several settlements whose count scales with the world's
-/// hospitability and size (with high variance); they never overlap landing pads or each other; harsh worlds
-/// skew to ruins; floating-island worlds can host sky settlements. Plus the weather/atmosphere gating (no
-/// clouds/weather without an atmosphere).
+/// hospitability and size (with high variance); they never overlap each other; floating-island worlds can host sky
+/// settlements. Plus the weather/atmosphere gating (no clouds/weather without an atmosphere). The two slow sweeps —
+/// no settlement on a landing pad, harsh worlds skew to ruins — live in <see cref="SettlementPadClearanceTests"/> and
+/// <see cref="SettlementRuinSkewTests"/>, so the shard packer can place them apart (#2456).
 /// </summary>
 public sealed class SettlementOverhaulTests : IDisposable
 {
-    private readonly string _root;
-    private readonly GameContent _content;
-
-    public SettlementOverhaulTests()
-    {
-        _root = Path.Combine(Path.GetTempPath(), "bbts_settle_overhaul_" + Guid.NewGuid().ToString("N"));
-        _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-    }
+    private readonly SettlementTestWorlds _worlds = new();
+    private readonly GameContent _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
 
     private SvGameServer Started(string planet, long seed, out SqliteWorldRepository repo)
-    {
-        repo = new SqliteWorldRepository(new SaveGamePaths(_root, planet + seed));
-        var st = new LoopbackServerTransport(new LoopbackLink());
-        var config = new ServerConfig
-        {
-            WorldName = planet + seed,
-            Seed = seed,
-            StartPlanet = planet,
-            AutoSaveIntervalMinutes = 9999,
-            PlaceStarterShip = false,
-            PlaceSettlements = true,
-            PlaceWrecks = false,
-        };
-        var server = new SvGameServer(config, _content, st, repo);
-        server.Start();
-        return server;
-    }
+        => _worlds.Start(_content, planet, seed, out repo);
 
     [Fact]
     public void LushWorld_CanHaveSeveralSettlements()
@@ -60,36 +37,6 @@ public sealed class SettlementOverhaulTests : IDisposable
         }
 
         Assert.True(maxFound >= 2, $"A lush, large world should sometimes have multiple settlements (saw at most {maxFound}).");
-    }
-
-    [Fact]
-    [Trait("Category", "Slow")]
-    public void Settlements_NeverSitOnALandingPad()
-    {
-        for (long seed = 1; seed <= 30; seed++)
-        {
-            var server = Started("jungle", seed, out var repo);
-            using (repo)
-            {
-                if (!server.HasSettlement)
-                {
-                    continue;
-                }
-
-                int circ = server.World.Circumference;
-                foreach (var s in server.SettlementsForTest)
-                {
-                    foreach (var pad in server.LandingPadCenters)
-                    {
-                        int dx = WorldConstants.WrapDeltaX(pad.X - s.MinX, circ);
-                        bool insideX = dx >= 0 && dx <= s.MaxX - s.MinX;
-                        bool insideZ = pad.Z >= s.MinZ && pad.Z <= s.MaxZ;
-                        Assert.False(insideX && insideZ,
-                            $"seed {seed}: a landing pad ({pad.X},{pad.Z}) fell inside a settlement footprint.");
-                    }
-                }
-            }
-        }
     }
 
     [Fact]
@@ -151,21 +98,6 @@ public sealed class SettlementOverhaulTests : IDisposable
     }
 
     [Fact]
-    [Trait("Category", "Slow")]
-    public void HarshWorlds_SkewToRuins_MoreThanLushWorlds()
-    {
-        var (iceInhab, iceRuin) = CountKinds("ice", 60);
-        var (jungInhab, jungRuin) = CountKinds("jungle", 60);
-
-        double iceRuinFrac = iceRuin / (double)Math.Max(1, iceInhab + iceRuin);
-        double jungRuinFrac = jungRuin / (double)Math.Max(1, jungInhab + jungRuin);
-
-        Assert.True(iceRuin + iceInhab > 0 && jungRuin + jungInhab > 0, "Both planets should produce settlements.");
-        Assert.True(iceRuinFrac > jungRuinFrac,
-            $"A harsh world should have a higher ruin fraction (ice {iceRuinFrac:F2} vs jungle {jungRuinFrac:F2}).");
-    }
-
-    [Fact]
     public void FloatingIslandWorld_CanPlaceSkySettlements()
     {
         bool sawIslandSettlement = false;
@@ -176,22 +108,6 @@ public sealed class SettlementOverhaulTests : IDisposable
         }
 
         Assert.True(sawIslandSettlement, "A floating-island world should sometimes place a settlement on a sky island.");
-    }
-
-    private (int Inhabited, int Ruined) CountKinds(string planet, int seeds)
-    {
-        int inhab = 0, ruin = 0;
-        for (long seed = 1; seed <= seeds; seed++)
-        {
-            var server = Started(planet, seed, out var repo);
-            using (repo)
-            {
-                inhab += server.InhabitedSettlementCount;
-                ruin += server.SettlementCount - server.InhabitedSettlementCount;
-            }
-        }
-
-        return (inhab, ruin);
     }
 
     private static bool RectsOverlap(
@@ -210,13 +126,5 @@ public sealed class SettlementOverhaulTests : IDisposable
         return dx <= aHw + bHw;
     }
 
-    public void Dispose()
-    {
-        try
-        {
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-            if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
-        }
-        catch { }
-    }
+    public void Dispose() => _worlds.Dispose();
 }

@@ -53,6 +53,11 @@ start there**. These three show the ladder, simplest first:
   (a missing key renders as literal `[some.key]` in game instead of failing loudly).
 - **Temp state**: `Path.Combine(Path.GetTempPath(), "bbts_<topic>_" + Guid.NewGuid().ToString("N"))`
   plus `IDisposable` cleanup — never share paths between tests; the suite runs 4-way parallel.
+- **`SettlementTestWorlds`** ([SettlementTestWorlds.cs](../../tests/BlocksBeyondTheStars.Tests/SettlementTestWorlds.cs))
+  boots settlement-only servers: settlements and landing pads exactly as on a full world, without the
+  structures stamped after them (rail, ruins, camps, factories …), which only read the settlement list.
+  Use it for sweeps over many seeds (#2456); a sweep of independent boots can also split its seeds over
+  `Parallel.Invoke` workers, each with its own `GameContent` (see `SettlementRuinSkewTests`).
 
 ## What "meaningful" means here (the tautology trap)
 
@@ -112,6 +117,17 @@ first-PR traps:
   `DisableParallelization`, so its classes run in the runner's sequential phase where the queue is
   empty; it costs a few seconds of serial window. Marking such a test `Slow` instead would hide
   the symptom and drop the coverage from every PR.
+- **A test that is slow only next to other tests may be starving on a shared world-gen cache.**
+  `WorldGenerator` keeps its per-world derived data (calibration, river field …) in process-wide
+  caches. When such a cache builds — or merely looks up — under one static lock, a test that creates
+  world after world holds that lock almost continuously, and `Monitor` is not fair: every other world
+  in the test host stalls on its per-column lookups. That was the PR gate's shard 7 tripping the 120 s
+  guard on a different test each run (#2455) — server tests measured 106–166 s next to
+  `OilSeepsWorldTests` and `SettlementStampTests`; locally the same four classes went from 375 s to
+  166 s once the caches stopped building under their lock. A new shared cache goes through
+  `WorldDataCache<T>` (the lock only guards the bookkeeping; a missing entry is built outside it, once
+  per key) plus an instance `WorldSlot<T>` for the lock-free hit
+  ([WorldGenerator.SharedCaches.cs](../../src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.SharedCaches.cs)).
 
 ## Joins built by hand need the content fingerprint (#2222)
 
