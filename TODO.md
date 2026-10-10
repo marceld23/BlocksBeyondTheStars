@@ -59,8 +59,10 @@ two real bugs made it worse.
 The fast tier grew from 2 549 predicted test-seconds (2026-08-04) to 14 100 (2026-10-07, +55 % in four weeks); six shards carried
 ~2 350 s each — a 10–12 min tail on a normal runner, 14–16 min on a slow one, where the 120 s per-test guardrail began tripping on
 queue/lock waits (PR #2442 needed a rerun for exactly that). `tests.yml` now fans out over ten shards (~1 400 s each, 7–8 min);
-DEVELOPER.md §CI carries the numbers. Marcel's call after the analysis. Open: refresh `scripts/test-shard-weights.json` from a
-ten-shard fast-tier run once a few PRs have gone through (the new classes of #2442 are still guessed at 10 s).
+DEVELOPER.md §CI carries the numbers. Marcel's call after the analysis. ✅ Weights refreshed 2026-10-10 (PR for #2447–#2450):
+that PR's ten-shard run measured shard 10 at 2 209 test-seconds against 1 205–1 547 on the others (all predicted at 1 461), and the
+120 s guardrail tripped twice on tests merely stalled there; re-derived from the main full-tier run + that PR run (15 032 fast-tier
+seconds, 443 classes) the packer predicts ~1 547 s on every shard.
 
 ### 📬 Player reports 2026-10-09 (Layex + Screelit, two-player Sandbox afternoon on v2026.10.10) — epic #2441, branch fix/player-reports-1009 — ✅ done (released in v2026.10.11, terrain generation 23; ⚠ playtest open)
 
