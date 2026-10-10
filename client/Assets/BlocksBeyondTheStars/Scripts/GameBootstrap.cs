@@ -842,7 +842,8 @@ namespace BlocksBeyondTheStars.Client
         }
         public bool InSpace { get; private set; }
         public bool SpaceSkipLaunch { get; private set; }    // entered space already airborne (helm) → no take-off anim
-        public bool SpaceAutomaticTransit { get; private set; } // #1614: this flight is an automatic landed-ship transit (launch → signal → landing)
+        public bool SpaceAutomaticTransit { get; private set; } // #1614: this flight is an automatic landed-ship transit (take-off → [warp] → landing, hands-off)
+        public string SpaceTransitDestination { get; private set; } = string.Empty; // #1614: …the body it lands on (empty: it ends in flight)
         public bool SpaceHasResume { get; private set; }     // #2118: this flight resumes where the ship floated (helm / airlock / undock to EVA)
         public Vector3 SpaceResumePos { get; private set; }  // …its position in the flight scene
         public float SpaceResumeYaw { get; private set; }    // …and its heading (degrees)
@@ -2724,7 +2725,6 @@ namespace BlocksBeyondTheStars.Client
                 if (!InSpace)
                 {
                     SpaceSkipLaunch = m.SkipLaunch; // latched on entry only (later updates don't re-trigger Enter)
-                    SpaceAutomaticTransit = m.AutomaticTransit; // #1614: latched with it — the launch sequence reads it once it ends
                     SpaceHasResume = m.HasResumePose; // #2118: latched with it — the flight view places the ship there on Enter
                     SpaceResumePos = new Vector3(m.ResumeX, m.ResumeY, m.ResumeZ);
                     SpaceResumeYaw = m.ResumeYaw;
@@ -2737,6 +2737,11 @@ namespace BlocksBeyondTheStars.Client
                         WormholeArrived?.Invoke(); // #2242: through a rift — the rift transit instead of the warp
                     }
                 }
+
+                // #1614: not latched — the server re-sends the state with the transit off when it ends in flight (a
+                // refused landing), and the flight view hands the controls back the moment it reads that.
+                SpaceAutomaticTransit = m.AutomaticTransit;
+                SpaceTransitDestination = m.TransitDestinationBodyId ?? string.Empty;
 
                 // #1565: an in-flight hyperjump lands nowhere, so no WorldReset renames the HUD — the flight
                 // state names its system + anchor body itself. Same composition as OnWorldReset.

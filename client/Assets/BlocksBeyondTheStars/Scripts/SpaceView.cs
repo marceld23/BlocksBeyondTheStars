@@ -192,6 +192,8 @@ namespace BlocksBeyondTheStars.Client
         private const float SeqDuration = 1.6f;
         private const float LandDuration = 2.2f;  // landing flies the ship away toward the planet — a touch longer so the shrink reads
         private const float BoardDuration = 1.2f; // dock-approach animation before boarding a station
+        private const float TransitWarpHold = 2.2f; // #1614: a transit's arrival from the warp holds past the warp's flash (1.95 s) before it lands
+        private const float TransitFallback = 9f;   // #1614: no answer this long after reporting a stage (server gives up at 6 s) → controls back
         private const float DockApproachStandOff = 14f;  // #1917: the approach lines up this far in front of the hangar mouth
         private const float DockApproachArrive = 12f;    // #1917: autopilot / chart arrival radius around that point
         private const float DockMouthStandOff = 2.5f;    // #1917: the dock animation ends this far in front of the mouth's field
@@ -206,7 +208,8 @@ namespace BlocksBeyondTheStars.Client
         private const float EvaBoardRange = 11f;   // how close the suit must get to the hull to board the ship
         private const float ShipKeepOut = 3.5f;    // suit can't fly into its own ship — bounce off the hull shell
 
-        private enum Phase { Launch, Cruise, Landing, Boarding }
+        // Transit (#1614): an automatic transit has just warped into the destination's system — hands-off until it lands.
+        private enum Phase { Launch, Cruise, Landing, Boarding, Transit }
 
         private GameObject _root;
         private GameObject _ship;
@@ -415,7 +418,8 @@ namespace BlocksBeyondTheStars.Client
         private bool _combatSubscribed;
         private bool _hyperjumpSubscribed;
         private bool _hyperjumping; // a hyperspace jump is tearing down the view (warp covers it, no landing)
-        private bool _transitLaunchDone; // #1614: the automatic transit's launch-done signal was sent (once per flight)
+        private bool _transitLaunchDone; // #1614: this flight's transit stage was reported to the server (once per flight)
+        private float _transitWait;      // #1614: seconds since that report — the fallback hands the controls back
         private string _sceneInstance; // flight instance the current scene was built for (#1677)
         private bool _shipDestroyed; // the ship blew up in space — tear down at once (explosion stays, no landing descent)
 
@@ -573,7 +577,10 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                if (_phase != Phase.Landing)
+                // #1614: a transit's take-off toward another system ends with this flight closing for the warp — the
+                // new system's flight state is on its way (normally in the same network batch). No landing in between.
+                bool warpComing = _phase == Phase.Launch && _transitLaunchDone && _transitWait < TransitFallback && TransitWarpsNext();
+                if (_phase != Phase.Landing && !warpComing)
                 {
                     _phase = Phase.Landing;
                     _seq = 0f;
@@ -625,6 +632,7 @@ namespace BlocksBeyondTheStars.Client
                 case Phase.Launch: UpdateSequence(rising: true); break;
                 case Phase.Landing: UpdateSequence(rising: false); break;
                 case Phase.Boarding: UpdateBoarding(); break;
+                case Phase.Transit: UpdateTransitArrival(); break;
                 default: if (_eva) { UpdateEva(); } else { UpdateCruise(); } break;
             }
 
@@ -1327,17 +1335,74 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (Game.SpaceAutomaticTransit)
                 {
-                    if (!_transitLaunchDone)
-                    {
-                        _transitLaunchDone = true;
-                        Game.Network?.SendTransitLaunchDone();
-                    }
-
+                    // #1614: hold at the top of the climb, hands-off, until the server answers with the next stage —
+                    // the landing (the descent starts when the flight closes) or the warp into the destination's system.
+                    HoldForTransit();
                     return;
                 }
 
                 _phase = Phase.Cruise;
             }
+        }
+
+        /// <summary>#1614: the arrival of a transit's warp in the destination's system. The ship holds, hands-off, until
+        /// the warp has played, then reports it; the server lands the ship and the usual descent takes over.</summary>
+        private void UpdateTransitArrival()
+        {
+            _seq += Time.deltaTime;
+            if (!Game.SpaceAutomaticTransit)
+            {
+                _phase = Phase.Cruise; // the transit ended in flight (a refused landing) — the pilot takes over
+                return;
+            }
+
+            if (_seq >= TransitWarpHold)
+            {
+                HoldForTransit();
+            }
+        }
+
+        /// <summary>#1614: reports the played stage once, then waits for the server's next stage. Should no answer ever
+        /// come (a lost packet), the pilot gets the controls back after <see cref="TransitFallback"/> instead of hanging.</summary>
+        private void HoldForTransit()
+        {
+            if (!_transitLaunchDone)
+            {
+                _transitLaunchDone = true;
+                _transitWait = 0f;
+                Game.Network?.SendTransitLaunchDone();
+            }
+
+            _transitWait += Time.deltaTime;
+            if (_transitWait > TransitFallback)
+            {
+                _phase = Phase.Cruise;
+            }
+        }
+
+        /// <summary>#1614: whether the transit's next stage is the warp rather than the landing — its destination is not
+        /// a body of this flight's system, or it has none ("Hyperjump to this system" ends in flight).</summary>
+        private bool TransitWarpsNext()
+        {
+            if (!Game.SpaceAutomaticTransit)
+            {
+                return false;
+            }
+
+            if (_landDestBody == null)
+            {
+                return true;
+            }
+
+            foreach (var b in _landables)
+            {
+                if (b.Id == _landDestBody)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>Atmosphere entry on the landing descent (#2157): a plasma sheath builds around the ship, hottest on its
@@ -3588,6 +3653,11 @@ namespace BlocksBeyondTheStars.Client
             // Taking the helm again from inside the ship (or any "already airborne" entry) drops straight into
             // free flight — no take-off sequence, since you never landed.
             _phase = Game.SpaceSkipLaunch ? Phase.Cruise : Phase.Launch;
+            if (Game.SpaceSkipLaunch && Game.SpaceAutomaticTransit)
+            {
+                _phase = Phase.Transit; // #1614: a transit's warp arrival — no controls until it has landed
+            }
+
             _seq = 0f;
             _yaw = 0f;
             _pitch = 0f;
@@ -3596,6 +3666,7 @@ namespace BlocksBeyondTheStars.Client
             _boardSent = false;
             _hyperjumping = false;
             _transitLaunchDone = false;
+            _transitWait = 0f;
             _shipDestroyed = false;
             _eva = false;
             _enteringInterior = false;
@@ -3606,6 +3677,14 @@ namespace BlocksBeyondTheStars.Client
             ResolveShipFlight();
             BuildScene();
             _sceneInstance = Game.Space != null ? Game.Space.InstanceId : null; // what this scene depicts (#1677)
+
+            // #1614: a transit's landing descent heads for its destination, not for whatever lies ahead of the nose. The
+            // body this flight is anchored on is the scene's home body, which the landables list as "".
+            string transitTo = Game.SpaceAutomaticTransit ? Game.SpaceTransitDestination : string.Empty;
+            _landDestBody = string.IsNullOrEmpty(transitTo) ? null
+                : transitTo == Game.StarMap?.ActiveLocationId ? string.Empty
+                : transitTo;
+
             _flightFov = Camera.fieldOfView;
             _hasLastShipWorld = false;
             _seenPlanetScan = -1;
@@ -5801,6 +5880,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     // #1917: watch the ship fly round to the hangar; fade only as it noses into the mouth.
                     alpha = Mathf.Clamp01((t - 0.75f) / 0.25f);
+                }
+                else if (_phase == Phase.Transit)
+                {
+                    alpha = 0f; // #1614: the warp's tunnel plays over the arrival — nothing to fade
                 }
                 else
                 {

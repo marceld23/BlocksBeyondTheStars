@@ -2558,9 +2558,10 @@ public sealed partial class GameServer
             ResumeY = resume?.Pos.Y ?? 0f,
             ResumeZ = resume?.Pos.Z ?? 0f,
             ResumeYaw = resume?.Yaw ?? 0f,
-            // Automatic landed-ship transit: tell the client that finishing
-            // the launch animation should signal the server to continue.
+            // Automatic landed-ship transit (#1614): the client plays each stage hands-off and reports it, and the
+            // landing descent heads for the destination instead of whatever lies ahead of the nose.
             AutomaticTransit = session.AutomaticTransit,
+            TransitDestinationBodyId = session.AutomaticTransit ? session.PendingTransitBodyId ?? string.Empty : string.Empty,
             SystemName = systemName,
             BodyName = bodyName,
             // Other real pilots PLUS the peaceful NPC traders out here — both ride the flight view's
@@ -2686,8 +2687,7 @@ public sealed partial class GameServer
 
     private void HandleEnterSpace(PlayerSession session)
     {
-        session.AutomaticTransit = false;
-        session.PendingTransitBodyId = null;
+        ClearTransit(session); // a launch from the helm is never a transit (#1614)
         // If the player is inside the ship interior, they are parked in space (the interior is only ever
         // entered from a space instance) — so returning to flight must SKIP the planet take-off animation and
         // restore the ship where it was parked, exactly like the helm (B40). Only a launch from a real planet
@@ -2841,13 +2841,15 @@ public sealed partial class GameServer
     }
 
     private void HandleHyperjumpSystem(PlayerSession session, HyperjumpSystemIntent intent)
-        => HyperjumpToSystem(session.State.PlayerId, intent.SystemId);
+        => HyperjumpToSystem(session.State.PlayerId, intent.SystemId, takeOffFirst: true);
 
     /// <summary>Hyperjumps into a (possibly never-visited) star system, arriving in FLIGHT mode in that
     /// system's space rather than landing — the way to reach a system whose bodies you can't yet see on the
     /// travel screen. Needs a jump generator; from there you fly to its worlds and land manually. Also the
-    /// test/util entrypoint.</summary>
-    public void HyperjumpToSystem(string playerId, string systemId)
+    /// test/util entrypoint. <paramref name="takeOffFirst"/> (#1614) is the pilot's own jump from the map: a parked
+    /// ship plays its take-off before the warp, as an automatic transit. The default jumps at once — the tests and
+    /// tools use it to put a pilot into a system's flight.</summary>
+    public void HyperjumpToSystem(string playerId, string systemId, bool takeOffFirst = false)
     {
         var session = FindSessionByPlayerId(playerId);
         if (session is null)
@@ -2884,9 +2886,43 @@ public sealed partial class GameServer
             return;
         }
 
+        // #1614: from a parked ship the take-off plays first, in the system you leave — the warp and the arrival in
+        // flight follow once the client reports the take-off (AdvanceTransit). An observer has no ship to launch.
+        if (takeOffFirst && !InSpace(playerId) && !session.Spectating)
+        {
+            BeginTransit(session, destinationBodyId: null, system.Id, padIndex: -1);
+            return;
+        }
+
         // Arrive in flight anchored on the system's first landable body (the flight instance is keyed there);
         // you fly to its worlds and land manually from there.
+        ClearTransit(session); // a jump the pilot starts in flight replaces any transit still pending
         var anchor = system.Bodies.FirstOrDefault(b => !string.IsNullOrEmpty(b.PlanetType)) ?? system.Bodies[0];
+        JumpFlightToSystem(session, system, anchor);
+        TellArrivedInFlight(session, system, anchor);
+    }
+
+    /// <summary>The chat line for a jump that arrives in flight. The landing path says where you arrived; the in-flight
+    /// arrival said nothing, so the chat scrollback never told the pilot the jump had happened at all (#1565).</summary>
+    private void TellArrivedInFlight(PlayerSession session, StarSystem system, CelestialBody anchor)
+    {
+        Send(session, new ServerMessage
+        {
+            Text = Localize(session.Locale, "srv.travel.hyperjumped").Replace("{system}", system.Name).Replace("{planet}", anchor.Name),
+        });
+        _log.Info($"Player '{session.State.Name}' hyperjumped into system '{system.Name}' (flight).");
+    }
+
+    /// <summary>Moves a player's flight into <paramref name="system"/> — the warp itself, past every gate: the
+    /// current flight instance closes, the ship and the pilot are re-homed on <paramref name="anchor"/> (the flight
+    /// instance of the new system is keyed there) and a flight state with the warp flag opens. Used by the star-map
+    /// jump and by the warp stage of an automatic transit (#1614), which anchors on its destination so the landing
+    /// descent that follows heads for it.</summary>
+    private void JumpFlightToSystem(PlayerSession session, StarSystem system, CelestialBody anchor)
+    {
+        string playerId = session.State.PlayerId;
+        var origin = _galaxy?.FindBody(session.CurrentLocationId);
+        Serve(session); // _ship = this player's ship
 
         bool wasLanded = !InSpace(playerId);
         // Launching off a surface? Remove the parked ship from the OLD world before we switch systems.
@@ -2898,6 +2934,11 @@ public sealed partial class GameServer
         LeaveSpace(playerId); // tear down any current flight instance (no-op on a surface)
 
         session.CurrentLocationId = anchor.Id;
+        if (origin is not null && origin.Id != anchor.Id)
+        {
+            OnMarkerOwnerLeftWorld(session, origin.Id, disconnected: false); // the players left behind lose this pilot's pings (#1293)
+        }
+
         // #1679: the pad claim belongs to the body we just left. Carried across, it silently reserved that
         // index on the ANCHOR body (PadOccupiedByOther matches index + location) and PlayerPad then trusted it,
         // stamping the first landing on a pad the pilot never claimed — including one a trader was parked on.
@@ -2921,22 +2962,19 @@ public sealed partial class GameServer
             _finaleReturn[playerId] = origin.Id;
         }
 
-        if (wasLanded)
-        {
-            session.AutomaticTransit = true;
-            session.PendingTransitBodyId = null;
-            session.TransitLaunchTimer = 0;
-        }
-
-        EnterSpace(playerId, skipLaunch: !wasLanded, hyperjump: true); // landed ships take off before the warp
+        EnterSpace(playerId, skipLaunch: true, hyperjump: true); // warp in; a parked ship took off before (#1614)
         SendStarMap(session); // refresh the travel screen with the now-known system
-        // The landing path says where you arrived; the in-flight arrival said nothing, so the chat scrollback
-        // never told the pilot the jump had happened at all (#1565).
-        Send(session, new ServerMessage
+    }
+
+    /// <summary>#1614: re-sends the flight state of a pilot whose automatic transit ended without leaving the flight
+    /// (a refused landing) — the client re-reads the transit flag and hands the controls back.</summary>
+    private void ResendSpaceState(PlayerSession session)
+    {
+        if (_playerInstance.TryGetValue(session.State.PlayerId, out var instanceId)
+            && _spaceInstances.TryGetValue(instanceId, out var instance))
         {
-            Text = Localize(session.Locale, "srv.travel.hyperjumped").Replace("{system}", system.Name).Replace("{planet}", anchor.Name),
-        });
-        _log.Info($"Player '{session.State.Name}' hyperjumped into system '{system.Name}' (flight).");
+            SendSpaceState(session, instance, skipLaunch: true);
+        }
     }
 
     /// <summary>Test/util entry: leave space and land on a specific body (system-scale flight landing).</summary>

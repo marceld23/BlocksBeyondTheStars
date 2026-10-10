@@ -180,8 +180,9 @@ public sealed class ServerConfig
     /// (BBTS_AI_TIMEOUT, default 30 s) so the backend's template fallback beats this deadline.</summary>
     public int AiTimeoutSeconds { get; set; } = 35;
 
-    /// <summary>Maximum time (seconds) to wait for the client to report that an automatic landed-ship
-    /// launch has finished before the server completes the pending transit itself.</summary>
+    /// <summary>Maximum time (seconds) to wait for the client to report one stage of an automatic landed-ship
+    /// transit (#1614) — the take-off, or the warp into another system — as played before the server moves the
+    /// transit on by itself. Each stage gets the full time.</summary>
     public double TransitLaunchTimeoutSeconds { get; set; } = 6.0;
 
     /// <summary>Endpoint the server POSTs automatic crash reports to — the ReportHost bug-report inbox, shared

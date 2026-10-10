@@ -24,6 +24,35 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚀 Travel from a parked ship plays take-off → (warp) → landing (#1614 client half, 2026-10-10, branch feat/1614-travel-sequences; server half #1676 + map lock #2314 by ahmdkaml, who is co-author here) — ✅ done (ships with the next release; ⚠ playtest open)
+
+Map travel from a landed ship used to be an instant world swap. The server half (#1676) already launched the ship and
+waited for the client's signal, but the client side was missing: the landing aimed at whatever lay ahead of the nose, a
+cross-system trip played the warp *over* the take-off and then hard-cut to the surface, and "Hyperjump to this system"
+from the ground hung forever in the take-off (the server had jumped before the take-off and had nothing left to do).
+
+- **✅ Server — the transit is now staged:** take-off (over the origin, no warp flag) → for another system a warp stage
+  (`JumpFlightToSystem`, anchored on the destination so its flight scene holds the world to land on) → the landing,
+  exactly like a manual one. Each stage ends with `TransitLaunchDoneIntent` or, after `TransitLaunchTimeoutSeconds`, by
+  itself. `PlayerSession.PendingTransitSystemId` holds the warp still to come. "Hyperjump to this system" from a parked
+  ship (`HyperjumpSystemIntent` → `HyperjumpToSystem(takeOffFirst: true)`) takes off first and ends in free flight;
+  the public `HyperjumpToSystem` default stays the direct jump the tests and tools use.
+- **✅ Server — robustness:** the stage timer runs in its own tick step (`TickTransits`) — inside the per-world
+  environment tick it never saw a pilot who had warped over an unloaded world; a refused take-off clears the transit and
+  restores the pad index; a stray signal from a landed player does nothing; a refused landing re-sends the flight state
+  with the transit off; a jump or travel the pilot starts in flight replaces a pending transit. `Register(236)` moved
+  next to tag 227.
+- **✅ Wire:** `SpaceState.TransitDestinationBodyId` (additive). `AutomaticTransit` is no longer latched on entry only.
+- **✅ Client (`SpaceView`):** the landing descent aims at the destination (the anchor body is the scene's home `""`);
+  the take-off holds hands-off at the top of the climb until the server answers; a new `Phase.Transit` holds the warp
+  arrival (2.2 s, past the flash) before reporting it; a closing flight right after a take-off toward another system
+  waits for the warp instead of starting a landing; a 9 s fallback hands the controls back if no answer ever comes.
+- **✅ Tests:** `TravelTests` — same system (state flags + no warp), cross system in three stages, case 3, the two-stage
+  timeout, a stray signal, a refused take-off keeping the pad. USER_MANUAL § Travel; credits for ahmdkaml (README + all
+  14 `ui.credits.body`).
+- **⚠ Playtest:** the three cases from the issue in the real game (same system, other system, "Hyperjump to this
+  system" from the ground) plus a jump from a flying ship; a second player on the origin/target watching the ship.
+
 ### 💧 Water at the seam, waking on placement, twice the pace + lock-HUD diagnosis (2026-10-10) — issues #2447–#2450, branch fix/water-seam-speed — ✅ done (ships with the next release)
 
 Marcel: "placed quickly one after another, water takes several seconds to spread properly". Measured on the real
@@ -588,8 +617,8 @@ Travel/Hyperjump button for such worlds while Instant Travel was on, and the ser
   jumping into its system first and landing by hand.
 - **✅ Texts:** `ui.map.locked_cross_hint` no longer offers "(or enable Instant Travel)" — en/de in PR #2314, the twelve
   community locales in the follow-up PR. USER_MANUAL § Instant Travel updated.
-- **Open — the rest of the #1614 client half (ahmdkaml, separate PR):** take-off → (warp) → landing sequence instead of
-  the instant swap; "Hyperjump to this system" from a landed ship showing the take-off first; the case-3 server test.
+- **✅ The rest of the #1614 client half** (take-off → (warp) → landing, case 3, its server test): done 2026-10-10 —
+  see "Travel from a parked ship plays take-off → (warp) → landing" above.
 
 ### 🧰 Tools punch like fists, starter laser 60 + one engage range, "Back to my ship", bandit step across the seam, mesher golden re-pinned (#2306 #2284 #2286 #2307 #2312, 2026-10-05, branch fix/tools-laser-return-seam) — ✅ done (released in v2026.10.7; ⚠ playtest open)
 

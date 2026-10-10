@@ -1135,49 +1135,151 @@ public sealed partial class GameServer
 
     private void HandleTravelIntent(PlayerSession session, TravelIntent intent, bool quickTravel = true)
     {
-        // Landed ship: turn map travel into an automatic space transit.
-        if (!InSpace(session.State.PlayerId) && !session.Spectating)
+        // Landed ship: turn map travel into an automatic space transit (#1614).
+        var body = _galaxy?.FindBody(intent.DestinationBodyId);
+        if (body is not null && !InSpace(session.State.PlayerId) && !session.Spectating)
         {
-            var body = _galaxy?.FindBody(intent.DestinationBodyId)!;
             var origin = _galaxy?.FindBody(session.CurrentLocationId);
-            bool hyperjump = origin is null || origin.SystemId != body.SystemId;
+            bool crossSystem = origin is null || origin.SystemId != body.SystemId;
 
-            if (hyperjump && !session.State.LandedBodies.Contains(body.Id))
+            if (crossSystem && !session.State.LandedBodies.Contains(body.Id))
             {
                 Reject(session, "travel", "@srv.travel.not_visited");
                 return;
             }
 
+            int heldPad = session.AssignedPadIndex; // AllowNormalTravel claims the destination's pad up front
             if (!AllowNormalTravel(session, intent, quickTravel))
             {
                 return;
             }
 
-            session.PendingTransitBodyId = intent.DestinationBodyId;
-            session.AutomaticTransit = true;
-            session.TransitLaunchTimer = 0;
-            session.PendingTransitPadIndex = intent.PadIndex;
-
-            EnterSpace(session.State.PlayerId, skipLaunch: false, hyperjump: hyperjump);
+            BeginTransit(session, body.Id, crossSystem ? body.SystemId : null, intent.PadIndex);
+            if (!session.AutomaticTransit)
+            {
+                session.AssignedPadIndex = heldPad; // the take-off was refused — the ship still stands on its old pad
+            }
 
             return; // the transit path handles the travel, so the caller must not continue to land on it
         }
 
-        // Existing behavior for callers that are already in space / other contexts.
+        // Existing behavior for callers that are already in space / other contexts (and the reject of an unknown body).
+        // A trip the pilot starts in flight replaces any transit still pending.
+        ClearTransit(session);
         HandleTravel(session, intent, quickTravel);
+    }
+
+    /// <summary>#1614: starts an automatic transit from a parked ship. The ship takes off exactly like a helm launch
+    /// (the players on the body see it rise), the client plays the take-off and reports it with
+    /// <see cref="TransitLaunchDoneIntent"/>, and <see cref="AdvanceTransit"/> takes it from there: a warp into
+    /// <paramref name="systemId"/> when the trip leaves the system, then the landing on <paramref name="destinationBodyId"/>
+    /// — or free flight in the new system when there is no destination ("Hyperjump to this system").</summary>
+    private void BeginTransit(PlayerSession session, string? destinationBodyId, string? systemId, int padIndex)
+    {
+        session.PendingTransitBodyId = destinationBodyId;
+        session.PendingTransitSystemId = systemId;
+        session.PendingTransitPadIndex = padIndex;
+        session.AutomaticTransit = true;
+        session.TransitLaunchTimer = 0;
+
+        // No warp flag here: the warp belongs between the take-off and the arrival, not over the take-off.
+        EnterSpace(session.State.PlayerId, skipLaunch: false);
+        if (!InSpace(session.State.PlayerId))
+        {
+            ClearTransit(session); // the launch was refused (not aboard, a ship that can't fly …) — its reject says why
+        }
+    }
+
+    /// <summary>#1614: forgets any pending automatic transit of this player.</summary>
+    private static void ClearTransit(PlayerSession session)
+    {
+        session.PendingTransitBodyId = null;
+        session.PendingTransitSystemId = null;
+        session.PendingTransitPadIndex = -1;
+        session.AutomaticTransit = false;
+        session.TransitLaunchTimer = 0;
     }
 
     private void HandleTransitLaunchDone(PlayerSession session, TransitLaunchDoneIntent intent)
     {
-        var destinationBodyId = session.PendingTransitBodyId;
+        if (session.AutomaticTransit)
+        {
+            AdvanceTransit(session);
+        }
+    }
 
-        session.PendingTransitBodyId = null;
-        session.AutomaticTransit = false;
+    /// <summary>#1614: moves an automatic transit on to its next stage — when the client reports the current stage
+    /// as played, or when the server stops waiting for that (<see cref="TickTransits"/>). A trip into another star
+    /// system first warps the flight there, anchored on the destination so the client's landing descent heads for
+    /// it; the next stage lands like a manual landing. A pilot who is no longer in flight just drops the transit,
+    /// so a stray signal can never move a player who already landed.</summary>
+    private void AdvanceTransit(PlayerSession session)
+    {
+        string playerId = session.State.PlayerId;
+        string? destinationBodyId = session.PendingTransitBodyId;
+        string? systemId = session.PendingTransitSystemId;
+        int padIndex = session.PendingTransitPadIndex;
+        session.TransitLaunchTimer = 0;
 
+        if (!InSpace(playerId))
+        {
+            ClearTransit(session);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(systemId))
+        {
+            var system = _galaxy?.Systems.FirstOrDefault(s => s.Id == systemId);
+            if (system is null || system.Bodies.Count == 0)
+            {
+                ClearTransit(session);
+                ResendSpaceState(session); // nowhere to jump to — hand the controls back
+                return;
+            }
+
+            // The warp is the next stage; with no destination the trip ends with it, in free flight.
+            session.PendingTransitSystemId = null;
+            if (string.IsNullOrEmpty(destinationBodyId))
+            {
+                ClearTransit(session);
+            }
+
+            var anchor = (destinationBodyId is null ? null : _galaxy?.FindBody(destinationBodyId))
+                ?? system.Bodies.FirstOrDefault(b => !string.IsNullOrEmpty(b.PlanetType))
+                ?? system.Bodies[0];
+            JumpFlightToSystem(session, system, anchor);
+            if (!session.AutomaticTransit)
+            {
+                TellArrivedInFlight(session, system, anchor); // the trip ends here, in flight — the landing never says it
+            }
+
+            return;
+        }
+
+        ClearTransit(session);
         if (!string.IsNullOrEmpty(destinationBodyId))
         {
-            LandOnBody(session.State.PlayerId, destinationBodyId, session.PendingTransitPadIndex);
-            session.PendingTransitPadIndex = -1;
+            LandOnBody(playerId, destinationBodyId, padIndex);
+            if (InSpace(playerId))
+            {
+                ResendSpaceState(session); // the landing was refused (every pad taken …) — hand the controls back
+            }
+        }
+    }
+
+    /// <summary>#1614: the server side of a transit stage that the client never reported — the take-off or the warp
+    /// lasts a few seconds, so after <see cref="ServerConfig.TransitLaunchTimeoutSeconds"/> the transit moves on by
+    /// itself. Runs over every joined player: a pilot who warped into another system flies over a body whose world
+    /// is not loaded, which the per-world tick never visits.</summary>
+    private void TickTransits(double dt)
+    {
+        foreach (var session in _sessions.Values.Where(s => s.Joined && s.AutomaticTransit).ToList())
+        {
+            session.TransitLaunchTimer += dt;
+            if (session.TransitLaunchTimer >= _config.TransitLaunchTimeoutSeconds)
+            {
+                AdvanceTransit(session);
+            }
         }
     }
 
@@ -1730,6 +1832,7 @@ public sealed partial class GameServer
         // as fast with two worlds loaded (#2173: the biome weather offsets the maps mirror rotate on it).
         _systemTimeDays += deltaSeconds / SystemDaySeconds;
         Guard("TickSpace", deltaSeconds, TickSpace); // space instances are keyed by location and handle their own players
+        Guard("Transits", deltaSeconds, TickTransits); // #1614: per player, wherever they fly
 
         // Tick each occupied world with the Active cursor set to it, so its environment/fauna/fluids/
         // weather/presence/chunk-streaming only touch that world's players. With a single occupied world
@@ -1925,24 +2028,6 @@ public sealed partial class GameServer
             UpdateAboard(session);
 
             var p = session.State;
-
-            // Server-side fallback in case the client never reports launch completion.
-            if (!string.IsNullOrEmpty(session.PendingTransitBodyId))
-            {
-                session.TransitLaunchTimer += dt;
-
-                if (session.TransitLaunchTimer >= _config.TransitLaunchTimeoutSeconds)
-                {
-                    var destinationBodyId = session.PendingTransitBodyId;
-                    session.PendingTransitBodyId = null;
-                    session.AutomaticTransit = false;
-                    session.TransitLaunchTimer = 0;
-
-                    LandOnBody(session.State.PlayerId, destinationBodyId, session.PendingTransitPadIndex);
-                    session.PendingTransitPadIndex = -1;
-                    continue;
-                }
-            }
 
             // Walk out of the ship's hatch while it floats in space → step straight onto an EVA spacewalk
             // (rather than falling into the void around the interior). The door you already have IS the airlock.
