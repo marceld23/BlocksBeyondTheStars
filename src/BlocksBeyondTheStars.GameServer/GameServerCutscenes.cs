@@ -316,8 +316,24 @@ public sealed partial class GameServer
     private CutsceneDefinition? FindPackCutscene(string packId, string id)
         => _content.Stories.TryGetValue(packId, out var pack) ? pack.FindCutscene(id) : null;
 
-    /// <summary>1 Hz per player (from <c>TickShipAi</c>; observers are skipped there): sends what the queue may send now.</summary>
+    /// <summary>One player's queue: sends what may go now.</summary>
     private void TickCutscenesFor(PlayerSession session) => FlushCutscenes(session);
+
+    /// <summary>Every server tick (#2468), outside the per-world loop: flushes the queue of every joined, non-observing
+    /// player wherever they are. It used to run from <c>TickShipAi</c>, which only reaches the players of a loaded world —
+    /// a pilot cruising after an in-flight hyperjump occupies a body whose world is not loaded, so a "now or never" card
+    /// (first jump, first launch) waited until the landing. An empty queue costs one count check; a held world does not
+    /// tick, so the cooldown clock still stands still while it is held.</summary>
+    private void TickCutscenes()
+    {
+        foreach (var session in _sessions.Values)
+        {
+            if (session.CutsceneQueue.Count > 0 && session.Joined && !session.Spectating)
+            {
+                TickCutscenesFor(session);
+            }
+        }
+    }
 
     // ---------------------------------------------------------------------------------------------
     // The receipt.
@@ -489,6 +505,104 @@ public sealed partial class GameServer
     }
 
     // ---------------------------------------------------------------------------------------------
+    // The admin preview.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// <c>/cutscene &lt;pack&gt; &lt;id&gt;</c> (#2468, synthesis §6.8 "Vorschau"): plays any cutscene of an installed pack for
+    /// the asking admin only, as a replay — no ledger, no receipt, no cooldown, nobody else sees it. Accepts
+    /// <c>&lt;pack&gt; &lt;id&gt;</c>, <c>&lt;pack&gt;/&lt;id&gt;</c> or a bare id (the world story first, then any pack that
+    /// defines it); a template without an owner previews as the instance of the pack's first chapter, <c>__recap</c> lists
+    /// every chapter title. The admin's position goes along as the <c>custom</c> anchor. A world-management tool, not a
+    /// cheat: the role is the gate (family worlds keep cheats off). Needs a client that plays cutscenes.
+    /// </summary>
+    private void AdminPreviewCutscene(PlayerSession session, string? arg)
+    {
+        var parts = (arg ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        string packId;
+        string id;
+        if (parts.Length >= 2)
+        {
+            packId = parts[0];
+            id = parts[1];
+        }
+        else if (parts.Length == 1 && parts[0].IndexOf(StoryCutsceneIds.PackSeparator) > 0)
+        {
+            int slash = parts[0].IndexOf(StoryCutsceneIds.PackSeparator);
+            packId = parts[0].Substring(0, slash);
+            id = parts[0].Substring(slash + 1);
+        }
+        else if (parts.Length == 1)
+        {
+            id = parts[0];
+            packId = PackDefiningCutscene(id) ?? string.Empty;
+        }
+        else
+        {
+            Reject(session, "admin", "@srv.admin.cutscene_usage");
+            return;
+        }
+
+        if (!session.SupportsCutscenes)
+        {
+            Reject(session, "admin", "@srv.admin.cutscene_unsupported");
+            return;
+        }
+
+        if (!_content.Stories.TryGetValue(packId, out var pack) || string.IsNullOrEmpty(id))
+        {
+            Reject(session, "admin", "@srv.admin.cutscene_unknown:" + packId + StoryCutsceneIds.PackSeparator + id);
+            return;
+        }
+
+        string wireId;
+        string playArg;
+        if (id == StoryCutsceneIds.Recap)
+        {
+            wireId = StoryCutsceneIds.Recap;
+            playArg = string.Join(LineText.ArgSeparator.ToString(),
+                pack.Chapters.Where(c => !string.IsNullOrEmpty(c.TitleKey)).Select(c => c.TitleKey));
+        }
+        else if (pack.FindCutscene(id) is { } def)
+        {
+            wireId = def.Template
+                ? (IsInstance(id) ? id : StoryCutsceneIds.Instance(def.Id, pack.Chapters.FirstOrDefault()?.Id ?? pack.Id))
+                : def.Id;
+            playArg = CutsceneArgOf(pack, def, wireId);
+        }
+        else
+        {
+            Reject(session, "admin", "@srv.admin.cutscene_unknown:" + pack.Id + StoryCutsceneIds.PackSeparator + id);
+            return;
+        }
+
+        var at = session.State.Position;
+        SendCutscenePlay(session, pack.Id, wireId, playArg, new Vector3f(at.X, at.Y, at.Z), replay: true);
+        Send(session, new ServerMessage { Text = "@srv.admin.cutscene_preview:" + pack.Id + StoryCutsceneIds.PackSeparator + wireId });
+    }
+
+    /// <summary>The pack a bare cutscene id belongs to: the world story when it defines the id, else the first pack (by id)
+    /// that does; null when none does.</summary>
+    private string? PackDefiningCutscene(string id)
+    {
+        if (id == StoryCutsceneIds.Recap)
+        {
+            return _storyState.StoryId;
+        }
+
+        if (_content.Stories.TryGetValue(_storyState.StoryId ?? string.Empty, out var world) && world.FindCutscene(id) is not null)
+        {
+            return world.Id;
+        }
+
+        return _content.Stories.Values
+            .Where(p => p.FindCutscene(id) is not null)
+            .Select(p => p.Id)
+            .OrderBy(p => p, StringComparer.Ordinal)
+            .FirstOrDefault();
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // Test seams.
     // ---------------------------------------------------------------------------------------------
 
@@ -503,7 +617,7 @@ public sealed partial class GameServer
     internal bool PlayRecapForTest(PlayerSession session, string packId, IEnumerable<string> chapterTitleKeys)
         => PlayRecap(session, packId, chapterTitleKeys);
 
-    /// <summary>Test seam: the 1 Hz cutscene tick for one player.</summary>
+    /// <summary>Test seam: the cutscene tick for one player.</summary>
     internal void TickCutscenesForTest(PlayerSession session) => TickCutscenesFor(session);
 
     /// <summary>Test seam: the join catch-up for one player.</summary>

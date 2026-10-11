@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>
 /// #2466 — the client's half of the player-pack runtime so far: the join announces <c>packs1</c> (a server then sends
-/// pack lines instead of the legacy tutorial mode; <c>cutscenes1</c> waits for the director of step 9), the pack controls
+/// pack lines instead of the legacy tutorial mode; <c>cutscenes1</c> only with the cutscene director, #2468), the pack controls
 /// go out as <see cref="StoryPackIntent"/>, and <see cref="VegaText"/> composes through the one shared implementation
 /// (<see cref="LineText"/>) the server uses for older clients.
 /// </summary>
@@ -47,7 +47,7 @@ public sealed class StoryPackClientTests
     }
 
     [Fact]
-    public void TheJoin_AnnouncesPacks1_ButNotYetCutscenes1()
+    public void TheJoin_AnnouncesPacks1_AndCutscenes1OnlyForAClientThatPlaysThem()
     {
         var transport = new RecordingClientTransport();
         using var client = new NetworkClient(transport) { ContentFingerprint = "palette-a" };
@@ -55,7 +55,12 @@ public sealed class StoryPackClientTests
 
         var join = Assert.IsType<JoinRequest>(Assert.Single(transport.Sent));
         Assert.Contains(ClientFeatures.Packs1, join.Features);
-        Assert.DoesNotContain(ClientFeatures.Cutscenes1, join.Features);
+        Assert.DoesNotContain(ClientFeatures.Cutscenes1, join.Features); // a headless client has no director (#2468)
+
+        client.PlaysCutscenes = true; // what the Unity client does when its cutscene director exists
+        client.Join("Pilot");
+        var director = Assert.IsType<JoinRequest>(transport.Sent.Last());
+        Assert.Equal(new[] { ClientFeatures.Packs1, ClientFeatures.Cutscenes1 }, director.Features);
     }
 
     [Fact]

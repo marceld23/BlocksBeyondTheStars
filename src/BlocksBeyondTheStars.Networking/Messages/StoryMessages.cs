@@ -51,6 +51,12 @@ public sealed class StoryStateMessage
     /// from the pack), so it survives a rejoin. Additive: an older server leaves it empty and the client keeps the
     /// beats it heard live this session.</summary>
     public int[] HeardBeats { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>The cutscenes THIS player's client has confirmed (#2468, synthesis §5.7), every pack, as
+    /// <c>&lt;pack&gt;/&lt;id&gt;</c> (a template as its instance id) — from the <c>story:&lt;pack&gt;:cut:&lt;id&gt;</c>
+    /// milestones. The Story tab's "Watch again" list is built from these (and what the client played since). Additive:
+    /// an older server leaves it empty.</summary>
+    public string[] SeenCutscenes { get; set; } = System.Array.Empty<string>();
 }
 
 /// <summary>Server → client: an environmental lore text just found (#1111) — a rune inscription read with the

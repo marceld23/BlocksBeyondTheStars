@@ -1937,6 +1937,7 @@ public sealed partial class GameServer
             }
         }
 
+        Guard("TickCutscenes", TickCutscenes); // #2468: queued cutscenes for every joined player, wherever they are (space too)
         Guard("TickAmbientWeather", deltaSeconds, TickAmbientWeather); // #2173: the weather of every body in an occupied system
         Guard("SampleHistories", deltaSeconds, SampleHistories); // also advances _uptime
         Guard("SilentSessions", SweepSilentSessions); // release names/slots held by dead clients (#964)
@@ -6803,6 +6804,11 @@ public sealed partial class GameServer
             // The story report (#2466: now with the player packs) — read-only, like the reports above.
             case "story_status":
                 AdminStoryStatus(session, cmd.TargetPlayer);
+                return;
+
+            // Cutscene preview (#2468): plays a scene for the asking admin only, changes nothing — the role is the gate.
+            case "cutscene":
+                AdminPreviewCutscene(session, cmd.StringArg);
                 return;
 
             // Observer mode + its jump command are fleet-admin only: they reach into worlds other people own,

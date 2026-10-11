@@ -4807,6 +4807,28 @@ namespace BlocksBeyondTheStars.Client
                 y += 44f;
             }
 
+            // Watch again (#2468): the story-pack cutscenes this player has seen and may replay — the prologue, chapter
+            // openers, tutorial cards — of any installed pack (the tutorial's run in the sandbox too). The server re-sends
+            // one on request (spoiler guard: only what was shown); the director plays it once this menu is closed.
+            var director = CutsceneDirector.Instance;
+            var replays = director != null ? director.ReplayEntries() : null;
+            if (replays != null && replays.Count > 0)
+            {
+                y += 10f;
+                y = AllianceSection(L("ui.story.replay"), y);
+                foreach (var entry in replays)
+                {
+                    float rowTop = y;
+                    y = StoryEntry(y, director.ReplayLabel(entry), 660f); // keep clear of the Watch button's lane
+                    var chosen = entry;
+                    UiKit.AddButton(_listContent, 688, rowTop, 92, 30, L("ui.story.replay_button"), () =>
+                    {
+                        Game?.Network?.SendReplayCutscene(chosen.Pack.Id, chosen.CutsceneId);
+                        Hide();
+                    });
+                }
+            }
+
             // VEGA tips (#737): every onboarding lesson and advisor hint already received, rebuilt from the
             // server's milestone snapshot — a dismissed tip used to be gone for good. Shown with or without
             // an active story pack (the tutorial runs in the sandbox too).

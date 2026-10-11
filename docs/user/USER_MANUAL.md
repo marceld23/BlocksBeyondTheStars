@@ -426,6 +426,9 @@ separate unlock; admins can still disable it through server world rules.
   - **Settings → Comfort → Reduce flashes** turns big full-screen flashes into a soft wash, for light-sensitive eyes.
   - **Settings → Comfort → Reduced effects** draws fewer particles and calmer screen effects; some of it applies from
     the next world start.
+  - **Settings → Comfort → Story text: wait for me** (on by default): the texts of story scenes wait until you turn the
+    page — **N** (pad **Back**), the **Continue** button, or a tap on the text box. Off, they turn the page by themselves
+    after a reading time. Titles always run on their own.
   - Lower graphics presets use fewer particles automatically.
 
 ### Atmosphere effects (Settings → Graphics → Atmosphere effects)
@@ -1874,6 +1877,15 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   once on their next join; someone who first arrives on an already finished world is not played the ending at
   the door and can watch it from the Story tab.
 - The hint at the Guardian core ("walk to the marked shaft, don't dig here") shows even with **VEGA hints** off.
+- **Story scenes.** Big story moments can play as short scenes: a **banner** at the top (it never stops you), a
+  **card** with a title or VEGA speaking in a box (you can keep moving), or a **staged scene** where the camera shows your
+  ship or the sky and the controls rest for a moment (in singleplayer the world waits meanwhile). A scene never starts in
+  a fight, while you fall, swim, drive, fly or have a menu open — it waits for a calm moment. Taking damage ends it, and
+  its text goes back to VEGA's panel ("Story moment saved"). In multiplayer the camera comes back after 30 seconds.
+  - **Skip** a scene with **Esc**, the pad's **(B)** or the **Skip** button (on a card, where you can move, Esc or the
+    button). Turn the text pages with **N**, pad **Back**, the **Continue** button or a tap on the text.
+  - **Watch again:** the Story tab lists every scene you have seen under **Watch again** — press **Watch**, close the
+    menu, and it plays again (nothing in the game changes).
 - **After the ending the galaxy is calmer, not empty.** The Guardian's machines don't vanish for good: the
   hunter robots are gone and only a thinned-out remnant of scan-drones keeps roaming (half as many, spawning
   half as often), space stays hostile only where it is dangerous by nature — **pirate havens** and the
@@ -3004,6 +3016,11 @@ Two ways to test the finale:
 
 The duel cannot be lost — wrong rebuttals are dismissed and you stay on the node — so just keep trying each
 option until the core concedes and shuts down.
+
+**Story scene preview** (admin role only — works with cheats off, changes nothing): `/cutscene <pack> <id>` plays a story
+pack's scene for you alone, e.g. `/cutscene vega_protocol prologue`; `/cutscene <pack> __recap` shows the "story so far"
+card. Developers can also start the game with `-devSeq` (or use a development build) and press **F9** for a list of every
+scene to play locally.
 
 The client parses these slash-commands and sends an `AdminCommandIntent`; `/bump` is special — the client
 captures a screenshot and sends it as a `BumpReport` (falling back to a plain chat message the server

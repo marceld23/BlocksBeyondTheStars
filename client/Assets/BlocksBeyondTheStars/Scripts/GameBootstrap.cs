@@ -3209,6 +3209,9 @@ namespace BlocksBeyondTheStars.Client
                         // The arcade install id travels with the join (#1222): a glitch.fun guest has no
                         // portal account, so it is the only identity their /report can carry. Empty everywhere else.
                         string installId = GlitchIntegration.ArcadeInstallId;
+                        // #2468: this client plays story-pack cutscenes when its world rig has the director — the server then
+                        // sends CutscenePlay (tag 295) instead of stamping every scene seen at once.
+                        Network.PlaysCutscenes = CutsceneDirector.Instance != null;
                         Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, Locale.Code(),
                             string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks,
                             string.IsNullOrEmpty(HostedToken) ? null : HostedToken,

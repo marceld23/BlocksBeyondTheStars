@@ -345,6 +345,22 @@ namespace BlocksBeyondTheStars.Client
             boot.RequestCaptureSnap();
             yield return null;
 
+            // A cutscene clip (#2468): the director plays the scene locally (no server, no ledger) and the recording films it.
+            if (!string.IsNullOrEmpty(clip.cutscene))
+            {
+                int slash = clip.cutscene.IndexOf('/');
+                var director = CutsceneDirector.Instance;
+                if (slash > 0 && director != null
+                    && director.PlayLocal(clip.cutscene.Substring(0, slash), clip.cutscene.Substring(slash + 1)))
+                {
+                    yield return WaitUntil(() => director.Playing, 10f);
+                }
+                else
+                {
+                    Debug.LogWarning($"[Clip] {clip.name}: cutscene '{clip.cutscene}' could not be played (format <pack>/<id>, director present, id known).");
+                }
+            }
+
             if (string.Equals(clip.scene, "land", StringComparison.OrdinalIgnoreCase) && space != null)
             {
                 yield return RecordLandingClip(clip, clipDir, boot, space);

@@ -314,7 +314,8 @@ a bracket word in EN and DE. A local player (`AddLocalPlayer`) counts as `packs1
 restartChapter | skipStep | replayCutscene` (#2467: `replayCutscene` + `CutsceneId` = watch a scene again); while a
 singleplayer world is held only `track`, `untrack`, `optOut`, `optIn`, `skipPack` and `replayCutscene` get through
 (`PausedMayHandle`, dispatch tests). Tags 295/296 are the cutscene messages — see [CUTSCENES.md](CUTSCENES.md). Fields:
-`JoinRequest.Features` (`ClientFeatures.Packs1` / `Cutscenes1`; `NetworkClient.Features` announces `packs1`),
+`JoinRequest.Features` (`ClientFeatures.Packs1` / `Cutscenes1`; `NetworkClient.Features` announces `packs1`, and
+`cutscenes1` once `NetworkClient.PlaysCutscenes` is set — the Unity client does when its cutscene director exists, #2468),
 `ShipAiLine.PackId` / `Speaker` (the line's pack and narrator) / `ObjectivePackId`, `SetWorldRulesIntent.TutorialPolicy`,
 `ServerRules.TutorialPolicy`. Persistence (additive, no save bump): `PlayerSnapshot.StepProgress` (null while empty) and
 `TrackedStoryId` — an older build drops both on re-save, which costs a running count and the pin, nothing else
@@ -364,6 +365,7 @@ default) — no `Protocol.Version` bump.
 | `ShipAiLine.ObjectiveSource` | where the chip's objective comes from — `ObjectiveSources.Tutorial` / `Story` / `Finale` / `Mission`, empty = no objective. Set in ONE place, `SendVegaWithObjective` (every VEGA line carries the chip; the 1 Hz refresh compares the whole `VegaChip`) | an older client keeps its `story.obj.` prefix guess; a new client facing an older server uses the same guess (`ObjectiveSourceRules.Effective`, which now also treats `story.obj.finale` as finale) |
 | `ShipAiLine.TutorialActive` | this player's tutorial still runs, whatever the chip shows — the Settings button offers *Skip* then, *Restart* otherwise (B03) | read only when `ObjectiveSource` is set |
 | `StoryStateMessage.HeardBeats` | the beat indexes this player has heard (`story:<id>:beat:<n>` milestones), ascending | empty — the client keeps the beats heard live this session |
+| `StoryStateMessage.SeenCutscenes` | #2468: this player's confirmed cutscenes of every pack, `<pack>/<id>` sorted (`story:<pack>:cut:<id>` milestones, not the `:sent` form) — the Story tab's "Watch again" list ([CUTSCENES.md](CUTSCENES.md)) | empty — the client lists what it confirmed this session |
 | `MissionResult.Outcome` / `Title` / `FreeText` | `accepted` / `completed` / `posted` and the mission's title (locale key, or display text when `FreeText`) for the toast (B24) | empty outcome — the client's toast says "Mission updated" and names the mission from its mission list |
 | `SetNpcCallsIntent.VegaHintsMuted` | the client's VEGA hints switch is off (sent at every join and from both settings screens): the server holds advisor hints (Kind 1), context tips and the bandit briefing back WITHOUT burning their once-flags (B31) | absent = hints on (today's behaviour) |
 

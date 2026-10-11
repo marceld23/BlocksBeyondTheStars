@@ -362,6 +362,18 @@ namespace BlocksBeyondTheStars.Client
             var resolution = root.AddComponent<ResolutionCinematic>();
             resolution.Game = boot;
 
+            // Story-pack cutscenes (#2468): banners, cards and staged scenes the server sends by id (CutscenePlay). Its
+            // existence makes the join announce "cutscenes1"; it brings its own camera rig (execution order 211). The dev
+            // palette (-devSeq or a development build, F9) plays any loaded scene locally.
+            var director = root.AddComponent<CutsceneDirector>();
+            director.Game = boot;
+            director.Camera = cam;
+            director.Settings = shell.Settings;
+            director.Player = pc;
+            var devPalette = root.AddComponent<CutsceneDevPalette>();
+            devPalette.Game = boot;
+            devPalette.Director = director;
+
             // Death feedback: red flash + sound on planet death, explosion glare on ship destruction.
             var deathFx = root.AddComponent<DeathFx>();
             deathFx.Game = boot;

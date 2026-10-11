@@ -67,6 +67,15 @@ namespace BlocksBeyondTheStars.Client
 
         private const string SynthPrefix = "synth:";
 
+        // A story-pack cutscene's own track (#2468): "cutscene:<track>" loops that one library track while the scene plays.
+        private const string CutscenePrefix = "cutscene:";
+
+        /// <summary>The music track of the cutscene playing now (a file in <c>client/Music</c> without extension), or null —
+        /// set by <see cref="CutsceneDirector"/> while a scene with a <c>music</c> entry plays. It outranks every context
+        /// but the ending's resolution track; a track that is still downloading leaves the current music playing until it
+        /// arrives (a scene is never delayed for music), and a missing file falls back to the normal context.</summary>
+        public static string CutsceneTrack { get; set; }
+
         private const float CrossfadeRate = 0.4f;   // volume units / s → ~2.5 s for a full fade
         private const float RerollLead = 3.0f;       // re-roll this many seconds before a piece ends
         private const float PrefetchLead = 45f;      // plan + fetch the successor this early (browser bandwidth)
@@ -305,6 +314,13 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 _lastIntegrity = integrity;
+            }
+
+            // A story-pack cutscene brings its own track (#2468). The director never plays one under the ending.
+            string cutsceneTrack = CutsceneTrack;
+            if (!string.IsNullOrEmpty(cutsceneTrack) && !_missingTracks.Contains(cutsceneTrack))
+            {
+                return CutscenePrefix + cutsceneTrack;
             }
 
             // Finale set-piece overrides everything once the player is engaging the Guardian core.
@@ -662,6 +678,16 @@ namespace BlocksBeyondTheStars.Client
                 if (!_missingTracks.Contains(trackName))
                 {
                     return (trackName, true); // single looping track for the phase
+                }
+            }
+
+            // A cutscene's track (#2468) loops in place for as long as the scene plays, in either music mode.
+            if (want.StartsWith(CutscenePrefix, StringComparison.Ordinal))
+            {
+                string trackName = want.Substring(CutscenePrefix.Length);
+                if (!_missingTracks.Contains(trackName))
+                {
+                    return (trackName, true);
                 }
             }
 

@@ -302,6 +302,10 @@ namespace BlocksBeyondTheStars.Client
             Toggle(ref y, L("ui.settings.reduced_effects"), S.ReducedEffects, () => { S.ReducedEffects = !S.ReducedEffects; S.Apply(); ApplyLiveWorld(); Rebuild(); });
             UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.reduced_effects_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
             y += 28f;
+            // #2468: story-pack cutscene captions wait for the reader (default) or turn the page by themselves.
+            Toggle(ref y, L("ui.settings.story_text_wait"), S.StoryTextWaitForMe, () => { S.StoryTextWaitForMe = !S.StoryTextWaitForMe; Rebuild(); });
+            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.story_text_wait_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 28f;
             Toggle(ref y, L("ui.settings.auto_stow"), S.AutoStowOnBoard, () => { S.AutoStowOnBoard = !S.AutoStowOnBoard; Rebuild(); });
             Toggle(ref y, L("ui.settings.show_enemy_health"), S.ShowEnemyHealthBars, () => { S.ShowEnemyHealthBars = !S.ShowEnemyHealthBars; Rebuild(); });
             Toggle(ref y, L("ui.settings.show_session_time"), S.ShowSessionTime, () => { S.ShowSessionTime = !S.ShowSessionTime; Rebuild(); });

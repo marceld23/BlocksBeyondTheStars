@@ -316,6 +316,28 @@ public static class StoryPackKeys
         return true;
     }
 
+    /// <summary>Reads a <see cref="CutsceneSeen"/> key (the confirmed form, not <c>:sent</c>) back into its pack and
+    /// cutscene (instance) id (#2468). A cutscene id never holds a <c>:</c>, so the two forms cannot be confused.</summary>
+    public static bool TryParseCutsceneSeen(string? key, out string packId, out string cutsceneId)
+    {
+        packId = cutsceneId = string.Empty;
+        if (key is null || !key.StartsWith("story:", StringComparison.Ordinal) || key.EndsWith(CutsceneSentSuffix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        int infix = key.IndexOf(CutsceneInfix, "story:".Length, StringComparison.Ordinal);
+        int idStart = infix + CutsceneInfix.Length;
+        if (infix <= "story:".Length || idStart >= key.Length || key.IndexOf(':', idStart) >= 0)
+        {
+            return false;
+        }
+
+        packId = key.Substring("story:".Length, infix - "story:".Length);
+        cutsceneId = key.Substring(idStart);
+        return true;
+    }
+
     /// <summary>The key of a running step counter in <c>PlayerState.StepProgress</c>: <c>&lt;pack&gt;:&lt;step&gt;</c>.</summary>
     public static string ProgressKey(string packId, string stepId) => packId + ":" + stepId;
 }

@@ -888,6 +888,12 @@ namespace BlocksBeyondTheStars.Client
                 case "/jumpdrive": net.SendAdminCommand("grant_module", stringArg: "jump_generator"); return true;
                 case "/gotocore": net.SendAdminCommand("goto_core"); return true;
 
+                // Cutscene preview (#2468): "/cutscene <pack> <id>" plays a story scene for this admin only (the server
+                // checks the role and answers with the usage line when the words are missing).
+                case "/cutscene":
+                    net.SendAdminCommand("cutscene", stringArg: t.Substring(p[0].Length).Trim());
+                    return true;
+
                 case "/ai":
                 case "/ai_mission":
                     net.SendAdminCommand("ai_mission", stringArg: t.Substring(p[0].Length).Trim());
@@ -1011,6 +1017,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_inspect"));
             LocalLine(L("ui.admin.help_fleet"));
             LocalLine(L("ui.admin.help_story"));
+            LocalLine(L("ui.admin.help_cutscene"));
             LocalLine(L("ui.admin.help_maintenance"));
             LocalLine(L("ui.admin.help_moderation"));
         }

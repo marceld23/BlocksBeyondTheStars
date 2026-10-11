@@ -61,6 +61,12 @@ namespace BlocksBeyondTheStars.Client
         public float timeOfDay = -1f;
         public string weather = "";
         public string pose = "";
+
+        // Story-pack cutscene (#2468) — "<pack>/<id>" (e.g. "vega_protocol/prologue", "vega_protocol/__recap"): the clip
+        // plays that scene through the cutscene director the moment recording starts, so a scene can be checked by eye on
+        // a fixed seed. Use camera "static" (the capture follows the director's camera) and hud true (the captions and the
+        // letterbox are UI); lengthSeconds should cover the scene. "" = no cutscene (the default).
+        public string cutscene = "";
     }
 
     /// <summary>

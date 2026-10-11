@@ -171,6 +171,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<CoreHackProgress>? CoreHackProgressReceived;             // core-hack channel progress
         public event Action<CoreDialogueMessage>? CoreDialogueReceived;              // argument-duel node / win
         public event Action<StoryResolved>? StoryResolvedReceived;                   // #1124: play the resolution cinematic
+        public event Action<CutscenePlay>? CutscenePlayReceived;                     // #2468: play a story pack's cutscene (tag 295)
         public event Action<RelayNetworkState>? RelayNetworkReceived;                // #1125: SPS relay meters + jump lanes
         public event Action<NpcDialogState>? NpcDialogReceived;                      // #1127: NPC dialogue step (resolved text)
 
@@ -435,9 +436,30 @@ namespace BlocksBeyondTheStars.Client
                 : BlocksBeyondTheStars.Shared.Content.GameContent.LastBuiltBlockFingerprint ?? string.Empty;
 
         /// <summary>What this client announces in <see cref="JoinRequest.Features"/> (#2466): it understands story packs
-        /// (<c>packs1</c>). <c>cutscenes1</c> joins with the cutscene director (step 9). A host may replace the list —
-        /// a test that plays an older client sends none.</summary>
+        /// (<c>packs1</c>). <c>cutscenes1</c> is added only by a host that can play cutscenes (<see cref="PlaysCutscenes"/>:
+        /// the Unity client with its cutscene director, #2468) — a headless client without one keeps receiving the narrator
+        /// lines alone, and the server stamps the scenes seen for it. A host may replace the list — a test that plays an
+        /// older client sends none.</summary>
         public string[] Features { get; set; } = { ClientFeatures.Packs1 };
+
+        /// <summary>Whether this client announces <c>cutscenes1</c> (#2468): set by the Unity client when its cutscene
+        /// director exists, before the join goes out; a headless test opts in or out the same way. Toggles the word in
+        /// <see cref="Features"/>, keeping the rest of the list as it is.</summary>
+        public bool PlaysCutscenes
+        {
+            get => Array.IndexOf(Features ?? Array.Empty<string>(), ClientFeatures.Cutscenes1) >= 0;
+            set
+            {
+                var list = new List<string>(Features ?? Array.Empty<string>());
+                list.RemoveAll(f => f == ClientFeatures.Cutscenes1);
+                if (value)
+                {
+                    list.Add(ClientFeatures.Cutscenes1);
+                }
+
+                Features = list.ToArray();
+            }
+        }
 
         public void Join(string playerName, string? password = null, string locale = "en", string? token = null, int viewDistanceChunks = 0, string? hostedToken = null, string? installId = null)
             => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token, ViewDistanceChunks = viewDistanceChunks, HostedToken = hostedToken, InstallId = installId, ContentFingerprint = EffectiveContentFingerprint, Features = Features ?? System.Array.Empty<string>() });
@@ -484,6 +506,16 @@ namespace BlocksBeyondTheStars.Client
         /// start/skip/replay a chapter, skip a step).</summary>
         public void SendStoryPack(string packId, string action, string chapterId = "", string stepId = "")
             => Send(new StoryPackIntent { PackId = packId ?? string.Empty, Action = action ?? string.Empty, ChapterId = chapterId ?? string.Empty, StepId = stepId ?? string.Empty });
+
+        /// <summary>#2468: "Watch again" from the Story tab — the server re-sends a scene this player has seen
+        /// (<see cref="CutscenePlay.Replay"/> = true).</summary>
+        public void SendReplayCutscene(string packId, string cutsceneId)
+            => Send(new StoryPackIntent { PackId = packId ?? string.Empty, Action = StoryPackActions.ReplayCutscene, CutsceneId = cutsceneId ?? string.Empty });
+
+        /// <summary>#2468: the cutscene director is through with these scenes of one pack (tag 296) — watched, skipped
+        /// (<paramref name="skipped"/>), downgraded or not playable by this build (<paramref name="unsupported"/>).</summary>
+        public void SendCutsceneSeen(string packId, string[] ids, bool skipped = false, bool unsupported = false)
+            => Send(new CutsceneSeenIntent { PackId = packId ?? string.Empty, Ids = ids ?? Array.Empty<string>(), Skipped = skipped, Unsupported = unsupported });
 
         /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",
@@ -1300,6 +1332,7 @@ namespace BlocksBeyondTheStars.Client
                 case CoreHackProgress m: CoreHackProgressReceived?.Invoke(m); break;
                 case CoreDialogueMessage m: CoreDialogueReceived?.Invoke(m); break;
                 case StoryResolved m: StoryResolvedReceived?.Invoke(m); break;
+                case CutscenePlay m: CutscenePlayReceived?.Invoke(m); break;
                 case RelayNetworkState m: RelayNetworkReceived?.Invoke(m); break;
                 case NpcDialogState m: NpcDialogReceived?.Invoke(m); break;
                 case BanditDemand m: BanditDemandReceived?.Invoke(m); break;

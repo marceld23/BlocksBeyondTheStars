@@ -374,7 +374,26 @@ public sealed partial class GameServer
             FoundLoreKeys = mine.Where(m => m.StartsWith(LoreMilestonePrefix, StringComparison.Ordinal))
                 .Select(m => m.Substring(LoreMilestonePrefix.Length)).ToArray(),
             HeardBeats = HeardBeats(session), // #2462 (B08): the Story tab's beat list survives a rejoin
+            SeenCutscenes = SeenCutscenes(session), // #2468: the Story tab's "Watch again" list
         };
+    }
+
+    /// <summary>The cutscenes this player's client confirmed (#2468), every pack, as <c>pack/id</c> (sorted) — from the
+    /// <c>story:&lt;pack&gt;:cut:&lt;id&gt;</c> keys (<see cref="StoryPackKeys.TryParseCutsceneSeen"/>; the <c>:sent</c>
+    /// form is an owed scene, not a seen one). The client orders the list by the packs' own definitions.</summary>
+    private static string[] SeenCutscenes(PlayerSession session)
+    {
+        var seen = new List<string>();
+        foreach (var m in session.State.Milestones)
+        {
+            if (StoryPackKeys.TryParseCutsceneSeen(m, out string packId, out string id))
+            {
+                seen.Add(packId + StoryCutsceneIds.PackSeparator + id);
+            }
+        }
+
+        seen.Sort(StringComparer.Ordinal);
+        return seen.ToArray();
     }
 
     /// <summary>The beat indexes this player has heard of the active story (#2462, B08), ascending — read from their

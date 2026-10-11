@@ -523,4 +523,118 @@ public sealed class CutsceneLedgerTests : IDisposable
         Assert.True(Assert.Single(transport.To<CutscenePlay>(p)).Replay);
         Assert.True(server.IsPaused);
     }
+
+    // ---------------- #2468: the queue ticks for every joined player ----------------
+
+    [Fact]
+    public void APilotOnAnUnloadedWorld_StillGetsTheQueuedScenes_FromTheServerTick()
+    {
+        // A pilot cruising after an in-flight hyperjump occupies a body whose world is not loaded — TickShipAi never reaches
+        // them (it runs per loaded world), and step 8's queue waited until the landing. The flush now runs for everyone.
+        var (server, transport) = World("space");
+        var p = Join(server, 1);
+        Assert.Empty(transport.Plays(p));
+        p.CurrentLocationId = "planet_never_loaded";
+
+        server.AdvanceUptimeForTest(SvGameServer.CutsceneJoinSettleSeconds);
+        server.Tick(0.1);
+        Assert.Equal(new[] { "welcome", "strip@one" }, transport.Plays(p));
+    }
+
+    // ---------------- #2468: the admin preview ----------------
+
+    [Fact]
+    public void TheAdminPreview_PlaysAnySceneForTheAdminAlone_AndChangesNothing()
+    {
+        var (server, transport) = World("preview");
+        var admin = Join(server, 1, "Admin"); // the world's creator
+        var other = Join(server, 2, "Other");
+        Ready(server, admin);
+        server.TickCutscenesForTest(other);
+        transport.Sent.Clear();
+        int keys = admin.State.Milestones.Count;
+
+        Deliver(server, admin, new AdminCommandIntent { Command = "cutscene", StringArg = C + " big_moment" });
+        var play = Assert.Single(transport.To<CutscenePlay>(admin));
+        Assert.Equal((C, "big_moment"), (play.PackId, play.CutsceneId));
+        Assert.True(play.Replay);
+        Assert.True(play.HasAnchor);
+        Assert.Equal(admin.State.Position.X, play.AnchorX);
+        Assert.Equal("story.cutscene_test.ch.two", play.Arg); // the scene's chapter title key
+        Assert.Contains(transport.To<ServerMessage>(admin), m => m.Text == "@srv.admin.cutscene_preview:" + C + "/big_moment");
+        Assert.Equal(keys, admin.State.Milestones.Count);
+        Assert.False(Has(admin, Sent("big_moment")));
+        Assert.Empty(transport.Plays(other));
+
+        // The other spellings: pack/id, a template without its owner (the first chapter's instance), a bare id (any pack
+        // that defines it), the recap with every chapter title.
+        Deliver(server, admin, new AdminCommandIntent { Command = "cutscene", StringArg = C + "/welcome" });
+        Deliver(server, admin, new AdminCommandIntent { Command = "cutscene", StringArg = C + " strip" });
+        Deliver(server, admin, new AdminCommandIntent { Command = "cutscene", StringArg = StoryCutsceneIds.Prologue });
+        Deliver(server, admin, new AdminCommandIntent { Command = "cutscene", StringArg = C + " " + StoryCutsceneIds.Recap });
+        var plays = transport.To<CutscenePlay>(admin);
+        Assert.Equal(new[] { "big_moment", "welcome", "strip@one", StoryCutsceneIds.Prologue, StoryCutsceneIds.Recap },
+            plays.Select(x => x.CutsceneId));
+        Assert.Equal(StoryRegistry.DefaultStoryId, plays[3].PackId);
+        Assert.Equal("story.cutscene_test.ch.one", plays[2].Arg);
+        Assert.Equal(new[] { "story.cutscene_test.ch.one", "story.cutscene_test.ch.two" }, LineText.SplitArgs(plays[4].Arg));
+        Assert.All(plays, x => Assert.True(x.Replay));
+        Assert.Equal(keys, admin.State.Milestones.Count);
+    }
+
+    [Fact]
+    public void TheAdminPreview_Refuses_Strangers_UnknownScenes_AndOlderClients()
+    {
+        var (server, transport) = World("preview_refusals");
+        var admin = Join(server, 1, "Admin");
+        var player = Join(server, 2, "Player");
+        var oldAdmin = Join(server, 3, "OldAdmin", cutscenes: false);
+        oldAdmin.State.Role = BlocksBeyondTheStars.Shared.State.PlayerRole.Admin;
+        transport.Sent.Clear();
+
+        Deliver(server, admin, new AdminCommandIntent { Command = "cutscene", StringArg = "" });
+        Deliver(server, admin, new AdminCommandIntent { Command = "cutscene", StringArg = C + " nowhere" });
+        Deliver(server, admin, new AdminCommandIntent { Command = "cutscene", StringArg = "no_such_pack welcome" });
+        Deliver(server, player, new AdminCommandIntent { Command = "cutscene", StringArg = C + " welcome" });
+        Deliver(server, oldAdmin, new AdminCommandIntent { Command = "cutscene", StringArg = C + " welcome" });
+
+        Assert.Equal(new[] { "@srv.admin.cutscene_usage", "@srv.admin.cutscene_unknown:" + C + "/nowhere", "@srv.admin.cutscene_unknown:no_such_pack/welcome" },
+            transport.To<ActionRejected>(admin).Select(r => r.Reason));
+        Assert.Equal("@srv.admin.not_admin", Assert.Single(transport.To<ActionRejected>(player)).Reason);
+        Assert.Equal("@srv.admin.cutscene_unsupported", Assert.Single(transport.To<ActionRejected>(oldAdmin)).Reason);
+        Assert.Empty(transport.Sent.Select(x => x.Msg).OfType<CutscenePlay>());
+    }
+
+    // ---------------- #2468: the seen list for "Watch again" ----------------
+
+    [Fact]
+    public void TheStoryState_ListsTheConfirmedScenes_NotTheOwedOnes()
+    {
+        var (server, _) = World("seen_list");
+        var p = Join(server, 1);
+        Ready(server, p);
+        Assert.Empty(server.StoryStateForTest(p.State.PlayerId)!.SeenCutscenes); // sent, not yet confirmed
+
+        Deliver(server, p, new CutsceneSeenIntent { PackId = C, Ids = new[] { "welcome", "strip@one" } });
+        p.State.Milestones.Add(StoryPackKeys.CutsceneSeen(StoryRegistry.DefaultStoryId, StoryCutsceneIds.Prologue));
+        var state = server.StoryStateForTest(p.State.PlayerId)!;
+        Assert.Equal(new[] { C + "/strip@one", C + "/welcome", "vega_protocol/prologue" }, state.SeenCutscenes);
+
+        var back = Assert.IsType<StoryStateMessage>(NetCodec.Decode(NetCodec.Encode(state)));
+        Assert.Equal(state.SeenCutscenes, back.SeenCutscenes);
+    }
+
+    [Theory]
+    [InlineData("story:tutorial:cut:tut.welcome", true, "tutorial", "tut.welcome")]
+    [InlineData("story:tutorial:cut:tut.strip@b3", true, "tutorial", "tut.strip@b3")]
+    [InlineData("story:tutorial:cut:tut.welcome:sent", false, "", "")]
+    [InlineData("story:vega_protocol:beat:3", false, "", "")]
+    [InlineData("story:tutorial:ch:b1:active", false, "", "")]
+    [InlineData("story:tutorial:cut:", false, "", "")]
+    [InlineData("vega:intro", false, "", "")]
+    public void TheSeenKey_ParsesBack_AndTheSentKeyDoesNot(string key, bool ok, string pack, string id)
+    {
+        Assert.Equal(ok, StoryPackKeys.TryParseCutsceneSeen(key, out string p, out string i));
+        Assert.Equal((pack, id), (p, i));
+    }
 }

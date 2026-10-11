@@ -126,7 +126,8 @@ namespace BlocksBeyondTheStars.Client
         /// join catch-up would otherwise play behind the curtain) and no other cutscene (#2461).</summary>
         private bool CanStart()
         {
-            if (Game == null || Game.MenuOpen || GameBootstrap.CutsceneActive)
+            // A director card (#2468) keeps the shared state closed (its input stays free) but owns the frame — wait for it too.
+            if (Game == null || Game.MenuOpen || GameBootstrap.CutsceneActive || CutsceneDirector.HoldsScreen)
             {
                 return false;
             }

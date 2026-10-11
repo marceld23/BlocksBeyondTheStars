@@ -671,7 +671,7 @@ public sealed partial class GameServer
             var p = session.State;
 
             TickStoryPacksFor(session); // #2466: player packs — start, advance, offers, help escalation (active play time)
-            TickCutscenesFor(session); // #2467: queued cutscenes — client in the world, cooldown, chains
+            // (#2468: queued cutscenes are flushed by TickCutscenes for every joined player, in space too — not from here.)
             RefreshVegaObjective(session); // #1859: the chip follows launches, stations, pickups and travel
 
             // Vitals coaching (o2 / energy / hunger / cold / heat) moved to the throttled context tips

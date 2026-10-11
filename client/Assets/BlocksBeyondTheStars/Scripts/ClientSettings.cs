@@ -640,6 +640,11 @@ namespace BlocksBeyondTheStars.Client
         /// always shows until the tutorial is finished or skipped; this mutes the optional coaching.</summary>
         public bool VegaHints = true;
 
+        /// <summary>#2468 "Story text: wait for me": story-pack cutscene captions (subtitles, VEGA's speaker box, reading
+        /// frames) wait page by page until the player continues — kids read slowly (d4 §2.3). Off: each page turns by
+        /// itself after its reading time. Title cards always run on their own. Default on.</summary>
+        public bool StoryTextWaitForMe = true;
+
         /// <summary>#1663: whether VEGA has explained the flight chart (M) once — that clicking a disc there
         /// sets the waypoint the radar and autopilot follow. A client-side one-shot UI lesson, not world
         /// progress, so it lives here rather than in a server milestone.</summary>

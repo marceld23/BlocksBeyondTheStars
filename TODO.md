@@ -143,7 +143,26 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   instances `id@chapter`, chapter title as argument) and step `onStart`/`onComplete`. Tests: `CutsceneContentTests`,
   `CutsceneLedgerTests`, `StoryPackValidationTests`, `NetCodecTests`. Docs: new CUTSCENES.md, STORY_IMPLEMENTATION,
   TUTORIAL_PACK.
-- ⬜ Step 9 — cutscene director (#2468)
+- ✅ **Step 9 — client cutscene director, tiers, skip everywhere, dev palette (#2468)**, 2026-10-11 (needs the local
+  Unity + WebGL build): Client.Core `Cutscenes/` — `CutscenePlan` (shots, captions resolved with the one key-token
+  resolver, arg-as-locale-key, `__recap` card, pages via `CaptionPager`, "Story text: wait for me" page-gating vs reading
+  floors `max(3 s, 1.2 s + chars/12)`, title cards always timed, `AsCard` downgrade), `CutscenePlayback`,
+  `SafeMomentGate` (menu/veil/scene/observer, danger, movement, prefer-at-home 300 s, now-or-never abort, give-up
+  600/1200 s, danger interrupt, MP 30 s camera cap), `CutsceneQueue` (dedupe, requests first, 90 s cooldown from the end,
+  chains), `CutsceneStaging` (orbit → crane → sky → player view), `CutsceneCatalog` ("Watch again" rows + labels);
+  `NetworkClient.CutscenePlayReceived` / `PlaysCutscenes` (announces `cutscenes1`) / `SendCutsceneSeen` /
+  `SendReplayCutscene`. Unity: `CutsceneDirector` (+ `CutsceneScreen`, `CutsceneCameraRig`, `CutsceneDevPalette`): T1 banner,
+  T2 card with free input, T3/T4 camera scenes (HUD hidden, controls frozen, SP hold only while the camera is taken, never
+  in MP), caption styles subtitle/title card/speaker box from the pack narrator/reading frame/credits, chart via
+  `GalaxyChartWidget`, memory/flashback grades, scene music (`ClientMusic.CutsceneTrack`), skip (Esc / pad B / button),
+  continue (N / pad Back / button / tap), `replaceLineKeys` kept out of VEGA's panel and given back on interrupt;
+  setting "Story text: wait for me" (Comfort); Story tab **Watch again**; dev palette (`-devSeq` or dev build, F9);
+  `ClipSpec.cutscene`. Server: `TickCutscenes` for every joined player (space too — step 8's gap), admin preview
+  `/cutscene <pack> <id>`, `StoryStateMessage.SeenCutscenes`. Keys en+de: `ui.story.so_far(_hint)`, `ui.story.replay(_button)`,
+  `ui.settings.story_text_wait(_hint)`, `ui.cutscene.saved`, `ui.devseq.title/close`, `ui.admin.help_cutscene`,
+  `srv.admin.cutscene_usage/unknown/unsupported/preview`. Tests: Client.Tests `CutscenePlanTests`, `SafeMomentGateTests`,
+  `CutsceneStagingTests`, `CutsceneClientTests`, `StoryPackClientTests`; server `CutsceneLedgerTests` (+5). Docs:
+  CUTSCENES.md "The client director" + dev tools, STORY_IMPLEMENTATION, USER_MANUAL.
 - ⬜ Step 10 — tutorial pack: basic training (#2469)
 - ⬜ Step 11 — VEGA as its own pack (#2470)
 - ⬜ Step 12 — journal + objective tracker (#2471)
@@ -161,6 +180,12 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   `ui.vega.prologue.skip` are no longer read by the client — drop them from all 14 files in the translation pass.
   Needs an on-device check: the touch Skip button and VEGA's pills with the touch layer hidden (phone/tablet, WebGL),
   and pad Y on non-XInput pads.
+- Open from step 9: the community locales lack the step-9 keys (`ui.story.so_far*`, `ui.story.replay*`,
+  `ui.settings.story_text_wait*`, `ui.cutscene.saved`, `ui.devseq.*`, `ui.admin.help_cutscene`, `srv.admin.cutscene_*`).
+  Playtest/on-device checks: the dev-palette prologue on desktop **and** WebGL (orbit staging, fallbacks, hold), a card's
+  skip button on touch (the touch layer stays up under a card and may cover the bottom-right button), pad paging of
+  cards, the MP camera cap. Deferred to later steps: hold-to-skip / pause-then-skip, ambience ducking, music prefetch,
+  `ctx:` variants and synthetic stages (17a), vocoder chatter under the speaker box.
 
 ### ⚙️ CI long poles: world-gen caches no longer build under a shared lock (#2455), the settlement sweeps split up (#2456) (2026-10-10, branch fix/ci-shard-long-poles) — ✅ done
 

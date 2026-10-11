@@ -1,10 +1,10 @@
-# Cutscenes — data format, wire, seen ledger
+# Cutscenes — data format, wire, seen ledger, client director
 
 Story packs stage their big moments as **data-driven cutscenes** (#2467, story-packs step 8): a pack's
 `data/stories/<pack>/cutscenes.json` describes each scene (shots, cameras, captions as locale keys, grade, sound, options);
-the **server** only decides *when* a player gets which scene and keeps a per-player **seen ledger**; the **client** resolves
-the scene from its own copy of the file and plays it (the client director is step 9 — its part of this document follows
-then). Everything is additive: no protocol bump, no save-version bump.
+the **server** only decides *when* a player gets which scene and keeps a per-player **seen ledger**; the **client**
+resolves the scene from its own copy of the file and plays it with the **cutscene director** (#2468, step 9 — see
+[The client director](#the-client-director)). Everything is additive: no protocol bump, no save-version bump.
 
 Related: [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md) (story engine, the player-pack runtime, the wire table),
 [TUTORIAL_PACK.md](TUTORIAL_PACK.md) (pack manifest and bindings).
@@ -160,9 +160,12 @@ text, so no spoilers.
 | 295 | `CutscenePlay` | S→C | `PackId`, `CutsceneId` (definition or instance id, or `__recap`), `Arg`, `HasAnchor` + `AnchorX/Y/Z` (the `custom` anchor), `Replay` |
 | 296 | `CutsceneSeenIntent` | C→S | `PackId`, `Ids[]` (as received), `Skipped`, `Unsupported` |
 | 297 | `StoryPackIntent` | C→S | `Action = "replayCutscene"` with the additive `CutsceneId` — "watch again" from the Story tab |
+| 139 | `StoryStateMessage` | S→C | additive `SeenCutscenes[]` (#2468): this player's confirmed scenes of every pack as `<pack>/<id>`, sorted — the Story tab's "Watch again" list |
 
 - Only a client that announces **`cutscenes1`** in `JoinRequest.Features` (`ClientFeatures.Cutscenes1`) gets
-  `CutscenePlay`; the client announces it from step 9 on. A local player (`AddLocalPlayer`) does not.
+  `CutscenePlay`. `NetworkClient.Features` holds `packs1` by default; `NetworkClient.PlaysCutscenes = true` adds
+  `cutscenes1` — the Unity client sets it right before the join when its `CutsceneDirector` exists (a headless test client
+  opts in the same way). A local player (`AddLocalPlayer`) does not get it.
 - `CutsceneSeenIntent` and `StoryPackIntent{replayCutscene}` pass a held singleplayer world (`PausedMayHandle`: the
   director confirms while its own hold is still on). Observers (`/spectate`) cannot confirm.
 - Both new messages are `NetCodec.Register`ed and in `NetCodecTests.ProtocolGoldenList`.
@@ -197,8 +200,10 @@ template. Rules:
 
 ### Pacing (per player, RAM)
 
-`PlayerSession.CutsceneQueue` holds committed scenes not sent yet; the 1 Hz `TickShipAi` path (`TickCutscenesFor`) and
-every new commit flush it:
+`PlayerSession.CutsceneQueue` holds committed scenes not sent yet; `TickCutscenes` (every server tick, outside the
+per-world loop, for every joined non-observing player — a pilot on a body whose world is not loaded, e.g. after an
+in-flight hyperjump, included; #2468 moved it out of `TickShipAi`, which only reaches loaded worlds) and every new commit
+flush it:
 
 - **Client in the world first.** After a network join nothing goes out until the client's first position report
   (`LastMoveAt`) or 15 s (`CutsceneJoinSettleSeconds`) — the join burst never carries a scene.
@@ -222,19 +227,138 @@ every new commit flush it:
 Test seams: `PlayCutsceneForTest`, `PlayCutsceneForListenersForTest`, `PlayRecapForTest`, `TickCutscenesForTest`,
 `CutscenesOnJoinForTest`.
 
+### Admin preview: `/cutscene <pack> <id>`
+
+`AdminCommandIntent{Command = "cutscene", StringArg}` (chat `/cutscene`, listed under `/help admin`) plays any scene of an
+installed pack for the **asking admin only**, as a replay (`Replay = true`): no ledger, no receipt, no cooldown, nobody
+else sees it. `StringArg` is `<pack> <id>`, `<pack>/<id>` or a bare id (the world story first, then any pack that defines
+it); a template without an owner previews as the instance of the pack's first chapter, `__recap` lists every chapter
+title, and the admin's position goes along as the `custom` anchor. World management, not a cheat (role-gated like
+`/story`, so family worlds with cheats off can use it). Answers: `@srv.admin.cutscene_preview:<pack>/<id>`, or a rejection
+`cutscene_usage` / `cutscene_unknown` / `cutscene_unsupported` (the admin's client has no director).
+
 ## Singleplayer and multiplayer
 
 - **SP hold** only for T3/T4 scenes that take the camera, by the client's `WorldHoldArbiter` (`Cutscene` holder) after
   its streaming wait — never for an `overlay` on a flight, never for a card. The server keeps one pause flag per session.
-- **MP** (synthesis §5.3 "MP-Schutz v1", done by the director in step 9): a safe moment before a scene starts, a danger
-  interrupt (damage ends the scene, the text goes back to the panel), a 30 s cap on camera takeovers. **No** server
-  grace period. Every player gets their own copy, deferred on their own; replays never hold in MP.
+- **MP** (synthesis §5.3 "MP-Schutz v1", done by the director): a safe moment before a scene starts, a danger interrupt
+  (damage ends the scene, the text goes back to the panel), a 30 s cap on camera takeovers. **No** server grace period.
+  Every player gets their own copy, deferred on their own; the director never asks for a hold in MP (it would be a group
+  vote — the others' pause dialogs would wait for this player), replays included.
 
 ## The client director
 
-Step 9 (#2468) adds the client half here: `CutscenePlan`, `SafeMomentGate`, `CutsceneQueue` in Client.Core, the
-`CutsceneDirector`, the skip rules on every device, the "Story text: wait for me" setting, and the `cutscenes1`
-announcement.
+Step 9 (#2468). The Unity-free rules live in Client.Core (`src/BlocksBeyondTheStars.Client.Core/Cutscenes/`, unit-tested in
+`tests/BlocksBeyondTheStars.Client.Tests`); the Unity side presents them.
+
+### Client.Core
+
+| Type | What it decides |
+|---|---|
+| `CutscenePlan` | a definition (+ the play's `Arg`) → `PlannedShot`s with resolved `PlannedCaption`s: text through `LineText.Compose` with the one key-token resolver (`HudUi.KeyTokenGlyph`, passed in a `CutsceneTextSource`), pages (`CaptionPager`: subtitle 140, speaker 220, reading frame 600 characters, cut at sentence ends), timings. `Build`, `Recap` (the built-in card), `LocalBanner` ("Story moment saved"), `AsCard()` (the downgrade: same captions, no camera, no hold/lock/HUD) |
+| `CutscenePlayback` | the clock: shot index and time, which page each caption shows, the hold at a page-gated caption's end, `Continue()` (completes a typing speaker box first), `CanSkip`, due sound cues, `TakeShotChanged()` |
+| `SafeMomentGate` | `Evaluate(request, inputs)` → `Play` / `Defer` / `Abort` with a reason; `ShouldInterrupt` (danger while playing); `CameraCapReached` (MP 30 s) |
+| `CutsceneQueue` | one scene at a time; dedupe by `pack/id`; requests (replays, previews, the dev palette) first; the 90 s cooldown after an unrequested T2+ (measured from its **end** — a scene that waited minutes must not be followed by the next one a second later); `chainNext` lifts it for the named follower; "now or never" and banners never wait |
+| `CutsceneStaging` | a shot's camera with the fallback chain (requested → raised orbit → crane → sky → player view) on `CinematicStageScan` (unloaded chunks blocked, the parked hull blocks the camera spot) and `PrologueOrbit.Scale` |
+| `CutsceneCatalog` | the "Watch again" rows (seen, replayable scenes of installed packs, in pack/definition order) and their names (title card "Prologue — The VEGA Protocol", else the bound chapter's title, else the first caption) |
+
+**Arguments.** `CutscenePlay.Arg` is split at U+001F; a value the localizer knows is localized (a chapter binding sends the
+chapter's title **key**), anything else stays (a body name). For `__recap` the values are chapter title keys: the card
+lists them as "✓ title" under "The story so far · <pack name>" plus "the full texts are in the Story tab".
+
+**Timing.** "Story text: wait for me" (`ClientSettings.StoryTextWaitForMe`, default on) makes subtitles, speaker boxes and
+reading frames **page-gated**: each page waits for the continue control, and once the caption's window has run out the
+shot holds there (the camera keeps moving) until the reader has turned the last page. Off — and always for title cards,
+credits and banners — captions are **timed**: each page shows for its reading floor `max(3 s, 1.2 s + chars / 12)`, at most
+10 s, measured on the localized text; a caption (and its shot) shorter than that is stretched.
+
+**When a scene may start** (`SafeMomentGate`):
+
+| Scene | Waits for | Gives up |
+|---|---|---|
+| banner (T1) | loading veil, another cinematic, observer mode, an open menu, the respawn prompt | never |
+| card (T2) | the above + chat input, the duel, the spawn settle; danger: hostile ≤ 20 m, damage in the last 10 s, space combat in the last 14 s, health or oxygen < 30 % | 600 s → text back to the panel, confirmed |
+| scene taking the camera (T3/T4) | the above + falling, climbing, head under water, a speeder or train, EVA, piloting in space, a warp/transit; prefers the player **at home** (aboard, docked, ≤ 24 m from the parked ship) for 300 s | 1200 s → tried once more **as a card** (`AsCard`), then as above |
+
+A "now or never" scene (`cooldownExempt`) aborts at once when the moment is not safe (its text goes to the panel). A
+requested replay never gives up and skips "prefer at home".
+
+### Unity: `CutsceneDirector`
+
+`client/Assets/BlocksBeyondTheStars/Scripts/CutsceneDirector.cs` (built by `WorldRig`, execution order −20 so the Esc that
+skips a card is marked handled before the pause menu sees it), with `CutsceneScreen.cs` (the presentation) and
+`CutsceneCameraRig.cs` (the camera, `LateUpdate` at order 211, after the prologue rig's 210).
+
+- **Receive** (`NetworkClient.CutscenePlayReceived`, tag 295): resolve the pack and definition from the client's own
+  content; an unknown id (or a template without an owner) is confirmed `Unsupported` at once and its lines show as usual.
+  Known scenes are queued with the `Owed` payload (definition, pack, the narrator lines it took over).
+- **Narrator lines.** `VegaPanel.OnLine` asks `TryClaimLine` first: a line named in the `replaceLineKeys` of a queued or
+  playing (unrequested) scene stays out of the panel. When the scene is interrupted or given up the lines come back
+  (`VegaPanel.Requeue`, no flashback pulse) — text is never lost; the story log recorded them on arrival anyway.
+- **Tiers on screen** (one `CinematicFrame` per scene at sorting order 67 — above the prologue 65 and intro 66, below the
+  ending 68, the warp 70 and the veil 75): T1 a top banner with the narrator's icon, no letterbox, no input; T2 a thin
+  letterbox (45 %), a light dim, the captions, **free input** (the HUD stays; VEGA's panel, the memory flashback and the
+  ending wait while it shows — `CutsceneDirector.HoldsScreen`); while the Tab menu is open over a card the card pauses
+  hidden. T3/T4: full letterbox, a fade out of black, the camera staged per shot.
+- **Caption styles** (`CutsceneScreen`): `subtitle` (the frame's lower-third caption), `title_card` (kicker + big title,
+  centred), `speaker` (box above the lower bar with the narrator's icon, name and colour from the pack's `narrator` — VEGA's
+  defaults `ui.vega.name`, `icon_vega`, cyan, `ai_blip` when a page starts; another `speaker` id reads as its own name;
+  typewriter 42 chars/s), `reading_frame` (a framed panel ≤ 1100 px wide over a 55 % dim — the recap), `credits` (a roll
+  over the caption's window). Fonts follow the UI scale; positions stay on the 1920×1080 frame canvas.
+- **Camera** (`CutsceneStaging` + `CutsceneCameraRig`): anchors `player`, `ship` (scaled by the own ship's size),
+  `heal_tank` (the ship's `medbay` station), `planet` (the player, wider), `station`/`star_map` (the player), `core` and
+  `custom` (the message's coordinates, else the player). `orbit` circles (ping-pong across the open arc), `crane` rises,
+  `static` frames with a slow push-in, `sky` looks up from the player's eye (only under the open sky, not aboard), `chart`
+  shows the galaxy chart (`GalaxyChartWidget`: every star, known ones named, the current one ringed, the relay lanes) over
+  the frame. A world shot that fails while chunks may still stream is retried every 0.5 s for 4 s (`StagingRetry`) showing
+  the player's view, then the fallback is taken. Nothing world-anchored in the space view (only the chart). "Camera motion"
+  off turns moves into still framings; a late-streamed chunk that blocks the line of sight freezes the last clear pose.
+- **Shared state and hold.** A T3/T4 scene that takes the camera (or has `lockInput`) opens the `director` reason in
+  `GameBootstrap.Cutscenes` — HUD, touch layer, chat, nameplates and IMGUI step aside, the controls freeze, Esc belongs to
+  the scene, and the cursor is freed for the buttons. A singleplayer world is held (`WorldHoldArbiter.Cutscene`) only while
+  the camera is actually taken (a `player_view` shot in between releases it), and never in multiplayer.
+- **Grades:** `memory` → `UrpScenePost.SetFlashback(0.55)`, `flashback` → 0.85 plus one glitch `Burst` per shot (not under
+  Reduced effects, never in the browser); halved under Reduced effects. Banners leave the picture alone.
+- **Music and sound:** a scene's `music` is played as `ClientMusic.CutsceneTrack` (context `cutscene:<track>`, looping, in
+  either music mode; outranks every context but the ending's own track; a track still downloading leaves the current music
+  playing — a scene is never delayed for music). `sfx` cues go to `ClientAudio.Cue`.
+- **Skip:** one press — Esc or the pad's cancel button on a scene that owns the screen; on a card (input free, pad B is
+  crouch) the keyboard's Esc — or the frame's skip button (click/tap), after `minDisplay`, at once on a replay. The hint
+  follows the device (`CinematicFrame.SkipLabel`); on a pad a card shows none (it pages with the continue button).
+- **Continue:** the VEGA continue key (N / pad Back), the "Continue" button at the bottom centre (clear of the touch stick,
+  the action buttons and the hotbar arrows), or a tap on the speaker box / reading frame.
+- **Danger:** damage or space combat since the scene started, or a hostile ≤ 20 m while the world is not held, ends a card
+  or scene: the lines go back to the panel, a "Story moment saved — watch it again in the Story tab" banner follows (for a
+  replayable scene), and the scene is confirmed. MP: after 30 s with the camera the scene continues as a card.
+- **Receipt** (`NetworkClient.SendCutsceneSeen`, tag 296): after a scene ends — watched, skipped (`Skipped`), interrupted or
+  given up — never for a replay, a local play or the recap.
+- **Watch again** (Story tab, `CraftingTechShipUI.BuildStoryList`): `CutsceneDirector.ReplayEntries()` = the server's
+  `SeenCutscenes` plus what this client confirmed since, as rows with a "Watch" button →
+  `NetworkClient.SendReplayCutscene` → the server re-sends it with `Replay = true` (spoiler guard server-side); the menu
+  closes and the scene plays once the screen is free.
+
+### Developer tools
+
+- **Dev palette** (`CutsceneDevPalette.cs`): in the Editor, a development build, or any build started with **`-devSeq`**,
+  **F9** opens a list of every cutscene of the loaded packs (and each world story's `__recap`); a click plays it on this
+  client alone (`CutsceneDirector.PlayLocal`: no server, no ledger, no receipt; a template as its first chapter's
+  instance, the recap with every chapter title). The smoke path for VEGA's `prologue` before step 11 binds it.
+- **Admin preview** `/cutscene <pack> <id>` (server round trip, see above) — what the scene looks like for a real
+  `CutscenePlay`.
+- **Clip recorder** (`-captureClip`): a `ClipSpec` with `"cutscene": "<pack>/<id>"` plays the scene through the director
+  when recording starts — use `"camera": "static"` (the capture follows the director's camera), `"hud": true` (captions and
+  letterbox are UI) and a `lengthSeconds` that covers the scene.
+
+### Known gaps (later steps)
+
+- Hold-to-skip and pause-then-skip (d4 §2.4) are not built: one press skips (step 2's decision); the skip button sits
+  bottom right, where on a touch device the touch layer may cover it during a card (the layer only hides under a staged
+  scene).
+- A card dims the whole picture by 18 % (HUD included — the crosshair and the chip are not kept bright as d4 sketched); no
+  ambience ducking; music is not prefetched when a scene is queued.
+- No `ctx:` variants, no synthetic stages (`space_vista`, dioramas), no `dolly`/`pan`/`flyover` (step 17a); the speaker box
+  has no vocoder chatter (only the line-start cue).
+- The VEGA prologue still runs on `VegaPanel` + `PrologueCinematic` until step 11 binds `introCutscene: "prologue"`.
 
 ## Tests
 
@@ -245,3 +369,10 @@ announcement.
   "now or never", the veteran, `skipPack`, join catch-up (also with an older client), the recap collapse, recap and
   anchor on the wire, replays, observers, the pause whitelist.
 - `StoryPackValidationTests` — bindings must resolve; every data pack's `cutscenes.json` reads strictly.
+- `CutsceneLedgerTests` (#2468 additions) — the queue flushes for a pilot whose world is not loaded (`TickCutscenes`), the
+  admin preview (every spelling, refusals), `SeenCutscenes` in the story state (confirmed only, codec round trip), the
+  seen-key parser.
+- Client.Tests: `CutscenePlanTests` (plan, pager, recap, VEGA's prologue from the data pack, playback), `SafeMomentGateTests`
+  (every unsafe reason, give-up, interrupt, cap; the queue), `CutsceneStagingTests` (fallback chain on fake worlds; the
+  "Watch again" rows and labels), `CutsceneClientTests` (the real `NetworkClient` against the real server: `cutscenes1`,
+  the preview event, the receipt, `SeenCutscenes`, the replay request), `StoryPackClientTests` (the feature words).

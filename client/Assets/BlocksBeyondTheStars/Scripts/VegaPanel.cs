@@ -429,7 +429,31 @@ namespace BlocksBeyondTheStars.Client
             _objProgress = m.ObjectiveProgress;
             _objTarget = m.ObjectiveTarget;
 
-            if (m.Kind == 2)
+            // A story-pack cutscene that shows this very line itself (its replaceLineKeys, #2468) keeps it out of the
+            // panel — the scene arrived just before its line. The director gives it back (Requeue) if the scene is
+            // interrupted or given up, so the text is never lost; the story log recorded it on arrival either way.
+            if (CutsceneDirector.Instance != null && CutsceneDirector.Instance.TryClaimLine(m))
+            {
+                Refresh();
+                return;
+            }
+
+            EnqueueLine(m, flashback: true);
+        }
+
+        /// <summary>A narrator line a cutscene had taken over comes back as a normal page (#2468): the scene was interrupted
+        /// (danger, multiplayer) or never found its moment. No flashback pulse — the moment has passed.</summary>
+        public void Requeue(ShipAiLine m)
+        {
+            if (m != null)
+            {
+                EnqueueLine(m, flashback: false);
+            }
+        }
+
+        private void EnqueueLine(ShipAiLine m, bool flashback)
+        {
+            if (m.Kind == 2 && flashback)
             {
                 Flashback?.Trigger(); // a recovered memory gets the brief flashback treatment (#762)
             }
@@ -588,9 +612,12 @@ namespace BlocksBeyondTheStars.Client
             // it, and no line starts in the moment before it takes over. The queue simply waits and picks up where it
             // stopped. The prologue is the one scene VEGA presents herself, so it never silences her — and a pending
             // ending waits for a running prologue instead (ResolutionCinematic.CanStart).
+            // A director card (T2, free input) does not open the shared state, but it speaks in the frame — VEGA waits for it
+            // too (#2468), so the two never talk at once and the continue key reaches only the card.
             var ending = ResolutionCinematic.Instance;
             bool yieldToScene = GameBootstrap.Cutscenes.ActiveOtherThan(CutsceneGate.Prologue)
-                                || (ending != null && ending.Pending && !_prologueStarted);
+                                || (ending != null && ending.Pending && !_prologueStarted)
+                                || CutsceneDirector.HoldsScreen;
             if (_canvas.enabled == yieldToScene)
             {
                 _canvas.enabled = !yieldToScene;
