@@ -199,6 +199,7 @@ namespace BlocksBeyondTheStars.Client
             _openedFrame = Time.frameCount;
             _tab = Tab.System;
             _selectedSystemId = null;
+            Game.Network?.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiMapOpenId); // #2469: the flight lesson
             Game.SetMenuOwner(this, true); // frees the cursor; UpdateCruise holds the ship while set (#413)
             Game.StarChartOpen = true;     // the music director switches to the star-map bed (#1174)
             if (!_hyperjumpSubscribed)
@@ -729,6 +730,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _ = snapName; // name shows via RefreshInfo's resolution
+            Game.Network?.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiWaypointSetId); // #2469
             RefreshInfo();
         }
 

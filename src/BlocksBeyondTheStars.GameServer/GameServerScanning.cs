@@ -416,7 +416,6 @@ public sealed partial class GameServer
             }
         }
 
-        ShipAiOnScan(session); // VEGA onboarding: first scan (any subject counts)
         RaiseGameEvent(session, GameEventKeys.ScanPerformed, readout.Kind); // #2465: every scan, first or repeat
         return result;
     }

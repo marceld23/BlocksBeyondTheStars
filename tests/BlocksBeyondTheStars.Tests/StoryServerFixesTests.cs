@@ -125,7 +125,8 @@ public sealed class StoryServerFixesTests : IDisposable
         return server;
     }
 
-    /// <summary>Joins over the wire (the real join path) and collects every VEGA line the client receives.</summary>
+    /// <summary>Joins over the wire (the real join path, as a current client: <c>packs1</c>) and collects every VEGA line the
+    /// client receives.</summary>
     private static List<ShipAiLine> JoinOverNetwork(SvGameServer server, LoopbackClientTransport client, string name)
     {
         var lines = new List<ShipAiLine>();
@@ -137,7 +138,12 @@ public sealed class StoryServerFixesTests : IDisposable
             }
         };
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = name }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest
+        {
+            ContentFingerprint = TestJoin.Fingerprint,
+            PlayerName = name,
+            Features = new[] { ClientFeatures.Packs1 },
+        }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
         return lines;
@@ -160,7 +166,20 @@ public sealed class StoryServerFixesTests : IDisposable
         Assert.True(server.IsGuardianSystemRevealedForTest);
     }
 
-    private static readonly string[] Stages = { "mine", "craft", "eat", "scan", "unlock", "launch", "dock", "trade", "land" };
+
+    /// <summary>#2469: the official tutorial pack's first step line and chip, and its done key.</summary>
+    private const string TutorialFirstStart = "story.tutorial.b1.walk.start";
+    private const string TutorialFirstChip = "story.tutorial.b1.walk.chip";
+    private static readonly string TutorialDone = Shared.Story.StoryPackKeys.Done(SvGameServer.OfficialTutorialPackId);
+
+    /// <summary>Skips the basic training's chapters before <paramref name="chapterId"/> the way the Journal does.</summary>
+    private static void SkipChaptersBefore(SvGameServer server, LoopbackClientTransport client, string chapterId)
+    {
+        foreach (string chapter in new[] { "b1", "b2", "b3", "b4", "b5", "b6" }.TakeWhile(c => c != chapterId))
+        {
+            Send(server, client, new StoryPackIntent { PackId = SvGameServer.OfficialTutorialPackId, Action = StoryPackActions.SkipChapter, ChapterId = chapter });
+        }
+    }
 
     // ---------------- B01: the newcomer decision is a snapshot at the top of the join ----------------
 
@@ -184,12 +203,12 @@ public sealed class StoryServerFixesTests : IDisposable
 
         var lines = JoinOverNetwork(server, client, "Guest");
 
+        // #2469: the prologue, then the basic training's first step (the tutorial pack) — not the veteran's silent pass.
         Assert.DoesNotContain(lines, l => l.LineKey == "vega.veteran");
         Assert.Contains(lines, l => l.LineKey == "vega.prologue.1" && l.Kind == 4);
-        Assert.Contains(lines, l => l.LineKey == "vega.intro.1");
-        Assert.Contains(lines, l => l.LineKey == "vega.s.mine.start");
-        Assert.Equal("vega.obj.mine", lines.Last().ObjectiveKey);
-        Assert.DoesNotContain("vega:stage:mine", server.MilestonesForTest("Guest"));
+        Assert.Contains(lines, l => l.LineKey == TutorialFirstStart);
+        Assert.Equal(TutorialFirstChip, lines.Last().ObjectiveKey);
+        Assert.DoesNotContain(TutorialDone, server.MilestonesForTest("Guest"));
 
         // The shared arc is untouched by the arrival (N4) — and the catch-up still credits what the world heard.
         Assert.Equal(milestones, server.StorySnapshot.Milestones);
@@ -209,18 +228,19 @@ public sealed class StoryServerFixesTests : IDisposable
         repo.SavePlayer(new PlayerState { PlayerId = "Vet", Name = "Vet", KnowledgePoints = 12 }); // a played save
         var server = Boot("restart", out var client, repo: repo);
         var lines = JoinOverNetwork(server, client, "Vet");
-        Assert.Contains(lines, l => l.LineKey == "vega.veteran"); // the veteran skip itself still stands
+        Assert.Contains(lines, l => l.LineKey == "vega.veteran"); // the veteran pass itself still stands (#2469: the migration)
+        Assert.Contains(TutorialDone, server.MilestonesForTest("Vet"));
 
         lines.Clear();
         Send(server, client, new SkipOnboardingIntent { Restart = true });
 
+        // #2469: the restart replays the tutorial pack from part 1 — never the veteran check, never the prologue.
         var milestones = server.MilestonesForTest("Vet");
-        Assert.DoesNotContain("vega:stage:mine", milestones);
-        Assert.DoesNotContain("vega:stage:land", milestones);
-        Assert.Contains(lines, l => l.LineKey == "vega.intro.1");
+        Assert.Contains(Shared.Story.StoryPackKeys.ChapterReplay(SvGameServer.OfficialTutorialPackId, "b1"), milestones);
+        Assert.Contains(lines, l => l.LineKey == TutorialFirstStart);
         Assert.DoesNotContain(lines, l => l.LineKey == "vega.veteran");
         Assert.DoesNotContain(lines, l => l.Kind == 4); // a restart is for the lessons, not the cold open
-        Assert.Equal("vega.obj.mine", lines.Last().ObjectiveKey);
+        Assert.Equal(TutorialFirstChip, lines.Last().ObjectiveKey);
     }
 
     // ---------------- B04: Creative reads the save, not the launch flag ----------------
@@ -243,10 +263,11 @@ public sealed class StoryServerFixesTests : IDisposable
 
         Assert.NotEmpty(server.Sessions[1].State.UnlockedBlueprints); // the saved option still hands them out
         Assert.DoesNotContain(lines, l => l.LineKey == "vega.veteran");
-        Assert.Contains(lines, l => l.LineKey == "vega.intro.1");
-        var milestones = server.MilestonesForTest("Friend");
-        Assert.Contains("vega:stage:unlock", milestones);     // moot with every blueprint — granted silently
-        Assert.DoesNotContain("vega:stage:mine", milestones);
+        Assert.Contains(lines, l => l.LineKey == TutorialFirstStart); // #2469: the newcomer gets the basic training
+        var friend = server.Sessions[1];
+        Assert.False(friend.Join.Veteran);
+        Assert.True(server.WorldPredicateForTest(friend, Shared.Story.StoryWorldPredicates.AllBlueprints)); // research step: skipped there
+        Assert.DoesNotContain(TutorialDone, server.MilestonesForTest("Friend"));
     }
 
     // ---------------- B05/B07: the active story row ----------------
@@ -647,10 +668,7 @@ public sealed class StoryServerFixesTests : IDisposable
             }
         });
         var p = server.AddLocalPlayer("Pilot");
-        foreach (var stage in Stages)
-        {
-            p.State.Milestones.Add("vega:stage:" + stage);
-        }
+        server.SkipTutorialForTest(p); // past the basic training (#2469)
 
         foreach (var f in server.NetFragmentSnapshots.ToList())
         {
@@ -685,8 +703,11 @@ public sealed class StoryServerFixesTests : IDisposable
 
     // ---------------- B29: no lesson the world cannot offer ----------------
 
+    /// <summary>B29, since #2469 in the tutorial pack: the docking step is infeasible without a station in the system
+    /// (<c>world:station_in_system</c>, the old dock-skip rule) — it is skipped (its legacy key still double-written) and
+    /// the trader step stands in. No hyperjump the starter ship cannot make is ever asked for.</summary>
     [Fact]
-    public void WithoutAStationInReach_TheDockLessonIsSkipped_NotAwaited()
+    public void WithoutAStationInReach_TheDockStepGivesWayToATrader()
     {
         var server = Boot("no_station", out var client, c =>
         {
@@ -694,45 +715,43 @@ public sealed class StoryServerFixesTests : IDisposable
             c.Rules.FreeSpaceFlight = true;
         });
         var lines = JoinOverNetwork(server, client, "Pilot");
-        var p = server.Sessions[1].State;
-        foreach (var stage in new[] { "mine", "craft", "eat", "scan", "unlock" })
-        {
-            p.Milestones.Add("vega:stage:" + stage);
-        }
+        SkipChaptersBefore(server, client, "b6");
 
-        lines.Clear();
-        server.EnterSpace("Pilot"); // completes the launch lesson
+        server.EnterSpace("Pilot"); // completes the launch step
         client.Poll();
-
-        Assert.Contains("vega:stage:dock", server.MilestonesForTest("Pilot"));
-        var keys = lines.Where(l => l.LineKey.Length > 0).Select(l => l.LineKey).ToList();
-        Assert.Equal(new[] { "vega.s.launch.done", "vega.s.dock.start_far", "vega.s.trade.start" },
-            keys.Where(k => k.StartsWith("vega.s.", StringComparison.Ordinal)).ToArray());
-        Assert.Equal("vega.obj.trade", lines.Last().ObjectiveKey);
-    }
-
-    [Fact]
-    public void WithSpaceFlightOff_TheFlightLessonsAreSkipped_OnRejoin()
-    {
-        var repo = Repo("no_flight");
-        repo.Initialize();
-        var stored = new PlayerState { PlayerId = "Pilot", Name = "Pilot" };
-        stored.Milestones.Add("vega:intro");
-        foreach (var stage in new[] { "mine", "craft", "eat", "scan", "unlock" })
+        foreach (string step in new[] { "b6.2", "b6.3" }) // the CORE flight extras: "I know this"
         {
-            stored.Milestones.Add("vega:stage:" + stage);
+            Send(server, client, new StoryPackIntent { PackId = SvGameServer.OfficialTutorialPackId, Action = StoryPackActions.SkipStep, StepId = step });
         }
-
-        repo.SavePlayer(stored);
-        var server = Boot("no_flight", out var client, c => c.Rules.FreeSpaceFlight = false, repo);
-        var lines = JoinOverNetwork(server, client, "Pilot");
 
         var milestones = server.MilestonesForTest("Pilot");
+        string pack = SvGameServer.OfficialTutorialPackId;
+        Assert.Contains(Shared.Story.StoryPackKeys.StepSkipped(pack, "b6.4"), milestones);
+        Assert.Contains("vega:stage:dock", milestones); // older builds keep their onboarding state
+        Assert.Contains(lines, l => l.LineKey == "story.tutorial.b6.vendor.start");
+        Assert.DoesNotContain(lines, l => l.LineKey == "story.tutorial.b6.dock.start" || l.LineKey == "vega.s.dock.start_far");
+        Assert.Equal("story.tutorial.b6.vendor.chip", lines.Last().ObjectiveKey);
+    }
+
+    /// <summary>B29 with space flight switched off: every step that needs flight is skipped — the landing's own stand-in
+    /// too — and the trader step is what is left of the lift-off part.</summary>
+    [Fact]
+    public void WithSpaceFlightOff_TheFlightStepsAreSkipped()
+    {
+        var server = Boot("no_flight", out var client, c => c.Rules.FreeSpaceFlight = false);
+        var lines = JoinOverNetwork(server, client, "Pilot");
+        SkipChaptersBefore(server, client, "b6");
+
+        var milestones = server.MilestonesForTest("Pilot");
+        string pack = SvGameServer.OfficialTutorialPackId;
+        foreach (string step in new[] { "b6.1", "b6.2", "b6.3", "b6.4" })
+        {
+            Assert.Contains(Shared.Story.StoryPackKeys.StepSkipped(pack, step), milestones);
+        }
+
         Assert.Contains("vega:stage:launch", milestones);
         Assert.Contains("vega:stage:dock", milestones);
         Assert.DoesNotContain("vega:stage:trade", milestones);
-        Assert.DoesNotContain(lines, l => l.LineKey == "vega.resume"); // not "carry on" with an impossible lesson
-        Assert.Contains(lines, l => l.LineKey == "vega.s.trade.start");
-        Assert.Equal("vega.obj.trade", lines.Last().ObjectiveKey);
+        Assert.Equal("story.tutorial.b6.vendor.chip", lines.Last().ObjectiveKey);
     }
 }

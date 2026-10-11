@@ -726,7 +726,6 @@ public sealed partial class GameServer
 
         if (session is not null)
         {
-            ShipAiOnEnterSpace(session); // VEGA onboarding: first launch into space
             RaiseGameEvent(session, GameEventKeys.SpaceEnter, SpaceEntryContext(skipLaunch, hyperjump, wormhole)); // #2465
             ShipAiBanditSectorWarning(session, instance); // pirate space? warn BEFORE any raider appears
             // #1677: the star map goes FIRST. The flight view builds its scene — star, planets, landables —
@@ -1848,11 +1847,16 @@ public sealed partial class GameServer
         instance.ShipPosition = pos; // shared, for collision (the acting player's ship)
 
         // Per-player pose for visibility — so the others in this instance can render this ship / EVA suit.
-        bool eva = FindSessionByPlayerId(playerId)?.State.InEva ?? false;
+        var pilot = FindSessionByPlayerId(playerId);
+        bool eva = pilot?.State.InEva ?? false;
         instance.PlayerPoses[playerId] = new SpacePlayerPose(pos, yaw, eva);
         if (!eva)
         {
             instance.ShipPoses[playerId] = new SpacePlayerPose(pos, yaw, false); // #2118: the ship itself
+            if (pilot is not null)
+            {
+                TutorialFlightEvents(pilot, pos); // #2469: the tutorial's "fly a little way"
+            }
         }
 
         CheckSpaceWreckApproach(instance, playerId, pos); // #1664: flying up to a derelict "visits" it

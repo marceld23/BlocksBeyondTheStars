@@ -52,6 +52,14 @@ public sealed partial class GameServer
         [StoryWorldPredicates.BaseVisitors] = _ => BaseVisitorsActive,
         [StoryWorldPredicates.SpaceStations] = _ => _meta.Description.SpaceStations != Frequency.Off,
         [StoryWorldPredicates.StoryActive] = _ => StoryActive,
+
+        // #2469: the tutorial's feasibility checks (GameServerTutorial.cs) — probes run only when a step activates.
+        [StoryWorldPredicates.FoodPlantsNear] = s => NearestBlockOf(s, FoodPlantBlocks) is not null,
+        [StoryWorldPredicates.TreesNear] = s => NearestBlockOf(s, TreeBlocks) is not null,
+        [StoryWorldPredicates.ShapeBlockCarried] = ShapeBlockCarried,
+        [StoryWorldPredicates.ResearchReady] = ResearchReady,
+        [StoryWorldPredicates.AllBlueprints] = _ => CreativeGrantsActive,
+        [StoryWorldPredicates.NewWorldInSystem] = NewWorldInSystem,
     };
 
     /// <summary>The names the server can evaluate — what the pack loader passes to <see cref="StoryConditionParser"/>.</summary>

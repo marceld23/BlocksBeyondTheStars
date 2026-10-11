@@ -157,32 +157,65 @@ public sealed class VegaTextTests
 
     // ---- JournalKeys (#737): milestones → locale keys ----
 
-    [Fact]
-    public void Intro_MapsToAllIntroLines()
+    /// <summary>A two-chapter tutorial pack with start and done lines, for the journal mapping.</summary>
+    private static BlocksBeyondTheStars.Shared.Story.StoryDefinition TinyTutorial() => new()
     {
-        var keys = VegaText.JournalKeys(new[] { "vega:intro" });
-        Assert.Equal(new[] { "vega.intro.1", "vega.intro.2", "vega.intro.menu", "vega.intro.codex" }, keys);
+        Id = "tut",
+        Kind = BlocksBeyondTheStars.Shared.Story.StoryRegistry.KindTutorial,
+        Chapters =
+        {
+            new BlocksBeyondTheStars.Shared.Story.StoryChapter
+            {
+                Id = "a",
+                Steps =
+                {
+                    new BlocksBeyondTheStars.Shared.Story.StoryStep { Id = "a.1", Explain = { StartKey = "t.a1.start", DoneKey = "t.a1.done" } },
+                    new BlocksBeyondTheStars.Shared.Story.StoryStep { Id = "a.2", Explain = { StartKey = "t.a2.start" } },
+                },
+            },
+            new BlocksBeyondTheStars.Shared.Story.StoryChapter
+            {
+                Id = "b",
+                Steps = { new BlocksBeyondTheStars.Shared.Story.StoryStep { Id = "b.1", Explain = { StartKey = "t.b1.start" } } },
+            },
+        },
+    };
+
+    [Fact]
+    public void TheOldOnboardingKeys_AreNoLongerListed()
+    {
+        // #2469: the basic training is the tutorial pack — the client's copy of the old nine-stage chain is gone, and the
+        // legacy keys the server keeps double-writing for older builds map to nothing here.
+        var legacy = new[] { "mine", "craft", "eat", "scan", "unlock", "launch", "dock", "trade", "land" }
+            .Select(id => "vega:stage:" + id).Append("vega:intro");
+        Assert.Empty(VegaText.JournalKeys(legacy));
+        Assert.Empty(VegaText.JournalKeys(legacy, new[] { TinyTutorial() }));
     }
 
     [Fact]
-    public void Stages_AppearInLessonOrder_RegardlessOfSetOrder()
+    public void TutorialSteps_AppearInThePacksOrder_WithTheirStartAndDoneLines()
     {
-        var keys = VegaText.JournalKeys(new[] { "vega:stage:eat", "vega:stage:mine" });
-        Assert.Equal(new[] { "vega.s.mine.start", "vega.s.mine.done", "vega.s.eat.start", "vega.s.eat.done" }, keys);
+        var keys = VegaText.JournalKeys(new[] { "story:tut:step:b.1", "story:tut:step:a.1" }, new[] { TinyTutorial() });
+        Assert.Equal(new[] { "t.a1.start", "t.a1.done", "t.b1.start" }, keys);
     }
 
     [Fact]
-    public void CompletedChain_AddsTheSendOff()
+    public void SkippedSteps_AndOtherPacks_AreNotListed()
     {
-        var all = new[] { "mine", "craft", "eat", "scan", "unlock", "launch", "dock", "trade", "land" }
-            .Select(id => "vega:stage:" + id);
-        var keys = VegaText.JournalKeys(all);
-        Assert.Equal("vega.done", keys.Last());
+        var side = TinyTutorial();
+        side.Id = "side";
+        side.Kind = BlocksBeyondTheStars.Shared.Story.StoryRegistry.KindSide;
+        var keys = VegaText.JournalKeys(new[] { "story:tut:step:a.2:skipped", "story:side:step:a.1" }, new[] { TinyTutorial(), side });
+        Assert.Empty(keys);
     }
 
     [Fact]
-    public void IncompleteChain_HasNoSendOff()
-        => Assert.DoesNotContain("vega.done", VegaText.JournalKeys(new[] { "vega:stage:mine" }));
+    public void TheShippedTutorialPack_MapsADoneStep_ToItsLine()
+    {
+        var content = BlocksBeyondTheStars.Shared.Content.ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
+        var keys = VegaText.JournalKeys(new[] { "story:tutorial:step:b3.1", "vega:hint:night" }, content.Stories.Values);
+        Assert.Equal(new[] { "story.tutorial.b3.mine.start", "vega.hint.night" }, keys); // the lessons first, then the hints
+    }
 
     [Fact]
     public void Hints_MapToHintKeys_WithWorldFlavourAndBanditBriefing()
@@ -208,8 +241,8 @@ public sealed class VegaTextTests
     [Fact]
     public void MemoryFragmentsAndForeignMilestones_AreExcluded()
     {
-        var keys = VegaText.JournalKeys(new[] { "vega:mem:3", "story:vega_protocol:beat:1", "vega:intro" });
-        Assert.Equal(new[] { "vega.intro.1", "vega.intro.2", "vega.intro.menu", "vega.intro.codex" }, keys);
+        var keys = VegaText.JournalKeys(new[] { "vega:mem:3", "story:vega_protocol:beat:1", "vega:hint:o2" }, new[] { TinyTutorial() });
+        Assert.Equal(new[] { "vega.hint.o2" }, keys);
     }
 
     [Fact]
@@ -217,13 +250,41 @@ public sealed class VegaTextTests
     {
         var milestones = new[]
         {
-            "vega:hint:night", "vega:hint:o2", "vega:stage:craft", "vega:stage:mine",
+            "vega:hint:night", "vega:hint:o2", "story:tut:step:b.1", "story:tut:step:a.2",
             "vega:intro", "vega:hint:world:ocean", "vega:hint:zz_future", "vega:hint:aa_future",
         };
 
-        var forward = VegaText.JournalKeys(milestones);
-        var reversed = VegaText.JournalKeys(milestones.Reverse());
+        var forward = VegaText.JournalKeys(milestones, new[] { TinyTutorial() });
+        var reversed = VegaText.JournalKeys(milestones.Reverse(), new[] { TinyTutorial() });
         Assert.Equal(forward, reversed);
+    }
+
+    // ---- #2469: the pseudo-action tokens and the lessons the tutorial covers ----
+
+    [Fact]
+    public void PseudoActions_AreKnown_AndHaveTouchLabelsInEnglishAndGerman()
+    {
+        foreach (string pseudo in new[] { "Move", "Look", "Jump", "Crouch", "Mine", "Place", "Scan", "Hotbar" })
+        {
+            Assert.True(VegaText.IsPseudoAction(pseudo), pseudo);
+            Assert.NotNull(VegaText.TouchControlLabel(pseudo, key => key));
+        }
+
+        Assert.False(VegaText.IsPseudoAction("Interact")); // a real InputAction resolves through the enum
+        Assert.Equal(VegaText.TouchHotbarLabel, VegaText.TouchControlLabel("Hotbar", key => key));
+        Assert.Equal("ui.touch.mine", VegaText.TouchControlLabel("Scan", key => key)); // scanning is the MINE button's use
+    }
+
+    [Fact]
+    public void TheFlightLessons_AreCoveredByTheTutorial_TheOthersStayClientLessons()
+    {
+        Assert.True(VegaText.LessonCoveredByTutorial("vega.hint.chart_waypoint"));
+        Assert.True(VegaText.LessonCoveredByTutorial("vega.hint.ship_scanner"));
+        Assert.True(VegaText.LessonCoveredByTutorial("vega.hint.ship_scan_hold"));
+        Assert.True(VegaText.LessonCoveredByTutorial("vega.hint.anomaly_scan"));
+        Assert.False(VegaText.LessonCoveredByTutorial("vega.hint.planet_card"));
+        Assert.False(VegaText.LessonCoveredByTutorial("vega.hint.climb"));
+        Assert.False(VegaText.LessonCoveredByTutorial(null));
     }
 
     // ---- Context tips (#1077): repeat markers, packed args, {key:Action} tokens ----

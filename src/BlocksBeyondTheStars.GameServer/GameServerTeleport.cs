@@ -47,6 +47,7 @@ public sealed partial class GameServer
             Reason = "@srv.tp.to_ship",
         });
         SendPlayerState(session);
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.ShipReturned, "teleport"); // #2469: the tutorial's way-home lesson
     }
 
     /// <summary>

@@ -606,6 +606,10 @@ public static class NetCodec
         // #2466 story packs: the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a
         // step; #2467 replay a cutscene). No protocol bump — an older server drops it.
         Register(297, typeof(StoryPackIntent));              // Client -> Server
+
+        // #2469 the tutorial's UI-only lessons: the client reports a UI moment (menu, Codex, map, waypoint, VEGA continue)
+        // that a step teaches. Teaching only, never a reward. No protocol bump — an older server drops it.
+        Register(298, typeof(UiTutorialEvent));              // Client -> Server
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

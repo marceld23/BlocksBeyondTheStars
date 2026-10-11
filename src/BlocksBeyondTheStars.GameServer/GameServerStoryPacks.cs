@@ -44,7 +44,8 @@ public sealed class StepEscalationState
 /// counters are the only typed additions. A client without <c>packs1</c> gets the legacy tutorial mode: steps with a
 /// <c>legacyKey</c> speak the old <c>vega.s.&lt;id&gt;.*</c> keys, other tutorial steps do not run for it, and lines it
 /// cannot localize arrive as server-composed text. The world story (VEGA) is not run here — its per-player track is
-/// step 11; the old onboarding chain (<c>VegaStages</c>) keeps running until the tutorial pack replaces it (step 10).
+/// step 11. Since #2469 the official tutorial pack (<c>data/stories/tutorial/</c>) is the basic training; its server
+/// extras (teaching verbs, UI flags, predicates, hint hold, migration) live in <c>GameServerTutorial.cs</c>.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -552,8 +553,13 @@ public sealed partial class GameServer
         return loc;
     }
 
+    /// <summary>Speaks a step's start line (its variant for the world's rules); the hints and tips the step absorbs count as
+    /// told from now on (#2469, G12).</summary>
     private void SpeakStepStart(PlayerSession s, CompiledStep step)
-        => SendPackLine(s, step.Pack, StepStartKey(s, step), legacyKey: step.LegacyStageId is { } stage ? StoryLegacy.StartLine(stage) : null);
+    {
+        SendPackLine(s, step.Pack, StepStartKey(s, step), legacyKey: step.LegacyStageId is { } stage ? StoryLegacy.StartLine(stage) : null);
+        MarkHintsToldByStep(s, step);
+    }
 
     // ---------------------------------------------------------------------------------------------
     // The walk: start packs, run chapters, activate steps.
@@ -623,6 +629,7 @@ public sealed partial class GameServer
     /// silently for this player (#2467: a veteran never gets the welcome card).</summary>
     private void StartPack(PlayerSession s, CompiledPack pack, bool playIntro = true)
     {
+        MigratePackIfNeeded(s, pack); // #2469: the old state is read before anything of this pack is written (skip, restart, start on request)
         var m = MilestonesOf(s);
         if (!m.Add(StoryPackKeys.Started(pack.Id)))
         {
@@ -666,7 +673,7 @@ public sealed partial class GameServer
         bool replay = ChapterReplaying(s, ch);
         if (!replay && ch.AutoCompleteIf is not null && EvaluateStoryCondition(ch.AutoCompleteIf, s))
         {
-            CompleteChapter(s, ch, skipped: false);
+            CompleteChapter(s, ch, skipped: false, silent: true);
             return true; // veteran evidence: the chapter completes silently
         }
 
@@ -707,11 +714,19 @@ public sealed partial class GameServer
 
                 if (!EvaluateStoryCondition(step.FeasibleIf, s))
                 {
-                    // No dead ends (G7): skip it silently and let its alternative stand in, if it has one.
+                    // No dead ends (G7): skip it silently and let its alternative stand in, if it has one — an alternative
+                    // that cannot be done here either is skipped too (#2469: no flight → neither the landing nor its
+                    // stand-in on another pad).
                     MarkStepSkipped(s, step);
                     changed = true;
                     if (step.Alternative is { } alt && !StepComplete(s, alt) && StepRunsForClient(s, alt))
                     {
+                        if (!EvaluateStoryCondition(alt.FeasibleIf, s))
+                        {
+                            MarkStepSkipped(s, alt);
+                            continue;
+                        }
+
                         if (ActivateStep(s, alt))
                         {
                             changed = true;
@@ -880,8 +895,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>Completes (or skips) a chapter. A replay ends: its replay keys go, the chapter's done key stayed. Open
-    /// extras (CORE/OPT do steps) and armed react steps keep listening; waiting read steps complete.</summary>
-    private void CompleteChapter(PlayerSession s, CompiledChapter ch, bool skipped)
+    /// extras (CORE/OPT do steps) and armed react steps keep listening; waiting read steps complete. A chapter completed by
+    /// play (not skipped, not <paramref name="silent"/> evidence) that finishes the pack's mandatory part graduates the
+    /// player (#2469, <see cref="Graduate"/>) — at the end of a replay only when it is the last mandatory chapter (a full
+    /// restart), so replaying one early chapter does not.</summary>
+    private void CompleteChapter(PlayerSession s, CompiledChapter ch, bool skipped, bool silent = false)
     {
         var m = MilestonesOf(s);
         string pack = ch.Pack.Id;
@@ -921,6 +939,46 @@ public sealed partial class GameServer
         {
             PlayBoundCutscene(s, ch.Pack.Def, ch.Def.CloseCutscene, ch.Id);
         }
+
+        if (!skipped && !silent && !ch.Optional
+            && (!replay || ch == ch.Pack.Chapters.LastOrDefault(c => !c.Optional))
+            && ch.Pack.Chapters.Where(c => !c.Optional).All(c => ChapterFinished(s, c)))
+        {
+            Graduate(s, ch.Pack);
+        }
+    }
+
+    /// <summary>The graduation (#2469, synthesis §3.3 "Absolvent"): the pack's closing line (a client with <c>packs1</c> —
+    /// an older client of a tutorial hears the old <c>vega.done</c> when the pack is stamped done), its achievement
+    /// counter, and its suggested deep dives marked offered (the Journal lists them; never more than three, never one that
+    /// is done, declined, running or not yet available). No item, no knowledge (maintainer decision: no tutorial rewards).</summary>
+    private void Graduate(PlayerSession s, CompiledPack pack)
+    {
+        var graduation = pack.Def.Graduation ?? new StoryGraduation();
+        if (s.SupportsPacks && !string.IsNullOrEmpty(graduation.LineKey))
+        {
+            SendPackLine(s, pack, graduation.LineKey);
+        }
+
+        if (!string.IsNullOrEmpty(graduation.Counter))
+        {
+            Advance(s, graduation.Counter);
+        }
+
+        var m = MilestonesOf(s);
+        foreach (string id in graduation.Suggest.Take(StoryGraduation.MaxSuggestions))
+        {
+            if (pack.ChaptersById.TryGetValue(id ?? string.Empty, out var suggested) && suggested.Optional
+                && !ChapterDoneOrSkipped(s, suggested)
+                && !m.Contains(StoryPackKeys.ChapterDeclined(pack.Id, suggested.Id))
+                && !m.Contains(StoryPackKeys.ChapterActive(pack.Id, suggested.Id))
+                && EvaluateStoryCondition(suggested.Requires, s))
+            {
+                m.Add(StoryPackKeys.ChapterOffered(pack.Id, suggested.Id));
+            }
+        }
+
+        _repo.SavePlayer(s.State);
     }
 
     /// <summary>Stamps the pack done once every non-optional chapter is through. A tutorial writes all nine legacy stage
@@ -958,7 +1016,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>The one-time migration of a pack (<c>story:&lt;pack&gt;:migrated:v1</c>, synthesis §5.3): a tutorial step whose
-    /// legacy key the player already holds counts as done. The tutorial's own evidence mapping (step 10) hooks in here.</summary>
+    /// legacy key the player already holds counts as done; the official tutorial then reads the rest of the old onboarding
+    /// state (<see cref="MigrateOfficialTutorial"/>, #2469). Runs before the pack starts, so the legacy intro key it reads
+    /// is the player's own, not the one the start writes.</summary>
     private void MigratePackIfNeeded(PlayerSession s, CompiledPack pack)
     {
         var m = MilestonesOf(s);
@@ -976,6 +1036,11 @@ public sealed partial class GameServer
                 {
                     m.Add(StoryPackKeys.StepDone(pack.Id, step.Id));
                 }
+            }
+
+            if (string.Equals(pack.Id, OfficialTutorialPackId, StringComparison.Ordinal))
+            {
+                MigrateOfficialTutorial(s, pack);
             }
         }
 
@@ -1375,6 +1440,11 @@ public sealed partial class GameServer
         }
 
         var pos = s.State.Position;
+        if (reveal == StoryRevealProviders.NearestFoodPlant)
+        {
+            return NearestBlockOf(s, FoodPlantBlocks) is { } plant ? new Vector3f(plant.X + 0.5f, plant.Y + 0.5f, plant.Z + 0.5f) : null; // #2469
+        }
+
         if (reveal == StoryRevealProviders.NearestSettlement)
         {
             Vector3f? best = null;

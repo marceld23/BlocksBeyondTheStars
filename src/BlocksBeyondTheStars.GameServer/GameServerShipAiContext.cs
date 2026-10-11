@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -268,6 +269,8 @@ public sealed partial class GameServer
         {
             ShipAiTipLearned(session, "lamp_off");
         }
+
+        RaiseGameEvent(session, GameEventKeys.LampToggled, intent.On ? "on" : "off"); // #2469: the tutorial's lamp lesson
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -305,6 +308,13 @@ public sealed partial class GameServer
         var candidates = new List<(VegaTipSpec Spec, string Arg, string Mention)>();
         CollectVegaTipCandidates(session, candidates);
 
+        // #2469: a data cache in reach is the tutorial's "data fragments" moment — raised whatever the hints switch says
+        // (a step line is no hint), and only while a step waits for it.
+        if (HasGameEventListener(GameEventKeys.DataFound) && candidates.Any(c => c.Spec.Id == "data_cache_near"))
+        {
+            RaiseGameEvent(session, GameEventKeys.DataFound, "cache");
+        }
+
         // Dwell bookkeeping: remember when each candidate first appeared; forget the ones that went away.
         var seen = new HashSet<string>();
         foreach (var c in candidates)
@@ -336,14 +346,19 @@ public sealed partial class GameServer
         }
 
         bool gapOpen = _uptime >= session.VegaTipReadyAt; // cadence: has VEGA been quiet long enough?
-        int stage = VegaStageIndex(p);
+        bool opportunityOpen = OpportunityTipsOpen(session);
         (VegaTipSpec Spec, string Arg, string Mention)? best = null;
         foreach (var c in candidates)
         {
             var s = c.Spec;
-            if (s.AfterScanStage && stage < 3)
+            if (s.AfterScanStage && !opportunityOpen)
             {
-                continue; // opportunity tips wait until mine/craft/eat are done (the "scan" stage)
+                continue; // opportunity tips wait until eating, mining and crafting are taught (#2469: the tutorial's gate)
+            }
+
+            if (HintHeldByTutorial(session, s.Id))
+            {
+                continue; // a tutorial step teaches this topic itself (#2469, G12: one teaching voice)
             }
 
             if (_uptime - session.VegaTipSince[s.Id] < s.Dwell)
@@ -594,7 +609,7 @@ public sealed partial class GameServer
         }
 
         // --- Progression (#1079) — a recipe/blueprint sweep, so only when a tip could actually go out ---
-        if (_uptime >= session.VegaTipReadyAt && VegaStageIndex(p) >= 3)
+        if (_uptime >= session.VegaTipReadyAt && OpportunityTipsOpen(session))
         {
             if (CraftableNow(session) is { } recipe)
             {
@@ -814,7 +829,7 @@ public sealed partial class GameServer
             add(ShipCanMineAsteroids(ship) ? "asteroid_near" : "asteroid_no_tool", "", "asteroids:" + instanceId);
         }
 
-        if (stationNear && !p.Milestones.Contains(VegaStageKey("dock")))
+        if (stationNear && (TutorialGate(session, StoryGateNames.StationNear) ?? true)) // #2469: while the docking step is open
         {
             add("station_near", "", "station:" + instanceId);
         }
@@ -950,7 +965,13 @@ public sealed partial class GameServer
 
         session.VegaTierGateBlock = LocalizedName(session.Locale, block.NameKey, block.Key);
         session.VegaTierGateTool = LocalizedName(session.Locale, wanted.NameKey, wanted.Key);
+        RaiseGameEvent(session, GameEventKeys.MineRefused, block.Key); // #2469: the tutorial's tool-tier reaction (it absorbs the tip's first telling)
     }
+
+    /// <summary>#2469: whether the opportunity and progression tips may speak — the tutorial pack's <c>opportunityTips</c>
+    /// gate (synthesis §5.3: eating, mining and crafting taught or skipped, or the tutorial off — today's moment), open when
+    /// no tutorial pack has a say.</summary>
+    private bool OpportunityTipsOpen(PlayerSession session) => TutorialGate(session, StoryGateNames.OpportunityTips) ?? true;
 
     /// <summary>The name of something the player could make or unlock if only they had more of this ore:
     /// a known recipe using it directly (player short of the amount) or an unlockable blueprint whose

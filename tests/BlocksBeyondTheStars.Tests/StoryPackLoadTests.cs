@@ -77,6 +77,9 @@ public class StoryPackLoadTests
         Assert.Equal(builtin.Insights.Count, data.Insights.Count);
         Assert.Equal(builtin.Finale.Type, data.Finale.Type);
         Assert.Equal(builtin.Finale.Cutscenes, data.Finale.Cutscenes);
+        Assert.Equal(builtin.Graduation.LineKey, data.Graduation.LineKey); // #2469
+        Assert.Equal(builtin.Graduation.Counter, data.Graduation.Counter);
+        Assert.Equal(builtin.Graduation.Suggest, data.Graduation.Suggest);
     }
 
     /// <summary>#2466: a pack written before the manifest existed loads with every new field at today's behaviour.</summary>

@@ -17,6 +17,7 @@ using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -101,15 +102,18 @@ public sealed class StoryUiFixesTests : IDisposable
         return server;
     }
 
-    private static readonly string[] Stages = { "mine", "craft", "eat", "scan", "unlock", "launch", "dock", "trade", "land" };
+    /// <summary>The legacy onboarding stages the tutorial double-writes for older builds.</summary>
+    private static readonly IReadOnlyList<string> Stages = StoryLegacy.StageIds;
 
-    private static void FinishTutorial(PlayerSession p)
-    {
-        foreach (var stage in Stages)
-        {
-            p.State.Milestones.Add("vega:stage:" + stage);
-        }
-    }
+    /// <summary>#2469: the official tutorial pack's first chip — what a fresh player's basic training shows.</summary>
+    private const string FirstChip = "story.tutorial.b1.walk.chip";
+
+    /// <summary>Past the basic training: "I know the game" (the tutorial pack skipped, #2469).</summary>
+    private static void FinishTutorial(SvGameServer server, PlayerSession p) => server.SkipTutorialForTest(p);
+
+    /// <summary>Leaves the basic training silently, behind the server's back (the opt-out key — no handler, no line).</summary>
+    private static void LeaveTutorialSilently(PlayerSession p)
+        => p.State.Milestones.Add(StoryPackKeys.OptOut(SvGameServer.OfficialTutorialPackId));
 
     private static void CompleteTheArc(SvGameServer server)
     {
@@ -128,7 +132,12 @@ public sealed class StoryUiFixesTests : IDisposable
     /// <c>AddLocalPlayer</c> skips both.</summary>
     private static PlayerSession JoinOverWire(SvGameServer server, int conn, string name)
     {
-        server.HandlePayloadForTest(conn, NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = name }));
+        server.HandlePayloadForTest(conn, NetCodec.Encode(new JoinRequest
+        {
+            ContentFingerprint = TestJoin.Fingerprint,
+            PlayerName = name,
+            Features = new[] { ClientFeatures.Packs1 }, // a current client
+        }));
         return server.Sessions[conn];
     }
 
@@ -142,12 +151,12 @@ public sealed class StoryUiFixesTests : IDisposable
         var p = JoinOverWire(server, 1, "Pilot");
 
         var join = transport.To<ShipAiLine>(p).Last();
-        Assert.Equal("vega.obj.mine", join.ObjectiveKey);
+        Assert.Equal(FirstChip, join.ObjectiveKey);
         Assert.Equal(ObjectiveSources.Tutorial, join.ObjectiveSource);
         Assert.True(join.TutorialActive);
 
         transport.Sent.Clear();
-        Deliver(server, p, new SkipOnboardingIntent()); // skip: the chain is granted, the story objective takes the chip
+        Deliver(server, p, new SkipOnboardingIntent()); // skip: the basic training is through, the story objective takes the chip
         var after = transport.To<ShipAiLine>(p).Last();
         Assert.StartsWith("story.obj.", after.ObjectiveKey);
         Assert.Equal(ObjectiveSources.Story, after.ObjectiveSource);
@@ -161,7 +170,7 @@ public sealed class StoryUiFixesTests : IDisposable
         var transport = new RecordingTransport();
         var server = Boot("nosource", transport, c => c.Rules.StoryId = "none");
         var p = server.AddLocalPlayer("Pilot");
-        FinishTutorial(p);
+        FinishTutorial(server, p);
 
         Assert.Equal(string.Empty, server.ObjectiveKeyForTest("Pilot"));
         Assert.Equal(ObjectiveSources.None, server.ObjectiveSourceForTest("Pilot"));
@@ -176,11 +185,11 @@ public sealed class StoryUiFixesTests : IDisposable
         var transport = new RecordingTransport();
         var server = Boot("finale_chip", transport);
         var veteran = server.AddLocalPlayer("Veteran");
-        FinishTutorial(veteran);
+        FinishTutorial(server, veteran);
         CompleteTheArc(server);
 
         var newcomer = JoinOverWire(server, 2, "Newcomer");
-        Assert.Equal("vega.obj.mine", server.ObjectiveKeyForTest("Newcomer"));
+        Assert.Equal(FirstChip, server.ObjectiveKeyForTest("Newcomer"));
         Assert.Equal(ObjectiveSources.Tutorial, server.ObjectiveSourceForTest("Newcomer"));
         var atHome = transport.To<ShipAiLine>(newcomer).Last();
         Assert.Equal(ObjectiveSources.Tutorial, atHome.ObjectiveSource);
@@ -214,7 +223,7 @@ public sealed class StoryUiFixesTests : IDisposable
         Assert.True(transport.To<ShipAiLine>(p).Last().TutorialActive);
 
         transport.Sent.Clear();
-        FinishTutorial(p); // silently — no lesson line goes out
+        LeaveTutorialSilently(p); // silently — no lesson line goes out
         server.Tick(1.1);
 
         var chip = transport.To<ShipAiLine>(p).LastOrDefault();
@@ -475,10 +484,11 @@ public sealed class StoryUiFixesTests : IDisposable
     public void WhileHeld_RestartingTheTutorialIsServed()
     {
         var (server, transport, p) = HeldWorld("held_restart");
-        FinishTutorial(p);
+        FinishTutorial(server, p);
         Deliver(server, p, new SkipOnboardingIntent { Restart = true });
-        Assert.DoesNotContain("vega:stage:mine", server.MilestonesForTest("Solo"));
-        Assert.Equal("vega.obj.mine", transport.To<ShipAiLine>(p).Last().ObjectiveKey);
+        Assert.Contains(StoryPackKeys.ChapterReplay(SvGameServer.OfficialTutorialPackId, "b1"), server.MilestonesForTest("Solo"));
+        Assert.Equal(FirstChip, transport.To<ShipAiLine>(p).Last().ObjectiveKey); // #2469: the tutorial pack replays from part 1
+        Assert.True(server.IsPaused);
     }
 
     [Fact]

@@ -337,8 +337,26 @@ public sealed class PlayerSession
     /// chapter completed silently by evidence (a veteran) gets none. RAM only.</summary>
     public HashSet<string> PresentedPackChapters { get; } = new(System.StringComparer.Ordinal);
 
-    /// <summary>Blocks mined toward the onboarding "mine" stage (session-scoped; the target is tiny).</summary>
-    public int VegaMineCount { get; set; }
+    /// <summary>#2469: metres walked on foot not yet reported as <c>move:walked</c> (only counted while a step listens). RAM only.</summary>
+    public double TutorialWalkAccum { get; set; }
+
+    /// <summary>#2469: flight units flown not yet reported as <c>flight:flown</c> (only counted while a step listens). RAM only.</summary>
+    public double TutorialFlightAccum { get; set; }
+
+    /// <summary>#2469: the last ship position the flight counter measured from; null after a jump or a fresh entry. RAM only.</summary>
+    public BlocksBeyondTheStars.Shared.Geometry.Vector3f? TutorialFlightLast { get; set; }
+
+    /// <summary>#2469: server uptime of the last <c>move:jump</c> (one a second at most). RAM only.</summary>
+    public double TutorialJumpAt { get; set; } = double.NegativeInfinity;
+
+    /// <summary>#2469: whether the last move report was crouched (a crouch is reported on the change). RAM only.</summary>
+    public bool TutorialWasCrouching { get; set; }
+
+    /// <summary>#2469: the player has been far from the landed ship (the "walk back" check of <c>ship:returned</c>). RAM only.</summary>
+    public bool TutorialFarFromShip { get; set; }
+
+    /// <summary>#2469: per teaching-flag id, the server uptime of the last <c>UiTutorialEvent</c> accepted (rate limit). RAM only.</summary>
+    public Dictionary<string, double> UiTutorialEventAt { get; } = new(System.StringComparer.Ordinal);
 
     /// <summary>#2462 (B31): the client has VEGA's hints switched off (<c>SetNpcCallsIntent.VegaHintsMuted</c>, sent at
     /// every join and from the settings). The advisor hints and context tips are then held back instead of being sent

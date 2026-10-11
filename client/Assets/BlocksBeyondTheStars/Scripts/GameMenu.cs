@@ -169,7 +169,13 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Opens the in-game Wiki ("Codex") screen — an always-available menu point.
         /// <paramref name="chapter"/> deep-links to a chapter id ("discoveries"); null keeps the last one.</summary>
-        public void OpenWiki(string chapter = null) { _wikiChapter = chapter; _browser = BrowserScreen.Wiki; SetOpen(true); }
+        public void OpenWiki(string chapter = null)
+        {
+            _wikiChapter = chapter;
+            _browser = BrowserScreen.Wiki;
+            SetOpen(true);
+            Game?.Network?.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiCodexOpenId); // #2469: the Codex lesson
+        }
 
         /// <summary>Opens the Arcade collection screen — an always-available menu point.</summary>
         public void OpenArcade() { Game?.MarkArcadeSeen(); _browser = BrowserScreen.Arcade; SetOpen(true); }
@@ -214,8 +220,14 @@ namespace BlocksBeyondTheStars.Client
                 _vendorUi?.Close(); // the vendor trade screen + the crafting menu are mutually exclusive
             }
 
+            bool opening = open && !_open;
             _open = open;
             Game.SetMenuOwner(this, _open); // the cursor arbiter frees/locks from the owner set (#413)
+            if (opening)
+            {
+                Game.Network?.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiMenuOpenId); // #2469: the menu lesson
+            }
+
             if (_open)
             {
                 // No UiNav here (#1198): this GameObject holds no uGUI controls at all. Every screen the menu
@@ -248,6 +260,7 @@ namespace BlocksBeyondTheStars.Client
             if (tab == Tab.Map)
             {
                 Game.Network?.SendRequestStarMap();
+                Game.Network?.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiMapOpenId); // #2469
             }
             else if (tab == Tab.Missions)
             {

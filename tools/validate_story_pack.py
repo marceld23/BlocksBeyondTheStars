@@ -72,6 +72,7 @@ FALLBACK_PREDICATES = [
     "station_in_system", "settlement_reachable", "airless", "fragment_on_world", "player_near", "enemies",
     "space_enemies", "bandits", "free_flight", "hunger", "oxygen", "hazards", "creative", "creative_flight",
     "instant_travel", "return_to_ship", "starter_teleporter", "base_visitors", "space_stations", "story_active",
+    "food_plants_near", "trees_near", "shape_block_carried", "research_ready", "all_blueprints", "new_world_in_system",
 ]
 
 KNOWN_FIELDS = {
@@ -80,8 +81,9 @@ KNOWN_FIELDS = {
         "introCutscene", "gates", "escalate", "start", "chapters", "insights", "finale", "fragmentWeight",
         "killWeight", "milestoneWeight", "killContributionCap", "beats", "fragments", "memories", "coreArguments",
         "flavourLines", "missionThreads", "loreSites", "npcThreads", "characters", "dialogs", "epilogueTitle",
-        "epilogueTitleKey", "epilogueTextKey",
+        "epilogueTitleKey", "epilogueTextKey", "graduation",
     },
+    "graduation": {"lineKey", "counter", "suggest"},
     "narrator": {"id", "nameKey", "icon", "color", "voice", "lineStart"},
     "escalate": {"hintAfter", "markerAfter", "offerSkipAfter"},
     "start": {"after", "earlyOptIn"},
@@ -92,7 +94,7 @@ KNOWN_FIELDS = {
     "lead": {"type", "objKey"},
     "step": {
         "id", "kind", "tier", "legacyKey", "objective", "requires", "feasibleIf", "alternative", "alreadyDoneIf",
-        "variants", "explain", "onStart", "onComplete", "escalate", "skippable",
+        "variants", "explain", "onStart", "onComplete", "escalate", "skippable", "hintRefs",
     },
     "objective": {"event", "arg", "required", "type", "target"},
     "explain": {"startKey", "chipKey", "hintKey", "doneKey", "moreGuide"},
@@ -184,6 +186,13 @@ def csharp_constants(source: pathlib.Path, class_name: str) -> list[str]:
                 break
     body = text[body_start:end]
     return re.findall(r'public const string \w+ = "([^"]*)";', body)
+
+
+def ui_event_ids(source: pathlib.Path) -> list[str]:
+    """The ids of GameEventKeys.UiEvents: the constants named Ui...Id ([] when the source is missing)."""
+    if not source.exists():
+        return []
+    return re.findall(r'public const string Ui\w+Id = "([^"]*)";', source.read_text(encoding="utf-8"))
 
 
 def is_key_safe(value: str, allow_dot: bool = False) -> bool:
@@ -319,6 +328,8 @@ class Validator:
             "crystal:" + e
             for e in csharp_constants(repo / "src" / "BlocksBeyondTheStars.Shared" / "Missions" / "Mission.cs", "CircuitEvents")
         }
+        # #2469: the teaching-flag ids a client reports (the GameEventKeys.Ui*Id constants).
+        self.ui_events = set(ui_event_ids(shared / "GameEventKeys.cs"))
         self.base_en = self.load_table(data_dir / "locales" / "en.json")
         self.base_de = self.load_table(data_dir / "locales" / "de.json")
         self.missions = {m.get("id") for m in self.load_list(data_dir / "missions.json")}
@@ -397,7 +408,8 @@ class Validator:
             r.error(label, "id", f"the id is used by another folder too: {', '.join(p.name for p in same)}")
 
         self.unknown_fields(pid, "", pack, "pack")
-        for level, field in (("narrator", "narrator"), ("escalate", "escalate"), ("start", "start"), ("finale", "finale")):
+        for level, field in (("narrator", "narrator"), ("escalate", "escalate"), ("start", "start"), ("finale", "finale"),
+                             ("graduation", "graduation")):
             if field in pack:
                 self.unknown_fields(pid, field, pack[field], level)
 
@@ -611,14 +623,17 @@ class Validator:
                     self.unknown_fields(pid, f"{sp}.escalate", step["escalate"], "escalate")
                 reveal = (step.get("onStart") or {}).get("reveal", "")
                 if reveal:
-                    if reveal == "nearest_settlement":
+                    if reveal in ("nearest_settlement", "nearest_food_plant"):
                         pass
                     elif reveal.startswith("nearest_ore:") and len(reveal) > len("nearest_ore:"):
                         block = reveal[len("nearest_ore:"):]
                         if self.blocks and block not in self.blocks:
                             r.error(pid, f"{sp}.onStart.reveal", f"block '{block}' does not exist")
                     else:
-                        r.error(pid, f"{sp}.onStart.reveal", f"unknown marker provider '{reveal}' (nearest_ore:<block>, nearest_settlement)")
+                        r.error(pid, f"{sp}.onStart.reveal", f"unknown marker provider '{reveal}' (nearest_ore:<block>, nearest_settlement, nearest_food_plant)")
+                for hi, ref in enumerate(self.list_of_strings(pid, f"{sp}.hintRefs", step.get("hintRefs"))):
+                    if not ref.strip():
+                        r.error(pid, f"{sp}.hintRefs[{hi}]", "an empty hint id")
                 explain = step.get("explain") or {}
                 self.unknown_fields(pid, f"{sp}.explain", explain, "explain")
                 key(f"{sp}.explain.startKey", explain.get("startKey"), line_budget)
@@ -638,6 +653,23 @@ class Validator:
                     key(f"{vp}.chipKey", variant.get("chipKey"), CHIP)
 
         self.validate_cutscenes(pid, cutscene_defs, chapter_ids, key)
+
+        # #2469: the graduation (a player pack finished by playing).
+        graduation = pack.get("graduation") or {}
+        if graduation:
+            if not player_pack:
+                r.warn(pid, "graduation", "only a player pack graduates anybody")
+            key("graduation.lineKey", graduation.get("lineKey"), BASIC_LINE if tutorial else LINE)
+            counter = graduation.get("counter", "")
+            if counter and (":" not in counter or not is_key_safe(counter.replace(":", "_"))):
+                r.error(pid, "graduation.counter", f"'{counter}' is not an achievement counter ('<verb>:<thing>')")
+            suggest = self.list_of_strings(pid, "graduation.suggest", graduation.get("suggest"))
+            if len(suggest) > 3:
+                r.error(pid, "graduation.suggest", f"at most 3 suggested chapters ({len(suggest)} named)")
+            optional_ids = {c.get("id") for c in (pack.get("chapters") or []) if c.get("optional")}
+            for gi, chapter_id in enumerate(suggest):
+                if chapter_id not in optional_ids:
+                    r.error(pid, f"graduation.suggest[{gi}]", f"'{chapter_id}' is not an optional chapter of this pack")
 
         # Every key in English and German (the pack's own table over the base table), within its budget.
         pack_en = self.load_table(pack_dir / "locales" / "en.json")
@@ -667,6 +699,8 @@ class Validator:
                 self.report.error(pid, path, "'ui:' teaching flags exist only in a player pack's step objectives")
             elif not is_key_safe(event[3:]):
                 self.report.error(pid, path, f"'{event}' is not a valid teaching flag (ui:<id>)")
+            elif self.ui_events and event[3:] not in self.ui_events:
+                self.report.warn(pid, path, f"'{event}' is no flag a client reports ({', '.join(sorted(self.ui_events))})")
             return
         star = event.find("*")
         if star >= 0 and star != len(event) - 1:

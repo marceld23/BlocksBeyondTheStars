@@ -78,9 +78,9 @@ public sealed partial class GameServer
 
     /// <summary>First landing on a body: a "place" Discoveries entry + the knowledge grant, pushed as the
     /// usual ledger delta so the Codex updates live. The VERY FIRST body — the spawn world — records the
-    /// entry but pays nothing: knowledge is for venturing out, and a join-time grant would make VEGA read
-    /// every fresh save as a veteran (<c>VegaIsVeteran</c> keys on KnowledgePoints &gt; 0) and skip the
-    /// whole onboarding.</summary>
+    /// entry but pays nothing: knowledge is for venturing out, and a join-time grant would read as veteran
+    /// evidence (the join snapshot's <c>Veteran</c> keys on KnowledgePoints &gt; 0, which the tutorial's migration
+    /// and the prologue consult).</summary>
     private void RecordPlaceDiscovery(PlayerSession session, CelestialBody body)
     {
         if (!TryAddPlaceEntry(session.State, body))

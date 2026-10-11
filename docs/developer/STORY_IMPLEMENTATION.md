@@ -48,8 +48,9 @@ voice: a pack has no narrator/speaker field yet (the story-packs manifest adds o
 A beat's text must not assume where the player is: any score event can cross a threshold — a drone kill in
 space, a mission turn-in, a mapped system — so B1 speaks of "a signal out there", not "this wreck" (#2463).
 Per-player "seen beats" reuse `PlayerState.Milestones` (`story:<id>:beat:N`)
-— no schema migration. Milestones are append-only with one exception: the tutorial restart drops `vega:intro`
-and the `vega:stage:*` keys. Latecomers get a join-time catch-up of earned-but-unseen beats (`CatchUpStoryLines`),
+— no schema migration. Milestones are append-only (since #2469 even the tutorial restart keeps every key — it replays
+the tutorial pack's chapters; only a replay's own keys go when it ends). Latecomers get a join-time catch-up of
+earned-but-unseen beats (`CatchUpStoryLines`),
 plus the Guardian-system reveal line while the finale is open (`story:<id>:finale:revealed`, #2460).
 
 **Wreck coupling** (count-neutral): a nearby wreck biases machine *position* (cluster) and *aggression* only,
@@ -91,9 +92,10 @@ progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — i
 - **Join snapshot.** `PlayerSession.Join` (`JoinSnapshot`) is taken once at the very top of the join, before
   `SetupPlayerShip`, the Creative grants and the beat catch-up change the player state: `Veteran` (knowledge,
   blueprints or missions on a world whose *saved* Creative option — `_meta`, not the launch flag — is off),
-  `HadOnboardingIntro`, `Newcomer`, and the `story:` keys the player carried (`HadStoryKey`). VEGA's onboarding
-  boot reads it — re-evaluating "veteran" after the catch-up had paid beat knowledge skipped the prologue and the
-  tutorial for every newcomer on a progressed world — and so does the ending catch-up. Later packs reuse it.
+  `HadOnboardingIntro`, `Newcomer`, and the `story:` keys the player carried (`HadStoryKey`). The prologue (a
+  newcomer's cold open, `ShipAiOnJoin`) reads it — re-evaluating "veteran" after the catch-up had paid beat knowledge
+  skipped the prologue and the tutorial for every newcomer on a progressed world — and so do the ending catch-up and,
+  since #2469, the tutorial pack's one-time migration (a save from before VEGA's lessons). Later packs reuse it.
 - **Active story row.** A save holds one `story_state` row per pack it ever ran. `PersistStoryState` stamps the
   active row (`StoredStoryState.Active = true`, `UpdatedUtc`), an admin switch clears `Active` on the row it left,
   and `SelectActiveStoryRow` picks: rows of installed packs (or `none`) over unknown ones → the active marker →
@@ -124,18 +126,18 @@ session's creation until the end of `HandleJoin` / `AddLocalPlayer` — the spaw
 re-boarded at the join or a resumed flight are not the player's doing).
 
 **Vocabulary** (`Shared/Story/GameEventKeys.cs`; the key names the verb, the entity rides in the argument, so keys never
-grow with content — `mine:any` + `iron_ore`, never `mine:iron_ore`). Later steps add the tutorial's one-line events
-(about 50, synthesis §3) here.
+grow with content — `mine:any` + `iron_ore`, never `mine:iron_ore`). Step 10 (#2469) added the basic training's
+teaching verbs (the second block of the table); the deep dives add theirs with steps 18–21.
 
 | Key | Argument (amount) | Raised at | File |
 |---|---|---|---|
-| `mine:any` | block key | a block mined by hand, next to `ShipAiOnMine` | `GameServer.cs` (`BreakBlockCore`) |
+| `mine:any` | block key | a block mined by hand, next to `OnBlockMined` | `GameServer.cs` (`BreakBlockCore`) |
 | `build:any` | block key | a block placed, next to `OnAchievementBuild` | `GameServer.cs` (`HandlePlace`) |
 | `build:any` | `blueprint_paste` (placed count) | a blueprint paste | `GameServerBlueprints.cs` |
 | `build:rotated` | block key | a form/prop block placed with an explicit rotate-key turn (`Yaw` 0–3 or an up-face) | `GameServer.cs` (`HandlePlace`) |
 | `craft:any` | recipe key (batch count) | a recipe crafted — also a free Creative craft, where the VEGA/achievement hooks do not run | `GameServer.cs` (`HandleCraft`) |
 | `craft:tint` / `craft:shape` / `craft:paint` | base item key (count) | dye/glow, a form craft (built-in or player-designed), a paint design — every success path incl. Creative; never `craft:any` | `GameServer.cs` (`HandleTintCraft`, `ApplyShapeExchange`, `ApplyMultiCellExchange`), `GameServerPaint.cs` |
-| `eat:any` | item key | real food eaten (hunger value > 0), next to `ShipAiOnEat` | `GameServerCreatures.cs` (`ConsumeItem`) |
+| `eat:any` | item key | real food eaten (hunger value > 0) | `GameServerCreatures.cs` (`ConsumeItem`) |
 | `scan:performed` | readout kind (`flora`, `creature`, `tree`, `block`, `monument`, `asteroid`, `anomaly`, `wreck`, `wormhole`, `debris` …) | every scan, first or repeat, hand or ship scanner | `GameServerScanning.cs` (`Award`) |
 | `scan:any` | readout kind | a first-time scan (the discovery the achievement counts) | `GameServerScanning.cs` (`Award`) |
 | `research:any` | blueprint key | a blueprint researched | `GameServer.cs` (`HandleUnlock`) |
@@ -163,8 +165,33 @@ grow with content — `mine:any` + `iron_ore`, never `mine:iron_ore`). Later ste
 | `story:fragment` | fragment key | a story fragment handed over (picked up, mission thread, NPC dialog, NPC thread) | `GameServerNetFragments.cs`, `GameServerMissions.cs`, `GameServerNpcDialogs.cs`, `GameServerNpcThreads.cs` |
 | `insight:companion_ward` | — | a companion made a machine stand down near the player (at most every 30 s) | `GameServerEnemies.cs` |
 | `insight:shape_noncube` | base item key | a non-cube form crafted | `GameServer.cs` (`RaiseShapeCrafted`) |
+| **#2469 — the basic training's verbs** | | | |
+| `move:walked` | — (whole metres) | walking on a surface (no speeder, no train; a report over 4 blocks from the last one never counts) — measured only while a step listens | `GameServer.cs` (`HandleMove`) → `GameServerTutorial.cs` (`TutorialMovementEvents`) |
+| `move:jump` | `jump` \| `crouch` | a jump (upward speed > 2.5 blocks/s, not climbing) or the start of a crouch, at most once a second — only while a step listens | same |
+| `hotbar:select` | slot number (1-based) | another quick-bar slot picked (no event when the slot does not change) | `GameServer.cs` (`Dispatch`, `SelectHotbarIntent`) |
+| `item:gained` | base item key (count) | a mined or harvested block's drops reach the player | `GameServer.cs` (`BreakBlockCore`) |
+| `item:moved` | — | an item moved between two backpack/quick-bar slots | `GameServer.cs` (`HandleMoveItem`) |
+| `gear:equipped` | base item key | a piece of gear put on | `GameServerEquipment.cs` (`HandleEquipItem`) |
+| `cargo:stowed` | item key, or `all` | items stowed into the ship's hold (one item or "stow all") | `GameServerCargo.cs` (`MoveCargo`) |
+| `inventory:full` | — | the backpack has no free slot (the 1 Hz advisor check, raised right before the `invfull` hint) | `GameServerShipAi.cs` (`TickShipAi`) |
+| `ship:returned` | `menu` \| `teleport` \| `walk` | "Back to my ship", the suit teleporter, or walking back aboard / within 10 blocks of the landed ship after having been 40+ blocks away (the walk check runs at 1 Hz only while a step listens) | `GameServerReturnToShip.cs`, `GameServerTeleport.cs`, `GameServerTutorial.cs` (`TutorialStateEvents`) |
+| `lamp:toggled` | `on` \| `off` | the suit lamp switched | `GameServerShipAiContext.cs` (`HandleSetLamp`) |
+| `suit:auto_feed` | item key | the suit fed a stored ration to a starving player | `GameServer.cs` (`TryAutoEatRation`) |
+| `suit:climate` | `cold` \| `heat` | the suit's climate control started fighting the weather | `GameServerTemperature.cs` (`TickTemperature`) |
+| `player:respawned` | — | any respawn (the relocation half of a death) | `GameServer.cs` (`CompleteRespawn`) |
+| `mine:refused` | block key | a swing refused by the tool tier while a better tool exists (where the `tier_gate` tip is armed) | `GameServerShipAiContext.cs` (`NoteTierGate`) |
+| `data:found` | `cache` \| `fragment` | a data cache in the advisor probe's reach, or a data fragment in the backpack or the own ship's hold (1 Hz, only while a step listens) | `GameServerShipAiContext.cs` (`TickVegaContextTips`), `GameServerTutorial.cs` |
+| `flight:flown` | — (whole flight units) | the own ship flying (a pose jump over 60 units — a hyperjump, a warp, a fresh entry — never counts) — measured only while a step listens | `GameServerSpaceCombat.cs` (`ShipMove`) → `TutorialFlightEvents` |
+| `mission:board_accepted` | mission id | a job the player picked: a board's or a mission chain's (`MissionAcceptCountsAsTrade`, B58 — never a story character's errand) | `GameServerMissions.cs`, `GameServerMissionChains.cs` |
+| `visit:world` | body id | the first arrival on a planet, moon or asteroid (`visit:body` counts stations too) | `GameServer.cs` (`MarkArrivedOnBody`) |
 
-`ui:<id>` (client teaching flags, synthesis §3.6) is not a server event and arrives with its own intent in a later step.
+**`ui:<id>` (client teaching flags, synthesis §3.6, #2469).** Tag **298 `UiTutorialEvent { Id }`** (C→S) reports a UI
+moment a step teaches — `vega_continue`, `menu_open`, `codex_open`, `map_open`, `waypoint_set` (`GameEventKeys.UiEvents`);
+`HandleUiTutorialEvent` raises `ui:<id>` on the bus for a known id at most every 0.25 s of server time. Teaching only: no
+step but one waiting for exactly that flag listens, it pays nothing, unlocks nothing, counts for no story and is never
+stored; it is never a condition (the parser refuses `ui:`). Pause-whitelisted (`PausedMayHandle`). Clients:
+`NetworkClient.SendUiTutorialEvent` (the same flag at most every 0.5 s) from `VegaPanel` (a line read through),
+`GameMenu` (menu opened, Codex, Map tab) and `SpaceMap` (chart opened, waypoint set).
 
 **Conditions** (`Shared/Story/StoryCondition.cs`). One small grammar for a step's `requires` / `feasibleIf` /
 `alreadyDoneIf`, a chapter's `offerWhen`, a pack's `start.after` and its `gates`, parsed once at load by
@@ -189,8 +216,10 @@ player pack not opted out — since #2466 a tutorial also by the world's tutoria
 (= the dock lesson's skip rule), `settlement_reachable`, `airless`, `fragment_on_world`, `player_near`; rules —
 `enemies`, `space_enemies`, `bandits`, `free_flight`, `hunger`, `oxygen`, `hazards`, `creative` (incl. a per-player mode
 override), `creative_flight`, `instant_travel`, `return_to_ship`, `starter_teleporter`, `base_visitors`,
-`space_stations`, `story_active`. A predicate reads the player's own body/system, never the active world cursor. A new
-predicate is a name in `StoryWorldPredicates` plus one line in `GameServer.WorldPredicates`.
+`space_stations`, `story_active`; since #2469 the tutorial's feasibility checks `food_plants_near`, `trees_near` (bounded
+probes of the loaded blocks around the player, run when a step activates), `shape_block_carried`, `research_ready`,
+`all_blueprints`, `new_world_in_system` (`GameServerTutorial.cs`). A predicate reads the player's own body/system, never
+the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus one line in `GameServer.WorldPredicates`.
 
 **The world-story guard (N11).** A pack carries `kind` (`story` default, `tutorial`, `side`) and `scope` (`world` |
 `player`; unset = `world` exactly when it has beats; a tutorial is always `player` — `StoryRegistry.EffectiveScope`).
@@ -210,10 +239,16 @@ measured against the pack's own `en.json`; `StoryPackGuardTests` also checks eac
 
 ## The player-pack runtime (#2466)
 
-The engine the tutorial pack (step 10) and future side stories run on — per player, server-authoritative, data-only
-(synthesis §5, option C). The manifest fields and the step reference are in [TUTORIAL_PACK.md](TUTORIAL_PACK.md); this
-section is how the server runs them (`GameServerStoryPacks.cs`). Nothing ships a player pack yet, so nothing changes for
-players; the test packs live under `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/` (never `data/stories/`).
+The engine the tutorial pack and future side stories run on — per player, server-authoritative, data-only (synthesis §5,
+option C). The manifest fields, the step reference and the shipped tutorial's content are in
+[TUTORIAL_PACK.md](TUTORIAL_PACK.md); this section is how the server runs them (`GameServerStoryPacks.cs`, the tutorial's
+extras in `GameServerTutorial.cs`). **Since #2469 the official tutorial pack (`data/stories/tutorial/`) is the basic
+training** — the hard-coded nine-stage onboarding chain (`VegaStages`, `VegaIsVeteran`, `ShipAiComplete`, the
+`ShipAiOn<Stage>` hooks, `VegaMineCount`) and the client's copy of the stage list are gone. `ShipAiOnJoin` only plays the
+prologue for a newcomer (once, keyed `story:<story>:cut:prologue` — the cutscene ledger's seen form, so step 11's prologue
+cutscene treats a player who heard the pages as one who saw it) and sends the chip. The test packs live under
+`tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/` (never `data/stories/`); `StoryPackFixtures.ContentWith` drops the
+shipped player packs so a fixture runs alone.
 
 **Which packs run.** Every installed pack whose effective scope is `player` and that has chapters is compiled once
 (`PlayerPacks`, highest `priority` first): conditions are parsed against the server's `world:` predicates, chapters and
@@ -246,7 +281,8 @@ in); an optional chapter needs every do step. The pack is done (`story:<pack>:do
 | `react` | armed (listening, silent) from the chapter's start wherever it stands; never blocks; when its event fires it speaks its explanation and is done — it stays armed after the chapter until then |
 
 At activation: `requires` false → the chapter waits there; `feasibleIf` false → the step is skipped silently (G7) and its
-`alternative` (a step of the same chapter, which otherwise never runs) stands in at its place; `alreadyDoneIf` true →
+`alternative` (a step of the same chapter, which otherwise never runs) stands in at its place — or is skipped too when its
+own `feasibleIf` fails (#2469); `alreadyDoneIf` true →
 completed silently (not during a replay); a mission bridge whose mission is already turned in completes at once;
 otherwise the counter starts (`PlayerState.StepProgress["<pack>:<step>"] = 0`), the help clock starts and the start
 line is spoken. `variants` swap a whole text slot by condition (first match). A completed step stamps
@@ -278,29 +314,42 @@ completes the replay keys go. The tutorial's restart (`/tutorial restart`, `Skip
 mandatory chapter in order and never touches the world story (no prologue, E17). `optOut` stamps
 `story:<pack>:optout`: lines and objectives stop, every key and counter stays; `optIn` resumes.
 
-**Migration hook.** On the first walk of a pack for a player `story:<pack>:migrated:v1` is written once; for a tutorial
-pack every step whose `legacyKey` the player already holds counts as done. Legacy keys are evidence only here — after
-the marker they are written (double-write) but never read. The tutorial's own evidence mapping (step 10) hooks into
-`MigratePackIfNeeded`.
+**Migration hook.** Before a pack first starts for a player (`MigratePackIfNeeded`, also from `StartPack`, so a skip or a
+restart reads the old state first) `story:<pack>:migrated:v1` is written once; for a tutorial pack every step whose
+`legacyKey` the player already holds counts as done, and the official tutorial maps the rest of the old onboarding state
+(`MigrateOfficialTutorial`, #2469: a finished chain → done silently, with one E30 refresher offer on thin evidence; a
+pre-lessons veteran → skipped with `vega.veteran`; otherwise per-step evidence from `vega:intro`, the stages, achievement
+counters, worn gear and taken jobs — the table is in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#migration-of-existing-players)).
+Legacy keys are evidence only — after the marker they are written (double-write) but never read.
 
-**Gates.** `TutorialGate(session, gate)` answers for the global advisor systems (`opportunityTips`, `banter`,
-`stationNear`): null when no tutorial pack has a say (none installed, or the gate unset — the caller keeps today's
-rule), true when the tutorial is off for the world or the player, else the gate's condition. The consumers still read the
-old chain; step 10 rewires them.
+**Gates.** `TutorialGate(session, gate)` answers for the global advisor systems: null when no tutorial pack has a say
+(none installed, or the gate unset — the caller keeps its default), true when the tutorial is off for the world or the
+player, else the gate's condition. Since #2469 the readers are wired: `OpportunityTipsOpen` (the `AfterScanStage` context
+tips and the progression sweep; default open), `TickVegaBanterFor` (VEGA's banter; default open) and the `station_near`
+tip (default open).
+
+**Graduation** (#2469). A chapter completed by play (not skipped, not `autoCompleteIf` evidence) that finishes the
+mandatory part calls `Graduate`: the pack's `graduation.lineKey` (a `packs1` client), `Advance(graduation.counter)` (the
+tutorial's "Graduate" achievement), `graduation.suggest` chapters marked offered. A replay graduates only at its last
+mandatory chapter (a full restart). Skips (`SkipPack`, `SkipChapter`, the admin's chapter jump) and the migration never do.
+
+**One teaching voice** (#2469, G12). A step's `hintRefs` hold VEGA's matching once-hints (`ShipAiHintOnce`) and context
+tips (`TickVegaContextTips`) through `HintHeldByTutorial`, and `SpeakStepStart` books them as told
+(`MarkHintsToldByStep`); details in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#one-teaching-voice-g12).
 
 **The chip** (synthesis §5.3, `LiveVegaChip`, still the one fill point `SendVegaWithObjective`): 1 the finale while in the
 Guardian system (beats even a pin) → 2 the pinned story (`PlayerState.TrackedStoryId`, `StoryPackIntent{track|untrack}`;
-the world story's id pins VEGA's lead) → 3 basic training (the old onboarding chain while it runs, then a tutorial pack's
-mandatory chapters) → 4 the VEGA finale → 5 the VEGA lead → 6 a tutorial deep-dive step or any mission-bridge step →
-7 the other player packs by priority → 8 empty. A pack step sends its `chipKey`, counter and target, source `tutorial`
-(tutorial pack), `mission` (mission bridge) or `story` (other packs — muted with the hints like VEGA's lead), and the
-pack in `ShipAiLine.ObjectivePackId` (the client shows the pack's short name instead of "Objective:" from step 12).
-`TutorialActive` is true while the old chain or a tutorial pack's mandatory part runs.
+the world story's id pins VEGA's lead) → 3 basic training (a tutorial pack's mandatory chapters) → 4 the VEGA finale →
+5 the VEGA lead → 6 a tutorial deep-dive step or any mission-bridge step → 7 the other player packs by priority → 8 empty.
+A pack step sends its `chipKey`, counter and target, source `tutorial` (tutorial pack), `mission` (mission bridge) or
+`story` (other packs — muted with the hints like VEGA's lead), and the pack in `ShipAiLine.ObjectivePackId` (the client
+shows the pack's short name instead of "Objective:" from step 12). `TutorialActive` is true while a tutorial pack's
+mandatory part runs.
 
 **Clients without `packs1`** (`JoinRequest.Features`; LAN, self-hosted, a hosted image ahead of Velopack — synthesis
 §5.7): the **legacy tutorial mode**. A tutorial step with a `legacyKey` speaks the old `vega.s.<id>.start` / `.done`
 **without** `Text` (the old client localizes them and fills its own keys), its chip is `vega.obj.<id>`, the start sends
-the old `vega.intro.*` lines (when `vega:intro` was new) and the graduation `vega.done`; tutorial steps without a legacy
+the old `vega.intro.*` lines (when `vega:intro` was new) and the pack's end `vega.done`; tutorial steps without a legacy
 stage and deep dives do not run for it (it may pass a chapter once its legacy MUST steps are done, so the old nine stages
 run across the new chapters); a pack chip it could not localize is cleared. Every other pack line reaches it as
 server-composed `Text` with an empty `LineKey` (`ComposeLegacyText`: the player's language, `{0}` filled, `{key:Action}`
@@ -323,8 +372,8 @@ singleplayer world is held only `track`, `untrack`, `optOut`, `optIn`, `skipPack
 
 **Admin** (world management, not a cheat — the role is the gate, above the cheats switch; the slash parsing in the
 client comes with step 12): `AdminCommandIntent{Command = "tutorial", StringArg = "skip" | "restart" | "chapter <id>" |
-"policy auto|optin|off", TargetPlayer = <name or empty for yourself>}` — without an installed tutorial pack `skip` and
-`restart` drive the old onboarding chain. `story_status` (`/story`) now also lists the world's tutorial rule and the
+"policy auto|optin|off", TargetPlayer = <name or empty for yourself>}` — without an installed tutorial pack every verb but
+`policy` answers `tutorial_none` (#2469). `story_status` (`/story`) now also lists the world's tutorial rule and the
 player packs of the caller (or `TargetPlayer`), and is a read-only report above the cheats switch.
 
 **Validation** (synthesis §5.9): `StoryPackValidator` (Shared) — run by `StoryPackValidationTests` for every
@@ -352,6 +401,7 @@ unknown fields). The checks are listed in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#va
 | 295 | `CutscenePlay` | S→C | play a pack's cutscene (`PackId`, `CutsceneId`, `Arg`, `HasAnchor` + `AnchorX/Y/Z`, `Replay`); only to `cutscenes1` clients (#2467, [CUTSCENES.md](CUTSCENES.md)) |
 | 296 | `CutsceneSeenIntent` | C→S | the client is through with these scenes (`PackId`, `Ids[]`, `Skipped`, `Unsupported`) → the seen ledger; passes a held world (#2467) |
 | 297 | `StoryPackIntent` | C→S | the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a step) (#2466); `replayCutscene` + `CutsceneId` (#2467) |
+| 298 | `UiTutorialEvent` | C→S | a UI moment a tutorial step teaches (`Id`: `vega_continue`, `menu_open`, `codex_open`, `map_open`, `waypoint_set`) → `ui:<id>` on the event bus; teaching only, rate-limited, passes a held world (#2469) |
 
 Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
 
@@ -381,7 +431,8 @@ Rules on top of the wire:
   the beats heard live (the join sends the snapshot BEFORE its catch-up lines), in arc order, and holds only pack beats
   (`StoryLog.BeatIndexOf`); other Kind-2 lines go to the VEGA log. Missing locale keys render as `ui.story.entry_missing`.
 - **Client one-shot lessons** (`VegaPanel.SayLocal`) return whether the line was queued; callers set their
-  `ClientSettings.*HintShown` flag only then.
+  `ClientSettings.*HintShown` flag only then. Since #2469 the flight lessons the tutorial's B6 steps teach
+  (`VegaText.LessonCoveredByTutorial`) count as given without being spoken while the basic training runs.
 - **Pause.** `PausedMayHandle` serves `SetNpcCallsIntent`, `SkipOnboardingIntent`, `RequestStoryResolutionIntent` and
   `StorySelectIntent` while the world is held (each with a dispatch test in `StoryUiFixesTests`).
 
@@ -426,7 +477,10 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   (#2466): `StoryPackManifest.cs` (`StoryChapter`, `StoryStep`, `StoryNarrator`, `StoryEscalation`, `StoryLegacy` …),
   `StoryPackValidator`; `Shared/Localization/LineText.cs` (line composition, shared with the client). Server:
   `GameServerGameEvents.cs` (event bus), `GameServerStoryConditions.cs` (condition context + world predicates),
-  `GameServerStoryPacks.cs` (the player-pack runtime, chip helpers, `/tutorial`).
+  `GameServerStoryPacks.cs` (the player-pack runtime, chip helpers, `/tutorial`), `GameServerTutorial.cs` (#2469: the
+  teaching verbs, `UiTutorialEvent`, the tutorial's predicates, the hint hold, the migration of the old onboarding).
+- Data: `data/stories/tutorial/` (#2469) — the basic training (`story.json`, `locales/en.json` + `de.json`); content table
+  in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#the-tutorial-pack-datastoriestutorial-2469).
 - Server: `GameServerStory.cs` (state load, Record fragment/kill/milestone, beat reveal, admin selection,
   knowledge level), `GameServerNetFragments.cs` (placement + pickup), `GameServerStoryFinale.cs` (reveal,
   hack, duel, gauntlet, chamber stamping, respawn, pacification).

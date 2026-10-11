@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -81,6 +82,10 @@ public sealed partial class GameServer
         if (moved)
         {
             SendInventory(session);
+            if (toCargo)
+            {
+                RaiseGameEvent(session, GameEventKeys.CargoStowed, bulkAll ? "all" : item); // #2469
+            }
         }
 
         return moved;

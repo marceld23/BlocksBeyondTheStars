@@ -13,18 +13,26 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// Ship AI companion "VEGA": the onboarding stage chain (server-authoritative, per-player, persisted via
-/// <see cref="PlayerState.Milestones"/>), the veteran auto-skip, the explicit skip intent, and the
-/// memory-fragment story arc (redeemed aboard, knowledge reward, Mk3 blueprint at the arc's end).
+/// Ship AI companion "VEGA": the cold open for a newcomer (the prologue), the basic training it presents — since #2469 the
+/// tutorial story pack (<c>data/stories/tutorial/</c>), so these tests drive the pack through the real handlers: the first
+/// step at the join, mining and eating counting towards their steps, Creative skipping the research step, veterans
+/// migrated silently, the Settings button's skip and restart — plus the context tips and the memory-fragment story arc
+/// (redeemed aboard, knowledge reward, Mk3 parts at the arc's end). The pack runtime itself is covered by
+/// <c>StoryPackRuntimeTests</c>, the walkthroughs by <c>TutorialPackTests</c>.
 /// </summary>
 public sealed class ShipAiTests : IDisposable
 {
+    private const string Tutorial = SvGameServer.OfficialTutorialPackId;
+    private const string FirstStart = "story.tutorial.b1.walk.start";
+    private const string FirstChip = "story.tutorial.b1.walk.chip";
+
     private readonly string _root;
     private readonly GameContent _content;
 
@@ -56,12 +64,35 @@ public sealed class ShipAiTests : IDisposable
         return link;
     }
 
+    /// <summary>Joins over the loopback as a current client (<c>packs1</c>) and drains the replies.</summary>
     private static void JoinAndDrain(SvGameServer server, LoopbackClientTransport client, string name)
     {
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = name }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest
+        {
+            ContentFingerprint = TestJoin.Fingerprint,
+            PlayerName = name,
+            Features = new[] { ClientFeatures.Packs1 },
+        }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
+    }
+
+    /// <summary>Sends one message and lets the server handle it.</summary>
+    private static void SendAndTick(SvGameServer server, LoopbackClientTransport client, object message)
+    {
+        client.Send(NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+    }
+
+    /// <summary>Skips the basic training's chapters before <paramref name="chapterId"/> as the Journal does.</summary>
+    private static void SkipChaptersBefore(SvGameServer server, LoopbackClientTransport client, string chapterId)
+    {
+        foreach (string chapter in new[] { "b1", "b2", "b3", "b4", "b5", "b6" }.TakeWhile(c => c != chapterId))
+        {
+            SendAndTick(server, client, new StoryPackIntent { PackId = Tutorial, Action = StoryPackActions.SkipChapter, ChapterId = chapter });
+        }
     }
 
     /// <summary>Collects every VEGA line the client receives (handler must be attached before joining).</summary>
@@ -79,7 +110,7 @@ public sealed class ShipAiTests : IDisposable
     }
 
     [Fact]
-    public void NewPlayer_BootsVega_AndMineStageAdvancesToCraft()
+    public void NewPlayer_GetsTheBasicTraining_AndMiningCountsTowardsTheMiningStep()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
@@ -89,21 +120,19 @@ public sealed class ShipAiTests : IDisposable
         server.Start();
         JoinAndDrain(server, client, "Rookie");
 
-        // The intro + first objective arrived, and the chain starts at the mining stage.
-        Assert.Contains(lines, l => l.LineKey == "vega.intro.1");
-        Assert.Contains(lines, l => l.LineKey == "vega.intro.menu" && l.Kind == 0);
-        Assert.Contains(lines, l => l.LineKey == "vega.intro.codex" && l.Kind == 0);
-        var introKeys = lines.Select(l => l.LineKey).ToList();
-        Assert.True(introKeys.IndexOf("vega.intro.2") < introKeys.IndexOf("vega.intro.menu")
-            && introKeys.IndexOf("vega.intro.menu") < introKeys.IndexOf("vega.intro.codex")
-            && introKeys.IndexOf("vega.intro.codex") < introKeys.IndexOf("vega.s.mine.start"),
-            "menu + Codex are introduced after the greeting and before the first task (#1015)");
-        Assert.Contains(lines, l => l.LineKey == "vega.s.mine.start");
-        Assert.Equal("vega.obj.mine", lines.Last().ObjectiveKey);
-        Assert.Contains("vega:intro", server.MilestonesForTest("Rookie"));
+        // The basic training starts at the join with its first step — no old onboarding chain, no old intro lines.
+        Assert.Contains(lines, l => l.LineKey == FirstStart && l.PackId == Tutorial);
+        Assert.Equal(FirstChip, lines.Last().ObjectiveKey);
+        Assert.Equal(ObjectiveSources.Tutorial, lines.Last().ObjectiveSource);
+        Assert.True(lines.Last().TutorialActive);
+        Assert.DoesNotContain(lines, l => l.LineKey.StartsWith("vega.intro.", StringComparison.Ordinal) || l.LineKey.StartsWith("vega.s.", StringComparison.Ordinal));
+        var milestones = server.MilestonesForTest("Rookie");
+        Assert.Contains(Shared.Story.StoryPackKeys.Started(Tutorial), milestones);
+        Assert.Contains("vega:intro", milestones); // double-written: older builds read "the intro was shown"
 
-        // Mine three nearby blocks (own + neighbour columns, a few cells below the head, all within reach —
-        // the spawn column may sit over a cave, so straight-down alone can run out of reachable rock).
+        // On to part 3 (the Journal's "skip part"), then mine three nearby blocks through the real handler.
+        SkipChaptersBefore(server, client, "b3");
+        Assert.Equal("story.tutorial.b3.mine.chip", lines.Last().ObjectiveKey);
         var session = server.Sessions[1];
         int px = (int)Math.Floor(session.State.Position.X);
         int pz = (int)Math.Floor(session.State.Position.Z);
@@ -135,14 +164,15 @@ public sealed class ShipAiTests : IDisposable
         Assert.Equal(3, mined);
         client.Poll();
 
-        Assert.Contains("vega:stage:mine", server.MilestonesForTest("Rookie"));
-        Assert.Contains(lines, l => l.LineKey == "vega.s.mine.done");
-        Assert.Contains(lines, l => l.LineKey == "vega.s.craft.start");
-        Assert.Equal("vega.obj.craft", lines.Last().ObjectiveKey);
+        milestones = server.MilestonesForTest("Rookie");
+        Assert.Contains(Shared.Story.StoryPackKeys.StepDone(Tutorial, "b3.1"), milestones);
+        Assert.Contains("vega:stage:mine", milestones); // the legacy key, double-written for older builds
+        Assert.Contains(lines, l => l.LineKey == "story.tutorial.b3.iron.start");
+        Assert.Equal("story.tutorial.b3.iron.chip", lines.Last().ObjectiveKey);
     }
 
     [Fact]
-    public void NewPlayer_GetsThePrologue_BeforeVegasIntro_WhenAStoryIsActive()
+    public void NewPlayer_GetsThePrologue_BeforeTheFirstLesson_WhenAStoryIsActive()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
@@ -152,13 +182,17 @@ public sealed class ShipAiTests : IDisposable
         server.Start();
         JoinAndDrain(server, client, "Dreamer");
 
-        // All three prologue pages arrive as Kind 4 (full-screen overlay), strictly before the intro.
+        // All three prologue pages arrive as Kind 4 (full-screen overlay), strictly before the first lesson.
         var keys = lines.Where(l => !string.IsNullOrEmpty(l.LineKey)).Select(l => l.LineKey).ToList();
         Assert.Contains(lines, l => l.LineKey == "vega.prologue.1" && l.Kind == 4);
         Assert.Contains(lines, l => l.LineKey == "vega.prologue.2" && l.Kind == 4);
         Assert.Contains(lines, l => l.LineKey == "vega.prologue.3" && l.Kind == 4);
-        Assert.True(keys.IndexOf("vega.prologue.3") < keys.IndexOf("vega.intro.1"),
-            "the prologue frames the premise BEFORE VEGA's first spoken line");
+        Assert.True(keys.IndexOf("vega.prologue.3") < keys.IndexOf(FirstStart),
+            "the prologue frames the premise BEFORE VEGA's first lesson");
+
+        // Once per player: the cutscene ledger's seen key of the prologue (synthesis §5.3) keeps a rejoin quiet.
+        Assert.Contains(Shared.Story.StoryPackKeys.CutsceneSeen(StoryRegistry.DefaultStoryId, Shared.Story.StoryCutsceneIds.Prologue),
+            server.MilestonesForTest("Dreamer"));
     }
 
     [Fact]
@@ -176,7 +210,7 @@ public sealed class ShipAiTests : IDisposable
         JoinAndDrain(server, client, "Sandboxer");
 
         Assert.DoesNotContain(lines, l => l.Kind == 4);
-        Assert.Contains(lines, l => l.LineKey == "vega.intro.1"); // the tutorial itself is unaffected
+        Assert.Contains(lines, l => l.LineKey == FirstStart); // the tutorial itself is unaffected
     }
 
     [Fact]
@@ -197,22 +231,20 @@ public sealed class ShipAiTests : IDisposable
         server.Start();
         JoinAndDrain(server, client, "Reader");
 
-        // The join snapshot carries the freshly-burned intro milestone — the client's tips log source.
+        // The join snapshot carries the vega:* milestones (the tutorial's start double-wrote the intro key) — and only
+        // those plus the tutorial's done steps (none yet).
         Assert.NotEmpty(journals);
         Assert.Contains("vega:intro", journals.Last().Milestones);
         Assert.DoesNotContain(journals.Last().Milestones, m => !m.StartsWith("vega:", StringComparison.Ordinal));
 
-        // Skipping grants the whole chain — and re-sends the snapshot so the log is complete immediately.
-        client.Send(NetCodec.Encode(new SkipOnboardingIntent()), DeliveryMode.ReliableOrdered);
-        server.Tick(0.1);
-        client.Poll();
-
+        // Skipping re-sends the snapshot at once (with the legacy graduation keys older builds read).
+        SendAndTick(server, client, new SkipOnboardingIntent());
         Assert.Contains("vega:stage:mine", journals.Last().Milestones);
         Assert.Contains("vega:stage:land", journals.Last().Milestones);
     }
 
     [Fact]
-    public void NewPlayer_StartsWithFood_AndEatingAdvancesTheEatStage_ToScan()
+    public void NewPlayer_StartsWithFood_AndEatingCompletesTheEatStep()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
@@ -228,26 +260,25 @@ public sealed class ShipAiTests : IDisposable
         Assert.True(p.Inventory.CountOf("berries") > 0, "new players start with berries to eat");
         Assert.True(p.RationStore.CountOf("emergency_ration") > 0, "suit dispenser is pre-loaded with rations");
 
-        // Fast-forward the chain to the new "eat" lesson (after mine + craft), then eat one berry.
-        p.Milestones.Add("vega:stage:mine");
-        p.Milestones.Add("vega:stage:craft");
-        client.Send(NetCodec.Encode(new ConsumeItemIntent { ItemKey = "berries" }), DeliveryMode.ReliableOrdered);
-        server.Tick(0.1);
-        client.Poll();
+        // Part 2 (staying alive): the eat step waits behind the read step, then eating one berry completes it.
+        SkipChaptersBefore(server, client, "b2");
+        Assert.Equal("story.tutorial.b2.eat.chip", lines.Last().ObjectiveKey);
+        SendAndTick(server, client, new ConsumeItemIntent { ItemKey = "berries" });
 
-        Assert.Contains("vega:stage:eat", server.MilestonesForTest("Eater"));
-        Assert.Contains(lines, l => l.LineKey == "vega.s.eat.done");
-        Assert.Contains(lines, l => l.LineKey == "vega.s.scan.start"); // the chain moves on to scanning
-        Assert.Equal("vega.obj.scan", lines.Last().ObjectiveKey);
+        var milestones = server.MilestonesForTest("Eater");
+        Assert.Contains(Shared.Story.StoryPackKeys.StepDone(Tutorial, "b2.2"), milestones);
+        Assert.Contains("vega:stage:eat", milestones);
+        Assert.Contains(Shared.Story.StoryPackKeys.StepDone(Tutorial, "b2.1"), milestones); // the read step closed with it
+        Assert.NotEqual("story.tutorial.b2.eat.chip", lines.Last().ObjectiveKey); // the training moved on
     }
 
     [Fact]
-    public void CreativeWorld_RunsTheTutorial_AndSkipsOnlyTheUnlockLesson()
+    public void CreativeWorld_RunsTheTutorial_AndSkipsOnlyTheResearchStep()
     {
-        // #1461: a creative world grants every blueprint at join, which used to read as "a veteran save" and
-        // silently skipped the whole chain — a school browser session has no persistent save, so every
-        // session was a first session without a single lesson. Only the moot "unlock a blueprint" stage is
-        // pre-granted now; VEGA still opens with the intro and the first lesson.
+        // #1461: a creative world grants every blueprint at join, which used to read as "a veteran save" and silently
+        // skipped the whole tutorial — a school browser session has no persistent save, so every session was a first
+        // session without a single lesson. Since #2469 the research step is skipped there (world:all_blueprints) and the
+        // rest of the basic training runs.
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
         using var client = new LoopbackClientTransport(link);
@@ -258,22 +289,29 @@ public sealed class ShipAiTests : IDisposable
         server.Start();
         JoinAndDrain(server, client, "Kid");
 
-        var milestones = server.MilestonesForTest("Kid");
-        Assert.Contains(lines, l => l.LineKey == "vega.intro.1");
-        Assert.Contains(lines, l => l.LineKey == "vega.s.mine.start");
+        Assert.Contains(lines, l => l.LineKey == FirstStart);
         Assert.DoesNotContain(lines, l => l.LineKey == "vega.veteran");
-        Assert.Contains("vega:stage:unlock", milestones);     // moot in creative — granted silently
-        Assert.DoesNotContain("vega:stage:mine", milestones); // the real lessons are still ahead
-        Assert.DoesNotContain("vega:stage:launch", milestones);
+        var kid = server.Sessions[1];
+        Assert.False(kid.Join.Veteran);
+
+        SkipChaptersBefore(server, client, "b5");
+        server.RaiseGameEventForTest(kid, Shared.Story.GameEventKeys.ScanPerformed, "flora"); // the scan step
+        SendAndTick(server, client, new StoryPackIntent { PackId = Tutorial, Action = StoryPackActions.SkipStep, StepId = "b5.2" });
+
+        var milestones = server.MilestonesForTest("Kid");
+        Assert.Contains(Shared.Story.StoryPackKeys.StepSkipped(Tutorial, "b5.3"), milestones); // nothing to research here
+        Assert.Contains("vega:stage:unlock", milestones);
+        Assert.DoesNotContain(lines, l => l.LineKey == "story.tutorial.b5.research.start");
+        Assert.Contains(Shared.Story.StoryPackKeys.ChapterDone(Tutorial, "b5"), milestones);
     }
 
     [Fact]
-    public void VeteranSave_AutoSkipsOnboarding_WithOneLine()
+    public void VeteranSave_IsMigratedSilently_WithOneLine()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
         repo.Initialize();
 
-        // A save that has clearly played before: knowledge already earned.
+        // A save that has clearly played before VEGA's lessons existed: knowledge earned, no onboarding state at all.
         repo.SavePlayer(new PlayerState { PlayerId = "Vet", Name = "Vet", KnowledgePoints = 12 });
 
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
@@ -284,15 +322,18 @@ public sealed class ShipAiTests : IDisposable
         JoinAndDrain(server, client, "Vet");
 
         var milestones = server.MilestonesForTest("Vet");
-        Assert.Contains("vega:stage:mine", milestones);
+        Assert.Contains(Shared.Story.StoryPackKeys.Done(Tutorial), milestones);
+        Assert.Contains(Shared.Story.StoryPackKeys.ChapterSkipped(Tutorial, "b1"), milestones);
+        Assert.Contains("vega:stage:mine", milestones); // the legacy graduation, for older builds
         Assert.Contains("vega:stage:land", milestones);
         Assert.Contains(lines, l => l.LineKey == "vega.veteran");
-        Assert.DoesNotContain(lines, l => l.LineKey == "vega.intro.1");
-        Assert.StartsWith("story.obj.", lines.Last().ObjectiveKey); // post-tutorial the chip shows the story objective (#1110)
+        Assert.DoesNotContain(lines, l => l.PackId == Tutorial && l.LineKey.StartsWith("story.tutorial.", StringComparison.Ordinal));
+        Assert.DoesNotContain(lines, l => l.Kind == 4); // no prologue for a veteran
+        Assert.StartsWith("story.obj.", lines.Last().ObjectiveKey); // the story objective, not a lesson (#1110)
     }
 
     [Fact]
-    public void SkipOnboardingIntent_GrantsTheWholeChain()
+    public void SkipOnboardingIntent_SkipsTheBasicTraining()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
@@ -302,20 +343,22 @@ public sealed class ShipAiTests : IDisposable
         server.Start();
         JoinAndDrain(server, client, "Skipper");
 
-        client.Send(NetCodec.Encode(new SkipOnboardingIntent()), DeliveryMode.ReliableOrdered);
-        server.Tick(0.1);
-        client.Poll();
+        SendAndTick(server, client, new SkipOnboardingIntent());
 
         var milestones = server.MilestonesForTest("Skipper");
-        Assert.Contains("vega:stage:mine", milestones);
+        Assert.Contains(Shared.Story.StoryPackKeys.Done(Tutorial), milestones);
+        Assert.All(new[] { "b1", "b2", "b3", "b4", "b5", "b6" },
+            ch => Assert.Contains(Shared.Story.StoryPackKeys.ChapterSkipped(Tutorial, ch), milestones));
         Assert.Contains("vega:stage:trade", milestones);
         Assert.Contains("vega:stage:land", milestones);
         Assert.Contains(lines, l => l.LineKey == "vega.skip");
+        Assert.DoesNotContain(lines, l => l.LineKey == "story.tutorial.graduated"); // skipping graduates nobody
+        Assert.False(lines.Last().TutorialActive);
         Assert.StartsWith("story.obj.", lines.Last().ObjectiveKey); // post-tutorial the chip shows the story objective (#1110)
     }
 
     [Fact]
-    public void Restart_AfterSkip_RunsTheTutorialAgain()
+    public void Restart_AfterSkip_RunsTheTutorialAgain_WithoutThePrologue()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
@@ -325,21 +368,19 @@ public sealed class ShipAiTests : IDisposable
         server.Start();
         JoinAndDrain(server, client, "Returner");
 
-        client.Send(NetCodec.Encode(new SkipOnboardingIntent()), DeliveryMode.ReliableOrdered);
-        server.Tick(0.1);
-        Assert.Contains("vega:stage:land", server.MilestonesForTest("Returner"));
+        SendAndTick(server, client, new SkipOnboardingIntent());
+        Assert.Contains(Shared.Story.StoryPackKeys.Done(Tutorial), server.MilestonesForTest("Returner"));
 
-        // The way back: restart wipes the stage chain and re-runs the intro + first objective.
-        client.Send(NetCodec.Encode(new SkipOnboardingIntent { Restart = true }), DeliveryMode.ReliableOrdered);
-        server.Tick(0.1);
-        client.Poll();
+        // The way back: restart replays part 1 (keys stay — gates and conditions keep holding — the replay walks again).
+        lines.Clear();
+        SendAndTick(server, client, new SkipOnboardingIntent { Restart = true });
 
         var milestones = server.MilestonesForTest("Returner");
-        Assert.DoesNotContain("vega:stage:mine", milestones);
-        Assert.DoesNotContain("vega:stage:land", milestones);
-        Assert.Contains("vega:intro", milestones); // re-armed by the fresh boot
-        Assert.Contains(lines, l => l.LineKey == "vega.intro.1");
-        Assert.Equal("vega.obj.mine", lines.Last().ObjectiveKey); // back at lesson one
+        Assert.Contains(Shared.Story.StoryPackKeys.ChapterReplay(Tutorial, "b1"), milestones);
+        Assert.Contains(lines, l => l.LineKey == FirstStart);
+        Assert.DoesNotContain(lines, l => l.Kind == 4); // never the prologue (E17)
+        Assert.Equal(FirstChip, lines.Last().ObjectiveKey); // back at lesson one
+        Assert.True(lines.Last().TutorialActive);
     }
 
     [Fact]
@@ -524,7 +565,8 @@ public sealed class ShipAiTests : IDisposable
             repo2.Initialize();
             var loaded = repo2.LoadPlayer("Saver");
             Assert.NotNull(loaded);
-            Assert.Contains("vega:intro", loaded!.Milestones);
+            Assert.Contains(Shared.Story.StoryPackKeys.Done(Tutorial), loaded!.Milestones);
+            Assert.Contains("vega:intro", loaded.Milestones);
             Assert.Contains("vega:stage:land", loaded.Milestones);
         }
     }
@@ -564,6 +606,7 @@ public sealed class ShipAiTests : IDisposable
         var p = session.State;
         p.AboardShip = false; // on foot on the surface (no starter ship in this config)
         TestGear.Wear(p, "suit_lamp");
+        p.Milestones.Add(StoryPackKeys.StepDone(Tutorial, "b2.6")); // #2469: past the tutorial's lamp step, which holds this tip
         server.ResetVegaProbeForTest("Nightwalker");
         // A rocky night is cold and a long night makes hungry — retire the other safety hints up front so
         // only the deliberately triggered O2 hint competes with the lamp tip for the cadence.
@@ -692,7 +735,7 @@ public sealed class ShipAiTests : IDisposable
     }
 
     [Fact]
-    public void ContextTips_ProbeFindsRareOre_AndOpportunityTipsWaitForTheScanStage()
+    public void ContextTips_ProbeFindsRareOre_AndOpportunityTipsWaitForTheTutorialGate()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
@@ -719,11 +762,13 @@ public sealed class ShipAiTests : IDisposable
         server.World.SetBlock(new Vector3i(px + 2, py, pz + 1), gold.NumericId);
         server.ResetVegaProbeForTest("Prospector");
 
-        // Fresh save (onboarding stage 0): opportunity tips stay quiet even past the join-quiet minute.
+        // Fresh save: the tutorial's opportunityTips gate (eat + mine + craft) is closed — the tips stay quiet even past
+        // the join-quiet minute (#2469: the same moment the old "scan" stage marked).
         TickSeconds(server, client, 75);
         Assert.DoesNotContain(lines, l => l.LineKey == "vega.hint.rare_ore_near");
+        Assert.False(server.TutorialGateForTest(session, StoryGateNames.OpportunityTips));
 
-        // Grant the tutorial (all stages) → the same situation now produces the tip, naming the ore.
+        // Skip the basic training → the gate opens and the same situation produces the tip, naming the ore.
         client.Send(NetCodec.Encode(new SkipOnboardingIntent()), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         server.SkipVegaTipCooldownsForTest("Prospector");
@@ -763,6 +808,8 @@ public sealed class ShipAiTests : IDisposable
         {
             p.Milestones.Add("vega:hint:" + other + "#done"); // only the deliberately triggered tip competes
         }
+
+        p.Milestones.Add(StoryPackKeys.StepDone(Tutorial, "b2.5")); // #2469: past the tutorial's way-home step, which holds this tip
 
         // Just outside the hull (a few metres past its X extent): on foot but close — not a candidate.
         var near = new Vector3f(bounds.Origin.X + bounds.Size.X + 3f, tank.Y, tank.Z);

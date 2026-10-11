@@ -130,6 +130,74 @@ public static class GameEventKeys
     /// <summary>The player formed a non-cube block. Arg: the base item key.</summary>
     public const string InsightShapeNoncube = "insight:shape_noncube";
 
+    // ---- #2469: the basic-training verbs (one line each at an existing handler; d1 §3.25 "Basic (v1)") ----
+
+    /// <summary>The player walked on a surface. Amount: whole metres (sub-metre steps add up; jumps between reports
+    /// longer than a few metres — a teleport, a respawn — never count).</summary>
+    public const string MoveWalked = "move:walked";
+
+    /// <summary>The player jumped or crouched on foot (at most once a second). Arg: <see cref="MoveJumpArg"/> or
+    /// <see cref="MoveCrouchArg"/>.</summary>
+    public const string MoveJump = "move:jump";
+
+    /// <summary>The player picked another quick-bar slot. Arg: the slot number, 1-based.</summary>
+    public const string HotbarSelect = "hotbar:select";
+
+    /// <summary>A mined or harvested block's drops reached the player. Arg: the base item key; amount: the count.</summary>
+    public const string ItemGained = "item:gained";
+
+    /// <summary>The player moved an item between two slots of the backpack or the quick bar.</summary>
+    public const string ItemMoved = "item:moved";
+
+    /// <summary>The player put on a piece of gear. Arg: the base item key.</summary>
+    public const string GearEquipped = "gear:equipped";
+
+    /// <summary>The player stowed items into the ship's cargo hold. Arg: the item key, or <c>all</c> for "stow all".</summary>
+    public const string CargoStowed = "cargo:stowed";
+
+    /// <summary>The player's backpack has no free slot left (noticed once a second, like VEGA's <c>invfull</c> hint).</summary>
+    public const string InventoryFull = "inventory:full";
+
+    /// <summary>The player got back to their landed ship. Arg: <c>menu</c> ("Back to my ship"), <c>teleport</c> (the suit
+    /// teleporter) or <c>walk</c> (walked back aboard or close to it after having been far away).</summary>
+    public const string ShipReturned = "ship:returned";
+
+    /// <summary>The suit lamp was switched. Arg: <c>on</c> or <c>off</c>.</summary>
+    public const string LampToggled = "lamp:toggled";
+
+    /// <summary>The suit fed a stored ration to a starving player. Arg: the item key.</summary>
+    public const string SuitAutoFeed = "suit:auto_feed";
+
+    /// <summary>The suit's climate control started fighting the weather. Arg: <c>cold</c> or <c>heat</c>.</summary>
+    public const string SuitClimate = "suit:climate";
+
+    /// <summary>The player woke up again after fainting (any respawn).</summary>
+    public const string PlayerRespawned = "player:respawned";
+
+    /// <summary>A block refused the swing because the tool tier is too low (and a better tool exists). Arg: the block key.</summary>
+    public const string MineRefused = "mine:refused";
+
+    /// <summary>Data for bigger blueprints turned up. Arg: <c>cache</c> (a data cache is in reach) or <c>fragment</c> (the
+    /// player carries a data fragment).</summary>
+    public const string DataFound = "data:found";
+
+    /// <summary>The player's ship flew in space. Amount: whole flight units (a hyperjump or a warp never counts).</summary>
+    public const string FlightFlown = "flight:flown";
+
+    /// <summary>A job the player picked was accepted: a mission board's or a mission chain's (never a story character's
+    /// errand, never a pack's own bridge). Arg: the mission id.</summary>
+    public const string MissionBoardAccepted = "mission:board_accepted";
+
+    /// <summary>First arrival on a planet, moon or asteroid (not a station — <see cref="VisitBody"/> counts those too).
+    /// Arg: the body id.</summary>
+    public const string VisitWorld = "visit:world";
+
+    /// <summary><see cref="MoveJump"/> arg: a jump.</summary>
+    public const string MoveJumpArg = "jump";
+
+    /// <summary><see cref="MoveJump"/> arg: a crouch.</summary>
+    public const string MoveCrouchArg = "crouch";
+
     /// <summary><see cref="TravelLanded"/> arg: a landing from flight (the helm, the landing map, an EVA set-down).</summary>
     public const string TravelFlight = "flight";
 
@@ -176,14 +244,60 @@ public static class GameEventKeys
     public static string Crystal(string circuitEvent) => CrystalPrefix + circuitEvent;
 
     /// <summary>Prefix of a client teaching flag (<c>ui:menu_open</c>, synthesis §3.6). Allowed only in a player pack's
-    /// step objective — never in a condition — and never persisted; the intent that raises it arrives with step 10.</summary>
+    /// step objective — never in a condition — and never persisted. Raised by the server when the client reports a UI
+    /// moment (<c>UiTutorialEvent</c>, #2469; the ids are <see cref="UiEvents"/>).</summary>
     public const string UiPrefix = "ui:";
 
     /// <summary>The "continue" acknowledgement of a VEGA line — what completes a <c>read</c> step.</summary>
-    public const string UiVegaContinue = UiPrefix + "vega_continue";
+    public const string UiVegaContinue = UiPrefix + UiVegaContinueId;
+
+    /// <summary>The Tab menu was opened.</summary>
+    public const string UiMenuOpen = UiPrefix + UiMenuOpenId;
+
+    /// <summary>The Codex was opened.</summary>
+    public const string UiCodexOpen = UiPrefix + UiCodexOpenId;
+
+    /// <summary>A map was opened (the planet map tab or the flight chart).</summary>
+    public const string UiMapOpen = UiPrefix + UiMapOpenId;
+
+    /// <summary>A waypoint was set on the flight chart.</summary>
+    public const string UiWaypointSet = UiPrefix + UiWaypointSetId;
+
+    /// <summary>The id of <see cref="UiVegaContinue"/> on the wire (<c>UiTutorialEvent.Id</c>).</summary>
+    public const string UiVegaContinueId = "vega_continue";
+
+    /// <summary>The id of <see cref="UiMenuOpen"/> on the wire.</summary>
+    public const string UiMenuOpenId = "menu_open";
+
+    /// <summary>The id of <see cref="UiCodexOpen"/> on the wire.</summary>
+    public const string UiCodexOpenId = "codex_open";
+
+    /// <summary>The id of <see cref="UiMapOpen"/> on the wire.</summary>
+    public const string UiMapOpenId = "map_open";
+
+    /// <summary>The id of <see cref="UiWaypointSet"/> on the wire.</summary>
+    public const string UiWaypointSetId = "waypoint_set";
+
+    /// <summary>The teaching-flag ids a client reports (#2469). The server raises <c>ui:&lt;id&gt;</c> only for these; a pack
+    /// step naming another <c>ui:</c> flag is reported by the validator (a warning — no client sends it).</summary>
+    public static readonly IReadOnlyList<string> UiEvents = new[] { UiVegaContinueId, UiMenuOpenId, UiCodexOpenId, UiMapOpenId, UiWaypointSetId };
 
     /// <summary>Whether <paramref name="key"/> is a client teaching flag (<see cref="UiPrefix"/>).</summary>
     public static bool IsUiEvent(string? key) => key is not null && key.StartsWith(UiPrefix, StringComparison.Ordinal);
+
+    /// <summary>Whether <paramref name="id"/> (without the prefix) is one of the flags a client reports.</summary>
+    public static bool IsKnownUiEventId(string? id)
+    {
+        foreach (string known in UiEvents)
+        {
+            if (string.Equals(known, id, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>Every key the server raises today (the crystal family expanded), for the pack validator: a step naming
     /// another key is reported (a warning — a pack may be authored before its event ships).</summary>
@@ -211,6 +325,9 @@ public static class GameEventKeys
             TravelLanded, VisitBody, VisitSystem, HyperjumpAny, ModuleBuilt, ShipCommissioned, StationCommissioned,
             BaseFounded, TameAny, LootAny, DefeatAny, WormholeAny, RelayCommissioned, LaneLinked, StoryFragment,
             InsightCompanionWard, InsightShapeNoncube,
+            MoveWalked, MoveJump, HotbarSelect, ItemGained, ItemMoved, GearEquipped, CargoStowed, InventoryFull,
+            ShipReturned, LampToggled, SuitAutoFeed, SuitClimate, PlayerRespawned, MineRefused, DataFound, FlightFlown,
+            MissionBoardAccepted, VisitWorld,
         };
         foreach (string circuitEvent in new[]
                  {

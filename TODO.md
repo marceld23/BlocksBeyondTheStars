@@ -163,7 +163,23 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   `srv.admin.cutscene_usage/unknown/unsupported/preview`. Tests: Client.Tests `CutscenePlanTests`, `SafeMomentGateTests`,
   `CutsceneStagingTests`, `CutsceneClientTests`, `StoryPackClientTests`; server `CutsceneLedgerTests` (+5). Docs:
   CUTSCENES.md "The client director" + dev tools, STORY_IMPLEMENTATION, USER_MANUAL.
-- ⬜ Step 10 — tutorial pack: basic training (#2469)
+- ✅ **Step 10 — basic training as its own tutorial pack (#2469)**, 2026-10-11 (needs the local Unity build): the
+  hard-coded nine-stage VEGA onboarding (`VegaStages`, `VegaIsVeteran`, the client's stage list) is gone — the basic
+  training is `data/stories/tutorial/` (six parts B1–B6, 40 steps incl. three stand-ins, explain → try → server-verified,
+  neutral VEGA voice with premise variants only under the VEGA story, world-rule variants and `feasibleIf` /
+  alternatives so no step is impossible: trader instead of docking without a station, any landing when the system has
+  no unvisited world, flight steps skipped without free flight, research skipped in Creative); 18 new teaching verbs
+  at existing handlers (`move:walked` … `visit:world`, measured only while a step listens); tag 298
+  `UiTutorialEvent` (menu, Codex, map, waypoint, VEGA continue — teaching only, pause-whitelisted); pseudo key tokens
+  (`{key:Move}` …) in the one resolver; the gates wired (opportunity tips after eat + mine + craft, banter after the
+  training, `station_near` while docking is open); `hintRefs` hold VEGA's matching hints and the tutorial-covered
+  client lessons (E11); graduation line + achievement **Graduate**; the one-time migration of old onboarding state
+  (mid-chain evidence, finished chain silently with one E30 refresher offer on thin evidence, pre-lessons veterans);
+  legacy keys double-written; older clients keep the nine old lessons; Settings skip/restart drive the pack (restart
+  never the prologue). Docs: TUTORIAL_PACK.md (content, events, gates, migration, adding a chapter), USER_MANUAL.
+  Tests: `TutorialPackTests` (walkthroughs per preset and start world, skip/replay/policy, legacy client, migration,
+  hint hold, UI flags, handler events) + rewritten ShipAi/StoryServerFixes/StoryUiFixes/VegaObjectiveRefresh/
+  GameServerFinale/StoryFindability/StoryPackRuntime tests; Client.Tests VegaText/VegaLineBudget/StoryPackClient.
 - ⬜ Step 11 — VEGA as its own pack (#2470)
 - ⬜ Step 12 — journal + objective tracker (#2471)
 - ⬜ Step 13 — world creation "Stories" page (#2472)

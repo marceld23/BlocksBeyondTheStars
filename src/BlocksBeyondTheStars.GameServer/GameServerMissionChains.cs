@@ -621,7 +621,7 @@ public sealed partial class GameServer
         SendMissionList(session);
         if (MissionAcceptCountsAsTrade(def))
         {
-            ShipAiOnTradeOrMission(session); // a chain step taken in conversation; a story character's job is not a trade (#2460)
+            RaiseGameEvent(session, GameEventKeys.MissionBoardAccepted, missionId); // #2469: a chain step taken in conversation is a job the player picked; a story character's errand is not (#2460)
         }
 
         RaiseGameEvent(session, GameEventKeys.MissionAccepted, missionId); // #2465: the mission bridge

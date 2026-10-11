@@ -86,6 +86,49 @@ public sealed class StoryPackClientTests
         Assert.Equal("b3.2", intent.StepId);
     }
 
+    [Fact]
+    public void TheUiTeachingFlags_GoOutAsUiTutorialEvent_TheSameOneAtMostTwiceASecond()
+    {
+        // #2469: tag 298 — the menu, the Codex, a map, a waypoint, VEGA's continue.
+        var transport = new RecordingClientTransport();
+        using var client = new NetworkClient(transport);
+        Assert.True(client.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiMenuOpenId));
+        Assert.False(client.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiMenuOpenId)); // a menu toggled back and forth
+        Assert.True(client.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiCodexOpenId)); // another flag is its own
+        Assert.False(client.SendUiTutorialEvent(string.Empty));
+
+        var sent = transport.Sent.OfType<UiTutorialEvent>().Select(e => e.Id).ToList();
+        Assert.Equal(new[] { "menu_open", "codex_open" }, sent);
+    }
+
+    [Fact]
+    public void ARealClient_IsTaughtByTheTutorialPack_AndItsMenuFlagCompletesTheMenuStep()
+    {
+        // #2469: a current client joining a world with the basic training gets its first step, and the client's own UI
+        // flag (what GameMenu sends when the Tab menu opens) completes the step that waits for it.
+        using var h = new ClientServerHarness(BlocksBeyondTheStars.Shared.Content.ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir()));
+        var lines = new List<ShipAiLine>();
+        h.Client.ShipAiLineReceived += lines.Add;
+        h.Join("Kid");
+        Assert.NotNull(h.JoinAccepted);
+        Assert.True(h.PumpUntil(() => lines.Any(l => l.LineKey == "story.tutorial.b1.walk.start")));
+        Assert.Equal("tutorial", lines.Last(l => l.LineKey.Length > 0).PackId);
+
+        foreach (string step in new[] { "b1.1", "b1.2", "b1.4" }) // "I know this" — the Journal's skip
+        {
+            h.Client.SendStoryPack("tutorial", StoryPackActions.SkipStep, stepId: step);
+            h.Tick();
+        }
+
+        Assert.True(h.PumpUntil(() => lines.Any(l => l.LineKey == "story.tutorial.b1.menu.start")));
+        Assert.True(h.Client.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiMenuOpenId));
+        // The Codex step's line — with VEGA's story on, its premise variant ("I wrote it before the crash").
+        Assert.True(h.PumpUntil(() => lines.Any(l => l.LineKey.StartsWith("story.tutorial.b1.codex.start", StringComparison.Ordinal))),
+            "lines: " + string.Join(", ", lines.Select(l => l.LineKey + "/" + l.ObjectiveKey)));
+        Assert.Contains(lines, l => l.LineKey == "story.tutorial.b1.codex.start_story");
+        Assert.Equal("story.tutorial.b1.codex.chip", lines.Last().ObjectiveKey);
+    }
+
     [Theory]
     [InlineData("Press {key:Interact} at {0}", "the cockpit")]
     [InlineData("The wreck {0} drifts. Map: {key:FlightMap}", null)]

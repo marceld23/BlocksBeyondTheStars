@@ -195,7 +195,7 @@ public sealed partial class GameServer
         }
 
         SkipChapterSteps(s, ch);
-        CompleteChapter(s, ch, skipped: !ChapterReplaying(s, ch));
+        CompleteChapter(s, ch, skipped: !ChapterReplaying(s, ch), silent: true); // a skip never graduates
         AdvancePlayer(s);
         SendVegaObjective(s);
         return true;
@@ -309,8 +309,8 @@ public sealed partial class GameServer
         SendVegaObjective(s);
     }
 
-    /// <summary>The tutorial packs' answer to the old Settings button (<see cref="SkipOnboardingIntent"/>): skip = skip the
-    /// pack, restart = replay its mandatory chapters. The legacy chain keeps its own handling until step 10.</summary>
+    /// <summary>The tutorial packs' answer to the Settings button (<see cref="SkipOnboardingIntent"/>): skip = skip the
+    /// pack, restart = replay its mandatory chapters (refused while the world has the tutorial off).</summary>
     private void SkipOrRestartTutorialPacks(PlayerSession s, bool restart)
     {
         foreach (var pack in PlayerPacks)
@@ -335,12 +335,14 @@ public sealed partial class GameServer
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Gates (for the consumers step 10 rewires).
+    // Gates (read by the opportunity tips, VEGA's banter and the station_near tip, #2469).
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>What a tutorial pack says about a gate (<see cref="StoryGateNames"/>) for this player: null = no tutorial
     /// pack has a say (no pack installed, or the gate unset — the caller keeps today's rule); true when the tutorial is off
-    /// for the world or the player (synthesis §5.3: "Tutorial aus" opens every gate); else the gate's condition.</summary>
+    /// for the world or the player (synthesis §5.3: "Tutorial aus" opens every gate); else the gate's condition. Readers:
+    /// <c>OpportunityTipsOpen</c> (the opportunity and progression tips), <c>TickVegaBanterFor</c> and the
+    /// <c>station_near</c> tip.</summary>
     internal bool? TutorialGate(PlayerSession s, string gate)
     {
         bool anyTutorial = false;
@@ -404,16 +406,7 @@ public sealed partial class GameServer
         var pack = PlayerPacks.FirstOrDefault(p => p.IsTutorial);
         if (pack is null)
         {
-            // No tutorial pack yet: the old onboarding chain is the tutorial (step 10 replaces it).
-            if (verb == "chapter")
-            {
-                Reject(session, "admin", "@srv.admin.tutorial_none");
-                return;
-            }
-
-            HandleSkipOnboarding(target, new SkipOnboardingIntent { Restart = verb == "restart" });
-            Send(session, new ServerMessage { Text = (verb == "skip" ? "@srv.admin.tutorial_skipped:" : "@srv.admin.tutorial_restarted:") + target.State.Name });
-            CheatLog(session.State, $"{verb} the tutorial of {target.State.Name}");
+            Reject(session, "admin", "@srv.admin.tutorial_none"); // #2469: the tutorial IS the pack — no pack, no tutorial
             return;
         }
 
@@ -474,7 +467,7 @@ public sealed partial class GameServer
             if (!previous.Optional && !ChapterFinished(s, previous))
             {
                 SkipChapterSteps(s, previous);
-                CompleteChapter(s, previous, skipped: !ChapterReplaying(s, previous));
+                CompleteChapter(s, previous, skipped: !ChapterReplaying(s, previous), silent: true);
             }
         }
 

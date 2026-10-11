@@ -75,8 +75,8 @@ Last updated: 2026-10-04.
   game is set to German).
 - On the **very first start** a short (~28 s) **intro cinematic** plays between the title splash and the
   menu — any key, pad button or tap skips it, and the Credits screen's **"Watch intro"** button replays it any time.
-- On a **new world**, the ship AI **VEGA** boots up and walks you through the first hour (see §5 →
-  VEGA) — her opening narration is staged like a scene (letterbox, an orbit shot of your landed ship, scaled
+- On a **new world**, the ship AI **VEGA** boots up and walks you through the **basic training** (six short parts,
+  see §5 → VEGA) — her opening narration is staged like a scene (letterbox, an orbit shot of your landed ship, scaled
   to your ship's size). Veteran saves get a one-line "systems online" instead.
 - **Skipping a cutscene works on every device:** **Esc** on the keyboard, the pad's back button **(B)** (or
   whatever you bound to *Close / back*), or a click / tap on the **Skip** button in the corner — this goes for
@@ -490,7 +490,7 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   until the arrow points to the top of the dial and walk; VEGA reminds you of this once you are a long way from
   the hull.
 - **VEGA panel** — the ship AI speaks through a typewriter speech panel with a persistent **objective
-  chip** (live progress, e.g. "mine 1/3") during onboarding. Advance lines with **N** or the **Continue** button in
+  chip** (live progress, e.g. "mine 1/3") during the basic training. Advance lines with **N** or the **Continue** button in
   the panel (clickable whenever the mouse cursor is free, tappable on touch) — a line stays until you do (no
   auto-dismiss), and further lines wait in the queue. Leave a line for about 45 seconds and the panel **folds into a
   small VEGA tab** beside the objective, showing how many messages are waiting; press **N** (pad **View**, touch
@@ -1078,19 +1078,46 @@ players.
   pad**. Repair it through this same flow — restore the hull and refill every missing cell and it can fly again.
 
 ### VEGA — the ship AI
-- **Onboarding (new worlds):** VEGA guides you through a 9-stage chain (mine → craft → eat → scan → unlock a
-  blueprint → launch → dock a station → trade/take a mission → land elsewhere), each stage tracked on the
-  objective chip. **Skippable and restartable** from the Settings tab; veteran saves skip automatically.
+- **Basic training (new players):** VEGA walks you through six short parts — every lesson is *explain → try it →
+  the game checks it*, one at a time, with the current task on the objective chip:
+  1. **First steps** — walking and looking around, jumping and crouching, VEGA and the objective bar, the quick bar
+     (slot 1 drill, slot 2 scanner), the menu and the Codex.
+  2. **Staying alive** — health, air and food, eating, berries from bushes, the suit's ration dispenser, the blue
+     ship marker on the compass and the way back (pause menu → *Back to my ship*), the lamp, cold and heat, and that
+     fainting only wakes you up again.
+  3. **Mining and carrying** — mining, iron ore a few blocks down, rock that is too hard for your drill, the
+     backpack, gear that only works while worn (take the lamp off and put it back on), the cargo hold.
+  4. **Crafting and building** — iron ingots and a plate at the ship's workshop, placing blocks, turning shaped
+     blocks, a campfire.
+  5. **Scanning and research** — scanning, knowledge from new things, your first blueprint at **your** cockpit, data
+     fragments for the bigger ones.
+  6. **Lift-off** — launching from the cockpit, flying and the chart, the ship scanner, docking at a station, trading,
+     a first job from a mission board, landing on a new world, and travelling home via the map.
+  At the end VEGA congratulates you and you earn the achievement **Graduate**. There are no items or knowledge for the
+  lessons — they teach, they don't pay.
+  - **No dead ends:** a lesson your world cannot offer is skipped or swapped — with **no station in your system**
+    you trade with a settlement vendor instead of docking; with **space flight switched off** the flight lessons are
+    skipped; without hunger there is no eating lesson; in **Creative** crafting is free and the research lesson is
+    skipped; a lesson like the berries or the campfire is skipped where no bush or tree grows nearby.
+  - **Help when stuck:** after about three minutes on one task VEGA gives a more concrete hint; for "where?" tasks
+    (berries, iron ore) she later marks the nearest spot on your map — only for you; after ten minutes she offers to
+    skip the step. Nothing is ever timed and you can never fail a lesson.
+  - **Skipping and replaying:** Settings → **Skip tutorial** ("I know the game") skips the whole basic training;
+    **Restart tutorial** runs it again from part 1 — for anyone, experienced players included, and without the
+    opening narration. Some lessons you already did early simply tick off by themselves.
+  - **Tutorial on/off for a world:** the world rule *Tutorial* is **Auto** (every new player starts it), **Opt-in**
+    (only on request) or **Off** (an admin sets it with `/tutorial policy auto|optin|off`).
   - VEGA's lessons — and the prompts at the ship's cockpit, workshop, cargo hold and console, the crafting
     stations, the bed, the heal tank, the transporter pad and a factory terminal — name the control of the device
-    you are using: the key you bound, the pad button, or on a tablet the on-screen button (USE, MAP, ≡ …).
+    you are using: the key you bound, the pad button, or on a tablet the on-screen button (USE, MAP, JUMP, MINE,
+    ◄ ►, ≡ …).
   - A **new player on someone else's world** gets the full introduction even when that world is already deep
-    into the story (the old "veteran" check counted the story knowledge the join itself had just handed over).
-  - **Restart** runs the lessons again for anyone, experienced players included — without the opening narration.
-  - The trade lesson counts a **barter** or a job taken from a **mission board** or a **mission chain**; accepting
-    one of the two starter jobs no longer ticks it off.
-  - A lesson your world cannot offer is skipped instead of waited on: with **space flight switched off** the
-    launch, docking and landing lessons; with **no station in your system** the docking lesson (VEGA says so).
+    into the story. **Players from before** keep what they learnt: lessons from the old nine-step tutorial count
+    as done, a finished old tutorial counts as a finished basic training, and a save that played before VEGA's
+    lessons existed gets a one-line "systems online" instead.
+  - While the basic training runs, VEGA's matching tips wait for their lesson, so you never hear the same thing
+    twice (the flight chart and ship-scanner explanations, for example, come with part 6).
+  - A game version from before the new tutorial still follows the nine old lessons on a new server.
 - **Advisor:** one-time contextual hints (full inventory, first nightfall, "ruins detected", world-type
   flavour) plus **context tips** that notice your situation and may come back — rarely: gear you carry
   but aren't using (a suit lamp switched off in the dark, torches underground, food when hungry, a medkit
@@ -1215,8 +1242,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **E** the ship flies round to the hangar and noses in. The autopilot and a chart target fly you to the space in front
   of the hangar. A station's layout is fixed the first time you see it.
 - **Your start system always has a station** (new and existing worlds): if the system rolled none, one hangs
-  over your start planet. Other systems may have none — if VEGA's docking lesson finds no station in your system,
-  she skips it for now instead of sending you to a star you cannot reach yet.
+  over your start planet. Other systems may have none — if the basic training's docking lesson finds no station in
+  your system, VEGA has you trade with a settlement vendor instead of sending you to a star you cannot reach yet.
 - **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
   around it, and it commissions into a boardable station on the star map. An ally may help and even set the last
   block — the station, its default name, the "commissioned" message and the achievement stay the owner's.

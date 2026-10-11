@@ -271,6 +271,48 @@ public sealed class StoryPackValidationTests
     }
 
     [Fact]
+    public void AUiFlag_NoClientReports_IsAWarning()
+    {
+        // #2469: the client reports only GameEventKeys.UiEvents — a step waiting for another flag would wait forever.
+        var issues = StoryPackValidator.Validate(Side(d => Step(d).Objective.Event = "ui:inventory_sorted"), Context());
+        Assert.Empty(Errors(issues));
+        Assert.Contains(issues, i => i.Severity == StoryPackIssueSeverity.Warning && i.Message.Contains("no flag a client reports", StringComparison.Ordinal));
+        Assert.DoesNotContain(StoryPackValidator.Validate(Side(d => Step(d).Objective.Event = GameEventKeys.UiCodexOpen), Context()),
+            i => i.Message.Contains("no flag a client reports", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TheGraduation_NeedsItsLine_ACounter_AndAtMostThreeOptionalChapters()
+    {
+        // #2469: a fine graduation — a line in both languages, a counter, an optional chapter to suggest.
+        StoryDefinition Graduating(Action<StoryGraduation> edit) => Side(d =>
+        {
+            d.Chapters.Add(new StoryChapter
+            {
+                Id = "c2",
+                TitleKey = "story.vega_protocol.name",
+                Optional = true,
+                Steps = { new StoryStep { Id = "c2.1", Objective = new StoryStepObjective { Event = GameEventKeys.CraftAny }, Explain = new StoryStepExplain { ChipKey = "vega.obj.craft" } } },
+            });
+            d.Graduation = new StoryGraduation { LineKey = "vega.skip", Counter = "probe:graduated", Suggest = { "c2" } };
+            edit(d.Graduation);
+        });
+
+        Assert.Empty(Errors(StoryPackValidator.Validate(Graduating(_ => { }), Context())));
+        AssertError(Graduating(g => g.LineKey = "story.probe.nowhere"), "missing in English");
+        AssertError(Graduating(g => g.Counter = "graduated"), "is not an achievement counter");
+        AssertError(Graduating(g => g.Suggest.Add("c1")), "is not an optional chapter");
+        AssertError(Graduating(g => g.Suggest.AddRange(new[] { "c2", "c2", "c2" })), "at most 3 suggested chapters");
+    }
+
+    [Fact]
+    public void AnEmptyHintRef_IsAnError() => AssertError(Side(d => Step(d).HintRefs.Add(" ")), "an empty hint id");
+
+    [Fact]
+    public void TheFoodPlantMarker_IsAKnownProvider()
+        => Assert.Empty(Errors(StoryPackValidator.Validate(Side(d => Step(d).OnStart.Reveal = StoryRevealProviders.NearestFoodPlant), Context())));
+
+    [Fact]
     public void AnUnpublishedEvent_IsAWarning()
     {
         var issues = StoryPackValidator.Validate(Side(d => Step(d).Objective.Event = "equip:any"), Context());

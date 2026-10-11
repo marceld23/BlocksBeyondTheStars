@@ -341,7 +341,6 @@ public sealed partial class GameServer
                 Send(s, new TradeClosed { Completed = completed, Reason = reason });
                 if (completed)
                 {
-                    ShipAiOnTradeOrMission(s); // VEGA onboarding: a finished trade counts
                     RaiseGameEvent(s, GameEventKeys.TradePlayer, session.Other(p)); // #2465: arg = the trade partner
                 }
             }

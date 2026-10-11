@@ -116,6 +116,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (!p.SuitClimateActive)
+        {
+            // #2469: the suit just started fighting the climate — the tutorial's "a roof helps" reaction.
+            RaiseGameEvent(session, Shared.Story.GameEventKeys.SuitClimate, session.EffectiveTemperatureC < ComfortLowC ? "cold" : "heat");
+        }
+
         p.SuitClimateActive = true;
         float scale = Rules.HazardSeverityFactor * (1f - ThermalInsulation(p));
         if (p.SuitEnergy > 0f)

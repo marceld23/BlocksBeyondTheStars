@@ -12,8 +12,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// player state: <c>SetupPlayerShip</c> maps the spawn system, the Creative grants unlock blueprints and the
 /// story catch-up pays a knowledge point per revealed beat. Deciding "newcomer or veteran" from the live state
 /// after all that read every fresh player on a progressed multiplayer world as a veteran — no prologue, no
-/// tutorial. Everything that needs the arrival state (VEGA's onboarding boot, the resolution catch-up, and the
-/// tutorial pack that replaces the onboarding chain later) reads this snapshot instead.
+/// tutorial. Everything that needs the arrival state (the prologue, the resolution catch-up, and the tutorial pack's
+/// one-time migration of the old onboarding state, #2469) reads this snapshot instead.
 /// </summary>
 public sealed class JoinSnapshot
 {

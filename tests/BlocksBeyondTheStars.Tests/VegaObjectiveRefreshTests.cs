@@ -24,7 +24,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// </summary>
 public sealed class VegaObjectiveRefreshTests : IDisposable
 {
-    private static readonly string[] OnboardingStages = { "mine", "craft", "eat", "scan", "unlock", "launch", "dock", "trade", "land" };
+    /// <summary>#2469: the official tutorial pack — the basic training a fresh player is in.</summary>
+    private const string Tutorial = SvGameServer.OfficialTutorialPackId;
 
     private readonly string _root;
     private readonly GameContent _content;
@@ -69,7 +70,12 @@ public sealed class VegaObjectiveRefreshTests : IDisposable
     private static void JoinAndDrain(SvGameServer server, LoopbackClientTransport client, string name)
     {
         client.Connect("loopback", 0);
-        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = name }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new JoinRequest
+        {
+            ContentFingerprint = TestJoin.Fingerprint,
+            PlayerName = name,
+            Features = new[] { ClientFeatures.Packs1 },
+        }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
     }
@@ -108,7 +114,7 @@ public sealed class VegaObjectiveRefreshTests : IDisposable
         var server = new SvGameServer(Config("objective"), _content, serverTransport, repo);
         server.Start();
         JoinAndDrain(server, client, "Pilot");
-        Assert.Equal("vega.obj.mine", lines.Last().ObjectiveKey); // the join sent the tutorial chip
+        Assert.Equal("story.tutorial.b1.walk.chip", lines.Last().ObjectiveKey); // the join sent the tutorial chip (#2469: the pack)
 
         var session = server.Sessions[1];
         string homeId = session.CurrentLocationId;
@@ -116,12 +122,9 @@ public sealed class VegaObjectiveRefreshTests : IDisposable
         Assert.False(string.IsNullOrEmpty(homeName));
         EnsureFragmentOnWorld(server);
 
-        // Finish the onboarding behind VEGA's back: no handler fires, so nothing re-sends the chip — only the
+        // Leave the basic training behind VEGA's back (the opt-out key, no handler): nothing re-sends the chip — only the
         // tick's "differs from the last sent" check can move it on (#1859 staleness).
-        foreach (var stage in OnboardingStages)
-        {
-            session.State.Milestones.Add("vega:stage:" + stage);
-        }
+        session.State.Milestones.Add(Shared.Story.StoryPackKeys.OptOut(Tutorial));
 
         lines.Clear();
         server.Tick(1.1);
@@ -165,10 +168,7 @@ public sealed class VegaObjectiveRefreshTests : IDisposable
         var server = new SvGameServer(Config("pickup"), _content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         var p = server.AddLocalPlayer("Reader");
-        foreach (var stage in OnboardingStages)
-        {
-            p.State.Milestones.Add("vega:stage:" + stage);
-        }
+        server.SkipTutorialForTest(p); // past the basic training (#2469)
 
         EnsureFragmentOnWorld(server);
         Assert.Equal("story.obj.fragment_on", server.ObjectiveKeyForTest("Reader"));

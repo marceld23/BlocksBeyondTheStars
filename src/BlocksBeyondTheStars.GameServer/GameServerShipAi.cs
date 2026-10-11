@@ -13,35 +13,19 @@ using BlocksBeyondTheStars.Shared.World;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// The ship AI companion "VEGA" (Vectored Exploration &amp; Guidance Array): a per-player guide that
-/// onboards new players through a staged first-hour chain, drops contextual advisor hints afterwards,
-/// and grows into a game element — AI-core ship modules (scanner boost / threat callouts / autopilot /
-/// evasion) and a memory-fragment story arc that gives wrecks and buried vaults narrative pull.
+/// The ship AI companion "VEGA" (Vectored Exploration &amp; Guidance Array): a per-player voice that presents the
+/// basic training (since #2469 the tutorial story pack, <c>data/stories/tutorial/</c>, run by the player-pack runtime —
+/// the hard-coded nine-stage onboarding chain is gone), drops contextual advisor hints, and grows into a game element —
+/// AI-core ship modules (scanner boost / threat callouts / autopilot / evasion) and a memory-fragment story arc that
+/// gives wrecks and buried vaults narrative pull.
 ///
 /// Design rules: server-authoritative (every milestone is an existing server event), strictly per-player
 /// (each player has their own VEGA; lines go only to that session), bilingual + offline-safe (lines are
 /// locale KEYS the client localizes — no LLM in the critical path), and skippable (settings hide hints,
-/// <see cref="SkipOnboardingIntent"/> grants the whole chain; veteran saves auto-skip with one line).
+/// <see cref="SkipOnboardingIntent"/> skips the basic training; veterans are migrated silently).
 /// </summary>
 public sealed partial class GameServer
 {
-    // --- Onboarding stage chain. Order matters: the first incomplete stage is the active objective.
-    // Completing a LATER stage early (e.g. trading before docking) is recorded silently; the chain then
-    // skips it when reached. Milestone key per stage: "vega:stage:<id>".
-    private static readonly (string Id, int Target)[] VegaStages =
-    {
-        ("mine",   3), // mine a few blocks (the starter drill)
-        ("craft",  1), // craft anything
-        ("eat",    1), // eat food (survival loop: harvest flora / hunt for food, suit dispenser auto-feeds)
-        ("scan",   1), // scan something (knowledge loop)
-        ("unlock", 1), // unlock a first blueprint
-        ("launch", 1), // lift off into space
-        ("dock",   1), // board a space station
-        ("trade",  1), // first trade OR accepted board mission
-        ("land",   1), // land on a world again
-    };
-
-    private const string VegaIntroMilestone = "vega:intro";
     private const string VegaMemoryItem = "ai_memory_fragment";
     private const int VegaMemoryBeats = 10;          // story beats in the fragment arc
     private const int VegaMemoryKnowledge = 3;       // knowledge per restored fragment
@@ -52,32 +36,6 @@ public sealed partial class GameServer
     /// <summary>Deterministic roll source for Mk3 evasion (seeded so tests can reason about it).</summary>
     private readonly System.Random _vegaRng = new(7041);
 
-    private static string VegaStageKey(string id) => "vega:stage:" + id;
-
-    /// <summary>Index of the first incomplete onboarding stage, or VegaStages.Length when done.</summary>
-    private static int VegaStageIndex(PlayerState p)
-    {
-        for (int i = 0; i < VegaStages.Length; i++)
-        {
-            if (!p.Milestones.Contains(VegaStageKey(VegaStages[i].Id)))
-            {
-                return i;
-            }
-        }
-
-        return VegaStages.Length;
-    }
-
-    private static bool VegaOnboardingDone(PlayerState p) => VegaStageIndex(p) >= VegaStages.Length;
-
-    /// <summary>A save that has clearly played before gets VEGA's onboarding pre-granted — they only hear
-    /// a one-line "systems online". Creative grants no longer count (#1461): a creative world hands out
-    /// blueprints at join, which silently skipped the whole tutorial — and a school browser session with
-    /// no persistent save is a first session every time. Only meaningful on the state as it ARRIVED: read it
-    /// through <see cref="PlayerSession.Join"/> (#2460), never after the join has paid anything in.</summary>
-    private bool VegaIsVeteran(PlayerState p)
-        => !CreativeGrantsActive && (p.KnowledgePoints > 0 || p.UnlockedBlueprints.Count > 0 || p.Missions.Count > 0);
-
     /// <summary>Whether this world pre-grants blueprints (singleplayer Creative option or Creative mode). Reads
     /// the SAVED world option (#2460, B04): the launch flag is only set by the session that created the world —
     /// a relaunched head-start world came back without it, and its newcomers were read as veterans (#1461).</summary>
@@ -85,9 +43,15 @@ public sealed partial class GameServer
         => _meta.CreativeUnlockAllBlueprints || Rules.GameMode == GameMode.Creative;
 
     /// <summary>#2460 (B01): the player as they arrive — taken at the very top of the join, before
-    /// <c>SetupPlayerShip</c>, the Creative grants and the story catch-up can pay anything into the state.</summary>
+    /// <c>SetupPlayerShip</c>, the Creative grants and the story catch-up can pay anything into the state. "Veteran" is the
+    /// evidence of earlier play the state carried (knowledge, blueprints, missions) on a world that does not hand
+    /// blueprints out — a Creative world never counts (#1461: its join grants read as experience, and a school browser
+    /// session is a first session every time). Since #2469 nothing decides the tutorial from it alone: the tutorial's
+    /// one-time migration reads it only for a player without any onboarding state (a save from before VEGA's lessons),
+    /// and the prologue plays only for a newcomer.</summary>
     private JoinSnapshot TakeJoinSnapshot(PlayerState p)
-        => new(VegaIsVeteran(p), p.Milestones.Contains(VegaIntroMilestone),
+        => new(!CreativeGrantsActive && (p.KnowledgePoints > 0 || p.UnlockedBlueprints.Count > 0 || p.Missions.Count > 0),
+            p.Milestones.Contains(StoryLegacy.IntroMilestone),
             p.Milestones.Where(m => m.StartsWith("story:", System.StringComparison.Ordinal)));
 
     /// <summary>The objective chip as last sent, per connection (#1859): key, {0} argument, progress, target and — since
@@ -133,7 +97,7 @@ public sealed partial class GameServer
     /// <list type="number">
     /// <item>the finale while the player is in the Guardian system (it beats even a pin — the #1832 lesson);</item>
     /// <item>the pinned story (<c>PlayerState.TrackedStoryId</c>), if it has an objective;</item>
-    /// <item>basic training: the old onboarding chain while it runs, then a tutorial pack's mandatory chapters;</item>
+    /// <item>basic training: the tutorial pack's mandatory chapters (#2469 — the old onboarding chain is gone);</item>
     /// <item>the VEGA finale (Guardian system revealed);</item>
     /// <item>the VEGA lead (<c>story.obj.*</c>);</item>
     /// <item>a tutorial deep-dive step or a mission-bridge step;</item>
@@ -145,7 +109,7 @@ public sealed partial class GameServer
     private VegaChip LiveVegaChip(PlayerSession session)
     {
         var p = session.State;
-        bool tutorialActive = !VegaOnboardingDone(p) || TutorialPackRunning(session);
+        bool tutorialActive = TutorialPackRunning(session);
 
         if (FinaleObjectiveOverridesTutorial(p))
         {
@@ -155,14 +119,6 @@ public sealed partial class GameServer
         if (p.TrackedStoryId.Length > 0 && PinnedChip(session, tutorialActive) is { } pinned)
         {
             return pinned;
-        }
-
-        int stage = VegaStageIndex(p);
-        if (stage < VegaStages.Length)
-        {
-            var (id, target) = VegaStages[stage];
-            return new VegaChip("vega.obj." + id, string.Empty, id == "mine" ? session.VegaMineCount : 0, target,
-                ObjectiveSources.Tutorial, tutorialActive);
         }
 
         if (BasicTrainingObjective(session) is { } basic)
@@ -274,8 +230,8 @@ public sealed partial class GameServer
     private bool FinaleOpen
         => StoryActive && _story is not null && _storyState.GuardianSystemRevealed && !_storyState.GuardianDefeated;
 
-    /// <summary>#1832: once the Guardian system is revealed the finale IS the objective — the onboarding chip
-    /// ("craft an item") must not sit over it while the player stands in the core chamber. The stages still
+    /// <summary>#1832: once the Guardian system is revealed the finale IS the objective — the tutorial chip
+    /// ("craft an item") must not sit over it while the player stands in the core chamber. The steps still
     /// complete in the background. Since #2462 (B11) only there: in the Guardian system (the core world is one of
     /// its bodies). The override used to be world-wide, so a newcomer joining a world whose finale was open got
     /// "confront the Guardian core" on the chip in their first minute while the lessons kept talking about mining.
@@ -343,228 +299,79 @@ public sealed partial class GameServer
     public string? ObjectivePackForTest(string playerId)
         => FindSessionByPlayerId(playerId) is { } session ? LiveVegaChip(session).PackId : null;
 
-    /// <summary>Join hook: boots VEGA for new players (prologue + intro + first objective), auto-grants the
-    /// chain for veteran saves, and re-shows the current objective on a mid-onboarding rejoin. Always ends
-    /// by sending the <see cref="VegaJournal"/> snapshot, so the client can rebuild the re-readable tips log.
-    /// The veteran decision is the one taken at the top of the join (<see cref="PlayerSession.Join"/>, #2460):
-    /// re-evaluating it here read every newcomer on a progressed world as a veteran, because the beat catch-up
-    /// had just paid them knowledge. <paramref name="restart"/> (the player asked to restart the tutorial) never
-    /// takes the veteran branch and never replays the prologue — the restart is for the lessons.</summary>
-    private void ShipAiOnJoin(PlayerSession session, bool restart = false)
+    /// <summary>Join hook (#2469): the cold open for a newcomer — VEGA's prologue pages (Kind 4) when a world story is active,
+    /// once per player (<see cref="PrologueSeenKey"/>) — then the chip. The basic training itself is the tutorial pack:
+    /// <see cref="StoryPacksOnJoin"/> runs right after (migrate, start, re-speak the step on the chip) and sends the
+    /// <see cref="VegaJournal"/> snapshot. A tutorial restart never comes here, so it never replays the prologue (E17). The
+    /// newcomer decision is the join snapshot (#2460): no onboarding state and no veteran evidence when the player
+    /// arrived — re-evaluating it here read every newcomer on a progressed world as a veteran, because the beat catch-up
+    /// had just paid them knowledge. Step 11 moves the prologue into the VEGA pack's intro cutscene.</summary>
+    private void ShipAiOnJoin(PlayerSession session)
     {
         var p = session.State;
         session.VegaTipReadyAt = _uptime + VegaTipJoinQuiet; // context tips (#1077) stay quiet right after a join
-        if (!p.Milestones.Contains(VegaIntroMilestone))
+        if (StoryActive && _story is not null && session.Join.Newcomer && p.Milestones.Add(PrologueSeenKey(_story.Id)))
         {
-            p.Milestones.Add(VegaIntroMilestone);
-            if (!restart && session.Join.Veteran)
-            {
-                foreach (var (id, _) in VegaStages)
-                {
-                    p.Milestones.Add(VegaStageKey(id));
-                }
-
-                SendVegaLine(session, "vega.veteran", 3);
-            }
-            else
-            {
-                // Narrative framing before VEGA's first words (#738): who-am-I prologue pages, shown by the
-                // client as a full-screen overlay (Kind 4). Only with an active story pack — a "none" sandbox
-                // opted out of narrative, so it boots straight into the tutorial — and never on a tutorial
-                // restart (#2460): the player asked for the lessons again, not for the story's cold open.
-                if (StoryActive && !restart)
-                {
-                    SendVegaLine(session, "vega.prologue.1", 4);
-                    SendVegaLine(session, "vega.prologue.2", 4);
-                    SendVegaLine(session, "vega.prologue.3", 4);
-                }
-
-                SendVegaLine(session, "vega.intro.1", 0);
-                SendVegaLine(session, "vega.intro.2", 0);
-                // Point new players at the Tab menu and the Codex before the first task (#1015) —
-                // without these, neither surface is ever introduced until stage 2 mentions Tab in passing.
-                SendVegaLine(session, "vega.intro.menu", 0);
-                SendVegaLine(session, "vega.intro.codex", 0);
-                if (CreativeGrantsActive)
-                {
-                    // Every blueprint is already unlocked here — "unlock a first blueprint" would never
-                    // complete. Grant that one stage silently; the chain skips it when it gets there (#1461).
-                    p.Milestones.Add(VegaStageKey("unlock"));
-                }
-
-                SendVegaLine(session, "vega.s.mine.start", 0);
-            }
-
+            // Narrative framing before VEGA's first words (#738): who-am-I prologue pages, shown by the client as a
+            // full-screen overlay (Kind 4). Only with an active story pack — a "none" sandbox opted out of narrative and
+            // goes straight to the lessons. The once-key is the cutscene ledger's "seen" form of the prologue (synthesis
+            // §5.3: story:<pack>:cut:prologue): the pages ARE the prologue for this build.
+            SendVegaLine(session, "vega.prologue.1", 4);
+            SendVegaLine(session, "vega.prologue.2", 4);
+            SendVegaLine(session, "vega.prologue.3", 4);
             _repo.SavePlayer(p);
         }
-        else if (!VegaOnboardingDone(p))
-        {
-            if (VegaStageSkipLine(session, VegaStages[VegaStageIndex(p)].Id) is not null)
-            {
-                AnnounceNextVegaStage(session); // the waiting lesson became impossible here (#2460, B29) — move on
-            }
-            else
-            {
-                SendVegaLine(session, "vega.resume", 0);
-            }
-        }
-        else
-        {
-            SendVegaObjective(session); // story objective (#1110): the chip survives a rejoin
-        }
 
-        SendVegaJournal(session);
+        SendVegaObjective(session); // the chip survives a rejoin (#1110)
     }
 
-    /// <summary>The join snapshot behind the client's "VEGA tips" log (#737): every persisted vega:*
-    /// milestone. The client maps them to locale keys — a dismissed lesson or hint stays re-readable.</summary>
+    /// <summary>The once-key of the prologue (#2469): the cutscene ledger's confirmed form of the world story's
+    /// <c>prologue</c> (synthesis §5.3), so step 11's prologue cutscene treats a player who heard the pages as one who saw it.</summary>
+    private static string PrologueSeenKey(string storyId) => StoryPackKeys.CutsceneSeen(storyId, StoryCutsceneIds.Prologue);
+
+    /// <summary>The join snapshot behind the client's "VEGA tips" log (#737): every persisted vega:* milestone, and since
+    /// #2469 the tutorial pack's done steps (<c>story:&lt;pack&gt;:step:&lt;id&gt;</c>, not the skipped ones) — the client maps
+    /// them to locale keys through its copy of the pack, so a lesson stays re-readable. An older client ignores the
+    /// <c>story:</c> keys.</summary>
     private void SendVegaJournal(PlayerSession session)
-        => Send(session, new VegaJournal
+    {
+        var tutorialSteps = new HashSet<string>(System.StringComparer.Ordinal);
+        foreach (var pack in PlayerPacks)
+        {
+            if (pack.IsTutorial)
+            {
+                foreach (var step in pack.StepsById.Values)
+                {
+                    tutorialSteps.Add(StoryPackKeys.StepDone(pack.Id, step.Id));
+                }
+            }
+        }
+
+        Send(session, new VegaJournal
         {
             Milestones = session.State.Milestones
-                .Where(m => m.StartsWith("vega:", System.StringComparison.Ordinal))
+                .Where(m => m.StartsWith("vega:", System.StringComparison.Ordinal) || tutorialSteps.Contains(m))
                 .OrderBy(m => m, System.StringComparer.Ordinal)
                 .ToArray(),
         });
-
-    /// <summary>Marks an onboarding stage complete. If it was the ACTIVE stage, VEGA quips the completion
-    /// and introduces the next one; later-stage events completed early are recorded silently.</summary>
-    private void ShipAiComplete(PlayerSession session, string stageId)
-    {
-        var p = session.State;
-        string key = VegaStageKey(stageId);
-        if (p.Milestones.Contains(key))
-        {
-            return;
-        }
-
-        bool wasActive = VegaStageIndex(p) < VegaStages.Length && VegaStages[VegaStageIndex(p)].Id == stageId;
-        p.Milestones.Add(key);
-        _repo.SavePlayer(p);
-
-        if (!wasActive)
-        {
-            return; // completed out of order — no fanfare, the chain will skip it later
-        }
-
-        SendVegaLine(session, $"vega.s.{stageId}.done", 0);
-        AnnounceNextVegaStage(session);
     }
 
-    /// <summary>Introduces the next onboarding stage — or sends VEGA's send-off once the chain is done. A stage
-    /// the world cannot offer this player (#2460, B29: no space flight, no station in reach) is granted silently
-    /// and skipped, so the chain never waits on a lesson nobody could finish; see <see cref="VegaStageSkipLine"/>.</summary>
-    private void AnnounceNextVegaStage(PlayerSession session)
-    {
-        var p = session.State;
-        for (int next = VegaStageIndex(p); next < VegaStages.Length; next = VegaStageIndex(p))
-        {
-            string nextId = VegaStages[next].Id;
-            if (VegaStageSkipLine(session, nextId) is not { } skipLine)
-            {
-                SendVegaLine(session, $"vega.s.{nextId}.start", 0);
-                return;
-            }
-
-            p.Milestones.Add(VegaStageKey(nextId));
-            _repo.SavePlayer(p);
-            if (skipLine.Length > 0)
-            {
-                SendVegaLine(session, skipLine, 0);
-            }
-        }
-
-        SendVegaLine(session, "vega.done", 0); // send-off: the galaxy is yours (objective chip clears)
-    }
-
-    /// <summary>Null when the onboarding stage <paramref name="stageId"/> can be completed by this player here;
-    /// otherwise the line VEGA says while skipping it (empty = skip silently). Space flight switched off makes the
-    /// launch, the docking and the landing lessons impossible; a system without a station leaves nothing to dock
-    /// at — and the starter ship cannot jump to another star (#1924's "pick a system with one" asked for a
-    /// hyperjump a new player cannot make, and with stations off the chain hung there for good).</summary>
-    private string? VegaStageSkipLine(PlayerSession session, string stageId) => stageId switch
-    {
-        "launch" or "dock" or "land" when !Rules.FreeSpaceFlight => string.Empty,
-        "dock" when !StationContactsForCurrentSystem(session.CurrentLocationId).Any() => "vega.s.dock.start_far",
-        _ => null,
-    };
-
-    /// <summary>The player skipped the tutorial (grant the whole chain) — or asked to RESTART it:
-    /// wipe the stage milestones + intro flag and boot the chain again from the first lesson.</summary>
+    /// <summary>The Settings button (<see cref="SkipOnboardingIntent"/>, #2469): skip = skip the tutorial pack's mandatory
+    /// chapters ("I know the game" — nothing granted, deep-dive offers stay on) with VEGA's confirmation; restart = replay
+    /// them from part 1 (keys stay; no veteran check, never the prologue — E17).</summary>
     private void HandleSkipOnboarding(PlayerSession session, SkipOnboardingIntent intent)
     {
-        var p = session.State;
-        if (intent.Restart)
+        SkipOrRestartTutorialPacks(session, intent.Restart);
+        if (!intent.Restart)
         {
-            p.Milestones.Remove(VegaIntroMilestone);
-            foreach (var (id, _) in VegaStages)
-            {
-                p.Milestones.Remove(VegaStageKey(id));
-            }
-
-            session.VegaMineCount = 0;
-            _repo.SavePlayer(p);
-            // Re-runs the intro + first objective like a fresh player — never the veteran branch (#2460, B02): a
-            // player with knowledge, blueprints or missions is exactly who restarts, and the veteran check
-            // re-granted the whole chain on the spot, so the button did nothing.
-            ShipAiOnJoin(session, restart: true);
-            SkipOrRestartTutorialPacks(session, restart: true); // #2466: an installed tutorial pack replays too
-            return;
+            SendVegaLine(session, "vega.skip", 3);
         }
 
-        p.Milestones.Add(VegaIntroMilestone);
-        foreach (var (id, _) in VegaStages)
-        {
-            p.Milestones.Add(VegaStageKey(id));
-        }
-
-        _repo.SavePlayer(p);
-        SendVegaLine(session, "vega.skip", 3);
-        SendVegaJournal(session); // the granted chain becomes re-readable immediately, not on next join
-        SkipOrRestartTutorialPacks(session, restart: false); // #2466: "Skip tutorial" skips an installed tutorial pack too
+        SendVegaJournal(session); // the log follows at once, not at the next join
     }
 
-    // --- Stage hooks, called from the existing handlers (one line each at the call site). ---
-
-    private void ShipAiOnMine(PlayerSession session)
-    {
-        var p = session.State;
-        int i = VegaStageIndex(p);
-        if (i >= VegaStages.Length || VegaStages[i].Id != "mine")
-        {
-            return;
-        }
-
-        session.VegaMineCount++;
-        if (session.VegaMineCount >= VegaStages[i].Target)
-        {
-            ShipAiComplete(session, "mine");
-        }
-        else
-        {
-            SendVegaObjective(session);
-        }
-    }
-
-    private void ShipAiOnCraft(PlayerSession session) => ShipAiComplete(session, "craft");
-    private void ShipAiOnEat(PlayerSession session) => ShipAiComplete(session, "eat");
-    private void ShipAiOnScan(PlayerSession session) => ShipAiComplete(session, "scan");
-    private void ShipAiOnBlueprint(PlayerSession session) => ShipAiComplete(session, "unlock");
-    private void ShipAiOnEnterSpace(PlayerSession session) => ShipAiComplete(session, "launch");
-    private void ShipAiOnStationBoarded(PlayerSession session) => ShipAiComplete(session, "dock");
-    private void ShipAiOnTradeOrMission(PlayerSession session) => ShipAiComplete(session, "trade");
-
-    private void ShipAiOnTravelled(PlayerSession session)
-    {
-        // Only counts once they've actually been to space: HandleTravel is also reached by the travel screen's quick
-        // travel, an admin's /goto and test paths, none of which is a landing after a flight.
-        if (session.State.Milestones.Contains(VegaStageKey("launch")))
-        {
-            ShipAiComplete(session, "land");
-        }
-
-        ShipAiWorldFlavour(session);
-    }
+    /// <summary>After a landing: the world-type flavour hints (the old "land" lesson is a tutorial step now, #2469).</summary>
+    private void ShipAiOnTravelled(PlayerSession session) => ShipAiWorldFlavour(session);
 
     // --- Advisor (Phase B): contextual once-per-save hints with a persisted once-flag. The client can
     // additionally mute them (settings) — these are teaching moments, not the HUD's live warnings. ---
@@ -577,9 +384,9 @@ public sealed partial class GameServer
     {
         var p = session.State;
         string key = "vega:hint:" + hintId;
-        if (p.Milestones.Contains(key) || HintMutedFor(session, kind))
+        if (p.Milestones.Contains(key) || HintMutedFor(session, kind) || HintHeldByTutorial(session, hintId))
         {
-            return;
+            return; // told — muted (kept for later, #2462) — or a tutorial step teaches it (#2469, G12)
         }
 
         p.Milestones.Add(key);
@@ -695,8 +502,11 @@ public sealed partial class GameServer
 
             if (p.Inventory.FirstEmptySlot() < 0)
             {
+                RaiseGameEvent(session, GameEventKeys.InventoryFull); // #2469: the tutorial's cargo lesson — before the hint it absorbs
                 ShipAiHintOnce(session, "invfull");
             }
+
+            TutorialStateEvents(session); // #2469: walked back to the ship, a data fragment carried — only while a step waits
 
             // First nightfall out on a surface (not aboard / docked) — warn about the dark.
             bool night = LocalDayFraction(session.State.Position) is < 0.15 or > 0.85; // #1865: the local sun
@@ -934,11 +744,13 @@ public sealed partial class GameServer
         return $"banter|{world}|{(night ? "night" : "day")}|{session.Locale}";
     }
 
-    /// <summary>Rolls the per-player banter timer; when due (and AI is on, onboarding done), serves a
-    /// cached line or generates one off-thread. Called from <see cref="TickShipAi"/>'s 1 Hz path.</summary>
+    /// <summary>Rolls the per-player banter timer; when due (and AI is on, the basic training through), serves a
+    /// cached line or generates one off-thread. Called from <see cref="TickShipAi"/>'s 1 Hz path. "Training through" is
+    /// the tutorial pack's <c>banter</c> gate (#2469, synthesis §5.3: basic training done or skipped, or the tutorial
+    /// off or opted out); without a tutorial pack banter is open.</summary>
     private void TickVegaBanterFor(PlayerSession session)
     {
-        if (_config.AiLevel == AiLevel.Off || !VegaOnboardingDone(session.State))
+        if (_config.AiLevel == AiLevel.Off || TutorialGate(session, StoryGateNames.Banter) == false)
         {
             return;
         }

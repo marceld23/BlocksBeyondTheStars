@@ -41,11 +41,16 @@ internal static class StoryPackFixtures
     public static Dictionary<string, string> Locale(string id, string code)
         => ContentLoader.ParseLocaleTable(File.ReadAllText(Path.Combine(Dir(id), "locales", code + ".json")));
 
-    /// <summary>The shipped content plus the named fixture packs.</summary>
+    /// <summary>The shipped content plus the named fixture packs — without the shipped player packs (#2469: the official
+    /// tutorial), so a fixture's runtime mechanics run alone and its chip is not outranked by the real basic training.</summary>
     public static GameContent ContentWith(params string[] ids)
     {
         var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-        content.SetStories(content.Stories.Values.Concat(ids.Select(Load)).ToList());
+        var shippedWorldPacks = content.Stories.Values.Where(d => StoryRegistry.EffectiveScope(d) != StoryRegistry.ScopePlayer);
+        content.SetStories(shippedWorldPacks.Concat(ids.Select(Load)).ToList());
         return content;
     }
+
+    /// <summary>The shipped content without its player packs (#2469: a world with VEGA but no basic training).</summary>
+    public static GameContent ContentWithoutPlayerPacks() => ContentWith();
 }

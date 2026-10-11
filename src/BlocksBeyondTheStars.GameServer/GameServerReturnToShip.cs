@@ -62,6 +62,7 @@ public sealed partial class GameServer
             Reason = "@srv.return_ship.done",
         });
         SendPlayerState(session);
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.ShipReturned, "menu"); // #2469: the tutorial's way-home lesson
         _log.Info($"'{p.Name}' used Back to my ship on '{session.CurrentLocationId}'.");
     }
 

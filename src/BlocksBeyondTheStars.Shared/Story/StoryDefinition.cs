@@ -297,6 +297,11 @@ public sealed class StoryDefinition
     /// <summary>World packs: the finale's type and cutscene bindings (presentation only in v1).</summary>
     public StoryFinaleBinding Finale { get; set; } = new();
 
+    /// <summary>Player packs (#2469): what happens when a player finishes the pack's mandatory chapters by playing (not by
+    /// skipping, not by migration evidence) — the closing line, the achievement counter and the suggested deep dives.
+    /// Empty = nothing beyond the done key.</summary>
+    public StoryGraduation Graduation { get; set; } = new();
+
     /// <summary>The pack's cutscenes (#2467), loaded from its <c>cutscenes.json</c> (or inline). Empty = none; every
     /// binding above must name one of them (the built-in <c>__recap</c> is never defined here). The built-in VEGA fallback
     /// carries none — the narrator lines still play.</summary>

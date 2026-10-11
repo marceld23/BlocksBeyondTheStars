@@ -79,8 +79,10 @@ public sealed class StoryPackValidationContext
 /// <c>StoryPackValidationTests</c> for every pack under <c>data/stories/</c>. It checks: id rules (not reserved, key-safe),
 /// <c>kind</c>/<c>scope</c> (a tutorial is player-scoped, a player pack carries no beats so it can never be the world story,
 /// a world pack has beats), every condition parses and names existing packs/chapters/steps/blueprints, mission-bridge
-/// targets exist, event keys are published (warning otherwise), <c>ui:</c> only in a player pack's step objectives, marker
-/// providers, legacy keys (tutorial only), alternatives, a tutorial pays no rewards, every locale key exists in English and
+/// targets exist, event keys are published (warning otherwise), <c>ui:</c> only in a player pack's step objectives (and one a
+/// client reports — a warning otherwise, #2469), marker providers, legacy keys (tutorial only), alternatives, empty hint
+/// ids, the graduation (#2469: its line, its counter, at most three suggested optional chapters), a tutorial pays no
+/// rewards, every locale key exists in English and
 /// German, every cutscene binding resolves in the pack's <c>cutscenes.json</c> and every cutscene follows the tier, camera,
 /// caption and budget rules (#2467, <see cref="ValidateCutscenes"/>), the short name fits (≤ 10 characters), and the text budget
 /// (basic-training lines ≤ 120 EN / 145 DE, other step lines ≤ 200 / 240, chip ≤ 45 / 53; a <c>{key:…}</c> token counts
@@ -566,7 +568,7 @@ public static class StoryPackValidator
                 {
                     if (!StoryRevealProviders.IsKnown(reveal))
                     {
-                        Error($"{sp}.onStart.reveal", $"unknown marker provider '{reveal}' ({StoryRevealProviders.NearestOre}:<block>, {StoryRevealProviders.NearestSettlement})");
+                        Error($"{sp}.onStart.reveal", $"unknown marker provider '{reveal}' ({StoryRevealProviders.NearestOre}:<block>, {StoryRevealProviders.NearestSettlement}, {StoryRevealProviders.NearestFoodPlant})");
                     }
                     else if (reveal.StartsWith(StoryRevealProviders.NearestOre + ":", StringComparison.Ordinal)
                              && context.BlockExists is { } blockExists
@@ -578,6 +580,13 @@ public static class StoryPackValidator
 
                 Cutscene($"{sp}.onStart.cutscene", step.OnStart?.Cutscene);
                 Cutscene($"{sp}.onComplete.cutscene", step.OnComplete?.Cutscene);
+                foreach (var (hint, hi) in (step.HintRefs ?? new List<string>()).Select((h, i) => (h, i)))
+                {
+                    if (string.IsNullOrWhiteSpace(hint))
+                    {
+                        Error($"{sp}.hintRefs[{hi}]", "an empty hint id");
+                    }
+                }
 
                 var explain = step.Explain ?? new StoryStepExplain();
                 Key($"{sp}.explain.startKey", explain.StartKey, lineEn, lineDe);
@@ -598,6 +607,35 @@ public static class StoryPackValidator
                     Key($"{vp}.doneKey", variant.DoneKey, lineEn, lineDe);
                     Key($"{vp}.chipKey", variant.ChipKey, ChipMaxEn, ChipMaxDe);
                 }
+            }
+        }
+
+        // ---- Graduation (#2469) ----
+        var graduation = def.Graduation ?? new StoryGraduation();
+        bool graduates = !string.IsNullOrEmpty(graduation.LineKey) || !string.IsNullOrEmpty(graduation.Counter) || graduation.Suggest.Count > 0;
+        if (graduates && !playerPack)
+        {
+            Warn("graduation", "only a player pack graduates anybody");
+        }
+
+        Key("graduation.lineKey", graduation.LineKey, tutorial ? BasicLineMaxEn : LineMaxEn, tutorial ? BasicLineMaxDe : LineMaxDe);
+        if (!string.IsNullOrEmpty(graduation.Counter)
+            && (graduation.Counter.IndexOf(':') <= 0 || !IsKeySafeId(graduation.Counter.Replace(':', '_'))))
+        {
+            Error("graduation.counter", $"'{graduation.Counter}' is not an achievement counter ('<verb>:<thing>')");
+        }
+
+        if (graduation.Suggest.Count > StoryGraduation.MaxSuggestions)
+        {
+            Error("graduation.suggest", $"at most {StoryGraduation.MaxSuggestions} suggested chapters ({graduation.Suggest.Count} named)");
+        }
+
+        for (int gi = 0; gi < graduation.Suggest.Count; gi++)
+        {
+            string suggested = graduation.Suggest[gi] ?? string.Empty;
+            if (!def.Chapters.Any(c => c.Optional && c.Id == suggested))
+            {
+                Error($"graduation.suggest[{gi}]", $"'{suggested}' is not an optional chapter of this pack");
             }
         }
 
@@ -950,6 +988,10 @@ public static class StoryPackValidator
             else if (eventKey.Length == GameEventKeys.UiPrefix.Length || !IsKeySafeId(eventKey.Substring(GameEventKeys.UiPrefix.Length)))
             {
                 error(path, $"'{eventKey}' is not a valid teaching flag (ui:<id>)");
+            }
+            else if (!GameEventKeys.IsKnownUiEventId(eventKey.Substring(GameEventKeys.UiPrefix.Length)))
+            {
+                warn(path, $"'{eventKey}' is no flag a client reports ({string.Join(", ", GameEventKeys.UiEvents)})");
             }
 
             return;

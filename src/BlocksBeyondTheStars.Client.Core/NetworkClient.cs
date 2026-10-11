@@ -498,9 +498,38 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Takes an item from the Sandbox "All items" catalog (#1930; the server checks the mode).</summary>
         public void SendCreativeTakeItem(string itemKey, int count) => Send(new CreativeTakeItemIntent { ItemKey = itemKey ?? string.Empty, Count = count });
 
-        /// <summary>Skips the VEGA onboarding (grants the whole stage chain server-side) — or restarts it
-        /// from the intro when <paramref name="restart"/> is set (the way back after a skip).</summary>
+        /// <summary>The Settings button: skips the basic training (#2469: the tutorial pack's mandatory chapters) — or
+        /// replays it from part 1 when <paramref name="restart"/> is set (the way back after a skip; never the prologue).</summary>
         public void SendSkipOnboarding(bool restart = false) => Send(new SkipOnboardingIntent { Restart = restart });
+
+        /// <summary>Shortest gap between two reports of the same teaching flag (seconds): a held key or a menu toggled
+        /// back and forth sends one, the server's own limit stays a backstop.</summary>
+        public const double UiTutorialEventGapSeconds = 0.5;
+
+        private readonly System.Collections.Generic.Dictionary<string, long> _uiTutorialSentAt = new(StringComparer.Ordinal);
+        private readonly System.Diagnostics.Stopwatch _uiTutorialClock = System.Diagnostics.Stopwatch.StartNew();
+
+        /// <summary>#2469: reports a UI moment a tutorial step may teach (tag 298, <see cref="UiTutorialEvent"/>; the ids are
+        /// <c>GameEventKeys.UiEvents</c>). Cheap and safe to send always: the server raises it only for a step that waits for
+        /// it, an older server drops the tag. The same flag is sent at most every <see cref="UiTutorialEventGapSeconds"/>.
+        /// Returns whether it went out.</summary>
+        public bool SendUiTutorialEvent(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return false;
+            }
+
+            long now = _uiTutorialClock.ElapsedMilliseconds;
+            if (_uiTutorialSentAt.TryGetValue(id, out long at) && now - at < (long)(UiTutorialEventGapSeconds * 1000))
+            {
+                return false;
+            }
+
+            _uiTutorialSentAt[id] = now;
+            Send(new UiTutorialEvent { Id = id });
+            return true;
+        }
 
         /// <summary>#2466: the player's control of a player story pack (<see cref="StoryPackActions"/>: track, opt out,
         /// start/skip/replay a chapter, skip a step).</summary>

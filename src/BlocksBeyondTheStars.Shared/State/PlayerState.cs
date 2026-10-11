@@ -238,10 +238,11 @@ public sealed class PlayerState
     /// <summary>Accepted missions and their progress.</summary>
     public List<MissionProgress> Missions { get; set; } = new();
 
-    /// <summary>One-time progression milestones the ship AI (VEGA) has seen this player reach — onboarding
-    /// stages ("vega:stage:N"), advisor once-hints ("vega:hint:&lt;key&gt;") and restored memory fragments
-    /// ("vega:mem:N"), and the story keys (<c>story:&lt;pack&gt;:…</c>). Server-authoritative, persisted; append-only
-    /// except the tutorial restart, which drops "vega:intro" and the "vega:stage:*" keys.</summary>
+    /// <summary>One-time progression milestones the ship AI (VEGA) has seen this player reach — the legacy onboarding
+    /// stages ("vega:stage:N", since #2469 only double-written by the tutorial pack for older builds), advisor once-hints
+    /// ("vega:hint:&lt;key&gt;") and restored memory fragments ("vega:mem:N"), and the story keys (<c>story:&lt;pack&gt;:…</c>,
+    /// e.g. the tutorial's steps and chapters). Server-authoritative, persisted; append-only except a pack chapter's
+    /// replay keys, which go when the replay ends.</summary>
     public HashSet<string> Milestones { get; set; } = new();
 
     /// <summary>The running counters of this player's ACTIVE story-pack steps (#2466, synthesis §5.6): key

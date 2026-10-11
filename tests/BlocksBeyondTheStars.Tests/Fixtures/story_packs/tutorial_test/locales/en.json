@@ -14,5 +14,6 @@
   "story.tutorial_test.t21.start": "Eat something.",
   "story.tutorial_test.t21.chip": "Eat something",
   "story.tutorial_test.t31.start": "Scan anything.",
-  "story.tutorial_test.t31.chip": "Scan anything"
+  "story.tutorial_test.t31.chip": "Scan anything",
+  "story.tutorial_test.graduated": "Training done."
 }

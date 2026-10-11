@@ -37,7 +37,8 @@ public sealed class StoryPackRuntimeTests : IDisposable
 {
     private const string R = StoryPackFixtures.Runtime;
     private const string T = StoryPackFixtures.Tutorial;
-    private static readonly string[] LegacyStages = { "mine", "craft", "eat", "scan", "unlock", "launch", "dock", "trade", "land" };
+    /// <summary>The legacy onboarding stages the tutorial double-writes (the one list: <see cref="StoryLegacy.StageIds"/>).</summary>
+    private static readonly IReadOnlyList<string> LegacyStages = StoryLegacy.StageIds;
 
     private readonly string _root;
     private readonly List<SqliteWorldRepository> _repos = new();
@@ -136,6 +137,9 @@ public sealed class StoryPackRuntimeTests : IDisposable
         return server.Sessions[conn];
     }
 
+    /// <summary>Writes the nine legacy onboarding keys after the join, the way an older build would have. Since #2469 they
+    /// are migration evidence only: written after the migration ran they change nothing (the tests that call it assert
+    /// exactly that the pack's own state decides).</summary>
     private static void FinishLegacyChain(PlayerSession p)
     {
         foreach (string stage in LegacyStages)
@@ -155,13 +159,9 @@ public sealed class StoryPackRuntimeTests : IDisposable
     private static int Progress(PlayerSession p, string pack, string step)
         => p.State.StepProgress.TryGetValue(StoryPackKeys.ProgressKey(pack, step), out int n) ? n : -1;
 
-    /// <summary>A side-world player with the legacy onboarding finished (its chip outranks a side pack).</summary>
+    /// <summary>A side-world player (no tutorial pack there, #2469: nothing outranks the side pack's chip).</summary>
     private static PlayerSession SidePlayer(SvGameServer server, int conn = 1, string name = "Pilot", bool packs = true)
-    {
-        var p = Join(server, conn, name, packs);
-        FinishLegacyChain(p);
-        return p;
-    }
+        => Join(server, conn, name, packs);
 
     // ---------------- Start, activation, counting ----------------
 
@@ -515,7 +515,7 @@ public sealed class StoryPackRuntimeTests : IDisposable
     public void AWorldWithoutPlayerPacks_RegistersNothing()
     {
         var transport = new RecordingTransport();
-        var server = Boot("nopacks", transport, ContentLoader.LoadFromDirectory(TestPaths.DataDir()));
+        var server = Boot("nopacks", transport, StoryPackFixtures.ContentWithoutPlayerPacks());
         var p = Join(server, 1, "Pilot");
         server.TickStoryPacksForTest(p, 3);
         Assert.Empty(server.StepListenerKeysForTest);
@@ -686,6 +686,32 @@ public sealed class StoryPackRuntimeTests : IDisposable
         Assert.Null(plain.TutorialGateForTest(q, StoryGateNames.Banter)); // no tutorial pack: no say
     }
 
+    /// <summary>#2469: finishing the mandatory chapters by playing graduates — the pack's closing line, its achievement
+    /// counter, its suggested deep dives offered — and skipping never does.</summary>
+    [Fact]
+    public void PlayingThroughTheMandatoryChapters_Graduates_AndOffersTheSuggestedDeepDives()
+    {
+        var (server, transport) = TutorialWorld("graduate");
+        var p = server.AddLocalPlayer("Kid");
+        server.TickStoryPacksForTest(p);
+        Event(server, p, GameEventKeys.MineAny, amount: 2);
+        Event(server, p, GameEventKeys.BuildAny, "stone");
+        Event(server, p, GameEventKeys.CraftAny, "torch");
+        Event(server, p, GameEventKeys.EatAny, "berries");
+
+        Assert.True(Has(p, StoryPackKeys.Done(T)));
+        Assert.Single(transport.LineKeys(p), k => k == "story.tutorial_test.graduated");
+        Assert.Equal(1, p.State.AchievementCounters["tutorial_test:graduated"]);
+        Assert.True(Has(p, StoryPackKeys.ChapterOffered(T, "t3"))); // the suggestion — the Journal lists it
+
+        var (skipServer, skipTransport) = TutorialWorld("graduate_skip");
+        var q = skipServer.AddLocalPlayer("Pro");
+        skipServer.TickStoryPacksForTest(q);
+        Deliver(skipServer, q, new StoryPackIntent { PackId = T, Action = StoryPackActions.SkipPack });
+        Assert.DoesNotContain("story.tutorial_test.graduated", skipTransport.LineKeys(q));
+        Assert.False(q.State.AchievementCounters.ContainsKey("tutorial_test:graduated"));
+    }
+
     [Fact]
     public void TheDeepDive_IsOffered_AfterTheBasics_AndTheTutorialOnlyRunsWhatTheClientUnderstands()
     {
@@ -706,11 +732,7 @@ public sealed class StoryPackRuntimeTests : IDisposable
         var (server, _) = TutorialWorld("chip_order");
         var p = Join(server, 1, "Pilot");
 
-        // 3a: the old onboarding chain still runs and owns the chip (step 10 replaces it).
-        Assert.Equal("vega.obj.mine", server.ObjectiveKeyForTest("Pilot"));
-
-        // 3b: then the tutorial pack's basic training.
-        FinishLegacyChain(p);
+        // 3: the tutorial pack's basic training owns the chip from the join (#2469: the old onboarding chain is gone).
         Assert.Equal("story.tutorial_test.t11.chip", server.ObjectiveKeyForTest("Pilot"));
         Assert.Equal(ObjectiveSources.Tutorial, server.ObjectiveSourceForTest("Pilot"));
         Assert.Equal(T, server.ObjectivePackForTest("Pilot"));
@@ -950,15 +972,21 @@ public sealed class StoryPackRuntimeTests : IDisposable
     }
 
     [Fact]
-    public void WithoutATutorialPack_TheAdminSkip_FallsBackToTheOldChain()
+    public void WithoutATutorialPack_TheAdminTutorialCommand_IsRefused()
     {
+        // #2469: the tutorial IS the pack — the old onboarding chain the command used to fall back to is gone.
         var transport = new RecordingTransport();
-        var server = Boot("admin_legacy", transport, ContentLoader.LoadFromDirectory(TestPaths.DataDir()));
+        var server = Boot("admin_legacy", transport, StoryPackFixtures.ContentWithoutPlayerPacks());
         var admin = server.AddLocalPlayer("Admin");
         admin.State.Role = PlayerRole.Admin;
-        Deliver(server, admin, new AdminCommandIntent { Command = "tutorial", StringArg = "skip" });
-        Assert.All(LegacyStages, s => Assert.True(Has(admin, "vega:stage:" + s)));
-        Deliver(server, admin, new AdminCommandIntent { Command = "tutorial", StringArg = "chapter b1" });
+        foreach (string verb in new[] { "skip", "restart", "chapter b1" })
+        {
+            transport.Sent.Clear();
+            Deliver(server, admin, new AdminCommandIntent { Command = "tutorial", StringArg = verb });
+            Assert.Contains(transport.To<ActionRejected>(admin), r => r.Reason == "@srv.admin.tutorial_none");
+        }
+
+        Assert.DoesNotContain(admin.State.Milestones, m => m.StartsWith("vega:stage:", StringComparison.Ordinal));
         Assert.DoesNotContain(admin.State.Milestones, m => m.StartsWith("story:", StringComparison.Ordinal) && m.Contains(":ch:", StringComparison.Ordinal));
     }
 

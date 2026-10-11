@@ -3098,7 +3098,9 @@ public sealed class SkipOnboardingIntent
 public sealed class VegaJournal
 {
     /// <summary>Milestone ids exactly as stored server-side (<c>vega:intro</c>, <c>vega:stage:&lt;id&gt;</c>,
-    /// <c>vega:hint:&lt;id&gt;</c>, <c>vega:mem:&lt;n&gt;</c>).</summary>
+    /// <c>vega:hint:&lt;id&gt;</c>, <c>vega:mem:&lt;n&gt;</c>) and, since #2469, the tutorial pack's done steps
+    /// (<c>story:&lt;pack&gt;:step:&lt;id&gt;</c>; the client maps them through its copy of the pack). Additive: an older client
+    /// ignores the <c>story:</c> keys.</summary>
     public string[] Milestones { get; set; } = System.Array.Empty<string>();
 }
 

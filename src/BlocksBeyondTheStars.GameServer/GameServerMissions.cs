@@ -256,16 +256,17 @@ public sealed partial class GameServer
         SendMissionList(session);
         if (MissionAcceptCountsAsTrade(def))
         {
-            ShipAiOnTradeOrMission(session); // VEGA onboarding: taking a board job counts like a first trade
+            RaiseGameEvent(session, GameEventKeys.MissionBoardAccepted, missionId); // #2469: the tutorial's board-job lesson (B58: board and chain ids only)
         }
 
         RaiseGameEvent(session, GameEventKeys.MissionAccepted, missionId); // #2465: the mission bridge
     }
 
-    /// <summary>Whether accepting this mission completes VEGA's "trade" lesson (#2460, B58): a job from a mission
-    /// board or a chain step — the dealing with people the lesson is about. The two starter jobs can be accepted
-    /// anywhere from minute one, so accepting one used to tick the lesson off silently before the player ever met
-    /// a trader; a story character's mission is not a job either.</summary>
+    /// <summary>Whether accepting this mission is a job the player picked (#2460, B58; since #2469 it raises
+    /// <c>mission:board_accepted</c>, the tutorial's board-job lesson): a job from a mission board or a chain step — the
+    /// dealing with people the lesson is about. The two starter jobs can be accepted anywhere from minute one, so accepting
+    /// one used to tick the old "trade" lesson off silently before the player ever met a trader; a story character's
+    /// mission is not a job either.</summary>
     internal static bool MissionAcceptCountsAsTrade(MissionDefinition def)
         => IsBoardMissionId(def.Id) || IsChainMission(def);
 

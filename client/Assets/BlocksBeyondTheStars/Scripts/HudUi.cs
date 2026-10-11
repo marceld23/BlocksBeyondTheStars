@@ -2211,6 +2211,11 @@ namespace BlocksBeyondTheStars.Client
         /// braces.</summary>
         internal static string KeyTokenGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string action)
         {
+            if (VegaText.IsPseudoAction(action))
+            {
+                return PseudoActionGlyph(loc, action); // #2469: move, look, jump, crouch, mine, place, scan, the quick bar
+            }
+
             if (!System.Enum.TryParse<InputAction>(action, out var a))
             {
                 return action;
@@ -2223,6 +2228,45 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return loc != null ? ActionGlyph(loc, a) : InputMap.Glyph(a);
+        }
+
+        /// <summary>What a pseudo-action token (<see cref="VegaText.PseudoActions"/>, #2469) reads as: the continuous controls
+        /// are no rebindable <see cref="InputAction"/>, so each device names them its own way — the keyboard by its fixed keys
+        /// (WASD, the mouse, Space, Ctrl/C, LMB/RMB, 1–9), the pad by its sticks and fixed buttons (RB mines, LB places, the
+        /// bottom face button jumps, B crouches, the d-pad cycles the quick bar), the tablet by the layout's buttons, stick
+        /// and look pad (<see cref="VegaText.TouchControlLabel"/>).</summary>
+        private static string PseudoActionGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string action)
+        {
+            string L(string key) => loc != null ? loc.Get(key) : key;
+            switch (InputMap.ActiveDevice)
+            {
+                case InputDeviceKind.Touch:
+                    return VegaText.TouchControlLabel(action, L) ?? (loc != null ? loc.Get("ui.vega.key_touch") : action);
+                case InputDeviceKind.Gamepad:
+                    return action switch
+                    {
+                        "Move" => L("ui.key.pad_left_stick"),
+                        "Look" => L("ui.key.pad_right_stick"),
+                        "Jump" => InputMap.PadGlyph(KeyCode.JoystickButton0) ?? L("ui.touch.jump"),
+                        "Crouch" => InputMap.PadGlyph(KeyCode.JoystickButton1) ?? L("ui.touch.down"),
+                        "Mine" or "Scan" => InputMap.PadGlyph(KeyCode.JoystickButton5) ?? L("ui.touch.mine"),
+                        "Place" => InputMap.PadGlyph(KeyCode.JoystickButton4) ?? L("ui.touch.place"),
+                        "Hotbar" => L("ui.key.pad_dpad") + " " + VegaText.TouchHotbarLabel,
+                        _ => action,
+                    };
+                default:
+                    return action switch
+                    {
+                        "Move" => L("ui.key.move_keys"),
+                        "Look" => L("ui.key.look_mouse"),
+                        "Jump" => L("ui.key.jump_keys"),
+                        "Crouch" => L("ui.key.crouch_keys"),
+                        "Mine" or "Scan" => L("ui.key.mouse_left"),
+                        "Place" => L("ui.key.mouse_right"),
+                        "Hotbar" => L("ui.key.hotbar_keys"),
+                        _ => action,
+                    };
+            }
         }
 
         /// <summary>A HUD prompt with its <c>{key:Action}</c> tokens resolved by <see cref="KeyTokenGlyph"/> (#2463) —

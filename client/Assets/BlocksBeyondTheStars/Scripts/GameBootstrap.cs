@@ -174,7 +174,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>AI-core tier of the active ship (1 = bare VEGA, 2 = Mk2, 3 = Mk3) — gates the autopilot.</summary>
         public int AiCoreTier { get; private set; } = 1;
 
-        /// <summary>True while the VEGA onboarding chain is active — the Settings tab offers "skip tutorial" then,
+        /// <summary>True while the basic training runs (#2469: the tutorial pack) — the Settings tab offers "skip tutorial" then,
         /// "restart tutorial" otherwise. Since #2462 the server reports it on every VEGA line
         /// (<c>ShipAiLine.TutorialActive</c>), whatever the chip shows; an older server is read from the chip's key.</summary>
         public bool OnboardingActive { get; private set; }
@@ -2954,9 +2954,10 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.VegaJournalReceived += m =>
             {
-                // The persisted snapshot replaces any live-collected keys — it is the authoritative set.
+                // The persisted snapshot replaces any live-collected keys — it is the authoritative set. The basic training's
+                // lessons come from the tutorial pack's own steps (#2469; the client's copy of the old stage list is gone).
                 VegaLogKeys.Clear();
-                VegaLogKeys.AddRange(VegaText.JournalKeys(m.Milestones));
+                VegaLogKeys.AddRange(VegaText.JournalKeys(m.Milestones, Content?.Stories.Values));
             };
             Network.RelayNetworkReceived += m => RelayNetwork = m; // #1125: server-authoritative, render-only
             Network.StoryStateReceived += m =>

@@ -4,6 +4,7 @@
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -300,6 +301,7 @@ public sealed partial class GameServer
         }
 
         AfterEquipmentChanged(session);
+        RaiseGameEvent(session, GameEventKeys.GearEquipped, def.Key); // #2469: the tutorial's "gear only works when worn"
     }
 
     /// <summary>Takes gear off into a backpack slot (−1 = the first free slot past the quick-bar, then any); a target slot

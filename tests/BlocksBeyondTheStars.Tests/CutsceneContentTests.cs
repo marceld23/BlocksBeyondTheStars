@@ -354,7 +354,9 @@ public sealed class CutsceneContentTests
         AssertError(Probe(c => c.Options.ChainNext.Add(string.Empty)), "empty chain reference");
         AssertError(Probe(c => c.Options.ChainNext.Add("vega_protocol/ch1.open")), "has no cutscene 'ch1.open'");
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("vega_protocol/prologue"))));
-        AssertWarning(Probe(c => c.Options.ChainNext.Add("tutorial/tut.welcome")), "not installed");
+        // #2469: the tutorial pack is installed now (its cards come with step 14), so a chain to one of them must resolve.
+        AssertError(Probe(c => c.Options.ChainNext.Add("tutorial/tut.welcome")), "has no cutscene 'tut.welcome'");
+        AssertWarning(Probe(c => c.Options.ChainNext.Add("side_story/intro")), "not installed");
     }
 
     // ---------------- Ledger keys and ids ----------------

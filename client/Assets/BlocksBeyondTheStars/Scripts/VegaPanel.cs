@@ -10,7 +10,7 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The HUD companion panel for the ship AI "VEGA": shows her lines with a typewriter effect (queued,
-    /// radio blip per line) and a persistent objective chip while the onboarding chain is active, with a
+    /// radio blip per line) and a persistent objective chip (the basic training's step, a story lead …), with a
     /// skip button. A revealed page stays until the player presses the continue key — there is no
     /// auto-dismiss timeout (#1011). Instead, a revealed (non-prologue) page nobody advanced for a while folds
     /// into a small "VEGA" tab counting the waiting lines (#2126, <see cref="VegaCollapse"/>); the continue
@@ -253,7 +253,20 @@ namespace BlocksBeyondTheStars.Client
         /// still come once the hints are back on, not be spent unseen.</summary>
         public bool SayLocal(string lineKey)
         {
-            if (string.IsNullOrEmpty(lineKey) || Settings is { VegaHints: false })
+            if (string.IsNullOrEmpty(lineKey))
+            {
+                return false;
+            }
+
+            // #2469 (E11, G12): while the basic training runs, its flight steps teach this lesson themselves — per player, on
+            // the server — so VEGA does not say it a second time, and the lesson counts as given (the caller's one-shot flag
+            // is set; the tutorial line was never muted, so this holds with the hints off too).
+            if (VegaText.LessonCoveredByTutorial(lineKey) && Game != null && Game.OnboardingActive)
+            {
+                return true;
+            }
+
+            if (Settings is { VegaHints: false })
             {
                 return false;
             }
@@ -833,6 +846,9 @@ namespace BlocksBeyondTheStars.Client
                     _pages.Clear();
                     _speechText.text = string.Empty;
                     SetContinueVisible(false);
+                    // #2469: the player read the line through — a tutorial "read" step waits for exactly this. Teaching only;
+                    // the server ignores it unless a step listens (and an older server drops the tag).
+                    Game?.Network?.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiVegaContinueId);
                 }
             }
             else if (_collapse.Tick(Time.unscaledDeltaTime, fullyRevealed: true, prologue: _currentIsPrologue, hudHidden: InputCaptured()))

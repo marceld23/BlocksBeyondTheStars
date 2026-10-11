@@ -3097,7 +3097,6 @@ public sealed partial class GameServer
 
         if (item.ConsumeHunger > 0f)
         {
-            ShipAiOnEat(session); // VEGA's survival lesson: actually eating real food (not just biting a poison gland)
             RaiseGameEvent(session, GameEventKeys.EatAny, itemKey); // #2465
         }
 

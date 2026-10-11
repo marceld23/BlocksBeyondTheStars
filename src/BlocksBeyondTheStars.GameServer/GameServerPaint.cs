@@ -248,7 +248,6 @@ public sealed partial class GameServer
         Send(session, new CraftResult { Success = true, RecipeKey = "paint" });
         SendInventory(session);
         WarnIfPoolOverflowed(session, pool); // #600: painting PART of a stack needs a fresh slot
-        ShipAiOnCraft(session);
         RaiseGameEvent(session, GameEventKeys.CraftPaint, baseKey, count); // #2465
     }
 

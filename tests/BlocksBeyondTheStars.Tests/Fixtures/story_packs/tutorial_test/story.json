@@ -6,6 +6,7 @@
   "shortNameKey": "story.tutorial_test.short",
   "kind": "tutorial",
   "priority": 100,
+  "graduation": { "lineKey": "story.tutorial_test.graduated", "counter": "tutorial_test:graduated", "suggest": [ "t3" ] },
   "gates": {
     "opportunityTips": "all:[step:tutorial_test:t1.1,step:tutorial_test:t1.3]",
     "banter": "any:[chapter:tutorial_test:t2,pack:tutorial_test:optedout]"

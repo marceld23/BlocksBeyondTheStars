@@ -2461,9 +2461,11 @@ public sealed partial class GameServer
             if (p.RationStore.Slots[i] is { } stack && !stack.IsEmpty && !IsPreparation(stack.Item)
                 && _content.GetItem(stack.Item) is { Category: ItemCategory.Consumable } food && food.ConsumeHunger > 0f)
             {
-                p.RationStore.Remove(stack.Item, 1);
+                string fed = stack.Item;
+                p.RationStore.Remove(fed, 1);
                 p.Hunger = System.Math.Min(100f, p.Hunger + food.ConsumeHunger);
                 SendInventory(session);
+                RaiseGameEvent(session, GameEventKeys.SuitAutoFeed, fed); // #2469: the tutorial's ration-dispenser reaction
                 return;
             }
         }
@@ -2475,6 +2477,7 @@ public sealed partial class GameServer
             float restore = _content.GetItem("emergency_ration")?.ConsumeHunger ?? 40f;
             p.Hunger = System.Math.Min(100f, p.Hunger + restore);
             SendInventory(session);
+            RaiseGameEvent(session, GameEventKeys.SuitAutoFeed, "emergency_ration"); // #2469
         }
     }
 
@@ -2618,6 +2621,7 @@ public sealed partial class GameServer
     private void CompleteRespawn(PlayerSession session, string reason, bool salvaged, bool sameWorld, bool useCustomSpawn)
     {
         var p = session.State;
+        RaiseGameEvent(session, GameEventKeys.PlayerRespawned); // #2469: the tutorial's "you only fainted" reaction
         p.Health = 100f;
         p.Oxygen = MaxOxygen(p);
         p.SuitEnergy = MaxSuitEnergy(p); // #2297: full means the worn battery's full
@@ -3862,6 +3866,9 @@ public sealed partial class GameServer
         // #2467 (synthesis §5.7): the cutscene director confirms a scene while its own singleplayer hold is still on — the
         // receipt only stamps the player's own seen ledger.
         CutsceneSeenIntent => true,
+        // #2469 (synthesis §5.7): the tutorial's UI teaching flags come from the pause menu too ("Codex" there, VEGA's
+        // continue while the menu holds the world) — a flag only ticks off the sender's own lesson.
+        UiTutorialEvent => true,
         _ => false,
     };
 
@@ -3890,8 +3897,14 @@ public sealed partial class GameServer
             case MoveIntent move: HandleMove(session, move); break;
             case FarTerrainTileRequest farTiles: HandleFarTerrainTileRequest(session, farTiles); break; // #1821
             case SelectHotbarIntent hotbar:
+                int previousSlot = session.State.SelectedHotbarSlot;
                 session.State.SelectedHotbarSlot = System.Math.Clamp(hotbar.Slot, 0, HotbarSlots - 1);
                 ClearRopeIfNotHeld(session.State); // #2319: putting the rope gun away drops the rope
+                if (session.State.SelectedHotbarSlot != previousSlot)
+                {
+                    RaiseGameEvent(session, GameEventKeys.HotbarSelect, (session.State.SelectedHotbarSlot + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)); // #2469
+                }
+
                 break;
             case MoveItemIntent moveItem: HandleMoveItem(session, moveItem); break;
             case EquipItemIntent equip: HandleEquipItem(session, equip); break;       // #2110
@@ -4038,6 +4051,7 @@ public sealed partial class GameServer
             case StorySelectIntent storySelect: HandleStorySelect(session, storySelect); break;
             case StoryPackIntent storyPack: HandleStoryPackIntent(session, storyPack); break; // #2466: the player's own pack controls
             case CutsceneSeenIntent cutsceneSeen: HandleCutsceneSeen(session, cutsceneSeen); break; // #2467: the seen ledger
+            case UiTutorialEvent uiTutorial: HandleUiTutorialEvent(session, uiTutorial); break; // #2469: a UI lesson's teaching flag
             case NetFragmentFoundIntent netFrag: HandleNetFragmentFound(session, netFrag); break;
             case CoreHackIntent coreHack: HandleCoreHack(session, coreHack); break;
             case CoreDialogueChoiceIntent coreChoice: HandleCoreDialogueChoice(session, coreChoice); break;
@@ -4368,8 +4382,9 @@ public sealed partial class GameServer
         SendPaintDesigns(session);      // paint-design registry — before any chunk with painted blocks can arrive
         SendCustomShapes(session);      // …and the form registry, for the same reason (#843)
         QueueWorldTextures(session);    // #1958: the world's textures follow in pages, one per tick
-        ShipAiOnJoin(session); // boot VEGA: onboarding intro / veteran skip / resume objective
+        ShipAiOnJoin(session); // VEGA: the prologue for a newcomer (#2469: the basic training is the tutorial pack below)
         StoryPacksOnJoin(session); // #2466: player packs — migrate, start, advance, re-speak the step on the chip
+        SendVegaJournal(session); // the tips log snapshot — after the tutorial's migration, so it lists the migrated steps
         RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: quit on a station → back on it
 
         // Hosted worlds: one-time welcome (community rules + beta notice) on the player's FIRST join of
@@ -4882,6 +4897,7 @@ public sealed partial class GameServer
             session.State.Crouching = move.Crouching; // #2435: pose only, like the climb — the presence shows the squat to the others
             ClearRopeIfNotHeld(session.State); // #2319: a rope nobody can hold any more (boarded, seated, in space, put away)
             TrackVerticalSpeed(session, before.Y, reported.Y); // #2286: "Back to my ship" refuses a falling player
+            TutorialMovementEvents(session, before, reported, onSurface, move.Crouching); // #2469: walk / jump / crouch lessons
             UpdateDrivingSpeeder(session); // if driving a speeder, slave it to this pose + drain its energy cell
             if (onSurface)
             {
@@ -5293,6 +5309,7 @@ public sealed partial class GameServer
         foreach (var drop in yield.Take(fixedDrops))
         {
             if (pool is not null) { pool.Add(drop.Item, drop.Count + bloomBonus); } else { bank?.Invoke(drop.Item, drop.Count + bloomBonus); }
+            RaiseGameEvent(session, GameEventKeys.ItemGained, ItemKey.Base(drop.Item), drop.Count + bloomBonus); // #2469: e.g. the berry lesson
         }
 
         // #2201: what a player breaks also yields a sample of its species (a plant, a tree) or of its deposit (an ore).
@@ -5335,7 +5352,6 @@ public sealed partial class GameServer
 
         OnBlockMined(session, def.Key);
         OnCrystalBlockMinedHint(session, def.Key); // #2257: the first crystal tells what crystal can do
-        ShipAiOnMine(session); // VEGA onboarding: the "mine a few blocks" stage counts every break
         RaiseGameEvent(session, GameEventKeys.MineAny, def.Key); // #2465: the story-pack steps
         ShipAiOnBlockBroken(session, def.Key); // VEGA context tips (#1077): digging score, by-hand streak, rare-ore learned
         CreaturesOnBlockBroken(session, pos); // #1760: a flowerling that SEES this turns on the miner
@@ -6133,14 +6149,12 @@ public sealed partial class GameServer
         {
             RecordVendorTrade(session.State);
             SendNpcStandings(session); // #1118: the vendor's nameplate stage may just have risen
-            ShipAiOnTradeOrMission(session); // VEGA onboarding: a vendor barter counts as the first trade
             RaiseGameEvent(session, GameEventKeys.TradeBarter, recipe.Key, count); // #2465
         }
 
         Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });
         SendInventory(session);
         WarnIfPoolOverflowed(session, pool); // #600: outputs that found no room are gone — say so
-        ShipAiOnCraft(session); // VEGA onboarding: first successful craft
         OnAchievementCraft(session, recipe.Key);
         RaiseGameEvent(session, GameEventKeys.CraftAny, recipe.Key, count); // #2465: amount = the batch count
     }
@@ -6223,7 +6237,6 @@ public sealed partial class GameServer
         SendInventory(session);
         // #600: dyeing PART of a stack needs a fresh slot for the new key, so a full inventory can still lose it.
         WarnIfPoolOverflowed(session, pool);
-        ShipAiOnCraft(session);
         RaiseGameEvent(session, GameEventKeys.CraftTint, baseKey, count); // #2465
     }
 
@@ -6375,7 +6388,6 @@ public sealed partial class GameServer
         Send(session, new CraftResult { Success = true, RecipeKey = tag });
         SendInventory(session);
         WarnIfPoolOverflowed(session, pool); // #600: same partial-stack trap as dyeing
-        ShipAiOnCraft(session);
         if (shape != 0) RevealShapeAnomalyMemory(session); // forming a non-cube → VEGA's "why we built blocky" memory
         RaiseShapeCrafted(session, baseKey, shape, count);
     }
@@ -6447,7 +6459,6 @@ public sealed partial class GameServer
 
             pool.Remove(inputs);
             AddCraftOutput(session, pool, output, produced, slot);
-            ShipAiOnCraft(session);
         }
 
         Send(session, new CraftResult { Success = true, RecipeKey = tag });
@@ -6617,7 +6628,6 @@ public sealed partial class GameServer
                 .Replace("{name}", LocalizedName(session.Locale, bp.NameKey, bp.Key)),
         });
         SendInventory(session);
-        ShipAiOnBlueprint(session); // VEGA onboarding: first blueprint researched
         RaiseGameEvent(session, GameEventKeys.ResearchAny, bp.Key); // #2465
         OnCrystalBlueprintUnlockedHint(session, bp.Key); // #2257: the comm radio opens the Crystal Net tab, the conduit the net
 
@@ -7739,6 +7749,10 @@ public sealed partial class GameServer
             OnAchievementVisit(session);
             RecordPlaceDiscovery(session, body); // #1113: a "Places" Codex entry + the knowledge grant
             RaiseGameEvent(session, GameEventKeys.VisitBody, body.Id); // #2465 (the join's spawn body raises nothing)
+            if (body.Kind is CelestialKind.Planet or CelestialKind.Moon or CelestialKind.AsteroidField)
+            {
+                RaiseGameEvent(session, GameEventKeys.VisitWorld, body.Id); // #2469: the landing lesson (a station is no world)
+            }
         }
 
         if (!string.IsNullOrEmpty(body.SystemId) && session.State.KnownSystems.Add(body.SystemId))
@@ -8008,6 +8022,7 @@ public sealed partial class GameServer
 
         inv.Swap(from, to);
         SendInventory(session);
+        RaiseGameEvent(session, GameEventKeys.ItemMoved); // #2469: the tutorial's backpack lesson
     }
 
     /// <summary>Test seam: drives a quick-bar move/swap for a player (B58).</summary>

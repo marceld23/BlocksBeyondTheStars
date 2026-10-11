@@ -70,10 +70,16 @@ public sealed class VegaLineBudgetTests
 
     private static Dictionary<string, string> Pack(string code) => Table("stories", "vega_protocol", "locales", code + ".json");
 
-    /// <summary>Every line VEGA speaks in the panel: the core <c>vega.*</c> keys and the pack's <c>story.vega.*</c> lines.</summary>
+    /// <summary>#2469: the basic training's texts (the tutorial pack, VEGA presents them).</summary>
+    private static Dictionary<string, string> TutorialPack(string code) => Table("stories", "tutorial", "locales", code + ".json");
+
+    /// <summary>Every line VEGA speaks in the panel: the core <c>vega.*</c> keys, the VEGA pack's <c>story.vega.*</c> lines and
+    /// the tutorial pack's <c>story.tutorial.*</c> lines (#2469; the pack validator holds them to the tighter basic-training
+    /// budget on top).</summary>
     private static IEnumerable<KeyValuePair<string, string>> VegaLines(string code)
         => Core(code).Where(e => e.Key.StartsWith("vega.", StringComparison.Ordinal))
             .Concat(Pack(code).Where(e => e.Key.StartsWith("story.vega.", StringComparison.Ordinal)))
+            .Concat(TutorialPack(code).Where(e => e.Key.StartsWith("story.tutorial.", StringComparison.Ordinal)))
             .Where(e => !NotPanelText.Contains(e.Key));
 
     /// <summary>The characters a line shows: a token counted as <see cref="TokenWidth"/>, a slot as <see cref="SlotWidth"/>.</summary>
@@ -137,18 +143,20 @@ public sealed class VegaLineBudgetTests
     [Fact]
     public void EveryKeyToken_InEnglishAndGerman_NamesARealInputAction()
     {
+        // #2469: or one of the pseudo-actions (move, look, jump, crouch, mine, place, scan, the quick bar) that
+        // HudUi.KeyTokenGlyph resolves per device.
         var actions = InputActionNames();
         var bad = new List<string>();
         foreach (string code in new[] { "en", "de" })
         {
-            foreach (var table in new[] { Core(code), Pack(code) })
+            foreach (var table in new[] { Core(code), Pack(code), TutorialPack(code) })
             {
                 foreach (var (key, text) in table)
                 {
                     foreach (Match m in KeyToken.Matches(text))
                     {
                         string action = m.Groups["action"].Value;
-                        if (!actions.Contains(action))
+                        if (!actions.Contains(action) && !VegaText.IsPseudoAction(action))
                         {
                             bad.Add($"{code}:{key} {{key:{action}}}");
                         }
@@ -160,6 +168,14 @@ public sealed class VegaLineBudgetTests
         Assert.True(bad.Count == 0, "Tokens that name no InputAction render as the bare word: " + string.Join(", ", bad));
     }
 
+    [Fact]
+    public void ThePseudoActions_AreNoInputAction()
+    {
+        // A pseudo-action that became a real InputAction would be resolved twice — once is the rule.
+        var actions = InputActionNames();
+        Assert.All(VegaText.PseudoActions, pseudo => Assert.DoesNotContain(pseudo, actions));
+    }
+
     [Theory]
     [InlineData("en")]
     [InlineData("de")]
@@ -169,6 +185,7 @@ public sealed class VegaLineBudgetTests
             .Where(e => e.Key.StartsWith("vega.", StringComparison.Ordinal)
                         || e.Key.StartsWith(StationBlockPrompts, StringComparison.Ordinal)
                         || ConvertedPrompts.Contains(e.Key))
+            .Concat(TutorialPack(code)) // #2469: every line of the basic training
             .Where(e => LiteralKey.IsMatch(e.Value))
             .Select(e => $"{e.Key}: \"{e.Value}\"")
             .ToList();
@@ -216,7 +233,7 @@ public sealed class VegaLineBudgetTests
         var actions = InputActionNames();
         var en = Core("en");
         var de = Core("de");
-        foreach (string action in actions)
+        foreach (string action in actions.Concat(VegaText.PseudoActions)) // #2469: the pseudo-actions too
         {
             var asked = new List<string>();
             string? label = VegaText.TouchControlLabel(action, key =>
@@ -232,7 +249,8 @@ public sealed class VegaLineBudgetTests
 
             if (label != null && asked.Count == 0)
             {
-                Assert.Equal(VegaText.TouchMenuLabel, label); // the one symbol label without a locale key
+                // the symbol labels without a locale key: the menu button and the quick-bar arrows
+                Assert.Contains(label, new[] { VegaText.TouchMenuLabel, VegaText.TouchHotbarLabel });
             }
         }
     }

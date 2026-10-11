@@ -201,10 +201,9 @@ public sealed class StoryFindabilityTests : IDisposable
         using (repo)
         {
             var p = server.AddLocalPlayer("Pilot");
-            foreach (var stage in new[] { "mine", "craft", "eat", "scan", "unlock", "launch", "dock", "trade", "land" })
-            {
-                p.State.Milestones.Add("vega:stage:" + stage);
-            }
+            server.TickStoryPacksForTest(p); // the basic training starts …
+            Assert.StartsWith("story.tutorial.", server.ObjectiveKeyForTest(p.State.PlayerId));
+            server.SkipTutorialForTest(p);   // … and once it is through (#2469: the tutorial pack), the story takes the chip
 
             string? key = server.ObjectiveKeyForTest(p.State.PlayerId);
             Assert.NotNull(key);

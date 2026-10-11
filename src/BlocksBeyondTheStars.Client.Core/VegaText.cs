@@ -16,11 +16,6 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class VegaText
     {
-        /// <summary>The onboarding chain in lesson order — must match the server's <c>VegaStages</c>.
-        /// The journal shows canonical order because the milestone set does not preserve receipt order.</summary>
-        private static readonly string[] StageOrder =
-            { "mine", "craft", "eat", "scan", "unlock", "launch", "dock", "trade", "land" };
-
         /// <summary>Advisor hints in teaching order (vitals first, then situational), followed by the context
         /// tips (#1077) in the order they tend to matter: gear, materials, places, space.</summary>
         private static readonly string[] HintOrder =
@@ -57,6 +52,32 @@ namespace BlocksBeyondTheStars.Client
         /// has no locale key (TouchControlsUi draws the same character).</summary>
         public const string TouchMenuLabel = "≡";
 
+        /// <summary>The quick-bar arrows of the touch layout (TouchControlsUi draws ◄ and ►) — what <c>{key:Hotbar}</c> reads
+        /// as on a tablet.</summary>
+        public const string TouchHotbarLabel = "◄ ►";
+
+        /// <summary>
+        /// The pseudo-actions a <c>{key:…}</c> token may name besides the Unity <c>InputAction</c>s (#2469, synthesis §3.6):
+        /// the continuous core of the controls (move, look, jump, crouch, mine, place, scan, the quick bar) that is no
+        /// rebindable action. <c>HudUi.KeyTokenGlyph</c> resolves them per device; <see cref="TouchControlLabel"/> names their
+        /// touch buttons; the server's neutral words are <c>ui.vega.act.&lt;Name&gt;</c>.
+        /// </summary>
+        public static readonly IReadOnlyList<string> PseudoActions = new[] { "Move", "Look", "Jump", "Crouch", "Mine", "Place", "Scan", "Hotbar" };
+
+        /// <summary>Whether <paramref name="action"/> is one of the <see cref="PseudoActions"/>.</summary>
+        public static bool IsPseudoAction(string? action)
+        {
+            foreach (string pseudo in PseudoActions)
+            {
+                if (string.Equals(pseudo, action, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// What a <c>{key:Action}</c> token reads as on a tablet (#2463): the label of the touch layout's own button for
         /// that action (USE, MAP, FEED, ≡ …), resolved through <paramref name="localize"/> (<c>ui.touch.*</c> keys), or
@@ -84,6 +105,13 @@ namespace BlocksBeyondTheStars.Client
                 "SpeederRefuel" => "ui.touch.fuel",
                 "VegaContinue" => "ui.touch.next",
                 "ContextActions" => "ui.touch.actions",
+                // #2469: the pseudo-actions — the layout's own buttons, the stick and the look pad.
+                "Jump" => "ui.touch.jump",
+                "Crouch" => "ui.touch.down",
+                "Mine" or "Scan" => "ui.touch.mine",
+                "Place" => "ui.touch.place",
+                "Move" => "ui.key.pad_left_stick",
+                "Look" => "ui.key.touch_look",
                 _ => null,
             };
 
@@ -92,8 +120,26 @@ namespace BlocksBeyondTheStars.Client
                 return localize(key);
             }
 
-            return action == "UiMenu" ? TouchMenuLabel : null;
+            return action switch
+            {
+                "UiMenu" => TouchMenuLabel,
+                "Hotbar" => TouchHotbarLabel,
+                _ => null,
+            };
         }
+
+        /// <summary>
+        /// #2469 (E11, synthesis G12): the client-only VEGA lessons the basic training teaches itself in its flight steps —
+        /// the chart, the ship scanner and holding its trigger, scanning an anomaly. While the tutorial runs for the player
+        /// (<c>ShipAiLine.TutorialActive</c>) they are not spoken; the step lines carry them, per player on the server, so a
+        /// shared PC no longer decides who heard them. The other lessons (planet card, target lock, wormhole, climbing, the
+        /// bio lab, the pad/touch context list) stay client lessons until a deep-dive chapter covers them.
+        /// </summary>
+        public static bool LessonCoveredByTutorial(string? lineKey) => lineKey switch
+        {
+            "vega.hint.chart_waypoint" or "vega.hint.ship_scanner" or "vega.hint.ship_scan_hold" or "vega.hint.anomaly_scan" => true,
+            _ => false,
+        };
 
         /// <summary>What a <c>{0}</c> slot reads as when a line is shown without its argument (the tips log, #2364:
         /// the milestones remember the key, not the wreck's name).</summary>
@@ -162,43 +208,48 @@ namespace BlocksBeyondTheStars.Client
             return (start, Math.Max(0, end - start));
         }
 
+        /// <summary>Rebuilds the "VEGA tips" log without a tutorial pack (see the overload).</summary>
+        public static List<string> JournalKeys(IEnumerable<string> milestones) => JournalKeys(milestones, null);
+
         /// <summary>
-        /// Rebuilds the "VEGA tips" log from a player's persisted <c>vega:*</c> milestones: every onboarding
-        /// lesson and advisor hint they have already received, as locale keys in canonical order. Story and
-        /// memory content (<c>vega:mem:*</c>) is excluded — the Story tab logs those live (Kind 2 lines).
-        /// Unknown hint ids still map generically so future server hints appear without a client update
-        /// (the UI drops keys with no translation).
+        /// Rebuilds the "VEGA tips" log from a player's persisted milestones (the server's <c>VegaJournal</c>): first the
+        /// lessons of the basic training they have done — since #2469 the tutorial pack's steps (<c>story:&lt;pack&gt;:step:&lt;id&gt;</c>,
+        /// done, not skipped), in the pack's order, each as its start line and its done line, read from the tutorial packs
+        /// among <paramref name="packs"/> (the hard-coded copy of the old nine-stage chain is gone) — then every advisor
+        /// hint they have already received, as locale keys in canonical order. Story and memory content (<c>vega:mem:*</c>)
+        /// is excluded — the Story tab logs those live (Kind 2 lines). Unknown hint ids still map generically so future server
+        /// hints appear without a client update (the UI drops keys with no translation).
         /// </summary>
-        public static List<string> JournalKeys(IEnumerable<string> milestones)
+        public static List<string> JournalKeys(IEnumerable<string> milestones, IEnumerable<BlocksBeyondTheStars.Shared.Story.StoryDefinition>? packs)
         {
             var set = new HashSet<string>(milestones, StringComparer.Ordinal);
             var keys = new List<string>();
 
-            if (set.Contains("vega:intro"))
+            foreach (var pack in packs ?? Array.Empty<BlocksBeyondTheStars.Shared.Story.StoryDefinition>())
             {
-                keys.Add("vega.intro.1");
-                keys.Add("vega.intro.2");
-                keys.Add("vega.intro.menu");
-                keys.Add("vega.intro.codex");
-            }
-
-            bool allStages = true;
-            foreach (var id in StageOrder)
-            {
-                if (set.Contains("vega:stage:" + id))
+                if (!string.Equals(pack.Kind, BlocksBeyondTheStars.Shared.Story.StoryRegistry.KindTutorial, StringComparison.OrdinalIgnoreCase))
                 {
-                    keys.Add("vega.s." + id + ".start");
-                    keys.Add("vega.s." + id + ".done");
+                    continue;
                 }
-                else
-                {
-                    allStages = false;
-                }
-            }
 
-            if (allStages)
-            {
-                keys.Add("vega.done"); // the send-off — itself one of the longest (truncated) lines
+                foreach (var chapter in pack.Chapters)
+                {
+                    foreach (var step in chapter.Steps)
+                    {
+                        if (!set.Contains(BlocksBeyondTheStars.Shared.Story.StoryPackKeys.StepDone(pack.Id, step.Id)))
+                        {
+                            continue;
+                        }
+
+                        foreach (string? key in new[] { step.Explain?.StartKey, step.Explain?.DoneKey })
+                        {
+                            if (key is { Length: > 0 } && !keys.Contains(key))
+                            {
+                                keys.Add(key);
+                            }
+                        }
+                    }
+                }
             }
 
             foreach (var id in HintOrder)

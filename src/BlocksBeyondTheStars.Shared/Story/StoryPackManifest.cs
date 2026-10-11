@@ -280,6 +280,33 @@ public sealed class StoryStep
 
     /// <summary>Whether the player may skip this step ("I know this"); unset = allowed.</summary>
     public bool? Skippable { get; set; }
+
+    /// <summary>#2469 (synthesis G12, "one teaching voice"): VEGA's advisor hints and context tips this step teaches
+    /// itself (<c>vega:hint:&lt;id&gt;</c> ids such as <c>invfull</c>, <c>lamp_off</c>). While the step is still ahead of the
+    /// player in a running pack they stay quiet; when the step's own line is shown they count as told; a step that is
+    /// skipped gives them back. Empty = none.</summary>
+    public List<string> HintRefs { get; set; } = new();
+}
+
+/// <summary>What a player pack does when a player finishes its mandatory chapters by playing them (#2469, synthesis
+/// §3.3 "Absolvent"): a closing line, an achievement counter and up to three suggested optional chapters. Skipping the
+/// pack, or a veteran's migration, graduates nobody.</summary>
+public sealed class StoryGraduation
+{
+    /// <summary>The most chapters a graduation suggests.</summary>
+    public const int MaxSuggestions = 3;
+
+    /// <summary>The closing line (a client with <c>packs1</c>; an older client of a tutorial hears the old <c>vega.done</c>).
+    /// Empty = none.</summary>
+    public string LineKey { get; set; } = string.Empty;
+
+    /// <summary>The achievement counter advanced once per graduation (<c>tutorial:graduated</c>); achievements.json says
+    /// which achievement watches it. Empty = none.</summary>
+    public string Counter { get; set; } = string.Empty;
+
+    /// <summary>Optional chapters of this pack offered at graduation (at most <see cref="MaxSuggestions"/>; only those
+    /// whose <c>requires</c> hold and that are not done, declined or running).</summary>
+    public List<string> Suggest { get; set; } = new();
 }
 
 /// <summary>Data form of a VEGA insight (d3 §5.1.1) — read by the insight code from step 16 on.</summary>
@@ -374,6 +401,9 @@ public static class StoryRevealProviders
     /// <summary><c>nearest_settlement</c> — the nearest settlement on the player's body.</summary>
     public const string NearestSettlement = "nearest_settlement";
 
+    /// <summary><c>nearest_food_plant</c> — the nearest plant whose harvest is food (berries …) around the player (#2469).</summary>
+    public const string NearestFoodPlant = "nearest_food_plant";
+
     /// <summary>Whether <paramref name="reveal"/> names a known provider (with its argument where one is needed).</summary>
     public static bool IsKnown(string? reveal)
     {
@@ -382,7 +412,7 @@ public static class StoryRevealProviders
             return false;
         }
 
-        if (string.Equals(reveal, NearestSettlement, StringComparison.Ordinal))
+        if (string.Equals(reveal, NearestSettlement, StringComparison.Ordinal) || string.Equals(reveal, NearestFoodPlant, StringComparison.Ordinal))
         {
             return true;
         }

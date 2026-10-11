@@ -343,6 +343,7 @@ public sealed class NetCodecTests
         [295] = typeof(CutscenePlay),            // #2467
         [296] = typeof(CutsceneSeenIntent),      // #2467
         [297] = typeof(StoryPackIntent),         // #2466
+        [298] = typeof(UiTutorialEvent),         // #2469
 
     };
 

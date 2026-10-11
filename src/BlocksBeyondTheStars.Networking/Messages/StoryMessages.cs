@@ -153,6 +153,21 @@ public static class StoryPackActions
 }
 
 /// <summary>
+/// Client → server (#2469, tag 298): a UI moment a tutorial step teaches — the VEGA line continued, the Tab menu, the
+/// Codex or a map opened, a flight-chart waypoint set. <see cref="Id"/> is one of
+/// <c>GameEventKeys.UiEvents</c>; the server raises <c>ui:&lt;id&gt;</c> on its event bus, where only an active step that
+/// waits for exactly that flag listens. A teaching flag only ever ticks off the sender's own lesson: it never pays,
+/// never unlocks, never counts for the story and is never stored (synthesis G1, §3.6). Rate-limited per player; passes a
+/// held singleplayer world (the pause menu and its Codex send it). An older server drops the unknown tag.
+/// </summary>
+public sealed class UiTutorialEvent
+{
+    /// <summary>The flag id (<c>vega_continue</c>, <c>menu_open</c>, <c>codex_open</c>, <c>map_open</c>,
+    /// <c>waypoint_set</c>); an unknown id is ignored.</summary>
+    public string Id { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Server → client (#2467, tag 295): play a cutscene of a story pack. The client resolves shots and captions from its own
 /// copy of the pack's <c>cutscenes.json</c>; only clients that announce <c>cutscenes1</c> get it (the trigger's narrator
 /// line goes out to everyone as before). The client confirms with <see cref="CutsceneSeenIntent"/> once the scene played,

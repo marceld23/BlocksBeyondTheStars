@@ -624,11 +624,32 @@ public static class StoryWorldPredicates
     /// <summary>A world-shared story (VEGA) is active — false on a "none" sandbox.</summary>
     public const string StoryActive = "story_active";
 
+    /// <summary>#2469: a plant whose harvest is food (berries …) grows within a short walk of the player — the berry
+    /// lesson's feasibility (a bounded probe of the loaded blocks, evaluated when a step activates).</summary>
+    public const string FoodPlantsNear = "food_plants_near";
+
+    /// <summary>#2469: a tree (a block that drops wood) stands within a short walk of the player — the campfire lesson.</summary>
+    public const string TreesNear = "trees_near";
+
+    /// <summary>#2469: the player carries a shaped block (stairs, slopes …) the rotate key can turn.</summary>
+    public const string ShapeBlockCarried = "shape_block_carried";
+
+    /// <summary>#2469: the player's knowledge already covers a blueprint they could research now (prerequisites met, no
+    /// data fragment needed).</summary>
+    public const string ResearchReady = "research_ready";
+
+    /// <summary>#2469: this world hands every blueprint out (Creative mode or the head-start option) — nothing to research.</summary>
+    public const string AllBlueprints = "all_blueprints";
+
+    /// <summary>#2469: the player's system has a planet, moon or asteroid they have never landed on — the landing lesson.</summary>
+    public const string NewWorldInSystem = "new_world_in_system";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
         StationInSystem, SettlementReachable, Airless, FragmentOnWorld, PlayerNear,
         Enemies, SpaceEnemies, Bandits, FreeFlight, Hunger, Oxygen, Hazards, Creative, CreativeFlight,
         InstantTravel, ReturnToShip, StarterTeleporter, BaseVisitors, SpaceStations, StoryActive,
+        FoodPlantsNear, TreesNear, ShapeBlockCarried, ResearchReady, AllBlueprints, NewWorldInSystem,
     };
 }

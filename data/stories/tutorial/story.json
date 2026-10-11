@@ -1,0 +1,324 @@
+{
+  // The basic training (#2469, synthesis §3.3): six short parts B1–B6, presented by VEGA in neutral words, run per player
+  // by the player-pack runtime (GameServerStoryPacks.cs). Every step is: explain → try it → the server verifies it.
+  // Reference for authors: docs/developer/TUTORIAL_PACK.md. Step ids carry their chapter (b3.2); texts live in
+  // locales/en.json + de.json (story.tutorial.*). The legacyKey of a step is the old onboarding stage it double-writes for
+  // older builds (and the evidence the one-time migration reads).
+  "id": "tutorial",
+  "kind": "tutorial",
+  "scope": "player",
+  "priority": 100,
+  "nameKey": "story.tutorial.name",
+  "shortNameKey": "story.tutorial.short",
+  "descriptionKey": "story.tutorial.desc",
+  "narrator": { "id": "vega" },
+  "gates": {
+    "opportunityTips": "all:[step:tutorial:b2.2,step:tutorial:b3.1,step:tutorial:b4.1]",
+    "banter": "pack:tutorial:done",
+    "stationNear": "not:step:tutorial:b6.4"
+  },
+  "escalate": { "hintAfter": 180, "markerAfter": 360, "offerSkipAfter": 600 },
+  "graduation": {
+    "lineKey": "story.tutorial.graduated",
+    "counter": "tutorial:graduated",
+    "suggest": []
+  },
+  "chapters": [
+    {
+      "id": "b1",
+      "titleKey": "story.tutorial.ch.b1",
+      "summaryKey": "story.tutorial.ch.b1.sum",
+      "steps": [
+        {
+          "id": "b1.1", "kind": "do", "tier": "must",
+          "objective": { "event": "move:walked", "required": 8 },
+          "explain": { "startKey": "story.tutorial.b1.walk.start", "chipKey": "story.tutorial.b1.walk.chip", "hintKey": "story.tutorial.b1.walk.hint" }
+        },
+        {
+          "id": "b1.2", "kind": "do", "tier": "core",
+          "objective": { "event": "move:jump" },
+          "variants": [
+            { "when": "world:creative_flight", "startKey": "story.tutorial.b1.jump.start_fly" }
+          ],
+          "explain": { "startKey": "story.tutorial.b1.jump.start", "chipKey": "story.tutorial.b1.jump.chip" }
+        },
+        {
+          "id": "b1.3", "kind": "read", "tier": "must",
+          "variants": [
+            { "when": "pack:vega_protocol:enabled", "startKey": "story.tutorial.b1.vega.start_story" }
+          ],
+          "explain": { "startKey": "story.tutorial.b1.vega.start" }
+        },
+        {
+          "id": "b1.4", "kind": "do", "tier": "must",
+          "objective": { "event": "hotbar:select", "required": 2 },
+          "explain": { "startKey": "story.tutorial.b1.hotbar.start", "chipKey": "story.tutorial.b1.hotbar.chip" }
+        },
+        {
+          "id": "b1.5", "kind": "do", "tier": "must",
+          "objective": { "event": "ui:menu_open" },
+          "explain": { "startKey": "story.tutorial.b1.menu.start", "chipKey": "story.tutorial.b1.menu.chip" }
+        },
+        {
+          "id": "b1.6", "kind": "do", "tier": "core",
+          "objective": { "event": "ui:codex_open" },
+          "variants": [
+            { "when": "pack:vega_protocol:enabled", "startKey": "story.tutorial.b1.codex.start_story" }
+          ],
+          "explain": { "startKey": "story.tutorial.b1.codex.start", "chipKey": "story.tutorial.b1.codex.chip", "moreGuide": "welcome" }
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "titleKey": "story.tutorial.ch.b2",
+      "summaryKey": "story.tutorial.ch.b2.sum",
+      "steps": [
+        {
+          "id": "b2.1", "kind": "read", "tier": "must",
+          "hintRefs": [ "breathe" ],
+          "variants": [
+            { "when": "all:[not:world:oxygen,not:world:hunger]", "startKey": "story.tutorial.b2.bars.start_health" },
+            { "when": "not:world:oxygen", "startKey": "story.tutorial.b2.bars.start_no_air" },
+            { "when": "not:world:hunger", "startKey": "story.tutorial.b2.bars.start_no_food" }
+          ],
+          "explain": { "startKey": "story.tutorial.b2.bars.start" }
+        },
+        {
+          "id": "b2.2", "kind": "do", "tier": "must", "legacyKey": "vega:stage:eat",
+          "objective": { "event": "eat:any" },
+          "feasibleIf": [ "world:hunger" ],
+          "explain": { "startKey": "story.tutorial.b2.eat.start", "chipKey": "story.tutorial.b2.eat.chip", "hintKey": "story.tutorial.b2.eat.hint" }
+        },
+        {
+          "id": "b2.3", "kind": "do", "tier": "core",
+          "objective": { "event": "item:gained", "arg": "berries", "required": 3 },
+          "feasibleIf": [ "world:hunger", "world:food_plants_near" ],
+          "onStart": { "reveal": "nearest_food_plant" },
+          "explain": { "startKey": "story.tutorial.b2.berries.start", "chipKey": "story.tutorial.b2.berries.chip", "hintKey": "story.tutorial.b2.berries.hint" }
+        },
+        {
+          "id": "b2.4", "kind": "react", "tier": "core",
+          "objective": { "event": "suit:auto_feed" },
+          "requires": [ "world:hunger" ],
+          "explain": { "startKey": "story.tutorial.b2.ration.start" }
+        },
+        {
+          "id": "b2.5", "kind": "do", "tier": "must",
+          "objective": { "event": "ship:returned" },
+          "hintRefs": [ "ship_far" ],
+          "variants": [
+            { "when": "world:starter_teleporter", "hintKey": "story.tutorial.b2.home.hint_teleporter" },
+            { "when": "not:world:return_to_ship", "hintKey": "story.tutorial.b2.home.hint_compass" }
+          ],
+          "explain": { "startKey": "story.tutorial.b2.home.start", "chipKey": "story.tutorial.b2.home.chip", "hintKey": "story.tutorial.b2.home.hint" }
+        },
+        {
+          "id": "b2.6", "kind": "do", "tier": "core",
+          "objective": { "event": "lamp:toggled" },
+          "hintRefs": [ "night", "lamp_off" ],
+          "explain": { "startKey": "story.tutorial.b2.lamp.start", "chipKey": "story.tutorial.b2.lamp.chip" }
+        },
+        {
+          "id": "b2.7", "kind": "react", "tier": "core",
+          "objective": { "event": "suit:climate" },
+          "requires": [ "world:hazards" ],
+          "explain": { "startKey": "story.tutorial.b2.climate.start" }
+        },
+        {
+          "id": "b2.8", "kind": "react", "tier": "must",
+          "objective": { "event": "player:respawned" },
+          "explain": { "startKey": "story.tutorial.b2.faint.start" }
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "titleKey": "story.tutorial.ch.b3",
+      "summaryKey": "story.tutorial.ch.b3.sum",
+      "steps": [
+        {
+          "id": "b3.1", "kind": "do", "tier": "must", "legacyKey": "vega:stage:mine",
+          "objective": { "event": "mine:any", "required": 3 },
+          "explain": { "startKey": "story.tutorial.b3.mine.start", "chipKey": "story.tutorial.b3.mine.chip" }
+        },
+        {
+          "id": "b3.2", "kind": "do", "tier": "must",
+          "objective": { "event": "mine:any", "arg": "iron_ore", "required": 4 },
+          "onStart": { "reveal": "nearest_ore:iron_ore" },
+          "explain": { "startKey": "story.tutorial.b3.iron.start", "chipKey": "story.tutorial.b3.iron.chip", "hintKey": "story.tutorial.b3.iron.hint" }
+        },
+        {
+          "id": "b3.3", "kind": "react", "tier": "core",
+          "objective": { "event": "mine:refused" },
+          "hintRefs": [ "tier_gate" ],
+          "explain": { "startKey": "story.tutorial.b3.tier.start" }
+        },
+        {
+          "id": "b3.4", "kind": "do", "tier": "core",
+          "objective": { "event": "item:moved" },
+          "explain": { "startKey": "story.tutorial.b3.backpack.start", "chipKey": "story.tutorial.b3.backpack.chip" }
+        },
+        {
+          "id": "b3.5", "kind": "do", "tier": "must",
+          "objective": { "event": "gear:equipped" },
+          "explain": { "startKey": "story.tutorial.b3.gear.start", "chipKey": "story.tutorial.b3.gear.chip", "hintKey": "story.tutorial.b3.gear.hint" }
+        },
+        {
+          "id": "b3.6", "kind": "react", "tier": "core",
+          "objective": { "event": "inventory:full" },
+          "hintRefs": [ "invfull" ],
+          "explain": { "startKey": "story.tutorial.b3.hold.start" }
+        }
+      ]
+    },
+    {
+      "id": "b4",
+      "titleKey": "story.tutorial.ch.b4",
+      "summaryKey": "story.tutorial.ch.b4.sum",
+      "steps": [
+        {
+          "id": "b4.1", "kind": "do", "tier": "must", "legacyKey": "vega:stage:craft",
+          "objective": { "event": "craft:any", "arg": "iron_ingot", "required": 2 },
+          "variants": [
+            { "when": "world:creative", "startKey": "story.tutorial.b4.ingot.start_free" }
+          ],
+          "explain": { "startKey": "story.tutorial.b4.ingot.start", "chipKey": "story.tutorial.b4.ingot.chip", "hintKey": "story.tutorial.b4.ingot.hint" }
+        },
+        {
+          "id": "b4.2", "kind": "do", "tier": "must",
+          "objective": { "event": "craft:any", "arg": "iron_plate" },
+          "hintRefs": [ "craftable_now" ],
+          "explain": { "startKey": "story.tutorial.b4.plate.start", "chipKey": "story.tutorial.b4.plate.chip" }
+        },
+        {
+          "id": "b4.3", "kind": "do", "tier": "must",
+          "objective": { "event": "build:any", "required": 3 },
+          "explain": { "startKey": "story.tutorial.b4.place.start", "chipKey": "story.tutorial.b4.place.chip" }
+        },
+        {
+          "id": "b4.4", "kind": "do", "tier": "core",
+          "objective": { "event": "build:rotated" },
+          "feasibleIf": [ "world:shape_block_carried" ],
+          "alternative": "b4.4a",
+          "explain": { "startKey": "story.tutorial.b4.rotate.start", "chipKey": "story.tutorial.b4.rotate.chip" }
+        },
+        {
+          // Stands in for b4.4 when the player carries no shaped block yet: the rotate key is explained, nothing to do.
+          "id": "b4.4a", "kind": "read", "tier": "core",
+          "explain": { "startKey": "story.tutorial.b4.rotate.start_later" }
+        },
+        {
+          "id": "b4.5", "kind": "do", "tier": "core",
+          "objective": { "event": "build:any", "arg": "campfire" },
+          "feasibleIf": [ "world:trees_near" ],
+          "explain": { "startKey": "story.tutorial.b4.campfire.start", "chipKey": "story.tutorial.b4.campfire.chip", "hintKey": "story.tutorial.b4.campfire.hint" }
+        }
+      ]
+    },
+    {
+      "id": "b5",
+      "titleKey": "story.tutorial.ch.b5",
+      "summaryKey": "story.tutorial.ch.b5.sum",
+      "steps": [
+        {
+          "id": "b5.1", "kind": "do", "tier": "must", "legacyKey": "vega:stage:scan",
+          "objective": { "event": "scan:performed" },
+          "explain": { "startKey": "story.tutorial.b5.scan.start", "chipKey": "story.tutorial.b5.scan.chip" }
+        },
+        {
+          "id": "b5.2", "kind": "do", "tier": "core",
+          "objective": { "event": "scan:any", "required": 3 },
+          "alreadyDoneIf": [ "world:research_ready" ],
+          "explain": { "startKey": "story.tutorial.b5.knowledge.start", "chipKey": "story.tutorial.b5.knowledge.chip" }
+        },
+        {
+          "id": "b5.3", "kind": "do", "tier": "must", "legacyKey": "vega:stage:unlock",
+          "objective": { "event": "research:any" },
+          "feasibleIf": [ "not:world:all_blueprints" ],
+          "hintRefs": [ "blueprint_affordable" ],
+          "explain": { "startKey": "story.tutorial.b5.research.start", "chipKey": "story.tutorial.b5.research.chip", "hintKey": "story.tutorial.b5.research.hint" }
+        },
+        {
+          "id": "b5.4", "kind": "react", "tier": "must",
+          "objective": { "event": "data:found" },
+          "hintRefs": [ "data_cache_near" ],
+          "explain": { "startKey": "story.tutorial.b5.fragments.start" }
+        }
+      ]
+    },
+    {
+      "id": "b6",
+      "titleKey": "story.tutorial.ch.b6",
+      "summaryKey": "story.tutorial.ch.b6.sum",
+      "steps": [
+        {
+          "id": "b6.1", "kind": "do", "tier": "must", "legacyKey": "vega:stage:launch",
+          "objective": { "event": "space:enter", "arg": "launch" },
+          "feasibleIf": [ "world:free_flight" ],
+          "explain": { "startKey": "story.tutorial.b6.launch.start", "chipKey": "story.tutorial.b6.launch.chip" }
+        },
+        {
+          "id": "b6.2", "kind": "do", "tier": "core",
+          "objective": { "event": "flight:flown", "required": 300 },
+          "feasibleIf": [ "world:free_flight" ],
+          "explain": { "startKey": "story.tutorial.b6.fly.start", "chipKey": "story.tutorial.b6.fly.chip" }
+        },
+        {
+          "id": "b6.3", "kind": "do", "tier": "core",
+          "objective": { "event": "scan:performed", "arg": "asteroid|anomaly" },
+          "feasibleIf": [ "world:free_flight" ],
+          "explain": { "startKey": "story.tutorial.b6.shipscan.start", "chipKey": "story.tutorial.b6.shipscan.chip" }
+        },
+        {
+          "id": "b6.4", "kind": "do", "tier": "must", "legacyKey": "vega:stage:dock",
+          "objective": { "event": "station:boarded" },
+          "feasibleIf": [ "world:free_flight", "world:station_in_system" ],
+          "alternative": "b6.4a",
+          "explain": { "startKey": "story.tutorial.b6.dock.start", "chipKey": "story.tutorial.b6.dock.chip" }
+        },
+        {
+          // Stands in for b6.4 where no station can be reached (#1924): a settlement vendor is a market too.
+          "id": "b6.4a", "kind": "do", "tier": "must",
+          "objective": { "event": "trade:barter" },
+          "explain": { "startKey": "story.tutorial.b6.vendor.start", "chipKey": "story.tutorial.b6.vendor.chip", "hintKey": "story.tutorial.b6.vendor.hint" }
+        },
+        {
+          "id": "b6.5", "kind": "do", "tier": "must", "legacyKey": "vega:stage:trade",
+          "objective": { "event": "trade:*" },
+          "alreadyDoneIf": [ "step:tutorial:b6.4a" ],
+          "hintRefs": [ "trader_near" ],
+          "explain": { "startKey": "story.tutorial.b6.trade.start", "chipKey": "story.tutorial.b6.trade.chip" }
+        },
+        {
+          "id": "b6.6", "kind": "do", "tier": "core",
+          "objective": { "event": "mission:board_accepted" },
+          "explain": { "startKey": "story.tutorial.b6.job.start", "chipKey": "story.tutorial.b6.job.chip" }
+        },
+        {
+          "id": "b6.7", "kind": "do", "tier": "must", "legacyKey": "vega:stage:land",
+          "objective": { "event": "visit:world" },
+          "feasibleIf": [ "world:free_flight", "world:new_world_in_system" ],
+          "alternative": "b6.7a",
+          "explain": { "startKey": "story.tutorial.b6.land.start", "chipKey": "story.tutorial.b6.land.chip" }
+        },
+        {
+          // Stands in for b6.7 when the system has no world the player has not landed on yet: any landing from flight.
+          "id": "b6.7a", "kind": "do", "tier": "must",
+          "objective": { "event": "travel:landed", "arg": "flight" },
+          "feasibleIf": [ "world:free_flight" ],
+          "explain": { "startKey": "story.tutorial.b6.pad.start", "chipKey": "story.tutorial.b6.pad.chip" }
+        },
+        {
+          "id": "b6.8", "kind": "do", "tier": "core",
+          "objective": { "event": "travel:landed", "arg": "quick" },
+          "feasibleIf": [ "any:[world:free_flight,world:instant_travel]" ],
+          "variants": [
+            { "when": "world:instant_travel", "startKey": "story.tutorial.b6.home.start_instant" }
+          ],
+          "explain": { "startKey": "story.tutorial.b6.home.start", "chipKey": "story.tutorial.b6.home.chip" }
+        }
+      ]
+    }
+  ]
+}
