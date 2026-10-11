@@ -110,6 +110,8 @@ refreshed 2026-08-08.
   events and conditions, and the per-player runtime of the player story packs.
 - [TUTORIAL_PACK.md](TUTORIAL_PACK.md) — how a player story pack (the tutorial, side stories) is written: manifest,
   chapter and step reference, conditions, per-player state, the tutorial world rule, validation.
+- [CUTSCENES.md](CUTSCENES.md) — data-driven cutscenes: the `cutscenes.json` format (tiers, shots, cameras, captions,
+  options), the pack bindings, validation, the wire messages, the per-player seen ledger, pacing and SP/MP rules.
 - [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md) — the story's design rationale.
 - [LORE_STRUCTURE.md](LORE_STRUCTURE.md) — the lore bible + content schema.
 - [MUSIC_TRACKS.md](MUSIC_TRACKS.md) — music track library reference.

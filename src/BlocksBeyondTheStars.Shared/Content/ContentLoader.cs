@@ -353,6 +353,27 @@ public static class ContentLoader
         => JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonOptions)
            ?? new Dictionary<string, string>();
 
+    /// <summary>Reads a story pack's optional <c>cutscenes.json</c> (#2467) from its folder; no file → no cutscenes. Public
+    /// so tools and tests read a pack folder exactly like the game.</summary>
+    public static List<CutsceneDefinition> LoadPackCutscenes(string packDir)
+    {
+        var file = Path.Combine(packDir, "cutscenes.json");
+        return File.Exists(file) ? ParseCutscenes(File.ReadAllText(file)) : new List<CutsceneDefinition>();
+    }
+
+    /// <summary>Parses a <c>cutscenes.json</c> document: the object form <c>{ "cutscenes": [ … ] }</c> (room for later
+    /// sibling tables) or a bare array of cutscenes.</summary>
+    public static List<CutsceneDefinition> ParseCutscenes(string json)
+    {
+        using var doc = JsonDocument.Parse(json, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+        if (doc.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            return JsonSerializer.Deserialize<List<CutsceneDefinition>>(json, JsonOptions) ?? new List<CutsceneDefinition>();
+        }
+
+        return JsonSerializer.Deserialize<StoryCutsceneFile>(json, JsonOptions)?.Cutscenes ?? new List<CutsceneDefinition>();
+    }
+
     /// <summary>Loads pluggable story packs from <c>data/stories/&lt;id&gt;/story.json</c> and merges each
     /// pack's optional <c>locales/&lt;code&gt;.json</c> into the shared locale tables. An absent directory
     /// yields no packs (the content then falls back to the built-in default pack).
@@ -402,6 +423,9 @@ public static class ContentLoader
             {
                 def.LoreSites.AddRange(sites);
             }
+
+            // Cutscenes (#2467) live in their own file too: shots, captions and options per scene.
+            def.Cutscenes.AddRange(LoadPackCutscenes(dir));
 
             result.Add(def);
 

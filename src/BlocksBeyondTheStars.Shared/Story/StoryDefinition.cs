@@ -29,8 +29,8 @@ public sealed class StoryBeat
     /// <summary>Optional knowledge points granted to the revealing player when this beat first fires.</summary>
     public int KnowledgeReward { get; set; }
 
-    /// <summary>Cutscene played when this beat reveals to a player (#2466 binding, played from step 8 on); empty = the
-    /// beat speaks as a line only (today's behaviour).</summary>
+    /// <summary>Cutscene played when this beat reveals to a player (#2466 binding; the server API exists since #2467, the
+    /// beat reveal wires it in step 11); empty = the beat speaks as a line only (today's behaviour).</summary>
     public string Cutscene { get; set; } = string.Empty;
 }
 
@@ -274,7 +274,8 @@ public sealed class StoryDefinition
     /// the world's <c>TutorialPolicy</c> instead). Default true.</summary>
     public bool DefaultEnabled { get; set; } = true;
 
-    /// <summary>Cutscene played at the player's first join while the pack is enabled (step 8 plays bindings); empty = none.</summary>
+    /// <summary>Cutscene played when the pack starts for a player (#2467: a player pack's start; the world story's start is
+    /// wired in step 11) — not for a player the pack would complete for silently (a veteran); empty = none.</summary>
     public string IntroCutscene { get; set; } = string.Empty;
 
     /// <summary>Tutorial packs: when the global advisor systems open (<see cref="StoryGateNames"/> → condition). A gate the
@@ -295,6 +296,31 @@ public sealed class StoryDefinition
 
     /// <summary>World packs: the finale's type and cutscene bindings (presentation only in v1).</summary>
     public StoryFinaleBinding Finale { get; set; } = new();
+
+    /// <summary>The pack's cutscenes (#2467), loaded from its <c>cutscenes.json</c> (or inline). Empty = none; every
+    /// binding above must name one of them (the built-in <c>__recap</c> is never defined here). The built-in VEGA fallback
+    /// carries none — the narrator lines still play.</summary>
+    public List<CutsceneDefinition> Cutscenes { get; set; } = new();
+
+    /// <summary>The cutscene with this id — an instance id (<c>tut.strip@b3</c>) finds its template — or null.</summary>
+    public CutsceneDefinition? FindCutscene(string? id)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            return null;
+        }
+
+        string definition = StoryCutsceneIds.DefinitionOf(id!);
+        foreach (var cutscene in Cutscenes)
+        {
+            if (string.Equals(cutscene.Id, definition, StringComparison.Ordinal))
+            {
+                return cutscene;
+            }
+        }
+
+        return null;
+    }
 
     // Pacing weights: progress = FragmentsFound*FragmentWeight
     //                          + min(MachineKills, KillContributionCap)*KillWeight

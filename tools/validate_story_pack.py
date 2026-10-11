@@ -15,10 +15,14 @@ ids (unique, not reserved, key-safe), kind/scope (a tutorial is player-scoped, a
 pack has beats), every condition parses and names existing packs/chapters/steps/blueprints, mission-bridge targets
 exist in data/missions.json, event keys are published (warning), 'ui:' only in a player pack's step objectives,
 marker providers, legacy keys (tutorial only), alternatives, a tutorial pays no rewards, every locale key exists in
-English and German (pack table or base table), cutscene bindings resolve once a cutscenes.json exists, the short name
-fits (<= 10 characters) and the text budget (basic-training lines <= 120 EN / 145 DE, other step lines <= 200 / 240,
-chip <= 45 / 53; a {key:...} token counts 3, a {0} slot 10). Packs without beats are fine. Unknown fields are reported
-as warnings (typos). Every problem is reported at once. The tool NEVER rewrites a file.
+English and German (pack table or base table), every cutscene binding resolves in the pack's cutscenes.json (#2467),
+every cutscene follows the rules (ids, tier 1-4, cameras, anchors, caption styles, grades, shot lengths, a T1/T2 never
+takes the camera, only a T3/T4 that takes it may hold the world or freeze the controls, chainNext references, chapters,
+music in client/Music and sounds in client/Assets/Resources/audio, caption budgets: subtitle/speaker 220 EN / 264 DE,
+title card 60 / 72, reading frame 600 / 720), the short name fits (<= 10 characters) and the text budget
+(basic-training lines <= 120 EN / 145 DE, other step lines <= 200 / 240, chip <= 45 / 53; a {key:...} token counts 3,
+a {0} slot 10). Packs without beats are fine. Unknown fields are reported as warnings (typos). Every problem is
+reported at once. The tool NEVER rewrites a file.
 
 Usage:
     uv run --no-project python tools/validate_story_pack.py                          # every pack in data/stories
@@ -49,6 +53,19 @@ CHIP = (45, 53)
 TOKEN_WIDTH = 3
 SLOT_WIDTH = 10
 MAX_DEPTH = 16
+
+# Cutscenes (#2467) -- the same vocabularies as Shared/Story/CutsceneDefinition.cs.
+CUTSCENE_TIERS = {1, 2, 3, 4}  # 1 banner, 2 card, 3 staged scene, 4 set piece
+CAMERAS = ["player_view", "overlay", "static", "orbit", "crane", "sky", "chart"]
+NON_TAKEOVER_CAMERAS = {"player_view", "overlay"}
+ANCHORS = ["player", "ship", "planet", "station", "star_map", "heal_tank", "core", "custom"]
+CAPTION_STYLES = ["subtitle", "title_card", "speaker", "reading_frame", "credits"]
+GRADES = ["none", "memory", "flashback"]
+RECAP_ID = "__recap"
+CAPTION_LINE = (220, 264)
+TITLE_CARD = (60, 72)
+READING_FRAME = (600, 720)
+SHOT_MAX_SECONDS = 120
 
 # Fallbacks when the C# sources are not next to the data folder (they are read from there when present).
 FALLBACK_PREDICATES = [
@@ -84,6 +101,15 @@ KNOWN_FIELDS = {
     "insight": {"event", "minBeat", "textKey", "onceKey"},
     "finale": {"type", "cutscenes"},
     "beat": {"index", "title", "textKey", "threshold", "knowledgeReward", "cutscene"},
+    "cutscene_file": {"cutscenes"},
+    "cutscene": {"id", "tier", "chapter", "template", "replaceLineKeys", "music", "shots", "options"},
+    "shot": {"camera", "duration", "captions", "grade", "sfx"},
+    "camera": {"type", "anchor"},
+    "caption": {"key", "style", "kickerKey", "speaker", "at", "hold"},
+    "sfx": {"cue", "at"},
+    "cutscene_options": {
+        "holdWorld", "hideHud", "lockInput", "skippable", "minDisplay", "chainNext", "cooldownExempt", "replayable",
+    },
 }
 
 
@@ -411,11 +437,16 @@ class Validator:
                 r.error(pid, f"beats[{i}]", "the beat has no textKey")
             key(f"beats[{i}].textKey", beat.get("textKey"))
 
-        cutscenes = self.cutscene_ids(pack_dir)
+        cutscene_defs = self.load_cutscenes(pack_dir, pid)
+        cutscenes = {c.get("id") for c in cutscene_defs if isinstance(c, dict) and c.get("id")}
 
         def cutscene(path: str, value) -> None:
-            if value and cutscenes is not None and value not in cutscenes:
-                r.error(pid, path, f"cutscene '{value}' is not defined in cutscenes.json")
+            if not value:
+                return
+            if str(value).startswith("__"):
+                r.error(pid, path, f"'{value}' is built in - the server plays it, a pack never binds it")
+            elif "@" in str(value) or value not in cutscenes:
+                r.error(pid, path, f"cutscene '{value}' is not defined in the pack's cutscenes.json")
 
         def condition(path: str, text) -> None:
             if not isinstance(text, str) or not text.strip():
@@ -606,6 +637,8 @@ class Validator:
                     key(f"{vp}.doneKey", variant.get("doneKey"), line_budget)
                     key(f"{vp}.chipKey", variant.get("chipKey"), CHIP)
 
+        self.validate_cutscenes(pid, cutscene_defs, chapter_ids, key)
+
         # Every key in English and German (the pack's own table over the base table), within its budget.
         pack_en = self.load_table(pack_dir / "locales" / "en.json")
         pack_de = self.load_table(pack_dir / "locales" / "de.json")
@@ -658,18 +691,169 @@ class Validator:
         elif isinstance(value, str) and path.endswith(".consequence") and value.startswith("gift:"):
             self.report.error(pid, path, "a tutorial pays no rewards (gift consequence)")
 
-    def cutscene_ids(self, pack_dir: pathlib.Path):
-        """The cutscene ids of the pack's cutscenes.json, or None while the pack has none (bindings are then not checked)."""
+    def load_cutscenes(self, pack_dir: pathlib.Path, pid: str | None = None) -> list:
+        """The cutscene definitions of the pack's cutscenes.json ({"cutscenes": [...]} or a bare list); [] without a file.
+        With a pack id the file's top-level fields are checked too."""
         path = pack_dir / "cutscenes.json"
         if not path.exists():
-            return None
+            return []
         try:
             value = load_jsonc(path)
         except json.JSONDecodeError as ex:
-            self.report.error(pack_dir.name, "cutscenes.json", f"not valid JSON: {ex}")
-            return set()
-        entries = value.get("cutscenes", []) if isinstance(value, dict) else value
-        return {e.get("id") for e in entries if isinstance(e, dict) and e.get("id")}
+            self.report.error(pid or pack_dir.name, "cutscenes.json", f"not valid JSON: {ex}")
+            return []
+        if isinstance(value, dict):
+            if pid:
+                self.unknown_fields(pid, "cutscenes.json", value, "cutscene_file")
+            value = value.get("cutscenes", [])
+        if not isinstance(value, list):
+            if pid:
+                self.report.error(pid, "cutscenes.json", "expected a list of cutscenes")
+            return []
+        return value
+
+    def other_pack_cutscene_ids(self, pack_id: str):
+        """The cutscene ids of another installed pack, or None when no such pack is installed."""
+        folders = self.folders_by_id.get(pack_id)
+        if not folders:
+            return None
+        return {c.get("id") for c in self.load_cutscenes(folders[0]) if isinstance(c, dict) and c.get("id")}
+
+    def validate_cutscenes(self, pid: str, defs: list, chapter_ids: set[str], key) -> None:
+        """The cutscene rules of the C# StoryPackValidator (synthesis 6.2/6.3): ids, tiers, cameras, anchors, caption styles,
+        grades, shot lengths, caption/cue times, caption keys and budgets, the tier rules (a T1/T2 never takes the camera;
+        only a T3/T4 that takes it may hold the world or freeze the controls), chains, chapters, music and sounds."""
+        r = self.report
+        repo = self.data.parent
+        music_dir = repo / "client" / "Music"
+        audio_dir = repo / "client" / "Assets" / "Resources" / "audio"
+        ids = {d.get("id") for d in defs if isinstance(d, dict)}
+        seen: set[str] = set()
+        for ci, cut in enumerate(defs):
+            cp = f"cutscenes[{ci}]"
+            if not isinstance(cut, dict):
+                r.error(pid, cp, "expected an object")
+                continue
+            self.unknown_fields(pid, cp, cut, "cutscene")
+            cid = cut.get("id") or ""
+            if not cid or not is_key_safe(cid, allow_dot=True) or cid in seen:
+                r.error(pid, cp, f"cutscene id '{cid}' is empty, not key-safe or used twice")
+            elif cid.startswith("__"):
+                r.error(pid, cp, f"'{cid}': ids starting with '__' are built in")
+            seen.add(cid)
+            tier = cut.get("tier", 2)
+            if tier not in CUTSCENE_TIERS:
+                r.error(pid, f"{cp}.tier", f"unknown tier {tier} (1 banner, 2 card, 3 scene, 4 set piece)")
+                tier = 2
+            chapter = cut.get("chapter") or ""
+            if chapter and chapter not in chapter_ids:
+                r.error(pid, f"{cp}.chapter", f"the pack has no chapter '{chapter}'")
+            for i, line in enumerate(cut.get("replaceLineKeys") or []):
+                key(f"{cp}.replaceLineKeys[{i}]", line)
+            music = cut.get("music") or ""
+            if music and music_dir.exists() and not (music_dir / f"{music}.mp3").exists():
+                r.error(pid, f"{cp}.music", f"music track '{music}' does not exist in client/Music")
+            shots = cut.get("shots") or []
+            if not shots:
+                r.error(pid, f"{cp}.shots", "a cutscene needs at least one shot")
+            takeover = False
+            for si, shot in enumerate(shots):
+                sp = f"{cp}.shots[{si}]"
+                if not isinstance(shot, dict):
+                    r.error(pid, sp, "expected an object")
+                    continue
+                self.unknown_fields(pid, sp, shot, "shot")
+                camera = shot.get("camera") or {}
+                self.unknown_fields(pid, f"{sp}.camera", camera, "camera")
+                ctype = camera.get("type", "player_view") if isinstance(camera, dict) else ""
+                anchor = camera.get("anchor", "") if isinstance(camera, dict) else ""
+                if ctype not in CAMERAS:
+                    r.error(pid, f"{sp}.camera.type", f"unknown camera '{ctype}' ({', '.join(CAMERAS)})")
+                elif ctype not in NON_TAKEOVER_CAMERAS:
+                    takeover = True
+                    if tier < 3:
+                        kind = "banner" if tier == 1 else "card"
+                        r.error(pid, f"{sp}.camera.type", f"a T{tier} {kind} never takes the camera (player_view or overlay)")
+                if anchor and anchor not in ANCHORS:
+                    r.error(pid, f"{sp}.camera.anchor", f"unknown anchor '{anchor}' ({', '.join(ANCHORS)})")
+                duration = shot.get("duration", 0)
+                if not isinstance(duration, (int, float)) or not 0 < duration <= SHOT_MAX_SECONDS:
+                    r.error(pid, f"{sp}.duration", f"a shot lasts more than 0 and at most {SHOT_MAX_SECONDS} seconds (found {duration})")
+                    duration = 0
+                grade = shot.get("grade", "none")
+                if grade not in GRADES:
+                    r.error(pid, f"{sp}.grade", f"unknown grade '{grade}' ({', '.join(GRADES)})")
+                for xi, sfx in enumerate(shot.get("sfx") or []):
+                    xp = f"{sp}.sfx[{xi}]"
+                    self.unknown_fields(pid, xp, sfx, "sfx")
+                    cue = (sfx or {}).get("cue", "") if isinstance(sfx, dict) else ""
+                    if not cue:
+                        r.error(pid, xp, "a sound cue needs a clip name")
+                    elif audio_dir.exists() and not any(p.suffix != ".meta" for p in audio_dir.glob(f"{cue}.*")):
+                        r.error(pid, xp, f"sound '{cue}' does not exist in client/Assets/Resources/audio")
+                    at = (sfx or {}).get("at", 0) if isinstance(sfx, dict) else 0
+                    if at < 0 or (duration > 0 and at >= duration):
+                        r.error(pid, f"{xp}.at", f"the cue at {at} s lies outside the {duration} s shot")
+                for ki, caption in enumerate(shot.get("captions") or []):
+                    kp = f"{sp}.captions[{ki}]"
+                    self.unknown_fields(pid, kp, caption, "caption")
+                    if not isinstance(caption, dict):
+                        continue
+                    style = caption.get("style", "subtitle")
+                    if style not in CAPTION_STYLES:
+                        r.error(pid, f"{kp}.style", f"unknown caption style '{style}' ({', '.join(CAPTION_STYLES)})")
+                    if not caption.get("key"):
+                        r.error(pid, kp, "a caption needs a key")
+                    budget = {"title_card": TITLE_CARD, "reading_frame": READING_FRAME, "credits": (0, 0)}.get(style, CAPTION_LINE)
+                    key(f"{kp}.key", caption.get("key"), budget)
+                    if caption.get("kickerKey"):
+                        if style != "title_card":
+                            r.warn(pid, f"{kp}.kickerKey", "only a title_card shows a kicker")
+                        key(f"{kp}.kickerKey", caption.get("kickerKey"), TITLE_CARD)
+                    if caption.get("speaker") and style != "speaker":
+                        r.warn(pid, f"{kp}.speaker", "only a speaker caption names a speaker")
+                    at = caption.get("at", 0)
+                    if at < 0 or (duration > 0 and at >= duration):
+                        r.error(pid, f"{kp}.at", f"the caption at {at} s lies outside the {duration} s shot")
+                    if caption.get("hold", 0) < 0:
+                        r.error(pid, f"{kp}.hold", "hold must not be negative (0 = until the shot ends)")
+            options = cut.get("options") or {}
+            self.unknown_fields(pid, f"{cp}.options", options, "cutscene_options")
+            if not isinstance(options, dict):
+                continue
+            camera_taken = tier >= 3 and takeover
+            if options.get("holdWorld") is True and not camera_taken:
+                r.error(pid, f"{cp}.options.holdWorld", "only a T3/T4 scene that takes the camera may hold the world")
+            if options.get("lockInput") is True and not camera_taken:
+                r.error(pid, f"{cp}.options.lockInput", "only a T3/T4 scene that takes the camera may freeze the controls")
+            if options.get("minDisplay", 0) < 0:
+                r.error(pid, f"{cp}.options.minDisplay", "minDisplay must not be negative")
+            for ni, ref in enumerate(options.get("chainNext") or []):
+                self.check_chain(pid, f"{cp}.options.chainNext[{ni}]", cid, ref, ids)
+
+    def check_chain(self, pid: str, path: str, from_id: str, ref, own_ids: set) -> None:
+        """A chainNext entry: __recap, an id of the same pack, or <pack>/<id> (a warning when that pack is not installed)."""
+        r = self.report
+        if not ref or not isinstance(ref, str):
+            r.error(pid, path, "an empty chain reference")
+            return
+        if ref == RECAP_ID:
+            return
+        if "/" not in ref:
+            if ref == from_id:
+                r.error(pid, path, "a cutscene cannot chain to itself")
+            elif "@" in ref or ref not in own_ids:
+                r.error(pid, path, f"cutscene '{ref}' is not defined in the pack")
+            return
+        pack, cid = ref.split("/", 1)
+        if pack == pid:
+            self.check_chain(pid, path, from_id, cid, own_ids)
+            return
+        other = self.other_pack_cutscene_ids(pack)
+        if other is None:
+            r.warn(pid, path, f"pack '{pack}' is not installed - the chain applies only when it is")
+        elif cid != RECAP_ID and cid not in other:
+            r.error(pid, path, f"pack '{pack}' has no cutscene '{cid}'")
 
 
 def find_data_dir(pack_dir: pathlib.Path) -> pathlib.Path:

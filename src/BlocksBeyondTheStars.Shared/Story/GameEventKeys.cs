@@ -280,6 +280,42 @@ public static class StoryPackKeys
     /// <summary>The prefix of every per-player key of a pack (<c>story:&lt;pack&gt;:</c>).</summary>
     public static string Prefix(string packId) => "story:" + packId + ":";
 
+    /// <summary>The marker between a pack and a cutscene id in the ledger keys.</summary>
+    private const string CutsceneInfix = ":cut:";
+
+    /// <summary>The suffix of the "committed" ledger key.</summary>
+    private const string CutsceneSentSuffix = ":sent";
+
+    /// <summary><c>story:&lt;pack&gt;:cut:&lt;id&gt;:sent</c> — the server committed the cutscene to the player (sent it, or
+    /// queued it behind the cooldown); without the seen key it is re-offered at the next join (#2467, synthesis §5.6).</summary>
+    public static string CutsceneSent(string packId, string cutsceneId) => CutsceneSeen(packId, cutsceneId) + CutsceneSentSuffix;
+
+    /// <summary><c>story:&lt;pack&gt;:cut:&lt;id&gt;</c> — the player's client confirmed the cutscene (watched, skipped,
+    /// downgraded or unsupported), or the client cannot play cutscenes and got the line instead (#2467).</summary>
+    public static string CutsceneSeen(string packId, string cutsceneId) => "story:" + packId + CutsceneInfix + cutsceneId;
+
+    /// <summary>Reads a <see cref="CutsceneSent"/> key back into its pack and cutscene (instance) id.</summary>
+    public static bool TryParseCutsceneSent(string? key, out string packId, out string cutsceneId)
+    {
+        packId = cutsceneId = string.Empty;
+        if (key is null || !key.StartsWith("story:", StringComparison.Ordinal) || !key.EndsWith(CutsceneSentSuffix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        int infix = key.IndexOf(CutsceneInfix, "story:".Length, StringComparison.Ordinal);
+        int idStart = infix + CutsceneInfix.Length;
+        int idEnd = key.Length - CutsceneSentSuffix.Length;
+        if (infix <= "story:".Length || idEnd <= idStart)
+        {
+            return false;
+        }
+
+        packId = key.Substring("story:".Length, infix - "story:".Length);
+        cutsceneId = key.Substring(idStart, idEnd - idStart);
+        return true;
+    }
+
     /// <summary>The key of a running step counter in <c>PlayerState.StepProgress</c>: <c>&lt;pack&gt;:&lt;step&gt;</c>.</summary>
     public static string ProgressKey(string packId, string stepId) => packId + ":" + stepId;
 }

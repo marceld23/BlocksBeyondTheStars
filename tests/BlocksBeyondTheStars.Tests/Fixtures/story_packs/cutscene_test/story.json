@@ -1,0 +1,46 @@
+{
+  // Test fixture of the cutscene ledger (#2467) — NOT shipped content (it lives under the test project, never under
+  // data/stories/). A side story with every player-pack binding: the pack intro (chained to the chapter card), a template
+  // chapter card and a template banner used by two chapters, a step onComplete card and a T3 step onStart scene. With
+  // hunger off (not:world:hunger) every chapter completes silently — the "veteran" case.
+  "id": "cutscene_test",
+  "nameKey": "story.cutscene_test.name",
+  "shortNameKey": "story.cutscene_test.short",
+  "kind": "side",
+  "scope": "player",
+  "narrator": { "id": "vega" },
+  "introCutscene": "welcome",
+  "chapters": [
+    {
+      "id": "one",
+      "titleKey": "story.cutscene_test.ch.one",
+      "openCutscene": "strip",
+      "closeCutscene": "done",
+      "autoCompleteIf": [ "not:world:hunger" ],
+      "steps": [
+        {
+          "id": "one.1", "objective": { "event": "mine:any" },
+          "onComplete": { "cutscene": "first_mine" },
+          "explain": {
+            "startKey": "story.cutscene_test.one1.start", "chipKey": "story.cutscene_test.one1.chip",
+            "doneKey": "story.cutscene_test.one1.done"
+          }
+        }
+      ]
+    },
+    {
+      "id": "two",
+      "titleKey": "story.cutscene_test.ch.two",
+      "openCutscene": "strip",
+      "closeCutscene": "done",
+      "autoCompleteIf": [ "not:world:hunger" ],
+      "steps": [
+        {
+          "id": "two.1", "objective": { "event": "craft:any" },
+          "onStart": { "cutscene": "big_moment" },
+          "explain": { "startKey": "story.cutscene_test.two1.start", "chipKey": "story.cutscene_test.two1.chip" }
+        }
+      ]
+    }
+  ]
+}

@@ -62,9 +62,16 @@ public sealed class StoryPackValidationContext
     /// <summary>The German text of a key, or null when it is missing; null = skip the key checks.</summary>
     public Func<string, string?>? German { get; set; }
 
-    /// <summary>Whether a cutscene id exists in a pack (<c>(packId, cutsceneId)</c>); null = cutscenes are not modelled yet
-    /// (until step 8) and the binding check is skipped.</summary>
+    /// <summary>Whether a cutscene id exists in ANOTHER installed pack (<c>(packId, cutsceneId)</c>, for <c>chainNext</c>
+    /// references and for a pack validated from its <c>story.json</c> alone); null = only the pack's own
+    /// <see cref="StoryDefinition.Cutscenes"/> and <see cref="Packs"/> are looked at.</summary>
     public Func<string, string, bool>? CutsceneExists { get; set; }
+
+    /// <summary>Whether a music track exists (a file in <c>client/Music</c>); null = skip.</summary>
+    public Func<string, bool>? MusicExists { get; set; }
+
+    /// <summary>Whether a sound cue exists (a clip in <c>client/Assets/Resources/audio</c>); null = skip.</summary>
+    public Func<string, bool>? SoundExists { get; set; }
 }
 
 /// <summary>
@@ -74,7 +81,8 @@ public sealed class StoryPackValidationContext
 /// a world pack has beats), every condition parses and names existing packs/chapters/steps/blueprints, mission-bridge
 /// targets exist, event keys are published (warning otherwise), <c>ui:</c> only in a player pack's step objectives, marker
 /// providers, legacy keys (tutorial only), alternatives, a tutorial pays no rewards, every locale key exists in English and
-/// German, cutscene bindings resolve (once cutscenes exist), the short name fits (≤ 10 characters), and the text budget
+/// German, every cutscene binding resolves in the pack's <c>cutscenes.json</c> and every cutscene follows the tier, camera,
+/// caption and budget rules (#2467, <see cref="ValidateCutscenes"/>), the short name fits (≤ 10 characters), and the text budget
 /// (basic-training lines ≤ 120 EN / 145 DE, other step lines ≤ 200 / 240, chip ≤ 45 / 53; a <c>{key:…}</c> token counts
 /// 3 characters, a <c>{0}</c> slot 10). Beats keep the old rules (index = position, thresholds monotonic). It never changes
 /// the pack.
@@ -107,6 +115,28 @@ public static class StoryPackValidator
 
     /// <summary>What a <c>{0}</c> slot counts.</summary>
     public const int SlotWidth = 10;
+
+    /// <summary>Cutscene caption budget of a subtitle or speaker page (one VEGA panel page; the director pages it further),
+    /// English.</summary>
+    public const int CaptionLineMaxEn = 220;
+
+    /// <summary>Cutscene caption budget of a subtitle or speaker page, German.</summary>
+    public const int CaptionLineMaxDe = 264;
+
+    /// <summary>Cutscene title-card budget (the title line, and the kicker), English.</summary>
+    public const int TitleCardMaxEn = 60;
+
+    /// <summary>Cutscene title-card budget, German.</summary>
+    public const int TitleCardMaxDe = 72;
+
+    /// <summary>Cutscene reading-frame budget (the recap, the epilogue), English.</summary>
+    public const int ReadingFrameMaxEn = 600;
+
+    /// <summary>Cutscene reading-frame budget, German.</summary>
+    public const int ReadingFrameMaxDe = 720;
+
+    /// <summary>Longest shot in seconds.</summary>
+    public const float ShotMaxSeconds = 120f;
 
     /// <summary>Validates one pack. <paramref name="rawJson"/> (the pack's <c>story.json</c>) enables the reward check on the
     /// raw document (fields the model does not know are invisible otherwise).</summary>
@@ -380,9 +410,20 @@ public static class StoryPackValidator
         }
 
         // ---- Cutscene bindings ----
+        bool OwnCutscene(string id) => def.FindCutscene(id) is not null || (context.CutsceneExists?.Invoke(def.Id, id) ?? false);
+
         void Cutscene(string path, string? id)
         {
-            if (!string.IsNullOrEmpty(id) && context.CutsceneExists is { } exists && !exists(def.Id, id!))
+            if (string.IsNullOrEmpty(id))
+            {
+                return;
+            }
+
+            if (StoryCutsceneIds.IsBuiltIn(id))
+            {
+                Error(path, $"'{id}' is built in — the server plays it, a pack never binds it");
+            }
+            else if (id!.IndexOf(StoryCutsceneIds.InstanceSeparator) >= 0 || !OwnCutscene(id))
             {
                 Error(path, $"cutscene '{id}' is not defined in the pack's cutscenes.json");
             }
@@ -560,6 +601,9 @@ public static class StoryPackValidator
             }
         }
 
+        // ---- Cutscene definitions (cutscenes.json, #2467) ----
+        ValidateCutscenes(def, context, chapterIds, Key, Error, Warn);
+
         // ---- Every key in English and German, within its budget ----
         if (context.English is { } en && context.German is { } de)
         {
@@ -604,6 +648,234 @@ public static class StoryPackValidator
         }
 
         return issues;
+    }
+
+    /// <summary>The cutscene rules (synthesis §6.2/§6.3): unique key-safe ids (no built-in <c>__</c> id), a known tier, at
+    /// least one shot, known camera types, anchors, caption styles and grades, positive shot lengths with captions and cues
+    /// inside them, every caption key in English and German within its style's budget, the tier rules (a T1/T2 never
+    /// takes the camera; only a T3/T4 that takes it may hold the world or freeze the controls), <c>chainNext</c> references
+    /// that resolve, a chapter that exists, and (when the context can tell) existing music and sound cues.</summary>
+    private static void ValidateCutscenes(StoryDefinition def, StoryPackValidationContext context, HashSet<string> chapterIds,
+        Action<string, string?, int, int> key, Action<string, string> error, Action<string, string> warn)
+    {
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        for (int ci = 0; ci < def.Cutscenes.Count; ci++)
+        {
+            var cut = def.Cutscenes[ci];
+            string cp = $"cutscenes[{ci}]";
+            if (string.IsNullOrEmpty(cut.Id) || !IsKeySafeId(cut.Id, allowDot: true) || !ids.Add(cut.Id))
+            {
+                error(cp, $"cutscene id '{cut.Id}' is empty, not key-safe or used twice");
+            }
+            else if (StoryCutsceneIds.IsBuiltIn(cut.Id))
+            {
+                error(cp, $"'{cut.Id}': ids starting with '{StoryCutsceneIds.BuiltInPrefix}' are built in");
+            }
+
+            if (!CutsceneTiers.IsValid(cut.Tier))
+            {
+                error($"{cp}.tier", $"unknown tier {cut.Tier} (1 banner, 2 card, 3 scene, 4 set piece)");
+            }
+
+            if (!string.IsNullOrEmpty(cut.Chapter) && !chapterIds.Contains(cut.Chapter))
+            {
+                error($"{cp}.chapter", $"the pack has no chapter '{cut.Chapter}'");
+            }
+
+            foreach (var (line, i) in (cut.ReplaceLineKeys ?? new List<string>()).Select((l, i) => (l, i)))
+            {
+                key($"{cp}.replaceLineKeys[{i}]", line, 0, 0);
+            }
+
+            if (!string.IsNullOrEmpty(cut.Music) && context.MusicExists is { } musicExists && !musicExists(cut.Music))
+            {
+                error($"{cp}.music", $"music track '{cut.Music}' does not exist in client/Music");
+            }
+
+            var shots = cut.Shots ?? new List<CutsceneShot>();
+            if (shots.Count == 0)
+            {
+                error($"{cp}.shots", "a cutscene needs at least one shot");
+            }
+
+            for (int si = 0; si < shots.Count; si++)
+            {
+                var shot = shots[si];
+                string sp = $"{cp}.shots[{si}]";
+                string camera = shot.Camera?.Type ?? string.Empty;
+                string anchor = shot.Camera?.Anchor ?? string.Empty;
+                if (!CutsceneCameras.All.Contains(camera))
+                {
+                    error($"{sp}.camera.type", $"unknown camera '{camera}' ({string.Join(", ", CutsceneCameras.All)})");
+                }
+                else if (cut.Tier < CutsceneTiers.Scene && CutsceneCameras.TakesCamera(camera))
+                {
+                    error($"{sp}.camera.type", $"a T{cut.Tier} {(cut.Tier == CutsceneTiers.Banner ? "banner" : "card")} never takes the camera (player_view or overlay)");
+                }
+
+                if (anchor.Length > 0 && !CutsceneAnchors.All.Contains(anchor))
+                {
+                    error($"{sp}.camera.anchor", $"unknown anchor '{anchor}' ({string.Join(", ", CutsceneAnchors.All)})");
+                }
+
+                if (!(shot.Duration > 0f) || shot.Duration > ShotMaxSeconds)
+                {
+                    error($"{sp}.duration", $"a shot lasts more than 0 and at most {ShotMaxSeconds:0} seconds (found {shot.Duration})");
+                }
+
+                if (!CutsceneGrades.All.Contains(shot.Grade ?? string.Empty))
+                {
+                    error($"{sp}.grade", $"unknown grade '{shot.Grade}' ({string.Join(", ", CutsceneGrades.All)})");
+                }
+
+                foreach (var (sfx, xi) in (shot.Sfx ?? new List<CutsceneSfx>()).Select((x, i) => (x, i)))
+                {
+                    string xp = $"{sp}.sfx[{xi}]";
+                    if (string.IsNullOrEmpty(sfx.Cue))
+                    {
+                        error(xp, "a sound cue needs a clip name");
+                    }
+                    else if (context.SoundExists is { } soundExists && !soundExists(sfx.Cue))
+                    {
+                        error(xp, $"sound '{sfx.Cue}' does not exist in client/Assets/Resources/audio");
+                    }
+
+                    if (sfx.At < 0f || (shot.Duration > 0f && sfx.At >= shot.Duration))
+                    {
+                        error($"{xp}.at", $"the cue at {sfx.At} s lies outside the {shot.Duration} s shot");
+                    }
+                }
+
+                foreach (var (caption, ki) in (shot.Captions ?? new List<CutsceneCaption>()).Select((c, i) => (c, i)))
+                {
+                    string kp = $"{sp}.captions[{ki}]";
+                    string style = caption.Style ?? string.Empty;
+                    if (!CutsceneCaptionStyles.All.Contains(style))
+                    {
+                        error($"{kp}.style", $"unknown caption style '{style}' ({string.Join(", ", CutsceneCaptionStyles.All)})");
+                    }
+
+                    if (string.IsNullOrEmpty(caption.Key))
+                    {
+                        error(kp, "a caption needs a key");
+                    }
+
+                    var (maxEn, maxDe) = style switch
+                    {
+                        CutsceneCaptionStyles.TitleCard => (TitleCardMaxEn, TitleCardMaxDe),
+                        CutsceneCaptionStyles.ReadingFrame => (ReadingFrameMaxEn, ReadingFrameMaxDe),
+                        CutsceneCaptionStyles.Credits => (0, 0),
+                        _ => (CaptionLineMaxEn, CaptionLineMaxDe),
+                    };
+                    key($"{kp}.key", caption.Key, maxEn, maxDe);
+                    if (!string.IsNullOrEmpty(caption.KickerKey))
+                    {
+                        if (style != CutsceneCaptionStyles.TitleCard)
+                        {
+                            warn($"{kp}.kickerKey", "only a title_card shows a kicker");
+                        }
+
+                        key($"{kp}.kickerKey", caption.KickerKey, TitleCardMaxEn, TitleCardMaxDe);
+                    }
+
+                    if (!string.IsNullOrEmpty(caption.Speaker) && style != CutsceneCaptionStyles.Speaker)
+                    {
+                        warn($"{kp}.speaker", "only a speaker caption names a speaker");
+                    }
+
+                    if (caption.At < 0f || (shot.Duration > 0f && caption.At >= shot.Duration))
+                    {
+                        error($"{kp}.at", $"the caption at {caption.At} s lies outside the {shot.Duration} s shot");
+                    }
+
+                    if (caption.Hold < 0f)
+                    {
+                        error($"{kp}.hold", "hold must not be negative (0 = until the shot ends)");
+                    }
+                }
+            }
+
+            // ---- Options: the tier rules of synthesis §5.3 "Stufen" ----
+            var options = cut.Options ?? new CutsceneOptions();
+            bool takeover = cut.Tier >= CutsceneTiers.Scene && cut.TakesCamera;
+            if (options.HoldWorld == true && !takeover)
+            {
+                error($"{cp}.options.holdWorld", "only a T3/T4 scene that takes the camera may hold the world");
+            }
+
+            if (options.LockInput == true && !takeover)
+            {
+                error($"{cp}.options.lockInput", "only a T3/T4 scene that takes the camera may freeze the controls");
+            }
+
+            if (options.MinDisplay < 0f)
+            {
+                error($"{cp}.options.minDisplay", "minDisplay must not be negative");
+            }
+
+            foreach (var (next, ni) in (options.ChainNext ?? new List<string>()).Select((n, i) => (n, i)))
+            {
+                CheckChainReference(def, context, cut, $"{cp}.options.chainNext[{ni}]", next, error, warn);
+            }
+        }
+    }
+
+    /// <summary>A <c>chainNext</c> entry: <c>__recap</c>, an id of the same pack, or <c>&lt;pack&gt;/&lt;id&gt;</c> — an
+    /// error when it names nothing, a warning when it names a pack that is not installed (packs are optional).</summary>
+    private static void CheckChainReference(StoryDefinition def, StoryPackValidationContext context, CutsceneDefinition from,
+        string path, string? reference, Action<string, string> error, Action<string, string> warn)
+    {
+        if (string.IsNullOrEmpty(reference))
+        {
+            error(path, "an empty chain reference");
+            return;
+        }
+
+        if (reference == StoryCutsceneIds.Recap)
+        {
+            return;
+        }
+
+        int slash = reference!.IndexOf(StoryCutsceneIds.PackSeparator);
+        if (slash < 0)
+        {
+            if (reference == from.Id)
+            {
+                error(path, "a cutscene cannot chain to itself");
+            }
+            else if (def.FindCutscene(reference) is null || reference.IndexOf(StoryCutsceneIds.InstanceSeparator) >= 0)
+            {
+                error(path, $"cutscene '{reference}' is not defined in the pack");
+            }
+
+            return;
+        }
+
+        string pack = reference.Substring(0, slash);
+        string id = reference.Substring(slash + 1);
+        if (string.Equals(pack, def.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            CheckChainReference(def, context, from, path, id, error, warn);
+            return;
+        }
+
+        StoryDefinition? other = context.Packs is { } packs && packs.TryGetValue(pack, out var p) ? p : null;
+        if (other is null && context.Packs is not null)
+        {
+            warn(path, $"pack '{pack}' is not installed — the chain applies only when it is");
+            return;
+        }
+
+        if (id == StoryCutsceneIds.Recap)
+        {
+            return; // that pack's recap card
+        }
+
+        bool exists = (other?.FindCutscene(id) is not null) || (context.CutsceneExists?.Invoke(pack, id) ?? false);
+        if (!exists && (other is not null || context.CutsceneExists is not null))
+        {
+            error(path, $"pack '{pack}' has no cutscene '{id}'");
+        }
     }
 
     /// <summary>The characters a line shows: a <c>{key:…}</c> token as <see cref="TokenWidth"/>, a <c>{0}</c> slot as

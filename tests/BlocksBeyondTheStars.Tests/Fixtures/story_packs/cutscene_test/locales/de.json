@@ -1,0 +1,16 @@
+{
+  "story.cutscene_test.name": "Cutscene-Testgeschichte",
+  "story.cutscene_test.short": "Szenen",
+  "story.cutscene_test.ch.one": "Erstes Kapitel",
+  "story.cutscene_test.ch.two": "Zweites Kapitel",
+  "story.cutscene_test.one1.start": "Baue einen Block ab.",
+  "story.cutscene_test.one1.chip": "Baue einen Block ab",
+  "story.cutscene_test.one1.done": "Das war dein erster Block!",
+  "story.cutscene_test.two1.start": "Stelle irgendetwas her.",
+  "story.cutscene_test.two1.chip": "Stelle etwas her",
+  "story.cutscene_test.welcome": "Willkommen zum Test",
+  "story.cutscene_test.strip": "Kapitel: {0}",
+  "story.cutscene_test.done": "Kapitel geschafft: {0}",
+  "story.cutscene_test.big": "Ein großer Moment, rund um dein Schiff inszeniert.",
+  "story.cutscene_test.now": "Genau jetzt!"
+}

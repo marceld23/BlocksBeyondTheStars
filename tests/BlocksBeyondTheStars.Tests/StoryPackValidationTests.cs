@@ -20,7 +20,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// tutorial that is not player-scoped, a player pack with beats (it could never be the world story), conditions that do
 /// not parse or name nothing, <c>ui:</c> outside a player pack's step objectives, mission bridges to missing missions,
 /// legacy keys outside the tutorial, alternatives from another chapter, unknown marker providers, tutorial rewards,
-/// missing English/German keys, an over-long short name and the text budget, cutscene bindings (once cutscenes exist).
+/// missing English/German keys, an over-long short name and the text budget, cutscene bindings that must resolve (#2467;
+/// the cutscene definitions' own rules are in <see cref="CutsceneContentTests"/>).
 /// </summary>
 public sealed class StoryPackValidationTests
 {
@@ -53,19 +54,27 @@ public sealed class StoryPackValidationTests
         return table;
     }
 
-    private static StoryPackValidationContext Context(IReadOnlyDictionary<string, StoryDefinition>? packs = null, params string[] extraPackDirs)
+    internal static StoryPackValidationContext Context(IReadOnlyDictionary<string, StoryDefinition>? packs = null, params string[] extraPackDirs)
     {
         var content = Shipped.Value;
         var en = Table("en", extraPackDirs);
         var de = Table("de", extraPackDirs);
+        var installed = packs ?? content.Stories;
+        string music = Path.Combine(TestPaths.RepoRoot(), "client", "Music");
+        string audio = Path.Combine(TestPaths.RepoRoot(), "client", "Assets", "Resources", "audio");
         return new StoryPackValidationContext
         {
-            Packs = packs ?? content.Stories,
+            Packs = installed,
             MissionExists = id => content.Missions.ContainsKey(id),
             BlueprintExists = key => content.GetBlueprint(key) is not null,
             BlockExists = key => content.GetBlock(key) is not null,
             English = k => en.TryGetValue(k, out var v) ? v : null,
             German = k => de.TryGetValue(k, out var v) ? v : null,
+            // #2467: the installed packs' cutscenes (a pack validated from its story.json alone finds its own here), and
+            // the client's streamed music and sound clips.
+            CutsceneExists = (pack, id) => installed.TryGetValue(pack, out var def) && def.FindCutscene(id) is not null,
+            MusicExists = track => File.Exists(Path.Combine(music, track + ".mp3")),
+            SoundExists = cue => Directory.GetFiles(audio, cue + ".*").Any(f => !f.EndsWith(".meta", StringComparison.OrdinalIgnoreCase)),
         };
     }
 
@@ -80,6 +89,7 @@ public sealed class StoryPackValidationTests
     {
         string raw = File.ReadAllText(Path.Combine(StoriesDir, folder, "story.json"));
         var def = JsonSerializer.Deserialize<StoryDefinition>(raw, ContentLoader.JsonOptions)!;
+        def.Cutscenes.AddRange(ContentLoader.LoadPackCutscenes(Path.Combine(StoriesDir, folder))); // #2467: as the loader does
         var issues = StoryPackValidator.Validate(def, Context(), raw);
         Assert.True(Errors(issues).Count == 0, string.Join("\n", Errors(issues)));
     }
@@ -89,11 +99,20 @@ public sealed class StoryPackValidationTests
     public void EveryDataPack_UsesOnlyKnownFields(string folder)
     {
         // A misspelt field ("requries") would silently fall back to its default — the strict read names it.
-        var strict = new JsonSerializerOptions(ContentLoader.JsonOptions) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
         string raw = File.ReadAllText(Path.Combine(StoriesDir, folder, "story.json"));
-        var ex = Record.Exception(() => JsonSerializer.Deserialize<StoryDefinition>(raw, strict));
+        var ex = Record.Exception(() => JsonSerializer.Deserialize<StoryDefinition>(raw, Strict));
         Assert.Null(ex);
+
+        // #2467: the same for the pack's cutscenes.json.
+        string cutscenes = Path.Combine(StoriesDir, folder, "cutscenes.json");
+        if (File.Exists(cutscenes))
+        {
+            Assert.Null(Record.Exception(() => JsonSerializer.Deserialize<StoryCutsceneFile>(File.ReadAllText(cutscenes), Strict)));
+        }
     }
+
+    /// <summary>The content loader's options, refusing unknown fields.</summary>
+    internal static readonly JsonSerializerOptions Strict = new(ContentLoader.JsonOptions) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
 
     [Fact]
     public void PackIds_AreUnique_AcrossTheDataFolders()
@@ -105,15 +124,22 @@ public sealed class StoryPackValidationTests
     [Theory]
     [InlineData(StoryPackFixtures.Runtime)]
     [InlineData(StoryPackFixtures.Tutorial)]
+    [InlineData(StoryPackFixtures.Cutscenes)]
     public void TheTestPacks_PassTheValidator_AndUseOnlyKnownFields(string id)
     {
         string raw = StoryPackFixtures.RawJson(id);
-        var strict = new JsonSerializerOptions(ContentLoader.JsonOptions) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
-        var def = JsonSerializer.Deserialize<StoryDefinition>(raw, strict)!;
+        var def = JsonSerializer.Deserialize<StoryDefinition>(raw, Strict)!;
+        string cutscenes = Path.Combine(StoryPackFixtures.Dir(id), "cutscenes.json");
+        if (File.Exists(cutscenes))
+        {
+            def.Cutscenes.AddRange(JsonSerializer.Deserialize<StoryCutsceneFile>(File.ReadAllText(cutscenes), Strict)!.Cutscenes);
+        }
+
         var packs = new Dictionary<string, StoryDefinition>(Shipped.Value.Stories, StringComparer.OrdinalIgnoreCase)
         {
             [StoryPackFixtures.Runtime] = StoryPackFixtures.Load(StoryPackFixtures.Runtime),
             [StoryPackFixtures.Tutorial] = StoryPackFixtures.Load(StoryPackFixtures.Tutorial),
+            [StoryPackFixtures.Cutscenes] = StoryPackFixtures.Load(StoryPackFixtures.Cutscenes),
         };
         var issues = StoryPackValidator.Validate(def, Context(packs, StoryPackFixtures.Dir(id)), raw);
         Assert.True(issues.Count == 0, string.Join("\n", issues));
@@ -323,17 +349,33 @@ public sealed class StoryPackValidationTests
     }
 
     [Fact]
-    public void CutsceneBindings_AreCheckedOnceCutscenesExist()
+    public void CutsceneBindings_MustResolve()
     {
+        // #2467: the binding check is on — a binding names a cutscene of the pack (its own cutscenes.json, or what the
+        // context knows of it when the pack is validated from story.json alone).
         var def = Side(d => { d.IntroCutscene = "welcome"; d.Chapters[0].OpenCutscene = "open"; });
-        Assert.Empty(Errors(StoryPackValidator.Validate(def, Context()))); // no cutscene model yet: skipped
+        var errors = Errors(StoryPackValidator.Validate(def, Context()));
+        Assert.Equal(2, errors.Count(e => e.Message.Contains("is not defined in the pack's cutscenes.json", StringComparison.Ordinal)));
 
-        var context = Context();
-        context.CutsceneExists = (_, id) => id == "welcome";
-        var errors = Errors(StoryPackValidator.Validate(def, context));
+        def.Cutscenes.Add(new CutsceneDefinition
+        {
+            Id = "welcome",
+            Shots = { new CutsceneShot { Duration = 4 } },
+        });
+        errors = Errors(StoryPackValidator.Validate(def, Context()));
         Assert.Single(errors);
         Assert.Contains("'open'", errors[0].Message, StringComparison.Ordinal);
+
+        var context = Context();
+        context.CutsceneExists = (_, id) => id == "open";
+        Assert.Empty(Errors(StoryPackValidator.Validate(def, context)));
     }
+
+    [Theory]
+    [InlineData("__recap", "built in")]
+    [InlineData("strip@b3", "is not defined")]
+    public void ABindingToTheRecapOrToAnInstance_IsAnError(string binding, string fragment)
+        => AssertError(Side(d => Step(d).OnComplete.Cutscene = binding), fragment);
 
     [Fact]
     public void ShownLength_CountsATokenAsThree_AndASlotAsTen()

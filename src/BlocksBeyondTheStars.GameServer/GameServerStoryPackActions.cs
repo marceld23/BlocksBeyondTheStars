@@ -26,6 +26,12 @@ public sealed partial class GameServer
     private void HandleStoryPackIntent(PlayerSession s, StoryPackIntent intent)
     {
         string action = intent.Action ?? string.Empty;
+        if (action == StoryPackActions.ReplayCutscene)
+        {
+            ReplayCutsceneOnRequest(s, intent.PackId, intent.CutsceneId); // #2467: any pack, the world story included
+            return;
+        }
+
         if (action == StoryPackActions.Untrack)
         {
             s.State.TrackedStoryId = string.Empty;
@@ -148,7 +154,7 @@ public sealed partial class GameServer
     /// <summary>"I know the game": every mandatory chapter is skipped (deep-dive offers stay on). Grants nothing.</summary>
     private void SkipPack(PlayerSession s, CompiledPack pack)
     {
-        StartPack(s, pack);
+        StartPack(s, pack, playIntro: false);
         foreach (var ch in pack.Chapters)
         {
             if (!ch.Optional && !ChapterFinished(s, ch))

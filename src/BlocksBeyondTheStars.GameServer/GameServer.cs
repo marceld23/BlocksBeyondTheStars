@@ -3855,8 +3855,12 @@ public sealed partial class GameServer
         // #2466 (synthesis §5.7): the pack controls that change only the player's own chip and pack switch — "skipPack" is
         // the first tutorial card's "I know the game", shown during a singleplayer hold. Starting, skipping or replaying a
         // chapter moves progress and comes from the Journal, which holds nothing, so those stay out.
+        // #2467: watching a scene again from the Story tab changes nothing either.
         StoryPackIntent sp => sp.Action is StoryPackActions.Track or StoryPackActions.Untrack or StoryPackActions.OptOut
-            or StoryPackActions.OptIn or StoryPackActions.SkipPack,
+            or StoryPackActions.OptIn or StoryPackActions.SkipPack or StoryPackActions.ReplayCutscene,
+        // #2467 (synthesis §5.7): the cutscene director confirms a scene while its own singleplayer hold is still on — the
+        // receipt only stamps the player's own seen ledger.
+        CutsceneSeenIntent => true,
         _ => false,
     };
 
@@ -4032,6 +4036,7 @@ public sealed partial class GameServer
             case CreativeTakeItemIntent take: HandleCreativeTakeItem(session, take); break; // the Sandbox catalog (#1930)
             case StorySelectIntent storySelect: HandleStorySelect(session, storySelect); break;
             case StoryPackIntent storyPack: HandleStoryPackIntent(session, storyPack); break; // #2466: the player's own pack controls
+            case CutsceneSeenIntent cutsceneSeen: HandleCutsceneSeen(session, cutsceneSeen); break; // #2467: the seen ledger
             case NetFragmentFoundIntent netFrag: HandleNetFragmentFound(session, netFrag); break;
             case CoreHackIntent coreHack: HandleCoreHack(session, coreHack); break;
             case CoreDialogueChoiceIntent coreChoice: HandleCoreDialogueChoice(session, coreChoice); break;
@@ -4257,6 +4262,7 @@ public sealed partial class GameServer
             IsFleetAdmin = fleetAdmin,
             HeartbeatTracked = true, // joined over the wire → silence is meaningful (#964)
             InJoinPlacement = true, // #2465: the join's own placement raises no game events (cleared at the end)
+            CutsceneJoinAt = _uptime, // #2467: cutscenes wait until the client is in the world
         };
         session.LastPayloadAt = _uptime; // start the heartbeat clock now (#964) — a client that freezes
                                          // right after joining must age out like any other silent session
@@ -4350,6 +4356,7 @@ public sealed partial class GameServer
         OnMarkerOwnerJoined(session); // the loaded state is the truth for this player's shared markers (#1293)
         SendMarkers(session);      // own + shared map markers on the join world (#1217)
         SendNotes(session);        // the player's own notes (#1844)
+        CutscenesOnJoin(session); // #2467: scenes committed in an earlier session but never confirmed — before new ones queue
         SendStoryStateOnJoin(session); // story meter + per-player beat catch-up (P0)
         SendRelayNetwork(session); // SPS relay meters + jump lanes (#1125)
         ArmNpcRadioOnJoin(session); // NPC calls (#1119): quiet period first; the join scan then catches up

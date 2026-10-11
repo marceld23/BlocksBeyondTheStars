@@ -598,8 +598,13 @@ public static class NetCodec
         Register(293, typeof(MoveContainerItemIntent));      // Client -> Server
         Register(294, typeof(ContainerContents));            // Server -> Client
 
+        // #2467 cutscenes: the server plays a pack's cutscene for one player, the client confirms what it showed. No
+        // protocol bump — an older client drops the play (it still gets the narrator line), an older server the receipt.
+        Register(295, typeof(CutscenePlay));                 // Server -> Client
+        Register(296, typeof(CutsceneSeenIntent));           // Client -> Server
+
         // #2466 story packs: the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a
-        // step). 295/296 are reserved for the cutscene messages of step 8. No protocol bump — an older server drops it.
+        // step; #2467 replay a cutscene). No protocol bump — an older server drops it.
         Register(297, typeof(StoryPackIntent));              // Client -> Server
     }
 

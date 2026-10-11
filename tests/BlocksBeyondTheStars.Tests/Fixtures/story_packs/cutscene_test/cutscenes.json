@@ -1,0 +1,97 @@
+{
+  // Test fixture of the cutscene ledger (#2467) — see story.json. One scene per kind: a chained card, a template card and
+  // a template banner, a step card, a T3 scene with grades, sounds and music, a "now or never" card and an unreplayable
+  // scene on the custom (wire) anchor.
+  "cutscenes": [
+    {
+      "id": "welcome",
+      "tier": 2,
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 5,
+          "captions": [ { "style": "title_card", "kickerKey": "story.cutscene_test.short", "key": "story.cutscene_test.welcome" } ]
+        }
+      ],
+      "options": { "chainNext": [ "strip" ] }
+    },
+    {
+      "id": "strip",
+      "tier": 2,
+      "template": true,
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 4,
+          "captions": [ { "style": "title_card", "key": "story.cutscene_test.strip" } ]
+        }
+      ]
+    },
+    {
+      "id": "done",
+      "tier": 1,
+      "template": true,
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 3,
+          "captions": [ { "style": "title_card", "key": "story.cutscene_test.done" } ]
+        }
+      ]
+    },
+    {
+      "id": "first_mine",
+      "tier": 2,
+      "chapter": "one",
+      "replaceLineKeys": [ "story.cutscene_test.one1.done" ],
+      "shots": [
+        {
+          "camera": { "type": "overlay" },
+          "duration": 6,
+          "captions": [ { "style": "speaker", "key": "story.cutscene_test.one1.done", "at": 0.3 } ]
+        }
+      ],
+      "options": { "chainNext": [ "strip" ] }
+    },
+    {
+      "id": "big_moment",
+      "tier": 3,
+      "chapter": "two",
+      "music": "music_mystery_signal",
+      "shots": [
+        {
+          "camera": { "type": "orbit", "anchor": "ship" },
+          "duration": 8,
+          "grade": "memory",
+          "captions": [ { "style": "speaker", "speaker": "vega", "key": "story.cutscene_test.big", "at": 0.5, "hold": 6 } ],
+          "sfx": [ { "cue": "ai_blip", "at": 0.2 } ]
+        },
+        {
+          "camera": { "type": "static", "anchor": "heal_tank" },
+          "duration": 6,
+          "grade": "flashback",
+          "captions": [ { "style": "reading_frame", "key": "story.cutscene_test.big" } ]
+        }
+      ],
+      "options": { "holdWorld": true, "minDisplay": 1.5 }
+    },
+    {
+      "id": "now",
+      "tier": 2,
+      "shots": [
+        {
+          "camera": { "type": "overlay" },
+          "duration": 5,
+          "captions": [ { "style": "title_card", "key": "story.cutscene_test.now" } ]
+        }
+      ],
+      "options": { "cooldownExempt": true }
+    },
+    {
+      "id": "anchored",
+      "tier": 3,
+      "shots": [ { "camera": { "type": "crane", "anchor": "custom" }, "duration": 5 } ],
+      "options": { "replayable": false, "skippable": false }
+    }
+  ]
+}

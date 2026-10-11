@@ -309,10 +309,11 @@ tokens as device-neutral bracket words `ui.vega.act.<Action>` = "[Use]"/"[Benutz
 to; `LegacyLineTextTests` holds every `vega.*`/`story.*` line brace-free when composed that way and every token action to
 a bracket word in EN and DE. A local player (`AddLocalPlayer`) counts as `packs1`.
 
-**Wire** (additive, no protocol bump): tag **297 `StoryPackIntent`** `{PackId, Action, ChapterId, StepId}` with
+**Wire** (additive, no protocol bump): tag **297 `StoryPackIntent`** `{PackId, Action, ChapterId, StepId, CutsceneId}` with
 `StoryPackActions` `track | untrack | optOut | optIn | startPack | skipPack | startChapter | declineChapter | skipChapter |
-restartChapter | skipStep` (295/296 are reserved for the cutscene messages of step 8); while a singleplayer world is held
-only `track`, `untrack`, `optOut`, `optIn` and `skipPack` get through (`PausedMayHandle`, dispatch tests). Fields:
+restartChapter | skipStep | replayCutscene` (#2467: `replayCutscene` + `CutsceneId` = watch a scene again); while a
+singleplayer world is held only `track`, `untrack`, `optOut`, `optIn`, `skipPack` and `replayCutscene` get through
+(`PausedMayHandle`, dispatch tests). Tags 295/296 are the cutscene messages — see [CUTSCENES.md](CUTSCENES.md). Fields:
 `JoinRequest.Features` (`ClientFeatures.Packs1` / `Cutscenes1`; `NetworkClient.Features` announces `packs1`),
 `ShipAiLine.PackId` / `Speaker` (the line's pack and narrator) / `ObjectivePackId`, `SetWorldRulesIntent.TutorialPolicy`,
 `ServerRules.TutorialPolicy`. Persistence (additive, no save bump): `PlayerSnapshot.StepProgress` (null while empty) and
@@ -347,7 +348,9 @@ unknown fields). The checks are listed in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#va
 | 149 | `CoreHackProgress` | S→C | hack channel progress + complete |
 | 220 | `StoryResolved` | S→C | play the resolution cinematic (win, join catch-up, replay) (#1124); additive `EpilogueTitleKey` since #2461 |
 | 221 | `RequestStoryResolutionIntent` | C→S | Story tab "watch the ending again" (#1124) |
-| 297 | `StoryPackIntent` | C→S | the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a step) (#2466) |
+| 295 | `CutscenePlay` | S→C | play a pack's cutscene (`PackId`, `CutsceneId`, `Arg`, `HasAnchor` + `AnchorX/Y/Z`, `Replay`); only to `cutscenes1` clients (#2467, [CUTSCENES.md](CUTSCENES.md)) |
+| 296 | `CutsceneSeenIntent` | C→S | the client is through with these scenes (`PackId`, `Ids[]`, `Skipped`, `Unsupported`) → the seen ledger; passes a held world (#2467) |
+| 297 | `StoryPackIntent` | C→S | the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a step) (#2466); `replayCutscene` + `CutsceneId` (#2467) |
 
 Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
 

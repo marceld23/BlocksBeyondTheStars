@@ -618,8 +618,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>Starts a pack for a player: the started key, and for a tutorial the legacy intro key (older builds read it
-    /// as "the intro was shown") — with the old intro lines for an older client that has not heard them.</summary>
-    private void StartPack(PlayerSession s, CompiledPack pack)
+    /// as "the intro was shown") — with the old intro lines for an older client that has not heard them. The pack's
+    /// <c>introCutscene</c> plays unless <paramref name="playIntro"/> is off ("I know the game") or the pack would complete
+    /// silently for this player (#2467: a veteran never gets the welcome card).</summary>
+    private void StartPack(PlayerSession s, CompiledPack pack, bool playIntro = true)
     {
         var m = MilestonesOf(s);
         if (!m.Add(StoryPackKeys.Started(pack.Id)))
@@ -635,9 +637,26 @@ public sealed partial class GameServer
             }
         }
 
-        // The pack's introCutscene is played from step 8 on (cutscene bindings).
         _repo.SavePlayer(s.State);
+        if (playIntro && !string.IsNullOrEmpty(pack.Def.IntroCutscene) && !PackWouldCompleteSilently(s, pack))
+        {
+            PlayBoundCutscene(s, pack.Def, pack.Def.IntroCutscene, pack.Id);
+        }
     }
+
+    /// <summary>Whether starting the pack would present nothing to this player (#2467): it has mandatory chapters and each
+    /// of them is through, completes by its <c>autoCompleteIf</c> evidence, or has every step (but react steps and
+    /// stand-ins) done or covered by <c>alreadyDoneIf</c> evidence — a veteran, typically after the migration.</summary>
+    private bool PackWouldCompleteSilently(PlayerSession s, CompiledPack pack)
+        => pack.Chapters.Any(c => !c.Optional)
+           && pack.Chapters.Where(c => !c.Optional).All(c =>
+               ChapterFinished(s, c)
+               || (c.AutoCompleteIf is not null && EvaluateStoryCondition(c.AutoCompleteIf, s))
+               || c.Steps.Where(st => !st.IsReact && !st.IsAlternative).All(st =>
+                   StepComplete(s, st) || (st.AlreadyDoneIf is not null && EvaluateStoryCondition(st.AlreadyDoneIf, s))));
+
+    /// <summary>The key of a chapter in <see cref="PlayerSession.PresentedPackChapters"/>.</summary>
+    private static string PresentedChapterKey(CompiledChapter ch) => ch.Pack.Id + ":" + ch.Id;
 
     /// <summary>One pass over a running chapter's steps in order. Returns true when something completed (the caller walks
     /// again: a completion can open the next chapter).</summary>
@@ -766,8 +785,20 @@ public sealed partial class GameServer
             return true;
         }
 
+        // #2467: the chapter's opener when its first step is presented (not in a replay), then the step's own scene — both
+        // before the start line, so a client that plays them knows which lines they show.
+        bool replay = ChapterReplaying(s, step.Chapter);
+        if (s.PresentedPackChapters.Add(PresentedChapterKey(step.Chapter)) && !replay)
+        {
+            PlayBoundCutscene(s, step.Pack.Def, step.Chapter.Def.OpenCutscene, step.Chapter.Id);
+        }
+
+        if (!replay)
+        {
+            PlayBoundCutscene(s, step.Pack.Def, step.Def.OnStart?.Cutscene, step.Id);
+        }
+
         SpeakStepStart(s, step);
-        // The step's onStart cutscene is played from step 8 on.
         _repo.SavePlayer(s.State);
         return false;
     }
@@ -810,6 +841,12 @@ public sealed partial class GameServer
 
         if (!silent)
         {
+            s.PresentedPackChapters.Add(PresentedChapterKey(step.Chapter)); // the player did it: the chapter was shown
+            if (!replay)
+            {
+                PlayBoundCutscene(s, step.Pack.Def, step.Def.OnComplete?.Cutscene, step.Id); // #2467: before the lines
+            }
+
             if (step.IsReact)
             {
                 SpeakStepStart(s, step); // a react step's explanation is shown when its situation happens
@@ -819,7 +856,6 @@ public sealed partial class GameServer
                 legacyKey: step.LegacyStageId is { } stage ? StoryLegacy.DoneLineOf(stage) : null);
         }
 
-        // The step's onComplete cutscene is played from step 8 on.
         _repo.SavePlayer(s.State);
     }
 
@@ -849,7 +885,8 @@ public sealed partial class GameServer
     {
         var m = MilestonesOf(s);
         string pack = ch.Pack.Id;
-        if (ChapterReplaying(s, ch))
+        bool replay = ChapterReplaying(s, ch);
+        if (replay)
         {
             m.Remove(StoryPackKeys.ChapterReplay(pack, ch.Id));
             foreach (var step in ch.Steps)
@@ -877,8 +914,13 @@ public sealed partial class GameServer
         }
 
         _stepListenersDirty = true;
-        // The chapter's closeCutscene is played from step 8 on.
         _repo.SavePlayer(s.State);
+
+        // #2467: the closer only for a chapter the player was shown — not when skipped, replayed or completed silently.
+        if (!skipped && !replay && s.PresentedPackChapters.Contains(PresentedChapterKey(ch)))
+        {
+            PlayBoundCutscene(s, ch.Pack.Def, ch.Def.CloseCutscene, ch.Id);
+        }
     }
 
     /// <summary>Stamps the pack done once every non-optional chapter is through. A tutorial writes all nine legacy stage
@@ -1413,6 +1455,14 @@ public sealed partial class GameServer
         }
 
         var before = new HashSet<string>(s.State.StepProgress.Keys, StringComparer.Ordinal);
+        foreach (string key in before)
+        {
+            if (_stepByProgressKey.TryGetValue(key, out var running))
+            {
+                s.PresentedPackChapters.Add(PresentedChapterKey(running.Chapter)); // #2467: a chapter under way was shown
+            }
+        }
+
         _stepListenersDirty = true;
         AdvancePlayer(s);
         foreach (var pack in PlayerPacks)

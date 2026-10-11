@@ -119,10 +119,12 @@ public sealed class StoryChapter
     /// <summary>Whether the chapter starts by itself; unset = true for non-optional chapters, false for optional ones.</summary>
     public bool? AutoStart { get; set; }
 
-    /// <summary>Cutscene played when the chapter starts (step 8 plays bindings).</summary>
+    /// <summary>Cutscene played when the chapter starts presenting to a player (its first step activates; not during a
+    /// replay, not for a chapter that completes silently) — #2467.</summary>
     public string OpenCutscene { get; set; } = string.Empty;
 
-    /// <summary>Cutscene played when the chapter is done.</summary>
+    /// <summary>Cutscene played when a chapter the player was shown is done (not when skipped, replayed or completed
+    /// silently by evidence) — #2467.</summary>
     public string CloseCutscene { get; set; } = string.Empty;
 
     /// <summary>World packs: the beat index that reaches this chapter (-1 = none).</summary>
@@ -207,7 +209,8 @@ public sealed class StoryStepVariant
     public string DoneKey { get; set; } = string.Empty;
 }
 
-/// <summary>What happens around a step: a cutscene binding (played from step 8 on) and, on <c>onStart</c>, the marker
+/// <summary>What happens around a step: a cutscene binding (#2467: played before the step's start line, on
+/// <c>onComplete</c> before its done line; never for a silent completion) and, on <c>onStart</c>, the marker
 /// provider of a "where" step (<see cref="StoryRevealProviders"/>) the help escalation pings for this player only.</summary>
 public sealed class StoryStepHook
 {

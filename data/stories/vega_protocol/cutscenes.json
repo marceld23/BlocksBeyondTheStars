@@ -1,0 +1,38 @@
+{
+  // VEGA's cutscenes (#2467; format: docs/developer/CUTSCENES.md, design: synthesis §6.3/§6.5). This first version holds
+  // only the prologue, mirroring today's three prologue pages (title, the orbit around the parked ship, the push-in, the
+  // pilot's seat). Nothing binds it yet: VEGA's start plays it from step 11 on (introCutscene), and the chapter openers,
+  // beat cards and finale set pieces follow with their steps. Ids follow synthesis §5.3 (StoryCutsceneIds.Vega).
+  "cutscenes": [
+    {
+      "id": "prologue",
+      "tier": 3,
+      "replaceLineKeys": [ "vega.prologue.1", "vega.prologue.2", "vega.prologue.3" ],
+      "music": "music_mystery_signal",
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 3,
+          "captions": [ { "style": "title_card", "kickerKey": "ui.story.prologue", "key": "story.vega_protocol.name", "at": 0.6 } ]
+        },
+        {
+          "camera": { "type": "orbit", "anchor": "ship" },
+          "duration": 12,
+          "captions": [ { "style": "subtitle", "key": "vega.prologue.1" } ]
+        },
+        {
+          "camera": { "type": "static", "anchor": "ship" },
+          "duration": 12,
+          "captions": [ { "style": "subtitle", "key": "vega.prologue.2" } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 9,
+          "captions": [ { "style": "subtitle", "key": "vega.prologue.3" } ],
+          "sfx": [ { "cue": "ai_blip", "at": 0 } ]
+        }
+      ],
+      "options": { "holdWorld": true, "lockInput": true, "skippable": true }
+    }
+  ]
+}

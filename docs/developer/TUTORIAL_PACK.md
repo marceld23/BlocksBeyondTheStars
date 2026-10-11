@@ -16,7 +16,7 @@ data/stories/<id>/
   story.json          the manifest (below)
   locales/en.json     every key the pack uses, English  — mandatory
   locales/de.json     the same keys, German             — mandatory (community languages optional)
-  cutscenes.json      optional cutscene definitions (step 8)
+  cutscenes.json      optional cutscene definitions (format: CUTSCENES.md)
 ```
 
 Locale keys use the pack's namespace `story.<id>.*` (the tutorial: `story.tutorial.*`). Key names in text only as
@@ -38,7 +38,7 @@ Every field is optional and defaults to today's behaviour.
 | `descriptionKey` | key | — | one line for world creation / the Journal |
 | `narrator` | `{ id, nameKey, icon, color, voice[], lineStart }` | `{ id: "vega" }` | who speaks (`ShipAiLine.Speaker`); an unknown id uses VEGA's style |
 | `defaultEnabled` | bool | `true` | non-tutorial player packs: runs for everyone unless the player opts out |
-| `introCutscene` | cutscene id | — | played at the player's first join while the pack is enabled (step 8) |
+| `introCutscene` | cutscene id | — | played when the pack starts for the player — not on "I know the game", not for a veteran the pack completes for silently ([CUTSCENES.md](CUTSCENES.md#bindings--where-a-pack-plays-a-scene)) |
 | `gates` | `{ opportunityTips, banter, stationNear }` → condition | — | tutorial only: when the global advisor systems open (step 10 rewires them) |
 | `escalate` | `{ hintAfter, markerAfter, offerSkipAfter }` seconds | 180 / 360 / 600 | the help escalation defaults; `0` switches a stage off |
 | `start` | `{ after: condition[], earlyOptIn }` | at the first join | when the pack starts for a player; `earlyOptIn` allows `startPack` before `after` holds |
@@ -56,7 +56,7 @@ Every field is optional and defaults to today's behaviour.
 | `offerWhen` | condition[] — offers an optional chapter once (never during the mandatory chapters) |
 | `autoCompleteIf` | condition[] — veteran evidence: completes the chapter silently (ignored while it is replayed) |
 | `autoStart` | default `true` for non-optional, `false` for optional chapters |
-| `openCutscene`, `closeCutscene` | cutscene bindings (step 8) |
+| `openCutscene`, `closeCutscene` | cutscene bindings: the opener when the chapter's first step is presented, the closer when a chapter the player was shown is done (not skipped, replayed or completed silently); a `template` scene gets one instance per chapter with the chapter's title as its argument ([CUTSCENES.md](CUTSCENES.md)) |
 | `skippable` | default `true` |
 | `steps` | Step[] in order |
 | `fromBeat`, `fromEvent`, `leads` | world packs only (VEGA chapters, steps 11 and 16) |
@@ -76,8 +76,8 @@ Every field is optional and defaults to today's behaviour.
 | `alreadyDoneIf` | condition[] — completes the step silently at activation (not during a replay) |
 | `variants` | `[{ when, startKey, chipKey, hintKey, doneKey }]` — whole-line texts per world rule; first match wins; empty fields fall back |
 | `explain` | `{ startKey, chipKey, hintKey, doneKey, moreGuide }` — start line, chip text, escalation hint, completion line, Codex article |
-| `onStart` | `{ cutscene, reveal }` — `reveal` makes it a "where" step: `nearest_ore:<block>` or `nearest_settlement` for the help marker |
-| `onComplete` | `{ cutscene }` |
+| `onStart` | `{ cutscene, reveal }` — the scene plays before the start line (not in a replay); `reveal` makes it a "where" step: `nearest_ore:<block>` or `nearest_settlement` for the help marker |
+| `onComplete` | `{ cutscene }` — plays before the done line when the step completes non-silently (it owned the chip, or a react step) |
 | `escalate` | per-step override of the pack's escalation |
 | `skippable` | default `true` |
 
@@ -107,6 +107,7 @@ a condition.
 | `story:<pack>:step:<s>` / `…:skipped` | step done / skipped |
 | `story:<pack>:replay:<s>` | step done again during its chapter's replay (removed when the replay ends) |
 | `story:<pack>:migrated:v1` | the one-time migration ran |
+| `story:<pack>:cut:<id>:sent` / `story:<pack>:cut:<id>` | a cutscene committed to the player / confirmed by the client (the seen ledger, [CUTSCENES.md](CUTSCENES.md#the-seen-ledger-server-gameservercutscenescs)) |
 | `PlayerState.StepProgress["<pack>:<s>"]` | running counter of an active step (only active steps) |
 | `PlayerState.TrackedStoryId` | the pinned story ("" = automatic chip order) |
 
@@ -130,7 +131,8 @@ player, a player pack has no beats, a world pack has beats); every condition par
 steps and blueprints; mission-bridge targets exist in `data/missions.json`; event keys are published (a warning — a pack
 may be written before its event ships); `ui:` only in a player pack's step objectives; marker providers and their
 blocks; legacy keys (tutorial only, one of the nine stages, once each); alternatives within the chapter; **no rewards in a
-tutorial**; every key in English **and** German; cutscene bindings resolve once a `cutscenes.json` exists (step 8); the
+tutorial**; every key in English **and** German; every cutscene binding resolves in the pack's `cutscenes.json` and the
+cutscenes follow their own rules ([CUTSCENES.md](CUTSCENES.md#validation)); the
 short name ≤ 10 characters; the text budget — basic-training lines (a tutorial's non-optional chapters) ≤ 120 EN /
 145 DE, other step lines ≤ 200 / 240, chip ≤ 45 / 53 (a `{key:…}` token counts 3, a `{0}` slot 10). The C# test also
 reads every pack strictly, so a misspelt field fails; the Python tool reports it as a warning. Neither tool ever changes a

@@ -313,6 +313,30 @@ public sealed class PlayerSession
     /// <summary>#2466: the join hook of the story packs ran for this session (re-speaks the active step once).</summary>
     public bool StoryPacksJoined { get; set; }
 
+    /// <summary>#2467: the client plays data-driven cutscenes (<c>cutscenes1</c>); without it a scene counts as seen at
+    /// once and the narrator line alone carries it.</summary>
+    public bool SupportsCutscenes => ClientFeatures.Contains(Networking.Messages.ClientFeatures.Cutscenes1);
+
+    /// <summary>#2467: server uptime of the network join — no cutscene goes out until the client is in the world (its first
+    /// position report, or <c>GameServer.CutsceneJoinSettleSeconds</c> later). Negative infinity = not a network join.</summary>
+    public double CutsceneJoinAt { get; set; } = double.NegativeInfinity;
+
+    /// <summary>#2467: cutscenes committed to this player but not sent yet (waiting for the client to be in the world or for
+    /// the 90 s cooldown). RAM only — the <c>:sent</c> ledger key re-offers them at the next join.</summary>
+    public List<PendingCutscene> CutsceneQueue { get; } = new();
+
+    /// <summary>#2467: server uptime of the last unrequested T2+ cutscene sent (the cooldown clock).</summary>
+    public double CutsceneLastSentAt { get; set; } = double.NegativeInfinity;
+
+    /// <summary>#2467: the scenes (<c>&lt;pack&gt;/&lt;id&gt;</c>) that may follow the last sent one at once — its
+    /// <c>chainNext</c>.</summary>
+    public HashSet<string> CutsceneChain { get; } = new(System.StringComparer.Ordinal);
+
+    /// <summary>#2467: the pack chapters (<c>&lt;pack&gt;:&lt;chapter&gt;</c>) this session presented — a step of them
+    /// activated with its line, or one was running at the join. A chapter's close cutscene plays only for these, so a
+    /// chapter completed silently by evidence (a veteran) gets none. RAM only.</summary>
+    public HashSet<string> PresentedPackChapters { get; } = new(System.StringComparer.Ordinal);
+
     /// <summary>Blocks mined toward the onboarding "mine" stage (session-scoped; the target is tiny).</summary>
     public int VegaMineCount { get; set; }
 

@@ -125,7 +125,24 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   the player packs; `tools/validate_story_pack.py` (replaces `merge_story.py`) + `StoryPackValidator`. Tests:
   `StoryPackRuntimeTests`, `StoryPackValidationTests`, `LegacyLineTextTests`, `StoryPackLoadTests` (+2),
   `StoryPackClientTests` (Client.Tests). Docs: STORY_IMPLEMENTATION "The player-pack runtime", new TUTORIAL_PACK.md.
-- ⬜ Step 8 — cutscene model + wire (#2467)
+- ✅ **Step 8 — cutscene data model, wire messages, seen ledger (#2467)**, 2026-10-11 (invisible to players until the
+  client director, step 9): `data/stories/<pack>/cutscenes.json` loaded into `StoryDefinition.Cutscenes`
+  (`CutsceneDefinition`: id, tier 1 banner / 2 card / 3 scene / 4 set piece, chapter, `template`, `replaceLineKeys`,
+  music, shots with camera type + anchor, duration, captions `subtitle|title_card|speaker|reading_frame|credits` with
+  `at`/`hold`, grade `none|memory|flashback`, sfx; options `holdWorld`, `hideHud`, `lockInput` (derived from the tier),
+  `skippable`, `minDisplay`, `chainNext`, `cooldownExempt`, `replayable`); the first file `vega_protocol/cutscenes.json`
+  with the `prologue` (mirrors today's three pages, not bound yet) + new key `ui.story.prologue` (en+de); the validator
+  (C# + `tools/validate_story_pack.py`) now requires every binding to resolve and checks tiers, cameras, anchors, styles,
+  grades, budgets, chains, chapters, music and sounds. Wire: tag 295 `CutscenePlay` (only to `cutscenes1` clients), 296
+  `CutsceneSeenIntent` (pause whitelist), `StoryPackIntent{replayCutscene, CutsceneId}`. Server
+  (`GameServerCutscenes.cs`): `PlayCutscene` / `PlayCutsceneForListeners` / `PlayRecap`, ledger
+  `story:<pack>:cut:<id>:sent` (committed) + `story:<pack>:cut:<id>` (confirmed), older clients = line only + seen at
+  once, join catch-up (a world story's backlog of ≥ 3 chapter scenes → one `__recap` card), nothing before the client is
+  in the world, 90 s cooldown with chains / "now or never" / banners exempt, replays without ledger change, observers
+  never; the player-pack runtime plays `introCutscene` (not for veterans or `skipPack`), chapter open/close (template
+  instances `id@chapter`, chapter title as argument) and step `onStart`/`onComplete`. Tests: `CutsceneContentTests`,
+  `CutsceneLedgerTests`, `StoryPackValidationTests`, `NetCodecTests`. Docs: new CUTSCENES.md, STORY_IMPLEMENTATION,
+  TUTORIAL_PACK.
 - ⬜ Step 9 — cutscene director (#2468)
 - ⬜ Step 10 — tutorial pack: basic training (#2469)
 - ⬜ Step 11 — VEGA as its own pack (#2470)

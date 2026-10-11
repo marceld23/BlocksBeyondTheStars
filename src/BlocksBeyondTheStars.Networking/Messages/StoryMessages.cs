@@ -83,7 +83,8 @@ public sealed class StorySelectIntent
 /// <see cref="StoryPackActions"/>; <see cref="ChapterId"/> / <see cref="StepId"/> name the target where the action needs
 /// one. Self-service, never a cheat: it changes only the sender's own ledger. The world story is not switched here
 /// (that stays the admin's <see cref="StorySelectIntent"/>). While a singleplayer world is held only
-/// <c>track</c>, <c>untrack</c>, <c>optOut</c>, <c>optIn</c> and <c>skipPack</c> get through (synthesis §5.7).
+/// <c>track</c>, <c>untrack</c>, <c>optOut</c>, <c>optIn</c>, <c>skipPack</c> and <c>replayCutscene</c> get through
+/// (synthesis §5.7).
 /// </summary>
 public sealed class StoryPackIntent
 {
@@ -98,6 +99,9 @@ public sealed class StoryPackIntent
 
     /// <summary>The step of <c>skipStep</c>.</summary>
     public string StepId { get; set; } = string.Empty;
+
+    /// <summary>The cutscene (instance) id of <c>replayCutscene</c> (#2467). Additive: an older server ignores it.</summary>
+    public string CutsceneId { get; set; } = string.Empty;
 }
 
 /// <summary>The values of <see cref="StoryPackIntent.Action"/> (#2466).</summary>
@@ -135,6 +139,64 @@ public static class StoryPackActions
 
     /// <summary>"I know this": skip one active step.</summary>
     public const string SkipStep = "skipStep";
+
+    /// <summary>Watch a cutscene again (#2467, <see cref="StoryPackIntent.CutsceneId"/>; any installed pack, the world story
+    /// included): the server answers with <see cref="CutscenePlay"/> <c>Replay = true</c> — only for a scene the player has
+    /// already been shown and that is replayable (spoiler guard). Changes no state.</summary>
+    public const string ReplayCutscene = "replayCutscene";
+}
+
+/// <summary>
+/// Server → client (#2467, tag 295): play a cutscene of a story pack. The client resolves shots and captions from its own
+/// copy of the pack's <c>cutscenes.json</c>; only clients that announce <c>cutscenes1</c> get it (the trigger's narrator
+/// line goes out to everyone as before). The client confirms with <see cref="CutsceneSeenIntent"/> once the scene played,
+/// was skipped, downgraded or cannot be played; a scene without a confirmation is offered again at the next join.
+/// </summary>
+public sealed class CutscenePlay
+{
+    /// <summary>The pack that defines the scene.</summary>
+    public string PackId { get; set; } = string.Empty;
+
+    /// <summary>The cutscene id — for a template binding the instance id <c>&lt;id&gt;@&lt;owner&gt;</c> (the definition is
+    /// the part before <c>@</c>); <c>__recap</c> for the built-in recap card.</summary>
+    public string CutsceneId { get; set; } = string.Empty;
+
+    /// <summary>The argument for the captions' <c>{0}</c> (several joined by U+001F) — a chapter title key for a chapter
+    /// binding (a client localizes an argument that is a key), a body name, or for <c>__recap</c> the reached chapters'
+    /// title keys in chapter order. Empty = none.</summary>
+    public string Arg { get; set; } = string.Empty;
+
+    /// <summary>Whether <see cref="AnchorX"/>/<see cref="AnchorY"/>/<see cref="AnchorZ"/> carry the position of the
+    /// <c>custom</c> anchor (a server-only place such as the core chamber).</summary>
+    public bool HasAnchor { get; set; }
+
+    public float AnchorX { get; set; }
+    public float AnchorY { get; set; }
+    public float AnchorZ { get; set; }
+
+    /// <summary>A replay the player asked for: no confirmation needed, no state changes, skippable at once.</summary>
+    public bool Replay { get; set; }
+}
+
+/// <summary>
+/// Client → server (#2467, tag 296): the client is through with these cutscenes of one pack — watched, skipped
+/// (<see cref="Skipped"/>), downgraded, or not playable by this build (<see cref="Unsupported"/>: an unknown id, version
+/// skew). The server stamps each known id seen (<c>story:&lt;pack&gt;:cut:&lt;id&gt;</c>) so it is not offered again;
+/// unknown ids are ignored. Passes a held singleplayer world (the director confirms while it holds the world).
+/// </summary>
+public sealed class CutsceneSeenIntent
+{
+    /// <summary>The pack of the scenes.</summary>
+    public string PackId { get; set; } = string.Empty;
+
+    /// <summary>The (instance) ids, as received in <see cref="CutscenePlay.CutsceneId"/>.</summary>
+    public string[] Ids { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>The player skipped (the texts went to the journal).</summary>
+    public bool Skipped { get; set; }
+
+    /// <summary>The client could not play the scenes (it showed the narrator lines instead).</summary>
+    public bool Unsupported { get; set; }
 }
 
 /// <summary>One net fragment scattered on a body's surface for the client to render + let the player pick up

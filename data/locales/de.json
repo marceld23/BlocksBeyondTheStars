@@ -875,6 +875,7 @@
   "ui.story.view_ending": "Das Ende noch einmal ansehen",
   "ui.story.none": "Noch nichts — erkunde, birg Fragmente und bekämpfe die Maschinen.",
   "ui.story.entry_missing": "(Dieser Eintrag braucht eine neuere Spielversion.)",
+  "ui.story.prologue": "Prolog",
   "ui.finale.hack_hint": "Erreiche den Wächterkern darunter — grabe dich hinab oder nimm den Schacht — dann [F] halten zum Aufbrechen",
   "ui.finale.hacking": "Wächterkern wird aufgebrochen",
   "ui.finale.gauntlet": "Wächter-Spießrutenlauf",

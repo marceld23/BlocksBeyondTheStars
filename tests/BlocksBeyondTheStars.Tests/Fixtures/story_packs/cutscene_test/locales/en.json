@@ -1,0 +1,16 @@
+{
+  "story.cutscene_test.name": "Cutscene test story",
+  "story.cutscene_test.short": "Scenes",
+  "story.cutscene_test.ch.one": "First chapter",
+  "story.cutscene_test.ch.two": "Second chapter",
+  "story.cutscene_test.one1.start": "Mine one block.",
+  "story.cutscene_test.one1.chip": "Mine one block",
+  "story.cutscene_test.one1.done": "That was your first block!",
+  "story.cutscene_test.two1.start": "Craft anything.",
+  "story.cutscene_test.two1.chip": "Craft anything",
+  "story.cutscene_test.welcome": "Welcome to the test",
+  "story.cutscene_test.strip": "Chapter: {0}",
+  "story.cutscene_test.done": "Chapter complete: {0}",
+  "story.cutscene_test.big": "A big moment, staged around your ship.",
+  "story.cutscene_test.now": "Right now!"
+}

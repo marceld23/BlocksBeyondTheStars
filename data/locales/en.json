@@ -875,6 +875,7 @@
   "ui.story.view_ending": "Watch the ending again",
   "ui.story.none": "Nothing yet — explore, recover fragments, and fight the machines.",
   "ui.story.entry_missing": "(This entry needs a newer version of the game.)",
+  "ui.story.prologue": "Prologue",
   "ui.finale.hack_hint": "Reach the Guardian core below — dig down or take the shaft — then hold [F] to breach it",
   "ui.finale.hacking": "Breaching the Guardian core",
   "ui.finale.gauntlet": "Guardian gauntlet",

@@ -76,6 +76,7 @@ namespace BlocksBeyondTheStars.Client
             "ships.json",
             "space_salvage.json",
             "station_templates.json",
+            "stories/vega_protocol/cutscenes.json",
             "stories/vega_protocol/locales/de.json",
             "stories/vega_protocol/locales/en.json",
             "stories/vega_protocol/locales/es.json",
