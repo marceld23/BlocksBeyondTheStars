@@ -74,10 +74,16 @@ Last updated: 2026-10-04.
   has been translated; until then — and while you are offline — they are in English (in German when the
   game is set to German).
 - On the **very first start** a short (~28 s) **intro cinematic** plays between the title splash and the
-  menu — any key skips it, and the Credits screen's **"Watch intro"** button replays it any time.
+  menu — any key, pad button or tap skips it, and the Credits screen's **"Watch intro"** button replays it any time.
 - On a **new world**, the ship AI **VEGA** boots up and walks you through the first hour (see §5 →
-  VEGA) — her opening narration is staged like a scene (letterbox, an orbit shot of your landed ship);
-  **Esc** skips it. Veteran saves get a one-line "systems online" instead.
+  VEGA) — her opening narration is staged like a scene (letterbox, an orbit shot of your landed ship, scaled
+  to your ship's size). Veteran saves get a one-line "systems online" instead.
+- **Skipping a cutscene works on every device:** **Esc** on the keyboard, the pad's back button **(B)** (or
+  whatever you bound to *Close / back*), or a click / tap on the **Skip** button in the corner — this goes for
+  the intro, VEGA's opening narration and the story's ending. The Skip label names the control for the device
+  in your hand. While a cutscene plays, your character holds still and the HUD, the on-screen touch controls,
+  the chat and the name tags step aside; the subtitles follow your **UI size** setting, and its flashes follow
+  **Reduce flashes**.
 - **Backups and game versions.** Every singleplayer world keeps its own safety copies in
   `singleplayer-saves/<world>/backups/`: one after every 60 minutes of play (the newest five are kept) and one
   right before a game update changes the world's block set. To go back, close the game and copy a backup over
@@ -170,7 +176,7 @@ buttons — retuning is tracked in issue #195):
 | **D-pad ▼** | Turn the building block you are holding |
 | **(A)** | Jump (hold in air = jetpack, or glide while falling with a glider; in water = swim up; jump at a wall, push the stick towards it and hold (A) to hold on and climb — let go of (A) to slide down, **(B)** drops you off, see §5 → Climbing walls) |
 | **(X)** | Use / board / interact |
-| **(Y)** | Toggle first / third-person camera |
+| **(Y)** | Toggle first / third-person camera (only that — it no longer jumps as well) |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
 | **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp and stealth (only while worn), thermal vision, feed a begging herd, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
 | **View** (the two-rectangles button left of the Xbox logo; "Back" on a 360 pad, Share on PlayStation, − on Nintendo) | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard); also opens the folded VEGA tab |
@@ -227,7 +233,9 @@ normal sensitivity, **invert up/down for the pad only**, **mine and place on the
 LB/RB — switch it off again if your controller mines by itself, which some pads do because they report
 their triggers differently), the **button names** shown in hints (Xbox, PlayStation or Nintendo — the
 buttons themselves do not change, only what we call them), and a **vibration** switch whose setting is
-remembered but which nothing acts on yet.
+remembered but which nothing acts on yet. The on-foot controls line at the bottom of the HUD follows these
+settings: it uses the chosen button names, shows your rebound buttons, and adds the triggers to mine and
+place once you switch them on. Walking with the keyboard while a pad is plugged in keeps the keyboard hints.
 
 **Rebinding:** every control row in **Settings** has two buttons — the keyboard key and the pad button.
 Tap the pad button and press any controller button to rebind it (actions marked **—** have no pad button
@@ -238,8 +246,9 @@ are rebindable as usual.
 
 ### Touch controls (experimental — tablet / touch browser)
 
-On a touch device (tablet, or a touch-capable browser) on-screen controls appear automatically. The
-buttons swap with what you're doing:
+On a touch device (tablet, or a touch-capable browser) on-screen controls appear automatically, and every
+hint names the on-screen button from your first tap on. The buttons swap with what you're doing (during a
+cutscene they step aside — tap its **Skip** button to leave it, or the **Continue** button on VEGA's line):
 
 | On-screen control | Action |
 |---|---|
@@ -1837,8 +1846,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - Scanning **runes** at a monument now also reveals their inscription. Settlement folk who know you
   (trade with them!) may share what they know — one of them keeps a page of the settler legend.
 - **Finishing the story is a moment now**: winning the finale plays a short **ending** — the resolution,
-  the credits roll, and an epilogue that opens the door to what comes after. It's skippable (**Esc**),
-  and the Story tab keeps a **"Watch the ending again"** button once you've earned it. A player who had heard
+  the credits roll, and an epilogue that opens the door to what comes after. It's skippable (**Esc**, pad
+  **(B)** or the **Skip** button), it plays its own music every time you watch it, and the Story tab keeps a
+  **"Watch the ending again"** button once you've earned it. A player who had heard
   the story to its last chapter but was offline for the win gets the ending — and the finale achievement —
   once on their next join; someone who first arrives on an already finished world is not played the ending at
   the door and can watch it from the Story tab.

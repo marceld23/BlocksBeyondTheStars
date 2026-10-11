@@ -174,8 +174,13 @@ public sealed class StoryResolved
     /// <summary>Locale key of the story pack's display name (for the cinematic's title card).</summary>
     public string StoryNameKey { get; set; } = string.Empty;
 
-    /// <summary>The epilogue's title — a raw pack string like the beat titles; may be empty.</summary>
+    /// <summary>The epilogue's title — a raw pack string like the beat titles; may be empty. Kept for older clients
+    /// since #2461: a current client shows <see cref="EpilogueTitleKey"/> instead.</summary>
     public string EpilogueTitle { get; set; } = string.Empty;
+
+    /// <summary>Locale key of the epilogue title (#2461, B22); empty from an older server or a pack without one —
+    /// the client then falls back to <see cref="EpilogueTitle"/>. Additive (contractless): an older client ignores it.</summary>
+    public string EpilogueTitleKey { get; set; } = string.Empty;
 
     /// <summary>Locale key of the epilogue text (the handover to the post-story goal); may be empty.</summary>
     public string EpilogueTextKey { get; set; } = string.Empty;

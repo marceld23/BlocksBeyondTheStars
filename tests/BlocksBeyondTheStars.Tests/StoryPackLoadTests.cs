@@ -41,6 +41,7 @@ public class StoryPackLoadTests
 
         Assert.Equal(builtin.Beats.Count, data.Beats.Count);
         Assert.Equal(builtin.EpilogueTitle, data.EpilogueTitle);     // #1124
+        Assert.Equal(builtin.EpilogueTitleKey, data.EpilogueTitleKey); // #2461
         Assert.Equal(builtin.EpilogueTextKey, data.EpilogueTextKey); // #1124
         Assert.Equal(builtin.FragmentWeight, data.FragmentWeight);
         Assert.Equal(builtin.KillWeight, data.KillWeight);

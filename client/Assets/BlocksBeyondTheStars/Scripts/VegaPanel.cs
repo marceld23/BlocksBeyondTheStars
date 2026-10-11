@@ -56,7 +56,9 @@ namespace BlocksBeyondTheStars.Client
         private TMPro.TMP_Text _speechText;
         private TMPro.TMP_Text _continueHint;
         private RectTransform _continuePill; // the clickable frame around _continueHint (#2126)
-        private TMPro.TMP_Text _skipHint;    // "Skip · [Esc]" on prologue pages, left of the pill (keyboard only)
+        private TMPro.TMP_Text _skipHint;    // "Skip · [Esc]" / "(B)" / tap on prologue pages, inside the skip pill (#2461)
+        private RectTransform _skipPill;     // the clickable frame around _skipHint, left of the continue pill (#2461)
+        private bool _skipClicked;           // the skip pill was clicked/tapped since the last frame
         private GameObject _chip;
         private TMPro.TMP_Text _chipText;
 
@@ -70,8 +72,11 @@ namespace BlocksBeyondTheStars.Client
         private bool _tabBesideChip;
         private bool _clicked;                         // the pill or the tab was clicked/tapped since the last frame
 
-        private readonly Queue<(string Text, bool Prologue)> _queue = new Queue<(string, bool)>();
+        // Each queued line keeps its locale key (empty for a client-side reminder) so the ending can withdraw the epilogue
+        // line it shows itself (#2461, WithdrawLine).
+        private readonly Queue<(string Text, bool Prologue, string Key)> _queue = new Queue<(string, bool, string)>();
         private string _current = string.Empty;  // the page being typed/read (not the whole line)
+        private string _currentKey = string.Empty; // the locale key of the line on screen (#2461)
         private float _shown;     // characters revealed so far
         private int _shownChars = -1; // #1554: the character count last pushed into the text (skip equal frames)
 
@@ -85,7 +90,8 @@ namespace BlocksBeyondTheStars.Client
         // First-spawn narrative prologue (#738, reworked in #754): Kind-4 lines run through the SAME speech
         // panel as every other VEGA line (same measure, same paging, same user UI scale) — they used to get
         // a bespoke full-screen dialog whose near-black plate read as "text across the whole screen". The
-        // only prologue extras now are a dim behind the panel and Esc-to-skip.
+        // only prologue extras now are a dim behind the panel and the skip (Esc, the pad's cancel button or the skip
+        // pill — every device since #2461).
         private Image _dim;
         private bool _currentIsPrologue;
         private bool _chromeOn; // edge detection for the chrome side effects (chip hide/restore)
@@ -96,6 +102,10 @@ namespace BlocksBeyondTheStars.Client
         private bool _prologueStarted;
         private bool _prologueStaged;
         private int _prologueLineIndex;
+
+        // A failed staging is retried for a few seconds while the orbit ring streams in (#2461, B19) — it used to be
+        // tried once, and a fresh world (WebGL above all) then played the whole prologue as dim + panel.
+        private readonly StagingRetry _stagingRetry = new StagingRetry();
 
         private string _objectiveKey = string.Empty;
         private string _objectiveArg = string.Empty; // {0} of the objective line (#1859: the fragment world's name)
@@ -111,9 +121,12 @@ namespace BlocksBeyondTheStars.Client
         // How many break reminders have fired this session — drives the escalating wording and the next due time.
         private int _remindersSent;
 
+        private System.Func<string, string> _localize; // L as a cached delegate for the skip label (#2461)
+
         private void Start()
         {
             Instance = this;
+            _localize = L;
 
             // The HUD reference (1536×864), NOT the 1920×1080 default — VEGA was missed by the 2026-06-07
             // "bigger HUD" pass (#482), so her lines rendered 25 % smaller than every other HUD element at
@@ -153,7 +166,17 @@ namespace BlocksBeyondTheStars.Client
             _continuePill = pill.rectTransform;
             MakeClickable(pill);
             _continueHint = UiText.Add(pill.transform, 0, 0, 200f, ContinueH, L("ui.vega.next"), 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
-            _skipHint = UiText.Add(_speech.transform, 14, ContinueY, 300, ContinueH, string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
+
+            // The skip pill (#2461): the prologue's way out on every device. Esc and the pad's cancel button skip, and so
+            // does a click or a tap on the pill itself — touch players have neither key, and the touch layer (with its
+            // NEXT button) steps aside under the cutscene. Bottom-left in the panel, apart from the continue pill.
+            var skipPill = UiHolo.AddPanel(_speech.transform, 14f, ContinueY, 160f, ContinueH,
+                new Color(0.10f, 0.14f, 0.20f, 0.90f), 9f, 1.2f, 1.0f);
+            skipPill.gameObject.name = "VegaSkip";
+            _skipPill = skipPill.rectTransform;
+            MakeClickable(skipPill, skip: true);
+            _skipHint = UiText.Add(skipPill.transform, 0, 0, 160f, ContinueH, string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleCenter, FontStyle.Normal, UiText.Look.Outline);
+            _skipPill.gameObject.SetActive(false);
             SetContinueVisible(false);
             _speech.SetActive(false);
 
@@ -232,7 +255,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _queue.Enqueue((VegaText.Compose(L(lineKey), null, KeyGlyphFor), false));
+            _queue.Enqueue((VegaText.Compose(L(lineKey), null, KeyGlyphFor), false, lineKey));
             if (Game != null && !Game.VegaLogKeys.Contains(lineKey))
             {
                 Game.VegaLogKeys.Add(lineKey);
@@ -271,6 +294,7 @@ namespace BlocksBeyondTheStars.Client
             _queue.Clear();
             _pages.Clear();
             _current = string.Empty;
+            _currentKey = string.Empty;
             if (_speech != null)
             {
                 _speech.SetActive(false);
@@ -279,6 +303,48 @@ namespace BlocksBeyondTheStars.Client
             HideTab(); // a folded line goes with the rest (#2126)
             SetPrologueChrome(false); // never hold an unattended capture run hostage on a story page
             EndStagedPrologue("capture dismiss");
+        }
+
+        /// <summary>Takes a line back before it is read (#2461, B16): the ending shows its epilogue on its own card a
+        /// moment after the same text arrived here as a VEGA story line — it must not type into the panel a second
+        /// time. Drops every queued line with this key and clears it from the screen if it is already up. The story
+        /// log is unaffected (GameBootstrap records kind-2 lines on arrival).</summary>
+        public void WithdrawLine(string lineKey)
+        {
+            if (string.IsNullOrEmpty(lineKey))
+            {
+                return;
+            }
+
+            int before = _queue.Count;
+            if (before > 0)
+            {
+                var keep = new List<(string Text, bool Prologue, string Key)>(before);
+                while (_queue.Count > 0)
+                {
+                    var item = _queue.Dequeue();
+                    if (!string.Equals(item.Key, lineKey, System.StringComparison.Ordinal))
+                    {
+                        keep.Add(item);
+                    }
+                }
+
+                foreach (var item in keep)
+                {
+                    _queue.Enqueue(item);
+                }
+            }
+
+            if (_speechText != null && _current.Length > 0 && string.Equals(_currentKey, lineKey, System.StringComparison.Ordinal))
+            {
+                _current = string.Empty;
+                _currentKey = string.Empty;
+                _pages.Clear();
+                _speechText.text = string.Empty;
+                SetContinueVisible(false);
+                StopChatter();
+                HideTab();
+            }
         }
 
         /// <summary>Starts/chains a chatter segment while a page is typing (#761): random variant, a
@@ -389,7 +455,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 // LLM-authored line (already in the player's language). The prologue flag keys on Kind,
                 // NOT on the text source — an authored Kind-4 page must not lose its staging (#760).
-                _queue.Enqueue((m.Text, m.Kind == 4));
+                _queue.Enqueue((m.Text, m.Kind == 4, m.LineKey ?? string.Empty));
             }
             else if (!string.IsNullOrEmpty(m.LineKey) && !muted)
             {
@@ -400,8 +466,8 @@ namespace BlocksBeyondTheStars.Client
                 string text = VegaText.Compose(L(m.LineKey), m.LineArg, KeyGlyphFor);
 
                 // Prologue pages (Kind 4, #754) ride the normal queue with a flag — same panel, same
-                // paging, plus the dim + Esc-to-skip while one is showing.
-                _queue.Enqueue((text, m.Kind == 4));
+                // paging, plus the dim + the skip (Esc, pad cancel, the skip pill) while one is showing.
+                _queue.Enqueue((text, m.Kind == 4, m.LineKey));
             }
 
             Refresh();
@@ -481,7 +547,7 @@ namespace BlocksBeyondTheStars.Client
                 2 => "ui.reminder.break.again",
                 _ => "ui.reminder.break.long",
             };
-            _queue.Enqueue((L(key), false)); // shows via the normal typewriter path; bypasses the VegaHints mute by design
+            _queue.Enqueue((L(key), false, key)); // shows via the normal typewriter path; bypasses the VegaHints mute by design
         }
 
         /// <summary>True when the continue control should be ignored: the in-game menu is open, or a text
@@ -524,6 +590,26 @@ namespace BlocksBeyondTheStars.Client
 
             CheckPlaytimeReminder();
 
+            // The ending (or any later staged scene) owns the screen (#2461, B16): VEGA neither types nor talks under
+            // it, and no line starts in the moment before it takes over. The queue simply waits and picks up where it
+            // stopped. The prologue is the one scene VEGA presents herself, so it never silences her — and a pending
+            // ending waits for a running prologue instead (ResolutionCinematic.CanStart).
+            var ending = ResolutionCinematic.Instance;
+            bool yieldToScene = GameBootstrap.Cutscenes.ActiveOtherThan(CutsceneGate.Prologue)
+                                || (ending != null && ending.Pending && !_prologueStarted);
+            if (_canvas.enabled == yieldToScene)
+            {
+                _canvas.enabled = !yieldToScene;
+            }
+
+            if (yieldToScene)
+            {
+                StopChatter();
+                _clicked = false;
+                _skipClicked = false;
+                return;
+            }
+
             if (_current.Length == 0 && _queue.Count > 0)
             {
                 // No line starts behind the loading curtain (#760/#761): a page typing into blackness
@@ -539,8 +625,8 @@ namespace BlocksBeyondTheStars.Client
                 // pages first, everything else after, both in their original order.
                 if (!_prologueStarted && !_queue.Peek().Prologue && QueueHasPrologue())
                 {
-                    var story = new List<(string Text, bool Prologue)>();
-                    var rest = new List<(string Text, bool Prologue)>();
+                    var story = new List<(string Text, bool Prologue, string Key)>();
+                    var rest = new List<(string Text, bool Prologue, string Key)>();
                     while (_queue.Count > 0)
                     {
                         var item = _queue.Dequeue();
@@ -560,8 +646,9 @@ namespace BlocksBeyondTheStars.Client
                     Debug.Log($"[Cinematic] Reordered queue: {story.Count} story page(s) ahead of {rest.Count} other line(s).");
                 }
 
-                var (text, prologue) = _queue.Dequeue();
+                var (text, prologue, lineKey) = _queue.Dequeue();
                 _currentIsPrologue = prologue;
+                _currentKey = lineKey ?? string.Empty;
                 Debug.Log($"[Cinematic] Dequeued line (prologue={prologue}, started={_prologueStarted}, staged={_prologueStaged}, queued={_queue.Count})");
                 if (prologue)
                 {
@@ -569,7 +656,8 @@ namespace BlocksBeyondTheStars.Client
                     {
                         _prologueStarted = true;
                         _prologueLineIndex = 0;
-                        _prologueStaged = Cinematic != null && Cinematic.Begin();
+                        _stagingRetry.Reset();
+                        _prologueStaged = TryStagePrologue();
                     }
                     else
                     {
@@ -608,15 +696,36 @@ namespace BlocksBeyondTheStars.Client
 
                 HideTab();
                 _clicked = false;
+                _skipClicked = false;
+                _currentKey = string.Empty;
                 SetPrologueChrome(false);
                 _currentIsPrologue = false;
                 EndStagedPrologue("queue idle"); // finished or skipped — camera back, letterbox out (#760)
                 return;
             }
 
-            // Esc skips the whole prologue (#754): drop the current story page and every queued one, so
-            // a returning player isn't forced through the narration again. Normal lines keep Esc for the menu.
-            if (_currentIsPrologue && Input.GetKeyDown(KeyCode.Escape) && !InputCaptured())
+            // A staging that failed on the first page is tried again while the orbit ring streams in (#2461, B19) —
+            // only on the two camera pages (the third releases the camera anyway).
+            if (_prologueStarted && !_prologueStaged && _currentIsPrologue && _prologueLineIndex < 2
+                && _stagingRetry.Due(Time.unscaledTime))
+            {
+                _prologueStaged = TryStagePrologue();
+                if (_prologueStaged)
+                {
+                    Debug.Log($"[Cinematic] Prologue staged on a retry (line {_prologueLineIndex}).");
+                    Cinematic.OnPrologueLine(_prologueLineIndex);
+                    SetPrologueChrome(true); // the letterbox is the chrome now — the dim goes
+                }
+            }
+
+            UpdateSkipPill();
+
+            // Skip the whole prologue (#754) — on every device since #2461: Esc or the pad's cancel button
+            // (InputAction.UiCancel), or a click/tap on the skip pill. Drops the current story page and every queued
+            // one, so a returning player isn't forced through the narration again. Normal lines keep Esc for the menu.
+            bool skipClicked = _skipClicked;
+            _skipClicked = false;
+            if (_currentIsPrologue && ((CinematicFrame.SkipPressed() && !InputCaptured()) || skipClicked))
             {
                 Game?.MarkMenuInputHandled(); // this Esc is spent here, whatever runs later this frame
                 while (_queue.Count > 0 && _queue.Peek().Prologue)
@@ -625,6 +734,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 _current = string.Empty;
+                _currentKey = string.Empty;
                 _pages.Clear();
                 _speechText.text = string.Empty;
                 SetContinueVisible(false);
@@ -723,10 +833,10 @@ namespace BlocksBeyondTheStars.Client
 
         // ---- The continue pill and the folded tab (#2126) ------------------------------------------------------
 
-        /// <summary>Makes a holo panel a click/tap target that acts as the continue control. No pad stop (the pad
-        /// has its own continue button) and no selection on click — a selected button would also fire on Space/Enter,
-        /// and Space is jump.</summary>
-        private void MakeClickable(Image target)
+        /// <summary>Makes a holo panel a click/tap target that acts as the continue control — or, with
+        /// <paramref name="skip"/>, as the prologue's skip (#2461). No pad stop (the pad has its own continue and cancel
+        /// buttons) and no selection on click — a selected button would also fire on Space/Enter, and Space is jump.</summary>
+        private void MakeClickable(Image target, bool skip = false)
         {
             target.raycastTarget = true;
             var button = target.gameObject.AddComponent<Button>();
@@ -736,9 +846,55 @@ namespace BlocksBeyondTheStars.Client
             button.onClick.AddListener(UiSound.Click);
             button.onClick.AddListener(() =>
             {
-                _clicked = true;
+                if (skip)
+                {
+                    _skipClicked = true;
+                }
+                else
+                {
+                    _clicked = true;
+                }
+
                 UiHolo.Flash(target.GetComponent<UiHolo.Shape>());
             });
+        }
+
+        /// <summary>Tries to stage the prologue and books the attempt for the retry schedule (#2461, B19).</summary>
+        private bool TryStagePrologue()
+        {
+            bool staged = Cinematic != null && Cinematic.Begin();
+            _stagingRetry.Record(Time.unscaledTime, staged);
+            return staged;
+        }
+
+        private InputDeviceKind _skipDevice = (InputDeviceKind)(-1);
+
+        /// <summary>Shows the skip pill on every prologue page — from its first character, not only once it has typed out —
+        /// labelled for the device in hand (#2461): "[Esc]", the pad's cancel button, or a plain tap target on touch.</summary>
+        private void UpdateSkipPill()
+        {
+            if (_skipPill == null)
+            {
+                return;
+            }
+
+            bool want = _currentIsPrologue && _current.Length > 0;
+            if (_skipPill.gameObject.activeSelf != want)
+            {
+                _skipPill.gameObject.SetActive(want);
+                _skipDevice = (InputDeviceKind)(-1); // re-measure on the next show
+            }
+
+            if (!want || InputMap.ActiveDevice == _skipDevice)
+            {
+                return;
+            }
+
+            _skipDevice = InputMap.ActiveDevice;
+            _skipHint.text = CinematicFrame.SkipLabel(_localize);
+            float width = Mathf.Clamp(_skipHint.preferredWidth + ContinuePad, 90f, 300f);
+            _skipPill.sizeDelta = new Vector2(width, ContinueH);
+            _skipHint.rectTransform.sizeDelta = new Vector2(width, ContinueH);
         }
 
         /// <summary>A touch tap the full-screen touch look pad caught first (its canvas sits above the HUD): counts as a
@@ -752,6 +908,14 @@ namespace BlocksBeyondTheStars.Client
 
             // Same camera the canvas's own GraphicRaycaster uses: none for an overlay, the visor HUD camera otherwise.
             var cam = _canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : _canvas.worldCamera;
+            if (_skipPill != null && _skipPill.gameObject.activeInHierarchy
+                && RectTransformUtility.RectangleContainsScreenPoint(_skipPill, screenPos, cam))
+            {
+                _skipClicked = true; // the prologue's skip pill (#2461)
+                UiSound.Click();
+                return;
+            }
+
             bool onTab = _tab != null && _tab.activeInHierarchy
                 && RectTransformUtility.RectangleContainsScreenPoint(_tabRect, screenPos, cam);
             bool onPill = _continuePill != null && _continuePill.gameObject.activeInHierarchy
@@ -770,11 +934,6 @@ namespace BlocksBeyondTheStars.Client
             if (_continuePill != null && _continuePill.gameObject.activeSelf != on)
             {
                 _continuePill.gameObject.SetActive(on);
-            }
-
-            if (!on && _skipHint != null && _skipHint.gameObject.activeSelf)
-            {
-                _skipHint.gameObject.SetActive(false); // shown again with the pill (ShowContinueHint) where it applies
             }
         }
 
@@ -861,17 +1020,7 @@ namespace BlocksBeyondTheStars.Client
                 ? next + "  " + string.Format(L("ui.vega.page"), _page + 1, _pages.Count)
                 : next;
 
-            // The skip note stays outside the pill (clicking the pill continues, it does not skip).
-            bool skip = _currentIsPrologue && _hintDevice == InputDeviceKind.KeyboardMouse;
-            if (skip)
-            {
-                _skipHint.text = L("ui.vega.prologue.skip"); // Esc skips the narration (#754) — keyboard only
-            }
-
-            if (_skipHint.gameObject.activeSelf != skip)
-            {
-                _skipHint.gameObject.SetActive(skip);
-            }
+            // The skip lives in its own pill on prologue pages (UpdateSkipPill, #2461) — clicking this one continues.
 
             // The pill hugs its text (#2126), right-aligned at the panel's bottom edge (measured live — TMP lays out
             // against an active object).
@@ -885,7 +1034,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Shows/hides the story-page chrome (#754): the dim behind the speech panel, and the
         /// <see cref="GameBootstrap.VegaPrologueActive"/> flag AppShell checks so Esc skips the story
-        /// instead of opening the leave-game menu.</summary>
+        /// instead of opening the leave-game menu. Since #2461 the prologue is also a cutscene in the shared
+        /// <see cref="GameBootstrap.Cutscenes"/> state for as long as a story page shows — staged or not: the controls
+        /// freeze, and the HUD, the touch controls, the chat and the nameplates step aside.</summary>
         private void SetPrologueChrome(bool on)
         {
             // With the cinematic staging up (#760) the letterbox is the chrome — the dim would just
@@ -900,6 +1051,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.VegaPrologueActive = on;
             }
+
+            GameBootstrap.Cutscenes.Set(CutsceneGate.Prologue, on);
 
             // The objective chip is HUD, not story: the onboarding objective arrives with the queued
             // lines while the prologue still shows, and would float over the letterboxed shot. Hide it

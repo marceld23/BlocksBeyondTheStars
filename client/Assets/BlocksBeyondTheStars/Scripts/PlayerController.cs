@@ -757,8 +757,11 @@ namespace BlocksBeyondTheStars.Client
             // The on-screen keyboard (#1211) belongs in this list for a reason of its own: it picks letters
             // with the SAME left stick that walks the player, so without this the pad would spell a word and
             // wander off at once.
+            //
+            // Every cutscene freezes control the same way (#2461): the ending used to let the player walk and mine
+            // "blind" behind its darkened stage.
             if (Game != null && (Game.MenuOpen || Game.ChatTyping || Game.CinematicCameraActive
-                                 || OnScreenKeyboardUi.IsOpen))
+                                 || GameBootstrap.CutsceneActive || OnScreenKeyboardUi.IsOpen))
             {
                 // The jetpack stops (it drains energy server-side). The glider costs nothing, so a wing open when the
                 // panel came up stays open and ApplyGravityOnly keeps its slow sink (#2296) — a plunge at full gravity

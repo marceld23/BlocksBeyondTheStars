@@ -18,6 +18,9 @@ namespace BlocksBeyondTheStars.Client
     /// Begin() to pick a clear height and open arc (ping-ponging across it when a mountainside blocks
     /// the full circle), a per-frame line-of-sight net pulls the camera in/up out of late-streamed
     /// terrain, and a ship with no clear shot at all falls back to the classic dim + panel prologue.
+    /// Since #2461 the whole shot scales with the player's ship (<see cref="PrologueOrbit"/>) and the camera
+    /// spot also avoids the landed hull, which is no part of the voxel world; <see cref="VegaPanel"/> retries a
+    /// failed Begin() for a few seconds while the ring streams in (<see cref="StagingRetry"/>).
     ///
     /// The camera override runs in LateUpdate at execution order 210, after every gameplay writer, and
     /// only while <see cref="GameBootstrap.CinematicCameraActive"/> also freezes on-foot control — the
@@ -58,7 +61,9 @@ namespace BlocksBeyondTheStars.Client
         private float _letter;
         private float _flash;
 
-        private CinematicStageScan.ClearSampler _sampler;
+        private CinematicStageScan.ClearSampler _sampler;     // terrain: the line of sight
+        private CinematicStageScan.ClearSampler _spotSampler; // terrain + the landed hulls: where the camera may sit (#2461)
+        private float _scale = 1f;                            // ship-size factor of the whole shot (#2461, PrologueOrbit)
         private float _stageRadius, _stageHeight; // page-1 settle orbit (chosen by the pre-scan)
         private float _pushRadius, _pushHeight;   // page-2 push-in target
         private bool _arcLimited;
@@ -128,10 +133,18 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _sampler = (x, y, z) => world.TryGetBlock(x, y, z, out var b) && b.IsAir;
+            // The landed ship is a structure object, not part of the voxel world: the terrain sampler reads its hull
+            // as air. The camera SPOT must avoid it too (a big ship could swallow the camera); the line of sight keeps
+            // the terrain sampler, because the look target sits inside the ship (#2461).
+            var game = Game;
+            var terrain = _sampler;
+            _spotSampler = (x, y, z) => terrain(x, y, z) && game.LandedShipBlockAt(x, y, z, out _, out _).IsAir;
+            _scale = OwnShipScale();
             if (!ChooseStaging())
             {
-                Debug.Log("[Cinematic] Prologue staging fallback: no terrain-clear orbit around the ship.");
+                Debug.Log($"[Cinematic] Prologue staging fallback: no terrain-clear orbit around the ship (scale {_scale:0.00}).");
                 _sampler = null;
+                _spotSampler = null;
                 return false;
             }
 
@@ -158,14 +171,19 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private bool ChooseStaging()
         {
-            foreach (float h in new[] { 7f, 12f, 18f })
+            // Every radius and height below is the tuned starter-ship shot times _scale (#2461): a bigger ship gets the
+            // same framing from further out, a starter-sized one exactly the old numbers.
+            float s = _scale;
+            foreach (float h0 in new[] { 7f, 12f, 18f })
             {
+                float h = h0 * s;
+
                 // Per angle BOTH rings must clear: the wide entry (radius 24) and the settle orbit
                 // (radius 16) — the camera damps from one to the other while sweeping.
-                var ring = CinematicStageScan.ScanRing(_sampler, _center.x, _center.y, _center.z,
-                    2f, 16f, h, RingSamples);
-                var entry = CinematicStageScan.ScanRing(_sampler, _center.x, _center.y, _center.z,
-                    2f, 24f, h + 2f, RingSamples);
+                var ring = CinematicStageScan.ScanRing(_sampler, _spotSampler, _center.x, _center.y, _center.z,
+                    LookHeight, 16f * s, h, RingSamples);
+                var entry = CinematicStageScan.ScanRing(_sampler, _spotSampler, _center.x, _center.y, _center.z,
+                    LookHeight, 24f * s, h + 2f * s, RingSamples);
                 for (int i = 0; i < RingSamples; i++)
                 {
                     ring[i] &= entry[i];
@@ -173,23 +191,47 @@ namespace BlocksBeyondTheStars.Client
 
                 if (CinematicStageScan.TryFindWidestClearArc(ring, MinArcSweep, out float arcCenter, out float sweep))
                 {
-                    ApplyStaging(24f, h + 2f, 16f, h, 8f, Mathf.Max(3.5f, h - 3.5f), arcCenter, sweep);
-                    Debug.Log($"[Cinematic] Prologue orbit staged at height {h} (arc {sweep:0}° around {arcCenter:0}°).");
+                    ApplyStaging(24f * s, h + 2f * s, 16f * s, h, 8f * s, Mathf.Max(3.5f * s, h - 3.5f * s), arcCenter, sweep);
+                    Debug.Log($"[Cinematic] Prologue orbit staged at height {h:0.#} (scale {s:0.00}, arc {sweep:0}° around {arcCenter:0}°).");
                     return true;
                 }
             }
 
             // Crane fallback: a slow near-top-down sweep for ships parked in craters/canyons.
-            var crane = CinematicStageScan.ScanRing(_sampler, _center.x, _center.y, _center.z,
-                2f, 6f, 26f, 36);
+            var crane = CinematicStageScan.ScanRing(_sampler, _spotSampler, _center.x, _center.y, _center.z,
+                LookHeight, 6f * s, 26f * s, 36);
             if (CinematicStageScan.TryFindWidestClearArc(crane, 60f, out float craneCenter, out float craneSweep))
             {
-                ApplyStaging(6f, 26f, 6f, 26f, 4.5f, 18f, craneCenter, craneSweep);
-                Debug.Log($"[Cinematic] Prologue crane shot staged (arc {craneSweep:0}° around {craneCenter:0}°).");
+                ApplyStaging(6f * s, 26f * s, 6f * s, 26f * s, 4.5f * s, 18f * s, craneCenter, craneSweep);
+                Debug.Log($"[Cinematic] Prologue crane shot staged (scale {s:0.00}, arc {craneSweep:0}° around {craneCenter:0}°).");
                 return true;
             }
 
             return false;
+        }
+
+        /// <summary>The look target's height above the ship anchor — scaled with the shot.</summary>
+        private float LookHeight => 2f * _scale;
+
+        /// <summary>The shot's size factor for the player's own landed ship (<see cref="PrologueOrbit.Scale"/>); 1 while
+        /// its structure has not arrived yet — the tuned starter shot.</summary>
+        private float OwnShipScale()
+        {
+            string me = Game.LocalPlayerId;
+            if (string.IsNullOrEmpty(me))
+            {
+                return 1f;
+            }
+
+            foreach (var ship in Game.LandedShips.Values)
+            {
+                if (ship.OwnerId == me && ship.StructureId.StartsWith("ship:", System.StringComparison.Ordinal))
+                {
+                    return PrologueOrbit.Scale(ship.Width, ship.Length);
+                }
+            }
+
+            return 1f;
         }
 
         private void ApplyStaging(float startRadius, float startHeight, float stageRadius, float stageHeight,
@@ -348,7 +390,7 @@ namespace BlocksBeyondTheStars.Client
             _radius = Damp(_radius, _targetRadius);
             _height = Damp(_height, _targetHeight);
 
-            Vector3 look = _center + new Vector3(0f, 2f, 0f);
+            Vector3 look = _center + new Vector3(0f, LookHeight, 0f);
 
             // Terrain safety net: the pre-scan staged the shot, but a late-streamed chunk or the page-2
             // push-in can still put the ideal spot inside terrain. Each pull level trades radius for
@@ -396,7 +438,7 @@ namespace BlocksBeyondTheStars.Client
         {
             float rad = _angle * Mathf.Deg2Rad;
             float r = _radius * (1f - PullRadiusStep * pull);
-            float h = _height + PullHeightStep * pull;
+            float h = _height + PullHeightStep * _scale * pull;
             return _center + new Vector3(Mathf.Sin(rad) * r, h, Mathf.Cos(rad) * r);
         }
 
@@ -416,8 +458,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private bool CameraClear(Vector3 look, Vector3 pos)
-            => _sampler != null
-               && CinematicStageScan.CameraClear(_sampler, look.x, look.y, look.z, pos.x, pos.y, pos.z);
+            => _sampler != null && _spotSampler != null
+               && CinematicStageScan.CameraClear(_sampler, _spotSampler, look.x, look.y, look.z, pos.x, pos.y, pos.z);
 
         /// <summary>Framerate-independent exponential approach (≈ settles in ~2 s).</summary>
         private static float Damp(float current, float target)

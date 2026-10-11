@@ -39,7 +39,19 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   story points and the ending at the door goes only to players who heard B12 (plus the finale achievement);
   `vega:mem:mk3parts` is no memory; peaceful worlds get `story.obj.help_peaceful`; the `guardian_core` hint is never
   muted; impossible onboarding lessons (no flight, no station) are skipped. Tests: `StoryServerFixesTests`.
-- ⬜ Step 2 — cinematics fixes (#2461)
+- ✅ **Step 2 — cinematics fixes (#2461)**, 2026-10-11: the prologue, the ending and the intro skip on every device
+  (Esc, pad B / the *Close* binding, an on-screen Skip button; the label names the control in hand); one shared
+  cutscene state (`GameBootstrap.Cutscenes`, `CutsceneGate`) hides the HUD (crosshair), touch controls, chat,
+  nameplates, IMGUI overlays and VEGA's panel/chip and freezes the controls — the ending now does all of that too;
+  flashback and VEGA's typing pause under the ending and its epilogue no longer types twice; the ending music plays
+  on every start of the scene (replays included) instead of at every session start of a won save; `CinematicFrame`
+  flashes follow Reduce flashes and its subtitles the UI size; the prologue retries its staging for ~4 s, scales
+  the shot to the ship and keeps the camera out of the hull; the epilogue title is a locale key
+  (`story.vega.epilogue.title`, additive `StoryResolved.EpilogueTitleKey`); a client-side `WorldHoldArbiter` lets
+  the pause menu, the F1/F2 dialog and its reply hold the world together; pad glyphs no longer flicker on WASD, a
+  tap counts as touch (also at join), the pad controls line follows glyph set / rebinds / triggers, and pad Y no
+  longer also jumps. Tests: `CinematicsFixesTests`, `WorldHoldArbiterTests`, `InputDeviceRulesTests` (Client.Tests),
+  `StoryResolutionTests`, `StoryPackLoadTests`.
 - ⬜ Step 3 — story UI fixes (#2462)
 - ⬜ Step 4 — text fixes (#2463)
 - ⬜ Step 5 — WorldHost save-upload fixes (#2464)
@@ -59,6 +71,11 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
 - ⬜ Step 22 — side-story test pack + authoring guide (#2483)
 - Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
   hyperjump) and lack `story.obj.help_peaceful` — the translation pass at the end of the package covers both.
+- Open from step 2: the community locales lack `ui.cutscene.skip_key/_pad/_touch`, `ui.hud.hint_pad_glyphs` and
+  the pack key `story.vega.epilogue.title` (English shows meanwhile); `ui.hud.hint_pad`, `ui.intro.skip` and
+  `ui.vega.prologue.skip` are no longer read by the client — drop them from all 14 files in the translation pass.
+  Needs an on-device check: the touch Skip button and VEGA's pills with the touch layer hidden (phone/tablet, WebGL),
+  and pad Y on non-XInput pads.
 
 ### ⚙️ CI long poles: world-gen caches no longer build under a shared lock (#2455), the settlement sweeps split up (#2456) (2026-10-10, branch fix/ci-shard-long-poles) — ✅ done
 
@@ -6846,7 +6863,9 @@ the intro pattern): resolution card (story name + stand-down line) → credits r
 player may be mid-walk when it starts), queued while a menu is open; the Story tab gained "Watch the ending
 again" (closes the menu and requests). `CinematicFrame.Root` exposed for the roll text; the IMGUI finale
 banner yields while the cinematic plays (IMGUI draws above every canvas). Music: the existing
-`FinaleResolution` window keys off GuardianDefeated and covers replays/catch-up unchanged.
+`FinaleResolution` window keys off GuardianDefeated and covers replays/catch-up unchanged. *(Corrected
+2026-10-11, #2461: that was true for the join catch-up only — the window latched once per session, so a replay
+got no music, and a won save played it at every session start. The track now follows the cinematic's starts.)*
 Codex wiki deliberately untouched — the ending is a spoiler, not a feature to document in-game.
 Tests: `StoryResolutionTests` (4) — win broadcast + epilogue in the log + milestone, latecomer catch-up
 exactly once (restart round-trip), replay request silent-until-resolved then answers, epilogue text EN+DE;

@@ -54,8 +54,18 @@ namespace BlocksBeyondTheStars.Client
         public bool ActionHeld(InputAction action) => Live && Ui.ActionHeldFor(action);
         public bool ActionUp(InputAction action) => false;
 
+        /// <summary>Any finger on the screen this frame. A raw touch counts first (#2461, N8): a TAP on the look pad moves
+        /// nothing and presses no button, so it never registered — and the browser's mouse emulation of that same tap
+        /// then flipped the glyphs to keyboard/mouse. It also counts while the on-screen controls are hidden (a menu, a
+        /// cutscene) and in the shell, so a tablet player gets touch hints from the first tap, not only from the first
+        /// tap on an on-screen button.</summary>
         public bool HadActivityThisFrame()
         {
+            if (Input.touchCount > 0)
+            {
+                return true;
+            }
+
             if (!Live)
             {
                 return false;

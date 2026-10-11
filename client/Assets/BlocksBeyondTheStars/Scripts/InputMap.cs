@@ -103,6 +103,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static int _deviceFrame = -1;
         private static InputDeviceKind _activeDevice = InputDeviceKind.KeyboardMouse;
+        private static bool _deviceSeen; // any backend reported activity yet (#2461: until then a touch device reads as touch)
 
         /// <summary>Test seam: pins <see cref="ActiveDevice"/> to a device the build machine cannot plug in,
         /// so the gamepad-only paths (the on-screen keyboard, glyph swapping) are reachable in CI. Null in
@@ -126,14 +127,23 @@ namespace BlocksBeyondTheStars.Client
                     if (_touch.HadActivityThisFrame())
                     {
                         _activeDevice = InputDeviceKind.Touch;
+                        _deviceSeen = true;
                     }
                     else if (_pad.HadActivityThisFrame())
                     {
                         _activeDevice = InputDeviceKind.Gamepad;
+                        _deviceSeen = true;
                     }
                     else if (_desktop.HadActivityThisFrame())
                     {
                         _activeDevice = InputDeviceKind.KeyboardMouse;
+                        _deviceSeen = true;
+                    }
+                    else if (!_deviceSeen && TouchControlsUi.ShouldShow())
+                    {
+                        // Nothing pressed yet (#2461, N8): a phone or tablet starts on touch hints. The keyboard default
+                        // made the first lines name keys a tablet does not have, until a tap on an on-screen button.
+                        _activeDevice = InputDeviceKind.Touch;
                     }
                 }
 
@@ -572,6 +582,19 @@ namespace BlocksBeyondTheStars.Client
                 KeyCode.JoystickButton9 => set == PadGlyphSet.Xbox ? "RS" : "R3",
                 >= KeyCode.JoystickButton10 and <= KeyCode.JoystickButton19 => "B" + (button - KeyCode.JoystickButton0),
                 _ => null,
+            };
+        }
+
+        /// <summary>The name of a trigger in the player's glyph set (#2461): RT/LT on Xbox, R2/L2 on PlayStation, ZR/ZL
+        /// on Nintendo. The triggers are an axis, not a button, so <see cref="PadGlyph"/> cannot name them.</summary>
+        public static string PadTriggerGlyph(bool right)
+        {
+            var set = GamepadInputSource.Settings != null ? GamepadInputSource.Settings.PadGlyphs : PadGlyphSet.Xbox;
+            return set switch
+            {
+                PadGlyphSet.PlayStation => right ? "R2" : "L2",
+                PadGlyphSet.Nintendo => right ? "ZR" : "ZL",
+                _ => right ? "RT" : "LT",
             };
         }
     }

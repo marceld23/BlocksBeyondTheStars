@@ -124,7 +124,8 @@ namespace BlocksBeyondTheStars.Client
         {
             get
             {
-                if (Game == null || Game.MenuOpen || Game.ChatTyping || Game.AwaitingRespawnConfirm)
+                if (Game == null || Game.MenuOpen || Game.ChatTyping || Game.AwaitingRespawnConfirm
+                    || GameBootstrap.CutsceneActive) // #2461: nothing opens behind a cutscene's frame
                 {
                     return false;
                 }

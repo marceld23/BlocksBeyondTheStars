@@ -10,13 +10,21 @@ how controller support was built and how touch (tablet-web) will be.
   backend expressed as the game's control verbs: `MoveX/MoveY`, `LookX/LookY`, `HotbarScroll`,
   `Jump/Crouch/Primary/Secondary`, `HotbarSlotDown`, and the discrete `ActionDown/Held/Up(InputAction)`.
 - **`DesktopInputSource`** — a 1:1 wrapper over the exact legacy calls the code used before (`GetAxis`,
-  `GetButton`, mouse buttons). Routing a call site onto it is behaviour-preserving.
+  `GetButton`, mouse buttons). Routing a call site onto it is behaviour-preserving. One deliberate exception
+  (#2461): jump reads `KeyCode.Space`, not the legacy "Jump" button — that input-manager entry also carries
+  Unity's stock `joystick button 3` (pad **Y** on XInput), so Y jumped *and* toggled the camera view.
 - **`GamepadInputSource`** — reads the joystick axes + `KeyCode.JoystickButton*` buttons.
 - **`InputMap`** — **combines** both sources (it does not switch between them): axes are summed/clamped and
   the button verbs OR together, so keyboard+mouse and a pad are always live at once and neither can lock
   the other out. With no pad connected the gamepad source returns zero/false, so the combined result equals
   the pure keyboard/mouse behaviour. `InputMap.ActiveDevice` tracks the most recently used family purely to
-  pick HUD glyphs (`InputMap.Glyph(action)`).
+  pick HUD glyphs (`InputMap.Glyph(action)`). Priority per frame: touch → pad → keyboard/mouse. Since #2461:
+  any raw finger on the screen counts as touch (a tap on the look pad moved nothing and pressed no button, and
+  the browser's mouse emulation of it then flipped the glyphs back to the keyboard); before any activity at all
+  a touch device (`TouchControlsUi.ShouldShow()`) starts on touch hints; and the pad source counts the shared
+  "Horizontal"/"Vertical" axes (left stick **and** WASD/arrows) only while no movement key is held
+  (`InputDeviceRules.SharedMoveAxesArePad`, `Client.Core`, tested) — a keyboard walk with a pad plugged in used
+  to flip the glyphs to the pad set.
 
 ## Migrating a call site
 
@@ -70,9 +78,18 @@ cluster.
   override-then-default (`DefaultButtonFor`). Reset clears both lists. An action with no stock pad button
   (shown "—") can still be bound.
 - **Glyphs:** `InputMap.Glyph(action)` returns the pad label while a pad is the active device, else the
-  bound key name; `InputMap.PadGlyph(keyCode)` names all 20 pad buttons. Wired into: the HUD control hint,
-  the speeder exit/refuel hint, the flight + EVA controls hints (`ui.space.controls_pad` /
-  `ui.space.eva_controls_pad`), and the board/land prompts (`ui.space.*_fmt` keys take the glyph as `{0}`).
+  bound key name; `InputMap.PadGlyph(keyCode)` names all 20 pad buttons, `InputMap.PadTriggerGlyph(right)` the
+  triggers (RT/LT, R2/L2, ZR/ZL). Wired into: the HUD control hint, the speeder exit/refuel hint, the flight + EVA
+  controls hints (`ui.space.controls_pad` / `ui.space.eva_controls_pad`), and the board/land prompts
+  (`ui.space.*_fmt` keys take the glyph as `{0}`). The on-foot pad line is composed from the glyphs since #2461
+  (`HudUi.PadHint`, template `ui.hud.hint_pad_glyphs` with `{mine} {place} {jump} {crouch} {use} {view}
+  {actions} {vega} {menu}`, cached per language / bindings version / glyph set / triggers switch); the old fixed
+  `ui.hud.hint_pad` is unused.
+- **Cutscene skip (#2461):** every cinematic skips on `InputAction.UiCancel` (Esc, pad **B** or its rebind) via
+  `CinematicFrame.SkipPressed()`, plus an on-screen skip button for touch and a free mouse
+  (`CinematicFrame.EnableSkipButton`, VEGA's prologue skip pill); the label comes from
+  `CinematicFrame.SkipLabel` (`ui.cutscene.skip_key` / `_pad` / `_touch`). Pad B is crouch on foot, but a
+  cutscene freezes the controls, so the two never meet.
 - **Default conflict rule:** `FlightEnterInterior` deliberately has NO default pad button —
   `ToggleThirdPerson` (Y) is also polled during flight, so sharing Y would fire both on one press.
 - **Stock pad layout (Xbox):** A jump · B crouch / close · X Interact · Y ToggleThirdPerson · LB place ·
@@ -282,7 +299,9 @@ layer, added to `InputMap`'s combine exactly like the pad — no gameplay change
 - **Edges:** `TouchButton.DownThisFrame` is a frame-idempotent edge (like `GetKeyDown`) computed in an early
   `Update` (order −100), because a single action is polled at more than one call site per frame — a
   consume-on-read latch would let the first site eat the edge. All widget state clears on disable, so a
-  button can't stay "held" across a cluster switch. The whole layer hides while a menu is open.
+  button can't stay "held" across a cluster switch. The whole layer hides while a menu is open — and while a
+  cutscene plays (`GameBootstrap.CutsceneActive`, #2461): its canvas (order 100) sat above every cinematic
+  frame and its look pad swallowed the taps meant for the skip/continue buttons, which uGUI now receives directly.
 - **Device glyphs:** `InputDeviceKind.Touch` is tracked; the HUD/flight text hints blank on touch (the
   on-screen buttons are self-labelling).
 - **Tap-vs-drag:** the shared EventSystem scales its `pixelDragThreshold` to ≈1 mm from `Screen.dpi` on

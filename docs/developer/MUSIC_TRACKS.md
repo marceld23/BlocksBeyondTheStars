@@ -408,8 +408,10 @@ multi-stage finale against the dormant Guardian core (see
 stored in `client/Music/`. **Present and wired:** `ClientMusic` has the finale contexts
 (`FinaleApproach/Gauntlet/Hack/Dialogue/Resolution`) which **override every other context** and always play
 their dedicated boss track regardless of music mode. The active phase is derived from the story flags, the
-location id (the finale system is `guardian_finale*`) and the live `FinaleView`; the resolution track plays
-in a one-shot window after the core falls, then normal music resumes.
+location id (the finale system is `guardian_finale*`) and the live `FinaleView`; the resolution track follows
+the ending scene (#2461): it plays while the resolution cinematic runs and for 32 s from each of its starts —
+the live win, the join catch-up and every Story-tab replay — then normal music resumes. (It used to key off the
+first sighting of `GuardianDefeated`, which played it at every session start of a won save and never on a replay.)
 
 | Track key | Finale phase | Mood |
 |---|---|---|

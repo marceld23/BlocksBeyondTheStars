@@ -71,7 +71,7 @@ namespace BlocksBeyondTheStars.Client
         {
             get
             {
-                if (Game == null || Game.MenuOpen)
+                if (Game == null || Game.MenuOpen || GameBootstrap.CutsceneActive) // #2461: nothing opens behind a cutscene
                 {
                     return false;
                 }

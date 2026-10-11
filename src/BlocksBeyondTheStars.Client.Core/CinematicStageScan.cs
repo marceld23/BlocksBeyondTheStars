@@ -64,8 +64,19 @@ namespace BlocksBeyondTheStars.Client
         /// the full per-position check both the pre-scan and the per-frame safety net use.</summary>
         public static bool CameraClear(ClearSampler clear,
             float lookX, float lookY, float lookZ, float camX, float camY, float camZ)
-            => SpotClear(clear, camX, camY, camZ)
-               && PathClear(clear, lookX, lookY, lookZ, camX, camY, camZ);
+            => CameraClear(clear, clear, lookX, lookY, lookZ, camX, camY, camZ);
+
+        /// <summary>
+        /// <see cref="CameraClear(ClearSampler, float, float, float, float, float, float)"/> with a separate sampler
+        /// for the camera SPOT (#2461, B19): the landed ship is no part of the voxel world, so the terrain sampler
+        /// reads its hull as air and a big ship could swallow the camera. The spot sampler also treats hull cells as
+        /// blocked; the line of sight keeps using <paramref name="path"/> alone, because the look target sits inside
+        /// the ship and every line toward it crosses the hull by design.
+        /// </summary>
+        public static bool CameraClear(ClearSampler path, ClearSampler spot,
+            float lookX, float lookY, float lookZ, float camX, float camY, float camZ)
+            => SpotClear(spot, camX, camY, camZ)
+               && PathClear(path, lookX, lookY, lookZ, camX, camY, camZ);
 
         /// <summary>
         /// Per-angle clearance of an orbit ring around (<paramref name="cx"/>, <paramref name="cy"/>,
@@ -73,6 +84,12 @@ namespace BlocksBeyondTheStars.Client
         /// orbit convention pos = center + (sin·r, camHeight, cos·r), looking at center + lookHeight.
         /// </summary>
         public static bool[] ScanRing(ClearSampler clear, float cx, float cy, float cz,
+            float lookHeight, float radius, float camHeight, int samples)
+            => ScanRing(clear, clear, cx, cy, cz, lookHeight, radius, camHeight, samples);
+
+        /// <summary><see cref="ScanRing(ClearSampler, float, float, float, float, float, float, int)"/> with a separate
+        /// sampler for the camera spot — see <see cref="CameraClear(ClearSampler, ClearSampler, float, float, float, float, float, float)"/>.</summary>
+        public static bool[] ScanRing(ClearSampler path, ClearSampler spot, float cx, float cy, float cz,
             float lookHeight, float radius, float camHeight, int samples)
         {
             if (samples <= 0)
@@ -87,7 +104,7 @@ namespace BlocksBeyondTheStars.Client
                 float px = cx + (float)Math.Sin(rad) * radius;
                 float py = cy + camHeight;
                 float pz = cz + (float)Math.Cos(rad) * radius;
-                ring[i] = CameraClear(clear, cx, cy + lookHeight, cz, px, py, pz);
+                ring[i] = CameraClear(path, spot, cx, cy + lookHeight, cz, px, py, pz);
             }
 
             return ring;

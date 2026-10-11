@@ -83,9 +83,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void LateUpdate()
         {
-            _overlay.Sync(_duelActive
-                          || (_won && Time.time < _resolveVisibleUntil)
-                          || Time.time < _hackBarVisibleUntil);
+            // IMGUI draws above every canvas, so the overlay steps aside under any cutscene (#2461) — the duel and the
+            // banners come back the moment it ends.
+            _overlay.Sync((_duelActive
+                           || (_won && Time.time < _resolveVisibleUntil)
+                           || Time.time < _hackBarVisibleUntil)
+                          && !GameBootstrap.CutsceneActive);
         }
 
         private void Update()

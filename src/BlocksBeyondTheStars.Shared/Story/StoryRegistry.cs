@@ -81,6 +81,7 @@ public static class StoryRegistry
         },
         // #1124: revealed by WINNING the finale, never by score — see StoryDefinition.EpilogueTitle.
         EpilogueTitle = "The relay network",
+        EpilogueTitleKey = "story.vega.epilogue.title", // #2461: the cinematic shows the localized title
         EpilogueTextKey = "story.vega.beat13",
     };
 

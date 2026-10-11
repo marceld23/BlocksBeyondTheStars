@@ -476,9 +476,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Left stick shows up on the shared Horizontal/Vertical axes; sample those too so simply
-            // steering with the stick flips the glyphs to the pad set.
-            bool moved = Mathf.Abs(Deadzoned(Input.GetAxis("Horizontal"))) > 0f
-                      || Mathf.Abs(Deadzoned(Input.GetAxis("Vertical"))) > 0f
+            // steering with the stick flips the glyphs to the pad set. Those axes ALSO carry WASD and the arrow
+            // keys, so they count only while no movement key is held, and read raw (the smoothed keyboard axis keeps
+            // decaying after the key is up) — a keyboard walk used to flip the glyphs to the pad set (#2461, N7).
+            bool moved = InputDeviceRules.SharedMoveAxesArePad(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"),
+                             MovementKeyHeld(), Deadzone)
                       || Mathf.Abs(Deadzoned(Input.GetAxis(AxisRightStickX))) > 0f
                       || Mathf.Abs(Deadzoned(Input.GetAxis(AxisRightStickY))) > 0f
                       || Mathf.Abs(Deadzoned(Input.GetAxis(AxisDpadX))) > 0f
@@ -494,5 +496,12 @@ namespace BlocksBeyondTheStars.Client
             return Settings != null && Settings.PadTriggersMinePlace
                    && Mathf.Abs(Input.GetAxis(AxisTriggers)) >= TriggerThreshold;
         }
+
+        /// <summary>A keyboard movement key is held — the keys the input manager folds into the same axes as the left
+        /// stick (WASD and the arrows, see InputManager.asset).</summary>
+        private static bool MovementKeyHeld()
+            => Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.D)
+               || Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow)
+               || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.RightArrow);
     }
 }

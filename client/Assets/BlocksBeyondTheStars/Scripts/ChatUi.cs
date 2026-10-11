@@ -251,8 +251,9 @@ namespace BlocksBeyondTheStars.Client
             // own overlay and the left lane belongs to it; EVA keeps the chat (you are still "on foot").
             // Typing overrides — the input must never vanish mid-sentence, however the state flips. The
             // /bump capture guard: that path blanks the canvas itself for its end-of-frame screenshot, and
-            // this toggle must not fight it within the frame.
-            bool hideForContext = Game.SpaceViewActive && !Game.InEva && !_typing;
+            // this toggle must not fight it within the frame. A cutscene hides it too (#2461) — new lines keep arriving
+            // in the scrollback and show again afterwards.
+            bool hideForContext = ((Game.SpaceViewActive && !Game.InEva) || GameBootstrap.CutsceneActive) && !_typing;
             if (_canvas != null && !_capturing && _canvas.enabled == hideForContext)
             {
                 _canvas.enabled = !hideForContext;
@@ -293,7 +294,8 @@ namespace BlocksBeyondTheStars.Client
             // Open the input with Enter — or, on a pad, with d-pad up: the chat box was the last thing on
             // the HUD a controller could not reach at all (#1211/#1220). KeypadEnter stays a raw second key
             // rather than a binding: it is the SAME key to a player, not a second one to configure.
-            if (!_typing && !Game.MenuOpen && (InputMap.Down(InputAction.OpenChat) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            if (!_typing && !Game.MenuOpen && !GameBootstrap.CutsceneActive
+                && (InputMap.Down(InputAction.OpenChat) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 OpenInput();
             }

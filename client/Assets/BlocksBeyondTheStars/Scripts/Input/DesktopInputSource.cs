@@ -25,8 +25,11 @@ namespace BlocksBeyondTheStars.Client
         public float LookY() => Input.GetAxis("Mouse Y");
         public float HotbarScroll() => Input.GetAxis("Mouse ScrollWheel");
 
-        public bool JumpHeld() => Input.GetButton("Jump");
-        public bool JumpDown() => Input.GetButtonDown("Jump");
+        // The keyboard's jump is the space bar — read as the key, not as the legacy "Jump" button (#2461, N9): that
+        // input-manager entry also carries Unity's stock "joystick button 3", which on an XInput pad is Y — so Y
+        // jumped AND toggled the camera view (ToggleThirdPerson). The pad jumps on A through GamepadInputSource.
+        public bool JumpHeld() => Input.GetKey(KeyCode.Space);
+        public bool JumpDown() => Input.GetKeyDown(KeyCode.Space);
         public bool CrouchHeld() => Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C);
         public bool PrimaryDown() => Input.GetMouseButtonDown(0);
         public bool PrimaryHeld() => Input.GetMouseButton(0);

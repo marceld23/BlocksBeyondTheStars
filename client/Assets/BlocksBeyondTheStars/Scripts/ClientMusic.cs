@@ -131,8 +131,13 @@ namespace BlocksBeyondTheStars.Client
         private float _duck = 1f;             // smoothed ducking multiplier (weather / hostile nearby)
         private bool _tension;
 
-        // Finale: a one-shot resolution window after the Guardian core falls (then normal music resumes).
-        private bool _finaleResolved;
+        // Finale: the resolution track follows the ending SCENE (#2461, B17) — armed on every start of the resolution
+        // cinematic (the live win, the join catch-up, a Story-tab replay), held while it plays and for a window from
+        // its start, then normal music resumes. It used to key off the first sighting of GuardianDefeated in a
+        // session: a won save played it at every session start, and a replay later in the session got none.
+        private const float ResolutionSeconds = 32f;
+        private ResolutionCinematic _resolutionSeenOn; // the world's cinematic whose starts are being counted
+        private int _resolutionPlaysSeen;
         private float _resolutionUntil;
 
         private void Awake()
@@ -403,32 +408,60 @@ namespace BlocksBeyondTheStars.Client
             return surface;
         }
 
+        /// <summary>The resolution track while the ending scene plays and for <see cref="ResolutionSeconds"/> from each of
+        /// its starts (#2461, B17), else null. Counted per world: a new world's cinematic starts the count afresh.</summary>
+        private string ResolutionContext()
+        {
+            var ending = ResolutionCinematic.Instance;
+            if (!ReferenceEquals(ending, _resolutionSeenOn))
+            {
+                _resolutionSeenOn = ending;
+                _resolutionPlaysSeen = 0;
+                _resolutionUntil = 0f; // a window from the last world does not carry into this one
+            }
+
+            if (ending == null)
+            {
+                return null;
+            }
+
+            if (ending.Plays != _resolutionPlaysSeen)
+            {
+                _resolutionPlaysSeen = ending.Plays;
+                if (ending.Playing)
+                {
+                    _resolutionUntil = Time.time + ResolutionSeconds;
+                }
+            }
+
+            return ending.Playing || Time.time < _resolutionUntil ? FinaleResolution : null;
+        }
+
         /// <summary>The finale music phase, or null when the player is not engaging the Guardian core. Priority:
-        /// resolution sting (just won) → dialogue duel → core hack → space gauntlet → approach. Resolved from the
+        /// resolution (the ending scene plays) → dialogue duel → core hack → space gauntlet → approach. Resolved from the
         /// shared story flags (<see cref="GameBootstrap.Story"/>), the current location id (the finale system is
         /// <c>guardian_finale*</c>) and the live <see cref="FinaleView"/> phase.</summary>
         private string FinaleContext(GameBootstrap game, bool inSpace)
         {
+            // The resolution track belongs to the ending scene, whenever it plays (#2461, B17).
+            string resolution = ResolutionContext();
+            if (resolution != null)
+            {
+                return resolution;
+            }
+
             var story = game.Story;
             if (story == null || !story.Active)
             {
-                _finaleResolved = false;
                 return null;
             }
 
-            // Resolution sting right after the core falls — then normal music resumes for good.
+            // The core has fallen: the galaxy is at peace and normal music plays (the ending scene brings its own).
             if (story.GuardianDefeated)
             {
-                if (!_finaleResolved)
-                {
-                    _finaleResolved = true;
-                    _resolutionUntil = Time.time + 32f;
-                }
-
-                return Time.time < _resolutionUntil ? FinaleResolution : null;
+                return null;
             }
 
-            _finaleResolved = false;
             if (!story.GuardianSystemRevealed)
             {
                 return null;

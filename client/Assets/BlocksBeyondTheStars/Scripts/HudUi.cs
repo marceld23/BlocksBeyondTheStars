@@ -295,10 +295,10 @@ namespace BlocksBeyondTheStars.Client
             EnsureBuilt();
             UpdateDamageFeedback(); // always, so the health baseline tracks even while a menu is open
 
-            // Hidden while a menu is open — and during the prologue cinematic (#760): vitals/hotbar/
-            // crosshair in the frame break the letterboxed shot. The VEGA speech panel and the
-            // CinematicFrame chrome live on their own canvases, so the story text stays visible.
-            bool show = !Game.MenuOpen && !Game.VegaPrologueActive && !Game.CinematicCameraActive;
+            // Hidden while a menu is open — and during every cutscene (#760, #2461: the ending used to play over
+            // the full HUD): vitals/hotbar/crosshair in the frame break the letterboxed shot. The VEGA speech panel
+            // and the CinematicFrame chrome live on their own canvases, so the story text stays visible.
+            bool show = !Game.MenuOpen && !Game.VegaPrologueActive && !Game.CinematicCameraActive && !GameBootstrap.CutsceneActive;
             if (_canvas.enabled != show)
             {
                 _canvas.enabled = show;
@@ -592,9 +592,9 @@ namespace BlocksBeyondTheStars.Client
         {
             var cam = Camera.main;
             var def = Game?.Content?.BlockById(block);
-            if (cam == null || def == null || Game.Atlas == null)
+            if (cam == null || def == null || Game.Atlas == null || GameBootstrap.CutsceneActive)
             {
-                return;
+                return; // #2461: no icon flies across a cutscene (its canvas sits above every frame)
             }
 
             Vector3 sp = cam.WorldToScreenPoint(worldPos);
@@ -1200,7 +1200,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
                 InputDeviceKind.Touch => string.Empty,
-                InputDeviceKind.Gamepad => loc.Get("ui.hud.hint_pad"),
+                InputDeviceKind.Gamepad => PadHint(loc), // #2461 (N9): glyph set, bindings and triggers, not a fixed string
                 _ => loc.Get("ui.hud.hint").Replace("{feedback_key}", FeedbackUi.HotkeyName),
             };
 
@@ -2211,6 +2211,47 @@ namespace BlocksBeyondTheStars.Client
             InputDeviceKind.Touch => loc.Get("ui.touch.jump"),
             _ => loc.Get("ui.hud.jump_key"),
         };
+
+        // #2461 (N9): the pad's controls line used to be one fixed string ("(A) jump · (Y) view …") — wrong for a
+        // PlayStation or Nintendo glyph set, for a rebound pad button, and silent about the triggers once the player
+        // switched them on. It is composed from the live glyphs now, and cached: rebuilt only when the language, a
+        // binding or one of the pad settings changes.
+        private static string _padHint;
+        private static (string Template, int Bindings, PadGlyphSet Glyphs, bool Triggers) _padHintKey;
+
+        /// <summary>The on-foot controls line for a gamepad, in the player's glyph set and bindings (#2461, N9).</summary>
+        internal static string PadHint(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            var settings = GamepadInputSource.Settings;
+            string template = loc.Get("ui.hud.hint_pad_glyphs");
+            bool triggers = settings != null && settings.PadTriggersMinePlace;
+            var key = (template, settings != null ? settings.BindingsVersion : -1,
+                settings != null ? settings.PadGlyphs : PadGlyphSet.Xbox, triggers);
+            if (_padHint != null && key.Equals(_padHintKey))
+            {
+                return _padHint;
+            }
+
+            // Mine / place / jump / crouch are fixed pad buttons (the shoulder and the bottom face buttons); the triggers
+            // join mine/place only while the player has them switched on.
+            string mine = InputMap.PadGlyph(KeyCode.JoystickButton5) + (triggers ? "/" + InputMap.PadTriggerGlyph(right: true) : string.Empty);
+            string place = InputMap.PadGlyph(KeyCode.JoystickButton4) + (triggers ? "/" + InputMap.PadTriggerGlyph(right: false) : string.Empty);
+            _padHint = template
+                .Replace("{mine}", mine)
+                .Replace("{place}", place)
+                .Replace("{jump}", InputMap.PadGlyph(KeyCode.JoystickButton0))
+                .Replace("{crouch}", InputMap.PadGlyph(KeyCode.JoystickButton1))
+                .Replace("{use}", PadGlyphOf(InputAction.Interact))
+                .Replace("{view}", PadGlyphOf(InputAction.ToggleThirdPerson))
+                .Replace("{actions}", PadGlyphOf(InputAction.ContextActions))
+                .Replace("{vega}", PadGlyphOf(InputAction.VegaContinue))
+                .Replace("{menu}", PadGlyphOf(InputAction.UiMenu));
+            _padHintKey = key;
+            return _padHint;
+        }
+
+        /// <summary>The pad button bound to an action, by name — "—" when the player unbound it.</summary>
+        private static string PadGlyphOf(InputAction action) => InputMap.PadGlyph(GamepadInputSource.ButtonFor(action)) ?? "—";
 
         // --- pickup feed (#745) ---
 

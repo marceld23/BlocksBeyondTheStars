@@ -48,8 +48,12 @@ namespace BlocksBeyondTheStars.Client
             UrpScenePost.Instance?.Burst(0.35f, 0.5f, Duration); // the static/glitch texture of the recall
         }
 
+        /// <summary>Another screen state owns the picture: a menu, the space view, any cutscene (#2461 — the ending's
+        /// own lines used to start a flashback under its credits), or an ending that is about to start.</summary>
         private bool Suppressed()
-            => Game.MenuOpen || Game.SpaceViewActive || Game.VegaPrologueActive || Game.CinematicCameraActive;
+            => Game.MenuOpen || Game.SpaceViewActive || Game.VegaPrologueActive || Game.CinematicCameraActive
+               || GameBootstrap.CutsceneActive
+               || (ResolutionCinematic.Instance != null && ResolutionCinematic.Instance.Pending);
 
         private void Update()
         {

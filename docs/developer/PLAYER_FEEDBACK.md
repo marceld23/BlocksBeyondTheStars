@@ -13,9 +13,13 @@ only menus/chat/death-prompt block it.)
 Esc menu sends (see the pause notes on #612/#908/#973): in singleplayer the world stops — and saves — the
 moment the dialog appears, so typing a report costs no hunger, daylight or a creature sneaking up; with
 other players joined it only counts as "this player is in a menu" until everyone else is too. Every close
-path (Esc, Cancel, the auto-close after a send) releases it. Both menus drive this through one pure
-`WorldHoldIntent` (`Client.Core`), which also repeats the intent every 15 s — the keep-alive the server
-uses to drop a client that died behind its menu. The screenshot is captured *before* the hold, so it still
+path (Esc, Cancel, the auto-close after a send) releases it. Every holder — the Esc menu (`menu`), this
+dialog (`feedback`), the reply overlay (`feedback_reply`) and later a held cutscene (`cutscene`) — registers
+by name with the world's **`WorldHoldArbiter`** (`Client.Core`, `GameBootstrap.WorldHold`, #2461): the
+intent goes out with the first holder and the release only with the last one, so closing the report dialog over
+the pause menu (or the menu under a held cutscene) no longer lets the world run on — the server still keeps one
+pause flag per session and was not changed. The arbiter wraps one pure `WorldHoldIntent`, which repeats the
+intent every 15 s — the keep-alive the server uses to drop a client that died behind its menu. The screenshot is captured *before* the hold, so it still
 shows live play; the `/bump` snapshot is on the server's paused allow-list (`PausedMayHandle`, #995).
 
 This is deliberately **player-facing** and separate from the developer `/bump` chat command (which still

@@ -45,9 +45,10 @@ namespace BlocksBeyondTheStars.Client
 
             // The text-entry gate is already inside InputMap.Down (#1858); named here too so a "U" typed into
             // any field stays a letter even if a future verb here reads a raw key.
-            if (modal || Game.MenuOpen || Game.SpaceViewActive || Game.ChatTyping || InputMap.TextEntryActive)
+            if (modal || Game.MenuOpen || Game.SpaceViewActive || Game.ChatTyping || InputMap.TextEntryActive
+                || GameBootstrap.CutsceneActive)
             {
-                return; // don't start new interactions while a panel/space view/chat/text field is up
+                return; // don't start new interactions while a panel/space view/chat/text field/cutscene (#2461) is up
             }
 
             // Leave a boarded space station (returns you to your ship). Boarding it is otherwise a one-way trip.
@@ -233,7 +234,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Non-modal centre hint (no cursor): undock, or trade/dock a nearby player.
             string hint = null;
-            if (!dock && !trade && !tradeAsk && !Game.MenuOpen && !Game.SpaceViewActive)
+            if (!dock && !trade && !tradeAsk && !Game.MenuOpen && !Game.SpaceViewActive && !GameBootstrap.CutsceneActive)
             {
                 // The keyboard hints name letters (U / T / K); on pad and touch those verbs live in the
                 // context-actions list, so the hint points there instead (#1042/#1043).

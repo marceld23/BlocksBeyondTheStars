@@ -96,9 +96,10 @@ namespace BlocksBeyondTheStars.Client
                 // naming, dock request …): stacking the crafting menu on top of those was the root of a
                 // family of cursor-fights (#413) — the modal's own Esc/Tab handling closes it instead.
                 // UiMenu toggles the menu: Tab on the keyboard, Start on the pad (#1198).
+                // Nor under a cutscene (#2461): the menu (order 50) would open invisibly behind the cinematic's frame.
                 if (InputMap.Down(InputAction.UiMenu)
                     && !Game.AwaitingRespawnConfirm && !Game.ChatTyping && !typingRecent
-                    && !Game.MenuInputHandledThisFrame && (_open || !Game.MenuOpen))
+                    && !Game.MenuInputHandledThisFrame && (_open || (!Game.MenuOpen && !GameBootstrap.CutsceneActive)))
                 {
                     Game.MarkMenuInputHandled();
                     SetOpen(!_open);

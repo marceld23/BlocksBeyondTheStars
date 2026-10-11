@@ -1422,6 +1422,27 @@ namespace BlocksBeyondTheStars.Client
         /// on-foot controller freezes movement/look like an open menu, but the cursor stays locked.</summary>
         public bool CinematicCameraActive { get; set; }
 
+        /// <summary>The one shared "a cutscene owns the screen" state (#2461). The staged prologue, the ending and the
+        /// shell intro each open a reason while they play (<see cref="CutsceneGate.Begin"/>/<see cref="CutsceneGate.End"/>);
+        /// every overlay reads <see cref="CutsceneActive"/> — the HUD (crosshair included), VEGA's panel and objective chip,
+        /// the touch controls, the chat, the nameplates, the IMGUI overlays — and the controls freeze. Static because the
+        /// shell intro runs before any world exists; the world's own reasons are cleared when the world goes.</summary>
+        public static readonly CutsceneGate Cutscenes = new CutsceneGate();
+
+        /// <summary>True while any cutscene owns the screen — see <see cref="Cutscenes"/>.</summary>
+        public static bool CutsceneActive => Cutscenes.Active;
+
+        /// <summary>A fresh process (or an Editor play session without a domain reload) starts with no cutscene.</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetCutscenesOnLoad() => Cutscenes.Clear();
+
+        /// <summary>Every reason this client has to hold the world — the pause menu, the feedback dialog, its reply and
+        /// later a held cutscene — combined into the one pause intent the server knows (#2461). Before, each panel sent
+        /// its own hold/release into the server's single flag, and closing one released the other's hold.</summary>
+        public WorldHoldArbiter WorldHold => _worldHold ??= new WorldHoldArbiter(paused => Network?.SendPause(paused));
+
+        private WorldHoldArbiter _worldHold;
+
         /// <summary>Pre-built JSON of the player's discovered systems/worlds + language for the in-game wiki's
         /// discovery-gated chapters. Built on the main thread (so the loopback content server can read this
         /// immutable string race-free) whenever the star map, language or unlocks change.</summary>
@@ -3106,6 +3127,7 @@ namespace BlocksBeyondTheStars.Client
         private void Update()
         {
             Network?.Poll();
+            _worldHold?.Tick(Time.realtimeSinceStartup); // #2461: one keep-alive for every holder (menu, feedback, …)
             _worldClock.Advance(Time.deltaTime); // after Poll, so a PauseState that just landed takes effect now
             Bio.Tick(Time.deltaTime); // #2202: the effect seconds run between two server updates
             BioSenses.Ensure(this);   // #2202: night sight and perception — the component arrives with the first such effect
@@ -4500,6 +4522,8 @@ namespace BlocksBeyondTheStars.Client
         private void OnDestroy()
         {
             Network?.Dispose();
+            _worldHold?.Forget(); // the world is gone — nothing left to hold or to tell (#2461)
+            Cutscenes.Clear();    // #2461: a cinematic torn down with its world must not keep the next one's HUD hidden
 
             // The atlas and the texture source are shared with the menu and its editors — a world's textures
             // must not outlive the world (#1959).

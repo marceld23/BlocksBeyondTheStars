@@ -88,12 +88,12 @@ namespace BlocksBeyondTheStars.Client
         private byte[] _shotJpg;                 // screenshot captured when the dialog opened
         private Task<FeedbackUploadResult> _uploadTask;
 
-        // The dialog's "hold the world while I'm open" request — one class shared with the Esc menu so the
-        // intent, the release and the 15 s keep-alive the server sweeps dead clients by (#973) have one copy.
-        private WorldHoldIntent _worldHoldOrNull;
+        // The dialog's and the reply's "hold the world while I'm open" requests go through the world's hold arbiter
+        // (#2461), each under its own name: closing one of them — or the Esc menu — no longer releases the hold the
+        // other still needs. The arbiter owns the 15 s keep-alive the server sweeps dead clients by (#973).
+        private void HoldWorld(string holder) => Game?.WorldHold.Hold(holder, Time.realtimeSinceStartup);
 
-        private WorldHoldIntent WorldHold =>
-            _worldHoldOrNull ??= new WorldHoldIntent(paused => Game?.Network?.SendPause(paused));
+        private void ReleaseWorld(string holder) => Game?.WorldHold.Release(holder);
 
         // Reply inbox state.
         private float _nextPollAt = -1f;         // < 0 = polling off (no API key)
@@ -167,7 +167,8 @@ namespace BlocksBeyondTheStars.Client
                 // no-op, but the local counter must not carry into the next world.
                 _open = false;
                 _replyOpen = false;
-                WorldHold.Release();
+                ReleaseWorld(WorldHoldArbiter.Feedback);
+                ReleaseWorld(WorldHoldArbiter.FeedbackReply);
             }
 
             if (_dialogCanvas != null)
@@ -211,8 +212,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // The hotkey opens feedback during normal play — on foot AND in space flight (both HUDs advertise
-            // it); not while a menu/chat modal or the death prompt already owns the screen.
-            bool canLaunch = !Game.MenuOpen && !Game.ChatTyping && !Game.AwaitingRespawnConfirm;
+            // it); not while a menu/chat modal or the death prompt already owns the screen — nor under a cutscene,
+            // whose frame would cover the dialog (#2461; skipping it is one key away).
+            bool canLaunch = !Game.MenuOpen && !Game.ChatTyping && !Game.AwaitingRespawnConfirm && !GameBootstrap.CutsceneActive;
 
             if (!_open && canLaunch && Input.GetKeyDown(Hotkey))
             {
@@ -225,8 +227,8 @@ namespace BlocksBeyondTheStars.Client
                 Close();
             }
 
-            // Keep telling the server we are still here while the dialog holds the world (no-op while closed).
-            WorldHold.Tick(Time.realtimeSinceStartup);
+            // The keep-alive that tells the server we are still here while the dialog holds the world runs in the
+            // world's hold arbiter (GameBootstrap.WorldHold, #2461).
 
             // Marshal the background upload result back onto the main thread.
             if (_uploadTask != null && _uploadTask.IsCompleted)
@@ -303,7 +305,7 @@ namespace BlocksBeyondTheStars.Client
             // Hold the world like the Esc menu does (#1330) — after the screenshot, so the shot shows live play.
             // The server decides what it means (#973): alone, the world stops right here; with others joined it
             // only counts as "this player is in a menu" until everyone else is too.
-            WorldHold.Hold(Time.realtimeSinceStartup);
+            HoldWorld(WorldHoldArbiter.Feedback);
         }
 
         private void Close()
@@ -315,7 +317,7 @@ namespace BlocksBeyondTheStars.Client
             ReleaseInputFocus(_titleInput, _descInput, _emailInput);
             if (_dialog != null) _dialog.SetActive(false);
 
-            WorldHold.Release(); // every close path ends here (Esc, Cancel, the auto-close after a send) — sends once
+            ReleaseWorld(WorldHoldArbiter.Feedback); // every close path ends here (Esc, Cancel, the auto-close after a send)
             Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other owner is open (#413)
         }
 
@@ -823,7 +825,7 @@ namespace BlocksBeyondTheStars.Client
             _replyOverlay.SetActive(true);
             SetReplyBody(ThreadText(thread)); // after activation — the chunk heights are measured against live rects
             UiKit.OpenModal(_replyOverlay); // #2302: the open effect — ShowThread only runs while no reply is open
-            WorldHold.Hold(Time.realtimeSinceStartup); // reading/answering holds the world like the F1 dialog (#1330)
+            HoldWorld(WorldHoldArbiter.FeedbackReply); // reading/answering holds the world like the F1 dialog (#1330)
             Game.SetMenuOwner(_replyOwner, true);
         }
 
@@ -992,7 +994,7 @@ namespace BlocksBeyondTheStars.Client
             _shown = null;
             ReleaseInputFocus(_answerInput);
             if (_replyOverlay != null) _replyOverlay.SetActive(false);
-            WorldHold.Release();
+            ReleaseWorld(WorldHoldArbiter.FeedbackReply);
             Game?.SetMenuOwner(_replyOwner, false);
         }
 

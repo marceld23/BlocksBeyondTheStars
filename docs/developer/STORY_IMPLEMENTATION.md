@@ -115,10 +115,43 @@ progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — i
 | 147 | `StorySelectIntent` | C→S | admin sets the active story |
 | 148 | `NetFragmentList` | S→C | fragments on the current world |
 | 149 | `CoreHackProgress` | S→C | hack channel progress + complete |
-| 220 | `StoryResolved` | S→C | play the resolution cinematic (win, join catch-up, replay) (#1124) |
+| 220 | `StoryResolved` | S→C | play the resolution cinematic (win, join catch-up, replay) (#1124); additive `EpilogueTitleKey` since #2461 |
 | 221 | `RequestStoryResolutionIntent` | C→S | Story tab "watch the ending again" (#1124) |
 
 Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
+
+## Cinematics: one cutscene state, skip on every device, the world-hold arbiter (#2461)
+
+The client's story cinematics — the staged prologue (`VegaPanel` + `PrologueCinematic`), the ending
+(`ResolutionCinematic`) and the shell intro (`IntroCinematic`) — share three pieces the cutscene director builds on:
+
+- **`GameBootstrap.Cutscenes`** (`CutsceneGate`, `Client.Core`): a static set of open reasons (`prologue`,
+  `resolution`, `intro`; `Begin`/`End`/`Set` are idempotent per reason, so overlapping scenes never clear each
+  other); `GameBootstrap.CutsceneActive` is "any reason open". Readers: `HudUi` (crosshair included, plus the pickup
+  fly-ins), `TouchControlsUi`, `ChatUi` (hidden, and Enter opens nothing), `ScreenLabelLayer` (nameplates and
+  health bars), the IMGUI overlays of `FinaleView` and `WeatherFx`, `MemoryFlashback`, `PlayerInteractions`,
+  `ContextActionsUi`/`HotbarActionUi`/`GameMenu`/`FeedbackUi` (nothing opens behind the frame), `PlayerController`
+  and `SpaceView` (controls freeze like a menu), `AppShell` (Esc belongs to the scene) and `VegaPanel`, which yields
+  to every scene except the prologue it presents itself (`ActiveOtherThan(Prologue)`): its canvas is off, nothing
+  types or dequeues, and a received-but-pending ending (`ResolutionCinematic.Pending`) holds it too. The prologue's
+  reason follows `SetPrologueChrome`; the world's reasons are cleared in `GameBootstrap.OnDestroy`.
+- **Skip:** `CinematicFrame.SkipPressed()` (= `InputAction.UiCancel`: Esc, pad B) plus an on-screen button
+  (`CinematicFrame.EnableSkipButton`; the prologue uses a skip pill in VEGA's panel), labelled per device by
+  `CinematicFrame.SkipLabel` (`ui.cutscene.skip_key/_pad/_touch`). `CinematicFrame` also scales `SetFlash` by
+  `FxKit.FlashScale` (Reduce flashes), scales its caption and hint fonts with `UiKit.UserScale`, and draws the hint
+  above its black cover.
+- **`GameBootstrap.WorldHold`** (`WorldHoldArbiter`, `Client.Core`): holders by name (`menu`, `feedback`,
+  `feedback_reply`, `cutscene`) drive the one `PauseIntent` per session; the release goes out with the last holder.
+  The server is unchanged. The director's SP hold should register as `WorldHoldArbiter.Cutscene`.
+
+The ending: it waits for no menu, no loading veil and no other cutscene; on receipt it withdraws its epilogue line
+from VEGA's queue (`VegaPanel.WithdrawLine` — the story log keeps it); its epilogue title is the pack's
+`epilogueTitleKey` (`story.vega.epilogue.title`, mirrored in `StoryRegistry` and the no-drift test; the raw
+`epilogueTitle` stays for older clients); `ClientMusic` plays the resolution track whenever the cinematic starts
+(`ResolutionCinematic.Plays`) — no longer on the first sighting of `GuardianDefeated`, which replayed it at every
+session start of a won save. The prologue's staging is retried for ~4 s while the ring streams in (`StagingRetry`),
+its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the camera spot avoids the landed hull
+(`CinematicStageScan` overloads with a separate spot sampler).
 
 ## Key files / classes
 

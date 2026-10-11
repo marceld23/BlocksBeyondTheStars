@@ -561,6 +561,7 @@ public sealed partial class GameServer
         {
             StoryNameKey = _story?.NameKey ?? string.Empty,
             EpilogueTitle = _story?.EpilogueTitle ?? string.Empty,
+            EpilogueTitleKey = _story?.EpilogueTitleKey ?? string.Empty, // #2461: the localized title (additive)
             EpilogueTextKey = _story?.EpilogueTextKey ?? string.Empty,
         });
         if (session.State.Milestones.Add(ResolutionSeenKey))

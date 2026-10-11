@@ -223,8 +223,10 @@ namespace BlocksBeyondTheStars.Client
                 Build();
             }
 
-            // Hide everything while a menu is open so taps reach the menu.
-            bool show = Game != null && !Game.MenuOpen;
+            // Hide everything while a menu is open so taps reach the menu — and under a cutscene (#2461): this canvas
+            // (order 100) sat above every cinematic frame, and its full-screen look pad swallowed the taps meant for the
+            // cinematic's own skip and continue buttons.
+            bool show = Game != null && !Game.MenuOpen && !GameBootstrap.CutsceneActive;
             if (_rootPanel.activeSelf != show)
             {
                 _rootPanel.SetActive(show);

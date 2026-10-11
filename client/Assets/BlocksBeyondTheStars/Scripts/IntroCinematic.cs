@@ -13,7 +13,8 @@ namespace BlocksBeyondTheStars.Client
     /// systems the game uses (<see cref="Starfield"/>/<see cref="NebulaField"/>/<see cref="ShipMeshBuilder"/>/
     /// <see cref="UrpScenePost"/>, the <see cref="MenuBackground"/> recipes), so it always matches current
     /// art and works on WebGL. Plays once per install (<see cref="ClientSettings.IntroSeen"/>), is skippable
-    /// any time (Esc immediately, any key after a grace period), and is re-watchable from the Credits
+    /// any time on every device (Esc / the pad's cancel button / the on-screen skip button immediately, any key,
+    /// pad button or tap after a grace period — #2461), and is re-watchable from the Credits
     /// screen. Driven from <see cref="AppShell.Update"/> like the splashes; captions are re-localized every
     /// frame, so a late-arriving WebGL localizer self-heals.
     /// </summary>
@@ -50,7 +51,13 @@ namespace BlocksBeyondTheStars.Client
         private BlockTextureAtlas _atlas;
         private Material _chunkMat, _chunkMatT;
 
-        public IntroCinematic(AppShell shell) => _shell = shell;
+        private readonly System.Func<string, string> _localize; // the shell's L, cached for the per-frame skip label
+
+        public IntroCinematic(AppShell shell)
+        {
+            _shell = shell;
+            _localize = shell.L;
+        }
 
         /// <summary>Arms the next run as a replay (Credits button): the seen flag is not stamped again.</summary>
         public void BeginReplay() => _replay = true;
@@ -81,11 +88,30 @@ namespace BlocksBeyondTheStars.Client
             _elapsed += Time.deltaTime;
             Animate(_elapsed);
 
-            bool skip = Input.GetKeyDown(KeyCode.Escape) || (_elapsed > 0.7f && Input.anyKeyDown);
+            // Skippable on every device (#2461): Esc and the pad's cancel button at once, the on-screen skip button (a
+            // tap or a click), and after a short grace any key, pad button or tap — a touch-only player used to have
+            // no way out but the full 28 s.
+            bool skip = Input.GetKeyDown(KeyCode.Escape) || CinematicFrame.SkipPressed()
+                        || (_frame != null && _frame.ConsumeSkipClick())
+                        || (_elapsed > 0.7f && (Input.anyKeyDown || TouchBegan()));
             if (Timeline.Done(_elapsed) || skip)
             {
                 Finish();
             }
+        }
+
+        /// <summary>A finger came down this frame.</summary>
+        private static bool TouchBegan()
+        {
+            for (int i = 0; i < Input.touchCount; i++)
+            {
+                if (Input.GetTouch(i).phase == TouchPhase.Began)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void Finish()
@@ -148,7 +174,7 @@ namespace BlocksBeyondTheStars.Client
                 _frame.SetCaption(_shell.L("ui.intro.card3"), a3);
             }
 
-            _frame.SetHint(_shell.L("ui.intro.skip"), CinematicTimeline.FadeWindow(t, 2f, Timeline.Total - 1f, 1f) * 0.6f);
+            _frame.SetHint(CinematicFrame.SkipLabel(_localize), CinematicTimeline.FadeWindow(t, 2f, Timeline.Total - 1f, 1f) * 0.6f);
 
             // White reveal flash over the last 1.2 s — the hand-off lands on the menu at the peak.
             _frame.SetFlash(Mathf.Clamp01((t - (Timeline.Total - 1.2f)) / 1.2f) * 0.85f);
@@ -253,6 +279,8 @@ namespace BlocksBeyondTheStars.Client
 
             _frame = CinematicFrame.Create("IntroFrame", 66);
             _frame.transform.SetParent(_root.transform, false);
+            _frame.EnableSkipButton(); // tap or click to skip (#2461)
+            GameBootstrap.Cutscenes.Begin(CutsceneGate.Intro); // the shared cutscene state (#2461) — ended in DestroyRig
             Animate(0f);
         }
 
@@ -426,6 +454,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void DestroyRig()
         {
+            GameBootstrap.Cutscenes.End(CutsceneGate.Intro);
             if (_frame != null)
             {
                 Object.Destroy(_frame.gameObject);

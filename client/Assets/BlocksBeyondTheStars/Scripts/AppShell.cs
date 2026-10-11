@@ -1185,7 +1185,8 @@ namespace BlocksBeyondTheStars.Client
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             _confirmQuit = false;
-            WorldHold.Forget(); // the world is gone — a stale keep-alive must not put the NEXT one to sleep
+            // The world's hold arbiter goes with its GameBootstrap (OnDestroy forgets it, #2461) — no stale keep-alive
+            // can put the NEXT world to sleep.
             if (_quitDialog != null)
             {
                 UnityEngine.Object.Destroy(_quitDialog);
@@ -1236,36 +1237,28 @@ namespace BlocksBeyondTheStars.Client
         /// </para>
         /// Tied to <see cref="_confirmQuit"/> (the menu session), not to the dialog's visibility — opening
         /// Settings from the pause menu hides the dialog but must not resume the world.
+        /// <para>
+        /// The hold goes through the world's <see cref="GameBootstrap.WorldHold"/> arbiter under the "menu" name
+        /// (#2461): the feedback dialog holds under its own name, so closing either one keeps the other's hold, and the
+        /// arbiter runs the keep-alive the server relies on (#973, heartbeat from #964) for both.
+        /// </para>
         /// </summary>
         private void SetWorldPaused(bool paused)
         {
+            var hold = Boot()?.WorldHold;
+            if (hold == null)
+            {
+                return; // no world (yet / any more) — nothing to hold
+            }
+
             if (paused)
             {
-                WorldHold.Hold(Time.realtimeSinceStartup);
+                hold.Hold(BlocksBeyondTheStars.Client.WorldHoldArbiter.Menu, Time.realtimeSinceStartup);
             }
             else
             {
-                WorldHold.Release();
+                hold.Release(BlocksBeyondTheStars.Client.WorldHoldArbiter.Menu);
             }
-        }
-
-        /// <summary>The menu's hold request, with the keep-alive the server relies on: behind an open menu this
-        /// repeat is what lets it drop a player who crashed mid-pause instead of leaving the world frozen for
-        /// everybody else (#973, heartbeat from #964). The feedback dialog holds through the same class (#1330).</summary>
-        private BlocksBeyondTheStars.Client.WorldHoldIntent _worldHoldOrNull;
-
-        private BlocksBeyondTheStars.Client.WorldHoldIntent WorldHold =>
-            _worldHoldOrNull ??= new BlocksBeyondTheStars.Client.WorldHoldIntent(paused => Boot()?.Network?.SendPause(paused));
-
-        /// <summary>Re-sends the pause intent on the keep-alive cadence for as long as the menu session lasts.</summary>
-        private void TickPauseKeepAlive()
-        {
-            if (!_confirmQuit)
-            {
-                return; // belt and braces — the hold is only ever opened with the menu session
-            }
-
-            WorldHold.Tick(Time.realtimeSinceStartup);
         }
 
         private void CancelQuit()
@@ -1875,9 +1868,8 @@ namespace BlocksBeyondTheStars.Client
                 _uiSaveSelect = null;
             }
 
-            // The open pause menu keeps telling the server it is still there, and keeps its own status line in
-            // step with who else has (not) paused yet (#973). Both are no-ops outside a menu session.
-            TickPauseKeepAlive();
+            // The open pause menu keeps its own status line in step with who else has (not) paused yet (#973). The
+            // keep-alive that tells the server it is still there runs in the world's hold arbiter (#2461).
             if (_confirmQuit)
             {
                 RefreshPauseStatus();
@@ -1948,13 +1940,14 @@ namespace BlocksBeyondTheStars.Client
                         CancelQuit(); // Esc again dismisses the confirmation
                     }
                     else if (boot != null && (boot.MenuOpen || boot.MenuInputHandledThisFrame || boot.AwaitingRespawnConfirm || boot.VegaPrologueActive
+                        || GameBootstrap.CutsceneActive
                         || (ResolutionCinematic.Instance != null && ResolutionCinematic.Instance.Playing)))
                     {
                         // The in-game menu / a modal owns this Esc press — or the death prompt is up
                         // (#413: the quit dialog would open invisibly BEHIND its backdrop, sortingOrder
-                        // 60 vs 85; only its "Weiter" button proceeds). The first-spawn prologue (#738)
-                        // and the story-resolution cinematic (#1151) also own Esc as their skip key,
-                        // independent of script execution order.
+                        // 60 vs 85; only its "Weiter" button proceeds). The first-spawn prologue (#738),
+                        // the story-resolution cinematic (#1151) and any other cutscene (#2461) also own
+                        // Esc as their skip key, independent of script execution order.
                     }
                     else
                     {

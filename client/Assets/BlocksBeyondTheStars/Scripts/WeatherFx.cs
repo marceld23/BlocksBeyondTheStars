@@ -85,7 +85,9 @@ namespace BlocksBeyondTheStars.Client
                 Debug.Log($"[WeatherFx] overlay {(wanted ? "on" : "off")} (precip '{env?.Precipitation}', weather {env?.Weather}, exposed {Game?.ExposedToSky}, wash {anyWash})");
             }
 
-            _overlay.Sync(wanted);
+            // IMGUI draws above every canvas — rain on the lens over a cutscene's letterbox and captions read as a bug
+            // (#2461). The weather itself keeps running; only the screen overlay waits for the scene to end.
+            _overlay.Sync(wanted && !GameBootstrap.CutsceneActive);
         }
 
         private void Init()

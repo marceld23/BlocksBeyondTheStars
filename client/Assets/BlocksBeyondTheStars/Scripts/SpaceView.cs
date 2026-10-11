@@ -486,8 +486,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Whether the flight controls (cruise, EVA, the V camera toggle) may read input this frame —
         /// the one gate behind all three (<see cref="InputGate.FlightControlAllowed"/>, #1858): no menu-style
         /// dialog, no destruction prompt, no chat box, no focused text field.</summary>
-        private bool FlightInputAllowed
-            => InputGate.FlightControlAllowed(Game.MenuOpen, Game.AwaitingRespawnConfirm, Game.ChatTyping, InputMap.TextEntryActive);
+        private bool FlightInputAllowed // a cutscene holds the ship still like a menu (#2461: the ending can be replayed in flight)
+            => InputGate.FlightControlAllowed(Game.MenuOpen || GameBootstrap.CutsceneActive, Game.AwaitingRespawnConfirm, Game.ChatTyping, InputMap.TextEntryActive);
 
         private void Update()
         {
