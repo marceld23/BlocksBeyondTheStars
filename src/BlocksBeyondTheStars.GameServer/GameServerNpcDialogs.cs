@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -272,6 +273,7 @@ public sealed partial class GameServer
                 {
                     Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
                     RecordStoryFragment(frag.Key); // shared-arc dedupe — a re-gifted fragment only re-reads
+                    RaiseGameEvent(session, GameEventKeys.StoryFragment, frag.Key); // #2465
                 }
 
                 break;

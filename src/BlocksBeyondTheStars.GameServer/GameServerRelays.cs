@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -169,6 +170,7 @@ public sealed partial class GameServer
         {
             OnAchievementRelayCommissioned(session);  // "Relay Engineer" (#1125)
             RecordStoryMilestone("relay:first");      // the save's first relay advances the arc
+            RaiseGameEvent(session, GameEventKeys.RelayCommissioned, station.Id); // #2465
             foreach (var s in _sessions.Values.Where(x => x.Joined))
             {
                 Send(s, new ServerMessage
@@ -259,6 +261,7 @@ public sealed partial class GameServer
             if (source is not null)
             {
                 OnAchievementLaneLinked(source); // "Network Weaver" — credited to the completing contributor
+                RaiseGameEvent(source, GameEventKeys.LaneLinked, lane.A + "|" + lane.B); // #2465
             }
 
             string nameA = _galaxy.Systems.FirstOrDefault(s => s.Id == lane.A)?.Name ?? lane.A;

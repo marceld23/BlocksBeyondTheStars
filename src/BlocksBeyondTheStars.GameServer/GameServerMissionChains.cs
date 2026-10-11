@@ -5,6 +5,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -622,6 +623,8 @@ public sealed partial class GameServer
         {
             ShipAiOnTradeOrMission(session); // a chain step taken in conversation; a story character's job is not a trade (#2460)
         }
+
+        RaiseGameEvent(session, GameEventKeys.MissionAccepted, missionId); // #2465: the mission bridge
         _log.Info($"Player '{p.Name}' took mission '{missionId}' from {npc.Role} '{npc.Name}' in conversation.");
     }
 

@@ -283,6 +283,15 @@ public sealed class PlayerSession
     /// blueprints. Session-scoped; see <see cref="JoinSnapshot"/>.</summary>
     public JoinSnapshot Join { get; set; } = JoinSnapshot.Empty;
 
+    /// <summary>#2465: true while the join itself places the player (ship setup, the spawn body counted as visited, a
+    /// station re-boarded, a flight resumed). Game events (<c>GameServer.RaiseGameEvent</c>) raise nothing until the
+    /// join is through — being put somewhere is not something the player did.</summary>
+    public bool InJoinPlacement { get; set; }
+
+    /// <summary>#2465: server uptime of the last <c>insight:companion_ward</c> game event — the ward holds on every enemy
+    /// tick, so the event is raised at most once per <c>GameServer.InsightEventCooldownSeconds</c>.</summary>
+    public double CompanionWardEventAt { get; set; } = double.NegativeInfinity;
+
     /// <summary>Blocks mined toward the onboarding "mine" stage (session-scoped; the target is tiny).</summary>
     public int VegaMineCount { get; set; }
 

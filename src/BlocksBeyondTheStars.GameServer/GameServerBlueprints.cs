@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -202,6 +203,7 @@ public sealed partial class GameServer
         if (placed > 0)
         {
             Advance(session, AchievementCounters.BuildAny, placed);
+            RaiseGameEvent(session, GameEventKeys.BuildAny, GameEventKeys.BlueprintPasteArg, placed); // #2465
             SendInventory(session);
         }
 

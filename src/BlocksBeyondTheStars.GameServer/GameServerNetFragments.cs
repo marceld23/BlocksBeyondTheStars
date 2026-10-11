@@ -246,6 +246,7 @@ public sealed partial class GameServer
         _netFragments.Remove(frag);
         Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
         RecordStoryFragment(frag.Key); // dedupes + advances the arc + broadcasts the meter
+        RaiseGameEvent(session, GameEventKeys.StoryFragment, frag.Key); // #2465
         BroadcastNetFragments();
     }
 

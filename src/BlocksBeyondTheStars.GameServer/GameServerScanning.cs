@@ -4,6 +4,7 @@
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -407,6 +408,7 @@ public sealed partial class GameServer
             Send(session, DiscoveryDelta(ledgerKey, readout.Display, site));
 
             OnAchievementScan(session, readout.Kind); // "Scholar" / "Archaeologist" and friends (#1102)
+            RaiseGameEvent(session, GameEventKeys.ScanAny, readout.Kind); // #2465: a discovery (first-time scan)
             if (readout.Kind == "monument")
             {
                 RecordStoryMilestone("monument:" + _world.LocationId); // first rune read on this world (#1105)
@@ -415,6 +417,7 @@ public sealed partial class GameServer
         }
 
         ShipAiOnScan(session); // VEGA onboarding: first scan (any subject counts)
+        RaiseGameEvent(session, GameEventKeys.ScanPerformed, readout.Kind); // #2465: every scan, first or repeat
         return result;
     }
 

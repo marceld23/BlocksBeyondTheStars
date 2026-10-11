@@ -91,7 +91,21 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   built and deployed (`deploy.yml`, 7-char sha tag) — and the game-server image of the next release carries the
   pre-upgrade copy. Open (ops, no code): check N5 (pool-world owner id `glitch` → first joiner WorldAdmin) on the
   two live pool worlds.
-- ⬜ Step 6 — game-event bus (#2465)
+- ✅ **Step 6 — game-event bus and beat-less pack guard (#2465)**, 2026-10-11 (invisible to players): one server entry
+  point `RaiseGameEvent(actor, key, arg, amount)` next to the achievement/VEGA/story hooks at ~35 gameplay sites
+  (`mine:any`, `build:any`/`build:rotated`, `craft:any|tint|shape|paint`, `eat:any`, `scan:performed|any`,
+  `research:any`, `space:enter`, `station:boarded`, `trade:barter|player`, `mission:accepted|turned_in`,
+  `travel:landed` + `flight|quick|admin` (a parked ship's map trip = `quick`, landing back on the launch body =
+  `flight`), `visit:body|system`, `hyperjump:any`, `module:built`, `ship|station:commissioned`, `base:founded`,
+  `tame:any`, `loot:any`, `defeat:any`, `wormhole:any`, `relay:commissioned`, `lane:linked`, `crystal:<event>`,
+  `story:fragment`, `insight:*`); persists nothing, costs one compare with no listener, never fires for observers or
+  during the join's own placement; listener API `IGameEventListener` + `AddGameEventListener` (exact or `prefix*`). A
+  condition grammar (`StoryConditionParser`: `step:`/`chapter:`/`pack:`/`blueprint:`/`world:` + `all:[…]`/`any:[…]`/
+  `not:`) with a 20-predicate `world:` registry on the server. Guard: the built-in VEGA pack is always installed, a
+  beat-less or player-scoped pack (`kind`/`scope`, new optional pack fields) never becomes the world story
+  (`GameContent.TryGetWorldStory`), pack folders load in ordinal order with a warning for overwritten locale keys and
+  reserved ids, `CommunityLocaleTests` covers every pack's locales. Tests: `GameEventBusTests`, `StoryConditionTests`,
+  `StoryPackGuardTests`, `CommunityLocaleTests` (+4). Vocabulary table: STORY_IMPLEMENTATION "Game events".
 - ⬜ Step 7 — player-pack runtime (#2466)
 - ⬜ Step 8 — cutscene model + wire (#2467)
 - ⬜ Step 9 — cutscene director (#2468)

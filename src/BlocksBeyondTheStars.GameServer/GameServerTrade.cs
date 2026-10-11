@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -341,6 +342,7 @@ public sealed partial class GameServer
                 if (completed)
                 {
                     ShipAiOnTradeOrMission(s); // VEGA onboarding: a finished trade counts
+                    RaiseGameEvent(s, GameEventKeys.TradePlayer, session.Other(p)); // #2465: arg = the trade partner
                 }
             }
         }

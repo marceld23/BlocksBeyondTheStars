@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -118,6 +119,7 @@ public sealed partial class GameServer
             _containers.Remove(container);
             _repo.DeleteContainer(container.Id);
             OnAchievementLoot(session); // "Treasure Hunter": a WORLD find looted empty (#1102)
+            RaiseGameEvent(session, GameEventKeys.LootAny, container.Kind); // #2465
         }
         else
         {

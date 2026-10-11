@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -223,6 +224,7 @@ public sealed partial class GameServer
             Send(session, new CraftResult { Success = true, RecipeKey = "paint" });
             SendInventory(session);
             WarnIfPoolOverflowed(session, freePool); // #600
+            RaiseGameEvent(session, GameEventKeys.CraftPaint, baseKey, count); // #2465
             return;
         }
 
@@ -247,6 +249,7 @@ public sealed partial class GameServer
         SendInventory(session);
         WarnIfPoolOverflowed(session, pool); // #600: painting PART of a stack needs a fresh slot
         ShipAiOnCraft(session);
+        RaiseGameEvent(session, GameEventKeys.CraftPaint, baseKey, count); // #2465
     }
 
     /// <summary>Resolves pixels to an existing design id or registers a new one (persist + broadcast to every

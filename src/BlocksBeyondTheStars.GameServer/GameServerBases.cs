@@ -6,6 +6,7 @@ using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -210,6 +211,7 @@ public sealed partial class GameServer
         SendStarMap(session); // the player's travel-screen badge for this body lights up
         Send(session, new ServerMessage { Text = "@srv.base.founded:" + basePoint.Name });
         RecordStoryMilestone("base:first"); // the first base of the save advances the arc (#1105)
+        RaiseGameEvent(session, GameEventKeys.BaseFounded, body); // #2465
         if (!AtmosphereBreathable)
         {
             // Sealed rooms + the energy door have breathed since #794 and nobody found them (#1267): VEGA

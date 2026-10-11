@@ -6,6 +6,7 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -581,6 +582,7 @@ public sealed partial class GameServer
         SendStarMap(session); // refresh markers/owner/visited now that this station counts as visited
         SyncAppearance(session); // faces + body paintings both ways on the station world (#982)
         ShipAiOnStationBoarded(session); // VEGA onboarding: first station visit
+        RaiseGameEvent(session, GameEventKeys.StationBoarded, station.Id); // #2465 (a rejoin onto a station raises nothing)
         _log.Info($"Player '{session.State.Name}' boarded station '{station.Name}' (own world '{stationLoc}').");
         CheckpointSave($"docked at {station.Name}"); // auto-save when docking a station
     }

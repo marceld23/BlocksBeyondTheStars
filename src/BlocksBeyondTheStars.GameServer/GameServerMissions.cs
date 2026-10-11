@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -257,6 +258,8 @@ public sealed partial class GameServer
         {
             ShipAiOnTradeOrMission(session); // VEGA onboarding: taking a board job counts like a first trade
         }
+
+        RaiseGameEvent(session, GameEventKeys.MissionAccepted, missionId); // #2465: the mission bridge
     }
 
     /// <summary>Whether accepting this mission completes VEGA's "trade" lesson (#2460, B58): a job from a mission
@@ -374,6 +377,7 @@ public sealed partial class GameServer
         _repo.SavePlayer(session.State);
         Send(session, MissionSucceeded(session, def, MissionOutcomes.Completed));
         OnAchievementMissionCompleted(session); // "Helping Hand" / "Quartermaster's Friend" (#1102)
+        RaiseGameEvent(session, GameEventKeys.MissionTurnedIn, missionId); // #2465: the mission bridge
         if (IsBoardMissionId(missionId))
         {
             NpcRadioOnBoardTurnIn(session, missionId, def.GiverName); // #1119: "something new on my board"
@@ -426,6 +430,7 @@ public sealed partial class GameServer
             }
 
             RecordStoryFragment(thread.FragmentKey); // deduped + advances the arc + broadcasts the meter
+            RaiseGameEvent(session, GameEventKeys.StoryFragment, thread.FragmentKey); // #2465 (null session: nothing)
         }
     }
 

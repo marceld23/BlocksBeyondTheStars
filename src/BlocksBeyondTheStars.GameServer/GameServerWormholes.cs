@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -162,6 +163,7 @@ public sealed partial class GameServer
         p.Scanned.Add(WormholeScanKey(twin.Id));
         MarkSystemKnown(session, system.Id);
         Advance(session, BlocksBeyondTheStars.Shared.Definitions.AchievementCounters.Wormhole);
+        RaiseGameEvent(session, GameEventKeys.WormholeAny, system.Id); // #2465
         _wormholeLockUntil[playerId] = _uptime + _content.Wormholes.ArrivalLockSeconds;
 
         // Out a little in front of the twin, nose pointing away from it — into its system.

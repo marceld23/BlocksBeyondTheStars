@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -457,6 +458,7 @@ public sealed partial class GameServer
         SpawnCompanionEntity(p.PlayerId, tc, beside);
         DiscoverSreekmakra(session);
         Advance(session, "tame:sreekmakra");
+        RaiseGameEvent(session, GameEventKeys.TameAny, tc.SpeciesId); // #2465: a direct tame, or the shapeshifter following one
         _repo.SavePlayer(p);
         BroadcastCreatures();
         SendCompanions(session);

@@ -36,14 +36,66 @@ public class CommunityLocaleTests
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(2));
 
-    /// <summary>Every translated table the game and its web portal ship — the three places the machine pass
-    /// (<c>tools/translate_locale.py</c>) writes to.</summary>
-    private static readonly string[] LocaleDirs =
-    [
-        Path.Combine("data", "locales"),
-        Path.Combine("data", "stories", "vega_protocol", "locales"),
-        Path.Combine("src", "BlocksBeyondTheStars.WorldHost", "Locales"),
-    ];
+    /// <summary>Every translated table the game and its web portal ship — the places the machine pass
+    /// (<c>tools/translate_locale.py</c>) writes to: the base table, every story pack's <c>locales/</c> (#2465 — the
+    /// packs are enumerated, not hard-coded to VEGA) and the portal's own tables.</summary>
+    private static IEnumerable<string> LocaleDirs()
+    {
+        yield return Path.Combine("data", "locales");
+        foreach (string pack in StoryPackFolders())
+        {
+            yield return Path.Combine("data", "stories", pack, "locales");
+        }
+
+        yield return Path.Combine("src", "BlocksBeyondTheStars.WorldHost", "Locales");
+    }
+
+    /// <summary>The story-pack folders under <c>data/stories</c> that carry a <c>locales/</c> table, in ordinal order.</summary>
+    private static IEnumerable<string> StoryPackFolders()
+    {
+        string stories = Path.Combine(TestPaths.DataDir(), "stories");
+        if (!Directory.Exists(stories))
+        {
+            yield break;
+        }
+
+        foreach (string dir in Directory.GetDirectories(stories).OrderBy(d => d, StringComparer.Ordinal))
+        {
+            if (Directory.Exists(Path.Combine(dir, "locales")))
+            {
+                yield return Path.GetFileName(dir);
+            }
+        }
+    }
+
+    /// <summary>(pack, language) for every community-language table a story pack ships (#2465): the same guards as the
+    /// base tables, measured against the pack's own <c>en.json</c>.</summary>
+    public static TheoryData<string, string> CommunityPackLocales()
+    {
+        var data = new TheoryData<string, string>();
+        foreach (string pack in StoryPackFolders())
+        {
+            foreach (GameLocale locale in Enum.GetValues<GameLocale>())
+            {
+                if (locale is GameLocale.English or GameLocale.German)
+                {
+                    continue;
+                }
+
+                string code = locale.Code();
+                if (File.Exists(Path.Combine(TestPaths.DataDir(), "stories", pack, "locales", code + ".json")))
+                {
+                    data.Add(pack, code);
+                }
+            }
+        }
+
+        return data;
+    }
+
+    private static Dictionary<string, string> PackTable(string pack, string code)
+        => JsonSerializer.Deserialize<Dictionary<string, string>>(
+               File.ReadAllText(Path.Combine(TestPaths.DataDir(), "stories", pack, "locales", code + ".json"))) ?? [];
 
     /// <summary>The languages this file governs: every <see cref="GameLocale"/> whose file exists on disk,
     /// minus the two that have their own stricter completeness tests.</summary>
@@ -131,11 +183,75 @@ public class CommunityLocaleTests
             + $"renders as blank UI — remove the key instead: {string.Join(", ", blanks.Take(20))}");
     }
 
+    /// <summary>A pack's community table holds only keys of the pack's own English table (#2465).</summary>
+    [Theory]
+    [MemberData(nameof(CommunityPackLocales))]
+    public void CommunityPackLocale_InventsNoKeys(string pack, string code)
+    {
+        var table = PackTable(pack, code);
+        var en = PackTable(pack, "en");
+
+        var orphans = table.Keys.Where(k => !en.ContainsKey(k)).OrderBy(k => k, StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            orphans.Count == 0,
+            $"stories/{pack}/locales/{code}.json has {orphans.Count} key(s) that are not in the pack's en.json: {string.Join(", ", orphans.Take(20))}");
+    }
+
+    /// <summary>A pack's community table keeps the placeholder set of the pack's English text (#2465).</summary>
+    [Theory]
+    [MemberData(nameof(CommunityPackLocales))]
+    public void CommunityPackLocale_PreservesPlaceholders(string pack, string code)
+    {
+        var table = PackTable(pack, code);
+        var en = PackTable(pack, "en");
+        var broken = new List<string>();
+        foreach (var (key, translated) in table)
+        {
+            if (en.TryGetValue(key, out var source) && !Placeholders(source).SetEquals(Placeholders(translated)))
+            {
+                broken.Add($"{key} (en: {Format(Placeholders(source))} / {code}: {Format(Placeholders(translated))})");
+            }
+        }
+
+        Assert.True(
+            broken.Count == 0,
+            $"stories/{pack}/locales/{code}.json changes the placeholder set of {broken.Count} key(s): " + string.Join("; ", broken.Take(20)));
+    }
+
+    /// <summary>A blank pack value shadows the English fallback just like a blank base value (#2465).</summary>
+    [Theory]
+    [MemberData(nameof(CommunityPackLocales))]
+    public void CommunityPackLocale_HasNoBlankValues(string pack, string code)
+    {
+        var blanks = PackTable(pack, code).Where(e => string.IsNullOrWhiteSpace(e.Value))
+            .Select(e => e.Key).OrderBy(k => k, StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            blanks.Count == 0,
+            $"stories/{pack}/locales/{code}.json has {blanks.Count} empty value(s) that shadow the English fallback: {string.Join(", ", blanks.Take(20))}");
+    }
+
+    /// <summary>A pack's locale file must be one a <see cref="GameLocale"/> loads, like the base tables (#2465).</summary>
+    [Fact]
+    public void EveryPackLocaleFile_IsLoadedBySomeGameLocale()
+    {
+        var known = Enum.GetValues<GameLocale>().Select(l => l.Code()).ToHashSet(StringComparer.Ordinal);
+        var stray = StoryPackFolders()
+            .SelectMany(pack => Directory.GetFiles(Path.Combine(TestPaths.DataDir(), "stories", pack, "locales"), "*.json")
+                .Select(f => (Pack: pack, Code: Path.GetFileNameWithoutExtension(f))))
+            .Where(f => !known.Contains(f.Code))
+            .Select(f => $"stories/{f.Pack}/locales/{f.Code}.json")
+            .ToList();
+
+        Assert.True(stray.Count == 0, $"story-pack locale file(s) no GameLocale member loads: {string.Join(", ", stray)}");
+    }
+
     [Fact]
     public void EveryLocaleFile_HasNoStrayBraces()
     {
         var stray = new List<string>();
-        foreach (string dir in LocaleDirs)
+        foreach (string dir in LocaleDirs())
         {
             foreach (string path in Directory.GetFiles(Path.Combine(TestPaths.RepoRoot(), dir), "*.json"))
             {

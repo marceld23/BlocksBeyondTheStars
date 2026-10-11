@@ -5,6 +5,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -232,6 +233,11 @@ public sealed partial class GameServer
                     if (WrapDistSq(p.Position, enemy.Position) <= EnemyHuntRange * EnemyHuntRange)
                     {
                         RevealCompanionWardInsight(session);
+                        if (_uptime - session.CompanionWardEventAt >= InsightEventCooldownSeconds)
+                        {
+                            session.CompanionWardEventAt = _uptime; // #2465: the ward holds every tick — one event per stretch
+                            RaiseGameEvent(session, GameEventKeys.InsightCompanionWard);
+                        }
                     }
 
                     continue;
@@ -836,6 +842,9 @@ public sealed partial class GameServer
 
         SendInventory(session);
         OnAchievementDefeat(session);
+        RaiseGameEvent(session, GameEventKeys.DefeatAny, // #2465
+            isCreature ? (target.IsGiant ? GameEventKeys.DefeatGiant : GameEventKeys.DefeatCreature)
+            : target.IsBandit ? GameEventKeys.DefeatBandit : GameEventKeys.DefeatMachine);
         if (isCreature)
         {
             OnCreatureKilled(target, session); // 2026-09: the shapeshifter's death, or one of its shape's kind

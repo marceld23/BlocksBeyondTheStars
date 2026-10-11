@@ -104,6 +104,109 @@ progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — i
   silently (no milestone, no frontier growth, no knowledge); `player_near` never names them. `ExitSpectate`
   runs the catch-up.
 
+## Game events, story conditions and the world-story guard (#2465)
+
+Groundwork for the story packs (#2459): the per-player step runtime of the tutorial and side packs (#2466) listens
+to **game events** and decides with **conditions**. Nothing here changes what a player sees.
+
+**The event bus.** `GameServer.RaiseGameEvent(PlayerSession actor, string key, string arg = "", int amount = 1)`
+(`GameServerGameEvents.cs`) is one line at each gameplay site, **next to** the existing hooks — achievements keep
+`OnAchievement*` → `Advance`, VEGA keeps `ShipAiOn*` and `RecordStory*`; the bus never replaces one, so their behaviour
+cannot drift. It persists nothing (in particular nothing in `AchievementCounters`, which travels whole on every
+achievement change). A consumer implements `IGameEventListener.OnGameEvent(actor, key, arg, amount)` and registers per
+key with `AddGameEventListener(keyOrPattern, listener)` — an exact key or a prefix ending in `*` (`craft:*`, `*`);
+`RemoveGameEventListener`, `HasGameEventListener(key)`. Cost: with no listener a raise is one integer compare; otherwise
+one dictionary lookup (plus a short prefix scan while a wildcard listener exists). The listener arrays are
+copy-on-write, so a listener may (un)register while an event is delivered; a listener that throws is logged and
+dropped, never breaking the handler. **Nothing is raised** for an observer (`Spectating`), for a session that is not
+joined, for a non-positive amount, and during the join's own placement (`PlayerSession.InJoinPlacement`, set from the
+session's creation until the end of `HandleJoin` / `AddLocalPlayer` — the spawn body's first "visit", a station
+re-boarded at the join or a resumed flight are not the player's doing).
+
+**Vocabulary** (`Shared/Story/GameEventKeys.cs`; the key names the verb, the entity rides in the argument, so keys never
+grow with content — `mine:any` + `iron_ore`, never `mine:iron_ore`). Later steps add the tutorial's one-line events
+(about 50, synthesis §3) here.
+
+| Key | Argument (amount) | Raised at | File |
+|---|---|---|---|
+| `mine:any` | block key | a block mined by hand, next to `ShipAiOnMine` | `GameServer.cs` (`BreakBlockCore`) |
+| `build:any` | block key | a block placed, next to `OnAchievementBuild` | `GameServer.cs` (`HandlePlace`) |
+| `build:any` | `blueprint_paste` (placed count) | a blueprint paste | `GameServerBlueprints.cs` |
+| `build:rotated` | block key | a form/prop block placed with an explicit rotate-key turn (`Yaw` 0–3 or an up-face) | `GameServer.cs` (`HandlePlace`) |
+| `craft:any` | recipe key (batch count) | a recipe crafted — also a free Creative craft, where the VEGA/achievement hooks do not run | `GameServer.cs` (`HandleCraft`) |
+| `craft:tint` / `craft:shape` / `craft:paint` | base item key (count) | dye/glow, a form craft (built-in or player-designed), a paint design — every success path incl. Creative; never `craft:any` | `GameServer.cs` (`HandleTintCraft`, `ApplyShapeExchange`, `ApplyMultiCellExchange`), `GameServerPaint.cs` |
+| `eat:any` | item key | real food eaten (hunger value > 0), next to `ShipAiOnEat` | `GameServerCreatures.cs` (`ConsumeItem`) |
+| `scan:performed` | readout kind (`flora`, `creature`, `tree`, `block`, `monument`, `asteroid`, `anomaly`, `wreck`, `wormhole`, `debris` …) | every scan, first or repeat, hand or ship scanner | `GameServerScanning.cs` (`Award`) |
+| `scan:any` | readout kind | a first-time scan (the discovery the achievement counts) | `GameServerScanning.cs` (`Award`) |
+| `research:any` | blueprint key | a blueprint researched | `GameServer.cs` (`HandleUnlock`) |
+| `space:enter` | `launch` \| `hyperjump` \| `wormhole` \| `resume` | every entry into flight (`resume` = back at the helm without a take-off) | `GameServerSpaceCombat.cs` (`EnterSpace`) |
+| `station:boarded` | station id | a station boarded | `GameServerSpaceStations.cs` (`EnterBoardedStation`) |
+| `trade:barter` | recipe key (batch count) | a market barter off the ship | `GameServer.cs` (`HandleCraft`) |
+| `trade:player` | the partner's player id | a completed player trade (both sides) | `GameServerTrade.cs` (`CloseTrade`) |
+| `mission:accepted` | mission id | a board job or a chain step taken (board or conversation) | `GameServerMissions.cs`, `GameServerMissionChains.cs` |
+| `mission:turned_in` | mission id | a mission turned in | `GameServerMissions.cs` (`HandleTurnInMission`) |
+| `travel:landed` | `flight` \| `quick` \| `admin` | a landing from flight (also back onto the body you launched from), the map's quick travel — **and a parked ship flying a map trip by itself (#1614)** — or an admin move (`/goto`, `goto_core`). The join placement raises nothing | `GameServer.cs` (`HandleTravel`, `AdvanceTransit`), `GameServerSpaceCombat.cs` (`HandleLeaveSpace`) |
+| `visit:body` | body id | the first arrival on a body (stations too) | `GameServer.cs` (`MarkArrivedOnBody`) |
+| `visit:system` | system id | the first arrival in a star system — never the spawn system | `GameServer.cs` (`OnSystemMapped`) |
+| `hyperjump:any` | destination system id | a jump between systems (travel screen or in flight) | `GameServer.cs` (`HandleTravel`), `GameServerSpaceCombat.cs` (`JumpFlightToSystem`) |
+| `module:built` | module key | a ship module built | `GameServerSpaceCombat.cs` |
+| `ship:commissioned` | ship id | a self-built ship commissioned | `GameServerCustomShips.cs` |
+| `station:commissioned` | station id | a player station commissioned — raised for its **owner** (online), like the achievement | `GameServerPlayerStations.cs` |
+| `base:founded` | body id | a base core placed | `GameServerBases.cs` (`PlaceBase`) |
+| `tame:any` | species id (`au_sreekmakra`) | a creature tamed; the shapeshifter following a tame raises its own | `GameServerTaming.cs`, `GameServerSreekmakra.cs` (`BondSreekmakra`) |
+| `loot:any` | container kind | a world container looted empty (never a player crate) | `GameServerContainers.cs` |
+| `defeat:any` | `creature` \| `giant` \| `machine` \| `bandit` (planet), `space_machine` \| `raider` (space) | a hostile defeated by the player | `GameServerEnemies.cs`, `GameServerSpaceCombat.cs` |
+| `wormhole:any` | destination system id | a flight through a wormhole | `GameServerWormholes.cs` |
+| `relay:commissioned` | station id | an SPS relay completed by the player's delivery | `GameServerRelays.cs` |
+| `lane:linked` | `<systemA>\|<systemB>` | a jump lane opened by the player's contribution | `GameServerRelays.cs` |
+| `crystal:<event>` | — | a Crystal Net circuit event of the circuit's owner (`CircuitEvents`: `lamp_by_switch`, `net_on`, `machine_job` …) | `GameServerCrystalQuests.cs` (`OnCrystalCircuitEvent`) |
+| `story:fragment` | fragment key | a story fragment handed over (picked up, mission thread, NPC dialog, NPC thread) | `GameServerNetFragments.cs`, `GameServerMissions.cs`, `GameServerNpcDialogs.cs`, `GameServerNpcThreads.cs` |
+| `insight:companion_ward` | — | a companion made a machine stand down near the player (at most every 30 s) | `GameServerEnemies.cs` |
+| `insight:shape_noncube` | base item key | a non-cube form crafted | `GameServer.cs` (`RaiseShapeCrafted`) |
+
+`ui:<id>` (client teaching flags, synthesis §3.6) is not a server event and arrives with its own intent in a later step.
+
+**Conditions** (`Shared/Story/StoryCondition.cs`). One small grammar for a step's `requires` / `feasibleIf` /
+`alreadyDoneIf`, a chapter's `offerWhen`, a pack's `start.after` and its `gates`, parsed once at load by
+`StoryConditionParser.Parse(text, worldPredicates)` (or `TryParse`, `ParseList` for a JSON list = one implicit `all`)
+into a `StoryCondition` tree and evaluated purely over an `IStoryConditionContext`:
+
+```
+condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
+atom      := step:<pack>:<step> | chapter:<pack>:<chapter> | pack:<pack>:started|done|enabled|optedout
+           | blueprint:<key> | world:<predicate>
+```
+
+Ids are letters, digits, `_ . -` (a step id is `b2.2`); spaces around brackets and commas are fine. Content errors
+(`StoryConditionException`, message names the problem and the position): unknown forms, unknown world predicates,
+reserved pack ids (`none, mem, insight, obj, vega, track, cut` — `StoryRegistry.ReservedPackIds`), `ui:` claims, empty
+groups, nesting deeper than 16. The server's context (`GameServerStoryConditions.cs`, `EvaluateStoryCondition`) reads the
+§5.6 milestone keys (`StoryPackKeys`: `story:<pack>:step:<step>[:skipped]`, `story:<pack>:ch:<c>:done|skipped`,
+`story:<pack>:started|done|optout`), the player's blueprints, `pack:<id>:enabled` (the world story, or an installed
+player pack not opted out — #2466 adds the tutorial policy) and the `world:` registry. The predicates
+(`StoryWorldPredicates.All`, held equal to the server registry by `StoryConditionTests`): place — `station_in_system`
+(= the dock lesson's skip rule), `settlement_reachable`, `airless`, `fragment_on_world`, `player_near`; rules —
+`enemies`, `space_enemies`, `bandits`, `free_flight`, `hunger`, `oxygen`, `hazards`, `creative` (incl. a per-player mode
+override), `creative_flight`, `instant_travel`, `return_to_ship`, `starter_teleporter`, `base_visitors`,
+`space_stations`, `story_active`. A predicate reads the player's own body/system, never the active world cursor. A new
+predicate is a name in `StoryWorldPredicates` plus one line in `GameServer.WorldPredicates`.
+
+**The world-story guard (N11).** A pack carries `kind` (`story` default, `tutorial`, `side`) and `scope` (`world` |
+`player`; unset = `world` exactly when it has beats; a tutorial is always `player` — `StoryRegistry.EffectiveScope`).
+Only a world-scoped pack with beats and a non-reserved id can be the save's story (`StoryRegistry.CanBeWorldStory`):
+`GameContent.TryGetWorldStory` answers for `IsUsableStoryRow`, the stored-row and `Rules.StoryId` paths of
+`LoadStoryStateFrom` and `SetActiveStory`, so `--story tutorial`, `StorySelectIntent{tutorial}` or a stored row naming a
+player pack never make it the world story (the row is left untouched). `GameContent.SetStories` always installs the
+built-in VEGA pack when the data has no usable `vega_protocol` (it used to fill in only when *no* pack loaded) and drops
+reserved ids; `DefaultStory` is never a player pack. `TryGetStory` still finds any pack (texts, player packs).
+
+**Pack loading (B70).** `ContentLoader` loads `data/stories/*` in **ordinal** folder order (the OS order decided which
+pack's text won a shared locale key), skips a pack with a reserved id, reports a repeated id, and reports every pack
+locale file that overwrites keys of an earlier file (English table only; the later file still wins) through the loader's
+`warn` callback (the server logs it). `CommunityLocaleTests` enumerates every `data/stories/*/locales` folder: the
+pack's community tables are held to the same guards (no invented keys, placeholders kept, no blanks, a known language),
+measured against the pack's own `en.json`; `StoryPackGuardTests` also checks each pack's en/de key parity.
+
 ## Networking (NetCodec tags)
 
 | Tag | Message | Dir | Purpose |
@@ -187,7 +290,9 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
 ## Key files / classes
 
 - Engine (story-agnostic): `src/BlocksBeyondTheStars.Shared/Story/` — `StoryDefinition`, `StoryBeat`,
-  `StoryState`, `StoryEngine`, `StoryRegistry`, `CoreArgument`/`CoreArgumentChoice`.
+  `StoryState`, `StoryEngine`, `StoryRegistry`, `CoreArgument`/`CoreArgumentChoice`; story packs (#2465):
+  `StoryCondition`/`StoryConditionParser`/`StoryWorldPredicates`, `GameEventKeys`, `StoryPackKeys`. Server:
+  `GameServerGameEvents.cs` (event bus), `GameServerStoryConditions.cs` (condition context + world predicates).
 - Server: `GameServerStory.cs` (state load, Record fragment/kill/milestone, beat reveal, admin selection,
   knowledge level), `GameServerNetFragments.cs` (placement + pickup), `GameServerStoryFinale.cs` (reveal,
   hack, duel, gauntlet, chamber stamping, respawn, pacification).

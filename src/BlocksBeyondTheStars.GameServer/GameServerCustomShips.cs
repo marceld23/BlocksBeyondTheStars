@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -878,6 +879,7 @@ public sealed partial class GameServer
         Send(session, new ServerMessage { Text = "@srv.ship.commissioned" });
         OnAchievementShipCommissioned(session); // "Shipwright" (#1102)
         RecordStoryMilestone("ship:first");     // the first self-built ship of the save advances the arc (#1105)
+        RaiseGameEvent(session, GameEventKeys.ShipCommissioned, uc.Id); // #2465
         _log.Info($"Self-built ship '{uc.Id}' of {p.Name} commissioned ({s.Cells.Count} cells).");
     }
 

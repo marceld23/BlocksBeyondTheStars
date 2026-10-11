@@ -86,6 +86,7 @@ public sealed partial class GameServer
         {
             Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
             RecordStoryFragment(frag.Key);
+            RaiseGameEvent(session, GameEventKeys.StoryFragment, frag.Key); // #2465
         }
     }
 

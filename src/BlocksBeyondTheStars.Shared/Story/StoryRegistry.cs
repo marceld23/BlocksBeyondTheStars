@@ -22,6 +22,77 @@ public static class StoryRegistry
     /// <summary>The reserved id that disables the story entirely (pure sandbox).</summary>
     public const string NoneStoryId = "none";
 
+    /// <summary><see cref="StoryDefinition.Kind"/> of a narrative arc (the default).</summary>
+    public const string KindStory = "story";
+
+    /// <summary><see cref="StoryDefinition.Kind"/> of a pack that teaches the game; such a pack is always player-scoped.</summary>
+    public const string KindTutorial = "tutorial";
+
+    /// <summary><see cref="StoryDefinition.Kind"/> of a small optional storyline.</summary>
+    public const string KindSide = "side";
+
+    /// <summary><see cref="StoryDefinition.Scope"/>: progress shared by everyone in the save.</summary>
+    public const string ScopeWorld = "world";
+
+    /// <summary><see cref="StoryDefinition.Scope"/>: progress per player.</summary>
+    public const string ScopePlayer = "player";
+
+    /// <summary>Pack ids no pack may use (#2465, synthesis §5.3): <c>none</c> is the "no story" sentinel, the others are
+    /// the second segment of milestone families the story code already writes (<c>story:mem:*</c>,
+    /// <c>story:insight:*</c>, …) or reserves for the pack runtime, so a pack named like that would read or clobber
+    /// keys that are not its own.</summary>
+    public static readonly IReadOnlyList<string> ReservedPackIds = new[] { NoneStoryId, "mem", "insight", "obj", "vega", "track", "cut" };
+
+    /// <summary>Whether <paramref name="packId"/> is one of the <see cref="ReservedPackIds"/> (case-insensitive).</summary>
+    public static bool IsReservedPackId(string? packId)
+    {
+        if (string.IsNullOrEmpty(packId))
+        {
+            return false;
+        }
+
+        foreach (string reserved in ReservedPackIds)
+        {
+            if (string.Equals(reserved, packId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The scope a pack runs with: its explicit <see cref="StoryDefinition.Scope"/>, a tutorial is always
+    /// <see cref="ScopePlayer"/>, and an unset scope is <see cref="ScopeWorld"/> exactly when the pack has beats.</summary>
+    public static string EffectiveScope(StoryDefinition def)
+    {
+        if (string.Equals(def.Kind, KindTutorial, StringComparison.OrdinalIgnoreCase))
+        {
+            return ScopePlayer;
+        }
+
+        if (string.Equals(def.Scope, ScopePlayer, StringComparison.OrdinalIgnoreCase))
+        {
+            return ScopePlayer;
+        }
+
+        if (string.Equals(def.Scope, ScopeWorld, StringComparison.OrdinalIgnoreCase))
+        {
+            return ScopeWorld;
+        }
+
+        return def.Beats.Count > 0 ? ScopeWorld : ScopePlayer;
+    }
+
+    /// <summary>Whether a pack may be the save's (world-shared) story (#2465, N11): world-scoped, at least one beat and
+    /// not a reserved id. A beat-less player pack chosen as the world story would turn the story "active" with nothing
+    /// to tell — the prologue would play for it and the choice would be persisted for good.</summary>
+    public static bool CanBeWorldStory(StoryDefinition? def)
+        => def is not null
+           && def.Beats.Count > 0
+           && !IsReservedPackId(def.Id)
+           && string.Equals(EffectiveScope(def), ScopeWorld, StringComparison.Ordinal);
+
     private static readonly Dictionary<string, StoryDefinition> Packs =
         new(StringComparer.OrdinalIgnoreCase)
         {

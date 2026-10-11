@@ -70,7 +70,7 @@ public static class ContentLoader
 
         // Pluggable story packs: data/stories/<id>/story.json + each pack's optional locale files (merged
         // into the shared locale tables so the beat text localizes normally).
-        var stories = LoadStoryPacks(Path.Combine(dataDir, "stories"), localeFiles);
+        var stories = LoadStoryPacks(Path.Combine(dataDir, "stories"), localeFiles, warn);
 
         var locales = new Dictionary<GameLocale, Dictionary<string, string>>();
         var lazyLocales = new Dictionary<GameLocale, Func<Dictionary<string, string>>>();
@@ -79,7 +79,9 @@ public static class ContentLoader
             var files = kv.Value;
             if (kv.Key == GameLocale.English || kv.Key == eagerLocale)
             {
-                locales[kv.Key] = MergeLocaleFiles(files);
+                // #2465 (B70): a pack key that overwrites an earlier file's text is reported — once, on the English
+                // table (the reference every pack must carry); the other languages merge the same way without noise.
+                locales[kv.Key] = MergeLocaleFiles(files, kv.Key == GameLocale.English ? warn : null);
             }
             else
             {
@@ -258,20 +260,61 @@ public static class ContentLoader
     private static Dictionary<string, string> LoadObject(string path)
         => ParseLocaleTable(File.ReadAllText(path));
 
-    /// <summary>Parses one locale's files in order (base table, then each story pack's table) into one
-    /// merged map — later files win on duplicate keys, exactly as the eager loader merged them.</summary>
-    private static Dictionary<string, string> MergeLocaleFiles(List<string> files)
+    /// <summary>Parses one locale's files in order (base table, then each story pack's table in ordinal folder order)
+    /// into one merged map — later files win on duplicate keys, exactly as the eager loader merged them. With
+    /// <paramref name="warn"/> every file that overwrites keys of an earlier one is reported once (#2465, B70): two packs
+    /// sharing a key used to resolve silently, and before the folders were sorted the winner depended on the OS.</summary>
+    private static Dictionary<string, string> MergeLocaleFiles(List<string> files, Action<string>? warn = null)
     {
         var map = LoadObject(files[0]);
+        var origin = warn is null ? null : new Dictionary<string, string>(StringComparer.Ordinal);
         for (int i = 1; i < files.Count; i++)
         {
+            Dictionary<string, List<string>>? overwritten = null; // earlier file → the keys this file took from it
             foreach (var kv in LoadObject(files[i]))
             {
+                if (origin is not null && map.ContainsKey(kv.Key))
+                {
+                    string earlier = origin.TryGetValue(kv.Key, out var o) ? o : files[0];
+                    overwritten ??= new Dictionary<string, List<string>>(StringComparer.Ordinal);
+                    if (!overwritten.TryGetValue(earlier, out var keys))
+                    {
+                        overwritten[earlier] = keys = new List<string>();
+                    }
+
+                    keys.Add(kv.Key);
+                }
+
                 map[kv.Key] = kv.Value;
+                if (origin is not null)
+                {
+                    origin[kv.Key] = files[i];
+                }
+            }
+
+            if (overwritten is not null)
+            {
+                foreach (var pair in overwritten)
+                {
+                    warn!($"Locale file '{DescribeLocaleFile(files[i])}' overwrites {pair.Value.Count} key(s) of "
+                          + $"'{DescribeLocaleFile(pair.Key)}' (the later file wins): {string.Join(", ", pair.Value.Take(5))}"
+                          + (pair.Value.Count > 5 ? ", …" : string.Empty));
+                }
             }
         }
 
         return map;
+    }
+
+    /// <summary>A short name for a locale file in a warning: <c>locales/en.json</c> or <c>stories/&lt;pack&gt;/locales/en.json</c>.</summary>
+    private static string DescribeLocaleFile(string path)
+    {
+        string name = Path.GetFileName(path);
+        string? packDir = Path.GetDirectoryName(Path.GetDirectoryName(path));
+        string? storiesDir = packDir is null ? null : Path.GetDirectoryName(packDir);
+        return storiesDir is not null && string.Equals(Path.GetFileName(storiesDir), "stories", StringComparison.Ordinal)
+            ? $"stories/{Path.GetFileName(packDir)}/locales/{name}"
+            : $"locales/{name}";
     }
 
     /// <summary>Reads the build-time locale coverage manifest (<c>data/locale_coverage.json</c>, written by
@@ -312,8 +355,12 @@ public static class ContentLoader
 
     /// <summary>Loads pluggable story packs from <c>data/stories/&lt;id&gt;/story.json</c> and merges each
     /// pack's optional <c>locales/&lt;code&gt;.json</c> into the shared locale tables. An absent directory
-    /// yields no packs (the content then falls back to the built-in default pack).</summary>
-    private static List<StoryDefinition> LoadStoryPacks(string storiesDir, Dictionary<GameLocale, List<string>> localeFiles)
+    /// yields no packs (the content then falls back to the built-in default pack).
+    /// <para>#2465 (B70): the folders load in ordinal name order — <c>Directory.GetDirectories</c> returns them in an
+    /// OS-dependent order, and the order decides which pack's text wins a shared locale key. A pack with a reserved id
+    /// is skipped and a repeated id is reported (the later folder wins).</para></summary>
+    private static List<StoryDefinition> LoadStoryPacks(string storiesDir, Dictionary<GameLocale, List<string>> localeFiles,
+        Action<string>? warn = null)
     {
         var result = new List<StoryDefinition>();
         if (!Directory.Exists(storiesDir))
@@ -321,7 +368,8 @@ public static class ContentLoader
             return result;
         }
 
-        foreach (var dir in Directory.GetDirectories(storiesDir))
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dir in Directory.GetDirectories(storiesDir).OrderBy(d => Path.GetFileName(d), StringComparer.Ordinal))
         {
             var storyFile = Path.Combine(dir, "story.json");
             if (!File.Exists(storyFile))
@@ -333,6 +381,17 @@ public static class ContentLoader
             if (def is null || string.IsNullOrEmpty(def.Id))
             {
                 continue;
+            }
+
+            if (StoryRegistry.IsReservedPackId(def.Id))
+            {
+                warn?.Invoke($"Story pack '{Path.GetFileName(dir)}' uses the reserved id '{def.Id}' — skipped.");
+                continue;
+            }
+
+            if (!seen.Add(def.Id))
+            {
+                warn?.Invoke($"Story pack id '{def.Id}' is used by more than one folder — '{Path.GetFileName(dir)}' replaces the earlier one.");
             }
 
             // Environmental lore texts (#1111) live in their own file — story.json stays the arc, this is

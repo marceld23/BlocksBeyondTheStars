@@ -6,6 +6,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -583,6 +584,7 @@ public sealed partial class GameServer
         SendPlayerState(session); // AiCoreTier may have changed (gates the client autopilot)
         BroadcastOwnedShips(); // the fleet message carries each ship's fit (#1268)
         ShipAiOnModuleBuilt(session, module.Key); // VEGA welcomes her new core
+        RaiseGameEvent(session, GameEventKeys.ModuleBuilt, module.Key); // #2465
     }
 
     // ---------------- Enter / leave space ----------------
@@ -725,6 +727,7 @@ public sealed partial class GameServer
         if (session is not null)
         {
             ShipAiOnEnterSpace(session); // VEGA onboarding: first launch into space
+            RaiseGameEvent(session, GameEventKeys.SpaceEnter, SpaceEntryContext(skipLaunch, hyperjump, wormhole)); // #2465
             ShipAiBanditSectorWarning(session, instance); // pirate space? warn BEFORE any raider appears
             // #1677: the star map goes FIRST. The flight view builds its scene — star, planets, landables —
             // from the map the moment it sees the space state, so a map arriving after it (a big message, a
@@ -1253,6 +1256,7 @@ public sealed partial class GameServer
             if (session is not null)
             {
                 OnMissionDefeat(session, DefeatTargetShip); // #731: the raider bounty counts the drive-off
+                RaiseGameEvent(session, GameEventKeys.DefeatAny, GameEventKeys.DefeatRaider); // #2465
             }
         }
         else if (target.Hostile)
@@ -1263,6 +1267,7 @@ public sealed partial class GameServer
             {
                 OnMachineDefeated(session); // #1213: post-win only — the survey orders' Defeat step
                 TryDropPlayerMemory(session); // a chance to release a personal memory (P4)
+                RaiseGameEvent(session, GameEventKeys.DefeatAny, GameEventKeys.DefeatSpaceMachine); // #2465
             }
         }
 
@@ -2954,6 +2959,7 @@ public sealed partial class GameServer
         session.State.InEva = false;
         OnAchievementHyperjump(session);        // "Jump Pilot" (#1102)
         RecordStoryMilestone("hyperjump:first"); // the save's first jump between stars advances the arc (#1105)
+        RaiseGameEvent(session, GameEventKeys.HyperjumpAny, system.Id); // #2465
         MarkSystemKnown(session, system.Id); // its bodies + mini map are now revealed on the travel screen
 
         // Finale (P6): remember the world we jumped FROM so a death in the boss arena returns us there (no loop).
@@ -3038,6 +3044,9 @@ public sealed partial class GameServer
 
             LeaveSpace(session.State.PlayerId);
             RelocateToAssignedPad(session); // set the player + their ship down on the claimed pad
+            // #2465: setting down on the body you launched from is a landing too (VEGA's old "land" lesson only
+            // counted a landing elsewhere; the tutorial's "any landing after a launch" includes this one).
+            RaiseGameEvent(session, GameEventKeys.TravelLanded, LandingContext(quickTravel: false, adminBypass: false));
             CheckpointSave("landed (returned to surface)"); // auto-save on landing
             return;
         }

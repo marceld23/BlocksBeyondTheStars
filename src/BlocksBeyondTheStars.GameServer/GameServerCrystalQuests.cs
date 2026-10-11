@@ -4,6 +4,7 @@
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Missions;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -25,7 +26,9 @@ public sealed partial class GameServer
             return;
         }
 
-        Advance(session, AchievementCounters.Crystal(circuitEvent));
+        string counter = AchievementCounters.Crystal(circuitEvent);
+        Advance(session, counter);
+        RaiseGameEvent(session, counter); // #2465: crystal:<event> — the same string as the counter (GameEventKeys.Crystal)
         foreach (var pr in session.State.Missions)
         {
             if (pr.Status != MissionStatus.Active || GetMissionDef(pr.MissionId) is not { } def)

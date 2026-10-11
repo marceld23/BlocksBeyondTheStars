@@ -486,20 +486,26 @@ public sealed class GameContent
         _achievements = list;
     }
 
-    /// <summary>Installs the story packs (called by the content loader). Falls back to the built-in default
-    /// pack if the data defines none, so the story still works without the data files present.</summary>
+    /// <summary>Installs the story packs (called by the content loader). A pack with a reserved id
+    /// (<see cref="StoryRegistry.ReservedPackIds"/>) is dropped; a later pack with the same id replaces an earlier one
+    /// (the loader passes them in ordinal folder order). The built-in VEGA pack is added whenever the data does not
+    /// carry a usable <c>vega_protocol</c> (#2465, N11) — it used to be added only when NO pack loaded, so a data folder
+    /// holding just a beat-less player pack (the tutorial) would have made that the default world story, persisted for
+    /// good.</summary>
     public void SetStories(IEnumerable<StoryDefinition> stories)
     {
         var dict = new Dictionary<string, StoryDefinition>(StringComparer.OrdinalIgnoreCase);
         foreach (var s in stories ?? Enumerable.Empty<StoryDefinition>())
         {
-            if (!string.IsNullOrEmpty(s.Id))
+            if (!string.IsNullOrEmpty(s.Id) && !StoryRegistry.IsReservedPackId(s.Id))
             {
                 dict[s.Id] = s;
             }
         }
 
-        if (dict.Count == 0)
+        // A data copy that cannot be the world story (no beats — a broken install) is replaced too: the default story's
+        // row must always resolve, or a restart would start it fresh and overwrite the save's real VEGA row (B07).
+        if (!dict.TryGetValue(StoryRegistry.DefaultStoryId, out var vega) || !StoryRegistry.CanBeWorldStory(vega))
         {
             dict[StoryRegistry.Default.Id] = StoryRegistry.Default;
         }
@@ -507,16 +513,36 @@ public sealed class GameContent
         _stories = dict;
     }
 
-    /// <summary>The default story pack ("vega_protocol" if installed, else the first, else the built-in).</summary>
+    /// <summary>The default world story: "vega_protocol" when it can be one (it always is installed — the built-in
+    /// copy fills in), else the first world-capable pack by id, else the built-in VEGA pack. Never a beat-less or
+    /// player-scoped pack (<see cref="StoryRegistry.CanBeWorldStory"/>).</summary>
     public StoryDefinition DefaultStory
-        => _stories.TryGetValue(StoryRegistry.DefaultStoryId, out var d)
+        => _stories.TryGetValue(StoryRegistry.DefaultStoryId, out var d) && StoryRegistry.CanBeWorldStory(d)
             ? d
-            : (_stories.Values.FirstOrDefault() ?? StoryRegistry.Default);
+            : (_stories.Values.Where(StoryRegistry.CanBeWorldStory).OrderBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault()
+               ?? StoryRegistry.Default);
 
-    /// <summary>Looks up a story pack by id; returns false (and the default pack) for empty/unknown ids.</summary>
+    /// <summary>Looks up a story pack of any kind by id (pack texts, player packs); returns false (and the default pack)
+    /// for empty/unknown ids. Choosing the save's story goes through <see cref="TryGetWorldStory"/> instead.</summary>
     public bool TryGetStory(string? id, out StoryDefinition def)
     {
         if (!string.IsNullOrEmpty(id) && _stories.TryGetValue(id!, out var d))
+        {
+            def = d;
+            return true;
+        }
+
+        def = DefaultStory;
+        return false;
+    }
+
+    /// <summary>Looks up a pack that may be the save's world-shared story (#2465, N11): installed, world-scoped and with
+    /// at least one beat (<see cref="StoryRegistry.CanBeWorldStory"/>). Returns false (and <see cref="DefaultStory"/>)
+    /// for empty or unknown ids and for player packs such as the tutorial — so <c>--story tutorial</c>, an admin's
+    /// <c>StorySelectIntent{tutorial}</c> or a stored row naming one can never make it the world story.</summary>
+    public bool TryGetWorldStory(string? id, out StoryDefinition def)
+    {
+        if (!string.IsNullOrEmpty(id) && _stories.TryGetValue(id!, out var d) && StoryRegistry.CanBeWorldStory(d))
         {
             def = d;
             return true;

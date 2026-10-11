@@ -47,7 +47,7 @@ public sealed partial class GameServer
         var stored = SelectActiveStoryRow(_repo.ListStoryStates(), Rules.StoryId, _content.DefaultStory.Id, IsUsableStoryRow);
         if (stored is not null && !IsUsableStoryRow(stored.StoryId))
         {
-            _log.Warn($"Story pack '{stored.StoryId}' of this save is not installed — starting the default story; the stored row is kept untouched.");
+            _log.Warn($"Story pack '{stored.StoryId}' of this save is not installed (or cannot be a world story) — starting the default story; the stored row is kept untouched.");
         }
 
         LoadStoryStateFrom(stored);
@@ -61,9 +61,10 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Whether a stored row names something this build can run: an installed pack or the "none" sandbox.</summary>
+    /// <summary>Whether a stored row names something this build can run: an installed world-capable pack (#2465: never a
+    /// beat-less or player pack, <see cref="Shared.Content.GameContent.TryGetWorldStory"/>) or the "none" sandbox.</summary>
     private bool IsUsableStoryRow(string storyId)
-        => string.Equals(storyId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase) || _content.TryGetStory(storyId, out _);
+        => string.Equals(storyId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase) || _content.TryGetWorldStory(storyId, out _);
 
     /// <summary>#2460 (B05/B07): which persisted <c>story_state</c> row is the save's active one. A save holds one
     /// row per pack it ever ran (an admin switch writes a new row and leaves the old one), and the database lists
@@ -121,7 +122,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (stored is not null && _content.TryGetStory(stored.StoryId, out var def))
+        if (stored is not null && _content.TryGetWorldStory(stored.StoryId, out var def))
         {
             _story = def;
             _storyState.StoryId = stored.StoryId;
@@ -141,7 +142,7 @@ public sealed partial class GameServer
             _storyState.StoryId = StoryRegistry.NoneStoryId;
             return;
         }
-        else if (stored is null && !string.IsNullOrEmpty(Rules.StoryId) && _content.TryGetStory(Rules.StoryId, out var chosen))
+        else if (stored is null && !string.IsNullOrEmpty(Rules.StoryId) && _content.TryGetWorldStory(Rules.StoryId, out var chosen))
         {
             _story = chosen; // fresh save, world option chose a specific pack
             _storyState.StoryId = chosen.Id;
@@ -416,7 +417,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>Switches the save's active story pack (admin / world option). "none" disables the story; an
-    /// unknown id is ignored. Switching resets the per-save progress to a fresh state for the chosen pack.</summary>
+    /// unknown id — or a pack that cannot be the world story, like the beat-less tutorial (#2465) — is ignored.
+    /// Switching resets the per-save progress to a fresh state for the chosen pack.</summary>
     public void SetActiveStory(string storyId)
     {
         string previous = _storyState.StoryId;
@@ -425,7 +427,7 @@ public sealed partial class GameServer
             _story = null;
             ResetStoryState(StoryRegistry.NoneStoryId);
         }
-        else if (_content.TryGetStory(storyId, out var def))
+        else if (_content.TryGetWorldStory(storyId, out var def))
         {
             _story = def;
             ResetStoryState(def.Id);

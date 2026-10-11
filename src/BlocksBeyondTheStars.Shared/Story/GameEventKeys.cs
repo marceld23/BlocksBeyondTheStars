@@ -1,0 +1,246 @@
+// Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
+using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Missions;
+
+namespace BlocksBeyondTheStars.Shared.Story;
+
+/// <summary>
+/// The published vocabulary of server game events (#2465, synthesis §5.3/§5.5): the keys the server raises through
+/// <c>GameServer.RaiseGameEvent(actor, key, arg, amount)</c> and a story-pack step may name in
+/// <c>objective.event</c>. A key names the verb; the entity rides in the argument, so keys never grow with content
+/// (<c>mine:any</c> + <c>iron_ore</c>, never <c>mine:iron_ore</c>). Where each one is raised — and what its argument
+/// holds — is the table in <c>docs/developer/STORY_IMPLEMENTATION.md</c> ("Game events").
+/// <para>Some keys share their spelling with an achievement counter (<c>mine:any</c>, <c>craft:any</c> …). They are
+/// different channels: events are never written into <c>AchievementCounters</c> and persist nothing.</para>
+/// </summary>
+public static class GameEventKeys
+{
+    /// <summary>A block was mined by hand. Arg: the block key.</summary>
+    public const string MineAny = "mine:any";
+
+    /// <summary>A block was placed. Arg: the block key (a blueprint paste: <see cref="BlueprintPasteArg"/>, amount = blocks).</summary>
+    public const string BuildAny = "build:any";
+
+    /// <summary>A form or prop block was placed with an explicit turn of the rotate key. Arg: the block key.</summary>
+    public const string BuildRotated = "build:rotated";
+
+    /// <summary>A recipe was crafted (stations, markets, the ship console). Arg: the recipe key; amount: the batch count.</summary>
+    public const string CraftAny = "craft:any";
+
+    /// <summary>A building material was re-formed (built-in or player-designed form). Arg: the base item key.</summary>
+    public const string CraftShape = "craft:shape";
+
+    /// <summary>A building material was dyed or made to glow. Arg: the base item key.</summary>
+    public const string CraftTint = "craft:tint";
+
+    /// <summary>A building material was painted with a design. Arg: the base item key.</summary>
+    public const string CraftPaint = "craft:paint";
+
+    /// <summary>Real food was eaten (an item with hunger value). Arg: the item key.</summary>
+    public const string EatAny = "eat:any";
+
+    /// <summary>Any scan, first or repeat (hand scanner, ship scanner). Arg: the readout kind (<c>flora</c>, <c>creature</c>,
+    /// <c>block</c>, <c>monument</c>, <c>asteroid</c>, <c>anomaly</c>, <c>wreck</c>, <c>wormhole</c> …).</summary>
+    public const string ScanPerformed = "scan:performed";
+
+    /// <summary>A first-time scan (a discovery — the achievement counter's moment). Arg: the readout kind.</summary>
+    public const string ScanAny = "scan:any";
+
+    /// <summary>A blueprint was researched. Arg: the blueprint key.</summary>
+    public const string ResearchAny = "research:any";
+
+    /// <summary>The player entered space flight. Arg: <see cref="SpaceLaunch"/>, <see cref="SpaceHyperjump"/>,
+    /// <see cref="SpaceWormhole"/> or <see cref="SpaceResume"/>.</summary>
+    public const string SpaceEnter = "space:enter";
+
+    /// <summary>A space station was boarded. Arg: the station id.</summary>
+    public const string StationBoarded = "station:boarded";
+
+    /// <summary>A barter at a settlement or station market stall. Arg: the recipe key.</summary>
+    public const string TradeBarter = "trade:barter";
+
+    /// <summary>A completed trade with another player. Arg: the other player's id.</summary>
+    public const string TradePlayer = "trade:player";
+
+    /// <summary>A mission was accepted (board, chain step in conversation). Arg: the mission id.</summary>
+    public const string MissionAccepted = "mission:accepted";
+
+    /// <summary>A mission was turned in. Arg: the mission id.</summary>
+    public const string MissionTurnedIn = "mission:turned_in";
+
+    /// <summary>The player's ship set down on a body. Arg: <see cref="TravelFlight"/>, <see cref="TravelQuick"/> or
+    /// <see cref="TravelAdmin"/>. The join placement raises nothing.</summary>
+    public const string TravelLanded = "travel:landed";
+
+    /// <summary>First arrival on a body (stations included). Arg: the body id.</summary>
+    public const string VisitBody = "visit:body";
+
+    /// <summary>First arrival in a star system (never the spawn system). Arg: the system id.</summary>
+    public const string VisitSystem = "visit:system";
+
+    /// <summary>A jump to another star system. Arg: the destination system id.</summary>
+    public const string HyperjumpAny = "hyperjump:any";
+
+    /// <summary>A ship module was built. Arg: the module key.</summary>
+    public const string ModuleBuilt = "module:built";
+
+    /// <summary>A self-built ship was commissioned. Arg: the ship id.</summary>
+    public const string ShipCommissioned = "ship:commissioned";
+
+    /// <summary>A player station was commissioned — raised for its owner. Arg: the station id.</summary>
+    public const string StationCommissioned = "station:commissioned";
+
+    /// <summary>A base core founded a base. Arg: the body id.</summary>
+    public const string BaseFounded = "base:founded";
+
+    /// <summary>A creature was tamed. Arg: the species id (<c>au_sreekmakra</c> for the shapeshifter — also when it
+    /// follows the tame of the animal it imitated, which raises its own event first).</summary>
+    public const string TameAny = "tame:any";
+
+    /// <summary>A world container (not a player crate) was looted empty. Arg: the container kind.</summary>
+    public const string LootAny = "loot:any";
+
+    /// <summary>A hostile was defeated by the player. Arg: <c>creature</c>, <c>giant</c>, <c>machine</c>, <c>bandit</c>
+    /// (planet) or <c>space_machine</c>, <c>raider</c> (space).</summary>
+    public const string DefeatAny = "defeat:any";
+
+    /// <summary>The player flew through a wormhole. Arg: the destination system id.</summary>
+    public const string WormholeAny = "wormhole:any";
+
+    /// <summary>An SPS relay the player contributed to was completed. Arg: the station id.</summary>
+    public const string RelayCommissioned = "relay:commissioned";
+
+    /// <summary>A jump lane opened through the player's contribution. Arg: <c>&lt;systemA&gt;|&lt;systemB&gt;</c>.</summary>
+    public const string LaneLinked = "lane:linked";
+
+    /// <summary>A story net fragment was handed to the player (picked up, mission thread, NPC). Arg: the fragment key.</summary>
+    public const string StoryFragment = "story:fragment";
+
+    /// <summary>The prefix of the Crystal Net circuit events: <c>crystal:&lt;event&gt;</c> with the event of
+    /// <see cref="CircuitEvents"/> (raised for the circuit's owner). Arg: empty.</summary>
+    public const string CrystalPrefix = "crystal:";
+
+    /// <summary>A companion made a Guardian machine stand down near the player (raised at most every
+    /// <c>GameServer.InsightEventCooldownSeconds</c> while it lasts). Arg: empty.</summary>
+    public const string InsightCompanionWard = "insight:companion_ward";
+
+    /// <summary>The player formed a non-cube block. Arg: the base item key.</summary>
+    public const string InsightShapeNoncube = "insight:shape_noncube";
+
+    /// <summary><see cref="TravelLanded"/> arg: a landing from flight (the helm, the landing map, an EVA set-down).</summary>
+    public const string TravelFlight = "flight";
+
+    /// <summary><see cref="TravelLanded"/> arg: the map's travel (quick travel, or a parked ship flying the trip by itself, #1614).</summary>
+    public const string TravelQuick = "quick";
+
+    /// <summary><see cref="TravelLanded"/> arg: an admin move (<c>/goto</c>, the finale shortcut).</summary>
+    public const string TravelAdmin = "admin";
+
+    /// <summary><see cref="SpaceEnter"/> arg: a take-off from a body (helm, transit, undocking).</summary>
+    public const string SpaceLaunch = "launch";
+
+    /// <summary><see cref="SpaceEnter"/> arg: arriving in another system's flight after a hyperjump.</summary>
+    public const string SpaceHyperjump = "hyperjump";
+
+    /// <summary><see cref="SpaceEnter"/> arg: coming out of a wormhole.</summary>
+    public const string SpaceWormhole = "wormhole";
+
+    /// <summary><see cref="SpaceEnter"/> arg: back to the helm without a take-off (leaving the ship interior, an EVA return).</summary>
+    public const string SpaceResume = "resume";
+
+    /// <summary><see cref="BuildAny"/> arg of a blueprint paste (many blocks at once; amount = the placed count).</summary>
+    public const string BlueprintPasteArg = "blueprint_paste";
+
+    /// <summary><see cref="DefeatAny"/> arg: a creature on a planet.</summary>
+    public const string DefeatCreature = "creature";
+
+    /// <summary><see cref="DefeatAny"/> arg: a giant (colossus, sandworm …).</summary>
+    public const string DefeatGiant = "giant";
+
+    /// <summary><see cref="DefeatAny"/> arg: a Guardian machine on a planet.</summary>
+    public const string DefeatMachine = "machine";
+
+    /// <summary><see cref="DefeatAny"/> arg: a bandit (robber, camp guard, base scout).</summary>
+    public const string DefeatBandit = "bandit";
+
+    /// <summary><see cref="DefeatAny"/> arg: a hostile machine in space (drone, UFO).</summary>
+    public const string DefeatSpaceMachine = "space_machine";
+
+    /// <summary><see cref="DefeatAny"/> arg: a raider ship.</summary>
+    public const string DefeatRaider = "raider";
+
+    /// <summary>The <c>crystal:&lt;event&gt;</c> key of one circuit event (the same string as the achievement counter).</summary>
+    public static string Crystal(string circuitEvent) => CrystalPrefix + circuitEvent;
+
+    /// <summary>Every key the server raises today (the crystal family expanded), for the pack validator: a step naming
+    /// another key is reported (a warning — a pack may be authored before its event ships).</summary>
+    public static readonly IReadOnlyList<string> All = BuildAll();
+
+    /// <summary>Whether <paramref name="pattern"/> (a key, or a prefix ending in <c>*</c>) matches <paramref name="key"/>.</summary>
+    public static bool Matches(string pattern, string key)
+    {
+        if (string.IsNullOrEmpty(pattern) || key is null)
+        {
+            return false;
+        }
+
+        return pattern[pattern.Length - 1] == '*'
+            ? key.StartsWith(pattern.Substring(0, pattern.Length - 1), StringComparison.Ordinal)
+            : string.Equals(pattern, key, StringComparison.Ordinal);
+    }
+
+    private static string[] BuildAll()
+    {
+        var keys = new List<string>
+        {
+            MineAny, BuildAny, BuildRotated, CraftAny, CraftShape, CraftTint, CraftPaint, EatAny, ScanPerformed, ScanAny,
+            ResearchAny, SpaceEnter, StationBoarded, TradeBarter, TradePlayer, MissionAccepted, MissionTurnedIn,
+            TravelLanded, VisitBody, VisitSystem, HyperjumpAny, ModuleBuilt, ShipCommissioned, StationCommissioned,
+            BaseFounded, TameAny, LootAny, DefeatAny, WormholeAny, RelayCommissioned, LaneLinked, StoryFragment,
+            InsightCompanionWard, InsightShapeNoncube,
+        };
+        foreach (string circuitEvent in new[]
+                 {
+                     CircuitEvents.LampBySwitch, CircuitEvents.ChimeByPlate, CircuitEvents.LampByDaylight, CircuitEvents.DoorByGate,
+                     CircuitEvents.MachineJob, CircuitEvents.PhaseOpen, CircuitEvents.NetOn, CircuitEvents.Chime,
+                     CircuitEvents.GatePlaced, CircuitEvents.Craft, CircuitEvents.LaserDeep, CircuitEvents.LiftRide,
+                     CircuitEvents.Vault,
+                 })
+        {
+            keys.Add(Crystal(circuitEvent));
+        }
+
+        return keys.ToArray();
+    }
+}
+
+/// <summary>
+/// The per-player milestone keys of a story pack (#2465, synthesis §5.6) — one place for the strings the condition
+/// context reads now and the step runtime writes later. All live in <c>PlayerState.Milestones</c>, so no save change.
+/// </summary>
+public static class StoryPackKeys
+{
+    /// <summary><c>story:&lt;pack&gt;:started</c> — the pack started for the player.</summary>
+    public static string Started(string packId) => "story:" + packId + ":started";
+
+    /// <summary><c>story:&lt;pack&gt;:done</c> — the player finished the pack.</summary>
+    public static string Done(string packId) => "story:" + packId + ":done";
+
+    /// <summary><c>story:&lt;pack&gt;:optout</c> — the player switched the pack off.</summary>
+    public static string OptOut(string packId) => "story:" + packId + ":optout";
+
+    /// <summary><c>story:&lt;pack&gt;:step:&lt;step&gt;</c> — the step is done (the step id carries its chapter, e.g. <c>b2.2</c>).</summary>
+    public static string StepDone(string packId, string stepId) => "story:" + packId + ":step:" + stepId;
+
+    /// <summary><c>story:&lt;pack&gt;:step:&lt;step&gt;:skipped</c> — the player skipped the step.</summary>
+    public static string StepSkipped(string packId, string stepId) => StepDone(packId, stepId) + ":skipped";
+
+    /// <summary><c>story:&lt;pack&gt;:ch:&lt;chapter&gt;:done</c> — the chapter is done.</summary>
+    public static string ChapterDone(string packId, string chapterId) => "story:" + packId + ":ch:" + chapterId + ":done";
+
+    /// <summary><c>story:&lt;pack&gt;:ch:&lt;chapter&gt;:skipped</c> — the chapter was skipped.</summary>
+    public static string ChapterSkipped(string packId, string chapterId) => "story:" + packId + ":ch:" + chapterId + ":skipped";
+}

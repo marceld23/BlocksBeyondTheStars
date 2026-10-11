@@ -241,6 +241,16 @@ public sealed class StoryDefinition
     /// <summary>Locale key for the pack's display name (shown in the story-selection world option).</summary>
     public string NameKey { get; set; } = string.Empty;
 
+    /// <summary>What the pack is (#2465): <c>story</c> (a narrative arc, the default), <c>tutorial</c> (teaches the
+    /// game — always player-scoped) or <c>side</c> (a small optional storyline). See <see cref="StoryRegistry.KindStory"/>.</summary>
+    public string Kind { get; set; } = StoryRegistry.KindStory;
+
+    /// <summary>Where the pack's progress lives (#2465): <c>world</c> (shared by everyone in the save — VEGA's arc) or
+    /// <c>player</c> (per player — the tutorial). Empty = derived: <c>world</c> when the pack has beats, else
+    /// <c>player</c> (<see cref="StoryRegistry.EffectiveScope"/>). Only a world-scoped pack with beats can be the
+    /// save's story (<see cref="StoryRegistry.CanBeWorldStory"/>).</summary>
+    public string Scope { get; set; } = string.Empty;
+
     // Pacing weights: progress = FragmentsFound*FragmentWeight
     //                          + min(MachineKills, KillContributionCap)*KillWeight
     //                          + Milestones*MilestoneWeight   (see StoryEngine).

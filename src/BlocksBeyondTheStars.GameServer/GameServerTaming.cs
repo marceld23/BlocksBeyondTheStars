@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -210,7 +211,7 @@ public sealed partial class GameServer
             _tameAttempts.Remove(p.PlayerId);
             var bonded = BondSreekmakra(session, creature, beside: creature.Position);
             OnAchievementTame(session);
-            RecordStoryMilestone("tame:first");
+            RecordStoryMilestone("tame:first"); // (its tame:any game event is raised by BondSreekmakra)
             SendPlayerState(session);
             Send(session, new TameResult
             {
@@ -255,6 +256,7 @@ public sealed partial class GameServer
         _tameAttempts.Remove(p.PlayerId);
         OnAchievementTame(session);          // "Beast Friend" / "Tamer" (#1102)
         RecordStoryMilestone("tame:first");  // the first companion of the save advances the arc (#1105)
+        RaiseGameEvent(session, GameEventKeys.TameAny, tc.SpeciesId); // #2465
         _repo.SavePlayer(p);
 
         BroadcastCreatures();

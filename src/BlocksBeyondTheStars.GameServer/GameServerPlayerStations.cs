@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -184,6 +185,7 @@ public sealed partial class GameServer
             Send(owner, new ServerMessage { Text = "@srv.station.commissioned:" + s.Name });
             Send(owner, new ServerMessage { Text = "@srv.station.crew_hint" }); // #1472: crew comes with a crew space
             OnAchievementStationCommissioned(owner); // "Station Master" (#1102)
+            RaiseGameEvent(owner, GameEventKeys.StationCommissioned, s.Id); // #2465: the owner's, like the achievement
         }
 
         RecordStoryMilestone("station:first"); // the first station of the save advances the arc (#1105)
